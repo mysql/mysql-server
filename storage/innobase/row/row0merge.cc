@@ -284,7 +284,7 @@ row_merge_buf_add(
 	dict_index_t*		fts_index,/*!< in: fts index to be created */
 	const dict_table_t*	old_table,/*!< in: original table */
 	fts_psort_t*		psort_info, /*!< in: parallel sort info */
-	const dtuple_t*		row,	/*!< in: row in clustered index */
+	const dtuple_t*		row,	/*!< in: table row */
 	const row_ext_t*	ext,	/*!< in: cache of externally stored
 					column prefixes, or NULL */
 	doc_id_t*		doc_id)	/*!< in/out: Doc ID if we are
@@ -338,35 +338,13 @@ row_merge_buf_add(
 		const dict_col_t*	col;
 		ulint			col_no;
 		const dfield_t*		row_field;
-		ibool			col_adjusted;
 
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
-		col_adjusted = FALSE;
-
-		/* If we are creating a FTS index, a new Doc
-		ID column is being added, so we need to adjust
-		any column number positioned after this Doc ID.
-		However, if we are rebuilding the table for adding
-		new primary, and if the old table already has
-		FTS_DOC_ID, such adjustment is not needed */
-		if (*doc_id > 0
-		    && DICT_TF2_FLAG_IS_SET(index->table,
-					    DICT_TF2_FTS_ADD_DOC_ID)
-		    && !DICT_TF2_FLAG_IS_SET(old_table,
-					     DICT_TF2_FTS_HAS_DOC_ID)
-		    && col_no > index->table->fts->doc_col) {
-
-			ut_ad(index->table->fts);
-
-			col_no--;
-			col_adjusted = TRUE;
-		}
 
 		/* Process the Doc ID column */
 		if (*doc_id > 0
-		    && col_no == index->table->fts->doc_col
-		    && !col_adjusted) {
+		    && col_no == index->table->fts->doc_col) {
 			fts_write_doc_id((byte*) &write_doc_id, *doc_id);
 
 			/* Note: field->data now points to a value on the
@@ -1235,7 +1213,7 @@ row_merge_skip_rec(
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
 @return	DB_SUCCESS or error */
-static __attribute__((nonnull))
+static __attribute__((nonnull(1,2,3,4,6,9,10,13),warn_unused_result))
 dberr_t
 row_merge_read_clustered_index(
 /*===========================*/
@@ -1251,12 +1229,18 @@ row_merge_read_clustered_index(
 					online */
 	dict_index_t**		index,	/*!< in: indexes to be created */
 	dict_index_t*		fts_sort_idx,
-					/*!< in: indexes to be created */
-	fts_psort_t*		psort_info, /*!< in: parallel sort info */
+					/*!< in: full-text index to be created,
+					or NULL */
+	fts_psort_t*		psort_info,
+					/*!< in: parallel sort info for
+					fts_sort_idx creation, or NULL */
 	merge_file_t*		files,	/*!< in: temporary files */
 	const ulint*		key_numbers,
 					/*!< in: MySQL key numbers to create */
 	ulint			n_index,/*!< in: number of indexes to create */
+	const ulint*		col_map,/*!< in: mapping of old column
+					numbers to new ones, or NULL
+					if old_table == new_table */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
@@ -1270,9 +1254,6 @@ row_merge_read_clustered_index(
 	ulint			n_nonnull = 0;	/* number of columns
 						changed to NOT NULL */
 	ulint*			nonnull = NULL;	/* NOT NULL columns */
-	ulint			n_nullable = 0;	/* number of columns
-						changed to NULL */
-	ulint*			nullable = NULL;/* NULLable columns */
 	dict_index_t*		fts_index = NULL;/* FTS index */
 	doc_id_t		doc_id = 0;
 	doc_id_t		max_doc_id = 0;
@@ -1280,6 +1261,8 @@ row_merge_read_clustered_index(
 	os_event_t		fts_parallel_sort_event = NULL;
 	ibool			fts_pll_sort = FALSE;
 	ib_int64_t		sig_count = 0;
+
+	ut_ad(old_table == new_table || col_map);
 
 	trx->op_info = "reading clustered index";
 
@@ -1291,7 +1274,6 @@ row_merge_read_clustered_index(
 
 	merge_buf = static_cast<row_merge_buf_t**>(
 		mem_alloc(n_index * sizeof *merge_buf));
-
 
 	for (ulint i = 0; i < n_index; i++) {
 		if (index[i]->type & DICT_FTS) {
@@ -1335,44 +1317,38 @@ row_merge_read_clustered_index(
 	btr_pcur_open_at_index_side(
 		TRUE, clust_index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
 
-	if (UNIV_UNLIKELY(old_table != new_table)) {
-		ulint	n_cols = dict_table_get_n_cols(old_table);
-
-		/* A primary key will be created.  Identify the
-		columns that were flagged NOT NULL in the new table,
-		so that we can quickly check that the records in the
-		(old) clustered index do not violate the added NOT
-		NULL constraints. */
-
-		if (!fts_sort_idx) {
-			ut_a(n_cols == dict_table_get_n_cols(new_table));
-		}
+	if (old_table != new_table) {
+		/* The table is being rebuilt.  Identify the columns
+		that were flagged NOT NULL in the new table, so that
+		we can quickly check that the records in the old table
+		do not violate the added NOT NULL constraints. */
 
 		nonnull = static_cast<ulint*>(
-			mem_alloc(2 * n_cols * sizeof *nonnull));
-		nullable = nonnull + n_cols;
+			mem_alloc(dict_table_get_n_cols(new_table)
+				  * sizeof *nonnull));
 
-		for (ulint i = 0; i < n_cols; i++) {
-			/* TODO: adjust for ADD COLUMN, DROP COLUMN */
-			ulint	old_nonnull	= DATA_NOT_NULL
-				& dict_table_get_nth_col(old_table, i)->prtype;
-			ulint	new_nonnull	= DATA_NOT_NULL
-				& dict_table_get_nth_col(new_table, i)->prtype;
-
-			if (old_nonnull == new_nonnull) {
+		for (ulint i = 0; i < dict_table_get_n_cols(old_table); i++) {
+			if (dict_table_get_nth_col(old_table, i)->prtype
+			    & DATA_NOT_NULL) {
 				continue;
 			}
 
-			if (old_nonnull) {
-				nullable[n_nullable++] = i;
-			} else {
-				nonnull[n_nonnull++] = i;
+			const ulint j = col_map[i];
+
+			if (j == ULINT_UNDEFINED) {
+				/* The column was dropped. */
+				continue;
+			}
+
+			if (dict_table_get_nth_col(new_table, j)->prtype
+			    & DATA_NOT_NULL) {
+				nonnull[n_nonnull++] = j;
 			}
 		}
 
-		if (!n_nonnull && !n_nullable) {
+		if (!n_nonnull) {
 			mem_free(nonnull);
-			nonnull = nullable = NULL;
+			nonnull = NULL;
 		}
 	}
 
@@ -1535,31 +1511,20 @@ row_merge_read_clustered_index(
 		/* Build a row based on the clustered index. */
 
 		row = row_build(ROW_COPY_POINTERS, clust_index,
-				rec, offsets, new_table, &ext, row_heap);
+				rec, offsets, new_table,
+				col_map, &ext, row_heap);
 		ut_ad(row);
 
 		for (ulint i = 0; i < n_nonnull; i++) {
-			dfield_t*	field
-				= &row->fields[nonnull[i]];
-			dtype_t*	field_type
-				= dfield_get_type(field);
+			const dfield_t*	field	= &row->fields[nonnull[i]];
 
-			ut_ad(!(field_type->prtype & DATA_NOT_NULL));
+			ut_ad(dfield_get_type(field)->prtype & DATA_NOT_NULL);
 
 			if (dfield_is_null(field)) {
 				err = DB_INVALID_NULL;
 				trx->error_key_num = 0;
 				goto func_exit;
 			}
-
-			field_type->prtype |= DATA_NOT_NULL;
-		}
-
-		for (ulint i = 0; i < n_nullable; i++) {
-			dtype_t*	field_type
-				= dfield_get_type(&row->fields[nullable[i]]);
-			ut_ad((field_type->prtype & DATA_NOT_NULL));
-			field_type->prtype &= ~DATA_NOT_NULL;
 		}
 
 		/* Get the next Doc ID */
@@ -3231,9 +3196,12 @@ row_merge_build_indexes(
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	const ulint*	key_numbers,	/*!< in: MySQL key numbers */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	struct TABLE*	table)		/*!< in/out: MySQL table, for
+	struct TABLE*	table,		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	const ulint*	col_map)	/*!< in: mapping of old column
+					numbers to new ones, or NULL
+					if old_table == new_table */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3246,6 +3214,8 @@ row_merge_build_indexes(
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
+
+	ut_ad(old_table == new_table || col_map);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
@@ -3294,7 +3264,7 @@ row_merge_build_indexes(
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
-		n_indexes, block);
+		n_indexes, col_map, block);
 
 	if (error != DB_SUCCESS) {
 
