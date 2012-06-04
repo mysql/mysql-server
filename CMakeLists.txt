@@ -30,6 +30,7 @@ endif ()
 include_directories(SYSTEM
   /usr/local/include
   ${ZLIB_INCLUDE_DIRS}
+  ${VALGRIND_INCLUDE_DIRS}
   )
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
