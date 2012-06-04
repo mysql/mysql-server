@@ -2817,7 +2817,8 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       {
         // Cannot return rows in descending order.
         if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
-            interesting_order != ORDER::ORDER_DESC)
+            interesting_order != ORDER::ORDER_DESC &&
+            param.table->file->stats.records)
         {
           /* Try creating index_merge/ROR-union scan. */
           SEL_IMERGE *imerge;
@@ -4217,6 +4218,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   double roru_intersect_part= 1.0;
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
+
+  DBUG_ASSERT(param->table->file->stats.records);
 
   Opt_trace_context * const trace= &param->thd->opt_trace;
   Opt_trace_object trace_best_disjunct(trace);
@@ -6371,6 +6374,192 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
   DBUG_RETURN(tree);
 }
 
+/**
+  Saves 'value' in 'field' and handles potential type conversion
+  problems.
+
+  @param tree [out]                 The SEL_ARG leaf under construction. If 
+                                    an always false predicate is found it is 
+                                    modified to point to a SEL_ARG with
+                                    type == SEL_ARG::IMPOSSIBLE 
+  @param value                      The Item that contains a value that shall
+                                    be stored in 'field'.
+  @param comp_op                    Comparison operator: >, >=, <=> etc.
+  @param field                      The field that 'value' is stored into.
+  @param impossible_cond_cause[out] Set to a descriptive string if an
+                                    impossible condition is found.
+  @param memroot                    Memroot for creation of new SEL_ARG.
+
+  @retval false  if saving went fine and it makes sense to continue
+                 optimizing for this predicate.
+  @retval true   if always true/false predicate was found, in which
+                 case 'tree' has been modified to reflect this: NULL
+                 pointer if always true, SEL_ARG with type IMPOSSIBLE
+                 if always false.
+*/
+static bool save_value_and_handle_conversion(SEL_ARG **tree,
+                                             Item *value,
+                                             const Item_func::Functype comp_op,
+                                             Field *field,
+                                             const char **impossible_cond_cause,
+                                             MEM_ROOT *memroot)
+{
+  // A SEL_ARG should not have been created for this predicate yet.
+  DBUG_ASSERT(*tree == NULL);
+
+  // For comparison purposes allow invalid dates like 2000-01-32
+  const sql_mode_t orig_sql_mode= field->table->in_use->variables.sql_mode;
+  field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+
+  /*
+    We want to change "field > value" to "field OP V"
+    where:
+    * V is what is in "field" after we stored "value" in it via
+    save_in_field_no_warning() (such store operation may have done
+    rounding...)
+    * OP is > or >=, depending on what's correct.
+    For example, if c is an INT column,
+    "c > 2.9" is changed to "c OP 3"
+    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
+    done with stored_field_cmp_to_item()). And
+    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
+  */
+
+  // Note that value may be a stored function call, executed here.
+  const type_conversion_status err= value->save_in_field_no_warnings(field, 1);
+  field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  switch (err) {
+  case TYPE_OK:
+  case TYPE_NOTE_TRUNCATED:
+    return false;
+  case TYPE_ERR_BAD_VALUE:
+    /*
+      In the case of incompatible values, MySQL's SQL dialect has some
+      strange interpretations. For example,
+
+          "int_col > 'foo'" is interpreted as "int_col > 0"
+
+      instead of always false. Because of this, we assume that the
+      range predicate is always true instead of always false and let
+      evaluate_join_record() decide the outcome.
+    */
+    return true;
+  case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
+    // Checking NULL value on a field that cannot contain NULL.
+    *impossible_cond_cause= "null_field_in_non_null_column";
+    goto impossible_cond;
+  case TYPE_WARN_OUT_OF_RANGE:
+    /*
+      value to store was either higher than field::max_value or lower
+      than field::min_value. The field's max/min value has been stored
+      instead.
+     */
+    if (comp_op == Item_func::EQUAL_FUNC || comp_op == Item_func::EQ_FUNC)
+    {
+      /*
+        Independent of data type, "out_of_range_value =/<=> field" is
+        always false.
+      */
+      *impossible_cond_cause= "value_out_of_range";
+      goto impossible_cond;
+    }
+
+    // If the field is numeric, we can interpret the out of range value.
+    if (field->result_type() == REAL_RESULT ||
+        field->result_type() == INT_RESULT ||
+        field->result_type() == DECIMAL_RESULT)
+    {
+      if (field->val_int() > 0) // value is higher than field::max_value
+      {
+        if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC)
+        {
+          /*
+            '<' or '<=' compared to a value higher than the field
+            can store is always true.
+          */
+          return true;
+        }
+        if (comp_op == Item_func::GT_FUNC || comp_op == Item_func::GE_FUNC)
+        {
+          /*
+            '>' or '>=' compared to a value higher than the field can
+            store is always false.
+          */
+          *impossible_cond_cause= "value_out_of_range";
+          goto impossible_cond;
+        }
+      }
+      else // value is lower than field::min_value
+      {
+        if (comp_op == Item_func::GT_FUNC || comp_op == Item_func::GE_FUNC)
+        {
+          /*
+            '>' or '>=' compared to a value lower than the field
+            can store is always true.
+          */
+          return true;
+        }
+        if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC)
+        {
+          /*
+            '<' or '=' compared to a value lower than the field can
+            store is always false.
+          */
+          *impossible_cond_cause= "value_out_of_range";
+          goto impossible_cond;
+        }
+      }
+    }
+    /*
+      Value is out of range on a datatype where it can't be decided if
+      it was underflow or overflow. It is therefore not possible to
+      determine whether or not the condition is impossible or always
+      true and we have to assume always true.
+    */
+    return true;
+  case TYPE_NOTE_TIME_TRUNCATED:
+    if (field->type() == FIELD_TYPE_DATE &&
+        (comp_op == Item_func::GT_FUNC || comp_op == Item_func::GE_FUNC ||
+         comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC))
+    {
+      /*
+        We were saving DATETIME into a DATE column, the conversion went ok
+        but a non-zero time part was cut off.
+
+        In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
+        values. Index over a DATE column uses DATE comparison. Changing
+        from one comparison to the other is possible:
+
+        datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
+        datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
+
+        datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
+        datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
+
+        but we'll need to convert '>' to '>=' and '<' to '<='. This will
+        be done together with other types at the end of get_mm_leaf()
+        (grep for stored_field_cmp_to_item)
+      */
+      return false;
+    }
+    if (comp_op == Item_func::EQ_FUNC || comp_op == Item_func::EQUAL_FUNC)
+    {
+      // Equality comparison is always false when time info has been truncated.
+      goto impossible_cond;
+    }
+    // Fall through
+  default:
+    return true;
+  }
+
+  DBUG_ASSERT(FALSE); // Should never get here.
+
+impossible_cond:
+  *tree= new (memroot) SEL_ARG(field, 0, 0);
+  (*tree)->type= SEL_ARG::IMPOSSIBLE;
+  return true;
+}
 
 static SEL_ARG *
 get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
@@ -6381,9 +6570,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  sql_mode_t orig_sql_mode;
-  type_conversion_status err;
-  const char* impossible_cond_cause= NULL;
+  const char *impossible_cond_cause= NULL;
   DBUG_ENTER("get_mm_leaf");
 
   /*
@@ -6592,110 +6779,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     goto end;
   }
 
-  /* For comparison purposes allow invalid dates like 2000-01-32 */
-  orig_sql_mode= field->table->in_use->variables.sql_mode;
-  if (value->real_item()->type() == Item::STRING_ITEM &&
-      (field->type() == MYSQL_TYPE_DATE ||
-       field->type() == MYSQL_TYPE_DATETIME))
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
-
-  /*
-    We want to change "field > value" to "field OP V"
-    where:
-    * V is what is in "field" after we stored "value" in it via
-    save_in_field_no_warning() (such store operation may have done
-    rounding...)
-    * OP is > or >=, depending on what's correct.
-    For example, if c is an INT column,
-    "c > 2.9" is changed to "c OP 3"
-    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
-    done with stored_field_cmp_to_item()). And
-    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
-  */
-
-  // Note that value may be a stored function call, executed here.
-  err= value->save_in_field_no_warnings(field, 1);
-
-  if (err != TYPE_OK && err != TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
-  {
-    if (field->cmp_type() != value->result_type())
-    {
-      if ((type == Item_func::EQ_FUNC || type == Item_func::EQUAL_FUNC) &&
-          value->result_type() == item_cmp_type(field->result_type(),
-                                                value->result_type()))
-      {
-        impossible_cond_cause= "incomparable_types";
-        tree= new (alloc) SEL_ARG(field, 0, 0);
-        tree->type= SEL_ARG::IMPOSSIBLE;
-        field->table->in_use->variables.sql_mode= orig_sql_mode;
-        goto end;
-      }
-      else
-      {
-        /*
-          TODO: We should return trees of the type SEL_ARG::IMPOSSIBLE
-          for the cases like int_field > 999999999999999999999999 as well.
-        */
-        tree= 0;
-        if (err == TYPE_NOTE_TIME_TRUNCATED &&
-            field->type() == FIELD_TYPE_DATE &&
-            (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC ||
-             type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
-        {
-          /*
-            We were saving DATETIME into a DATE column, the conversion went ok
-            but a non-zero time part was cut off.
-
-            In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
-            values. Index over a DATE column uses DATE comparison. Changing 
-            from one comparison to the other is possible:
-
-            datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
-            datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
-
-            datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
-            datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
-
-            but we'll need to convert '>' to '>=' and '<' to '<='. This will
-            be done together with other types at the end of this function
-            (grep for stored_field_cmp_to_item)
-          */
-        }
-        else
-        {
-          field->table->in_use->variables.sql_mode= orig_sql_mode;
-          goto end;
-        }
-      }
-    }
-
-    /*
-      guaranteed at this point:  err > 0; field and const of same type
-      If an integer got bounded (e.g. to within 0..255 / -128..127)
-      for < or >, set flags as for <= or >= (no NEAR_MAX / NEAR_MIN)
-    */
-    else if (err == TYPE_WARN_OUT_OF_RANGE && 
-             field->result_type() == INT_RESULT)
-    {
-      if (type == Item_func::LT_FUNC && (value->val_int() > 0))
-        type = Item_func::LE_FUNC;
-      else if (type == Item_func::GT_FUNC &&
-               (field->type() != FIELD_TYPE_BIT) &&
-               !((Field_num*)field)->unsigned_flag &&
-               !((Item_int*)value)->unsigned_flag &&
-               (value->val_int() < 0))
-        type = Item_func::GE_FUNC;
-    }
-  }
-  else if (err == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
-  {
-    impossible_cond_cause= "null_field_in_non_null_column";
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
-    /* This happens when we try to insert a NULL field in a not null column */
-    tree= &null_element;                        // cmp with NULL is never TRUE
+  if (save_value_and_handle_conversion(&tree, value, type, field,
+                                       &impossible_cond_cause, alloc))
     goto end;
-  }
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   /*
     Any sargable predicate except "<=>" involving NULL as a constant is always
@@ -6820,7 +6906,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   }
 
 end:
-  if (impossible_cond_cause)
+  if (impossible_cond_cause != NULL)
   {
     Opt_trace_object wrapper (&param->thd->opt_trace);
     Opt_trace_object (&param->thd->opt_trace, "impossible_condition",
@@ -10868,9 +10954,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   }
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
-  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
-    DBUG_RETURN(NULL);
-
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
   if ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */

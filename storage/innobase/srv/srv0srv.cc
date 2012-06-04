@@ -59,6 +59,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
+#include "dict0stats_background.h" /* dict_stats_event */
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
@@ -81,6 +82,8 @@ UNIV_INTERN ibool	srv_monitor_active = FALSE;
 UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
 UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
+
+UNIV_INTERN ibool	srv_dict_stats_thread_active = FALSE;
 
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
@@ -179,6 +182,7 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
+UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 
@@ -211,7 +215,7 @@ UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
 UNIV_INTERN ulong	srv_LRU_scan_depth	= 1024;
 /** whether or not to flush neighbors of a block */
-UNIV_INTERN my_bool	srv_flush_neighbors	= TRUE;
+UNIV_INTERN ulong	srv_flush_neighbors	= 1;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -256,7 +260,8 @@ UNIV_INTERN ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
 
 /* Number of IO operations per second the server can do */
-UNIV_INTERN ulong	srv_io_capacity         = 400;
+UNIV_INTERN ulong	srv_io_capacity         = 200;
+UNIV_INTERN ulong	srv_max_io_capacity     = 400;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -264,6 +269,14 @@ the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
+UNIV_INTERN ulong	srv_max_dirty_pages_pct_lwm	= 50;
+
+/* This is the percentage of log capacity at which adaptive flushing,
+if enabled, will kick in. */
+UNIV_INTERN ulong	srv_adaptive_flushing_lwm	= 10;
+
+/* Number of iterations over which adaptive flushing is averaged. */
+UNIV_INTERN ulong	srv_flushing_avg_loops		= 30;
 
 /* The number of purge threads to use.*/
 UNIV_INTERN ulong	srv_n_purge_threads = 1;
@@ -306,8 +319,9 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
-UNIV_INTERN my_bool		srv_stats_persistent = FALSE;
+UNIV_INTERN my_bool		srv_stats_persistent = TRUE;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
+UNIV_INTERN my_bool		srv_stats_auto_recalc = TRUE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 
@@ -1624,9 +1638,6 @@ loop:
 	eviction policy. */
 	buf_LRU_stat_update();
 
-	/* Update the statistics collected for flush rate policy. */
-	buf_flush_stat_update();
-
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though
 	the semaphore is already released. Wake up those threads: */
@@ -1734,28 +1745,23 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
-	/* Take a snapshot of the state because the state of this variable
-	can change asynchronously during shutdown. */
-
-	os_event_t	timeout_event = lock_sys->timeout_event;
-
 	if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
-	} else if (timeout_event != 0) {
+	} else if (lock_sys->timeout_thread_active) {
 		thread_active = "srv_lock_timeout thread";
 	} else if (srv_monitor_active) {
 		thread_active = "srv_monitor_thread";
 	} else if (srv_buf_dump_thread_active) {
 		thread_active = "buf_dump_thread";
+	} else if (srv_dict_stats_thread_active) {
+		thread_active = "dict_stats_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_buf_dump_event);
-
-	if (timeout_event != 0) {
-		os_event_set(timeout_event);
-	}
+	os_event_set(lock_sys->timeout_event);
+	os_event_set(dict_stats_event);
 
 	return(thread_active);
 }
@@ -1872,7 +1878,8 @@ srv_sync_log_buffer_in_background(void)
 	time_t	current_time = time(NULL);
 
 	srv_main_thread_op_info = "flushing log";
-	if (difftime(current_time, srv_last_log_flush_time) >= 1) {
+	if (difftime(current_time, srv_last_log_flush_time)
+	    >= srv_flush_log_at_timeout) {
 		log_buffer_sync_in_background(TRUE);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
@@ -1989,7 +1996,7 @@ srv_master_do_active_tasks(void)
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
 	counter_time = ut_time_us(NULL);
-	ibuf_contract_in_background(FALSE);
+	ibuf_contract_in_background(0, FALSE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
@@ -2081,7 +2088,7 @@ srv_master_do_idle_tasks(void)
 	/* Do an ibuf merge */
 	counter_time = ut_time_us(NULL);
 	srv_main_thread_op_info = "doing insert buffer merge";
-	ibuf_contract_in_background(TRUE);
+	ibuf_contract_in_background(0, TRUE);
 	MONITOR_INC_TIME_IN_MICRO_SECS(
 		MONITOR_SRV_IBUF_MERGE_MICROSECOND, counter_time);
 
@@ -2155,7 +2162,7 @@ srv_master_do_shutdown_tasks(
 
 	/* Do an ibuf merge */
 	srv_main_thread_op_info = "doing insert buffer merge";
-	n_bytes_merged = ibuf_contract_in_background(TRUE);
+	n_bytes_merged = ibuf_contract_in_background(0, TRUE);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();

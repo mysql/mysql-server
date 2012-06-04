@@ -825,7 +825,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool skip_lock)
       Flushes the relay log regardles of the sync_relay_log option.
     */
     if (mi->rli->relay_log.is_open() &&
-        mi->rli->relay_log.flush_and_sync(0, TRUE))
+        mi->rli->relay_log.flush_and_sync(true))
     {
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
@@ -1042,6 +1042,19 @@ int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
   mysql_cond_t* cond_io=0, *cond_sql=0;
   int error=0;
   DBUG_ENTER("start_slave_threads");
+
+  if (!mi->inited || !mi->rli->inited)
+  {
+    if (!mi->inited)
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                 ER(ER_SLAVE_FATAL_ERROR),
+                 "Failed to initialize the master info structure");
+    else
+      mi->rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+                      ER(ER_SLAVE_FATAL_ERROR),
+                      "Failed to initialize the master info structure");
+    DBUG_RETURN(ER_SLAVE_FATAL_ERROR);
+  }
 
   if (need_slave_mutex)
   {
@@ -3623,8 +3636,9 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     if (slave_trans_retries)
     {
       int UNINIT_VAR(temp_err);
+      bool silent= false;
       if (exec_res && !is_mts_worker(thd) /* no reexecution in MTS mode */ &&
-          (temp_err= rli->has_temporary_error(thd)) &&
+          (temp_err= rli->has_temporary_error(thd, 0, &silent)) &&
           !thd->transaction.all.cannot_safely_rollback())
       {
         const char *errmsg;
@@ -3663,7 +3677,9 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
             slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
                         sql_slave_killed, rli);
             mysql_mutex_lock(&rli->data_lock); // because of SHOW STATUS
-            rli->trans_retries++;
+            if (!silent)
+              rli->trans_retries++;
+            
             rli->retried_trans++;
             mysql_mutex_unlock(&rli->data_lock);
             DBUG_PRINT("info", ("Slave retries transaction "
@@ -7614,7 +7630,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                               "not retry the transaction and will stop.");
         }
       }
-      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
+      else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
         push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER(ER_UNTIL_COND_IGNORED));
 

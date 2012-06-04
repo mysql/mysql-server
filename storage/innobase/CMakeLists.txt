@@ -155,6 +155,9 @@ ENDIF()
 
 ENDIF(NOT MSVC)
 
+CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
+CHECK_FUNCTION_EXISTS(vasprintf  HAVE_VASPRINTF)
+
 # Solaris atomics
 IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
   CHECK_FUNCTION_EXISTS(atomic_cas_ulong  HAVE_ATOMIC_CAS_ULONG)
@@ -273,6 +276,7 @@ SET(INNOBASE_SOURCES
 	dict/dict0load.cc
 	dict/dict0mem.cc
 	dict/dict0stats.cc
+	dict/dict0stats_background.cc
 	dyn/dyn0dyn.cc
 	eval/eval0eval.cc
 	eval/eval0proc.cc
@@ -324,6 +328,7 @@ SET(INNOBASE_SOURCES
 	rem/rem0rec.cc
 	row/row0ext.cc
 	row/row0ftsort.cc
+	row/row0import.cc
 	row/row0ins.cc
 	row/row0merge.cc
 	row/row0mysql.cc
@@ -335,6 +340,7 @@ SET(INNOBASE_SOURCES
 	row/row0umod.cc
 	row/row0undo.cc
 	row/row0upd.cc
+	row/row0quiesce.cc
 	row/row0vers.cc
 	srv/srv0conc.cc
 	srv/srv0mon.cc

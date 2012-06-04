@@ -59,8 +59,8 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
-# ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1726
---let $slave_sql_errno= 1727
+# ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1805
+--let $slave_sql_errno= 1805
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc
@@ -99,8 +99,8 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
 --connection slave
-# ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1726
---let $slave_sql_errno= 1727
+# ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2 1805
+--let $slave_sql_errno= 1805
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc

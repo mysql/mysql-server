@@ -1,8 +1,12 @@
 The following options may be given as the first argument:
 --print-defaults Print the program argument list and exit.
---no-defaults Don't read default options from any option file.
+--no-defaults Don't read default options from any option file,
+ except for login file.
 --defaults-file=# Only read default options from the given file #.
 --defaults-extra-file=# Read this file after the global files are read.
+--defaults-group-suffix=#
+ Also read groups with concat(group, suffix)
+--login-path=# Read this path from the login file.
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
@@ -67,6 +71,16 @@ The following options may be given as the first argument:
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
+ --binlog-max-flush-queue-time=# 
+ The maximum time that the binary log group commit will
+ keep reading transactions before it flush the
+ transactions to the binary log (and optionally sync,
+ depending on the value of sync_binlog).
+ --binlog-order-commits 
+ Issue internal commit calls in the same order as
+ transactions are written to the binary log. Default is to
+ order commits.
+ (Defaults to on; use --skip-binlog-order-commits to disable.)
  --binlog-row-event-max-size=# 
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
@@ -581,6 +595,8 @@ The following options may be given as the first argument:
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
  Maximum number of instrumented threads.
+ --performance-schema-session-connect-attrs-size=# 
+ Size of session attribute string buffer per thread.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
  --performance-schema-setup-objects-size=# 
@@ -736,7 +752,6 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
- --safe-mode         Skip some optimize stages (for testing).
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -848,7 +863,8 @@ The following options may be given as the first argument:
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
- event. Use 0 (default) to disable synchronous flushing
+ write to the file. Use 0 (default) to disable synchronous
+ flushing
  --sync-frm          Sync .frm files to disk on creation
  (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
@@ -868,7 +884,10 @@ The following options may be given as the first argument:
  --table-definition-cache=# 
  The number of cached table definitions
  --table-open-cache=# 
- The number of cached open tables
+ The number of cached open tables (total for all table
+ cache instances)
+ --table-open-cache-instances=# 
+ The number of table cache instances
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are COMMIT or ROLLBACK.
@@ -925,6 +944,8 @@ binlog-cache-size 32768
 binlog-checksum NONE
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
+binlog-max-flush-queue-time 0
+binlog-order-commits TRUE
 binlog-row-event-max-size 1024
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
@@ -1098,11 +1119,12 @@ performance-schema-max-rwlock-instances 1000000
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances 1000
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 168
+performance-schema-max-statement-classes 169
 performance-schema-max-table-handles 10000
 performance-schema-max-table-instances 1000
 performance-schema-max-thread-classes 50
 performance-schema-max-thread-instances 1000
+performance-schema-session-connect-attrs-size 2048
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
 performance-schema-users-size 100
@@ -1173,6 +1195,7 @@ sysdate-is-now FALSE
 table-cache 400
 table-definition-cache 400
 table-open-cache 400
+table-open-cache-instances 1
 tc-heuristic-recover COMMIT
 thread-cache-size 0
 thread-handling one-thread-per-connection

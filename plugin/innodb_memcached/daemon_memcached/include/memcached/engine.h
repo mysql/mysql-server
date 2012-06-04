@@ -288,6 +288,10 @@ extern "C" {
                                     uint64_t cas,
                                     uint16_t vbucket);
 
+        ENGINE_ERROR_CODE (*bind)(ENGINE_HANDLE* handle,
+                                    const void* cookie,
+                                    const void* name,
+                                    const size_t name_len);
         /**
          * Indicate that a caller who received an item no longer needs
          * it.

@@ -1733,7 +1733,7 @@ pk	i4
 EXPLAIN
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 99999999999999999;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	2	Using where; Using MRR
+1	SIMPLE	t1	range	i4_uq	i4_uq	5	NULL	3	Using where; Using MRR
 SELECT * FROM t1 WHERE i4 BETWEEN 10 AND 99999999999999999;
 pk	i4
 1	10
@@ -1909,6 +1909,10 @@ drop table t1, t2;
 # Bug #26106: Wrong plan may be chosen when there are several possible
 # range and ref accesses
 #
+# Note: The fix for this bug has been reverted. The code will no longer
+# select the optimal plan for the two following test queries. This is
+# not due to a bug but due to minor differences in range estimates
+# produced by the storage engine.
 CREATE TABLE t1( 
 a INT,
 b INT,
@@ -1932,9 +1936,11 @@ INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2;
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2;
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2;
 # This must use range over index l, not k.
+# Update: Due to patch being reverted and minor differences in 
+#         range estimates k is selected.
 EXPLAIN SELECT * FROM t1 WHERE a = 1 AND b >= 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	k,l	l	10	NULL	138	Using where; Using index
+1	SIMPLE	t1	ref	k,l	k	5	const	134	Using where
 CREATE TABLE t2( 
 a INT, 
 b INT, 
@@ -1962,9 +1968,11 @@ INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2;
 INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2;
 INSERT INTO t2 VALUES (1, 1, 2);
 # This must use range over index l, not n.
+# Update: Due to patch being reverted and minor differences in 
+#         range estimates k is selected.
 EXPLAIN SELECT * FROM t2 WHERE a = 1 AND b >= 2 AND c >= 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	k,l,m,n	l	5	const	69	Using where
+1	SIMPLE	t2	ref	k,l,m,n	k	5	const	66	Using where
 DROP TABLE t1, t2;
 #
 # BUG#11765831: 'RANGE ACCESS' MAY INCORRECTLY FILTER 
@@ -1994,7 +2002,7 @@ DROP TABLE t10,t100;
 # BUG#12698916 - JOIN QUERY GIVES WRONG RESULT AT 2ND EXEC. OR
 # AFTER FLUSH TABLES [-INT VS NULL]
 #
-CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB;
+CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (-100,1),(1,6);
 CREATE TABLE t2 (
 col_int_key INT,
@@ -2002,7 +2010,7 @@ col_varchar VARCHAR(100) NOT NULL DEFAULT "DEFAULT",
 pk INT NOT NULL,
 PRIMARY KEY (pk),
 KEY (col_int_key)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t2 VALUES
 (1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
 EXPLAIN SELECT t1.*,t2.* FROM t1 straight_join t2

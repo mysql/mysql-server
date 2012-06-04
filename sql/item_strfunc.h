@@ -469,7 +469,7 @@ public:
     safe_charset_converter, return string representation of this function
     call
   */
-  virtual const NameString fully_qualified_func_name() const = 0;
+  virtual const Name_string fully_qualified_func_name() const = 0;
 };
 
 
@@ -484,7 +484,7 @@ public:
     maybe_null=1;
   }
   const char *func_name() const { return "database"; }
-  const NameString fully_qualified_func_name() const
+  const Name_string fully_qualified_func_name() const
   { return NAME_STRING("database()"); }
 };
 
@@ -511,7 +511,7 @@ public:
                  (HOSTNAME_LENGTH + 1) * SYSTEM_CHARSET_MBMAXLEN);
   }
   const char *func_name() const { return "user"; }
-  const NameString fully_qualified_func_name() const
+  const Name_string fully_qualified_func_name() const
   { return NAME_STRING("user()"); }
   type_conversion_status save_in_field(Field *field, bool no_conversions)
   {
@@ -529,7 +529,7 @@ public:
     : context(context_arg) {}
   bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const { return "current_user"; }
-  const NameString fully_qualified_func_name() const
+  const Name_string fully_qualified_func_name() const
   { return NAME_STRING("current_user()"); }
 };
 

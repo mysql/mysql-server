@@ -19,11 +19,8 @@ INDEX_ID	NAME	POS
 14	POS	1
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-mysql/innodb_index_stats_ibfk_1	mysql/innodb_index_stats	mysql/innodb_table_stats	2	0
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-mysql/innodb_index_stats_ibfk_1	database_name	database_name	0
-mysql/innodb_index_stats_ibfk_1	table_name	table_name	1
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)
 7
@@ -36,12 +33,9 @@ FOREIGN KEY (parent_id) REFERENCES parent(id)
 ON DELETE CASCADE) ENGINE=INNODB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-mysql/innodb_index_stats_ibfk_1	mysql/innodb_index_stats	mysql/innodb_table_stats	2	0
 test/constraint_test	test/child	test/parent	1	1
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-mysql/innodb_index_stats_ibfk_1	database_name	database_name	0
-mysql/innodb_index_stats_ibfk_1	table_name	table_name	1
 test/constraint_test	parent_id	id	0
 INSERT INTO parent VALUES(1);
 SELECT name, num_rows, ref_count 
@@ -94,12 +88,9 @@ FOREIGN KEY (id, parent_id) REFERENCES parent(id, newid)
 ON DELETE CASCADE) ENGINE=INNODB;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
-mysql/innodb_index_stats_ibfk_1	mysql/innodb_index_stats	mysql/innodb_table_stats	2	0
 test/constraint_test	test/child	test/parent	2	1
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-mysql/innodb_index_stats_ibfk_1	database_name	database_name	0
-mysql/innodb_index_stats_ibfk_1	table_name	table_name	1
 test/constraint_test	id	id	0
 test/constraint_test	parent_id	newid	1
 INSERT INTO parent VALUES(1, 9);

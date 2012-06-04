@@ -76,7 +76,7 @@ public:
   /**
      Check if the current error is of temporary nature or not.
   */
-  int has_temporary_error(THD *thd, uint error_arg= 0) const;
+  int has_temporary_error(THD *thd, uint error_arg= 0, bool* silent= 0) const;
 #endif // EMBEDDED_LIBRARY
   
   /**

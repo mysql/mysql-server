@@ -44,7 +44,7 @@ struct PFS_user_key
   uint m_key_length;
 };
 
-struct PFS_user : public PFS_connection_slice
+struct PFS_ALIGNED PFS_user : public PFS_connection_slice
 {
 public:
   inline void init_refcount(void)
@@ -107,6 +107,8 @@ extern ulong user_lost;
 /* Exposing the data directly, for iterators. */
 
 extern PFS_user *user_array;
+
+extern LF_HASH user_hash;
 
 /** @} */
 #endif

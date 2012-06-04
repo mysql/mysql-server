@@ -45,7 +45,7 @@ static PFS_single_stat *account_instr_class_waits_array= NULL;
 static PFS_stage_stat *account_instr_class_stages_array= NULL;
 static PFS_statement_stat *account_instr_class_statements_array= NULL;
 
-static LF_HASH account_hash;
+LF_HASH account_hash;
 static bool account_hash_inited= false;
 
 /**
@@ -145,10 +145,11 @@ C_MODE_END
 */
 int init_account_hash(void)
 {
-  if (! account_hash_inited)
+  if ((! account_hash_inited) && (account_max > 0))
   {
     lf_hash_init(&account_hash, sizeof(PFS_account*), LF_HASH_UNIQUE,
                  0, 0, account_hash_get_key, &my_charset_bin);
+    account_hash.size= account_max;
     account_hash_inited= true;
   }
   return 0;

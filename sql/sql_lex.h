@@ -153,6 +153,37 @@ enum enum_sp_data_access
   SP_MODIFIES_SQL_DATA
 };
 
+/**
+  enum_sp_type defines type codes of stored programs.
+
+  Events have the SP_TYPE_PROCEDURE type code.
+
+  @note these codes are used when dealing with the mysql.proc system table, so
+  they must not be changed.
+
+  @note the following macros were used previously for the same purpose. Now they
+  are used for ACL only.
+*/
+enum enum_sp_type
+{
+  SP_TYPE_FUNCTION= 1,
+  SP_TYPE_PROCEDURE,
+  SP_TYPE_TRIGGER
+};
+
+/*
+  Values for the type enum. This reflects the order of the enum declaration
+  in the CREATE TABLE command. These values are used to enumerate object types
+  for the ACL statements.
+
+  These values were also used for enumerating stored program types. However, now
+  enum_sp_type should be used for that instead of them.
+*/
+#define TYPE_ENUM_FUNCTION  1
+#define TYPE_ENUM_PROCEDURE 2
+#define TYPE_ENUM_TRIGGER   3
+#define TYPE_ENUM_PROXY     4
+
 const LEX_STRING sp_data_access_name[]=
 {
   { C_STRING_WITH_LEN("") },
@@ -507,7 +538,6 @@ class THD;
 class select_result;
 class JOIN;
 class select_union;
-class Procedure;
 
 
 class st_select_lex_unit: public st_select_lex_node {
@@ -568,7 +598,6 @@ public:
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
-  Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
   /**
     Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
@@ -986,6 +1015,8 @@ typedef struct struct_slave_connection
   char *password;
   char *plugin_auth;
   char *plugin_dir;
+
+  void reset();
 } LEX_SLAVE_CONNECTION;
 
 struct st_sp_chistics
@@ -2095,6 +2126,23 @@ public:
   PSI_digest_locker* m_digest_psi;
 };
 
+
+/**
+  Argument values for PROCEDURE ANALYSE(...)
+*/
+
+struct Proc_analyse_params: public Sql_alloc
+{
+  uint max_tree_elements; //< maximum number of distinct values per column
+  uint max_treemem; //< maximum amount of memory to allocate per column
+
+  Proc_analyse_params()
+    : max_tree_elements(256),
+      max_treemem(8192)
+  {}
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
@@ -2172,7 +2220,10 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_I_List<ORDER> proc_list;
+  /**
+    Argument values for PROCEDURE ANALYSE(); is NULL for other queries
+  */
+  Proc_analyse_params *proc_analyse;
   SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
@@ -2271,6 +2322,7 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
+  bool is_change_password;
 
 private:
   /// Current SP parsing context.
@@ -2283,6 +2335,11 @@ public:
 
   void set_sp_current_parsing_ctx(sp_pcontext *ctx)
   { sp_current_parsing_ctx= ctx; }
+
+  /// Check if the current statement uses meta-data (uses a table or a stored
+  /// routine).
+  bool is_metadata_used() const
+  { return query_tables != NULL || sroutines.records > 0; }
 
 public:
   st_sp_chistics sp_chistics;
@@ -2299,8 +2356,6 @@ public:
     view created to be run from definer (standard behaviour)
   */
   uint8 create_view_suid;
-  /* Characterstics of trigger being created */
-  st_trg_chistics trg_chistics;
 
   /*
     stmt_definition_begin is intended to point to the next word after

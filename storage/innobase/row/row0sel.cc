@@ -3697,43 +3697,27 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
-	if (UNIV_UNLIKELY(prebuilt->table->ibd_file_missing)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you used"
-			" DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
-			prebuilt->table->name);
-
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
+	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
-		return(DB_ERROR);
-	}
 
-	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+	if (dict_table_is_discarded(prebuilt->table)) {
 
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+		return(DB_TABLESPACE_DELETED);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+
+		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (!prebuilt->index_usable) {
+
 		return(DB_MISSING_HISTORY);
-	}
 
-	if (dict_index_is_corrupted(index)) {
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	} else if (dict_index_is_corrupted(index)) {
+
 		return(DB_CORRUPTION);
-	}
 
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
+	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -4329,6 +4313,9 @@ wrong_offs:
 	/*-------------------------------------------------------------*/
 
 	/* Calculate the 'offsets' associated with 'rec' */
+
+	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
 
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 

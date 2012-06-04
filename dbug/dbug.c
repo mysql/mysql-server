@@ -2223,11 +2223,22 @@ void _db_flush_()
 
 
 #ifndef __WIN__
+
+#ifdef HAVE_GCOV
+extern void __gcov_flush();
+#endif
+
 void _db_suicide_()
 {
   int retval;
   sigset_t new_mask;
   sigfillset(&new_mask);
+
+#ifdef HAVE_GCOV
+  fprintf(stderr, "Flushing gcov data\n");
+  fflush(stderr);
+  __gcov_flush();
+#endif
 
   fprintf(stderr, "SIGKILL myself\n");
   fflush(stderr);

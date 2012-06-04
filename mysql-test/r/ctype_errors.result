@@ -28,7 +28,7 @@ ERROR 42S02: Unknown table 'test.ק'
 SET lc_messages=cs_CZ;
 SET NAMES UTF8;
 USE nonexistant;
-ERROR 42000: Nezn-Bámá databáze 'nonexistant'
+ERROR 42000: Neznámá databáze 'nonexistant'
 #
 # Bug#12736295: Buffer overflow for variable converted_err
 #               with non-latin1 server error message

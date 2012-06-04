@@ -23,6 +23,11 @@ INSERT INTO wp (title, text) VALUES
 CREATE TABLE t1 (i INTEGER);
 INSERT INTO t1 SELECT FTS_DOC_ID FROM wp;
 
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE wp;
+-- enable_result_log
+
 #
 #  Show results of MATCH expressions for reference
 #

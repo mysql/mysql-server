@@ -1,0 +1,51 @@
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT @@GLOBAL.table_open_cache_instances;
+@@GLOBAL.table_open_cache_instances
+1
+####################################################################
+# Check that value cannot be set (this variable is settable only   #
+# at start-up).                                                    #
+####################################################################
+SET @@GLOBAL.table_open_cache_instances=1;
+ERROR HY000: Variable 'table_open_cache_instances' is a read only variable
+SELECT @@GLOBAL.table_open_cache_instances;
+@@GLOBAL.table_open_cache_instances
+1
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.table_open_cache_instances = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='table_open_cache_instances';
+@@GLOBAL.table_open_cache_instances = VARIABLE_VALUE
+1
+SELECT @@GLOBAL.table_open_cache_instances;
+@@GLOBAL.table_open_cache_instances
+1
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='table_open_cache_instances';
+VARIABLE_VALUE
+1
+######################################################################
+#  Check if accessing variable with and without GLOBAL point to same #
+#  variable                                                          #
+######################################################################
+SELECT @@table_open_cache_instances = @@GLOBAL.table_open_cache_instances;
+@@table_open_cache_instances = @@GLOBAL.table_open_cache_instances
+1
+######################################################################
+#  Check if variable has only the GLOBAL scope                       #
+######################################################################
+SELECT @@table_open_cache_instances;
+@@table_open_cache_instances
+1
+SELECT @@GLOBAL.table_open_cache_instances;
+@@GLOBAL.table_open_cache_instances
+1
+SELECT @@local.table_open_cache_instances;
+ERROR HY000: Variable 'table_open_cache_instances' is a GLOBAL variable
+SELECT @@SESSION.table_open_cache_instances;
+ERROR HY000: Variable 'table_open_cache_instances' is a GLOBAL variable

@@ -150,6 +150,7 @@ enum enum_server_command
 #define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
 #define REFRESH_DES_KEY_FILE	0x40000L
 #define REFRESH_USER_RESOURCES	0x80000L
+#define REFRESH_FOR_EXPORT      0x100000L /* FLUSH TABLES ... FOR EXPORT */
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
@@ -172,6 +173,7 @@ enum enum_server_command
 #define CLIENT_PS_MULTI_RESULTS (1UL << 18) /* Multi-results in PS-protocol */
 
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
+#define CLIENT_CONNECT_ATTRS (1UL << 20) /* Client supports connection attributes */
 
 /* Enable authentication response packet to be larger than 255 bytes. */
 #define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 20)
@@ -208,7 +210,8 @@ enum enum_server_command
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS | \
                            CLIENT_PLUGIN_AUTH | \
-                           CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+                           CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
+                           CLIENT_CONNECT_ATTRS)
 
 /*
   Switch off the flags that are optional and depending on build flags

@@ -515,7 +515,7 @@ void
 ut_print_name(
 /*==========*/
 	FILE*		f,	/*!< in: output stream */
-	trx_t*		trx,	/*!< in: transaction */
+	const trx_t*	trx,	/*!< in: transaction */
 	ibool		table_id,/*!< in: TRUE=print a table name,
 				FALSE=print other identifier */
 	const char*	name)	/*!< in: name to print */
@@ -533,7 +533,7 @@ void
 ut_print_namel(
 /*===========*/
 	FILE*		f,	/*!< in: output stream */
-	trx_t*		trx,	/*!< in: transaction (NULL=no quotes) */
+	const trx_t*	trx,	/*!< in: transaction (NULL=no quotes) */
 	ibool		table_id,/*!< in: TRUE=print a table name,
 				FALSE=print other identifier */
 	const char*	name,	/*!< in: name to print */
@@ -750,7 +750,9 @@ ut_strerr(
 	case DB_TABLESPACE_ALREADY_EXISTS:
 		return("Tablespace already exists");
 	case DB_TABLESPACE_DELETED:
-		return("No such tablespace");
+		return("Tablespace deleted or being deleted");
+	case DB_TABLESPACE_NOT_FOUND:
+		return("Tablespace not found");
 	case DB_LOCK_TABLE_FULL:
 		return("Lock structs have exhausted the buffer pool");
 	case DB_FOREIGN_DUPLICATE_KEY:
@@ -789,6 +791,10 @@ ut_strerr(
 		return("Undo record too big");
 	case DB_END_OF_INDEX:
 		return("End of index");
+	case DB_IO_ERROR:
+		return("I/O error");
+	case DB_TABLE_IN_FK_CHECK:
+		return("Table is being used in foreign key check");
 	case DB_DATA_MISMATCH:
 		return("data mismatch");
 	case DB_SCHEMA_NOT_LOCKED:

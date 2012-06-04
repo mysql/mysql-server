@@ -929,6 +929,13 @@ private:
    */
   time_t row_stmt_start_timestamp;
   bool long_find_row_note_printed;
+
+  /*
+    If on init_info() call error_on_rli_init_info is true that means
+    that previous call to init_info() terminated with an error, RESET
+    SLAVE must be executed and the problem fixed manually.
+   */
+  bool error_on_rli_init_info;
 };
 
 bool mysql_show_relaylog_events(THD* thd);

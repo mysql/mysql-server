@@ -7138,10 +7138,10 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
 }
 
 
-bool ha_ndbcluster::read_before_write_removal_possible()
+bool ha_ndbcluster::start_read_removal()
 {
   THD *thd= table->in_use;
-  DBUG_ENTER("read_before_write_removal_possible");
+  DBUG_ENTER("start_read_removal");
 
   if (uses_blob_value(table->write_set))
   {
@@ -7188,9 +7188,10 @@ bool ha_ndbcluster::read_before_write_removal_possible()
 }
 
 
-ha_rows ha_ndbcluster::read_before_write_removal_rows_written(void) const
+ha_rows ha_ndbcluster::end_read_removal(void)
 {
-  DBUG_ENTER("read_before_write_removal_rows_written");
+  DBUG_ENTER("end_read_removal");
+  DBUG_ASSERT(m_read_before_write_removal_possible);
   DBUG_PRINT("info", ("updated: %llu, deleted: %llu",
                       m_rows_updated, m_rows_deleted));
   DBUG_RETURN(m_rows_updated + m_rows_deleted);
@@ -7529,7 +7530,7 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->transaction.on)
+  else if (!thd->transaction.flags.enabled)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
@@ -12344,6 +12345,14 @@ ulonglong ha_ndbcluster::table_flags(void) const
   */
   if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+
+  /**
+   * To maximize join pushability we want const-table 
+   * optimization blocked if 'ndb_join_pushdown= on'
+   */
+  if (THDVAR(thd, join_pushdown))
+    f= f | HA_BLOCK_CONST_TABLE;
+
   return f;
 }
 
@@ -14502,97 +14511,6 @@ ha_ndbcluster::parent_of_pushed_join() const
   }
   return NULL;
 }
-
-bool
-ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
-{
-  DBUG_ENTER("test_push_flag");
-  switch (flag) {
-  case HA_PUSH_BLOCK_CONST_TABLE:
-  {
-    /**
-     * We don't support join push down if...
-     *   - not LM_CommittedRead
-     *   - uses blobs
-     */
-    THD *thd= current_thd;
-    if (unlikely(!THDVAR(thd, join_pushdown)))
-      DBUG_RETURN(false);
-
-    if (table->read_set != NULL && uses_blob_value(table->read_set))
-    {
-      DBUG_RETURN(false);
-    }
-
-    NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
-
-    if (lm != NdbOperation::LM_CommittedRead)
-    {
-      DBUG_RETURN(false);
-    }
-
-    DBUG_RETURN(true);
-  }
-  case HA_PUSH_MULTIPLE_DEPENDENCY:
-    /**
-     * If any child operation within this pushed join refer 
-     * column values (paramValues), the pushed join has dependencies
-     * in addition to the root operation itself.
-     */
-    if (m_pushed_join_operation==PUSHED_ROOT &&
-        m_pushed_join_member->get_field_referrences_count() > 0)  // Childs has field refs
-    {
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(false);
-
-  case HA_PUSH_NO_ORDERED_INDEX:
-  {
-    if (m_pushed_join_operation != PUSHED_ROOT)
-    {
-      DBUG_RETURN(true);
-    }
-    const NdbQueryDef& query_def = m_pushed_join_member->get_query_def();
-    const NdbQueryOperationDef::Type root_type=
-      query_def.getQueryOperation((uint)PUSHED_ROOT)->getType();
-
-    /**
-     * Primary key/ unique key lookup is always 'ordered' wrt. itself.
-     */
-    if (root_type == NdbQueryOperationDef::PrimaryKeyAccess  ||
-        root_type == NdbQueryOperationDef::UniqueIndexAccess)
-    {
-      DBUG_RETURN(false);
-    }
-
-    /**
-     * Ordered index scan can be provided as an ordered resultset iff
-     * it has no child scans.
-     */
-    if (root_type == NdbQueryOperationDef::OrderedIndexScan)
-    {
-      for (uint i= 1; i < query_def.getNoOfOperations(); i++)
-      {
-        const NdbQueryOperationDef::Type child_type=
-          query_def.getQueryOperation(i)->getType();
-        if (child_type == NdbQueryOperationDef::TableScan ||
-            child_type == NdbQueryOperationDef::OrderedIndexScan)
-        {
-          DBUG_RETURN(true);
-        }
-      }
-      DBUG_RETURN(false);
-    }
-    DBUG_RETURN(true);
-  }
-
-  default:
-    DBUG_ASSERT(0);
-    DBUG_RETURN(false);
-  }
-  DBUG_RETURN(false);
-}
-
 
 /**
   @param[in] comment  table comment defined by user

@@ -18,15 +18,30 @@ INSERT INTO t1 VALUES(8);
 INSERT INTO t1 VALUES(9);
 INSERT INTO t1 VALUES(10);
 [connection slave]
+START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5", MASTER_LOG_FILE= 'foo.bin', MASTER_LOG_POS= 100;
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5", MASTER_LOG_FILE= 'foo.bin', MASTER_LOG_POS= 100;
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+START SLAVE IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5", MASTER_LOG_FILE= 'foo.bin', MASTER_LOG_POS= 100;
+ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
+START SLAVE FOO UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FOO UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5"' at line 1
+Check that START SLAVE IO_THREAD UNTIL ... maintains old behaviour, condition is ignored.
+START SLAVE IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
+Warnings:
+Note	1279	SQL thread is not to be started so UNTIL options are ignored
+Wait until IO Thread reads all master binlog and stop slave.
+include/wait_for_slave_param.inc [Retrieved_Gtid_Set]
+include/stop_slave_io.inc
 SQL thread must stop *before* INSERT 4
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
+START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:4-5";
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 c1
 2
 3
 SQL thread must stop *after* INSERT 5
-START SLAVE UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:4-5";
+START SLAVE SQL_THREAD UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:4-5";
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 c1
@@ -35,7 +50,7 @@ c1
 4
 5
 SQL thread must stop *before* INSERT 6
-START SLAVE UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2-7";
+START SLAVE SQL_THREAD, IO_THREAD UNTIL SQL_BEFORE_GTIDS= "MASTER_UUID:2-7";
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 c1
@@ -45,7 +60,7 @@ c1
 5
 SQL thread must stop *after* INSERT 5
 1-5 are already applied so it will stop immediately
-START SLAVE UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:1-5";
+START SLAVE SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS= "MASTER_UUID:1-5";
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
 c1
@@ -95,7 +110,7 @@ c1
 8
 9
 Sync slave with master
-include/start_slave_sql.inc
+include/start_slave.inc
 SELECT SQL_THREAD_WAIT_AFTER_GTIDS('MASTER_UUID:10', 300);
 SELECT * FROM t1;
 c1

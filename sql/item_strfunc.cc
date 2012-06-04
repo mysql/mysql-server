@@ -1995,7 +1995,7 @@ String *Item_func_password::val_str_ascii(String *str)
   DBUG_ASSERT(fixed == 1);
 
   String *res= args[0]->val_str(str);
-  
+  check_password_policy(res);
   null_value= 0;
   if (args[0]->null_value)  // PASSWORD(NULL) returns ''
     return make_empty_result();
@@ -2016,6 +2016,10 @@ String *Item_func_password::val_str_ascii(String *str)
 char *Item_func_password::
   create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
 {
+  String *password_str= new (thd->mem_root)String(password, thd->variables.
+                                                    character_set_client);
+  check_password_policy(password_str);
+
   char *buff= NULL;
   if (thd->variables.old_passwords == 0)
   {
@@ -2042,6 +2046,7 @@ String *Item_func_old_password::val_str_ascii(String *str)
   String *res= args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
     return 0;
+  check_password_policy(res);
   if (res->length() == 0)
     return make_empty_result();
   my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
@@ -2054,7 +2059,12 @@ char *Item_func_old_password::alloc(THD *thd, const char *password,
 {
   char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
   if (buff)
+  {
+    String *password_str= new (thd->mem_root)String(password, thd->variables.
+                                                    character_set_client);
+    check_password_policy(password_str);
     my_make_scrambled_password_323(buff, password, pass_len);
+  }
   return buff;
 }
 
@@ -3419,7 +3429,7 @@ String *Item_func_weight_string::val_str(String *str)
   if (field)
   {
     frm_length= field->pack_length();
-    field->sort_string((uchar *) tmp_value.ptr(), tmp_length);
+    field->make_sort_key((uchar *) tmp_value.ptr(), tmp_length);
   }
   else
     frm_length= cs->coll->strnxfrm(cs,
