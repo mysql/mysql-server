@@ -43,27 +43,14 @@ a
 1
 COMMIT;
 UNLOCK TABLES;
-FLUSH STATUS;
-# Expected 0 at the beginning of the test
-show status like 'Opened_tables';
-Variable_name	Value
-Opened_tables	0
 connection con1;
-lock table t1 write;
+lock table t1 read;
 connection default;
 set global read_only=1;
-# Expected 1 as the slow_log was reopened
-show status like 'Opened_tables';
-Variable_name	Value
-Opened_tables	1
 connection con1;
 unlock tables;
 connection default;
 SET GLOBAL read_only=0;
-# Expected 2 as the slow_log was reopened
-show status like 'Opened_tables';
-Variable_name	Value
-Opened_tables	2
 UNLOCK TABLES;
 DROP TABLE t1;
 DROP USER test@localhost;

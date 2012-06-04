@@ -75,18 +75,16 @@ connection default;
 set global read_only=1;
 ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 unlock tables ;
-send set global read_only=1;
 set global read_only=1;
-connection con1;
-select @@global.read_only;
-@@global.read_only
-0
-unlock tables ;
 select @@global.read_only;
 @@global.read_only
 1
+connection con1;
+select @@global.read_only;
+@@global.read_only
+1
+unlock tables ;
 connection default;
-reap;
 connection default;
 set global read_only=0;
 BEGIN;
