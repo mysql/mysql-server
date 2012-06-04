@@ -179,10 +179,15 @@ ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
 
 CREATE TABLE t1o LIKE t1;
 
-# This will implicitly add a FTS_DOC_ID column.
+# This will implicitly add a FTS_DOC_ID column, which cannot be done online.
+--error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
 ALGORITHM=INPLACE, LOCK=NONE;
+
+ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
+CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
+ALGORITHM=INPLACE, LOCK=SHARED;
 
 # The output should be empty, because index->id was reassigned.
 -- source suite/innodb/include/innodb_dict.inc

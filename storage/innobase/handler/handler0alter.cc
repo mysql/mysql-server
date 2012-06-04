@@ -188,7 +188,8 @@ innobase_need_rebuild(
 by ALTER TABLE and holding data used during in-place alter.
 
 @retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-@retval HA_ALTER_INPLACE_NO_LOCK Supported
+@retval HA_ALTER_INPLACE_NO_LOCK	Supported
+@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires lock
 @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
 (any transactions that have modified the table must commit or roll back
 first, and no transactions can start modifying the table while
@@ -297,6 +298,50 @@ ha_innobase::check_if_supported_inplace_alter(
 	}
 
 	prebuilt->trx->will_lock++;
+
+	if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX) {
+		/* Building a full-text index requires a lock,
+		unless the table already contains an FTS_DOC_ID column. */
+
+		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
+			const KEY* key =
+				&ha_alter_info->key_info_buffer[
+					ha_alter_info->index_add_buffer[i]];
+			if (key->flags & HA_FULLTEXT) {
+				DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
+					      & ~(HA_FULLTEXT
+						  | HA_PACK_KEY
+						  | HA_GENERATED_KEY
+						  | HA_BINARY_PACK_KEY)));
+				/* See if we need to add a hidden FTS_DOC_ID
+				column, or if one already exists. */
+				for (uint i = 0; i < altered_table->s->fields;
+				     i++) {
+					const Field*	field
+						= altered_table->s->field[i];
+					if (!strcmp(field->field_name,
+						   FTS_DOC_ID_COL_NAME)) {
+						goto can_do_online;
+					}
+				}
+
+				for (uint i = table->s->fields;
+				     i < prebuilt->table->n_cols; i++) {
+					const char*	col_name
+						= dict_table_get_col_name(
+							prebuilt->table, i);
+					if (!strcmp(col_name,
+						    FTS_DOC_ID_COL_NAME)) {
+						goto can_do_online;
+					}
+				}
+
+				DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
+			}
+		}
+	}
+
+can_do_online:
 	DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
 }
 
@@ -2052,7 +2097,9 @@ prepare_inplace_alter_table_dict(
 	dberr_t			error;
 	THD*			user_thd	= user_trx->mysql_thd;
 
-	const bool locked = ha_alter_info->alter_info->requested_lock
+	const bool locked =
+		add_fts_doc_id
+		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
 		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_SHARED;
@@ -2062,6 +2109,18 @@ prepare_inplace_alter_table_dict(
 	DBUG_ASSERT(!n_drop_foreign == !drop_foreign);
 	DBUG_ASSERT(num_fts_index <= 1);
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_id_idx);
+
+#ifndef DBUG_OFF
+	switch (ha_alter_info->alter_info->requested_lock) {
+	case Alter_info::ALTER_TABLE_LOCK_NONE:
+		DBUG_ASSERT(!add_fts_doc_id);
+		break;
+	case Alter_info::ALTER_TABLE_LOCK_DEFAULT:
+	case Alter_info::ALTER_TABLE_LOCK_SHARED:
+	case Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE:
+		break;
+	}
+#endif /* !DBUG_OFF */
 
 	trx_start_if_not_started_xa(user_trx);
 
