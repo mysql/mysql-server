@@ -4467,7 +4467,7 @@ bool MYSQL_BIN_LOG::flush_and_sync(const bool force)
   if (flush_io_cache(&log_file))
     return 1;
 
-  std::pair<bool, bool> result= sync_binlog_file(true);
+  std::pair<bool, bool> result= sync_binlog_file(force);
 
   return result.first;
 }
