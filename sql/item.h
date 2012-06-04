@@ -3889,7 +3889,6 @@ public:
   bool is_null() { return null_value; }
   virtual bool is_expensive()
   {
-    DBUG_ASSERT(example);
     if (value_cached)
       return false;
     return example->is_expensive();

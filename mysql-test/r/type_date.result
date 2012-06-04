@@ -339,3 +339,17 @@ select @a;
 @a
 0111-01-01
 #
+#
+# BUG LP:1008487 virtual bool Item_cache::is_expensive(): Assertion `example' failed
+#
+create table t1(a date,key(a));
+insert into t1 values ('2012-01-01'),('2012-02-02');
+explain
+select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1_0	ref	a	a	4	const	0	Using where; Using index
+1	SIMPLE	t2	index	NULL	a	4	NULL	2	Using index; Using join buffer (flat, BNL join)
+1	SIMPLE	t1	index	NULL	a	4	NULL	2	Using index; Using join buffer (incremental, BNL join)
+select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
+1
+drop table t1;

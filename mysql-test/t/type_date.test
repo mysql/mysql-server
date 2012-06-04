@@ -317,3 +317,13 @@ set @a=(select min(makedate('111','1'))) ;
 select @a;
 --echo #
 
+--echo #
+--echo # BUG LP:1008487 virtual bool Item_cache::is_expensive(): Assertion `example' failed
+--echo #
+create table t1(a date,key(a));
+insert into t1 values ('2012-01-01'),('2012-02-02');
+explain
+select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
+select 1 from t1 as t1_0 inner join t1 as t2 on (t1_0.a <=> now()) join t1 on 1;
+drop table t1;
+
