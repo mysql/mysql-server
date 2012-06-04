@@ -172,7 +172,8 @@ struct tokutxn {
     // Protected by the txn manager lock:
     TOKUTXN_STATE state;
     struct toku_list prepared_txns_link; // list of prepared transactions
-    uint32_t num_pin;
+    uint32_t num_pin; // number of threads (all hot indexes) that want this
+                      // txn to not transition to commit or abort
 };
 
 static inline int
