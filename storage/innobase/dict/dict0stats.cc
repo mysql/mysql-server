@@ -186,6 +186,44 @@ dict_stats_snapshot_create(
 						the dict sys mutex */
 
 /*********************************************************************//**
+Executes a given SQL statement using the InnoDB internal SQL parser
+in its own transaction and commits it.
+@return DB_SUCCESS or error code */
+static
+dberr_t
+dict_stats_exec_sql(
+/*================*/
+	pars_info_t*	pinfo,	/*!< in/out: pinfo to pass to que_eval_sql()
+				must already have any literals bound to it */
+	const char*	sql)	/*!< in: SQL string to execute */
+{
+	trx_t*	trx;
+	dberr_t	err;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	trx = trx_allocate_for_background();
+	trx_start_if_not_started(trx);
+
+	err = que_eval_sql(pinfo, sql, FALSE, trx); /* pinfo is freed here */
+
+	if (err == DB_SUCCESS) {
+		trx_commit_for_mysql(trx);
+	} else {
+		trx->op_info = "rollback of internal trx on stats tables";
+		trx->dict_operation_lock_mode = RW_X_LATCH;
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->dict_operation_lock_mode = 0;
+		trx->op_info = "";
+		ut_a(trx->error_state == DB_SUCCESS);
+	}
+
+	trx_free_for_background(trx);
+
+	return(err);
+}
+
+/*********************************************************************//**
 Write all zeros (or 1 where it makes sense) into a table and its indexes'
 statistics members. The resulting stats correspond to an empty table.
 dict_stats_empty_table() @{ */
@@ -1737,7 +1775,6 @@ dict_stats_save_index_stat(
 	ib_uint64_t*	sample_size,	/*!< in: n pages sampled or NULL */
 	const char*	stat_description)/*!< in: description of the stat */
 {
-	trx_t*		trx;
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
@@ -1766,9 +1803,7 @@ do { \
 } while (0);
 
 	PREPARE_PINFO_FOR_INDEX_SAVE();
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-	ret = que_eval_sql(
+	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE INDEX_STATS_SAVE_INSERT () IS\n"
 		"BEGIN\n"
@@ -1784,27 +1819,11 @@ do { \
 		":sample_size,\n"
 		":stat_description\n"
 		");\n"
-		"END;",
-		FALSE, trx);
-	/* pinfo is freed by que_eval_sql() */
-
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		mutex_exit(&dict_sys->mutex);
-		trx_rollback_to_savepoint(trx, NULL);
-		mutex_enter(&dict_sys->mutex);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-	trx_free_for_background(trx);
+		"END;");
 
 	if (ret == DB_DUPLICATE_KEY) {
 		PREPARE_PINFO_FOR_INDEX_SAVE();
-		trx = trx_allocate_for_background();
-		trx_start_if_not_started(trx);
-		ret = que_eval_sql(
+		ret = dict_stats_exec_sql(
 			pinfo,
 			"PROCEDURE INDEX_STATS_SAVE_UPDATE () IS\n"
 			"BEGIN\n"
@@ -1818,11 +1837,7 @@ do { \
 			"table_name = :table_name AND\n"
 			"index_name = :index_name AND\n"
 			"stat_name = :stat_name;\n"
-			"END;",
-			FALSE, trx);
-		/* pinfo is freed by que_eval_sql() */
-		trx_commit_for_mysql(trx);
-		trx_free_for_background(trx);
+			"END;");
 	}
 
 	if (ret != DB_SUCCESS) {
@@ -1856,7 +1871,6 @@ dict_stats_save(
 					owns dict_sys->mutex */
 {
 	dict_stats_t*	dict_stats;
-	trx_t*		trx;
 	pars_info_t*	pinfo;
 	lint		now;
 	dberr_t		ret;
@@ -1902,9 +1916,7 @@ dict_stats_save(
 
 	PREPARE_PINFO_FOR_TABLE_SAVE(pinfo, table, now);
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-	ret = que_eval_sql(
+	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE TABLE_STATS_SAVE_INSERT () IS\n"
 		"BEGIN\n"
@@ -1918,30 +1930,14 @@ dict_stats_save(
 		":clustered_index_size,\n"
 		":sum_of_other_index_sizes\n"
 		");\n"
-		"END;",
-		FALSE, trx);
-	/* pinfo is freed by que_eval_sql() */
-
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		mutex_exit(&dict_sys->mutex);
-		trx_rollback_to_savepoint(trx, NULL);
-		mutex_enter(&dict_sys->mutex);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-	trx_free_for_background(trx);
+		"END;");
 
 	if (ret == DB_DUPLICATE_KEY) {
 		pinfo = pars_info_create();
 
 		PREPARE_PINFO_FOR_TABLE_SAVE(pinfo, table, now);
 
-		trx = trx_allocate_for_background();
-		trx_start_if_not_started(trx);
-		ret = que_eval_sql(
+		ret = dict_stats_exec_sql(
 			pinfo,
 			"PROCEDURE TABLE_STATS_SAVE_UPDATE () IS\n"
 			"BEGIN\n"
@@ -1954,25 +1950,7 @@ dict_stats_save(
 			"WHERE\n"
 			"database_name = :database_name AND\n"
 			"table_name = :table_name;\n"
-			"END;",
-			FALSE, trx);
-		/* pinfo is freed by que_eval_sql() */
-
-		if (ret == DB_SUCCESS) {
-			trx_commit_for_mysql(trx);
-		} else {
-
-			trx->op_info =
-				"rollback of internal trx "
-				"on stats tables";
-
-			mutex_exit(&dict_sys->mutex);
-			trx_rollback_to_savepoint(trx, NULL);
-			mutex_enter(&dict_sys->mutex);
-			trx->op_info = "";
-			ut_a(trx->error_state == DB_SUCCESS);
-		}
-		trx_free_for_background(trx);
+			"END;");
 	}
 
 	if (ret != DB_SUCCESS) {
@@ -2863,35 +2841,21 @@ dict_stats_drop_index(
 
 	pars_info_add_str_literal(pinfo, "index_name", iname);
 
-	trx_t*	trx;
-
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-
 	mutex_enter(&dict_sys->mutex);
 
-	ret = que_eval_sql(pinfo,
-			   "PROCEDURE DROP_INDEX_STATS () IS\n"
-			   "BEGIN\n"
-			   "DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
-			   "database_name = :database_name AND\n"
-			   "table_name = :table_name AND\n"
-			   "index_name = :index_name;\n"
-			   "END;\n",
-			   FALSE,
-			   trx);
-	/* pinfo is freed by que_eval_sql() */
+	ret = dict_stats_exec_sql(
+		pinfo,
+		"PROCEDURE DROP_INDEX_STATS () IS\n"
+		"BEGIN\n"
+		"DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
+		"database_name = :database_name AND\n"
+		"table_name = :table_name AND\n"
+		"index_name = :index_name;\n"
+		"END;\n");
 
 	mutex_exit(&dict_sys->mutex);
 
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-
+	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
 			    "Unable to delete statistics for index %s "
 			    "from %s%s: %s. They can be deleted later using "
@@ -2913,7 +2877,6 @@ dict_stats_drop_index(
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
-	trx_free_for_background(trx);
 
 	dict_stats_close(dict_stats);
 
@@ -2937,7 +2900,6 @@ dict_stats_delete_from_table_stats(
 	const char*	table_name)	/*!< in: table name, e.g. 'table' */
 {
 	pars_info_t*	pinfo;
-	trx_t*		trx;
 	dberr_t		ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -2947,32 +2909,14 @@ dict_stats_delete_from_table_stats(
 	pars_info_add_str_literal(pinfo, "database_name", database_name);
 	pars_info_add_str_literal(pinfo, "table_name", table_name);
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-
-	ret = que_eval_sql(
+	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE DELETE_FROM_TABLE_STATS () IS\n"
 		"BEGIN\n"
 		"DELETE FROM \"" TABLE_STATS_NAME "\" WHERE\n"
 		"database_name = :database_name AND\n"
 		"table_name = :table_name;\n"
-		"END;\n",
-		FALSE, trx);
-	/* pinfo is freed by que_eval_sql() */
-
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		mutex_exit(&dict_sys->mutex);
-		trx_rollback_to_savepoint(trx, NULL);
-		mutex_enter(&dict_sys->mutex);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-
-	trx_free_for_background(trx);
+		"END;\n");
 
 	return(ret);
 }
@@ -2994,7 +2938,6 @@ dict_stats_delete_from_index_stats(
 	const char*	table_name)	/*!< in: table name, e.g. 'table' */
 {
 	pars_info_t*	pinfo;
-	trx_t*		trx;
 	dberr_t		ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -3004,32 +2947,14 @@ dict_stats_delete_from_index_stats(
 	pars_info_add_str_literal(pinfo, "database_name", database_name);
 	pars_info_add_str_literal(pinfo, "table_name", table_name);
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-
-	ret = que_eval_sql(
+	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE DELETE_FROM_INDEX_STATS () IS\n"
 		"BEGIN\n"
 		"DELETE FROM \"" INDEX_STATS_NAME "\" WHERE\n"
 		"database_name = :database_name AND\n"
 		"table_name = :table_name;\n"
-		"END;\n",
-		FALSE, trx);
-	/* pinfo is freed by que_eval_sql() */
-
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		mutex_exit(&dict_sys->mutex);
-		trx_rollback_to_savepoint(trx, NULL);
-		mutex_enter(&dict_sys->mutex);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-
-	trx_free_for_background(trx);
+		"END;\n");
 
 	return(ret);
 }
@@ -3137,7 +3062,6 @@ dict_stats_rename_in_table_stats(
 	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
 {
 	pars_info_t*	pinfo;
-	trx_t*		trx;
 	dberr_t		ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -3149,10 +3073,7 @@ dict_stats_rename_in_table_stats(
 	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
 	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-
-	ret = que_eval_sql(
+	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE RENAME_IN_TABLE_STATS () IS\n"
 		"BEGIN\n"
@@ -3162,22 +3083,7 @@ dict_stats_rename_in_table_stats(
 		"WHERE\n"
 		"database_name = :old_database_name AND\n"
 		"table_name = :old_table_name;\n"
-		"END;\n",
-		FALSE, trx);
-	/* pinfo is freed by que_eval_sql() */
-
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		mutex_exit(&dict_sys->mutex);
-		trx_rollback_to_savepoint(trx, NULL);
-		mutex_enter(&dict_sys->mutex);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-
-	trx_free_for_background(trx);
+		"END;\n");
 
 	return(ret);
 }
@@ -3202,7 +3108,6 @@ dict_stats_rename_in_index_stats(
 	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
 {
 	pars_info_t*	pinfo;
-	trx_t*		trx;
 	dberr_t		ret;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -3214,10 +3119,7 @@ dict_stats_rename_in_index_stats(
 	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
 	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
 
-	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
-
-	ret = que_eval_sql(
+	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE RENAME_IN_INDEX_STATS () IS\n"
 		"BEGIN\n"
@@ -3227,22 +3129,7 @@ dict_stats_rename_in_index_stats(
 		"WHERE\n"
 		"database_name = :old_database_name AND\n"
 		"table_name = :old_table_name;\n"
-		"END;\n",
-		FALSE, trx);
-	/* pinfo is freed by que_eval_sql() */
-
-	if (ret == DB_SUCCESS) {
-		trx_commit_for_mysql(trx);
-	} else {
-		trx->op_info = "rollback of internal trx on stats tables";
-		mutex_exit(&dict_sys->mutex);
-		trx_rollback_to_savepoint(trx, NULL);
-		mutex_enter(&dict_sys->mutex);
-		trx->op_info = "";
-		ut_a(trx->error_state == DB_SUCCESS);
-	}
-
-	trx_free_for_background(trx);
+		"END;\n");
 
 	return(ret);
 }
