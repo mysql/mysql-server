@@ -8760,7 +8760,6 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
   
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
  
-#if defined(HAVE_OPENSSL)
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -8769,7 +8768,6 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
-#endif
 #endif
   return 0;
 }
