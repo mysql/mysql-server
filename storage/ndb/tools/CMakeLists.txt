@@ -100,6 +100,11 @@ MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
   COMPONENT ClusterTools)
 TARGET_LINK_LIBRARIES(ndbinfo_select_all ndbNDBT)
 
+MYSQL_ADD_EXECUTABLE(ndb_blob_tool
+  ndb_blob_tool.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_blob_tool ndbNDBT)
+
 IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+
   ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
