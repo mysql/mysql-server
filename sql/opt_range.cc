@@ -5526,7 +5526,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       if (found_records != HA_POS_ERROR &&
           param->thd->opt_trace.is_started())
       {
-        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics);
         Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
 
         const KEY &cur_key= param->table->key_info[keynr];
@@ -5535,23 +5534,23 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         String range_info;
         range_info.set_charset(system_charset_info);
         trace_range_all_keyparts(trace_range, &range_info, *key, key_part);
+        trace_range.end(); // NOTE: ends the tracing scope
+
+        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
+          add("rowid_ordered", param->is_ror_scan).
+          add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL)).
+          add("index_only", read_index_only).
+          add("rows", found_records).
+          add("cost", cost.total_cost());
       }
 #endif
 
-      trace_idx.add("index_only", read_index_only).
-        add("rows", found_records).
-        add("cost", cost.total_cost());
-
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
-        trace_idx.add("rowid_ordered", true);
         tree->n_ror_scans++;
         tree->ror_scans_map.set_bit(idx);
       }
-      else
-        trace_idx.add("rowid_ordered", false);
 
-      trace_idx.add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL));
 
       if (found_records != HA_POS_ERROR &&
           read_time > (found_read_time= cost.total_cost()))
@@ -5564,7 +5563,9 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         best_buf_size=  buf_size;
       }
       else
-        trace_idx.add("chosen", false).add_alnum("cause", "cost");
+        trace_idx.add("chosen", false).
+          add_alnum("cause",
+                    (found_records == HA_POS_ERROR) ? "unknown" : "cost");
 
     }
   }
