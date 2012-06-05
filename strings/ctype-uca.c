@@ -6523,13 +6523,17 @@ page0FCdata,page0FDdata,page0FEdata,page0FFdata
 
 MY_UCA_INFO my_uca_v400=
 {
-  0xFFFF,    /* maxchar           */
-  uca_length,
-  uca_weight,
-  {          /* Contractions:     */
-    0,       /*   nitems          */
-    NULL,    /*   item            */
-    NULL     /*   flags           */
+  {
+    {
+      0xFFFF,    /* maxchar           */
+      uca_length,
+      uca_weight,
+      {          /* Contractions:     */
+        0,       /*   nitems          */
+        NULL,    /*   item            */
+        NULL     /*   flags           */
+      }
+    },
   },
 
   /* Logical positions */
@@ -19095,13 +19099,17 @@ NULL       ,NULL       ,NULL       ,NULL
 
 MY_UCA_INFO my_uca_v520=
 {
-  0x10FFFF,      /* maxchar           */
-  uca520_length,
-  uca520_weight,
-  {              /* Contractions:     */
-    0,           /*   nitems          */
-    NULL,        /*   item            */
-    NULL         /*   flags           */
+  {
+    {
+      0x10FFFF,      /* maxchar           */
+      uca520_length,
+      uca520_weight,
+      {              /* Contractions:     */
+        0,           /*   nitems          */
+        NULL,        /*   item            */
+        NULL         /*   flags           */
+      }
+    },
   },
 
   0x0009,    /* first_non_ignorable       p != ignore                       */
@@ -19453,7 +19461,7 @@ typedef struct my_uca_scanner_st
   const uint16 *wbeg;	/* Beginning of the current weight string */
   const uchar  *sbeg;	/* Beginning of the input string          */
   const uchar  *send;	/* End of the input string                */
-  MY_UCA_INFO  *uca;
+  const MY_UCA_WEIGHT_LEVEL *level;
   uint16 implicit[2];
   int page;
   int code;
@@ -19467,6 +19475,7 @@ typedef struct my_uca_scanner_st
 typedef struct my_uca_scanner_handler_st 
 {
   void (*init)(my_uca_scanner *scanner, const CHARSET_INFO *cs, 
+               const MY_UCA_WEIGHT_LEVEL *level,
                const uchar *str, size_t length);
   int (*next)(my_uca_scanner *scanner);
 } my_uca_scanner_handler;
@@ -19499,9 +19508,9 @@ static uint16 nochar[]= {0,0};
 */
 
 static inline void
-my_uca_add_contraction_flag(MY_UCA_INFO *uca, my_wc_t wc, int flag)
+my_uca_add_contraction_flag(MY_CONTRACTIONS *list, my_wc_t wc, int flag)
 {
-  uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK]|= flag;
+  list->flags[wc & MY_UCA_CNT_FLAG_MASK]|= flag;
 }
 
 
@@ -19517,10 +19526,9 @@ my_uca_add_contraction_flag(MY_UCA_INFO *uca, my_wc_t wc, int flag)
 */
 
 static MY_CONTRACTION *
-my_uca_add_contraction(MY_UCA_INFO *uca, my_wc_t *wc, size_t len,
+my_uca_add_contraction(MY_CONTRACTIONS *list, my_wc_t *wc, size_t len,
                        my_bool with_context)
 {
-  MY_CONTRACTIONS *list= &uca->contractions;
   MY_CONTRACTION *next= &list->item[list->nitems];
   size_t i;
   /*
@@ -19559,39 +19567,41 @@ my_uca_add_contraction(MY_UCA_INFO *uca, my_wc_t *wc, size_t len,
 */
 
 static my_bool
-my_uca_alloc_contractions(MY_UCA_INFO *uca,
+my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
                           MY_CHARSET_LOADER *loader, size_t n)
 {
   uint size= n * sizeof(MY_CONTRACTION);
-  if (!(uca->contractions.item= (loader->once_alloc)(size)) ||
-      !(uca->contractions.flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
+  if (!(contractions->item= (loader->once_alloc)(size)) ||
+      !(contractions->flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
     return 1;
-  memset(uca->contractions.item, 0, size);
-  memset(uca->contractions.flags, 0, MY_UCA_CNT_FLAG_SIZE);
+  memset(contractions->item, 0, size);
+  memset(contractions->flags, 0, MY_UCA_CNT_FLAG_SIZE);
   return 0;
 }
 
 
 /**
-  Check if UCA data has contractions (public version)
+  Return UCA contraction data for a CHARSET_INFO structure.
 
-  @param uca      Pointer to UCA data
-  @retval   0 - no contraction, 1 - have contractions.
+  @param cs       Pointer to CHARSET_INFO structure
+  @retval         Pointer to contraction data
+  @retval         NULL, if this collation does not have UCA contraction
 */
 
-my_bool
-my_uca_have_contractions(MY_UCA_INFO *uca)
+const MY_CONTRACTIONS *
+my_charset_get_contractions(const CHARSET_INFO *cs, int level)
 {
-  return (uca != NULL) && (uca->contractions.nitems > 0);
+  return (cs->uca != NULL) && (cs->uca->level[level].contractions.nitems > 0) ?
+          &cs->uca->level[level].contractions : NULL;
 }
 
 
 /**
-  Check if UCA data has contractions (static version)
+  Check if UCA level data has contractions (static version)
   Static quick version of my_uca_have_contractions(),
   optimized for performance purposes, also marked as "inline".
   
-  @param uca      Pointer to UCA data
+  @param level    Pointer to UCA level data
   
   @return   Flags indicating if UCA with contractions
   @retval   0 - no contractions
@@ -19599,9 +19609,9 @@ my_uca_have_contractions(MY_UCA_INFO *uca)
 */
 
 static inline my_bool
-my_uca_have_contractions_quick(MY_UCA_INFO *uca)
+my_uca_have_contractions_quick(const MY_UCA_WEIGHT_LEVEL *level)
 {
-  return (uca->contractions.nitems > 0);
+  return (level->contractions.nitems > 0);
 }
 
 
@@ -19609,7 +19619,7 @@ my_uca_have_contractions_quick(MY_UCA_INFO *uca)
 /**
   Check if a character can be contraction head
   
-  @param uca      Pointer to UCA data
+  @param c        Pointer to UCA contraction data
   @param wc       Code point
   
   @retval   0 - cannot be contraction head
@@ -19617,16 +19627,16 @@ my_uca_have_contractions_quick(MY_UCA_INFO *uca)
 */
 
 my_bool
-my_uca_can_be_contraction_head(MY_UCA_INFO *uca, my_wc_t wc)
+my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc)
 {
-  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
+  return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
 }
 
 
 /**
   Check if a character can be contraction tail
   
-  @param uca      Pointer to UCA data
+  @param c        Pointer to UCA contraction data
   @param wc       Code point
   
   @retval   0 - cannot be contraction tail
@@ -19634,33 +19644,33 @@ my_uca_can_be_contraction_head(MY_UCA_INFO *uca, my_wc_t wc)
 */
 
 my_bool
-my_uca_can_be_contraction_tail(MY_UCA_INFO *uca, my_wc_t wc)
+my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc)
 {
-  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
+  return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
 }
 
 
 /**
   Check if a character can be contraction part
 
-  @param uca      Pointer to UCA data
+  @param c        Pointer to UCA contraction data
   @param wc       Code point
 
   @retval   0 - cannot be contraction part
   @retval   1 - can be contraction part
 */
 
-my_bool
-my_uca_can_be_contraction_part(MY_UCA_INFO *uca, my_wc_t wc, int flag)
+static inline my_bool
+my_uca_can_be_contraction_part(const MY_CONTRACTIONS *c, my_wc_t wc, int flag)
 {
-  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] & flag;
+  return c->flags[wc & MY_UCA_CNT_FLAG_MASK] & flag;
 }
 
 
 /**
-  Find a contraction and return its weight array
+  Find a contraction consisting of two characters and return its weight array
 
-  @param uca      Pointer to UCA data
+  @param list     Pointer to UCA contraction data
   @param wc1      First character
   @param wc2      Second character
 
@@ -19670,9 +19680,8 @@ my_uca_can_be_contraction_part(MY_UCA_INFO *uca, my_wc_t wc, int flag)
 */
 
 uint16 *
-my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2)
+my_uca_contraction2_weight(const MY_CONTRACTIONS *list, my_wc_t wc1, my_wc_t wc2)
 {
-  MY_CONTRACTIONS *list= &uca->contractions;
   MY_CONTRACTION *c, *last;
   for (c= list->item, last= c + list->nitems; c < last; c++)
   {
@@ -19688,7 +19697,7 @@ my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2)
 /**
   Check if a character can be previous context head
 
-  @param uca      Pointer to UCA data
+  @param list     Pointer to UCA contraction data
   @param wc       Code point
 
   @return
@@ -19697,17 +19706,16 @@ my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2)
 */
 
 my_bool
-my_uca_can_be_previous_context_head(MY_UCA_INFO *uca, my_wc_t wc)
+my_uca_can_be_previous_context_head(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
-  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] &
-         MY_UCA_PREVIOUS_CONTEXT_HEAD;
+  return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_HEAD;
 }
 
 
 /**
   Check if a character can be previois context tail
 
-  @param uca      Pointer to UCA data
+  @param uca      Pointer to UCA contraction data
   @param wc       Code point
 
   @return
@@ -19716,10 +19724,9 @@ my_uca_can_be_previous_context_head(MY_UCA_INFO *uca, my_wc_t wc)
 */
 
 my_bool
-my_uca_can_be_previous_context_tail(MY_UCA_INFO *uca, my_wc_t wc)
+my_uca_can_be_previous_context_tail(const MY_CONTRACTIONS *list, my_wc_t wc)
 {
-  return uca->contractions.flags[wc & MY_UCA_CNT_FLAG_MASK] &
-         MY_UCA_PREVIOUS_CONTEXT_TAIL;
+  return list->flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_PREVIOUS_CONTEXT_TAIL;
 }
 
 
@@ -19746,7 +19753,7 @@ my_wmemcmp(my_wc_t *a, my_wc_t *b, size_t len)
   Check if a string is a contraction,
   and return its weight array on success.
 
-  @param uca    Pointer to UCA data
+  @param list   Pointer to UCA contraction data
   @param wc     Pointer to wide string
   @param len    String length
 
@@ -19755,10 +19762,9 @@ my_wmemcmp(my_wc_t *a, my_wc_t *b, size_t len)
   @retval       ptr  - contraction weight array
 */
 
-uint16 *
-my_uca_contraction_weight(MY_UCA_INFO *uca, my_wc_t *wc, size_t len)
+static inline uint16 *
+my_uca_contraction_weight(const MY_CONTRACTIONS *list, my_wc_t *wc, size_t len)
 {
-  MY_CONTRACTIONS *list= &uca->contractions;
   MY_CONTRACTION *c, *last;
   for (c= list->item, last= c + list->nitems; c < last; c++)
   {
@@ -19803,7 +19809,8 @@ my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
                                          s, scanner->send)) <= 0)
       break;
     beg[clen]= s= s + mblen;
-    if (!my_uca_can_be_contraction_part(scanner->uca, wc[clen++], flag))
+    if (!my_uca_can_be_contraction_part(&scanner->level->contractions,
+                                        wc[clen++], flag))
       break;
   }
 
@@ -19811,8 +19818,10 @@ my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
   for ( ; clen > 1; clen--)
   {
     uint16 *cweight;
-    if (my_uca_can_be_contraction_tail(scanner->uca, wc[clen - 1]) &&
-        (cweight= my_uca_contraction_weight(scanner->uca, wc, clen)))
+    if (my_uca_can_be_contraction_tail(&scanner->level->contractions,
+                                       wc[clen - 1]) &&
+        (cweight= my_uca_contraction_weight(&scanner->level->contractions,
+                                            wc, clen)))
     {
       scanner->wbeg= cweight + 1;
       scanner->sbeg= beg[clen - 1];
@@ -19841,7 +19850,7 @@ uint16 *
 my_uca_previous_context_find(my_uca_scanner *scanner,
                              my_wc_t wc0, my_wc_t wc1)
 {
-  MY_CONTRACTIONS *list= &scanner->uca->contractions;
+  const MY_CONTRACTIONS *list= &scanner->level->contractions;
   MY_CONTRACTION *c, *last;
   for (c= list->item, last= c + list->nitems; c < last; c++)
   {
@@ -19891,14 +19900,16 @@ my_uca_scanner_next_implicit(my_uca_scanner *scanner)
   The same two functions for any character set
 */
 static void
-my_uca_scanner_init_any(my_uca_scanner *scanner, const CHARSET_INFO *cs,
+my_uca_scanner_init_any(my_uca_scanner *scanner,
+                        const CHARSET_INFO *cs,
+                        const MY_UCA_WEIGHT_LEVEL *level,
                         const uchar *str, size_t length)
 {
   /* Note, no needs to initialize scanner->wbeg */
   scanner->sbeg= str;
   scanner->send= str + length;
   scanner->wbeg= nochar; 
-  scanner->uca= cs->uca;
+  scanner->level= level;
   scanner->cs= cs;
 }
 
@@ -19926,14 +19937,14 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
       return -1;
 
     scanner->sbeg+= mblen;
-    if (wc[0] > scanner->uca->maxchar)
+    if (wc[0] > scanner->level->maxchar)
     {
       /* Return 0xFFFD as weight for all characters outside BMP */
       scanner->wbeg= nochar;
       return 0xFFFD;
     }
 
-    if (my_uca_have_contractions_quick(scanner->uca))
+    if (my_uca_have_contractions_quick(scanner->level))
     {
       uint16 *cweight;
       /*
@@ -19945,9 +19956,10 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
         Note, we support only 2-character long sequences with previous
         context at the moment. CLDR does not have longer sequences.
       */
-      if (my_uca_can_be_previous_context_tail(scanner->uca, wc[0]) &&
+      if (my_uca_can_be_previous_context_tail(&scanner->level->contractions,
+                                              wc[0]) &&
           scanner->wbeg != nochar &&     /* if not the very first character */
-          my_uca_can_be_previous_context_head(scanner->uca,
+          my_uca_can_be_previous_context_head(&scanner->level->contractions,
                                               (wc[1]= ((scanner->page << 8) +
                                                         scanner->code))) &&
           (cweight= my_uca_previous_context_find(scanner, wc[1], wc[0])))
@@ -19955,7 +19967,8 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
         scanner->page= scanner->code= 0; /* Clear for the next character */
         return *cweight;
       }
-      else if (my_uca_can_be_contraction_head(scanner->uca, wc[0]))
+      else if (my_uca_can_be_contraction_head(&scanner->level->contractions,
+                                              wc[0]))
       {
         /* Check if w[0] starts a contraction */
         if ((cweight= my_uca_scanner_contraction_find(scanner, wc)))
@@ -19968,12 +19981,12 @@ static int my_uca_scanner_next_any(my_uca_scanner *scanner)
     scanner->code= wc[0] & 0xFF;
 
     /* If weight page for w[0] does not exist, then calculate algoritmically */
-    if (!(wpage= scanner->uca->weights[scanner->page]))
+    if (!(wpage= scanner->level->weights[scanner->page]))
       return my_uca_scanner_next_implicit(scanner);
 
     /* Calculate pointer to w[0]'s weight, using page and offset */
     scanner->wbeg= wpage +
-                   scanner->code * scanner->uca->lengths[scanner->page];
+                   scanner->code * scanner->level->lengths[scanner->page];
   } while (!scanner->wbeg[0]); /* Skip ignorable characters */
 
   return *scanner->wbeg++;
@@ -20038,8 +20051,8 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
   int s_res;
   int t_res;
   
-  scanner_handler->init(&sscanner, cs, s, slen);
-  scanner_handler->init(&tscanner, cs, t, tlen);
+  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen);
+  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen);
   
   do
   {
@@ -20052,9 +20065,9 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
 
 
 static inline int
-my_space_weight(const CHARSET_INFO *cs)
+my_space_weight(const CHARSET_INFO *cs)// W3-TODO
 {
-  return cs->uca->weights[0][0x20 * cs->uca->lengths[0]];
+  return cs->uca->level[0].weights[0][0x20 * cs->uca->level[0].lengths[0]];
 }
 
 
@@ -20072,12 +20085,12 @@ my_space_weight(const CHARSET_INFO *cs)
 */
 
 static inline uint16 *
-my_char_weight_addr(MY_UCA_INFO *uca, uint wc)
+my_char_weight_addr(MY_UCA_WEIGHT_LEVEL *level, uint wc)
 {
   uint page, ofst;
-  return wc > uca->maxchar ? NULL :
-         (uca->weights[page= (wc >> 8)] ?
-          uca->weights[page] + (ofst= (wc & 0xFF)) * uca->lengths[page] :
+  return wc > level->maxchar ? NULL :
+         (level->weights[page= (wc >> 8)] ?
+          level->weights[page] + (ofst= (wc & 0xFF)) * level->lengths[page] :
           NULL);
 }
 
@@ -20143,8 +20156,8 @@ static int my_strnncollsp_uca(const CHARSET_INFO *cs,
   diff_if_only_endspace_difference= 0;
 #endif
 
-  scanner_handler->init(&sscanner, cs, s, slen);
-  scanner_handler->init(&tscanner, cs, t, tlen);
+  scanner_handler->init(&sscanner, cs, &cs->uca->level[0], s, slen);
+  scanner_handler->init(&tscanner, cs, &cs->uca->level[0], t, tlen);
   
   do
   {
@@ -20217,7 +20230,7 @@ static void my_hash_sort_uca(const CHARSET_INFO *cs,
   my_uca_scanner scanner;
   
   slen= cs->cset->lengthsp(cs, (char*) s, slen);
-  scanner_handler->init(&scanner, cs, s, slen);
+  scanner_handler->init(&scanner, cs, &cs->uca->level[0], s, slen);
   
   while ((s_res= scanner_handler->next(&scanner)) >0)
   {
@@ -20271,7 +20284,7 @@ my_strnxfrm_uca(const CHARSET_INFO *cs,
   uchar *de= dst + dstlen;
   int   s_res;
   my_uca_scanner scanner;
-  scanner_handler->init(&scanner, cs, src, srclen);
+  scanner_handler->init(&scanner, cs, &cs->uca->level[0], src, srclen);
   
   for (; dst < de && nweights &&
          (s_res= scanner_handler->next(&scanner)) > 0 ; nweights--)
@@ -20318,8 +20331,8 @@ my_strnxfrm_uca(const CHARSET_INFO *cs,
 static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
   size_t length1, length2;
-  uint16 *weight1= my_char_weight_addr(cs->uca, wc1);
-  uint16 *weight2= my_char_weight_addr(cs->uca, wc2);
+  uint16 *weight1= my_char_weight_addr(&cs->uca->level[0], wc1);// W3-TODO
+  uint16 *weight2= my_char_weight_addr(&cs->uca->level[0], wc2);
   
   /* Check if some of the characters does not have implicit weights */
   if (!weight1 || !weight2)
@@ -20330,8 +20343,8 @@ static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
     return 1;
   
   /* Thoroughly compare all weights */
-  length1= cs->uca->lengths[wc1 >> MY_UCA_PSHIFT];
-  length2= cs->uca->lengths[wc2 >> MY_UCA_PSHIFT];
+  length1= cs->uca->level[0].lengths[wc1 >> MY_UCA_PSHIFT];//W3-TODO
+  length2= cs->uca->level[0].lengths[wc2 >> MY_UCA_PSHIFT];
   
   if (length1 > length2)
     return memcmp((const void*)weight1, (const void*)weight2, length2*2) ?
@@ -20344,8 +20357,7 @@ static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
   return memcmp((const void*)weight1, (const void*)weight2, length1*2);
 }
 
-/*
-** Compare string against string with wildcard
+/*** Compare string against string with wildcard
 **	0 if matched
 **	-1 if not matched with wildcard
 **	 1 if matched with wildcard
@@ -21676,7 +21688,7 @@ my_coll_rule_parse(MY_COLL_RULES *rules,
 */
 
 static size_t
-my_char_weight_put(MY_UCA_INFO *dst_uca,
+my_char_weight_put(MY_UCA_WEIGHT_LEVEL *dst,
                    uint16 *to, size_t to_length,
                    my_wc_t *str, size_t len)
 {
@@ -21692,7 +21704,7 @@ my_char_weight_put(MY_UCA_INFO *dst_uca,
 
     for (chlen= len; chlen > 1; chlen--)
     {
-      if ((from= my_uca_contraction_weight(dst_uca, str, chlen)))
+      if ((from= my_uca_contraction_weight(&dst->contractions, str, chlen)))
       {
         str+= chlen;
         len-= chlen;
@@ -21702,7 +21714,7 @@ my_char_weight_put(MY_UCA_INFO *dst_uca,
 
     if (!from)
     {
-      from= my_char_weight_addr(dst_uca, *str);
+      from= my_char_weight_addr(dst, *str);
       str++;
       len--;
     }
@@ -21732,21 +21744,237 @@ my_char_weight_put(MY_UCA_INFO *dst_uca,
 */
 static my_bool
 my_uca_copy_page(MY_CHARSET_LOADER *loader,
-                 MY_UCA_INFO *src_uca,
-                 MY_UCA_INFO *dst_uca,
+                 const MY_UCA_WEIGHT_LEVEL *src,
+                 MY_UCA_WEIGHT_LEVEL *dst,
                  size_t page)
 {
-  uint chc, size= 256 * dst_uca->lengths[page] * sizeof(uint16);
-  if (!(dst_uca->weights[page]= (uint16 *) (loader->once_alloc)(size)))
+  uint chc, size= 256 * dst->lengths[page] * sizeof(uint16);
+  if (!(dst->weights[page]= (uint16 *) (loader->once_alloc)(size)))
     return TRUE;
 
-  DBUG_ASSERT(src_uca->lengths[page] <= dst_uca->lengths[page]);
-  memset(dst_uca->weights[page], 0, size);
+  DBUG_ASSERT(src->lengths[page] <= dst->lengths[page]);
+  memset(dst->weights[page], 0, size);
   for (chc=0 ; chc < 256; chc++)
   {
-    memcpy(dst_uca->weights[page] + chc * dst_uca->lengths[page],
-           src_uca->weights[page] + chc * src_uca->lengths[page],
-           src_uca->lengths[page] * sizeof(uint16));
+    memcpy(dst->weights[page] + chc * dst->lengths[page],
+           src->weights[page] + chc * src->lengths[page],
+           src->lengths[page] * sizeof(uint16));
+  }
+  return FALSE;
+}
+
+
+static my_bool
+apply_shift(MY_CHARSET_LOADER *loader,
+            MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
+            uint16 *to, size_t nweights)
+{
+  /* Apply level difference. */
+  if (nweights)
+  {
+    to[nweights - 1]+= r->diff[level];
+    if (r->before_level == 1) /* Apply "&[before primary]" */
+    {
+      if (nweights >= 2)
+      {
+        to[nweights - 2]--; /* Reset before */
+        if (rules->shift_after_method == my_shift_method_expand)
+        {
+          /*
+            Special case. Don't let characters shifted after X
+            and before next(X) intermix to each other.
+            
+            For example:
+            "[shift-after-method expand] &0 < a &[before primary]1 < A".
+            I.e. we reorder 'a' after '0', and then 'A' before '1'.
+            'a' must be sorted before 'A'.
+            
+            Note, there are no real collations in CLDR which shift
+            after and before two neighbourgh characters. We need this
+            just in case. Reserving 4096 (0x1000) weights for such
+            cases is perfectly enough.
+          */
+          to[nweights - 1]+= 0x1000; //W3-TODO: const may vary on levels 2,3
+        }
+      }
+      else
+      {
+        my_snprintf(loader->error, sizeof(loader->error),
+                    "Can't reset before "
+                    "a primary ignorable character U+%04lX", r->base[0]);
+        return TRUE;
+      }
+    }
+  }
+  else
+  {
+    /* Shift to an ignorable character, e.g.: & \u0000 < \u0001 */
+    DBUG_ASSERT(to[0] == 0);
+    to[0]= r->diff[level];
+  }
+  return FALSE; 
+}
+
+
+static my_bool
+apply_one_rule(MY_CHARSET_LOADER *loader,
+               MY_COLL_RULES *rules, MY_COLL_RULE *r, int level,
+               MY_UCA_WEIGHT_LEVEL *dst)
+{
+  size_t nweights;
+  size_t nreset= my_coll_rule_reset_length(r); /* Length of reset sequence */
+  size_t nshift= my_coll_rule_shift_length(r); /* Length of shift sequence */
+  uint16 *to;
+
+  if (nshift >= 2) /* Contraction */
+  {
+    size_t i;
+    int flag;
+    MY_CONTRACTIONS *contractions= &dst->contractions;
+    /* Add HEAD, MID and TAIL flags for the contraction parts */
+    my_uca_add_contraction_flag(contractions, r->curr[0],
+                                r->with_context ?
+                                MY_UCA_PREVIOUS_CONTEXT_HEAD :
+                                MY_UCA_CNT_HEAD);
+    for (i= 1, flag= MY_UCA_CNT_MID1; i < nshift - 1; i++, flag<<= 1)
+      my_uca_add_contraction_flag(contractions, r->curr[i], flag);
+    my_uca_add_contraction_flag(contractions, r->curr[i],
+                                r->with_context ?
+                                MY_UCA_PREVIOUS_CONTEXT_TAIL :
+                                MY_UCA_CNT_TAIL);
+    /* Add new contraction to the contraction list */
+    to= my_uca_add_contraction(contractions, r->curr, nshift,
+                               r->with_context)->weight;
+    /* Store weights of the "reset to" character */
+    dst->contractions.nitems--; /* Temporarily hide - it's incomplete */
+    nweights= my_char_weight_put(dst, to, MY_UCA_MAX_WEIGHT_SIZE,
+                                 r->base, nreset);
+    dst->contractions.nitems++; /* Activate, now it's complete */
+  }
+  else
+  {
+    my_wc_t pagec= (r->curr[0] >> 8);
+    DBUG_ASSERT(dst->weights[pagec]);
+    to= my_char_weight_addr(dst, r->curr[0]);
+    /* Store weights of the "reset to" character */
+    nweights= my_char_weight_put(dst, to, dst->lengths[pagec], r->base, nreset);
+  }
+
+  /* Apply level difference. */
+  return apply_shift(loader, rules, r, level, to, nweights);
+}
+
+
+/**
+  Check if collation rules are valid,
+  i.e. characters are not outside of the collation suported range.
+*/
+static int
+check_rules(MY_CHARSET_LOADER *loader,
+            const MY_COLL_RULES *rules,
+            const MY_UCA_WEIGHT_LEVEL *dst, const MY_UCA_WEIGHT_LEVEL *src)
+{
+  const MY_COLL_RULE *r, *rlast;
+  for (r= rules->rule, rlast= rules->rule + rules->nrules; r < rlast; r++)
+  {
+    if (r->curr[0] > dst->maxchar)
+    {
+      my_snprintf(loader->error, sizeof(loader->error),
+                  "Shift character out of range: u%04X", (uint) r->curr[0]);
+      return TRUE;
+    }
+    else if (r->base[0] > src->maxchar)
+    {
+      my_snprintf(loader->error, sizeof(loader->error),
+                  "Reset character out of range: u%04X", (uint) r->base[0]);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+
+static my_bool
+init_weight_level(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules, int level,
+                  MY_UCA_WEIGHT_LEVEL *dst, const MY_UCA_WEIGHT_LEVEL *src)
+{
+  MY_COLL_RULE *r, *rlast;
+  int ncontractions= 0;
+  size_t i, npages= (src->maxchar + 1) / 256;
+
+  dst->maxchar= src->maxchar;
+
+  if (check_rules(loader, rules, dst, src))
+    return TRUE;
+
+  /* Allocate memory for pages and their lengths */
+  if (!(dst->lengths= (uchar *) (loader->once_alloc)(npages)) ||
+      !(dst->weights= (uint16 **) (loader->once_alloc)(npages *
+                                                       sizeof(uint16 *))))
+    return TRUE;
+
+  /* Copy pages lengths and page pointers from the default UCA weights */ 
+  memcpy(dst->lengths, src->lengths, npages);
+  memcpy(dst->weights, src->weights, npages * sizeof(uint16 *));
+
+  /*
+    Calculate maximum lenghts for the pages which will be overwritten.
+    Mark pages that will be otherwriten as NULL.
+    We'll allocate their own memory.
+  */
+  for (r= rules->rule, rlast= rules->rule + rules->nrules; r < rlast; r++)
+  {
+    if (!r->curr[1]) /* If not a contraction */
+    {
+      uint pagec= (r->curr[0] >> 8);
+      if (r->base[1]) /* Expansion */
+      {
+        /* Reserve space for maximum possible length */
+        dst->lengths[pagec]= MY_UCA_MAX_WEIGHT_SIZE;
+      }
+      else
+      {
+        uint pageb= (r->base[0] >> 8);
+        if (dst->lengths[pagec] < src->lengths[pageb])
+          dst->lengths[pagec]= src->lengths[pageb];
+      }
+      dst->weights[pagec]= NULL; /* Mark that we'll overwrite this page */
+    }
+    else
+      ncontractions++;
+  }
+
+  /* Allocate pages that we'll overwrite and copy default weights */
+  for (i= 0; i < npages; i++)
+  {
+    my_bool rc;
+    /*
+      Don't touch pages with lengths[i]==0, they have implicit weights
+      calculated algorithmically.
+    */
+    if (!dst->weights[i] && dst->lengths[i] &&
+        (rc= my_uca_copy_page(loader, src, dst, i)))
+      return rc;
+  }
+
+  if (ncontractions)
+  {
+    if (my_uca_alloc_contractions(&dst->contractions, loader, ncontractions))
+      return TRUE;
+  }
+
+  /*
+    Preparatory step is done at this point.
+    Now we have memory allocated for the pages that we'll overwrite,
+    and for contractions, including previous context contractions.
+    Also, for the pages that we'll overwrite, we have copied default weights.
+    Now iterate through the rules, overwrite weights for the characters
+    that appear in the rules, and put all contractions into contraction list.
+  */
+  for (r= rules->rule; r < rlast;  r++)
+  {
+    if (apply_one_rule(loader, rules, r, level, dst))
+      return TRUE;
   }
   return FALSE;
 }
@@ -21773,10 +22001,8 @@ static my_bool
 create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
 {
   MY_COLL_RULES rules;
-  MY_COLL_RULE *r, *rlast;
   MY_UCA_INFO new_uca, *src_uca= NULL;
-  int rc= 0, ncontractions= 0;
-  size_t npages, i;
+  int rc= 0;
 
   *loader->error= '\0';
 
@@ -21793,8 +22019,6 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
                               cs->tailoring,
                               cs->tailoring + strlen(cs->tailoring))))
     goto ex;
-
-  rlast= rules.rule + rules.nrules;
 
   if (rules.version == 520)           /* Unicode-5.2.0 requested */
   {
@@ -21813,181 +22037,9 @@ create_tailoring(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader)
       cs->caseinfo= &my_unicase_default;
   }
 
-  new_uca.maxchar= src_uca->maxchar;
-  npages= (src_uca->maxchar + 1) / 256;
-
-  /* Allocate memory for pages and their lengths */
-  if (!(new_uca.lengths= (uchar *) (loader->once_alloc)(npages)) ||
-      !(new_uca.weights= (uint16 **) (loader->once_alloc)(npages *
-                                                          sizeof(uint16 *))))
-  {
-    rc= 1;
+  if ((rc= init_weight_level(loader, &rules, 0,
+                             &new_uca.level[0], &src_uca->level[0])))
     goto ex;
-  }
-
-  /* Copy pages lengths and page pointers from the default UCA weights */ 
-  memcpy(new_uca.lengths, src_uca->lengths, npages);
-  memcpy(new_uca.weights, src_uca->weights, npages * sizeof(uint16 *));
-
-  /*
-    Calculate maximum lenghts for the pages which will be overwritten.
-    Mark pages that will be otherwriten as NULL.
-    We'll allocate their own memory.
-  */
-  for (r= rules.rule; r < rlast; r++)
-  {
-    if (r->curr[0] > new_uca.maxchar)
-    {
-      my_snprintf(loader->error, sizeof(loader->error),
-                  "Shift character out of range: u%04X", (uint) r->curr[0]);
-      rc= 1;
-      goto ex;
-    }
-    else if (r->base[0] > src_uca->maxchar)
-    {
-      my_snprintf(loader->error, sizeof(loader->error),
-                  "Reset character out of range: u%04X", (uint) r->base[0]);
-      rc= 1;
-      goto ex;
-    }
-
-    if (!r->curr[1]) /* If not a contraction */
-    {
-      uint pagec= (r->curr[0] >> 8);
-      if (r->base[1]) /* Expansion */
-      {
-        /* Reserve space for maximum possible length */
-        new_uca.lengths[pagec]= MY_UCA_MAX_WEIGHT_SIZE;
-      }
-      else
-      {
-        uint pageb= (r->base[0] >> 8);
-        if (new_uca.lengths[pagec] < src_uca->lengths[pageb])
-          new_uca.lengths[pagec]= src_uca->lengths[pageb];
-      }
-      new_uca.weights[pagec]= NULL; /* Mark that we'll overwrite this page */
-    }
-    else
-      ncontractions++;
-  }
-
-  /* Allocate pages that we'll overwrite and copy default weights */
-  for (i= 0; i < npages; i++)
-  {
-    /*
-      Don't touch pages with lengths[i]==0, they have implicit weights
-      calculated algorithmically.
-    */
-    if (!new_uca.weights[i] && new_uca.lengths[i] &&
-        (rc= my_uca_copy_page(loader, src_uca, &new_uca, i)))
-      goto ex;
-  }
-
-
-  if (ncontractions)
-  {
-    if (my_uca_alloc_contractions(&new_uca, loader, ncontractions))
-    {
-      rc= 1;
-      goto ex;
-    }
-  }
-
-  /*
-    Preparatory step is done at this point.
-    Now we have memory allocated for the pages that we'll overwrite,
-    and for contractions, including previous context contractions.
-    Also, for the pages that we'll overwrite, we have copied default weights.
-    Now iterate through the rules, overwrite weights for the characters
-    that appear in the rules, and put all contractions into contraction list.
-  */
-  for (r= rules.rule; r < rlast;  r++)
-  {
-    size_t nweights;
-    size_t nreset= my_coll_rule_reset_length(r); /* Length of reset sequence */
-    size_t nshift= my_coll_rule_shift_length(r); /* Length of shift sequence */
-    uint16 *to;
-
-    if (nshift >= 2) /* Contraction */
-    {
-      size_t i;
-      int flag;
-      /* Add HEAD, MID and TAIL flags for the contraction parts */
-      my_uca_add_contraction_flag(&new_uca, r->curr[0],
-                                  r->with_context ?
-                                  MY_UCA_PREVIOUS_CONTEXT_HEAD :
-                                  MY_UCA_CNT_HEAD);
-      for (i= 1, flag= MY_UCA_CNT_MID1; i < nshift - 1; i++, flag<<= 1)
-        my_uca_add_contraction_flag(&new_uca, r->curr[i], flag);
-      my_uca_add_contraction_flag(&new_uca, r->curr[i],
-                                  r->with_context ?
-                                  MY_UCA_PREVIOUS_CONTEXT_TAIL :
-                                  MY_UCA_CNT_TAIL);
-      /* Add new contraction to the contraction list */
-      to= my_uca_add_contraction(&new_uca, r->curr, nshift,
-                                 r->with_context)->weight;
-      /* Store weights of the "reset to" character */
-      new_uca.contractions.nitems--; /* Temporarily hide - it's incomplete */
-      nweights= my_char_weight_put(&new_uca, to, MY_UCA_MAX_WEIGHT_SIZE,
-                                   r->base, nreset);
-      new_uca.contractions.nitems++; /* Activate, now it's complete */
-    }
-    else
-    {
-      my_wc_t pagec= (r->curr[0] >> 8);
-      DBUG_ASSERT(new_uca.weights[pagec]);
-      to= my_char_weight_addr(&new_uca, r->curr[0]);
-      /* Store weights of the "reset to" character */
-      nweights= my_char_weight_put(&new_uca, to, new_uca.lengths[pagec],
-                                   r->base, nreset);
-    }
-
-    /* Apply primary difference. */
-    if (nweights)
-    {
-      to[nweights - 1]+= r->diff[0];
-      if (r->before_level == 1) /* Apply "&[before primary]" */
-      {
-        if (nweights >= 2)
-        {
-          to[nweights - 2]--; /* Reset before */
-          if (rules.shift_after_method == my_shift_method_expand)
-          {
-            /*
-              Special case. Don't let characters shifted after X
-              and before next(X) intermix to each other.
-              
-              For example:
-              "[shift-after-method expand] &0 < a &[before primary]1 < A".
-              I.e. we reorder 'a' after '0', and then 'A' before '1'.
-              'a' must be sorted before 'A'.
-              
-              Note, there are no real collations in CLDR which shift
-              after and before two neighbourgh characters. We need this
-              just in case. Reserving 4096 (0x1000) weights for such
-              cases is perfectly enough.
-            */
-            to[nweights - 1]+= 0x1000;
-          }
-        }
-        else
-        {
-          my_snprintf(loader->error, sizeof(loader->error),
-                      "Can't reset before "
-                      "a primary ignorable character U+%04lX", r->base[0]);
-          rc= 1;
-          goto ex;
-        }
-      }
-    }
-    else
-    {
-      /* Shift to a primary ignorable character, e.g.: & \u0000 < \u0001 */
-      DBUG_ASSERT(to[0] == 0);
-      to[0]= r->diff[0];
-    }
-  }
-
 
   if (!(cs->uca= (MY_UCA_INFO *) (loader->once_alloc)(sizeof(MY_UCA_INFO))))
   {

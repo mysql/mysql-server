@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -50,13 +50,15 @@ static void cleanup_performance_schema(void);
 void cleanup_instrument_config(void);
 
 struct PSI_bootstrap*
-initialize_performance_schema(const PFS_global_param *param)
+initialize_performance_schema(PFS_global_param *param)
 {
   pfs_initialized= false;
 
   PFS_table_stat::g_reset_template.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
+
+  pfs_automated_sizing(param);
 
   if (! param->m_enabled)
   {
