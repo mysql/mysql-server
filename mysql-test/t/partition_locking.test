@@ -1350,6 +1350,22 @@ SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
 --echo #
+--echo # Test subquery IN expression
+--echo #
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT count(*) FROM t1 p
+WHERE a IN (1, 2, 9);
+eval $get_handler_status_counts;
+--echo # 8 locks (1 table, 3 partitions, lock/unlock)
+
+FLUSH STATUS;
+EXPLAIN PARTITIONS SELECT count(*) FROM t1 p
+WHERE a IN
+(SELECT a + 1 FROM t2 WHERE a = 4);
+eval $get_handler_status_counts;
+--echo # 32 locks (2 table, 13 + 1 partitions, lock/unlock)
+
+--echo #
 --echo # Test triggers
 --echo # Tables used in triggers cannot be pruned for locks.
 --echo # Tables with triggers cannot be pruned for locks if
@@ -1456,11 +1472,7 @@ eval $get_handler_status_counts;
 --echo # t1, before update, after update
 SELECT * FROM t1 WHERE a = 3;
 
-FLUSH STATUS;
 EXPLAIN PARTITIONS INSERT INTO t1 VALUES (12, "First row, p12");
-eval $get_handler_status_counts;
---echo # 16 locks (2 table, 1 + 5 partition lock/unlock)
---echo # t1, t3 after insert trigger
 
 FLUSH STATUS;
 INSERT INTO t1 VALUES (12, "First row, p12");
@@ -1662,6 +1674,7 @@ eval $get_handler_status_counts;
 --echo # 28 locks (1 tables, 13 partitions lock/unlock)
 
 SELECT * FROM t1 ORDER BY a;
+
 DROP TABLE t1, t2, t3;
 
 --echo #
@@ -2084,7 +2097,7 @@ INSERT INTO t1 VALUES (1, 1), (2, 0), (4, -1), (5, 2), (7, -3), (8, -9),
 FLUSH STATUS;
 INSERT INTO t2 VALUES ((SELECT max(a) FROM t1), (SELECT min(a) FROM t1));
 eval $get_handler_status_counts;
---echo # 12 locks (3 tables + 3 partitions) x lock/unlock
+--echo # 24 locks (3 tables + 3 x 3 partitions) x lock/unlock
 --echo # I.e. No lock pruning possible
 FLUSH STATUS;
 --replace_column 10 #

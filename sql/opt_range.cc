@@ -3171,19 +3171,7 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
 
   if (tree->type != SEL_TREE::KEY && tree->type != SEL_TREE::KEY_SMALLER)
-  {
-    /*
-      If the condition can be evaluated now, we are done with pruning.
-
-      During the prepare phase, before locking, subqueries and stored programs
-      are not evaluated. So we need to run prune_partitions() a second time in
-      the optimize phase to prune partitions for reading, when subqueries and
-      stored programs may be evaluated.
-    */
-    if (pprune_cond->can_be_evaluated_now())
-      part_info->is_pruning_completed= true;
     goto all_used;
-  }
 
   if (tree->merges.is_empty())
   {
@@ -3233,7 +3221,14 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
     }
   }
   
-  /* Same here regarding avoid the second run in the optimize phase. */
+  /*
+    If the condition can be evaluated now, we are done with pruning.
+
+    During the prepare phase, before locking, subqueries and stored programs
+    are not evaluated. So we need to run prune_partitions() a second time in
+    the optimize phase to prune partitions for reading, when subqueries and
+    stored programs may be evaluated.
+  */
   if (pprune_cond->can_be_evaluated_now())
     part_info->is_pruning_completed= true;
   goto end;
