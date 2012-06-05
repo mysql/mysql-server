@@ -1336,72 +1336,80 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 137:
+      name= "session_connect_attrs.row_size";
+      size= thread_max;
+      break;
+    case 138:
+      name= "session_connect_attrs.row_count";
+      size= session_connect_attrs_size_per_thread;
+      break;
+    case 139:
       name= "session_connect_attrs.memory";
       size= thread_max * session_connect_attrs_size_per_thread;
       total_memory+= size;
       break;
 
-    case 138:
+    case 140:
       name= "(account_hash).count";
       size= account_hash.count;
       break;
-    case 139:
+    case 141:
       name= "(account_hash).size";
       size= account_hash.size;
       break;
-    case 140:
+    case 142:
       name= "(digest_hash).count";
       size= digest_hash.count;
       break;
-    case 141:
+    case 143:
       name= "(digest_hash).size";
       size= digest_hash.size;
       break;
-    case 142:
+    case 144:
       name= "(filename_hash).count";
       size= filename_hash.count;
       break;
-    case 143:
+    case 145:
       name= "(filename_hash).size";
       size= filename_hash.size;
       break;
-    case 144:
+    case 146:
       name= "(host_hash).count";
       size= host_hash.count;
       break;
-    case 145:
+    case 147:
       name= "(host_hash).size";
       size= host_hash.size;
       break;
-    case 146:
+    case 148:
       name= "(setup_actor_hash).count";
       size= setup_actor_hash.count;
       break;
-    case 147:
+    case 149:
       name= "(setup_actor_hash).size";
       size= setup_actor_hash.size;
       break;
-    case 148:
+    case 150:
       name= "(setup_object_hash).count";
       size= setup_object_hash.count;
       break;
-    case 149:
+    case 151:
       name= "(setup_object_hash).size";
       size= setup_object_hash.size;
       break;
-    case 150:
+    case 152:
       name= "(table_share_hash).count";
       size= table_share_hash.count;
       break;
-    case 151:
+    case 153:
       name= "(table_share_hash).size";
       size= table_share_hash.size;
       break;
-    case 152:
+    case 154:
       name= "(user_hash).count";
       size= user_hash.count;
       break;
-    case 153:
+    case 155:
       name= "(user_hash).size";
       size= user_hash.size;
       break;
@@ -1410,7 +1418,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       This case must be last,
       for aggregation in total_memory.
     */
-    case 154:
+    case 156:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
