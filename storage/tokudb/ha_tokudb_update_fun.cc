@@ -1,4 +1,3 @@
-#if TOKU_INCLUDE_UPDATE_FUN
 
 #define UP_COL_ADD_OR_DROP 0
 
@@ -589,5 +588,3 @@ cleanup:
     my_free(new_val_data, MYF(MY_ALLOW_ZERO_PTR));
     return error;    
 }
-
-#endif
