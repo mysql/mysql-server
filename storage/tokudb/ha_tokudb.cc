@@ -8000,6 +8000,7 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
 #include "ha_tokudb_admin.cc"
 
 // alter table code for various mysql distros
+#include "ha_tokudb_update_fun.cc"
 #include "ha_tokudb_alter_51.cc"
 #include "ha_tokudb_alter_55.cc"
 #include "ha_tokudb_alter_56.cc"
