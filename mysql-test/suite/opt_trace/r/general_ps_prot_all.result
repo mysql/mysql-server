@@ -1499,15 +1499,15 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL <= d <= NULL"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -1873,15 +1873,15 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                           "range_scan_alternatives": [
                             {
                               "index": "d",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "NULL <= d <= NULL"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 1,
                               "cost": 2.21,
-                              "rowid_ordered": true,
-                              "using_mrr": false,
                               "chosen": false,
                               "cause": "cost"
                             }
@@ -6667,15 +6667,15 @@ update t6 set d=5 where d is NULL	{
           "range_scan_alternatives": [
             {
               "index": "d",
-              "index_dives_for_eq_ranges": true,
               "ranges": [
                 "NULL <= d <= NULL"
               ] /* ranges */,
+              "index_dives_for_eq_ranges": true,
+              "rowid_ordered": true,
+              "using_mrr": false,
               "index_only": false,
               "rows": 1,
               "cost": 2.21,
-              "rowid_ordered": true,
-              "using_mrr": false,
               "chosen": true
             }
           ] /* range_scan_alternatives */,
@@ -6732,15 +6732,15 @@ delete from t6 where d=5	{
           "range_scan_alternatives": [
             {
               "index": "d",
-              "index_dives_for_eq_ranges": true,
               "ranges": [
                 "5 <= d <= 5"
               ] /* ranges */,
+              "index_dives_for_eq_ranges": true,
+              "rowid_ordered": true,
+              "using_mrr": false,
               "index_only": false,
               "rows": 1,
               "cost": 2.21,
-              "rowid_ordered": true,
-              "using_mrr": false,
               "chosen": true
             }
           ] /* range_scan_alternatives */
@@ -6856,15 +6856,15 @@ insert into t6 select * from t6 where d>7	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7 < d"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -7041,15 +7041,15 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7000 < d"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -7244,15 +7244,15 @@ delete t6 from t5, t6 where d>7000	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7000 < d"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -9270,15 +9270,15 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                     "range_scan_alternatives": [
                       {
                         "index": "d",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < d"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 4,
                         "cost": 1.8798,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }

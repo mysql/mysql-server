@@ -156,16 +156,16 @@ EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "key2 < 5",
                           "1020 < key2"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 47,
                         "cost": 58.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -524,15 +524,15 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                           "range_scan_alternatives": [
                             {
                               "index": "i1",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "key1 < 3"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 3,
                               "cost": 1.6526,
-                              "rowid_ordered": false,
-                              "using_mrr": false,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
@@ -543,15 +543,15 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                           "range_scan_alternatives": [
                             {
                               "index": "i2",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "1020 < key2"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 42,
                               "cost": 10.282,
-                              "rowid_ordered": false,
-                              "using_mrr": false,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
@@ -1271,7 +1271,6 @@ GROUP BY key2	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2_1",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1",
                           "2 <= key2 <= 2",
@@ -1279,16 +1278,16 @@ GROUP BY key2	{
                           "4 <= key2 <= 4",
                           "5 <= key2 <= 5"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 47,
                         "cost": 11.724,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "i2_2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1",
                           "2 <= key2 <= 2",
@@ -1296,11 +1295,12 @@ GROUP BY key2	{
                           "4 <= key2 <= 4",
                           "5 <= key2 <= 5"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 47,
                         "cost": 11.724,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -1523,28 +1523,28 @@ EXPLAIN SELECT * FROM t2 WHERE key2 = 1 AND (key2_1 = 1 OR key3 = 5)	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2_1",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 10,
                         "cost": 13.01,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "i2_2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= key2 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 10,
                         "cost": 13.01,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -1771,15 +1771,15 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                           "range_scan_alternatives": [
                             {
                               "index": "i2",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "10 <= key2 <= 10"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 1,
                               "cost": 2.21,
-                              "rowid_ordered": true,
-                              "using_mrr": false,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
@@ -1790,15 +1790,15 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                           "range_scan_alternatives": [
                             {
                               "index": "i3",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "3 <= key3 <= 3"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": true,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 1,
                               "cost": 2.21,
-                              "rowid_ordered": true,
-                              "using_mrr": false,
                               "chosen": true
                             }
                           ] /* range_scan_alternatives */,
@@ -2198,28 +2198,28 @@ EXPLAIN SELECT * FROM t2 WHERE key1a = 5 and key1b < 10	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "5 <= key1a <= 5 AND key1b < 10"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "i1b",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "key1b < 10 AND 5 <= key1a <= 5"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 9,
                         "cost": 11.81,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -2417,31 +2417,31 @@ EXPLAIN SELECT * FROM t2 WHERE (key1a = 5 and key1b < 10 and key1b > 2) or
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "4 <= key1a <= 4 AND 3 < key1b < 7",
                           "5 <= key1a <= 5 AND 2 < key1b < 10"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 4.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "i1b",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < key1b <= 3 AND 5 <= key1a <= 5",
                           "3 < key1b < 7",
                           "7 <= key1b < 10 AND 5 <= key1a <= 5"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 6,
                         "cost": 10.21,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -2633,30 +2633,30 @@ EXPLAIN SELECT * FROM t2 WHERE (key1b < 10 and key1b > 7) and
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "4 <= key1a <= 4 AND 7 < key1b < 10",
                           "5 <= key1a <= 5 AND 7 < key1b < 10"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 4.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "i1b",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "7 < key1b < 10 AND 4 <= key1a <= 4",
                           "7 < key1b < 10 AND 5 <= key1a <= 5"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -2866,15 +2866,15 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                           "range_scan_alternatives": [
                             {
                               "index": "i1",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "1 < key1"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 1023,
                               "cost": 227.35,
-                              "rowid_ordered": false,
-                              "using_mrr": false,
                               "chosen": false,
                               "cause": "cost"
                             }
@@ -2886,15 +2886,15 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                           "range_scan_alternatives": [
                             {
                               "index": "i2",
-                              "index_dives_for_eq_ranges": true,
                               "ranges": [
                                 "2 < key2"
                               ] /* ranges */,
+                              "index_dives_for_eq_ranges": true,
+                              "rowid_ordered": false,
+                              "using_mrr": false,
                               "index_only": true,
                               "rows": 1022,
                               "cost": 227.13,
-                              "rowid_ordered": false,
-                              "using_mrr": false,
                               "chosen": false,
                               "cause": "cost"
                             }
@@ -3111,15 +3111,15 @@ WHERE t1.key1=t2.key1a AND t1.key2 > 1020	{
                     "range_scan_alternatives": [
                       {
                         "index": "i2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1020 < key2"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 42,
                         "cost": 51.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -3362,28 +3362,28 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                     "range_scan_alternatives": [
                       {
                         "index": "cola",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "foo <= cola <= foo"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 533,
                         "cost": 640.61,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "colb",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "bar <= colb <= bar"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 533,
                         "cost": 640.61,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -3615,15 +3615,15 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
                     "range_scan_alternatives": [
                       {
                         "index": "cola",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "f\no <= cola <= f\no"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -3856,13 +3856,8 @@ EXPLAIN SELECT 1 FROM
                               "range_scan_alternatives": [
                                 {
                                   "index": "b",
-                                  "index_only": true,
-                                  "rows": 18446744073709551615,
-                                  "cost": 0,
-                                  "rowid_ordered": false,
-                                  "using_mrr": true,
                                   "chosen": false,
-                                  "cause": "cost"
+                                  "cause": "unknown"
                                 }
                               ] /* range_scan_alternatives */,
                               "analyzing_roworder_intersect": {
@@ -4195,13 +4190,8 @@ EXPLAIN SELECT 1 FROM
                               "range_scan_alternatives": [
                                 {
                                   "index": "b",
-                                  "index_only": true,
-                                  "rows": 18446744073709551615,
-                                  "cost": 0,
-                                  "rowid_ordered": false,
-                                  "using_mrr": true,
                                   "chosen": false,
-                                  "cause": "cost"
+                                  "cause": "unknown"
                                 }
                               ] /* range_scan_alternatives */,
                               "analyzing_roworder_intersect": {
@@ -4464,28 +4454,28 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < i1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "k2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < i1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -4611,15 +4601,15 @@ EXPLAIN SELECT * FROM t1 WHERE i1 > '2' ORDER BY i1, i2	{
                     "range_scan_alternatives": [
                       {
                         "index": "k2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "2 < i1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -4803,29 +4793,29 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       },
                       {
                         "index": "k2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -4929,15 +4919,15 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -5144,43 +5134,43 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "pk < 3"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 2.41,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       },
                       {
                         "index": "i1_idx",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i1 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       },
                       {
                         "index": "v_idx",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "a <= v <= a AND 1 <= i1 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -5450,41 +5440,41 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "pk < 3"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 2,
                         "cost": 2.41,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "v_idx",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "a <= v <= a AND 1 <= i1 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "i1_i2_idx",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= i2 <= 1 AND 1 <= i1 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -5762,29 +5752,29 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= a <= 1 AND b < 2"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
                         "cost": 1.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       },
                       {
                         "index": "b",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "b < 2"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -6023,28 +6013,28 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                     "range_scan_alternatives": [
                       {
                         "index": "k1",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= c1 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": true,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": true,
-                        "using_mrr": false,
                         "chosen": true
                       },
                       {
                         "index": "k2",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= c1 <= 1"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": false,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
