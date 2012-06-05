@@ -214,8 +214,9 @@ ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 ERROR 42000: Multiple primary key defined
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
-ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f), CHANGE c2 c22f INT,
-CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
+CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
+ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
@@ -263,22 +264,26 @@ ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
 ERROR 22004: Invalid use of NULL value
 UPDATE t1 SET c3=CONCAT(c1,REPEAT('foo',c1)) WHERE c3 IS NULL;
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_done0';
-ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f;
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f,
+ADD COLUMN c5 CHAR(5) DEFAULT 'tired' FIRST;
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created0';
 BEGIN;
-INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti');
-INSERT INTO t1 VALUES(33101,347,NULL);
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','YLETV2');
+INSERT INTO t1 VALUES(33101,347,NULL,'');
 SET DEBUG_SYNC = 'now SIGNAL ins_done0';
 ERROR 22004: Invalid use of NULL value
 ROLLBACK;
 ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
-ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f,
+ADD COLUMN c6 VARCHAR(1000) DEFAULT
+'I love tracking down hard-to-reproduce bugs.',
+ADD PRIMARY KEY c3p5(c3(5), c6(2));
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
-INSERT INTO t1 VALUES(347,33101,NULL);
+INSERT INTO t1 VALUES(347,33101,NULL,'');
 ERROR 23000: Column 'c3' cannot be null
-INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti');
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','');
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
@@ -294,6 +299,18 @@ SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt4 WAIT_FOR dml4_done
 SET lock_wait_timeout = 1;
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt4';
+SELECT * FROM t1 LIMIT 10;
+c22f	c1	c3	c4
+5	1	1foo	Online
+6	2	2foofoo	Online
+7	3	3foofoofoo	Online
+8	4	4foofoofoofoo	Online
+9	5	5foofoofoofoofoo	Online
+5	6	6foofoofoofoofoofoo	Online
+6	7	7foofoofoofoofoofoofoo	Online
+7	8	8foofoofoofoofoofoofoofoo	Online
+8	9	9foofoofoofoofoofoofoofoofoo	Online
+9	10	10foofoofoofoofoofoofoofoofoofoo	Online
 SET lock_wait_timeout = 10;
 ALTER TABLE t1 DISCARD TABLESPACE;
 SET DEBUG_SYNC = 'now SIGNAL dml4_done';
@@ -304,11 +321,12 @@ t1	CREATE TABLE `t1` (
   `c22f` int(11) NOT NULL DEFAULT '0',
   `c1` int(11) NOT NULL DEFAULT '0',
   `c3` text NOT NULL,
-  PRIMARY KEY (`c1`,`c22f`)
+  `c4` varchar(6) NOT NULL DEFAULT 'Online',
+  PRIMARY KEY (`c1`,`c22f`,`c4`(5))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 ALTER TABLE t1 DROP COLUMN c3, ROW_FORMAT=REDUNDANT, ALGORITHM = INPLACE;
 SELECT * FROM t1;
-c22f	c1
+c22f	c1	c4
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG = '';
 SET GLOBAL innodb_monitor_disable = module_ddl;

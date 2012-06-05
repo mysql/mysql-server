@@ -45,8 +45,13 @@ row_log_allocate(
 	dict_index_t*	index,	/*!< in/out: index */
 	dict_table_t*	table,	/*!< in/out: new table being rebuilt,
 				or NULL when creating a secondary index */
-	bool		same_pk)/*!< in: whether the definition of the
+	bool		same_pk,/*!< in: whether the definition of the
 				PRIMARY KEY has remained the same */
+	const dtuple_t*	add_cols,
+				/*!< in: default values of
+				added columns, or NULL */
+	const ulint*	col_map)/*!< in: mapping of old column
+				numbers to new ones, or NULL if !table */
 	__attribute__((nonnull(1), warn_unused_result));
 /******************************************************//**
 Free the row log for an index on which online creation was aborted. */
@@ -176,14 +181,9 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table,	/*!< in/out: MySQL table
+	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-	const dtuple_t*	add_cols,
-				/*!< in: default values of
-				added columns, or NULL */
-	const ulint*	col_map)/*!< in: mapping of old column
-				numbers to new ones, or NULL */
-	__attribute__((nonnull(1,2,3,5), warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()

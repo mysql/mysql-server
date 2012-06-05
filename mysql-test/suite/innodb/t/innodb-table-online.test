@@ -220,8 +220,9 @@ ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 --error ER_DUP_ENTRY
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 --send
-ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f), CHANGE c2 c22f INT,
-CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f;
+ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
+CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
+ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
 
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';
@@ -262,14 +263,15 @@ UPDATE t1 SET c3=CONCAT(c1,REPEAT('foo',c1)) WHERE c3 IS NULL;
 
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_done0';
 --send
-ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f;
+ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f,
+ADD COLUMN c5 CHAR(5) DEFAULT 'tired' FIRST;
 
 connection default;
 
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created0';
 BEGIN;
-INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti');
-INSERT INTO t1 VALUES(33101,347,NULL);
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','YLETV2');
+INSERT INTO t1 VALUES(33101,347,NULL,'');
 SET DEBUG_SYNC = 'now SIGNAL ins_done0';
 
 connection con1;
@@ -284,16 +286,19 @@ ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
 
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
 --send
-ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
+ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f,
+ADD COLUMN c6 VARCHAR(1000) DEFAULT
+'I love tracking down hard-to-reproduce bugs.',
+ADD PRIMARY KEY c3p5(c3(5), c6(2));
 
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
 --error ER_BAD_NULL_ERROR
-INSERT INTO t1 VALUES(347,33101,NULL);
+INSERT INTO t1 VALUES(347,33101,NULL,'');
 --send
-INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti');
+INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','');
 
 connection con1;
 --error ER_LOCK_WAIT_TIMEOUT
@@ -314,6 +319,7 @@ ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 
 connection con1;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt4';
+SELECT * FROM t1 LIMIT 10;
 
 connect (con2,localhost,root,,);
 connection con2;
