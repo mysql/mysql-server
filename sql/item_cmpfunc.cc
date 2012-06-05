@@ -2151,7 +2151,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
   DBUG_ASSERT(arg_count == 2);
 
   /* Transform the left IN operand. */
-  new_item= (*args)->transform(transformer, argument);
+  new_item= args[0]->transform(transformer, argument);
   if (!new_item)
     return 0;
   /*
@@ -2160,7 +2160,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
     Otherwise we'll be allocating a lot of unnecessary memory for
     change records at each execution.
   */
-  if ((*args) != new_item)
+  if (args[0] != new_item)
     current_thd->change_item_tree(args, new_item);
 
   /*
@@ -2179,7 +2179,9 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
                Item_subselect::ANY_SUBS));
 
   Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
-  in_arg->left_expr= args[0];
+
+  if (in_arg->left_expr != args[0])
+    current_thd->change_item_tree(&in_arg->left_expr, args[0]);
 
   return (this->*transformer)(argument);
 }
