@@ -1761,6 +1761,22 @@ CREATE TABLE t2 AS
 DROP TABLE t2;
 DROP TABLE t1;
 
+--echo #
+--echo # LP BUG#1000649 EXPLAIN shows incorrectly a non-correlated constant IN subquery is correlated
+--echo #
+
+create table ten (a int);
+insert into ten values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, c int);
+insert into t1 select a,a,a from ten;
+create table five (a int, b int, c int);
+insert into five select a,a,a from ten limit 5;
+
+set @@optimizer_switch='semijoin=on,in_to_exists=on,materialization=off';
+explain select * from t1 where 33 in (select b from five) or c > 11;
+
+drop table ten, t1, five;
+
 
 set optimizer_switch=@subselect4_tmp;
 
