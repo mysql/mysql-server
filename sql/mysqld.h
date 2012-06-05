@@ -256,6 +256,9 @@ extern ulong opt_ndb_wait_setup;
 #endif
 extern const char *load_default_groups[];
 extern struct my_option my_long_options[];
+extern struct my_option my_long_early_options[];
+int handle_early_options();
+void adjust_related_options();
 extern int mysqld_server_started;
 extern "C" MYSQL_PLUGIN_IMPORT int orig_argc;
 extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;

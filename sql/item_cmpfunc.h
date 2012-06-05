@@ -1588,6 +1588,11 @@ public:
   const char *func_name() const { return "like"; }
   bool fix_fields(THD *thd, Item **ref);
   void cleanup();
+  /**
+    @retval true non default escape char specified
+                 using "expr LIKE pat ESCAPE 'escape_char'" syntax
+  */
+  bool escape_was_used_in_parsing() const { return escape_used_in_parsing; }
 };
 
 
