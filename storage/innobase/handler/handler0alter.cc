@@ -2819,7 +2819,7 @@ ha_innobase::prepare_inplace_alter_table(
 			    prebuilt->table->space != 0)) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
 				 table_type(), invalid_opt);
-			DBUG_RETURN(true);
+			goto err_exit_no_heap;
 		}
 	}
 
@@ -2829,6 +2829,7 @@ ha_innobase::prepare_inplace_alter_table(
 		    ha_alter_info->key_info_buffer,
 		    ha_alter_info->key_count)) {
 err_exit_no_heap:
+		DBUG_ASSERT(prebuilt->trx->dict_operation_lock_mode == 0);
 		online_retry_drop_indexes(prebuilt->table, user_thd);
 		DBUG_RETURN(true);
 	}
@@ -3186,6 +3187,7 @@ index_needed:
 		}
 
 func_exit:
+		DBUG_ASSERT(prebuilt->trx->dict_operation_lock_mode == 0);
 		online_retry_drop_indexes(prebuilt->table, user_thd);
 		DBUG_RETURN(false);
 	}
