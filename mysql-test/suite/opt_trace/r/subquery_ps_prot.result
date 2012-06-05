@@ -1049,7 +1049,7 @@ field4,field5,field6	{
                           {
                             "access_type": "scan",
                             "rows": 3,
-                            "cost": 2.0342,
+                            "cost": 2.6342,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
@@ -1232,6 +1232,7 @@ field4,field5,field6	{
                         "rows": 3,
                         "cost": 5.61,
                         "rowid_ordered": false,
+                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -1267,7 +1268,7 @@ field4,field5,field6	{
                     {
                       "access_type": "scan",
                       "rows": 3,
-                      "cost": 2.0342,
+                      "cost": 2.6342,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -1299,7 +1300,7 @@ field4,field5,field6	{
                         },
                         {
                           "access_type": "scan",
-                          "cost": 10,
+                          "cost": 10.6,
                           "rows": 3,
                           "cause": "cost",
                           "chosen": false
@@ -1335,7 +1336,7 @@ field4,field5,field6	{
                     },
                     {
                       "access_type": "scan",
-                      "cost": 10,
+                      "cost": 10.6,
                       "rows": 3,
                       "cause": "cost",
                       "chosen": false
@@ -1357,7 +1358,7 @@ field4,field5,field6	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 3,
-                          "cost": 2.0344,
+                          "cost": 2.2144,
                           "chosen": true
                         }
                       ] /* considered_access_paths */
@@ -1517,7 +1518,7 @@ field4,field5,field6	{
                                           {
                                             "access_type": "scan",
                                             "rows": 3,
-                                            "cost": 2.0342,
+                                            "cost": 2.6342,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
@@ -1544,7 +1545,7 @@ field4,field5,field6	{
                                                 "access_type": "scan",
                                                 "using_join_cache": true,
                                                 "rows": 3,
-                                                "cost": 2.0344,
+                                                "cost": 3.8344,
                                                 "chosen": true
                                               }
                                             ] /* considered_access_paths */
@@ -1571,7 +1572,7 @@ field4,field5,field6	{
                                           {
                                             "access_type": "scan",
                                             "rows": 3,
-                                            "cost": 2.0342,
+                                            "cost": 2.6342,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
@@ -1920,6 +1921,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                         "rows": 2,
                         "cost": 4.41,
                         "rowid_ordered": false,
+                        "using_mrr": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1970,7 +1972,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                     {
                       "access_type": "range",
                       "rows": 2,
-                      "cost": 4.41,
+                      "cost": 4.81,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -1996,7 +1998,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 2,
-                          "cost": 2.0227,
+                          "cost": 2.8227,
                           "chosen": false
                         }
                       ] /* considered_access_paths */
@@ -2075,7 +2077,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                                           {
                                             "access_type": "scan",
                                             "rows": 2,
-                                            "cost": 2.0225,
+                                            "cost": 2.4225,
                                             "chosen": true
                                           }
                                         ] /* considered_access_paths */
