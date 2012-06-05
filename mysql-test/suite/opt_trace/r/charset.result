@@ -431,6 +431,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                         "rows": 2,
                         "cost": 3.41,
                         "rowid_ordered": false,
+                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -455,7 +456,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                     {
                       "access_type": "scan",
                       "rows": 2,
-                      "cost": 2.0034,
+                      "cost": 2.4034,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -632,6 +633,7 @@ select `col
                         "rows": 1,
                         "cost": 2.21,
                         "rowid_ordered": false,
+                        "using_mrr": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -656,7 +658,7 @@ select `col
                     {
                       "access_type": "scan",
                       "rows": 1,
-                      "cost": 2.2034,
+                      "cost": 2.4034,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
