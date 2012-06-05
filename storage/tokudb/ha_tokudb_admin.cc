@@ -1,9 +1,10 @@
-#if 0 // QQQ use default
+#if TOKU_INCLUDE_ANALYZE
 //
 // This function will probably need to be redone from scratch
 // if we ever choose to implement it
 //
-int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
+int 
+ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
     uint i;
     DB_BTREE_STAT *stat = 0;
     DB_TXN_STAT *txn_stat_ptr = 0;
@@ -49,7 +50,8 @@ struct hot_poll_fun_extra {
     uint num_tables;
 };
 
-static int hot_poll_fun(void *extra, float progress) {
+static int 
+hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
@@ -63,7 +65,8 @@ static int hot_poll_fun(void *extra, float progress) {
 volatile int ha_tokudb_optimize_wait = 0; // debug
 
 // flatten all DB's in this table, to do so, just do a full scan on every DB
-int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
+int 
+ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
     while (ha_tokudb_optimize_wait) sleep(1); // debug
 
