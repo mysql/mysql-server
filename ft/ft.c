@@ -251,7 +251,7 @@ ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
     int r = ft->panic;
     if (r==0) {
         assert(ft->h->type == FT_CURRENT);
-        toku_block_translation_note_end_checkpoint(ft->blocktable, fd, ft);
+        toku_block_translation_note_end_checkpoint(ft->blocktable, fd);
     }
     if (ft->checkpoint_header) {         // could be NULL only if panic was true at begin_checkpoint
         toku_free(ft->checkpoint_header);
@@ -939,7 +939,7 @@ toku_update_descriptor(FT h, DESCRIPTOR d, int fd)
     int r = 0;
     DISKOFF offset;
     // 4 for checksum
-    toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h);
+    toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h, fd);
     r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
     if (r) {
         goto cleanup;

@@ -67,7 +67,8 @@ int test_main(int argc, char * const argv[]) {
 	const int size = 10+strlen(env_dir);
 	char cmd[size];
 	snprintf(cmd, size, "rm -rf %s", env_dir);
-	system(cmd);
+	int r = system(cmd);
+        CKERR(r);
     }
     CHK(toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO));
 

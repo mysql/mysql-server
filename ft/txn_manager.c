@@ -331,6 +331,7 @@ int toku_txn_manager_start_txn(
     }
     if (xid == TXNID_NONE) {
         LSN first_lsn;
+        invariant(logger);
         r = toku_log_xbegin(logger, &first_lsn, 0, parent ? parent->txnid64 : 0);
         assert_zero(r);
         xid = first_lsn.lsn;

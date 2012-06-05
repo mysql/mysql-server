@@ -40,7 +40,6 @@ set(FT_SOURCES
   ft_node-serialize.c
   ft-node-deserialize.c
   ft-ops.c
-  ft-pwrite.c
   ft-serialize.c
   ft-test-helpers.c
   ft-verify.c

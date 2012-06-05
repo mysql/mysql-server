@@ -24,17 +24,17 @@ struct block_translation_pair {
 };
 
 void toku_blocktable_create_new(BLOCK_TABLE *btp);
-enum deserialize_error_code toku_blocktable_create_from_buffer(BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
+enum deserialize_error_code toku_blocktable_create_from_buffer(int fd, BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
 
 void toku_ft_lock(FT h);
 void toku_ft_unlock(FT h);
 
 void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
-void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, int fd, FT h);
+void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, int fd);
 void toku_block_translation_note_failed_checkpoint(BLOCK_TABLE bt);
 void toku_block_translation_note_skipped_checkpoint(BLOCK_TABLE bt);
-void toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, int fd, FT h);
+void toku_maybe_truncate_file_on_open(BLOCK_TABLE bt, int fd);
 
 //Blocknums
 void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, FT h);
@@ -43,16 +43,16 @@ void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, FT h, BOOL for_checkpoint);
 void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_block_verify_no_data_blocks_except_root_unlocked(BLOCK_TABLE bt, BLOCKNUM root);
 void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);
-void toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT h);
+void toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT h, int fd);
 void toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT h);
 void toku_get_descriptor_offset_size(BLOCK_TABLE bt, DISKOFF *offset, DISKOFF *size);
 
 //Blocks and Blocknums
-void toku_blocknum_realloc_on_disk(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT h, BOOL for_checkpoint);
+void toku_blocknum_realloc_on_disk(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF *offset, FT ft, int fd, BOOL for_checkpoint);
 void toku_translate_blocknum_to_offset_size(BLOCK_TABLE bt, BLOCKNUM b, DISKOFF *offset, DISKOFF *size);
 
 //Serialization
-void toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, struct wbuf *w, int64_t *address, int64_t *size);
+void toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w, int64_t *address, int64_t *size);
 
 void toku_block_table_swap_for_redirect(BLOCK_TABLE old_bt, BLOCK_TABLE new_bt);
 

@@ -387,7 +387,8 @@ int test_main (int argc, const char *argv[]) {
 	char deletecmd[templen];
 	int n =  snprintf(deletecmd, templen, "rm -rf %s", directory);
 	assert(n>0 && n<templen);
-	system(deletecmd);
+	r = system(deletecmd);
+        CKERR(r);
     }
 
     return 0;

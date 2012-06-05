@@ -57,7 +57,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     const int nodesize = (1<<22);
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".ft", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -116,6 +116,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     brt_h->compare_fun = long_key_cmp;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -126,7 +127,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -186,7 +187,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     const int nodesize = (1<<22);
     struct ftnode sn, *dn;
 
-    int fd = open(__SRCFILE__ ".ft_handle", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
+    int fd = open(__SRCFILE__ ".ft", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
@@ -254,6 +255,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     brt_h->compare_fun = long_key_cmp;
     toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
+    { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
@@ -264,7 +266,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);

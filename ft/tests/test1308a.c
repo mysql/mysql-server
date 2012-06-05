@@ -39,8 +39,9 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         assert(r==0);
     }
     {
-	int r = maybe_preallocate_in_file(fd, 1000);
-	assert(r==0);
+        int64_t size_after;
+	toku_maybe_preallocate_in_file(fd, 1000, file_size, &size_after);
+        assert(size_after == file_size);
     }
     int64_t file_size2;
     {

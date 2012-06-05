@@ -61,7 +61,7 @@ initialize_values (void) {
     }
     u_int32_t len = random() % MAX_SIZE;
     fillrandom(keybuf, len);
-    dbt_init(&vals[nest_level], &keybuf[0], len);
+    dbt_init(&key, &keybuf[0], len);
 }
 
 

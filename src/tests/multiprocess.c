@@ -188,7 +188,8 @@ unlink_dir (const char *dir) {
     int len = strlen(dir)+100;
     char cmd[len];
     snprintf(cmd, len, "rm -rf %s", dir);
-    system(cmd);
+    int r = system(cmd);
+    CKERR(r);
 }
 
 int

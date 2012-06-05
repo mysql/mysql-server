@@ -7,7 +7,6 @@
 #include "includes.h"
 #include "sort.h"
 #include "threadpool.h"
-#include "ft-pwrite.h"
 #include <compress.h>
 
 #if defined(HAVE_CILK)
@@ -80,60 +79,54 @@ toku_ft_serialize_layer_destroy(void) {
 
 enum {FILE_CHANGE_INCREMENT = (16<<20)};
 
-static inline u_int64_t 
-alignup64(u_int64_t a, u_int64_t b) {
+static inline uint64_t 
+alignup64(uint64_t a, uint64_t b) {
     return ((a+b-1)/b)*b;
 }
 
-//Race condition if ydb lock is split.
-//Ydb lock is held when this function is called.
-//Not going to truncate and delete (redirect to devnull) at same time.
+// safe_file_size_lock must be held.
 void
-toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used)
+toku_maybe_truncate_file (int fd, uint64_t size_used, uint64_t expected_size, uint64_t *new_sizep)
 // Effect: If file size >= SIZE+32MiB, reduce file size.
 // (32 instead of 16.. hysteresis).
 // Return 0 on success, otherwise an error number.
 {
-    //Check file size before taking pwrite lock to reduce likelihood of taking
-    //the pwrite lock needlessly.
-    //Check file size after taking lock to avoid race conditions.
     int64_t file_size;
     {
         int r = toku_os_get_file_size(fd, &file_size);
         lazy_assert_zero(r);
         invariant(file_size >= 0);
     }
+    invariant(expected_size == (uint64_t)file_size);
     // If file space is overallocated by at least 32M
-    if ((u_int64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
-        toku_lock_for_pwrite();
-        {
-            int r = toku_os_get_file_size(fd, &file_size);
-            lazy_assert_zero(r);
-            invariant(file_size >= 0);
-        }
-        if ((u_int64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
-            toku_off_t new_size = alignup64(size_used, (2*FILE_CHANGE_INCREMENT)); //Truncate to new size_used.
-            invariant(new_size < file_size);
-            int r = toku_cachefile_truncate(cf, new_size);
-            lazy_assert_zero(r);
-        }
-        toku_unlock_for_pwrite();
+    if ((uint64_t)file_size >= size_used + (2*FILE_CHANGE_INCREMENT)) {
+        toku_off_t new_size = alignup64(size_used, (2*FILE_CHANGE_INCREMENT)); //Truncate to new size_used.
+        invariant(new_size < file_size);
+        invariant(new_size >= 0);
+        int r = ftruncate(fd, new_size);
+        lazy_assert_zero(r);
+        *new_sizep = new_size;
+    }
+    else {
+        *new_sizep = file_size;
     }
     return;
 }
 
-static u_int64_t 
-umin64(u_int64_t a, u_int64_t b) {
+static int64_t 
+min64(int64_t a, int64_t b) {
     if (a<b) return a;
     return b;
 }
 
-int
-maybe_preallocate_in_file (int fd, u_int64_t size)
-// Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MiB whichever is less.
+void
+toku_maybe_preallocate_in_file (int fd, int64_t size, int64_t expected_size, int64_t *new_size)
+// Effect: make the file bigger by either doubling it or growing by 16MiB whichever is less, until it is at least size
 // Return 0 on success, otherwise an error number.
 {
     int64_t file_size;
+    //TODO(yoni): Allow variable stripe_width (perhaps from ft) for larger raids
+    const uint64_t stripe_width = 4096;
     {
         int r = toku_os_get_file_size(fd, &file_size);
         if (r != 0) { // debug #2463
@@ -143,16 +136,28 @@ maybe_preallocate_in_file (int fd, u_int64_t size)
         lazy_assert_zero(r);
     }
     invariant(file_size >= 0);
-    if ((u_int64_t)file_size < size) {
-	const int N = umin64(size, FILE_CHANGE_INCREMENT); // Double the size of the file, or add 16MiB, whichever is less.
-	char *MALLOC_N(N, wbuf);
-	memset(wbuf, 0, N);
-	toku_off_t start_write = alignup64(file_size, 4096);
-	invariant(start_write >= file_size);
-	toku_os_full_pwrite(fd, wbuf, N, start_write);
-	toku_free(wbuf);
+    invariant(expected_size == file_size);
+    // We want to double the size of the file, or add 16MiB, whichever is less.
+    // We emulate calling this function repeatedly until it satisfies the request.
+    int64_t to_write = 0;
+    if (file_size == 0) {
+        // Prevent infinite loop by starting with stripe_width as a base case.
+        to_write = stripe_width;
     }
-    return 0;
+    while (file_size + to_write < size) {
+        to_write += alignup64(min64(file_size + to_write, FILE_CHANGE_INCREMENT), stripe_width);
+    }
+    if (to_write > 0) {
+        char *XCALLOC_N(to_write, wbuf);
+        toku_off_t start_write = alignup64(file_size, stripe_width);
+        invariant(start_write >= file_size);
+        toku_os_full_pwrite(fd, wbuf, to_write, start_write);
+        toku_free(wbuf);
+        *new_size = start_write + to_write;
+    }
+    else {
+        *new_size = file_size;
+    }
 }
 
 // Don't include the sub_block header
@@ -897,10 +902,8 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
 	DISKOFF offset;
 
         toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
-                                      h, for_checkpoint); //dirties h
-	toku_lock_for_pwrite();
-	toku_full_pwrite_extend(fd, compressed_buf, n_to_write, offset);
-	toku_unlock_for_pwrite();
+                                      h, fd, for_checkpoint); //dirties h
+	toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
     }
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
@@ -914,8 +917,8 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
                          DESCRIPTOR desc, ft_compare_func cmp) {
     int r;
     int n_in_this_buffer = rbuf_int(rbuf);
-    void **fresh_offsets, **stale_offsets;
-    void **broadcast_offsets;
+    void **fresh_offsets = NULL, **stale_offsets = NULL;
+    void **broadcast_offsets = NULL;
     int nfresh = 0, nstale = 0;
     int nbroadcast_offsets = 0;
     if (cmp) {
@@ -1781,8 +1784,8 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         NONLEAF_CHILDINFO bnc = BNC(node, i);
         int n_in_this_buffer = rbuf_int(rb);
 
-        void **fresh_offsets;
-        void **broadcast_offsets;
+        void **fresh_offsets = NULL;
+        void **broadcast_offsets = NULL;
         int nfresh = 0;
         int nbroadcast_offsets = 0;
 
@@ -2639,10 +2642,8 @@ toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log
 	lazy_assert(blocknum.b>=0);
 	DISKOFF offset;
         toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
-                                      h, for_checkpoint); //dirties h
-	toku_lock_for_pwrite();
-	toku_full_pwrite_extend(fd, compressed_buf, n_to_write, offset);
-	toku_unlock_for_pwrite();
+                                      h, fd, for_checkpoint); //dirties h
+	toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
     }
     toku_free(compressed_buf);
     log->dirty = 0;  // See #1957.   Must set the node to be clean after serializing it so that it doesn't get written again on the next checkpoint or eviction.

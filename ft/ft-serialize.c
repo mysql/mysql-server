@@ -7,7 +7,6 @@
 #include "includes.h"
 #include "sort.h"
 #include "threadpool.h"
-#include "ft-pwrite.h"
 #include <compress.h>
 
 #if defined(HAVE_CILK)
@@ -62,10 +61,8 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
     }
     lazy_assert(w.ndone==w.size);
     {
-        toku_lock_for_pwrite();
         //Actual Write translation table
-        toku_full_pwrite_extend(fd, w.buf, size, offset);
-        toku_unlock_for_pwrite();
+        toku_os_full_pwrite(fd, w.buf, size, offset);
     }
     toku_free(w.buf);
     return r;
@@ -106,10 +103,8 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
         {
             XMALLOC_N(size, dbuf);
             {
-                toku_lock_for_pwrite();
                 ssize_t r = toku_os_pread(fd, dbuf, size, offset);
                 lazy_assert(r==size);
-                toku_unlock_for_pwrite();
             }
             {
                 // check the checksum
@@ -199,7 +194,6 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 
     //Load translation table
     {
-        toku_lock_for_pwrite();
         unsigned char *XMALLOC_N(translation_size_on_disk, tbuf);
         {
             // This cast is messed up in 32-bits if the block translation
@@ -209,9 +203,9 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
                                            translation_address_on_disk);
             lazy_assert(readsz == translation_size_on_disk);
         }
-        toku_unlock_for_pwrite();
         // Create table and read in data.
-        e = toku_blocktable_create_from_buffer(&ft->blocktable,
+        e = toku_blocktable_create_from_buffer(fd,
+                                               &ft->blocktable,
                                                translation_address_on_disk,
                                                translation_size_on_disk,
                                                tbuf);
@@ -712,7 +706,7 @@ int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE
     int64_t address_translation;
     {
         //Must serialize translation first, to get address,size for header.
-        toku_serialize_translation_to_wbuf(blocktable, &w_translation,
+        toku_serialize_translation_to_wbuf(blocktable, fd, &w_translation,
                                                    &address_translation,
                                                    &size_translation);
         lazy_assert(size_translation==w_translation.size);
@@ -727,10 +721,9 @@ int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE
         }
         lazy_assert(w_main.ndone==size_main);
     }
-    toku_lock_for_pwrite();
     {
         //Actual Write translation table
-        toku_full_pwrite_extend(fd, w_translation.buf,
+        toku_os_full_pwrite(fd, w_translation.buf,
                                 size_translation, address_translation);
     }
     {
@@ -751,11 +744,10 @@ int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE
             //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
             toku_off_t main_offset;
             main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
-            toku_full_pwrite_extend(fd, w_main.buf, w_main.ndone, main_offset);
+            toku_os_full_pwrite(fd, w_main.buf, w_main.ndone, main_offset);
         }
     }
     toku_free(w_main.buf);
     toku_free(w_translation.buf);
-    toku_unlock_for_pwrite();
     return rr;
 }

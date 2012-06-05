@@ -17,7 +17,7 @@ create_files(int N, int fds[N]) {
     char name[30];
     for (i = 0; i < N; i++) {
         snprintf(name, sizeof(name), "%d", i);
-        fds[i] = open(name, O_CREAT|O_WRONLY);
+        fds[i] = open(name, O_CREAT|O_WRONLY, 0644);
         if (fds[i] < 0) {
             r = errno;
             CKERR(r);
