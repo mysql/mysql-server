@@ -178,9 +178,12 @@ row_log_table_apply(
 				/*!< in: old table */
 	struct TABLE*	table,	/*!< in/out: MySQL table
 				(for reporting duplicates) */
+	const dtuple_t*	add_cols,
+				/*!< in: default values of
+				added columns, or NULL */
 	const ulint*	col_map)/*!< in: mapping of old column
 				numbers to new ones, or NULL */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull(1,2,3,5), warn_unused_result));
 
 /******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()

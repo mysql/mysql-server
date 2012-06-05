@@ -61,10 +61,10 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
 	| Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE
 	| Alter_inplace_info::ALTER_COLUMN_ORDER
 	| Alter_inplace_info::DROP_COLUMN
+	| Alter_inplace_info::ADD_COLUMN
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
-	| Alter_inplace_info::ADD_COLUMN
 	*/
 	;
 
@@ -1761,6 +1761,8 @@ public:
 	dict_table_t*	indexed_table;
 	/** mapping of old column numbers to new ones, or NULL */
 	const ulint*	col_map;
+	/** default values of ADD COLUMN, or NULL */
+	const dtuple_t*	add_cols;
 	ha_innobase_inplace_ctx(trx_t* user_trx,
 				dict_index_t** add_arg,
 				const ulint* add_key_numbers_arg,
@@ -1775,7 +1777,8 @@ public:
 				mem_heap_t* heap_arg,
 				trx_t* trx_arg,
 				dict_table_t* indexed_table_arg,
-				const ulint* col_map_arg) :
+				const ulint* col_map_arg,
+				const dtuple_t*	add_cols_arg) :
 		inplace_alter_handler_ctx(),
 		add (add_arg), add_key_numbers (add_key_numbers_arg),
 		num_to_add (num_to_add_arg),
@@ -1784,7 +1787,7 @@ public:
 		add_fk (add_fk_arg), num_to_add_fk (num_to_add_fk_arg),
 		online (online_arg), heap (heap_arg), trx (trx_arg),
 		indexed_table (indexed_table_arg),
-		col_map (col_map_arg) {
+		col_map (col_map_arg), add_cols (add_cols_arg) {
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add; i++) {
 			ut_ad(!add[i]->to_be_dropped);
@@ -2045,6 +2048,35 @@ innobase_check_foreigns(
 	return(false);
 }
 
+/** Convert a default value for ADD COLUMN.
+
+@param heap	Memory heap where allocated
+@param dfield	InnoDB data field to copy to
+@param field	MySQL value for the column
+@param comp	nonzero if in compact format
+ */
+static __attribute__((nonnull))
+void
+innobase_build_col_map_add(
+/*=======================*/
+	mem_heap_t*	heap,
+	dfield_t*	dfield,
+	const Field*	field,
+	ulint		comp)
+{
+	if (field->is_real_null()) {
+		dfield_set_null(dfield);
+		return;
+	}
+
+	ulint	size	= field->pack_length();
+
+	byte*	buf	= static_cast<byte*>(mem_heap_alloc(heap, size));
+
+	row_mysql_store_col_in_innobase_format(
+		dfield, buf, TRUE, field->ptr, size, comp);
+}
+
 /** Construct the translation table for reordering, dropping or
 adding columns.
 
@@ -2053,10 +2085,11 @@ adding columns.
 @param table		MySQL table as it is before the ALTER operation
 @param new_table	InnoDB table corresponding to MySQL altered_table
 @param old_table	InnoDB table corresponding to MYSQL table
-@param heap	Memory heap where allocated
+@param add_cols		Default values for ADD COLUMN, or NULL if no ADD COLUMN
+@param heap		Memory heap where allocated
 @return	array of integers, mapping column numbers in the table
 to column numbers in altered_table */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((nonnull(1,2,3,4,5,7), warn_unused_result))
 const ulint*
 innobase_build_col_map(
 /*===================*/
@@ -2065,6 +2098,7 @@ innobase_build_col_map(
 	const TABLE*		table,
 	const dict_table_t*	new_table,
 	const dict_table_t*	old_table,
+	dtuple_t*		add_cols,
 	mem_heap_t*		heap)
 {
 	DBUG_ENTER("innobase_build_col_map");
@@ -2074,6 +2108,10 @@ innobase_build_col_map(
 		    >= altered_table->s->fields + DATA_N_SYS_COLS);
 	DBUG_ASSERT(dict_table_get_n_cols(old_table)
 		    >= table->s->fields + DATA_N_SYS_COLS);
+	DBUG_ASSERT(!!add_cols == !!(ha_alter_info->handler_flags
+				     & Alter_inplace_info::ADD_COLUMN));
+	DBUG_ASSERT(!add_cols || dtuple_get_n_fields(add_cols)
+		    == dict_table_get_n_cols(new_table));
 
 	ulint*	col_map = static_cast<ulint*>(
 		mem_heap_alloc(heap, old_table->n_cols * sizeof *col_map));
@@ -2096,8 +2134,12 @@ innobase_build_col_map(
 				goto found_col;
 			}
 		}
+
 		/* ALTER_ADD_COLUMN */
-		ut_ad(0);//TODO
+		innobase_build_col_map_add(
+			heap, dtuple_get_nth_field(add_cols, i),
+			altered_table->s->field[i],
+			dict_table_is_comp(new_table));
 found_col:
 		i++;
 		continue;
@@ -2201,6 +2243,7 @@ prepare_inplace_alter_table_dict(
 	dberr_t			error;
 	THD*			user_thd	= user_trx->mysql_thd;
 	const ulint*		col_map;
+	dtuple_t*		add_cols;
 
 	const bool locked =
 		add_fts_doc_id
@@ -2324,7 +2367,8 @@ prepare_inplace_alter_table_dict(
 		if (!innobase_table_flags(table_name, altered_table,
 					  ha_alter_info->create_info,
 					  trx->mysql_thd,
-					  srv_file_per_table,
+					  srv_file_per_table
+					  || user_table->space != 0,
 					  &flags, &flags2)) {
 			goto new_clustered_failed;
 		}
@@ -2479,12 +2523,22 @@ col_fail:
 			goto err_exit;
 		}
 
+		if (ha_alter_info->handler_flags
+		    & Alter_inplace_info::ADD_COLUMN) {
+			add_cols = dtuple_create(
+				heap, dict_table_get_n_cols(indexed_table));
+			dict_table_copy_types(add_cols, indexed_table);
+		} else {
+			add_cols = NULL;
+		}
+
 		col_map = innobase_build_col_map(
 			ha_alter_info, altered_table, old_table,
-			indexed_table, user_table, heap);
+			indexed_table, user_table, add_cols, heap);
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 		col_map = NULL;
+		add_cols = NULL;
 	}
 
 	/* Assign table_id, so that no table id of
@@ -2657,7 +2711,7 @@ error_handling:
 			drop_index, n_drop_index,
 			drop_foreign, n_drop_foreign,
 			add_foreign, n_add_foreign,
-			!locked, heap, trx, indexed_table, col_map);
+			!locked, heap, trx, indexed_table, col_map, add_cols);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_ALREADY_EXISTS:
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), "(unknown)");
@@ -3188,7 +3242,7 @@ index_needed:
 					drop_index, n_drop_index,
 					drop_fk, n_drop_fk,
 					add_fk, n_add_fk, !locked,
-					heap, NULL, indexed_table, NULL);
+					heap, NULL, indexed_table, NULL, NULL);
 		}
 
 func_exit:
@@ -3352,7 +3406,7 @@ ok_exit:
 		prebuilt->table, ctx->indexed_table,
 		ctx->online,
 		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table,
-		ctx->col_map);
+		ctx->add_cols, ctx->col_map);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -3360,7 +3414,8 @@ oom:
 	    && ctx->indexed_table != prebuilt->table) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, prebuilt->table, table, ctx->col_map);
+			ctx->thr, prebuilt->table, table,
+			ctx->add_cols, ctx->col_map);
 	}
 
 	/* After an error, remove all those index definitions
@@ -3946,7 +4001,7 @@ ha_innobase::commit_inplace_alter_table(
 			DEBUG_SYNC_C("row_log_table_apply2_before");
 			error = row_log_table_apply(
 				ctx->thr, prebuilt->table, table,
-				ctx->col_map);
+				ctx->add_cols, ctx->col_map);
 
 			switch (error) {
 				KEY*	dup_key;
