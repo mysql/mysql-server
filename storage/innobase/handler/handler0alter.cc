@@ -247,6 +247,9 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+
 	/* Fix the key parts. */
 	for (KEY* new_key = ha_alter_info->key_info_buffer;
 	     new_key < ha_alter_info->key_info_buffer
@@ -255,44 +258,28 @@ ha_innobase::check_if_supported_inplace_alter(
 		for (KEY_PART_INFO* key_part = new_key->key_part;
 		     key_part < new_key->key_part + new_key->key_parts;
 		     key_part++) {
-			key_part->field = table->field[key_part->fieldnr];
-			/* TODO: Use altered_table for ADD_COLUMN.
-			What to do with ADD_COLUMN|DROP_COLUMN? */
+			const Create_field*	new_field;
 
-			if (dict_table_get_n_user_cols(prebuilt->table)
-			    <= key_part->fieldnr) {
-				/* This should never occur, unless
-				the .frm file gets out of sync with
-				the InnoDB data dictionary. */
-				sql_print_warning(
-					"InnoDB table '%s' has %u columns, "
-					"MySQL table '%s' has %u.",
-					prebuilt->table->name,
-					(unsigned) dict_table_get_n_user_cols(
-						prebuilt->table),
-					table->s->table_name.str,
-					table->s->fields);
-				ut_ad(0);
-				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			DBUG_ASSERT(key_part->fieldnr
+				    < altered_table->s->fields);
+
+			cf_it.rewind();
+			for (uint fieldnr = 0; (new_field = cf_it++);
+			     fieldnr++) {
+				if (fieldnr == key_part->fieldnr) {
+					break;
+				}
 			}
 
-			dict_col_t* col = dict_table_get_nth_col(
-				prebuilt->table, key_part->fieldnr);
+			DBUG_ASSERT(new_field);
 
-			if (!(col->prtype & DATA_NOT_NULL)
-			    != !!key_part->field->null_ptr) {
-				sql_print_warning(
-					"InnoDB table '%s' column '%s' "
-					"attributes differ from "
-					"MySQL '%s'.'%s'.",
-					prebuilt->table->name,
-					dict_table_get_col_name(
-						prebuilt->table,
-						key_part->fieldnr),
-					table->s->table_name.str,
-					key_part->field->field_name);
-				ut_ad(0);
-				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			key_part->field = new_field->field;
+
+			if (!new_field->field) {
+				DBUG_ASSERT(ha_alter_info->handler_flags
+					    & Alter_inplace_info::ADD_COLUMN);
+				key_part->field = altered_table->field[
+					key_part->fieldnr];
 			}
 		}
 	}
@@ -2022,10 +2009,11 @@ innobase_check_foreigns(
 	dict_foreign_t**	drop_fk,
 	ulint			n_drop_fk)
 {
-	List_iterator_fast<Create_field> cf_it;
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
 
 	for (Field** fp = old_table->field; *fp; fp++) {
-		cf_it.init(ha_alter_info->alter_info->create_list);
+		cf_it.rewind();
 		const Create_field* new_field;
 
 		ut_ad(!(*fp)->null_ptr == !!((*fp)->flags & NOT_NULL_FLAG));
@@ -2116,8 +2104,8 @@ innobase_build_col_map(
 	ulint*	col_map = static_cast<ulint*>(
 		mem_heap_alloc(heap, old_table->n_cols * sizeof *col_map));
 
-	List_iterator_fast<Create_field> cf_it;
-	cf_it.init(ha_alter_info->alter_info->create_list);
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
 	uint i = 0;
 
 	/* Any dropped columns will map to ULINT_UNDEFINED. */
@@ -2588,7 +2576,7 @@ col_fail:
 					goto error_handling;);
 			rw_lock_x_lock(&add_index[num_created]->lock);
 			bool ok = row_log_allocate(add_index[num_created],
-						   NULL, true);
+						   NULL, true, NULL, NULL);
 			rw_lock_x_unlock(&add_index[num_created]->lock);
 
 			if (!ok) {
@@ -2612,7 +2600,8 @@ col_fail:
 		bool ok = row_log_allocate(
 			clust_index, indexed_table,
 			!(ha_alter_info->handler_flags
-			  & Alter_inplace_info::ADD_PK_INDEX));
+			  & Alter_inplace_info::ADD_PK_INDEX),
+			add_cols, col_map);
 		rw_lock_x_unlock(&clust_index->lock);
 
 		if (!ok) {
@@ -2907,7 +2896,8 @@ err_exit_no_heap:
 	already contains. */
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::ALTER_COLUMN_NAME) {
-		List_iterator_fast<Create_field> cf_it;
+		List_iterator_fast<Create_field> cf_it(
+			ha_alter_info->alter_info->create_list);
 
 		for (Field** fp = table->field; *fp; fp++) {
 			if (!((*fp)->flags & FIELD_IS_RENAMED)) {
@@ -2916,7 +2906,7 @@ err_exit_no_heap:
 
 			const char* name = 0;
 
-			cf_it.init(ha_alter_info->alter_info->create_list);
+			cf_it.rewind();
 			while (Create_field* cf = cf_it++) {
 				if (cf->field == *fp) {
 					name = cf->field_name;
@@ -3003,7 +2993,7 @@ check_if_ok_to_rename:
 
 		List_iterator<Alter_drop> drop_it(
 			ha_alter_info->alter_info->drop_list);
-		drop_it.rewind();
+
 		while (Alter_drop* drop = drop_it++) {
 			if (drop->type != Alter_drop::FOREIGN_KEY) {
 				continue;
@@ -3414,8 +3404,7 @@ oom:
 	    && ctx->indexed_table != prebuilt->table) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, prebuilt->table, table,
-			ctx->add_cols, ctx->col_map);
+			ctx->thr, prebuilt->table, table);
 	}
 
 	/* After an error, remove all those index definitions
@@ -3869,7 +3858,8 @@ innobase_rename_columns(
 	row_prebuilt_t*		prebuilt,
 	trx_t*			trx)
 {
-	List_iterator_fast<Create_field> cf_it;
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
 	uint i = 0;
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
@@ -3877,7 +3867,7 @@ innobase_rename_columns(
 			continue;
 		}
 
-		cf_it.init(ha_alter_info->alter_info->create_list);
+		cf_it.rewind();
 		while (Create_field* cf = cf_it++) {
 			if (cf->field == *fp) {
 				if (innobase_rename_column(
@@ -4000,8 +3990,7 @@ ha_innobase::commit_inplace_alter_table(
 		if (ctx->online) {
 			DEBUG_SYNC_C("row_log_table_apply2_before");
 			error = row_log_table_apply(
-				ctx->thr, prebuilt->table, table,
-				ctx->add_cols, ctx->col_map);
+				ctx->thr, prebuilt->table, table);
 
 			switch (error) {
 				KEY*	dup_key;

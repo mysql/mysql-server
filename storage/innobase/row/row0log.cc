@@ -95,6 +95,10 @@ struct row_log_t {
 				index that is being created online */
 	bool		same_pk;/*!< whether the definition of the PRIMARY KEY
 				has remained the same */
+	const dtuple_t*	add_cols;
+				/*!< default values of added columns, or NULL */
+	const ulint*	col_map;/*!< mapping of old column numbers to
+				new ones, or NULL if !table */
 	dberr_t		error;	/*!< error that occurred during online
 				table rebuild */
 	trx_id_t	max_trx;/*!< biggest observed trx_id in
@@ -796,8 +800,8 @@ row_log_table_get_pk(
 
 	/* index->online_log->error is protected by the above mutex. */
 	if (index->online_log->error == DB_SUCCESS) {
-		dict_table_t*	new_table
-			= index->online_log->table;
+		row_log_t*	log		= index->online_log;
+		dict_table_t*	new_table	= log->table;
 		dict_index_t*	new_index
 			= dict_table_get_first_index(new_table);
 		const ulint	new_n_uniq
@@ -835,18 +839,35 @@ row_log_table_get_pk(
 			dfield_t*		dfield;
 			const dict_col_t*	new_col;
 			const dict_col_t*	col;
+			ulint			col_no;
 			ulint			i;
 			ulint			len;
 			const byte*		field;
 
-			dfield = dtuple_get_nth_field(tuple, new_i);
 			ifield = dict_index_get_nth_field(new_index, new_i);
+			dfield = dtuple_get_nth_field(tuple, new_i);
 			new_col = dict_field_get_col(ifield);
+			col_no = new_col->ind;
 
-			/* TODO: support ADD COLUMN, DROP COLUMN,
-			reordering columns */
-			col = dict_table_get_nth_col(
-				index->table, new_col->ind);
+			for (ulint old_i = 0; old_i < index->table->n_cols;
+			     old_i++) {
+				if (col_no == log->col_map[old_i]) {
+					col_no = old_i;
+					goto copy_col;
+				}
+			}
+
+			/* No matching column was found in the old
+			table, so this must be an added column.
+			Copy the default value. */
+			ut_ad(log->add_cols);
+			dfield_copy(dfield,
+				    dtuple_get_nth_field(
+					    log->add_cols, col_no));
+			continue;
+
+copy_col:
+			col = dict_table_get_nth_col(index->table, col_no);
 
 			i = dict_col_get_clust_pos(col, index);
 
@@ -1002,37 +1023,32 @@ row_log_table_is_rollback(
 /******************************************************//**
 Converts a log record to a table row.
 @return converted row, or NULL if the conversion fails */
-static __attribute__((nonnull(1,2,3,5,6,7,8), warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
 	const mrec_t*		mrec,		/*!< in: merge record */
 	const dict_index_t*	index,		/*!< in: index of mrec */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
-	const dtuple_t*		add_cols,	/*!< in: default values of
-						added columns, or NULL */
-	const ulint*		col_map,	/*!< in: mapping of old column
-						numbers to new ones, or NULL */
+	const row_log_t*	log,		/*!< in: rebuild context */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in/out: table
-						being rebuilt */
 	dberr_t*		error)		/*!< out: DB_SUCCESS or
 						reason of failure */
 {
 	dtuple_t*	row;
 
 	/* This is based on row_build(). */
-	if (add_cols) {
-		row = dtuple_copy(add_cols, heap);
+	if (log->add_cols) {
+		row = dtuple_copy(log->add_cols, heap);
 		/* dict_table_copy_types() would set the fields to NULL */
-		for (ulint i = 0; i < dict_table_get_n_cols(new_table); i++) {
+		for (ulint i = 0; i < dict_table_get_n_cols(log->table); i++) {
 			dict_col_copy_type(
-				dict_table_get_nth_col(new_table, i),
+				dict_table_get_nth_col(log->table, i),
 				dfield_get_type(dtuple_get_nth_field(row, i)));
 		}
 	} else {
-		row = dtuple_create(heap, dict_table_get_n_cols(new_table));
-		dict_table_copy_types(row, new_table);
+		row = dtuple_create(heap, dict_table_get_n_cols(log->table));
+		dict_table_copy_types(row, log->table);
 	}
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
@@ -1052,7 +1068,7 @@ row_log_table_apply_convert_mrec(
 		const dict_col_t*	col
 			= dict_field_get_col(ind_field);
 		ulint			col_no
-			= col_map[dict_col_get_no(col)];
+			= log->col_map[dict_col_get_no(col)];
 
 		if (col_no == ULINT_UNDEFINED) {
 			/* dropped column */
@@ -1078,7 +1094,7 @@ row_log_table_apply_convert_mrec(
 
 		/* See if any columns were changed to NULL or NOT NULL. */
 		const dict_col_t*	new_col
-			= dict_table_get_nth_col(new_table, col_no);
+			= dict_table_get_nth_col(log->table, col_no);
 		ut_ad(new_col->mtype == col->mtype);
 
 		/* Assert that prtype matches except for nullability. */
@@ -1131,6 +1147,7 @@ row_log_table_apply_insert_low(
 	dict_index_t*	index	= dict_table_get_first_index(new_table);
 
 	ut_ad(dtuple_validate(row));
+	ut_ad(new_table == dup->index->online_log->table);
 
 #ifdef ROW_LOG_APPLY_PRINT
 	if (row_log_apply_print) {
@@ -1178,7 +1195,7 @@ row_log_table_apply_insert_low(
 /******************************************************//**
 Replays an insert operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1,2,3,4,6,7,8,9), warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_log_table_apply_insert(
 /*=======================*/
@@ -1187,26 +1204,20 @@ row_log_table_apply_insert(
 	const ulint*		offsets,	/*!< in: offsets of mrec */
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
-	const dtuple_t*		add_cols,	/*!< in: default values of
-						added columns, or NULL */
-	const ulint*		col_map,	/*!< in: mapping of old column
-						numbers to new ones, or NULL */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in/out: table
-						being rebuilt */
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
+	const row_log_t*log	= dup->index->online_log;
 	dberr_t		error;
 	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, add_cols, col_map, heap, new_table,
-		&error);
+		mrec, dup->index, offsets, log, heap, &error);
 
 	ut_ad(!row == (error != DB_SUCCESS));
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap, new_table, dup);
+			thr, row, offsets_heap, heap, log->table, dup);
 	}
 
 	if (error != DB_SUCCESS) {
@@ -1403,7 +1414,7 @@ all_done:
 /******************************************************//**
 Replays an update operation on a table that was rebuilt.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull(1,4,5,6,8,9,10,11,12), warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_log_table_apply_update(
 /*=======================*/
@@ -1418,13 +1429,7 @@ row_log_table_apply_update(
 	const ulint*		offsets,	/*!< in: offsets of mrec */
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
-	const dtuple_t*		add_cols,	/*!< in: default values of
-						added columns, or NULL */
-	const ulint*		col_map,	/*!< in: mapping of old column
-						numbers to new ones, or NULL */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in/out: table
-						being rebuilt */
 	row_merge_dup_t*	dup,		/*!< in/out: for reporting
 						duplicate key errors */
 	const dtuple_t*		old_pk)		/*!< in: PRIMARY KEY and
@@ -1432,8 +1437,9 @@ row_log_table_apply_update(
 						of the old value,
 						or PRIMARY KEY if same_pk */
 {
+	const row_log_t*log	= dup->index->online_log;
 	const dtuple_t*	row;
-	dict_index_t*	index = dict_table_get_first_index(new_table);
+	dict_index_t*	index	= dict_table_get_first_index(log->table);
 	mtr_t		mtr;
 	btr_pcur_t	pcur;
 	dberr_t		error;
@@ -1445,8 +1451,7 @@ row_log_table_apply_update(
 	      + (dup->index->online_log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, add_cols, col_map,
-		heap, new_table, &error);
+		mrec, dup->index, offsets, log, heap, &error);
 
 	ut_ad(!row == (error != DB_SUCCESS));
 
@@ -1477,7 +1482,7 @@ row_log_table_apply_update(
 insert:
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap, new_table, dup);
+			thr, row, offsets_heap, heap, log->table, dup);
 
 		if (error != DB_SUCCESS) {
 err_exit:
@@ -1576,8 +1581,9 @@ delete_insert:
 		the record. */
 		old_row = row_build(ROW_COPY_DATA, index,
 				    btr_pcur_get_rec(&pcur),
-				    cur_offsets, new_table,
-				    add_cols, col_map, &old_ext, heap);
+				    cur_offsets, log->table,
+				    log->add_cols, log->col_map,
+				    &old_ext, heap);
 		ut_ad(old_row);
 	} else {
 		old_row = NULL;
@@ -1667,7 +1673,7 @@ func_exit:
 Applies an operation to a table that was rebuilt.
 @return NULL on failure (mrec corruption) or when out of data;
 pointer to next record on success */
-static __attribute__((nonnull(1,4,6,7,8,9,10,11,12,13), warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 const mrec_t*
 row_log_table_apply_op(
 /*===================*/
@@ -1676,12 +1682,6 @@ row_log_table_apply_op(
 						DB_TRX_ID in old index */
 	ulint			new_trx_id_col,	/*!< in: position of
 						DB_TRX_ID in new index */
-	dict_table_t*		new_table,	/*!< in/out: table
-						being rebuilt */
-	const dtuple_t*		add_cols,	/*!< in: default values of
-						added columns, or NULL */
-	const ulint*		col_map,	/*!< in: mapping of old column
-						numbers to new ones, or NULL */
 	row_merge_dup_t*	dup,		/*!< in/out: for reporting
 						duplicate key errors */
 	dberr_t*		error,		/*!< out: DB_SUCCESS
@@ -1694,13 +1694,14 @@ row_log_table_apply_op(
 	ulint*			offsets)	/*!< in/out: work area
 						for parsing mrec */
 {
-	dict_index_t*	new_index = dict_table_get_first_index(new_table);
+	const row_log_t*log	= dup->index->online_log;
+	dict_index_t*	new_index = dict_table_get_first_index(log->table);
 	ulint		extra_size;
 	const mrec_t*	next_mrec;
 	dtuple_t*	old_pk;
 
 	ut_ad(dict_index_is_clust(dup->index));
-	ut_ad(dup->index->table != new_table);
+	ut_ad(dup->index->table != log->table);
 
 	*error = DB_SUCCESS;
 
@@ -1747,8 +1748,7 @@ row_log_table_apply_op(
 				    trx_read_trx_id(db_trx_id))) {
 				*error = row_log_table_apply_insert(
 					thr, mrec, offsets, offsets_heap,
-					add_cols, col_map,
-					heap, new_table, dup);
+					heap, dup);
 			}
 		}
 		break;
@@ -1772,7 +1772,7 @@ row_log_table_apply_op(
 		*error = row_log_table_apply_delete(
 			thr, trx_id_col, new_trx_id_col,
 			mrec, offsets, offsets_heap, heap,
-			new_table);
+			log->table);
 		break;
 	case ROW_T_UPDATE:
 		/* Logically, the log entry consists of the
@@ -1918,8 +1918,7 @@ row_log_table_apply_op(
 				*error = row_log_table_apply_update(
 					thr, trx_id_col, new_trx_id_col,
 					mrec, offsets, offsets_heap,
-					add_cols, col_map,
-					heap, new_table, dup, old_pk);
+					heap, dup, old_pk);
 			}
 		}
 
@@ -1934,16 +1933,11 @@ row_log_table_apply_op(
 /******************************************************//**
 Applies operations to a table was rebuilt.
 @return DB_SUCCESS, or error code on failure */
-static __attribute__((nonnull(1,3,4), warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_log_table_apply_ops(
 /*====================*/
 	que_thr_t*	thr,	/*!< in: query graph */
-	const dtuple_t*	add_cols,
-				/*!< in: default values of
-				added columns, or NULL */
-	const ulint*	col_map,/*!< in: mapping of old column
-				numbers to new ones, or NULL */
 	row_merge_dup_t*dup)	/*!< in/out: for reporting duplicate key
 				errors */
 {
@@ -2118,7 +2112,6 @@ all_done:
 		       (&index->online_log->head.buf)[1] - mrec_end);
 		mrec = row_log_table_apply_op(
 			thr, trx_id_col, new_trx_id_col,
-			index->online_log->table, add_cols, col_map,
 			dup, &error, offsets_heap, heap,
 			index->online_log->head.buf,
 			(&index->online_log->head.buf)[1], offsets);
@@ -2217,7 +2210,6 @@ all_done:
 
 		next_mrec = row_log_table_apply_op(
 			thr, trx_id_col, new_trx_id_col,
-			index->online_log->table, add_cols, col_map,
 			dup, &error, offsets_heap, heap,
 			mrec, mrec_end, offsets);
 
@@ -2284,13 +2276,8 @@ row_log_table_apply(
 	que_thr_t*	thr,	/*!< in: query graph */
 	dict_table_t*	old_table,
 				/*!< in: old table */
-	struct TABLE*	table,	/*!< in/out: MySQL table
+	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
-	const dtuple_t*	add_cols,
-				/*!< in: default values of
-				added columns, or NULL */
-	const ulint*	col_map)/*!< in: mapping of old column
-				numbers to new ones, or NULL */
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
@@ -2317,7 +2304,7 @@ row_log_table_apply(
 		ut_ad(0);
 		error = DB_ERROR;
 	} else {
-		error = row_log_table_apply_ops(thr, add_cols, col_map, &dup);
+		error = row_log_table_apply_ops(thr, &dup);
 	}
 
 	rw_lock_x_unlock(dict_index_get_lock(clust_index));
@@ -2335,8 +2322,13 @@ row_log_allocate(
 	dict_index_t*	index,	/*!< in/out: index */
 	dict_table_t*	table,	/*!< in/out: new table being rebuilt,
 				or NULL when creating a secondary index */
-	bool		same_pk)/*!< in: whether the definition of the
+	bool		same_pk,/*!< in: whether the definition of the
 				PRIMARY KEY has remained the same */
+	const dtuple_t*	add_cols,
+				/*!< in: default values of
+				added columns, or NULL */
+	const ulint*	col_map)/*!< in: mapping of old column
+				numbers to new ones, or NULL if !table */
 {
 	byte*		buf;
 	row_log_t*	log;
@@ -2346,6 +2338,8 @@ row_log_allocate(
 	ut_ad(dict_index_is_clust(index) == !!table);
 	ut_ad(!table || index->table != table);
 	ut_ad(same_pk || table);
+	ut_ad(!table || col_map);
+	ut_ad(!add_cols || col_map);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
@@ -2363,6 +2357,8 @@ row_log_allocate(
 	log->trx_rb = NULL;
 	log->table = table;
 	log->same_pk = same_pk;
+	log->add_cols = add_cols;
+	log->col_map = col_map;
 	log->error = DB_SUCCESS;
 	log->max_trx = 0;
 	log->head.block = buf;
