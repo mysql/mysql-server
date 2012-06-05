@@ -2507,6 +2507,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   MYSQL *mysql= mpvio->mysql;
   NET *net= &mysql->net;
   char *buff, *end;
+  size_t buff_size;
   size_t connect_attrs_len=
     (mysql->server_capabilities & CLIENT_CONNECT_ATTRS &&
      mysql->options.extension) ?
@@ -2519,7 +2520,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
     see end= buff+32 below, fixed size of the packet is 32 bytes.
      +9 because data is a length encoded binary where meta data size is max 9.
   */
-  size_t buff_size= 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN + connect_attrs_len + 9;
+  buff_size= 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN + connect_attrs_len + 9;
   buff= my_alloca(buff_size);
 
   mysql->client_flag|= mysql->options.client_flag;
