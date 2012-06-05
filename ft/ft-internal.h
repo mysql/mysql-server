@@ -518,9 +518,68 @@ int toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
                                     FT h, int n_workitems, int n_threads,
                                     BOOL for_checkpoint);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, u_int32_t fullhash, ROLLBACK_LOG_NODE *logp, FT h);
-enum deserialize_error_code toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
-enum deserialize_error_code toku_deserialize_bp_from_compressed(FTNODE node, int childnum, DESCRIPTOR desc, ft_compare_func cmp);
-enum deserialize_error_code toku_deserialize_ftnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
+int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
+int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, DESCRIPTOR desc, ft_compare_func cmp);
+int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
+
+//////////////// <CER> TODO: Move these function declarations
+int
+deserialize_ft_from_fd_into_rbuf(int fd,
+                                 toku_off_t offset_of_header,
+                                 struct rbuf *rb,
+                                 u_int64_t *checkpoint_count,
+                                 LSN *checkpoint_lsn,
+                                 u_int32_t * version_p,
+                                 enum deserialize_error_code *e);
+
+enum deserialize_error_code
+deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
+
+int
+read_block_from_fd_into_rbuf(
+    int fd, 
+    BLOCKNUM blocknum,
+    FT h,
+    struct rbuf *rb
+    );
+
+int
+read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb);
+
+int
+verify_ftnode_sub_block (struct sub_block *sb);
+
+void
+just_decompress_sub_block(struct sub_block *sb);
+
+/* Beginning of ft-node-deserialize.c helper functions. */
+
+//
+inline void
+initialize_ftnode(FTNODE node, BLOCKNUM blocknum);
+
+//
+inline int
+read_and_check_magic(struct rbuf *rb);
+
+//
+inline int
+read_and_check_version(FTNODE node, struct rbuf *rb);
+
+//
+inline void
+read_node_info(FTNODE node, struct rbuf *rb, int version);
+
+//
+inline void
+allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd);
+
+//
+inline int
+check_node_info_checksum(struct rbuf *rb);
+
+//////////////// <CER>
+
 unsigned int toku_serialize_ftnode_size(FTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -983,6 +1042,6 @@ toku_ft_node_put_cmd (
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
-enum deserialize_error_code toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h);
+int toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h);
 
 #endif

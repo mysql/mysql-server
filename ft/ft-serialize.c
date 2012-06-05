@@ -138,7 +138,7 @@ exit:
 }
 
 // We only deserialize brt header once and then share everything with all the brts.
-static enum deserialize_error_code
+enum deserialize_error_code
 deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 {
     enum deserialize_error_code e = DS_OK;
@@ -423,7 +423,7 @@ serialize_ft_min_size (u_int32_t version) {
 //
 // TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the
 // file AND the header is useless
-static int
+int
 deserialize_ft_from_fd_into_rbuf(int fd,
                                         toku_off_t offset_of_header,
                                         struct rbuf *rb,

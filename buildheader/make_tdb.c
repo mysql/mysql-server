@@ -119,6 +119,7 @@ enum {
         TOKUDB_TRY_AGAIN               = -100012,
         TOKUDB_NEEDS_REPAIR            = -100013,
         TOKUDB_CURSOR_CONTINUE         = -100014,
+        TOKUDB_BAD_CHECKSUM            = -100015,
         DONTUSE_I_JUST_PUT_THIS_HERE_SO_I_COULD_HAVE_A_COMMA_AFTER_EACH_ITEM
 };
 
@@ -269,6 +270,7 @@ static void print_defines (void) {
     dodefine(TOKUDB_TRY_AGAIN);
     dodefine(TOKUDB_NEEDS_REPAIR);
     dodefine(TOKUDB_CURSOR_CONTINUE);
+    dodefine(TOKUDB_BAD_CHECKSUM);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
