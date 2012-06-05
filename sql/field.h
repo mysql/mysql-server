@@ -868,7 +868,7 @@ public:
   {
     return is_temporal_type_with_date_and_time(type());
   }
-  inline bool is_null(my_ptrdiff_t row_offset= 0)
+  inline bool is_null (my_ptrdiff_t row_offset= 0) const
   {
     /*
       The table may have been marked as containing only NULL values
@@ -890,16 +890,16 @@ public:
 
     return false;
   }
-  inline bool is_real_null(my_ptrdiff_t row_offset= 0)
-    { return null_ptr ? (null_ptr[row_offset] & null_bit ? 1 : 0) : 0; }
-  inline bool is_null_in_record(const uchar *record)
+  inline bool is_real_null (my_ptrdiff_t row_offset= 0) const
+    { return null_ptr && (null_ptr[row_offset] & null_bit); }
+  inline bool is_null_in_record (const uchar *record) const
   {
     if (!null_ptr)
       return 0;
     return test(record[(uint) (null_ptr -table->record[0])] &
 		null_bit);
   }
-  inline bool is_null_in_record_with_offset(my_ptrdiff_t offset)
+  inline bool is_null_in_record_with_offset (my_ptrdiff_t offset) const
   {
     if (!null_ptr)
       return 0;
@@ -909,7 +909,8 @@ public:
     { if (null_ptr) null_ptr[row_offset]|= null_bit; }
   inline void set_notnull(my_ptrdiff_t row_offset= 0)
     { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
-  inline bool maybe_null(void) { return null_ptr != 0 || table->maybe_null; }
+  inline bool maybe_null(void) const
+    { return null_ptr != 0 || table->maybe_null; }
   /**
      Signals that this field is NULL-able.
   */
