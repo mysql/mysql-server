@@ -217,6 +217,9 @@ row_build(
 					of an index, or NULL if
 					index->table should be
 					consulted instead */
+	const dtuple_t*		add_cols,
+					/*!< in: default values of
+					added columns, or NULL */
 	const ulint*		col_map,/*!< in: mapping of old column
 					numbers to new ones, or NULL */
 	row_ext_t**		ext,	/*!< out, own: cache of
@@ -282,13 +285,24 @@ row_build(
 
 	if (!col_table) {
 		ut_ad(!col_map);
+		ut_ad(!add_cols);
 		col_table = index->table;
 	}
 
-	//row = dtuple_copy(heap, default_row);// todo: ADD_COLUMN
-	row = dtuple_create(heap, dict_table_get_n_cols(col_table));
+	if (add_cols) {
+		ut_ad(col_map);
+		row = dtuple_copy(add_cols, heap);
+		/* dict_table_copy_types() would set the fields to NULL */
+		for (ulint i = 0; i < dict_table_get_n_cols(col_table); i++) {
+			dict_col_copy_type(
+				dict_table_get_nth_col(col_table, i),
+				dfield_get_type(dtuple_get_nth_field(row, i)));
+		}
+	} else {
+		row = dtuple_create(heap, dict_table_get_n_cols(col_table));
+		dict_table_copy_types(row, col_table);
+	}
 
-	dict_table_copy_types(row, col_table);
 	dtuple_set_info_bits(row, rec_get_info_bits(
 				     copy, rec_offs_comp(offsets)));
 

@@ -164,7 +164,7 @@ row_vers_impl_x_locked_low(
 
 		row = row_build(ROW_COPY_POINTERS, clust_index, prev_version,
 				clust_offsets,
-				NULL, NULL, &ext, heap);
+				NULL, NULL, NULL, &ext, heap);
 
 		entry = row_build_index_entry(row, ext, index, heap);
 
@@ -385,7 +385,7 @@ row_vers_old_has_index_entry(
 		externally stored columns. */
 		row = row_build(ROW_COPY_POINTERS, clust_index,
 				rec, clust_offsets,
-				NULL, NULL, &ext, heap);
+				NULL, NULL, NULL, &ext, heap);
 		entry = row_build_index_entry(row, ext, index, heap);
 
 		/* If entry == NULL, the record contains unset BLOB
@@ -446,7 +446,7 @@ row_vers_old_has_index_entry(
 			externally stored columns. */
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets,
-					NULL, NULL, &ext, heap);
+					NULL, NULL, NULL, &ext, heap);
 			entry = row_build_index_entry(row, ext, index, heap);
 
 			/* If entry == NULL, the record contains unset

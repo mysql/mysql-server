@@ -1213,7 +1213,7 @@ row_merge_skip_rec(
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
 @return	DB_SUCCESS or error */
-static __attribute__((nonnull(1,2,3,4,6,9,10,13),warn_unused_result))
+static __attribute__((nonnull(1,2,3,4,6,9,10,14),warn_unused_result))
 dberr_t
 row_merge_read_clustered_index(
 /*===========================*/
@@ -1238,6 +1238,9 @@ row_merge_read_clustered_index(
 	const ulint*		key_numbers,
 					/*!< in: MySQL key numbers to create */
 	ulint			n_index,/*!< in: number of indexes to create */
+	const dtuple_t*		add_cols,
+					/*!< in: default values of
+					added columns, or NULL */
 	const ulint*		col_map,/*!< in: mapping of old column
 					numbers to new ones, or NULL
 					if old_table == new_table */
@@ -1262,7 +1265,8 @@ row_merge_read_clustered_index(
 	ibool			fts_pll_sort = FALSE;
 	ib_int64_t		sig_count = 0;
 
-	ut_ad(old_table == new_table || col_map);
+	ut_ad((old_table == new_table) == !col_map);
+	ut_ad(!add_cols || col_map);
 
 	trx->op_info = "reading clustered index";
 
@@ -1512,7 +1516,7 @@ row_merge_read_clustered_index(
 
 		row = row_build(ROW_COPY_POINTERS, clust_index,
 				rec, offsets, new_table,
-				col_map, &ext, row_heap);
+				add_cols, col_map, &ext, row_heap);
 		ut_ad(row);
 
 		for (ulint i = 0; i < n_nonnull; i++) {
@@ -3199,6 +3203,8 @@ row_merge_build_indexes(
 	struct TABLE*	table,		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	const dtuple_t*	add_cols,	/*!< in: default values of
+					added columns, or NULL */
 	const ulint*	col_map)	/*!< in: mapping of old column
 					numbers to new ones, or NULL
 					if old_table == new_table */
@@ -3215,7 +3221,8 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
 
-	ut_ad(old_table == new_table || col_map);
+	ut_ad((old_table == new_table) == !col_map);
+	ut_ad(!add_cols || col_map);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
@@ -3264,7 +3271,7 @@ row_merge_build_indexes(
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
-		n_indexes, col_map, block);
+		n_indexes, add_cols, col_map, block);
 
 	if (error != DB_SUCCESS) {
 

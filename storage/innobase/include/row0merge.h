@@ -293,6 +293,8 @@ row_merge_build_indexes(
 	struct TABLE*	table,		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	const dtuple_t*	add_cols,	/*!< in: default values of
+					added columns, or NULL */
 	const ulint*	col_map)	/*!< in: mapping of old column
 					numbers to new ones, or NULL
 					if old_table == new_table */
