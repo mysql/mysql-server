@@ -2476,12 +2476,7 @@ col_fail:
 
 			online_retry_drop_indexes_with_trx(user_table, trx);
 
-			row_mysql_unlock_data_dictionary(trx);
-			mem_heap_free(heap);
-
-			trx_free_for_mysql(trx);
-			trx_commit_for_mysql(user_trx);
-			DBUG_RETURN(true);
+			goto err_exit;
 		}
 
 		col_map = innobase_build_col_map(
@@ -2721,10 +2716,21 @@ error_handled:
 
 	ut_d(dict_table_check_for_dup_indexes(user_table, CHECK_ALL_COMPLETE));
 	ut_ad(!user_table->drop_aborted);
+
+err_exit:
+	/* Clear the to_be_dropped flag in the data dictionary cache. */
+	for (ulint i = 0; i < n_drop_index; i++) {
+		DBUG_ASSERT(*drop_index[i]->name != TEMP_INDEX_PREFIX);
+		DBUG_ASSERT(drop_index[i]->to_be_dropped);
+		drop_index[i]->to_be_dropped = 0;
+	}
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	trx_free_for_mysql(trx);
 	mem_heap_free(heap);
+
+	trx_commit_for_mysql(user_trx);
 
 	/* There might be work for utility threads.*/
 	srv_active_wake_master_thread();
@@ -2926,6 +2932,7 @@ check_if_ok_to_rename:
 		}
 	}
 
+	n_drop_index = 0;
 	n_drop_fk = 0;
 
 	if (ha_alter_info->handler_flags
@@ -2982,8 +2989,6 @@ found_fk:
 		drop_fk = NULL;
 		heap = NULL;
 	}
-
-	n_drop_index = 0;
 
 	if (ha_alter_info->index_drop_count) {
 		DBUG_ASSERT(ha_alter_info->handler_flags
@@ -3211,6 +3216,20 @@ func_exit:
 	if (num_fts_index > 1) {
 		my_error(ER_INNODB_FT_LIMIT, MYF(0));
 err_exit:
+		if (n_drop_index) {
+			row_mysql_lock_data_dictionary(prebuilt->trx);
+
+			/* Clear the to_be_dropped flags, which might
+			have been set at this point. */
+			for (ulint i = 0; i < n_drop_index; i++) {
+				DBUG_ASSERT(*drop_index[i]->name
+					    != TEMP_INDEX_PREFIX);
+				drop_index[i]->to_be_dropped = 0;
+			}
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+		}
+
 		if (heap) {
 			mem_heap_free(heap);
 		}
@@ -3455,12 +3474,9 @@ rollback_inplace_alter_table(
 
 	if (!ctx || !ctx->trx) {
 		/* If we have not started a transaction yet,
-		nothing has been or needs to be done. */
+		(almost) nothing has been or needs to be done. */
 		goto func_exit;
 	}
-
-	/* Roll back index creation. */
-	DBUG_ASSERT(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE);
 
 	row_mysql_lock_data_dictionary(ctx->trx);
 
@@ -3509,15 +3525,21 @@ func_exit:
 		    == ONLINE_INDEX_COMPLETE);
 #endif /* !DBUG_OFF */
 
-	if (ctx && prebuilt->table == ctx->indexed_table) {
-		/* Clear the to_be_dropped flag in the data dictionary. */
-		for (ulint i = 0; i < ctx->num_to_drop; i++) {
-			dict_index_t*	index = ctx->drop[i];
-			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
-			DBUG_ASSERT(index->table == prebuilt->table);
-			DBUG_ASSERT(index->to_be_dropped);
+	if (ctx) {
+		if (ctx->num_to_drop) {
+			row_mysql_lock_data_dictionary(prebuilt->trx);
 
-			index->to_be_dropped = 0;
+			/* Clear the to_be_dropped flag
+			in the data dictionary cache. */
+			for (ulint i = 0; i < ctx->num_to_drop; i++) {
+				dict_index_t*	index = ctx->drop[i];
+				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+				DBUG_ASSERT(index->to_be_dropped);
+
+				index->to_be_dropped = 0;
+			}
+
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
 		}
 	}
 
@@ -3853,17 +3875,6 @@ ha_innobase::commit_inplace_alter_table(
 
 	DBUG_ENTER("commit_inplace_alter_table");
 
-	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
-		DBUG_ASSERT(!ctx);
-
-		/* Nothing to do */
-		if (!commit) {
-			goto ret;
-		}
-		/* We may want to update table attributes. */
-		goto func_exit;
-	}
-
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
 		most have created some indexes. If any indexes were to
@@ -3871,6 +3882,12 @@ ha_innobase::commit_inplace_alter_table(
 		method if commit=true. */
 		DBUG_RETURN(rollback_inplace_alter_table(
 				    ha_alter_info, table_share, prebuilt));
+	}
+
+	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
+		DBUG_ASSERT(!ctx);
+		/* We may want to update table attributes. */
+		goto func_exit;
 	}
 
 	trx_start_if_not_started_xa(prebuilt->trx);
@@ -3911,6 +3928,14 @@ ha_innobase::commit_inplace_alter_table(
 	if (new_clustered) {
 		dberr_t	error;
 		char*	tmp_name;
+
+		/* Clear the to_be_dropped flag in the data dictionary. */
+		for (ulint i = 0; i < ctx->num_to_drop; i++) {
+			dict_index_t*	index = ctx->drop[i];
+			DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+			DBUG_ASSERT(index->to_be_dropped);
+			index->to_be_dropped = 0;
+		}
 
 		/* We copied the table. Any indexes that were
 		requested to be dropped were not created in the copy
@@ -4140,7 +4165,8 @@ ha_innobase::commit_inplace_alter_table(
 			if (ctx->add_fk[i]->referenced_table) {
 				UT_LIST_ADD_LAST(
 					referenced_list,
-					ctx->add_fk[i]->referenced_table->referenced_list,
+					ctx->add_fk[i]->referenced_table
+					->referenced_list,
 					ctx->add_fk[i]);
 			}
 
@@ -4259,14 +4285,6 @@ trx_commit:
 
 		ut_d(dict_table_check_for_dup_indexes(
 			     prebuilt->table, CHECK_ALL_COMPLETE));
-#ifdef UNIV_DEBUG
-		for (dict_index_t* index = dict_table_get_first_index(
-			     prebuilt->table);
-		     index;
-		     index = dict_table_get_next_index(index)) {
-			ut_ad(!index->to_be_dropped);
-		}
-#endif /* UNIV_DEBUG */
 		DBUG_ASSERT(new_clustered == !prebuilt->trx);
 
 		if (add_fts) {
@@ -4370,7 +4388,6 @@ func_exit:
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
-ret:
 #ifndef DBUG_OFF
 	dict_index_t* clust_index = dict_table_get_first_index(
 		prebuilt->table);
@@ -4378,6 +4395,15 @@ ret:
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
 		    == ONLINE_INDEX_COMPLETE);
 #endif /* !DBUG_OFF */
+
+#ifdef UNIV_DEBUG
+	for (dict_index_t* index = dict_table_get_first_index(
+		     prebuilt->table);
+	     index;
+	     index = dict_table_get_next_index(index)) {
+		ut_ad(!index->to_be_dropped);
+	}
+#endif /* UNIV_DEBUG */
 
 	if (err == 0) {
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
