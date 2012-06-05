@@ -6472,7 +6472,15 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
         field->result_type() == INT_RESULT ||
         field->result_type() == DECIMAL_RESULT)
     {
-      if (field->val_int() > 0) // value is higher than field::max_value
+      /*
+        value to store was higher than field::max_value if
+           a) field has a value greater than 0, or
+           b) if field is unsigned and has a negative value (which, when
+              cast to unsigned, means some value higher than LONGLONG_MAX).
+      */
+      if ((field->val_int() > 0) ||                              // a)
+          (static_cast<Field_num*>(field)->unsigned_flag &&
+           field->val_int() < 0))                                // b)
       {
         if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC)
         {
