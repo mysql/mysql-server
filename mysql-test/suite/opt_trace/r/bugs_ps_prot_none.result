@@ -862,7 +862,7 @@ ON table2 .col_int_key = table1 .col_int_key
                     {
                       "access_type": "scan",
                       "rows": 6,
-                      "cost": 2.019,
+                      "cost": 3.219,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -942,7 +942,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 {
                                   "access_type": "scan",
                                   "rows": 4,
-                                  "cost": 2.0068,
+                                  "cost": 2.8068,
                                   "chosen": true
                                 }
                               ] /* considered_access_paths */
@@ -1072,7 +1072,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                                       {
                                                         "access_type": "scan",
                                                         "rows": 4,
-                                                        "cost": 2.0068,
+                                                        "cost": 2.8068,
                                                         "chosen": true
                                                       }
                                                     ] /* considered_access_paths */
@@ -1204,7 +1204,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 },
                                 {
                                   "access_type": "scan",
-                                  "cost": 2,
+                                  "cost": 2.8,
                                   "rows": 4,
                                   "cause": "cost",
                                   "chosen": false
@@ -1232,7 +1232,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "access_type": "scan",
                                       "using_join_cache": true,
                                       "rows": 3,
-                                      "cost": 2.207,
+                                      "cost": 3.407,
                                       "chosen": false
                                     }
                                   ] /* considered_access_paths */
@@ -1258,7 +1258,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                 },
                                 {
                                   "access_type": "scan",
-                                  "cost": 2,
+                                  "cost": 2.8,
                                   "rows": 4,
                                   "cause": "cost",
                                   "chosen": false
@@ -1286,7 +1286,7 @@ ON table2 .col_int_key = table1 .col_int_key
                                       "access_type": "scan",
                                       "using_join_cache": true,
                                       "rows": 3,
-                                      "cost": 2.207,
+                                      "cost": 3.407,
                                       "chosen": false
                                     }
                                   ] /* considered_access_paths */
@@ -1617,6 +1617,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                     "rows": 1,
                                     "cost": 2.21,
                                     "rowid_ordered": true,
+                                    "using_mrr": false,
                                     "chosen": false,
                                     "cause": "cost"
                                   },
@@ -1630,6 +1631,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                     "rows": 1,
                                     "cost": 2.21,
                                     "rowid_ordered": false,
+                                    "using_mrr": false,
                                     "chosen": false,
                                     "cause": "cost"
                                   }

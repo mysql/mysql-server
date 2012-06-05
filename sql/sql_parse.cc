@@ -3311,7 +3311,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        if (mysql_bin_log.write_incident(&ev, TRUE))
+        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/))
         {
           res= 1;
           break;

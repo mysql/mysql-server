@@ -501,8 +501,10 @@ The following options may be given as the first argument:
  Offset of first optimizer trace to show; see manual
  --performance-schema 
  Enable the performance schema.
+ (Defaults to on; use --skip-performance-schema to disable.)
  --performance-schema-accounts-size=# 
- Maximum number of instrumented user@host accounts.
+ Maximum number of instrumented user@host accounts. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-consumer-events-stages-current 
  Default startup value for the events_stages_current
  consumer.
@@ -543,66 +545,84 @@ The following options may be given as the first argument:
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
  --performance-schema-digests-size=# 
- Size of the statement digest.
+ Size of the statement digest. Use 0 to disable, -1 for
+ automated sizing.
  --performance-schema-events-stages-history-long-size=# 
- Number of rows in EVENTS_STAGES_HISTORY_LONG.
+ Number of rows in EVENTS_STAGES_HISTORY_LONG. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-events-stages-history-size=# 
- Number of rows per thread in EVENTS_STAGES_HISTORY.
+ Number of rows per thread in EVENTS_STAGES_HISTORY. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-events-statements-history-long-size=# 
- Number of rows in EVENTS_STATEMENTS_HISTORY_LONG.
+ Number of rows in EVENTS_STATEMENTS_HISTORY_LONG. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-events-statements-history-size=# 
  Number of rows per thread in EVENTS_STATEMENTS_HISTORY.
+ Use 0 to disable, -1 for automated sizing.
  --performance-schema-events-waits-history-long-size=# 
- Number of rows in EVENTS_WAITS_HISTORY_LONG.
+ Number of rows in EVENTS_WAITS_HISTORY_LONG. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-events-waits-history-size=# 
- Number of rows per thread in EVENTS_WAITS_HISTORY.
+ Number of rows per thread in EVENTS_WAITS_HISTORY. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-hosts-size=# 
- Maximum number of instrumented hosts.
+ Maximum number of instrumented hosts. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
  instrument.
  --performance-schema-max-cond-classes=# 
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
- Maximum number of instrumented condition objects.
+ Maximum number of instrumented condition objects. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
  Maximum number of opened instrumented files.
  --performance-schema-max-file-instances=# 
- Maximum number of instrumented files.
+ Maximum number of instrumented files. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
- Maximum number of instrumented MUTEX objects.
+ Maximum number of instrumented MUTEX objects. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
- Maximum number of instrumented RWLOCK objects.
+ Maximum number of instrumented RWLOCK objects. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-socket-classes=# 
  Maximum number of socket instruments.
  --performance-schema-max-socket-instances=# 
- Maximum number of opened instrumented sockets.
+ Maximum number of opened instrumented sockets. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
  Maximum number of statement instruments.
  --performance-schema-max-table-handles=# 
- Maximum number of opened instrumented tables.
+ Maximum number of opened instrumented tables. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-table-instances=# 
- Maximum number of instrumented tables.
+ Maximum number of instrumented tables. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
- Maximum number of instrumented threads.
+ Maximum number of instrumented threads. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-session-connect-attrs-size=# 
- Size of session attribute string buffer per thread.
+ Size of session attribute string buffer per thread. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
  --performance-schema-setup-objects-size=# 
  Maximum number of rows in SETUP_OBJECTS.
  --performance-schema-users-size=# 
- Maximum number of instrumented users.
+ Maximum number of instrumented users. Use 0 to disable,
+ -1 for automated sizing.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -880,7 +900,6 @@ The following options may be given as the first argument:
  safe-replicable. Since 5.0, SYSDATE() returns a `dynamic'
  value different for different invocations, even within
  the same statement.
- --table-cache=#     Deprecated; use --table-open-cache instead.
  --table-definition-cache=# 
  The number of cached table definitions
  --table-open-cache=# 
@@ -1084,8 +1103,8 @@ optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,re
 optimizer-trace-limit 1
 optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
-performance-schema FALSE
-performance-schema-accounts-size 100
+performance-schema TRUE
+performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
 performance-schema-consumer-events-stages-history-long FALSE
@@ -1098,36 +1117,36 @@ performance-schema-consumer-events-waits-history-long FALSE
 performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
-performance-schema-digests-size 200
-performance-schema-events-stages-history-long-size 10000
-performance-schema-events-stages-history-size 10
-performance-schema-events-statements-history-long-size 10000
-performance-schema-events-statements-history-size 10
-performance-schema-events-waits-history-long-size 10000
-performance-schema-events-waits-history-size 10
-performance-schema-hosts-size 100
+performance-schema-digests-size -1
+performance-schema-events-stages-history-long-size -1
+performance-schema-events-stages-history-size -1
+performance-schema-events-statements-history-long-size -1
+performance-schema-events-statements-history-size -1
+performance-schema-events-waits-history-long-size -1
+performance-schema-events-waits-history-size -1
+performance-schema-hosts-size -1
 performance-schema-instrument 
 performance-schema-max-cond-classes 80
-performance-schema-max-cond-instances 1000
+performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
-performance-schema-max-file-instances 10000
+performance-schema-max-file-instances -1
 performance-schema-max-mutex-classes 200
-performance-schema-max-mutex-instances 1000000
+performance-schema-max-mutex-instances -1
 performance-schema-max-rwlock-classes 30
-performance-schema-max-rwlock-instances 1000000
+performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
-performance-schema-max-socket-instances 1000
+performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
 performance-schema-max-statement-classes 169
-performance-schema-max-table-handles 10000
-performance-schema-max-table-instances 1000
+performance-schema-max-table-handles -1
+performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
-performance-schema-max-thread-instances 1000
-performance-schema-session-connect-attrs-size 2048
+performance-schema-max-thread-instances -1
+performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
-performance-schema-users-size 100
+performance-schema-users-size -1
 port 3306
 port-open-timeout 0
 preload-buffer-size 32768
@@ -1192,7 +1211,6 @@ sync-master-info 0
 sync-relay-log 0
 sync-relay-log-info 0
 sysdate-is-now FALSE
-table-cache 400
 table-definition-cache 400
 table-open-cache 400
 table-open-cache-instances 1

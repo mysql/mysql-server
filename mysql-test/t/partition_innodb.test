@@ -199,6 +199,7 @@ INSERT INTO t1 VALUES (90);
 INSERT INTO t1 VALUES (100);
 --error ER_NO_PARTITION_FOR_GIVEN_VALUE
 insert INTO t1 VALUES (110);
+ANALYZE TABLE t1;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a > 90;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a >= 90;
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = 90;
@@ -417,6 +418,7 @@ partition by key (a);
 --replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (0), (1), (2), (3);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
@@ -433,12 +435,14 @@ partition by key (a);
 --replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.
 --replace_column 6 # 7 # 10 #
 show table status;
 insert into t1 values (NULL), (NULL), (NULL), (NULL);
+analyze table t1;
 # Avg_row_length (col 6) and Data_length (col 7) vary depending
 # on the page size.  Data_free for InnoDB tablespace varies
 # depending on which tests have been run before this one.

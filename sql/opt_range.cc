@@ -5551,6 +5551,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       else
         trace_idx.add("rowid_ordered", false);
 
+      trace_idx.add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL));
+
       if (found_records != HA_POS_ERROR &&
           read_time > (found_read_time= cost.total_cost()))
       {
