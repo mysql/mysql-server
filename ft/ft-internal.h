@@ -555,27 +555,27 @@ just_decompress_sub_block(struct sub_block *sb);
 /* Beginning of ft-node-deserialize.c helper functions. */
 
 //
-inline void
+void
 initialize_ftnode(FTNODE node, BLOCKNUM blocknum);
 
 //
-inline int
+int
 read_and_check_magic(struct rbuf *rb);
 
 //
-inline int
+int
 read_and_check_version(FTNODE node, struct rbuf *rb);
 
 //
-inline void
+void
 read_node_info(FTNODE node, struct rbuf *rb, int version);
 
 //
-inline void
+void
 allocate_and_read_partition_offsets(FTNODE node, struct rbuf *rb, FTNODE_DISK_DATA *ndd);
 
 //
-inline int
+int
 check_node_info_checksum(struct rbuf *rb);
 
 //////////////// <CER>
