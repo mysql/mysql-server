@@ -237,6 +237,15 @@ create table t2i (a int);
 insert into t2m values (5);
 insert into t2i values (5);
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1i;
+analyze table t1m;
+analyze table t2i;
+analyze table t2m;
+-- enable_result_log
+-- enable_query_log
+
 # test with $engine_type
 select min(a) from t1i;
 select min(7) from t1i;
@@ -580,10 +589,22 @@ OPTIMIZE TABLE t1;
 SELECT COUNT(*) FROM t1;
 SELECT COUNT(*) FROM t1 WHERE acct_id=785;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE stat_id IN (1,3) AND acct_id=785; 
 
 INSERT INTO t2 SELECT * FROM t1;
 OPTIMIZE TABLE t2;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN SELECT COUNT(*) FROM t2 WHERE stat_id IN (1,3) AND acct_id=785;
 
@@ -715,6 +736,13 @@ UPDATE t2 SET c='2007-01-02';
 INSERT INTO t1(b,c) SELECT b,c FROM t2;
 UPDATE t2 SET c='2007-01-03';
 INSERT INTO t1(b,c) SELECT b,c FROM t2;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 set @@sort_buffer_size=8192;
 
@@ -1013,6 +1041,12 @@ CREATE TABLE t1(
 
 INSERT INTO t1 VALUES (1,1,1,50), (1,2,3,40), (2,1,3,4);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d;
 SELECT c,b,d FROM t1 GROUP BY c,b,d;
 EXPLAIN SELECT c,b,d FROM t1 GROUP BY c,b,d ORDER BY NULL;
@@ -1155,6 +1189,12 @@ CREATE TABLE t1 (a int, b int, c int, PRIMARY KEY (a), KEY t1_b (b))
 
 INSERT INTO t1 (a,b,c) VALUES (1,1,1), (2,1,1), (3,1,1), (4,1,1);
 INSERT INTO t1 (a,b,c) SELECT a+4,b,c FROM t1;
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 # should be range access
 EXPLAIN SELECT a, b, c FROM t1 WHERE b = 1 ORDER BY a DESC LIMIT 5;
@@ -1572,6 +1612,12 @@ CREATE TABLE t1 (c1 INT, c2 INT, c3 INT, KEY (c3), KEY (c2, c3))
   ENGINE=$engine_type;
 INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 EXPLAIN 
@@ -1584,6 +1630,12 @@ eval
 CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
   ENGINE=$engine_type;
 INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
@@ -1598,6 +1650,12 @@ CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2),
   KEY (c3), KEY (c2, c3))
   ENGINE=$engine_type;
 INSERT INTO t1 VALUES (1,1,1), (1,1,1), (1,1,2), (1,1,1), (1,1,2);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 SELECT 1 FROM (SELECT COUNT(DISTINCT c1) 
                  FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
