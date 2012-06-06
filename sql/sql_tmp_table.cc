@@ -21,6 +21,7 @@
 #include "sql_base.h"
 #include "opt_trace.h"
 #include "debug_sync.h"
+#include "filesort.h"   // filesort_free_buffers
 
 #include <algorithm>
 using std::max;
@@ -1825,6 +1826,8 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
+
+  filesort_free_buffers(entry, true);
 
   if (entry->file && entry->created)
   {

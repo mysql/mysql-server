@@ -963,12 +963,16 @@ row_get_prebuilt_insert_row(
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
-	/* Check if a new index has been added that prebuilt doesn't know
-	about. We need to rebuild the query graph. */
+	/* Check if an index has been dropped or a new index has been
+	added that prebuilt does not know about. We may need to rebuild
+	the row insert template. */
 
 	if (prebuilt->ins_node != 0) {
 
-		if (prebuilt->trx_id >= last_index->trx_id) {
+		if (prebuilt->trx_id >= last_index->trx_id
+		    && UT_LIST_GET_LEN(prebuilt->ins_node->entry_list)
+		    == UT_LIST_GET_LEN(table->indexes)) {
+
 			return(prebuilt->ins_node->row);
 		}
 
