@@ -1,5 +1,7 @@
 This directory contains collections of test runs that we run during our
-integration and release testing. Each file contains zero or more lines,
+integration and release testing. These files are not directly useful 
+outside this context, but need to be part of the source repository 
+and are included for reference.Each file contains zero or more lines,
 with one invocation of mysql-test-run.pl on each. These invocations are
 written so that, with the assumption that perl is in your search path,
 any collection can run as a shell script or a batch file, with the parent

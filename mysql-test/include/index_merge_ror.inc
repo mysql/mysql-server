@@ -117,6 +117,13 @@ while ($cnt)
 alter table t1 enable keys;
 select count(*) from t1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 # One row results tests for cases where a single row matches all conditions
 explain select key1,key2 from t1 where key1=100 and key2=100;
 select key1,key2 from t1 where key1=100 and key2=100;
@@ -127,6 +134,12 @@ select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=1
 # Several-rows results
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, -1, -1, 'key1-key2');
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 100, 100, 'key4-key3');
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 #  ROR-intersection, not covering
 explain select key1,key2,filler1 from t1 where key1=100 and key2=100;
@@ -156,6 +169,11 @@ select key1,key2, filler1 from t1 where key1=100 and key2=100;
 update t1 set filler1='to be deleted' where key1=100 and key2=100;
 update t1 set key1=200,key2=200 where key1=100 and key2=100;
 delete from t1 where key1=200 and key2=200;
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 select key1,key2,filler1 from t1 where key2=100 and key2=200;
 
 # ROR-union(ROR-intersection) with one of ROR-intersection giving empty
@@ -164,6 +182,12 @@ explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 o
 select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
 
 delete from t1 where key3=100 and key4=100;
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 # ROR-union with all ROR-intersections giving empty results
 explain select key1,key2,key3,key4,filler1 from t1 where key1=100 and key2=100 or key3=100 and key4=100;
@@ -179,15 +203,33 @@ insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-2');
 insert into t1 (key1, key2, key3, key4, filler1) values (100, 100, 200, 200,'key1-key2-key3-key4-3');
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, -1, 200,'key4');
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 
 insert into t1 (key1, key2, key3, key4, filler1) values (-1, -1, 200, -1,'key3');
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 explain select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
 select key1,key2,key3,key4,filler1 from t1 where key3=200 or (key1=100 and key2=100) or key4=200;
@@ -298,6 +340,12 @@ insert into t2 select * from t2;
 select count(a) from t2 where a='BBBBBBBB';
 select count(a) from t2 where b='BBBBBBBB';
 
+-- disable_query_log
+-- disable_result_log
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
+
 # BUG#1:
 --replace_result a a_or_b b a_or_b
 explain select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
@@ -305,6 +353,11 @@ select count(a) from t2 where a='AAAAAAAA' and b='AAAAAAAA';
 select count(a) from t2 ignore index(a,b) where a='AAAAAAAA' and b='AAAAAAAA';
 
 insert into t2 values ('ab', 'ab', 'uh', 'oh');
+-- disable_query_log
+-- disable_result_log
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
 explain select a from t2 where a='ab';
 drop table t2;
 

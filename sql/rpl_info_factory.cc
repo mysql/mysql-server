@@ -373,7 +373,7 @@ Slave_worker *Rpl_info_factory::create_worker(uint worker_option, uint worker_id
                         &msg))
     goto err;
        
-  if (worker->init_info(is_gaps_collecting_phase))
+  if (worker->rli_init_info(is_gaps_collecting_phase))
   {
     worker->end_info();
     msg= "Failed to intialize the worker info structure";

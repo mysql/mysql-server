@@ -51,6 +51,7 @@ void *pfs_malloc(size_t size, myf flags)
 
   void *ptr;
 
+#ifdef PFS_ALIGNEMENT
 #ifdef HAVE_POSIX_MEMALIGN
   /* Linux */
   if (unlikely(posix_memalign(& ptr, PFS_ALIGNEMENT, size)))
@@ -68,13 +69,16 @@ void *pfs_malloc(size_t size, myf flags)
   if (unlikely(ptr == NULL))
     return NULL;
 #else
+#error "Missing implementation for PFS_ALIGNENT"
+#endif /* HAVE_ALIGNED_MALLOC */
+#endif /* HAVE_MEMALIGN */
+#endif /* HAVE_POSIX_MEMALIGN */
+#else /* PFS_ALIGNMENT */
   /* Everything else */
   ptr= malloc(size);
   if (unlikely(ptr == NULL))
     return NULL;
-#endif /* HAVE_ALIGNED_MALLOC */
-#endif /* HAVE_MEMALIGN */
-#endif /* HAVE_POSIX_MEMALIGN */
+#endif
 
   pfs_allocated_memory+= size;
   if (flags & MY_ZEROFILL)

@@ -335,7 +335,7 @@ pop_from_auto_recalc_list_and_recalc()
 
 	} else {
 
-		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT, FALSE);
+		dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
 	}
 
 	mutex_enter(&dict_sys->mutex);
