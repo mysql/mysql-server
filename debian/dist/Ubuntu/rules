@@ -70,30 +70,11 @@ endif
 			CXX=$${MYSQL_BUILD_CXX:-g++} \
 			CXXFLAGS=$${MYSQL_BUILD_CXXFLAGS:-"-O2 -fno-omit-frame-pointer -g -pipe -Wall -Wno-uninitialized"} \
 		cmake .. \
-		-DCMAKE_INSTALL_PREFIX=/usr \
-			-DINSTALL_SBINDIR=sbin  \
-			-DMYSQL_DATADIR=/var/lib/mysql \
-			-DINSTALL_INCLUDEDIR=include/mysql \
-			-DINSTALL_INFODIR=share/info \
-			-DINSTALL_MANDIR=share/man \
-		\
 		-DMYSQL_SERVER_SUFFIX="-$(DEBVERSION)" \
+		-DBUILD_CONFIG=mysql_release \
 		-DCOMPILATION_COMMENT="mariadb.org binary distribution" \
 		-DSYSTEM_TYPE="debian-linux-gnu" \
-		-DINSTALL_LAYOUT=DEB \
-		\
-		-DENABLED_LOCAL_INFILE=1 \
-		-DWITH_FAST_MUTEXES=1 \
-		\
-		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
-		\
-		-DEXTRA_CHARSETS=all \
-		-DWITH_LIBWRAP=1 \
-		-DWITH_SSL=system \
-		-DWITH_ZLIB=system \
-		-DWITH_EMBEDDED_SERVER=1  \
-	        -DHAVE_EMBEDDED_PRIVILEGE_CONTROL=ON \
-		-DWITH_MAX=1'
+		-DDEB=ubuntu'
 
 	touch $@
 
