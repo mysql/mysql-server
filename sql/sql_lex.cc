@@ -3406,7 +3406,23 @@ bool st_select_lex::add_index_hint (THD *thd, char *str, uint length)
 }
 
 
-bool st_select_lex::optimize_unflattened_subqueries()
+/**
+  Optimize all subqueries that have not been flattened into semi-joins.
+
+  @details
+  This functionality is a method of SELECT_LEX instead of JOIN because
+  SQL statements as DELETE/UPDATE do not have a corresponding JOIN object.
+
+  @see JOIN::optimize_unflattened_subqueries
+
+  @param const_only  Restrict subquery optimization to constant subqueries
+
+  @return Operation status
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+
+bool st_select_lex::optimize_unflattened_subqueries(bool const_only)
 {
   for (SELECT_LEX_UNIT *un= first_inner_unit(); un; un= un->next_unit())
   {
@@ -3416,12 +3432,19 @@ bool st_select_lex::optimize_unflattened_subqueries()
     {
       if (subquery_predicate->substype() == Item_subselect::IN_SUBS)
       {
-        Item_in_subselect *in_subs=(Item_in_subselect*)subquery_predicate;
+        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
         if (in_subs->is_jtbm_merged)
           continue;
       }
 
+      if (const_only && !subquery_predicate->const_item())
+      {
+        /* Skip non-constant subqueries if the caller asked so. */
+        continue;
+      }
+
       bool empty_union_result= true;
+      bool is_correlated_unit= false;
       /*
         If the subquery is a UNION, optimize all the subqueries in the UNION. If
         there is no UNION, then the loop will execute once for the subquery.
@@ -3446,6 +3469,8 @@ bool st_select_lex::optimize_unflattened_subqueries()
           inner_join->select_options|= SELECT_DESCRIBE;
         }
         res= inner_join->optimize();
+        sl->update_correlated_cache();
+        is_correlated_unit|= sl->is_correlated;
         inner_join->select_options= save_options;
         un->thd->lex->current_select= save_select;
         if (empty_union_result)
@@ -3461,6 +3486,9 @@ bool st_select_lex::optimize_unflattened_subqueries()
       }
       if (empty_union_result)
         subquery_predicate->no_rows_in_result();
+      if (!is_correlated_unit)
+        un->uncacheable&= ~UNCACHEABLE_DEPENDENT;
+      subquery_predicate->is_correlated= is_correlated_unit;
     }
   }
   return FALSE;
@@ -3826,6 +3854,61 @@ void SELECT_LEX::update_used_tables()
     for (ORDER *order= order_list.first; order; order= order->next)
       (*order->item)->update_used_tables();
   }      
+}
+
+
+/**
+  @brief
+  Update is_correlated cache for this select
+
+  @details
+*/
+
+void st_select_lex::update_correlated_cache()
+{
+  TABLE_LIST *tl;
+  List_iterator<TABLE_LIST> ti(leaf_tables);
+
+  is_correlated= false;
+
+  while ((tl= ti++))
+  {
+    if (tl->on_expr)
+      is_correlated|= test(tl->on_expr->used_tables() & OUTER_REF_TABLE_BIT);
+    for (TABLE_LIST *embedding= tl->embedding ; embedding ;
+         embedding= embedding->embedding)
+    {
+      if (embedding->on_expr)
+        is_correlated|= test(embedding->on_expr->used_tables() &
+                            OUTER_REF_TABLE_BIT);
+    }
+  }
+
+  if (join->conds)
+    is_correlated|= test(join->conds->used_tables() & OUTER_REF_TABLE_BIT);
+
+  if (join->having)
+    is_correlated|= test(join->having->used_tables() & OUTER_REF_TABLE_BIT);
+
+  if (join->tmp_having)
+    is_correlated|= test(join->tmp_having->used_tables() & OUTER_REF_TABLE_BIT);
+
+  Item *item;
+  List_iterator_fast<Item> it(join->fields_list);
+  while ((item= it++))
+    is_correlated|= test(item->used_tables() & OUTER_REF_TABLE_BIT);
+
+  for (ORDER *order= group_list.first; order; order= order->next)
+    is_correlated|= test((*order->item)->used_tables() & OUTER_REF_TABLE_BIT);
+
+  if (!master_unit()->is_union())
+  {
+    for (ORDER *order= order_list.first; order; order= order->next)
+      is_correlated|= test((*order->item)->used_tables() & OUTER_REF_TABLE_BIT);
+  }
+
+  if (!is_correlated)
+    uncacheable&= ~UNCACHEABLE_DEPENDENT;
 }
 
 

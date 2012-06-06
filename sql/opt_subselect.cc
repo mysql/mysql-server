@@ -4894,7 +4894,43 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 
 bool JOIN::optimize_unflattened_subqueries()
 {
-  return select_lex->optimize_unflattened_subqueries();
+  return select_lex->optimize_unflattened_subqueries(false);
+}
+
+/**
+  Optimize all constant subqueries of a query that were not flattened into
+  a semijoin.
+
+  @details
+  Similar to other constant conditions, constant subqueries can be used in
+  various constant optimizations. Having optimized constant subqueries before
+  these constant optimizations, makes it possible to estimate if a subquery
+  is "cheap" enough to be executed during the optimization phase.
+
+  Constant subqueries can be optimized and evaluated independent of the outer
+  query, therefore if const_only = true, this method can be called early in
+  the optimization phase of the outer query.
+
+  @return Operation status
+  @retval FALSE     success.
+  @retval TRUE      error occurred.
+*/
+ 
+bool JOIN::optimize_constant_subqueries()
+{
+  ulonglong save_options= select_lex->options;
+  bool res;
+  /*
+    Constant subqueries may be executed during the optimization phase.
+    In EXPLAIN mode the optimizer doesn't initialize many of the data structures
+    needed for execution. In order to make it possible to execute subqueries
+    during optimization, constant subqueries must be optimized for execution,
+    not for EXPLAIN.
+  */
+  select_lex->options&= ~SELECT_DESCRIBE;
+  res= select_lex->optimize_unflattened_subqueries(true);
+  select_lex->options= save_options;
+  return res;
 }
 
 
@@ -5295,7 +5331,14 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
       by the IN predicate.
     */
     outer_join= unit->outer_select() ? unit->outer_select()->join : NULL;
-    if (outer_join && outer_join->table_count > 0)
+    /*
+      Get the cost of the outer join if:
+      (1) It has at least one table, and
+      (2) It has been already optimized (if there is no join_tab, then the
+          outer join has not been optimized yet).
+    */
+    if (outer_join && outer_join->table_count > 0 && // (1)
+        outer_join->join_tab)                        // (2)
     {
       /*
         TODO:

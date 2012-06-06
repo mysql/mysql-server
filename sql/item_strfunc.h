@@ -829,7 +829,7 @@ public:
   {
     DBUG_ASSERT(args[0]->fixed);
     conv_charset= cs;
-    if (cache_if_const && args[0]->const_item() && !args[0]->with_subselect)
+    if (cache_if_const && args[0]->const_item() && !args[0]->is_expensive())
     {
       uint errors= 0;
       String tmp, *str= args[0]->val_str(&tmp);

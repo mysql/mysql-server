@@ -5985,7 +5985,13 @@ void TABLE::use_index(int key_to_save)
 
 bool TABLE::is_filled_at_execution()
 { 
-  return test(pos_in_table_list->jtbm_subselect || 
+  /*
+    pos_in_table_list == NULL for internal temporary tables because they
+    do not have a corresponding table reference. Such tables are filled
+    during execution.
+  */
+  return test(!pos_in_table_list ||
+              pos_in_table_list->jtbm_subselect || 
               pos_in_table_list->is_active_sjm());
 }
 
