@@ -209,8 +209,8 @@ int main(int argc, char *argv[]) {
         nkeygen = nthread;
     }
 
-    const char *envdir = "dir." __FILE__;
-    r = system("rm -rf dir." __FILE__);
+    const char *envdir = ENVDIR;
+    r = system("rm -rf " ENVDIR);
     assert(r == 0);
     r = mkdir(envdir, 0777);
     assert(r == 0);
