@@ -6344,6 +6344,12 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   /* Total cost of all index accesses */
   index_read_cost= h->index_only_read_time(keynr, rows);
   cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());
+
+  /*
+    Add CPU cost for processing records (see
+    @handler::multi_range_read_info_const()).
+  */
+  cost->add_cpu(rows * ROW_EVALUATE_COST);
   return FALSE;
 }
 
@@ -6370,11 +6376,21 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   if (nrows)
   {
     get_sweep_read_cost(table, nrows, FALSE, cost);
+
+    /* 
+      Constant for the cost of doing one key compare operation in the
+      sort operation. We should have used the existing
+      ROWID_COMPARE_COST constant here but this would make the cost
+      estimate of sorting very high for queries accessing many
+      records. Until this constant is adjusted we introduce a constant
+      that is more realistic. @todo: Replace this with
+      ROWID_COMPARE_COST when this have been given a realistic value.
+    */
+    const double ROWID_COMPARE_SORT_COST = 0.01;
+
     /* Add cost of qsort call: n * log2(n) * cost(rowid_comparison) */
-    double cmp_op= rows2double(nrows) * ROWID_COMPARE_COST;
-    if (cmp_op < 3)
-      cmp_op= 3;
-    cost->add_cpu(cmp_op * log2(cmp_op));
+    const double cpu_sort= nrows * log2(nrows) * ROWID_COMPARE_SORT_COST;
+    cost->add_cpu(cpu_sort);
   }
 }
 
