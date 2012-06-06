@@ -65,12 +65,6 @@ int main(int argc, char * const argv[]) {
         return 1;
     }
 
-#if defined(TOKUDB)
-    const char *ENVDIR = __FILE__ ".tokudb.dir";
-#else
-    const char *ENVDIR = __FILE__ ".bdb.dir";
-#endif
-
     int r;
 
     char cmd[256];
