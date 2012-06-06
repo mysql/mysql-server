@@ -65,8 +65,6 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 */
 #define TEMP_FILE_MAX_LEN UUID_LENGTH+38 
 
-#define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
-
 /**
    Either assert or return an error.
 
@@ -4075,8 +4073,6 @@ protected:
   uint     m_key_index;
   List<uchar> m_distinct_key_list;
   List_iterator_fast<uchar> m_itr;
-
-  int find_row(const Relay_log_info *const);
 
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,

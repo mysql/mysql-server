@@ -570,28 +570,12 @@ dict_table_get_col_name(
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
-Prints a table definition. */
+Prints a table data. */
 UNIV_INTERN
 void
 dict_table_print(
 /*=============*/
 	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Prints a table data. */
-UNIV_INTERN
-void
-dict_table_print_low(
-/*=================*/
-	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Prints a table data when we know the table name. */
-UNIV_INTERN
-void
-dict_table_print_by_name(
-/*=====================*/
-	const char*	name)	/*!< in: table name */
 	__attribute__((nonnull));
 /**********************************************************************//**
 Outputs info on foreign keys of a table. */
