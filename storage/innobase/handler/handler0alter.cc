@@ -159,6 +159,24 @@ my_error_innodb(
 	}
 }
 
+/** Determine if fulltext indexes exist in a given table.
+@param table_share	MySQL table
+@return			whether fulltext indexes exist on the table */
+static
+bool
+innobase_fulltext_exist(
+/*====================*/
+	const TABLE_SHARE*	table_share)
+{
+	for (uint i = 0; i < table_share->keys; i++) {
+		if (table_share->key_info[i].flags & HA_FULLTEXT) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info		the DDL operation
@@ -275,11 +293,63 @@ ha_innobase::check_if_supported_inplace_alter(
 
 			key_part->field = new_field->field;
 
-			if (!new_field->field) {
-				DBUG_ASSERT(ha_alter_info->handler_flags
-					    & Alter_inplace_info::ADD_COLUMN);
-				key_part->field = altered_table->field[
-					key_part->fieldnr];
+			if (new_field->field) {
+				continue;
+			}
+
+			/* This is an added column. */
+			DBUG_ASSERT(ha_alter_info->handler_flags
+				    & Alter_inplace_info::ADD_COLUMN);
+			key_part->field = altered_table->field[
+				key_part->fieldnr];
+
+			/* We cannot replace a hidden FTS_DOC_ID
+			with a user-visible FTS_DOC_ID. */
+			if (prebuilt->table->fts
+			    && innobase_fulltext_exist(altered_table->s)
+			    && !my_strcasecmp(
+				    system_charset_info,
+				    key_part->field->field_name,
+				    FTS_DOC_ID_COL_NAME)) {
+				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			}
+		}
+	}
+
+	DBUG_ASSERT(!prebuilt->table->fts || prebuilt->table->fts->doc_col
+		    <= table->s->fields);
+	DBUG_ASSERT(!prebuilt->table->fts || prebuilt->table->fts->doc_col
+		    < dict_table_get_n_user_cols(prebuilt->table));
+
+	if (prebuilt->table->fts
+	    && innobase_fulltext_exist(altered_table->s)) {
+		/* FULLTEXT indexes are supposed to remain. */
+		/* Disallow DROP INDEX FTS_DOC_ID_INDEX */
+
+		for (uint i = 0; i < ha_alter_info->index_drop_count; i++) {
+			if (!my_strcasecmp(
+				    system_charset_info,
+				    ha_alter_info->index_drop_buffer[i]->name,
+				    FTS_DOC_ID_INDEX_NAME)) {
+				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+			}
+		}
+
+		/* InnoDB can have a hidden FTS_DOC_ID_INDEX on a
+		visible FTS_DOC_ID column as well. Prevent dropping or
+		renaming the FTS_DOC_ID. */
+
+		for (Field** fp = table->field; *fp; fp++) {
+			if (!((*fp)->flags
+			      & (FIELD_IS_RENAMED | FIELD_IS_DROPPED))) {
+				continue;
+			}
+
+			if (!my_strcasecmp(
+				    system_charset_info,
+				    (*fp)->field_name,
+				    FTS_DOC_ID_COL_NAME)) {
+				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 		}
 	}
@@ -2173,24 +2243,6 @@ found_col:
 	}
 
 	DBUG_RETURN(col_map);
-}
-
-/** Determine if fulltext indexes exist in a given table.
-@param table_share	MySQL table
-@return			whether fulltext indexes exist on the table */
-static
-bool
-innobase_fulltext_exist(
-/*====================*/
-	const TABLE_SHARE*	table_share)
-{
-	for (uint i = 0; i < table_share->keys; i++) {
-		if (table_share->key_info[i].flags & HA_FULLTEXT) {
-			return(true);
-		}
-	}
-
-	return(false);
 }
 
 /** Update internal structures with concurrent writes blocked,
