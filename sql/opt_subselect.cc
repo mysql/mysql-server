@@ -5455,11 +5455,17 @@ bool JOIN::choose_subquery_plan(table_map join_tables)
     if (in_subs->inject_in_to_exists_cond(this))
       return TRUE;
     /*
-      It is IN->EXISTS transformation so we should mark subquery as
-      dependent
+      If the injected predicate is correlated the IN->EXISTS transformation
+      make the subquery dependent.
     */
-    in_subs->unit->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
-    select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+    if ((in_to_exists_where &&
+         in_to_exists_where->used_tables() & OUTER_REF_TABLE_BIT) ||
+        (in_to_exists_having &&
+         in_to_exists_having->used_tables() & OUTER_REF_TABLE_BIT))
+    {
+      in_subs->unit->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+      select_lex->uncacheable|= UNCACHEABLE_DEPENDENT_INJECTED;
+    }
     select_limit= 1;
   }
   else

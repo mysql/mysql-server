@@ -2678,7 +2678,6 @@ row_sel_field_store_in_mysql_format(
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 #endif /* UNIV_DEBUG */
-		ut_ad(templ->mysql_col_len == len);
 		memcpy(dest, data, len);
 	}
 }

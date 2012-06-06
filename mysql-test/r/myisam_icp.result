@@ -839,6 +839,22 @@ Variable_name	Value
 Handler_icp_attempts	2
 Handler_icp_match	1
 DROP TABLE t1;
+create table t1 (a int,b char(5),primary key (a), key (b(1)));
+insert into t1 values ('a','b');
+Warnings:
+Warning	1366	Incorrect integer value: 'a' for column 'a' at row 1
+select 1 from t1 where a and b >= 'aa';
+1
+drop table t1;
+#
+# Bug#58015 "Assert in row_sel_field_store_in_mysql_format
+#            when running innodb_mrr_icp test"
+#
+create table t1 (a char(2) charset utf8,b double, primary key (a(1)),key (b));
+insert into t1 values ('',1);
+select 1 from t1 where b <= 1 and a <> '';
+1
+drop table t1;
 drop table if exists t0, t1, t1i, t1m;
 #
 # BUG#826935 Assertion `!table || (!table->read_set || bitmap_is_set(table->read_set, field_index))' failed
