@@ -11,7 +11,7 @@ open_files_limit=1024
 
 # Disable the performacne schema.
 # Sizing does not occur then
-skip-performance-schema
+loose-skip-performance-schema
 
 # Automated sizing for everything
 
