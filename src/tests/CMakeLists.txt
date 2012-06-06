@@ -192,6 +192,7 @@ if(BUILD_TESTING)
       stat64-null-txn.c
       stat64-root-changes.c
       stress-gc.c
+      stress-gc2.c
       test-xa-prepare.c
       test1324.c
       test1572.c
