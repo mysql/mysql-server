@@ -1183,6 +1183,10 @@ row_log_table_apply_insert_low(
 			break;
 		}
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		entry = row_build_index_entry(row, NULL, index, heap);
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
@@ -1267,6 +1271,10 @@ row_log_table_apply_delete_low(
 	}
 
 	while ((index = dict_table_get_next_index(index)) != NULL) {
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		const dtuple_t*	entry = row_build_index_entry(
 			row, ext, index, heap);
 		mtr_start(mtr);
@@ -1614,6 +1622,10 @@ delete_insert:
 	while ((index = dict_table_get_next_index(index)) != NULL) {
 		if (error != DB_SUCCESS) {
 			break;
+		}
+
+		if (index->type & DICT_FTS) {
+			continue;
 		}
 
 		if (!row_upd_changes_ord_field_binary(
