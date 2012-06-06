@@ -1682,21 +1682,17 @@ PageConverter::operator() (
 		page (ie. the block->frame). Therefore the caller should write
 		out the descriptor contents and not block->frame for compressed
 		pages. */
-		
-		buf_flush_init_for_writing(
-			page_type == FIL_PAGE_INDEX || !is_compressed_table()
-			? block->frame : block->page.zip.data,
-			page_type != FIL_PAGE_INDEX || !is_compressed_table()
-			? 0 : m_page_zip_ptr,
-			m_current_lsn);
 
-		/* Calculate and update the checksum of non-btree pages for
-		compressed tables explicitly here. It was not done in the 
-		function buf_flush_init_for_writing() because we deliberately
-		passed in a NULL Zip descriptor to avoid copying data around
-		unnecessarily. For large tables this is a HUGE cost. */
+		if (!is_compressed_table() || page_type == FIL_PAGE_INDEX) {
 
-		if (is_compressed_table() && page_type != FIL_PAGE_INDEX) {
+			buf_flush_init_for_writing(
+				!is_compressed_table()
+				? block->frame : block->page.zip.data,
+				!is_compressed_table() ? 0 : m_page_zip_ptr,
+				m_current_lsn);
+		} else {
+			/* Calculate and update the checksum of non-btree
+			pages for compressed tables explicitly here. */
 
 			buf_flush_update_zip_checksum(
 				get_frame(block), get_zip_size(),
