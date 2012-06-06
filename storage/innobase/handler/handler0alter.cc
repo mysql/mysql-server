@@ -2175,6 +2175,24 @@ found_col:
 	DBUG_RETURN(col_map);
 }
 
+/** Determine if fulltext indexes exist in a given table.
+@param table_share	MySQL table
+@return			whether fulltext indexes exist on the table */
+static
+bool
+innobase_fulltext_exist(
+/*====================*/
+	const TABLE_SHARE*	table_share)
+{
+	for (uint i = 0; i < table_share->keys; i++) {
+		if (table_share->key_info[i].flags & HA_FULLTEXT) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -2527,6 +2545,12 @@ col_fail:
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 		col_map = NULL;
 		add_cols = NULL;
+
+		if (!indexed_table->fts
+		    && innobase_fulltext_exist(altered_table->s)) {
+			indexed_table->fts = fts_create(indexed_table);
+			indexed_table->fts->doc_col = fts_doc_id_col;
+		}
 	}
 
 	/* Assign table_id, so that no table id of
@@ -2779,24 +2803,6 @@ err_exit:
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(true);
-}
-
-/** Determine if fulltext indexes exist in a given table.
-@param table_share	MySQL table
-@return			whether fulltext indexes exist on the table */
-static
-bool
-innobase_fulltext_exist(
-/*====================*/
-	const TABLE_SHARE*	table_share)
-{
-	for (uint i = 0; i < table_share->keys; i++) {
-		if (table_share->key_info[i].flags & HA_FULLTEXT) {
-			return(true);
-		}
-	}
-
-	return(false);
 }
 
 /** Allows InnoDB to update internal structures with concurrent
@@ -3300,9 +3306,6 @@ err_exit:
 				FTS_DOC_ID_COL_NAME);
 		} else if (fts_doc_col_no == ULINT_UNDEFINED) {
 			goto err_exit;
-		} else if (!prebuilt->table->fts) {
-			prebuilt->table->fts = fts_create(prebuilt->table);
-			prebuilt->table->fts->doc_col = fts_doc_col_no;
 		}
 
 		switch (innobase_fts_check_doc_id_index(
@@ -3313,9 +3316,6 @@ err_exit:
 		case FTS_INCORRECT_DOC_ID_INDEX:
 			my_error(ER_INNODB_FT_WRONG_DOCID_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
-			if (prebuilt->table->fts) {
-				fts_free(prebuilt->table);
-			}
 			goto err_exit;
 		case FTS_EXIST_DOC_ID_INDEX:
 			DBUG_ASSERT(doc_col_no == fts_doc_col_no
@@ -3548,6 +3548,11 @@ rollback_inplace_alter_table(
 		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
 		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
+
+		if (prebuilt->table->fts
+		    && !innobase_fulltext_exist(table_share)) {
+			fts_free(prebuilt->table);
+		}
 	}
 
 	trx_commit_for_mysql(ctx->trx);
