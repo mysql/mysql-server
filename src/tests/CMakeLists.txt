@@ -92,6 +92,7 @@ if(BUILD_TESTING)
       mvcc-many-committed.c
       perf_checkpoint_var.c
       perf_cursor_nop.c
+      perf_insert.c
       perf_malloc_free.c
       perf_nop.c
       perf_ptquery.c

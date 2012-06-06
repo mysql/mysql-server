@@ -16,7 +16,7 @@
 #include "threaded_stress_test_helpers.h"
 
 
-static int ptquery_op2(DB_TXN *txn, ARG arg, void* operation_extra) {
+static int ptquery_op2(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     int db_index = *(int *)operation_extra;
     DB* db = arg->dbp[db_index];
     return ptquery_and_maybe_check_op(db, txn, arg, TRUE);

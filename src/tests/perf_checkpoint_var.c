@@ -123,7 +123,7 @@ static void checkpoint_callback_2(void * extra) {
 //  - number of elements
 //
 
-static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra) {
+static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     int db_index = random()%arg->num_DBs;
     int r = 0;
     int val_size = *(int *)operation_extra;
