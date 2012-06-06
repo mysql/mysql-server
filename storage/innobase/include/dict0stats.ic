@@ -180,7 +180,7 @@ dict_stats_init(
 		opt = DICT_STATS_RECALC_TRANSIENT;
 	}
 
-	dict_stats_update(table, opt, FALSE);
+	dict_stats_update(table, opt);
 }
 /* @} */
 

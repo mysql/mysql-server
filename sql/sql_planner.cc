@@ -862,8 +862,8 @@ void Optimize_table_order::best_access_path(
   if (!(records >= s->found_records || best > s->read_time))            // (1)
   {
     // "scan" means (full) index scan or (full) table scan.
-    trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan");
-    trace_access_scan.add("cost", s->read_time).
+    trace_access_scan.add_alnum("access_type", s->quick ? "range" : "scan").
+      add("cost", s->read_time + s->found_records * ROW_EVALUATE_COST).
       add("rows", s->found_records).
       add_alnum("cause", "cost");
 
@@ -982,16 +982,18 @@ void Optimize_table_order::best_access_path(
       }
     }
 
+    const double scan_cost=
+      tmp + (record_count * ROW_EVALUATE_COST * rnd_records);
+
     trace_access_scan.add("rows", rows2double(rnd_records)).
-      add("cost", tmp);
+      add("cost", scan_cost);
     /*
       We estimate the cost of evaluating WHERE clause for found records
       as record_count * rnd_records * ROW_EVALUATE_COST. This cost plus
       tmp give us total cost of using TABLE SCAN
     */
     if (best == DBL_MAX ||
-        (tmp  + (record_count * ROW_EVALUATE_COST * rnd_records) <
-         best + (record_count * ROW_EVALUATE_COST * records)))
+        (scan_cost < best + (record_count * ROW_EVALUATE_COST * records)))
     {
       /*
         If the table has a range (s->quick is set) make_join_select()

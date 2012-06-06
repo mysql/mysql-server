@@ -1942,6 +1942,10 @@ innobase_start_or_create_for_mysql(void)
 		return(err);
 	}
 
+	/* Initialize objects used by dict stats gathering thread, which
+	can also be used by recovery if it tries to drop some table */
+	dict_stats_thread_init();
+
 	if (log_created && !create_new_db
 #ifdef UNIV_LOG_ARCHIVE
 	    && !srv_archive_recovery
@@ -2432,7 +2436,6 @@ innobase_start_or_create_for_mysql(void)
 	os_thread_create(buf_dump_thread, NULL, NULL);
 
 	/* Create the dict stats gathering thread */
-	dict_stats_thread_init();
 	os_thread_create(dict_stats_thread, NULL, NULL);
 
 	srv_was_started = TRUE;
