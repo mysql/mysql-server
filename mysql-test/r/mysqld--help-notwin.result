@@ -635,6 +635,9 @@ The following options may be given as the first argument:
  --slave-load-tmpdir=name 
  The location where the slave should put its temporary
  files when replicating a LOAD DATA INFILE command
+ --slave-max-allowed-packet=# 
+ The maximum packet length to sent successfully from the
+ master to slave.
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
@@ -930,6 +933,7 @@ skip-show-database FALSE
 skip-slave-start FALSE
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
+slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
 slave-skip-errors (No default value)
 slave-transaction-retries 10
