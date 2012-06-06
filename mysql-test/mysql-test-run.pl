@@ -2717,6 +2717,7 @@ sub setup_vardir() {
     # hm, what paths work for debs and for rpms ?
     for (<$bindir/lib64/mysql/plugin/*.so>,
          <$bindir/lib/mysql/plugin/*.so>,
+         <$bindir/lib/plugin/*.so>,             # bintar
          <$bindir/lib/plugin/*.dll>)
     {
       my $pname=basename($_);
@@ -5292,6 +5293,7 @@ sub mysqld_arguments ($$$) {
     }
     elsif ($plugin = mtr_match_prefix($arg,  "--plugin-load="))
     {
+      next if $plugin =~ /=$/;
       push @plugins, $plugin unless $seen{$plugin};
       $seen{$plugin} = 1;
     }
