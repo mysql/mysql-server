@@ -384,6 +384,7 @@ client/my_decimal.h
 client/my_user.c
 client/mysql
 client/mysql.cpp
+client/mysql_config_editor
 client/mysql_upgrade
 client/mysqladmin
 client/mysqladmin.c
