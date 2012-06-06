@@ -6444,13 +6444,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   DBUG_ENTER("get_sweep_read_cost");
 
   DBUG_ASSERT(cost->is_zero());
-  if (table->file->primary_key_is_clustered())
-  {
-    cost->add_io(table->file->read_time(table->s->primary_key,
-                                        (uint)nrows, nrows) *
-                 Cost_estimate::IO_BLOCK_READ_COST());
-  }
-  else
+  if(nrows > 0)
   {
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
