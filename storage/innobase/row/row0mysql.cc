@@ -1058,7 +1058,7 @@ row_update_statistics_if_needed(
 
 		ut_ad(!mutex_own(&dict_sys->mutex));
 		/* this will reset table->stat_modified_counter to 0 */
-		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, FALSE);
+		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT);
 	}
 }
 
@@ -3495,7 +3495,7 @@ funct_exit:
 
 	row_mysql_unlock_data_dictionary(trx);
 
-	dict_stats_update(table, DICT_STATS_EMPTY_TABLE, FALSE);
+	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
 
 	trx->op_info = "";
 
