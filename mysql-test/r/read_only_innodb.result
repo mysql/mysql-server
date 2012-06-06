@@ -43,6 +43,15 @@ a
 1
 COMMIT;
 UNLOCK TABLES;
+connection con1;
+lock table t1 read;
+connection default;
+set global read_only=1;
+connection con1;
+unlock tables;
+connection default;
+SET GLOBAL read_only=0;
+UNLOCK TABLES;
 DROP TABLE t1;
 DROP USER test@localhost;
 echo End of 5.1 tests 

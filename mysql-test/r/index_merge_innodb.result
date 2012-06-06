@@ -745,4 +745,36 @@ WHERE v1  IN  ('f', 'd', 'h', 'u' ) AND i  =  2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	i,v	i	5	const	2	Using where
 DROP TABLE t1;
+#
+# BUG#1006164: Multi-table DELETE that uses innodb + index_merge/intersect may fail to delete rows
+#
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (
+pk int auto_increment, 
+zone_id int,
+modified tinyint,
+primary key(pk),
+key (zone_id),
+key (modified)
+) engine=innodb;
+insert into t1 (zone_id, modified) select 0,0 from t0 A, t0 B, t0 C, t0 D;
+update t1 set zone_id=487, modified=9 where pk=7259;
+update t1 set zone_id=487, modified=9 where pk=7260;
+update t1 set zone_id=830, modified=9 where pk=8434;
+update t1 set zone_id=830, modified=9 where pk=8435;
+update t1 set zone_id=830, modified=9 where pk=8436;
+update t1 set zone_id=830, modified=9 where pk=8437;
+select * from t1 where t1.zone_id=830 AND modified=9;
+pk	zone_id	modified
+8434	830	9
+8435	830	9
+8436	830	9
+8437	830	9
+begin;
+DELETE t1 FROM t1 WHERE t1.zone_id=830 AND modified=9;
+commit;
+select * from t1 where t1.zone_id=830 AND modified=9;
+pk	zone_id	modified
+drop table t0, t1;
 set optimizer_switch= @optimizer_switch_save;

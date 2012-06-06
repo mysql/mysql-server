@@ -1616,6 +1616,9 @@ int imerge_list_or_tree(RANGE_OPT_PARAM *param,
       param           Context info for the operation
       merges   IN/OUT List of imerges to push the range part of 'tree' into
       tree            SEL_TREE whose range part is to be pushed into imerges
+      replace         if the pushdow operation for a imerge is a success
+                      then the original imerge is replaced for the result
+                      of the pushdown 
 
   DESCRIPTION
     For each imerge from the list merges the function pushes the range part
@@ -1633,7 +1636,12 @@ int imerge_list_or_tree(RANGE_OPT_PARAM *param,
     If the result of the pushdown operation for the imerge mi returns an
     imerge with no trees then then not only nothing is added to the list 
     merges but mi itself is removed from the list. 
-     
+
+  TODO
+    Optimize the code in order to not create new SEL_IMERGE and new SER_TREE
+    objects when 'replace' is TRUE. (Currently this function is called always
+    with this parameter equal to TRUE.)
+    
   RETURN
     1    if no imerges are left in the list merges             
     0    otherwise
@@ -1642,7 +1650,8 @@ int imerge_list_or_tree(RANGE_OPT_PARAM *param,
 static
 int imerge_list_and_tree(RANGE_OPT_PARAM *param,
                          List<SEL_IMERGE> *merges,
-                         SEL_TREE *tree)
+                         SEL_TREE *tree, 
+                         bool replace)
 {
   SEL_IMERGE *imerge;
   SEL_IMERGE *new_imerge= NULL;
@@ -1659,8 +1668,11 @@ int imerge_list_and_tree(RANGE_OPT_PARAM *param,
       if (new_imerge->trees == new_imerge->trees_next)
         it.remove();
       else
-      {         
-        new_merges.push_back(new_imerge);
+      { 
+        if (replace)
+          it.replace(new_imerge);
+        else        
+          new_merges.push_back(new_imerge);
         new_imerge= NULL;
       }
     }
@@ -2056,7 +2068,24 @@ end:
     doing_key_read= 1;
     head->mark_columns_used_by_index(index);
   }
+
   head->prepare_for_position();
+
+  if (head->no_keyread)
+  {
+    /*
+      We can get here when doing multi-table delete and having index_merge
+      condition on a table that we're deleting from. It probably doesn't make
+      sense to use index_merge, but de-facto it is used.
+
+      When it is used, we need to index columns to be read (before maria-5.3,
+      read_multi_range_first() would set it). 
+      We shouldn't call mark_columns_used_by_index(), because it calls 
+      enable_keyread(), which is not allowed.
+    */
+    head->mark_columns_used_by_index_no_reset(index, head->read_set);
+  }
+
   head->file= org_file;
   head->key_read= org_key_read;
   bitmap_copy(&column_bitmap, head->read_set);
@@ -8011,10 +8040,10 @@ int and_range_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2,
       tree1 represents the formula RT1 AND MT1,
         where RT1 = R1_1 AND ... AND R1_k1, MT1=M1_1 AND ... AND M1_l1;
       tree2 represents the formula RT2 AND MT2 
-        where RT2 = R2_1 AND ... AND R2_k2, MT2=M2_1 and ... and M2_l2.
+        where RT2 = R2_1 AND ... AND R2_k2, MT2=M2_1 AND ... AND M2_l2.
 
     The result tree will represent the formula of the the following structure:
-      RT AND MT1 AND MT2 AND RT1MT2 AND RT2MT1, such that
+      RT AND RT1MT2 AND RT2MT1, such that
         rt is a tree obtained by range intersection of trees tree1 and tree2,
         RT1MT2 = RT1M2_1 AND ... AND RT1M2_l2,
         RT2MT1 = RT2M1_1 AND ... AND RT2M1_l1,
@@ -8032,10 +8061,21 @@ int and_range_trees(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2,
     tree, while the corresponding imerges are removed altogether from its
     imerge part. 
     
-  NOTE.
+  NOTE
     The pushdown operation of range trees into imerges is needed to be able
     to construct valid imerges for the condition like this:
       key1_p1=c1 AND (key1_p2 BETWEEN c21 AND c22 OR key2 < c2)
+
+  NOTE
+    Currently we do not support intersection between indexes and index merges.
+    When this will be supported the list of imerges for the result tree
+    should include also imerges from M1 and M2. That's why an extra parameter
+    is added to the function imerge_list_and_tree. If we call the function
+    with the last parameter equal to FALSE then MT1 and MT2 will be preserved
+    in the imerge list of the result tree. This can lead to the exponential
+    growth of the imerge list though. 
+    Currently the last parameter of imerge_list_and_tree calls is always
+    TRUE.
 
   RETURN
     The result tree, if a success
@@ -8067,9 +8107,9 @@ SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2)
   }
 
   if (!tree1->merges.is_empty())
-    imerge_list_and_tree(param, &tree1->merges, tree2);
+    imerge_list_and_tree(param, &tree1->merges, tree2, TRUE);
   if (!tree2->merges.is_empty())
-    imerge_list_and_tree(param, &tree2->merges, tree1);
+    imerge_list_and_tree(param, &tree2->merges, tree1, TRUE);
   if (and_range_trees(param, tree1, tree2, tree1))
     DBUG_RETURN(tree1);
   imerge_list_and_list(&tree1->merges, &tree2->merges);

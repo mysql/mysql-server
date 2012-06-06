@@ -5540,6 +5540,21 @@ SELECT COUNT(f1), f2 IN (SELECT f1 FROM t1 WHERE f2 > 0) AS f4 FROM t2, t1 WHERE
 
 drop table t1,t2;
 
+--echo #
+--echo # LP BUG#1002079 Server crashes in Item_singlerow_subselect::val_int with constant table,
+--echo # HAVING, UNION in subquery
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (7),(0);
+CREATE TABLE t2 (b INT);
+
+EXPLAIN
+SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
+
+SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
+
+drop table t1,t2;
 
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
