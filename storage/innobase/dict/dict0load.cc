@@ -197,13 +197,11 @@ dict_print(void)
 
 		err_msg = static_cast<const char*>(
 			dict_process_sys_tables_rec_and_mtr_commit(
-			heap, rec, &table,
-			static_cast<dict_table_info_t>(
-				DICT_TABLE_LOAD_FROM_CACHE
-				| DICT_TABLE_UPDATE_STATS), &mtr));
+				heap, rec, &table, DICT_TABLE_LOAD_FROM_CACHE,
+				&mtr));
 
 		if (!err_msg) {
-			dict_table_print_low(table);
+			dict_table_print(table);
 		} else {
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: %s\n", err_msg);
@@ -361,24 +359,6 @@ dict_process_sys_tables_rec_and_mtr_commit(
 
 	if (err_msg) {
 		return(err_msg);
-	}
-
-	if ((status & DICT_TABLE_UPDATE_STATS)
-	    && dict_table_get_first_index(*table)) {
-
-		/* Update statistics member fields in *table if
-		DICT_TABLE_UPDATE_STATS is set */
-		ut_ad(mutex_own(&dict_sys->mutex));
-
-		dict_stats_upd_option_t	opt;
-
-		if (dict_stats_is_persistent_enabled(*table)) {
-			opt = DICT_STATS_FETCH_ONLY_IF_NOT_IN_MEMORY;
-		} else {
-			opt = DICT_STATS_RECALC_TRANSIENT;
-		}
-
-		dict_stats_update(*table, opt, TRUE);
 	}
 
 	return(NULL);

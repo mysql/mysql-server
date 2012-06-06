@@ -180,10 +180,111 @@ static
 dict_table_t*
 dict_stats_snapshot_create(
 /*=======================*/
-	const dict_table_t*	table,		/*!< in: table whose stats
+	const dict_table_t*	table);		/*!< in: table whose stats
 						to copy */
-	bool			dict_mutex);	/*!< in: true if caller owns
-						the dict sys mutex */
+
+/*********************************************************************//**
+Checks whether the persistent statistics storage exists and that all
+tables have the proper structure.
+dict_stats_persistent_storage_check() @{
+@return TRUE if exists and all tables are ok */
+static
+ibool
+dict_stats_persistent_storage_check(
+/*================================*/
+	ibool	caller_has_dict_sys_mutex)	/*!< in: TRUE if the caller
+						owns dict_sys->mutex */
+{
+	/* definition for the table TABLE_STATS_NAME */
+	dict_col_meta_t	table_stats_columns[] = {
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"last_update", DATA_FIXBINARY,
+			DATA_NOT_NULL, 4},
+
+		{"n_rows", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8},
+
+		{"clustered_index_size", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8},
+
+		{"sum_of_other_index_sizes", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8}
+	};
+	dict_table_schema_t	table_stats_schema = {
+		TABLE_STATS_NAME,
+		UT_ARR_SIZE(table_stats_columns),
+		table_stats_columns
+	};
+
+	/* definition for the table INDEX_STATS_NAME */
+	dict_col_meta_t	index_stats_columns[] = {
+		{"database_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"table_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"index_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 192},
+
+		{"last_update", DATA_FIXBINARY,
+			DATA_NOT_NULL, 4},
+
+		{"stat_name", DATA_VARMYSQL,
+			DATA_NOT_NULL, 64*3},
+
+		{"stat_value", DATA_INT,
+			DATA_NOT_NULL | DATA_UNSIGNED, 8},
+
+		{"sample_size", DATA_INT,
+			DATA_UNSIGNED, 8},
+
+		{"stat_description", DATA_VARMYSQL,
+			DATA_NOT_NULL, 1024*3}
+	};
+	dict_table_schema_t	index_stats_schema = {
+		INDEX_STATS_NAME,
+		UT_ARR_SIZE(index_stats_columns),
+		index_stats_columns
+	};
+
+	char		errstr[512];
+	dberr_t		ret;
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_enter(&(dict_sys->mutex));
+	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	/* first check table_stats */
+	ret = dict_table_schema_check(&table_stats_schema, errstr,
+				      sizeof(errstr));
+	if (ret == DB_SUCCESS) {
+		/* if it is ok, then check index_stats */
+		ret = dict_table_schema_check(&index_stats_schema, errstr,
+					      sizeof(errstr));
+	}
+
+	if (!caller_has_dict_sys_mutex) {
+		mutex_exit(&(dict_sys->mutex));
+	}
+
+	if (ret != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: %s\n", errstr);
+		return(FALSE);
+	}
+	/* else */
+
+	return(TRUE);
+}
+/* @} */
 
 /*********************************************************************//**
 Executes a given SQL statement using the InnoDB internal SQL parser
@@ -200,7 +301,12 @@ dict_stats_exec_sql(
 	trx_t*	trx;
 	dberr_t	err;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
+
+	if (!dict_stats_persistent_storage_check(TRUE)) {
+		return(DB_STATS_DO_NOT_EXIST);
+	}
 
 	trx = trx_allocate_for_background();
 	trx_start_if_not_started(trx);
@@ -346,7 +452,7 @@ are not saved on disk.
 This was the only way to calculate statistics before the
 Persistent Statistics feature was introduced.
 dict_stats_update_transient() @{ */
-static
+UNIV_INTERN
 void
 dict_stats_update_transient(
 /*========================*/
@@ -362,6 +468,7 @@ dict_stats_update_transient(
 
 	if (dict_table_is_discarded(table)) {
 		/* Nothing to do. */
+		dict_stats_empty_table(table);
 		return;
 	} else if (index == NULL) {
 		/* Table definition is corrupt */
@@ -400,109 +507,6 @@ dict_stats_update_transient(
 }
 /* @} */
 
-/*********************************************************************//**
-Checks whether the persistent statistics storage exists and that all
-tables have the proper structure.
-dict_stats_persistent_storage_check() @{
-@return TRUE if exists and all tables are ok */
-static
-ibool
-dict_stats_persistent_storage_check(
-/*================================*/
-	ibool	caller_has_dict_sys_mutex)	/*!< in: TRUE if the caller
-						owns dict_sys->mutex */
-{
-	/* definition for the table TABLE_STATS_NAME */
-	dict_col_meta_t	table_stats_columns[] = {
-		{"database_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192},
-
-		{"table_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192},
-
-		{"last_update", DATA_FIXBINARY,
-			DATA_NOT_NULL, 4},
-
-		{"n_rows", DATA_INT,
-			DATA_NOT_NULL | DATA_UNSIGNED, 8},
-
-		{"clustered_index_size", DATA_INT,
-			DATA_NOT_NULL | DATA_UNSIGNED, 8},
-
-		{"sum_of_other_index_sizes", DATA_INT,
-			DATA_NOT_NULL | DATA_UNSIGNED, 8}
-	};
-	dict_table_schema_t	table_stats_schema = {
-		TABLE_STATS_NAME,
-		UT_ARR_SIZE(table_stats_columns),
-		table_stats_columns
-	};
-
-	/* definition for the table INDEX_STATS_NAME */
-	dict_col_meta_t	index_stats_columns[] = {
-		{"database_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192},
-
-		{"table_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192},
-
-		{"index_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 192},
-
-		{"last_update", DATA_FIXBINARY,
-			DATA_NOT_NULL, 4},
-
-		{"stat_name", DATA_VARMYSQL,
-			DATA_NOT_NULL, 64*3},
-
-		{"stat_value", DATA_INT,
-			DATA_NOT_NULL | DATA_UNSIGNED, 8},
-
-		{"sample_size", DATA_INT,
-			DATA_UNSIGNED, 8},
-
-		{"stat_description", DATA_VARMYSQL,
-			DATA_NOT_NULL, 1024*3}
-	};
-	dict_table_schema_t	index_stats_schema = {
-		INDEX_STATS_NAME,
-		UT_ARR_SIZE(index_stats_columns),
-		index_stats_columns
-	};
-
-	char		errstr[512];
-	dberr_t		ret;
-
-	if (!caller_has_dict_sys_mutex) {
-		mutex_enter(&(dict_sys->mutex));
-	}
-
-	ut_ad(mutex_own(&dict_sys->mutex));
-
-	/* first check table_stats */
-	ret = dict_table_schema_check(&table_stats_schema, errstr,
-				      sizeof(errstr));
-	if (ret == DB_SUCCESS) {
-		/* if it is ok, then check index_stats */
-		ret = dict_table_schema_check(&index_stats_schema, errstr,
-					      sizeof(errstr));
-	}
-
-	if (!caller_has_dict_sys_mutex) {
-		mutex_exit(&(dict_sys->mutex));
-	}
-
-	if (ret != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: %s\n", errstr);
-		return(FALSE);
-	}
-	/* else */
-
-	return(TRUE);
-}
-/* @} */
-
 /* @{ Pseudo code about the relation between the following functions
 
 let N = N_SAMPLE_PAGES(index)
@@ -520,75 +524,6 @@ dict_stats_analyze_index()
       dive below some records and analyze the leaf page there:
       dict_stats_analyze_index_below_cur()
 @} */
-
-/*********************************************************************//**
-Close the stats tables. Should always be called after successful
-dict_stats_open(). It will free the dict_stats handle.
-dict_stats_close() @{ */
-UNIV_INLINE
-void
-dict_stats_close(
-/*=============*/
-	dict_stats_t*	dict_stats)	/*!< in/own: Handle to open
-					statistics tables */
-{
-	ut_ad(!mutex_own(&dict_sys->mutex));
-
-	if (dict_stats->table_stats != NULL) {
-		dict_table_close(dict_stats->table_stats, FALSE, FALSE);
-		dict_stats->table_stats = NULL;
-	}
-
-	if (dict_stats->index_stats != NULL) {
-		dict_table_close(dict_stats->index_stats, FALSE, FALSE);
-		dict_stats->index_stats = NULL;
-	}
-
-	mem_free(dict_stats);
-}
-/* @} */
-
-/*********************************************************************//**
-Open stats tables to prevent these tables from being DROPped.
-Also check whether they have the correct structure. The caller
-must call dict_stats_close() when he has finished DMLing the tables.
-dict_stats_open() @{
-@return pointer to open tables or NULL on failure */
-UNIV_INLINE
-dict_stats_t*
-dict_stats_open(void)
-/*=================*/
-{
-	dict_stats_t*	dict_stats;
-
-	ut_ad(!mutex_own(&dict_sys->mutex));
-
-	dict_stats = static_cast<dict_stats_t*>(
-		mem_zalloc(sizeof(*dict_stats)));
-
-	dict_stats->table_stats = dict_table_open_on_name(
-		TABLE_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	dict_stats->index_stats = dict_table_open_on_name(
-		INDEX_STATS_NAME, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	/* Check if the tables have the correct structure, if yes then
-	after this function we can safely DELETE from them without worrying
-	that they may get DROPped or DDLed because the open will have
-	increased the reference count. */
-
-	if (dict_stats->table_stats == NULL
-	    || dict_stats->index_stats == NULL
-	    || !dict_stats_persistent_storage_check(FALSE)) {
-
-		/* There was an error, close the tables and free the handle. */
-		dict_stats_close(dict_stats);
-		dict_stats = NULL;
-	}
-
-	return(dict_stats);
-}
-/* @} */
 
 /*********************************************************************//**
 Find the total number and the number of distinct keys on a given level in
@@ -1778,6 +1713,7 @@ dict_stats_save_index_stat(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 #define PREPARE_PINFO_FOR_INDEX_SAVE() \
@@ -1866,31 +1802,13 @@ static
 dberr_t
 dict_stats_save(
 /*============*/
-	dict_table_t*	table,		/*!< in: table */
-	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
-					owns dict_sys->mutex */
+	dict_table_t*	table)		/*!< in: table */
 {
-	dict_stats_t*	dict_stats;
 	pars_info_t*	pinfo;
 	lint		now;
 	dberr_t		ret;
 
-	if (caller_has_dict_sys_mutex) {
-		mutex_exit(&dict_sys->mutex);
-	}
-
-	/* Increment table reference count to prevent the tables from
-	being DROPped just before que_eval_sql(). */
-	dict_stats = dict_stats_open();
-
-	if (dict_stats == NULL) {
-		/* stats tables do not exist or have unexpected structure */
-		if (caller_has_dict_sys_mutex) {
-			mutex_enter(&dict_sys->mutex);
-		}
-		return(DB_SUCCESS);
-	}
-
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	/* MySQL's timestamp is 4 byte, so we use
@@ -2029,12 +1947,7 @@ dict_stats_save(
 
 end:
 	mutex_exit(&dict_sys->mutex);
-
-	dict_stats_close(dict_stats);
-
-	if (caller_has_dict_sys_mutex) {
-		mutex_enter(&dict_sys->mutex);
-	}
+	rw_lock_x_unlock(&dict_operation_lock);
 
 	return(ret);
 }
@@ -2385,16 +2298,14 @@ static
 dberr_t
 dict_stats_fetch_from_ps(
 /*=====================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	ibool		caller_has_dict_sys_mutex)/*!< in: TRUE if the caller
-					owns dict_sys->mutex */
+	dict_table_t*	table)	/*!< in/out: table */
 {
 	index_fetch_t	index_fetch_arg;
 	trx_t*		trx;
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
-	ut_ad(mutex_own(&dict_sys->mutex) == caller_has_dict_sys_mutex);
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	trx = trx_allocate_for_background();
 
@@ -2481,7 +2392,7 @@ dict_stats_fetch_from_ps(
 			   "CLOSE index_stats_cur;\n"
 
 			   "END;",
-			   !caller_has_dict_sys_mutex, trx);
+			   TRUE, trx);
 	/* pinfo is freed by que_eval_sql() */
 
 	/* XXX If mysql.innodb_index_stats contained less rows than the number
@@ -2522,7 +2433,7 @@ dict_stats_update_for_index(
 			dict_table_stats_lock(index->table, RW_X_LATCH);
 			dict_stats_analyze_index(index);
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
-			dict_stats_save(index->table, FALSE);
+			dict_stats_save(index->table);
 			return;
 		}
 		/* else */
@@ -2558,23 +2469,15 @@ dberr_t
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
-	dict_stats_upd_option_t	stats_upd_option,
+	dict_stats_upd_option_t	stats_upd_option)
 					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent statistics
 					storage */
-	bool			caller_has_dict_sys_mutex)
-					/*!< in: TRUE if the caller
-					owns dict_sys->mutex */
 {
 	char			buf[MAX_FULL_NAME_LEN];
 
-	/* check whether caller_has_dict_sys_mutex is set correctly;
-	note that mutex_own() is not implemented in non-debug code so
-	we cannot avoid having this extra param to the current function */
-	ut_ad(caller_has_dict_sys_mutex
-	      ? mutex_own(&dict_sys->mutex)
-	      : !mutex_own(&dict_sys->mutex));
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	if (table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
@@ -2610,8 +2513,7 @@ dict_stats_update(
 		before calling the potentially slow function
 		dict_stats_update_persistent(); that is a
 		prerequisite for dict_stats_save() succeeding */
-		if (dict_stats_persistent_storage_check(
-				caller_has_dict_sys_mutex)) {
+		if (dict_stats_persistent_storage_check(FALSE)) {
 
 			dberr_t	err;
 
@@ -2623,10 +2525,9 @@ dict_stats_update(
 
 			dict_table_t*	t;
 
-			t = dict_stats_snapshot_create(
-				table, caller_has_dict_sys_mutex);
+			t = dict_stats_snapshot_create(table);
 
-			err = dict_stats_save(t, caller_has_dict_sys_mutex);
+			err = dict_stats_save(t);
 
 			dict_stats_snapshot_free(t);
 
@@ -2659,11 +2560,9 @@ dict_stats_update(
 
 		if (dict_stats_is_persistent_enabled(table)) {
 
-			if (dict_stats_persistent_storage_check(
-					caller_has_dict_sys_mutex)) {
+			if (dict_stats_persistent_storage_check(FALSE)) {
 
-				return(dict_stats_save(
-					table, caller_has_dict_sys_mutex));
+				return(dict_stats_save(table));
 			}
 
 			return(DB_STATS_DO_NOT_EXIST);
@@ -2694,8 +2593,7 @@ dict_stats_update(
 		persistent stats enabled */
 		ut_a(strchr(table->name, '/') != NULL);
 
-		if (!dict_stats_persistent_storage_check(
-			caller_has_dict_sys_mutex)) {
+		if (!dict_stats_persistent_storage_check(FALSE)) {
 			/* persistent statistics storage does not exist
 			or is corrupted, calculate the transient stats */
 
@@ -2720,8 +2618,7 @@ dict_stats_update(
 		less rows than expected. */
 		dict_stats_empty_table(table);
 
-		dberr_t	err = dict_stats_fetch_from_ps(
-			table, caller_has_dict_sys_mutex);
+		dberr_t	err = dict_stats_fetch_from_ps(table);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -2730,8 +2627,7 @@ dict_stats_update(
 			if (dict_stats_auto_recalc_is_enabled(table)) {
 				return(dict_stats_update(
 						table,
-						DICT_STATS_RECALC_PERSISTENT,
-						caller_has_dict_sys_mutex));
+						DICT_STATS_RECALC_PERSISTENT));
 			}
 			/* else */
 
@@ -2806,7 +2702,6 @@ dict_stats_drop_index(
 	const char*	table_name;
 	pars_info_t*	pinfo;
 	dberr_t		ret;
-	dict_stats_t*	dict_stats;
 
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2816,17 +2711,6 @@ dict_stats_drop_index(
 
 		return(DB_SUCCESS);
 	}
-
-	/* Increment table reference count to prevent the tables from
-	being DROPped just before que_eval_sql(). */
-	dict_stats = dict_stats_open();
-
-	if (dict_stats == NULL) {
-		/* stats tables do not exist or have unexpected structure */
-		return(DB_SUCCESS);
-	}
-
-	/* the stats tables cannot be DROPped now */
 
 	ut_snprintf(database_name, sizeof(database_name), "%.*s",
 		    (int) dict_get_db_name_len(tname), tname);
@@ -2841,6 +2725,7 @@ dict_stats_drop_index(
 
 	pars_info_add_str_literal(pinfo, "index_name", iname);
 
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	ret = dict_stats_exec_sql(
@@ -2854,6 +2739,11 @@ dict_stats_drop_index(
 		"END;\n");
 
 	mutex_exit(&dict_sys->mutex);
+	rw_lock_x_unlock(&dict_operation_lock);
+
+	if (ret == DB_STATS_DO_NOT_EXIST) {
+		ret = DB_SUCCESS;
+	}
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
@@ -2878,8 +2768,6 @@ dict_stats_drop_index(
 		fprintf(stderr, " InnoDB: %s\n", errstr);
 	}
 
-	dict_stats_close(dict_stats);
-
 	return(ret);
 }
 /* @} */
@@ -2889,7 +2777,6 @@ Executes
 DELETE FROM mysql.innodb_table_stats
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-mysql.innodb_table_stats should be protected from DDL with dict_stats_open().
 dict_stats_delete_from_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
@@ -2902,6 +2789,7 @@ dict_stats_delete_from_table_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -2927,7 +2815,6 @@ Executes
 DELETE FROM mysql.innodb_index_stats
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-mysql.innodb_index_stats should be protected from DDL with dict_stats_open().
 dict_stats_delete_from_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
@@ -2940,6 +2827,7 @@ dict_stats_delete_from_index_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -2979,6 +2867,7 @@ dict_stats_drop_table(
 	const char*	table_name_strip; /* without leading db name */
 	dberr_t		ret;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
@@ -2995,12 +2884,6 @@ dict_stats_drop_table(
 		return(DB_SUCCESS);
 	}
 
-	if (!dict_stats_persistent_storage_check(TRUE)) {
-		/* If stats tables are gone, then there is nothing to
-		delete from them. */
-		return(DB_SUCCESS);
-	}
-
 	ut_snprintf(database_name, sizeof(database_name), "%.*s",
 		    (int) dict_get_db_name_len(table_name),
 		    table_name);
@@ -3013,6 +2896,10 @@ dict_stats_drop_table(
 	if (ret == DB_SUCCESS) {
 		ret = dict_stats_delete_from_index_stats(database_name,
 							 table_name_strip);
+	}
+
+	if (ret == DB_STATS_DO_NOT_EXIST) {
+		ret = DB_SUCCESS;
 	}
 
 	if (ret != DB_SUCCESS) {
@@ -3049,7 +2936,6 @@ UPDATE mysql.innodb_table_stats SET
 database_name = '...', table_name = '...'
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-mysql.innodb_table_stats should be protected from DDL with dict_stats_open().
 dict_stats_rename_in_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
@@ -3064,6 +2950,7 @@ dict_stats_rename_in_table_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3095,7 +2982,6 @@ UPDATE mysql.innodb_index_stats SET
 database_name = '...', table_name = '...'
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-mysql.innodb_index_stats should be protected from DDL with dict_stats_open().
 dict_stats_rename_in_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
@@ -3110,6 +2996,7 @@ dict_stats_rename_in_index_stats(
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3150,14 +3037,14 @@ dict_stats_rename_table(
 					is returned */
 	size_t		errstr_sz)	/*!< in: errstr size */
 {
-	ut_ad(!mutex_own(&dict_sys->mutex));
-
 	char		old_database_name[MAX_DATABASE_NAME_LEN + 1];
 	char		new_database_name[MAX_DATABASE_NAME_LEN + 1];
 	const char*	old_table_name; /* without leading db name */
 	const char*	new_table_name; /* without leading db name */
 	dberr_t		ret;
-	dict_stats_t*	dict_stats;
+
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip innodb_table_stats and innodb_index_stats themselves */
 	if (strcmp(old_name, TABLE_STATS_NAME) == 0
@@ -3165,15 +3052,6 @@ dict_stats_rename_table(
 	    || strcmp(new_name, TABLE_STATS_NAME) == 0
 	    || strcmp(new_name, INDEX_STATS_NAME) == 0) {
 
-		return(DB_SUCCESS);
-	}
-
-	/* Increment table reference count to prevent the tables from
-	being DROPped just before que_eval_sql(). */
-	dict_stats = dict_stats_open();
-
-	if (dict_stats == NULL) {
-		/* stats tables do not exist or have unexpected structure */
 		return(DB_SUCCESS);
 	}
 
@@ -3187,6 +3065,7 @@ dict_stats_rename_table(
 
 	new_table_name = dict_remove_db_name(new_name);
 
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
 
 	ulint	n_attempts = 0;
@@ -3202,9 +3081,15 @@ dict_stats_rename_table(
 				new_database_name, new_table_name);
 		}
 
+		if (ret == DB_STATS_DO_NOT_EXIST) {
+			ret = DB_SUCCESS;
+		}
+
 		if (ret != DB_SUCCESS) {
 			mutex_exit(&dict_sys->mutex);
+			rw_lock_x_unlock(&dict_operation_lock);
 			os_thread_sleep(200000 /* 0.2 sec */);
+			rw_lock_x_lock(&dict_operation_lock);
 			mutex_enter(&dict_sys->mutex);
 		}
 	} while ((ret == DB_DEADLOCK
@@ -3234,7 +3119,7 @@ dict_stats_rename_table(
 			    new_database_name, new_table_name,
 			    old_database_name, old_table_name);
 		mutex_exit(&dict_sys->mutex);
-		dict_stats_close(dict_stats);
+		rw_lock_x_unlock(&dict_operation_lock);
 		return(ret);
 	}
 	/* else */
@@ -3252,9 +3137,15 @@ dict_stats_rename_table(
 				new_database_name, new_table_name);
 		}
 
+		if (ret == DB_STATS_DO_NOT_EXIST) {
+			ret = DB_SUCCESS;
+		}
+
 		if (ret != DB_SUCCESS) {
 			mutex_exit(&dict_sys->mutex);
+			rw_lock_x_unlock(&dict_operation_lock);
 			os_thread_sleep(200000 /* 0.2 sec */);
+			rw_lock_x_lock(&dict_operation_lock);
 			mutex_enter(&dict_sys->mutex);
 		}
 	} while ((ret == DB_DEADLOCK
@@ -3263,6 +3154,7 @@ dict_stats_rename_table(
 		 && n_attempts < 5);
 
 	mutex_exit(&dict_sys->mutex);
+	rw_lock_x_unlock(&dict_operation_lock);
 
 	if (ret != DB_SUCCESS) {
 		ut_snprintf(errstr, errstr_sz,
@@ -3286,8 +3178,6 @@ dict_stats_rename_table(
 			    new_database_name, new_table_name,
 			    old_database_name, old_table_name);
 	}
-
-	dict_stats_close(dict_stats);
 
 	return(ret);
 }
@@ -3332,19 +3222,13 @@ static
 dict_table_t*
 dict_stats_snapshot_create(
 /*=======================*/
-	const dict_table_t*	table,		/*!< in: table whose stats
+	const dict_table_t*	table)		/*!< in: table whose stats
 						to copy */
-	bool			dict_mutex)	/*!< in: true if caller owns
-						the dict sys mutex */
 {
 	size_t		heap_size;
 	dict_index_t*	index;
 
-	if (!dict_mutex) {
-		mutex_enter(&dict_sys->mutex);
-	}
-
-	ut_ad(mutex_own(&dict_sys->mutex));
+	mutex_enter(&dict_sys->mutex);
 
 	dict_table_stats_lock(table, RW_X_LATCH);
 
@@ -3466,9 +3350,7 @@ dict_stats_snapshot_create(
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
 
-	if (!dict_mutex) {
-		mutex_exit(&dict_sys->mutex);
-	}
+	mutex_exit(&dict_sys->mutex);
 
 	return(t);
 }
@@ -3710,7 +3592,7 @@ test_dict_stats_save()
 	index2_stat_n_sample_sizes[3] = TEST_IDX2_N_DIFF3_SAMPLE_SIZE;
 	index2_stat_n_sample_sizes[4] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
 
-	ret = dict_stats_save(&table, FALSE);
+	ret = dict_stats_save(&table);
 
 	ut_a(ret == DB_SUCCESS);
 
@@ -3842,7 +3724,7 @@ test_dict_stats_fetch_from_ps()
 	index2.stat_n_diff_key_vals = index2_stat_n_diff_key_vals;
 	index2.stat_n_sample_sizes = index2_stat_n_sample_sizes;
 
-	ret = dict_stats_fetch_from_ps(&table, FALSE);
+	ret = dict_stats_fetch_from_ps(&table);
 
 	ut_a(ret == DB_SUCCESS);
 

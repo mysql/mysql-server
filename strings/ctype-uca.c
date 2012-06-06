@@ -20065,7 +20065,7 @@ static int my_strnncoll_uca(const CHARSET_INFO *cs,
 
 
 static inline int
-my_space_weight(const CHARSET_INFO *cs)// W3-TODO
+my_space_weight(const CHARSET_INFO *cs) /* W3-TODO */
 {
   return cs->uca->level[0].weights[0][0x20 * cs->uca->level[0].lengths[0]];
 }
@@ -20331,7 +20331,7 @@ my_strnxfrm_uca(const CHARSET_INFO *cs,
 static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
 {
   size_t length1, length2;
-  uint16 *weight1= my_char_weight_addr(&cs->uca->level[0], wc1);// W3-TODO
+  uint16 *weight1= my_char_weight_addr(&cs->uca->level[0], wc1); /* W3-TODO */
   uint16 *weight2= my_char_weight_addr(&cs->uca->level[0], wc2);
   
   /* Check if some of the characters does not have implicit weights */
@@ -20343,7 +20343,7 @@ static int my_uca_charcmp(const CHARSET_INFO *cs, my_wc_t wc1, my_wc_t wc2)
     return 1;
   
   /* Thoroughly compare all weights */
-  length1= cs->uca->level[0].lengths[wc1 >> MY_UCA_PSHIFT];//W3-TODO
+  length1= cs->uca->level[0].lengths[wc1 >> MY_UCA_PSHIFT]; /* W3-TODO */
   length2= cs->uca->level[0].lengths[wc2 >> MY_UCA_PSHIFT];
   
   if (length1 > length2)
@@ -21794,7 +21794,7 @@ apply_shift(MY_CHARSET_LOADER *loader,
             just in case. Reserving 4096 (0x1000) weights for such
             cases is perfectly enough.
           */
-          to[nweights - 1]+= 0x1000; //W3-TODO: const may vary on levels 2,3
+          to[nweights - 1]+= 0x1000; /* W3-TODO: const may vary on levels 2,3*/
         }
       }
       else
