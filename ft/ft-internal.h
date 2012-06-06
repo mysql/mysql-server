@@ -529,10 +529,9 @@ deserialize_ft_from_fd_into_rbuf(int fd,
                                  struct rbuf *rb,
                                  u_int64_t *checkpoint_count,
                                  LSN *checkpoint_lsn,
-                                 u_int32_t * version_p,
-                                 enum deserialize_error_code *e);
+                                 u_int32_t * version_p);
 
-enum deserialize_error_code
+int
 deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
 
 int
@@ -593,7 +592,7 @@ int toku_serialize_ft_to_wbuf (
     DISKOFF translation_location_on_disk, 
     DISKOFF translation_size_on_disk
     );
-enum deserialize_error_code toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
+int toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
 int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
 BASEMENTNODE toku_create_empty_bn(void);

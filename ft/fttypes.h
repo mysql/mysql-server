@@ -288,12 +288,6 @@ enum reactivity {
     RE_FISSIBLE
 };
 
-enum deserialize_error_code {
-    DS_OK = 0,
-    DS_XSUM_FAIL,
-    DS_ERRNO
-};
-
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

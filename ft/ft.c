@@ -510,16 +510,10 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
     int r;
     {
         int fd = toku_cachefile_get_fd(cf);
-        enum deserialize_error_code e = toku_deserialize_ft_from(fd, max_acceptable_lsn, &h);
-        if (e == DS_XSUM_FAIL) {
+        r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &h);
+        if (r == TOKUDB_BAD_CHECKSUM) {
             fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
             assert(false);  // make absolutely sure we crash before doing anything else
-        } else if (e == DS_ERRNO) {
-            r = errno;
-        } else if (e == DS_OK) {
-            r = 0;
-        } else {
-            assert(false);
         }
     }
     if (r!=0) return r;

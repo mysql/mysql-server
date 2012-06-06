@@ -774,16 +774,13 @@ int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodena
     // deserialize the node, must pass the bfe in because we cannot
     // evaluate what piece of the the node is necessary until we get it at
     // least partially into memory
-    enum deserialize_error_code e;
-    int r = 0;
-    e = toku_deserialize_ftnode_from(fd, nodename, fullhash, node, ndd, bfe);
-    if (e != DS_OK) {
-        if (e == DS_XSUM_FAIL) {
+    int r = toku_deserialize_ftnode_from(fd, nodename, fullhash, node, ndd, bfe);
+    if (r != 0) {
+        if (r == TOKUDB_BAD_CHECKSUM) {
             fprintf(stderr,
                     "Checksum failure while reading node in file %s.\n",
                     toku_cachefile_fname_in_env(cachefile));
-        } else if (e == DS_ERRNO) {
-            r = errno;
+        } else {
             fprintf(stderr, "Error deserializing node, errno = %d", r);
         }
         // make absolutely sure we crash before doing anything else.
@@ -1091,7 +1088,7 @@ ft_status_update_partial_fetch_reason(
 // callback for partially reading a node
 // could have just used toku_ftnode_fetch_callback, but wanted to separate the two cases to separate functions
 int toku_ftnode_pf_callback(void* ftnode_pv, void* disk_data, void* read_extraargs, int fd, PAIR_ATTR* sizep) {
-    enum deserialize_error_code e = DS_OK;
+    int r = 0;
     FTNODE node = ftnode_pv;
     FTNODE_DISK_DATA ndd = disk_data;
     struct ftnode_fetch_extra *bfe = read_extraargs;
@@ -1119,22 +1116,22 @@ int toku_ftnode_pf_callback(void* ftnode_pv, void* disk_data, void* read_extraar
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
             ft_status_update_partial_fetch_reason(bfe, i, BP_STATE(node, i), (node->height == 0));
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                e = toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+                r = toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
             }
             else if (BP_STATE(node,i) == PT_ON_DISK) {
-                e = toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
+                r = toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
             }
             else {
                 assert(FALSE);
             }
         }
 
-        if (e != DS_OK) {
-            if (e == DS_XSUM_FAIL) {
+        if (r != 0) {
+            if (r == TOKUDB_BAD_CHECKSUM) {
                 fprintf(stderr,
                         "Checksum failure while reading node partition in file %s.\n",
                         toku_cachefile_fname_in_env(bfe->h->cf));
-            } else if (e == DS_ERRNO) {
+            } else {
                 fprintf(stderr,
                         "Error while reading node partition %d\n",
                         errno);

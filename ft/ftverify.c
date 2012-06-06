@@ -98,7 +98,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
     BOOL h0_acceptable = FALSE;
     BOOL h1_acceptable = FALSE;
     int r0, r1;
-    enum deserialize_error_code e = DS_OK;
+    int r;
 
     {
         toku_off_t header_0_off = 0;
@@ -108,8 +108,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
             &rb_0,
             &checkpoint_count_0,
             &checkpoint_lsn_0,
-            &version_0,
-	    &e
+            &version_0
             );
         if ((r0==0) && (checkpoint_lsn_0.lsn <= MAX_LSN.lsn)) {
             h0_acceptable = TRUE;
@@ -123,8 +122,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
             &rb_1,
             &checkpoint_count_1,
             &checkpoint_lsn_1,
-            &version_1,
-	    &e
+            &version_1
             );
         if ((r1==0) && (checkpoint_lsn_1.lsn <= MAX_LSN.lsn)) {
             h1_acceptable = TRUE;
@@ -138,9 +136,9 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
     }
     if (h0_acceptable) {
         printf("Found dictionary header 1 with LSN %"PRIu64"\n", checkpoint_lsn_0.lsn);
-        e = deserialize_ft_versioned(fd, &rb_0, h1p, version_0);
+        r = deserialize_ft_versioned(fd, &rb_0, h1p, version_0);
 
-	if (e != DS_OK) {
+	if (r != 0) {
 	    printf("---Header Error----\n");
 	}
 
@@ -149,8 +147,8 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
     }
     if (h1_acceptable) {
         printf("Found dictionary header 2 with LSN %"PRIu64"\n", checkpoint_lsn_1.lsn);
-        e = deserialize_ft_versioned(fd, &rb_1, h2p, version_1);
-	if (e != DS_OK) {
+        r = deserialize_ft_versioned(fd, &rb_1, h2p, version_1);
+	if (r != 0) {
 	    printf("---Header Error----\n");
 	}
     } else {
