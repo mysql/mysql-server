@@ -123,6 +123,7 @@ enum enum_server_command
 #define FIELD_FLAGS_STORAGE_MEDIA_MASK (3 << FIELD_FLAGS_STORAGE_MEDIA)
 #define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25 */
 #define FIELD_FLAGS_COLUMN_FORMAT_MASK (3 << FIELD_FLAGS_COLUMN_FORMAT)
+#define FIELD_IS_DROPPED (1<< 26)       /* Intern: Field is being dropped */
 
 #define REFRESH_GRANT		1	/* Refresh grant tables */
 #define REFRESH_LOG		2	/* Start on new log file */
