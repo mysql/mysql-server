@@ -1041,7 +1041,7 @@ alter table t2 add index (a,b);
 
 # 500 rows, 1 row
 
-select 'In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)' Z;
+select 'In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)' Z;
 explain select * from t2 where a=1000 and b<11;
 
 drop table t1, t2;
