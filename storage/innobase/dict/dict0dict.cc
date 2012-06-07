@@ -4904,52 +4904,17 @@ dict_table_print(
 /*=============*/
 	dict_table_t*	table)	/*!< in: table */
 {
-	mutex_enter(&(dict_sys->mutex));
-	dict_table_print_low(table);
-	mutex_exit(&(dict_sys->mutex));
-}
-
-/**********************************************************************//**
-Prints a table data when we know the table name. */
-UNIV_INTERN
-void
-dict_table_print_by_name(
-/*=====================*/
-	const char*	name)	/*!< in: table name */
-{
-	dict_table_t*	table;
-
-	mutex_enter(&(dict_sys->mutex));
-
-	table = dict_table_get_low(name);
-
-	ut_a(table);
-
-	dict_table_print_low(table);
-	mutex_exit(&(dict_sys->mutex));
-}
-
-/**********************************************************************//**
-Prints a table data. */
-UNIV_INTERN
-void
-dict_table_print_low(
-/*=================*/
-	dict_table_t*	table)	/*!< in: table */
-{
 	dict_index_t*	index;
 	dict_foreign_t*	foreign;
 	ulint		i;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	if (!dict_stats_is_persistent_enabled(table)) {
-		dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT, TRUE);
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	if (!table->stat_initialized) {
+		dict_stats_update_transient(table);
 	}
-
-	dict_table_stats_lock(table, RW_S_LATCH);
-
-	ut_a(table->stat_initialized);
 
 	fprintf(stderr,
 		"--------------------------------------\n"
@@ -4977,7 +4942,9 @@ dict_table_print_low(
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
 
-	dict_table_stats_unlock(table, RW_S_LATCH);
+	table->stat_initialized = FALSE;
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
 
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 

@@ -423,14 +423,15 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                     "range_scan_alternatives": [
                       {
                         "index": "PRIMARY",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "c <= ÁÂÃÄ"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
                         "cost": 3.41,
-                        "rowid_ordered": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -455,7 +456,7 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                     {
                       "access_type": "scan",
                       "rows": 2,
-                      "cost": 2.0034,
+                      "cost": 2.4034,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -624,14 +625,15 @@ select `col
                     "range_scan_alternatives": [
                       {
                         "index": "index\n1\ta",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "NULL < col\n1\ta < 6"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": false,
                         "chosen": false,
                         "cause": "cost"
                       }
@@ -656,7 +658,7 @@ select `col
                     {
                       "access_type": "scan",
                       "rows": 1,
-                      "cost": 2.2034,
+                      "cost": 2.4034,
                       "chosen": true
                     }
                   ] /* considered_access_paths */

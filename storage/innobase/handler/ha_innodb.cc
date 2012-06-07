@@ -9156,7 +9156,7 @@ ha_innobase::create(
 
 	if (use_tablespace
 	    && !mysqld_embedded
-	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
 		if ((name[1] == ':')
 		    || (name[0] == '\\' && name[1] == '\\')) {
@@ -9391,7 +9391,7 @@ ha_innobase::create(
 
 	innobase_copy_frm_flags_from_create_info(innobase_table, create_info);
 
-	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
+	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE);
 
 	if (innobase_table) {
 		/* We update the highest file format in the system table
@@ -10448,7 +10448,7 @@ ha_innobase::info(
 			}
 
 			ut_ad(!mutex_own(&dict_sys->mutex));
-			ret = dict_stats_update(ib_table, opt, FALSE);
+			ret = dict_stats_update(ib_table, opt);
 
 			if (ret != DB_SUCCESS) {
 				prebuilt->trx->op_info = "";
