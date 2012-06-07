@@ -7,6 +7,8 @@
 
 -- disable_query_log
 -- disable_result_log
+call mtr.add_suppression("InnoDB: Warning: a long semaphore wait:");
+call mtr.add_suppression("the age of the last checkpoint is");
 
 # set packet size and reconnect 
 SET @@global.max_allowed_packet=16777216;

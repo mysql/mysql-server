@@ -183,7 +183,8 @@ word32 DSA_Signer::Sign(const byte* sha_digest, byte* sig,
     Integer kInv = k.InverseMod(q);
     s_ = (kInv * (H + x*r_)) % q;
 
-    assert(!!r_ && !!s_);
+    if (!(!!r_ && !!s_))
+        return -1;
 
     int rSz = r_.ByteCount();
 

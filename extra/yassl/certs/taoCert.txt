@@ -47,4 +47,16 @@ to convert rsa private PEM to DER :
 b) openssl rsa -in key.pem -outform DER -out key.der
 
 
+**** To encrypt rsa key already in pem **********
+
+a) openssl rsa <server-key.pem.bak -des >server-keyEnc.pem
+
+note location of des, pass = yassl123
+
+
+*** To make a public key from a private key ******
+
+
+openssl rsa -in 1024rsa.priv -pubout -out 1024rsa.pub
+
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3085,7 +3085,7 @@ String *Item_param::val_str(String* str)
     that binary log contains wrong statement 
 */
 
-const String *Item_param::query_val_str(String* str) const
+const String *Item_param::query_val_str(THD *thd, String* str) const
 {
   switch (state) {
   case INT_VALUE:
@@ -3123,7 +3123,8 @@ const String *Item_param::query_val_str(String* str) const
   case LONG_DATA_VALUE:
     {
       str->length(0);
-      append_query_string(value.cs_info.character_set_client, &str_value, str);
+      append_query_string(thd, value.cs_info.character_set_client, &str_value,
+                          str);
       break;
     }
   case NULL_VALUE:
@@ -3256,7 +3257,7 @@ void Item_param::print(String *str, enum_query_type query_type)
     char buffer[STRING_BUFFER_USUAL_SIZE];
     String tmp(buffer, sizeof(buffer), &my_charset_bin);
     const String *res;
-    res= query_val_str(&tmp);
+    res= query_val_str(current_thd, &tmp);
     str->append(*res);
   }
 }
@@ -6656,20 +6657,12 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   }
 
   if (arg->type() == REF_ITEM)
+    arg= static_cast<Item_ref *>(arg)->ref[0];
+  if (arg->type() != FIELD_ITEM)
   {
-    Item_ref *ref= (Item_ref *)arg;
-    if (ref->ref[0]->type() != FIELD_ITEM)
-    {
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), "", "VALUES() function");
-      return TRUE;
-    }
-    arg= ref->ref[0];
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), "", "VALUES() function");
+    return TRUE;
   }
-  /*
-    According to our SQL grammar, VALUES() function can reference
-    only to a column.
-  */
-  DBUG_ASSERT(arg->type() == FIELD_ITEM);
 
   Item_field *field_arg= (Item_field *)arg;
 
@@ -7006,7 +6999,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
       return my_time_compare(&field_time, &item_time);
     }
-    return stringcmp(field_result, item_result);
+    return sortcmp(field_result, item_result, field->charset());
   }
   if (res_type == INT_RESULT)
     return 0;					// Both are of type int
@@ -7018,7 +7011,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
     if (item->null_value)
       return 0;
     field_val= field->val_decimal(&field_buf);
-    return my_decimal_cmp(item_val, field_val);
+    return my_decimal_cmp(field_val, item_val);
   }
   double result= item->val_real();
   if (item->null_value)
