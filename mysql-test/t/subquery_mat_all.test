@@ -10,9 +10,7 @@
 --source include/have_mrr.inc
 
 set optimizer_switch='semijoin=on,materialization=on,firstmatch=on,loosescan=on,index_condition_pushdown=on,mrr=on';
-SET @@join_buffer_size=131072;
 
 --source include/subquery_mat.inc
 
-SET @@join_buffer_size=DEFAULT;
 set optimizer_switch=default;
