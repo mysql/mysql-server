@@ -11353,13 +11353,13 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   scanptr.p->m_curr_batch_size_rows = rows + 1;
   scanptr.p->m_last_row = tdata5;
 
-  const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
+  const NodeBitmask& all = globalTransporterRegistry.get_status_slowdown();
   if (unlikely(!all.isclear()))
   {
     if (all.get(refToNode(scanptr.p->scanApiBlockref)))
     {
       /**
-       * End scan batch if transporter-buffer are overloaded
+       * End scan batch if transporter-buffer are in slowdown state
        *
        * TODO: We should have counters for this...
        */
