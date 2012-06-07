@@ -157,14 +157,14 @@ TAPTEST(HashMap2)
     /* Test iterator Api */
     HashMap2<IntIntKVPod, true, TestHeapAllocator, IntIntKVStaticMethods>::Iterator it(hash1);
 
-    IntIntKVPod* j;
+    IntIntKVPod* k;
     for (int i=0; i < 2; i++)
     {
       int count = 0;
-      while((j = it.next()))
+      while((k = it.next()))
       {
-        OK( j->b == ((j->a * 3) - i) );
-        j->b--;
+        OK( k->b == ((k->a * 3) - i) );
+        k->b--;
         count++;
       }
       OK( count == 100 );
