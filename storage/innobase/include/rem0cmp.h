@@ -215,10 +215,14 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index,	/*!< in: data dictionary index */
-	struct TABLE*		table)	/*!< in: MySQL table, for reporting
+	struct TABLE*		table,	/*!< in: MySQL table, for reporting
 					duplicate key value if applicable,
 					or NULL */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	const ulint*		col_map)/*!< in: mapping of column
+					numbers in table to the
+					rebuilt table (index->table),
+					or NULL if not rebuilding table */
+	__attribute__((nonnull(1,2,3,4), warn_unused_result));
 /*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is

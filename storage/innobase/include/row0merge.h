@@ -120,14 +120,15 @@ struct merge_index_def_struct {
 typedef struct merge_index_def_struct	merge_index_def_t;
 
 /** Structure for reporting duplicate records. */
-struct row_merge_dup_struct {
-	const dict_index_t*	index;		/*!< index being sorted */
-	struct TABLE*		table;		/*!< MySQL table object */
-	ulint			n_dup;		/*!< number of duplicates */
+struct row_merge_dup_t {
+	dict_index_t*		index;	/*!< index being sorted */
+	struct TABLE*		table;	/*!< MySQL table object */
+	const ulint*		col_map;/*!< mapping of mapping of
+					column numbers in table to the
+					rebuilt table (index->table),
+					or NULL if not rebuilding table */
+	ulint			n_dup;	/*!< number of duplicates */
 };
-
-/** Structure for reporting duplicate records. */
-typedef struct row_merge_dup_struct row_merge_dup_t;
 
 /*************************************************************//**
 Report a duplicate key. */
@@ -355,14 +356,11 @@ dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
-	const dict_index_t*	index,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
+	int*			tmpfd)	/*!< in/out: temporary file handle */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Allocate a sort buffer.
