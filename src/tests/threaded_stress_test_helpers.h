@@ -16,6 +16,7 @@
 #include <stdlib.h>
 
 #include <toku_pthread.h>
+#include <locale.h>
 #include <unistd.h>
 #include <memory.h>
 #include <sys/stat.h>
@@ -1497,6 +1498,7 @@ do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
 static void
 stress_test_main(struct cli_args *args)
 {
+    { char *loc = setlocale(LC_NUMERIC, "en_US.UTF-8"); assert(loc); }
     DB_ENV* env = NULL;
     DB* dbs[args->num_DBs];
     memset(dbs, 0, sizeof(dbs));
