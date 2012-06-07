@@ -169,8 +169,8 @@ toku_txn_abort_only(DB_TXN * txn,
     }
     HANDLE_PANICKED_ENV(txn->mgrp);
     assert_zero(r);
-    r = toku_txn_release_locks(txn);
     toku_txn_complete_txn(db_txn_struct_i(txn)->tokutxn);
+    r = toku_txn_release_locks(txn);
     return r;
 }
 
