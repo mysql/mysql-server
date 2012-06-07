@@ -309,7 +309,7 @@ to original un-instrumented file I/O APIs */
 	os_file_create_func(name, create, purpose, type, success)
 
 # define os_file_create_simple(key, name, create, access, success)	\
-	os_file_create_simple_func(name, create_mode, access, success)
+	os_file_create_simple_func(name, create, access, success)
 
 # define os_file_create_simple_no_error_handling(			\
 		key, name, create_mode, access, success)		\

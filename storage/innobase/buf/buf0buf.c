@@ -302,7 +302,6 @@ struct buf_chunk_struct{
 					was allocated for the frames */
 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
 };
-#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
@@ -438,6 +437,7 @@ buf_block_alloc(
 
 	return(block);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written

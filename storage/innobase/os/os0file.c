@@ -303,6 +303,7 @@ UNIV_INTERN ulint	os_n_pending_writes = 0;
 UNIV_INTERN ulint	os_n_pending_reads = 0;
 
 #ifdef UNIV_DEBUG
+# ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Validates the consistency the aio system some of the time.
 @return	TRUE if ok or the check was skipped */
@@ -329,6 +330,7 @@ os_aio_validate_skip(void)
 	os_aio_validate_count = OS_AIO_VALIDATE_SKIP;
 	return(os_aio_validate());
 }
+# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 
 #ifdef __WIN__
