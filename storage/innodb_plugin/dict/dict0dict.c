@@ -24,6 +24,8 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "dict0dict.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -2272,6 +2274,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -4267,16 +4271,27 @@ dict_update_statistics(
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
+			mtr_t	mtr;
 			ulint	size;
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-			index->stat_index_size = size;
+			mtr_start(&mtr);
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-			sum_of_index_sizes += size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			if (size != ULINT_UNDEFINED) {
+				sum_of_index_sizes += size;
+				index->stat_index_size = size;
+				size = btr_get_size(
+					index, BTR_N_LEAF_PAGES, &mtr);
+			}
 
-			if (size == 0) {
+			mtr_commit(&mtr);
+
+			switch (size) {
+			case ULINT_UNDEFINED:
+				goto fake_statistics;
+			case 0:
 				/* The root node of the tree is a leaf */
 				size = 1;
 			}
@@ -4293,6 +4308,7 @@ dict_update_statistics(
 			various means, also via secondary indexes. */
 			ulint	i;
 
+fake_statistics:
 			sum_of_index_sizes++;
 			index->stat_index_size = index->stat_n_leaf_pages = 1;
 

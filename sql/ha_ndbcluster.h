@@ -545,6 +545,7 @@ static void set_tabname(const char *pathname, char *tabname);
 #ifndef NDB_WITHOUT_ONLINE_ALTER
   int check_if_supported_alter(TABLE *altered_table,
                                HA_CREATE_INFO *create_info,
+                               HA_ALTER_INFO *alter_info,
                                HA_ALTER_FLAGS *alter_flags,
                                uint table_changes);
 

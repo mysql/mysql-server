@@ -750,11 +750,8 @@ buf_chunk_init(
 	for (i = chunk->size; i--; ) {
 
 		buf_block_init(block, frame);
+		UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-#ifdef HAVE_purify
-		/* Wipe contents of frame to eliminate a Purify warning */
-		memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
 		/* Add the block to the free list */
 		UT_LIST_ADD_LAST(list, buf_pool->free, (&block->page));
 		ut_d(block->page.in_free_list = TRUE);
@@ -2151,7 +2148,7 @@ buf_page_get_known_nowait(
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
-	ut_a(block->page.file_page_was_freed == FALSE);
+	ut_a(mode == BUF_KEEP_OLD || !block->page.file_page_was_freed);
 #endif
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

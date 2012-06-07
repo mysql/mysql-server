@@ -175,7 +175,7 @@ struct fil_space_struct {
 				.ibd file of tablespace and want to
 				stop temporarily posting of new i/o
 				requests on the file */
-	ibool		stop_ibuf_merges;
+	ibool		stop_new_ops;
 				/*!< we set this TRUE when we start
 				deleting a single-table tablespace */
 	ibool		is_being_deleted;
@@ -200,12 +200,13 @@ struct fil_space_struct {
 	ulint		n_pending_flushes; /*!< this is positive when flushing
 				the tablespace to disk; dropping of the
 				tablespace is forbidden if this is positive */
-	ulint		n_pending_ibuf_merges;/*!< this is positive
-				when merging insert buffer entries to
-				a page so that we may need to access
-				the ibuf bitmap page in the
-				tablespade: dropping of the tablespace
-				is forbidden if this is positive */
+	ulint		n_pending_ops;/*!< this is positive when we
+				have pending operations against this
+				tablespace. The pending operations can
+				be ibuf merges or lock validation code
+				trying to read a block.
+				Dropping of the tablespace is forbidden
+				if this is positive */
 	hash_node_t	hash;	/*!< hash chain node */
 	hash_node_t	name_hash;/*!< hash chain the name_hash table */
 #ifndef UNIV_HOTBACKUP
@@ -918,11 +919,6 @@ retry:
 		return;
 	}
 
-	if (fil_system->n_open < fil_system->max_n_open) {
-
-		return;
-	}
-
 	space = fil_space_get_by_id(space_id);
 
 	if (space != NULL && space->stop_ios) {
@@ -939,11 +935,35 @@ retry:
 
 		mutex_exit(&fil_system->mutex);
 
+#ifndef UNIV_HOTBACKUP
+
+		/* Wake the i/o-handler threads to make sure pending
+		i/o's are performed */
+		os_aio_simulated_wake_handler_threads();
+
+		/* The sleep here is just to give IO helper threads a
+		bit of time to do some work. It is not required that
+		all IO related to the tablespace being renamed must
+		be flushed here as we do fil_flush() in
+		fil_rename_tablespace() as well. */
+		os_thread_sleep(20000);
+
+#endif /* UNIV_HOTBACKUP */
+
+		/* Flush tablespaces so that we can close modified
+		files in the LRU list */
+		fil_flush_file_spaces(FIL_TABLESPACE);
+
 		os_thread_sleep(20000);
 
 		count2++;
 
 		goto retry;
+	}
+
+	if (fil_system->n_open < fil_system->max_n_open) {
+
+		return;
 	}
 
 	/* If the file is already open, no need to do anything; if the space
@@ -1217,7 +1237,7 @@ try_again:
 	}
 
 	space->stop_ios = FALSE;
-	space->stop_ibuf_merges = FALSE;
+	space->stop_new_ops = FALSE;
 	space->is_being_deleted = FALSE;
 	space->purpose = purpose;
 	space->size = 0;
@@ -1226,7 +1246,7 @@ try_again:
 	space->n_reserved_extents = 0;
 
 	space->n_pending_flushes = 0;
-	space->n_pending_ibuf_merges = 0;
+	space->n_pending_ops = 0;
 
 	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
@@ -1817,13 +1837,12 @@ fil_read_flushed_lsn_and_arch_log_no(
 
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
-Increments the count of pending insert buffer page merges, if space is not
-being deleted.
-@return	TRUE if being deleted, and ibuf merges should be skipped */
+Increments the count of pending operation, if space is not being deleted.
+@return	TRUE if being deleted, and operation should be skipped */
 UNIV_INTERN
 ibool
-fil_inc_pending_ibuf_merges(
-/*========================*/
+fil_inc_pending_ops(
+/*================*/
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
@@ -1839,13 +1858,13 @@ fil_inc_pending_ibuf_merges(
 			(ulong) id);
 	}
 
-	if (space == NULL || space->stop_ibuf_merges) {
+	if (space == NULL || space->stop_new_ops) {
 		mutex_exit(&fil_system->mutex);
 
 		return(TRUE);
 	}
 
-	space->n_pending_ibuf_merges++;
+	space->n_pending_ops++;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -1853,11 +1872,11 @@ fil_inc_pending_ibuf_merges(
 }
 
 /*******************************************************************//**
-Decrements the count of pending insert buffer page merges. */
+Decrements the count of pending operations. */
 UNIV_INTERN
 void
-fil_decr_pending_ibuf_merges(
-/*=========================*/
+fil_decr_pending_ops(
+/*=================*/
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
@@ -1868,13 +1887,13 @@ fil_decr_pending_ibuf_merges(
 
 	if (space == NULL) {
 		fprintf(stderr,
-			"InnoDB: Error: decrementing ibuf merge of a"
-			" dropped tablespace %lu\n",
+			"InnoDB: Error: decrementing pending operation"
+			" of a dropped tablespace %lu\n",
 			(ulong) id);
 	}
 
 	if (space != NULL) {
-		space->n_pending_ibuf_merges--;
+		space->n_pending_ops--;
 	}
 
 	mutex_exit(&fil_system->mutex);
@@ -2164,15 +2183,15 @@ fil_delete_tablespace(
 	char*		path;
 
 	ut_a(id != 0);
-stop_ibuf_merges:
+stop_new_ops:
 	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_by_id(id);
 
 	if (space != NULL) {
-		space->stop_ibuf_merges = TRUE;
+		space->stop_new_ops = TRUE;
 
-		if (space->n_pending_ibuf_merges == 0) {
+		if (space->n_pending_ops == 0) {
 			mutex_exit(&fil_system->mutex);
 
 			count = 0;
@@ -2186,9 +2205,10 @@ stop_ibuf_merges:
 				ut_print_filename(stderr, space->name);
 				fprintf(stderr, ",\n"
 					"InnoDB: but there are %lu pending"
-					" ibuf merges on it.\n"
+					" operations (most likely ibuf merges)"
+					" on it.\n"
 					"InnoDB: Loop %lu.\n",
-					(ulong) space->n_pending_ibuf_merges,
+					(ulong) space->n_pending_ops,
 					(ulong) count);
 			}
 
@@ -2197,7 +2217,7 @@ stop_ibuf_merges:
 			os_thread_sleep(20000);
 			count++;
 
-			goto stop_ibuf_merges;
+			goto stop_new_ops;
 		}
 	}
 
@@ -2223,7 +2243,7 @@ try_again:
 	}
 
 	ut_a(space);
-	ut_a(space->n_pending_ibuf_merges == 0);
+	ut_a(space->n_pending_ops == 0);
 
 	space->is_being_deleted = TRUE;
 
@@ -2496,7 +2516,7 @@ fil_rename_tablespace(
 retry:
 	count++;
 
-	if (count > 1000) {
+	if (!(count % 1000)) {
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: problems renaming ", stderr);
 		ut_print_filename(stderr, old_name);
