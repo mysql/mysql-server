@@ -1927,6 +1927,12 @@ private:
    *   Returns NULL if none found
    */
   NdbTransaction* getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance);
+  /**
+   * Handle Connection Array lists
+   */
+  void appendConnectionArray(NdbTransaction *aCon, Uint32 nodeId);
+  void prependConnectionArray(NdbTransaction *aCon, Uint32 nodeId);
+  void removeConnectionArray(NdbTransaction *first, Uint32 nodeId);
 
   // Release and disconnect from DBTC a connection
   // and seize it to theConIdleList
@@ -2012,6 +2018,7 @@ private:
 
   NdbTransaction*	theTransactionList;
   NdbTransaction**      theConnectionArray;
+  NdbTransaction**      theConnectionArrayLast;
 
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node
