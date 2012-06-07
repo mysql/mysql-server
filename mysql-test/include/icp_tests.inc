@@ -922,12 +922,15 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (1,7,'f');
 
+if (`SELECT UPPER(@@default_storage_engine) = 'INNODB'`)
+{
 -- disable_query_log
 -- disable_result_log
 ANALYZE TABLE t1;
 ANALYZE TABLE t2;
 -- enable_result_log
 -- enable_query_log
+}
 
 # Bug was specific of IN->EXISTS:
 set @old_opt_switch=@@optimizer_switch;
