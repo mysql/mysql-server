@@ -1351,7 +1351,7 @@ REPEAT("o", 4000));
 INSERT INTO worklog5743
 VALUES(concat(REPEAT("a", 2000),REPEAT("b", 2000)), REPEAT("o", 4000));
 ALTER TABLE worklog5743 ADD PRIMARY KEY `pk_idx` (col_1_varchar(3000));
-ERROR 23000: Duplicate entry 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '' for key '*UNKNOWN*'
 DROP TABLE worklog5743;
 set global innodb_large_prefix=0;
 CREATE TABLE worklog5743 (

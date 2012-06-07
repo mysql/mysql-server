@@ -52,7 +52,7 @@ ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 COMMIT;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
-ERROR 23000: Duplicate entry '4' for key 'c2'
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 DELETE FROM t1 WHERE c1 = 7;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ROW_FORMAT=COMPACT,
 LOCK = SHARED, ALGORITHM = INPLACE;
@@ -89,7 +89,7 @@ ddl_pending_alter_table	1
 BEGIN;
 INSERT INTO t1 VALUES(4,7,2);
 SET DEBUG_SYNC = 'now SIGNAL insert_done';
-ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '7' for key 'c2'
 ROLLBACK;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -213,7 +213,7 @@ SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt3 WAIT_FOR dml3_done
 ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 ERROR 42000: Multiple primary key defined
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
-ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
 CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
 ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
@@ -252,7 +252,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5));
-ERROR 23000: Duplicate entry '' for key 'PRIMARY'
+ERROR 23000: Duplicate entry '1-5-Onlin' for key 'PRIMARY'
 UPDATE t1 SET c3 = NULL WHERE c3 = '';
 SET lock_wait_timeout = 1;
 ALTER TABLE t1 DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
