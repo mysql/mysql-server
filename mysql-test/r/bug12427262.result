@@ -1,0 +1,56 @@
+#
+# Bug#12427262 : 60961: SHOW TABLES VERY SLOW WHEN NOT IN SYSTEM DISK CACHE. 
+#
+create database show_table_lw_db;
+use show_table_lw_db;
+create table t1 (c1 int);
+create table t2 (c1 int);
+create table t3 (c1 int);
+create table t4 (c1 int);
+create table t5 (c1 int);
+create table t6 (c1 int);
+create table t7 (c1 int);
+create table t8 (c1 int);
+create table t9 (c1 int);
+create table t10 (c1 int);
+select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
+like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
+into @count_read_before;
+show tables;
+Tables_in_show_table_lw_db
+t1
+t10
+t2
+t3
+t4
+t5
+t6
+t7
+t8
+t9
+select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
+like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
+into @count_read_after;
+select @count_read_after-@count_read_before;
+@count_read_after-@count_read_before
+0.000000000000000000000000000000
+show full tables;
+Tables_in_show_table_lw_db	Table_type
+t1	BASE TABLE
+t10	BASE TABLE
+t2	BASE TABLE
+t3	BASE TABLE
+t4	BASE TABLE
+t5	BASE TABLE
+t6	BASE TABLE
+t7	BASE TABLE
+t8	BASE TABLE
+t9	BASE TABLE
+select Sum(ALL(COUNT_READ)) from performance_schema.file_summary_by_instance where FILE_NAME 
+like "%show_table_lw_db%" AND FILE_NAME like "%.frm%" AND EVENT_NAME='wait/io/file/sql/FRM'
+into @count_read_after;
+select @count_read_after-@count_read_before;
+@count_read_after-@count_read_before
+10.000000000000000000000000000000
+drop table t1;
+drop database show_table_lw_db;

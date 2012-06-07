@@ -1364,10 +1364,18 @@ innobase_start_or_create_for_mysql(void)
 	}
 # endif /* __WIN__ */
 
-	os_aio_init(io_limit,
-		    srv_n_read_io_threads,
-		    srv_n_write_io_threads,
-		    SRV_MAX_N_PENDING_SYNC_IOS);
+	if (!os_aio_init(io_limit,
+			 srv_n_read_io_threads,
+			 srv_n_write_io_threads,
+			 SRV_MAX_N_PENDING_SYNC_IOS)) {
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Fatal error: cannot initialize AIO"
+			" sub-system\n");
+
+		return(DB_ERROR);
+	}
 
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);

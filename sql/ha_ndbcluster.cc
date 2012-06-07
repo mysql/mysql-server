@@ -11341,7 +11341,17 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 }
 
-
+/* Interface to mysqld, to check system tables supported by SE */
+static bool ndb_is_supported_system_table(const char *db,
+                                          const char *table_name,
+                                          bool is_sql_layer_system_table)
+{
+  if (Ndb_dist_priv_util::is_distributed_priv_table(db,
+                                                    table_name))
+    return true;
+  else
+    return false;
+}
 
 extern "C" uchar* tables_get_key(const char *entry, size_t *length,
                                 my_bool not_used __attribute__((unused)))
@@ -11879,6 +11889,8 @@ static int ndbcluster_init(void *p)
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
     h->make_pushed_join= ndbcluster_make_pushed_join;
 #endif
+    h->is_supported_system_table= ndb_is_supported_system_table;
+
   }
 
   // Initialize ndb interface
