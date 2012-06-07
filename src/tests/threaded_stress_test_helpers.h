@@ -181,11 +181,13 @@ static void arg_init(struct arg *arg, int num_elements, DB **dbp, DB_ENV *env, s
 enum operation_type {
     OPERATION = 0,
     PUTS,
+    PTQUERIES,
     NUM_OPERATION_TYPES
 };
 const char *operation_names[] = {
     "operations",
     "puts",
+    "ptqueries",
     NULL
 };
 static void increment_counter(void *extra, enum operation_type type, uint64_t inc) {
@@ -205,6 +207,13 @@ struct perf_formatter {
     void (*print_perf_overall_totals_header)(void);
     void (*print_perf_overall_total)(const char *, uint64_t);
     void (*print_perf_overall_totals_footer)(void);
+    void (*print_perf_iterations_header)(int);
+    void (*print_perf_thread_iterations_header)(int, const char *);
+    void (*print_perf_thread_iteration)(int, int, const char *, uint64_t);
+    void (*print_perf_thread_iterations_footer)(int, const char *);
+    void (*print_perf_overall_iterations_header)(int);
+    void (*print_perf_overall_iteration)(int, const char *, uint64_t);
+    void (*print_perf_overall_iterations_footer)(int);
 };
 
 // "Human readable" performance formatter
@@ -218,7 +227,7 @@ static void perf_human_thread_totals_footer(int UU(t)) {
     printf("\n");
 }
 static void perf_human_total(const char *name, uint64_t val) {
-    printf("\t%s\t%10"PRIu64, name, val);
+    printf("\t%s\t%'10"PRIu64, name, val);
 }
 static void perf_human_thread_total(int UU(t), const char *name, uint64_t val) {
     perf_human_total(name, val);
@@ -227,6 +236,27 @@ static void perf_human_overall_totals_header(void) {
     printf("All threads:");
 }
 static void perf_human_overall_totals_footer(void) {
+    printf("\n");
+}
+static void perf_human_iterations_header(int UU(current_time)) {
+}
+static void perf_human_thread_iterations_header(int current_time, const char *name) {
+    printf("%8d\t%s", current_time, name);
+    for (int i = strlen(name); i < 12; ++i) {
+        printf(" ");
+    }
+}
+static void perf_human_thread_iterations_footer(int UU(current_time), const char *UU(name)) {
+}
+static void perf_human_iteration(int UU(current_time), const char *UU(name), uint64_t val) {
+    printf("\t%'10"PRIu64, val);
+}
+static void perf_human_thread_iteration(int current_time, int UU(t), const char *name, uint64_t val) {
+    perf_human_iteration(current_time, name, val);
+}
+static void perf_human_overall_iterations_header(int UU(current_time)) {
+}
+static void perf_human_overall_iterations_footer(int UU(current_time)) {
     printf("\n");
 }
 
@@ -239,24 +269,67 @@ const struct perf_formatter perf_formatters[] = {
         .print_perf_overall_totals_header = perf_human_overall_totals_header,
         .print_perf_overall_total = perf_human_total,
         .print_perf_overall_totals_footer = perf_human_overall_totals_footer,
+        .print_perf_iterations_header = perf_human_iterations_header,
+        .print_perf_thread_iterations_header = perf_human_thread_iterations_header,
+        .print_perf_thread_iteration = perf_human_thread_iteration,
+        .print_perf_thread_iterations_footer = perf_human_thread_iterations_footer,
+        .print_perf_overall_iterations_header = perf_human_overall_iterations_header,
+        .print_perf_overall_iteration = perf_human_iteration,
+        .print_perf_overall_iterations_footer = perf_human_overall_iterations_footer,
     }
 };
 
-static void print_perf_totals(struct cli_args *cli_args, uint64_t *counters[], int num_threads) {
+static void print_perf_iteration(struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads) {
+    const struct perf_formatter *fmt = &perf_formatters[(int) cli_args->perf_output_format];
+    fmt->print_perf_iterations_header(current_time);
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        uint64_t period_total = 0;
+        if (cli_args->print_thread_performance) {
+            fmt->print_perf_thread_iterations_header(current_time, operation_names[op]);
+        }
+        for (int t = 0; t < num_threads; ++t) {
+            if (counters[t][op] == 0) {
+                continue;
+            }
+            const uint64_t last = last_counters[t][op];
+            const uint64_t current = counters[t][op];
+            if (cli_args->print_thread_performance) {
+                fmt->print_perf_thread_iteration(current_time, t, operation_names[op], current - last);
+            }
+            period_total += (current - last);
+            last_counters[t][op] = current;
+        }
+        if (cli_args->print_thread_performance) {
+            fmt->print_perf_thread_iterations_footer(current_time, operation_names[op]);
+        }
+        fmt->print_perf_overall_iterations_header(current_time);
+        fmt->print_perf_overall_iteration(current_time, operation_names[op], period_total);
+        fmt->print_perf_overall_iterations_footer(current_time);
+    }
+}
+
+static void print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], const int num_threads) {
     const struct perf_formatter *fmt = &perf_formatters[(int) cli_args->perf_output_format];
     fmt->print_perf_totals_header();
     uint64_t overall_totals[(int) NUM_OPERATION_TYPES];
     ZERO_ARRAY(overall_totals);
     for (int t = 0; t < num_threads; ++t) {
-        fmt->print_perf_thread_totals_header(t);
+        if (cli_args->print_thread_performance) {
+            fmt->print_perf_thread_totals_header(t);
+        }
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-            uint64_t current = counters[t][op];
+            const uint64_t current = counters[t][op];
+            if (current == 0) {
+                continue;
+            }
             if (cli_args->print_thread_performance) {
                 fmt->print_perf_thread_total(t, operation_names[op], current);
             }
             overall_totals[op] += current;
         }
-        fmt->print_perf_thread_totals_footer(t);
+        if (cli_args->print_thread_performance) {
+            fmt->print_perf_thread_totals_footer(t);
+        }
     }
     fmt->print_perf_overall_totals_header();
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
@@ -590,16 +663,24 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL ch
     return r;
 }
 
-static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
+static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
-    return ptquery_and_maybe_check_op(db, txn, arg, TRUE);
+    int r = ptquery_and_maybe_check_op(db, txn, arg, TRUE);
+    if (!r) {
+        increment_counter(stats_extra, PTQUERIES, 1);
+    }
+    return r;
 }
 
-static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
+static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
     DB* db = arg->dbp[db_index];
-    return ptquery_and_maybe_check_op(db, txn, arg, FALSE);
+    int r = ptquery_and_maybe_check_op(db, txn, arg, FALSE);
+    if (!r) {
+        increment_counter(stats_extra, PTQUERIES, 1);
+    }
+    return r;
 }
 
 static int UU() cursor_create_close_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
@@ -908,9 +989,7 @@ struct test_time_extra {
     bool crash_at_end;
     struct worker_extra *wes;
     int num_wes;
-    bool print_performance;
-    bool print_thread_performance;
-    int performance_period;
+    struct cli_args *cli_args;
 };
 
 static void *test_time(void *arg) {
@@ -923,30 +1002,19 @@ static void *test_time(void *arg) {
     if (num_seconds == 0) {
         num_seconds = INT32_MAX;
     }
+    uint64_t last_counter_values[tte->num_wes][(int) NUM_OPERATION_TYPES];
+    ZERO_ARRAY(last_counter_values);
+    uint64_t *counters[tte->num_wes];
+    for (int t = 0; t < tte->num_wes; ++t) {
+        counters[t] = tte->wes[t].counters;
+    }
     if (verbose) {
         printf("Sleeping for %d seconds\n", num_seconds);
     }
-    uint64_t last_counter_values[tte->num_wes][(int) NUM_OPERATION_TYPES];
-    ZERO_ARRAY(last_counter_values);
-    for (int i = 0; i < num_seconds; i += tte->performance_period) {
-        usleep(tte->performance_period*1000*1000);
-        uint64_t period_totals[(int) NUM_OPERATION_TYPES];
-        ZERO_ARRAY(period_totals);
-        for (int we = 0; we < tte->num_wes; ++we) {
-            for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-                int64_t last = last_counter_values[we][op];
-                int64_t current = tte->wes[we].counters[op];
-                if (tte->print_thread_performance) {
-                    printf("Thread %d Iteration %d Operations %"PRId64"\n", we, i, current - last);
-                }
-                period_totals[op] += (current - last);
-                last_counter_values[we][op] = current;
-            }
-        }
-        if (tte->print_performance) {
-            for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-                printf("Iteration %d Total_Operations %"PRId64"\n", i, period_totals[op]);
-            }
+    for (int i = 0; i < num_seconds; i += tte->cli_args->performance_period) {
+        usleep(tte->cli_args->performance_period*1000*1000);
+        if (tte->cli_args->print_performance) {
+            print_perf_iteration(tte->cli_args, i, last_counter_values, counters, tte->num_wes);
         }
     }
 
@@ -985,9 +1053,7 @@ static int run_workers(
     tte.crash_at_end = crash_at_end;
     tte.wes = worker_extra;
     tte.num_wes = num_threads;
-    tte.print_performance = cli_args->print_performance;
-    tte.print_thread_performance = cli_args->print_thread_performance;
-    tte.performance_period = cli_args->performance_period;
+    tte.cli_args = cli_args;
     run_test = true;
     for (int i = 0; i < num_threads; ++i) {
         thread_args[i].thread_idx = i;

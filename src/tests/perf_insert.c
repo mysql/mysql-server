@@ -29,7 +29,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], n, dbp, env, cli_args);
     }
     for (int i = 0; i < num_threads; i++) {
-        myargs[i].operation = random_put_op;
+        myargs[i].operation = random_put_op_singledb;
     }
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
 }

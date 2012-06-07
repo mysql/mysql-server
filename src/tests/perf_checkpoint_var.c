@@ -123,18 +123,20 @@ static void checkpoint_callback_2(void * extra) {
 //  - number of elements
 //
 
-static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
+static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
     int db_index = random()%arg->num_DBs;
     int r = 0;
     int val_size = *(int *)operation_extra;
     DB* db = arg->dbp[db_index];
     char data[val_size];
     memset(data, 0, sizeof(data));
-    for (int i = 0; i < 10; i++) {
+    int i;
+    for (i = 0; i < 10; i++) {
         // do point queries
-        ptquery_and_maybe_check_op(db, txn, arg, FALSE);        
+        ptquery_and_maybe_check_op(db, txn, arg, FALSE);
     }
-    for (int i = 0; i < 20; i++) {
+    increment_counter(stats_extra, PTQUERIES, i);
+    for (i = 0; i < 20; i++) {
         // do a random insertion
         int rand_key = random() % arg->num_elements;
         DBT key, val;
@@ -149,6 +151,7 @@ static int checkpoint_var(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
         }
     }
 cleanup:
+    increment_counter(stats_extra, PUTS, i);
     return r;
 }
 
