@@ -120,11 +120,6 @@
 using std::min;
 using std::max;
 
-#ifndef EXTRA_DEBUG
-#define test_rb_tree(A,B) {}
-#define test_use_count(A) {}
-#endif
-
 /*
   Convert double value to #rows. Currently this does floor(), and we
   might consider using round() instead.
@@ -622,10 +617,8 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
-#ifdef EXTRA_DEBUG
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
   void test_use_count(SEL_ARG *root);
-#endif
   SEL_ARG *first();
   SEL_ARG *last();
   void make_root();
@@ -638,7 +631,6 @@ public:
     if (next_key_part)
     {
       next_key_part->use_count+=count;
-      count*= (next_key_part->use_count-count);
       for (SEL_ARG *pos=next_key_part->first(); pos ; pos=pos->next)
 	if (pos->next_key_part)
 	  pos->increment_use_count(count);
@@ -7025,7 +7017,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         DBUG_RETURN(tree1);
       }
       result_keys.set_bit(key1 - tree1->keys);
-#ifdef EXTRA_DEBUG
+#ifndef DBUG_OFF
         if (*key1 && param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
 #endif
@@ -7183,7 +7175,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       {
         result=tree1;				// Added to tree1
         result_keys.set_bit(key1 - tree1->keys);
-#ifdef EXTRA_DEBUG
+#ifndef DBUG_OFF
         if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
 #endif
@@ -8476,7 +8468,6 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 
 	/* Test that the properties for a red-black tree hold */
 
-#ifdef EXTRA_DEBUG
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 {
   int count_l,count_r;
@@ -8592,6 +8583,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   if (this == root && use_count != 1)
   {
     sql_print_information("Use_count: Wrong count %lu for root",use_count);
+    // DBUG_ASSERT(false); // Todo - enable and clean up mess
     return;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
@@ -8607,17 +8599,20 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
         sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu "
                               "should be %lu", (long unsigned int)pos,
                               pos->next_key_part->use_count, count);
+        // DBUG_ASSERT(false); // Todo - enable and clean up mess
 	return;
       }
       pos->next_key_part->test_use_count(root);
     }
   }
   if (e_count != elements)
+  {
     sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
                       e_count, elements, (long unsigned int) this);
+    // DBUG_ASSERT(false); // Todo - enable and clean up mess
+  }
 }
 
-#endif
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks a SEL_ARG* tree.
