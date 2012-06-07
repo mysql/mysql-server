@@ -1681,7 +1681,9 @@ loop:
 		return(TRUE);
 	}
 
-	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+	DWORD	err = GetLastError();
+
+	if (err == ERROR_FILE_NOT_FOUND || err == ERROR_PATH_NOT_FOUND) {
 		/* the file does not exist, this not an error */
 
 		return(TRUE);
