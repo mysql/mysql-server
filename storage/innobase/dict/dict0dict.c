@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -55,6 +55,8 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "m_ctype.h" /* my_isspace() */
 #include "ha_prototypes.h" /* innobase_strcasecmp(), innobase_casedn_str()*/
 #include "row0upd.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #include <ctype.h>
 
@@ -2329,6 +2331,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -4337,16 +4341,27 @@ dict_update_statistics(
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
+			mtr_t	mtr;
 			ulint	size;
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-			index->stat_index_size = size;
+			mtr_start(&mtr);
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-			sum_of_index_sizes += size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			if (size != ULINT_UNDEFINED) {
+				sum_of_index_sizes += size;
+				index->stat_index_size = size;
+				size = btr_get_size(
+					index, BTR_N_LEAF_PAGES, &mtr);
+			}
 
-			if (size == 0) {
+			mtr_commit(&mtr);
+
+			switch (size) {
+			case ULINT_UNDEFINED:
+				goto fake_statistics;
+			case 0:
 				/* The root node of the tree is a leaf */
 				size = 1;
 			}
@@ -4363,6 +4378,7 @@ dict_update_statistics(
 			various means, also via secondary indexes. */
 			ulint	i;
 
+fake_statistics:
 			sum_of_index_sizes++;
 			index->stat_index_size = index->stat_n_leaf_pages = 1;
 

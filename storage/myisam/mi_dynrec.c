@@ -117,7 +117,7 @@ int mi_munmap_file(MI_INFO *info)
 {
   int ret;
   DBUG_ENTER("mi_unmap_file");
-  if ((ret= my_munmap(info->s->file_map, info->s->mmaped_length)))
+  if ((ret= my_munmap((void*) info->s->file_map, info->s->mmaped_length)))
     DBUG_RETURN(ret);
   info->s->file_read= mi_nommap_pread;
   info->s->file_write= mi_nommap_pwrite;

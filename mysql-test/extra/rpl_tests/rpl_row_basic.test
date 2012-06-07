@@ -6,6 +6,15 @@
 # First we test tables with only an index.
 #
 
+#BUG#12662190 - COM_COMMIT IS NOT INCREMENTED FROM THE BINARY LOGS ON SLAVE, COM_BEGIN IS
+#Testing command counters -BEFORE 
+#Storing the before counts of Slave
+connection slave;
+let $slave_com_commit_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_commit', Value, 1);
+let $slave_com_insert_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_insert', Value, 1);
+let $slave_com_delete_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_delete', Value, 1);
+let $slave_com_update_before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_update', Value, 1);
+
 connection master;
 eval CREATE TABLE t1 (C1 CHAR(1), C2 CHAR(1), INDEX (C1)$extra_index_t1) ENGINE = $type ;
 SELECT * FROM t1;
@@ -39,6 +48,32 @@ UPDATE t1 SET C2 = 'I' WHERE C1 = 'A' AND C2 = 'C';
 SELECT * FROM t1 ORDER BY C1,C2;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY C1,C2;
+
+#BUG#12662190 - COM_COMMIT IS NOT INCREMENTED FROM THE BINARY LOGS ON SLAVE, COM_BEGIN IS
+#Testing command counters -AFTER 
+#Storing the after counts of Slave
+connection slave;
+let $slave_com_commit_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_commit', Value, 1);
+let $slave_com_insert_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_insert', Value, 1);
+let $slave_com_delete_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_delete', Value, 1);
+let $slave_com_update_after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_update', Value, 1);
+
+#Commit count check
+--let $assert_text= Counter for COM_COMMIT is consistent with the number of actual commits
+--let $assert_cond= $slave_com_commit_after - $slave_com_commit_before = 4
+--source include/assert.inc
+#Insert count check
+--let $assert_text= Counter for COM_INSERT is consistent with the number of actual inserts
+--let $assert_cond= $slave_com_insert_after - $slave_com_insert_before = 2
+--source include/assert.inc
+#Delete count check
+--let $assert_text= Counter for COM_DELETE is consistent with the number of actual deletes
+--let $assert_cond= $slave_com_delete_after - $slave_com_delete_before = 1
+--source include/assert.inc
+#Update count check
+--let $assert_text= Counter for COM_UPDATE is consistent with the number of actual updates
+--let $assert_cond= $slave_com_update_after - $slave_com_update_before = 1
+--source include/assert.inc
 
 # Testing update with a condition that does not match any rows, but
 # which has a match for the index.

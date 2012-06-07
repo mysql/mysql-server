@@ -68,7 +68,10 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
                                     bool error_if_not_empty);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
-static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
+static bool check_engine(THD *thd, const char *db_name,
+                         const char *table_name,
+                         HA_CREATE_INFO *create_info);
+
 static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
@@ -242,10 +245,17 @@ uint explain_filename(THD* thd,
       {
         part_name_len= tmp_p - part_name - 1;
         subpart_name= tmp_p + 3;
+	tmp_p+= 3;
+      }
+      else if ((tmp_p[1] == 'Q' || tmp_p[1] == 'q') &&
+               (tmp_p[2] == 'L' || tmp_p[2] == 'l') &&
+                tmp_p[3] == '-')
+      {
+        name_type= TEMP;
+        tmp_p+= 4; /* sql- prefix found */
       }
       else
         res= 2;
-      tmp_p+= 3;
       break;
     case 'T':
     case 't':
@@ -3958,7 +3968,7 @@ bool mysql_create_table_no_lock(THD *thd,
                MYF(0));
     DBUG_RETURN(TRUE);
   }
-  if (check_engine(thd, table_name, create_info))
+  if (check_engine(thd, db, table_name, create_info))
     DBUG_RETURN(TRUE);
 
   set_table_default_charset(thd, create_info, (char*) db);
@@ -7007,7 +7017,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       create_info->db_type= old_db_type;
   }
 
-  if (check_engine(thd, new_name, create_info))
+  if (check_engine(thd, new_db, new_name, create_info))
     goto err;
   new_db_type= create_info->db_type;
 
@@ -8054,11 +8064,43 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
-    error=1;
-    (void) quick_rm_table(new_db_type,new_db,new_alias, 0);
+    error= 1;
     (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
     (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
                             FN_FROM_IS_TMP);
+  }
+  else if (new_name != table_name || new_db != db)
+  {
+    if (need_copy_table == ALTER_TABLE_METADATA_ONLY &&
+        mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                           new_alias, NO_FRM_RENAME))
+    {
+      /* Try to get everything back. */
+      error= 1;
+      (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
+      (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
+                                FN_FROM_IS_TMP);
+    }
+    else if (Table_triggers_list::change_table_name(thd, db, alias, 
+                                                    table_name, new_db, 
+                                                    new_alias))
+    {
+      /* Try to get everything back. */
+      error= 1;
+      (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
+      (void) mysql_rename_table(old_db_type, db, old_name, db,
+                                alias, FN_FROM_IS_TMP);
+      /*
+        If we were performing "fast"/in-place ALTER TABLE we also need
+        to restore old name of table in storage engine as a separate
+        step, as the above rename affects .FRM only.
+      */
+      if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+      {
+        (void) mysql_rename_table(save_old_db_type, new_db, new_alias,
+                                  db, table_name, NO_FRM_RENAME); 
+      }
+    }
   }
 
   if (! error)
@@ -8684,16 +8726,32 @@ err:
   DBUG_RETURN(TRUE);
 }
 
-static bool check_engine(THD *thd, const char *table_name,
-                         HA_CREATE_INFO *create_info)
+/**
+  @brief Check if the table can be created in the specified storage engine.
+
+  Checks if the storage engine is enabled and supports the given table
+  type (e.g. normal, temporary, system). May do engine substitution
+  if the requested engine is disabled.
+
+  @param thd          Thread descriptor.
+  @param db_name      Database name.
+  @param table_name   Name of table to be created.
+  @param create_info  Create info from parser, including engine.
+
+  @retval true  Engine not available/supported, error has been reported.
+  @retval false Engine available/supported.
+*/
+static bool check_engine(THD *thd, const char *db_name,
+                         const char *table_name, HA_CREATE_INFO *create_info)
 {
+  DBUG_ENTER("check_engine");
   handlerton **new_engine= &create_info->db_type;
   handlerton *req_engine= *new_engine;
   bool no_substitution=
         test(thd->variables.sql_mode & MODE_NO_ENGINE_SUBSTITUTION);
   if (!(*new_engine= ha_checktype(thd, ha_legacy_type(req_engine),
                                   no_substitution, 1)))
-    return TRUE;
+    DBUG_RETURN(true);
 
   if (req_engine && req_engine != *new_engine)
   {
@@ -8711,9 +8769,23 @@ static bool check_engine(THD *thd, const char *table_name,
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
                ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
       *new_engine= 0;
-      return TRUE;
+      DBUG_RETURN(true);
     }
     *new_engine= myisam_hton;
   }
-  return FALSE;
+
+  /*
+    Check, if the given table name is system table, and if the storage engine 
+    does supports it.
+  */
+  if ((create_info->used_fields & HA_CREATE_USED_ENGINE) &&
+      !ha_check_if_supported_system_table(*new_engine, db_name, table_name))
+  {
+    my_error(ER_UNSUPPORTED_ENGINE, MYF(0),
+             ha_resolve_storage_engine_name(*new_engine), db_name, table_name);
+    *new_engine= NULL;
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
 }
