@@ -442,7 +442,7 @@ t4	CREATE TABLE `t4` (
   CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t3 add constraint dc foreign key (a) references t1(a);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 121)
+ERROR 23000: Can't write; duplicate key in table '#sql-temporary'
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
@@ -872,17 +872,17 @@ PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
-ERROR HY000: Can't create table '#sql-temporary' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
 FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
 SHOW CREATE TABLE t1;

@@ -13,11 +13,11 @@ CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
-ERROR HY000: Can't create table 'test.t2' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 SET DEBUG_SYNC = 'now SIGNAL fk';
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
-ERROR HY000: Can't create table 'test.t2' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 DROP TABLE t1;

@@ -85,16 +85,16 @@ create trigger performance_schema.bi_file_instances
   before insert on performance_schema.file_instances
   for each row begin end;
 
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_PERFSCHEMA_USAGE
 create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
 
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_PERFSCHEMA_USAGE
 create table test.t1 like performance_schema.setup_instruments;
 
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_PERFSCHEMA_USAGE
 create table test.t1 like performance_schema.events_waits_current;
 
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_PERFSCHEMA_USAGE
 create table test.t1 like performance_schema.file_instances;
 
 --error ER_TABLEACCESS_DENIED_ERROR
