@@ -5228,7 +5228,7 @@ fts_savepoint_copy(
 
 		ftt_dst = fts_trx_table_clone(*ftt_src);
 
-		rbt_insert(dst->tables, &ftt_dst->table->id, &ftt_dst);
+		rbt_insert(dst->tables, &ftt_dst, &ftt_dst);
 	}
 }
 

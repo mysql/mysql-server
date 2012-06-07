@@ -170,8 +170,10 @@ bool
 Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0 || basic_const_item());
+
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
+
   st_select_lex::Resolve_place save_resolve= st_select_lex::RESOLVE_NONE;
   if (thd->lex->current_select != NULL)
   {
@@ -3219,6 +3221,13 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 }
 
 
+longlong Item_func_validate_password_strength::val_int()
+{
+  String *field= args[0]->val_str(&value);
+  return (check_password_strength(field));
+}
+
+
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4775,9 +4784,14 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
     If we set a variable explicitely to NULL then keep the old
     result type of the variable
   */
-  if ((null_value= args[0]->null_value) && null_item)
+  // args[0]->null_value could be outdated
+  if (args[0]->type() == Item::FIELD_ITEM)
+    null_value= ((Item_field*)args[0])->field->is_null();
+  else
+    null_value= args[0]->null_value;
+  if (null_value && null_item)
     res_type= entry->type;                      // Don't change type of item
-  if (::update_hash(entry, (null_value= args[0]->null_value),
+  if (::update_hash(entry, null_value,
                     ptr, length, res_type, cs, dv, unsigned_arg))
   {
     null_value= 1;

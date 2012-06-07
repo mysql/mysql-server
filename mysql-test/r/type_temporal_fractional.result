@@ -15702,7 +15702,6 @@ WHERE col_timestamp_2_not_null_key !=9;
 Warnings:
 Warning	1292	Incorrect datetime value: '9' for column 'col_timestamp_2_not_null_key' at row 1
 Warning	1292	Incorrect datetime value: '9' for column 'col_timestamp_2_not_null_key' at row 1
-Warning	1292	Incorrect datetime value: '9' for column 'col_timestamp_2_not_null_key' at row 1
 DROP TABLE t1;
 #
 # bug8

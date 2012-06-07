@@ -4252,7 +4252,9 @@ btr_validate_level(
 	fseg_header_t*	seg;
 	ulint*		offsets	= NULL;
 	ulint*		offsets2= NULL;
+#ifdef UNIV_ZIP_DEBUG
 	page_zip_des_t*	page_zip;
+#endif /* UNIV_ZIP_DEBUG */
 
 	mtr_start(&mtr);
 
@@ -4322,8 +4324,8 @@ loop:
 	offsets = offsets2 = NULL;
 	mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	page_zip = buf_block_get_page_zip(block);
 #ifdef UNIV_ZIP_DEBUG
+	page_zip = buf_block_get_page_zip(block);
 	ut_a(!page_zip || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */
 

@@ -128,8 +128,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     handler::delete_all_rows() method.
 
     We can use delete_all_rows() if and only if:
-    - We allow new functions (not using option --skip-new), and are
-      not in safe mode (not using option --safe-mode)
+    - We allow new functions (not using option --skip-new)
     - There is no limit clause
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
@@ -138,7 +137,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
+      !(specialflag & SPECIAL_NO_NEW_FUNC) &&
        (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers())))
   {
@@ -269,26 +268,22 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
   if (need_sort)
   {
-    uint         length= 0;
-    SORT_FIELD  *sortorder;
     ha_rows examined_rows;
     ha_rows found_rows;
     
     {
+      Filesort fsort(order, HA_POS_ERROR, select);
       DBUG_ASSERT(usable_index == MAX_KEY);
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                    MYF(MY_FAE | MY_ZEROFILL));
-    
-      if (!(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-	  (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, HA_POS_ERROR,
-                                               true,
+
+      if ((table->sort.found_records= filesort(thd, table, &fsort, true,
                                                &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
       {
         delete select;
         free_underlaid_joins(thd, &thd->lex->select_lex);
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       thd->inc_examined_row_count(examined_rows);
       /*

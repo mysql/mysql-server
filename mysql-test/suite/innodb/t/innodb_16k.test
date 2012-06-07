@@ -268,19 +268,19 @@ DROP TABLE t1;
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table = OFF;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
 SHOW VARIABLES LIKE 'innodb_file%';
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_format = `Barracuda`;
@@ -301,7 +301,7 @@ INSERT INTO t2 VALUES ('jejdkrun87'),('adfd72nh9k'),
 ('adfdpplkeock'),('adfdijnmnb78k'),('adfdijn0loKNHJik');
 
 CREATE TABLE t1(a int, b blob, c text, d text NOT NULL)
-ENGINE=innodb DEFAULT CHARSET=utf8;
+ENGINE=innodb DEFAULT CHARSET=utf8 STATS_PERSISTENT=0;
 
 INSERT INTO t1
 SELECT a,LEFT(REPEAT(d,100*a),65535),REPEAT(d,20*a),d FROM t2,t3;

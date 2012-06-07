@@ -147,7 +147,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
   si->thd= thd;
 
   mysql_mutex_lock(&LOCK_slave_list);
-  unregister_slave(thd,0,0);
+  unregister_slave(thd, false, false/*need_lock_slave_list=false*/);
   res= my_hash_insert(&slave_list, (uchar*) si);
   mysql_mutex_unlock(&LOCK_slave_list);
   return res;
@@ -159,12 +159,14 @@ err2:
   return 1;
 }
 
-void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
+void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list)
 {
   if (thd->server_id)
   {
-    if (need_mutex)
+    if (need_lock_slave_list)
       mysql_mutex_lock(&LOCK_slave_list);
+    else
+      mysql_mutex_assert_owner(&LOCK_slave_list);
 
     SLAVE_INFO* old_si;
     if ((old_si = (SLAVE_INFO*)my_hash_search(&slave_list,
@@ -172,7 +174,7 @@ void unregister_slave(THD* thd, bool only_mine, bool need_mutex)
 	(!only_mine || old_si->thd == thd))
     my_hash_delete(&slave_list, (uchar*)old_si);
 
-    if (need_mutex)
+    if (need_lock_slave_list)
       mysql_mutex_unlock(&LOCK_slave_list);
   }
 }
@@ -651,7 +653,7 @@ bool com_binlog_dump(THD *thd, char *packet)
   mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos,
                     flags);
 
-  unregister_slave(thd, 1, 1);
+  unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
   DBUG_RETURN(true);
 }
@@ -725,7 +727,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   my_free(gtid_string);
   mysql_binlog_send(thd, name, (my_off_t) pos, flags, &slave_gtid_done);
 
-  unregister_slave(thd, 1, 1);
+  unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
   DBUG_RETURN(true);
 }
@@ -802,7 +804,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     heartbeat_ts= &heartbeat_buf;
     set_timespec_nsec(*heartbeat_ts, 0);
   }
-  sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%d), pos(%s, %lu)",
+  if (log_warnings > 1)
+    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%d), pos(%s, %lu)",
                         thd->thread_id, thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, flags, log_ident, pos)))
   {

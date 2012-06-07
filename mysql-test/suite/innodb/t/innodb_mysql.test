@@ -84,6 +84,12 @@ INSERT INTO foo VALUES
 INSERT INTO bar SELECT * FROM foo;
 INSERT INTO foo2 SELECT * FROM foo;
 
+-- disable_result_log
+ANALYZE TABLE bar;
+ANALYZE TABLE foo;
+ANALYZE TABLE foo2;
+-- enable_result_log
+
 --query_vertical EXPLAIN SELECT c FROM bar WHERE b>2;
 --query_vertical EXPLAIN SELECT c FROM foo WHERE b>2;
 --query_vertical EXPLAIN SELECT c FROM foo2 WHERE b>2;
@@ -459,6 +465,9 @@ INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
 INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
 INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
 INSERT INTO t1 (b,c,d,e) SELECT RAND()*10000, RAND()*10000, d, e FROM t1;
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
 EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
 # With 4k pages, the 'rows' column in the output below is either 120 or 138,
@@ -556,6 +565,10 @@ create table t1(f1 int not null primary key, f2 int) engine=innodb;
 create table t2(f1 int not null, key (f1)) engine=innodb;
 insert into t1 values (1,1),(2,2),(3,3);
 insert into t2 values (1),(2),(3);
+-- disable_result_log
+analyze table t1;
+analyze table t2;
+-- enable_result_log
 explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
 drop table t1,t2;
 --echo #
@@ -573,6 +586,8 @@ INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
                       (4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
 		      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
 		      (11,11,11,11,11,11);
+
+ANALYZE TABLE t1;
 
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 
@@ -692,7 +707,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (f1),
   KEY idx1 (f2,f5,f4),
   KEY idx2 (f2,f4)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 
 LOAD DATA INFILE '../../std_data/intersect-bug50389.tsv' INTO TABLE t1;
 
@@ -722,7 +737,7 @@ CREATE TABLE t1 (
   PRIMARY KEY (f1),
   UNIQUE KEY (f2, f3),
   KEY (f4)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO t1 VALUES
 (1,1,991,1), (2,1,992,1), (3,1,993,1), (4,1,994,1), (5,1,995,1),
@@ -758,7 +773,7 @@ DROP TABLE t1;
 --echo #
 
 CREATE TABLE t1 (a INT , b INT, c INT, d INT,
-  KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB;
+  KEY (b), PRIMARY KEY (a,b)) ENGINE=INNODB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
 --query_vertical EXPLAIN SELECT COUNT(*) FROM t1
 

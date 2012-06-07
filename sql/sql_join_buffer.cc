@@ -28,6 +28,7 @@
 #include "key.h"
 #include "sql_optimizer.h"  // JOIN
 #include "sql_join_buffer.h"
+#include "sql_tmp_table.h"  // instantiate_tmp_table()
 
 #include <algorithm>
 using std::max;
@@ -505,7 +506,7 @@ int JOIN_CACHE_BNL::init()
   if (alloc_buffer())
     DBUG_RETURN(1); 
   
-  reset(TRUE); 
+  reset_cache(true); 
 
   DBUG_RETURN(0);
 }
@@ -661,7 +662,7 @@ int JOIN_CACHE_BKA::init()
   if (alloc_buffer())
     DBUG_RETURN(1); 
 
-  reset(TRUE);
+  reset_cache(true);
 
   DBUG_RETURN(0);
 }  
@@ -1148,15 +1149,13 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 }
 
 
-/* 
-  Reset the join buffer for reading/writing: default implementation
+/**
+  @brief Reset the join buffer for reading/writing: default implementation
 
-  SYNOPSIS
-    reset()
-      for_writing  if it's TRUE the function reset the buffer for writing
+  @param for_writing  if it's TRUE the function reset the buffer for writing
 
-  DESCRIPTION
-    This default implementation of the virtual function reset() resets 
+  @details
+    This default implementation of the virtual function reset_cache() resets 
     the join buffer for reading or writing.
     If the buffer is reset for reading only the 'pos' value is reset
     to point to the very beginning of the join buffer. If the buffer is
@@ -1167,12 +1166,9 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     - 'end_pos' is set to point to the beginning of the join buffer,
     - the size of the auxiliary buffer is reset to 0,
     - the flag 'last_rec_blob_data_is_in_rec_buff' is set to 0.
-    
-  RETURN
-    none
 */
 
-void JOIN_CACHE::reset(bool for_writing)
+void JOIN_CACHE::reset_cache(bool for_writing)
 {
   pos= buff;
   curr_rec_link= 0;
@@ -1190,7 +1186,7 @@ void JOIN_CACHE::reset(bool for_writing)
   Add a record into the join buffer: the default implementation
 
   SYNOPSIS
-    put_record()
+    put_record_in_cache()
 
   DESCRIPTION
     This default implementation of the virtual function put_record writes
@@ -1206,14 +1202,14 @@ void JOIN_CACHE::reset(bool for_writing)
     FALSE   otherwise
 */
 
-bool JOIN_CACHE::put_record()
+bool JOIN_CACHE::put_record_in_cache()
 {
   bool is_full;
   uchar *link= 0;
   if (prev_cache)
     link= prev_cache->get_curr_rec_link();
   write_record_data(link, &is_full);
-  return is_full;
+  return (is_full);
 }
   
 
@@ -1674,7 +1670,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   {
     /* Find all records from join_tab that match records from join buffer */
     rc= join_matching_records(skip_last);   
-    if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+    if (rc != NESTED_LOOP_OK)
       goto finish;
     if (outer_join_first_inner)
     {
@@ -1688,7 +1684,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
           found for the records from join buffer.
 	*/ 
         rc= next_cache->join_records(skip_last);
-        if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+        if (rc != NESTED_LOOP_OK)
           goto finish;
       }
       join_tab->not_null_compl= FALSE;
@@ -1707,9 +1703,9 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       Generate all null complementing extensions for the records from
       join buffer that don't have any matching rows from the inner tables.
     */
-    reset(FALSE);
+    reset_cache(false);
     rc= join_null_complements(skip_last);   
-    if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+    if (rc != NESTED_LOOP_OK)
       goto finish;
   }
   if(next_cache)
@@ -1721,7 +1717,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
       already erased from the join buffer and replaced for new records. 
     */ 
     rc= next_cache->join_records(skip_last);
-    if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+    if (rc != NESTED_LOOP_OK)
       goto finish;
   }
 
@@ -1765,7 +1761,7 @@ finish:
     table->status= status;
   }
   restore_last_record();
-  reset(true);
+  reset_cache(true);
   DBUG_RETURN(rc);
 }
 
@@ -1819,7 +1815,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
     join buffer in order to be restored just before the sub_select call.
   */             
   if (skip_last)     
-    put_record();     
+    put_record_in_cache();     
  
   if (join_tab->use_quick == QS_DYNAMIC_RANGE && join_tab->select->quick)
     /* A dynamic range access was used last. Clean up after it */
@@ -1827,7 +1823,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
   /* Start retrieving all records of the joined table */
   if ((error= (*join_tab->read_first_record)(join_tab))) 
-    return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
+    return error < 0 ? NESTED_LOOP_OK : NESTED_LOOP_ERROR;
 
   info= &join_tab->read_record;
   do
@@ -1857,7 +1853,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       if (consider_record)
       {
         /* Prepare to read records from the join buffer */
-        reset(FALSE);
+        reset_cache(false);
 
         /* Read each record from the join buffer and look for matches */
         for (cnt= records - test(skip_last) ; cnt; cnt--)
@@ -1870,7 +1866,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
           {
             get_record();
             rc= generate_full_extensions(get_curr_rec());
-            if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+            if (rc != NESTED_LOOP_OK)
               return rc;
           }
         }
@@ -1911,7 +1907,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 bool JOIN_CACHE::set_match_flag_if_none(JOIN_TAB *first_inner,
                                         uchar *rec_ptr)
 {
-  if (!first_inner->cache)
+  if (!first_inner->op)
   {
     /* 
       Records of the first inner table to which the flag is attached to
@@ -1975,9 +1971,9 @@ enum_nested_loop_state JOIN_CACHE::generate_full_extensions(uchar *rec_ptr)
     {
       set_curr_rec_link(rec_ptr);
       rc= (join_tab->next_select)(join, join_tab+1, 0);
-      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+      if (rc != NESTED_LOOP_OK)
       {
-        reset(TRUE);
+        reset_cache(true);
         return rc;
       }
     }
@@ -2127,7 +2123,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       restore_record(join_tab->table, s->default_values);
       mark_as_null_row(join_tab->table);  
       rc= generate_full_extensions(get_curr_rec());
-      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+      if (rc != NESTED_LOOP_OK)
         goto finish;
     }
   }
@@ -2163,7 +2159,7 @@ range_seq_t bka_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
   DBUG_ENTER("bka_range_seq_init");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) init_param;
-  cache->reset(0);
+  cache->reset_cache(false);
   DBUG_RETURN((range_seq_t) init_param);
 }
 
@@ -2297,13 +2293,14 @@ bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
 
 enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
 {
-  int error;
-  handler *file= join_tab->table->file;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
-  uchar *rec_ptr= 0;
+  /* The value of skip_last must be always FALSE when this function is called */
+  DBUG_ASSERT(!skip_last);
+
+  /* Return at once if there are no records in the join buffer */
+  if (!records)
+    return NESTED_LOOP_OK;
 
   /* Set functions to iterate over keys in the join buffer */
-
   RANGE_SEQ_IF seq_funcs= { bka_range_seq_init, 
                             bka_range_seq_next,
                             check_only_first_match ?
@@ -2311,16 +2308,13 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
                             join_tab->cache_idx_cond ?
                               bka_skip_index_tuple : 0 };
 
-  /* The value of skip_last must be always FALSE when this function is called */
-  DBUG_ASSERT(!skip_last);
+  if (init_join_matching_records(&seq_funcs, records))
+    return NESTED_LOOP_ERROR;
 
-  /* Return at once if there are no records in the join buffer */
-  if (!records)
-    return NESTED_LOOP_OK;  
-
-  rc= init_join_matching_records(&seq_funcs, records);
-  if (rc != NESTED_LOOP_OK)
-    return rc;
+  int error;
+  handler *file= join_tab->table->file;
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
+  uchar *rec_ptr= NULL;
 
   while (!(error= file->multi_range_read_next((char **) &rec_ptr)))
   {
@@ -2342,7 +2336,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
     {
       get_record_by_pos(rec_ptr);
       rc= generate_full_extensions(rec_ptr);
-      if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+      if (rc != NESTED_LOOP_OK)
         return rc;
     }
   }
@@ -2378,21 +2372,18 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
     is passed through the parameter ranges.  
     
   RETURN
-    return one of enum_nested_loop_state
+    False if ok, True otherwise.
 */
 
-enum_nested_loop_state 
+bool
 JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
-  int error;
   handler *file= join_tab->table->file;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
 
   join_tab->table->null_row= 0;
 
-
   /* Dynamic range access is never used with BKA */
-  DBUG_ASSERT(join_tab->use_quick != 2);
+  DBUG_ASSERT(join_tab->use_quick != QS_DYNAMIC_RANGE);
 
   init_mrr_buff();
 
@@ -2400,14 +2391,10 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
     Prepare to iterate over keys from the join buffer and to get
     matching candidates obtained with MMR handler functions.
   */ 
-  if (!file->inited &&
-      (error= file->ha_index_init(join_tab->ref.key, 1)))
-    return NESTED_LOOP_ERROR;
-  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
-					  mrr_mode, &mrr_buff)))
-    rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
-  
-  return rc;
+  return (!file->inited &&
+          file->ha_index_init(join_tab->ref.key, 1)) ||
+    file->multi_range_read_init(seq_funcs, (void*) this, ranges,
+                                mrr_mode, &mrr_buff);
 }
 
 
@@ -2678,12 +2665,12 @@ int JOIN_CACHE_BKA_UNIQUE::init()
   Reset the JOIN_CACHE_BKA_UNIQUE  buffer for reading/writing
 
   SYNOPSIS
-    reset()
+    reset_cache()
       for_writing  if it's TRUE the function reset the buffer for writing
 
   DESCRIPTION
-    This implementation of the virtual function reset() resets the join buffer
-    of the JOIN_CACHE_BKA_UNIQUE class for reading or writing.
+    This implementation of the virtual function reset_cache() resets the join
+    buffer of the JOIN_CACHE_BKA_UNIQUE class for reading or writing.
     Additionally to what the default implementation does this function
     cleans up the hash table allocated within the buffer.  
     
@@ -2691,9 +2678,9 @@ int JOIN_CACHE_BKA_UNIQUE::init()
     none
 */
  
-void JOIN_CACHE_BKA_UNIQUE::reset(bool for_writing)
+void JOIN_CACHE_BKA_UNIQUE::reset_cache(bool for_writing)
 {
-  this->JOIN_CACHE::reset(for_writing);
+  this->JOIN_CACHE::reset_cache(for_writing);
   if (for_writing && hash_table)
     cleanup_hash_table();
   curr_key_entry= hash_table;
@@ -2725,7 +2712,8 @@ void JOIN_CACHE_BKA_UNIQUE::reset(bool for_writing)
     FALSE   otherwise
 */
 
-bool JOIN_CACHE_BKA_UNIQUE::put_record()
+bool
+JOIN_CACHE_BKA_UNIQUE::put_record_in_cache()
 {
   uchar *key;
   uint key_len= key_length;
@@ -2735,7 +2723,7 @@ bool JOIN_CACHE_BKA_UNIQUE::put_record()
   pos+= get_size_of_rec_offset();
 
   // Write record to join buffer
-  bool is_full= JOIN_CACHE::put_record();
+  bool is_full= JOIN_CACHE::put_record_in_cache();
 
   if (use_emb_key)
   {
@@ -2807,7 +2795,7 @@ bool JOIN_CACHE_BKA_UNIQUE::put_record()
     last_key_entry= cp;
     /* Increment the counter of key_entries in the hash table */ 
     key_entries++;
-  }  
+  }
   return is_full;
 }
 
@@ -2996,7 +2984,7 @@ range_seq_t bka_unique_range_seq_init(void *init_param, uint n_ranges,
 {
   DBUG_ENTER("bka_unique_range_seq_init");
   JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) init_param;
-  cache->reset(0);
+  cache->reset_cache(false);
   DBUG_RETURN((range_seq_t) init_param);
 }
 
@@ -3199,12 +3187,14 @@ bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
 enum_nested_loop_state 
 JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
 {
-  int error;
-  uchar *key_chain_ptr;
-  handler *file= join_tab->table->file;
-  enum_nested_loop_state rc= NESTED_LOOP_OK;
-  bool no_association= test(mrr_mode &  HA_MRR_NO_ASSOCIATION);
+  /* The value of skip_last must be always FALSE when this function is called */
+  DBUG_ASSERT(!skip_last);
 
+  /* Return at once if there are no records in the join buffer */
+  if (!records)
+    return NESTED_LOOP_OK;
+
+  const bool no_association= mrr_mode & HA_MRR_NO_ASSOCIATION;
   /* Set functions to iterate over keys in the join buffer */
   RANGE_SEQ_IF seq_funcs= { bka_unique_range_seq_init,
                             bka_unique_range_seq_next,
@@ -3213,16 +3203,13 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
                             join_tab->cache_idx_cond ?
                               bka_unique_skip_index_tuple : 0  };
 
-  /* The value of skip_last must be always FALSE when this function is called */
-  DBUG_ASSERT(!skip_last);
+  if (init_join_matching_records(&seq_funcs, key_entries))
+    return NESTED_LOOP_ERROR;
 
-  /* Return at once if there are no records in the join buffer */
-  if (!records)
-    return NESTED_LOOP_OK;  
-                   
-  rc= init_join_matching_records(&seq_funcs, key_entries);
-  if (rc != NESTED_LOOP_OK)
-    return rc;
+  int error;
+  uchar *key_chain_ptr;
+  handler *file= join_tab->table->file;
+  enum_nested_loop_state rc= NESTED_LOOP_OK;
 
   while (!(error= file->multi_range_read_next((char **) &key_chain_ptr)))
   {
@@ -3269,7 +3256,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
       {
         get_record_by_pos(rec_ptr);
         rc= generate_full_extensions(rec_ptr);
-        if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+        if (rc != NESTED_LOOP_OK)
           return rc;
       }
     }

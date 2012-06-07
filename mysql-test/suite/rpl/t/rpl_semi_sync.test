@@ -8,25 +8,24 @@ source include/master-slave.inc;
 source include/not_gtid_enabled.inc;
 
 let $engine_type= InnoDB;
-#let $engine_type= MyISAM;
 
 # Suppress warnings that might be generated during the test
-disable_query_log;
 connection master;
+disable_query_log;
 call mtr.add_suppression("Timeout waiting for reply of binlog");
 call mtr.add_suppression("Read semi-sync reply");
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.");
 call mtr.add_suppression("Semi-sync master failed on net_flush() before waiting for slave reply");
-connection slave;
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 enable_query_log;
-connection master;
+sync_slave_with_master;
 
 # After fix of BUG#45848, semi-sync slave should not create any extra
 # connections on master, save the count of connections before start
 # semi-sync slave for comparison below.
+connection master;
 let $_connections_normal_slave= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
 
 --echo #
@@ -65,7 +64,7 @@ if ($value == No such row)
 {
   disable_query_log;
   eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
-  set global rpl_semi_sync_master_timeout= 5000 /* 5s */;
+  set global rpl_semi_sync_master_timeout= 10000 /* 10s */;
   enable_query_log;
 }
 
@@ -170,7 +169,7 @@ replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
 replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
 eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
-let $i=300;
+let $i=50;
 echo [ insert records to table ];
 disable_query_log;
 while ($i)
@@ -179,6 +178,11 @@ while ($i)
   dec $i;
 }
 enable_query_log;
+
+# Wait for acks from slave to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_yes_tx;
+let $status_var_value= 51;
+source include/wait_for_status_var.inc;
 
 echo [ master status after inserts ];
 show status like 'Rpl_semi_sync_master_status';
@@ -260,7 +264,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 
 # Semi-sync status on master is now OFF, so all these transactions
 # will be replicated asynchronously.
-let $i=300;
+let $i=50;
 disable_query_log;
 while ($i)
 {
@@ -301,7 +305,12 @@ select max(a) from t1;
 connection master;
 echo [ on master ];
 
-# The master semi-sync status should be on again after slave catches up.
+# Wait until master semi-sync status is on again after slave catches up
+# to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_status;
+let $status_var_value= ON;
+source include/wait_for_status_var.inc;
+
 echo [ master status should be ON again after slave catches up ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
@@ -428,6 +437,12 @@ select * from t1;
 connection master;
 echo [ on master ];
 
+# Wait until master semi-sync status is on again after slave catches up
+# to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_status;
+let $status_var_value= ON;
+source include/wait_for_status_var.inc;
+
 echo [ master semi-sync status should be ON ];
 show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
@@ -480,6 +495,12 @@ show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 insert into t1 values (4);
 insert into t1 values (5);
+
+# Wait for acks from slave to avoid test failures on slow platforms.
+let $status_var= Rpl_semi_sync_master_yes_tx;
+let $status_var_value= 2;
+source include/wait_for_status_var.inc;
+
 echo [ master semi-sync should be ON ];
 show status like 'Rpl_semi_sync_master_clients';
 show status like 'Rpl_semi_sync_master_status';
@@ -491,7 +512,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 --echo #
 
 # Disable semi-sync on master
-connection slave;
+sync_slave_with_master;
 echo [ on slave ];
 source include/stop_slave.inc;
 SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
@@ -563,7 +584,7 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 connection master;
 replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN;
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
-set global rpl_semi_sync_master_timeout= 5000; /* 5s */
+set global rpl_semi_sync_master_timeout= 10000; /* 10s */
 set global rpl_semi_sync_master_enabled= 1;
 
 connection slave;

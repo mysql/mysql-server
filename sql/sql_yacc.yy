@@ -1179,6 +1179,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
 %token  EXPANSION_SYM
+%token  EXPIRE_SYM
 %token  EXPORT_SYM
 %token  EXTENDED_SYM
 %token  EXTENT_SIZE_SYM
@@ -1523,7 +1524,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
+%token  STATS_AUTO_RECALC_SYM
 %token  STATS_PERSISTENT_SYM
+%token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
@@ -1852,6 +1855,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         part_column_list
         server_def server_options_list server_option
         definer_opt no_definer definer get_diagnostics
+        alter_user_list
 END_OF_INPUT
 
 %type <NONE> call sp_proc_stmts sp_proc_stmts1 sp_proc_stmt
@@ -3892,7 +3896,7 @@ sp_proc_stmt_leave:
             if (n)
             {
               sp_instr_hpop *hpop=
-                new (thd->mem_root) sp_instr_hpop(ip++, pctx, n);
+                new (thd->mem_root) sp_instr_hpop(ip++, pctx);
 
               if (!hpop || sp->add_instr(thd, hpop))
                 MYSQL_YYABORT;
@@ -3942,7 +3946,7 @@ sp_proc_stmt_iterate:
             if (n)
             {
               sp_instr_hpop *hpop=
-                new (thd->mem_root) sp_instr_hpop(ip++, pctx, n);
+                new (thd->mem_root) sp_instr_hpop(ip++, pctx);
 
               if (!hpop || sp->add_instr(thd, hpop))
                 MYSQL_YYABORT;
@@ -4514,8 +4518,7 @@ sp_block_content:
             if ($3.hndlrs)
             {
               sp_instr *i=
-                new (thd->mem_root)
-                  sp_instr_hpop(sp->instructions(), pctx, $3.hndlrs);
+                new (thd->mem_root) sp_instr_hpop(sp->instructions(), pctx);
 
               if (!i || sp->add_instr(thd, i))
                 MYSQL_YYABORT;
@@ -5950,6 +5953,26 @@ create_table_option:
               ~(HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS);
             Lex->create_info.used_fields|= HA_CREATE_USED_PACK_KEYS;
           }
+        | STATS_AUTO_RECALC_SYM opt_equal ulong_num
+          {
+            switch($3) {
+            case 0:
+                Lex->create_info.stats_auto_recalc= HA_STATS_AUTO_RECALC_OFF;
+                break;
+            case 1:
+                Lex->create_info.stats_auto_recalc= HA_STATS_AUTO_RECALC_ON;
+                break;
+            default:
+                my_parse_error(ER(ER_SYNTAX_ERROR));
+                MYSQL_YYABORT;
+            }
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
+          }
+        | STATS_AUTO_RECALC_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.stats_auto_recalc= HA_STATS_AUTO_RECALC_DEFAULT;
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_AUTO_RECALC;
+          }
         | STATS_PERSISTENT_SYM opt_equal ulong_num
           {
             switch($3) {
@@ -5970,6 +5993,29 @@ create_table_option:
             Lex->create_info.table_options&=
               ~(HA_OPTION_STATS_PERSISTENT | HA_OPTION_NO_STATS_PERSISTENT);
             Lex->create_info.used_fields|= HA_CREATE_USED_STATS_PERSISTENT;
+          }
+        | STATS_SAMPLE_PAGES_SYM opt_equal ulong_num
+          {
+            /* From user point of view STATS_SAMPLE_PAGES can be specified as
+            STATS_SAMPLE_PAGES=N (where 0<N<=65535, it does not make sense to
+            scan 0 pages) or STATS_SAMPLE_PAGES=default. Internally we record
+            =default as 0. See create_frm() in sql/table.cc, we use only two
+            bytes for stats_sample_pages and this is why we do not allow
+            larger values. 65535 pages, 16kb each means to sample 1GB, which
+            is impractical. If at some point this needs to be extended, then
+            we can store the higher bits from stats_sample_pages in .frm too. */
+            if ($3 == 0 || $3 > 0xffff)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            Lex->create_info.stats_sample_pages=$3;
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_SAMPLE_PAGES;
+          }
+        | STATS_SAMPLE_PAGES_SYM opt_equal DEFAULT
+          {
+            Lex->create_info.stats_sample_pages=0;
+            Lex->create_info.used_fields|= HA_CREATE_USED_STATS_SAMPLE_PAGES;
           }
         | CHECKSUM_SYM opt_equal ulong_num
           {
@@ -6213,7 +6259,8 @@ key_def:
           {
             LEX *lex=Lex;
             Key *key= new Foreign_key($4.str ? $4 : $1, lex->col_list,
-                                      $8,
+                                      $8->db,
+                                      $8->table,
                                       lex->ref_list,
                                       lex->fk_delete_opt,
                                       lex->fk_update_opt,
@@ -6343,7 +6390,23 @@ type:
             $$= MYSQL_TYPE_VARCHAR;
           }
         | YEAR_SYM opt_field_length field_options
-          { $$=MYSQL_TYPE_YEAR; }
+          {
+            if (Lex->length)
+            {
+              errno= 0;
+              ulonglong length= strtoul(Lex->length, NULL, 10);
+              if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
+              {
+                /* Reset unsupported positive column width to default value */
+                Lex->length= NULL;
+                push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                    ER_INVALID_YEAR_COLUMN_LENGTH,
+                                    ER(ER_INVALID_YEAR_COLUMN_LENGTH),
+                                    length);
+              }
+            }
+            $$=MYSQL_TYPE_YEAR;
+          }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
         | TIME_SYM type_datetime_precision
@@ -7339,6 +7402,23 @@ alter:
             lex->sql_command= SQLCOM_ALTER_SERVER;
             lex->server_options.server_name= $3.str;
             lex->server_options.server_name_length= $3.length;
+          }
+        | ALTER USER clear_privileges alter_user_list
+          {
+            Lex->sql_command= SQLCOM_ALTER_USER;
+          }
+        ;
+
+alter_user_list:
+        user PASSWORD EXPIRE_SYM
+        {
+            if (Lex->users_list.push_back($1))
+              MYSQL_YYABORT;
+        }
+        | alter_user_list ',' user PASSWORD EXPIRE_SYM
+          {
+            if (Lex->users_list.push_back($3))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -13953,6 +14033,7 @@ keyword_sp:
         | EVERY_SYM                {}
         | EXCHANGE_SYM             {}
         | EXPANSION_SYM            {}
+        | EXPIRE_SYM               {}
         | EXPORT_SYM               {}
         | EXTENDED_SYM             {}
         | EXTENT_SIZE_SYM          {}
@@ -14125,7 +14206,9 @@ keyword_sp:
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
         | STARTS_SYM               {}
+        | STATS_AUTO_RECALC_SYM    {}
         | STATS_PERSISTENT_SYM     {}
+        | STATS_SAMPLE_PAGES_SYM   {}
         | STATUS_SYM               {}
         | STORAGE_SYM              {}
         | STRING_SYM               {}
@@ -14530,19 +14613,26 @@ option_value_no_option_type:
 
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
+            lex->is_change_password= TRUE;
 
             if (sp)
               sp->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
           }
         | PASSWORD FOR_SYM user equal text_or_password
           {
-            set_var_password *var= new set_var_password($3,$5);
+            LEX_USER *user= $3;
+            LEX *lex= Lex;
+            set_var_password *var;
+
+            var= new set_var_password(user,$5);
             if (var == NULL)
               MYSQL_YYABORT;
-            Lex->var_list.push_back(var);
-            Lex->autocommit= TRUE;
-            if (Lex->sphead)
-              Lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+            lex->var_list.push_back(var);
+            lex->autocommit= TRUE;
+            if (lex->sphead)
+              lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+            if (!user->user.str)
+              lex->is_change_password= TRUE;
           }
         ;
 
@@ -15201,6 +15291,9 @@ grant_user:
             $$=$1; $1->password=$4;
             if (Lex->sql_command == SQLCOM_REVOKE)
               MYSQL_YYABORT;
+            String *password = new (YYTHD->mem_root) String((const char*)$4.str,
+                                    YYTHD->variables.character_set_client);
+            check_password_policy(password);
             if ($4.length)
             {
               if (YYTHD->variables.old_passwords)

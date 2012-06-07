@@ -18,7 +18,7 @@
 
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
-#include "sql_list.h"                           /* Sql_alloc */
+#include "sql_alloc.h"
 #include "mdl.h"
 #include "datadict.h"
 
@@ -46,11 +46,11 @@ class ACL_internal_schema_access;
 class ACL_internal_table_access;
 class Field;
 class Field_temporal_with_date_and_time;
+class Table_cache_element;
 
 /*
-  Used to identify NESTED_JOIN structures within a join (applicable only to
-  structures that have not been simplified away and embed more the one
-  element)
+  Used to identify NESTED_JOIN structures within a join (applicable to
+  structures representing outer joins that have not been simplified away).
 */
 typedef ulonglong nested_join_map;
 
@@ -335,6 +335,7 @@ public:
   uchar     *record_pointers;    /* If sorted in memory */
   ha_rows   found_records;      /* How many records in sort */
 
+  Filesort_info(): record_pointers(0) {};
   /** Sort filesort_buffer */
   void sort_buffer(Sort_param *param, uint count)
   { filesort_buffer.sort_buffer(param, count); }
@@ -503,8 +504,6 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db,
                                   const LEX_STRING *name);
 
 
-struct TABLE_share;
-
 extern ulong refresh_version;
 
 typedef struct st_table_field_type
@@ -595,14 +594,15 @@ struct TABLE_SHARE
   TYPELIB *intervals;			/* pointer to interval info */
   mysql_mutex_t LOCK_ha_data;           /* To protect access to ha_data */
   TABLE_SHARE *next, **prev;            /* Link to unused shares */
-
-  /*
-    Doubly-linked (back-linked) lists of used and unused TABLE objects
-    for this share.
+  /**
+    Array of table_cache_instances pointers to elements of table caches
+    respresenting this table in each of Table_cache instances.
+    Allocated along with the share itself in alloc_table_share().
+    Each element of the array is protected by Table_cache::m_lock in the
+    corresponding Table_cache. False sharing should not be a problem in
+    this case as elements of this array are supposed to be updated rarely.
   */
-  typedef I_P_List <TABLE, TABLE_share> TABLE_list;
-  TABLE_list used_tables;
-  TABLE_list free_tables;
+  Table_cache_element **cache_element;
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -640,7 +640,8 @@ struct TABLE_SHARE
   key_map keys_for_keyread;
   ha_rows min_rows, max_rows;		/* create information */
   ulong   avg_row_length;		/* create information */
-  ulong   version, mysql_version;
+  ulong   version;
+  ulong   mysql_version;		/* 0 if .frm is created before 5.0 */
   ulong   reclength;			/* Recordlength */
 
   plugin_ref db_plugin;			/* storage engine plugin */
@@ -654,6 +655,9 @@ struct TABLE_SHARE
 
   uint ref_count;                       /* How many TABLE objects uses this */
   uint key_block_size;			/* create key_block_size, if used */
+  uint stats_sample_pages;		/* number of pages to sample during
+					stats estimation, if used, otherwise 0. */
+  enum_stats_auto_recalc stats_auto_recalc; /* Automatic recalc of stats. */
   uint null_bytes, last_null_bit_pos;
   uint fields;				/* Number of fields */
   uint rec_buff_length;                 /* Size of table->record[] buffer */
@@ -896,6 +900,57 @@ struct TABLE_SHARE
 };
 
 
+/**
+   Class is used as a BLOB field value storage for
+   intermediate GROUP_CONCAT results. Used only for
+   GROUP_CONCAT with  DISTINCT or ORDER BY options.
+ */
+
+class Blob_mem_storage: public Sql_alloc
+{
+private:
+  MEM_ROOT storage;
+  /**
+    Sign that some values were cut
+    during saving into the storage.
+  */
+  bool truncated_value;
+public:
+  Blob_mem_storage() :truncated_value(false)
+  {
+    init_alloc_root(&storage, MAX_FIELD_VARCHARLENGTH, 0);
+  }
+  ~ Blob_mem_storage()
+  {
+    free_root(&storage, MYF(0));
+  }
+  void reset()
+  {
+    free_root(&storage, MYF(MY_MARK_BLOCKS_FREE));
+    truncated_value= false;
+  }
+  /**
+     Fuction creates duplicate of 'from'
+     string in 'storage' MEM_ROOT.
+
+     @param from           string to copy
+     @param length         string length
+
+     @retval Pointer to the copied string.
+     @retval 0 if an error occured.
+  */
+  char *store(const char *from, uint length)
+  {
+    return (char*) memdup_root(&storage, from, length);
+  }
+  void set_truncated_value(bool is_truncated_value)
+  {
+    truncated_value= is_truncated_value;
+  }
+  bool is_truncated_value() { return truncated_value; }
+};
+
+
 /* Information for one open table */
 enum index_hint_type
 {
@@ -922,13 +977,19 @@ struct TABLE
 
 private:
   /**
-     Links for the lists of used/unused TABLE objects for this share.
+     Links for the lists of used/unused TABLE objects for the particular
+     table in the specific instance of Table_cache (in other words for
+     specific Table_cache_element object).
      Declared as private to avoid direct manipulation with those objects.
      One should use methods of I_P_List template instead.
   */
-  TABLE *share_next, **share_prev;
+  TABLE *cache_next, **cache_prev;
 
-  friend struct TABLE_share;
+  /*
+    Give Table_cache_element access to the above two members to allow
+    using them for linking TABLE objects in a list.
+  */
+  friend class Table_cache_element;
 
   Field_temporal_with_date_and_time *timestamp_field;
 
@@ -1102,6 +1163,12 @@ public:
      reference to a TABLE object.
    */
   MEM_ROOT mem_root;
+  /**
+     Initialized in Item_func_group_concat::setup for appropriate
+     temporary table if GROUP_CONCAT is used with ORDER BY | DISTINCT
+     and BLOB field count > 0.
+   */
+  Blob_mem_storage *blob_storage;
   GRANT_INFO grant;
   Filesort_info sort;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -1173,24 +1240,6 @@ public:
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
-};
-
-
-/**
-   Helper class which specifies which members of TABLE are used for
-   participation in the list of used/unused TABLE objects for the share.
-*/
-
-struct TABLE_share
-{
-  static inline TABLE **next_ptr(TABLE *l)
-  {
-    return &l->share_next;
-  }
-  static inline TABLE ***prev_ptr(TABLE *l)
-  {
-    return &l->share_prev;
-  }
 };
 
 
@@ -1478,7 +1527,6 @@ public:
     nest's children).
   */
   table_map     sj_inner_tables;
-  Item_exists_subselect  *sj_subq_pred;
   Semijoin_mat_exec *sj_mat_exec;
 
   COND_EQUAL    *cond_equal;            /* Used with outer join */
@@ -2074,6 +2122,14 @@ struct Semijoin_mat_optimize
   Cost_estimate scan_cost;
 };
 
+/**
+  Struct st_nested_join is used to represent how tables are connected through
+  outer join operations and semi-join operations to form a query block.
+  Out of the parser, inner joins are also represented by st_nested_join
+  structs, but these are later flattened out by simplify_joins().
+  Some outer join nests are also flattened, when it can be determined that
+  they can be processed as inner joins instead of outer joins.
+*/
 typedef struct st_nested_join
 {
   List<TABLE_LIST>  join_list;       /* list of elements in the nested join */
@@ -2084,15 +2140,26 @@ typedef struct st_nested_join
     join nest. It is used exclusively within make_outerjoin_info().
    */
   struct st_join_table *first_nested;
-  /* 
+  /**
+    Number of tables and outer join nests administered by this nested join
+    object for the sake of cost analysis. Includes direct member tables as
+    well as tables included through semi-join nests, but notice that semi-join
+    nests themselves are not counted.
+  */
+  uint              nj_total;
+  /**
     Used to count tables in the nested join in 2 isolated places:
     1. In make_outerjoin_info(). 
-    2. check_interleaving_with_nj/restore_prev_nj_state (these are called
+    2. check_interleaving_with_nj/backout_nj_state (these are called
        by the join optimizer. 
     Before each use the counters are zeroed by reset_nj_counters.
   */
-  uint              counter_;
-  nested_join_map   nj_map;          /* Bit used to identify this nested join*/
+  uint              nj_counter;
+  /**
+    Bit identifying this nested join. Only nested joins representing the
+    outer join structure need this, other nests have bit set to zero.
+  */
+  nested_join_map   nj_map;
   /*
     Tables outside the semi-join that are used within the semi-join's
     ON condition (ie. the subquery WHERE clause and optional IN equalities).
@@ -2106,15 +2173,6 @@ typedef struct st_nested_join
   */
   List<Item>        sj_outer_exprs, sj_inner_exprs;
   Semijoin_mat_optimize sjm;
-  /**
-     True if this join nest node is completely covered by the query execution
-     plan. This means two things.
-
-     1. All tables on its @c join_list are covered by the plan.
-
-     2. All child join nest nodes are fully covered.
-   */
-  bool is_fully_covered() const { return join_list.elements == counter_; }
 } NESTED_JOIN;
 
 

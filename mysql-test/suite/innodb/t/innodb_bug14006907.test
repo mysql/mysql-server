@@ -24,7 +24,7 @@ connect (con1,localhost,root,,);
 connection con1;
 
 SET DEBUG_SYNC = 'now WAIT_FOR drop';
---error ER_CANT_CREATE_TABLE
+--error ER_CANNOT_ADD_FOREIGN
 CREATE TABLE t2 (
  c2 INT PRIMARY KEY,
  CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
@@ -36,7 +36,7 @@ connection default;
 
 reap;
 
---error ER_CANT_CREATE_TABLE
+--error ER_CANNOT_ADD_FOREIGN 
 CREATE TABLE t2 (
  c2 INT PRIMARY KEY,
  CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))

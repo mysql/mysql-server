@@ -2322,6 +2322,7 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
+  bool is_change_password;
 
 private:
   /// Current SP parsing context.

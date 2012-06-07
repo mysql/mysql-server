@@ -1179,6 +1179,13 @@ INSERT INTO t2 VALUES
  ('Kali Kali 2-6'), ('Kali Kali 2-6');
 INSERT INTO t2 SELECT * FROM t2;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
+
 SELECT a FROM t1 WHERE a LIKE 'Käli Käli 2+4';
 SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
 
@@ -1254,6 +1261,11 @@ DROP TABLE t1;
 eval create table t1(a char(200) collate utf8mb4_unicode_ci NOT NULL default '')
   default charset=utf8mb4 collate=utf8mb4_unicode_ci engine $engine;
 insert into t1 values (unhex('65')), (unhex('C3A9')), (unhex('65'));
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 explain select distinct a from t1;
 SELECT COUNT(*) FROM (SELECT DISTINCT a FROM t1) AS t2;
 explain select a from t1 group by a;
@@ -1266,6 +1278,11 @@ drop table t1;
 
 eval create table t1(a char(10)) default charset utf8mb4 engine $engine;
 insert into t1 values ('123'), ('456');
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 explain
   select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
 select substr(Z.a,-1), Z.a from t1 as Y join t1 as Z on Y.a=Z.a order by 1;
@@ -1284,6 +1301,11 @@ eval CREATE TABLE crashtest (crash char(10)) DEFAULT CHARSET=utf8mb4 ENGINE $eng
 INSERT INTO crashtest VALUES ('35'), ('36'), ('37');
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 INSERT INTO crashtest VALUES ('-1000');
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE crashtest;
+-- enable_result_log
+-- enable_query_log
 EXPLAIN SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 SELECT * FROM crashtest ORDER BY CHAR(crash USING utf8mb4);
 DROP TABLE crashtest;

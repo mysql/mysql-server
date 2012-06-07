@@ -214,7 +214,7 @@ trx_rollback_for_mysql(
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_PREPARED:
-		assert_trx_in_rw_list(trx);
+		ut_ad(!trx_is_autocommit_non_locking(trx));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:

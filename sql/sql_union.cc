@@ -795,26 +795,11 @@ bool st_select_lex_unit::cleanup()
   }
   cleaned= true;
 
-  if (union_result)
-  {
-    delete union_result;
-    union_result=0; // Safety
-    if (table)
-      free_tmp_table(thd, table);
-    table= 0; // Safety
-  }
-
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     error|= sl->cleanup();
 
   if (fake_select_lex)
   {
-    JOIN *join;
-    if ((join= fake_select_lex->join))
-    {
-      join->tables_list= 0;
-      join->tables= 0;
-    }
     error|= fake_select_lex->cleanup();
     /*
       There are two cases when we should clean order items:
@@ -834,6 +819,15 @@ bool st_select_lex_unit::cleanup()
       for (ord= global_parameters->order_list.first; ord; ord= ord->next)
         (*ord->item)->walk (&Item::cleanup_processor, 0, 0);
     }
+  }
+
+  if (union_result)
+  {
+    delete union_result;
+    union_result=0; // Safety
+    if (table)
+      free_tmp_table(thd, table);
+    table= 0; // Safety
   }
 
   explain_marker= CTX_NONE;

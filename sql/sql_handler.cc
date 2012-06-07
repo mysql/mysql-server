@@ -134,7 +134,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
     tables->table->open_by_handler= 0;
-    (void) close_thread_table(thd, &tables->table);
+    close_thread_table(thd, &tables->table);
     thd->mdl_context.release_lock(tables->mdl_request.ticket);
   }
   else if (tables->table)

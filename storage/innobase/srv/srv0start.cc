@@ -71,6 +71,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "buf0rea.h"
 # include "dict0boot.h"
 # include "dict0load.h"
+# include "dict0stats_background.h" /* dict_stats_thread*(), dict_stats_event */
 # include "que0que.h"
 # include "usr0sess.h"
 # include "lock0lock.h"
@@ -1941,6 +1942,10 @@ innobase_start_or_create_for_mysql(void)
 		return(err);
 	}
 
+	/* Initialize objects used by dict stats gathering thread, which
+	can also be used by recovery if it tries to drop some table */
+	dict_stats_thread_init();
+
 	if (log_created && !create_new_db
 #ifdef UNIV_LOG_ARCHIVE
 	    && !srv_archive_recovery
@@ -2430,6 +2435,9 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the buffer pool dump/load thread */
 	os_thread_create(buf_dump_thread, NULL, NULL);
 
+	/* Create the dict stats gathering thread */
+	os_thread_create(dict_stats_thread, NULL, NULL);
+
 	srv_was_started = TRUE;
 
 	/* Create the thread that will optimize the FTS sub-system
@@ -2538,6 +2546,10 @@ innobase_shutdown_for_mysql(void)
 
 		os_aio_wake_all_threads_at_shutdown();
 
+		/* f. dict_stats_thread is signaled from
+		logs_empty_and_mark_files_at_shutdown() and should have
+		already quit or is quitting right now. */
+
 		os_mutex_enter(os_sync_mutex);
 
 		if (os_thread_count == 0) {
@@ -2585,6 +2597,8 @@ innobase_shutdown_for_mysql(void)
 		fclose(srv_misc_tmpfile);
 		srv_misc_tmpfile = 0;
 	}
+
+	dict_stats_thread_deinit();
 
 	/* This must be disabled before closing the buffer pool
 	and closing the data dictionary.  */

@@ -1,6 +1,12 @@
 # This file is a collection of regression and coverage tests
 # for WL#4897: Add EXPLAIN INSERT/UPDATE/DELETE.
 
+-- disable_query_log
+-- disable_result_log
+SET GLOBAL innodb_stats_persistent=0;
+-- enable_result_log
+-- enable_query_log
+
 set end_markers_in_json=on;
 
 --echo #1
@@ -813,3 +819,9 @@ while($i) {
 DROP TABLE t1, t2;
 
 --echo #
+
+-- disable_query_log
+-- disable_result_log
+SET GLOBAL innodb_stats_persistent=default;
+-- enable_result_log
+-- enable_query_log

@@ -3263,7 +3263,7 @@ fil_open_single_table_tablespace(
 				REFMAN "innodb-troubleshooting-datadict.html "
 				"for how to resolve the issue.\n",
 				(ulong) space_id, (ulong) space_flags,
-				(ulong) id, (ulong) flags, table->name);
+				(ulong) id, (ulong) flags, name);
 
 			err = DB_CORRUPTION;
 		}
@@ -5142,7 +5142,9 @@ fil_iterate(
 		/* We have to read the exact number of bytes. Otherwise the
 		InnoDB IO functions croak on failed reads. */
 
-		n_bytes = ut_min(n_bytes, iter.end - offset);
+		n_bytes = static_cast<ulint>(
+			ut_min(static_cast<os_offset_t>(n_bytes),
+			       iter.end - offset));
 
 		ut_ad(n_bytes > 0);
 		ut_ad(!(n_bytes % iter.page_size));

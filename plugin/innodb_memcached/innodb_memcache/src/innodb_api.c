@@ -46,6 +46,7 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_update_row,
 	(ib_cb_t*) &ib_cb_moveto,
 	(ib_cb_t*) &ib_cb_cursor_first,
+	(ib_cb_t*) &ib_cb_cursor_next,
 	(ib_cb_t*) &ib_cb_cursor_last,
 	(ib_cb_t*) &ib_cb_cursor_set_match_mode,
 	(ib_cb_t*) &ib_cb_search_tuple_create,
@@ -85,7 +86,8 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_cfg_trx_level,
 	(ib_cb_t*) &ib_cb_get_n_user_cols,
 	(ib_cb_t*) &ib_cb_cursor_set_lock,
-	(ib_cb_t*) &ib_cb_cursor_clear_trx
+	(ib_cb_t*) &ib_cb_cursor_clear_trx,
+	(ib_cb_t*) &ib_cb_get_idx_field_name
 };
 
 /** Set expiration time. If the exp sent by client is larger than
@@ -163,7 +165,7 @@ innodb_api_begin(
 		}
 
 		if (engine) {
-			meta_cfg_info_t* meta_info = &engine->meta_info;
+			meta_cfg_info_t* meta_info = conn_data->conn_meta;
 			meta_index_t*	meta_index = &meta_info->index_info;
 
 			if (!engine->enable_mdl) {
@@ -219,7 +221,7 @@ innodb_api_begin(
 		}
 
 		if (engine) {
-			meta_cfg_info_t* meta_info = &engine->meta_info;
+			meta_cfg_info_t* meta_info = conn_data->conn_meta;
 			meta_index_t*	meta_index = &meta_info->index_info;
 
 			/* set up secondary index cursor */
@@ -481,7 +483,6 @@ Position a row according to the search key, and fetch value if needed
 ib_err_t
 innodb_api_search(
 /*==============*/
-	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
 	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	ib_crsr_t*		crsr,	/*!< in/out: cursor used to search */
 	const char*		key,	/*!< in: key to search */
@@ -492,7 +493,7 @@ innodb_api_search(
 	bool			sel_only) /*!< in: for select only */
 {
 	ib_err_t	err = DB_SUCCESS;
-	meta_cfg_info_t* meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 	meta_column_t*	col_info = meta_info->col_info;
 	meta_index_t*	meta_index = &meta_info->index_info;
 	ib_tpl_t	key_tpl;
@@ -643,8 +644,7 @@ innodb_api_search(
 				item->col_value[MCI_COL_EXP].is_valid = true;
 			} else {
 				innodb_api_fill_value(meta_info, item,
-						      read_tpl, i,
-						      sel_only);
+						      read_tpl, i, sel_only);
 			}
 		}
 
@@ -720,7 +720,8 @@ innodb_api_set_multi_cols(
 	char*		col_val;
 	char*		end;
 	int		i = 0;
-	char*		sep = meta_info->separator;
+	char*		sep;
+	size_t		sep_len;
 	char*		my_value;
 
 	if (!value_len) {
@@ -738,6 +739,10 @@ innodb_api_set_multi_cols(
 	my_value[value_len] = 0;
 	value = my_value;
 	end = value + value_len;
+
+	/* Get the default setting if user did not config it */
+	GET_OPTION(meta_info, OPTION_ID_COL_SEP, sep, sep_len);
+	assert(sep_len > 0);
 
 	if (value[0] == *sep) {
 		err = ib_cb_col_set_value(
@@ -944,7 +949,7 @@ innodb_api_insert(
 	uint64_t	new_cas;
 	ib_err_t	err = DB_ERROR;
 	ib_tpl_t	tpl = NULL;
-	meta_cfg_info_t* meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 	meta_column_t*	col_info = meta_info->col_info;
 
 	new_cas = mci_get_cas(engine);
@@ -1005,7 +1010,7 @@ innodb_api_update(
 {
 	uint64_t	new_cas;
 	ib_tpl_t	new_tpl;
-	meta_cfg_info_t* meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 	meta_column_t*	col_info = meta_info->col_info;
 	ib_err_t	err = DB_SUCCESS;
 
@@ -1071,7 +1076,7 @@ innodb_api_delete(
 	mci_item_t	result;
 
 	/* First look for the record, and check whether it exists */
-	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
+	err = innodb_api_search(cursor_data, &srch_crsr, key, len,
 				&result, NULL, false);
 
 	if (err != DB_SUCCESS) {
@@ -1082,7 +1087,7 @@ innodb_api_delete(
 	when returning from innodb_api_search(), so store the delete row info
 	before calling ib_cb_delete_row() */
 	if (engine->enable_binlog) {
-		meta_cfg_info_t* meta_info = &engine->meta_info;
+		meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 		meta_column_t*	col_info = meta_info->col_info;
 
 		if (!cursor_data->mysql_tbl) {
@@ -1146,7 +1151,7 @@ innodb_api_link(
 	int		total_len;
 	ib_tpl_t	new_tpl;
 	uint64_t	new_cas;
-	meta_cfg_info_t* meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 	meta_column_t*	col_info = meta_info->col_info;
 	char*		before_val;
 	int		column_used;
@@ -1256,7 +1261,7 @@ innodb_api_arithmetic(
 	uint64_t	value = 0;
 	bool		create_new = false;
 	char*		end_ptr;
-	meta_cfg_info_t* meta_info = &engine->meta_info;
+	meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 	meta_column_t*	col_info = meta_info->col_info;
 	ib_crsr_t       srch_crsr = cursor_data->crsr;
 	char*		before_val;
@@ -1264,7 +1269,7 @@ innodb_api_arithmetic(
 	int		column_used = 0;
 	ENGINE_ERROR_CODE ret = ENGINE_SUCCESS;
 
-	err = innodb_api_search(engine, cursor_data, &srch_crsr, key, len,
+	err = innodb_api_search(cursor_data, &srch_crsr, key, len,
 				&result, &old_tpl, false);
 
 	/* If the return message is not success or record not found, just
@@ -1448,7 +1453,7 @@ innodb_api_store(
 	ib_crsr_t	srch_crsr = cursor_data->crsr;
 
 	/* First check whether record with the key value exists */
-	err = innodb_api_search(engine, cursor_data, &srch_crsr,
+	err = innodb_api_search(cursor_data, &srch_crsr,
 				key, len, &result, &old_tpl, false);
 
 	/* If the return message is not success or record not found, just
@@ -1458,7 +1463,7 @@ innodb_api_store(
 	}
 
 	if (engine->enable_binlog && !cursor_data->mysql_tbl) {
-		meta_cfg_info_t*	meta_info = &engine->meta_info;
+		meta_cfg_info_t*	meta_info = cursor_data->conn_meta;
 
 		cursor_data->mysql_tbl = handler_open_table(
 			cursor_data->thd,
@@ -1629,7 +1634,7 @@ innodb_api_cursor_reset(
 
 		if (conn_data->crsr_trx) {
 			ib_crsr_t	ib_crsr;
-			meta_cfg_info_t* meta_info = &engine->meta_info;
+			meta_cfg_info_t* meta_info = conn_data->conn_meta;
                         meta_index_t*	meta_index = &meta_info->index_info;
 
 			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,

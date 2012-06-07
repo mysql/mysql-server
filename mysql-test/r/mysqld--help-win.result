@@ -1,8 +1,12 @@
 The following options may be given as the first argument:
 --print-defaults Print the program argument list and exit.
---no-defaults Don't read default options from any option file.
+--no-defaults Don't read default options from any option file,
+ except for login file.
 --defaults-file=# Only read default options from the given file #.
 --defaults-extra-file=# Read this file after the global files are read.
+--defaults-group-suffix=#
+ Also read groups with concat(group, suffix)
+--login-path=# Read this path from the login file.
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
@@ -67,6 +71,16 @@ The following options may be given as the first argument:
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
+ --binlog-max-flush-queue-time=# 
+ The maximum time that the binary log group commit will
+ keep reading transactions before it flush the
+ transactions to the binary log (and optionally sync,
+ depending on the value of sync_binlog).
+ --binlog-order-commits 
+ Issue internal commit calls in the same order as
+ transactions are written to the binary log. Default is to
+ order commits.
+ (Defaults to on; use --skip-binlog-order-commits to disable.)
  --binlog-row-event-max-size=# 
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
@@ -484,8 +498,10 @@ The following options may be given as the first argument:
  Offset of first optimizer trace to show; see manual
  --performance-schema 
  Enable the performance schema.
+ (Defaults to on; use --skip-performance-schema to disable.)
  --performance-schema-accounts-size=# 
- Maximum number of instrumented user@host accounts.
+ Maximum number of instrumented user@host accounts. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-consumer-events-stages-current 
  Default startup value for the events_stages_current
  consumer.
@@ -526,64 +542,84 @@ The following options may be given as the first argument:
  consumer.
  (Defaults to on; use --skip-performance-schema-consumer-thread-instrumentation to disable.)
  --performance-schema-digests-size=# 
- Size of the statement digest.
+ Size of the statement digest. Use 0 to disable, -1 for
+ automated sizing.
  --performance-schema-events-stages-history-long-size=# 
- Number of rows in EVENTS_STAGES_HISTORY_LONG.
+ Number of rows in EVENTS_STAGES_HISTORY_LONG. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-events-stages-history-size=# 
- Number of rows per thread in EVENTS_STAGES_HISTORY.
+ Number of rows per thread in EVENTS_STAGES_HISTORY. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-events-statements-history-long-size=# 
- Number of rows in EVENTS_STATEMENTS_HISTORY_LONG.
+ Number of rows in EVENTS_STATEMENTS_HISTORY_LONG. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-events-statements-history-size=# 
  Number of rows per thread in EVENTS_STATEMENTS_HISTORY.
+ Use 0 to disable, -1 for automated sizing.
  --performance-schema-events-waits-history-long-size=# 
- Number of rows in EVENTS_WAITS_HISTORY_LONG.
+ Number of rows in EVENTS_WAITS_HISTORY_LONG. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-events-waits-history-size=# 
- Number of rows per thread in EVENTS_WAITS_HISTORY.
+ Number of rows per thread in EVENTS_WAITS_HISTORY. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-hosts-size=# 
- Maximum number of instrumented hosts.
+ Maximum number of instrumented hosts. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-instrument[=name] 
  Default startup value for a performance schema
  instrument.
  --performance-schema-max-cond-classes=# 
  Maximum number of condition instruments.
  --performance-schema-max-cond-instances=# 
- Maximum number of instrumented condition objects.
+ Maximum number of instrumented condition objects. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-max-file-classes=# 
  Maximum number of file instruments.
  --performance-schema-max-file-handles=# 
  Maximum number of opened instrumented files.
  --performance-schema-max-file-instances=# 
- Maximum number of instrumented files.
+ Maximum number of instrumented files. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-max-mutex-classes=# 
  Maximum number of mutex instruments.
  --performance-schema-max-mutex-instances=# 
- Maximum number of instrumented MUTEX objects.
+ Maximum number of instrumented MUTEX objects. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-rwlock-classes=# 
  Maximum number of rwlock instruments.
  --performance-schema-max-rwlock-instances=# 
- Maximum number of instrumented RWLOCK objects.
+ Maximum number of instrumented RWLOCK objects. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-socket-classes=# 
  Maximum number of socket instruments.
  --performance-schema-max-socket-instances=# 
- Maximum number of opened instrumented sockets.
+ Maximum number of opened instrumented sockets. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-stage-classes=# 
  Maximum number of stage instruments.
  --performance-schema-max-statement-classes=# 
  Maximum number of statement instruments.
  --performance-schema-max-table-handles=# 
- Maximum number of opened instrumented tables.
+ Maximum number of opened instrumented tables. Use 0 to
+ disable, -1 for automated sizing.
  --performance-schema-max-table-instances=# 
- Maximum number of instrumented tables.
+ Maximum number of instrumented tables. Use 0 to disable,
+ -1 for automated sizing.
  --performance-schema-max-thread-classes=# 
  Maximum number of thread instruments.
  --performance-schema-max-thread-instances=# 
- Maximum number of instrumented threads.
+ Maximum number of instrumented threads. Use 0 to disable,
+ -1 for automated sizing.
+ --performance-schema-session-connect-attrs-size=# 
+ Size of session attribute string buffer per thread. Use 0
+ to disable, -1 for automated sizing.
  --performance-schema-setup-actors-size=# 
  Maximum number of rows in SETUP_ACTORS.
  --performance-schema-setup-objects-size=# 
  Maximum number of rows in SETUP_OBJECTS.
  --performance-schema-users-size=# 
- Maximum number of instrumented users.
+ Maximum number of instrumented users. Use 0 to disable,
+ -1 for automated sizing.
  --pid-file=name     Pid file used by safe_mysqld
  --plugin-dir=name   Directory for plugins
  --plugin-load=name  Optional semicolon-separated list of plugins to load,
@@ -733,7 +769,6 @@ The following options may be given as the first argument:
  not sure, leave this option unset
  --report-user=name  The account user name of the slave to be reported to the
  master during slave registration
- --safe-mode         Skip some optimize stages (for testing).
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -853,7 +888,8 @@ The following options may be given as the first argument:
  -s, --symbolic-links 
  Enable symbolic link support.
  --sync-binlog=#     Synchronously flush binary log to disk after every #th
- event. Use 0 (default) to disable synchronous flushing
+ write to the file. Use 0 (default) to disable synchronous
+ flushing
  --sync-frm          Sync .frm files to disk on creation
  (Defaults to on; use --skip-sync-frm to disable.)
  --sync-master-info=# 
@@ -868,11 +904,13 @@ The following options may be given as the first argument:
  safe-replicable. Since 5.0, SYSDATE() returns a `dynamic'
  value different for different invocations, even within
  the same statement.
- --table-cache=#     Deprecated; use --table-open-cache instead.
  --table-definition-cache=# 
  The number of cached table definitions
  --table-open-cache=# 
- The number of cached open tables
+ The number of cached open tables (total for all table
+ cache instances)
+ --table-open-cache-instances=# 
+ The number of table cache instances
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are COMMIT or ROLLBACK.
@@ -929,6 +967,8 @@ binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
+binlog-max-flush-queue-time 0
+binlog-order-commits TRUE
 binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
@@ -1067,8 +1107,8 @@ optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,re
 optimizer-trace-limit 1
 optimizer-trace-max-mem-size 16384
 optimizer-trace-offset -1
-performance-schema FALSE
-performance-schema-accounts-size 100
+performance-schema TRUE
+performance-schema-accounts-size -1
 performance-schema-consumer-events-stages-current FALSE
 performance-schema-consumer-events-stages-history FALSE
 performance-schema-consumer-events-stages-history-long FALSE
@@ -1081,35 +1121,36 @@ performance-schema-consumer-events-waits-history-long FALSE
 performance-schema-consumer-global-instrumentation TRUE
 performance-schema-consumer-statements-digest TRUE
 performance-schema-consumer-thread-instrumentation TRUE
-performance-schema-digests-size 200
-performance-schema-events-stages-history-long-size 10000
-performance-schema-events-stages-history-size 10
-performance-schema-events-statements-history-long-size 10000
-performance-schema-events-statements-history-size 10
-performance-schema-events-waits-history-long-size 10000
-performance-schema-events-waits-history-size 10
-performance-schema-hosts-size 100
+performance-schema-digests-size -1
+performance-schema-events-stages-history-long-size -1
+performance-schema-events-stages-history-size -1
+performance-schema-events-statements-history-long-size -1
+performance-schema-events-statements-history-size -1
+performance-schema-events-waits-history-long-size -1
+performance-schema-events-waits-history-size -1
+performance-schema-hosts-size -1
 performance-schema-instrument 
 performance-schema-max-cond-classes 80
-performance-schema-max-cond-instances 1000
+performance-schema-max-cond-instances -1
 performance-schema-max-file-classes 50
 performance-schema-max-file-handles 32768
-performance-schema-max-file-instances 10000
+performance-schema-max-file-instances -1
 performance-schema-max-mutex-classes 200
-performance-schema-max-mutex-instances 1000000
+performance-schema-max-mutex-instances -1
 performance-schema-max-rwlock-classes 30
-performance-schema-max-rwlock-instances 1000000
+performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
-performance-schema-max-socket-instances 1000
+performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 168
-performance-schema-max-table-handles 10000
-performance-schema-max-table-instances 1000
+performance-schema-max-statement-classes 169
+performance-schema-max-table-handles -1
+performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
-performance-schema-max-thread-instances 1000
+performance-schema-max-thread-instances -1
+performance-schema-session-connect-attrs-size -1
 performance-schema-setup-actors-size 100
 performance-schema-setup-objects-size 100
-performance-schema-users-size 100
+performance-schema-users-size -1
 port 3306
 port-open-timeout 0
 preload-buffer-size 32768
@@ -1177,9 +1218,9 @@ sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
-table-cache 400
 table-definition-cache 400
 table-open-cache 400
+table-open-cache-instances 1
 tc-heuristic-recover COMMIT
 thread-cache-size 0
 thread-handling one-thread-per-connection

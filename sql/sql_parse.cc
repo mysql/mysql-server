@@ -99,6 +99,7 @@
 #include "sql_rewrite.h"
 #include "global_threads.h"
 #include "sql_analyse.h"
+#include "table_cache.h" // table_cache_manager
 
 #include <algorithm>
 using std::max;
@@ -293,8 +294,8 @@ void init_update_queries(void)
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));
 
-  server_command_flags[COM_STATISTICS]= CF_SKIP_QUERY_ID | CF_SKIP_QUESTIONS;
-  server_command_flags[COM_PING]=       CF_SKIP_QUERY_ID | CF_SKIP_QUESTIONS;
+  server_command_flags[COM_STATISTICS]= CF_SKIP_QUESTIONS;
+  server_command_flags[COM_PING]=       CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_PREPARE]= CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_CLOSE]=   CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_RESET]=   CF_SKIP_QUESTIONS;
@@ -442,6 +443,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_RENAME_USER]=       CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_USER]=         CF_CHANGES_DATA;
+  sql_command_flags[SQLCOM_ALTER_USER]=        CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_GRANT]=             CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE]=            CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_REVOKE_ALL]=        CF_CHANGES_DATA;
@@ -480,6 +482,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_USER]|=       CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=         CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=       CF_AUTO_COMMIT_TRANS;
+  sql_command_flags[SQLCOM_ALTER_USER]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE]|=            CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_REVOKE_ALL]|=        CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_GRANT]|=             CF_AUTO_COMMIT_TRANS;
@@ -570,6 +573,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_DROP_EVENT]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_USER]|=      CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_RENAME_USER]|=      CF_DISALLOW_IN_RO_TRANS;
+  sql_command_flags[SQLCOM_ALTER_USER]|=       CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_DROP_USER]|=        CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_CREATE_SERVER]|=    CF_DISALLOW_IN_RO_TRANS;
   sql_command_flags[SQLCOM_ALTER_SERVER]|=     CF_DISALLOW_IN_RO_TRANS;
@@ -667,10 +671,13 @@ void execute_init_command(THD *thd, LEX_STRING *init_command,
 #endif
 }
 
-static char *fgets_fn(char *buffer, size_t size, fgets_input_t input)
+static char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
 {
   MYSQL_FILE *in= static_cast<MYSQL_FILE*> (input);
-  return mysql_file_fgets(buffer, size, in);
+  char *line= mysql_file_fgets(buffer, size, in);
+  if (error)
+    *error= (line == NULL) ? ferror(in->m_file) : 0;
+  return line;
 }
 
 static void handle_bootstrap_impl(THD *thd)
@@ -680,6 +687,7 @@ static void handle_bootstrap_impl(THD *thd)
   char *query;
   int length;
   int rc;
+  int error= 0;
 
   DBUG_ENTER("handle_bootstrap");
 
@@ -699,22 +707,51 @@ static void handle_bootstrap_impl(THD *thd)
 
   thd->init_for_queries();
 
+  buffer[0]= '\0';
+
   for ( ; ; )
   {
-    rc= read_bootstrap_query(buffer, &length, file, fgets_fn);
+    rc= read_bootstrap_query(buffer, &length, file, fgets_fn, &error);
 
-    if (rc == READ_BOOTSTRAP_ERROR)
+    if (rc == READ_BOOTSTRAP_EOF)
+      break;
+    /*
+      Check for bootstrap file errors. SQL syntax errors will be
+      caught below.
+    */
+    if (rc != READ_BOOTSTRAP_SUCCESS)
     {
-      thd->raise_error(ER_SYNTAX_ERROR);
+      /*
+        mysql_parse() may have set a successful error status for the previous
+        query. We must clear the error status to report the bootstrap error.
+      */
+      thd->get_stmt_da()->reset_diagnostics_area();
+
+      /* Get the nearest query text for reference. */
+      char *err_ptr= buffer + (length <= MAX_BOOTSTRAP_ERROR_LEN ?
+                                        0 : (length - MAX_BOOTSTRAP_ERROR_LEN));
+      switch (rc)
+      {
+      case READ_BOOTSTRAP_ERROR:
+        my_printf_error(ER_UNKNOWN_ERROR, "Bootstrap file error, return code (%d). "
+                        "Nearest query: '%s'", MYF(0), error, err_ptr);
+        break;
+
+      case READ_BOOTSTRAP_QUERY_SIZE:
+        my_printf_error(ER_UNKNOWN_ERROR, "Boostrap file error. Query size "
+                        "exceeded %d bytes near '%s'.", MYF(0),
+                        MAX_BOOTSTRAP_LINE_SIZE, err_ptr);
+        break;
+
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+
       thd->protocol->end_statement();
       bootstrap_error= 1;
       break;
     }
-
-    if (rc == READ_BOOTSTRAP_EOF)
-      break;
-
-    DBUG_ASSERT(rc == 0);
 
     query= (char *) thd->memdup_w_gap(buffer, length + 1,
                                       thd->db_length + 1 +
@@ -1136,9 +1173,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->security_ctx->master_access|= SHUTDOWN_ACL;
     command= COM_SHUTDOWN;
   }
-  thd->set_query_id(get_query_id());
-  if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))
-    next_query_id();
+  thd->set_query_id(next_query_id());
   inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -1184,7 +1219,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
     uint save_db_length= thd->db_length;
     char *save_db= thd->db;
-    USER_CONN *save_user_connect= thd->user_connect;
+    USER_CONN *save_user_connect=
+      const_cast<USER_CONN*>(thd->get_user_connect());
     Security_context save_security_ctx= *thd->security_ctx;
     const CHARSET_INFO *save_character_set_client=
       thd->variables.character_set_client;
@@ -1199,7 +1235,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     {
       my_free(thd->security_ctx->user);
       *thd->security_ctx= save_security_ctx;
-      thd->user_connect= save_user_connect;
+      thd->set_user_connect(save_user_connect);
       thd->reset_db (save_db, save_db_length);
       thd->variables.character_set_client= save_character_set_client;
       thd->variables.collation_connection= save_collation_connection;
@@ -1577,7 +1613,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         current_global_status_var.long_query_count,
                         current_global_status_var.opened_tables,
                         refresh_version,
-                        cached_open_tables(),
+                        table_cache_manager.cached_tables(),
                         (uint) (queries_per_second1000 / 1000),
                         (uint) (queries_per_second1000 % 1000));
 #ifdef EMBEDDED_LIBRARY
@@ -3275,7 +3311,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        if (mysql_bin_log.write_incident(&ev, TRUE))
+        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/))
         {
           res= 1;
           break;
@@ -4461,6 +4497,8 @@ create_sp_error:
       /* Conditionally writes to binlog */
       int sp_result= sp_update_routine(thd, sp_type, lex->spname,
                                        &lex->sp_chistics);
+      if (thd->killed)
+        goto error;
       switch (sp_result)
       {
       case SP_OK:
@@ -4819,6 +4857,17 @@ create_sp_error:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  case SQLCOM_ALTER_USER:
+    if (check_access(thd, UPDATE_ACL, "mysql", NULL, NULL, 1, 1) &&
+        check_global_access(thd, CREATE_USER_ACL))
+      break;
+    /* Conditionally writes to binlog */
+    if (!(res= mysql_user_password_expire(thd, lex->users_list)))
+      my_ok(thd);
+    break;
+#endif
   default:
 #ifndef EMBEDDED_LIBRARY
     DBUG_ASSERT(0);                             /* Impossible */
@@ -5713,6 +5762,8 @@ void mysql_reset_thd_for_next_command(THD *thd)
 
 void THD::reset_for_next_command()
 {
+  // TODO: Why on earth is this here?! We should probably fix this
+  // function and move it to the proper file. /Matz
   THD *thd= this;
   DBUG_ENTER("mysql_reset_thd_for_next_command");
   DBUG_ASSERT(!thd->sp_runtime_ctx); /* not for substatements of routines */
@@ -5762,6 +5813,11 @@ void THD::reset_for_next_command()
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
+
+  thd->m_trans_end_pos= 0;
+  thd->m_trans_log_file= NULL;
+  thd->commit_error= 0;
+  thd->durability_property= HA_REGULAR_DURABILITY;
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",
@@ -6004,7 +6060,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                                    sql_statement_info[thd->lex->sql_command].m_key);
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-      if (mqh_used && thd->user_connect &&
+      if (mqh_used && thd->get_user_connect() &&
 	  check_mqh(thd, lex->sql_command))
       {
 	thd->net.error = 0;
@@ -6042,8 +6098,14 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
-
-          error= mysql_execute_command(thd);
+          if (unlikely(thd->security_ctx->password_expired && 
+                       !lex->is_change_password))
+          {
+            my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+            error= 1;
+          }
+          else
+            error= mysql_execute_command(thd);
           if (error == 0 &&
               thd->variables.gtid_next.type == GTID_GROUP &&
               thd->owned_gtid.sidno != 0 &&
@@ -6115,6 +6177,7 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
 {
   LEX *lex= thd->lex;
   bool error= 0;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_test_parse_for_slave");
 
   Parser_state parser_state;
@@ -6123,9 +6186,11 @@ bool mysql_test_parse_for_slave(THD *thd, char *rawbuf, uint length)
     lex_start(thd);
     mysql_reset_thd_for_next_command(thd);
 
+    thd->m_statement_psi= NULL;
     if (!parse_sql(thd, & parser_state, NULL) &&
         all_tables_not_ok(thd, lex->select_lex.table_list.first))
       error= 1;                  /* Ignore question */
+    thd->m_statement_psi= parent_locker;
     thd->end_statement();
   }
   thd->cleanup_after_query();

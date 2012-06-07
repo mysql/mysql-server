@@ -1147,7 +1147,9 @@ trx_commit(
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = TRUE;
-		} else if (srv_flush_log_at_trx_commit == 0) {
+		} else if (srv_flush_log_at_trx_commit == 0
+			   || thd_requested_durability(trx->mysql_thd)
+			   == HA_IGNORE_DURABILITY) {
 			/* Do nothing */
 		} else if (srv_flush_log_at_trx_commit == 1) {
 			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
@@ -1193,6 +1195,8 @@ trx_commit(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	trx->error_state = DB_SUCCESS;
 
@@ -1442,7 +1446,9 @@ trx_commit_complete_for_mysql(
 
 	if (!trx->must_flush_log_later) {
 		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 0) {
+	} else if (srv_flush_log_at_trx_commit == 0
+		   || thd_requested_durability(trx->mysql_thd)
+		   == HA_IGNORE_DURABILITY) {
 		/* Do nothing */
 	} else if (srv_flush_log_at_trx_commit == 1) {
 		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
@@ -2089,3 +2095,24 @@ trx_start_if_not_started_low(
 
 	ut_error;
 }
+
+/*************************************************************//**
+Starts the transaction for a DDL operation. */
+UNIV_INTERN
+void
+trx_start_for_ddl_low(
+/*==================*/
+	trx_t*		trx,	/*!< in/out: transaction */
+	trx_dict_op_t	op)	/*!< in: dictionary operation type */
+{
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+
+	trx_set_dict_operation(trx, op);
+
+	/* Ensure it is not flagged as an auto-commit-non-locking transation. */
+	trx->will_lock = 1;
+
+	trx_start_low(trx);
+}
+

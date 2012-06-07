@@ -32,7 +32,7 @@ Created 03/15/2011      Jimmy Yang
 #include <memcached/engine.h>
 #include <memcached/util.h>
 #include <memcached/visibility.h>
-#include <innodb_list.h>
+#include <innodb_utility.h>
 #include <innodb_config.h>
 
 /** Default settings that determine the number of write operation for
@@ -68,6 +68,8 @@ struct innodb_conn_data_struct {
 					last commit */
 	void*		thd;		/*!< MySQL THD, used for binlog */
 	void*		mysql_tbl;	/*!< MySQL TABLE, used for binlog */
+	meta_cfg_info_t*conn_meta;	/*!< metadata info for this
+					connection */
 	UT_LIST_NODE_T(innodb_conn_data_t)
 			conn_list;	/*!< list ptr */
 };
@@ -112,7 +114,7 @@ typedef struct innodb_engine {
 	ib_trx_level_t		trx_level;	/*!< transaction isolation
 						level */
 	int			cfg_status;	/*!< configure status */
-	meta_cfg_info_t		meta_info;	/*!< metadata info from
+	meta_cfg_info_t*	meta_info;	/*!< default metadata info from
 						configuration */
 	conn_list_t		conn_data;	/*!< list of data specific for
 						connections */
@@ -126,6 +128,7 @@ typedef struct innodb_engine {
 						size */
 	uint64_t		write_batch_size;/*!< configured write batch
 						size */
+	hash_table_t*		meta_hash;	/*!< hash table for metadata */
 } innodb_engine_t;
 
 #endif /* INNODB_ENGINE_H */

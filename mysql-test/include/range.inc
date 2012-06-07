@@ -1493,6 +1493,11 @@ drop table t1, t2;
 --echo # Bug #26106: Wrong plan may be chosen when there are several possible
 --echo # range and ref accesses
 --echo #
+--echo # Note: The fix for this bug has been reverted. The code will no longer
+--echo # select the optimal plan for the two following test queries. This is
+--echo # not due to a bug but due to minor differences in range estimates
+--echo # produced by the storage engine.
+
 CREATE TABLE t1( 
   a INT,
   b INT,
@@ -1515,6 +1520,8 @@ INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 32
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 64
 INSERT INTO t1 SELECT a, b FROM t1 WHERE a=1 AND b=2; # 128
 --echo # This must use range over index l, not k.
+--echo # Update: Due to patch being reverted and minor differences in 
+--echo #         range estimates k is selected.
 EXPLAIN SELECT * FROM t1 WHERE a = 1 AND b >= 2;
 
 CREATE TABLE t2( 
@@ -1544,6 +1551,8 @@ INSERT INTO t2 SELECT a, b, c FROM t2 WHERE a=1 AND b=2; # 64
 INSERT INTO t2 VALUES (1, 1, 2);
 
 --echo # This must use range over index l, not n.
+--echo # Update: Due to patch being reverted and minor differences in 
+--echo #         range estimates k is selected.
 EXPLAIN SELECT * FROM t2 WHERE a = 1 AND b >= 2 AND c >= 2;
 
 DROP TABLE t1, t2;
@@ -1584,7 +1593,7 @@ DROP TABLE t10,t100;
 --echo # BUG#12698916 - JOIN QUERY GIVES WRONG RESULT AT 2ND EXEC. OR
 --echo # AFTER FLUSH TABLES [-INT VS NULL]
 --echo #
-CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB;
+CREATE TABLE t1 (col_int INT, pk INT) ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO t1 VALUES (-100,1),(1,6);
 
@@ -1594,7 +1603,7 @@ CREATE TABLE t2 (
   pk INT NOT NULL,
   PRIMARY KEY (pk),
   KEY (col_int_key)
-) ENGINE=InnoDB;
+) ENGINE=InnoDB STATS_PERSISTENT=0;
 
 INSERT INTO t2 VALUES
 (1,"GOOD",1),(100,"",2),(200,"",3),(300,"",4),(400,"",5),(500,"",8);
