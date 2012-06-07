@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -146,22 +146,22 @@ ErrorBundle ErrorCodes[] = {
    * SPJ error codes
    */ 
 
-  { 20000, DMEC, IS, "Query aborted due out of operation records" },
+  { 20000, DMEC, TR, "Query aborted due out of operation records" },
   { 20001, DMEC, IE, "Query aborted due to empty query tree" },
   { 20002, DMEC, IE, "Query aborted due to invalid request" },
   { 20003, DMEC, IE, "Query aborted due to  unknown query operation" },
   { 20004, DMEC, IE, "Query aborted due to invalid tree node specification" },
   { 20005, DMEC, IE, "Query aborted due to invalid tree parameter specification" },
-  { 20006, DMEC, IS, "Query aborted due to out of section memory" },
+  { 20006, DMEC, TR, "Query aborted due to out of LongMessageBuffer" },
   { 20007, DMEC, IE, "Query aborted due to invalid pattern" },
-  { 20008, DMEC, IS, "Query aborted due to out of query memory" },
+  { 20008, DMEC, TR, "Query aborted due to out of query memory" },
   { 20009, DMEC, IE, "Query aborted due to query node too big" },
   { 20010, DMEC, IE, "Query aborted due to query node parameters too big" },
   { 20011, DMEC, IE, "Query aborted due to both tree and parameters contain interpreted program" },
   { 20012, DMEC, IE, "Query aborted due to invalid tree parameter specification: Key parameter bits mismatch" },
   { 20013, DMEC, IE, "Query aborted due to invalid tree parameter specification: Incorrect key parameter count" },
   { 20014, DMEC, IE, "Query aborted due to internal error" },
-  { 20015, DMEC, IS, "Query aborted due to out of row memory" },
+  { 20015, DMEC, TR, "Query aborted due to out of row memory" },
   { 20016, DMEC, NR, "Query aborted due to node failure" },
   { 20017, DMEC, IE, "Query aborted due to invalid node count" },
   { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
