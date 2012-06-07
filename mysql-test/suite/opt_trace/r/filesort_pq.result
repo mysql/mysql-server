@@ -180,7 +180,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 100	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -357,7 +357,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -565,7 +565,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -787,7 +787,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -1019,7 +1019,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -1186,7 +1186,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -1331,7 +1331,7 @@ SELECT CONCAT("hello ", f2) AS foo FROM t1 ORDER BY foo LIMIT 2	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -1464,7 +1464,7 @@ SELECT * from t1 ORDER BY rand(2) LIMIT 2	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -1642,7 +1642,7 @@ SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -1850,7 +1850,7 @@ SELECT * FROM t1 ORDER BY f2 DESC, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -2072,7 +2072,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 20	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -2304,7 +2304,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -2471,7 +2471,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -2652,7 +2652,7 @@ ORDER BY f1, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -2800,7 +2800,7 @@ ORDER BY f1, f0 LIMIT 0	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -2992,7 +2992,7 @@ ORDER BY f2, f0 LIMIT 20	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -3164,7 +3164,7 @@ ORDER BY f2, f0 LIMIT 0	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -3346,7 +3346,7 @@ ORDER BY f2, f0 LIMIT 10 OFFSET 10	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -3518,7 +3518,7 @@ ORDER BY f2, f0 LIMIT 0 OFFSET 10	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 2.4883,
+                      "cost": 22.488,
                       "chosen": true
                     }
                   ]
@@ -3748,7 +3748,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 300,
-                      "cost": 3.4648,
+                      "cost": 63.465,
                       "chosen": true
                     }
                   ]
@@ -3767,7 +3767,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.5736,
+                          "cost": 30005,
                           "chosen": true
                         }
                       ]
@@ -3787,7 +3787,7 @@ ORDER BY tmp.f1, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -4029,7 +4029,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                     {
                       "access_type": "scan",
                       "rows": 300,
-                      "cost": 3.4648,
+                      "cost": 63.465,
                       "chosen": true
                     }
                   ]
@@ -4048,7 +4048,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.5736,
+                          "cost": 30005,
                           "chosen": true
                         }
                       ]
@@ -4068,7 +4068,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -4315,7 +4315,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                     {
                       "access_type": "scan",
                       "rows": 300,
-                      "cost": 3.4648,
+                      "cost": 63.465,
                       "chosen": true
                     }
                   ]
@@ -4334,7 +4334,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.5736,
+                          "cost": 30005,
                           "chosen": true
                         }
                       ]
@@ -4354,7 +4354,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -4629,7 +4629,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                     {
                       "access_type": "scan",
                       "rows": 300,
-                      "cost": 3.4648,
+                      "cost": 63.465,
                       "chosen": true
                     }
                   ]
@@ -4648,7 +4648,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 500,
-                          "cost": 4.5736,
+                          "cost": 30005,
                           "chosen": true
                         }
                       ]
@@ -4668,7 +4668,7 @@ ORDER BY tmp.f1, f0 LIMIT 30 OFFSET 30	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -4916,7 +4916,7 @@ SELECT * FROM v1	{
                           {
                             "access_type": "scan",
                             "rows": 500,
-                            "cost": 4.4414,
+                            "cost": 104.44,
                             "chosen": true
                           }
                         ]
@@ -5000,7 +5000,7 @@ SELECT * FROM v1	{
                     {
                       "access_type": "scan",
                       "rows": 30,
-                      "cost": 11.5,
+                      "cost": 17.5,
                       "chosen": true
                     }
                   ]
@@ -5201,7 +5201,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                           {
                             "access_type": "scan",
                             "rows": 500,
-                            "cost": 4.4414,
+                            "cost": 104.44,
                             "chosen": true
                           }
                         ]
@@ -5285,7 +5285,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 15,
+                      "cost": 35,
                       "chosen": true
                     }
                   ]
@@ -5552,7 +5552,7 @@ LIMIT 30	{
                           {
                             "access_type": "scan",
                             "rows": 500,
-                            "cost": 4.4414,
+                            "cost": 104.44,
                             "chosen": true
                           }
                         ]
@@ -5640,7 +5640,7 @@ LIMIT 30	{
                           {
                             "access_type": "scan",
                             "rows": 500,
-                            "cost": 4.4414,
+                            "cost": 104.44,
                             "chosen": true
                           }
                         ]
@@ -5807,7 +5807,7 @@ LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 15,
+                      "cost": 35,
                       "chosen": true
                     }
                   ]
@@ -5840,7 +5840,7 @@ LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 75,
-                          "cost": 21.202,
+                          "cost": 1521.2,
                           "chosen": false
                         }
                       ]
@@ -5872,7 +5872,7 @@ LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 15,
+                      "cost": 35,
                       "chosen": true
                     }
                   ]
@@ -5905,7 +5905,7 @@ LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 75,
-                          "cost": 21.202,
+                          "cost": 1521.2,
                           "chosen": false
                         }
                       ]
@@ -5997,18 +5997,6 @@ LIMIT 30	{
             }
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "row_length": 419,
-                "key_length": 0,
-                "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 2502
-              }
-            }
-          },
-          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -6080,6 +6068,18 @@ LIMIT 30	{
                   }
                 }
               ]
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 419,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 2502
+              }
             }
           },
           {
@@ -6182,7 +6182,7 @@ GROUP BY 1 ORDER BY 2,1 LIMIT 5	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -6453,7 +6453,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -6633,7 +6633,7 @@ SELECT * FROM t1 WHERE f1>10 ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -6814,7 +6814,7 @@ ORDER BY f2, f0 LIMIT 15 OFFSET 15	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -7010,7 +7010,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                           {
                             "access_type": "scan",
                             "rows": 500,
-                            "cost": 4.4414,
+                            "cost": 104.44,
                             "chosen": true
                           }
                         ]
@@ -7094,7 +7094,7 @@ SELECT * FROM v1 ORDER BY f2, f0 LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 100,
-                      "cost": 15,
+                      "cost": 35,
                       "chosen": true
                     }
                   ]
@@ -7335,7 +7335,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           {
                             "access_type": "scan",
                             "rows": 500,
-                            "cost": 4.4414,
+                            "cost": 104.44,
                             "chosen": true
                           }
                         ]
@@ -7455,7 +7455,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -7488,7 +7488,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                           "access_type": "scan",
                           "using_join_cache": true,
                           "rows": 23,
-                          "cost": 13.01,
+                          "cost": 2313,
                           "chosen": false
                         }
                       ]
@@ -7519,7 +7519,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 },
                 {
                   "table": " `d1`",
-                  "attached": "trigcond_if(is_not_null_compl(d1), (`t1`.`f1` = `d1`.`f1`), true)"
+                  "attached": "<if>(is_not_null_compl(d1), (`t1`.`f1` = `d1`.`f1`), true)"
                 }
               ]
             }
@@ -7569,18 +7569,6 @@ ORDER BY d1.f2 DESC LIMIT 30	{
             }
           },
           {
-            "creating_tmp_table": {
-              "tmp_table_info": {
-                "table": "intermediate_tmp_table",
-                "row_length": 206,
-                "key_length": 0,
-                "unique_constraint": false,
-                "location": "memory (heap)",
-                "row_limit_estimate": 5090
-              }
-            }
-          },
-          {
             "join_execution": {
               "select#": 2,
               "steps": [
@@ -7610,6 +7598,18 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                   }
                 }
               ]
+            }
+          },
+          {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "table": "intermediate_tmp_table",
+                "row_length": 206,
+                "key_length": 0,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 5090
+              }
             }
           },
           {
@@ -7736,7 +7736,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -7816,7 +7816,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 1)	{
                                 {
                                   "access_type": "scan",
                                   "rows": 500,
-                                  "cost": 4.4414,
+                                  "cost": 104.44,
                                   "chosen": true
                                 }
                               ]
@@ -11486,7 +11486,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                     {
                       "access_type": "scan",
                       "rows": 500,
-                      "cost": 4.4414,
+                      "cost": 104.44,
                       "chosen": true
                     }
                   ]
@@ -11566,7 +11566,7 @@ SELECT * FROM t1 WHERE f1 = (SELECT f1 FROM t1 ORDER BY 1 LIMIT 2)	{
                                 {
                                   "access_type": "scan",
                                   "rows": 500,
-                                  "cost": 4.4414,
+                                  "cost": 104.44,
                                   "chosen": true
                                 }
                               ]
@@ -11824,7 +11824,7 @@ SELECT * FROM t1 ORDER BY f2 LIMIT 100	{
                     {
                       "access_type": "scan",
                       "rows": 438500,
-                      "cost": 2143.1,
+                      "cost": 89843,
                       "chosen": true
                     }
                   ]

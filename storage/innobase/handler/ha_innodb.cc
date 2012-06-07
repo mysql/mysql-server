@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sql_acl.h>	// PROCESS_ACL
 #include <debug_sync.h> // DEBUG_SYNC
+#include <my_base.h>	// HA_OPTION_*
 #include <mysys_err.h>
 #include <mysql/innodb_priv.h>
 
@@ -73,6 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0merge.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
+#include "dict0stats_background.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
@@ -96,8 +98,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
+
+/** to protect innobase_open_files */
+static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
-static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
 static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
@@ -232,6 +236,8 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 static ulong	innobase_active_counter	= 0;
 
+static hash_table_t*	innobase_open_tables;
+
 /** Allowed values of innodb_change_buffering */
 static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"none",		/* IBUF_USE_NONE */
@@ -258,7 +264,7 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 #ifdef HAVE_PSI_INTERFACE
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
-static mysql_pfs_key_t	prepare_commit_mutex_key;
+static mysql_pfs_key_t	innobase_share_mutex_key;
 static mysql_pfs_key_t	commit_threads_m_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
@@ -266,7 +272,7 @@ static mysql_pfs_key_t	commit_cond_key;
 static PSI_mutex_info	all_pthread_mutexes[] = {
 	{&commit_threads_m_key, "commit_threads_m", 0},
 	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
-	{&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
+	{&innobase_share_mutex_key, "innobase_share_mutex", 0}
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
@@ -412,6 +418,7 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_update_row,
 	(ib_cb_t) ib_cursor_moveto,
 	(ib_cb_t) ib_cursor_first,
+	(ib_cb_t) ib_cursor_next,
 	(ib_cb_t) ib_cursor_last,
 	(ib_cb_t) ib_cursor_set_match_mode,
 	(ib_cb_t) ib_sec_search_tuple_create,
@@ -451,7 +458,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cfg_trx_level,
 	(ib_cb_t) ib_tuple_get_n_user_cols,
 	(ib_cb_t) ib_cursor_set_lock_mode,
-	(ib_cb_t) ib_cursor_clear_trx
+	(ib_cb_t) ib_cursor_clear_trx,
+	(ib_cb_t) ib_get_idx_field_name
 };
 
 /*************************************************************//**
@@ -622,6 +630,23 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_available_undo_logs,        SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
+
+/************************************************************************//**
+Handling the shared INNOBASE_SHARE structure that is needed to provide table
+locking. Register the table name if it doesn't exist in the hash table. */
+static
+INNOBASE_SHARE*
+get_share(
+/*======*/
+	const char*	table_name);	/*!< in: table to lookup */
+
+/************************************************************************//**
+Free the shared object that was registered with get_share(). */
+static
+void
+free_share(
+/*=======*/
+	INNOBASE_SHARE*	share);		/*!< in/own: share to free */
 
 /*****************************************************************//**
 Frees a possible InnoDB trx object associated with the current THD.
@@ -1018,6 +1043,19 @@ thd_is_replication_slave_thread(
 	THD*	thd)	/*!< in: thread handle */
 {
 	return((ibool) thd_slave_thread(thd));
+}
+
+/******************************************************************//**
+Gets information on the durability property requested by thread.
+Used when writing either a prepare or commit record to the log
+buffer. @return the durability property. */
+UNIV_INTERN
+enum durability_properties
+thd_requested_durability(
+/*=====================*/
+	const THD* thd)	/*!< in: thread handle (THD*) */
+{
+	return(thd_get_durability_property(thd));
 }
 
 /******************************************************************//**
@@ -2045,18 +2083,6 @@ trx_is_registered_for_2pc(
 }
 
 /*********************************************************************//**
-Note that a transaction owns the prepare_commit_mutex. */
-static inline
-void
-trx_owns_prepare_commit_mutex_set(
-/*==============================*/
-	trx_t*	trx)	/* in: transaction */
-{
-	ut_a(trx_is_registered_for_2pc(trx));
-	trx->owns_prepare_mutex = 1;
-}
-
-/*********************************************************************//**
 Note that a transaction has been registered with MySQL 2PC coordinator. */
 static inline
 void
@@ -2080,17 +2106,6 @@ trx_deregister_from_2pc(
 	trx->owns_prepare_mutex = 0;
 }
 
-/*********************************************************************//**
-Check whether atransaction owns the prepare_commit_mutex.
-@return true if transaction owns the prepare commit mutex */
-static inline
-bool
-trx_has_prepare_commit_mutex(
-/*=========================*/
-	const trx_t*	trx)	/* in: transaction */
-{
-	return(trx->owns_prepare_mutex == 1);
-}
 
 /*********************************************************************//**
 Check if transaction is started.
@@ -2102,6 +2117,56 @@ trx_is_started(
 	trx_t*	trx)	/* in: transaction */
 {
 	return(trx->state != TRX_STATE_NOT_STARTED);
+}
+
+/*********************************************************************//**
+Copy table flags from MySQL's HA_CREATE_INFO into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_create_info(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	HA_CREATE_INFO*	create_info)		/*!< in: create info */
+{
+	dict_stats_set_persistent(
+		innodb_table,
+		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
+		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innodb_table,
+		create_info->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		create_info->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
+
+	innodb_table->stats_sample_pages = create_info->stats_sample_pages;
+}
+
+/*********************************************************************//**
+Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
+Those flags are stored in .frm file and end up in the MySQL table object,
+but are frequently used inside InnoDB so we keep their copies into the
+InnoDB table object. */
+UNIV_INTERN
+void
+innobase_copy_frm_flags_from_table_share(
+/*=====================================*/
+	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
+	TABLE_SHARE*	table_share)		/*!< in: table share */
+{
+	dict_stats_set_persistent(
+		innodb_table,
+		table_share->db_create_options & HA_OPTION_STATS_PERSISTENT,
+		table_share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+
+	dict_stats_auto_recalc_set(
+		innodb_table,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON,
+		table_share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF);
+
+	innodb_table->stats_sample_pages = table_share->stats_sample_pages;
 }
 
 /*********************************************************************//**
@@ -2920,6 +2985,29 @@ innobase_change_buffering_inited_ok:
 	innobase_change_buffering = (char*)
 		innobase_change_buffering_values[ibuf_use];
 
+	/* Check that interdependent parameters have sane values. */
+	if (srv_max_buf_pool_modified_pct < srv_max_dirty_pages_pct_lwm) {
+		sql_print_warning("InnoDB: innodb_max_dirty_pages_pct_lwm"
+				  " cannot be set higher than"
+				  " innodb_max_dirty_pages_pct.\n"
+				  "InnoDB: Setting"
+				  " innodb_max_dirty_pages_pct_lwm to %lu\n",
+				  srv_max_buf_pool_modified_pct);
+
+		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
+	}
+
+	if (srv_max_io_capacity < srv_io_capacity) {
+		sql_print_warning("InnoDB: innodb_io_capacity"
+				  " cannot be set higher than"
+				  " innodb_max_io_capacity.\n"
+				  "InnoDB: Setting"
+				  " innodb_io_capacity to %lu\n",
+				  srv_max_io_capacity);
+
+		srv_io_capacity = srv_max_io_capacity;
+	}
+
 	/* --------------------------------------------------*/
 
 	srv_file_flush_method_str = innobase_file_flush_method;
@@ -3115,8 +3203,10 @@ innobase_change_buffering_inited_ok:
 
 	ibuf_max_size_update(innobase_change_buffer_max_size);
 
-	mysql_mutex_init(prepare_commit_mutex_key,
-			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
+	innobase_open_tables = hash_create(200);
+	mysql_mutex_init(innobase_share_mutex_key,
+			 &innobase_share_mutex,
+			 MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_threads_m_key,
 			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
@@ -3175,12 +3265,14 @@ innobase_end(
 		srv_fast_shutdown = (ulint) innobase_fast_shutdown;
 
 		innodb_inited = 0;
+		hash_table_free(innobase_open_tables);
+		innobase_open_tables = NULL;
 		if (innobase_shutdown_for_mysql() != DB_SUCCESS) {
 			err = 1;
 		}
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path);
-		mysql_mutex_destroy(&prepare_commit_mutex);
+		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
 		mysql_cond_destroy(&commit_cond);
@@ -3318,9 +3410,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work.
-		Note, the position is current because of
-		prepare_commit_mutex */
+		/* We need current binlog position for ibbackup to work. */
 retry:
 		if (innobase_commit_concurrency > 0) {
 			mysql_mutex_lock(&commit_cond_m);
@@ -3338,25 +3428,23 @@ retry:
 			}
 		}
 
-		/* The following calls to read the MySQL binary log
-		file name and the position return consistent results:
-		1) Other InnoDB transactions cannot intervene between
-		these calls as we are holding prepare_commit_mutex.
-		2) Binary logging of other engines is not relevant
-		to InnoDB as all InnoDB requires is that committing
-		InnoDB transactions appear in the same order in the
-		MySQL binary log as they appear in InnoDB logs.
-		3) A MySQL log file rotation cannot happen because
-		MySQL protects against this by having a counter of
-		transactions in prepared state and it only allows
-		a rotation when the counter drops to zero. See
-		LOCK_prep_xids and COND_prep_xids in log.cc. */
-		trx->mysql_log_file_name = mysql_bin_log_file_name();
-		trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
+		/* The following call read the binary log position of
+		the transaction being committed.
 
+                Binary logging of other engines is not relevant to
+		InnoDB as all InnoDB requires is that committing
+		InnoDB transactions appear in the same order in the
+		MySQL binary log as they appear in InnoDB logs, which
+		is guaranteed by the server.
+
+                If the binary log is not enabled, or the transaction
+                is not written to the binary log, the file name will
+                be a NULL pointer. */
+                unsigned long long pos;
+                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
-		to work we want to do the flush after releasing the
-		prepare_commit_mutex. */
+		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
 		innobase_commit_low(trx);
 		trx->flush_log_later = FALSE;
@@ -3366,11 +3454,6 @@ retry:
 			commit_threads--;
 			mysql_cond_signal(&commit_cond);
 			mysql_mutex_unlock(&commit_cond_m);
-		}
-
-		if (trx_has_prepare_commit_mutex(trx)) {
-
-			mysql_mutex_unlock(&prepare_commit_mutex);
 		}
 
 		trx_deregister_from_2pc(trx);
@@ -4212,8 +4295,8 @@ innobase_match_index_columns(
 }
 
 /*******************************************************************//**
-This function builds a translation table in Innobase_share
-object for fast index location with mysql array number from its
+This function builds a translation table in INNOBASE_SHARE
+structure for fast index location with mysql array number from its
 table->key_info structure. This also provides the necessary translation
 between the key order in mysql key_info and Innodb ib_table->indexes if
 they are not fully matched with each other.
@@ -4230,7 +4313,7 @@ innobase_build_index_translation(
 					dictionary */
 	dict_table_t*		ib_table,/*!< in: table in Innodb data
 					dictionary */
-	Innobase_share*		share)	/*!< in/out: share object
+	INNOBASE_SHARE*		share)	/*!< in/out: share structure
 					where index translation table
 					will be constructed in. */
 {
@@ -4350,7 +4433,7 @@ static
 dict_index_t*
 innobase_index_lookup(
 /*==================*/
-	Innobase_share*	share,	/*!< in: share object for index
+	INNOBASE_SHARE*	share,	/*!< in: share structure for index
 				translation table. */
 	uint		keynr)	/*!< in: index number for the requested
 				index */
@@ -4505,7 +4588,7 @@ ha_innobase::open(
 
 	user_thd = NULL;
 
-	if (!(share=get_share())) {
+	if (!(share=get_share(name))) {
 
 		DBUG_RETURN(1);
 	}
@@ -4618,6 +4701,7 @@ retry:
 			REFMAN "innodb-troubleshooting.html for how "
 			"you can resolve the problem.", norm_name);
 
+		free_share(share);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
@@ -4625,10 +4709,9 @@ retry:
 
 table_opened:
 
-	dict_stats_init(
-		ib_table,
-		table->s->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table->s->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+	innobase_copy_frm_flags_from_table_share(ib_table, table->s);
+
+	dict_stats_init(ib_table);
 
 	MONITOR_INC(MONITOR_TABLE_OPEN);
 
@@ -4662,6 +4745,7 @@ table_opened:
 	}
 
 	if (!thd_tablespace_op(thd) && no_tablespace) {
+		free_share(share);
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE, FALSE);
@@ -4896,6 +4980,8 @@ ha_innobase::close()
 		upd_buf = NULL;
 		upd_buf_size = 0;
 	}
+
+	free_share(share);
 
 	MONITOR_INC(MONITOR_TABLE_CLOSE);
 
@@ -7238,6 +7324,7 @@ ha_innobase::index_read(
 	dberr_t		ret;
 
 	DBUG_ENTER("index_read");
+	DEBUG_SYNC_C("ha_innobase_index_read_begin");
 
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
 	ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
@@ -9093,7 +9180,7 @@ ha_innobase::create(
 
 	if (use_tablespace
 	    && !mysqld_embedded
-	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
 		if ((name[1] == ':')
 		    || (name[0] == '\\' && name[1] == '\\')) {
@@ -9119,7 +9206,7 @@ ha_innobase::create(
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(
 			thd, form, create_info, use_tablespace)) {
-		DBUG_RETURN(ER_ILLEGAL_HA_CREATE_OPTION);
+		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
 	if (!innobase_table_flags(name, form, create_info,
@@ -9326,11 +9413,9 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	dict_stats_set_persistent(
-		innobase_table, 
-		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
-		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
-	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE, FALSE);
+	innobase_copy_frm_flags_from_create_info(innobase_table, create_info);
+
+	dict_stats_update(innobase_table, DICT_STATS_EMPTY_TABLE);
 
 	if (innobase_table) {
 		/* We update the highest file format in the system table
@@ -9544,7 +9629,6 @@ ha_innobase::delete_table(
 	trx_t*	trx;
 	THD	*thd = ha_thd();
 	char	norm_name[1000];
-	char	errstr[1024];
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
@@ -9563,19 +9647,6 @@ ha_innobase::delete_table(
 
 	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
-	}
-
-	/* Remove stats for this table and all of its indexes from the
-	persistent storage if it exists and if there are stats for this
-	table in there. This function creates its own trx and commits
-	it. */
-	error = dict_stats_drop_table(norm_name, errstr, sizeof(errstr));
-	if (error != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
-
-		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-			     ER_LOCK_WAIT_TIMEOUT, errstr);
 	}
 
 	parent_trx = check_trx_exists(thd);
@@ -10202,7 +10273,7 @@ static
 int
 innobase_get_mysql_key_number_for_index(
 /*====================================*/
-	Innobase_share*		share,	/*!< in: share object for index
+	INNOBASE_SHARE*		share,	/*!< in: share structure for index
 					translation table. */
 	const TABLE*		table,	/*!< in: table in MySQL data
 					dictionary */
@@ -10401,7 +10472,7 @@ ha_innobase::info(
 			}
 
 			ut_ad(!mutex_own(&dict_sys->mutex));
-			ret = dict_stats_update(ib_table, opt, FALSE);
+			ret = dict_stats_update(ib_table, opt);
 
 			if (ret != DB_SUCCESS) {
 				prebuilt->trx->op_info = "";
@@ -12182,31 +12253,94 @@ innobase_show_status(
 }
 
 /************************************************************************//**
-Handling the shared Innobase_share object that is needed to provide table
-locking. */
-Innobase_share*
-ha_innobase::get_share(void)
-/*========================*/
+Handling the shared INNOBASE_SHARE structure that is needed to provide table
+locking. Register the table name if it doesn't exist in the hash table. */
+static
+INNOBASE_SHARE*
+get_share(
+/*======*/
+	const char*	table_name)
 {
-	Innobase_share *tmp_share;
+	INNOBASE_SHARE*	share;
 
-	lock_shared_ha_data();
-	tmp_share= static_cast<Innobase_share*>(get_ha_share_ptr());
+	mysql_mutex_lock(&innobase_share_mutex);
 
-	if (!tmp_share)
-	{
-		tmp_share= new Innobase_share;
-		if (!tmp_share)
-		{
-			unlock_shared_ha_data();
-			return(NULL);
-		}
+	ulint	fold = ut_fold_string(table_name);
 
-		set_ha_share_ptr(static_cast<Handler_share*>(tmp_share));
+	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
+		    INNOBASE_SHARE*, share,
+		    ut_ad(share->use_count > 0),
+		    !strcmp(share->table_name, table_name));
+
+	if (!share) {
+
+		uint length = (uint) strlen(table_name);
+
+		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
+		grows too big */
+
+		share = (INNOBASE_SHARE*) my_malloc(sizeof(*share)+length+1,
+			MYF(MY_FAE | MY_ZEROFILL));
+
+		share->table_name = (char*) memcpy(share + 1,
+						   table_name, length + 1);
+
+		HASH_INSERT(INNOBASE_SHARE, table_name_hash,
+			    innobase_open_tables, fold, share);
+
+		thr_lock_init(&share->lock);
+
+		/* Index translation table initialization */
+		share->idx_trans_tbl.index_mapping = NULL;
+		share->idx_trans_tbl.index_count = 0;
+		share->idx_trans_tbl.array_size = 0;
 	}
-	unlock_shared_ha_data();
-	ut_ad(tmp_share);
-	return(tmp_share);
+
+	share->use_count++;
+	mysql_mutex_unlock(&innobase_share_mutex);
+
+	return(share);
+}
+
+/************************************************************************//**
+Free the shared object that was registered with get_share(). */
+static
+void
+free_share(
+/*=======*/
+	INNOBASE_SHARE*	share)	/*!< in/own: table share to free */
+{
+	mysql_mutex_lock(&innobase_share_mutex);
+
+#ifdef UNIV_DEBUG
+	INNOBASE_SHARE* share2;
+	ulint	fold = ut_fold_string(share->table_name);
+
+	HASH_SEARCH(table_name_hash, innobase_open_tables, fold,
+		    INNOBASE_SHARE*, share2,
+		    ut_ad(share->use_count > 0),
+		    !strcmp(share->table_name, share2->table_name));
+
+	ut_a(share2 == share);
+#endif /* UNIV_DEBUG */
+
+	if (!--share->use_count) {
+		ulint	fold = ut_fold_string(share->table_name);
+
+		HASH_DELETE(INNOBASE_SHARE, table_name_hash,
+			    innobase_open_tables, fold, share);
+		thr_lock_delete(&share->lock);
+
+		/* Free any memory from index translation table */
+		my_free(share->idx_trans_tbl.index_mapping);
+
+		my_free(share);
+
+		/* TODO: invoke HASH_MIGRATE if innobase_open_tables
+		shrinks too much */
+	}
+
+	mysql_mutex_unlock(&innobase_share_mutex);
 }
 
 /*****************************************************************//**
@@ -12498,12 +12632,7 @@ ha_innobase::innobase_peek_autoinc(void)
 }
 
 /*********************************************************************//**
-This function initializes the auto-inc counter if it has not been
-initialized yet. This function does not change the value of the auto-inc
-counter if it already has been initialized. Returns the value of the
-auto-inc counter in *first_value, and ULONGLONG_MAX in *nb_reserved_values (as
-we have a table-level lock). offset, increment, nb_desired_values are ignored.
-*first_value is set to -1 if error (deadlock or lock wait timeout) */
+Returns the value of the auto-inc counter in *first_value and ~0 on failure. */
 UNIV_INTERN
 void
 ha_innobase::get_auto_increment(
@@ -13003,18 +13132,9 @@ innobase_xa_prepare(
 		  thread2> prepare; write to binlog; commit
 		  thread1>			     ... commit
 
-		To ensure this will not happen we're taking the mutex on
-		prepare, and releasing it on commit.
-
-		Note: only do it for normal commits, done via ha_commit_trans.
-		If 2pc protocol is executed by external transaction
-		coordinator, it will be just a regular MySQL client
-		executing XA PREPARE and XA COMMIT commands.
-		In this case we cannot know how many minutes or hours
-		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time. */
-		mysql_mutex_lock(&prepare_commit_mutex);
-		trx_owns_prepare_commit_mutex_set(trx);
+                The server guarantees that writes to the binary log
+                and commits are in the same order, so we do not have
+                to handle this case. */
 	}
 
 	return(error);
@@ -13158,12 +13278,7 @@ ha_innobase::check_if_incompatible_data(
 	HA_CREATE_INFO*	info,
 	uint		table_changes)
 {
-	/* Copy the persistent stats flags from info->table_options to
-	prebuilt->table */
-	dict_stats_set_persistent(
-		prebuilt->table,
-		info->table_options & HA_OPTION_STATS_PERSISTENT,
-		info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	innobase_copy_frm_flags_from_create_info(prebuilt->table, info);
 
 	if (table_changes != IS_EQUAL_YES) {
 
@@ -13190,6 +13305,135 @@ ha_innobase::check_if_incompatible_data(
 	}
 
 	return(COMPATIBLE_DATA_YES);
+}
+
+/****************************************************************//**
+Update the system variable innodb_max_io_capacity using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_max_io_capacity_update(
+/*===========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val < srv_io_capacity) {
+		in_val = srv_io_capacity;
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_max_io_capacity cannot be"
+				    " set lower than innodb_io_capacity.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_max_io_capacity to %lu",
+				    srv_io_capacity);
+	}
+
+	srv_max_io_capacity = in_val;
+}
+
+/****************************************************************//**
+Update the system variable innodb_io_capacity using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_io_capacity_update(
+/*======================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val > srv_max_io_capacity) {
+		in_val = srv_max_io_capacity;
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_io_capacity cannot be set"
+				    " higher than innodb_max_io_capacity.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_io_capacity to %lu",
+				    srv_max_io_capacity);
+	}
+
+	srv_io_capacity = in_val;
+}
+
+/****************************************************************//**
+Update the system variable innodb_max_dirty_pages_pct using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_max_dirty_pages_pct_update(
+/*==============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val < srv_max_dirty_pages_pct_lwm) {
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_max_dirty_pages_pct cannot be"
+				    " set lower than"
+				    " innodb_max_dirty_pages_pct_lwm.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Lowering"
+				    " innodb_max_dirty_page_pct_lwm to %lu",
+				    in_val);
+
+		srv_max_dirty_pages_pct_lwm = in_val;
+	}
+
+	srv_max_buf_pool_modified_pct = in_val;
+}
+
+/****************************************************************//**
+Update the system variable innodb_max_dirty_pages_pct_lwm using the
+"saved" value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_max_dirty_pages_pct_lwm_update(
+/*==================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	ulong	in_val = *static_cast<const ulong*>(save);
+	if (in_val > srv_max_buf_pool_modified_pct) {
+		in_val = srv_max_buf_pool_modified_pct;
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "innodb_max_dirty_pages_pct_lwm"
+				    " cannot be set higher than"
+				    " innodb_max_dirty_pages_pct.");
+		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+				    ER_WRONG_ARGUMENTS,
+				    "Setting innodb_max_dirty_page_pct_lwm"
+				    " to %lu",
+				    in_val);
+	}
+
+	srv_max_dirty_pages_pct_lwm = in_val;
 }
 
 /************************************************************//**
@@ -14746,7 +14990,12 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
-  NULL, NULL, 200, 100, ~0UL, 0);
+  NULL, innodb_io_capacity_update, 200, 100, ~0UL, 0);
+
+static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
+  PLUGIN_VAR_RQCMDARG,
+  "Limit to which innodb_io_capacity can be inflated.",
+  NULL, innodb_max_io_capacity_update, 400, 100, ~0UL, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
@@ -14829,6 +15078,11 @@ static MYSQL_SYSVAR_STR(ft_server_stopword_table, innobase_server_stopword_table
   innodb_stopword_table_update,
   NULL);
 
+static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
+  PLUGIN_VAR_OPCMDARG,
+  "Write and flush logs every (n) second.",
+  NULL, NULL, 1, 0, 2700, 0);
+
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
   "Set to 0 (write and flush once per second),"
@@ -14874,12 +15128,30 @@ static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
 static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of dirty pages allowed in bufferpool.",
-  NULL, NULL, 75, 0, 99, 0);
+  NULL, innodb_max_dirty_pages_pct_update, 75, 0, 99, 0);
+
+static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct_lwm,
+  srv_max_dirty_pages_pct_lwm,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of dirty pages at which flushing kicks in.",
+  NULL, innodb_max_dirty_pages_pct_lwm_update, 0, 0, 99, 0);
+
+static MYSQL_SYSVAR_ULONG(adaptive_flushing_lwm,
+  srv_adaptive_flushing_lwm,
+  PLUGIN_VAR_RQCMDARG,
+  "Percentage of log capacity below which no adaptive flushing happens.",
+  NULL, NULL, 10, 0, 70, 0);
 
 static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
   PLUGIN_VAR_NOCMDARG,
   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
   NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_ULONG(flushing_avg_loops,
+  srv_flushing_avg_loops,
+  PLUGIN_VAR_RQCMDARG,
+  "Number of iterations over which the background flushing is averaged.",
+  NULL, NULL, 30, 1, 1000, 0);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
@@ -14926,7 +15198,15 @@ static MYSQL_SYSVAR_BOOL(stats_persistent, srv_stats_persistent,
   PLUGIN_VAR_OPCMDARG,
   "InnoDB persistent statistics enabled for all tables unless overridden "
   "at table level",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
+
+static MYSQL_SYSVAR_BOOL(stats_auto_recalc, srv_stats_auto_recalc,
+  PLUGIN_VAR_OPCMDARG,
+  "InnoDB automatic recalculation of persistent statistics enabled for all "
+  "tables unless overridden at table level (automatic recalculation is only "
+  "done when InnoDB decides that the table has changed too much and needs a "
+  "new statistics)",
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONGLONG(stats_persistent_sample_pages,
   srv_stats_persistent_sample_pages,
@@ -15391,6 +15671,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(file_format),
   MYSQL_SYSVAR(file_format_check),
   MYSQL_SYSVAR(file_format_max),
+  MYSQL_SYSVAR(flush_log_at_timeout),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
@@ -15414,7 +15695,10 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
   MYSQL_SYSVAR(max_dirty_pages_pct),
+  MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
+  MYSQL_SYSVAR(adaptive_flushing_lwm),
   MYSQL_SYSVAR(adaptive_flushing),
+  MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
   MYSQL_SYSVAR(mirrored_log_groups),
@@ -15433,6 +15717,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_transient_sample_pages),
   MYSQL_SYSVAR(stats_persistent),
   MYSQL_SYSVAR(stats_persistent_sample_pages),
+  MYSQL_SYSVAR(stats_auto_recalc),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(stats_method),
   MYSQL_SYSVAR(replication_delay),
@@ -15462,6 +15747,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(max_io_capacity),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),

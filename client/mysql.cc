@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
  **/
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_dir.h>
@@ -1423,6 +1424,9 @@ sig_handler handle_kill_signal(int sig)
   }
 
   kill_mysql= mysql_init(kill_mysql);
+  mysql_options(kill_mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(kill_mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysql");
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
   {
@@ -4508,6 +4512,9 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
+                 "program_name", "mysql");
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS))

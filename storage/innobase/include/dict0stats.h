@@ -57,6 +57,18 @@ enum dict_stats_upd_option {
 typedef enum dict_stats_upd_option	dict_stats_upd_option_t;
 
 /*********************************************************************//**
+Calculates new estimates for table and index statistics. This function
+is relatively quick and is used to calculate transient statistics that
+are not saved on disk.
+This was the only way to calculate statistics before the
+Persistent Statistics feature was introduced. */
+UNIV_INTERN
+void
+dict_stats_update_transient(
+/*========================*/
+	dict_table_t*	table);	/*!< in/out: table */
+
+/*********************************************************************//**
 Set the persistent statistics flag for a given table. This is set only
 in the in-memory table object and is not saved on disk. It will be read
 from the .frm file upon first open from MySQL after a server restart. */
@@ -80,15 +92,34 @@ dict_stats_is_persistent_enabled(
 	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
+Set the auto recalc flag for a given table (only honored for a persistent
+stats enabled table). The flag is set only in the in-memory table object
+and is not saved in InnoDB files. It will be read from the .frm file upon
+first open from MySQL after a server restart. */
+UNIV_INLINE
+void
+dict_stats_auto_recalc_set(
+/*=======================*/
+	dict_table_t*	table,			/*!< in/out: table */
+	ibool		auto_recalc_on,		/*!< in: explicitly enabled */
+	ibool		auto_recalc_off);	/*!< in: explicitly disabled */
+
+/*********************************************************************//**
+Check whether auto recalc is enabled for a given table.
+@return TRUE if enabled, FALSE otherwise */
+UNIV_INLINE
+ibool
+dict_stats_auto_recalc_is_enabled(
+/*==============================*/
+	const dict_table_t*	table);	/*!< in: table */
+
+/*********************************************************************//**
 Initialize table's stats for the first time when opening a table. */
 UNIV_INLINE
 void
 dict_stats_init(
 /*============*/
-	dict_table_t*	table,	/*!< in/out: table */
-	ibool		ps_on,	/*!< in: persistent stats explicitly enabled */
-	ibool		ps_off)	/*!< in: persistent stats explicitly disabled */
-	__attribute__((nonnull));
+	dict_table_t*	table);	/*!< in/out: table */
 
 /*********************************************************************//**
 Deinitialize table's stats after the last close of the table. This is
@@ -109,21 +140,15 @@ dberr_t
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
-	dict_stats_upd_option_t	stats_upd_option,
+	dict_stats_upd_option_t	stats_upd_option);
 					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent storage */
-	ibool			caller_has_dict_sys_mutex);
-					/*!< in: TRUE if the caller
-					owns dict_sys->mutex */
 
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent
 storage if it exists and if there is data stored for this index.
-The transaction is not committed, it must not be committed in this
-function because this is the user trx that is running DROP INDEX.
-The transaction will be committed at the very end when dropping an
-index.
+This function creates its own trx and commits it.
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -131,7 +156,6 @@ dict_stats_drop_index(
 /*==================*/
 	const char*	tname,	/*!< in: table name */
 	const char*	iname,	/*!< in: index name */
-	trx_t*		trx,	/*!< in/out: user transaction */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
 				is returned */
 	ulint		errstr_sz);/*!< in: size of the errstr buffer */
@@ -172,46 +196,6 @@ dict_stats_rename_table(
 	char*		errstr,		/*!< out: error string if != DB_SUCCESS
 					is returned */
 	size_t		errstr_sz);	/*!< in: errstr size */
-
-/*********************************************************************//**
-Duplicate the stats of a table and its indexes.
-This function creates a dummy dict_table_t object and copies the input
-table's stats into it. The returned table object is not in the dictionary
-cache, cannot be accessed by any other threads and has only the following
-members initialized:
-dict_table_t::id
-dict_table_t::heap
-dict_table_t::name
-dict_table_t::indexes<>
-dict_table_t::stat_initialized
-dict_table_t::stat_persistent
-dict_table_t::stat_n_rows
-dict_table_t::stat_clustered_index_size
-dict_table_t::stat_sum_of_other_index_sizes
-dict_table_t::stat_modified_counter
-dict_table_t::magic_n
-for each entry in dict_table_t::indexes, the following are initialized:
-dict_index_t::id
-dict_index_t::name
-dict_index_t::table_name
-dict_index_t::table (points to the above semi-initialized object)
-dict_index_t::n_uniq
-dict_index_t::fields[] (only first n_uniq and only fields[i].name)
-dict_index_t::indexes<>
-dict_index_t::stat_n_diff_key_vals[]
-dict_index_t::stat_n_sample_sizes[]
-dict_index_t::stat_n_non_null_key_vals[]
-dict_index_t::stat_index_size
-dict_index_t::stat_n_leaf_pages
-dict_index_t::magic_n
-The returned object should be freed with dict_stats_dup_free() when no
-longer needed.
-@return incomplete table object */
-UNIV_INTERN
-dict_table_t*
-dict_stats_snapshot_create(
-/*=======================*/
-	const dict_table_t*	table);	/*!< in: table whose stats to copy */
 
 /*********************************************************************//**
 Free the resources occupied by an object returned by

@@ -459,6 +459,20 @@ include/my_base.h. It is possible to distinguish whether
 STATS_PERSISTENT=default has been specified or no STATS_PERSISTENT= is
 given at all. */
 #define HA_CREATE_USED_STATS_PERSISTENT (1L << 22)
+/**
+   This is set whenever STATS_AUTO_RECALC=0|1|default has been
+   specified in CREATE/ALTER TABLE. See enum_stats_auto_recalc.
+   It is possible to distinguish whether STATS_AUTO_RECALC=default
+   has been specified or no STATS_AUTO_RECALC= is given at all.
+*/
+#define HA_CREATE_USED_STATS_AUTO_RECALC (1L << 23)
+/**
+   This is set whenever STATS_SAMPLE_PAGES=N|default has been
+   specified in CREATE/ALTER TABLE. It is possible to distinguish whether
+   STATS_SAMPLE_PAGES=default has been specified or no STATS_SAMPLE_PAGES= is
+   given at all.
+*/
+#define HA_CREATE_USED_STATS_SAMPLE_PAGES (1L << 24)
 
 
 /*
@@ -994,6 +1008,10 @@ struct st_partition_iter;
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
+enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
+                              HA_STATS_AUTO_RECALC_ON,
+                              HA_STATS_AUTO_RECALC_OFF };
+
 typedef struct st_ha_create_information
 {
   const CHARSET_INFO *table_charset, *default_table_charset;
@@ -1008,6 +1026,9 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
+  uint stats_sample_pages;		/* number of pages to sample during
+					stats estimation, if used, otherwise 0. */
+  enum_stats_auto_recalc stats_auto_recalc;
   SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**
@@ -3227,11 +3248,19 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_one_phase(THD *thd, bool all);
 int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
+
+/*
+ transactions: interface to low-level handlerton functions. These are
+ intended to be used by the transaction coordinators to
+ commit/prepare/rollback transactions in the engines.
+*/
+int ha_commit_low(THD *thd, bool all);
+int ha_prepare_low(THD *thd, bool all);
+int ha_rollback_low(THD *thd, bool all);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);
@@ -3274,6 +3303,7 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_end(a)  do {} while (0)
 #endif
 
+const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 bool mysql_xa_recover(THD *thd);

@@ -4143,16 +4143,18 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-
+    item_type= Item::STRING_ITEM;
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
+    item_type= Item::REAL_ITEM;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
+    item_type= Item::INT_ITEM;
     break;
 
   case DECIMAL_RESULT:
@@ -4164,6 +4166,7 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
+    item_type= Item::DECIMAL_ITEM;
     break;
   }
 
@@ -4173,11 +4176,11 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
     DBUG_ASSERT(TRUE);  // Abort in debug mode.
 
     set_null();         // Set to NULL in release mode.
+    item_type= Item::NULL_ITEM;
     return FALSE;
   }
 
   item_result_type= arg->result_type();
-  item_type= arg->type();
   return FALSE;
 }
 
@@ -5440,11 +5443,23 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   }
 #endif
   fixed= 1;
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !outer_fixed && !thd->lex->in_sum_func &&
+  if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select->cur_pos_in_all_fields !=
       SELECT_LEX::ALL_FIELDS_UNDEF_POS)
-    push_to_non_agg_fields(thd->lex->current_select);
+  {
+    // See same code in Field_iterator_table::create_item()
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      push_to_non_agg_fields(thd->lex->current_select);
+    /*
+      If (1) aggregation (2) without grouping, we may have to return a result
+      row even if the nested loop finds nothing; in this result row,
+      non-aggregated table columns present in the SELECT list will show a NULL
+      value even if the table column itself is not nullable.
+    */
+    if (thd->lex->current_select->with_sum_func && // (1)
+        !thd->lex->current_select->group_list.elements) // (2)
+      maybe_null= true;
+  }
 
 mark_non_agg_field:
   if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)

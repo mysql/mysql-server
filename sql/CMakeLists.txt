@@ -17,6 +17,7 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql 
   ${CMAKE_SOURCE_DIR}/regex 
+  ${CMAKE_SOURCE_DIR}/mysys_ssl
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
@@ -115,6 +116,7 @@ SET(SQL_SHARED_SOURCES
   sp_pcontext.cc 
   sp_rcontext.cc
   spatial.cc
+  string_service.cc
   sql_acl.cc
   sql_admin.cc
   sql_alloc_error_handler.cc
@@ -177,6 +179,7 @@ SET(SQL_SHARED_SOURCES
   strfunc.cc
   sys_vars.cc
   table.cc
+  table_cache.cc
   thr_malloc.cc 
   transaction.cc
   tztime.cc
@@ -213,7 +216,7 @@ ADD_LIBRARY(sql STATIC ${SQL_SOURCE})
 ADD_DEPENDENCIES(sql GenServerSource)
 DTRACE_INSTRUMENT(sql)
 TARGET_LINK_LIBRARIES(sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
-  mysys dbug strings vio regex   
+  mysys mysys_ssl dbug strings vio regex   
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${SSL_LIBRARIES})
 
@@ -291,7 +294,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
     # incremental appears to crash from time to time,if used with /DEF option
     SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS "${mysqld_link_flags} /DEF:mysqld.def /INCREMENTAL:NO")
 
-    FOREACH (CORELIB sql mysys dbug strings)
+    FOREACH (CORELIB sql mysys mysys_ssl dbug strings)
       GET_TARGET_PROPERTY(LOC ${CORELIB} LOCATION)
       FILE(TO_NATIVE_PATH ${LOC} LOC)
       SET (LIB_LOCATIONS ${LIB_LOCATIONS} ${LOC}) 
@@ -309,7 +312,7 @@ IF(NOT WITHOUT_DYNAMIC_PLUGINS)
 ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
-TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys)
+TARGET_LINK_LIBRARIES(mysqld sql binlog rpl master slave sql mysys mysys_ssl)
 
 # Provide plugins with minimal set of libraries
 SET(INTERFACE_LIBS ${LIBRT})
@@ -321,7 +324,7 @@ ENDIF()
 # On Solaris, some extra effort is required in order to get dtrace probes
 # from static libraries
 DTRACE_INSTRUMENT_STATIC_LIBS(mysqld 
- "sql;mysys;${MYSQLD_STATIC_PLUGIN_LIBS}")
+ "sql;mysys;mysys_ssl;${MYSQLD_STATIC_PLUGIN_LIBS}")
  
 
 SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
@@ -380,7 +383,7 @@ ADD_CUSTOM_COMMAND(
 
 MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
 SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
-TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys)
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql mysys mysys_ssl)
 
 ADD_CUSTOM_TARGET( 
         GenServerSource
@@ -433,7 +436,10 @@ IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 # We need to create empty directories (data/test) the installation.  
 # This does not work with current CPack due to http://www.cmake.org/Bug/view.php?id=8767
 # Avoid completely empty directories and install dummy file instead.
-SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/.empty ) 
+# Use a file extension so that it will be deleted in case someone does
+#   'drop database test'
+# See deletable_extentions.
+SET(DUMMY_FILE ${CMAKE_CURRENT_BINARY_DIR}/dummy.bak ) 
 FILE(WRITE ${DUMMY_FILE} "")
 INSTALL(FILES ${DUMMY_FILE} DESTINATION data/test COMPONENT DataFiles)
 

@@ -4004,17 +4004,24 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     sql_parse.cc
     */
 
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
   if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
                                                     +  host.length + 1
                                                     +  data_len + 1
-#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-                                                    + sizeof(size_t)//for db_len
-                                                    + db_len + 1
-                                                    + QUERY_CACHE_FLAGS_SIZE
+                                                    +  sizeof(size_t)//for db_len
+                                                    +  db_len + 1
+                                                    +  QUERY_CACHE_FLAGS_SIZE,
+                                                       MYF(MY_WME))))
+#else
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1,
+                                                       MYF(MY_WME))))
 #endif
-                                                    , MYF(MY_WME))))
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
   {
@@ -4246,6 +4253,12 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_write().
+   */
+  DBUG_EXECUTE_IF ("simulate_file_write_error",
+                   {head->write_pos= head->write_end- 500;});
   print_query_header(head, print_event_info);
   my_b_write(head, (uchar*) query, q_len);
   my_b_printf(head, "\n%s\n", print_event_info->delimiter);
@@ -4829,7 +4842,8 @@ int Query_log_event::do_update_pos(Relay_log_info *rli)
        if (!strcmp("COMMIT", query))
        {
          sql_print_information("Crashing crash_after_commit_and_update_pos.");
-         rli->flush_info(TRUE);
+         rli->flush_info(true);
+         ha_flush_logs(0); 
          DBUG_SUICIDE();
        }
   );
@@ -5044,7 +5058,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
        thread.
     */
   case 1:
-    if (strncmp(rli->relay_log.description_event_for_exec->server_version,
+    if (strncmp(rli->get_rli_description_event()->server_version,
                 "3.23.57",7) >= 0 && created)
     {
       /*
@@ -5508,8 +5522,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
   if (!ret)
   {
     /* Save the information describing this binlog */
-    delete rli->relay_log.description_event_for_exec;
-    const_cast<Relay_log_info *>(rli)->relay_log.description_event_for_exec= this;
+    const_cast<Relay_log_info *>(rli)->set_rli_description_event(this);
   }
 
   DBUG_RETURN(ret);
@@ -6610,7 +6623,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
         synchronization point. For that reason, the checkpoint
         routine is being called here.
       */
-      if ((error= mts_checkpoint_routine(rli, 0, FALSE, TRUE)))
+      if ((error= mts_checkpoint_routine(rli, 0, false,
+                                         true/*need_data_lock=true*/)))
         goto err;
     }
 
@@ -6623,7 +6637,8 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     memcpy((void *)rli->get_group_master_log_name(),
            new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
-    if ((error=  rli->inc_group_relay_log_pos(pos, true)))
+    if ((error= rli->inc_group_relay_log_pos(pos,
+                                             false/*need_data_lock=false*/)))
     {
       mysql_mutex_unlock(&rli->data_lock);
       goto err;
@@ -6635,12 +6650,13 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
                         (ulong) rli->get_group_master_log_pos()));
     mysql_mutex_unlock(&rli->data_lock);
     if (rli->is_parallel_exec())
-      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time, false);
+      rli->reset_notified_checkpoint(0, when.tv_sec + (time_t) exec_time,
+                                     true/*need_data_lock=true*/);
 
     /*
       Reset thd->variables.option_bits and sql_mode etc, because this could be the signal of
       a master's downgrade from 5.0 to 4.0.
-      However, no need to reset description_event_for_exec: indeed, if the next
+      However, no need to reset rli_description_event: indeed, if the next
       master is 5.0 (even 5.0.1) we will soon get a Format_desc; if the next
       master is 4.0 then the events are in the slave's format (conversion).
     */
@@ -7115,6 +7131,8 @@ err:
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
   int error= 0;
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /* For a slave Xid_log_event is COMMIT */
@@ -7162,8 +7180,21 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                   sql_print_information("Crashing crash_after_update_pos_before_apply.");
                   DBUG_SUICIDE(););
 
+  /**
+    Commit operation expects the global transaction state variable 'xa_state'to
+    be set to 'XA_NOTR'. In order to simulate commit failure we set
+    the 'xa_state' to 'XA_IDLE' so that the commit reports 'ER_XAER_RMFAIL'
+    error.
+   */
+  DBUG_EXECUTE_IF("simulate_commit_failure",
+                  {
+                  thd->transaction.xid_state.xa_state = XA_IDLE;
+                  });
   error= do_commit(thd);
-
+  if(error)
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in Xid_log_event: Commit could not be completed, '%s'",
+                thd->get_stmt_da()->message());
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
@@ -7683,7 +7714,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     rli->inc_event_relay_log_pos();
   else
   {
-    error_inc= rli->inc_group_relay_log_pos(0, false);
+    error_inc= rli->inc_group_relay_log_pos(0, true/*need_data_lock=true*/);
     error_flush= rli->flush_info(TRUE);
   }
   return (error_inc || error_flush);
@@ -7901,11 +7932,21 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   IO_CACHE file;
   int error = 1;
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   THD_STAGE_INFO(thd, stage_making_temp_file_create_before_load_data);
   memset(&file, 0, sizeof(file));
   ext= slave_load_file_stem(fname_buf, file_id, server_id, ".info");
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_info, fname_buf, MYF(0));
+  /**
+    To simulate file creation failure, convert the file name to a
+    directory by appending a "/" to the file name.
+   */
+  DBUG_EXECUTE_IF("simulate_file_create_error_create_log_event",
+                  {
+                  strcat(fname_buf,"/");
+                  });
   if ((fd= mysql_file_create(key_file_log_event_info,
                              fname_buf, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
@@ -7913,7 +7954,7 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Create_file event: could not open file '%s'",
                 fname_buf);
     goto err;
@@ -7946,9 +7987,17 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
                 fname_buf);
     goto err;
   }
+  /**
+    To simulate file write failure,close the file before the write operation.
+    Write will fail with an error reporting file is UNOPENED. 
+   */
+  DBUG_EXECUTE_IF("simulate_file_write_error_create_log_event",
+                  {
+                  mysql_file_close(fd, MYF(0));
+                  });
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Create_file event: write to '%s' failed",
                 fname_buf);
     goto err;
@@ -8230,6 +8279,8 @@ int Delete_file_log_event::pack_info(Protocol *protocol)
 int Delete_file_log_event::do_apply_event(Relay_log_info const *rli)
 {
   char fname[FN_REFLEN+TEMP_FILE_MAX_LEN];
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   char *ext= slave_load_file_stem(fname, file_id, server_id, ".data");
   mysql_file_delete(key_file_log_event_data, fname, MYF(MY_WME));
   strmov(ext, ".info");
@@ -8337,14 +8388,25 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   IO_CACHE file;
   Load_log_event *lev= 0;
 
+  lex_start(thd);
+  mysql_reset_thd_for_next_command(thd);
   ext= slave_load_file_stem(fname, file_id, server_id, ".info");
+  /**
+    To simulate file open failure, convert the file name to a
+    directory by appending a "/" to the file name. File open
+    will fail with an error reporting it is not a directory.
+   */
+  DBUG_EXECUTE_IF("simulate_file_open_error_exec_event",
+                  {
+                  strcat(fname,"/");
+                  });
   if ((fd= mysql_file_open(key_file_log_event_info,
                            fname, O_RDONLY | O_BINARY | O_NOFOLLOW,
                            MYF(MY_WME))) < 0 ||
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
                 "Error in Exec_load event: could not open file '%s'",
                 fname);
     goto err;
@@ -8352,7 +8414,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
   if (!(lev= (Load_log_event*)
         Log_event::read_log_event(&file,
                                   (mysql_mutex_t*) 0,
-                                  rli->relay_log.description_event_for_exec,
+                                  rli->get_rli_description_event(),
                                   opt_slave_sql_verify_checksum)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
@@ -10000,6 +10062,24 @@ int Rows_log_event::do_index_scan_and_update(Relay_log_info const *rli)
   if (m_key_index != m_table->s->primary_key)
     /* we dont have a PK, or PK is not usable */
     goto INDEX_SCAN;
+
+  if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL))
+  {
+    /*
+      Read removal is possible since the engine supports write without
+      previous read using full primary key
+    */
+    DBUG_PRINT("info", ("using read before write removal"));
+    DBUG_ASSERT(m_key_index == m_table->s->primary_key);
+
+    /*
+      Tell the handler to ignore if key exists or not, since it's
+      not yet known if the key does exist(when using rbwr)
+    */
+    table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+
+    goto end;
+  }
 
   if ((table->file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION))
   {

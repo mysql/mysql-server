@@ -19,7 +19,7 @@
 #include "sql_select.h"
 #include "sql_optimizer.h"
 #include "abstract_query_plan.h"
-
+#include "sql_join_buffer.h"
 
 namespace AQP
 {
@@ -468,7 +468,7 @@ namespace AQP
   */
   bool Table_access::uses_join_cache() const
   {
-    return get_join_tab()->next_select == sub_select_cache;
+    return get_join_tab()->use_join_cache != JOIN_CACHE::ALG_NONE;
   }
 
   /**

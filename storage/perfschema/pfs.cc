@@ -4918,6 +4918,42 @@ static void set_socket_thread_owner_v1(PSI_socket *socket)
   pfs_socket->m_thread_owner= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
 }
 
+
+/**
+  Implementation of the thread attribute connection interface
+  @sa PSI_v1::set_thread_connect_attr.
+*/
+static int set_thread_connect_attrs_v1(const char *buffer, uint length,
+                                       const void *from_cs)
+{
+
+  PFS_thread *thd= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT(buffer != NULL);
+
+  if (likely(thd != NULL) && session_connect_attrs_size_per_thread > 0)
+  {
+    /* copy from the input buffer as much as we can fit */
+    uint copy_size= (uint)(length < session_connect_attrs_size_per_thread ?
+                           length : session_connect_attrs_size_per_thread);
+    thd->m_lock.allocated_to_dirty();
+    memcpy(thd->m_session_connect_attrs, buffer, copy_size);
+    thd->m_session_connect_attrs_length= copy_size;
+    thd->m_session_connect_attrs_cs= (const CHARSET_INFO *) from_cs;
+    thd->m_lock.dirty_to_allocated();
+    
+    if (copy_size == length)
+      return 0;
+    else
+    {
+      session_connect_attrs_lost++;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
 /**
   Implementation of the instrumentation interface.
   @sa PSI_v1.
@@ -5017,7 +5053,8 @@ PSI_v1 PFS_v1=
   set_socket_info_v1,
   set_socket_thread_owner_v1,
   pfs_digest_start_v1,
-  pfs_digest_add_token_v1
+  pfs_digest_add_token_v1,
+  set_thread_connect_attrs_v1,
 };
 
 static void* get_interface(int version)

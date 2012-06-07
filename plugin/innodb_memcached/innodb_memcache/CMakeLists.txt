@@ -39,6 +39,7 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_SHARED_LIBRARY_C_FLAGS} -std=gnu99")
 
 SET(INNODB_ENGINE_SOURCES
 		src/innodb_config.c
+		src/innodb_utility.c
 		src/hash_item_util.c
 		src/innodb_engine.c
 		src/innodb_api.c

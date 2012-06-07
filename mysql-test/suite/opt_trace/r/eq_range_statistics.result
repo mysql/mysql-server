@@ -144,16 +144,17 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "1 <= a <= 1",
                           "5 <= a <= 5",
                           "10 < a"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 5,
                         "cost": 2.139,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -192,7 +193,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                     {
                       "access_type": "range",
                       "rows": 5,
-                      "cost": 2.139,
+                      "cost": 3.139,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -328,17 +329,18 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": false,
                         "ranges": [
                           "1 <= a <= 1",
                           "2 <= a <= 2",
                           "5 <= a <= 5",
                           "10 < a"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": false,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 7,
                         "cost": 2.6035,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -378,7 +380,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                     {
                       "access_type": "range",
                       "rows": 7,
-                      "cost": 2.6035,
+                      "cost": 4.0035,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -521,16 +523,17 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": false,
                         "ranges": [
                           "5 <= a <= 5 AND 2 <= b <= 2",
                           "5 <= a <= 5 AND 3 <= b <= 3",
                           "5 <= a <= 5 AND 4 <= b <= 4"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": false,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
                         "cost": 1.6745,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -576,7 +579,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                     {
                       "access_type": "range",
                       "rows": 3,
-                      "cost": 1.6745,
+                      "cost": 2.2745,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
@@ -728,16 +731,17 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "5 <= a <= 5 AND 2 <= b <= 2",
                           "5 <= a <= 5 AND 3 <= b <= 3",
                           "5 <= a <= 5 AND 4 < b"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
                         "cost": 1.6745,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -783,7 +787,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                     {
                       "access_type": "range",
                       "rows": 3,
-                      "cost": 1.6745,
+                      "cost": 2.2745,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
@@ -934,16 +938,17 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "5 <= a <= 5 AND NULL <= b <= NULL",
                           "5 <= a <= 5 AND 2 <= b <= 2",
                           "5 <= a <= 5 AND 3 <= b <= 3"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
                         "cost": 1.6745,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -989,7 +994,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                     {
                       "access_type": "range",
                       "rows": 3,
-                      "cost": 1.6745,
+                      "cost": 2.2745,
                       "chosen": false
                     }
                   ] /* considered_access_paths */
@@ -1134,16 +1139,17 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "5 < a AND 2 <= b <= 2",
                           "5 < a AND 3 <= b <= 3",
                           "5 < a AND 4 <= b <= 4"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
                         "cost": 2.21,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1182,7 +1188,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                     {
                       "access_type": "range",
                       "rows": 1,
-                      "cost": 2.21,
+                      "cost": 2.41,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
@@ -1325,14 +1331,15 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                     "range_scan_alternatives": [
                       {
                         "index": "a",
-                        "index_dives_for_eq_ranges": true,
                         "ranges": [
                           "5 <= a <= 5"
                         ] /* ranges */,
+                        "index_dives_for_eq_ranges": true,
+                        "rowid_ordered": false,
+                        "using_mrr": false,
                         "index_only": true,
                         "rows": 3,
                         "cost": 1.6745,
-                        "rowid_ordered": false,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,

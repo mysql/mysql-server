@@ -37,6 +37,8 @@ SELECT COUNT(IF(MATCH (title, body)
         AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))
         AS count FROM articles;
 
+ANALYZE TABLE articles;
+
 # Boolean search
 # Select rows contain "MySQL" but not "YourSQL"
 SELECT * FROM articles WHERE MATCH (title,body)

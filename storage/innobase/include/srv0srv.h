@@ -245,6 +245,7 @@ extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
+extern uint	srv_flush_log_at_timeout;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -281,6 +282,7 @@ extern ulint	srv_n_write_io_threads;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
+extern ulong    srv_max_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
@@ -303,7 +305,11 @@ extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
-extern ulint	srv_max_dirty_pages_pct;
+extern ulong	srv_max_dirty_pages_pct;
+extern ulong	srv_max_dirty_pages_pct_lwm;
+
+extern ulong	srv_adaptive_flushing_lwm;
+extern ulong	srv_flushing_avg_loops;
 
 extern ulint	srv_force_recovery;
 
@@ -319,6 +325,7 @@ extern ibool	srv_innodb_status;
 extern unsigned long long	srv_stats_transient_sample_pages;
 extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
+extern my_bool			srv_stats_auto_recalc;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -346,6 +353,9 @@ extern ibool	srv_error_monitor_active;
 
 /* TRUE during the lifetime of the buffer pool dump/load thread */
 extern ibool	srv_buf_dump_thread_active;
+
+/* TRUE during the lifetime of the stats thread */
+extern ibool	srv_dict_stats_thread_active;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;

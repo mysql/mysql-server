@@ -48,15 +48,15 @@ buffer_flush_batch_pages	disabled
 buffer_flush_neighbor_total_pages	disabled
 buffer_flush_neighbor	disabled
 buffer_flush_neighbor_pages	disabled
-buffer_flush_max_dirty_total_pages	disabled
-buffer_flush_max_dirty	disabled
-buffer_flush_max_dirty_pages	disabled
+buffer_flush_n_to_flush_requested	disabled
+buffer_flush_avg_page_rate	disabled
+buffer_flush_lsn_avg_rate	disabled
+buffer_flush_pct_for_dirty	disabled
+buffer_flush_pct_for_lsn	disabled
+buffer_flush_sync_waits	disabled
 buffer_flush_adaptive_total_pages	disabled
 buffer_flush_adaptive	disabled
 buffer_flush_adaptive_pages	disabled
-buffer_flush_async_total_pages	disabled
-buffer_flush_async	disabled
-buffer_flush_async_pages	disabled
 buffer_flush_sync_total_pages	disabled
 buffer_flush_sync	disabled
 buffer_flush_sync_pages	disabled
@@ -347,7 +347,7 @@ name	max_count	min_count	count	max_count_reset	min_count_reset	count_reset	statu
 metadata_table_handles_opened	NULL	NULL	0	NULL	NULL	0	disabled
 set global innodb_monitor_enable = metadata_table_handles_opened;
 drop table monitor_test;
-create table monitor_test(col int) engine = innodb;
+create table monitor_test(col int) engine = innodb stats_persistent=0;
 select * from monitor_test;
 col
 select name, max_count, min_count, count,

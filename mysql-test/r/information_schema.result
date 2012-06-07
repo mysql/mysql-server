@@ -698,6 +698,7 @@ max_questions	select,insert,update,references
 max_connections	select,insert,update,references
 max_user_connections	select,insert,update,references
 authentication_string	select,insert,update,references
+password_expired	select,insert,update,references
 use test;
 create function sub1(i int) returns int
 return i+1;

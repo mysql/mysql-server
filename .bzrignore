@@ -384,6 +384,7 @@ client/my_decimal.h
 client/my_user.c
 client/mysql
 client/mysql.cpp
+client/mysql_config_editor
 client/mysql_upgrade
 client/mysqladmin
 client/mysqladmin.c
@@ -3115,8 +3116,8 @@ libmysql/merge_archives_mysqlclient.cmake
 libmysqld/merge_archives_mysqlserver.cmake
 libmysqld/mysqlserver_depends.c
 libmysqld/examples/mysql_embedded
-sql/.empty
 libmysqld/sql_bootstrap.cc
+sql/dummy.bak
 mysys/thr_lock
 mysys/queues
 libmysqld/binlog.cc
@@ -3134,3 +3135,4 @@ client/mysql_plugin
 support-files/plugins.files
 storage/perfschema/pfs_lex_token.h
 storage/perfschema/gen_pfs_lex_token
+sql/share/bulgarian

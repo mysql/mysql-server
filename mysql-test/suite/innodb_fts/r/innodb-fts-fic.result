@@ -34,6 +34,9 @@ AGAINST ('database' IN NATURAL LANGUAGE MODE), 1, NULL))
 AS count FROM articles;
 count
 2
+ANALYZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	analyze	status	OK
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('+MySQL -YourSQL' IN BOOLEAN MODE);
 id	title	body

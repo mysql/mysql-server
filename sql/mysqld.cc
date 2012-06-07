@@ -44,7 +44,7 @@
 #include "sql_acl.h"      // acl_free, grant_free, acl_init,
                           // grant_init
 #include "sql_base.h"     // table_def_free, table_def_init,
-                          // cached_open_tables,
+                          // Table_cache,
                           // cached_table_definitions
 #include "sql_test.h"     // mysql_print_status
 #include "item_create.h"  // item_create_cleanup, item_create_init
@@ -76,6 +76,7 @@
 
 #include "global_threads.h"
 #include "mysqld.h"
+#include "my_default.h"
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -111,6 +112,7 @@
 #ifdef HAVE_FESETROUND
 #include <fenv.h>
 #endif
+#include "table_cache.h" // table_cache_manager
 
 using std::min;
 using std::max;
@@ -405,7 +407,7 @@ ulong slow_start_timeout;
   SQL commands in the init file and in --bootstrap mode.
 */
 bool in_bootstrap= FALSE;
-my_bool opt_bootstrap;
+my_bool opt_bootstrap= 0;
 
 /**
    @brief 'grant_option' is used to indicate if privileges needs
@@ -464,7 +466,7 @@ my_bool opt_old_style_user_limits= 0, trust_function_creators= 0;
   changed). False otherwise.
 */
 volatile bool mqh_used = 0;
-my_bool opt_noacl;
+my_bool opt_noacl= 0;
 my_bool sp_automatic_privileges= 1;
 
 ulong opt_binlog_rows_event_max_size;
@@ -493,6 +495,8 @@ int32 thread_running;
 ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
+ulong table_cache_instances;
+ulong table_cache_size_per_instance;
 ulong what_to_log;
 ulong slow_launch_time;
 int32 slave_open_temp_tables;
@@ -510,6 +514,8 @@ uint slave_rows_last_search_algorithm_used;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong binlog_stmt_cache_size=0;
+my_atomic_rwlock_t opt_binlog_max_flush_queue_time_lock;
+int32 opt_binlog_max_flush_queue_time= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
@@ -919,12 +925,6 @@ void init_net_server_extension(THD *thd)
 }
 #endif /* EMBEDDED_LIBRARY */
 
-/*
-  Since buffered_option_error_reporter is only used currently
-  for parsing performance schema options, this code is not needed
-  when the performance schema is not compiled in.
-*/
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 /**
   A log message for the error log, buffered in memory.
   Log messages are temporarily buffered when generated before the error log
@@ -1060,7 +1060,6 @@ void Buffered_logs::print()
 /** Logs reported before a logger is available. */
 static Buffered_logs buffered_logs;
 
-#ifndef EMBEDDED_LIBRARY
 /**
   Error reporter that buffer log messages.
   @param level          log message level
@@ -1079,8 +1078,6 @@ static void buffered_option_error_reporter(enum loglevel level,
   buffered_logs.buffer(level, buffer);
 }
 C_MODE_END
-#endif /* !EMBEDDED_LIBRARY */
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static MYSQL_SOCKET unix_sock, ip_sock;
 struct rand_struct sql_rand; ///< used by sql_class.cc:THD::THD()
@@ -1744,6 +1741,7 @@ void clean_up(bool print_message)
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
   logger.cleanup_end();
+  my_atomic_rwlock_destroy(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_destroy(&global_query_id_lock);
   my_atomic_rwlock_destroy(&thread_running_lock);
   mysql_mutex_lock(&LOCK_thread_count);
@@ -2025,8 +2023,8 @@ static MYSQL_SOCKET create_socket(const struct addrinfo *addrinfo_list,
 
     char ip_addr[INET6_ADDRSTRLEN];
 
-    if (vio_get_normalized_ip_string(cur_ai->ai_addr, cur_ai->ai_addrlen,
-                                     ip_addr, sizeof (ip_addr)))
+    if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof (ip_addr),
+                        NULL, 0, NI_NUMERICHOST))
     {
       ip_addr[0]= 0;
     }
@@ -2083,7 +2081,7 @@ static void network_init(void)
 
   if (mysqld_port != 0 && !opt_disable_networking && !opt_bootstrap)
   {
-    struct addrinfo *ai, *a;
+    struct addrinfo *ai;
     struct addrinfo hints;
 
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
@@ -2108,8 +2106,8 @@ static void network_init(void)
     {
       char ip_addr[INET6_ADDRSTRLEN];
 
-      if (vio_get_normalized_ip_string(cur_ai->ai_addr, cur_ai->ai_addrlen,
-                                       ip_addr, sizeof (ip_addr)))
+      if (vio_getnameinfo(cur_ai->ai_addr, ip_addr, sizeof (ip_addr),
+                          NULL, 0, NI_NUMERICHOST))
       {
         sql_print_error("Fails to print out IP-address.");
         continue;
@@ -2128,6 +2126,7 @@ static void network_init(void)
       returned by getaddrinfo();
     */
 
+    struct addrinfo *a;
     ip_sock= create_socket(ai, AF_INET, &a);
 
     if (mysql_socket_getfd(ip_sock) == INVALID_SOCKET)
@@ -2164,8 +2163,14 @@ static void network_init(void)
     if (a->ai_family == AF_INET6)
     {
       arg= 0;
-      (void) mysql_socket_setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&arg,
-                sizeof(arg));
+
+      if (mysql_socket_setsockopt(ip_sock, IPPROTO_IPV6, IPV6_V6ONLY,
+                                  (char *) &arg, sizeof (arg)))
+      {
+        sql_print_warning("Failed to reset IPV6_V6ONLY flag (error: %d). "
+                          "The server will listen to IPv6 addresses only.",
+                          (int) socket_errno);
+      }
     }
 #endif
     /*
@@ -3146,6 +3151,7 @@ SHOW_VAR com_status_vars[]= {
   {"alter_server",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_SERVER]), SHOW_LONG_STATUS},
   {"alter_table",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLE]), SHOW_LONG_STATUS},
   {"alter_tablespace",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_TABLESPACE]), SHOW_LONG_STATUS},
+  {"alter_user",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ALTER_USER]), SHOW_LONG_STATUS},
   {"analyze",              (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_ANALYZE]), SHOW_LONG_STATUS},
   {"begin",                (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BEGIN]), SHOW_LONG_STATUS},
   {"binlog",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_BINLOG_BASE64_EVENT]), SHOW_LONG_STATUS},
@@ -3445,6 +3451,14 @@ int init_common_variables()
     and can not be set in the MYSQL_BIN_LOG constructor (called before main()).
   */
   mysql_bin_log.set_psi_keys(key_BINLOG_LOCK_index,
+                             key_BINLOG_LOCK_commit,
+                             key_BINLOG_LOCK_commit_queue,
+                             key_BINLOG_LOCK_done,
+                             key_BINLOG_LOCK_flush_queue,
+                             key_BINLOG_LOCK_log,
+                             key_BINLOG_LOCK_sync,
+                             key_BINLOG_LOCK_sync_queue,
+                             key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
                              key_file_binlog,
                              key_file_binlog_index);
@@ -3671,6 +3685,7 @@ int init_common_variables()
   if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
     back_log= 900;
 
+  table_cache_size_per_instance= table_cache_size / table_cache_instances;
   unireg_init(opt_specialflag); /* Set up extern variabels */
   if (!(my_default_lc_messages=
         my_locale_by_name(lc_messages)))
@@ -4643,9 +4658,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     */
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
-    if (mysql_bin_log.open_binlog(opt_bin_logname, LOG_BIN, 0,
-                                  WRITE_CACHE, 0, max_binlog_size, 0,
-                                  true/*need mutex*/, true/*need sid_lock*/))
+    if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
+                                  WRITE_CACHE, max_binlog_size, false,
+                                  true/*need_lock_index=true*/,
+                                  true/*need_sid_lock=true*/,
+                                  NULL))
       unireg_abort(1);
   }
 
@@ -4857,48 +4874,29 @@ int mysqld_main(int argc, char **argv)
 
   sys_var_init();
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-  /*
-    The performance schema needs to be initialized as early as possible,
-    before to-be-instrumented objects of the server are initialized.
-  */
   int ho_error;
-  vector<my_option> all_early_options;
-  all_early_options.reserve(100);
 
-  my_getopt_register_get_addr(NULL);
-  /* Skip unknown options so that they may be processed later */
-  my_getopt_skip_unknown= TRUE;
-
-  /* prepare all_early_options array */
-  sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
-  add_terminator(&all_early_options);
-
-  /*
-    Logs generated while parsing the command line
-    options are buffered and printed later.
-  */
-  buffered_logs.init();
-  my_getopt_error_reporter= buffered_option_error_reporter;
-  my_charset_error_reporter= buffered_option_error_reporter;
-
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   /*
     Initialize the array of performance schema instrument configurations.
   */
   init_pfs_instrument_array();
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-  ho_error= handle_options(&remaining_argc, &remaining_argv,
-                           &all_early_options[0], mysqld_get_one_option);
-  // Swap with an empty vector, i.e. delete elements and free allocated space.
-  vector<my_option>().swap(all_early_options);
+  ho_error= handle_early_options();
 
+  adjust_related_options();
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error == 0)
   {
-    /* Add back the program name handle_options removes */
-    remaining_argc++;
-    remaining_argv--;
-    if (pfs_param.m_enabled)
+    if (pfs_param.m_enabled && !opt_help && !opt_bootstrap)
     {
+      /* Add sizing hints from the server sizing parameters. */
+      pfs_param.m_hints.m_table_definition_cache= table_def_size;
+      pfs_param.m_hints.m_table_open_cache= table_cache_size;
+      pfs_param.m_hints.m_max_connections= max_connections;
+      pfs_param.m_hints.m_open_files_limit= open_files_limit;
       PSI_hook= initialize_performance_schema(&pfs_param);
       if (PSI_hook == NULL)
       {
@@ -4970,7 +4968,6 @@ int mysqld_main(int argc, char **argv)
   */
   logger.init_base();
 
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
   if (ho_error)
   {
     /*
@@ -4990,7 +4987,6 @@ int mysqld_main(int argc, char **argv)
     */
     exit (ho_error);
   }
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 #ifdef _CUSTOMSTARTUPCONFIG_
   if (_cust_check_startup())
@@ -6425,7 +6421,91 @@ error:
   Handle start options
 ******************************************************************************/
 
+/**
+  Process command line options flagged as 'early'.
+  Some components needs to be initialized as early as possible,
+  because the rest of the server initialization depends on them.
+  Options that needs to be parsed early includes:
+  - the performance schema, when compiled in,
+  - options related to the help,
+  - options related to the bootstrap
+  The performance schema needs to be initialized as early as possible,
+  before to-be-instrumented objects of the server are initialized.
+*/
+int handle_early_options()
+{
+  int ho_error;
+  vector<my_option> all_early_options;
+  all_early_options.reserve(100);
+
+  my_getopt_register_get_addr(NULL);
+  /* Skip unknown options so that they may be processed later */
+  my_getopt_skip_unknown= TRUE;
+
+  /* Add the system variables parsed early */
+  sys_var_add_options(&all_early_options, sys_var::PARSE_EARLY);
+
+  /* Add the command line options parsed early */
+  for (my_option *opt= my_long_early_options;
+       opt->name != NULL;
+       opt++)
+    all_early_options.push_back(*opt);
+
+  add_terminator(&all_early_options);
+
+  /*
+    Logs generated while parsing the command line
+    options are buffered and printed later.
+  */
+  buffered_logs.init();
+  my_getopt_error_reporter= buffered_option_error_reporter;
+  my_charset_error_reporter= buffered_option_error_reporter;
+
+  ho_error= handle_options(&remaining_argc, &remaining_argv,
+                           &all_early_options[0], mysqld_get_one_option);
+  if (ho_error == 0)
+  {
+    /* Add back the program name handle_options removes */
+    remaining_argc++;
+    remaining_argv--;
+  }
+
+  // Swap with an empty vector, i.e. delete elements and free allocated space.
+  vector<my_option>().swap(all_early_options);
+
+  return ho_error;
+}
+
+void adjust_related_options()
+{
+  /* In bootstrap, disable grant tables (we are about to create them) */
+  if (opt_bootstrap)
+    opt_noacl= 1;
+}
+
 vector<my_option> all_options;
+
+struct my_option my_long_early_options[]=
+{
+#ifndef DISABLE_GRANT_OPTIONS
+  {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+#ifndef DISABLE_GRANT_OPTIONS
+  {"skip-grant-tables", 0,
+   "Start without grant tables. This gives all users FULL ACCESS to all tables.",
+   &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
+   0},
+#endif
+  {"help", '?', "Display this help and exit.",
+   &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"verbose", 'v', "Used with --help option for detailed help.",
+   &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
 
 /**
   System variables are automatically command-line options (few
@@ -6435,9 +6515,6 @@ vector<my_option> all_options;
 
 struct my_option my_long_options[]=
 {
-  {"help", '?', "Display this help and exit.",
-   &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-   0, 0},
 #ifdef HAVE_REPLICATION
   {"abort-slave-event-count", 0,
    "Option used by mysql-test for debugging and testing of replication.",
@@ -6478,10 +6555,6 @@ struct my_option my_long_options[]=
    /* sub_size */     0, /* block_size */ 256,
    /* app_type */ 0
   },
-#ifndef DISABLE_GRANT_OPTIONS
-  {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
-   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"character-set-client-handshake", 0,
    "Don't ignore client side character set value sent during handshake.",
    &opt_character_set_client_handshake,
@@ -6694,8 +6767,6 @@ struct my_option my_long_options[]=
    "will not do updates to tables in databases that start with foo and whose "
    "table names start with bar.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"safe-mode", OPT_SAFE, "Skip some optimize stages (for testing).",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"safe-user-create", 0,
    "Don't allow new user creation by the user who has no write privileges to the mysql.user table.",
    &opt_safe_user_create, &opt_safe_user_create, 0, GET_BOOL,
@@ -6704,12 +6775,6 @@ struct my_option my_long_options[]=
    "Show user and password in SHOW SLAVE HOSTS on this master.",
    &opt_show_slave_auth_info, &opt_show_slave_auth_info, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DISABLE_GRANT_OPTIONS
-  {"skip-grant-tables", 0,
-   "Start without grant tables. This gives all users FULL ACCESS to all tables.",
-   &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
-   0},
-#endif
   {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
@@ -6793,10 +6858,6 @@ struct my_option my_long_options[]=
    GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Used with --help option for detailed help.",
-   &opt_verbose, &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
-   NO_ARG, 0, 0, 0, 0, 0, 0},
   {"plugin-load", OPT_PLUGIN_LOAD,
    "Optional semicolon-separated list of plugins to load, where each plugin is "
    "identified as name=library, where name is the plugin name and library "
@@ -6811,9 +6872,6 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"table_cache", 0, "Deprecated; use --table-open-cache instead.",
-   &table_cache_size, &table_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, TABLE_OPEN_CACHE_DEFAULT, 1, 512*1024L, 0, 1, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -6962,7 +7020,7 @@ static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_LONG;
   var->value= buff;
-  *((long *)buff)= (long)cached_open_tables();
+  *((long *)buff)= (long)table_cache_manager.cached_tables();
   return 0;
 }
 
@@ -7480,6 +7538,9 @@ SHOW_VAR status_vars[]= {
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
+  {"Table_open_cache_hits",    (char*) offsetof(STATUS_VAR, table_open_cache_hits), SHOW_LONGLONG_STATUS},
+  {"Table_open_cache_misses",  (char*) offsetof(STATUS_VAR, table_open_cache_misses), SHOW_LONGLONG_STATUS},
+  {"Table_open_cache_overflows",(char*) offsetof(STATUS_VAR, table_open_cache_overflows), SHOW_LONGLONG_STATUS},
 #ifdef HAVE_MMAP
   {"Tc_log_max_pages_used",    (char*) &tc_log_max_pages_used,  SHOW_LONG},
   {"Tc_log_page_size",         (char*) &tc_log_page_size,       SHOW_LONG},
@@ -7545,6 +7606,12 @@ static void print_help()
 
   all_options.pop_back();
   sys_var_add_options(&all_options, sys_var::PARSE_EARLY);
+  for (my_option *opt= my_long_early_options;
+       opt->name != NULL;
+       opt++)
+  {
+    all_options.push_back(*opt);
+  }
   add_plugin_options(&all_options, &mem_root);
   std::sort(all_options.begin(), all_options.end(), std::less<my_option>());
   add_terminator(&all_options);
@@ -7636,7 +7703,7 @@ static int mysql_init_variables(void)
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_secure_file_priv= NULL;
-  opt_bootstrap= opt_myisam_log= 0;
+  opt_myisam_log= 0;
   mqh_used= 0;
   kill_in_progress= 0;
   cleanup_done= 0;
@@ -7686,6 +7753,7 @@ static int mysql_init_variables(void)
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;  /* Increments on each reload */
   global_query_id= thread_id= 1L;
+  my_atomic_rwlock_init(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_init(&global_query_id_lock);
   my_atomic_rwlock_init(&thread_running_lock);
   strmov(server_version, MYSQL_SERVER_VERSION);
@@ -7987,12 +8055,6 @@ mysqld_get_one_option(int optid,
     query_cache_size=0;
 #endif
     break;
-  case (int) OPT_SAFE:
-    opt_specialflag|= SPECIAL_SAFE_MODE;
-    delay_key_write_options= DELAY_KEY_WRITE_NONE;
-    myisam_recover_options= HA_RECOVER_DEFAULT;
-    ha_open_options&= ~(HA_OPEN_DELAY_KEY_WRITE);
-    break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
     break;
@@ -8011,7 +8073,7 @@ mysqld_get_one_option(int optid,
       opt_error_log= 0;     // Force logs to stdout
     break;
   case OPT_BOOTSTRAP:
-    opt_noacl=opt_bootstrap=1;
+    opt_bootstrap=1;
     break;
   case OPT_SERVER_ID:
     server_id_supplied = 1;
@@ -8081,6 +8143,7 @@ mysqld_get_one_option(int optid,
 
   case OPT_PFS_INSTRUMENT:
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#ifndef EMBEDDED_LIBRARY
     /* Parse instrument name and value from argument string */
     char* name = argument,*p, *val;
 
@@ -8144,8 +8207,8 @@ mysqld_get_one_option(int optid,
                              "'%s'", argument);
       return 0;
     }
-
-#endif
+#endif /* EMBEDDED_LIBRARY */
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
     break;
   }
   return 0;
@@ -8228,7 +8291,9 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   for (my_option *opt= my_long_options;
        opt < my_long_options + array_elements(my_long_options) - 1;
        opt++)
+  {
     all_options.push_back(*opt);
+  }
   sys_var_add_options(&all_options, sys_var::PARSE_NORMAL);
   add_terminator(&all_options);
 
@@ -8729,7 +8794,15 @@ PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
 PSI_mutex_key key_LOCK_des_key_file;
 #endif /* HAVE_OPENSSL */
 
-PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
+PSI_mutex_key key_BINLOG_LOCK_commit;
+PSI_mutex_key key_BINLOG_LOCK_commit_queue;
+PSI_mutex_key key_BINLOG_LOCK_done;
+PSI_mutex_key key_BINLOG_LOCK_flush_queue;
+PSI_mutex_key key_BINLOG_LOCK_index;
+PSI_mutex_key key_BINLOG_LOCK_log;
+PSI_mutex_key key_BINLOG_LOCK_sync;
+PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
   key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
@@ -8749,7 +8822,14 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
+PSI_mutex_key key_RELAYLOG_LOCK_commit;
+PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
+PSI_mutex_key key_RELAYLOG_LOCK_done;
+PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
+PSI_mutex_key key_RELAYLOG_LOCK_log;
+PSI_mutex_key key_RELAYLOG_LOCK_sync;
+PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_LOCK_sql_rand;
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -8765,9 +8845,22 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL},
 #endif /* HAVE_OPENSSL */
 
-  { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
-  { &key_BINLOG_LOCK_prep_xids, "MYSQL_BIN_LOG::LOCK_prep_xids", 0},
-  { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
+  { &key_BINLOG_LOCK_commit, "BINARY_LOG::LOCK_commit", 0 },
+  { &key_BINLOG_LOCK_commit_queue, "BINARY_LOG::LOCK_commit_queue", 0 },
+  { &key_BINLOG_LOCK_done, "BINARY_LOG::LOCK_done", 0 },
+  { &key_BINLOG_LOCK_flush_queue, "BINARY_LOG::LOCK_flush_queue", 0 },
+  { &key_BINLOG_LOCK_index, "BINARY_LOG::LOCK_index", 0},
+  { &key_BINLOG_LOCK_log, "BINARY_LOG::LOCK_log", 0},
+  { &key_BINLOG_LOCK_sync, "BINARY_LOG::LOCK_sync", 0},
+  { &key_BINLOG_LOCK_sync_queue, "BINARY_LOG::LOCK_sync_queue", 0 },
+  { &key_RELAYLOG_LOCK_commit, "RELAY_LOG::LOCK_commit", 0},
+  { &key_RELAYLOG_LOCK_commit_queue, "RELAY_LOG::LOCK_commit_queue", 0 },
+  { &key_RELAYLOG_LOCK_done, "RELAY_LOG::LOCK_done", 0 },
+  { &key_RELAYLOG_LOCK_flush_queue, "RELAY_LOG::LOCK_flush_queue", 0 },
+  { &key_RELAYLOG_LOCK_index, "RELAY_LOG::LOCK_index", 0},
+  { &key_RELAYLOG_LOCK_log, "RELAY_LOG::LOCK_log", 0},
+  { &key_RELAYLOG_LOCK_sync, "RELAY_LOG::LOCK_sync", 0},
+  { &key_RELAYLOG_LOCK_sync_queue, "RELAY_LOG::LOCK_sync_queue", 0 },
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -8830,7 +8923,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
 PSI_cond_key key_PAGE_cond, key_COND_active, key_COND_pool;
 #endif /* HAVE_MMAP */
 
-PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
+PSI_cond_key key_BINLOG_update_cond,
   key_COND_cache_status_changed, key_COND_manager,
   key_COND_server_started,
   key_delayed_insert_cond, key_delayed_insert_cond_client,
@@ -8844,6 +8937,8 @@ PSI_cond_key key_BINLOG_COND_prep_xids, key_BINLOG_update_cond,
   key_TABLE_SHARE_cond, key_user_level_lock_cond,
   key_COND_thread_count, key_COND_thread_cache, key_COND_flush_thread_cache;
 PSI_cond_key key_RELAYLOG_update_cond;
+PSI_cond_key key_BINLOG_COND_done;
+PSI_cond_key key_RELAYLOG_COND_done;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -8855,9 +8950,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
   { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
 #endif /* HAVE_MMAP */
-  { &key_BINLOG_COND_prep_xids, "MYSQL_BIN_LOG::COND_prep_xids", 0},
-  { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
-  { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
+  { &key_BINLOG_COND_done, "BINARY_LOG::COND_done", 0},
+  { &key_BINLOG_update_cond, "BINARY_LOG::update_cond", 0},
+  { &key_RELAYLOG_COND_done, "RELAY_LOG::COND_done", 0},
+  { &key_RELAYLOG_update_cond, "RELAY_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},

@@ -56,9 +56,9 @@ Pos	Instruction
 14	jump 17
 15	set count@3 (count@3 + 1)
 16	stmt "update t2 set idx = count where name=n"
-17	hpop 1
+17	hpop
 18	jump 7
-19	hpop 1
+19	hpop
 20	cpop 1
 21	stmt "select t.name, t.idx from t2 t order ..."
 drop procedure code_sample;
@@ -677,7 +677,7 @@ Pos	Instruction
 9	stmt "insert into t1 values (v)"
 10	stmt "select 'do something again'"
 11	stmt "insert into t1 values (v)"
-12	hpop 1
+12	hpop
 show procedure code proc_26977_works;
 Pos	Instruction
 0	set i@1 5
@@ -693,7 +693,7 @@ Pos	Instruction
 10	stmt "insert into t1 values (v)"
 11	stmt "select 'do something again'"
 12	stmt "insert into t1 values (v)"
-13	hpop 1
+13	hpop
 call proc_26977_broken(1);
 do something
 do something
@@ -808,12 +808,12 @@ Pos	Instruction
 12	hreturn 0 17
 13	cfetch cur1@0 vb@2
 14	jump_if_not 17(17) (last_row@3 = 1)
-15	hpop 1
+15	hpop
 16	jump 19
-17	hpop 1
+17	hpop
 18	jump_if_not 11(19) (last_row@3 = 1)
 19	cclose cur1@0
-20	hpop 1
+20	hpop
 21	cpop 1
 22	jump 3
 show procedure code proc_33618_c;
@@ -837,7 +837,7 @@ Pos	Instruction
 16	cpop 1
 17	jump_if_not 11(18) (last_row@3 = 1)
 18	cclose cur1@0
-19	hpop 1
+19	hpop
 20	cpop 1
 21	jump 3
 drop procedure proc_33618_h;

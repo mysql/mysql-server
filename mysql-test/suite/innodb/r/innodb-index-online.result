@@ -5,7 +5,8 @@ call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
 call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = on;
-CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT) ENGINE = InnoDB;
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT)
+ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1,''), (2,2,''), (3,3,''), (4,4,''), (5,5,'');
 SET GLOBAL innodb_monitor_enable = module_ddl;
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
@@ -46,7 +47,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   `c3` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL scanned WAIT_FOR rollback_done';
@@ -102,7 +103,7 @@ test.t1	analyze	status	OK
 UPDATE mysql.innodb_index_stats SET stat_value = 5
 WHERE database_name = 'test' AND table_name= 't1' AND index_name = 'PRIMARY'
 AND stat_value = 6;
-SELECT * FROM mysql.innodb_index_stats;
+SELECT * FROM mysql.innodb_index_stats WHERE table_name IN ('t1');
 database_name	table_name	index_name	last_update	stat_name	stat_value	sample_size	stat_description
 test	t1	PRIMARY	LAST_UPDATE	n_diff_pfx01	5	1	c1
 test	t1	PRIMARY	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
@@ -112,12 +113,19 @@ test	t1	c2	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
 test	t1	c2	LAST_UPDATE	size	1	NULL	Number of pages in the index
 CREATE TABLE t1_c2_stats SELECT * FROM mysql.innodb_index_stats
 WHERE database_name = 'test' AND table_name = 't1' and index_name = 'c2';
+ALTER TABLE t1_c2_stats ENGINE=INNODB;
 DROP INDEX c2 ON t1;
-SELECT * FROM mysql.innodb_index_stats;
+ANALYZE TABLE t1_c2_stats;
+Table	Op	Msg_type	Msg_text
+test.t1_c2_stats	analyze	status	OK
+SELECT * FROM mysql.innodb_index_stats WHERE table_name IN ('t1', 't1_c2_stats');
 database_name	table_name	index_name	last_update	stat_name	stat_value	sample_size	stat_description
 test	t1	PRIMARY	LAST_UPDATE	n_diff_pfx01	5	1	c1
 test	t1	PRIMARY	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
 test	t1	PRIMARY	LAST_UPDATE	size	1	NULL	Number of pages in the index
+test	t1_c2_stats	GEN_CLUST_INDEX	LAST_UPDATE	n_diff_pfx01	3	1	DB_ROW_ID
+test	t1_c2_stats	GEN_CLUST_INDEX	LAST_UPDATE	n_leaf_pages	1	NULL	Number of leaf pages in the index
+test	t1_c2_stats	GEN_CLUST_INDEX	LAST_UPDATE	size	1	NULL	Number of pages in the index
 KILL QUERY @id;
 ERROR 70100: Query execution was interrupted
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2d_created WAIT_FOR kill_done';

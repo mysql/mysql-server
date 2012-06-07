@@ -2119,6 +2119,14 @@ sub client_arguments ($;$) {
   return mtr_args2str($client_exe, @$args);
 }
 
+sub client_arguments_no_grp_suffix($) {
+  my $client_name= shift;
+  my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
+  my $args;
+
+  return mtr_args2str($client_exe, @$args);
+}
+
 
 sub mysqlslap_arguments () {
   my $exe= mtr_exe_maybe_exists("$path_client_bindir/mysqlslap");
@@ -2380,10 +2388,14 @@ sub environment_setup {
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
+                              $opt_tmpdir . "\\.mylogin.cnf";
   }
   else
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
+                              $opt_tmpdir . "/.mylogin.cnf";
   }
     
 
@@ -2452,6 +2464,7 @@ sub environment_setup {
   $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
   $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
+  $ENV{'MYSQL_CONFIG_EDITOR'}=      client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                    client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
@@ -2484,7 +2497,10 @@ sub environment_setup {
   my $file_mysql_fix_privilege_tables=
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
 		    "$basedir/share/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
+		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql",
+                    "$bindir/scripts/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
