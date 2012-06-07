@@ -14,7 +14,7 @@ read_many_rows_innodb    : Bug#11748886 2010-11-15 mattiasj report already exist
 sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
-ds_mrr-big @solaris      : Hemant disabled since this leads to timeout on Solaris on slow sparc servers
+ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers
 partition_locking_4	 : Bug#13924750 2012-04-04 lost connection.
 mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
 openssl_1                : Bug#13784804, Mayank: Error no is same but message is messed up.
