@@ -187,9 +187,9 @@ select @rwlock_per_share;
 select @cond_per_share;
 @cond_per_share
 0
-select @file_per_share;
-@file_per_share
-2
+select @file_per_share <= 2;
+@file_per_share <= 2
+1
 select @mutex_per_con;
 @mutex_per_con
 3
@@ -214,3 +214,21 @@ select @cond_per_handle;
 select @file_per_handle;
 @file_per_handle
 0
+select if(
+(@mutex_per_share = 3)
+AND (@rwlock_per_share = 1)
+AND (@cond_per_share = 0)
+AND (@file_per_share <= 2)
+AND (@mutex_per_con = 3)
+AND (@rwlock_per_con = 1)
+AND (@cond_per_con = 2)
+AND (@file_per_con = 0)
+AND (@mutex_per_handle = 0)
+AND (@rwlock_per_handle = 0)
+AND (@cond_per_handle = 0)
+AND (@file_per_handle = 0),
+"OK: heuristics are up to date",
+"FAILED: heuristics need to be updated")
+as status;
+status
+OK: heuristics are up to date

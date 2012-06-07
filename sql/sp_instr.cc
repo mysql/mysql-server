@@ -1327,19 +1327,9 @@ uint sp_instr_hpush_jump::opt_mark(sp_head *sp, List<sp_instr> *leads)
 
 bool sp_instr_hpop::execute(THD *thd, uint *nextp)
 {
-  thd->sp_runtime_ctx->pop_handlers(m_count);
+  thd->sp_runtime_ctx->pop_handlers(m_parsing_ctx);
   *nextp= get_ip() + 1;
   return false;
-}
-
-
-void sp_instr_hpop::print(String *str)
-{
-  /* hpop count */
-  if (str->reserve(SP_INSTR_UINT_MAXLEN+5))
-    return;
-  str->qs_append(STRING_WITH_LEN("hpop "));
-  str->qs_append(m_count);
 }
 
 
@@ -1350,11 +1340,29 @@ void sp_instr_hpop::print(String *str)
 
 bool sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
-  // NOTE: we must call sp_rcontext::exit_handler() even if m_dest is set.
+  /*
+    Remove the SQL conditions that were present in DA when the
+    handler was activated.
+  */
 
-  uint continue_ip= thd->sp_runtime_ctx->exit_handler(thd->get_stmt_da());
+  thd->get_stmt_da()->remove_marked_sql_conditions();
 
-  *nextp= m_dest ? m_dest : continue_ip;
+  /*
+    Obtain next instruction pointer (m_dest is set for EXIT handlers, retrieve
+    the instruction pointer from runtime context for CONTINUE handlers).
+  */
+
+  sp_rcontext *rctx= thd->sp_runtime_ctx;
+
+  *nextp= m_dest ? m_dest : rctx->get_last_handler_continue_ip();
+
+  /*
+    Remove call frames for handlers, which are "below" the BEGIN..END block of
+    the next instruction.
+  */
+
+  sp_instr *next_instr= rctx->sp->get_instr(*nextp);
+  rctx->exit_handler(next_instr->get_parsing_ctx());
 
   return false;
 }
