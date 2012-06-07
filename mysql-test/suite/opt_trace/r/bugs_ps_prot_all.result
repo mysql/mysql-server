@@ -1846,13 +1846,8 @@ ON table2 .col_int_key = table1 .col_int_key
                         "range_scan_alternatives": [
                           {
                             "index": "col_int_key",
-                            "index_only": true,
-                            "rows": 18446744073709551615,
-                            "cost": 0,
-                            "rowid_ordered": false,
-                            "using_mrr": true,
                             "chosen": false,
-                            "cause": "cost"
+                            "cause": "unknown"
                           }
                         ] /* range_scan_alternatives */,
                         "analyzing_roworder_intersect": {
@@ -2189,29 +2184,29 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 "range_scan_alternatives": [
                                   {
                                     "index": "a",
-                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
+                                    "index_dives_for_eq_ranges": true,
+                                    "rowid_ordered": true,
+                                    "using_mrr": true,
                                     "index_only": false,
                                     "rows": 1,
                                     "cost": 2.21,
-                                    "rowid_ordered": true,
-                                    "using_mrr": true,
                                     "chosen": false,
                                     "cause": "cost"
                                   },
                                   {
                                     "index": "a_2",
-                                    "index_dives_for_eq_ranges": true,
                                     "ranges": [
                                       "1 <= a <= 1"
                                     ] /* ranges */,
+                                    "index_dives_for_eq_ranges": true,
+                                    "rowid_ordered": false,
+                                    "using_mrr": false,
                                     "index_only": true,
                                     "rows": 1,
                                     "cost": 2.21,
-                                    "rowid_ordered": false,
-                                    "using_mrr": false,
                                     "chosen": false,
                                     "cause": "cost"
                                   }

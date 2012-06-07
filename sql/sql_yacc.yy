@@ -3896,7 +3896,7 @@ sp_proc_stmt_leave:
             if (n)
             {
               sp_instr_hpop *hpop=
-                new (thd->mem_root) sp_instr_hpop(ip++, pctx, n);
+                new (thd->mem_root) sp_instr_hpop(ip++, pctx);
 
               if (!hpop || sp->add_instr(thd, hpop))
                 MYSQL_YYABORT;
@@ -3946,7 +3946,7 @@ sp_proc_stmt_iterate:
             if (n)
             {
               sp_instr_hpop *hpop=
-                new (thd->mem_root) sp_instr_hpop(ip++, pctx, n);
+                new (thd->mem_root) sp_instr_hpop(ip++, pctx);
 
               if (!hpop || sp->add_instr(thd, hpop))
                 MYSQL_YYABORT;
@@ -4518,8 +4518,7 @@ sp_block_content:
             if ($3.hndlrs)
             {
               sp_instr *i=
-                new (thd->mem_root)
-                  sp_instr_hpop(sp->instructions(), pctx, $3.hndlrs);
+                new (thd->mem_root) sp_instr_hpop(sp->instructions(), pctx);
 
               if (!i || sp->add_instr(thd, i))
                 MYSQL_YYABORT;

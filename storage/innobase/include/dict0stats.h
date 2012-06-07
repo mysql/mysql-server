@@ -57,6 +57,18 @@ enum dict_stats_upd_option {
 typedef enum dict_stats_upd_option	dict_stats_upd_option_t;
 
 /*********************************************************************//**
+Calculates new estimates for table and index statistics. This function
+is relatively quick and is used to calculate transient statistics that
+are not saved on disk.
+This was the only way to calculate statistics before the
+Persistent Statistics feature was introduced. */
+UNIV_INTERN
+void
+dict_stats_update_transient(
+/*========================*/
+	dict_table_t*	table);	/*!< in/out: table */
+
+/*********************************************************************//**
 Set the persistent statistics flag for a given table. This is set only
 in the in-memory table object and is not saved on disk. It will be read
 from the .frm file upon first open from MySQL after a server restart. */
@@ -128,13 +140,10 @@ dberr_t
 dict_stats_update(
 /*==============*/
 	dict_table_t*		table,	/*!< in/out: table */
-	dict_stats_upd_option_t	stats_upd_option,
+	dict_stats_upd_option_t	stats_upd_option);
 					/*!< in: whether to (re) calc
 					the stats or to fetch them from
 					the persistent storage */
-	bool			caller_has_dict_sys_mutex);
-					/*!< in: TRUE if the caller
-					owns dict_sys->mutex */
 
 /*********************************************************************//**
 Removes the information for a particular index's stats from the persistent

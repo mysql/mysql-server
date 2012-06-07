@@ -21,6 +21,14 @@ IF(SSL_DEFINES)
 ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
+# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
+# In order to get correct symbol visibility, my_aes.cc
+# must be compiled with "-fvisibility=hidden"
+IF(HAVE_VISIBILITY_HIDDEN)
+  SET_SOURCE_FILES_PROPERTIES(my_aes.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+ENDIF()
+
 SET(MYSYS_SSL_SOURCES default.c my_getopt.c my_aes.cc)
 
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})

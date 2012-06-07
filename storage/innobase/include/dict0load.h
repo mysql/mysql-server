@@ -55,8 +55,6 @@ enum dict_table_info {
 					a SYS_TABLES record */
 	DICT_TABLE_LOAD_FROM_CACHE = 1,	/*!< Check first whether dict_table_t
 					is in the cache, if so, return it */
-	DICT_TABLE_UPDATE_STATS = 2	/*!< whether to update statistics
-					when loading SYS_TABLES information. */
 };
 
 typedef enum dict_table_info	dict_table_info_t;
