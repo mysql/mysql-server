@@ -39,6 +39,8 @@ typedef struct btr_cur_struct		btr_cur_t;
 /** B-tree search information for the adaptive hash index */
 typedef struct btr_search_struct	btr_search_t;
 
+#ifndef UNIV_HOTBACKUP
+
 /** @brief The latch protecting the adaptive search system
 
 This latch protects the
@@ -53,6 +55,8 @@ but does NOT protect:
 Bear in mind (3) and (4) when using the hash index.
 */
 extern rw_lock_t*	btr_search_latch_temp;
+
+#endif /* UNIV_HOTBACKUP */
 
 /** The latch protecting the adaptive search system */
 #define btr_search_latch	(*btr_search_latch_temp)

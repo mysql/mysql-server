@@ -169,6 +169,7 @@ void
 dict_field_print_low(
 /*=================*/
 	const dict_field_t*	field);	/*!< in: field */
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Frees a foreign key struct. */
 static
@@ -182,7 +183,7 @@ and unique key errors */
 UNIV_INTERN FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
 UNIV_INTERN mutex_t	dict_foreign_err_mutex;
-
+#endif /* !UNIV_HOTBACKUP */
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
@@ -2247,6 +2248,7 @@ dict_index_build_internal_non_clust(
 	return(new_index);
 }
 
+#ifndef UNIV_HOTBACKUP
 /*====================== FOREIGN KEY PROCESSING ========================*/
 
 /*********************************************************************//**
@@ -2511,6 +2513,7 @@ dict_foreign_find_equiv_index(
 		       FALSE/* allow columns to be NULL */));
 }
 
+#endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Returns an index object by matching on the name and column names and
 if more than one index matches return the index with the max id
@@ -2570,6 +2573,7 @@ dict_table_get_index_by_max_id(
 	return(found);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Report an error in a foreign key definition. */
 static
@@ -2735,6 +2739,7 @@ dict_foreign_add_to_cache(
 	return(DB_SUCCESS);
 }
 
+#endif /* !UNIV_HOTBACKUP */
 /*********************************************************************//**
 Scans from pointer onwards. Stops if is at the start of a copy of
 'string' where characters are compared without case sensitivity, and
@@ -3214,6 +3219,7 @@ end_of_string:
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Finds the highest [number] for foreign key constraints of the table. Looks
 only at the >= 4.0.18-format id's, which are of the form
@@ -4050,7 +4056,7 @@ syntax_error:
 }
 
 /*==================== END OF FOREIGN KEY PROCESSING ====================*/
-
+#endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Returns an index object if it is found in the dictionary cache.
 Assumes that dict_sys->mutex is already being held.
@@ -4411,6 +4417,7 @@ fake_statistics:
 	dict_table_stats_unlock(table, RW_X_LATCH);
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Prints info of a foreign key constraint. */
 static
@@ -4441,6 +4448,7 @@ dict_foreign_print_low(
 	fputs(" )\n", stderr);
 }
 
+#endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Prints a table data. */
 UNIV_INTERN
@@ -4622,6 +4630,7 @@ dict_field_print_low(
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Outputs info on a foreign key of a table in a format suitable for
 CREATE TABLE. */
@@ -4810,6 +4819,7 @@ dict_print_info_on_foreign_keys(
 	mutex_exit(&(dict_sys->mutex));
 }
 
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Displays the names of the index and the table. */
 UNIV_INTERN
