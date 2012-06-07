@@ -69,7 +69,7 @@ while ($c)
 
 connection default;
 
---error ER_CANT_CREATE_TABLE
+--error ER_TOO_MANY_CONCURRENT_TRXS
 CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=InnoDB;
 
 select count(*) from information_schema.processlist;
