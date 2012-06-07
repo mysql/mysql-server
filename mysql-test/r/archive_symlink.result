@@ -3,7 +3,7 @@
 # 
 CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
 ENGINE archive DATA DIRECTORY = 'MYSQL_TMP_DIR/archive' INDEX DIRECTORY = 'MYSQL_TMP_DIR/archive';
-ERROR HY000: Can't create table 'test.t1' (errno: 2)
+ERROR HY000: Can't find file: 't1' (errno: 2 - No such file or directory)
 # 
 # mkdir MYSQL_TMP_DIR/archive and try again... 
 # Archive will use a symlink for DATA DIRECTORY but ignore INDEX DIRECTORY.

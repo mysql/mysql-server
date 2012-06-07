@@ -379,7 +379,12 @@ select @cond_per_share;
 # - wait/io/file/sql/FRM
 # more with innodb file per table
 #
-select @file_per_share;
+# This however is very storage engine dependent,
+# and platform dependent (not all platform instrument file io the same way,
+# or at all)
+# 
+#
+select @file_per_share <= 2;
 
 #
 # Expecting 3:
@@ -426,4 +431,29 @@ select @cond_per_handle;
 # Expecting 0:
 #
 select @file_per_handle;
+
+#
+# IMPORTANT NOTE:
+# when any measurement here changes, the heuristics
+# in storage/perfschema/pfs_autosize.cc need to be updated.
+# Note that this in turns imply to update the results for sizing_*,
+# which will lead to different estimations for automated sizing.
+#
+
+select if(
+      (@mutex_per_share = 3)
+  AND (@rwlock_per_share = 1)
+  AND (@cond_per_share = 0)
+  AND (@file_per_share <= 2)
+  AND (@mutex_per_con = 3)
+  AND (@rwlock_per_con = 1)
+  AND (@cond_per_con = 2)
+  AND (@file_per_con = 0)
+  AND (@mutex_per_handle = 0)
+  AND (@rwlock_per_handle = 0)
+  AND (@cond_per_handle = 0)
+  AND (@file_per_handle = 0),
+  "OK: heuristics are up to date",
+  "FAILED: heuristics need to be updated")
+  as status;
 

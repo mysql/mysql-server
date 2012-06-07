@@ -9166,7 +9166,7 @@ ha_innobase::create(
 
 	if (use_tablespace
 	    && !mysqld_embedded
-	    && (!create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
 
 		if ((name[1] == ':')
 		    || (name[0] == '\\' && name[1] == '\\')) {
@@ -9192,7 +9192,7 @@ ha_innobase::create(
 	/* Validate create options if innodb_strict_mode is set. */
 	if (!create_options_are_valid(
 			thd, form, create_info, use_tablespace)) {
-		DBUG_RETURN(ER_ILLEGAL_HA_CREATE_OPTION);
+		DBUG_RETURN(HA_WRONG_CREATE_OPTION);
 	}
 
 	if (!innobase_table_flags(name, form, create_info,

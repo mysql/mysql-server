@@ -158,9 +158,9 @@ insert into t2 values (1,1,1,1,1);
 commit;
 alter table t4 add constraint dc foreign key (a) references t1(a);
 show create table t4;
---replace_regex /'test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+--replace_regex /'#sql-[0-9a-f_]*'/'#sql-temporary'/
 # a foreign key 'test/dc' already exists
---error ER_CANT_CREATE_TABLE
+--error ER_DUP_KEY
 alter table t3 add constraint dc foreign key (a) references t1(a);
 show create table t3;
 alter table t2 drop index b, add index (b);
@@ -338,21 +338,17 @@ CREATE TABLE t2(
   PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
---replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
---replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
---replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
 ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
---replace_regex /'test\.#sql-[0-9_a-f-]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_CANNOT_ADD_FOREIGN
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
 
