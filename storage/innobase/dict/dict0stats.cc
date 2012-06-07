@@ -289,6 +289,7 @@ dict_stats_persistent_storage_check(
 /*********************************************************************//**
 Executes a given SQL statement using the InnoDB internal SQL parser
 in its own transaction and commits it.
+This function will free the pinfo object.
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -305,6 +306,7 @@ dict_stats_exec_sql(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	if (!dict_stats_persistent_storage_check(TRUE)) {
+		pars_info_free(pinfo);
 		return(DB_STATS_DO_NOT_EXIST);
 	}
 
