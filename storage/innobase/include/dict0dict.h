@@ -1649,7 +1649,7 @@ UNIV_INTERN
 void
 dict_close(void);
 /*============*/
-
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Check whether the table is corrupted.
 @return	nonzero for corrupted table, zero for valid tables */
@@ -1670,6 +1670,7 @@ dict_index_is_corrupted(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
 
+#endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Flags an index and table corrupted both in the data dictionary cache
 and in the system table SYS_INDEXES. */
