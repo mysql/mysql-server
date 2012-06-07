@@ -42,6 +42,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
 
+#endif /* UNIV_HOTBACKUP */
 /**************************************************************//**
 Report that an index page is corrupted. */
 UNIV_INTERN
@@ -64,6 +65,7 @@ btr_corruption_report(
 	buf_page_print(buf_block_get_frame(block), 0, 0);
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_BLOB_DEBUG
 # include "srv0srv.h"
 # include "ut0rbt.h"
@@ -1575,7 +1577,9 @@ btr_page_reorganize_low(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
+#ifndef UNIV_HOTBACKUP
 	buf_pool_t*	buf_pool	= buf_pool_from_bpage(&block->page);
+#endif /* !UNIV_HOTBACKUP */
 	page_t*		page		= buf_block_get_frame(block);
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
 	buf_block_t*	temp_block;

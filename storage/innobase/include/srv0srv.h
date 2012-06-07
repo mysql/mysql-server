@@ -111,13 +111,13 @@ extern ulint	srv_max_file_format_at_startup;
 /** Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
-#endif /* !UNIV_HOTBACKUP */
 
 /* If this flag is TRUE, then we will use the native aio of the
 OS (provided we compiled Innobase with it in), otherwise we will
 use simulated aio we build below with threads.
 Currently we support native aio on windows and linux */
 extern my_bool	srv_use_native_aio;
+#endif /* !UNIV_HOTBACKUP */
 #ifdef __WIN__
 extern ibool	srv_use_native_conditions;
 #endif
