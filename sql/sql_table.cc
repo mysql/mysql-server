@@ -8065,12 +8065,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   {
     /* Try to get everything back. */
     error= 1;
+    (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
     (void) quick_rm_table(new_db_type, new_db, tmp_name, FN_IS_TMP);
     (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
                             FN_FROM_IS_TMP);
   }
   else if (new_name != table_name || new_db != db)
   {
+#ifdef MCP_WL3749
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY &&
         mysql_rename_table(save_old_db_type, db, table_name, new_db,
                            new_alias, NO_FRM_RENAME))
@@ -8081,7 +8083,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       (void) mysql_rename_table(old_db_type, db, old_name, db, alias,
                                 FN_FROM_IS_TMP);
     }
-    else if (Table_triggers_list::change_table_name(thd, db, alias, 
+    else
+#endif /* MCP_WL3749 */
+    if (Table_triggers_list::change_table_name(thd, db, alias, 
                                                     table_name, new_db, 
                                                     new_alias))
     {
@@ -8090,6 +8094,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       (void) quick_rm_table(new_db_type, new_db, new_alias, 0);
       (void) mysql_rename_table(old_db_type, db, old_name, db,
                                 alias, FN_FROM_IS_TMP);
+#ifdef MCP_WL3749
       /*
         If we were performing "fast"/in-place ALTER TABLE we also need
         to restore old name of table in storage engine as a separate
@@ -8100,6 +8105,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         (void) mysql_rename_table(save_old_db_type, new_db, new_alias,
                                   db, table_name, NO_FRM_RENAME); 
       }
+#endif
     }
   }
 
