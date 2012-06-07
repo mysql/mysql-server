@@ -9,3 +9,13 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+
+event_aggregate_no_a_no_h : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate_no_a_no_u_no_h : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate_no_a_no_u : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate_no_a : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate_no_h : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate_no_u_no_h : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate_no_u : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+event_aggregate : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
+
