@@ -1097,8 +1097,6 @@ exit_without_my_ok:
   if (lock_type == TL_WRITE_DELAYED)
     end_delayed_insert(thd);
 #endif
-  if (table != NULL)
-    table->file->ha_release_auto_increment();
   if (!joins_freed)
     free_underlaid_joins(thd, &thd->lex->select_lex);
   thd->abort_on_warning= 0;

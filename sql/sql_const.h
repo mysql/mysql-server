@@ -114,6 +114,12 @@
 #define TABLE_OPEN_CACHE_DEFAULT 400
 #define TABLE_DEF_CACHE_DEFAULT 400
 /**
+  Maximum number of connections default value.
+  151 is larger than Apache's default max children,
+  to avoid "too many connections" error in a common setup.
+*/
+#define MAX_CONNECTIONS_DEFAULT 151
+/**
   We must have room for at least 400 table definitions in the table
   cache, since otherwise there is no chance prepared
   statements that use these many tables can work.

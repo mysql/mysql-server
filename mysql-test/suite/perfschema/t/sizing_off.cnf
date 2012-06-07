@@ -1,0 +1,38 @@
+
+!include include/default_mysqld_autosize.cnf
+
+[mysqld.1]
+
+# Default values used in the server, out of the box
+table_definition_cache=400
+table_open_cache=400
+max_connections=151
+open_files_limit=1024
+
+# Disable the performacne schema.
+# Sizing does not occur then
+loose-skip-performance-schema
+
+# Automated sizing for everything
+
+loose-performance-schema-accounts-size=-1
+loose-performance-schema-digests-size=-1
+loose-performance-schema-hosts-size=-1
+loose-performance-schema-users-size=-1
+
+loose-performance-schema-events-waits-history-size=-1
+loose-performance-schema-events-waits-history-long-size=-1
+loose-performance-schema-events-stages-history-size=-1
+loose-performance-schema-events-stages-history-long-size=-1
+loose-performance-schema-events-statements-history-size=-1
+loose-performance-schema-events-statements-history-long-size=-1
+
+loose-performance-schema-max-mutex-instances=-1
+loose-performance-schema-max-rwlock-instances=-1
+loose-performance-schema-max-cond-instances=-1
+loose-performance-schema-max-file-instances=-1
+loose-performance-schema-max-socket-instances=-1
+loose-performance-schema-max-thread-instances=-1
+loose-performance-schema-max-table-instances=-1
+loose-performance-schema-max-table-handles=-1
+

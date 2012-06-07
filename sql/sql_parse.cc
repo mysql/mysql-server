@@ -294,8 +294,8 @@ void init_update_queries(void)
   /* Initialize the server command flags array. */
   memset(server_command_flags, 0, sizeof(server_command_flags));
 
-  server_command_flags[COM_STATISTICS]= CF_SKIP_QUERY_ID | CF_SKIP_QUESTIONS;
-  server_command_flags[COM_PING]=       CF_SKIP_QUERY_ID | CF_SKIP_QUESTIONS;
+  server_command_flags[COM_STATISTICS]= CF_SKIP_QUESTIONS;
+  server_command_flags[COM_PING]=       CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_PREPARE]= CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_CLOSE]=   CF_SKIP_QUESTIONS;
   server_command_flags[COM_STMT_RESET]=   CF_SKIP_QUESTIONS;
@@ -1173,9 +1173,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->security_ctx->master_access|= SHUTDOWN_ACL;
     command= COM_SHUTDOWN;
   }
-  thd->set_query_id(get_query_id());
-  if (!(server_command_flags[command] & CF_SKIP_QUERY_ID))
-    next_query_id();
+  thd->set_query_id(next_query_id());
   inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
@@ -3313,7 +3311,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        if (mysql_bin_log.write_incident(&ev, TRUE))
+        if (mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/))
         {
           res= 1;
           break;

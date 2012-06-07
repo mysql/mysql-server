@@ -158,7 +158,7 @@ INSERT INTO t1 SELECT 10 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 20 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 40 + c1, c2, c3 FROM t1;
 # Purge may or may not have cleaned up the DELETE FROM t1 WHERE c1 = 7;
---replace_result 6 5
+--replace_result 81 80
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
 ANALYZE TABLE t1;
 

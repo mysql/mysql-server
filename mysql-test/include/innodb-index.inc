@@ -8,12 +8,22 @@ select * from t1;
 show create table t1;
 alter table t1 add index (b);
 insert into t1 values(10,10,'kkk','iii');
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 select * from t1;
 select * from t1 force index(b) order by b;
 explain select * from t1 force index(b) order by b;
 show create table t1;
 alter table t1 add unique index (c), add index (d);
 insert into t1 values(11,11,'aaa','mmm');
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 select * from t1;
 select * from t1 force index(b) order by b;
 select * from t1 force index(c) order by c;
