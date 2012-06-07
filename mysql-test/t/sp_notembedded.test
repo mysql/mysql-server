@@ -449,6 +449,29 @@ DROP FUNCTION f1;
 --disconnect con1
 --disconnect con2
 
+--echo #
+--echo # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+--echo #
+SET @@SQL_MODE = '';
+DELIMITER $;
+
+CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
+DO SELECT 1 $
+
+DELIMITER ;$
+# EVENTS
+--replace_column 6 # 7 # 8 # 9 #
+SHOW EVENTS LIKE 'teste_bug11763507';
+--replace_column 6 # 7 # 8 # 9 #
+SHOW EVENTS LIKE 'TESTE_bug11763507';
+
+--replace_column 4 # 
+SHOW CREATE EVENT teste_bug11763507;
+--replace_column 4 # 
+SHOW CREATE EVENT TESTE_bug11763507;
+
+DROP EVENT teste_bug11763507;
+--echo #END OF BUG#11763507 test.
 
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests

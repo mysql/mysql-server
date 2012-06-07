@@ -6160,6 +6160,9 @@ compare_tables(THD *thd,
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
     }
   }
+  if (ha_alter_info->index_drop_count || ha_alter_info->index_add_count)
+    alter_info->change_level= ALTER_TABLE_INDEX_CHANGED;
+  ha_alter_info->candidate_key_count= candidate_key_count;
 #ifndef DBUG_OFF
   {
     char dbug_string[HA_MAX_ALTER_FLAGS+1];
@@ -6630,13 +6633,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         when new version of the table has the same structure as the old
         one.
       */
-      if (alter_info->build_method == HA_BUILD_ONLINE)
-      {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
-        goto err;
-      }
-
-      alter_info->build_method = HA_BUILD_OFFLINE;
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
       continue;
     }
     /* Check if field is changed */
@@ -6720,12 +6717,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         Re-ordering columns in table can't be done using in-place algorithm
         as it always changes table data.
       */
-      if (alter_info->build_method == HA_BUILD_ONLINE)
-      {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
-        goto err;
-      }
-      alter_info->build_method= HA_BUILD_OFFLINE;
+      alter_info->change_level= ALTER_TABLE_DATA_CHANGED;
     }
     else
     {
@@ -7008,10 +7000,22 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   handlerton *old_db_type, *new_db_type, *save_old_db_type;
   legacy_db_type table_type;
   frm_type_enum frm_type;
+  bool need_copy_table= TRUE;
+  alter_info->change_level= ALTER_TABLE_METADATA_ONLY;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   uint fast_alter_partition= 0;
   bool partition_changed= FALSE;
 #endif
+  bool need_lock_for_indexes= TRUE;
+  int alter_supported= HA_ALTER_NOT_SUPPORTED;
+  List<Alter_drop> drop_list;
+  List<Create_field> create_list;
+  List<Alter_column> alter_list;
+  List<Key> key_list;
+  List<Alter_drop> drop_list_orig(alter_info->drop_list, thd->mem_root);
+  List<Create_field> create_list_orig(alter_info->create_list, thd->mem_root);
+  List<Alter_column> alter_list_orig(alter_info->alter_list, thd->mem_root);
+  List<Key> key_list_orig(alter_info->key_list, thd->mem_root);
   DBUG_ENTER("mysql_alter_table");
 
   /*
@@ -7508,7 +7512,6 @@ view_err:
     HA_ALTER_INFO ha_alter_info;
     HA_ALTER_FLAGS ha_alter_flags;
     uint table_changes= IS_EQUAL_YES;
-    bool need_copy_table= TRUE;
     /* Check how much the tables differ. */
     if (compare_tables(thd, table, alter_info,
                        create_info, order_num,
@@ -7556,13 +7559,37 @@ view_err:
                                                 !strcmp(db, new_db))))
         goto err;
 
-      switch (table->file->check_if_supported_alter(altered_table,
-                                                    create_info,
-                                                    &ha_alter_flags,
-                                                    table_changes)) {
+      DBUG_PRINT("info", ("Reverting alter_info"));
+      drop_list= List<Alter_drop>(alter_info->drop_list, thd->mem_root);
+      create_list= List<Create_field>(alter_info->create_list, thd->mem_root);
+      alter_list= List<Alter_column>(alter_info->alter_list, thd->mem_root);
+      key_list= List<Key>(alter_info->key_list, thd->mem_root);
+      alter_info->drop_list= drop_list_orig;
+      alter_info->create_list= create_list_orig;
+      alter_info->alter_list= alter_list_orig;
+      alter_info->key_list= key_list_orig;
+      ha_alter_info.data= alter_info;
+      
+      alter_supported= (table->file->check_if_supported_alter(altered_table,
+                                                              create_info,
+                                                              &ha_alter_info,
+                                                              &ha_alter_flags,
+                                                              table_changes));
+      
+      DBUG_PRINT("info", ("Restoring alter_info"));
+      alter_info->drop_list= drop_list;
+      alter_info->create_list= create_list;
+      alter_info->alter_list= alter_list;
+      alter_info->key_list= key_list;
+      switch (alter_supported) {
       case HA_ALTER_SUPPORTED_WAIT_LOCK:
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_SUPPORTED_WAIT_LOCK"));
+        need_copy_table= FALSE;
+        need_lock_for_indexes= TRUE;
+        break;
       case HA_ALTER_SUPPORTED_NO_LOCK:
-        /*
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_SUPPORTED_NO_LOCK"));
+         /*
           @todo: Currently we always acquire an exclusive name
           lock on the table metadata when performing fast or online
           ALTER TABLE. In future we may consider this unnecessary,
@@ -7572,8 +7599,12 @@ view_err:
           already now.
         */
         need_copy_table= FALSE;
+        need_lock_for_indexes= FALSE;
         break;
       case HA_ALTER_NOT_SUPPORTED:
+        DBUG_PRINT("info", ("check_if_supported_alter: HA_ALTER_NOT_SUPPORTED"));
+        need_copy_table= TRUE;
+        need_lock_for_indexes= FALSE;
         if (alter_info->build_method == HA_BUILD_ONLINE)
         {
           my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());

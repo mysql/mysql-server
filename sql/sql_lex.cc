@@ -1502,6 +1502,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   partition_names(rhs.partition_names, mem_root),
   no_parts(rhs.no_parts),
   build_method(rhs.build_method),
+  change_level(rhs.change_level),
   datetime_field(rhs.datetime_field),
   error_if_not_empty(rhs.error_if_not_empty)
 {

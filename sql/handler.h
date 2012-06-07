@@ -251,9 +251,9 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
   the storage engine. A typical engine to support this is NDB (through
   WL #2498).
 */
-#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 1)
-#define HA_FAST_CHANGE_PARTITION                (1L << 2)
-#define HA_PARTITION_ONE_PHASE                  (1L << 3)
+#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 12)
+#define HA_FAST_CHANGE_PARTITION                (1L << 13)
+#define HA_PARTITION_ONE_PHASE                  (1L << 14)
 
 /*
   Index scan will not return records in rowid order. Not guaranteed to be
@@ -1009,6 +1009,7 @@ typedef struct st_ha_alter_information
 {
   KEY  *key_info_buffer;
   uint key_count;
+  uint candidate_key_count;
   uint index_drop_count;
   uint *index_drop_buffer;
   uint index_add_count;
@@ -1887,6 +1888,7 @@ public:
  */
  virtual int check_if_supported_alter(TABLE *altered_table,
                                       HA_CREATE_INFO *create_info,
+                                      HA_ALTER_INFO *alter_info,
                                       HA_ALTER_FLAGS *alter_flags,
                                       uint table_changes);
 
