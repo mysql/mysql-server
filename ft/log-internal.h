@@ -166,7 +166,7 @@ struct tokutxn {
 
     toku_mutex_t txn_lock;
     // Protected by the txn lock:
-    OMT open_fts; // a collection of the brts that we touched.  Indexed by filenum.
+    OMT open_fts; // a collection of the fts that we touched.  Indexed by filenum.
     struct txn_roll_info roll_info; // Info used to manage rollback entries
 
     // Protected by the txn manager lock:
