@@ -359,6 +359,12 @@ INSERT INTO t1 VALUES
    ('2008-01-01','c'),
    ('2038-01-09','d');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 --disable_warnings
 
 --echo
@@ -419,6 +425,14 @@ CREATE TABLE t3 (
   KEY (c1(6),i1)
 );
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
+
 INSERT INTO t3 SELECT CONCAT('c-',1000+t2.a,'=w'), 1 FROM t2;
 
 let query=SELECT c1 FROM t3 WHERE c1 >= 'c-1004=w' and c1 <= 'c-1006=w' and i1 > 2;
@@ -478,6 +492,12 @@ INSERT INTO t1 VALUES (6,NULL);
 INSERT INTO t1 VALUES (7,9);
 INSERT INTO t1 VALUES (8,0);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 SELECT pk, c1
 FROM t1  
 WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
@@ -509,6 +529,12 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES ('Anastasia', 5);
 INSERT INTO t1 VALUES ('Karianne', 4);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 SELECT * FROM t1 WHERE (c1 <= '6566-06-15' AND c2 <> 3);
 
@@ -591,6 +617,12 @@ CREATE TABLE t2 (
   c1 INTEGER NOT NULL
 );
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 let query=
 SELECT t1.c1
 FROM t1
@@ -630,6 +662,14 @@ CREATE TABLE t3 (
 );
 
 INSERT INTO t3 VALUES ('v');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+-- enable_query_log
 
 let query=
 SELECT i1
@@ -692,6 +732,12 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (1,9),(2,7),(3,6),(4,3),(5,1);
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN SELECT pk, c1 FROM t1 WHERE pk <> 3;
 
 SET SESSION optimizer_switch='index_condition_pushdown=off';
@@ -722,6 +768,13 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES ();
 INSERT INTO t1 VALUES ();
 --enable_warnings
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let $query=
 SELECT *
@@ -767,6 +820,13 @@ CREATE TABLE t2 (
 );
 
 INSERT INTO t2 VALUES (6,'y','RPOYT'),(10,'m','JINQE');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 let query=
 SELECT c2 FROM t1 JOIN t2 ON t1.c1 = t2.c1
@@ -862,6 +922,13 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES (1,7,'f');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
 # Bug was specific of IN->EXISTS:
 set @old_opt_switch=@@optimizer_switch;
 --disable_query_log
@@ -921,6 +988,8 @@ INSERT INTO t3 VALUES (NULL,'w'), (1,NULL), (2,'d');
 
 -- disable_query_log
 -- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
 ANALYZE TABLE t3;
 -- enable_result_log
 -- enable_query_log
@@ -964,6 +1033,12 @@ CREATE TABLE t1 (
 
 INSERT INTO t1 VALUES (23,5,'d');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 let query=
 SELECT a1.pk 
 FROM t1 AS a1 JOIN (SELECT * FROM t1 LIMIT 1) AS a2 ON a2.b = a1.b
@@ -1005,6 +1080,12 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES (1,3,'j'), (20,8,'e');
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
 
 let query=
 SELECT alias2.i1
@@ -1158,6 +1239,13 @@ CREATE TABLE t2 (
 );
 
 INSERT INTO t2 VALUES (1);
+
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
 
 CREATE FUNCTION f1() RETURNS INTEGER
 RETURN (SELECT MOD(COUNT(DISTINCT pk), 10) FROM t2);
