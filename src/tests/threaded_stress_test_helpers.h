@@ -92,13 +92,6 @@ typedef int (*operation_t)(DB_TXN *txn, ARG arg, void *operation_extra, void *st
 
 typedef int (*test_update_callback_f)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra);
 
-enum operation_type {
-    OPERATION = 0,
-    PUTS,
-    NUM_OPERATION_TYPES
-};
-static void increment_counter(void *extra, enum operation_type type, uint64_t inc);
-
 enum stress_lock_type {
     STRESS_LOCK_NONE = 0,
     STRESS_LOCK_SHARED,
@@ -138,6 +131,11 @@ struct env_args {
     test_update_callback_f update_function; // update callback function
 };
 
+enum perf_output_format {
+    HUMAN = 0,
+    NUM_OUTPUT_FORMATS
+};
+
 struct cli_args {
     int num_elements; // number of elements per DB
     int num_DBs; // number of DBs
@@ -153,6 +151,7 @@ struct cli_args {
     bool crash_on_update_failure; 
     bool print_performance;
     bool print_thread_performance;
+    enum perf_output_format perf_output_format;
     int performance_period;
     u_int32_t txn_size; // specifies number of updates/puts/whatevers per txn
     u_int32_t key_size; // number of bytes in vals. Must be at least 4
@@ -177,6 +176,93 @@ static void arg_init(struct arg *arg, int num_elements, DB **dbp, DB_ENV *env, s
     arg->txn_size = cli_args->txn_size;
     arg->single_txn = cli_args->single_txn;
     arg->operation_extra = NULL;
+}
+
+enum operation_type {
+    OPERATION = 0,
+    PUTS,
+    NUM_OPERATION_TYPES
+};
+const char *operation_names[] = {
+    "operations",
+    "puts",
+    NULL
+};
+static void increment_counter(void *extra, enum operation_type type, uint64_t inc) {
+    invariant(type != OPERATION);
+    int t = (int) type;
+    invariant(extra);
+    invariant(t >= 0 && t < (int) NUM_OPERATION_TYPES);
+    uint64_t *counters = extra;
+    counters[t] += inc;
+}
+
+struct perf_formatter {
+    void (*print_perf_totals_header)(void);
+    void (*print_perf_thread_totals_header)(int);
+    void (*print_perf_thread_total)(int, const char *, uint64_t);
+    void (*print_perf_thread_totals_footer)(int);
+    void (*print_perf_overall_totals_header)(void);
+    void (*print_perf_overall_total)(const char *, uint64_t);
+    void (*print_perf_overall_totals_footer)(void);
+};
+
+// "Human readable" performance formatter
+static void perf_human_totals_header(void) {
+    printf("\nOverall performance:\n");
+}
+static void perf_human_thread_totals_header(int t) {
+    printf("Thread %d:", t);
+}
+static void perf_human_thread_totals_footer(int UU(t)) {
+    printf("\n");
+}
+static void perf_human_total(const char *name, uint64_t val) {
+    printf("\t%s\t%10"PRIu64, name, val);
+}
+static void perf_human_thread_total(int UU(t), const char *name, uint64_t val) {
+    perf_human_total(name, val);
+}
+static void perf_human_overall_totals_header(void) {
+    printf("All threads:");
+}
+static void perf_human_overall_totals_footer(void) {
+    printf("\n");
+}
+
+const struct perf_formatter perf_formatters[] = {
+    [HUMAN] = {
+        .print_perf_totals_header = perf_human_totals_header,
+        .print_perf_thread_totals_header = perf_human_thread_totals_header,
+        .print_perf_thread_total = perf_human_thread_total,
+        .print_perf_thread_totals_footer = perf_human_thread_totals_footer,
+        .print_perf_overall_totals_header = perf_human_overall_totals_header,
+        .print_perf_overall_total = perf_human_total,
+        .print_perf_overall_totals_footer = perf_human_overall_totals_footer,
+    }
+};
+
+static void print_perf_totals(struct cli_args *cli_args, uint64_t *counters[], int num_threads) {
+    const struct perf_formatter *fmt = &perf_formatters[(int) cli_args->perf_output_format];
+    fmt->print_perf_totals_header();
+    uint64_t overall_totals[(int) NUM_OPERATION_TYPES];
+    ZERO_ARRAY(overall_totals);
+    for (int t = 0; t < num_threads; ++t) {
+        fmt->print_perf_thread_totals_header(t);
+        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+            uint64_t current = counters[t][op];
+            if (cli_args->print_thread_performance) {
+                fmt->print_perf_thread_total(t, operation_names[op], current);
+            }
+            overall_totals[op] += current;
+        }
+        fmt->print_perf_thread_totals_footer(t);
+    }
+    fmt->print_perf_overall_totals_header();
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        fmt->print_perf_overall_total(operation_names[op], overall_totals[op]);
+    }
+    fmt->print_perf_overall_totals_footer();
 }
 
 struct worker_extra {
@@ -217,15 +303,6 @@ static void unlock_worker_op(struct worker_extra* we) {
     }
 }
 
-static void increment_counter(void *extra, enum operation_type type, uint64_t inc) {
-    invariant(type != OPERATION);
-    int t = (int) type;
-    invariant(extra);
-    invariant(t >= 0 && t < (int) NUM_OPERATION_TYPES);
-    struct worker_extra *we = extra;
-    we->counters[t] += inc;
-}
-
 static void *worker(void *arg_v) {
     int r;
     struct worker_extra* we = arg_v;
@@ -249,7 +326,7 @@ static void *worker(void *arg_v) {
         if (!arg->single_txn) {
             r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
         }
-        r = arg->operation(txn, arg, arg->operation_extra, we);
+        r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r == 0) {
             if (!arg->single_txn) {
                 CHK(txn->commit(txn,0));
@@ -381,11 +458,8 @@ static int UU() malloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_
 }
 #endif
 
-static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
+static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     int r = 0;
-    //int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
-    int db_index = arg->thread_idx%arg->num_DBs;
-    DB* db = arg->dbp[db_index];
     char buf[100];
     ZERO_ARRAY(buf);
     uint64_t i;
@@ -407,6 +481,18 @@ static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), v
 cleanup:
     increment_counter(stats_extra, PUTS, i);
     return r;
+}
+
+static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
+    int db_index = myrandom_r(arg->random_data)%arg->num_DBs;
+    DB* db = arg->dbp[db_index];
+    return random_put_in_db(db, txn, arg, stats_extra);
+}
+
+static int UU() random_put_op_singledb(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
+    int db_index = arg->thread_idx%arg->num_DBs;
+    DB* db = arg->dbp[db_index];
+    return random_put_in_db(db, txn, arg, stats_extra);
 }
 
 static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
@@ -927,21 +1013,12 @@ static int run_workers(
             printf("%lu joined\n", (unsigned long) tids[i]);
     }
 
-    uint64_t overall_totals[(int) NUM_OPERATION_TYPES];
-    ZERO_ARRAY(overall_totals);
-    for (int we = 0; we < num_threads; ++we) {
-        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-            uint64_t current = worker_extra[we].counters[op];
-            if (cli_args->print_thread_performance) {
-                printf("TOTAL Thread %d Operations %"PRId64"\n", we, current);
-            }
-            overall_totals[op] += current;
-        }
-    }
     if (cli_args->print_performance) {
-        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-            printf("Total_Operations %"PRId64"\n", overall_totals[op]);
+        uint64_t *counters[num_threads];
+        for (int i = 0; i < num_threads; ++i) {
+            counters[i] = worker_extra[i].counters;
         }
+        print_perf_totals(cli_args, counters, num_threads);
     }
 
     for (int i = 0; i < num_threads; ++i) {
