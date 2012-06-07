@@ -568,7 +568,7 @@ row_merge_dup_report(
 	rec = rec_convert_dtuple_to_rec(*buf, index, tuple, n_ext);
 	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
-	innobase_rec_to_mysql(dup->table, rec, index, offsets);
+	innobase_rec_to_mysql(dup->table, dup->col_map, rec, index, offsets);
 
 	mem_heap_free(heap);
 }
@@ -1580,10 +1580,8 @@ write_buffers:
 
 			if (buf->n_tuples) {
 				if (dict_index_is_unique(buf->index)) {
-					row_merge_dup_t	dup;
-					dup.index = buf->index;
-					dup.table = table;
-					dup.n_dup = 0;
+					row_merge_dup_t	dup = {
+						buf->index, table, col_map, 0};
 
 					row_merge_buf_sort(buf, &dup);
 
@@ -1716,8 +1714,9 @@ wait_again:
 
 /** Write a record via buffer 2 and read the next record to buffer N.
 @param N	number of the buffer (0 or 1)
+@param INDEX	record descriptor
 @param AT_END	statement to execute at end of input */
-#define ROW_MERGE_WRITE_GET_NEXT(N, AT_END)				\
+#define ROW_MERGE_WRITE_GET_NEXT(N, INDEX, AT_END)			\
 	do {								\
 		b2 = row_merge_write_rec(&block[2 * srv_sort_buf_size], \
 					 &buf[2], b2,			\
@@ -1728,7 +1727,7 @@ wait_again:
 		}							\
 		b##N = row_merge_read_rec(&block[N * srv_sort_buf_size],\
 					  &buf[N],			\
-					  b##N, index, n_null,		\
+					  b##N, INDEX, n_null,		\
 					  file->fd, foffs##N,		\
 					  &mrec##N, offsets##N);	\
 		if (UNIV_UNLIKELY(!b##N)) {				\
@@ -1746,7 +1745,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_blocks(
 /*=============*/
-	const dict_index_t*	index,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: index being created */
 	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	const merge_file_t*	file,	/*!< in: file containing
 					index entries */
@@ -1755,10 +1754,7 @@ row_merge_blocks(
 					source list in the file */
 	ulint*			foffs1,	/*!< in/out: offset of second
 					source list in the file */
-	merge_file_t*		of,	/*!< in/out: output file */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
+	merge_file_t*		of)	/*!< in/out: output file */
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -1784,7 +1780,7 @@ row_merge_blocks(
 	}
 #endif /* UNIV_DEBUG */
 
-	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
+	heap = row_merge_heap_create(dup->index, &buf, &offsets0, &offsets1);
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
@@ -1800,11 +1796,13 @@ corrupt:
 	b1 = &block[srv_sort_buf_size];
 	b2 = &block[2 * srv_sort_buf_size];
 
-	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, n_null,
-				file->fd, foffs0, &mrec0, offsets0);
-	b1 = row_merge_read_rec(&block[srv_sort_buf_size],
-				&buf[srv_sort_buf_size], b1, index, n_null,
-				file->fd, foffs1, &mrec1, offsets1);
+	b0 = row_merge_read_rec(
+		&block[0], &buf[0], b0, dup->index, n_null,
+		file->fd, foffs0, &mrec0, offsets0);
+	b1 = row_merge_read_rec(
+		&block[srv_sort_buf_size],
+		&buf[srv_sort_buf_size], b1, dup->index, n_null,
+		file->fd, foffs1, &mrec1, offsets1);
 	if (UNIV_UNLIKELY(!b0 && mrec0)
 	    || UNIV_UNLIKELY(!b1 && mrec1)) {
 
@@ -1812,35 +1810,35 @@ corrupt:
 	}
 
 	while (mrec0 && mrec1) {
-		switch (cmp_rec_rec_simple(mrec0, mrec1, offsets0, offsets1,
-					   index, table)) {
+		switch (cmp_rec_rec_simple(
+				mrec0, mrec1, offsets0, offsets1,
+				dup->index, dup->table, dup->col_map)) {
 		case 0:
 			mem_heap_free(heap);
 			return(DB_DUPLICATE_KEY);
 		case -1:
-			ROW_MERGE_WRITE_GET_NEXT(0, goto merged);
+			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto merged);
 			break;
 		case 1:
-			ROW_MERGE_WRITE_GET_NEXT(1, goto merged);
+			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto merged);
 			break;
 		default:
 			ut_error;
 		}
-
 	}
 
 merged:
 	if (mrec0) {
 		/* append all mrec0 to output */
 		for (;;) {
-			ROW_MERGE_WRITE_GET_NEXT(0, goto done0);
+			ROW_MERGE_WRITE_GET_NEXT(0, dup->index, goto done0);
 		}
 	}
 done0:
 	if (mrec1) {
 		/* append all mrec1 to output */
 		for (;;) {
-			ROW_MERGE_WRITE_GET_NEXT(1, goto done1);
+			ROW_MERGE_WRITE_GET_NEXT(1, dup->index, goto done1);
 		}
 	}
 done1:
@@ -1910,7 +1908,7 @@ corrupt:
 	if (mrec0) {
 		/* append all mrec0 to output */
 		for (;;) {
-			ROW_MERGE_WRITE_GET_NEXT(0, goto done0);
+			ROW_MERGE_WRITE_GET_NEXT(0, index, goto done0);
 		}
 	}
 done0:
@@ -1933,15 +1931,12 @@ dberr_t
 row_merge(
 /*======*/
 	trx_t*			trx,	/*!< in: transaction */
-	const dict_index_t*	index,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: index being created */
 	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table,	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
 	ulint*			num_run,/*!< in/out: Number of runs remain
 					to be merged */
 	ulint*			run_offset) /*!< in/out: Array contains the
@@ -1988,8 +1983,8 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		error = row_merge_blocks(index, n_null, file, block,
-					 &foffs0, &foffs1, &of, table);
+		error = row_merge_blocks(dup, n_null, file, block,
+					 &foffs0, &foffs1, &of);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -2007,7 +2002,7 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		if (!row_merge_blocks_copy(index, n_null, file, block,
+		if (!row_merge_blocks_copy(dup->index, n_null, file, block,
 					   &foffs0, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -2023,7 +2018,7 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		if (!row_merge_blocks_copy(index, n_null, file, block,
+		if (!row_merge_blocks_copy(dup->index, n_null, file, block,
 					   &foffs1, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -2066,17 +2061,14 @@ dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
-	const dict_index_t*	index,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
+	int*			tmpfd)	/*!< in/out: temporary file handle */
 {
-	const ulint	n_null	= index->n_nullable
-		+ (dict_index_get_online_status(index)
+	const ulint	n_null	= dup->index->n_nullable
+		+ (dict_index_get_online_status(dup->index)
 		   != ONLINE_INDEX_COMPLETE);
 	const ulint	half	= file->offset / 2;
 	ulint		num_runs;
@@ -2104,8 +2096,8 @@ row_merge_sort(
 
 	/* Merge the runs until we have one big run */
 	do {
-		error = row_merge(trx, index, n_null, file, block, tmpfd,
-				  table, &num_runs, run_offset);
+		error = row_merge(trx, dup, n_null, file, block, tmpfd,
+				  &num_runs, run_offset);
 
 		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 
@@ -3253,9 +3245,16 @@ row_merge_build_indexes(
 			fts_sort_idx = row_merge_create_fts_sort_index(
 				indexes[i], old_table, &opt_doc_id_size);
 
-			row_fts_psort_info_init(trx, table, new_table,
-						fts_sort_idx, opt_doc_id_size,
-						&psort_info, &merge_info);
+			row_merge_dup_t* dup = static_cast<row_merge_dup_t*>(
+				ut_malloc(sizeof *dup));
+			dup->index = fts_sort_idx;
+			dup->table = table;
+			dup->col_map = col_map;
+			dup->n_dup = 0;
+
+			row_fts_psort_info_init(
+				trx, dup, new_table, opt_doc_id_size,
+				&psort_info, &merge_info);
 		}
 	}
 
@@ -3312,6 +3311,9 @@ wait_again:
 					}
 				}
 			} else {
+				// TODO: if this can report duplicates
+				// or other erroneous rows, pass
+				// col_map[] as well.
 				error = row_fts_merge_insert(
 					sort_idx, new_table,
 					psort_info, 0);
@@ -3321,9 +3323,12 @@ wait_again:
 			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
 #endif
 		} else {
+			row_merge_dup_t	dup = {
+				sort_idx, table, col_map, 0};
+
 			error = row_merge_sort(
-				trx, sort_idx, &merge_files[i],
-				block, &tmpfd, table);
+				trx, &dup, &merge_files[i],
+				block, &tmpfd);
 
 			if (error == DB_SUCCESS) {
 				error = row_merge_insert_index_tuples(

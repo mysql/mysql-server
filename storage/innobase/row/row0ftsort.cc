@@ -171,10 +171,9 @@ ibool
 row_fts_psort_info_init(
 /*====================*/
 	trx_t*			trx,	/*!< in: transaction */
-	struct TABLE*		table,	/*!< in: MySQL table object */
+	const row_merge_dup_t*	dup,	/*!< in: FTS index being created */
 	const dict_table_t*	new_table,/*!< in: table on which indexes are
 					created */
-	dict_index_t*		index,	/*!< in: FTS index to be created */
 	ibool			opt_doc_id_size,
 					/*!< in: whether to use 4 bytes
 					instead of 8 bytes integer to
@@ -208,10 +207,9 @@ row_fts_psort_info_init(
 	common_info = static_cast<fts_psort_common_t*>(
 		mem_alloc(sizeof *common_info));
 
-	common_info->table = table;
+	common_info->dup = dup;
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
-	common_info->sort_index = index;
 	common_info->all_info = psort_info;
 	common_info->sort_event = sort_event;
 	common_info->opt_doc_id_size = opt_doc_id_size;
@@ -240,7 +238,7 @@ row_fts_psort_info_init(
 			}
 
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
-				index);
+				dup->index);
 
 			row_merge_file_create(psort_info[j].merge_file[i]);
 
@@ -583,10 +581,10 @@ fts_parallel_tokenization(
 	memset(mycount, 0, FTS_NUM_AUX_INDEX * sizeof(int));
 
 	doc.charset = fts_index_get_charset(
-		psort_info->psort_common->sort_index);
+		psort_info->psort_common->dup->index);
 
 	idx_field = dict_index_get_nth_field(
-		psort_info->psort_common->sort_index, 0);
+		psort_info->psort_common->dup->index, 0);
 	word_dtype.prtype = idx_field->col->prtype;
 	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
 	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)
@@ -779,10 +777,8 @@ exit:
 
 		tmpfd[i] = innobase_mysql_tmpfile();
 		row_merge_sort(psort_info->psort_common->trx,
-				       psort_info->psort_common->sort_index,
-				       merge_file[i],
-				       (row_merge_block_t*) block[i], &tmpfd[i],
-				       psort_info->psort_common->table);
+			       psort_info->psort_common->dup,
+			       merge_file[i], block[i], &tmpfd[i]);
 		total_rec += merge_file[i]->n_rec;
 		close(tmpfd[i]);
 	}
@@ -834,7 +830,7 @@ fts_parallel_merge(
 
 	id = psort_info->psort_id;
 
-	row_fts_merge_insert(psort_info->psort_common->sort_index,
+	row_fts_merge_insert(psort_info->psort_common->dup->index,
 			     psort_info->psort_common->new_table,
 			     psort_info->psort_common->all_info, id);
 
@@ -1086,7 +1082,7 @@ row_fts_sel_tree_propagate(
 	} else if (cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
 				      offsets[child_left],
 				      offsets[child_right],
-				      index, NULL) < 0) {
+				      index, NULL, NULL) < 0) {
 		selected = child_left;
 	} else {
 		selected = child_right;
@@ -1175,7 +1171,7 @@ row_fts_build_sel_tree_level(
 		int cmp = cmp_rec_rec_simple(
 			mrec[child_left], mrec[child_right],
 			offsets[child_left], offsets[child_right],
-			index, NULL);
+			index, NULL, NULL);
 
 		sel_tree[start + i] = cmp < 0 ? child_left : child_right;
 	}
@@ -1391,7 +1387,7 @@ row_fts_merge_insert(
 				if (cmp_rec_rec_simple(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
-					    index, NULL) < 0) {
+					    index, NULL, NULL) < 0) {
 					min_rec = i;
 				}
 			}

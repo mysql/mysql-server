@@ -1227,7 +1227,8 @@ row_log_table_apply_insert(
 	if (error != DB_SUCCESS) {
 		/* Report the erroneous row using the old
 		version of the table. */
-		innobase_rec_to_mysql(dup->table, mrec, dup->index, offsets);
+		innobase_rec_to_mysql(
+			dup->table, dup->col_map, mrec, dup->index, offsets);
 	}
 
 	return(error);
@@ -1497,7 +1498,8 @@ err_exit:
 			/* Report the erroneous row using the old
 			version of the table. */
 			innobase_rec_to_mysql(
-				dup->table, mrec, dup->index, offsets);
+				dup->table, dup->col_map,
+				mrec, dup->index, offsets);
 		}
 
 		return(error);
@@ -2293,17 +2295,13 @@ row_log_table_apply(
 {
 	dberr_t		error;
 	dict_index_t*	clust_index;
-	row_merge_dup_t dup;
-
-	dup.index = clust_index = dict_table_get_first_index(old_table);
-	dup.table = table;
-	dup.n_dup = 0;
 
 	thr_get_trx(thr)->error_key_num = 0;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+	clust_index = dict_table_get_first_index(old_table);
 
 	rw_lock_x_lock(dict_index_get_lock(clust_index));
 
@@ -2316,6 +2314,11 @@ row_log_table_apply(
 		ut_ad(0);
 		error = DB_ERROR;
 	} else {
+		row_merge_dup_t	dup = {
+			clust_index, table,
+			clust_index->online_log->col_map, 0
+		};
+
 		error = row_log_table_apply_ops(thr, &dup);
 	}
 
@@ -3184,10 +3187,7 @@ row_log_apply(
 {
 	dberr_t		error;
 	row_log_t*	log;
-	row_merge_dup_t dup;
-	dup.index = index;
-	dup.table = table;
-	dup.n_dup = 0;
+	row_merge_dup_t	dup = { index, table, NULL, 0 };
 
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!dict_index_is_clust(index));

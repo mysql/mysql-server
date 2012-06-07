@@ -1009,28 +1009,41 @@ UNIV_INTERN
 void
 innobase_rec_to_mysql(
 /*==================*/
-	TABLE*			table,		/*!< in/out: MySQL table */
-	const rec_t*		rec,		/*!< in: record */
-	const dict_index_t*	index,		/*!< in: index */
-	const ulint*		offsets)	/*!< in: rec_get_offsets(
-						rec, index, ...) */
+	struct TABLE*		table,	/*!< in/out: MySQL table */
+	const ulint*		col_map,/*!< in: mapping of column
+					numbers in table to the
+					rebuilt table (index->table),
+					or NULL if not rebuilding table */
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index,	/*!< in: index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(
+					rec, index, ...) */
 {
 	uint	n_fields	= table->s->fields;
 	uint	i;
 
-	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
-	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
-					DICT_TF2_FTS_HAS_DOC_ID)));
+	ut_ad(col_map || n_fields == dict_table_get_n_user_cols(index->table));
 
 	for (i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
+		ulint		col_no;
 		ulint		ipos;
 		ulint		ilen;
 		const uchar*	ifield;
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_pos(index, i);
+		if (col_map) {
+			col_no = col_map[i];
+
+			if (col_no == ULINT_UNDEFINED) {
+				goto null_field;
+			}
+		} else {
+			col_no = i;
+		}
+
+		ipos = dict_index_get_nth_col_pos(index, col_no);
 
 		if (UNIV_UNLIKELY(ipos == ULINT_UNDEFINED)) {
 null_field:
@@ -1042,7 +1055,7 @@ null_field:
 
 		/* Assign the NULL flag */
 		if (ilen == UNIV_SQL_NULL) {
-			ut_ad(field->real_maybe_null());
+			ut_ad(col_map || field->real_maybe_null());
 			goto null_field;
 		}
 
@@ -3474,7 +3487,9 @@ oom:
 		given that we hold at most a shared lock on the table. */
 		goto ok_exit;
 	case DB_DUPLICATE_KEY:
-		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
+		if (ctx->indexed_table != prebuilt->table) {
+			dup_key = table->key_info;
+		} else if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
 			/* This should be the hidden index on FTS_DOC_ID. */
 			dup_key = NULL;
 		} else {
