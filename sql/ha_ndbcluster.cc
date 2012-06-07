@@ -14954,6 +14954,7 @@ HA_ALTER_FLAGS supported_alter_operations()
 
 int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
                                             HA_CREATE_INFO *create_info,
+                                            HA_ALTER_INFO *alter_info,
                                             HA_ALTER_FLAGS *alter_flags,
                                             uint table_changes)
 {

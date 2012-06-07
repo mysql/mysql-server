@@ -138,4 +138,93 @@ DROP FUNCTION db1.f1;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 DROP DATABASE db2;
+USE test;
+
+--echo #
+--echo # Bug#13105873:valgrind warning:possible crash in foreign 
+--echo # key handling on subsequent create table if not exists 
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS testdb;
+--enable_warnings
+CREATE DATABASE testdb;
+USE testdb;
+CREATE TABLE t1 (id1 INT PRIMARY KEY);
+DELIMITER $;
+CREATE PROCEDURE `p1`()
+BEGIN
+    CREATE TABLE IF NOT EXISTS t2(id INT PRIMARY KEY,
+    CONSTRAINT FK FOREIGN KEY (id) REFERENCES t1( id1 ));
+END$
+DELIMITER ;$
+CALL p1();
+--echo # below stmt should not return valgrind warnings
+CALL p1(); 
+DROP DATABASE testdb;
+USE test;
+
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+--echo #
+SET @@SQL_MODE = '';
+DELIMITER $;
+CREATE FUNCTION testf_bug11763507() RETURNS INT
+BEGIN
+    RETURN 0;
+END
+$
+
+CREATE PROCEDURE testp_bug11763507()
+BEGIN
+    SELECT "PROCEDURE testp_bug11763507";
+END
+$
+
+DELIMITER ;$
+
+# STORED FUNCTIONS
+SELECT testf_bug11763507();
+SELECT TESTF_bug11763507();
+
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS LIKE  'testf_bug11763507';
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS WHERE NAME='testf_bug11763507';
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS LIKE  'TESTF_bug11763507';
+--replace_column 5 # 6 #
+SHOW FUNCTION STATUS WHERE NAME='TESTF_bug11763507';
+
+SHOW CREATE FUNCTION testf_bug11763507;
+SHOW CREATE FUNCTION TESTF_bug11763507;
+
+# STORED PROCEDURE
+CALL testp_bug11763507();
+CALL TESTP_bug11763507();
+
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE  'testp_bug11763507';
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS WHERE NAME='testp_bug11763507';
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS LIKE  'TESTP_bug11763507';
+--replace_column 5 # 6 #
+SHOW PROCEDURE STATUS WHERE NAME='TESTP_bug11763507';
+
+SHOW CREATE PROCEDURE testp_bug11763507;
+SHOW CREATE PROCEDURE TESTP_bug11763507;
+
+# INFORMATION SCHEMA 
+SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'testf_bug11763507';
+SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name LIKE 'TESTF_bug11763507';
+
+SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='testf_bug11763507';
+SELECT specific_name FROM INFORMATION_SCHEMA.ROUTINES WHERE specific_name='TESTF_bug11763507';
+
+DROP PROCEDURE testp_bug11763507;
+DROP FUNCTION testf_bug11763507;
+
+--echo #END OF BUG#11763507 test.

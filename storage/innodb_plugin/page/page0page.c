@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1475,55 +1475,54 @@ page_dir_balance_slot(
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
 /************************************************************//**
-Returns the middle record of the record list. If there are an even number
-of records in the list, returns the first record of the upper half-list.
-@return	middle record */
+Returns the nth record of the record list.
+This is the inverse function of page_rec_get_n_recs_before().
+@return	nth record */
 UNIV_INTERN
-rec_t*
-page_get_middle_rec(
-/*================*/
-	page_t*	page)	/*!< in: page */
+const rec_t*
+page_rec_get_nth_const(
+/*===================*/
+	const page_t*	page,	/*!< in: page */
+	ulint		nth)	/*!< in: nth record */
 {
-	page_dir_slot_t*	slot;
-	ulint			middle;
+	const page_dir_slot_t*	slot;
 	ulint			i;
 	ulint			n_owned;
-	ulint			count;
-	rec_t*			rec;
+	const rec_t*		rec;
 
-	/* This many records we must leave behind */
-	middle = (page_get_n_recs(page) + PAGE_HEAP_NO_USER_LOW) / 2;
-
-	count = 0;
+	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	for (i = 0;; i++) {
 
 		slot = page_dir_get_nth_slot(page, i);
 		n_owned = page_dir_slot_get_n_owned(slot);
 
-		if (count + n_owned > middle) {
+		if (n_owned > nth) {
 			break;
 		} else {
-			count += n_owned;
+			nth -= n_owned;
 		}
 	}
 
 	ut_ad(i > 0);
 	slot = page_dir_get_nth_slot(page, i - 1);
-	rec = (rec_t*) page_dir_slot_get_rec(slot);
-	rec = page_rec_get_next(rec);
+	rec = page_dir_slot_get_rec(slot);
 
-	/* There are now count records behind rec */
-
-	for (i = 0; i < middle - count; i++) {
-		rec = page_rec_get_next(rec);
+	if (page_is_comp(page)) {
+		do {
+			rec = page_rec_get_next_low(rec, TRUE);
+			ut_ad(rec);
+		} while (nth--);
+	} else {
+		do {
+			rec = page_rec_get_next_low(rec, FALSE);
+			ut_ad(rec);
+		} while (nth--);
 	}
 
 	return(rec);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**
 Returns the number of records before the given record in chain.
@@ -1585,6 +1584,7 @@ page_rec_get_n_recs_before(
 	n--;
 
 	ut_ad(n >= 0);
+	ut_ad(n < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	return((ulint) n);
 }

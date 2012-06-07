@@ -532,28 +532,6 @@ os_proc_get_number(void)
 }
 
 /********************************************************************
-Allocates non-cacheable memory. */
-
-void*
-os_mem_alloc_nocache(
-/*=================*/
-			/* out: allocated memory */
-	ulint	n)	/* in: number of bytes */
-{
-#ifdef __WIN__
-	void*	ptr;
-
-	ptr = VirtualAlloc(NULL, n, MEM_COMMIT,
-			   PAGE_READWRITE | PAGE_NOCACHE);
-	ut_a(ptr);
-
-	return(ptr);
-#else
-	return(ut_malloc(n));
-#endif
-}
-
-/********************************************************************
 Allocates large pages memory. */
 
 void*
@@ -561,9 +539,6 @@ os_mem_alloc_large(
 /*===============*/
 					/* out: allocated memory */
 	ulint		n,		/* in: number of bytes */
-	ibool		set_to_zero,	/* in: TRUE if allocated memory
-					should be set to zero if
-					UNIV_SET_MEM_TO_ZERO is defined */
 	ibool		assert_on_error)/* in: if TRUE, we crash mysqld if
 					 the memory cannot be allocated */
 {
@@ -602,12 +577,6 @@ os_mem_alloc_large(
 #endif
 
 	if (ptr) {
-		if (set_to_zero) {
-#ifdef UNIV_SET_MEM_TO_ZERO
-			memset(ptr, '\0', size);
-#endif
-		}
-
 		return(ptr);
 	}
 
@@ -616,7 +585,7 @@ os_mem_alloc_large(
 skip:
 #endif /* HAVE_LARGE_PAGES */
 
-	return(ut_malloc_low(n, set_to_zero, assert_on_error));
+	return(ut_malloc_low(n, assert_on_error));
 }
 
 /********************************************************************

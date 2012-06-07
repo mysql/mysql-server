@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1220,7 +1220,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   handler *file= table->file;
   TABLE_SHARE *share= table->s;
   HA_CREATE_INFO create_info;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
   bool show_table_options= FALSE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   bool foreign_db_mode=  (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                      MODE_ORACLE |
                                                      MODE_MSSQL |
@@ -1464,7 +1466,9 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   packet->append(STRING_WITH_LEN("\n)"));
   if (!(thd->variables.sql_mode & MODE_NO_TABLE_OPTIONS) && !foreign_db_mode)
   {
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     show_table_options= TRUE;
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
     /*
       Get possible table space definitions and append them
       to the CREATE TABLE statement
@@ -4393,7 +4397,8 @@ bool store_schema_proc(THD *thd, TABLE *table, TABLE *proc_table,
       (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND) == 0)
   {
     restore_record(table, s->default_values);
-    if (!wild || !wild[0] || !wild_compare(sp_name.c_ptr_safe(), wild, 0))
+    if (!wild || !wild[0] || !wild_case_compare(system_charset_info,
+                                                sp_name.c_ptr_safe(), wild))
     {
       int enum_idx= (int) proc_table->field[5]->val_int();
       table->field[3]->store(sp_name.ptr(), sp_name.length(), cs);
@@ -5394,7 +5399,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
     DBUG_RETURN(1);
   }
 
-  if (!(!wild || !wild[0] || !wild_compare(et.name.str, wild, 0)))
+  if (!(!wild || !wild[0] || !wild_case_compare(scs, et.name.str, wild)))
     DBUG_RETURN(0);
 
   /*

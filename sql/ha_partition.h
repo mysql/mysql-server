@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -276,6 +276,10 @@ public:
     DBUG_RETURN(0);
   }
   virtual void change_table_ptr(TABLE *table_arg, TABLE_SHARE *share);
+  /*
+  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
+                                          uint table_changes);
+  */
 private:
   int prepare_for_rename();
   int copy_partitions(ulonglong * const copied, ulonglong * const deleted);
@@ -555,6 +559,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
+  /*
+    Do not allow caching of partitioned tables, since we cannot return
+    a callback or engine_data that would work for a generic engine.
+  */
+  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
+                                             uint key_length,
+                                             qc_engine_callback
+                                               *engine_callback,
+                                             ulonglong *engine_data)
+  {
+    *engine_callback= NULL;
+    *engine_data= 0;
+    return FALSE;
+  }
 
 private:
   static const uint NO_CURRENT_PART_ID;
@@ -890,6 +908,14 @@ public:
     return m_file[0]->index_flags(inx, part, all_parts);
   }
 
+  /**
+     wrapper function for handlerton alter_table_flags, since
+     the ha_partition_hton cannot know all its capabilities
+  */
+/*
+  virtual uint alter_table_flags(uint flags);
+*/
+
   /*
      extensions of table handler files
   */
@@ -1069,15 +1095,18 @@ public:
     -------------------------------------------------------------------------
     MODULE on-line ALTER TABLE
     -------------------------------------------------------------------------
-    These methods are in the handler interface but never used (yet)
+    These methods are in the handler interface (used by innodb-plugin)
     They are to be used by on-line alter table add/drop index:
     -------------------------------------------------------------------------
-    virtual ulong index_ddl_flags(KEY *wanted_index) const
-    virtual int add_index(TABLE *table_arg,KEY *key_info,uint num_of_keys);
-    virtual int drop_index(TABLE *table_arg,uint *key_num,uint num_of_keys);
-    -------------------------------------------------------------------------
   */
+ /*
 
+    virtual int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);
+    virtual int prepare_drop_index(TABLE *table_arg, uint *key_num,
+				   uint num_of_keys);
+    virtual int final_drop_index(TABLE *table_arg);
+  */
+ 
   /*
     -------------------------------------------------------------------------
     MODULE tablespace support
