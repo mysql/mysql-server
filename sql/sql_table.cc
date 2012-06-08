@@ -5299,9 +5299,6 @@ static bool fill_alter_inplace_info(THD *thd,
   if (alter_info->flags & Alter_info::ALTER_RENAME)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_RENAME;
 
-  if (alter_info->flags & Alter_info::ALTER_COLUMN_ORDER)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_ORDER;
-
   if (alter_info->flags & Alter_info::ALTER_COLUMN_STORAGE_TYPE)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
   if (alter_info->flags & Alter_info::ALTER_COLUMN_COLUMN_FORMAT)
