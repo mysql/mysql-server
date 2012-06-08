@@ -116,7 +116,6 @@ sub main
     print "will be disabled\nand some will be enabled.\n\n";
   }
 
-  init_log() if (!defined($opt_log));
   $groupids = $ARGV[1];
   if ($opt_version)
   {
@@ -142,6 +141,7 @@ sub main
 	       !($ARGV[0] =~ m/^stop$/i) &&
 	       !($ARGV[0] =~ m/^report$/i)));
 
+  init_log() if (!defined($opt_log));
   if (!$opt_no_log)
   {
     w2log("$my_progname log file version $VER; run: ",
