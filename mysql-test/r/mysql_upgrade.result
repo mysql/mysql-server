@@ -316,7 +316,7 @@ mysql.user                                         OK
 # Bug# 13586336: issue deprecation warning
 #   for legacy authentication method
 #
-CREATE USER 'bug13586336'@'localhost';
+CREATE USER 'bug13586336'@'localhost' IDENTIFIED WITH 'mysql_old_password';
 SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead

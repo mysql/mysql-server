@@ -16,10 +16,10 @@ SELECT user, plugin, authentication_string, password FROM mysql.user WHERE user 
 user	plugin	authentication_string	password
 plug_user_p	test_plugin_server	proxy_user_p	
 plug_user_wp	test_plugin_server	proxy_user_wp	
-proxy_user_p		NULL	*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
-proxy_user_wp		NULL	
-regular_user_p		NULL	*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
-regular_user_wp		NULL	
+proxy_user_p	mysql_native_password		*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
+proxy_user_wp	mysql_native_password		
+regular_user_p	mysql_native_password		*2470C0C06DEE42FD1618BB99005ADCA2EC9D1E19
+regular_user_wp	mysql_native_password		
 GRANT PROXY ON proxy_user_p to plug_user_p;
 GRANT PROXY ON proxy_user_wp to plug_user_wp;
 GRANT REPLICATION SLAVE ON *.* TO proxy_user_p;

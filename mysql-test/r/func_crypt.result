@@ -43,8 +43,8 @@ old_password(NULL)
 NULL
 select password(NULL);
 password(NULL)
-NULL
-set global old_passwords=on;
+
+set global old_passwords=1;
 select password('');
 password('')
 
@@ -57,21 +57,21 @@ password('idkfa')
 select old_password('idkfa');
 old_password('idkfa')
 5c078dc54ca0fcca
-set old_passwords=on;
+set old_passwords=1;
 select password('idkfa');
 password('idkfa')
 5c078dc54ca0fcca
 select old_password('idkfa');
 old_password('idkfa')
 5c078dc54ca0fcca
-set global old_passwords=off;
+set global old_passwords=0;
 select password('idkfa');
 password('idkfa')
 5c078dc54ca0fcca
 select old_password('idkfa');
 old_password('idkfa')
 5c078dc54ca0fcca
-set old_passwords=off;
+set old_passwords=0;
 select password('idkfa ');
 password('idkfa ')
 *2DC31D90647B4C1ABC9231563D2236E96C9A2DB2
