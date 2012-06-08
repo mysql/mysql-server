@@ -6161,7 +6161,7 @@ struct my_option my_long_options[]=
 #endif
   {"debug-no-sync", 0,
    "Disables system sync calls. Only for running tests or debugging!",
-   &my_disable_sync, &my_disable_sync, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+   &my_disable_sync, &my_disable_sync, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_REPLICATION
   {"debug-sporadic-binlog-dump-fail", 0,
    "Option used by mysql-test for debugging and testing of replication.",

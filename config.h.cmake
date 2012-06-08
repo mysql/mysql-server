@@ -150,6 +150,7 @@
 #cmakedefine HAVE_FCNTL 1
 #cmakedefine HAVE_FCONVERT 1
 #cmakedefine HAVE_FDATASYNC 1
+#cmakedefine HAVE_DECL_FDATASYNC 1
 #cmakedefine HAVE_FESETROUND 1
 #cmakedefine HAVE_FINITE 1
 #cmakedefine HAVE_FP_EXCEPT 1
