@@ -289,6 +289,7 @@ dict_stats_persistent_storage_check(
 /*********************************************************************//**
 Executes a given SQL statement using the InnoDB internal SQL parser
 in its own transaction and commits it.
+This function will free the pinfo object.
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -305,6 +306,7 @@ dict_stats_exec_sql(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	if (!dict_stats_persistent_storage_check(TRUE)) {
+		pars_info_free(pinfo);
 		return(DB_STATS_DO_NOT_EXIST);
 	}
 
@@ -1719,21 +1721,29 @@ dict_stats_save_index_stat(
 #define PREPARE_PINFO_FOR_INDEX_SAVE() \
 do { \
 	pinfo = pars_info_create(); \
+	UNIV_MEM_ASSERT_RW(index->table->name, dict_get_db_name_len(index->table->name)); \
 	pars_info_add_literal(pinfo, "database_name", index->table->name, \
 		dict_get_db_name_len(index->table->name), \
 		DATA_VARCHAR, 0); \
+	UNIV_MEM_ASSERT_RW(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name))); \
 	pars_info_add_str_literal(pinfo, "table_name", \
 		dict_remove_db_name(index->table->name)); \
+	UNIV_MEM_ASSERT_RW(index->name, strlen(index->name)); \
 	pars_info_add_str_literal(pinfo, "index_name", index->name); \
+	UNIV_MEM_ASSERT_RW(&last_update, 4); \
 	pars_info_add_int4_literal(pinfo, "last_update", last_update); \
+	UNIV_MEM_ASSERT_RW(stat_name, strlen(stat_name)); \
 	pars_info_add_str_literal(pinfo, "stat_name", stat_name); \
+	UNIV_MEM_ASSERT_RW(&stat_value, 8); \
 	pars_info_add_ull_literal(pinfo, "stat_value", stat_value); \
 	if (sample_size != NULL) { \
+		UNIV_MEM_ASSERT_RW(sample_size, 8); \
 		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size); \
 	} else { \
 		pars_info_add_literal(pinfo, "sample_size", NULL, \
 				      UNIV_SQL_NULL, DATA_FIXBINARY, 0); \
 	} \
+	UNIV_MEM_ASSERT_RW(stat_description, strlen(stat_description)); \
 	pars_info_add_str_literal(pinfo, "stat_description", \
 				  stat_description); \
 } while (0);

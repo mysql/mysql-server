@@ -5377,7 +5377,7 @@ ERROR 42000: The storage engine for the table doesn't support nullable columns
 SHOW WARNINGS;
 Level	Code	Message
 Error	1178	The storage engine for the table doesn't support nullable columns
-Error	1005	Can't create table 'test.t1' (errno: 138)
+Error	1112	Table 't1' uses an extension that doesn't exist in this MySQL version
 create table t1 (c1 tinyblob not null) engine=csv;
 insert into t1 values("This");
 update t1 set c1="That" where c1="This";

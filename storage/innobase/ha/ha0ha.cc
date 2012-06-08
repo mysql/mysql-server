@@ -28,12 +28,11 @@ Created 8/22/1994 Heikki Tuuri
 #include "ha0ha.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
-#ifndef UNIV_HOTBACKUP
 # include "btr0sea.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "page0page.h"
 
 /*************************************************************//**
@@ -59,9 +58,7 @@ ha_create_func(
 				MEM_HEAP_FOR_PAGE_HASH */
 {
 	hash_table_t*	table;
-#ifndef UNIV_HOTBACKUP
 	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_a(type == MEM_HEAP_FOR_BTR_SEARCH
 	     || type == MEM_HEAP_FOR_PAGE_HASH);
@@ -80,7 +77,6 @@ ha_create_func(
 		return(table);
 	}
 
-#ifndef UNIV_HOTBACKUP
 	if (type == MEM_HEAP_FOR_PAGE_HASH) {
 		/* We create a hash table protected by rw_locks for
 		buf_pool->page_hash. */
@@ -98,7 +94,6 @@ ha_create_func(
 		table->heaps[i] = mem_heap_create_typed(4096, type);
 		ut_a(table->heaps[i]);
 	}
-#endif /* !UNIV_HOTBACKUP */
 
 	return(table);
 }
@@ -121,7 +116,6 @@ ha_clear(
 	       || rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
 
-#ifndef UNIV_HOTBACKUP
 	/* Free the memory heaps. */
 	n = table->n_sync_obj;
 
@@ -152,7 +146,6 @@ ha_clear(
 	table->n_sync_obj = 0;
 	table->type = HASH_TABLE_SYNC_NONE;
 
-#endif /* !UNIV_HOTBACKUP */
 
 	/* Clear the hash table. */
 	n = hash_get_n_cells(table);
@@ -205,7 +198,6 @@ ha_insert_for_fold_func(
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 			if (table->adaptive) {
 				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->frame
@@ -214,7 +206,6 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
-# endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -243,11 +234,9 @@ ha_insert_for_fold_func(
 	ha_node_set_data(node, block, data);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		block->n_pointers++;
 	}
-# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	node->fold = fold;
@@ -289,13 +278,11 @@ ha_delete_hash_node(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		ut_a(del_node->block->frame = page_align(del_node->data));
 		ut_a(del_node->block->n_pointers > 0);
 		del_node->block->n_pointers--;
 	}
-# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
@@ -337,13 +324,11 @@ ha_search_and_update_if_found_func(
 
 	if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 		if (table->adaptive) {
 			ut_a(node->block->n_pointers > 0);
 			node->block->n_pointers--;
 			new_block->n_pointers++;
 		}
-# endif /* !UNIV_HOTBACKUP */
 
 		node->block = new_block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -355,7 +340,6 @@ ha_search_and_update_if_found_func(
 	return(FALSE);
 }
 
-#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */
