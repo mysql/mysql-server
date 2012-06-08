@@ -404,10 +404,10 @@ dict_stats_snapshot_create(
 
 		idx->table = t;
 
-		UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
+		//UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
 		idx->type = index->type;
 
-		UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
+		//UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
 		idx->n_uniq = index->n_uniq;
 
 		idx->fields = (dict_field_t*) mem_heap_alloc(
@@ -452,7 +452,7 @@ dict_stats_snapshot_create(
 #endif /* UNIV_DEBUG */
 	}
 
-	UNIV_MEM_ASSERT_RW(&table->stat_initialized, sizeof(table->stat_initialized));
+	//UNIV_MEM_ASSERT_RW(&table->stat_initialized, sizeof(table->stat_initialized));
 	t->stat_initialized = table->stat_initialized;
 	UNIV_MEM_ASSERT_RW(&table->stats_last_recalc, sizeof(table->stats_last_recalc));
 	t->stats_last_recalc = table->stats_last_recalc;
