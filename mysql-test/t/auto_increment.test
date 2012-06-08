@@ -380,3 +380,19 @@ CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
 INSERT INTO t1 VALUES (NULL), (18446744073709551615-1), (NULL);
 SELECT * FROM t1;
 DROP TABLE t1;
+
+# MDEV-331 last_insert_id() returns a signed number
+# Check that last_insert_id() generates a signed value
+CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values((1<<63)+1);
+insert into t1 values(null);
+select last_insert_id();
+select * from t1;
+drop table t1;
+
+CREATE TABLE t1 (pk BIGINT AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values(-5);
+insert into t1 values(null);
+select last_insert_id();
+select * from t1;
+drop table t1;

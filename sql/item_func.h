@@ -1201,6 +1201,7 @@ public:
   {
     if (arg_count)
       max_length= args[0]->max_length;
+    unsigned_flag=1;
   }
   bool fix_fields(THD *thd, Item **ref);
   bool check_vcol_func_processor(uchar *int_arg) 

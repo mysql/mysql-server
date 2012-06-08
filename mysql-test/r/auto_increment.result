@@ -516,3 +516,25 @@ pk
 1
 18446744073709551614
 DROP TABLE t1;
+CREATE TABLE t1 (pk BIGINT UNSIGNED AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values((1<<63)+1);
+insert into t1 values(null);
+select last_insert_id();
+last_insert_id()
+9223372036854775810
+select * from t1;
+pk
+9223372036854775809
+9223372036854775810
+drop table t1;
+CREATE TABLE t1 (pk BIGINT AUTO_INCREMENT, PRIMARY KEY (pk));
+insert into t1 values(-5);
+insert into t1 values(null);
+select last_insert_id();
+last_insert_id()
+1
+select * from t1;
+pk
+-5
+1
+drop table t1;
