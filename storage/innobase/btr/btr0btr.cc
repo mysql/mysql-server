@@ -43,6 +43,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "trx0trx.h"
 #include "srv0mon.h"
 
+#endif /* UNIV_HOTBACKUP */
 /**************************************************************//**
 Report that an index page is corrupted. */
 UNIV_INTERN
@@ -65,6 +66,7 @@ btr_corruption_report(
 	buf_page_print(buf_block_get_frame(block), 0, 0);
 }
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_BLOB_DEBUG
 # include "srv0srv.h"
 # include "ut0rbt.h"
