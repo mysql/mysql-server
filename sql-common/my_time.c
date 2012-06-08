@@ -1044,6 +1044,27 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 
 
 /*
+  Helper function for datetime formatting.
+  Format number as string, left-padded with 0.
+
+  The reason to use own formatting rather than sprintf() is performance - in a
+  datetime benchmark it helped to reduced the datetime formatting overhead 
+  from ~30% down to ~4%.
+*/
+
+static char* fmt_number(uint val, char *out, uint digits)
+{
+  uint i;
+  for(i= 0; i < digits; i++)
+  {
+    out[digits-i-1]= '0' + val%10;
+    val/=10;
+  }
+  return out + digits;
+}
+
+
+/*
   Functions to convert time/date/datetime value to a string,
   using default format.
   This functions don't check that given MYSQL_TIME structure members are
@@ -1056,42 +1077,84 @@ void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type)
 
 int my_time_to_str(const MYSQL_TIME *l_time, char *to, uint digits)
 {
-  ulong day= (l_time->year || l_time->month) ? 0 : l_time->day;
+  uint day= (l_time->year || l_time->month) ? 0 : l_time->day;
+  uint hour=  day * 24 + l_time->hour;
+  char*pos= to;
 
   if (digits == AUTO_SEC_PART_DIGITS)
     digits= l_time->second_part ? TIME_SECOND_PART_DIGITS : 0;
 
   DBUG_ASSERT(digits <= TIME_SECOND_PART_DIGITS);
 
-  return sprintf(to,
-                 digits ? "%s%02lu:%02u:%02u.%0*lu"
-                        : "%s%02lu:%02u:%02u",
-                 (l_time->neg ? "-" : ""),
-                 day * 24L + l_time->hour, l_time->minute, l_time->second,
-                 digits, (ulong)sec_part_shift(l_time->second_part, digits));
+  if(l_time->neg)
+    *pos++= '-';
+
+  if(hour > 99)
+    /* Need more than 2 digits for hours in string representation. */
+    pos= longlong10_to_str((longlong)hour, pos, 10);
+  else
+    pos= fmt_number(hour, pos, 2);
+
+  *pos++= ':';
+  pos= fmt_number(l_time->minute, pos, 2);
+  *pos++= ':';
+  pos= fmt_number(l_time->second, pos, 2);
+
+  if (digits)
+  {
+    *pos++= '.';
+    pos= fmt_number((uint)sec_part_shift(l_time->second_part, digits), 
+       pos, digits);
+  }
+
+  *pos= 0;
+  return (int) (pos-to);
 }
+
 
 int my_date_to_str(const MYSQL_TIME *l_time, char *to)
 {
-  return my_sprintf(to, (to, "%04u-%02u-%02u",
-                         l_time->year,
-                         l_time->month,
-                         l_time->day));
+  char *pos=to;
+  pos= fmt_number(l_time->year, pos, 4);
+  *pos++='-';
+  pos= fmt_number(l_time->month, pos, 2);
+  *pos++='-';
+  pos= fmt_number(l_time->day, pos, 2);
+  *pos= 0;
+  return (int)(pos - to);
 }
+
 
 int my_datetime_to_str(const MYSQL_TIME *l_time, char *to, uint digits)
 {
+  char *pos= to;
+
   if (digits == AUTO_SEC_PART_DIGITS)
     digits= l_time->second_part ? TIME_SECOND_PART_DIGITS : 0;
 
   DBUG_ASSERT(digits <= TIME_SECOND_PART_DIGITS);
 
-  return sprintf(to,
-                 digits ? "%04u-%02u-%02u %02u:%02u:%02u.%0*lu"
-                        : "%04u-%02u-%02u %02u:%02u:%02u",
-                 l_time->year, l_time->month, l_time->day,
-                 l_time->hour, l_time->minute, l_time->second,
-                 digits, (ulong)sec_part_shift(l_time->second_part, digits));
+  pos= fmt_number(l_time->year, pos, 4);
+  *pos++='-';
+  pos= fmt_number(l_time->month, pos, 2);
+  *pos++='-';
+  pos= fmt_number(l_time->day, pos, 2);
+  *pos++=' ';
+  pos= fmt_number(l_time->hour, pos, 2);
+  *pos++= ':';
+  pos= fmt_number(l_time->minute, pos, 2);
+  *pos++= ':';
+  pos= fmt_number(l_time->second, pos, 2);
+
+  if (digits)
+  {
+    *pos++='.';
+    pos= fmt_number((uint) sec_part_shift(l_time->second_part, digits), pos, 
+      digits);
+  }
+
+  *pos= 0;
+  return (int)(pos - to);
 }
 
 
