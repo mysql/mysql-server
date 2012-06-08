@@ -55,32 +55,34 @@ static void
 test_serialize_leaf(int valsize, int nelts, double entropy) {
     //    struct ft_handle source_ft;
     const int nodesize = (1<<22);
-    struct ftnode sn, *dn;
+    struct ftnode *sn, *dn;
 
     int fd = open(__SRCFILE__ ".ft", O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
     int r;
 
-    sn.max_msn_applied_to_node_on_disk.msn = 0;
-    sn.nodesize = nodesize;
-    sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
-    sn.layout_version = FT_LAYOUT_VERSION;
-    sn.layout_version_original = FT_LAYOUT_VERSION;
-    sn.height = 0;
-    sn.n_children = 8;
-    sn.dirty = 1;
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.totalchildkeylens = 0;
-    for (int i = 0; i < sn.n_children; ++i) {
-        BP_STATE(&sn,i) = PT_AVAIL;
-        set_BLB(&sn, i, toku_create_empty_bn());
+    XCALLOC(sn);
+
+    sn->max_msn_applied_to_node_on_disk.msn = 0;
+    sn->nodesize = nodesize;
+    sn->flags = 0x11223344;
+    sn->thisnodename.b = 20;
+    sn->layout_version = FT_LAYOUT_VERSION;
+    sn->layout_version_original = FT_LAYOUT_VERSION;
+    sn->height = 0;
+    sn->n_children = 8;
+    sn->dirty = 1;
+    MALLOC_N(sn->n_children, sn->bp);
+    MALLOC_N(sn->n_children-1, sn->childkeys);
+    sn->totalchildkeylens = 0;
+    for (int i = 0; i < sn->n_children; ++i) {
+        BP_STATE(sn,i) = PT_AVAIL;
+        set_BLB(sn, i, toku_create_empty_bn());
     }
-    int nperbn = nelts / sn.n_children;
+    int nperbn = nelts / sn->n_children;
     LEAFENTRY les[nelts];
     memset(les, 0, sizeof les);
-    for (int ck = 0; ck < sn.n_children; ++ck) {
+    for (int ck = 0; ck < sn->n_children; ++ck) {
         long k;
         for (long i = 0; i < nperbn; ++i) {
             k = ck * nperbn + i;
@@ -93,12 +95,12 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
             }
             memset(&buf[c], 0, valsize - c);
             les[k] = le_fastmalloc((char *)&k, sizeof k, buf, sizeof buf);
-            r = toku_omt_insert(BLB_BUFFER(&sn, ck), les[k], omt_cmp, les[k], NULL); assert(r==0);
+            r = toku_omt_insert(BLB_BUFFER(sn, ck), les[k], omt_cmp, les[k], NULL); assert(r==0);
         }
-        BLB_NBYTESINBUF(&sn, ck) = nperbn*(KEY_VALUE_OVERHEAD+(sizeof(long)+valsize)) + toku_omt_size(BLB_BUFFER(&sn, ck));
+        BLB_NBYTESINBUF(sn, ck) = nperbn*(KEY_VALUE_OVERHEAD+(sizeof(long)+valsize)) + toku_omt_size(BLB_BUFFER(sn, ck));
         if (ck < 7) {
-            toku_fill_dbt(&sn.childkeys[ck], toku_xmemdup(&k, sizeof k), sizeof k);
-            sn.totalchildkeylens += sizeof k;
+            toku_fill_dbt(&sn->childkeys[ck], toku_xmemdup(&k, sizeof k), sizeof k);
+            sn->totalchildkeylens += sizeof k;
         }
     }
 
@@ -138,7 +140,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     struct timeval t[2];
     gettimeofday(&t[0], NULL);
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, TRUE, brt->ft, 1, 1, FALSE);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, &ndd, TRUE, brt->ft, 1, 1, FALSE);
     assert(r==0);
     gettimeofday(&t[1], NULL);
     double dt;
@@ -157,17 +159,12 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
 
     toku_ftnode_free(&dn);
 
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
     for (int i = 0; i < nelts; ++i) {
-        if (les[i]) { toku_free(les[i]); }
+        if (les[i]) {
+            toku_free(les[i]);
+        }
     }
-    for (int ck = 0; ck < sn.n_children; ++ck) {
-        destroy_basement_node(BLB(&sn, ck));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_ftnode_free(&sn);
 
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&brt_h->blocktable);
