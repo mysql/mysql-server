@@ -3464,12 +3464,6 @@ sub mysql_install_db {
   mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
 
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem) {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
-
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
   # server process.
@@ -4743,6 +4737,7 @@ sub extract_warning_lines ($$) {
      qr|Access denied for user|,
      qr|Aborted connection|,
      qr|table.*is full|,
+     qr|Linux Native AIO|, # warning that aio does not work on /dev/shm
     );
 
   my $matched_lines= [];
@@ -5244,13 +5239,6 @@ sub mysqld_arguments ($$$) {
   if (!IS_WINDOWS and $euid == 0 and
       (grep(/^--user/, @$extra_opts)) == 0) {
     mtr_add_arg($args, "--user=root");
-  }
-
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem)
-  {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
   }
 
   if (!using_extern() and !$opt_user_args)
