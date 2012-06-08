@@ -31,11 +31,11 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "mtr0mtr.h"
+#ifndef UNIV_HOTBACKUP
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
 
-#ifndef UNIV_HOTBACKUP
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
 	ulint		mem_size;	/*!< allocated size of the chunk */

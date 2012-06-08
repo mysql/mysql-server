@@ -178,9 +178,9 @@ drop table test.t7;
 drop table test.t8;
 drop table test.t9;
 drop table test.t10;
-select @mutex_per_share;
-@mutex_per_share
-3
+select @mutex_per_share <= 4;
+@mutex_per_share <= 4
+1
 select @rwlock_per_share;
 @rwlock_per_share
 1
@@ -215,7 +215,7 @@ select @file_per_handle;
 @file_per_handle
 0
 select if(
-(@mutex_per_share = 3)
+(@mutex_per_share <= 4)
 AND (@rwlock_per_share = 1)
 AND (@cond_per_share = 0)
 AND (@file_per_share <= 2)

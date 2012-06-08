@@ -360,8 +360,9 @@ drop table test.t10;
 # - wait/synch/mutex/sql/MDL_wait::LOCK_wait_status
 # - wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data
 # - wait/synch/mutex/innodb/autoinc_mutex
+# but this is very storage engine dependent
 # 
-select @mutex_per_share;
+select @mutex_per_share <= 4;
 
 #
 # Expecting 1:
@@ -441,7 +442,7 @@ select @file_per_handle;
 #
 
 select if(
-      (@mutex_per_share = 3)
+      (@mutex_per_share <= 4)
   AND (@rwlock_per_share = 1)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 2)

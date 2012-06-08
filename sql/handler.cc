@@ -3444,7 +3444,7 @@ void handler::print_error(int error, myf errflag)
     break;
   case HA_ERR_FOUND_DUPP_KEY:
   {
-    uint key_nr=get_dup_key(error);
+    uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
     {
       print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr]);
@@ -3570,7 +3570,7 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_DROP_INDEX_FK:
   {
     const char *ptr= "???";
-    uint key_nr= get_dup_key(error);
+    uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
       ptr= table->key_info[key_nr].name;
     my_error(ER_DROP_INDEX_FK, MYF(0), ptr);
@@ -4582,16 +4582,15 @@ int ha_create_table(THD *thd, const char *path,
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
   error= table.file->ha_create(name, &table, create_info);
-  (void) closefrm(&table, 0);
   if (error)
   {
-    strxmov(name_buff, db, ".", table_name, NullS);
-    my_error(ER_CANT_CREATE_TABLE, MYF(ME_BELL+ME_WAITTANG), name_buff, error);
+    table.file->print_error(error, MYF(0));
 #ifdef HAVE_PSI_TABLE_INTERFACE
     PSI_TABLE_CALL(drop_table_share)
       (temp_table, db, strlen(db), table_name, strlen(table_name));
 #endif
   }
+  (void) closefrm(&table, 0);
 err:
   free_table_share(&share);
   DBUG_RETURN(error != 0);

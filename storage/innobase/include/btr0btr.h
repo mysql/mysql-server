@@ -103,6 +103,7 @@ already holding an S latch on the index tree */
 			  | BTR_ESTIMATE		\
 			  | BTR_IGNORE_SEC_UNIQUE	\
 			  | BTR_ALREADY_S_LATCHED))
+#endif /* UNIV_HOTBACKUP */
 
 /**************************************************************//**
 Report that an index page is corrupted. */
@@ -124,6 +125,7 @@ btr_corruption_report(
 		ut_error;					\
 	}
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 /** An index->blobs entry for keeping track of off-page column references */
