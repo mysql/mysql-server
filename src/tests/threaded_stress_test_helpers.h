@@ -603,7 +603,7 @@ struct serial_put_extra {
     uint64_t current;
 };
 
-static int serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra) {
+static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra) {
     struct serial_put_extra *extra = operation_extra;
 
     int db_index = arg->thread_idx % arg->cli->num_DBs;
