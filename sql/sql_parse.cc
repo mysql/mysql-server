@@ -6033,25 +6033,27 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                       ? (found_semicolon - thd->query())
                       : thd->query_length();
 
-
-    /*
-      See whether we can do any query rewriting. opt_log_raw only controls
-      writing to the general log, so rewriting still needs to happen because
-      the other logs (binlog, slow query log, ...) can not be set to raw mode
-      for security reasons.
-    */
-    mysql_rewrite_query(thd);
-
-    if (thd->rewritten_query.length())
-      lex->safe_to_cache_query= FALSE; // see comments below 
-
-    if (!thd->slave_thread && !opt_log_raw)
+    if (!err)
     {
+      /*
+        See whether we can do any query rewriting. opt_log_raw only controls
+        writing to the general log, so rewriting still needs to happen because
+        the other logs (binlog, slow query log, ...) can not be set to raw mode
+        for security reasons.
+      */
+      mysql_rewrite_query(thd);
+
       if (thd->rewritten_query.length())
-        general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
-                                          thd->rewritten_query.length());
-      else
-        general_log_write(thd, COM_QUERY, thd->query(), qlen);
+        lex->safe_to_cache_query= false; // see comments below 
+
+      if (!thd->slave_thread && !opt_log_raw)
+      {
+        if (thd->rewritten_query.length())
+          general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
+                                            thd->rewritten_query.length());
+        else
+          general_log_write(thd, COM_QUERY, thd->query(), qlen);
+      }
     }
 
     if (!err)
@@ -6133,6 +6135,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
 
       query_cache_abort(&thd->query_cache_tls);
     }
+
     THD_STAGE_INFO(thd, stage_freeing_items);
     sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
     sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
@@ -7722,6 +7725,10 @@ void get_default_definer(THD *thd, LEX_USER *definer)
   definer->password= null_lex_str;
   definer->plugin= empty_lex_str;
   definer->auth= empty_lex_str;
+  definer->uses_identified_with_clause= false;
+  definer->uses_identified_by_clause= false;
+  definer->uses_authentication_string_clause= false;
+  definer->uses_identified_by_password_clause= false;
 }
 
 
@@ -7775,7 +7782,10 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
   definer->host= *host_name;
   definer->password.str= NULL;
   definer->password.length= 0;
-
+  definer->uses_authentication_string_clause= false;
+  definer->uses_identified_by_clause= false;
+  definer->uses_identified_by_password_clause= false;
+  definer->uses_identified_with_clause= false;
   return definer;
 }
 
@@ -7795,7 +7805,31 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 LEX_USER *get_current_user(THD *thd, LEX_USER *user)
 {
   if (!user->user.str)  // current_user
-    return create_default_definer(thd);
+  {
+    LEX_USER *default_definer= create_default_definer(thd);
+    if (default_definer)
+    {
+      /*
+        Inherit parser semantics from the statement in which the user parameter
+        was used.
+        This is needed because a st_lex_user is both used as a component in an
+        AST and as a specifier for a particular user in the ACL subsystem.
+      */
+      default_definer->uses_authentication_string_clause=
+        user->uses_authentication_string_clause;
+      default_definer->uses_identified_by_clause=
+        user->uses_identified_by_clause;
+      default_definer->uses_identified_by_password_clause=
+        user->uses_identified_by_password_clause;
+      default_definer->uses_identified_with_clause=
+        user->uses_identified_with_clause;
+      default_definer->plugin.str= user->plugin.str;
+      default_definer->plugin.length= user->plugin.length;
+      default_definer->auth.str= user->auth.str;
+      default_definer->auth.length= user->auth.length;
+      return default_definer;
+    }
+  }
 
   return user;
 }

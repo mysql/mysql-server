@@ -45,6 +45,7 @@
 #include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
 #include "password.h"           // my_make_scrambled_password,
                                 // my_make_scrambled_password_323
+#include "crypt_genhash_impl.h"
 #include <m_ctype.h>
 #include <base64.h>
 #include "my_md5.h"
@@ -1917,33 +1918,123 @@ void Item_func_trim::print(String *str, enum_query_type query_type)
 }
 
 
+/**
+  Helper function for calculating a new password. Used in 
+  Item_func_password::fix_length_and_dec() for const parameters and in 
+  Item_func_password::val_str_ascii() for non-const parameters.
+  @param str The plain text password which should be digested
+  @param buffer a pointer to the buffer where the digest will be stored.
+
+  @note The buffer must be of at least CRYPT_MAX_PASSWORD_SIZE size.
+
+  @return Size of the password.
+*/
+
+static int calculate_password(String *str, char *buffer)
+{
+  DBUG_ASSERT(str);
+  if (str->length() == 0) // PASSWORD('') returns ''
+    return 0;
+  
+  int buffer_len= 0;
+  THD *thd= current_thd;
+  int old_passwords= 0;
+  if (thd)
+    old_passwords= thd->variables.old_passwords;
+  
+#if defined(HAVE_OPENSSL)
+  if (old_passwords == 2)
+  {
+    my_make_scrambled_password(buffer, str->ptr(),
+                               str->length());
+    buffer_len= (int) strlen(buffer) + 1;
+  }
+  else
+#endif
+  if (old_passwords == 0)
+  {
+    my_make_scrambled_password_sha1(buffer, str->ptr(),
+                                    str->length());
+    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH;
+  }
+  else
+  if (old_passwords == 1)
+  {
+    my_make_scrambled_password_323(buffer, str->ptr(),
+                                   str->length());
+    buffer_len= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
+  }
+  return buffer_len;
+}
+
 /* Item_func_password */
+void Item_func_password::fix_length_and_dec()
+{
+  maybe_null= false; // PASSWORD() never returns NULL
+  
+  if (args[0]->const_item())
+  {
+    String str;
+    String *res= args[0]->val_str(&str);
+    if (!args[0]->null_value)
+    {
+      m_hashed_password_buffer_len=
+        calculate_password(res, m_hashed_password_buffer);
+      fix_length_and_charset(m_hashed_password_buffer_len, default_charset());
+      m_recalculate_password= false;
+      return;
+    }
+  }
+
+  m_recalculate_password= true;
+  fix_length_and_charset(CRYPT_MAX_PASSWORD_SIZE, default_charset());
+}
 
 String *Item_func_password::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *res= args[0]->val_str(str); 
-  if ((null_value=args[0]->null_value))
-    return 0;
+
+  String *res= args[0]->val_str(str);
   check_password_policy(res);
-  if (res->length() == 0)
+  null_value= 0;
+  if (args[0]->null_value)  // PASSWORD(NULL) returns ''
     return make_empty_result();
-  my_make_scrambled_password(tmp_value, res->ptr(), res->length());
-  str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH, &my_charset_latin1);
+  
+  if (m_recalculate_password)
+    m_hashed_password_buffer_len= calculate_password(res,
+                                                     m_hashed_password_buffer);
+
+  if (m_hashed_password_buffer_len == 0)
+    return make_empty_result();
+
+  str->set(m_hashed_password_buffer, m_hashed_password_buffer_len,
+           default_charset());
+
   return str;
 }
 
-char *Item_func_password::alloc(THD *thd, const char *password,
-                                size_t pass_len)
+char *Item_func_password::
+  create_password_hash_buffer(THD *thd, const char *password,  size_t pass_len)
 {
-  char *buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
-  if (buff)
-  {
-    String *password_str= new (thd->mem_root)String(password, thd->variables.
+  String *password_str= new (thd->mem_root)String(password, thd->variables.
                                                     character_set_client);
-    check_password_policy(password_str);
+  check_password_policy(password_str);
+
+  char *buff= NULL;
+  if (thd->variables.old_passwords == 0)
+  {
+    /* Allocate memory for the password scramble and one extra byte for \0 */
+    buff= (char *) thd->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH + 1);
+    my_make_scrambled_password_sha1(buff, password, pass_len);
+  }
+#if defined(HAVE_OPENSSL)
+  else
+  {
+    /* Allocate memory for the password scramble and one extra byte for \0 */
+    buff= (char *) thd->alloc(CRYPT_MAX_PASSWORD_SIZE + 1);
     my_make_scrambled_password(buff, password, pass_len);
   }
+#endif
   return buff;
 }
 

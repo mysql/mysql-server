@@ -82,11 +82,11 @@ ERROR 28000: Access denied for user 'test'@'localhost' (using password: YES)
 SET GLOBAL secure_auth = OFF;
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-update mysql.user set password=old_password("gambling2") where user=_binary"test";
+update mysql.user set password=old_password("gambling2"), plugin="mysql_old_password" where user=_binary"test";
 flush privileges;
 set password="";
 set password='gambling3';
-ERROR HY000: Password hash should be a 41-digit hexadecimal number
+ERROR HY000: Password hash should be a 16-digit hexadecimal number
 set password=old_password('gambling3');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
@@ -250,9 +250,10 @@ SET GLOBAL event_scheduler = OFF;
 SELECT @@global.secure_auth;
 @@global.secure_auth
 1
-SET old_passwords=true;
+SET old_passwords=1;
 #Expect deprecation warning
-CREATE USER old_pwd@localhost IDENTIFIED BY 'aha';
+CREATE USER old_pwd@localhost IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expect deprecation warning

@@ -27,20 +27,20 @@ select length(encrypt('test'));
 select encrypt('test','aa');
 select old_password(NULL);
 select password(NULL);
-set global old_passwords=on;
+set global old_passwords=1;
 select password('');
 select old_password('');
 select password('idkfa');
 select old_password('idkfa');
-set old_passwords=on;
+set old_passwords=1;
 select password('idkfa');
 select old_password('idkfa');
-set global old_passwords=off;
+set global old_passwords=0;
 select password('idkfa');
 select old_password('idkfa');
 
 # this test shows that new scrambles honor spaces in passwords:
-set old_passwords=off;
+set old_passwords=0;
 select password('idkfa ');
 select password('idkfa');
 select password(' idkfa');
