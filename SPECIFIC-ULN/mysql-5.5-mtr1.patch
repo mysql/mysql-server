@@ -1,0 +1,25 @@
+Drop support for version 1 of "mysql-test-run.pl" from the RPMs:
+
+1) The auto-generation of Perl dependencies will mishandle that code,
+   probably because its run directory differs from its storage location.
+2) It does not provide several variables which are used in tests of MySQL 5.5
+
+If you really need it, take it from the source tarball.
+
+=== modified file 'mysql-test/mysql-test-run.pl'
+--- mysql-5.5.17-orig/mysql-test/mysql-test-run.pl	2011-10-03 11:16:40 +0000
++++ mysql-5.5.17/mysql-test/mysql-test-run.pl	2011-11-16 19:06:38 +0000
+@@ -58,10 +58,9 @@ BEGIN {
+   if ( $version == 1 )
+   {
+     print "=======================================================\n";
+-    print "  WARNING: Using mysql-test-run.pl version 1!  \n";
++    print "  ERROR: Support for version 1 is dropped in this distribution!  \n";
+     print "=======================================================\n";
+-    # Should use exec() here on *nix but this appears not to work on Windows
+-    exit(system($^X, "lib/v1/mysql-test-run.pl", @ARGV) >> 8);
++    exit(1);
+   }
+   elsif ( $version == 2 )
+   {
+
