@@ -19,7 +19,9 @@
 static int ptquery_op2(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
     int db_index = *(int *)operation_extra;
     DB* db = arg->dbp[db_index];
-    return ptquery_and_maybe_check_op(db, txn, arg, TRUE, stats_extra);
+    int r = ptquery_and_maybe_check_op(db, txn, arg, TRUE);
+    increment_counter(stats_extra, PTQUERIES, 1);
+    return r;
 }
 
 
