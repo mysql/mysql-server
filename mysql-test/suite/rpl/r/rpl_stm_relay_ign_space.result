@@ -1,10 +1,5 @@
 include/master-slave.inc
 [connection master]
-# Timeout in include/wait_show_condition.inc for 
-#         show_statement : SHOW PROCESSLIST
-#         field          : State
-#         condition      : = 'Has read all relay log; waiting for the slave I/O thread to update it'
-#         max_run_time   : 31
 include/assert.inc [Assert that relay log space is close to the limit]
 include/diff_tables.inc [master:test.t1,slave:test.t1]
 include/rpl_end.inc
