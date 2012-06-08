@@ -142,48 +142,6 @@ typedef struct dict_stats_struct {
 } dict_stats_t;
 
 /*********************************************************************//**
-Duplicate the stats of a table and its indexes.
-This function creates a dummy dict_table_t object and copies the input
-table's stats into it. The returned table object is not in the dictionary
-cache, cannot be accessed by any other threads and has only the following
-members initialized:
-dict_table_t::id
-dict_table_t::heap
-dict_table_t::name
-dict_table_t::indexes<>
-dict_table_t::stat_initialized
-dict_table_t::stat_persistent
-dict_table_t::stat_n_rows
-dict_table_t::stat_clustered_index_size
-dict_table_t::stat_sum_of_other_index_sizes
-dict_table_t::stat_modified_counter
-dict_table_t::magic_n
-for each entry in dict_table_t::indexes, the following are initialized:
-dict_index_t::id
-dict_index_t::name
-dict_index_t::table_name
-dict_index_t::table (points to the above semi-initialized object)
-dict_index_t::type
-dict_index_t::n_uniq
-dict_index_t::fields[] (only first n_uniq and only fields[i].name)
-dict_index_t::indexes<>
-dict_index_t::stat_n_diff_key_vals[]
-dict_index_t::stat_n_sample_sizes[]
-dict_index_t::stat_n_non_null_key_vals[]
-dict_index_t::stat_index_size
-dict_index_t::stat_n_leaf_pages
-dict_index_t::magic_n
-The returned object should be freed with dict_stats_snapshot_free()
-when no longer needed.
-@return incomplete table object */
-static
-dict_table_t*
-dict_stats_snapshot_create(
-/*=======================*/
-	const dict_table_t*	table);		/*!< in: table whose stats
-						to copy */
-
-/*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
 dict_stats_persistent_storage_check() @{
@@ -330,6 +288,214 @@ dict_stats_exec_sql(
 
 	return(err);
 }
+
+/*********************************************************************//**
+Duplicate the stats of a table and its indexes.
+This function creates a dummy dict_table_t object and copies the input
+table's stats into it. The returned table object is not in the dictionary
+cache, cannot be accessed by any other threads and has only the following
+members initialized:
+dict_table_t::id
+dict_table_t::heap
+dict_table_t::name
+dict_table_t::indexes<>
+dict_table_t::stat_initialized
+dict_table_t::stat_persistent
+dict_table_t::stat_n_rows
+dict_table_t::stat_clustered_index_size
+dict_table_t::stat_sum_of_other_index_sizes
+dict_table_t::stat_modified_counter
+dict_table_t::magic_n
+for each entry in dict_table_t::indexes, the following are initialized:
+dict_index_t::id
+dict_index_t::name
+dict_index_t::table_name
+dict_index_t::table (points to the above semi-initialized object)
+dict_index_t::type
+dict_index_t::n_uniq
+dict_index_t::fields[] (only first n_uniq and only fields[i].name)
+dict_index_t::indexes<>
+dict_index_t::stat_n_diff_key_vals[]
+dict_index_t::stat_n_sample_sizes[]
+dict_index_t::stat_n_non_null_key_vals[]
+dict_index_t::stat_index_size
+dict_index_t::stat_n_leaf_pages
+dict_index_t::magic_n
+The returned object should be freed with dict_stats_snapshot_free()
+when no longer needed.
+@return incomplete table object */
+static
+dict_table_t*
+dict_stats_snapshot_create(
+/*=======================*/
+	const dict_table_t*	table)		/*!< in: table whose stats
+						to copy */
+{
+	size_t		heap_size;
+	dict_index_t*	index;
+
+	mutex_enter(&dict_sys->mutex);
+
+	dict_table_stats_lock(table, RW_X_LATCH);
+
+	/* Estimate the size needed for the table and all of its indexes */
+
+	heap_size = 0;
+	heap_size += sizeof(dict_table_t);
+	heap_size += strlen(table->name) + 1;
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		ulint	n_uniq = dict_index_get_n_unique(index);
+
+		heap_size += sizeof(dict_index_t);
+		heap_size += strlen(index->name) + 1;
+		heap_size += n_uniq * sizeof(index->fields[0]);
+		for (ulint i = 0; i < n_uniq; i++) {
+			heap_size += strlen(index->fields[i].name) + 1;
+		}
+		heap_size += (n_uniq + 1)
+			* sizeof(index->stat_n_diff_key_vals[0]);
+		heap_size += (n_uniq + 1)
+			* sizeof(index->stat_n_sample_sizes[0]);
+		heap_size += (n_uniq + 1)
+			* sizeof(index->stat_n_non_null_key_vals[0]);
+	}
+
+	/* Allocate the memory and copy the members */
+
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(heap_size);
+
+	dict_table_t*	t;
+
+	t = (dict_table_t*) mem_heap_alloc(heap, sizeof(*t));
+
+	UNIV_MEM_ASSERT_RW(&table->id, sizeof(table->id));
+	t->id = table->id;
+
+	t->heap = heap;
+
+	UNIV_MEM_ASSERT_RW(table->name, strlen(table->name) + 1);
+	t->name = (char*) mem_heap_dup(
+		heap, table->name, strlen(table->name) + 1);
+
+	UT_LIST_INIT(t->indexes);
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+
+		dict_index_t*	idx;
+
+		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
+
+		UNIV_MEM_ASSERT_RW(&index->id, sizeof(index->id));
+		idx->id = index->id;
+
+		UNIV_MEM_ASSERT_RW(index->name, strlen(index->name) + 1);
+		idx->name = (char*) mem_heap_dup(
+			heap, index->name, strlen(index->name) + 1);
+
+		idx->table_name = t->name;
+
+		idx->table = t;
+
+		UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
+		idx->type = index->type;
+
+		UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
+		idx->n_uniq = index->n_uniq;
+
+		idx->fields = (dict_field_t*) mem_heap_alloc(
+			heap, idx->n_uniq * sizeof(idx->fields[0]));
+
+		for (ulint i = 0; i < idx->n_uniq; i++) {
+			UNIV_MEM_ASSERT_RW(index->fields[i].name, strlen(index->fields[i].name) + 1);
+			idx->fields[i].name = (char*) mem_heap_dup(
+				heap, index->fields[i].name,
+				strlen(index->fields[i].name) + 1);
+		}
+
+		/* hook idx into t->indexes */
+		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
+
+		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_diff_key_vals[0]));
+		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_dup(
+			heap, index->stat_n_diff_key_vals,
+			(idx->n_uniq + 1)
+			* sizeof(idx->stat_n_diff_key_vals[0]));
+
+		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, (idx->n_uniq + 1) * sizeof(idx->stat_n_sample_sizes[0]));
+		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_dup(
+			heap, index->stat_n_sample_sizes,
+			(idx->n_uniq + 1)
+			* sizeof(idx->stat_n_sample_sizes[0]));
+
+		UNIV_MEM_ASSERT_RW(index->stat_n_non_null_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_non_null_key_vals[0]));
+		idx->stat_n_non_null_key_vals = (ib_uint64_t*) mem_heap_dup(
+			heap, index->stat_n_non_null_key_vals,
+			(idx->n_uniq + 1)
+			* sizeof(idx->stat_n_non_null_key_vals[0]));
+
+		UNIV_MEM_ASSERT_RW(&index->stat_index_size, sizeof(index->stat_index_size));
+		idx->stat_index_size = index->stat_index_size;
+
+		UNIV_MEM_ASSERT_RW(&index->stat_n_leaf_pages, sizeof(index->stat_n_leaf_pages));
+		idx->stat_n_leaf_pages = index->stat_n_leaf_pages;
+
+#ifdef UNIV_DEBUG
+		idx->magic_n = DICT_INDEX_MAGIC_N;
+#endif /* UNIV_DEBUG */
+	}
+
+	UNIV_MEM_ASSERT_RW(&table->stat_initialized, sizeof(table->stat_initialized));
+	t->stat_initialized = table->stat_initialized;
+	UNIV_MEM_ASSERT_RW(&table->stats_last_recalc, sizeof(table->stats_last_recalc));
+	t->stats_last_recalc = table->stats_last_recalc;
+	UNIV_MEM_ASSERT_RW(&table->stat_persistent, sizeof(table->stat_persistent));
+	t->stat_persistent = table->stat_persistent;
+	UNIV_MEM_ASSERT_RW(&table->stats_auto_recalc, sizeof(table->stats_auto_recalc));
+	t->stats_auto_recalc = table->stats_auto_recalc;
+	UNIV_MEM_ASSERT_RW(&table->stats_sample_pages, sizeof(table->stats_sample_pages));
+	t->stats_sample_pages = table->stats_sample_pages;
+	UNIV_MEM_ASSERT_RW(&table->stat_n_rows, sizeof(table->stat_n_rows));
+	t->stat_n_rows = table->stat_n_rows;
+	UNIV_MEM_ASSERT_RW(&table->stat_clustered_index_size, sizeof(table->stat_clustered_index_size));
+	t->stat_clustered_index_size = table->stat_clustered_index_size;
+	UNIV_MEM_ASSERT_RW(&table->stat_sum_of_other_index_sizes, sizeof(table->stat_sum_of_other_index_sizes));
+	t->stat_sum_of_other_index_sizes = table->stat_sum_of_other_index_sizes;
+	UNIV_MEM_ASSERT_RW(&table->stat_modified_counter, sizeof(table->stat_modified_counter));
+	t->stat_modified_counter = table->stat_modified_counter;
+	UNIV_MEM_ASSERT_RW(&table->stats_bg_flag, sizeof(table->stats_bg_flag));
+	t->stats_bg_flag = table->stats_bg_flag;
+#ifdef UNIV_DEBUG
+	t->magic_n = DICT_TABLE_MAGIC_N;
+#endif /* UNIV_DEBUG */
+
+	dict_table_stats_unlock(table, RW_X_LATCH);
+
+	mutex_exit(&dict_sys->mutex);
+
+	return(t);
+}
+
+/*********************************************************************//**
+Free the resources occupied by an object returned by
+dict_stats_snapshot_create().
+dict_stats_snapshot_free() @{ */
+static
+void
+dict_stats_snapshot_free(
+/*=====================*/
+	dict_table_t*	t)	/*!< in: dummy table object to free */
+{
+	mem_heap_free(t->heap);
+}
+/* @} */
 
 /*********************************************************************//**
 Write all zeros (or 1 where it makes sense) into a table and its indexes'
@@ -3213,214 +3379,6 @@ dict_stats_rename_table(
 	}
 
 	return(ret);
-}
-/* @} */
-
-/*********************************************************************//**
-Duplicate the stats of a table and its indexes.
-This function creates a dummy dict_table_t object and copies the input
-table's stats into it. The returned table object is not in the dictionary
-cache, cannot be accessed by any other threads and has only the following
-members initialized:
-dict_table_t::id
-dict_table_t::heap
-dict_table_t::name
-dict_table_t::indexes<>
-dict_table_t::stat_initialized
-dict_table_t::stat_persistent
-dict_table_t::stat_n_rows
-dict_table_t::stat_clustered_index_size
-dict_table_t::stat_sum_of_other_index_sizes
-dict_table_t::stat_modified_counter
-dict_table_t::magic_n
-for each entry in dict_table_t::indexes, the following are initialized:
-dict_index_t::id
-dict_index_t::name
-dict_index_t::table_name
-dict_index_t::table (points to the above semi-initialized object)
-dict_index_t::type
-dict_index_t::n_uniq
-dict_index_t::fields[] (only first n_uniq and only fields[i].name)
-dict_index_t::indexes<>
-dict_index_t::stat_n_diff_key_vals[]
-dict_index_t::stat_n_sample_sizes[]
-dict_index_t::stat_n_non_null_key_vals[]
-dict_index_t::stat_index_size
-dict_index_t::stat_n_leaf_pages
-dict_index_t::magic_n
-The returned object should be freed with dict_stats_snapshot_free()
-when no longer needed.
-@return incomplete table object */
-static
-dict_table_t*
-dict_stats_snapshot_create(
-/*=======================*/
-	const dict_table_t*	table)		/*!< in: table whose stats
-						to copy */
-{
-	size_t		heap_size;
-	dict_index_t*	index;
-
-	mutex_enter(&dict_sys->mutex);
-
-	dict_table_stats_lock(table, RW_X_LATCH);
-
-	/* Estimate the size needed for the table and all of its indexes */
-
-	heap_size = 0;
-	heap_size += sizeof(dict_table_t);
-	heap_size += strlen(table->name) + 1;
-
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-
-		ulint	n_uniq = dict_index_get_n_unique(index);
-
-		heap_size += sizeof(dict_index_t);
-		heap_size += strlen(index->name) + 1;
-		heap_size += n_uniq * sizeof(index->fields[0]);
-		for (ulint i = 0; i < n_uniq; i++) {
-			heap_size += strlen(index->fields[i].name) + 1;
-		}
-		heap_size += (n_uniq + 1)
-			* sizeof(index->stat_n_diff_key_vals[0]);
-		heap_size += (n_uniq + 1)
-			* sizeof(index->stat_n_sample_sizes[0]);
-		heap_size += (n_uniq + 1)
-			* sizeof(index->stat_n_non_null_key_vals[0]);
-	}
-
-	/* Allocate the memory and copy the members */
-
-	mem_heap_t*	heap;
-
-	heap = mem_heap_create(heap_size);
-
-	dict_table_t*	t;
-
-	t = (dict_table_t*) mem_heap_alloc(heap, sizeof(*t));
-
-	UNIV_MEM_ASSERT_RW(&table->id, sizeof(table->id));
-	t->id = table->id;
-
-	t->heap = heap;
-
-	UNIV_MEM_ASSERT_RW(table->name, strlen(table->name) + 1);
-	t->name = (char*) mem_heap_dup(
-		heap, table->name, strlen(table->name) + 1);
-
-	UT_LIST_INIT(t->indexes);
-
-	for (index = dict_table_get_first_index(table);
-	     index != NULL;
-	     index = dict_table_get_next_index(index)) {
-
-		dict_index_t*	idx;
-
-		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
-
-		UNIV_MEM_ASSERT_RW(&index->id, sizeof(index->id));
-		idx->id = index->id;
-
-		UNIV_MEM_ASSERT_RW(index->name, strlen(index->name) + 1);
-		idx->name = (char*) mem_heap_dup(
-			heap, index->name, strlen(index->name) + 1);
-
-		idx->table_name = t->name;
-
-		idx->table = t;
-
-		UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
-		idx->type = index->type;
-
-		UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
-		idx->n_uniq = index->n_uniq;
-
-		idx->fields = (dict_field_t*) mem_heap_alloc(
-			heap, idx->n_uniq * sizeof(idx->fields[0]));
-
-		for (ulint i = 0; i < idx->n_uniq; i++) {
-			UNIV_MEM_ASSERT_RW(index->fields[i].name, strlen(index->fields[i].name) + 1);
-			idx->fields[i].name = (char*) mem_heap_dup(
-				heap, index->fields[i].name,
-				strlen(index->fields[i].name) + 1);
-		}
-
-		/* hook idx into t->indexes */
-		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
-
-		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_diff_key_vals[0]));
-		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_dup(
-			heap, index->stat_n_diff_key_vals,
-			(idx->n_uniq + 1)
-			* sizeof(idx->stat_n_diff_key_vals[0]));
-
-		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, (idx->n_uniq + 1) * sizeof(idx->stat_n_sample_sizes[0]));
-		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_dup(
-			heap, index->stat_n_sample_sizes,
-			(idx->n_uniq + 1)
-			* sizeof(idx->stat_n_sample_sizes[0]));
-
-		UNIV_MEM_ASSERT_RW(index->stat_n_non_null_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_non_null_key_vals[0]));
-		idx->stat_n_non_null_key_vals = (ib_uint64_t*) mem_heap_dup(
-			heap, index->stat_n_non_null_key_vals,
-			(idx->n_uniq + 1)
-			* sizeof(idx->stat_n_non_null_key_vals[0]));
-
-		UNIV_MEM_ASSERT_RW(&index->stat_index_size, sizeof(index->stat_index_size));
-		idx->stat_index_size = index->stat_index_size;
-
-		UNIV_MEM_ASSERT_RW(&index->stat_n_leaf_pages, sizeof(index->stat_n_leaf_pages));
-		idx->stat_n_leaf_pages = index->stat_n_leaf_pages;
-
-#ifdef UNIV_DEBUG
-		idx->magic_n = DICT_INDEX_MAGIC_N;
-#endif /* UNIV_DEBUG */
-	}
-
-	UNIV_MEM_ASSERT_RW(&table->stat_initialized, sizeof(table->stat_initialized));
-	t->stat_initialized = table->stat_initialized;
-	UNIV_MEM_ASSERT_RW(&table->stats_last_recalc, sizeof(table->stats_last_recalc));
-	t->stats_last_recalc = table->stats_last_recalc;
-	UNIV_MEM_ASSERT_RW(&table->stat_persistent, sizeof(table->stat_persistent));
-	t->stat_persistent = table->stat_persistent;
-	UNIV_MEM_ASSERT_RW(&table->stats_auto_recalc, sizeof(table->stats_auto_recalc));
-	t->stats_auto_recalc = table->stats_auto_recalc;
-	UNIV_MEM_ASSERT_RW(&table->stats_sample_pages, sizeof(table->stats_sample_pages));
-	t->stats_sample_pages = table->stats_sample_pages;
-	UNIV_MEM_ASSERT_RW(&table->stat_n_rows, sizeof(table->stat_n_rows));
-	t->stat_n_rows = table->stat_n_rows;
-	UNIV_MEM_ASSERT_RW(&table->stat_clustered_index_size, sizeof(table->stat_clustered_index_size));
-	t->stat_clustered_index_size = table->stat_clustered_index_size;
-	UNIV_MEM_ASSERT_RW(&table->stat_sum_of_other_index_sizes, sizeof(table->stat_sum_of_other_index_sizes));
-	t->stat_sum_of_other_index_sizes = table->stat_sum_of_other_index_sizes;
-	UNIV_MEM_ASSERT_RW(&table->stat_modified_counter, sizeof(table->stat_modified_counter));
-	t->stat_modified_counter = table->stat_modified_counter;
-	UNIV_MEM_ASSERT_RW(&table->stats_bg_flag, sizeof(table->stats_bg_flag));
-	t->stats_bg_flag = table->stats_bg_flag;
-#ifdef UNIV_DEBUG
-	t->magic_n = DICT_TABLE_MAGIC_N;
-#endif /* UNIV_DEBUG */
-
-	dict_table_stats_unlock(table, RW_X_LATCH);
-
-	mutex_exit(&dict_sys->mutex);
-
-	return(t);
-}
-
-/*********************************************************************//**
-Free the resources occupied by an object returned by
-dict_stats_snapshot_create().
-dict_stats_snapshot_free() @{ */
-UNIV_INTERN
-void
-dict_stats_snapshot_free(
-/*=====================*/
-	dict_table_t*	t)	/*!< in: dummy table object to free */
-{
-	mem_heap_free(t->heap);
 }
 /* @} */
 
