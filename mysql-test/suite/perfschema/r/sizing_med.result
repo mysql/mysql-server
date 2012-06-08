@@ -23,7 +23,7 @@ performance_schema_max_cond_classes	80
 performance_schema_max_cond_instances	1079
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
-performance_schema_max_file_instances	1280
+performance_schema_max_file_instances	1754
 performance_schema_max_mutex_classes	200
 performance_schema_max_mutex_instances	3658
 performance_schema_max_rwlock_classes	30
@@ -103,8 +103,8 @@ performance_schema	threads.row_size	1856
 performance_schema	threads.row_count	289
 performance_schema	threads.memory	536384
 performance_schema	file_instances.row_size	768
-performance_schema	file_instances.row_count	1280
-performance_schema	file_instances.memory	983040
+performance_schema	file_instances.row_count	1754
+performance_schema	file_instances.memory	1347072
 performance_schema	(pfs_file_handle).row_size	8
 performance_schema	(pfs_file_handle).row_count	32768
 performance_schema	(pfs_file_handle).memory	262144
@@ -212,7 +212,7 @@ performance_schema	(account_hash).size	100
 performance_schema	(digest_hash).count	0
 performance_schema	(digest_hash).size	5000
 performance_schema	(filename_hash).count	0
-performance_schema	(filename_hash).size	1280
+performance_schema	(filename_hash).size	1754
 performance_schema	(host_hash).count	2
 performance_schema	(host_hash).size	100
 performance_schema	(setup_actor_hash).count	1
@@ -223,4 +223,4 @@ performance_schema	(table_share_hash).count	83
 performance_schema	(table_share_hash).size	556
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
-performance_schema	performance_schema.memory	69559328
+performance_schema	performance_schema.memory	69923360

@@ -6631,6 +6631,7 @@ ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO 23000 S1009
         eng "Foreign key constraint for table '%.192s', record '%-.192s' would lead to a duplicate entry in a child table"
         ger "Fremdschlüssel-Beschränkung für Tabelle '%.192s', Datensatz '%-.192s' würde zu einem doppelten Eintrag in einer Kind-Tabelle führen"
         swe "FOREIGN KEY constraint för tabell '%.192s', posten '%-.192s' kan inte uppdatera en barntabell på grund av UNIQUE-test"
+
 ER_SQLTHREAD_WITH_SECURE_SLAVE
   eng "Setting authentication options is not possible when only the Slave SQL Thread is being started."
 
@@ -6827,6 +6828,8 @@ ER_FK_INCORRECT_OPTION
 ER_FK_DUP_NAME
 	eng "Duplicate foreign key constraint name '%s'"
 
+ER_PASSWORD_FORMAT
+  eng "The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function."
 #
 #  End of 5.6 error messages.
 #

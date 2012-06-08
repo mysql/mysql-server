@@ -3083,7 +3083,7 @@ sp_decl:
             sp_instr_hpush_jump *i=
               new (thd->mem_root)
                 sp_instr_hpush_jump(sp->instructions(), handler_pctx, h);
-
+            
             if (!i || sp->add_instr(thd, i))
               MYSQL_YYABORT;
 
@@ -9790,7 +9790,7 @@ function_call_conflict:
           {
             THD *thd= YYTHD;
             Item* i1;
-            if (thd->variables.old_passwords)
+            if (thd->variables.old_passwords == 1)
               i1= new (thd->mem_root) Item_func_old_password($3);
             else
               i1= new (thd->mem_root) Item_func_password($3);
@@ -13843,12 +13843,16 @@ user:
             THD *thd= YYTHD;
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
-            $$->user = $1;
+            $$->user= $1;
             $$->host.str= (char *) "%";
             $$->host.length= 1;
             $$->password= null_lex_str; 
             $$->plugin= empty_lex_str;
             $$->auth= empty_lex_str;
+            $$->uses_identified_by_clause= false;
+            $$->uses_identified_with_clause= false;
+            $$->uses_identified_by_password_clause= false;
+            $$->uses_authentication_string_clause= false;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -13860,10 +13864,15 @@ user:
             THD *thd= YYTHD;
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
-            $$->user = $1; $$->host=$3;
+            $$->user= $1;
+            $$->host= $3;
             $$->password= null_lex_str; 
             $$->plugin= empty_lex_str;
             $$->auth= empty_lex_str;
+            $$->uses_identified_by_clause= false;
+            $$->uses_identified_with_clause= false;
+            $$->uses_identified_by_password_clause= false;
+            $$->uses_authentication_string_clause= false;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -14783,17 +14792,25 @@ text_or_password:
           TEXT_STRING { $$=$1.str;}
         | PASSWORD '(' TEXT_STRING ')'
           {
-            $$= $3.length ? YYTHD->variables.old_passwords ?
-              Item_func_old_password::alloc(YYTHD, $3.str, $3.length) :
-              Item_func_password::alloc(YYTHD, $3.str, $3.length) :
-              $3.str;
+            if ($3.length == 0)
+             $$= $3.str;
+            else
+            switch (YYTHD->variables.old_passwords) {
+              case 1: $$= Item_func_old_password::
+                alloc(YYTHD, $3.str, $3.length);
+                break;
+              case 0:
+              case 2: $$= Item_func_password::
+                create_password_hash_buffer(YYTHD, $3.str, $3.length);
+                break;
+            }
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
         | OLD_PASSWORD '(' TEXT_STRING ')'
           {
-            $$= $3.length ? Item_func_old_password::alloc(YYTHD, $3.str,
-                                                          $3.length) :
+            $$= $3.length ? Item_func_old_password::
+              alloc(YYTHD, $3.str, $3.length) :
               $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
@@ -15294,29 +15311,11 @@ grant_user:
             String *password = new (YYTHD->mem_root) String((const char*)$4.str,
                                     YYTHD->variables.character_set_client);
             check_password_policy(password);
-            if ($4.length)
-            {
-              if (YYTHD->variables.old_passwords)
-              {
-                char *buff= 
-                  (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1);
-                if (buff == NULL)
-                  MYSQL_YYABORT;
-                my_make_scrambled_password_323(buff, $4.str, $4.length);
-                $1->password.str= buff;
-                $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323;
-              }
-              else
-              {
-                char *buff= 
-                  (char *) YYTHD->alloc(SCRAMBLED_PASSWORD_CHAR_LENGTH+1);
-                if (buff == NULL)
-                  MYSQL_YYABORT;
-                my_make_scrambled_password(buff, $4.str, $4.length);
-                $1->password.str= buff;
-                $1->password.length= SCRAMBLED_PASSWORD_CHAR_LENGTH;
-              }
-            }
+            /*
+              1. Plugin must be resolved
+              2. Password must be digested
+            */
+            $1->uses_identified_by_clause= true;
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
@@ -15324,6 +15323,10 @@ grant_user:
               MYSQL_YYABORT;
             $$= $1; 
             $1->password= $5; 
+            /*
+              1. Plugin must be resolved
+            */
+            $1->uses_identified_by_password_clause= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text
           {
@@ -15332,6 +15335,7 @@ grant_user:
             $$= $1;
             $1->plugin= $4;
             $1->auth= empty_lex_str;
+            $1->uses_identified_with_clause= true;
           }
         | user IDENTIFIED_SYM WITH ident_or_text AS TEXT_STRING_sys
           {
@@ -15340,9 +15344,14 @@ grant_user:
             $$= $1;
             $1->plugin= $4;
             $1->auth= $6;
+            $1->uses_identified_with_clause= true;
+            $1->uses_authentication_string_clause= true;
           }
         | user
-          { $$= $1; $1->password= null_lex_str; }
+          {
+            $$= $1;
+            $1->password= null_lex_str;
+          }
         ;
 
 opt_column_list:

@@ -53,8 +53,8 @@ max_questions	0
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	
-authentication_string	NULL
+plugin	mysql_native_password
+authentication_string	
 password_expired	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
@@ -125,8 +125,8 @@ max_questions	10
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	
-authentication_string	NULL
+plugin	mysql_native_password
+authentication_string	
 password_expired	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
@@ -173,8 +173,8 @@ max_questions	10
 max_updates	20
 max_connections	30
 max_user_connections	0
-plugin	
-authentication_string	NULL
+plugin	mysql_native_password
+authentication_string	
 password_expired	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost

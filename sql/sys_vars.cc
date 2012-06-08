@@ -1920,15 +1920,12 @@ static Sys_var_mybool Sys_old_alter_table(
        "old_alter_table", "Use old, non-optimized alter table",
        SESSION_VAR(old_alter_table), CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
-static bool check_old_passwords(sys_var *self, THD *thd, set_var *var)
-{
-  return mysql_user_table_is_in_short_password_format;
-}
-static Sys_var_mybool Sys_old_passwords(
+static Sys_var_uint Sys_old_passwords(
        "old_passwords",
-       "Use old password encryption method (needed for 4.0 and older clients)",
-       SESSION_VAR(old_passwords), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_old_passwords));
+       "Determine which hash algorithm to use when generating passwords using "
+       "the PASSWORD() function",
+       SESSION_VAR(old_passwords), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 2), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_open_files_limit(
        "open_files_limit",
