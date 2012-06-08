@@ -1718,37 +1718,33 @@ dict_stats_save_index_stat(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-#define PREPARE_PINFO_FOR_INDEX_SAVE() \
-do { \
-	pinfo = pars_info_create(); \
-	UNIV_MEM_ASSERT_RW(index->table->name, dict_get_db_name_len(index->table->name)); \
-	pars_info_add_literal(pinfo, "database_name", index->table->name, \
-		dict_get_db_name_len(index->table->name), \
-		DATA_VARCHAR, 0); \
-	UNIV_MEM_ASSERT_RW(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name))); \
-	pars_info_add_str_literal(pinfo, "table_name", \
-		dict_remove_db_name(index->table->name)); \
-	UNIV_MEM_ASSERT_RW(index->name, strlen(index->name)); \
-	pars_info_add_str_literal(pinfo, "index_name", index->name); \
-	UNIV_MEM_ASSERT_RW(&last_update, 4); \
-	pars_info_add_int4_literal(pinfo, "last_update", last_update); \
-	UNIV_MEM_ASSERT_RW(stat_name, strlen(stat_name)); \
-	pars_info_add_str_literal(pinfo, "stat_name", stat_name); \
-	UNIV_MEM_ASSERT_RW(&stat_value, 8); \
-	pars_info_add_ull_literal(pinfo, "stat_value", stat_value); \
-	if (sample_size != NULL) { \
-		UNIV_MEM_ASSERT_RW(sample_size, 8); \
-		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size); \
-	} else { \
-		pars_info_add_literal(pinfo, "sample_size", NULL, \
-				      UNIV_SQL_NULL, DATA_FIXBINARY, 0); \
-	} \
-	UNIV_MEM_ASSERT_RW(stat_description, strlen(stat_description)); \
-	pars_info_add_str_literal(pinfo, "stat_description", \
-				  stat_description); \
-} while (0);
+	pinfo = pars_info_create();
+	UNIV_MEM_ASSERT_RW(index->table->name, dict_get_db_name_len(index->table->name));
+	pars_info_add_literal(pinfo, "database_name", index->table->name,
+		dict_get_db_name_len(index->table->name),
+		DATA_VARCHAR, 0);
+	UNIV_MEM_ASSERT_RW(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
+	pars_info_add_str_literal(pinfo, "table_name",
+		dict_remove_db_name(index->table->name));
+	UNIV_MEM_ASSERT_RW(index->name, strlen(index->name));
+	pars_info_add_str_literal(pinfo, "index_name", index->name);
+	UNIV_MEM_ASSERT_RW(&last_update, 4);
+	pars_info_add_int4_literal(pinfo, "last_update", last_update);
+	UNIV_MEM_ASSERT_RW(stat_name, strlen(stat_name));
+	pars_info_add_str_literal(pinfo, "stat_name", stat_name);
+	UNIV_MEM_ASSERT_RW(&stat_value, 8);
+	pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
+	if (sample_size != NULL) {
+		UNIV_MEM_ASSERT_RW(sample_size, 8);
+		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
+	} else {
+		pars_info_add_literal(pinfo, "sample_size", NULL,
+				      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
+	}
+	UNIV_MEM_ASSERT_RW(stat_description, strlen(stat_description));
+	pars_info_add_str_literal(pinfo, "stat_description",
+				  stat_description);
 
-	PREPARE_PINFO_FOR_INDEX_SAVE();
 	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE INDEX_STATS_SAVE_INSERT () IS\n"
@@ -1768,7 +1764,34 @@ do { \
 		"END;");
 
 	if (ret == DB_DUPLICATE_KEY) {
-		PREPARE_PINFO_FOR_INDEX_SAVE();
+
+		pinfo = pars_info_create();
+		UNIV_MEM_ASSERT_RW(index->table->name, dict_get_db_name_len(index->table->name));
+		pars_info_add_literal(pinfo, "database_name", index->table->name,
+			dict_get_db_name_len(index->table->name),
+			DATA_VARCHAR, 0);
+		UNIV_MEM_ASSERT_RW(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
+		pars_info_add_str_literal(pinfo, "table_name",
+			dict_remove_db_name(index->table->name));
+		UNIV_MEM_ASSERT_RW(index->name, strlen(index->name));
+		pars_info_add_str_literal(pinfo, "index_name", index->name);
+		UNIV_MEM_ASSERT_RW(&last_update, 4);
+		pars_info_add_int4_literal(pinfo, "last_update", last_update);
+		UNIV_MEM_ASSERT_RW(stat_name, strlen(stat_name));
+		pars_info_add_str_literal(pinfo, "stat_name", stat_name);
+		UNIV_MEM_ASSERT_RW(&stat_value, 8);
+		pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
+		if (sample_size != NULL) {
+			UNIV_MEM_ASSERT_RW(sample_size, 8);
+			pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
+		} else {
+			pars_info_add_literal(pinfo, "sample_size", NULL,
+					      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
+		}
+		UNIV_MEM_ASSERT_RW(stat_description, strlen(stat_description));
+		pars_info_add_str_literal(pinfo, "stat_description",
+					  stat_description);
+
 		ret = dict_stats_exec_sql(
 			pinfo,
 			"PROCEDURE INDEX_STATS_SAVE_UPDATE () IS\n"
@@ -3278,10 +3301,12 @@ dict_stats_snapshot_create(
 
 	t = (dict_table_t*) mem_heap_alloc(heap, sizeof(*t));
 
+	UNIV_MEM_ASSERT_RW(&table->id, sizeof(table->id));
 	t->id = table->id;
 
 	t->heap = heap;
 
+	UNIV_MEM_ASSERT_RW(table->name, strlen(table->name) + 1);
 	t->name = (char*) mem_heap_dup(
 		heap, table->name, strlen(table->name) + 1);
 
@@ -3295,8 +3320,10 @@ dict_stats_snapshot_create(
 
 		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
 
+		UNIV_MEM_ASSERT_RW(&index->id, sizeof(index->id));
 		idx->id = index->id;
 
+		UNIV_MEM_ASSERT_RW(index->name, strlen(index->name) + 1);
 		idx->name = (char*) mem_heap_dup(
 			heap, index->name, strlen(index->name) + 1);
 
@@ -3304,14 +3331,17 @@ dict_stats_snapshot_create(
 
 		idx->table = t;
 
+		UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
 		idx->type = index->type;
 
+		UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
 		idx->n_uniq = index->n_uniq;
 
 		idx->fields = (dict_field_t*) mem_heap_alloc(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
+			UNIV_MEM_ASSERT_RW(index->fields[i].name, strlen(index->fields[i].name) + 1);
 			idx->fields[i].name = (char*) mem_heap_dup(
 				heap, index->fields[i].name,
 				strlen(index->fields[i].name) + 1);
@@ -3320,23 +3350,28 @@ dict_stats_snapshot_create(
 		/* hook idx into t->indexes */
 		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
 
+		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_diff_key_vals[0]));
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_diff_key_vals,
 			(idx->n_uniq + 1)
 			* sizeof(idx->stat_n_diff_key_vals[0]));
 
+		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, (idx->n_uniq + 1) * sizeof(idx->stat_n_sample_sizes[0]));
 		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_sample_sizes,
 			(idx->n_uniq + 1)
 			* sizeof(idx->stat_n_sample_sizes[0]));
 
+		UNIV_MEM_ASSERT_RW(index->stat_n_non_null_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_non_null_key_vals[0]));
 		idx->stat_n_non_null_key_vals = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_non_null_key_vals,
 			(idx->n_uniq + 1)
 			* sizeof(idx->stat_n_non_null_key_vals[0]));
 
+		UNIV_MEM_ASSERT_RW(&index->stat_index_size, sizeof(index->stat_index_size));
 		idx->stat_index_size = index->stat_index_size;
 
+		UNIV_MEM_ASSERT_RW(&index->stat_n_leaf_pages, sizeof(index->stat_n_leaf_pages));
 		idx->stat_n_leaf_pages = index->stat_n_leaf_pages;
 
 #ifdef UNIV_DEBUG
@@ -3344,15 +3379,25 @@ dict_stats_snapshot_create(
 #endif /* UNIV_DEBUG */
 	}
 
+	UNIV_MEM_ASSERT_RW(&table->stat_initialized, sizeof(table->stat_initialized));
 	t->stat_initialized = table->stat_initialized;
+	UNIV_MEM_ASSERT_RW(&table->stats_last_recalc, sizeof(table->stats_last_recalc));
 	t->stats_last_recalc = table->stats_last_recalc;
+	UNIV_MEM_ASSERT_RW(&table->stat_persistent, sizeof(table->stat_persistent));
 	t->stat_persistent = table->stat_persistent;
+	UNIV_MEM_ASSERT_RW(&table->stats_auto_recalc, sizeof(table->stats_auto_recalc));
 	t->stats_auto_recalc = table->stats_auto_recalc;
+	UNIV_MEM_ASSERT_RW(&table->stats_sample_pages, sizeof(table->stats_sample_pages));
 	t->stats_sample_pages = table->stats_sample_pages;
+	UNIV_MEM_ASSERT_RW(&table->stat_n_rows, sizeof(table->stat_n_rows));
 	t->stat_n_rows = table->stat_n_rows;
+	UNIV_MEM_ASSERT_RW(&table->stat_clustered_index_size, sizeof(table->stat_clustered_index_size));
 	t->stat_clustered_index_size = table->stat_clustered_index_size;
+	UNIV_MEM_ASSERT_RW(&table->stat_sum_of_other_index_sizes, sizeof(table->stat_sum_of_other_index_sizes));
 	t->stat_sum_of_other_index_sizes = table->stat_sum_of_other_index_sizes;
+	UNIV_MEM_ASSERT_RW(&table->stat_modified_counter, sizeof(table->stat_modified_counter));
 	t->stat_modified_counter = table->stat_modified_counter;
+	UNIV_MEM_ASSERT_RW(&table->stats_bg_flag, sizeof(table->stats_bg_flag));
 	t->stats_bg_flag = table->stats_bg_flag;
 #ifdef UNIV_DEBUG
 	t->magic_n = DICT_TABLE_MAGIC_N;
