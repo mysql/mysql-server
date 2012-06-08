@@ -133,7 +133,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --echo #   for legacy authentication method
 --echo #
 
-CREATE USER 'bug13586336'@'localhost';
+CREATE USER 'bug13586336'@'localhost' IDENTIFIED WITH 'mysql_old_password';
 SET PASSWORD FOR 'bug13586336'@'localhost' = OLD_PASSWORD('a');
 --echo Run mysql_upgrade with all privileges on a user
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1

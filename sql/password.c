@@ -66,6 +66,7 @@
 #include <sha1.h>
 #include <my_rnd.h>
 #include "mysql.h"
+#include "crypt_genhash_impl.h"
 
 /************ MySQL 3.23-4.0 authentication routines: untouched ***********/
 
@@ -307,14 +308,13 @@ void make_password_from_salt_323(char *to, const ulong *salt)
      **************** MySQL 4.1.1 authentication routines *************
 */
 
-/*
-    Generate string of printable random characters of requested length
-  SYNOPSIS
-    create_random_string()
-    to       OUT   buffer for generation; must be at least length+1 bytes
-                   long; result string is always null-terminated
-    length   IN    how many random characters to put in buffer
-    rand_st  INOUT structure used for number generation
+/**
+    Generate string of printable random characters of requested length.
+  
+    @param to[out]  Buffer for generation; must be at least length+1 bytes
+                    long; result string is always null-terminated
+    length[in]      How many random characters to put in buffer
+    rand_st         Structure used for number generation
 */
 
 void create_random_string(char *to, uint length, struct rand_struct *rand_st)
@@ -399,6 +399,23 @@ my_crypt(char *to, const uchar *s1, const uchar *s2, uint len)
     *to++= *s1++ ^ *s2++;
 }
 
+#if defined(HAVE_OPENSSL)
+void my_make_scrambled_password(char *to, const char *password,
+                                size_t pass_len)
+{
+
+  char salt[CRYPT_SALT_LENGTH + 1];
+  
+  generate_user_salt(salt, CRYPT_SALT_LENGTH + 1);
+  my_crypt_genhash(to,
+                     CRYPT_MAX_PASSWORD_SIZE,
+                     password,
+                     pass_len,
+                     salt,
+                     0);
+
+}
+#endif
 /**
   Compute two stage SHA1 hash of the password :
 
@@ -430,14 +447,14 @@ void compute_two_stage_sha1_hash(const char *password, size_t pass_len,
     The result of this function is used as return value from PASSWORD() and
     is stored in the database.
   SYNOPSIS
-    my_make_scrambled_password()
+    my_make_scrambled_password_sha1()
     buf       OUT buffer of size 2*SHA1_HASH_SIZE + 2 to store hex string
     password  IN  password string
     pass_len  IN  length of password string
 */
 
-void my_make_scrambled_password(char *to, const char *password,
-                                size_t pass_len)
+void my_make_scrambled_password_sha1(char *to, const char *password,
+                                     size_t pass_len)
 {
   uint8 hash_stage2[SHA1_HASH_SIZE];
 
@@ -463,7 +480,7 @@ void my_make_scrambled_password(char *to, const char *password,
 
 void make_scrambled_password(char *to, const char *password)
 {
-  my_make_scrambled_password(to, password, strlen(password));
+  my_make_scrambled_password_sha1(to, password, strlen(password));
 }
 
 
@@ -508,7 +525,7 @@ scramble(char *to, const char *message, const char *password)
     null-terminated, reply and hash_stage2 must be at least SHA1_HASH_SIZE
     long (if not, something fishy is going on).
   SYNOPSIS
-    check_scramble()
+    check_scramble_sha1()
     scramble     clients' reply, presumably produced by scramble()
     message      original random string, previously sent to client
                  (presumably second argument of scramble()), must be 
@@ -522,8 +539,8 @@ scramble(char *to, const char *message, const char *password)
 */
 
 my_bool
-check_scramble(const uchar *scramble_arg, const char *message,
-               const uint8 *hash_stage2)
+check_scramble_sha1(const uchar *scramble_arg, const char *message,
+                    const uint8 *hash_stage2)
 {
   uint8 buf[SHA1_HASH_SIZE];
   uint8 hash_stage2_reassured[SHA1_HASH_SIZE];
@@ -540,6 +557,12 @@ check_scramble(const uchar *scramble_arg, const char *message,
   return test(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
+my_bool
+check_scramble(const uchar *scramble_arg, const char *message,
+               const uint8 *hash_stage2)
+{
+  return check_scramble_sha1(scramble_arg, message, hash_stage2);
+}
 
 /*
   Convert scrambled password from asciiz hex string to binary form.
@@ -569,3 +592,4 @@ void make_password_from_salt(char *to, const uint8 *hash_stage2)
   *to++= PVERSION41_CHAR;
   octet2hex(to, (const char*) hash_stage2, SHA1_HASH_SIZE);
 }
+

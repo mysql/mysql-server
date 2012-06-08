@@ -160,6 +160,10 @@ typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
 
 typedef struct	st_lex_user {
   LEX_STRING user, host, password, plugin, auth;
+  bool uses_identified_by_clause;
+  bool uses_identified_with_clause;
+  bool uses_authentication_string_clause;
+  bool uses_identified_by_password_clause;
 } LEX_USER;
 
 /*

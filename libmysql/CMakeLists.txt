@@ -144,6 +144,8 @@ SET(CLIENT_SOURCES
   ../sql-common/client.c 
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
+  ../sql-common/crypt_genhash_impl.cc
+  ../sql-common/client_authentication.cc
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/md5.cc

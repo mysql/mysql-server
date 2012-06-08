@@ -178,17 +178,42 @@ drop table test.t7;
 drop table test.t8;
 drop table test.t9;
 drop table test.t10;
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_digest_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
+Performance_schema_socket_classes_lost	0
+Performance_schema_socket_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
 select @mutex_per_share <= 4;
 @mutex_per_share <= 4
 1
-select @rwlock_per_share;
-@rwlock_per_share
+select @rwlock_per_share <= 3;
+@rwlock_per_share <= 3
 1
 select @cond_per_share;
 @cond_per_share
 0
-select @file_per_share <= 2;
-@file_per_share <= 2
+select @file_per_share <= 3;
+@file_per_share <= 3
 1
 select @mutex_per_con;
 @mutex_per_con
@@ -216,9 +241,9 @@ select @file_per_handle;
 0
 select if(
 (@mutex_per_share <= 4)
-AND (@rwlock_per_share = 1)
+AND (@rwlock_per_share <= 3)
 AND (@cond_per_share = 0)
-AND (@file_per_share <= 2)
+AND (@file_per_share <= 3)
 AND (@mutex_per_con = 3)
 AND (@rwlock_per_con = 1)
 AND (@cond_per_con = 2)

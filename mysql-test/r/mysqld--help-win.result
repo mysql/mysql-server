@@ -135,6 +135,9 @@ The following options may be given as the first argument:
  --date-format=name  The DATE format (ignored)
  --datetime-format=name 
  The DATETIME format (ignored)
+ --default-authentication-plugin=name 
+ Defines what password- and authentication algorithm to
+ use per default
  --default-storage-engine=name 
  The default storage engine for new tables
  --default-time-zone=name 
@@ -444,8 +447,8 @@ The following options may be given as the first argument:
  -n, --new           Use very new possible "unsafe" functions
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
- --old-passwords     Use old password encryption method (needed for 4.0 and
- older clients)
+ --old-passwords=#   Determine which hash algorithm to use when generating
+ passwords using the PASSWORD() function
  --old-style-user-limits 
  Enable old-style user limits (before 5.0.3, user
  resources were counted per each user+host vs. per
@@ -1097,7 +1100,7 @@ net-write-timeout 60
 new FALSE
 old FALSE
 old-alter-table FALSE
-old-passwords FALSE
+old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
