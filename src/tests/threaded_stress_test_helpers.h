@@ -27,6 +27,7 @@
 # include <sys/malloc.h>
 #endif
 #include <valgrind/drd.h>
+#include <math.h>
 
 #if defined(HAVE_RANDOM_R)
 static inline int32_t
@@ -136,6 +137,8 @@ struct cli_args {
     u_int32_t txn_size; // specifies number of updates/puts/whatevers per txn
     u_int32_t key_size; // number of bytes in vals. Must be at least 4
     u_int32_t val_size; // number of bytes in vals. Must be at least 4
+    double compressibility; // how much of each key/val (as a fraction in [0,1]) can be compressed away
+                            // First 4-8 bytes of key may be ignored
     struct env_args env_args; // specifies environment variables
     bool single_txn;
     bool warm_cache; // warm caches before running stress_table
@@ -525,21 +528,49 @@ static int UU() malloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_
 }
 #endif
 
+// Fill array with compressibility*size 0s.
+// 0.0<=compressibility<=1.0
+// Compressibility is the fraction of size that will be 0s (e.g. approximate fraction that will be compressed away).
+// The rest will be random data.
+static void
+fill_zeroed_array(uint8_t *data, uint32_t size, struct random_data *random_data, double compressibility) {
+    //Requires: The array was zeroed since the last time 'size' was changed.
+    //Requires: compressibility is in range [0,1] indicating fraction that should be zeros.
+
+    uint32_t num_random_bytes = (1 - compressibility) * size;
+
+    if (num_random_bytes > 0) {
+        uint32_t filled;
+        for (filled = 0; filled + sizeof(uint64_t) <= num_random_bytes; filled += sizeof(uint64_t)) {
+            *((uint64_t *) &data[filled]) = randu64(random_data);
+        }
+        if (filled != num_random_bytes) {
+            uint64_t last8 = randu64(random_data);
+            memcpy(&data[filled], &last8, num_random_bytes - filled);
+        }
+    }
+}
+
 static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     int r = 0;
     char buf[100];
     ZERO_ARRAY(buf);
     uint64_t i;
+    union {
+        uint64_t key;
+        uint16_t i[4];
+        uint8_t  b[arg->cli->key_size];
+    } rand_key;
+    ZERO_STRUCT(rand_key);
+    uint8_t valbuf[arg->cli->val_size];
+    ZERO_ARRAY(valbuf);
     for (i = 0; i < arg->cli->txn_size; ++i) {
-        union {
-            uint64_t key;
-            uint16_t i[4];
-        } rand_key;
         rand_key.key = randu64(arg->random_data);
         rand_key.i[0] = arg->thread_idx;
+        fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
         dbt_init(&key, &rand_key, sizeof rand_key);
-        dbt_init(&val, buf, sizeof buf);
+        dbt_init(&val, valbuf, sizeof valbuf);
         r = db->put(db, txn, &key, &val, 0);
         if (r != 0) {
             goto cleanup;
@@ -1263,6 +1294,8 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
 
 #define MIN_VAL_SIZE sizeof(int)
 #define MIN_KEY_SIZE sizeof(int)
+#define MIN_COMPRESSIBILITY (0.0)
+#define MAX_COMPRESSIBILITY (1.0)
 static struct cli_args UU() get_default_args(void) {
     struct cli_args DEFAULT_ARGS = {
         .num_elements = 150000,
@@ -1283,6 +1316,7 @@ static struct cli_args UU() get_default_args(void) {
         .txn_size = 1000,
         .key_size = MIN_KEY_SIZE,
         .val_size = MIN_VAL_SIZE,
+        .compressibility = 1.0,
         .env_args = DEFAULT_ENV_ARGS,
         .single_txn = false,
         .warm_cache = false,
@@ -1298,158 +1332,402 @@ static struct cli_args UU() get_default_args_for_perf(void) {
     return args;
 }
 
+union val_type {
+    int32_t  i32;
+    int64_t  i64;
+    uint32_t u32;
+    uint64_t u64;
+    bool     b;
+    double   d;
+    char    *s;
+};
+
+struct arg_type;
+
+typedef bool (*match_fun)(struct arg_type *type, char *const argv[]);
+typedef int  (*parse_fun)(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]);
+//TODO fix
+typedef void  (*help_fun)(struct arg_type *type, int width_name, int width_type);
+
+struct type_description {
+    const char           *type_name;
+    const match_fun       matches;
+    const parse_fun       parse;
+    const help_fun        help;
+};
+
+struct arg_type {
+    char                    *name;
+    struct type_description *description;
+    union val_type           default_val;
+    void                    *target;
+    char                    *help_suffix;
+    union val_type           min;
+    union val_type           max;
+};
+
+#define DEFINE_NUMERIC_HELP(typename, format, member, MIN, MAX) \
+static inline void \
+help_##typename(struct arg_type *type, int width_name, int width_type) { \
+    invariant(!strncmp("--", type->name, strlen("--"))); \
+    fprintf(stderr, "\t%-*s  %-*s  ", width_name, type->name, width_type, type->description->type_name); \
+    fprintf(stderr, "(default %" format "%s", type->default_val.member, type->help_suffix); \
+    if (type->min.member != MIN) { \
+        fprintf(stderr, ", min %" format "%s", type->min.member, type->help_suffix); \
+    } \
+    if (type->max.member != MAX) { \
+        fprintf(stderr, ", max %" format "%s", type->max.member, type->help_suffix); \
+    } \
+    fprintf(stderr, ")\n"); \
+}
+
+DEFINE_NUMERIC_HELP(int32, PRId32, i32, INT32_MIN, INT32_MAX)
+DEFINE_NUMERIC_HELP(int64, PRId64, i64, INT64_MIN, INT64_MAX)
+DEFINE_NUMERIC_HELP(uint32, PRIu32, u32, 0, UINT32_MAX)
+DEFINE_NUMERIC_HELP(uint64, PRIu64, u64, 0, UINT64_MAX)
+DEFINE_NUMERIC_HELP(double, ".2lf",  d, -HUGE_VAL, HUGE_VAL)
+static inline void
+help_bool(struct arg_type *type, int width_name, int width_type) {
+    invariant(strncmp("--", type->name, strlen("--")));
+    char *default_value = type->default_val.b ? "yes" : "no";
+    fprintf(stderr, "\t--[no-]%-*s  %-*s  (default %s)\n",
+            width_name - (int)strlen("--[no-]"), type->name,
+            width_type, type->description->type_name,
+            default_value);
+}
+
+static inline void
+help_string(struct arg_type *type, int width_name, int width_type) {
+    invariant(!strncmp("--", type->name, strlen("--")));
+    char *default_value = type->default_val.s ? type->default_val.s : "";
+    fprintf(stderr, "\t%-*s  %-*s  (default '%s')\n",
+            width_name, type->name,
+            width_type, type->description->type_name,
+            default_value);
+}
+
+static inline bool
+match_name(struct arg_type *type, char *const argv[]) {
+    invariant(!strncmp("--", type->name, strlen("--")));
+    return !strcmp(argv[1], type->name);
+}
+
+static inline bool
+match_bool(struct arg_type *type, char *const argv[]) {
+    invariant(strncmp("--", type->name, strlen("--")));
+    char *string = argv[1];
+    if (strncmp(string, "--", strlen("--"))) {
+        return false;
+    }
+    string += strlen("--");
+    if (!strncmp(string, "no-", strlen("no-"))) {
+        string += strlen("no-");
+    }
+    return !strcmp(string, type->name);
+}
+
+static inline int
+parse_bool(struct arg_type *type, int *extra_args_consumed, int UU(argc), char *const argv[]) {
+    char *string = argv[1];
+    if (!strncmp(string, "--no-", strlen("--no-"))) {
+        *((bool *)type->target) = false;
+    }
+    else {
+        *((bool *)type->target) = true;
+    }
+    *extra_args_consumed = 0;
+    return 0;
+}
+
+static inline int
+parse_string(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]) {
+    if (argc < 2) {
+        return EINVAL;
+    }
+    *((char **)type->target) = argv[2];
+    *extra_args_consumed = 1;
+    return 0;
+}
+
+static inline int
+parse_uint64(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]) {
+    // Already verified name.
+
+    if (argc < 2) {
+        return EINVAL;
+    }
+    if (*argv[2] == '\0') {
+       return EINVAL;
+    }
+
+    char *endptr;
+    unsigned long long int result = strtoull(argv[2], &endptr, 0);
+    if (*endptr != '\0') {
+        return errno;
+    }
+    if (result < type->min.u64 || result > type->max.u64) {
+        return ERANGE;
+    }
+    *((uint64_t*)type->target) = result;
+    *extra_args_consumed = 1;
+    return 0;
+}
+
+static inline int
+parse_int64(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]) {
+    // Already verified name.
+
+    if (argc < 2) {
+        return EINVAL;
+    }
+    if (*argv[2] == '\0') {
+       return EINVAL;
+    }
+
+    char *endptr;
+    long long int result = strtoll(argv[2], &endptr, 0);
+    if (*endptr != '\0') {
+        return errno;
+    }
+    if (result < type->min.i64 || result > type->max.i64) {
+        return ERANGE;
+    }
+    *((int64_t*)type->target) = result;
+    *extra_args_consumed = 1;
+    return 0;
+}
+
+static inline int
+parse_uint32(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]) {
+    // Already verified name.
+
+    if (argc < 2) {
+        return EINVAL;
+    }
+    if (*argv[2] == '\0') {
+       return EINVAL;
+    }
+
+    char *endptr;
+    unsigned long int result = strtoul(argv[2], &endptr, 0);
+    if (*endptr != '\0') {
+        return errno;
+    }
+    if (result < type->min.u32 || result > type->max.u32) {
+        return ERANGE;
+    }
+    *((int32_t*)type->target) = result;
+    *extra_args_consumed = 1;
+    return 0;
+}
+
+static inline int
+parse_int32(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]) {
+    // Already verified name.
+
+    if (argc < 2) {
+        return EINVAL;
+    }
+    if (*argv[2] == '\0') {
+       return EINVAL;
+    }
+
+    char *endptr;
+    long int result = strtol(argv[2], &endptr, 0);
+    if (*endptr != '\0') {
+        return errno;
+    }
+    if (result < type->min.i32 || result > type->max.i32) {
+        return ERANGE;
+    }
+    *((int32_t*)type->target) = result;
+    *extra_args_consumed = 1;
+    return 0;
+}
+
+static inline int
+parse_double(struct arg_type *type, int *extra_args_consumed, int argc, char *const argv[]) {
+    // Already verified name.
+
+    if (argc < 2) {
+        return EINVAL;
+    }
+    if (*argv[2] == '\0') {
+       return EINVAL;
+    }
+
+    char *endptr;
+    double result = strtod(argv[2], &endptr);
+    if (*endptr != '\0') {
+        return errno;
+    }
+    if (result < type->min.d || result > type->max.d) {
+        return ERANGE;
+    }
+    *((double*)type->target) = result;
+    *extra_args_consumed = 1;
+    return 0;
+}
+
+// Common case (match_name).
+#define DECLARE_TYPE_DESCRIPTION(typename) \
+    struct type_description type_##typename = { \
+        .type_name = #typename, \
+        .matches = match_name, \
+        .parse = parse_##typename, \
+        .help = help_##typename \
+    }
+DECLARE_TYPE_DESCRIPTION(int32);
+DECLARE_TYPE_DESCRIPTION(uint32);
+DECLARE_TYPE_DESCRIPTION(int64);
+DECLARE_TYPE_DESCRIPTION(uint64);
+DECLARE_TYPE_DESCRIPTION(double);
+DECLARE_TYPE_DESCRIPTION(string);
+
+// Bools use their own match function so they are declared manually.
+struct type_description type_bool = {
+    .type_name = "bool",
+    .matches = match_bool,
+    .parse = parse_bool,
+    .help = help_bool
+};
+
+#define ARG_MATCHES(type, rest...) type->description->matches(type, rest)
+#define ARG_PARSE(type, rest...) type->description->parse(type, rest)
+#define ARG_HELP(type, rest...) type->description->help(type, rest)
+
+static inline void
+do_usage(const char *argv0, int n, struct arg_type types[n]) {
+//    fprintf(stderr, "\t--compressibility               DOUBLE (default %.2f, minimum %.2f, maximum %.2f)\n",
+//            default_args.compressibility, MIN_COMPRESSIBILITY, MAX_COMPRESSIBILITY);
+    fprintf(stderr, "Usage:\n");
+    fprintf(stderr, "\t%s [-h|--help]\n", argv0);
+    fprintf(stderr, "\t%s [OPTIONS]\n", argv0);
+    fprintf(stderr, "\n");
+    fprintf(stderr, "OPTIONS are among:\n");
+    fprintf(stderr, "\t-q|--quiet\n");
+    fprintf(stderr, "\t-v|--verbose\n");
+    for (int i = 0; i < n; i++) {
+        struct arg_type *type = &types[i];
+        ARG_HELP(type, 35, 6);
+    }
+}
+
 static inline void parse_stress_test_args (int argc, char *const argv[], struct cli_args *args) {
     struct cli_args default_args = *args;
     const char *argv0=argv[0];
-    while (argc>1) {
-        int resultcode=0;
-        if (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--verbose") == 0) {
+
+#define MAKE_ARG(name_string, type, member, variable, suffix, min_val, max_val) { \
+    .name=(name_string), \
+    .description=&(type), \
+    .default_val={.member=default_args.variable}, \
+    .target=&(args->variable), \
+    .help_suffix=(suffix), \
+    .min={.member=min_val}, \
+    .max={.member=max_val}, \
+}
+#define UINT32_ARG(name_string, variable, suffix) \
+        MAKE_ARG(name_string, type_uint32, u32, variable, suffix, 0, UINT32_MAX) 
+#define UINT32_ARG_R(name_string, variable, suffix, min, max) \
+        MAKE_ARG(name_string, type_uint32, u32, variable, suffix, min, max) 
+#define UINT64_ARG(name_string, variable, suffix) \
+        MAKE_ARG(name_string, type_uint64, u64, variable, suffix, 0, UINT64_MAX) 
+#define DOUBLE_ARG_R(name_string, variable, suffix, min, max) \
+        MAKE_ARG(name_string, type_double, d, variable, suffix, min, max) 
+#define BOOL_ARG(name_string, variable) \
+        MAKE_ARG(name_string, type_bool, b, variable, "", false, false) 
+#define STRING_ARG(name_string, variable) \
+        MAKE_ARG(name_string, type_string, s, variable, "", "", "") 
+
+    struct arg_type arg_types[] = {
+        UINT32_ARG("--num_elements",            num_elements,                  ""),
+        UINT32_ARG("--num_DBs",                 num_DBs,                       ""),
+        UINT32_ARG("--num_seconds",             time_of_test,                  "s"),
+        UINT32_ARG("--node_size",               env_args.node_size,            " bytes"),
+        UINT32_ARG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
+        UINT32_ARG("--checkpointing_period",    env_args.checkpointing_period, "s"),
+        UINT32_ARG("--cleaner_period",          env_args.cleaner_period,       "s"),
+        UINT32_ARG("--cleaner_iterations",      env_args.cleaner_iterations,   ""),
+        UINT32_ARG("--update_broadcast_period", update_broadcast_period_ms,    "ms"),
+        UINT32_ARG("--num_ptquery_threads",     num_ptquery_threads,           " threads"),
+        UINT32_ARG("--num_put_threads",         num_put_threads,               " threads"),
+        UINT32_ARG("--num_update_threads",      num_update_threads,            " threads"),
+        UINT32_ARG("--txn_size",                txn_size,                      " rows"),
+        UINT32_ARG("--performance_period",      performance_period,            "s"),
+
+        UINT64_ARG("--cachetable_size",         env_args.cachetable_size,      " bytes"),
+
+        DOUBLE_ARG_R("--compressibility",       compressibility,               "", 0.0, 1.0),
+
+        //TODO: when outputting help.. skip min/max that is min/max of data range.
+        UINT32_ARG_R("--key_size",              key_size,                      " bytes", MIN_KEY_SIZE, UINT32_MAX),
+        UINT32_ARG_R("--val_size",              val_size,                      " bytes", MIN_VAL_SIZE, UINT32_MAX),
+
+        BOOL_ARG("crash_on_operation_failure",  crash_on_operation_failure),
+        BOOL_ARG("single_txn",                  single_txn),
+        BOOL_ARG("warm_cache",                  warm_cache),
+        BOOL_ARG("print_performance",           print_performance),
+        BOOL_ARG("print_thread_performance",    print_thread_performance),
+        BOOL_ARG("only_create", only_create),
+        BOOL_ARG("only_stress", only_stress),
+        BOOL_ARG("test",        do_test_and_crash),
+        BOOL_ARG("recover",     do_recover),
+
+        STRING_ARG("--envdir",    env_args.envdir),
+        //TODO(add --quiet, -v, -h)
+    };
+#undef UINT32_ARG
+#undef UINT32_ARG_R
+#undef UINT64_ARG
+#undef DOUBLE_ARG_R
+
+    int num_arg_types = sizeof(arg_types) / sizeof(arg_types[0]);
+
+    int resultcode = 0;
+    while (argc > 1) {
+        if (!strcmp(argv[1], "-v") || !strcmp(argv[1], "--verbose")) {
             verbose++;
+            argv++;
+            argc--;
         } 
-        else if (strcmp(argv[1], "-q")==0) {
-            verbose=0;
+        else if (!strcmp(argv[1], "-q") || !strcmp(argv[1], "--quiet")) {
+            verbose = 0;
+            argv++;
+            argc--;
         } 
-        else if (strcmp(argv[1], "-h")==0) {
-        do_usage:
-            fprintf(stderr, "Usage:\n%s [-h|-v|-q] [OPTIONS] [--only_create|--only_stress]\n", argv0);
-            fprintf(stderr, "OPTIONS are among:\n");
-            fprintf(stderr, "\t--num_elements                  INT (default %d)\n", default_args.num_elements);
-            fprintf(stderr, "\t--num_DBs                       INT (default %d)\n", default_args.num_DBs);
-            fprintf(stderr, "\t--num_seconds                   INT (default %ds)\n", default_args.time_of_test);
-            fprintf(stderr, "\t--node_size                     INT (default %d bytes)\n", default_args.env_args.node_size);
-            fprintf(stderr, "\t--basement_node_size            INT (default %d bytes)\n", default_args.env_args.basement_node_size);
-            fprintf(stderr, "\t--cachetable_size               INT (default %"PRIu64" bytes)\n", default_args.env_args.cachetable_size);
-            fprintf(stderr, "\t--checkpointing_period          INT (default %ds)\n",      default_args.env_args.checkpointing_period);
-            fprintf(stderr, "\t--cleaner_period                INT (default %ds)\n",      default_args.env_args.cleaner_period);
-            fprintf(stderr, "\t--cleaner_iterations            INT (default %ds)\n",      default_args.env_args.cleaner_iterations);
-            fprintf(stderr, "\t--update_broadcast_period       INT (default %dms)\n",     default_args.update_broadcast_period_ms);
-            fprintf(stderr, "\t--num_ptquery_threads           INT (default %d threads)\n", default_args.num_ptquery_threads);
-            fprintf(stderr, "\t--num_update_threads            INT (default %d threads)\n", default_args.num_update_threads);
-            fprintf(stderr, "\t--num_put_threads               INT (default %d threads)\n", default_args.num_put_threads);
-            fprintf(stderr, "\t--txn_size                      INT (default %d rows)\n", default_args.txn_size);
-            fprintf(stderr, "\t--key_size                      INT (default %d, minimum %ld)\n", default_args.key_size, MIN_KEY_SIZE);
-            fprintf(stderr, "\t--val_size                      INT (default %d, minimum %ld)\n", default_args.val_size, MIN_VAL_SIZE);
-            fprintf(stderr, "\t--[no-]crash_on_operation_failure  BOOL (default %s)\n", default_args.crash_on_operation_failure ? "yes" : "no");
-            fprintf(stderr, "\t--single_txn                    BOOL (default %s)\n", default_args.single_txn ? "yes" : "no");
-            fprintf(stderr, "\t--warm_cache                    BOOL (default %s)\n", default_args.warm_cache ? "yes" : "no");
-            fprintf(stderr, "\t--print_performance             \n");
-            fprintf(stderr, "\t--print_thread_performance      \n");
-            fprintf(stderr, "\t--performance_period            INT (default %d)\n", default_args.performance_period);
-            exit(resultcode);
-        }
-        else if (strcmp(argv[1], "--num_elements") == 0 && argc > 1) {
-            argc--; argv++;
-            args->num_elements = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--num_DBs") == 0 && argc > 1) {
-            argc--; argv++;
-            args->num_DBs = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--num_seconds") == 0 && argc > 1) {
-            argc--; argv++;
-            args->time_of_test = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--node_size") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.node_size = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--basement_node_size") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.basement_node_size = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--cachetable_size") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.cachetable_size = strtoll(argv[1], NULL, 0);
-        }
-        else if (strcmp(argv[1], "--checkpointing_period") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.checkpointing_period = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--cleaner_period") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.cleaner_period = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--cleaner_iterations") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.cleaner_iterations = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--update_broadcast_period") == 0 && argc > 1) {
-            argc--; argv++;
-            args->update_broadcast_period_ms = atoi(argv[1]);
-        }
-        else if ((strcmp(argv[1], "--num_ptquery_threads") == 0 || strcmp(argv[1], "--num_threads") == 0) && argc > 1) {
-            argc--; argv++;
-            args->num_ptquery_threads = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--num_update_threads") == 0 && argc > 1) {
-            argc--; argv++;
-            args->num_update_threads = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--num_put_threads") == 0 && argc > 1) {
-            argc--; argv++;
-            args->num_put_threads = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--crash_on_operation_failure") == 0 && argc > 1) {
-            args->crash_on_operation_failure = true;
-        }
-        else if (strcmp(argv[1], "--no-crash_on_operation_failure") == 0 && argc > 1) {
-            args->crash_on_operation_failure = false;
-        }
-        else if (strcmp(argv[1], "--print_performance") == 0 && argc > 1) {
-            args->print_performance = true;
-        }
-        else if (strcmp(argv[1], "--print_thread_performance") == 0 && argc > 1) {
-            args->print_thread_performance = true;
-        }
-        else if (strcmp(argv[1], "--performance_period") == 0 && argc > 1) {
-            argc--; argv++;
-            args->performance_period = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--txn_size") == 0 && argc > 1) {
-            argc--; argv++;
-            args->txn_size = atoi(argv[1]);
-        }
-        else if (strcmp(argv[1], "--key_size") == 0 && argc > 1) {
-            argc--; argv++;
-            args->key_size = atoi(argv[1]);
-            assert(args->key_size >= MIN_KEY_SIZE);
-        }
-        else if (strcmp(argv[1], "--val_size") == 0 && argc > 1) {
-            argc--; argv++;
-            args->val_size = atoi(argv[1]);
-            assert(args->val_size >= MIN_VAL_SIZE);
-        }
-        else if (strcmp(argv[1], "--only_create") == 0) {
-            args->only_create = true;
-        }
-        else if (strcmp(argv[1], "--only_stress") == 0) {
-            args->only_stress = true;
-        }
-        else if (strcmp(argv[1], "--test") == 0) {
-            args->do_test_and_crash = true;
-        }
-        else if (strcmp(argv[1], "--recover") == 0) {
-            args->do_recover = true;
-        }
-        else if (strcmp(argv[1], "--envdir") == 0 && argc > 1) {
-            argc--; argv++;
-            args->env_args.envdir = argv[1];
-        }
-        else if (strcmp(argv[1], "--single_txn") == 0) {
-            args->single_txn = true;
-        }
-        else if (strcmp(argv[1], "--warm_cache") == 0) {
-            args->warm_cache = true;
+        else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+            fprintf(stderr, "HELP INVOKED\n");
+            do_usage(argv0, num_arg_types, arg_types);
+            exit(0);
         }
         else {
-            resultcode=1;
-            goto do_usage;
+            bool found = false;
+            for (int i = 0; i < num_arg_types; i++) {
+                struct arg_type *type = &arg_types[i];
+                if (ARG_MATCHES(type, argv)) {
+                    int extra_args_consumed;
+                    resultcode = ARG_PARSE(type, &extra_args_consumed, argc, argv);
+                    if (resultcode) {
+                        do_usage(argv0, num_arg_types, arg_types);
+                        exit(resultcode);
+                    }
+                    found = true;
+                    argv += extra_args_consumed + 1;
+                    argc -= extra_args_consumed + 1;
+                    break;
+                }
+            }
+            if (!found) {
+                fprintf(stderr, "COULD NOT PARSE [%s]\n", argv[1]);
+                do_usage(argv0, num_arg_types, arg_types);
+                exit(EINVAL);
+            }
         }
-        argc--;
-        argv++;
     }
     if (args->only_create && args->only_stress) {
-        goto do_usage;
+        fprintf(stderr, "used --only_stress and --only_create\n");
+        do_usage(argv0, num_arg_types, arg_types);
+        exit(EINVAL);
     }
 }
 
