@@ -569,7 +569,7 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     for (i = 0; i < arg->cli->txn_size; ++i) {
         rand_key.key = randu64(arg->random_data);
         if (arg->cli->interleave) {
-            rand_key.i[4] = arg->thread_idx;
+            rand_key.i[3] = arg->thread_idx;
         } else {
             rand_key.i[0] = arg->thread_idx;
         }
@@ -623,7 +623,7 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
     for (i = 0; i < arg->cli->txn_size; ++i) {
         rand_key.key = extra->current++;
         if (arg->cli->interleave) {
-            rand_key.i[4] = arg->thread_idx;
+            rand_key.i[3] = arg->thread_idx;
         } else {
             rand_key.i[0] = arg->thread_idx;
         }
