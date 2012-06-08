@@ -4558,6 +4558,7 @@ int ha_create_table(THD *thd, const char *path,
   char name_buff[FN_REFLEN];
   const char *name;
   TABLE_SHARE share;
+  bool saved_abort_on_warning;
   DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
   my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix) ||
@@ -4581,7 +4582,10 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
+  saved_abort_on_warning = thd->abort_on_warning; 
+  thd->abort_on_warning = false;
   error= table.file->ha_create(name, &table, create_info);
+  thd->abort_on_warning = saved_abort_on_warning;
   if (error)
   {
     table.file->print_error(error, MYF(0));
