@@ -38,6 +38,7 @@
 
 #include "../mysys/mysys_priv.h"
 #include "my_default.h"
+#include "my_default_priv.h"
 #include "m_string.h"
 #include "m_ctype.h"
 #include <my_dir.h>
@@ -45,6 +46,12 @@
 #ifdef __WIN__
 #include <winbase.h>
 #endif
+
+C_MODE_START
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_file_key key_file_cnf;
+#endif
+C_MODE_END
 
 /**
    arguments separator
@@ -93,14 +100,14 @@ my_bool my_getopt_is_args_separator(const char* arg)
 const char *my_defaults_file=0;
 const char *my_defaults_group_suffix=0;
 const char *my_defaults_extra_file=0;
-const char *my_login_path= 0;
-const char *my_login_file= 0;
+
+static const char *my_login_path= 0;
 
 static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
-static char my_login_file_buffer[FN_REFLEN];
-const char my_key[MY_LOGIN_KEY_LEN];
+static char my_login_file[FN_REFLEN];
+static char my_key[LOGIN_KEY_LEN];
 
 static my_bool defaults_already_read= FALSE;
 
@@ -312,7 +319,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
         extra_groups[i]= group->type_names[i];  /** copy group */
 
         len= strlen(extra_groups[i]);
-        if (!(ptr= alloc_root(ctx->alloc, (uint) (len+instance_len+1))))
+        if (!(ptr= (char *) alloc_root(ctx->alloc,
+                                       (uint) (len + instance_len + 1))))
           DBUG_RETURN(2);
 
         extra_groups[i+group->count]= ptr;
@@ -355,7 +363,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
       instance_len= strlen(my_defaults_group_suffix);
       len= strlen(extra_groups[i]);
 
-      if (!(ptr= alloc_root(ctx->alloc, (uint) (len + instance_len + 1))))
+      if (!(ptr= (char *) alloc_root(ctx->alloc,
+                                     (uint) (len + instance_len + 1))))
         DBUG_RETURN(2);
 
       extra_groups[i + 1]= ptr;
@@ -456,7 +465,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
 
   if (find_type((char *)group_name, ctx->group, FIND_TYPE_NO_PREFIX))
   {
-    if (!(tmp= alloc_root(ctx->alloc, strlen(option) + 1)))
+    if (!(tmp= (char *) alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
     if (insert_dynamic(ctx->args, &tmp))
       return 1;
@@ -652,8 +661,8 @@ int my_load_defaults(const char *conf_file, const char **groups,
   ctx.group= &group;
 
   if ((error= my_search_option_files(conf_file, argc, argv,
-                                    &args_used, handle_default_option,
-                                    (void *) &ctx, dirs)))
+                                     &args_used, handle_default_option,
+                                     (void *) &ctx, dirs)))
   {
     free_root(&alloc,MYF(0));
     DBUG_RETURN(error);
@@ -661,7 +670,7 @@ int my_load_defaults(const char *conf_file, const char **groups,
 
   /* Read options from login group. */
   is_login_file= TRUE;
-  if (set_login_file_name() &&
+  if (my_default_get_login_file(my_login_file, sizeof(my_login_file)) &&
       (error= my_search_option_files(my_login_file,argc, argv, &args_used,
                                      handle_default_option, (void *) &ctx,
                                      dirs)))
@@ -1156,8 +1165,8 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
     {
       /* Move past unused bytes. */
       mysql_file_fseek(file, 4, SEEK_SET, MYF(MY_WME));
-      if (mysql_file_fread(file, (uchar *) my_key, MY_LOGIN_KEY_LEN,
-                           MYF(MY_WME)) != MY_LOGIN_KEY_LEN)
+      if (mysql_file_fread(file, (uchar *) my_key, LOGIN_KEY_LEN,
+                           MYF(MY_WME)) != LOGIN_KEY_LEN)
         return 0;
     }
 
@@ -1173,7 +1182,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
 
     mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
     if ((length= my_aes_decrypt((const char *) cipher, cipher_len, str,
-                                my_key, MY_LOGIN_KEY_LEN)) < 0)
+                                my_key, LOGIN_KEY_LEN)) < 0)
     {
       /* Attempt to decrypt failed. */
       return 0;
@@ -1417,30 +1426,39 @@ static const char **init_default_directories(MEM_ROOT *alloc)
 }
 
 /**
-  Generate and store the login file name in my_login_file.
+  Place the login file name in the specified buffer.
+
+  @param file_name     [out]  Buffer to hold login file name
+  @param file_name_size [in]  Length of the buffer
 
   @return 1 - Success
           0 - Failure
 */
 
-int set_login_file_name()
+int my_default_get_login_file(char *file_name, size_t file_name_size)
 {
-    /* Read options from login group. */
-    if (getenv("MYSQL_TEST_LOGIN_FILE"))
-      sprintf(my_login_file_buffer, "%s", getenv("MYSQL_TEST_LOGIN_FILE"));
-#ifdef _WIN32
-    else if (getenv("APPDATA"))
-      sprintf(my_login_file_buffer, "%s\\MySQL\\.mylogin.cnf", getenv("APPDATA"));
-#else
-    else if (getenv("HOME"))
-      sprintf(my_login_file_buffer, "%s/.mylogin.cnf", getenv("HOME"));
-#endif
-    else
-    {
-      my_login_file= NULL;
-      return 0;
-    }
-    my_login_file= my_login_file_buffer;
-    return 1;
-}
+  size_t rc;
 
+  if (getenv("MYSQL_TEST_LOGIN_FILE"))
+    rc= my_snprintf(file_name, file_name_size, "%s",
+                    getenv("MYSQL_TEST_LOGIN_FILE"));
+#ifdef _WIN32
+  else if (getenv("APPDATA"))
+    rc= my_snprintf(file_name, file_name_size, "%s\\MySQL\\.mylogin.cnf",
+                    getenv("APPDATA"));
+#else
+  else if (getenv("HOME"))
+    rc= my_snprintf(file_name, file_name_size, "%s/.mylogin.cnf",
+                    getenv("HOME"));
+#endif
+  else
+  {
+    memset(file_name, 0, sizeof(file_name));
+    return 0;
+  }
+  /* Anything <= 0 will be treated as error. */
+  if (rc <= 0)
+    return 0;
+
+  return 1;
+}

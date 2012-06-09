@@ -100,6 +100,9 @@ MySQL Configuration Tool.
   -u, --user=name     User name to be entered into the login file.
   -v, --verbose       Write more information.
   -V, --version       Output version information and exit.
+  -w, --warn          Warn and ask for confirmation if set command attempts to
+                      overwrite an existing login path (enabled by default).
+                      (Defaults to on; use --skip-warn to disable.)
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -109,6 +112,7 @@ host                              (No default value)
 login-path                        client
 user                              (No default value)
 verbose                           FALSE
+warn                              TRUE
 
 Where command can be any one of the following :
        set    [options]          Sets username/password/hostname for a
