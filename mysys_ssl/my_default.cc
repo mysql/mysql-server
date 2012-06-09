@@ -1009,7 +1009,9 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
 	goto err;
       }
       /* Remove end space */
-      for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
+      for ( ; my_isspace(&my_charset_latin1, end[-1]); end --)
+      {}
+
       end[0]=0;
 
       strmake(curr_gr, ptr, MY_MIN((size_t) (end-ptr)+1, sizeof(curr_gr)-1));
@@ -1031,7 +1033,9 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     end= remove_end_comment(ptr);
     if ((value= strchr(ptr, '=')))
       end= value;				/* Option without argument */
-    for ( ; my_isspace(&my_charset_latin1,end[-1]) ; end--) ;
+    for ( ; my_isspace(&my_charset_latin1, end[-1]) ; end--)
+    {}
+
     if (!value)
     {
       strmake(strmov(option,"--"),ptr, (size_t) (end-ptr));
@@ -1042,13 +1046,17 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     {
       /* Remove pre- and end space */
       char *value_end;
-      for (value++ ; my_isspace(&my_charset_latin1,*value); value++) ;
+      for (value++ ; my_isspace(&my_charset_latin1, *value); value ++)
+      {}
+
       value_end=strend(value);
       /*
 	We don't have to test for value_end >= value as we know there is
 	an '=' before
       */
-      for ( ; my_isspace(&my_charset_latin1,value_end[-1]) ; value_end--) ;
+      for ( ; my_isspace(&my_charset_latin1, value_end[-1]); value_end --)
+      {}
+
       if (value_end < value)			/* Empty string */
 	value_end=value;
 
