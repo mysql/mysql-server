@@ -1800,6 +1800,8 @@ struct TABLE_LIST
   struct st_nested_join *nested_join;   /* if the element is a nested join  */
   TABLE_LIST *embedding;             /* nested join containing the table */
   List<TABLE_LIST> *join_list;/* join list the table belongs to   */
+  bool          lifted;               /* set to true when the table is moved to
+                                         the upper level at the parsing stage */
   bool		cacheable_table;	/* stop PS caching */
   /* used in multi-upd/views privilege check */
   bool		table_in_first_from_clause;

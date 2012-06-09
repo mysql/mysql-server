@@ -1237,3 +1237,23 @@ SELECT(SELECT 0 AS a FROM dual UNION SELECT 1 AS a FROM dual ORDER BY a DESC LIM
 SELECT(SELECT 1 AS a ORDER BY a) AS dev;
 SELECT(SELECT 1 AS a LIMIT 1) AS dev;
 SELECT(SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
+
+--echo #
+--echo # LP bug#1010729: Unexpected syntax error from UNION
+--echo # (bug #54382)    with single-table join nest      
+--echo #
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (b int);
+CREATE TABLE t3 (c int);
+SELECT a FROM t1 UNION SELECT b FROM t2 JOIN (t3) ON ( t2.b = t3.c );
+
+DROP TABLE t1, t2, t3;
+
+CREATE TABLE t1 (pk int NOT NULL);
+CREATE TABLE t2 (pk int NOT NULL, fk int NOT NULL);
+SELECT t1.pk FROM t1 LEFT JOIN (t2) ON (t1.pk = t2.fk)
+UNION
+SELECT t1.pk FROM t1 LEFT JOIN (t2) ON (t1.pk = t2.fk);
+
+DROP TABLE t1,t2;
+

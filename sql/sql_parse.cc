@@ -6192,6 +6192,7 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
     embedded->embedding= embedding;
     join_list->push_front(embedded);
     ptr= embedded;
+    embedded->lifted= 1;
   }
   else if (nested_join->join_list.elements == 0)
   {
