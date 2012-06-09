@@ -6201,7 +6201,38 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     /* Use the default implementation, don't modify args: See comments  */
     return TRUE;
   }
-  
+
+  /*
+    If @@optimizer_switch has "mrr_cost_based" on, we should avoid
+    using DS-MRR for queries where it is likely that the records are
+    stored in memory. Since there is currently no way to determine
+    this, we use a heuristic:
+    a) if the storage engine has a memory buffer, DS-MRR is only
+       considered if the table size is bigger than the buffer.
+    b) if the storage engine does not have a memory buffer, DS-MRR is
+       only considered if the table size is bigger than 100MB.
+    c) Since there is an initial setup cost of DS-MRR, so it is only
+       considered if at least 50 records will be read.
+  */
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))
+  {
+    /*
+      If the storage engine has a database buffer we use this as the
+      minimum size the table should have before considering DS-MRR.
+    */ 
+    longlong min_file_size= table->file->get_memory_buffer_size();
+    if (min_file_size == -1)
+    {
+      // No estimate for database buffer
+      min_file_size= 100 * 1024 * 1024;    // 100 MB
+    }
+
+    if (table->file->stats.data_file_length < 
+        static_cast<ulonglong>(min_file_size) ||
+        rows <= 50)
+      return true;                 // Use the default implementation 
+  }
+
   Cost_estimate dsmrr_cost;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
@@ -6257,13 +6288,13 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
                                          uint *buffer_size, 
                                          Cost_estimate *cost)
 {
-  ulong max_buff_entries, elem_size;
   ha_rows rows_in_last_step;
   uint n_full_steps;
   double index_read_cost;
 
-  elem_size= h->ref_length + sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
-  max_buff_entries = *buffer_size / elem_size;
+  const uint elem_size= h->ref_length + 
+                        sizeof(void*) * (!test(flags & HA_MRR_NO_ASSOCIATION));
+  const ha_rows max_buff_entries= *buffer_size / elem_size;
 
   if (!max_buff_entries)
     return TRUE; /* Buffer has not enough space for even 1 rowid */
@@ -6278,17 +6309,26 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   rows_in_last_step= rows % max_buff_entries;
   
   DBUG_ASSERT(cost->is_zero());
-  /* Adjust buffer size if we expect to use only part of the buffer */
+
   if (n_full_steps)
   {
-    get_sort_and_sweep_cost(table, rows, cost);
+    get_sort_and_sweep_cost(table, max_buff_entries, cost);
     cost->multiply(n_full_steps);
   }
   else
   {
-    *buffer_size= max<ulong>(*buffer_size,
-                             (size_t)(1.2*rows_in_last_step) * elem_size +
-                             h->ref_length + table->key_info[keynr].key_length);
+    /* 
+      Adjust buffer size since only parts of the buffer will be used:
+      1. Adjust record estimate for the last scan to reduce likelyhood
+         of needing more than one scan by adding 20 percent to the
+         record estimate and by ensuring this is at least 100 records.
+      2. If the estimated needed buffer size is lower than suggested by 
+         the caller then set it to the estimated buffer size.
+    */
+    const ha_rows keys_in_buffer=
+      max<ha_rows>(static_cast<ha_rows>(1.2 * rows_in_last_step), 100);
+    *buffer_size= min<ulong>(*buffer_size,
+                             static_cast<ulong>(keys_in_buffer) * elem_size);
   }
 
   Cost_estimate last_step_cost;
@@ -6296,25 +6336,21 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   (*cost)+= last_step_cost;
 
   /*
-    With the old COST_VECT, memory cost was part of total_cost() but
-    that's not the case with Cost_estimate. Introducing Cost_estimate
-    shall not change any costs, hence the memory cost is added as if
-    it was CPU cost below. To be reconsidered when DsMRR costs are
-    refactored.
+    Cost of memory is not included in the total_cost() function and
+    thus will not be considered when comparing costs. Still, we
+    record it in the cost estimate object for future use.
   */
-  if (n_full_steps != 0)
-  {
-    cost->add_mem(*buffer_size);
-    cost->add_cpu(*buffer_size);
-  }
-  else
-  {
-    cost->add_mem(rows_in_last_step * elem_size);
-    cost->add_cpu(rows_in_last_step * elem_size);
-  }  
+  cost->add_mem(*buffer_size);
+
   /* Total cost of all index accesses */
   index_read_cost= h->index_only_read_time(keynr, rows);
   cost->add_io(index_read_cost * Cost_estimate::IO_BLOCK_READ_COST());
+
+  /*
+    Add CPU cost for processing records (see
+    @handler::multi_range_read_info_const()).
+  */
+  cost->add_cpu(rows * ROW_EVALUATE_COST);
   return FALSE;
 }
 
@@ -6341,11 +6377,21 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, Cost_estimate *cost)
   if (nrows)
   {
     get_sweep_read_cost(table, nrows, FALSE, cost);
+
+    /* 
+      Constant for the cost of doing one key compare operation in the
+      sort operation. We should have used the existing
+      ROWID_COMPARE_COST constant here but this would make the cost
+      estimate of sorting very high for queries accessing many
+      records. Until this constant is adjusted we introduce a constant
+      that is more realistic. @todo: Replace this with
+      ROWID_COMPARE_COST when this have been given a realistic value.
+    */
+    const double ROWID_COMPARE_SORT_COST = 0.01;
+
     /* Add cost of qsort call: n * log2(n) * cost(rowid_comparison) */
-    double cmp_op= rows2double(nrows) * ROWID_COMPARE_COST;
-    if (cmp_op < 3)
-      cmp_op= 3;
-    cost->add_cpu(cmp_op * log2(cmp_op));
+    const double cpu_sort= nrows * log2(nrows) * ROWID_COMPARE_SORT_COST;
+    cost->add_cpu(cpu_sort);
   }
 }
 
@@ -6399,13 +6445,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   DBUG_ENTER("get_sweep_read_cost");
 
   DBUG_ASSERT(cost->is_zero());
-  if (table->file->primary_key_is_clustered())
-  {
-    cost->add_io(table->file->read_time(table->s->primary_key,
-                                        (uint)nrows, nrows) *
-                 Cost_estimate::IO_BLOCK_READ_COST());
-  }
-  else
+  if(nrows > 0)
   {
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
