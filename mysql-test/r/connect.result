@@ -257,3 +257,27 @@ connect(localhost,mysqltest_nouser,,test,MASTER_PORT,MASTER_SOCKET);
 ERROR 28000: Access denied for user 'mysqltest_nouser'@'localhost' (using password: NO)
 DROP USER mysqltest_up1@'%';
 DROP USER mysqltest_up2@'%';
+#
+# BUG#1010351: New "via" keyword in 5.2+ can't be used as identifier anymore  
+#
+create table t1 (via int);
+alter table t1 add key(via);
+drop table t1;
+create table t1 (col1 int);
+alter table t1 add via int not null;
+drop table t1;
+drop procedure if exists p1;
+create procedure p1(x int)
+foo: loop
+if x = 0 then
+leave foo;
+end if;
+select 'test';
+set x = x-1;
+end loop foo|
+call p1(2);
+test
+test
+test
+test
+drop procedure p1;

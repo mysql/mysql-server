@@ -13252,6 +13252,7 @@ keyword_sp:
         | X509_SYM                 {}
         | XML_SYM                  {}
         | YEAR_SYM                 {}
+        | VIA_SYM               {}
         ;
 
 /* Option functions */
