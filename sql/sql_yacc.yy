@@ -12453,6 +12453,7 @@ keyword_sp:
         | WORK_SYM                 {}
         | X509_SYM                 {}
         | YEAR_SYM                 {}
+        | VIA_SYM               {}
         ;
 
 /* Option functions */
