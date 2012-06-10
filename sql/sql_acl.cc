@@ -2697,9 +2697,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
-#if defined(HAVE_OPENSSL)
-  bool sha2_plugin= false;
-#endif
   DBUG_ENTER("replace_user_table");
 
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -2902,7 +2899,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 #if defined(HAVE_OPENSSL)
       if (combo->plugin.str == sha256_password_plugin_name.str)
       {
-        sha2_plugin= true;
         table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
           store(password, password_len, &my_charset_utf8_bin);
         combo->auth.str= password;
