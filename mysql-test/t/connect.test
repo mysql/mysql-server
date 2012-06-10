@@ -397,3 +397,33 @@ DROP USER mysqltest_up2@'%';
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+
+--echo #
+--echo # BUG#1010351: New "via" keyword in 5.2+ can't be used as identifier anymore  
+--echo #
+create table t1 (via int);
+alter table t1 add key(via);
+drop table t1;
+
+create table t1 (col1 int);
+alter table t1 add via int not null;
+drop table t1;
+
+--disable_warnings
+drop procedure if exists p1;
+--enable_warnings
+
+delimiter |;
+create procedure p1(x int)
+foo: loop
+  if x = 0 then
+    leave foo;
+  end if;
+  select 'test';
+  set x = x-1;
+end loop foo|
+
+delimiter ;|
+call p1(2);
+drop procedure p1;
+
