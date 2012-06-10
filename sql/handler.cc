@@ -3369,7 +3369,7 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(KEY *key, const char *msg)
+void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
 {
   /* Write the duplicated key in the error message */
   char key_buff[MAX_KEY_LENGTH];
@@ -3379,7 +3379,7 @@ void handler::print_keydup_error(KEY *key, const char *msg)
   {
     /* Key is unknown */
     str.copy("", 0, system_charset_info);
-    my_printf_error(ER_DUP_ENTRY, msg, MYF(0), str.c_ptr(), "*UNKNOWN*");
+    my_printf_error(ER_DUP_ENTRY, msg, errflag, str.c_ptr(), "*UNKNOWN*");
   }
   else
   {
@@ -3391,15 +3391,14 @@ void handler::print_keydup_error(KEY *key, const char *msg)
       str.length(max_length-4);
       str.append(STRING_WITH_LEN("..."));
     }
-    my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr_safe(), key->name);
+    my_printf_error(ER_DUP_ENTRY, msg, errflag, str.c_ptr_safe(), key->name);
   }
 }
 
 
-void handler::print_keydup_error(KEY *key)
+void handler::print_keydup_error(KEY *key, myf errflag)
 {
-  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -3447,7 +3446,8 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr]);
+      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
+                         errflag);
       DBUG_VOID_RETURN;
     }
     textno=ER_DUP_KEY;
@@ -3473,19 +3473,19 @@ void handler::print_error(int error, myf errflag)
     if (get_foreign_dup_key(child_table_name, sizeof(child_table_name),
                             child_key_name, sizeof(child_key_name)))
     {
-      my_error(ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO, MYF(0),
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITH_CHILD_INFO, errflag,
                table_share->table_name.str, rec.c_ptr_safe(),
                child_table_name, child_key_name);
     }
     else
     {
-      my_error(ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO, MYF(0),
+      my_error(ER_FOREIGN_DUPLICATE_KEY_WITHOUT_CHILD_INFO, errflag,
                table_share->table_name.str, rec.c_ptr_safe());
     }
     DBUG_VOID_RETURN;
   }
   case HA_ERR_NULL_IN_SPATIAL:
-    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+    my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, errflag);
     DBUG_VOID_RETURN;
   case HA_ERR_FOUND_DUPP_UNIQUE:
     textno=ER_DUP_UNIQUE;
@@ -3547,21 +3547,21 @@ void handler::print_error(int error, myf errflag)
   {
     String str;
     get_error_message(error, &str);
-    my_error(ER_ROW_IS_REFERENCED_2, MYF(0), str.c_ptr_safe());
+    my_error(ER_ROW_IS_REFERENCED_2, errflag, str.c_ptr_safe());
     DBUG_VOID_RETURN;
   }
   case HA_ERR_NO_REFERENCED_ROW:
   {
     String str;
     get_error_message(error, &str);
-    my_error(ER_NO_REFERENCED_ROW_2, MYF(0), str.c_ptr_safe());
+    my_error(ER_NO_REFERENCED_ROW_2, errflag, str.c_ptr_safe());
     DBUG_VOID_RETURN;
   }
   case HA_ERR_TABLE_DEF_CHANGED:
     textno=ER_TABLE_DEF_CHANGED;
     break;
   case HA_ERR_NO_SUCH_TABLE:
-    my_error(ER_NO_SUCH_TABLE, MYF(0), table_share->db.str,
+    my_error(ER_NO_SUCH_TABLE, errflag, table_share->db.str,
              table_share->table_name.str);
     DBUG_VOID_RETURN;
   case HA_ERR_RBR_LOGGING_FAILED:
@@ -3573,7 +3573,7 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
       ptr= table->key_info[key_nr].name;
-    my_error(ER_DROP_INDEX_FK, MYF(0), ptr);
+    my_error(ER_DROP_INDEX_FK, errflag, ptr);
     DBUG_VOID_RETURN;
   }
   case HA_ERR_TABLE_NEEDS_UPGRADE:
@@ -3620,9 +3620,9 @@ void handler::print_error(int error, myf errflag)
       {
 	const char* engine= table_type();
 	if (temporary)
-	  my_error(ER_GET_TEMPORARY_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_TEMPORARY_ERRMSG, errflag, error, str.ptr(), engine);
 	else
-	  my_error(ER_GET_ERRMSG, MYF(0), error, str.ptr(), engine);
+	  my_error(ER_GET_ERRMSG, errflag, error, str.ptr(), engine);
       }
       else
 	my_error(ER_GET_ERRNO,errflag,error);
