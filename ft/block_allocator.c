@@ -94,12 +94,6 @@ grow_blocks_array (BLOCK_ALLOCATOR ba) {
 void
 block_allocator_merge_blockpairs_into (u_int64_t d,       struct block_allocator_blockpair dst[/*d*/],
 				       u_int64_t s, const struct block_allocator_blockpair src[/*s*/])
-// Effect: Merge dst[d] and src[s] into dst[d+s], merging in place.
-//   Initially dst and src hold sorted arrays (sorted by increasing offset).
-//   Finally dst contains all d+s elements sorted in order.
-//   dst must be large enough.
-//   Requires no overlaps.
-// This is not static so that we can write a unit test for it.  (Otherwise, this is static only to be used from inside the block allocator)
 {
     u_int64_t tail = d+s;
     while (d>0 && s>0) {
