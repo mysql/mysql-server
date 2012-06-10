@@ -142,6 +142,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
                         break;
                     case DESCENDING:
                         flags |= ScanFlag.SF_Descending;
+                        flags |= ScanFlag.SF_OrderBy;
                         break;
                     default:
                         throw new ClusterJFatalInternalException(local.message("ERR_Invalid_Ordering", ordering));
