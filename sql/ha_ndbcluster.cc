@@ -31,7 +31,6 @@
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include "ha_ndbcluster_cond.h"
-#include <util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
 
