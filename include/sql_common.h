@@ -35,6 +35,7 @@ struct st_mysql_options_extention {
   char *ssl_crl;				/* PEM CRL file */
   char *ssl_crlpath;				/* PEM directory of CRL-s? */
   HASH connection_attributes;
+  char *server_public_key_path;
   size_t connection_attributes_length;
 };
 

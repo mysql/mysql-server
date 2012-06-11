@@ -197,15 +197,6 @@ dict_stats_rename_table(
 					is returned */
 	size_t		errstr_sz);	/*!< in: errstr size */
 
-/*********************************************************************//**
-Free the resources occupied by an object returned by
-dict_stats_snapshot_create(). */
-UNIV_INTERN
-void
-dict_stats_snapshot_free(
-/*=====================*/
-	dict_table_t*	t);	/*!< in: dummy table object to free */
-
 #ifndef UNIV_NONINL
 #include "dict0stats.ic"
 #endif

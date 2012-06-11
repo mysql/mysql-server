@@ -166,9 +166,11 @@ SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 DROP USER plug_dest;
 # 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---error 1700
+#--error 1700
+--echo GRANTs which doesn't change the plugin are allowed
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
---error 1700
+#--error 1700
+--echo GRANTs which doesn't change the plugin are allowed
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
 DROP USER plug;
 #

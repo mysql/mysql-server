@@ -356,19 +356,30 @@ drop table test.t10;
 --enable_result_log
 
 #
-# Expecting 3:
+# This test must have *_lost = 0,
+# otherwise the measurement is just wrong.
+#
+
+show status like "performance_schema%";
+
+#
+# Expecting 2:
 # - wait/synch/mutex/sql/MDL_wait::LOCK_wait_status
 # - wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data
+# plus mutexes used inside the storage engine
+# This is very storage engine dependent
+# For innodb:
 # - wait/synch/mutex/innodb/autoinc_mutex
-# but this is very storage engine dependent
 # 
 select @mutex_per_share <= 4;
 
 #
 # Expecting 1:
 # - wait/synch/rwlock/sql/MDL_lock::rwlock
+# plus rwlocks used inside the storage engine
+# This is very storage engine dependent
 #
-select @rwlock_per_share;
+select @rwlock_per_share <= 3;
 
 #
 # Expecting 0:
@@ -378,14 +389,10 @@ select @cond_per_share;
 #
 # Expecting 1:
 # - wait/io/file/sql/FRM
-# more with innodb file per table
+# plus files used inside the storage engine
+# This is very storage engine dependent
 #
-# This however is very storage engine dependent,
-# and platform dependent (not all platform instrument file io the same way,
-# or at all)
-# 
-#
-select @file_per_share <= 2;
+select @file_per_share <= 3;
 
 #
 # Expecting 3:
@@ -443,9 +450,9 @@ select @file_per_handle;
 
 select if(
       (@mutex_per_share <= 4)
-  AND (@rwlock_per_share = 1)
+  AND (@rwlock_per_share <= 3)
   AND (@cond_per_share = 0)
-  AND (@file_per_share <= 2)
+  AND (@file_per_share <= 3)
   AND (@mutex_per_con = 3)
   AND (@rwlock_per_con = 1)
   AND (@cond_per_con = 2)

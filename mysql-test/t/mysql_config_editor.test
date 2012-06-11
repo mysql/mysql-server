@@ -45,8 +45,8 @@
 --echo 
 --echo #
 --echo # Overwrite existing paths, test-login-path2 & default
---exec $MYSQL_CONFIG_EDITOR set --user=test_user4 --login-path=test-login-path2
---exec $MYSQL_CONFIG_EDITOR set --user=test_user5
+--exec $MYSQL_CONFIG_EDITOR set --user=test_user4 --login-path=test-login-path2 --skip-warn
+--exec $MYSQL_CONFIG_EDITOR set --user=test_user5 --skip-warn
 --echo #
 --echo # all the paths again
 --exec $MYSQL_CONFIG_EDITOR print --all 2>&1

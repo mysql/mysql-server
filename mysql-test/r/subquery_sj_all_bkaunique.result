@@ -6166,7 +6166,7 @@ INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii'),(2,'f','ffff','ffff','ffff');
 EXPLAIN SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using MRR; Materialize
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 SELECT pk FROM t1 WHERE (a) IN (SELECT a FROM t2 WHERE pk > 0);
 pk
 2
@@ -6222,8 +6222,8 @@ t2.Code IN (SELECT Country FROM t3
 WHERE Language='English' AND Percentage > 10 AND
 t2.Population > 100000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	Population,Country	Population	4	NULL	1	Using index condition; Using MRR; Materialize; Scan
-1	SIMPLE	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t1	range	Population,Country	Population	4	NULL	1	Using index condition; Using MRR; Start temporary
+1	SIMPLE	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	Using where; End temporary; Using join buffer (Batched Key Access (unique))
 1	SIMPLE	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using index condition; Using where; Using join buffer (Batched Key Access (unique))
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
@@ -6237,11 +6237,10 @@ EXPLAIN
     "select_id": 1,
     "nested_loop": [
       {
-        "table": {
+        "duplicates_removal": {
           "using_temporary_table": true,
-          "access_type": "ALL",
-          "materialized_from_subquery": {
-            "query_block": {
+          "nested_loop": [
+            {
               "table": {
                 "table_name": "t1",
                 "access_type": "range",
@@ -6256,27 +6255,27 @@ EXPLAIN
                 "index_condition": "(`test`.`t1`.`Population` > 5000000)",
                 "using_MRR": true
               }
+            },
+            {
+              "table": {
+                "table_name": "t2",
+                "access_type": "eq_ref",
+                "possible_keys": [
+                  "PRIMARY",
+                  "Population"
+                ],
+                "key": "PRIMARY",
+                "key_length": "3",
+                "ref": [
+                  "test.t1.Country"
+                ],
+                "rows": 1,
+                "filtered": 100,
+                "using_join_buffer": "Batched Key Access (unique)",
+                "attached_condition": "(`test`.`t2`.`Population` > 100000)"
+              }
             }
-          }
-        }
-      },
-      {
-        "table": {
-          "table_name": "t2",
-          "access_type": "eq_ref",
-          "possible_keys": [
-            "PRIMARY",
-            "Population"
-          ],
-          "key": "PRIMARY",
-          "key_length": "3",
-          "ref": [
-            "test.t1.Country"
-          ],
-          "rows": 1,
-          "filtered": 100,
-          "using_join_buffer": "Batched Key Access (unique)",
-          "attached_condition": "(`test`.`t2`.`Population` > 100000)"
+          ]
         }
       },
       {
@@ -6630,7 +6629,7 @@ INSERT INTO t2 VALUES (1,'i','iiii','iiii','iiii','iiii','ffff','ffff','ffff','f
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
@@ -6639,7 +6638,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`c` = `test`.`t1`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
@@ -6649,7 +6648,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`d` = `test`.`t1`.`d`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
@@ -6668,7 +6667,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`f` = `test`.`t1`.`f`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
@@ -6678,7 +6677,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`g` = `test`.`t1`.`g`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
@@ -6688,7 +6687,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`h` = `test`.`t1`.`h`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
@@ -6708,7 +6707,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`j` = `test`.`t1`.`j`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
@@ -6718,7 +6717,7 @@ pk
 EXPLAIN EXTENDED SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using MRR; Materialize; Scan
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using index condition; Using where; Using MRR; FirstMatch(t1); Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` semi join (`test`.`t2`) where ((`test`.`t2`.`k` = `test`.`t1`.`k`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`pk` > 0))
 SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
@@ -7988,8 +7987,8 @@ AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	11	Using where
-2	SUBQUERY	parent1	ALL	col_int_key	NULL	NULL	NULL	11	Start materialize
+2	SUBQUERY	grandparent1	range	col_int_key	col_int_key	4	NULL	12	Using index condition; Using where; Using MRR
+2	SUBQUERY	parent1	range	col_int_key	col_int_key	4	NULL	12	Using index condition; Using MRR; Start materialize
 2	SUBQUERY	parent2	index	col_int_key	col_int_key	4	NULL	1	Using where; Using index; End materialize; Using join buffer (Block Nested Loop)
 explain format=json SELECT * FROM t3
 WHERE g1 NOT IN
@@ -8024,13 +8023,17 @@ EXPLAIN
             {
               "table": {
                 "table_name": "grandparent1",
-                "access_type": "ALL",
+                "access_type": "range",
                 "possible_keys": [
                   "col_int_key"
                 ],
-                "rows": 11,
-                "filtered": 100,
-                "attached_condition": "((`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_key` <> 3))"
+                "key": "col_int_key",
+                "key_length": "4",
+                "rows": 12,
+                "filtered": 91.667,
+                "index_condition": "(`test`.`grandparent1`.`col_int_key` <> 3)",
+                "using_MRR": true,
+                "attached_condition": "(`test`.`grandparent1`.`col_int_key` = `test`.`grandparent1`.`col_int_nokey`)"
               }
             },
             {
@@ -8047,12 +8050,16 @@ EXPLAIN
                       {
                         "table": {
                           "table_name": "parent1",
-                          "access_type": "ALL",
+                          "access_type": "range",
                           "possible_keys": [
                             "col_int_key"
                           ],
-                          "rows": 11,
-                          "filtered": 100
+                          "key": "col_int_key",
+                          "key_length": "4",
+                          "rows": 12,
+                          "filtered": 91.667,
+                          "index_condition": "1",
+                          "using_MRR": true
                         }
                       },
                       {

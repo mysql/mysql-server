@@ -31,6 +31,7 @@
 
 
 const char *config_file="my";			/* Default config file */
+static char *my_login_path;
 uint verbose= 0, opt_defaults_file_used= 0;
 const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
 

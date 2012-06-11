@@ -3597,7 +3597,7 @@ oom:
 			dup_key = &ha_alter_info->key_info_buffer[
 				prebuilt->trx->error_key_num];
 		}
-		print_keydup_error(dup_key);
+		print_keydup_error(dup_key, MYF(0));
 		break;
 	case DB_ONLINE_LOG_TOO_BIG:
 		DBUG_ASSERT(ctx->online);
@@ -4182,7 +4182,7 @@ ha_innobase::commit_inplace_alter_table(
 							prebuilt->trx
 							->error_key_num];
 				}
-				print_keydup_error(dup_key);
+				print_keydup_error(dup_key, MYF(0));
 				break;
 			case DB_ONLINE_LOG_TOO_BIG:
 				my_error(ER_INNODB_ONLINE_LOG_TOO_BIG, MYF(0),

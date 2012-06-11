@@ -897,8 +897,8 @@ send_result_message:
       }
     }
     /* Error path, a admin command failed. */
-    trans_commit_stmt(thd);
-    trans_commit_implicit(thd);
+    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      goto err;
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
 

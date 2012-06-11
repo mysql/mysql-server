@@ -176,6 +176,9 @@ enum enum_server_command
 #define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
 #define CLIENT_CONNECT_ATTRS (1UL << 20) /* Client supports connection attributes */
 
+/* Enable authentication response packet to be larger than 255 bytes. */
+#define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 20)
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
@@ -208,6 +211,7 @@ enum enum_server_command
                            CLIENT_SSL_VERIFY_SERVER_CERT | \
                            CLIENT_REMEMBER_OPTIONS | \
                            CLIENT_PLUGIN_AUTH | \
+                           CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
                            CLIENT_CONNECT_ATTRS)
 
 /*

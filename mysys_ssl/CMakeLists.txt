@@ -29,7 +29,7 @@ IF(HAVE_VISIBILITY_HIDDEN)
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
-SET(MYSYS_SSL_SOURCES default.c my_getopt.c my_aes.cc)
+SET(MYSYS_SSL_SOURCES my_default.cc my_getopt.cc my_aes.cc)
 
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
 TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES})
