@@ -1326,9 +1326,6 @@ row_log_table_apply_delete(
 /*=======================*/
 	que_thr_t*		thr,		/*!< in: query graph */
 	ulint			trx_id_col,	/*!< in: position of
-						DB_TRX_ID in the
-						old clustered index */
-	ulint			new_trx_id_col,	/*!< in: position of
 						DB_TRX_ID in the new
 						clustered index */
 	const mrec_t*		mrec,		/*!< in: merge record */
@@ -1406,7 +1403,7 @@ all_done:
 		ut_ad(len == DATA_TRX_ID_LEN);
 		const void*	rec_trx_id
 			= rec_get_nth_field(btr_pcur_get_rec(&pcur), offsets,
-					    new_trx_id_col, &len);
+					    trx_id_col, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
 		if (memcmp(mrec_trx_id, rec_trx_id, DATA_TRX_ID_LEN)) {
 			goto all_done;
@@ -1786,7 +1783,7 @@ row_log_table_apply_op(
 		next_mrec = mrec + rec_offs_data_size(offsets);
 
 		*error = row_log_table_apply_delete(
-			thr, trx_id_col, new_trx_id_col,
+			thr, new_trx_id_col,
 			mrec, offsets, offsets_heap, heap,
 			log->table);
 		break;
