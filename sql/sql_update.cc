@@ -1318,12 +1318,16 @@ int mysql_multi_update_prepare(THD *thd)
                                 *fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(TRUE);
 
+  /*
+   Setting tl->updating= false for view as it is correctly set
+   for tables below
+  */
   for (tl= table_list; tl ; tl= tl->next_local)
   {
     if (tl->view)
     {
       update_view= 1;
-      break;
+      tl->updating= false;
     }
   }
 
