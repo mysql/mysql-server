@@ -1213,7 +1213,7 @@ row_merge_skip_rec(
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
 @return	DB_SUCCESS or error */
-static __attribute__((nonnull(1,2,3,4,6,9,10,14),warn_unused_result))
+static __attribute__((nonnull(1,2,3,4,6,9,10,16), warn_unused_result))
 dberr_t
 row_merge_read_clustered_index(
 /*===========================*/
@@ -1244,6 +1244,12 @@ row_merge_read_clustered_index(
 	const ulint*		col_map,/*!< in: mapping of old column
 					numbers to new ones, or NULL
 					if old_table == new_table */
+	ulint			add_autoinc,
+					/*!< in: number of added
+					AUTO_INCREMENT column, or
+					ULINT_UNDEFINED if none is added */
+	ulong			autoinc_inc,
+					/*!< in: auto_increment_increment */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
@@ -1536,6 +1542,57 @@ row_merge_read_clustered_index(
 			doc_id++;
 		} else {
 			doc_id = 0;
+		}
+
+		if (add_autoinc != ULINT_UNDEFINED) {
+			ut_ad(add_autoinc
+			      < dict_table_get_n_user_cols(new_table));
+
+			dfield_t*	field	= dtuple_get_nth_field(
+				row, add_autoinc);
+			byte*	b	= static_cast<byte*>(
+				dfield_get_data(field));
+
+			/* Increment the auto-increment column value.
+			Signed and unsigned fields should behave
+			the same with respect to this.
+
+			NOTE: we ignore any wrap-around or overflows
+			here. Wrap-around could cause a
+			cmp_dtuple_rec() debug assertion failure in
+			row_merge_insert_index_tuples(). */
+			switch (dfield_get_len(field)) {
+			case 1:
+				*b += autoinc_inc;
+				goto write_buffers;
+			case 2:
+				mach_write_to_2(b, mach_read_from_2(b)
+						+ autoinc_inc);
+				goto write_buffers;
+			case 3:
+				mach_write_to_3(b, mach_read_from_3(b)
+						+ autoinc_inc);
+				goto write_buffers;
+			case 4:
+				mach_write_to_4(b, mach_read_from_4(b)
+						+ autoinc_inc);
+				goto write_buffers;
+			case 6:
+				mach_write_to_6(b, mach_read_from_6(b)
+						+ autoinc_inc);
+				goto write_buffers;
+			case 7:
+				mach_write_to_7(b, mach_read_from_7(b)
+						+ autoinc_inc);
+				goto write_buffers;
+			case 8:
+				mach_write_to_8(b, mach_read_from_8(b)
+						+ autoinc_inc);
+				goto write_buffers;
+			}
+
+			/* This should not happen. */
+			ut_ad(0);
 		}
 
 write_buffers:
@@ -3197,9 +3254,13 @@ row_merge_build_indexes(
 					if applicable */
 	const dtuple_t*	add_cols,	/*!< in: default values of
 					added columns, or NULL */
-	const ulint*	col_map)	/*!< in: mapping of old column
+	const ulint*	col_map,	/*!< in: mapping of old column
 					numbers to new ones, or NULL
 					if old_table == new_table */
+	ulint		add_autoinc,	/*!< in: number of added
+					AUTO_INCREMENT column, or
+					ULINT_UNDEFINED if none is added */
+	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3270,7 +3331,8 @@ row_merge_build_indexes(
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
-		n_indexes, add_cols, col_map, block);
+		n_indexes, add_cols, col_map,
+		add_autoinc, autoinc_inc, block);
 
 	if (error != DB_SUCCESS) {
 

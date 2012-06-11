@@ -296,9 +296,13 @@ row_merge_build_indexes(
 					if applicable */
 	const dtuple_t*	add_cols,	/*!< in: default values of
 					added columns, or NULL */
-	const ulint*	col_map)	/*!< in: mapping of old column
+	const ulint*	col_map,	/*!< in: mapping of old column
 					numbers to new ones, or NULL
 					if old_table == new_table */
+	ulint		add_autoinc,	/*!< in: number of added
+					AUTO_INCREMENT column, or
+					ULINT_UNDEFINED if none is added */
+	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
 	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */

@@ -21,6 +21,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
+#define MYSQL_SERVER /* access to thd->variables.auto_increment_offset */
 #include <unireg.h>
 #include <mysqld_error.h>
 #include <log.h>
@@ -265,6 +266,10 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	/* We should be able to do the operation in-place.
+	See if we can do it online (LOCK=NONE). */
+	bool	online = true;
+
 	List_iterator_fast<Create_field> cf_it(
 		ha_alter_info->alter_info->create_list);
 
@@ -313,6 +318,19 @@ ha_innobase::check_if_supported_inplace_alter(
 				    FTS_DOC_ID_COL_NAME)) {
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
+
+			DBUG_ASSERT((MTYP_TYPENR(key_part->field->unireg_check)
+				     == Field::NEXT_NUMBER)
+				    == !!(key_part->field->flags
+					  & AUTO_INCREMENT_FLAG));
+
+			if (key_part->field->flags & AUTO_INCREMENT_FLAG) {
+				/* We cannot assign an AUTO_INCREMENT
+				column values during online ALTER. */
+				DBUG_ASSERT(key_part->field == altered_table
+					    -> found_next_number_field);
+				online = false;
+			}
 		}
 	}
 
@@ -356,7 +374,9 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	prebuilt->trx->will_lock++;
 
-	if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX) {
+	if (online
+	    && (ha_alter_info->handler_flags
+		& Alter_inplace_info::ADD_INDEX)) {
 		/* Building a full-text index requires a lock,
 		unless the table already contains an FTS_DOC_ID column. */
 
@@ -393,13 +413,16 @@ ha_innobase::check_if_supported_inplace_alter(
 					}
 				}
 
-				DBUG_RETURN(HA_ALTER_INPLACE_SHARED_LOCK);
+				online = false;
+				break;
 			}
 		}
 	}
 
 can_do_online:
-	DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
+	DBUG_RETURN(online
+		    ? HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
+		    : HA_ALTER_INPLACE_SHARED_LOCK);
 }
 
 /*************************************************************//**
@@ -1827,6 +1850,8 @@ public:
 	dict_table_t*	indexed_table;
 	/** mapping of old column numbers to new ones, or NULL */
 	const ulint*	col_map;
+	/** added AUTO_INCREMENT column position, or ULINT_UNDEFINED */
+	const ulint	add_autoinc;
 	/** default values of ADD COLUMN, or NULL */
 	const dtuple_t*	add_cols;
 	ha_innobase_inplace_ctx(trx_t* user_trx,
@@ -1844,6 +1869,7 @@ public:
 				trx_t* trx_arg,
 				dict_table_t* indexed_table_arg,
 				const ulint* col_map_arg,
+				ulint add_autoinc_arg,
 				const dtuple_t*	add_cols_arg) :
 		inplace_alter_handler_ctx(),
 		add (add_arg), add_key_numbers (add_key_numbers_arg),
@@ -1853,7 +1879,8 @@ public:
 		add_fk (add_fk_arg), num_to_add_fk (num_to_add_fk_arg),
 		online (online_arg), heap (heap_arg), trx (trx_arg),
 		indexed_table (indexed_table_arg),
-		col_map (col_map_arg), add_cols (add_cols_arg) {
+		col_map (col_map_arg), add_autoinc (add_autoinc_arg),
+		add_cols (add_cols_arg) {
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add; i++) {
 			ut_ad(!add[i]->to_be_dropped);
@@ -2153,10 +2180,11 @@ adding columns.
 @param new_table	InnoDB table corresponding to MySQL altered_table
 @param old_table	InnoDB table corresponding to MYSQL table
 @param add_cols		Default values for ADD COLUMN, or NULL if no ADD COLUMN
+@param autoinc_val	Initial value for an added AUTO_INCREMENT column
 @param heap		Memory heap where allocated
 @return	array of integers, mapping column numbers in the table
 to column numbers in altered_table */
-static __attribute__((nonnull(1,2,3,4,5,7), warn_unused_result))
+static __attribute__((nonnull(1,2,3,4,5,8), warn_unused_result))
 const ulint*
 innobase_build_col_map(
 /*===================*/
@@ -2166,6 +2194,7 @@ innobase_build_col_map(
 	const dict_table_t*	new_table,
 	const dict_table_t*	old_table,
 	dtuple_t*		add_cols,
+	ulonglong		autoinc_val,
 	mem_heap_t*		heap)
 {
 	DBUG_ENTER("innobase_build_col_map");
@@ -2202,14 +2231,19 @@ innobase_build_col_map(
 			}
 		}
 
-		/* ALTER_ADD_COLUMN */
+		/* ADD_COLUMN */
+		if (altered_table->found_next_number_field
+		    == altered_table->field[i]) {
+			/* Override the default for AUTO_INCREMENT column. */
+			altered_table->s->field[i]->store(autoinc_val);
+		}
+
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
 			altered_table->s->field[i],
 			dict_table_is_comp(new_table));
 found_col:
 		i++;
-		continue;
 	}
 
 	DBUG_ASSERT(i == altered_table->s->fields);
@@ -2270,6 +2304,8 @@ while preparing ALTER TABLE.
 @param n_drop_foreign	Number of foreign key constraints to drop
 @param num_fts_index	Number of full-text indexes to create
 @param fts_doc_id_col	The column number of FTS_DOC_ID
+@param add_autoinc_col	The number of an added AUTO_INCREMENT column,
+			or ULINT_UNDEFINED if none was added
 @param add_fts_doc_id	Flag: add column FTS_DOC_ID?
 @param add_fts_doc_id_idx Flag: add index (FTS_DOC_ID)?
 
@@ -2295,6 +2331,7 @@ prepare_inplace_alter_table_dict(
 	ulint			n_add_foreign,
 	unsigned		num_fts_index,
 	ulint			fts_doc_id_col,
+	ulint			add_autoinc_col,
 	bool			add_fts_doc_id,
 	bool			add_fts_doc_id_idx)
 {
@@ -2314,6 +2351,7 @@ prepare_inplace_alter_table_dict(
 
 	const bool locked =
 		add_fts_doc_id
+		|| (add_autoinc_col != ULINT_UNDEFINED)
 		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
 		|| ha_alter_info->alter_info->requested_lock
@@ -2328,7 +2366,7 @@ prepare_inplace_alter_table_dict(
 #ifndef DBUG_OFF
 	switch (ha_alter_info->alter_info->requested_lock) {
 	case Alter_info::ALTER_TABLE_LOCK_NONE:
-		DBUG_ASSERT(!add_fts_doc_id);
+		DBUG_ASSERT(!locked);
 		break;
 	case Alter_info::ALTER_TABLE_LOCK_DEFAULT:
 	case Alter_info::ALTER_TABLE_LOCK_SHARED:
@@ -2590,18 +2628,40 @@ col_fail:
 			goto err_exit;
 		}
 
+		ulonglong	autoinc_val = 0;
+
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_COLUMN) {
 			add_cols = dtuple_create(
 				heap, dict_table_get_n_cols(indexed_table));
 			dict_table_copy_types(add_cols, indexed_table);
+
+			autoinc_val = ha_alter_info->create_info
+				->auto_increment_value;
+
+			ulonglong autoinc_inc = user_thd->variables
+				.auto_increment_increment;
+
+			if (autoinc_val
+			    < user_thd->variables.auto_increment_offset) {
+				autoinc_val = user_thd->variables
+					.auto_increment_offset;
+			}
+
+			if (autoinc_val) {
+				/* Round down to the previous multiple
+				of auto_increment_increment. */
+				autoinc_val = (autoinc_val - 1)
+					/ autoinc_inc * autoinc_inc;
+			}
 		} else {
 			add_cols = NULL;
 		}
 
 		col_map = innobase_build_col_map(
 			ha_alter_info, altered_table, old_table,
-			indexed_table, user_table, add_cols, heap);
+			indexed_table, user_table,
+			add_cols, autoinc_val, heap);
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 		col_map = NULL;
@@ -2785,7 +2845,8 @@ error_handling:
 			drop_index, n_drop_index,
 			drop_foreign, n_drop_foreign,
 			add_foreign, n_add_foreign,
-			!locked, heap, trx, indexed_table, col_map, add_cols);
+			!locked, heap, trx, indexed_table, col_map,
+			add_autoinc_col, add_cols);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_ALREADY_EXISTS:
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), "(unknown)");
@@ -2893,6 +2954,7 @@ ha_innobase::prepare_inplace_alter_table(
 	mem_heap_t*     heap;
 	int		error;
 	ulint		num_fts_index;
+	ulint		add_autoinc_col_no	= ULINT_UNDEFINED;
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
@@ -3299,7 +3361,8 @@ index_needed:
 					drop_index, n_drop_index,
 					drop_fk, n_drop_fk,
 					add_fk, n_add_fk, !locked,
-					heap, NULL, indexed_table, NULL, NULL);
+					heap, NULL, indexed_table, NULL,
+					ULINT_UNDEFINED, NULL);
 		}
 
 func_exit:
@@ -3384,6 +3447,45 @@ err_exit:
 		}
 	}
 
+	/* See if an AUTO_INCREMENT column was added. */
+	uint i = 0;
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	while (const Create_field* new_field = cf_it++) {
+		const Field*	field;
+
+		DBUG_ASSERT(i < altered_table->s->fields);
+
+		for (uint old_i = 0; table->field[old_i]; old_i++) {
+			if (new_field->field == table->field[old_i]) {
+				goto found_col;
+			}
+		}
+
+		/* This is an added column. */
+		DBUG_ASSERT(!new_field->field);
+		DBUG_ASSERT(ha_alter_info->handler_flags
+			    & Alter_inplace_info::ADD_COLUMN);
+
+		field = altered_table->field[i];
+
+		DBUG_ASSERT((MTYP_TYPENR(field->unireg_check)
+			     == Field::NEXT_NUMBER)
+			    == !!(field->flags & AUTO_INCREMENT_FLAG));
+
+		if (field->flags & AUTO_INCREMENT_FLAG) {
+			if (add_autoinc_col_no != ULINT_UNDEFINED) {
+				/* This should have been blocked earlier. */
+				ut_ad(0);
+				my_error(ER_WRONG_AUTO_KEY, MYF(0));
+				goto err_exit;
+			}
+			add_autoinc_col_no = i;
+		}
+found_col:
+		i++;
+	}
+
 	DBUG_ASSERT(user_thd == prebuilt->trx->mysql_thd);
 	DBUG_RETURN(prepare_inplace_alter_table_dict(
 			    ha_alter_info, altered_table, table,
@@ -3392,7 +3494,7 @@ err_exit:
 			    heap, drop_index, n_drop_index,
 			    drop_fk, n_drop_fk, add_fk, n_add_fk,
 			    num_fts_index,
-			    fts_doc_col_no,
+			    fts_doc_col_no, add_autoinc_col_no,
 			    add_fts_doc_id, add_fts_doc_id_idx));
 }
 
@@ -3457,7 +3559,8 @@ ok_exit:
 		prebuilt->table, ctx->indexed_table,
 		ctx->online,
 		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table,
-		ctx->add_cols, ctx->col_map);
+		ctx->add_cols, ctx->col_map, ctx->add_autoinc,
+		user_thd->variables.auto_increment_increment);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
