@@ -1405,6 +1405,7 @@ innobase_fts_check_doc_id_col(
 		const char*     name = dict_table_get_col_name(table, i);
 
 		if (strcmp(name, FTS_DOC_ID_COL_NAME) == 0) {
+#ifdef UNIV_DEBUG
 			const dict_col_t*       col;
 
 			col = dict_table_get_nth_col(table, i);
@@ -1416,6 +1417,7 @@ innobase_fts_check_doc_id_col(
 			ut_ad(col->len == 8);
 			ut_ad(col->prtype & DATA_NOT_NULL);
 			ut_ad(col->prtype & DATA_UNSIGNED);
+#endif /* UNIV_DEBUG */
 			*fts_doc_col_no = i;
 			return(true);
 		}
@@ -2346,8 +2348,8 @@ prepare_inplace_alter_table_dict(
 	ulint			new_clustered	= 0;
 	dberr_t			error;
 	THD*			user_thd	= user_trx->mysql_thd;
-	const ulint*		col_map;
-	dtuple_t*		add_cols;
+	const ulint*		col_map		= NULL;
+	dtuple_t*		add_cols	= NULL;
 
 	const bool locked =
 		add_fts_doc_id
@@ -2654,8 +2656,6 @@ col_fail:
 				autoinc_val = (autoinc_val - 1)
 					/ autoinc_inc * autoinc_inc;
 			}
-		} else {
-			add_cols = NULL;
 		}
 
 		col_map = innobase_build_col_map(
@@ -2664,8 +2664,6 @@ col_fail:
 			add_cols, autoinc_val, heap);
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
-		col_map = NULL;
-		add_cols = NULL;
 
 		if (!indexed_table->fts
 		    && innobase_fulltext_exist(altered_table->s)) {
