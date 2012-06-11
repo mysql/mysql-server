@@ -7,8 +7,8 @@ Similar, the server is now in "/usr/libexec" (formerly "/usr/sbin").
 diff -Naur mysql-5.5.17.orig/cmake/install_layout.cmake mysql-5.5.17/cmake/install_layout.cmake
 --- mysql-5.5.17.orig/cmake/install_layout.cmake	2011-06-30 15:46:53 +0000
 +++ mysql-5.5.17/cmake/install_layout.cmake	2011-10-27 16:40:10 +0000
-@@ -135,14 +135,14 @@ SET(INSTALL_SBINDIR_RPM                 
- # RPM layout
+@@ -140,14 +140,14 @@ SET(INSTALL_SBINDIR_RPM                 
+ # be applied at build time via "rpmbuild".
  #
  SET(INSTALL_BINDIR_RPM                  "bin")
 -SET(INSTALL_SBINDIR_RPM                 "sbin")
