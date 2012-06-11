@@ -799,27 +799,14 @@
 }
 
 {
-   missing shutdown_performance_schema 8a
+   missing shutdown_performance_schema 8
    Memcheck:Leak
    fun:malloc
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
    fun:handle_options
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 8b
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:handle_options
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
+   fun:_Z20handle_early_optionsv
 }
 
 {
