@@ -32,9 +32,9 @@
 */ 
 
 #include <my_global.h>
-
 #include "mysql.h"
 #include "hash.h"
+#include "mysql/client_authentication.h"
 
 /* Remove client convenience wrappers */
 #undef max_allowed_packet
@@ -2252,6 +2252,23 @@ static auth_plugin_t clear_password_client_plugin=
   clear_password_auth_client
 };
 
+#if defined(HAVE_OPENSSL)
+static auth_plugin_t sha256_password_client_plugin=
+{
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+  "sha256_password",
+  "Oracle Inc",
+  "SHA256 based authentication with salt",
+  {1, 0, 0},
+  "GPL",
+  NULL,
+  sha256_password_init,
+  sha256_password_deinit,
+  NULL,
+  sha256_password_auth_client
+};
+#endif
 #ifdef AUTHENTICATION_WIN
 extern auth_plugin_t win_auth_client_plugin;
 #endif
@@ -2261,6 +2278,9 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
+#if defined(HAVE_OPENSSL)
+  (struct st_mysql_client_plugin *) &sha256_password_client_plugin,
+#endif
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
 #endif
@@ -2269,7 +2289,7 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
 
 
 static uchar *
-write_length_encoded_string(uchar *buf, char *string, size_t length)
+write_length_encoded_string3(uchar *buf, char *string, size_t length)
 {
   buf= net_store_length(buf, length);
   memcpy(buf, string, length);
@@ -2307,8 +2327,8 @@ send_client_connect_attrs(MYSQL *mysql, uchar *buf)
         /* we can't have zero length keys */
         DBUG_ASSERT(key->length);
 
-        buf= write_length_encoded_string(buf, key->str, key->length);
-        buf= write_length_encoded_string(buf, value->str, value->length);
+        buf= write_length_encoded_string3(buf, key->str, key->length);
+        buf= write_length_encoded_string3(buf, value->str, value->length);
       }
     }
   }
@@ -2345,6 +2365,30 @@ typedef struct {
   int mysql_change_user;            /**< if it's mysql_change_user() */
   int last_read_packet_len;         /**< the length of the last *read* packet */
 } MCPVIO_EXT;
+
+
+/*
+  Write 1-8 bytes of string length header infromation to dest depending on
+  value of src_len, then copy src_len bytes from src to dest.
+ 
+ @param dest Destination buffer of size src_len+8
+ @param dest_end One byte past the end of the dest buffer
+ @param src Source buff of size src_len
+ @param src_end One byte past the end of the src buffer
+ 
+ @return pointer dest+src_len+header size or NULL if 
+*/
+
+char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
+                                  char *src_end)
+{
+  size_t src_len= (size_t)(src_end - src);
+  uchar *to= net_store_length((uchar*) dest, src_len);
+  if ((char*)(to + src_len) >= dest_end)
+    return NULL;
+  memcpy(to, src, src_len);
+  return (char*)(to + src_len);
+}
 
 /**
   sends a COM_CHANGE_USER command with a caller provided payload
@@ -2448,7 +2492,7 @@ error:
     1           charset number
     23          reserved (always 0)
     n           user name, \0-terminated
-    n           plugin auth data (e.g. scramble), length (1 byte) coded
+    n           plugin auth data (e.g. scramble), length encoded
     n           database name, \0-terminated
                 (if CLIENT_CONNECT_WITH_DB is set in the capabilities)
     n           client auth plugin name - \0-terminated string,
@@ -2463,6 +2507,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   MYSQL *mysql= mpvio->mysql;
   NET *net= &mysql->net;
   char *buff, *end;
+  size_t buff_size;
   size_t connect_attrs_len=
     (mysql->server_capabilities & CLIENT_CONNECT_ATTRS &&
      mysql->options.extension) ?
@@ -2470,9 +2515,13 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 
   DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
 
-  /* see end= buff+32 below, fixed size of the packet is 32 bytes */
-  buff= my_alloca(33 + USERNAME_LENGTH + data_len + NAME_LEN + NAME_LEN +
-                  connect_attrs_len + 9 /* for the length of the attrs */);
+  
+  /*
+    see end= buff+32 below, fixed size of the packet is 32 bytes.
+     +9 because data is a length encoded binary where meta data size is max 9.
+  */
+  buff_size= 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN + connect_attrs_len + 9;
+  buff= my_alloca(buff_size);
 
   mysql->client_flag|= mysql->options.client_flag;
   mysql->client_flag|= CLIENT_CAPABILITIES;
@@ -2603,9 +2652,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   {
     if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      *end++= data_len;
-      memcpy(end, data, data_len);
-      end+= data_len;
+      end= write_length_encoded_string4(end, (char *)(buff + buff_size),
+                                       (char *) data,
+                                       (char *)(data + data_len));
+      if (end == NULL)
+        goto error;
     }
     else
     {
@@ -4272,6 +4323,9 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
                                                         ssl_crlpath, arg);
                                break;
+  case MYSQL_SERVER_PUBLIC_KEY:
+    EXTENSION_SET_STRING(&mysql->options, server_public_key_path, arg);
+    break;
 
   case MYSQL_OPT_CONNECT_ATTR_RESET:
     ENSURE_EXTENSIONS_PRESENT(&mysql->options);

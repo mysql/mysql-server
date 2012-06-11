@@ -756,6 +756,12 @@ static char **remaining_argv;
 int orig_argc;
 char **orig_argv;
 
+#if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
+int init_rsa_keys(void);
+void deinit_rsa_keys(void);
+int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
+#endif
+
 static volatile sig_atomic_t global_thread_count= 0;
 static std::set<THD*> *global_thread_list= NULL;
 
@@ -3513,6 +3519,8 @@ int init_common_variables()
 #endif
   default_tmp_storage_engine= default_storage_engine;
 
+  init_default_auth_plugin();
+
   /*
     Add server status variables to the dynamic list of
     status variables that is shown by SHOW STATUS.
@@ -4027,9 +4035,12 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 #endif /* HAVE_OPENSSL */
 
 
-static void init_ssl()
+static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef HAVE_YASSL
+  CRYPTO_malloc_init();
+#endif
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
@@ -4058,7 +4069,12 @@ static void init_ssl()
 #endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
+#ifndef HAVE_YASSL
+  if (init_rsa_keys())
+    return 1;
+#endif
 #endif /* HAVE_OPENSSL */
+  return 0;
 }
 
 
@@ -4072,6 +4088,9 @@ static void end_ssl()
     ssl_acceptor_fd= 0;
   }
 #endif /* ! EMBEDDED_LIBRARY */
+#ifndef HAVE_YASSL
+  deinit_rsa_keys();
+#endif
 #endif /* HAVE_OPENSSL */
 }
 
@@ -5152,7 +5171,8 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-  init_ssl();
+  if (init_ssl())
+    return 1;
   network_init();
 
 #ifdef __WIN__
@@ -6867,6 +6887,10 @@ struct my_option my_long_options[]=
    "Multiple --plugin-load-add are supported.",
    0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_authentication_plugin", OPT_DEFAULT_AUTH,
+   "Defines what password- and authentication algorithm to use per default",
+   0, 0, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7529,6 +7553,9 @@ SHOW_VAR status_vars[]= {
     SHOW_FUNC},
   {"Ssl_server_not_after",     (char*) &show_ssl_get_server_not_after,
     SHOW_FUNC},
+#ifndef HAVE_YASSL
+  {"Rsa_public_key",           (char*) &show_rsa_public_key, SHOW_FUNC},
+#endif
 #endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
@@ -8135,7 +8162,9 @@ mysqld_get_one_option(int optid,
   case OPT_PLUGIN_LOAD_ADD:
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
-
+  case OPT_DEFAULT_AUTH:
+    set_default_auth_plugin(argument, strlen(argument));
+    break;
   case OPT_PFS_INSTRUMENT:
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY

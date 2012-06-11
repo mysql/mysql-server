@@ -1,0 +1,41 @@
+CREATE USER 'kristofer' IDENTIFIED BY 'secret';
+SELECT user, plugin FROM mysql.user;
+user	plugin
+root	
+root	
+root	
+root	
+kristofer	sha256_password
+user()	current_user()
+kristofer@localhost	kristofer@%
+user()	current_user()
+kristofer@localhost	kristofer@%
+user()	current_user()
+kristofer@localhost	kristofer@%
+DROP USER 'kristofer';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+DROP USER 'kristofer'@'localhost';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY '';
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+DROP USER 'kristofer'@'localhost';
+GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33' IDENTIFIED BY '';
+Connection should fail for localhost
+ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
+DROP USER 'kristofer'@'33.33.33.33';

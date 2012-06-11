@@ -50,7 +50,7 @@ static const ulong thread_per_handle= 0;
 static const ulong mutex_per_share= 4;
 static const ulong rwlock_per_share= 3;
 static const ulong cond_per_share= 1;
-static const ulong file_per_share= 2;
+static const ulong file_per_share= 3;
 static const ulong socket_per_share= 0;
 static const ulong thread_per_share= 0;
 

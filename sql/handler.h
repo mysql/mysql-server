@@ -1928,8 +1928,8 @@ public:
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
-  void print_keydup_error(KEY *key, const char *msg);
-  void print_keydup_error(KEY *key);
+  void print_keydup_error(KEY *key, const char *msg, myf errflag);
+  void print_keydup_error(KEY *key, myf errflag);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
@@ -1982,6 +1982,13 @@ public:
 
   virtual double index_only_read_time(uint keynr, double records);
   
+  /**
+    Return an estimate on the amount of memory the storage engine will
+    use for caching data in memory. If this is unknown or the storage
+    engine does not cache data in memory -1 is returned.
+  */
+  virtual longlong get_memory_buffer_size() const { return -1; }
+
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,

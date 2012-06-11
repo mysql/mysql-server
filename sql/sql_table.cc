@@ -7981,7 +7981,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                   AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
              to->file->print_keydup_error(key_nr == MAX_KEY ? NULL :
-                                          &to->key_info[key_nr], err_msg);
+                                          &to->key_info[key_nr],
+                                          err_msg, MYF(0));
              break;
            }
          }

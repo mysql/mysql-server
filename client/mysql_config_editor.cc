@@ -31,14 +31,15 @@
 #include "my_aes.h"
 #include "client_priv.h"
 #include "my_default.h"
+#include "my_default_priv.h"
 
 #define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096
 /*
   Header length for the login file.
-  4-byte (unused) + MY_LOGIN_KEY_LEN
+  4-byte (unused) + LOGIN_KEY_LEN
  */
-#define MY_LOGIN_HEADER_LEN (4 + MY_LOGIN_KEY_LEN)
+#define MY_LOGIN_HEADER_LEN (4 + LOGIN_KEY_LEN)
 
 static int g_fd;
 
@@ -50,9 +51,10 @@ static size_t file_size;
 static char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
             *opt_login_path= NULL;
 
-static char my_key[MY_LOGIN_KEY_LEN];
+static char my_login_file[FN_REFLEN];
+static char my_key[LOGIN_KEY_LEN];
 
-static my_bool opt_verbose, opt_all, tty_password= 0;
+static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn;
 
 int execute_commands(int argc, char **argv);
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
@@ -125,6 +127,9 @@ static struct my_option my_long_options[] =
    &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"warn", 'w', "Warn and ask for confirmation if set command attempts to "
+   "overwrite an existing login path (enabled by default).",
+   &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -135,7 +140,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 {
   switch(optid) {
   case '#':
-    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysqladmin.trace");
+    DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysql_config_editor.trace");
     break;
   case 'p':
     tty_password= 1;
@@ -234,7 +239,22 @@ int execute_commands(int argc, char **argv)
 
         dynstr_append(&path_buf, "\n");
 
-        /* Check and remove opt_login_path if it already exists. */
+        /* Warn if login path already exists */
+        if (opt_warn && ((locate_login_path (&file_buf, opt_login_path))
+                         != NULL))
+        {
+          int choice;
+          printf ("WARNING : \'%s\' path already exists and will be "
+                  "overwritten. \n Continue? (Press y|Y for Yes, any "
+                  "other key for No) : ",
+                  opt_login_path);
+          choice= getchar();
+
+          if (choice != (int) 'y' && choice != (int) 'Y')
+            break;                              /* skip */
+        }
+
+        /* Remove the login path. */
         remove_login_path(&file_buf, opt_login_path);
 
         /* Append the new login path to the file buffer. */
@@ -329,7 +349,7 @@ static my_bool check_and_create_login_file(void)
   const ushort create_mode_all= (S_IRWXU | S_IRWXG | S_IRWXO);
 
   /* Get the login file name. */
-  if (! set_login_file_name())
+  if (! my_default_get_login_file(my_login_file, sizeof(my_login_file)))
   {
     verbose_msg("Error! Failed to set login file name.\n");
     goto error;
@@ -808,7 +828,7 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
 
   aes_len= my_aes_get_size(plain_len);
 
-  if (my_aes_encrypt(plain, plain_len, cipher, my_key, MY_LOGIN_KEY_LEN) == aes_len)
+  if (my_aes_encrypt(plain, plain_len, cipher, my_key, LOGIN_KEY_LEN) == aes_len)
   {
     DBUG_RETURN(aes_len);
   }
@@ -837,7 +857,7 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[])
   int aes_length;
 
   if ((aes_length= my_aes_decrypt(cipher, cipher_len, (char *) plain,
-                                  my_key, MY_LOGIN_KEY_LEN)) > 0)
+                                  my_key, LOGIN_KEY_LEN)) > 0)
   {
     DBUG_RETURN(aes_length);
   }
@@ -873,8 +893,8 @@ int add_header(void)
   }
 
   /* Write the login key. */
-  if ((my_write(g_fd, (const uchar *)my_key, MY_LOGIN_KEY_LEN, MYF(MY_WME)))
-      != MY_LOGIN_KEY_LEN)
+  if ((my_write(g_fd, (const uchar *)my_key, LOGIN_KEY_LEN, MYF(MY_WME)))
+      != LOGIN_KEY_LEN)
   {
     verbose_msg("Error! couldn't write to the file.\n");
     goto error;
@@ -899,7 +919,7 @@ void generate_login_key()
 
   verbose_msg("Generating a new key.\n");
   /* Get a sequence of random non-printable ASCII */
-  for (uint i= 0; i < MY_LOGIN_KEY_LEN; i++)
+  for (uint i= 0; i < LOGIN_KEY_LEN; i++)
     my_key[i]= (char)((int)(my_rnd_ssl(&rnd) * 100000) % 32);
 
   DBUG_VOID_RETURN;
@@ -921,8 +941,8 @@ int read_login_key(void)
   if (my_seek(g_fd, 4, SEEK_SET, MYF(MY_WME)) != 4)
     DBUG_RETURN(-1);                            /* Error while seeking. */
 
-  if (my_read(g_fd, (uchar *)my_key, MY_LOGIN_KEY_LEN, MYF(MY_WME))
-      != MY_LOGIN_KEY_LEN)
+  if (my_read(g_fd, (uchar *)my_key, LOGIN_KEY_LEN, MYF(MY_WME))
+      != LOGIN_KEY_LEN)
   {
     verbose_msg("Failed to read login key.\n");
     DBUG_RETURN(-1);

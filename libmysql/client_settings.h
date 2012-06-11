@@ -35,6 +35,7 @@ extern char *	mysql_unix_port;
                              CLIENT_MULTI_RESULTS | \
                              CLIENT_PS_MULTI_RESULTS | \
                              CLIENT_PLUGIN_AUTH | \
+                             CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
                              CLIENT_CONNECT_ATTRS)
 
 sig_handler my_pipe_sig_handler(int sig);
