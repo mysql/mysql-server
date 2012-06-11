@@ -44,6 +44,7 @@ Ndb::checkFailedNode()
        */
       NdbTransaction * tNdbCon = theConnectionArray[node_id];
       theConnectionArray[node_id] = NULL;
+      theConnectionArrayLast[node_id] = NULL;
       while (tNdbCon != NULL) {
         NdbTransaction* tempNdbCon = tNdbCon;
         tNdbCon = tNdbCon->next();

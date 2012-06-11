@@ -96,6 +96,8 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     /** The buffers used for bounds; held here to prevent garbage collection */
     List<ByteBuffer> buffers = new ArrayList<ByteBuffer>();
 
+    private Index index;
+
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
             Index storeIndex, Table storeTable, int lockMode) {
         this(clusterTransaction, storeIndex, storeTable, false, lockMode);
@@ -104,6 +106,7 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
                 Index storeIndex, Table storeTable, boolean multiRange, int lockMode) {
         super(clusterTransaction, storeTable, lockMode);
+        this.index = storeIndex;
         this.multiRange = multiRange;
         if (this.multiRange) {
             ndbIndexBoundList = new ArrayList<NdbIndexScanOperation.IndexBound>();
@@ -121,7 +124,7 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     public void endDefinition() {
         // get the scan options which also sets the filter
         getScanOptions();
-        if (logger.isDetailEnabled()) logger.detail("scan options present " + dumpScanOptions(scanOptions.optionsPresent(), scanOptions.scan_flags()));
+        if (logger.isDetailEnabled()) logger.detail("scan index '" + index.getName() + "' with options " + dumpScanOptions(scanOptions.optionsPresent(), scanOptions.scan_flags()));
 
         // create the scan operation
         ndbIndexScanOperation = clusterTransaction.scanIndex(
