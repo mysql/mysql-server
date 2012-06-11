@@ -82,6 +82,10 @@
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
 #include "global_threads.h"
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+#include "sql_partition.h"
+#include "partition_info.h"            // partition_info
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 
 #include "debug_sync.h"
 
@@ -633,6 +637,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool transactional_table, joins_freed= FALSE;
   bool changed;
   bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
+  bool is_locked= false;
   ulong counter = 1;
   ulonglong id;
   /*
@@ -665,6 +670,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG);
 #endif
   Item *unused_conds= 0;
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  uint num_partitions= 0;
+  enum partition_info::enum_can_prune can_prune_partitions=
+                                                  partition_info::PRUNE_NO;
+  MY_BITMAP used_partitions;
+  bool prune_needs_default_values;
+#endif /* WITH_PARITITION_STORAGE_ENGINE */
   DBUG_ENTER("mysql_insert");
 
   /*
@@ -693,11 +705,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   {
     if (open_and_lock_for_insert_delayed(thd, table_list))
       DBUG_RETURN(TRUE);
+    is_locked= true;
   }
   else
   {
-    if (open_and_lock_tables(thd, table_list, TRUE, 0))
-      DBUG_RETURN(TRUE);
+    if (open_normal_and_derived_tables(thd, table_list, 0))
+      DBUG_RETURN(true);
   }
 
   const thr_lock_type lock_type= table_list->lock_type;
@@ -720,6 +733,13 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
 
+  /* Must be done before can_prune_insert, due to internal initialization. */
+  if (info.add_function_default_columns(table, table->write_set))
+    goto exit_without_my_ok;
+  if (duplic == DUP_UPDATE &&
+      update.add_function_default_columns(table, table->write_set))
+    goto exit_without_my_ok;
+
   context= &thd->lex->select_lex.context;
   /*
     These three asserts test the hypothesis that the resetting of the name
@@ -740,6 +760,45 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table_list->next_local= 0;
   context->resolve_in_table_list_only(table_list);
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (!is_locked && table->part_info)
+  {
+    if (table->part_info->can_prune_insert(thd,
+                                           duplic,
+                                           update,
+                                           update_fields,
+                                           fields,
+                                           !test(values->elements),
+                                           &can_prune_partitions,
+                                           &prune_needs_default_values,
+                                           &used_partitions))
+      goto exit_without_my_ok;
+
+    if (can_prune_partitions != partition_info::PRUNE_NO)
+    {
+      num_partitions= table->part_info->lock_partitions.n_bits;
+      /*
+        Pruning probably possible, all partitions is unmarked for read/lock,
+        and we must now add them on row by row basis.
+
+        Check the first INSERT value.
+        Do not fail here, since that would break MyISAM behavior of inserting
+        all rows before the failing row.
+
+        PRUNE_DEFAULTS means the partitioning fields are only set to DEFAULT
+        values, so we only need to check the first INSERT value, since all the
+        rest will be in the same partition.
+      */
+      if (table->part_info->set_used_partition(fields,
+                                               *values,
+                                               info,
+                                               prune_needs_default_values,
+                                               &used_partitions))
+        can_prune_partitions= partition_info::PRUNE_NO;
+    }
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
   while ((values= its++))
   {
     counter++;
@@ -750,17 +809,42 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     if (setup_fields(thd, Ref_ptr_array(), *values, MARK_COLUMNS_READ, 0, 0))
       goto exit_without_my_ok;
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    /*
+      To make it possible to increase concurrency on table level locking
+      engines such as MyISAM, we check pruning for each row until we will use
+      all partitions, Even if the number of rows is much higher than the
+      number of partitions.
+      TODO: Cache the calculated part_id and reuse in
+      ha_partition::write_row() if possible.
+    */
+    if (can_prune_partitions == partition_info::PRUNE_YES)
+    {
+      if (table->part_info->set_used_partition(fields,
+                                               *values,
+                                               info,
+                                               prune_needs_default_values,
+                                               &used_partitions))
+        can_prune_partitions= partition_info::PRUNE_NO;
+      if (!(counter % num_partitions))
+      {
+        /*
+          Check if we using all partitions in table after adding partition
+          for current row to the set of used partitions. Do it only from
+          time to time to avoid overhead from bitmap_is_set_all() call.
+        */
+        if (bitmap_is_set_all(&used_partitions))
+          can_prune_partitions= partition_info::PRUNE_NO;
+      }
+    }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
   }
+  table->auto_increment_field_not_null= false;
   its.rewind ();
  
   /* Restore the current context. */
   ctx_state.restore_state(context, table_list);
-
-  if (info.add_function_default_columns(table, table->write_set))
-    goto exit_without_my_ok;
-  if (duplic == DUP_UPDATE &&
-      update.add_function_default_columns(table, table->write_set))
-    goto exit_without_my_ok;
 
   if (thd->lex->describe)
   {
@@ -773,6 +857,33 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     goto exit_without_my_ok;
   }
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (can_prune_partitions != partition_info::PRUNE_NO)
+  {
+    /*
+      Only lock the partitions we will insert into.
+      And also only read from those partitions (duplicates etc.).
+      If explicit partition selection 'INSERT INTO t PARTITION (p1)' is used,
+      the new set of read/lock partitions is the intersection of read/lock
+      partitions and used partitions, i.e only the partitions that exists in
+      both sets will be marked for read/lock.
+      It is also safe for REPLACE, since all potentially conflicting records
+      always belong to the same partition as the one which we try to
+      insert a row. This is because ALL unique/primary keys must
+      include ALL partitioning columns.
+    */
+    bitmap_intersect(&table->part_info->read_partitions,
+                     &used_partitions);
+    bitmap_intersect(&table->part_info->lock_partitions,
+                     &used_partitions);
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+  /* Lock the tables now if not delayed/already locked. */
+  if (!is_locked &&
+      lock_tables(thd, table_list, thd->lex->table_count, 0))
+    DBUG_RETURN(true);
+ 
   /*
     Count warnings for all inserts.
     For single line insert, generate an error if try to set a NOT NULL field
@@ -866,8 +977,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     else
     {
-      if (thd->lex->used_tables)		      // Column used in values()
-	restore_record(table,s->default_values);	// Get empty record
+      if (thd->lex->used_tables)               // Column used in values()
+        restore_record(table,s->default_values); // Get empty record
       else
       {
         TABLE_SHARE *share= table->s;
@@ -1163,7 +1274,7 @@ static bool check_view_insertability(THD * thd, TABLE_LIST *view)
     }
     Item_field *field;
     /* simple SELECT list entry (field without expression) */
-    if (!(field= trans->item->filed_for_view_update()))
+    if (!(field= trans->item->field_for_view_update()))
     {
       thd->mark_used_columns= save_mark_used_columns;
       DBUG_RETURN(TRUE);
@@ -1564,8 +1675,8 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
 	goto err;
       if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
       {
-	if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
-	  goto err;
+        if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
+          goto err;
       }
       else
       {
@@ -3400,21 +3511,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-           thd->locked_tables_mode <= LTM_LOCK_TABLES &&
-           !thd->lex->describe)
-  {
-    /*
-      We must not yet prepare the result table if it is the same as one of the 
-      source tables (INSERT SELECT). The preparation may disable 
-      indexes on the result table, which may be used during the select, if it
-      is the same table (Bug #6034). Do the preparation after the select phase
-      in select_insert::prepare2().
-      We won't start bulk inserts at all if this statement uses functions or
-      should invoke triggers since they may access to the same table too.
-    */
-    table->file->ha_start_bulk_insert((ha_rows) 0);
-  }
   restore_record(table,s->default_values);		// Get empty record
   table->next_number_field=table->found_next_number_field;
 
@@ -3467,10 +3563,12 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
-  if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
       !thd->lex->describe)
+  {
+    // TODO: Is there no better estimation than 0 == Unknown number of rows?
     table->file->ha_start_bulk_insert((ha_rows) 0);
+  }
   DBUG_RETURN(0);
 }
 
@@ -3683,10 +3781,14 @@ void select_insert::abort_result_set() {
   {
     bool changed, transactional_table;
     /*
-      If we are not in prelocked mode, we end the bulk insert started
-      before.
+      Try to end the bulk insert which might have been started before.
+      We don't need to do this if we are in prelocked mode (since we
+      don't use bulk insert in this case). Also we should not do this
+      if tables are not locked yet (bulk insert is not started yet
+      in this case).
     */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+        thd->lex->is_query_tables_locked())
       table->file->ha_end_bulk_insert();
 
     /*
@@ -3783,9 +3885,7 @@ void select_insert::abort_result_set() {
 static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
                                       TABLE_LIST *create_table,
                                       Alter_info *alter_info,
-                                      List<Item> *items,
-                                      MYSQL_LOCK **lock,
-                                      TABLEOP_HOOKS *hooks)
+                                      List<Item> *items)
 {
   TABLE tmp_table;		// Used during 'Create_field()'
   TABLE_SHARE share;
@@ -3902,38 +4002,63 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!table)                                   // open failed
       DBUG_RETURN(0);
   }
-
-  DEBUG_SYNC(thd,"create_table_select_before_lock");
-
-  table->reginfo.lock_type=TL_WRITE;
-  hooks->prelock(&table, 1);                    // Call prelock hooks
-  /*
-    mysql_lock_tables() below should never fail with request to reopen table
-    since it won't wait for the table lock (we have exclusive metadata lock on
-    the table) and thus can't get aborted.
-  */
-  if (! ((*lock)= mysql_lock_tables(thd, &table, 1, 0)) ||
-        hooks->postlock(&table, 1))
-  {
-    if (*lock)
-    {
-      mysql_unlock_tables(thd, *lock);
-      *lock= 0;
-    }
-    drop_open_table(thd, table, create_table->db, create_table->table_name);
-    DBUG_RETURN(0);
-  }
   DBUG_RETURN(table);
 }
 
 
+/**
+  Create the new table from the selected items.
+
+  @param values  List of items to be used as new columns
+  @param u       Select
+
+  @return Operation status.
+    @retval 0   Success
+    @retval !=0 Failure
+*/
+
 int
 select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 {
-  MYSQL_LOCK *extra_lock= NULL;
   DBUG_ENTER("select_create::prepare");
 
-  TABLEOP_HOOKS *hook_ptr= NULL;
+  unit= u;
+  DBUG_ASSERT(create_table->table == NULL);
+
+  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
+
+  if (!(table= create_table_from_items(thd, create_info, create_table,
+                                       alter_info, &values)))
+    /* abort() deletes table */
+    DBUG_RETURN(-1);
+
+  if (table->s->fields < values.elements)
+  {
+    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
+    DBUG_RETURN(-1);
+  }
+  /* First field to copy */
+  field= table->field+table->s->fields - values.elements;
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Lock the newly created table and prepare it for insertion.
+
+  @return Operation status.
+    @retval 0   Success
+    @retval !=0 Failure
+*/
+
+int
+select_create::prepare2()
+{
+  DBUG_ENTER("select_create::prepare2");
+  DEBUG_SYNC(thd,"create_table_select_before_lock");
+
+  MYSQL_LOCK *extra_lock= NULL;
   /*
     For row-based replication, the CREATE-SELECT statement is written
     in two pieces: the first one contain the CREATE TABLE statement
@@ -3993,19 +4118,25 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   };
 
   MY_HOOKS hooks(this, create_table, select_tables);
-  hook_ptr= &hooks;
-
-  unit= u;
-  DBUG_ASSERT(create_table->table == NULL);
-
-  DEBUG_SYNC(thd,"create_table_select_before_check_if_exists");
-
-  if (!(table= create_table_from_items(thd, create_info, create_table,
-                                       alter_info, &values,
-                                       &extra_lock, hook_ptr)))
-    /* abort() deletes table */
-    DBUG_RETURN(-1);
-
+ 
+  table->reginfo.lock_type=TL_WRITE;
+  hooks.prelock(&table, 1);                    // Call prelock hooks
+  /*
+    mysql_lock_tables() below should never fail with request to reopen table
+    since it won't wait for the table lock (we have exclusive metadata lock on
+    the table) and thus can't get aborted.
+  */
+  if (! (extra_lock= mysql_lock_tables(thd, &table, 1, 0)) ||
+        hooks.postlock(&table, 1))
+  {
+    if (extra_lock)
+    {
+      mysql_unlock_tables(thd, extra_lock);
+      extra_lock= 0;
+    }
+    drop_open_table(thd, table, create_table->db, create_table->table_name);
+    DBUG_RETURN(1);
+  }
   if (extra_lock)
   {
     DBUG_ASSERT(m_plock == NULL);
@@ -4017,23 +4148,13 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
     *m_plock= extra_lock;
   }
-
-  if (table->s->fields < values.elements)
-  {
-    my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
-    DBUG_RETURN(-1);
-  }
-
- /* First field to copy */
-  field= table->field+table->s->fields - values.elements;
-
   /* Mark all fields that are given values */
   for (Field **f= field ; *f ; f++)
     bitmap_set_bit(table->write_set, (*f)->field_index);
 
   // Set up an empty bitmap of function defaults
   if (info.add_function_default_columns(table, table->write_set))
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(1);
 
   table->next_number_field=table->found_next_number_field;
 

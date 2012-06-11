@@ -66,3 +66,27 @@ SET DEBUG_SYNC= 'RESET';
 # Con default
 SET DEBUG_SYNC= 'RESET';
 End of 5.1 tests
+#
+# Coverage test for non pruned ha_partition::store_lock()
+#
+CREATE TABLE t1 (a int) ENGINE = InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY)
+ENGINE = InnoDB PARTITION BY HASH (a) PARTITIONS 3;
+HANDLER t1 OPEN;
+# Con1
+LOCK TABLES t1 WRITE, t2 READ;
+# Default
+SET DEBUG_SYNC="wait_for_lock SIGNAL locking";
+INSERT INTO t2 VALUES (1), (2), (3);
+# Con1
+SET DEBUG_SYNC="now WAIT_FOR locking";
+ALTER TABLE t1 ADD COLUMN b int;
+# Default
+ERROR HY000: Wait on a lock was aborted due to a pending exclusive lock
+SELECT 1;
+1
+1
+# Con1
+UNLOCK TABLES;
+# Default
+DROP TABLE t1, t2;
