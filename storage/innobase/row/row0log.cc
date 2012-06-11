@@ -1489,6 +1489,7 @@ row_log_table_apply_update(
 	    || btr_pcur_get_low_match(&pcur) < index->n_uniq) {
 		mtr_commit(&mtr);
 insert:
+		ut_ad(mtr.state == MTR_COMMITTED);
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
 			thr, row, offsets_heap, heap, log->table, dup);
@@ -1580,6 +1581,7 @@ delete_insert:
 
 		/* Unless we called row_log_table_apply_delete_low(),
 		this will likely cause a duplicate key error. */
+		mtr_commit(&mtr);
 		goto insert;
 	}
 
