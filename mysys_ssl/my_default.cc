@@ -1461,7 +1461,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
 #endif
   else
   {
-    memset(file_name, 0, sizeof(file_name));
+    memset(file_name, 0, file_name_size);
     return 0;
   }
   /* Anything <= 0 will be treated as error. */
