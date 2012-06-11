@@ -119,7 +119,6 @@ else()
   ## set gcc warnings
   set(CMAKE_C_FLAGS "-Wextra ${CMAKE_C_FLAGS}")
   set(WARN_CFLAGS
-    -Wcast-align
     -Wbad-function-cast
     -Wno-missing-noreturn
     -Wstrict-prototypes
@@ -129,9 +128,9 @@ else()
     -Wmissing-format-attribute
     )
   if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
-    message(WARNING "Disabling -Wshadow on osx.  TODO: fix shadowed declarations and re-enable it.")
+    message(WARNING "Disabling -Wcast-align and -Wshadow on osx.  TODO: fix casting and shadowed declarations and re-enable them.")
   else ()
-    list(APPEND WARN_CFLAGS -Wshadow)
+    list(APPEND WARN_CFLAGS -Wcast-align -Wshadow)
   endif ()
 endif()
 
