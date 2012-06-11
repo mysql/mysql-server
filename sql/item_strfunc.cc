@@ -95,24 +95,6 @@ String *Item_str_func::val_str_from_val_str_ascii(String *str, String *str2)
   return str2;
 }
 
-
-
-/*
-  Convert an array of bytes to a hexadecimal representation.
-
-  Used to generate a hexadecimal representation of a message digest.
-*/
-static void array_to_hex(char *to, const unsigned char *str, uint len)
-{
-  const unsigned char *str_end= str + len;
-  for (; str != str_end; ++str)
-  {
-    *to++= _dig_vec_lower[((uchar) *str) >> 4];
-    *to++= _dig_vec_lower[((uchar) *str) & 0x0F];
-  }
-}
-
-
 bool Item_str_func::fix_fields(THD *thd, Item **ref)
 {
   bool res= Item_func::fix_fields(thd, ref);
@@ -172,7 +154,7 @@ String *Item_func_md5::val_str_ascii(String *str)
   str->set_charset(&my_charset_bin);
   if (sptr)
   {
-    uchar digest[16];
+    uchar digest[MD5_HASH_SIZE];
 
     null_value=0;
     compute_md5_hash((char *) digest, (const char *) sptr->ptr(), sptr->length());
@@ -181,7 +163,7 @@ String *Item_func_md5::val_str_ascii(String *str)
       null_value=1;
       return 0;
     }
-    array_to_hex((char *) str->ptr(), digest, 16);
+    array_to_hex((char *) str->ptr(), digest, MD5_HASH_SIZE);
     str->length((uint) 32);
     return str;
   }
