@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -405,6 +405,9 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # Be strict about variables, bail at earliest opportunity, etc.
 set -eu
+
+# Get rid of stuff for ULN RPMs - not needed here
+rm -fr %{src_dir}/SPECIFIC-ULN/
 
 # Optional package files
 touch optional-files-devel
@@ -1146,6 +1149,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Jun 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Make sure newly added "SPECIFIC-ULN/" directory does not disturb packaging.
+  
 * Wed Sep 28 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix duplicate mentioning of "mysql_plugin" and its manual page,

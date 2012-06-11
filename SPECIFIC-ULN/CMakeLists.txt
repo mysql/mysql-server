@@ -26,12 +26,27 @@ IF(UNIX)
   # Left in current directory, to be taken during build
   CONFIGURE_FILE(mysql.spec.sh ${CMAKE_CURRENT_BINARY_DIR}/${SPECFILENAME} @ONLY)
 
-  FOREACH(ulnfile filter-requires-mysql.sh generate-tarball.sh my.cnf my_config.h
-          mysql-5.5-errno.patch mysql-5.5-fix-tests.patch mysql-5.5-libdir.patch
-          mysql-5.5-mtr1.patch mysql-5.5-stack-guard.patch mysql-5.5-testing.patch
-          mysql-chain-certs.patch mysql-embedded-check.c mysql-expired-certs.patch
-          mysql.init mysql-install-test.patch mysql-strmov.patch scriptstub.c)
-    INSTALL(FILES ${ulnfile} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-  ENDFOREACH()
+  SET(PATCHES
+      mysql-5.5-errno.patch
+      mysql-5.5-fix-tests.patch
+      mysql-5.5-libdir.patch
+      mysql-5.5-mtr1.patch
+      mysql-5.5-stack-guard.patch
+      mysql-5.5-testing.patch
+      mysql-chain-certs.patch
+      mysql-expired-certs.patch
+      mysql-install-test.patch
+      mysql-strmov.patch)
+
+  SET(OTHER
+      filter-requires-mysql.sh
+      generate-tarball.sh
+      my.cnf
+      my_config.h
+      mysql-embedded-check.c
+      mysql.init
+      scriptstub.c)
+
+  INSTALL(FILES ${PATCHES} ${OTHER} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 ENDIF()
 
