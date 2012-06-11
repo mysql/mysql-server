@@ -140,13 +140,90 @@ struct PFS_byte_stat : public PFS_single_stat
   }
 };
 
+/** Statistics for mutex usage. */
+struct PFS_mutex_stat
+{
+  /** Wait statistics. */
+  PFS_single_stat m_wait_stat;
+  /**
+    Lock statistics.
+    This statistic is not exposed in user visible tables yet.
+  */
+  PFS_single_stat m_lock_stat;
+
+  inline void aggregate(const PFS_mutex_stat *stat)
+  {
+    m_wait_stat.aggregate(&stat->m_wait_stat);
+    m_lock_stat.aggregate(&stat->m_lock_stat);
+  }
+
+  inline void reset(void)
+  {
+    m_wait_stat.reset();
+    m_lock_stat.reset();
+  }
+};
+
+/** Statistics for rwlock usage. */
+struct PFS_rwlock_stat
+{
+  /** Wait statistics. */
+  PFS_single_stat m_wait_stat;
+  /**
+    RWLock read lock usage statistics.
+    This statistic is not exposed in user visible tables yet.
+  */
+  PFS_single_stat m_read_lock_stat;
+  /**
+    RWLock write lock usage statistics.
+    This statistic is not exposed in user visible tables yet.
+  */
+  PFS_single_stat m_write_lock_stat;
+
+  inline void aggregate(const PFS_rwlock_stat *stat)
+  {
+    m_wait_stat.aggregate(&stat->m_wait_stat);
+    m_read_lock_stat.aggregate(&stat->m_read_lock_stat);
+    m_write_lock_stat.aggregate(&stat->m_write_lock_stat);
+  }
+
+  inline void reset(void)
+  {
+    m_wait_stat.reset();
+    m_read_lock_stat.reset();
+    m_write_lock_stat.reset();
+  }
+};
+
 /** Statistics for COND usage. */
 struct PFS_cond_stat
 {
-  /** Number of times a condition was signalled. */
+  /** Wait statistics. */
+  PFS_single_stat m_wait_stat;
+  /**
+    Number of times a condition was signalled.
+    This statistic is not exposed in user visible tables yet.
+  */
   ulonglong m_signal_count;
-  /** Number of times a condition was broadcasted. */
+  /**
+    Number of times a condition was broadcast.
+    This statistic is not exposed in user visible tables yet.
+  */
   ulonglong m_broadcast_count;
+
+  inline void aggregate(const PFS_cond_stat *stat)
+  {
+    m_wait_stat.aggregate(&stat->m_wait_stat);
+    m_signal_count+= stat->m_signal_count;
+    m_broadcast_count+= stat->m_broadcast_count;
+  }
+
+  inline void reset(void)
+  {
+    m_wait_stat.reset();
+    m_signal_count= 0;
+    m_broadcast_count= 0;
+  }
 };
 
 /** Statistics for FILE IO. Used for both waits and byte counts. */
@@ -197,6 +274,11 @@ struct PFS_file_stat
   ulong m_open_count;
   /** File IO statistics. */
   PFS_file_io_stat m_io_stat;
+
+  inline void aggregate(const PFS_file_stat *stat)
+  {
+    m_io_stat.aggregate(&stat->m_io_stat);
+  }
 
   /** Reset file statistics. */
   inline void reset(void)
