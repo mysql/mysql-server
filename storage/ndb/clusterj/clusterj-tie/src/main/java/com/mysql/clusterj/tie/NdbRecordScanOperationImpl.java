@@ -138,10 +138,11 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
                 options |= Type.SO_SCANFLAGS;
                 switch (ordering) {
                     case ASCENDING:
-                        flags = ScanFlag.SF_OrderBy;
+                        flags |= ScanFlag.SF_OrderBy;
                         break;
                     case DESCENDING:
-                        flags = ScanFlag.SF_Descending;
+                        flags |= ScanFlag.SF_Descending;
+                        flags |= ScanFlag.SF_OrderBy;
                         break;
                     default:
                         throw new ClusterJFatalInternalException(local.message("ERR_Invalid_Ordering", ordering));
@@ -150,6 +151,7 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
             if (multiRange) {
                 options |= Type.SO_SCANFLAGS;
                 flags |= ScanFlag.SF_MultiRange;
+                flags |= ScanFlag.SF_ReadRangeNo;
             }
             if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
                 options |= Type.SO_SCANFLAGS;

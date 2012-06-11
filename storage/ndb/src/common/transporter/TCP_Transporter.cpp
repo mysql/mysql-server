@@ -112,6 +112,10 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
 
   m_overload_limit = overload_limit(conf);
+  /**
+   * Always set slowdown limit to 60% of overload limit
+   */
+  m_slowdown_limit = m_overload_limit * 6 / 10;
 }
 
 
