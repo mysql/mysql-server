@@ -1,0 +1,347 @@
+#!/usr/bin/perl
+
+# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+# -*- cperl -*-
+#
+# MySQL Cluster compile script to bridge the gap between
+# different build systems in different versions of MySQL Server
+#
+# This script is intended for internal use
+#
+use strict;
+use Cwd 'abs_path';
+use File::Basename;
+use Getopt::Long;
+
+# Only add the command line options handled by this script, 
+# thus acting like a filter and passing all other arguments
+# straight through
+my $opt_debug;
+my $opt_build_type;
+my $opt_build = 1;
+my $opt_just_print;
+
+Getopt::Long::Configure("pass_through");
+GetOptions(
+
+  # Build MySQL Server and NDB with debug
+  'debug!' => \$opt_debug,
+  'with-debug:s' => sub { $opt_debug = 1; },
+  'build-type=s' => \$opt_build_type,
+  'build!' => \$opt_build,
+  'c|just-configure' => sub { $opt_build = 0; },
+  'n|just-print' => \$opt_just_print,
+) or exit(1);
+
+# Find source root directory, assume this script is
+# in <srcroot>/storage/ndb/
+my $opt_srcdir = dirname(dirname(dirname(abs_path($0))));
+die unless -d $opt_srcdir; # Sanity check that the srcdir exist
+if ($^O eq "cygwin") {
+  # Convert posix path to Windows mixed path since cmake
+  # is most likely a windows binary
+  $opt_srcdir= `cygpath -m $opt_srcdir`;
+  chomp $opt_srcdir;
+}
+
+# Check that cmake exists and figure out it's version 
+my $cmake_version_id;
+{
+  my $version_text = `cmake --version`;
+  print $version_text;
+  die "Could not find cmake" if ($?);
+  if ( $version_text =~ /^cmake version ([0-9]*)\.([0-9]*)\.*([^\s]*)/ )
+  {
+    #print "1: $1 2: $2 3: $3\n";
+    $cmake_version_id= $1*10000 + $2*100 + $3;
+    #print "cmake_version_id: $cmake_version_id\n";
+  }
+  die "Could not parse cmake version" unless ($cmake_version_id);
+}
+
+
+#
+# Configure
+#
+{
+  # Remove old CMakeCache.txt(ignore if not exists) to
+  # force fresh configure
+  unlink("CMakeCache.txt");
+   
+  my @args;
+  
+  # Hardcoded options controlling how to build MySQL Server
+  push(@args, "-DWITH_SSL=bundled");
+ 
+  if ($opt_debug)
+  {
+    push(@args, "-DWITH_DEBUG=1");
+    push(@args, "-DMYSQL_MAINTAINER_MODE=0");
+  }
+
+  # Hardcoded options controlling how to build NDB
+  push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
+  push(@args, "-DWITH_NDB_TEST=1");
+
+  # The cmake generator to use
+  if ($opt_build_type)
+  {
+    push(@args, "-G \"$opt_build_type\"");
+  }
+
+  # Sets installation directory,  bindir, libdir, libexecdir etc.
+  # The equivalent CMake variables are given without prefix
+  # e.g if --prefix is /usr and --bindir is /usr/bin
+  # then cmake variable (INSTALL_BINDIR) must be just "bin"
+  my $opt_prefix;
+  sub set_installdir
+  {
+    my($path, $varname) = @_;
+    my $prefix_length = length($opt_prefix);
+    if (($prefix_length > 0) && (index($path,$opt_prefix) == 0))
+    {
+      # path is under the prefix, remove the prefix and
+      # maybe following "/"
+      $path = substr($path, $prefix_length);
+      if(length($path) > 0)
+      {
+        my $char = substr($path, 0, 1);
+        if($char eq "/")
+        {
+          $path= substr($path, 1);
+        }
+      }
+      if(length($path) > 0)
+      {
+        push(@args, "-D$varname=$path");
+      }
+    }
+  }
+
+  # Process --configure style arguments which need special conversion 
+  my $opt_bindir;
+  my $opt_libdir;
+  my $opt_libexecdir;
+  my $opt_includedir;
+  my $opt_with_zlib_dir;
+  my $opt_with_ssl;
+  my $opt_localstatedir;
+  my $opt_mysql_maintainer_mode;
+  my $opt_with_gcov;
+  my $opt_with_comment;
+  my $opt_with_plugins;
+  my $opt_without_plugin;
+  my $opt_extra_charsets;
+  my $opt_with_extra_charsets;  
+  Getopt::Long::Configure("pass_through");
+  GetOptions(
+    'prefix=s' => \$opt_prefix,
+    'srcdir=s' => \$opt_srcdir,
+    'bindir=s' => \$opt_bindir,
+    'libdir=s' => \$opt_libdir,
+    'libexecdir=s' => \$opt_libexecdir,
+    'includedir=s' => \$opt_includedir,
+    'with-zlib-dir=s' => \$opt_with_zlib_dir,
+    'with-ssl:s' => \$opt_with_ssl,
+    'localstatedir=s' => \$opt_localstatedir,
+    'mysql-maintainer-mode=s' => \$opt_mysql_maintainer_mode,
+    'with-gcov' => \$opt_with_gcov,
+    'with-comment=s' => \$opt_with_comment,
+    'with-plugins=s' => \$opt_with_plugins,
+    'without-plugin=s' => \$opt_without_plugin,
+    'with-extra-charsets=s' => \$opt_with_extra_charsets,
+    'extra-charsets=s' => \$opt_extra_charsets,
+  ) or exit(1);
+
+  if($opt_prefix)
+  {
+    push(@args, "-DCMAKE_INSTALL_PREFIX=$opt_prefix");
+  }
+  if($opt_bindir)
+  {
+    set_installdir($opt_bindir, "INSTALL_BINDIR");
+  }
+  if($opt_libdir)
+  {
+    set_installdir($opt_libdir, "INSTALL_LIBDIR");
+  }
+  if($opt_libexecdir)
+  {
+    set_installdir($opt_libexecdir, "INSTALL_SBINDIR");
+  }
+  if($opt_includedir)
+  {
+    set_installdir($opt_includedir, "INSTALL_INCLUDEDIR");
+  }
+  if($opt_with_zlib_dir)
+  {
+    $opt_with_zlib_dir = "system"
+      if ($opt_with_zlib_dir ne "bundled");
+    push(@args, "-DWITH_ZLIB=$opt_with_zlib_dir");
+  }
+  if($opt_with_ssl)
+  {
+    push(@args, "-DWITH_SSL=".($opt_with_ssl ? "yes" : "bundled"));
+  }
+  if ($opt_localstatedir)
+  {
+    push(@args, "-DMYSQL_DATADIR=$opt_localstatedir"); 
+  }
+  if ($opt_mysql_maintainer_mode)
+  {
+    push(@args, "-DMYSQL_MAINTAINER_MODE=" .
+                 ($opt_mysql_maintainer_mode =~ /enable/ ? "1" : "0"));
+  }
+  if ($opt_with_gcov)
+  {
+    push(@args, "-DENABLE_GCOV=ON"); 
+  }
+  if ($opt_with_comment)
+  {
+    push(@args, "\"-DWITH_COMMENT=$opt_with_comment\""); 
+  }
+  if($opt_with_plugins)
+  {
+    my @plugins= split(/,/, $opt_with_plugins);
+    foreach my $p (@plugins)
+    {
+      $p =~ s/-/_/g;
+      push(@args, "-DWITH_".uc($p)."=1");
+    }
+  }
+  if($opt_without_plugin)
+  {
+    push(@args, "-DWITHOUT_".uc($opt_without_plugin)."=1");
+  }
+  if ($opt_extra_charsets)
+  {
+    push(@args, "-DWITH_CHARSETS=$opt_extra_charsets"); 
+  }
+  if($opt_with_extra_charsets)
+  {
+    push(@args, "-DWITH_EXTRA_CHARSETS=$opt_with_extra_charsets");
+  }
+  
+
+  # Default conversion of remaining args in ARGV from
+  # 1) --arg          -> -DARG=1
+  # 2) --arg=value    -> -DARG=value
+  # 3) arg=value      -> environment variable arg=value
+  foreach my $option (@ARGV)
+  {
+    if ($option =~  /^--/)
+    {  
+      # Remove leading --
+      $option = substr($option, 2);
+    
+      my @v  = split('=', $option);
+      my $name = shift(@v);
+      $name = uc($name);
+      $name =~ s/-/_/g;
+      if (@v)
+      {
+        push(@args, "-D$name=".join('=', @v));
+      }
+      else
+      {
+        push(@args, "-D$name=1");
+      }
+    }
+    else
+    {
+ 
+      # This must be environment variable
+      my @v  = split('=', $option);
+      my $name = shift(@v);
+      if(@v)
+      {
+        $ENV{$name} = join('=', @v);  
+      }
+      else
+      {
+        die "unhandled argument '$option' found"; 
+      }
+    }
+  }
+  
+  # The source directory to build from
+  die "srcdir already contains CMakeCache.txt, this will not work!"
+    if (-f "$opt_srcdir/CMakeCache.txt");
+  push(@args, $opt_srcdir);
+  
+  cmd("cmake", @args);
+}
+
+if (!$opt_build)
+{
+  print "Configuration completed, skipping build(used --no-build)\n";
+  exit(0);
+}
+
+
+#
+# Build
+#
+{
+  if ($cmake_version_id >= 20800)
+  {
+    # Use the universal "cmake --build <srcdir>" way of building
+    # which is available from cmake 2.8 and works on all platforms
+    my @args;
+    push(@args, "--build");
+    push(@args, "$opt_srcdir");
+
+    if ($^O eq "cygwin" or $^O eq "MSWin32")
+    {
+      # Choose to build RelWitDebInfo by default on Windows
+      my $config = 'RelWithDebInfo';
+      if ($opt_debug)
+      {
+	$config = 'Debug';
+      }
+      push(@args, "--config");
+      push(@args, $config);
+    }
+
+    cmd("cmake", @args);
+
+  }
+  else
+  {
+    # Use make to build, not supported on Windows
+    die "You need to install cmake with version > 2.8"
+      if ($^O eq "cygwin" or $^O eq "MSWin32");
+
+    cmd("make");
+  }
+}
+
+sub cmd {
+  my ($cmd, @a)= @_;
+  
+  if ($opt_just_print){
+    print "$cmd ", join(' ', @a), "\n";
+    return; 
+  }
+  
+  print "compile-cluster: calling '$cmd ", join(' ', @a), "'\n";
+  system($cmd, @a)
+    and print("command failed: $!\n")
+      and exit(1);
+}
+
+exit(0);
