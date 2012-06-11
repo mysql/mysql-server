@@ -307,6 +307,7 @@ dict_table_t::stat_sum_of_other_index_sizes
 dict_table_t::stat_modified_counter
 dict_table_t::magic_n
 for each entry in dict_table_t::indexes, the following are initialized:
+(indexes that have DICT_FTS set in index->type are skipped)
 dict_index_t::id
 dict_index_t::name
 dict_index_t::table_name
@@ -347,6 +348,10 @@ dict_stats_snapshot_create(
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
+
+		if (index->type & DICT_FTS) {
+			continue;
+		}
 
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
@@ -389,6 +394,10 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		dict_index_t*	idx;
 
 		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
@@ -423,13 +432,13 @@ dict_stats_snapshot_create(
 		/* hook idx into t->indexes */
 		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
 
-		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_diff_key_vals[0]));
+		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals + 1, idx->n_uniq * sizeof(idx->stat_n_diff_key_vals[0]));
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_diff_key_vals,
 			(idx->n_uniq + 1)
 			* sizeof(idx->stat_n_diff_key_vals[0]));
 
-		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, (idx->n_uniq + 1) * sizeof(idx->stat_n_sample_sizes[0]));
+		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, idx->n_uniq * sizeof(idx->stat_n_sample_sizes[0]));
 		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_sample_sizes,
 			(idx->n_uniq + 1)
