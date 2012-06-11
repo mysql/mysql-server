@@ -1541,6 +1541,12 @@ delete_insert:
 
 	if (upd_get_nth_field(update, 0)->field_no < new_trx_id_col) {
 		if (dup->index->online_log->same_pk) {
+			/* The ROW_T_UPDATE log record should only be
+			written when the PRIMARY KEY fields of the
+			record did not change in the old table.  We
+			can only get a change of PRIMARY KEY columns
+			in the rebuilt table if the PRIMARY KEY was
+			redefined (!same_pk). */
 			ut_ad(0);
 			error = DB_CORRUPTION;
 			goto func_exit;
@@ -1743,6 +1749,7 @@ row_log_table_apply_op(
 			return(NULL);
 		}
 
+		rec_offs_set_n_fields(offsets, dup->index->n_fields);
 		rec_init_offsets_comp_ordinary(
 			mrec, 0, dup->index, dup->index->n_nullable, offsets);
 
@@ -1853,6 +1860,8 @@ row_log_table_apply_op(
 				return(NULL);
 			}
 
+			/* Get offsets for PRIMARY KEY,
+			DB_TRX_ID, DB_ROLL_PTR. */
 			rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
 			rec_init_offsets_comp_ordinary(
 				mrec, 0, new_index, 0, offsets);
@@ -1969,7 +1978,8 @@ row_log_table_apply_ops(
 	dict_index_t*	new_index	= dict_table_get_first_index(
 		new_table);
 	const ulint	i		= 1 + REC_OFFS_HEADER_SIZE
-		+ dict_index_get_n_fields(index);
+		+ ut_max(dict_index_get_n_fields(index),
+			 dict_index_get_n_unique(new_index) + 2);
 	const ulint	trx_id_col	= dict_col_get_clust_pos(
 		dict_table_get_sys_col(index->table, DATA_TRX_ID), index);
 	const ulint	new_trx_id_col	= dict_col_get_clust_pos(
