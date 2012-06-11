@@ -5034,10 +5034,11 @@ void TABLE::mark_columns_needed_for_delete()
 }
 
 
-/*
+/**
+  @brief
   Mark columns needed for doing an update of a row
 
-  DESCRIPTON
+  @details
     Some engines needs to have all columns in an update (to be able to
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
@@ -5050,6 +5051,10 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
+    
+    Unlike other similar methods, it doesn't mark fields used by triggers,
+    that is the responsibility of the caller to do, by using
+    Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
 void TABLE::mark_columns_needed_for_update()
@@ -5057,8 +5062,6 @@ void TABLE::mark_columns_needed_for_update()
 
   DBUG_ENTER("mark_columns_needed_for_update");
   mark_columns_per_binlog_row_image();
-  if (triggers)
-    triggers->mark_fields_used(TRG_EVENT_UPDATE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -6018,19 +6021,6 @@ bool TABLE::update_const_key_parts(Item *conds)
     }
   }
   return FALSE;
-}
-
-
-void TABLE::set_timestamp_field(Field *field_arg)
-{
-  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
-  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
-}
-
-
-Field *TABLE::get_timestamp_field()
-{
-  return (Field *) timestamp_field;
 }
 
 

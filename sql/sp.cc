@@ -1539,6 +1539,9 @@ bool lock_db_routines(THD *thd, char *db)
 
   @note Close the thread tables, the calling code might want to
   delete from other system tables afterwards.
+
+  @todo We need to change this function to call a my_error()/print_error()
+  once we stop ignoring return value of sp_drop_db_routines().
 */
 
 int
