@@ -80,7 +80,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -ggdb -O0")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG FORTIFY_SOURCE=2)
 
 ## set extra release flags, we overwrite this because the default passes -DNDEBUG and we don't want that
-set(CMAKE_C_FLAGS_RELEASE "-g3 -ggdb -O3")
+set(CMAKE_C_FLAGS_RELEASE "-g -O3")
 
 ## check how to do inter-procedural optimization
 check_c_compiler_flag(-flto HAVE_CC_FLAG_FLTO)
@@ -95,7 +95,7 @@ endif ()
 
 if (CMAKE_C_COMPILER_ID MATCHES Intel)
   ## make sure intel libs are linked statically
-  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-intel")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-intel")
 
   ## disable some intel-specific warnings
   set(intel_warnings
@@ -111,7 +111,7 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable ${intel_warning_string}")
 
   ## icc does -g differently
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -debug all")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -debug all")
 
   ## set icc warnings
   set(CMAKE_C_FLAGS "-Wcheck ${CMAKE_C_FLAGS}")
