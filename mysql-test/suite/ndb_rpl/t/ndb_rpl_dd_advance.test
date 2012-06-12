@@ -91,6 +91,8 @@ CREATE INDEX t1_i ON t1(c2, c3);
 #Bug 18039
 CREATE UNIQUE INDEX t1_i2 ON t1(c2);
 ALTER TABLE t1 ADD c4 TIMESTAMP;
+# Save the TIMESTAMP value of c4 for later masking of .result file
+let $c4_timestamp_value=`select c4 FROM t1 WHERE c1 = 1`;
 ALTER TABLE t1 ADD c5 DOUBLE;
 ALTER TABLE t1 ADD INDEX (c5);  
 SHOW CREATE TABLE t1;
@@ -154,12 +156,14 @@ UPDATE t1 SET c3=@b1 where c1 = 2;
 --echo **** Show last set of ALTERs on MASTER ****
 
 SHOW CREATE TABLE t1;
+--replace_result $c4_timestamp_value <c4_timestamp_value>
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 
 --echo **** Show last set of ALTERs on SLAVE ****
 --sync_slave_with_master
 connection slave;
 SHOW CREATE TABLE t1;
+--replace_result $c4_timestamp_value <c4_timestamp_value>
 # Bug 18094
 SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 SELECT * FROM t1 where c1 = 1;
