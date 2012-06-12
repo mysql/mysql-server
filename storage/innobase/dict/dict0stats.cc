@@ -734,6 +734,9 @@ dict_stats_analyze_index_level(
 	const page_t*	page;
 	const rec_t*	rec;
 	const rec_t*	prev_rec;
+#ifdef UNIV_DEBUG
+	int		prev_rec_was_copied;
+#endif
 	byte*		prev_rec_buf = NULL;
 	ulint		prev_rec_buf_size = 0;
 	ulint		i;
@@ -797,6 +800,9 @@ dict_stats_analyze_index_level(
 	}
 
 	prev_rec = NULL;
+#ifdef UNIV_DEBUG
+	prev_rec_was_copied = 1;
+#endif
 
 	/* no records by default */
 	*total_recs = 0;
@@ -851,6 +857,62 @@ dict_stats_analyze_index_level(
 
 			rec_offs_init(offsets_prev_rec_onstack);
 
+#ifdef UNIV_DEBUG
+			/* Printout to help track down Bug#14172780 */
+
+			if (dict_table_is_comp(index->table)) {
+				ulint	status = rec_get_status(prev_rec);
+				if (status != REC_STATUS_ORDINARY
+				    && status != REC_STATUS_NODE_PTR
+				    && status != REC_STATUS_INFIMUM
+				    && status != REC_STATUS_SUPREMUM) {
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr, " InnoDB: "
+						"rec_get_status(): %lu, "
+						"rec: %p, "
+						"prev_rec: %p, "
+						"prev_rec_was_copied: %d, "
+						"page_align(rec): %p, "
+						"page_align(prev_rec): %p, "
+						"*total_recs: " UINT64PF ", "
+						"*total_pages: " UINT64PF "\n",
+						status,
+						rec,
+						prev_rec,
+						prev_rec_was_copied,
+						page_align(rec),
+						page_align(prev_rec),
+						*total_recs,
+						*total_pages);
+					fprintf(stderr,
+						"index->name: %s, "
+						"index->table_name: %s, "
+						"index->table->name: %s\n",
+						index->name,
+						index->table_name,
+						index->table->name);
+
+					fprintf(stderr, "rec: ");
+					ut_print_buf(stderr, rec, 16);
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "prev_rec: ");
+					ut_print_buf(stderr, prev_rec, 16);
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "page_align(rec): ");
+					ut_print_buf(stderr, page_align(rec), UNIV_PAGE_SIZE);
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "page_align(prev_rec): ");
+					ut_print_buf(stderr, page_align(prev_rec), UNIV_PAGE_SIZE);
+					fprintf(stderr, "\n");
+
+					ut_error;
+				}
+			}
+#endif
 			offsets_prev_rec = rec_get_offsets(
 				prev_rec, index, offsets_prev_rec_onstack,
 				n_uniq, &heap);
@@ -915,6 +977,9 @@ dict_stats_analyze_index_level(
 			prev_rec = rec_copy_prefix_to_buf(
 				rec, index, rec_offs_n_fields(offsets_rec),
 				&prev_rec_buf, &prev_rec_buf_size);
+#ifdef UNIV_DEBUG
+			prev_rec_was_copied = 2;
+#endif
 
 		} else {
 			/* still on the same page, the next call to
@@ -923,6 +988,9 @@ dict_stats_analyze_index_level(
 			instead of copying the records like above */
 
 			prev_rec = rec;
+#ifdef UNIV_DEBUG
+			prev_rec_was_copied = 3;
+#endif
 		}
 	}
 
