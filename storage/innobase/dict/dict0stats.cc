@@ -339,6 +339,8 @@ dict_stats_snapshot_create(
 
 	dict_table_stats_lock(table, RW_X_LATCH);
 
+	ut_a(table->stat_initialized);
+
 	/* Estimate the size needed for the table and all of its indexes */
 
 	heap_size = 0;
