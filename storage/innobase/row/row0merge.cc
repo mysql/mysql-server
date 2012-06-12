@@ -2312,10 +2312,43 @@ row_merge_insert_index_tuples(
 			}
 
 			if (n_ext) {
-				row_merge_copy_blobs(
-					mrec, offsets,
-					dict_table_zip_size(old_table),
-					dtuple, tuple_heap);
+				dict_index_t*	old_index
+					= dict_table_get_first_index(
+						old_table);
+
+				if (dict_index_is_online_ddl(old_index)) {
+					/* Copy the off-page columns while
+					holding old_index->lock, so
+					that they cannot be freed by
+					a rollback of a fresh insert. */
+					rw_lock_s_lock(&old_index->lock);
+
+					if (row_merge_skip_rec(
+						    mrec, index, old_index,
+						    offsets)) {
+						// Rollback: skip the record.
+						rw_lock_s_unlock(
+							&old_index->lock);
+						continue;
+					}
+
+					row_merge_copy_blobs(
+						mrec, offsets,
+						dict_table_zip_size(old_table),
+						dtuple, tuple_heap);
+
+					rw_lock_s_unlock(&old_index->lock);
+				} else {
+					/* TODO: Is this safe when creating
+					a secondary index online? We are not
+					suspending purge or preventing the
+					rollback of inserts. Thus, the data
+					could have been freed. */
+					row_merge_copy_blobs(
+						mrec, offsets,
+						dict_table_zip_size(old_table),
+						dtuple, tuple_heap);
+				}
 			}
 
 			ut_ad(dtuple_validate(dtuple));
