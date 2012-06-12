@@ -11748,6 +11748,33 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
 }
 
 
+/**
+  Check if the given table is a system table which is
+  supported to store in NDB
+
+*/
+static bool is_supported_system_table(const char *db,
+                                      const char *table_name,
+                                      bool is_sql_layer_system_table)
+{
+  if (!is_sql_layer_system_table)
+  {
+    // No need to check tables which MySQL Server does not
+    // consider as system tables
+    return false;
+  }
+
+  if (Ndb_dist_priv_util::is_distributed_priv_table(db, table_name))
+  {
+    // Table is supported as distributed system table and should be allowed
+    // to be stored in NDB
+    return true;
+  }
+
+  return false;
+}
+
+
 /*
   Initialise all gloal variables before creating 
   a NDB Cluster table handler
@@ -11900,6 +11927,7 @@ static int ndbcluster_init(void *p)
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
     h->make_pushed_join= ndbcluster_make_pushed_join;
 #endif
+    h->is_supported_system_table = is_supported_system_table;
   }
 
   // Initialize ndb interface
