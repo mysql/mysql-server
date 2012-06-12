@@ -163,7 +163,7 @@ CREATE TABLE fts_test (
 
 # This should fail:
 # Create a FTS_DOC_ID_INDEX of the wrong type (should be unique)
---error 1280
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
 CREATE TABLE fts_test (
    FTS_DOC_ID bigint(20) unsigned NOT NULL AUTO_INCREMENT,
    title varchar(255) NOT NULL DEFAULT '',
