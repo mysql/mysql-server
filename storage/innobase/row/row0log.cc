@@ -1022,20 +1022,27 @@ row_log_table_is_rollback(
 
 /******************************************************//**
 Converts a log record to a table row.
-@return converted row, or NULL if the conversion fails */
+@return converted row, or NULL if the conversion fails
+or the transaction has been rolled back */
 static __attribute__((nonnull, warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
 /*=============================*/
 	const mrec_t*		mrec,		/*!< in: merge record */
-	const dict_index_t*	index,		/*!< in: index of mrec */
+	dict_index_t*		index,		/*!< in: index of mrec */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
 	const row_log_t*	log,		/*!< in: rebuild context */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
+	trx_id_t		trx_id,		/*!< in: DB_TRX_ID of mrec */
 	dberr_t*		error)		/*!< out: DB_SUCCESS or
 						reason of failure */
 {
 	dtuple_t*	row;
+
+	if (row_log_table_is_rollback(index, trx_id)) {
+		row = NULL;
+		goto func_exit;
+	}
 
 	/* This is based on row_build(). */
 	if (log->add_cols) {
@@ -1049,6 +1056,15 @@ row_log_table_apply_convert_mrec(
 	} else {
 		row = dtuple_create(heap, dict_table_get_n_cols(log->table));
 		dict_table_copy_types(row, log->table);
+	}
+
+	if (rec_offs_any_extern(offsets)) {
+		rw_lock_s_lock(&index->lock);
+	}
+
+	if (row_log_table_is_rollback(index, trx_id)) {
+		row = NULL;
+		goto skip_row;
 	}
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
@@ -1081,6 +1097,7 @@ row_log_table_apply_convert_mrec(
 		const void*		data;
 
 		if (rec_offs_nth_extern(offsets, i)) {
+			ut_ad(rec_offs_any_extern(offsets));
 			data = btr_rec_copy_externally_stored_field(
 				mrec, offsets,
 				dict_table_zip_size(index->table),
@@ -1120,6 +1137,12 @@ row_log_table_apply_convert_mrec(
 						 dfield_get_type(dfield)));
 	}
 
+skip_row:
+	if (rec_offs_any_extern(offsets)) {
+		rw_lock_s_unlock(&index->lock);
+	}
+
+func_exit:
 	*error = DB_SUCCESS;
 	return(row);
 }
@@ -1204,20 +1227,21 @@ dberr_t
 row_log_table_apply_insert(
 /*=======================*/
 	que_thr_t*		thr,		/*!< in: query graph */
-	const mrec_t*		mrec,		/*!< in: merge record */
+	const mrec_t*		mrec,		/*!< in: record to insert */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	row_merge_dup_t*	dup)		/*!< in/out: for reporting
+	row_merge_dup_t*	dup,		/*!< in/out: for reporting
 						duplicate key errors */
+	trx_id_t		trx_id)		/*!< in: DB_TRX_ID of mrec */
 {
 	const row_log_t*log	= dup->index->online_log;
 	dberr_t		error;
 	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, log, heap, &error);
+		mrec, dup->index, offsets, log, heap, trx_id, &error);
 
-	ut_ad(!row == (error != DB_SUCCESS));
+	ut_ad(error == DB_SUCCESS || !row);
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
@@ -1431,13 +1455,14 @@ row_log_table_apply_update(
 	ulint			new_trx_id_col,	/*!< in: position of
 						DB_TRX_ID in the new
 						clustered index */
-	const mrec_t*		mrec,		/*!< in: merge record */
+	const mrec_t*		mrec,		/*!< in: new value */
 	const ulint*		offsets,	/*!< in: offsets of mrec */
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	row_merge_dup_t*	dup,		/*!< in/out: for reporting
 						duplicate key errors */
+	trx_id_t		trx_id,		/*!< in: DB_TRX_ID of mrec */
 	const dtuple_t*		old_pk)		/*!< in: PRIMARY KEY and
 						DB_TRX_ID,DB_ROLL_PTR
 						of the old value,
@@ -1457,9 +1482,9 @@ row_log_table_apply_update(
 	      + (dup->index->online_log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
-		mrec, dup->index, offsets, log, heap, &error);
+		mrec, dup->index, offsets, log, heap, trx_id, &error);
 
-	ut_ad(!row == (error != DB_SUCCESS));
+	ut_ad(error == DB_SUCCESS || !row);
 
 	if (!row) {
 		goto err_exit;
@@ -1491,8 +1516,8 @@ insert:
 		error = row_log_table_apply_insert_low(
 			thr, row, offsets_heap, heap, log->table, dup);
 
-		if (error != DB_SUCCESS) {
 err_exit:
+		if (error != DB_SUCCESS) {
 			/* Report the erroneous row using the old
 			version of the table. */
 			innobase_rec_to_mysql(
@@ -1763,13 +1788,9 @@ row_log_table_apply_op(
 				= rec_get_nth_field(
 					mrec, offsets, trx_id_col, &len);
 			ut_ad(len == DATA_TRX_ID_LEN);
-			if (!row_log_table_is_rollback(
-				    dup->index,
-				    trx_read_trx_id(db_trx_id))) {
-				*error = row_log_table_apply_insert(
-					thr, mrec, offsets, offsets_heap,
-					heap, dup);
-			}
+			*error = row_log_table_apply_insert(
+				thr, mrec, offsets, offsets_heap,
+				heap, dup, trx_read_trx_id(db_trx_id));
 		}
 		break;
 
@@ -1934,14 +1955,10 @@ row_log_table_apply_op(
 				= rec_get_nth_field(
 					mrec, offsets, trx_id_col, &len);
 			ut_ad(len == DATA_TRX_ID_LEN);
-			if (!row_log_table_is_rollback(
-				    dup->index,
-				    trx_read_trx_id(db_trx_id))) {
-				*error = row_log_table_apply_update(
-					thr, trx_id_col, new_trx_id_col,
-					mrec, offsets, offsets_heap,
-					heap, dup, old_pk);
-			}
+			*error = row_log_table_apply_update(
+				thr, trx_id_col, new_trx_id_col,
+				mrec, offsets, offsets_heap,
+				heap, dup, trx_read_trx_id(db_trx_id), old_pk);
 		}
 
 		break;
