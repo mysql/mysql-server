@@ -1039,6 +1039,12 @@ row_log_table_apply_convert_mrec(
 {
 	dtuple_t*	row;
 
+#ifdef UNIV_SYNC_DEBUG
+	/* This prevents BLOBs from being freed, in case an insert
+	transaction rollback starts after row_log_table_is_rollback(). */
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
 	if (row_log_table_is_rollback(index, trx_id)) {
 		row = NULL;
 		goto func_exit;
@@ -1056,15 +1062,6 @@ row_log_table_apply_convert_mrec(
 	} else {
 		row = dtuple_create(heap, dict_table_get_n_cols(log->table));
 		dict_table_copy_types(row, log->table);
-	}
-
-	if (rec_offs_any_extern(offsets)) {
-		rw_lock_s_lock(&index->lock);
-	}
-
-	if (row_log_table_is_rollback(index, trx_id)) {
-		row = NULL;
-		goto skip_row;
 	}
 
 	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
@@ -1135,11 +1132,6 @@ row_log_table_apply_convert_mrec(
 
 		ut_ad(dict_col_type_assert_equal(new_col,
 						 dfield_get_type(dfield)));
-	}
-
-skip_row:
-	if (rec_offs_any_extern(offsets)) {
-		rw_lock_s_unlock(&index->lock);
 	}
 
 func_exit:
