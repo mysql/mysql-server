@@ -1231,7 +1231,7 @@ name_ok:
 
 /*******************************************************************//**
 Create index field definition for key part */
-static __attribute__((nonnull(2,3,4)))
+static __attribute__((nonnull(2,3)))
 void
 innobase_create_index_field_def(
 /*============================*/
@@ -1240,7 +1240,6 @@ innobase_create_index_field_def(
 						if a new clustered index is
 						not being created */
 	const KEY_PART_INFO*	key_part,	/*!< in: MySQL key definition */
-	mem_heap_t*		heap,		/*!< in: memory heap */
 	merge_index_field_t*	index_field)	/*!< out: index field
 						definition for key_part */
 {
@@ -1344,8 +1343,7 @@ innobase_create_index_def(
 
 	for (i = 0; i < n_fields; i++) {
 		innobase_create_index_field_def(
-			altered_table, &key->key_part[i],
-			heap, &index->fields[i]);
+			altered_table, &key->key_part[i], &index->fields[i]);
 	}
 
 	DBUG_VOID_RETURN;
