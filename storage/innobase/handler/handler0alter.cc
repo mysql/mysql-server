@@ -1777,15 +1777,13 @@ created_clustered:
 /*******************************************************************//**
 Check each index column size, make sure they do not exceed the max limit
 @return	true if index column size exceeds limit */
-static
+static __attribute__((nonnull, warn_unused_result))
 bool
 innobase_check_column_length(
 /*=========================*/
-	const dict_table_t*table,	/*!< in: table definition */
+	ulint		max_col_len,	/*!< in: maximum column length */
 	const KEY*	key_info)	/*!< in: Indexes to be created */
 {
-	ulint	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT(table);
-
 	for (ulint key_part = 0; key_part < key_info->key_parts; key_part++) {
 		if (key_info->key_part[key_part].length > max_col_len) {
 			return(true);
@@ -2297,6 +2295,8 @@ while preparing ALTER TABLE.
 @param user_table	InnoDB table that is being altered
 @param user_trx		User transaction, for locking the table
 @param table_name	Table name in MySQL
+@param flags		Table and tablespace flags
+@param flags2		Additional table flags
 @param heap		Memory heap, or NULL
 @param drop_index	Indexes to be dropped, or NULL
 @param n_drop_index	Number of indexes to drop
@@ -2322,6 +2322,8 @@ prepare_inplace_alter_table_dict(
 	dict_table_t*		user_table,
 	trx_t*			user_trx,
 	const char*		table_name,
+	ulint			flags,
+	ulint			flags2,
 	mem_heap_t*		heap,
 	dict_index_t**		drop_index,
 	ulint			n_drop_index,
@@ -2465,18 +2467,7 @@ prepare_inplace_alter_table_dict(
 	if (new_clustered) {
 		char*	new_table_name = innobase_create_temporary_tablename(
 			heap, indexed_table->name, indexed_table->id);
-		ulint	flags;
-		ulint	flags2;
 		ulint	n_cols;
-
-		if (!innobase_table_flags(table_name, altered_table,
-					  ha_alter_info->create_info,
-					  trx->mysql_thd,
-					  srv_file_per_table
-					  || user_table->space != 0,
-					  &flags, &flags2)) {
-			goto new_clustered_failed;
-		}
 
 		if (innobase_check_foreigns(
 			    ha_alter_info, altered_table, old_table,
@@ -2949,6 +2940,9 @@ ha_innobase::prepare_inplace_alter_table(
 	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
 	mem_heap_t*     heap;
 	int		error;
+	ulint		flags;
+	ulint		flags2;
+	ulint		max_col_len;
 	ulint		num_fts_index;
 	ulint		add_autoinc_col_no	= ULINT_UNDEFINED;
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
@@ -3075,6 +3069,17 @@ check_if_ok_to_rename:
 		}
 	}
 
+	if (!innobase_table_flags(altered_table,
+				  ha_alter_info->create_info,
+				  user_thd,
+				  srv_file_per_table
+				  || indexed_table->space != 0,
+				  &flags, &flags2)) {
+		goto err_exit_no_heap;
+	}
+
+	max_col_len = DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(flags);
+
 	/* Check each index's column length to make sure they do not
 	exceed limit */
 	for (ulint i = 0; i < ha_alter_info->index_add_count; i++) {
@@ -3093,11 +3098,32 @@ check_if_ok_to_rename:
 			continue;
 		}
 
-		if (innobase_check_column_length(indexed_table, key)) {
+		if (innobase_check_column_length(max_col_len, key)) {
 			my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
-				 DICT_MAX_FIELD_LEN_BY_FORMAT_FLAG(
-					 indexed_table->flags));
+				 max_col_len);
 			goto err_exit_no_heap;
+		}
+	}
+
+	/* Check existing index definitions for too-long column
+	prefixes as well, in case max_col_len shrunk. */
+	for (const dict_index_t* index
+		     = dict_table_get_first_index(indexed_table);
+	     index;
+	     index = dict_table_get_next_index(index)) {
+		if (index->type & DICT_FTS) {
+			DBUG_ASSERT(index->type == DICT_FTS);
+			continue;
+		}
+
+		for (ulint i = 0; i < dict_index_get_n_fields(index); i++) {
+			const dict_field_t* field
+				= dict_index_get_nth_field(index, i);
+			if (field->prefix_len > max_col_len) {
+				my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
+					 max_col_len);
+				goto err_exit_no_heap;
+			}
 		}
 	}
 
@@ -3487,6 +3513,7 @@ found_col:
 			    ha_alter_info, altered_table, table,
 			    prebuilt->table, prebuilt->trx,
 			    table_share->table_name.str,
+			    flags, flags2,
 			    heap, drop_index, n_drop_index,
 			    drop_fk, n_drop_fk, add_fk, n_add_fk,
 			    num_fts_index,

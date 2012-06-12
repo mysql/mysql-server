@@ -467,7 +467,6 @@ UNIV_INTERN
 bool
 innobase_table_flags(
 /*=================*/
-	const char*		name,		/*!< in: table name */
 	const TABLE*		form,		/*!< in: table */
 	const HA_CREATE_INFO*	create_info,	/*!< in: information
 						on table columns and indexes */
