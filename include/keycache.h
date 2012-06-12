@@ -150,9 +150,10 @@ typedef struct st_key_cache
   ulong param_partitions;        /* number of the key cache partitions       */
   my_bool key_cache_inited;      /* <=> key cache has been created           */
   my_bool can_be_used;           /* usage of cache for read/write is allowed */
-  my_bool in_init;		 /* Set to 1 in MySQL during init/resize     */
+  my_bool in_init;               /* set to 1 in MySQL during init/resize     */
   uint partitions;               /* actual number of partitions              */
   size_t key_cache_mem_size;     /* specified size of the cache memory       */
+  pthread_mutex_t op_lock;       /* to serialize operations like 'resize'    */
 } KEY_CACHE;
 
 
