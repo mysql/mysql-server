@@ -406,9 +406,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 # Be strict about variables, bail at earliest opportunity, etc.
 set -eu
 
-# Get rid of stuff for ULN RPMs - not needed here
-rm -fr %{src_dir}/SPECIFIC-ULN/
-
 # Optional package files
 touch optional-files-devel
 
