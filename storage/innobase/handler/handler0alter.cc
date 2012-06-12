@@ -990,10 +990,9 @@ innobase_col_to_mysql(
 		break;
 
 	case DATA_BLOB:
-		/* Store a pointer to the BLOB buffer to dest: the BLOB was
-		already copied to the buffer in row_sel_store_mysql_rec */
-
-		row_mysql_store_blob_ref(dest, flen, data, len);
+		/* Skip MySQL BLOBs when reporting an erroneous row
+		during index creation or table rebuild. */
+		field->set_null();
 		break;
 
 #ifdef UNIV_DEBUG
@@ -1068,7 +1067,8 @@ innobase_rec_to_mysql(
 
 		ipos = dict_index_get_nth_col_pos(index, col_no);
 
-		if (UNIV_UNLIKELY(ipos == ULINT_UNDEFINED)) {
+		if (ipos == ULINT_UNDEFINED
+		    || rec_offs_nth_extern(offsets, ipos)) {
 null_field:
 			field->set_null();
 			continue;
