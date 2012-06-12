@@ -1814,7 +1814,7 @@ innobase_create_temporary_tablename(
 
 	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);
-	my_snprintf(name + dblen, size - dblen,
+	ut_snprintf(name + dblen, size - dblen,
 		    tmp_file_prefix "-ib" UINT64PF, id);
 	return(name);
 }
