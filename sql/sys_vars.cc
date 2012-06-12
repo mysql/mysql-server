@@ -45,6 +45,7 @@
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
 
+#include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -1130,6 +1131,14 @@ static Sys_var_ulong Sys_max_allowed_packet(
        VALID_RANGE(1024, 1024*1024*1024), DEFAULT(1024*1024),
        BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_max_allowed_packet));
+
+static Sys_var_ulong Sys_slave_max_allowed_packet(
+       "slave_max_allowed_packet",
+       "The maximum packet length to sent successfully from the master to slave.",
+       GLOBAL_VAR(slave_max_allowed_packet), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1024, MAX_MAX_ALLOWED_PACKET),
+       DEFAULT(MAX_MAX_ALLOWED_PACKET),
+       BLOCK_SIZE(1024));
 
 static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "max_binlog_cache_size",
