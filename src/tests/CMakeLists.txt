@@ -317,7 +317,7 @@ if(BUILD_TESTING)
     add_executable(${base}.tdb ${src})
     target_link_libraries(${base}.tdb ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${src}.tdb\";USE_TDB;IS_TDB;TOKUDB=1")
+      COMPILE_DEFINITIONS "ENVDIR=\"dir.${src}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${src}.tdb")
   endforeach(bin)
 
