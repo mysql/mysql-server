@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
                                        Open_tables_backup* backup)
 {
   TABLE_LIST tables;
+  Query_tables_list query_tables_list_backup;
 
   uint flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
@@ -71,6 +72,15 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     mysql_reset_thd_for_next_command(thd);
   }
 
+  /*
+    We need to use new Open_tables_state in order not to be affected
+    by LOCK TABLES/prelocked mode.
+    Also in order not to break execution of current statement we also
+    have to backup/reset/restore Query_tables_list part of LEX, which
+    is accessed and updated in the process of opening and locking
+    tables.
+  */
+  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
   tables.init_one_table(dbstr.str, dbstr.length, tbstr.str, tbstr.length,
@@ -80,6 +90,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
   {
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
+    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.str, tbstr.str);
     DBUG_RETURN(TRUE);
   }
@@ -95,11 +106,14 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     ha_rollback_trans(thd, FALSE);
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
+    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
              tables.table->s->db.str, tables.table->s->table_name.str,
              max_num_field, tables.table->s->fields);
     DBUG_RETURN(TRUE);
   }
+
+  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
   *table= tables.table;
   tables.table->use_all_columns();
@@ -132,6 +146,8 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         Open_tables_backup *backup,
                                         bool error)
 {
+  Query_tables_list query_tables_list_backup;
+
   DBUG_ENTER("Rpl_info_table_access::close_table");
 
   if (table)
@@ -148,7 +164,14 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
       else
         ha_commit_trans(thd, TRUE);
     }
+    /*
+      In order not to break execution of current statement we have to
+      backup/reset/restore Query_tables_list part of LEX, which is
+      accessed and updated in the process of closing tables.
+    */
+    thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
     close_thread_tables(thd);
+    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     thd->restore_backup_open_tables_state(backup);
   }
 

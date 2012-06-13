@@ -858,24 +858,35 @@ static inline int mysql_mutex_lock(...)
   @subsection IMPL_WAIT_SOCKET Socket waits
 
 @verbatim
-  socket_locker(T, F)
+  socket_locker(T, S)
    |
    | [1]
    |
-   |-> pfs_socket(F)                            =====>> [A], [B], [C], [D], [E]
+   |-> pfs_socket(S)                            =====>> [A], [B], [C], [D], [E]
         |
         | [2]
         |
-        |-> pfs_socket_class(F.class)           =====>> [C], [D]
+        |-> pfs_socket_class(S.class)           =====>> [C], [D]
         |
-        |-> pfs_thread(T).event_name(F)         =====>> [A]
+        |-> pfs_thread(T).event_name(S)         =====>> [A]
         |
-        ...
+        | [3]
+        |
+     3a |-> pfs_account(U, H).event_name(S)     =====>> [F], [G], [H]
+        .    |
+        .    | [4-RESET]
+        .    |
+     3b .....+-> pfs_user(U).event_name(S)      =====>> [G]
+        .    |
+     3c .....+-> pfs_host(H).event_name(S)      =====>> [H]
 @endverbatim
 
   Implemented as:
   - [1] @c start_socket_wait_v1(), @c end_socket_wait_v1().
   - [2] @c close_socket_v1()
+  - [3] @c aggregate_thread_waits()
+  - [4] @c PFS_account::aggregate_waits()
+  - [5] @c PFS_host::aggregate_waits()
   - [A] EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME,
         @c table_ews_by_thread_by_event_name::make_row()
   - [B] EVENTS_WAITS_SUMMARY_BY_INSTANCE,
@@ -886,6 +897,12 @@ static inline int mysql_mutex_lock(...)
         @c table_socket_summary_by_event_name::make_row()
   - [E] SOCKET_SUMMARY_BY_INSTANCE,
         @c table_socket_summary_by_instance::make_row()
+  - [F] EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME,
+        @c table_ews_by_account_by_event_name::make_row()
+  - [G] EVENTS_WAITS_SUMMARY_BY_USER_BY_EVENT_NAME,
+        @c table_ews_by_user_by_event_name::make_row()
+  - [H] EVENTS_WAITS_SUMMARY_BY_HOST_BY_EVENT_NAME,
+        @c table_ews_by_host_by_event_name::make_row()
 
   @subsection IMPL_WAIT_TABLE Table waits
 
@@ -2223,7 +2240,7 @@ start_mutex_wait_v1(PSI_mutex_locker_state *state,
         Complete shortcut.
       */
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-      pfs_mutex->m_wait_stat.aggregate_counted();
+      pfs_mutex->m_mutex_stat.m_wait_stat.aggregate_counted();
       return NULL;
     }
   }
@@ -2321,7 +2338,7 @@ start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
         Complete shortcut.
       */
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-      pfs_rwlock->m_wait_stat.aggregate_counted();
+      pfs_rwlock->m_rwlock_stat.m_wait_stat.aggregate_counted();
       return NULL;
     }
   }
@@ -2428,7 +2445,7 @@ start_cond_wait_v1(PSI_cond_locker_state *state,
         Complete shortcut.
       */
       /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-      pfs_cond->m_wait_stat.aggregate_counted();
+      pfs_cond->m_cond_stat.m_wait_stat.aggregate_counted();
       return NULL;
     }
   }
@@ -3126,22 +3143,15 @@ static void unlock_mutex_v1(PSI_mutex *mutex)
     PFS_mutex::m_lock_stat is not exposed in user visible tables
     currently, so there is no point spending time computing it.
   */
-  PFS_thread *pfs_thread= reinterpret_cast<PFS_thread*> (thread);
-  DBUG_ASSERT(pfs_thread != NULL);
-
-  if (unlikely(! flag_events_waits_current))
-    return;
-  if (! pfs_mutex->m_class->m_enabled)
-    return;
-  if (! pfs_thread->m_enabled)
+  if (! pfs_mutex->m_enabled)
     return;
 
-  if (pfs_mutex->m_class->m_timed)
-  {
-    ulonglong locked_time;
-    locked_time= get_timer_pico_value(wait_timer) - pfs_mutex->m_last_locked;
-    aggregate_single_stat_chain(&pfs_mutex->m_lock_stat, locked_time);
-  }
+  if (! pfs_mutex->m_timed)
+    return;
+
+  ulonglong locked_time;
+  locked_time= get_timer_pico_value(wait_timer) - pfs_mutex->m_last_locked;
+  pfs_mutex->m_mutex_stat.m_lock_stat.aggregate_value(locked_time);
 #endif
 }
 
@@ -3199,32 +3209,23 @@ static void unlock_rwlock_v1(PSI_rwlock *rwlock)
 
 #ifdef LATER_WL2333
   /* See WL#2333: SHOW ENGINE ... LOCK STATUS. */
-  PFS_thread *pfs_thread= reinterpret_cast<PFS_thread*> (thread);
-  DBUG_ASSERT(pfs_thread != NULL);
 
-  if (unlikely(! flag_events_waits_current))
+  if (! pfs_rwlock->m_enabled)
     return;
-  if (! pfs_rwlock->m_class->m_enabled)
-    return;
-  if (! pfs_thread->m_enabled)
+
+  if (! pfs_rwlock->m_timed)
     return;
 
   ulonglong locked_time;
   if (last_writer)
   {
-    if (pfs_rwlock->m_class->m_timed)
-    {
-      locked_time= get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_written;
-      aggregate_single_stat_chain(&pfs_rwlock->m_write_lock_stat, locked_time);
-    }
+    locked_time= get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_written;
+    pfs_rwlock->m_rwlock_stat.m_write_lock_stat.aggregate_value(locked_time);
   }
   else if (last_reader)
   {
-    if (pfs_rwlock->m_class->m_timed)
-    {
-      locked_time= get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_read;
-      aggregate_single_stat_chain(&pfs_rwlock->m_read_lock_stat, locked_time);
-    }
+    locked_time= get_timer_pico_value(wait_timer) - pfs_rwlock->m_last_read;
+    pfs_rwlock->m_rwlock_stat.m_read_lock_stat.aggregate_value(locked_time);
   }
 #else
   (void) last_reader;
@@ -3392,6 +3393,17 @@ static void end_idle_wait_v1(PSI_idle_locker* locker)
       thread->m_events_waits_current--;
     }
   }
+
+  if (flags & STATE_FLAG_TIMED)
+  {
+    /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (timed) */
+    global_idle_stat.aggregate_value(wait_time);
+  }
+  else
+  {
+    /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME (counted) */
+    global_idle_stat.aggregate_counted();
+  }
 }
 
 /**
@@ -3417,12 +3429,12 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    mutex->m_wait_stat.aggregate_value(wait_time);
+    mutex->m_mutex_stat.m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    mutex->m_wait_stat.aggregate_counted();
+    mutex->m_mutex_stat.m_wait_stat.aggregate_counted();
   }
 
   if (likely(rc == 0))
@@ -3484,12 +3496,12 @@ static void end_rwlock_rdwait_v1(PSI_rwlock_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    rwlock->m_wait_stat.aggregate_value(wait_time);
+    rwlock->m_rwlock_stat.m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    rwlock->m_wait_stat.aggregate_counted();
+    rwlock->m_rwlock_stat.m_wait_stat.aggregate_counted();
   }
 
   if (rc == 0)
@@ -3564,12 +3576,12 @@ static void end_rwlock_wrwait_v1(PSI_rwlock_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    rwlock->m_wait_stat.aggregate_value(wait_time);
+    rwlock->m_rwlock_stat.m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    rwlock->m_wait_stat.aggregate_counted();
+    rwlock->m_rwlock_stat.m_wait_stat.aggregate_counted();
   }
 
   if (likely(rc == 0))
@@ -3635,12 +3647,12 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (timed) */
-    cond->m_wait_stat.aggregate_value(wait_time);
+    cond->m_cond_stat.m_wait_stat.aggregate_value(wait_time);
   }
   else
   {
     /* Aggregate to EVENTS_WAITS_SUMMARY_BY_INSTANCE (counted) */
-    cond->m_wait_stat.aggregate_counted();
+    cond->m_cond_stat.m_wait_stat.aggregate_counted();
   }
 
   if (state->m_flags & STATE_FLAG_THREAD)

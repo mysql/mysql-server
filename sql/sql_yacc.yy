@@ -2388,6 +2388,7 @@ create:
             if (add_create_index(Lex, $2, $4))
               MYSQL_YYABORT;
           }
+          opt_index_lock_algorithm { }
         | CREATE fulltext INDEX_SYM ident init_key_options ON
           table_ident
           {
@@ -2399,6 +2400,7 @@ create:
             if (add_create_index(Lex, $2, $4))
               MYSQL_YYABORT;
           }
+          opt_index_lock_algorithm { }
         | CREATE spatial INDEX_SYM ident init_key_options ON
           table_ident
           {
@@ -2410,6 +2412,7 @@ create:
             if (add_create_index(Lex, $2, $4))
               MYSQL_YYABORT;
           }
+          opt_index_lock_algorithm { }
         | CREATE DATABASE opt_if_not_exists ident
           {
             Lex->create_info.default_table_charset= NULL;
@@ -7888,7 +7891,19 @@ alter_list_item:
             LEX *lex=Lex;
             lex->alter_info.flags|= Alter_info::ALTER_ORDER;
           }
-        | ALGORITHM_SYM opt_equal DEFAULT
+        | algorithm_option
+        | lock_option
+        ;
+
+opt_index_lock_algorithm:
+          /* empty */
+        | lock_option
+        | algorithm_option
+        | lock_option algorithm_option
+        | algorithm_option lock_option
+
+algorithm_option:
+          ALGORITHM_SYM opt_equal DEFAULT
           {
             Lex->alter_info.requested_algorithm=
               Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
@@ -7901,7 +7916,10 @@ alter_list_item:
               MYSQL_YYABORT;
             }
           }
-        | LOCK_SYM opt_equal DEFAULT
+        ;
+
+lock_option:
+          LOCK_SYM opt_equal DEFAULT
           {
             Lex->alter_info.requested_lock=
               Alter_info::ALTER_TABLE_LOCK_DEFAULT;
@@ -11624,6 +11642,7 @@ drop:
                                                         MDL_SHARED_UPGRADABLE))
               MYSQL_YYABORT;
           }
+          opt_index_lock_algorithm {}
         | DROP DATABASE if_exists ident
           {
             LEX *lex=Lex;
