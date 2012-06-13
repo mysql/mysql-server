@@ -55,6 +55,7 @@ extern my_bool bitmap_fast_test_and_set(MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_set_next(MY_BITMAP *map);
 extern uint bitmap_get_first(const MY_BITMAP *map);
 extern uint bitmap_get_first_set(const MY_BITMAP *map);
+extern uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit);
 extern uint bitmap_bits_set(const MY_BITMAP *map);
 extern void bitmap_free(MY_BITMAP *map);
 extern void bitmap_set_above(MY_BITMAP *map, uint from_byte, uint use_bit);
