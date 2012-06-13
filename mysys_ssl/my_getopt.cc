@@ -1332,7 +1332,8 @@ void my_print_help(const struct my_option *options)
 
       while ((uint) (end - comment) > comment_space)
       {
-	for (line_end= comment + comment_space; *line_end != ' '; line_end--);
+	for (line_end= comment + comment_space; *line_end != ' '; line_end--)
+        {}
 	for (; comment != line_end; comment++)
 	  putchar(*comment);
 	comment++; /* skip the space, as a newline will take it's place now */

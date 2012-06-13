@@ -2488,6 +2488,13 @@ Insert into t2 values (2, 'double',    6, '2')  ;
 Insert into t2 values (3, 'single-f3', 6, '3')  ;
 Insert into t2 values (4, 'single',    4, '4')  ;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
+
 # Testcase 3.3.1.55 ;
 create or replace view test.v1 as
 Select t1.f59 t1_f59, t2.f59 t2_f59, t1.f60 t1_f60, t2.f60 t2_f60,

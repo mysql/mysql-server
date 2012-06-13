@@ -307,6 +307,7 @@ dict_table_t::stat_sum_of_other_index_sizes
 dict_table_t::stat_modified_counter
 dict_table_t::magic_n
 for each entry in dict_table_t::indexes, the following are initialized:
+(indexes that have DICT_FTS set in index->type are skipped)
 dict_index_t::id
 dict_index_t::name
 dict_index_t::table_name
@@ -338,6 +339,8 @@ dict_stats_snapshot_create(
 
 	dict_table_stats_lock(table, RW_X_LATCH);
 
+	ut_a(table->stat_initialized);
+
 	/* Estimate the size needed for the table and all of its indexes */
 
 	heap_size = 0;
@@ -347,6 +350,10 @@ dict_stats_snapshot_create(
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
+
+		if (index->type & DICT_FTS) {
+			continue;
+		}
 
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
@@ -389,6 +396,10 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		dict_index_t*	idx;
 
 		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
@@ -423,13 +434,13 @@ dict_stats_snapshot_create(
 		/* hook idx into t->indexes */
 		UT_LIST_ADD_LAST(indexes, t->indexes, idx);
 
-		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals, (idx->n_uniq + 1) * sizeof(idx->stat_n_diff_key_vals[0]));
+		UNIV_MEM_ASSERT_RW(index->stat_n_diff_key_vals + 1, idx->n_uniq * sizeof(idx->stat_n_diff_key_vals[0]));
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_diff_key_vals,
 			(idx->n_uniq + 1)
 			* sizeof(idx->stat_n_diff_key_vals[0]));
 
-		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, (idx->n_uniq + 1) * sizeof(idx->stat_n_sample_sizes[0]));
+		UNIV_MEM_ASSERT_RW(index->stat_n_sample_sizes, idx->n_uniq * sizeof(idx->stat_n_sample_sizes[0]));
 		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_dup(
 			heap, index->stat_n_sample_sizes,
 			(idx->n_uniq + 1)
@@ -725,6 +736,9 @@ dict_stats_analyze_index_level(
 	const page_t*	page;
 	const rec_t*	rec;
 	const rec_t*	prev_rec;
+#ifdef UNIV_DEBUG
+	int		prev_rec_was_copied;
+#endif
 	byte*		prev_rec_buf = NULL;
 	ulint		prev_rec_buf_size = 0;
 	ulint		i;
@@ -788,6 +802,9 @@ dict_stats_analyze_index_level(
 	}
 
 	prev_rec = NULL;
+#ifdef UNIV_DEBUG
+	prev_rec_was_copied = 1;
+#endif
 
 	/* no records by default */
 	*total_recs = 0;
@@ -842,6 +859,62 @@ dict_stats_analyze_index_level(
 
 			rec_offs_init(offsets_prev_rec_onstack);
 
+#ifdef UNIV_DEBUG
+			/* Printout to help track down Bug#14172780 */
+
+			if (dict_table_is_comp(index->table)) {
+				ulint	status = rec_get_status(prev_rec);
+				if (status != REC_STATUS_ORDINARY
+				    && status != REC_STATUS_NODE_PTR
+				    && status != REC_STATUS_INFIMUM
+				    && status != REC_STATUS_SUPREMUM) {
+
+					ut_print_timestamp(stderr);
+					fprintf(stderr, " InnoDB: "
+						"rec_get_status(): %lu, "
+						"rec: %p, "
+						"prev_rec: %p, "
+						"prev_rec_was_copied: %d, "
+						"page_align(rec): %p, "
+						"page_align(prev_rec): %p, "
+						"*total_recs: " UINT64PF ", "
+						"*total_pages: " UINT64PF "\n",
+						status,
+						rec,
+						prev_rec,
+						prev_rec_was_copied,
+						page_align(rec),
+						page_align(prev_rec),
+						*total_recs,
+						*total_pages);
+					fprintf(stderr,
+						"index->name: %s, "
+						"index->table_name: %s, "
+						"index->table->name: %s\n",
+						index->name,
+						index->table_name,
+						index->table->name);
+
+					fprintf(stderr, "rec: ");
+					ut_print_buf(stderr, rec, 16);
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "prev_rec: ");
+					ut_print_buf(stderr, prev_rec, 16);
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "page_align(rec): ");
+					ut_print_buf(stderr, page_align(rec), UNIV_PAGE_SIZE);
+					fprintf(stderr, "\n");
+
+					fprintf(stderr, "page_align(prev_rec): ");
+					ut_print_buf(stderr, page_align(prev_rec), UNIV_PAGE_SIZE);
+					fprintf(stderr, "\n");
+
+					ut_error;
+				}
+			}
+#endif
 			offsets_prev_rec = rec_get_offsets(
 				prev_rec, index, offsets_prev_rec_onstack,
 				n_uniq, &heap);
@@ -906,6 +979,9 @@ dict_stats_analyze_index_level(
 			prev_rec = rec_copy_prefix_to_buf(
 				rec, index, rec_offs_n_fields(offsets_rec),
 				&prev_rec_buf, &prev_rec_buf_size);
+#ifdef UNIV_DEBUG
+			prev_rec_was_copied = 2;
+#endif
 
 		} else {
 			/* still on the same page, the next call to
@@ -914,6 +990,9 @@ dict_stats_analyze_index_level(
 			instead of copying the records like above */
 
 			prev_rec = rec;
+#ifdef UNIV_DEBUG
+			prev_rec_was_copied = 3;
+#endif
 		}
 	}
 

@@ -15,7 +15,6 @@
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
-${CMAKE_SOURCE_DIR}/mysys_ssl
 ${ZLIB_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include

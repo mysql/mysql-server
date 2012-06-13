@@ -394,7 +394,7 @@ void test_oom()
   param.m_events_statements_history_long_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
 
-  stub_alloc_fails_after_count= 2;
+  stub_alloc_fails_after_count= 1;
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
   ok(rc == 1, "oom (per thread waits)");
