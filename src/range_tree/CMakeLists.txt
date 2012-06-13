@@ -11,8 +11,7 @@ add_dependencies(range_tree_tlog_static install_tdb_h)
 ## make the real library, it's going to go into libtokudb.so so it needs
 ## to be PIC
 add_library(range_tree_static STATIC log_nooverlap.c)
-set_property(TARGET range_tree_static APPEND PROPERTY
-  COMPILE_FLAGS "-fPIC")
+add_space_separated_property(TARGET range_tree_static COMPILE_FLAGS "-fvisibility=hidden -fPIC")
 add_dependencies(range_tree_static install_tdb_h)
 
 maybe_add_gcov_to_libraries(range_tree_lin_static range_tree_tlog_static range_tree_static)

@@ -9,10 +9,12 @@ if(BUILD_TESTING)
       add_executable(lt_${base}.${impl} ${src})
       set_property(TARGET lt_${base}.${impl} APPEND PROPERTY
         COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.c.${impl}\"")
+      add_space_separated_property(TARGET lt_${base}.${impl} COMPILE_FLAGS -fvisibility=hidden)
       target_link_libraries(lt_${base}.${impl}
         lock_tree_${impl}_static
         range_tree_${impl}_static
         ft
+        ${ZLIB_LIBRARIES}
         ${LIBTOKUPORTABILITY}
         )
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.c.${impl}")

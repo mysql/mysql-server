@@ -21,32 +21,33 @@ set(tokudb_srcs
 ## make the shared library
 add_library(${LIBTOKUDB} SHARED ${tokudb_srcs})
 add_dependencies(${LIBTOKUDB} install_tdb_h)
-target_link_libraries(${LIBTOKUDB} lock_tree_static range_tree_static ft_static)
+target_link_libraries(${LIBTOKUDB} LINK_PRIVATE lock_tree_static range_tree_static ft_static)
+target_link_libraries(${LIBTOKUDB} LINK_INTERFACE_LIBRARIES ${ZLIB_LIBRARIES})
 
 ## make the static library
 add_library(${LIBTOKUDB}_static STATIC ${tokudb_srcs})
 add_dependencies(${LIBTOKUDB}_static install_tdb_h)
-target_link_libraries(${LIBTOKUDB}_static lock_tree_static range_tree_static ft_static)
+add_space_separated_property(TARGET ${LIBTOKUDB}_static COMPILE_FLAGS -fPIC)
+target_link_libraries(${LIBTOKUDB}_static LINK_PRIVATE lock_tree_static range_tree_static ft_static)
+
+if (CMAKE_C_COMPILER_ID STREQUAL Intel)
+  target_link_libraries(${LIBTOKUDB} LINK_PRIVATE -nodefaultlibs)
+  target_link_libraries(${LIBTOKUDB}_static LINK_PRIVATE -nodefaultlibs)
+endif ()
 
 ## add a version script and set -fvisibility=hidden for the shared library
 configure_file(export.map . COPYONLY)
 get_target_property(link_flags ${LIBTOKUDB} LINK_FLAGS)
 if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  set_target_properties(${LIBTOKUDB} PROPERTIES
-    LINK_FLAGS "${LINK_FLAGS} -Wl,--version-script=export.map")
-  set_targets_visibility_hidden(${LIBTOKUDB})
+  add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS -fvisibility=hidden)
+  add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=export.map")
 endif ()
 
 ## add gcov and define _GNU_SOURCE
 maybe_add_gcov_to_libraries(${LIBTOKUDB} ${LIBTOKUDB}_static)
 set_property(TARGET ${LIBTOKUDB} ${LIBTOKUDB}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 
-if (CMAKE_C_COMPILER_ID STREQUAL Intel)
-  ## don't link with default libs, those come with tokuportability, but we
-  ## do need libc and we need the intel libirc (and it should be static to
-  ## be redistributable)
-  target_link_libraries(${LIBTOKUDB} -nodefaultlibs c -Bstatic irc -Bdynamic)
-endif ()
+set_targets_need_intel_libs(${LIBTOKUDB})
 
 install(
   TARGETS ${LIBTOKUDB}
