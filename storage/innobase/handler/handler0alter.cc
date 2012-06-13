@@ -3720,6 +3720,10 @@ rollback_inplace_alter_table(
 	if (prebuilt->table != ctx->indexed_table) {
 		dberr_t	err;
 		ulint	flags	= ctx->indexed_table->flags;
+
+		/* DML threads can access ctx->indexed_table via the
+		online rebuild log. Free it first. */
+		innobase_online_rebuild_log_free(prebuilt->table);
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
 		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
@@ -3732,8 +3736,6 @@ rollback_inplace_alter_table(
 					flags);
 			fail = true;
 		}
-
-		innobase_online_rebuild_log_free(prebuilt->table);
 	} else {
 		DBUG_ASSERT(!(ha_alter_info->handler_flags
 			      & Alter_inplace_info::ADD_PK_INDEX));
