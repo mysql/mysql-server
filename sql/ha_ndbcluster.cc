@@ -31,7 +31,6 @@
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include "ha_ndbcluster_cond.h"
-#include <util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
 
@@ -7275,23 +7274,6 @@ int ha_ndbcluster::start_statement(THD *thd,
     else if (thd->slave_thread)
       thd_ndb->m_slow_path= TRUE;
   }
-  /*
-    If this is the start of a LOCK TABLE, a table look 
-    should be taken on the table in NDB
-       
-    Check if it should be read or write lock
-  */
-  if (thd_options(thd) & (OPTION_TABLE_LOCK))
-  {
-    /* This is currently dead code in wait for implementation in NDB */
-    /* lockThisTable(); */
-    DBUG_PRINT("info", ("Locking the table..." ));
-#ifdef NOT_YET
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
-                        "Table only locked locally in this mysqld", "NDB");
-#endif
-  }
   DBUG_RETURN(0);
 }
 
@@ -11717,6 +11699,34 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
 int(*ndb_wait_setup_func)(ulong) = 0;
 #endif
+
+/* Version in composite numerical format */
+static Uint32 ndb_version = NDB_VERSION_D;
+static MYSQL_SYSVAR_UINT(
+  version,                          /* name */
+  ndb_version,                      /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version for ndbcluster",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0,                                /* default */
+  0,                                /* min */
+  0,                                /* max */
+  0                                 /* block */
+);
+
+/* Version in ndb-Y.Y.Y[-status] format */
+static char* ndb_version_string = (char*)NDB_NDB_VERSION_STRING;
+static MYSQL_SYSVAR_STR(
+  version_string,                  /* name */
+  ndb_version_string,              /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version string for ndbcluster",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  NULL                              /* default */
+);
+
 extern int ndb_dictionary_is_mysqld;
 
 static int ndbcluster_init(void *p)
@@ -16792,6 +16802,8 @@ static struct st_mysql_sys_var* system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(dbg_check_shares),
 #endif
+  MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(version_string),
   NULL
 };
 
