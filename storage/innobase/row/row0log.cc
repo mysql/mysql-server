@@ -457,6 +457,12 @@ row_log_table_delete(
 		dfield_t*	dfield;
 
 		old_pk = row_log_table_get_pk(rec, index, offsets, &heap);
+
+		if (!old_pk) {
+			ut_ad(index->online_log->error != DB_SUCCESS);
+			return;
+		}
+
 		/* Remove DB_ROLL_PTR. */
 		ut_ad(dtuple_get_n_fields_cmp(old_pk)
 		      == dict_index_get_n_unique(new_index));
