@@ -1059,7 +1059,11 @@ innobase_rec_to_mysql(
 		if (col_map) {
 			col_no = col_map[i];
 
-			if (col_no == ULINT_UNDEFINED) {
+			if (col_no >= n_fields) {
+				/* If col_no != ULINT_UNDEFINED, this
+				should be a hidden FTS_DOC_ID column.
+				Either way, it does not exist in the
+				MySQL view of the table. */
 				goto null_field;
 			}
 		} else {
