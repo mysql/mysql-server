@@ -55,6 +55,7 @@ initialize_performance_schema(PFS_global_param *param)
   pfs_initialized= false;
 
   PFS_table_stat::g_reset_template.reset();
+  global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
 

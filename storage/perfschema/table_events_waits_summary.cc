@@ -139,7 +139,7 @@ void table_events_waits_summary_by_instance::make_mutex_row(PFS_mutex *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
-  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_wait_stat);
+  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_mutex_stat.m_wait_stat);
 }
 
 /**
@@ -153,7 +153,7 @@ void table_events_waits_summary_by_instance::make_rwlock_row(PFS_rwlock *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
-  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_wait_stat);
+  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_rwlock_stat.m_wait_stat);
 }
 
 /**
@@ -167,7 +167,7 @@ void table_events_waits_summary_by_instance::make_cond_row(PFS_cond *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
-  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_wait_stat);
+  make_instr_row(pfs, safe_class, pfs->m_identity, &pfs->m_cond_stat.m_wait_stat);
 }
 
 /**
@@ -181,11 +181,13 @@ void table_events_waits_summary_by_instance::make_file_row(PFS_file *pfs)
   if (unlikely(safe_class == NULL))
     return;
 
+  PFS_single_stat sum;
+  pfs->m_file_stat.m_io_stat.sum_waits(& sum);
   /*
     Files don't have a in memory structure associated to it,
     so we use the address of the PFS_file buffer as object_instance_begin
   */
-  make_instr_row(pfs, safe_class, pfs, &pfs->m_wait_stat);
+  make_instr_row(pfs, safe_class, pfs, & sum);
 }
 
 /**

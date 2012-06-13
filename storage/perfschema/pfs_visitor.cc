@@ -666,7 +666,7 @@ void PFS_connection_wait_visitor::visit_global()
     it is more efficient.
   */
   DBUG_ASSERT(m_index == global_idle_class.m_event_name_index);
-  m_stat.aggregate(& global_instr_class_waits_array[m_index]);
+  m_stat.aggregate(& global_idle_stat);
 }
 
 void PFS_connection_wait_visitor::visit_host(PFS_host *pfs)
@@ -883,54 +883,44 @@ PFS_instance_wait_visitor::PFS_instance_wait_visitor()
 PFS_instance_wait_visitor::~PFS_instance_wait_visitor()
 {}
 
-void PFS_instance_wait_visitor::visit_mutex_class(PFS_mutex_class *pfs) 
+void PFS_instance_wait_visitor::visit_mutex_class(PFS_mutex_class *pfs)
 {
-  uint index= pfs->m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  m_stat.aggregate(&pfs->m_mutex_stat.m_wait_stat);
 }
 
-void PFS_instance_wait_visitor::visit_rwlock_class(PFS_rwlock_class *pfs) 
+void PFS_instance_wait_visitor::visit_rwlock_class(PFS_rwlock_class *pfs)
 {
-  uint index= pfs->m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  m_stat.aggregate(&pfs->m_rwlock_stat.m_wait_stat);
 }
 
-void PFS_instance_wait_visitor::visit_cond_class(PFS_cond_class *pfs) 
+void PFS_instance_wait_visitor::visit_cond_class(PFS_cond_class *pfs)
 {
-  uint index= pfs->m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  m_stat.aggregate(&pfs->m_cond_stat.m_wait_stat);
 }
 
-void PFS_instance_wait_visitor::visit_file_class(PFS_file_class *pfs) 
+void PFS_instance_wait_visitor::visit_file_class(PFS_file_class *pfs)
 {
-  uint index= pfs->m_event_name_index;
-  m_stat.aggregate(& global_instr_class_waits_array[index]);
+  pfs->m_file_stat.m_io_stat.sum_waits(&m_stat);
 }
 
-void PFS_instance_wait_visitor::visit_socket_class(PFS_socket_class *pfs) 
+void PFS_instance_wait_visitor::visit_socket_class(PFS_socket_class *pfs)
 {
-  /* Collect global wait stats */
-  uint index= pfs->m_event_name_index;
-  m_stat.aggregate(&global_instr_class_waits_array[index]);
-
-  /* If deferred, then pull wait stats directly from the socket class. */
-  if (pfs->is_deferred())
-    pfs->m_socket_stat.m_io_stat.sum_waits(&m_stat);
+  pfs->m_socket_stat.m_io_stat.sum_waits(&m_stat);
 }
 
-void PFS_instance_wait_visitor::visit_mutex(PFS_mutex *pfs) 
+void PFS_instance_wait_visitor::visit_mutex(PFS_mutex *pfs)
 {
-  m_stat.aggregate(& pfs->m_wait_stat);
+  m_stat.aggregate(& pfs->m_mutex_stat.m_wait_stat);
 }
 
-void PFS_instance_wait_visitor::visit_rwlock(PFS_rwlock *pfs) 
+void PFS_instance_wait_visitor::visit_rwlock(PFS_rwlock *pfs)
 {
-  m_stat.aggregate(& pfs->m_wait_stat);
+  m_stat.aggregate(& pfs->m_rwlock_stat.m_wait_stat);
 }
 
-void PFS_instance_wait_visitor::visit_cond(PFS_cond *pfs) 
+void PFS_instance_wait_visitor::visit_cond(PFS_cond *pfs)
 {
-  m_stat.aggregate(& pfs->m_wait_stat);
+  m_stat.aggregate(& pfs->m_cond_stat.m_wait_stat);
 }
 
 void PFS_instance_wait_visitor::visit_file(PFS_file *pfs) 

@@ -230,19 +230,6 @@ void reset_events_waits_by_host()
   }
 }
 
-/** Reset table EVENTS_WAITS_GLOBAL_BY_EVENT_NAME data. */
-void reset_events_waits_global()
-{
-  PFS_single_stat *stat= global_instr_class_waits_array;
-  PFS_single_stat *stat_last= global_instr_class_waits_array + wait_class_max;
-
-  for ( ; stat < stat_last; stat++)
-    stat->reset();
-
-  global_table_io_stat.reset();
-  global_table_lock_stat.reset();
-}
-
 void reset_table_waits_by_table()
 {
   PFS_table_share *pfs= table_share_array;

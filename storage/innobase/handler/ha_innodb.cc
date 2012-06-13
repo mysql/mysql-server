@@ -10260,6 +10260,16 @@ ha_innobase::read_time(
 	return(ranges + (double) rows / (double) total_rows * time_for_scan);
 }
 
+/******************************************************************//**
+Return the size of the InnoDB memory buffer. */
+UNIV_INTERN
+longlong
+ha_innobase::get_memory_buffer_size() const
+/*=======================================*/
+{
+	return innobase_buffer_pool_size;
+}
+
 /*********************************************************************//**
 Calculates the key number used inside MySQL for an Innobase index. We will
 first check the "index translation table" for a match of the index to get

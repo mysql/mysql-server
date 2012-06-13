@@ -65,8 +65,6 @@ struct PFS_instr
   bool m_enabled;
   /** Timed flag. */
   bool m_timed;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
 };
 
 /** Instrumented mutex implementation. @see PSI_mutex. */
@@ -76,13 +74,8 @@ struct PFS_ALIGNED PFS_mutex : public PFS_instr
   const void *m_identity;
   /** Mutex class. */
   PFS_mutex_class *m_class;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
-  /**
-    Mutex lock usage statistics.
-    This statistic is not exposed in user visible tables yet.
-  */
-  PFS_single_stat m_lock_stat;
+  /** Instrument statistics. */
+  PFS_mutex_stat m_mutex_stat;
   /** Current owner. */
   PFS_thread *m_owner;
   /**
@@ -99,18 +92,8 @@ struct PFS_ALIGNED PFS_rwlock : public PFS_instr
   const void *m_identity;
   /** RWLock class. */
   PFS_rwlock_class *m_class;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
-  /**
-    RWLock read lock usage statistics.
-    This statistic is not exposed in user visible tables yet.
-  */
-  PFS_single_stat m_read_lock_stat;
-  /**
-    RWLock write lock usage statistics.
-    This statistic is not exposed in user visible tables yet.
-  */
-  PFS_single_stat m_write_lock_stat;
+  /** Instrument statistics. */
+  PFS_rwlock_stat m_rwlock_stat;
   /** Current writer thread. */
   PFS_thread *m_writer;
   /** Current count of readers. */
@@ -154,8 +137,6 @@ struct PFS_ALIGNED PFS_file : public PFS_instr
   uint m_filename_length;
   /** File class. */
   PFS_file_class *m_class;
-  /** Instrument wait statistics. */
-  PFS_single_stat m_wait_stat;
   /** File usage statistics. */
   PFS_file_stat m_file_stat;
 };
@@ -522,7 +503,6 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   const CHARSET_INFO *m_session_connect_attrs_cs;
 };
 
-extern PFS_single_stat *global_instr_class_waits_array;
 extern PFS_stage_stat *global_instr_class_stages_array;
 extern PFS_statement_stat *global_instr_class_statements_array;
 

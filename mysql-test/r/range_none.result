@@ -1212,9 +1212,9 @@ insert into t2 select A.a + 10 * (B.a + 10 * C.a), 10, 'filler' from t1 A,
 t1 B, t1 C where A.a < 5;
 insert into t2 select 1000, b, 'filler' from t2;
 alter table t2 add index (a,b);
-select 'In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)' Z;
+select 'In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)' Z;
 Z
-In following EXPLAIN the access method should be ref, #rows~=500 (and not 2)
+In following EXPLAIN the access method should be ref or range, #rows~=500 (and not 2)
 explain select * from t2 where a=1000 and b<11;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	5	const	502	Using where

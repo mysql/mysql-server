@@ -19,7 +19,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex
   ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/strings
-  ${CMAKE_SOURCE_DIR}/mysys_ssl
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIR})
@@ -161,6 +160,8 @@ IF(HAVE_VISIBILITY_HIDDEN)
   SET_SOURCE_FILES_PROPERTIES(../sql/md5.cc
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
   SET_SOURCE_FILES_PROPERTIES(../sql/sha1.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(../sql-common/crypt_genhash_impl.cc
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
