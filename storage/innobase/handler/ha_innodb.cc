@@ -1053,7 +1053,7 @@ UNIV_INTERN
 enum durability_properties
 thd_requested_durability(
 /*=====================*/
-	const THD* thd)	/*!< in: thread handle (THD*) */
+	const THD* thd)	/*!< in: thread handle */
 {
 	return(thd_get_durability_property(thd));
 }
@@ -2447,7 +2447,7 @@ innobase_invalidate_query_cache(
 
 	/* Argument TRUE below means we are using transactions */
 #ifdef HAVE_QUERY_CACHE
-	mysql_query_cache_invalidate4(static_cast<THD*>(trx->mysql_thd),
+	mysql_query_cache_invalidate4(trx->mysql_thd,
 				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
@@ -2631,8 +2631,7 @@ trx_is_interrupted(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd
-	       && thd_killed(static_cast<THD*>(trx->mysql_thd)));
+	return(trx && trx->mysql_thd && thd_killed(trx->mysql_thd));
 }
 
 /**********************************************************************//**
@@ -2644,8 +2643,7 @@ trx_is_strict(
 /*==========*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd
-	       && THDVAR(static_cast<THD*>(trx->mysql_thd), strict_mode));
+	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode));
 }
 
 /**************************************************************//**
@@ -8268,7 +8266,7 @@ create_table_check_doc_id_col(
 				*doc_id_col = i;
 			} else {
 				push_warning_printf(
-					static_cast<THD*>(trx->mysql_thd),
+					trx->mysql_thd,
 					Sql_condition::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: FTS_DOC_ID column must be "
@@ -8307,7 +8305,7 @@ create_table_def(
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2)		/*!< in: table flags2 */
 {
-	THD*		thd = static_cast<THD*>(trx->mysql_thd);
+	THD*		thd = trx->mysql_thd;
 	dict_table_t*	table;
 	ulint		n_cols;
 	dberr_t		err;
@@ -16145,7 +16143,7 @@ ib_senderrf(
 	}
 
 	if (level != IB_LOG_LEVEL_ERROR) {
-		push_warning_printf((THD*) thd, l, code, "InnoDB: %s", str);
+		push_warning_printf(thd, l, code, "InnoDB: %s", str);
 	}
 
 	va_end(args);

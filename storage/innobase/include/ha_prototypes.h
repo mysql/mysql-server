@@ -126,12 +126,14 @@ thd_is_replication_slave_thread(
 /******************************************************************//**
 Gets information on the durability property requested by thread.
 Used when writing either a prepare or commit record to the log
-buffer. @return the durability property. */
+buffer.
+@return the durability property. */
 UNIV_INTERN
 enum durability_properties
 thd_requested_durability(
 /*=====================*/
-	const THD* thd);	/*!< in: thread handle (THD*) */
+	const THD* thd)	/*!< in: thread handle */
+	__attribute__((nonnull, warn_unused_result));
 
 /******************************************************************//**
 Returns true if the transaction this thread is processing has edited
