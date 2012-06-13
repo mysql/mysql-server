@@ -1464,7 +1464,8 @@ cleanup:
 
 static int 
 lt_try_acquire_range_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
-    assert(tree && toku_mutex_is_locked(&tree->mutex)); // locked by this thread
+    assert(tree);
+    toku_mutex_assert_locked(&tree->mutex); // locked by this thread
 
     int r;
     toku_point left;
@@ -1713,7 +1714,8 @@ cleanup:
 // run escalation algorithm on a given locktree
 static int 
 lt_do_escalation(toku_lock_tree* lt) {
-    assert(lt && toku_mutex_is_locked(&lt->mutex));
+    assert(lt);
+    toku_mutex_assert_locked(&lt->mutex);
 
     int r = ENOSYS;
 
@@ -1811,7 +1813,7 @@ toku_lt_acquire_read_lock(toku_lock_tree* tree, TXNID txn, const DBT* key) {
 
 static int 
 lt_try_acquire_range_write_lock(toku_lock_tree* tree, TXNID txn, const DBT* key_left, const DBT* key_right) {
-    assert(toku_mutex_is_locked(&tree->mutex));
+    toku_mutex_assert_locked(&tree->mutex);
 
     int r;
     toku_point left;
@@ -2052,7 +2054,8 @@ lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
 
 static inline int 
 lt_unlock_txn(toku_lock_tree* tree, TXNID txn) {
-    assert(tree && toku_mutex_is_locked(&tree->mutex));
+    assert(tree);
+    toku_mutex_assert_locked(&tree->mutex);
 
     int r;
     toku_range_tree *selfwrite = toku_lt_ifexist_selfwrite(tree, txn);
@@ -2376,7 +2379,8 @@ static void lt_check_deadlock(toku_lock_tree *tree, toku_lock_request *a_lock_re
 static int 
 lock_request_start(toku_lock_request *lock_request, toku_lock_tree *tree, bool copy_keys_if_not_granted, bool do_escalation) { 
     assert(lock_request->state == LOCK_REQUEST_INIT);
-    assert(tree && toku_mutex_is_locked(&tree->mutex));
+    assert(tree);
+    toku_mutex_assert_locked(&tree->mutex);
     int r = 0;
     switch (lock_request->type) {
     case LOCK_REQUEST_READ:
@@ -2449,7 +2453,8 @@ toku_lt_acquire_lock_request_with_default_timeout(toku_lock_tree *tree, toku_loc
 
 static void 
 lt_retry_lock_requests(toku_lock_tree *tree) {
-    assert(tree && toku_mutex_is_locked(&tree->mutex));
+    assert(tree);
+    toku_mutex_assert_locked(&tree->mutex);
 
     for (uint32_t i = 0; i < toku_omt_size(tree->lock_requests); ) {
         int r;
