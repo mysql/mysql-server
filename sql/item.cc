@@ -1265,7 +1265,7 @@ err:
 
 bool Item::get_seconds(ulonglong *sec, ulong *sec_part)
 {
-  if (result_type() == INT_RESULT)
+  if (decimals == 0)
   { // optimize for an important special case
     longlong val= val_int();
     bool neg= val < 0 && !unsigned_flag;
