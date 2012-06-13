@@ -41,6 +41,7 @@
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
+#include <ndb_global.h>
 #include "ndb_mi.h"
 #include "ndb_conflict.h"
 #include "ndb_component.h"
