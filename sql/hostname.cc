@@ -366,6 +366,14 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
   err_code= vio_getnameinfo(ip, hostname_buffer, NI_MAXHOST, NULL, 0,
                             NI_NAMEREQD);
 
+  /* BEGIN : DEBUG */
+  DBUG_EXECUTE_IF("addr_fake_ipv4",
+                  {
+                    strcpy(hostname_buffer, "santa.claus.ipv4.example.com");
+                    err_code= 0;
+                  };);
+  /* END   : DEBUG */
+
   if (err_code)
   {
     // NOTE: gai_strerror() returns a string ending by a dot.
@@ -438,6 +446,12 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
     DBUG_RETURN(err_status);
   }
 
+  /*
+    To avoid crashing the server in DBUG_EXECUTE_IF,
+    Define a variable which depicts state of addr_info_list.
+  */
+  bool free_addr_info_list= false;
+
   /* Get IP-addresses for the resolved host name (FCrDNS technique). */
 
   struct addrinfo hints;
@@ -452,6 +466,42 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
                       (const char *) hostname_buffer));
 
   err_code= getaddrinfo(hostname_buffer, NULL, &hints, &addr_info_list);
+  if (err_code == 0)
+    free_addr_info_list= true;
+
+  /* BEGIN : DEBUG */
+  DBUG_EXECUTE_IF("addr_fake_ipv4",
+                  {
+                    if (free_addr_info_list)
+                      freeaddrinfo(addr_info_list);
+
+                    struct sockaddr_in *debug_addr;
+                    static struct sockaddr_in debug_sock_addr[2];
+                    static struct addrinfo debug_addr_info[2];
+                    /* Simulating ipv4 192.0.2.5 */
+                    debug_addr= & debug_sock_addr[0];
+                    debug_addr->sin_family= AF_INET;
+                    debug_addr->sin_addr.s_addr= inet_addr("192.0.2.5");
+
+                    /* Simulating ipv4 192.0.2.4 */
+                    debug_addr= & debug_sock_addr[1];
+                    debug_addr->sin_family= AF_INET;
+                    debug_addr->sin_addr.s_addr= inet_addr("192.0.2.4");
+
+                    debug_addr_info[0].ai_addr= (struct sockaddr*) & debug_sock_addr[0];
+                    debug_addr_info[0].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[0].ai_next= & debug_addr_info[1];
+
+                    debug_addr_info[1].ai_addr= (struct sockaddr*) & debug_sock_addr[1];
+                    debug_addr_info[1].ai_addrlen= sizeof (struct sockaddr_in);
+                    debug_addr_info[1].ai_next= NULL;
+
+                    addr_info_list= & debug_addr_info[0];
+                    err_code= 0;
+                    free_addr_info_list= false;
+                  };);
+
+  /* END   : DEBUG */
 
   if (err_code == EAI_NONAME)
   {
@@ -504,7 +554,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
       {
         DBUG_PRINT("error", ("Out of memory."));
 
-        freeaddrinfo(addr_info_list);
+        if (free_addr_info_list)
+          freeaddrinfo(addr_info_list);
         DBUG_RETURN(TRUE);
       }
 
@@ -538,7 +589,8 @@ bool ip_to_hostname(struct sockaddr_storage *ip_storage,
 
   /* Free the result of getaddrinfo(). */
 
-  freeaddrinfo(addr_info_list);
+  if (free_addr_info_list)
+    freeaddrinfo(addr_info_list);
 
   /* Add an entry for the IP to the cache. */
 
