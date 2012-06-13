@@ -21,7 +21,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 Smart ALTER TABLE
 *******************************************************/
 
-#define MYSQL_SERVER /* access to thd->variables.auto_increment_offset */
 #include <unireg.h>
 #include <mysqld_error.h>
 #include <log.h>
@@ -1852,6 +1851,8 @@ public:
 	const ulint*	col_map;
 	/** added AUTO_INCREMENT column position, or ULINT_UNDEFINED */
 	const ulint	add_autoinc;
+	/** auto_increment_increment */
+	const ulong	autoinc_inc;
 	/** default values of ADD COLUMN, or NULL */
 	const dtuple_t*	add_cols;
 	ha_innobase_inplace_ctx(trx_t* user_trx,
@@ -1870,6 +1871,7 @@ public:
 				dict_table_t* indexed_table_arg,
 				const ulint* col_map_arg,
 				ulint add_autoinc_arg,
+				ulong autoinc_inc_arg,
 				const dtuple_t*	add_cols_arg) :
 		inplace_alter_handler_ctx(),
 		add (add_arg), add_key_numbers (add_key_numbers_arg),
@@ -1880,7 +1882,7 @@ public:
 		online (online_arg), heap (heap_arg), trx (trx_arg),
 		indexed_table (indexed_table_arg),
 		col_map (col_map_arg), add_autoinc (add_autoinc_arg),
-		add_cols (add_cols_arg) {
+		autoinc_inc (autoinc_inc_arg), add_cols (add_cols_arg) {
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add; i++) {
 			ut_ad(!add[i]->to_be_dropped);
@@ -2352,6 +2354,7 @@ prepare_inplace_alter_table_dict(
 	THD*			user_thd	= user_trx->mysql_thd;
 	const ulint*		col_map		= NULL;
 	dtuple_t*		add_cols	= NULL;
+	ulong			autoinc_inc	= 0;
 
 	const bool locked =
 		add_fts_doc_id
@@ -2621,7 +2624,7 @@ col_fail:
 			goto err_exit;
 		}
 
-		ulonglong	autoinc_val = 0;
+		ulong	autoinc_val = 0;
 
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_COLUMN) {
@@ -2632,16 +2635,15 @@ col_fail:
 			autoinc_val = ha_alter_info->create_info
 				->auto_increment_value;
 
-			ulonglong autoinc_inc = user_thd->variables
-				.auto_increment_increment;
+			ulong autoinc_off;
 
-			if (autoinc_val
-			    < user_thd->variables.auto_increment_offset) {
-				autoinc_val = user_thd->variables
-					.auto_increment_offset;
+			thd_get_autoinc(user_thd, &autoinc_off, &autoinc_inc);
+
+			if (autoinc_val < autoinc_off) {
+				autoinc_val = autoinc_off;
 			}
 
-			if (autoinc_val) {
+			if (autoinc_val && autoinc_inc) {
 				/* Round down to the previous multiple
 				of auto_increment_increment. */
 				autoinc_val = (autoinc_val - 1)
@@ -2835,7 +2837,7 @@ error_handling:
 			drop_foreign, n_drop_foreign,
 			add_foreign, n_add_foreign,
 			!locked, heap, trx, indexed_table, col_map,
-			add_autoinc_col, add_cols);
+			add_autoinc_col, autoinc_inc, add_cols);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_ALREADY_EXISTS:
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), "(unknown)");
@@ -3386,7 +3388,7 @@ index_needed:
 					drop_fk, n_drop_fk,
 					add_fk, n_add_fk, !locked,
 					heap, NULL, indexed_table, NULL,
-					ULINT_UNDEFINED, NULL);
+					ULINT_UNDEFINED, 0, NULL);
 		}
 
 func_exit:
@@ -3585,7 +3587,7 @@ ok_exit:
 		ctx->online,
 		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table,
 		ctx->add_cols, ctx->col_map, ctx->add_autoinc,
-		user_thd->variables.auto_increment_increment);
+		ctx->autoinc_inc);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
