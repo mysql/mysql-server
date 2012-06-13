@@ -114,4 +114,25 @@ id	c
 3	3
 [on master]
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT);
+CREATE TABLE test.t1 (a INT);
+INSERT INTO test.t1 VALUES(1);
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT);
+CREATE TRIGGER t1_update AFTER UPDATE ON test.t1 FOR EACH ROW
+INSERT INTO test.t_slave VALUES(NULL, ROUND(RAND() * 1000), @c);
+SET INSERT_ID=2;
+SET @c=2;
+SET @@rand_seed1=10000000, @@rand_seed2=1000000;
+INSERT INTO t5 VALUES (NULL, ROUND(RAND() * 1000), @c);
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+SELECT b into @b FROM test.t5;
+UPDATE test.t1 SET a=2;
+SELECT a AS 'ONE' into @a FROM test.t_slave;
+SELECT c AS 'NULL' into @c FROM test.t_slave;
+SELECT b into @b FROM test.t_slave;
+drop table test.t5;
+drop table test.t1;
+drop table test.t_slave;
 include/rpl_end.inc

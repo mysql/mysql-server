@@ -46,7 +46,6 @@ public abstract class TestCase implements Test {
      * to result.errors.
      */
     public void run(TestResult result) {
-//        System.out.println("--> TestCase.run(TestResult): " + name);
         TestListener listener = result.listener;
         listener.startTest(this);
         try {
@@ -89,4 +88,7 @@ public abstract class TestCase implements Test {
         return 0;
     }
 
+    public String toString() {
+        return method.getDeclaringClass().getPackage().getName() + "." + name;
+    }
 }

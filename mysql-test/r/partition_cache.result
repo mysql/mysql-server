@@ -1,0 +1,205 @@
+SET SESSION STORAGE_ENGINE = InnoDB;
+drop table if exists t1,t2,t3;
+set @save_query_cache_size = @@global.query_cache_size;
+set GLOBAL query_cache_size = 1355776;
+flush status;
+set autocommit=0;
+create table t1 (a int not null) PARTITION BY KEY (a) PARTITIONS 3;
+insert into t1 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+commit;
+set autocommit=1;
+begin;
+create table t1 (a int not null) PARTITION BY KEY (a) PARTITIONS 3;
+insert into t1 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t1;
+commit;
+create table t1 (a int not null) PARTITION BY KEY (a) PARTITIONS 3;
+create table t2 (a int not null) PARTITION BY KEY (a) PARTITIONS 3;
+create table t3 (a int not null) PARTITION BY KEY (a) PARTITIONS 3;
+insert into t1 values (1),(2);
+insert into t2 values (1),(2);
+insert into t3 values (1),(2);
+select * from t1;
+a
+1
+2
+select * from t2;
+a
+1
+2
+select * from t3;
+a
+1
+2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+begin;
+select * from t1;
+a
+1
+2
+select * from t2;
+a
+1
+2
+select * from t3;
+a
+1
+2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+insert into t1 values (3);
+insert into t2 values (3);
+insert into t1 values (4);
+select * from t1;
+a
+1
+2
+3
+4
+select * from t2;
+a
+1
+2
+3
+select * from t3;
+a
+1
+2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+commit;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+drop table t3,t2,t1;
+CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY (id)) PARTITION BY HASH (id) PARTITIONS 3;
+select count(*) from t1;
+count(*)
+0
+insert into t1 (id) values (0);
+select count(*) from t1;
+count(*)
+1
+drop table t1;
+SET SESSION STORAGE_ENGINE = InnoDB;
+SET @@autocommit=1;
+connection default
+SHOW VARIABLES LIKE 'have_query_cache';
+Variable_name	Value
+have_query_cache	YES
+SET GLOBAL query_cache_size = 204800;
+flush status;
+SET @@autocommit=1;
+SET SESSION STORAGE_ENGINE = InnoDB;
+CREATE TABLE t2 (s1 int, s2 varchar(1000), key(s1)) PARTITION BY KEY (s1) PARTITIONS 3;
+INSERT INTO t2 VALUES (1,repeat('a',10)),(2,repeat('a',10)),(3,repeat('a',10)),(4,repeat('a',10));
+COMMIT;
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+0
+UPDATE t2 SET s2 = 'w' WHERE s1 = 3;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+connection connection1
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+0
+INSERT INTO t2 VALUES (5,'w');
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+1
+COMMIT;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+connection default
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+1
+COMMIT;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+connection connection1
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+2
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+2
+INSERT INTO t2 VALUES (6,'w');
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+3
+connection default
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+2
+START TRANSACTION;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+2
+DELETE from t2 WHERE s1=3;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+1
+COMMIT;
+connection connection1
+COMMIT;
+SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
+count(*)
+2
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+set @@global.query_cache_size = @save_query_cache_size;
+drop table t2;

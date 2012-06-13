@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -196,7 +196,7 @@ public class InPredicateImpl extends PredicateImpl {
                 for (Object value: iterable) {
                     property.filterCmpValue(value, BinaryCondition.COND_EQ, filter);
                 }
-            } else if (parameterValue.getClass().isArray()) {
+            } else if (Object[].class.isAssignableFrom(parameterValue.getClass())) {
                 Object[] parameterArray = (Object[])parameterValue;
                 for (Object value: parameterArray) {
                     property.filterCmpValue(value, BinaryCondition.COND_EQ, filter);

@@ -294,6 +294,13 @@ public:
   const NodeBitmask& get_status_overloaded() const;
   
   /**
+   * Set or clear slowdown bit.
+   * Query if any slowdown bit is set.
+   */
+  void set_status_slowdown(Uint32 nodeId, bool val);
+  const NodeBitmask& get_status_slowdown() const;
+ 
+  /**
    * prepareSend
    *
    * When IOState is HaltOutput or HaltIO do not send or insert any 
@@ -433,8 +440,10 @@ private:
 
   /**
    * Overloaded bits, for fast check.
+   * Similarly slowdown bits for fast check.
    */
   NodeBitmask m_status_overloaded;
+  NodeBitmask m_status_slowdown;
 
   /**
    * Unpack signal data.
@@ -593,12 +602,28 @@ TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
   assert(nodeId < MAX_NODES);
   if (val != m_status_overloaded.get(nodeId))
     m_status_overloaded.set(nodeId, val);
+  if (val)
+    set_status_slowdown(nodeId, val);
 }
 
 inline const NodeBitmask&
 TransporterRegistry::get_status_overloaded() const
 {
   return m_status_overloaded;
+}
+
+inline void
+TransporterRegistry::set_status_slowdown(Uint32 nodeId, bool val)
+{
+  assert(nodeId < MAX_NODES);
+  if (val != m_status_slowdown.get(nodeId))
+    m_status_slowdown.set(nodeId, val);
+}
+
+inline const NodeBitmask&
+TransporterRegistry::get_status_slowdown() const
+{
+  return m_status_slowdown;
 }
 
 #endif // Define of TransporterRegistry_H

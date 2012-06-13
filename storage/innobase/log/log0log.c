@@ -3076,9 +3076,12 @@ void
 logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
-	ib_uint64_t	lsn;
-	ulint		arch_log_no;
-	ibool		server_busy;
+	ib_uint64_t		lsn;
+	ulint			arch_log_no;
+	ibool			server_busy;
+	ulint			count = 0;
+	ulint			pending_io;
+	ulint			active_thd;
 
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
@@ -3091,6 +3094,8 @@ logs_empty_and_mark_files_at_shutdown(void)
 loop:
 	os_thread_sleep(100000);
 
+	count++;
+
 	mutex_enter(&kernel_mutex);
 
 	/* We need the monitor threads to stop before we proceed with
@@ -3099,12 +3104,34 @@ loop:
 	if (srv_error_monitor_active
 	    || srv_lock_timeout_active
 	    || srv_monitor_active) {
+		const char*	thread_active = NULL;
+
+		/* Print a message every 60 seconds if we are waiting
+		for the monitor thread to exit. Master and worker threads
+		check will be done later. */
+		if (srv_print_verbose_log && count > 600) {
+
+		       if (srv_error_monitor_active) {
+			       thread_active = "srv_error_monitor_thread";
+		       } else if (srv_lock_timeout_active) {
+			       thread_active = "srv_lock_timeout thread";
+		       } else if (srv_monitor_active) {
+			       thread_active = "srv_monitor_thread";
+		       }
+		}
 
 		mutex_exit(&kernel_mutex);
 
 		os_event_set(srv_error_event);
 		os_event_set(srv_monitor_event);
 		os_event_set(srv_timeout_event);
+
+		if (thread_active) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %s to exit\n",
+				thread_active);
+			count = 0;
+		}
 
 		goto loop;
 	}
@@ -3116,9 +3143,54 @@ loop:
 
 	server_busy = trx_n_mysql_transactions > 0
 		|| UT_LIST_GET_LEN(trx_sys->trx_list) > trx_n_prepared;
+
+	if (server_busy) {
+		ulint	total_trx = UT_LIST_GET_LEN(trx_sys->trx_list)
+				    + trx_n_mysql_transactions;
+
+		mutex_exit(&kernel_mutex);
+
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu "
+				"active transactions to finish\n",
+				(ulong) total_trx);
+			count = 0;
+		}
+
+		goto loop;
+	}
+
 	mutex_exit(&kernel_mutex);
 
-	if (server_busy || srv_is_any_background_thread_active()) {
+	/* Check that the background threads are suspended */
+	active_thd = srv_get_active_thread_type();
+
+	if (active_thd != ULINT_UNDEFINED) {
+
+		/* The srv_lock_timeout_thread, srv_error_monitor_thread
+		and srv_monitor_thread should already exit by now. The
+		only threads to be suspended are the master threads
+		and worker threads (purge threads). Print the thread
+		type if any of such threads not in suspended mode */
+		if (srv_print_verbose_log && count > 600) {
+			const char*     thread_type = "<null>";
+
+			switch (active_thd) {
+			case SRV_WORKER:
+				thread_type = "worker threads";
+				break;
+			case SRV_MASTER:
+				thread_type = "master thread";
+				break;
+			}
+
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %s "
+				"to be suspended\n", thread_type);
+			count = 0;
+		}
+
 		goto loop;
 	}
 
@@ -3130,9 +3202,34 @@ loop:
 		|| log_sys->n_pending_writes;
 	mutex_exit(&log_sys->mutex);
 
-	if (server_busy || !buf_pool_check_no_pending_io()) {
+	if (server_busy) {
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Pending checkpoint_writes: %lu\n"
+				"  InnoDB: Pending log flush writes: %lu\n",
+				(ulong) log_sys->n_pending_checkpoint_writes,
+				(ulong) log_sys->n_pending_writes);
+			count = 0;
+		}
+
 		goto loop;
 	}
+
+	pending_io = buf_pool_check_num_pending_io();
+
+	if (pending_io) {
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for %lu buffer page "
+				"I/Os to complete\n",
+				(ulong) pending_io);
+			count = 0;
+		}
+
+		goto loop;
+	}
+
 
 #ifdef UNIV_LOG_ARCHIVE
 	log_archive_all();
@@ -3157,7 +3254,7 @@ loop:
 		log_buffer_flush_to_disk();
 
 		/* Check that the background threads stay suspended */
-		if (srv_is_any_background_thread_active()) {
+		if (srv_get_active_thread_type() != ULINT_UNDEFINED) {
 			fprintf(stderr,
 				"InnoDB: Warning: some background thread"
 				" woke up during shutdown\n");
@@ -3166,7 +3263,7 @@ loop:
 
 		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 		fil_close_all_files();
-		ut_a(!srv_is_any_background_thread_active());
+		ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
 		return;
 	}
 
@@ -3204,7 +3301,7 @@ loop:
 	mutex_exit(&log_sys->mutex);
 
 	/* Check that the background threads stay suspended */
-	if (srv_is_any_background_thread_active()) {
+	if (srv_get_active_thread_type() != ULINT_UNDEFINED) {
 		fprintf(stderr,
 			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
@@ -3222,13 +3319,20 @@ loop:
 
 	if (!buf_all_freed()) {
 
+		if (srv_print_verbose_log && count > 600) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Waiting for dirty buffer "
+				"pages to be flushed\n");
+			count = 0;
+		}
+
 		goto loop;
 	}
 
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_any_background_thread_active());
+	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3250,7 +3354,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_any_background_thread_active());
+	ut_a(srv_get_active_thread_type() == ULINT_UNDEFINED);
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);

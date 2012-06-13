@@ -1713,6 +1713,54 @@ Waiting for the slave SQL thread to free enough relay log space");
          !(slave_killed=io_slave_killed(thd,mi)) &&
          !rli->ignore_log_space_limit)
     mysql_cond_wait(&rli->log_space_cond, &rli->log_space_lock);
+
+  /* 
+    Makes the IO thread read only one event at a time
+    until the SQL thread is able to purge the relay 
+    logs, freeing some space.
+
+    Therefore, once the SQL thread processes this next 
+    event, it goes to sleep (no more events in the queue),
+    sets ignore_log_space_limit=true and wakes the IO thread. 
+    However, this event may have been enough already for 
+    the SQL thread to purge some log files, freeing 
+    rli->log_space_total .
+
+    This guarantees that the SQL and IO thread move
+    forward only one event at a time (to avoid deadlocks), 
+    when the relay space limit is reached. It also 
+    guarantees that when the SQL thread is prepared to
+    rotate (to be able to purge some logs), the IO thread
+    will know about it and will rotate.
+
+    NOTE: The ignore_log_space_limit is only set when the SQL
+          thread sleeps waiting for events.
+
+   */
+  if (rli->ignore_log_space_limit)
+  {
+#ifndef DBUG_OFF
+    {
+      char llbuf1[22], llbuf2[22];
+      DBUG_PRINT("info", ("log_space_limit=%s "
+                          "log_space_total=%s "
+                          "ignore_log_space_limit=%d "
+                          "sql_force_rotate_relay=%d", 
+                        llstr(rli->log_space_limit,llbuf1),
+                        llstr(rli->log_space_total,llbuf2),
+                        (int) rli->ignore_log_space_limit,
+                        (int) rli->sql_force_rotate_relay));
+    }
+#endif
+    if (rli->sql_force_rotate_relay)
+    {
+      rotate_relay_log(rli->mi);
+      rli->sql_force_rotate_relay= false;
+    }
+
+    rli->ignore_log_space_limit= false;
+  }
+
   thd->exit_cond(save_proc_info);
   DBUG_RETURN(slave_killed);
 }
@@ -2649,7 +2697,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       used to read info about the relay log's format; it will be deleted when
       the SQL thread does not need it, i.e. when this thread terminates.
     */
-    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+        !rli->is_deferred_event(ev))
     {
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
       delete ev;
@@ -3311,6 +3360,12 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_for_queries();
+  thd->rli_slave= rli;
+  if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+  {
+    rli->deferred_events= new Deferred_log_events(rli);
+  }
+
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   mysql_mutex_lock(&LOCK_thread_count);
@@ -4830,19 +4885,45 @@ static Log_event* next_event(Relay_log_info* rli)
           constraint, because we do not want the I/O thread to block because of
           space (it's ok if it blocks for any other reason (e.g. because the
           master does not send anything). Then the I/O thread stops waiting
-          and reads more events.
-          The SQL thread decides when the I/O thread should take log_space_limit
-          into account again : ignore_log_space_limit is reset to 0
-          in purge_first_log (when the SQL thread purges the just-read relay
-          log), and also when the SQL thread starts. We should also reset
-          ignore_log_space_limit to 0 when the user does RESET SLAVE, but in
-          fact, no need as RESET SLAVE requires that the slave
+          and reads one more event and starts honoring log_space_limit again.
+
+          If the SQL thread needs more events to be able to rotate the log (it
+          might need to finish the current group first), then it can ask for one
+          more at a time. Thus we don't outgrow the relay log indefinitely,
+          but rather in a controlled manner, until the next rotate.
+
+          When the SQL thread starts it sets ignore_log_space_limit to false. 
+          We should also reset ignore_log_space_limit to 0 when the user does 
+          RESET SLAVE, but in fact, no need as RESET SLAVE requires that the slave
           be stopped, and the SQL thread sets ignore_log_space_limit to 0 when
           it stops.
         */
         mysql_mutex_lock(&rli->log_space_lock);
-        // prevent the I/O thread from blocking next times
-        rli->ignore_log_space_limit= 1;
+
+        /* 
+          If we have reached the limit of the relay space and we
+          are going to sleep, waiting for more events:
+
+          1. If outside a group, SQL thread asks the IO thread 
+             to force a rotation so that the SQL thread purges 
+             logs next time it processes an event (thus space is
+             freed).
+
+          2. If in a group, SQL thread asks the IO thread to 
+             ignore the limit and queues yet one more event 
+             so that the SQL thread finishes the group and 
+             is are able to rotate and purge sometime soon.
+         */
+        if (rli->log_space_limit && 
+            rli->log_space_limit < rli->log_space_total)
+        {
+          /* force rotation if not in an unfinished group */
+          rli->sql_force_rotate_relay= !rli->is_in_group();
+
+          /* ask for one more event */
+          rli->ignore_log_space_limit= true;
+        }
+
         /*
           If the I/O thread is blocked, unblock it.  Ok to broadcast
           after unlock, because the mutex is only destroyed in

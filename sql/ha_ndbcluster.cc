@@ -26,7 +26,6 @@
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
-#include <util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
@@ -49,6 +48,7 @@
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
+#include <ndb_global.h>
 #include "ndb_mi.h"
 #include "ndb_conflict.h"
 #include "ndb_anyvalue.h"
@@ -7654,23 +7654,6 @@ int ha_ndbcluster::start_statement(THD *thd,
     else if (thd->slave_thread)
       thd_ndb->m_slow_path= TRUE;
   }
-  /*
-    If this is the start of a LOCK TABLE, a table look 
-    should be taken on the table in NDB
-       
-    Check if it should be read or write lock
-  */
-  if (thd_options(thd) & (OPTION_TABLE_LOCK))
-  {
-    /* This is currently dead code in wait for implementation in NDB */
-    /* lockThisTable(); */
-    DBUG_PRINT("info", ("Locking the table..." ));
-#ifdef NOT_YET
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
-                        "Table only locked locally in this mysqld", "NDB");
-#endif
-  }
   DBUG_RETURN(0);
 }
 
@@ -11341,7 +11324,17 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 }
 
-
+/* Interface to mysqld, to check system tables supported by SE */
+static bool ndb_is_supported_system_table(const char *db,
+                                          const char *table_name,
+                                          bool is_sql_layer_system_table)
+{
+  if (Ndb_dist_priv_util::is_distributed_priv_table(db,
+                                                    table_name))
+    return true;
+  else
+    return false;
+}
 
 extern "C" uchar* tables_get_key(const char *entry, size_t *length,
                                 my_bool not_used __attribute__((unused)))
@@ -11826,6 +11819,34 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
 int(*ndb_wait_setup_func)(ulong) = 0;
 #endif
+
+/* Version in composite numerical format */
+static Uint32 ndb_version = NDB_VERSION_D;
+static MYSQL_SYSVAR_UINT(
+  version,                          /* name */
+  ndb_version,                      /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version for ndbcluster",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0,                                /* default */
+  0,                                /* min */
+  0,                                /* max */
+  0                                 /* block */
+);
+
+/* Version in ndb-Y.Y.Y[-status] format */
+static char* ndb_version_string = (char*)NDB_NDB_VERSION_STRING;
+static MYSQL_SYSVAR_STR(
+  version_string,                  /* name */
+  ndb_version_string,              /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version string for ndbcluster",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  NULL                              /* default */
+);
+
 extern int ndb_dictionary_is_mysqld;
 
 static int ndbcluster_init(void *p)
@@ -11879,6 +11900,8 @@ static int ndbcluster_init(void *p)
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
     h->make_pushed_join= ndbcluster_make_pushed_join;
 #endif
+    h->is_supported_system_table= ndb_is_supported_system_table;
+
   }
 
   // Initialize ndb interface
@@ -17374,6 +17397,8 @@ static struct st_mysql_sys_var* system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(dbg_check_shares),
 #endif
+  MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(version_string),
   NULL
 };
 
