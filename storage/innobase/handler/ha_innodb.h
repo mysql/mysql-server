@@ -421,6 +421,13 @@ bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
   @return a durability property.
 */
 enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
+
+/** Get the auto_increment_offset auto_increment_increment.
+@param thd	Thread object
+@param off	auto_increment_offset
+@param inc	auto_increment_increment */
+void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
+__attribute__((nonnull));
 } /* extern "C" */
 
 typedef struct trx_struct trx_t;
