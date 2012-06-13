@@ -97,7 +97,7 @@ table_ews_global_by_event_name::delete_all_rows(void)
   reset_events_waits_by_instance();
   reset_table_waits_by_table_handle();
   reset_table_waits_by_table();
-  reset_events_waits_global();
+  reset_events_waits_by_class();
   return 0;
 }
 
@@ -120,9 +120,6 @@ int table_ews_global_by_event_name::rnd_next(void)
   PFS_file_class *file_class;
   PFS_socket_class *socket_class;
   PFS_instr_class *instr_class;
-
-  if (global_instr_class_waits_array == NULL)
-    return HA_ERR_END_OF_FILE;
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_view();
@@ -217,9 +214,6 @@ table_ews_global_by_event_name::rnd_pos(const void *pos)
   PFS_instr_class *instr_class;
 
   set_position(pos);
-
-  if (global_instr_class_waits_array == NULL)
-    return HA_ERR_END_OF_FILE;
 
   switch (m_pos.m_index_1)
   {

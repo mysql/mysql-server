@@ -129,6 +129,8 @@ JOIN::optimize()
   uint no_jbuf_after= UINT_MAX;
 
   DBUG_ENTER("JOIN::optimize");
+  DBUG_ASSERT(!tables || thd->lex->is_query_tables_locked());
+
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
@@ -273,12 +275,18 @@ JOIN::optimize()
         part of the nested outer join, and we can't do partition pruning
         (TODO: check if this limitation can be lifted. 
                This also excludes semi-joins.  Is that intentional?)
+        This will try to prune non-static conditions, which can
+        be used after the tables are locked.
       */
       if (!tbl->embedding)
       {
-        Item *prune_cond= tbl->join_cond()? tbl->join_cond() : conds;
-        tbl->table->no_partitions_used= prune_partitions(thd, tbl->table,
-	                                                 prune_cond);
+        Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
+        if (prune_partitions(thd, tbl->table, prune_cond))
+        {
+          error= 1;
+          DBUG_PRINT("error", ("Error from prune_partitions"));
+          DBUG_RETURN(1);
+        }
       }
     }
   }
@@ -3159,9 +3167,9 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     enum enum_const_table_extraction extract_method= extract_const_table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    const bool no_partitions_used= table->no_partitions_used;
+    const bool all_partitions_pruned_away= table->all_partitions_pruned_away;
 #else
-    const bool no_partitions_used= false;
+    const bool all_partitions_pruned_away= false;
 #endif
 
     if (tables->in_outer_join_nest())
@@ -3192,7 +3200,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     case extract_empty_table:
       /* Extract tables with zero rows, but only if statistics are exact */
       if ((table->file->stats.records == 0 ||
-           no_partitions_used) &&
+           all_partitions_pruned_away) &&
           (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
         set_position(join, const_count++, s, NULL);
       break;
@@ -3206,7 +3214,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       */ 
       if ((table->s->system ||
            table->file->stats.records <= 1 ||
-           no_partitions_used) &&
+           all_partitions_pruned_away) &&
           !s->dependent &&                                               // 1
           (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 2
           !table->fulltext_searched)                                     // 3

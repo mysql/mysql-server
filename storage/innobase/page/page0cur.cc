@@ -1975,7 +1975,8 @@ page_cur_delete_rec(
 	page_dir_slot_set_n_owned(cur_dir_slot, page_zip, cur_n_owned - 1);
 
 	/* 6. Free the memory occupied by the record */
-	btr_blob_dbg_remove_rec(current_rec, index, offsets, "delete");
+	btr_blob_dbg_remove_rec(current_rec, const_cast<dict_index_t*>(index),
+				offsets, "delete");
 	page_mem_free(page, page_zip, current_rec, index, offsets);
 
 	/* 7. Now we have decremented the number of owned records of the slot.

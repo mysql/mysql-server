@@ -161,6 +161,8 @@ IF(HAVE_VISIBILITY_HIDDEN)
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
   SET_SOURCE_FILES_PROPERTIES(../sql/sha1.cc
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(../sql-common/crypt_genhash_impl.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
