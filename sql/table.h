@@ -991,8 +991,6 @@ private:
   */
   friend class Table_cache_element;
 
-  Field_temporal_with_date_and_time *timestamp_field;
-
 public:
 
   THD	*in_use;                        /* Which thread uses this */
@@ -1173,7 +1171,8 @@ public:
   Filesort_info sort;
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   partition_info *part_info;            /* Partition related information */
-  bool no_partitions_used; /* If true, all partitions have been pruned away */
+  /* If true, all partitions have been pruned away */
+  bool all_partitions_pruned_away;
 #endif
   MDL_ticket *mdl_ticket;
 
@@ -1233,9 +1232,6 @@ public:
       file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
-
-  void set_timestamp_field(Field *field_arg);
-  Field *get_timestamp_field();
 
   bool update_const_key_parts(Item *conds);
 

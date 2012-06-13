@@ -227,6 +227,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
       with_subselect|=        item->has_subquery();
+      with_stored_program|=   item->has_stored_program();
     }
   }
   fix_length_and_dec();
@@ -419,12 +420,14 @@ void Item_func::update_used_tables()
   used_tables_cache= get_initial_pseudo_tables();
   const_item_cache=1;
   with_subselect= false;
+  with_stored_program= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
     with_subselect|= args[i]->has_subquery();
+    with_stored_program|= args[i]->has_stored_program();
   }
 }
 
@@ -6530,6 +6533,7 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
+  with_stored_program= true;
 }
 
 
@@ -6541,6 +6545,7 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
+  with_stored_program= true;
 }
 
 
@@ -6555,6 +6560,8 @@ Item_func_sp::cleanup()
   m_sp= NULL;
   dummy_table->alias= NULL;
   Item_func::cleanup();
+  tables_locked_cache= false;
+  with_stored_program= true;
 }
 
 const char *
@@ -6937,6 +6944,11 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   res= Item_func::fix_fields(thd, ref);
 
+  /* These is reset/set by Item_func::fix_fields. */
+  with_stored_program= true;
+  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
+    const_item_cache= false;
+
   if (res)
     DBUG_RETURN(res);
 
@@ -6965,9 +6977,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
 
-  if (!m_sp->m_chistics->detistic)
-    const_item_cache= false;
-
   DBUG_RETURN(res);
 }
 
@@ -6978,6 +6987,9 @@ void Item_func_sp::update_used_tables()
 
   if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
+
+  /* This is reset by Item_func::update_used_tables(). */
+  with_stored_program= true;
 }
 
 
