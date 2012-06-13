@@ -7274,23 +7274,6 @@ int ha_ndbcluster::start_statement(THD *thd,
     else if (thd->slave_thread)
       thd_ndb->m_slow_path= TRUE;
   }
-  /*
-    If this is the start of a LOCK TABLE, a table look 
-    should be taken on the table in NDB
-       
-    Check if it should be read or write lock
-  */
-  if (thd_options(thd) & (OPTION_TABLE_LOCK))
-  {
-    /* This is currently dead code in wait for implementation in NDB */
-    /* lockThisTable(); */
-    DBUG_PRINT("info", ("Locking the table..." ));
-#ifdef NOT_YET
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
-                        "Table only locked locally in this mysqld", "NDB");
-#endif
-  }
   DBUG_RETURN(0);
 }
 
