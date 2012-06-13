@@ -81,7 +81,7 @@ public:
         iii) Non SF_OrderBy* flag scans can return rows to the Api before all
              index fragments have returned a batch, and can overlap next-batch
              requests with Api row processing.
-    */`
+    */
     SF_OrderBy = (1 << 24),
     /**
      * Same as order by, except that it will automatically 
