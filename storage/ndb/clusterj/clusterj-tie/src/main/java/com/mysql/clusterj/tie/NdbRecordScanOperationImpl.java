@@ -17,11 +17,14 @@
 
 package com.mysql.clusterj.tie;
 
+import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
 import com.mysql.clusterj.core.store.Table;
+
+import com.mysql.clusterj.Query.Ordering;
 
 import com.mysql.ndbjtie.ndbapi.NdbInterpretedCode;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst;
@@ -51,6 +54,9 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
 
     /** The lock mode for this operation */
     int lockMode;
+
+    /** The ordering for this operation */
+    Ordering ordering = null;
 
     public NdbRecordScanOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable,
             int lockMode) {
@@ -117,24 +123,49 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
     /** Create scan options for this scan. 
      * Scan options are used to set a filter into the NdbScanOperation,
      * set the key info flag if using a lock mode that requires lock takeover, and set the multi range flag.
-     * always set SF_OrderBy to get ordered scans.
+     * set either SF_OrderBy or SF_Descending to get ordered scans.
      */
     protected void getScanOptions() {
-        long options = (long)Type.SO_SCANFLAGS;
-        int flags = ScanFlag.SF_OrderBy;
-        scanOptions = db.createScanOptions();
-        if (multiRange) {
-            flags |= ScanFlag.SF_MultiRange;
+        long options = 0;
+        int flags = 0;
+        if (ordering != null
+                || multiRange
+                || lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead
+                || ndbScanFilter != null) {
+            // create scan options only if we have scan options to set
+            scanOptions = db.createScanOptions();
+            if (ordering != null) {
+                options |= Type.SO_SCANFLAGS;
+                switch (ordering) {
+                    case ASCENDING:
+                        flags |= ScanFlag.SF_OrderBy;
+                        break;
+                    case DESCENDING:
+                        flags |= ScanFlag.SF_Descending;
+                        flags |= ScanFlag.SF_OrderBy;
+                        break;
+                    default:
+                        throw new ClusterJFatalInternalException(local.message("ERR_Invalid_Ordering", ordering));
+                }
+            }
+            if (multiRange) {
+                options |= Type.SO_SCANFLAGS;
+                flags |= ScanFlag.SF_MultiRange;
+                flags |= ScanFlag.SF_ReadRangeNo;
+            }
+            if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
+                options |= Type.SO_SCANFLAGS;
+                flags |= ScanFlag.SF_KeyInfo;
+            }
+            if (ndbScanFilter != null) {
+                options |= (long)Type.SO_INTERPRETED;
+                scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
+            }
+            if (flags != 0) {
+                scanOptions.scan_flags(flags);
+            }
+            scanOptions.optionsPresent(options);
         }
-        if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
-            flags |= ScanFlag.SF_KeyInfo;
-        }
-        if (ndbScanFilter != null) {
-            options |= (long)Type.SO_INTERPRETED;
-            scanOptions.interpretedCode(ndbScanFilter.getInterpretedCode());
-        }
-        scanOptions.scan_flags(flags);
-        scanOptions.optionsPresent(options);
         if (logger.isDebugEnabled()) logger.debug("ScanOptions: " + dumpScanOptions(options, flags));
     }
 
@@ -223,6 +254,10 @@ public abstract class NdbRecordScanOperationImpl extends NdbRecordOperationImpl 
         this.valueBuffer = ndbRecordValues.newBuffer();
         this.keyBuffer = valueBuffer;
         return result;
+    }
+
+    public void setOrdering(Ordering ordering) {
+        this.ordering = ordering;
     }
 
 }

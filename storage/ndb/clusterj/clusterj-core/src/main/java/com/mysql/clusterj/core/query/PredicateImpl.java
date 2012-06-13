@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -208,42 +208,55 @@ public abstract class PredicateImpl implements Predicate {
         return dobj;
     }
 
-    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context) {
-        return getBestCandidateIndexFor(context, getTopLevelPredicates());
+    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context, String[] orderingFields) {
+        return getBestCandidateIndexFor(context, getTopLevelPredicates(), orderingFields);
     }
 
     /** Get the best candidate index for the query, considering all indices
-     * defined and all predicates in the query. If a unique index is usable
-     * (no non-null parameters) then return it. Otherwise, simply choose the
-     * first index for which there is at least one leading non-null parameter.
+     * defined, ordering fields, and all predicates in the query. If a unique index is usable
+     * (no non-null parameters), then return it (ordering is not relevant for a single result).
+     * Otherwise, choose the first index which includes the ordering fields and for which there
+     * is at least one leading non-null parameter. If there are ordering fields and an index
+     * containing those fields, the index might be used as a last resort in case no better index can be found.
+     * @param context the query execution context
      * @param predicates the predicates
+     * @param orderingFields the ordering fields
      * @return the best index for the query
      */
     protected CandidateIndexImpl getBestCandidateIndexFor(QueryExecutionContext context,
-            PredicateImpl... predicates) {
+            PredicateImpl[] predicates, String[] orderingFields) {
         // if there is a primary/unique index, see if it can be used in the current context
-        if (uniqueIndex != null && uniqueIndex.isUsable(context)) {
+        if (uniqueIndex != null && uniqueIndex.isUsable(context, null) > 0) {
             if (logger.isDebugEnabled()) logger.debug("usable unique index: " + uniqueIndex.getIndexName());
             return uniqueIndex;
         }
         // find the best candidate index by returning the highest scoring index that is usable
-        // in the current context; i.e. has non-null parameters
-        // TODO: it might be better to score indexes again considering the current context
+        // in the current context; i.e. satisfies all ordering fields and has non-null parameters
+        // the scored candidate indices are already ordered by the number of query terms
+        CandidateIndexImpl lastResort = null;
         for (CandidateIndexImpl index: scoredCandidateIndices) {
-            if (index.isUsable(context)) {
-            if (logger.isDebugEnabled()) logger.debug("usable ordered index: " + index.getIndexName());
+            int usability = index.isUsable(context, orderingFields);
+            if (logger.isDebugEnabled()) logger.debug("index " + index.getIndexName() + " usability: " + usability);
+            if (usability > 0) {
                 return index;
+            } else if (usability == 0) {
+                if (!index.isUnique()) {
+                    if (logger.isDebugEnabled()) logger.debug("last resort: " + lastResort.getIndexName());
+                    // save this index; we might have to use it as a last resort
+                    lastResort = index;
+                }
             }
         }
         // there is no index that is usable in the current context
-        return CandidateIndexImpl.getIndexForNullWhereClause();
+        // use the last resort if there is one and there are ordering fields
+        return (lastResort!=null && orderingFields!=null)?lastResort:CandidateIndexImpl.getIndexForNullWhereClause();
 
     }
 
     /** Get the number of conditions in the top level predicate.
-     * This is used to determine whether a hash index can be used. If there
+     * This is used to determine whether a unique index can be used. If there
      * are exactly the number of conditions as index columns, then the
-     * hash index might be used.
+     * unique index might be used.
      * By default (for equal, greaterThan, lessThan, greaterEqual, lessEqual)
      * there is one condition.
      * AndPredicateImpl overrides this method.
@@ -266,26 +279,24 @@ public abstract class PredicateImpl implements Predicate {
             predicateImpl.markBoundsForCandidateIndices(candidateIndices);
         }
         // Iterate over candidate indices to find those that are usable.
-        // Hash index operations require the predicates to have no extra conditions
-        // beyond the index columns.
+        // Unique index operations require the predicates to have no extra conditions
+        // beyond the index columns because key operations cannot have filters.
         // Btree index operations are ranked by the number of usable conditions
         int numberOfConditions = getNumberOfConditionsInPredicate();
         for (CandidateIndexImpl candidateIndex : candidateIndices) {
+            
             if (candidateIndex.supportsConditionsOfLength(numberOfConditions)) {
                 candidateIndex.score();
                 int score = candidateIndex.getScore();
-                if (score != 0) {
-                    if (candidateIndex.isUnique()) {
-                        // there can be only one unique index for a given predicate
-                        uniqueIndex = candidateIndex;
-                    } else {
-                        // add possible indices to ordered map
-                        scoredCandidateIndices.add(candidateIndex);
-                    }
+                
+                if (score != 0 && candidateIndex.isUnique()) {
+                    // there can be only one unique index for a given predicate
+                    uniqueIndex = candidateIndex;
+                } else {
+                    // add possible indices to ordered map
+                    scoredCandidateIndices.add(candidateIndex);
                 }
-                if (logger.isDetailEnabled()) {
-                    logger.detail("Score: " + score + " from " + candidateIndex.getIndexName());
-                }
+            if (logger.isDetailEnabled()) logger.detail("Score: " + score + " from " + candidateIndex.getIndexName());
             }
         }
     }
