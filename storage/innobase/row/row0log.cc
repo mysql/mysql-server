@@ -779,6 +779,7 @@ row_log_table_get_pk(
 	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
 {
 	dtuple_t*	tuple	= NULL;
+	row_log_t*	log	= index->online_log;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(dict_index_is_online_ddl(index));
@@ -788,19 +789,18 @@ row_log_table_get_pk(
 	      || rw_lock_own(&index->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(index->online_log);
-	ut_ad(index->online_log->table);
+	ut_ad(log);
+	ut_ad(log->table);
 
-	if (index->online_log->same_pk) {
+	if (log->same_pk) {
 		/* The PRIMARY KEY columns are unchanged. */
 		return(NULL);
 	}
 
-	mutex_enter(&index->online_log->mutex);
+	mutex_enter(&log->mutex);
 
-	/* index->online_log->error is protected by the above mutex. */
-	if (index->online_log->error == DB_SUCCESS) {
-		row_log_t*	log		= index->online_log;
+	/* log->error is protected by log->mutex. */
+	if (log->error == DB_SUCCESS) {
 		dict_table_t*	new_table	= log->table;
 		dict_index_t*	new_index
 			= dict_table_get_first_index(new_table);
@@ -873,7 +873,7 @@ copy_col:
 
 			if (i == ULINT_UNDEFINED) {
 				ut_ad(0);
-				new_index->online_log->error = DB_CORRUPTION;
+				log->error = DB_CORRUPTION;
 				tuple = NULL;
 				goto func_exit;
 			}
@@ -881,7 +881,7 @@ copy_col:
 			field = rec_get_nth_field(rec, offsets, i, &len);
 
 			if (len == UNIV_SQL_NULL) {
-				new_index->online_log->error = DB_INVALID_NULL;
+				log->error = DB_INVALID_NULL;
 				tuple = NULL;
 				goto func_exit;
 			}
@@ -908,8 +908,7 @@ copy_col:
 					dict_table_zip_size(index->table),
 					field, len);
 				if (len == max_len + 1) {
-					new_index->online_log->error
-						= DB_TOO_BIG_INDEX_COL;
+					log->error = DB_TOO_BIG_INDEX_COL;
 					tuple = NULL;
 					goto func_exit;
 				}
@@ -937,7 +936,7 @@ copy_col:
 	}
 
 func_exit:
-	mutex_exit(&index->online_log->mutex);
+	mutex_exit(&log->mutex);
 	return(tuple);
 }
 
