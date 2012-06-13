@@ -2240,6 +2240,7 @@ row_merge_insert_index_tuples(
 	ut_ad(!(index->type & DICT_FTS));
 	ut_ad(del_marks == (dict_index_get_online_status(index)
 			    != ONLINE_INDEX_COMPLETE));
+	ut_ad(trx_id);
 
 	tuple_heap = mem_heap_create(1000);
 
