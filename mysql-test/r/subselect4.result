@@ -2139,6 +2139,61 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
 2	SUBQUERY	five	ALL	NULL	NULL	NULL	NULL	5	Using where
 drop table ten, t1, five;
+#
+# LP BUG#1008773 Wrong result (NULL instead of a value) with no matching rows, subquery in FROM and HAVING
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1);
+EXPLAIN
+SELECT MAX(a), ( SELECT 1 FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), ( SELECT 1 FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	1
+EXPLAIN
+SELECT MAX(a), 1 in ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), 1 in ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	1
+EXPLAIN
+SELECT MAX(a), 1 >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT MAX(a), 1 >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	1
+EXPLAIN
+SELECT MAX(a), ( SELECT 1 FROM t2 where b = a) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT MAX(a), ( SELECT 1 FROM t2 where b = a) AS bb FROM t1;
+MAX(a)	bb
+NULL	NULL
+EXPLAIN
+SELECT MAX(a), a in ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), a in ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	NULL
+EXPLAIN
+SELECT MAX(a), a >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	
+SELECT MAX(a), a >= ALL ( SELECT b FROM t2 ) AS bb FROM t1;
+MAX(a)	bb
+NULL	NULL
+drop table t1, t2;
 set optimizer_switch=@subselect4_tmp;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;

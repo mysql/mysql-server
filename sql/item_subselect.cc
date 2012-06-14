@@ -892,6 +892,8 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_maxmin_subselect::no_rows_in_result()
 {
+  if (const_item())
+    return;
   value= Item_cache::get_cache(new Item_null());
   null_value= 0;
   was_values= 0;
@@ -901,6 +903,8 @@ void Item_maxmin_subselect::no_rows_in_result()
 
 void Item_singlerow_subselect::no_rows_in_result()
 {
+  if (const_item())
+    return;
   value= Item_cache::get_cache(new Item_null());
   reset();
   make_const();
@@ -1363,6 +1367,8 @@ Item* Item_exists_subselect::expr_cache_insert_transformer(uchar *thd_arg)
 
 void Item_exists_subselect::no_rows_in_result()
 {
+  if (const_item())
+    return;
   value= 0;
   null_value= 0;
   make_const();
@@ -2707,6 +2713,8 @@ void Item_allany_subselect::print(String *str, enum_query_type query_type)
 
 void Item_allany_subselect::no_rows_in_result()
 {
+  if (const_item())
+    return;
   value= 0;
   null_value= 0;
   was_null= 0;
