@@ -176,7 +176,7 @@ run_test(int ndbs, int nrows) {
         r = db[dbnum]->open(db[dbnum], NULL, dbname, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    
         assert_zero(r);
         IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-            CHK(db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0));
+                { int chk_r = db[dbnum]->change_descriptor(db[dbnum], txn_desc, &dbt_dbnum, 0); CKERR(chk_r); }
         });
     }
 

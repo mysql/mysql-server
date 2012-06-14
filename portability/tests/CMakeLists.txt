@@ -19,7 +19,7 @@ if(BUILD_TESTING)
     get_filename_component(test ${src} NAME_WE)
 
     add_executable(${test} ${src})
-    target_link_libraries(${test} ${LIBTOKUPORTABILITY} ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(${test} ${LIBTOKUPORTABILITY})
     add_space_separated_property(TARGET ${test} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
     add_space_separated_property(TARGET ${test} LINK_FLAGS -pie)
     if(HAVE_CLOCK_REALTIME)

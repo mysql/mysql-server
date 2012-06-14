@@ -30,28 +30,28 @@ static void checkpoint_callback_1(void * extra) {
     change_descriptor.size = sizeof(eight_byte_desc);
     change_descriptor.data = &eight_byte_desc;
 
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666));
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666); CKERR(chk_r); }
     assert_desc_four(db);
     IN_TXN_COMMIT(env, NULL, txn_change, 0, {
-            CHK(db->change_descriptor(db, txn_change, &change_descriptor, 0));
+            { int chk_r = db->change_descriptor(db, txn_change, &change_descriptor, 0); CKERR(chk_r); }
             assert_desc_eight(db);
         });
     assert_desc_eight(db);
-    CHK(db->close(db,0));
+    { int chk_r = db->close(db,0); CKERR(chk_r); }
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     db_env_set_checkpoint_callback(checkpoint_callback_1, NULL);
     env->set_errfile(env, stderr);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static void run_test(void) {
@@ -63,26 +63,26 @@ static void run_test(void) {
     orig_desc.data = &four_byte_desc;
     // verify we can only set a descriptor with version 1
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
-            CHK(db_create(&db, env, 0));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
             assert(db->descriptor == NULL);
-            CHK(db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
-            CHK(db->change_descriptor(db, txn_create, &orig_desc, 0));
+            { int chk_r = db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
+            { int chk_r = db->change_descriptor(db, txn_create, &orig_desc, 0); CKERR(chk_r); }
             assert_desc_four(db);
         });
     assert_desc_four(db);
-    CHK(db->close(db,0));
+    { int chk_r = db->close(db,0); CKERR(chk_r); }
 
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666));    
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666); CKERR(chk_r); }    
     assert_desc_four(db);
-    CHK(db->close(db,0));
+    { int chk_r = db->close(db,0); CKERR(chk_r); }
 
-    CHK(env->txn_checkpoint(env, 0, 0, 0));
+    { int chk_r = env->txn_checkpoint(env, 0, 0, 0); CKERR(chk_r); }
 
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666));    
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, 0, 0666); CKERR(chk_r); }    
     assert_desc_eight(db);
-    CHK(db->close(db,0));
+    { int chk_r = db->close(db,0); CKERR(chk_r); }
 
     db = NULL;
 }

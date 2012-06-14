@@ -25,7 +25,7 @@ run_test(void) {
 
     r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
 
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
     DB *src_db = NULL;
     r = db_create(&src_db, env, 0); assert_zero(r);
@@ -64,10 +64,10 @@ run_test(void) {
 static void
 run_recover(void) {
     DB_ENV *env;
-    CHK(db_env_create(&env, 0));
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
-    CHK(env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(env->close(env, 0));
+    { int chk_r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 int

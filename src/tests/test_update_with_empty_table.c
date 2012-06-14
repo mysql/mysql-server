@@ -19,16 +19,16 @@ static int update_fun(DB *UU(db),
 }
 
 static void setup (void) {
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
@@ -38,7 +38,7 @@ static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
   dbt_init(&key, &k, sizeof(k));
   dbt_init(&val, &v, sizeof(v));
 
-  int r = CHK(db->update(db, txn, &key, &val, flags));
+  int r = db->update(db, txn, &key, &val, flags); CKERR(r);
     return r;
 }
 
@@ -48,18 +48,18 @@ static void run_test(BOOL prelock, BOOL commit) {
     setup();
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
-            CHK(db_create(&db, env, 0));
-            CHK(db->open(db, txn_1, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+            { int chk_r = db->open(db, txn_1, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
         });
     if (prelock) {
         IN_TXN_COMMIT(env, NULL, txn_2, 0, {
-            CHK(db->pre_acquire_table_lock(db, txn_2));
+                { int chk_r = db->pre_acquire_table_lock(db, txn_2); CKERR(chk_r); }
         });
     }
 
     if (commit) {
         IN_TXN_COMMIT(env, NULL, txn_2, 0, {
-            CHK(do_updates(txn_2, db, update_flags));
+                { int chk_r = do_updates(txn_2, db, update_flags); CKERR(chk_r); }
         });
         DBC *cursor = NULL;
         DBT key, val;
@@ -67,18 +67,18 @@ static void run_test(BOOL prelock, BOOL commit) {
         memset(&val, 0, sizeof(val));
 
         IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            CHK(db->cursor(db, txn_3, &cursor, 0));
-            CHK(cursor->c_get(cursor, &key, &val, DB_NEXT));
+                { int chk_r = db->cursor(db, txn_3, &cursor, 0); CKERR(chk_r); }
+                { int chk_r = cursor->c_get(cursor, &key, &val, DB_NEXT); CKERR(chk_r); }
             assert(key.size == sizeof(u_int32_t));
             assert(val.size == sizeof(u_int32_t));
             assert(*(u_int32_t *)(key.data) == 101);
             assert(*(u_int32_t *)(val.data) == 10101);
-            CHK(cursor->c_close(cursor));
+            { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
         });
     }
     else {
         IN_TXN_ABORT(env, NULL, txn_2, 0, {
-            CHK(do_updates(txn_2, db, update_flags));
+                { int chk_r = do_updates(txn_2, db, update_flags); CKERR(chk_r); }
         });
         DBC *cursor = NULL;
         DBT key, val;
@@ -86,12 +86,12 @@ static void run_test(BOOL prelock, BOOL commit) {
         memset(&val, 0, sizeof(val));
 
         IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            CHK(db->cursor(db, txn_3, &cursor, 0));
-            CHK2(cursor->c_get(cursor, &key, &val, DB_NEXT), DB_NOTFOUND);
-            CHK(cursor->c_close(cursor));
+                { int chk_r = db->cursor(db, txn_3, &cursor, 0); CKERR(chk_r); }
+                { int chk_r = cursor->c_get(cursor, &key, &val, DB_NEXT); CKERR2(chk_r, DB_NOTFOUND); }
+                { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
         });
     }
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
     cleanup();
 }
 

@@ -17,7 +17,7 @@
 static void
 test_txn_close_before_prepare_commit (void) {
 
-    CHK(system("rm -rf " ENVDIR));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int r;

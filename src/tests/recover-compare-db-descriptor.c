@@ -32,7 +32,7 @@ change_descriptor(DB_ENV* env, DB* db) {
     DBT descriptor;
     dbt_init(&descriptor, descriptor_contents, sizeof(descriptor_contents));
     IN_TXN_COMMIT(env, NULL, txn_desc, 0, {
-        CHK(db->change_descriptor(db, txn_desc, &descriptor, DB_UPDATE_CMP_DESCRIPTOR));
+            { int chk_r = db->change_descriptor(db, txn_desc, &descriptor, DB_UPDATE_CMP_DESCRIPTOR); CKERR(chk_r); }
       });
 #endif
 }

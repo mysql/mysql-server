@@ -39,9 +39,17 @@ pair_cmp(const void *a, const void *b)
 {
     const struct pair *p1 = a, *p2 = b;
     if (p1->key.size < p2->key.size) {
-        return memcmp(p1->key.data, p2->key.data, p1->key.size) || -1;
+        int c = memcmp(p1->key.data, p2->key.data, p1->key.size);
+        if (!c) {
+            return -1;
+        }
+        return c;
     } else if (p1->key.size > p2->key.size) {
-        return memcmp(p1->key.data, p2->key.data, p2->key.size) || 1;
+        int c = memcmp(p1->key.data, p2->key.data, p2->key.size);
+        if (!c) {
+            return 1;
+        }
+        return c;
     } else {
         return memcmp(p1->key.data, p2->key.data, p1->key.size);
     }
@@ -90,12 +98,12 @@ run_test(DB *db)
         for (; p < cursz; ++p) {
             // put an element in
             invariant(pairs[p].state == UNTOUCHED);
-            CHK(db->put(db, null_txn, &pairs[p].key, &pairs[p].val, 0));
+            { int chk_r = db->put(db, null_txn, &pairs[p].key, &pairs[p].val, 0); CKERR(chk_r); }
             pairs[p].state = INSERTED;
             // delete everything we can so far, in the given order
             for (; d < NDELS && dels[d] <= p; ++d) {
                 invariant(pairs[dels[d]].state == INSERTED);
-                CHK(db->del(db, null_txn, &pairs[dels[d]].key, 0));
+                { int chk_r = db->del(db, null_txn, &pairs[dels[d]].key, 0); CKERR(chk_r); }
                 pairs[dels[d]].state = DELETED;
             }
         }
@@ -125,10 +133,12 @@ run_test(DB *db)
         // with a forward traversal
         if ((random() % 10) < 5) {
             DBC *cur;
-            CHK(db->cursor(db, null_txn, &cur, 0));
+            { int chk_r = db->cursor(db, null_txn, &cur, 0); CKERR(chk_r); }
             DBT ck, cv; dbt_init(&ck, NULL, 0); dbt_init(&cv, NULL, 0);
             int i, r;
-            for (r = CHK(cur->c_get(cur, &ck, &cv, DB_FIRST)), i = 0;
+            r = cur->c_get(cur, &ck, &cv, DB_FIRST);
+            CKERR(r);
+            for (i = 0;
                  r == 0 && i < cursz;
                  r = cur->c_get(cur, &ck, &cv, DB_NEXT), ++i) {
                 invariant(sorted[i].state != UNTOUCHED);
@@ -153,10 +163,12 @@ run_test(DB *db)
         // with a backward traversal
         if ((random() % 10) < 5) {
             DBC *cur;
-            CHK(db->cursor(db, null_txn, &cur, 0));
+            { int chk_r = db->cursor(db, null_txn, &cur, 0); CKERR(chk_r); }
             DBT ck, cv; dbt_init(&ck, NULL, 0); dbt_init(&cv, NULL, 0);
             int i, r;
-            for (r = CHK(cur->c_get(cur, &ck, &cv, DB_LAST)), i = cursz - 1;
+            r = cur->c_get(cur, &ck, &cv, DB_LAST);
+            CKERR(r);
+            for (i = cursz - 1;
                  r == 0 && i >= 0;
                  r = cur->c_get(cur, &ck, &cv, DB_PREV), --i) {
                 invariant(sorted[i].state != UNTOUCHED);
@@ -185,21 +197,21 @@ init_db(DB_ENV **env, DB **db)
 {
     DB_TXN * const null_txn = 0;
 
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(env, 0); CKERR(chk_r); }
     (*env)->set_errfile(*env, stderr);
-    CHK((*env)->open(*env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0));
-    CHK(db_create(db, *env, 0));
-    CHK((*db)->open(*db, null_txn, "test.stress.ft_handle", "main",
-        DB_BTREE, DB_CREATE, 0666));
+    { int chk_r = (*env)->open(*env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); CKERR(chk_r); }
+    { int chk_r = db_create(db, *env, 0); CKERR(chk_r); }
+    { int chk_r = (*db)->open(*db, null_txn, "test.stress.ft_handle", "main",
+                              DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
 }
 
 static void
 destroy_db(DB_ENV *env, DB *db)
 {
-    CHK(db->close(db, 0));
-    CHK(env->close(env, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 int

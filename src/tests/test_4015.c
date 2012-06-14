@@ -33,17 +33,17 @@ static void *startA (void *ignore __attribute__((__unused__))) {
 	dbt_init(&v, &a, sizeof(a));
 	DB_TXN *txn;
     again:
-	CHK(env->txn_begin(env, NULL, &txn, DB_TXN_NOSYNC));
+	{ int chk_r = env->txn_begin(env, NULL, &txn, DB_TXN_NOSYNC); CKERR(chk_r); }
 	{
 	    int r = db->put(db, txn, &k, &v, 0);
 	    if (r==DB_LOCK_NOTGRANTED) {
 		if (verbose) printf("lock not granted on %d\n", i);
-		CHK(txn->abort(txn));
+		{ int chk_r = txn->abort(txn); CKERR(chk_r); }
 		goto again;
 	    }
 	    assert(r==0);
 	}
-	CHK(txn->commit(txn, 0));
+	{ int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
     }
     int r __attribute__((__unused__)) = __sync_fetch_and_add(&done, 1);
     return NULL;
@@ -98,9 +98,9 @@ static void my_parse_args (int argc, char * const argv[]) {
 int test_main(int argc, char * const argv[]) {
     my_parse_args(argc, argv);
 
-    CHK(db_env_create(&env, 0));
-    CHK(env->set_redzone(env, 0));
-    CHK(env->set_default_bt_compare(env, my_compare));
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
+    { int chk_r = env->set_redzone(env, 0); CKERR(chk_r); }
+    { int chk_r = env->set_default_bt_compare(env, my_compare); CKERR(chk_r); }
     {
 	const int size = 10+strlen(env_dir);
 	char cmd[size];
@@ -108,30 +108,30 @@ int test_main(int argc, char * const argv[]) {
 	int r = system(cmd);
         CKERR(r);
     }
-    CHK(toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-    CHK(env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
-    CHK(db_create(&db, env, 0));
-    CHK(db->set_pagesize(db, 1024));
-    CHK(db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666));
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->set_pagesize(db, 1024); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
     DBT desc;
     dbt_init(&desc, "foo", sizeof("foo"));
     IN_TXN_COMMIT(env, NULL, txn, 0,
-		  CHK(db->change_descriptor(db, txn, &desc, DB_UPDATE_CMP_DESCRIPTOR)));
+                  { int chk_r = db->change_descriptor(db, txn, &desc, DB_UPDATE_CMP_DESCRIPTOR); CKERR(chk_r); });
     pthread_t thd;
-    CHK(toku_pthread_create(&thd, NULL, startA, NULL));
+    { int chk_r = toku_pthread_create(&thd, NULL, startA, NULL); CKERR(chk_r); }
 
     startB();
 
     void *retval;
-    CHK(toku_pthread_join(thd, &retval));
+    { int chk_r = toku_pthread_join(thd, &retval); CKERR(chk_r); }
     assert(retval==NULL);
 
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
 
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 
     return 0;
 }

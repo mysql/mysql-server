@@ -15,12 +15,12 @@ static void clean_env (const char *envdir) {
 }
 
 static void setup_env (DB_ENV **envp, const char *envdir) {
-    CHK(db_env_create(envp, 0));
+    { int chk_r = db_env_create(envp, 0); CKERR(chk_r); }
     (*envp)->set_errfile(*envp, stderr);
 #ifdef TOKUDB
-    CHK((*envp)->set_redzone(*envp, 0));
+    { int chk_r = (*envp)->set_redzone(*envp, 0); CKERR(chk_r); }
 #endif
-    CHK((*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = (*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 #define NTXNS 6
@@ -71,7 +71,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir) {
 	    //printf("prepare %d\n", tnum);
 	}
     }
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 }
 
 enum prepared_state {

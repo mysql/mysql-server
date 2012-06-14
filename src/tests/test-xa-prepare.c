@@ -15,12 +15,12 @@ static void clean_env (const char *envdir) {
 }
 
 static void setup_env (DB_ENV **envp, const char *envdir) {
-    CHK(db_env_create(envp, 0));
+    { int chk_r = db_env_create(envp, 0); CKERR(chk_r); }
     (*envp)->set_errfile(*envp, stderr);
 #ifdef TOKUDB
-    CHK((*envp)->set_redzone(*envp, 0));
+    { int chk_r = (*envp)->set_redzone(*envp, 0); CKERR(chk_r); }
 #endif
-    CHK((*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = (*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 const unsigned int myformatid = 0x74736554;
@@ -35,7 +35,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     CKERR((*envp)->txn_begin(*envp, 0, &txn, 0));
     DBT key={.size=4, .data="foo"};
     CKERR(db->put(db, txn, &key, &key, 0));
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
     TOKU_XA_XID x = {.formatID = myformatid,
 		     .gtrid_length = 8,
 		     .bqual_length = 9};
@@ -99,11 +99,11 @@ static void test1 (void) {
 	    DB_TXN *txn;
 	    int r = env->get_txn_from_xid(env, &l[0], &txn);
 	    assert(r==0);
-	    CHK(txn->commit(txn, 0));
+	    { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
 	}
     }
-    CHK(env2->close(env2, 0));
-    CHK(env ->close(env,  0));
+    { int chk_r = env2->close(env2, 0); CKERR(chk_r); }
+    { int chk_r = env ->close(env,  0); CKERR(chk_r); }
 }
 
 int test_main (int argc, char *const argv[]) {

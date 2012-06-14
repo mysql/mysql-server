@@ -72,18 +72,18 @@ desc_int64_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
 
 static void setup (void) {
     int r;
-    CHK(system("rm -rf " ENVDIR));
-    CHK(toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO));
-    CHK(db_env_create(&env, 0));
+    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     r = env->set_default_bt_compare(env, desc_int64_dbt_cmp); CKERR(r);
     //r = env->set_cachesize(env, 0, 500000, 1); CKERR(r);
     r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
-    CHK(env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
+    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void cleanup (void) {
-    CHK(env->close(env, 0));
+    { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
 static void do_inserts_and_queries(DB* db) {
@@ -97,7 +97,7 @@ static void do_inserts_and_queries(DB* db) {
         DBT key, val;
         dbt_init(&key, &key_data, sizeof(key_data));
         dbt_init(&val, &val_data, sizeof(val_data));
-        CHK(db->put(db, write_txn, &key, &val, 0));
+        { int chk_r = db->put(db, write_txn, &key, &val, 0); CKERR(chk_r); }
     }
     r = write_txn->commit(write_txn, 0);
     CKERR(r);
@@ -150,16 +150,16 @@ static void run_test(void) {
     u_int64_t k = 0;
     u_int64_t v = 0;
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
-            CHK(db_create(&db, env, 0));
+            { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
             assert(db->descriptor == NULL);
             r = db->set_pagesize(db, 2048);
             CKERR(r);
             r = db->set_readpagesize(db, 1024);
             CKERR(r);
-            CHK(db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666));
+            { int chk_r = db->open(db, txn_create, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666); CKERR(chk_r); }
             assert(db->descriptor->dbt.size == 0);
             assert(db->cmp_descriptor->dbt.size == 0);
-            CHK(db->change_descriptor(db, txn_create, &orig_desc, DB_UPDATE_CMP_DESCRIPTOR));
+            { int chk_r = db->change_descriptor(db, txn_create, &orig_desc, DB_UPDATE_CMP_DESCRIPTOR); CKERR(chk_r); }
             assert_desc_four(db);
             assert_cmp_desc_valid(db);
             r = env->create_loader(env, txn_create, &loader, db, 1, &db, NULL, NULL, 0); 
@@ -176,7 +176,7 @@ static void run_test(void) {
     CKERR(r);
     do_inserts_and_queries(db);
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
-        CHK(db->change_descriptor(db, txn_1, &other_desc, 0));
+            { int chk_r = db->change_descriptor(db, txn_1, &other_desc, 0); CKERR(chk_r); }
         assert_desc_eight(db);
         assert_cmp_desc_valid(db);
     });
@@ -185,7 +185,7 @@ static void run_test(void) {
     do_inserts_and_queries(db);
 
     IN_TXN_ABORT(env, NULL, txn_1, 0, {
-        CHK(db->change_descriptor(db, txn_1, &orig_desc, 0));
+            { int chk_r = db->change_descriptor(db, txn_1, &orig_desc, 0); CKERR(chk_r); }
         assert_desc_four(db);
         assert_cmp_desc_valid(db);
     });
@@ -193,30 +193,30 @@ static void run_test(void) {
     assert_cmp_desc_valid(db);
     do_inserts_and_queries(db);
     
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
     // verify that after close and reopen, cmp_descriptor is now
     // latest descriptor
     cmp_desc_is_four = FALSE;
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666));
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
     assert_desc_eight(db);
     assert_cmp_desc_valid(db);
     do_inserts_and_queries(db);
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
     cmp_desc_is_four = TRUE;
-    CHK(db_create(&db, env, 0));
-    CHK(db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666));
+    { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
+    { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
-        CHK(db->change_descriptor(db, txn_1, &orig_desc, DB_UPDATE_CMP_DESCRIPTOR));
+            { int chk_r = db->change_descriptor(db, txn_1, &orig_desc, DB_UPDATE_CMP_DESCRIPTOR); CKERR(chk_r); }
         assert_desc_four(db);
         assert_cmp_desc_valid(db);
     });
     assert_desc_four(db);
     assert_cmp_desc_valid(db);
     do_inserts_and_queries(db);
-    CHK(db->close(db, 0));
+    { int chk_r = db->close(db, 0); CKERR(chk_r); }
     
 }
 
