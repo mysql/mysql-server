@@ -355,6 +355,8 @@ dict_stats_snapshot_create(
 			continue;
 		}
 
+		ut_ad(!dict_index_is_univ(index));
+
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
 		heap_size += sizeof(dict_index_t);
@@ -399,6 +401,8 @@ dict_stats_snapshot_create(
 		if (index->type & DICT_FTS) {
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		dict_index_t*	idx;
 
@@ -509,6 +513,34 @@ dict_stats_snapshot_free(
 /* @} */
 
 /*********************************************************************//**
+Write all zeros (or 1 where it makes sense) into an index
+statistics members. The resulting stats correspond to an empty index.
+The caller must own index's table stats latch in X mode
+(dict_table_stats_lock(table, RW_X_LATCH))
+dict_stats_empty_index() @{ */
+static
+void
+dict_stats_empty_index(
+/*===================*/
+	dict_index_t*	index)	/*!< in/out: index */
+{
+	ut_ad(!(index->type & DICT_FTS));
+	ut_ad(!dict_index_is_univ(index));
+
+	ulint	n_uniq = dict_index_get_n_unique(index);
+
+	for (ulint i = 1; i <= n_uniq; i++) {
+		index->stat_n_diff_key_vals[i] = 0;
+		index->stat_n_sample_sizes[i] = 1;
+		index->stat_n_non_null_key_vals[i - 1] = 0;
+	}
+
+	index->stat_index_size = 1;
+	index->stat_n_leaf_pages = 1;
+}
+/* @} */
+
+/*********************************************************************//**
 Write all zeros (or 1 where it makes sense) into a table and its indexes'
 statistics members. The resulting stats correspond to an empty table.
 dict_stats_empty_table() @{ */
@@ -535,13 +567,13 @@ dict_stats_empty_table(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		ulint	n_uniq = dict_index_get_n_unique(index);
-		for (ulint i = 1; i <= n_uniq; i++) {
-			index->stat_n_diff_key_vals[i] = 0;
+		if (index->type & DICT_FTS) {
+			continue;
 		}
 
-		index->stat_index_size = 1;
-		index->stat_n_leaf_pages = 1;
+		ut_ad(!dict_index_is_univ(index));
+
+		dict_stats_empty_index(index);
 	}
 
 	table->stat_initialized = TRUE;
@@ -662,6 +694,8 @@ dict_stats_update_transient(
 	}
 
 	do {
+		ut_ad(!dict_index_is_univ(index));
+
 		sum_of_index_sizes +=
 			dict_stats_update_transient_for_index(index);
 
@@ -1900,6 +1934,8 @@ dict_stats_update_persistent(
 		return(DB_CORRUPTION);
 	}
 
+	ut_ad(!dict_index_is_univ(index));
+
 	dict_stats_analyze_index(index);
 
 	ulint	n_unique = dict_index_get_n_unique(index);
@@ -1916,13 +1952,19 @@ dict_stats_update_persistent(
 	     index != NULL && !(table->stats_bg_flag & BG_STAT_SHOULD_QUIT);
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		if (dict_index_is_online_ddl(index)
-		    || (index->type & DICT_FTS)
 		    || dict_index_is_corrupted(index)
 		    || index->to_be_dropped) {
 
+			dict_stats_empty_index(index);
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		dict_stats_analyze_index(index);
 
@@ -2169,6 +2211,8 @@ dict_stats_save(
 		if (index->type & DICT_FTS) {
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		ret = dict_stats_save_index_stat(index, now, "size",
 						 index->stat_index_size,
