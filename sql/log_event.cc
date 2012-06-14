@@ -12002,11 +12002,6 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
   if ((error= unpack_current_row(rli, &m_cols)))
     DBUG_RETURN(error);
 
-#ifdef MCP_BUG14192728
-  // Temporary fix to find out why it fails [/Matz]
-  memcpy(m_table->write_set->bitmap, m_cols.bitmap, (m_table->write_set->n_bits + 7) / 8);
-#endif
-
   if (m_curr_row == m_rows_buf)
   {
     /* this is the first row to be inserted, we estimate the rows with
