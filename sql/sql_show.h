@@ -26,11 +26,25 @@ struct st_ha_create_information;
 typedef st_ha_create_information HA_CREATE_INFO;
 struct TABLE_LIST;
 
+#ifndef MCP_WL1735
+typedef struct st_lookup_field_values
+{
+  LEX_STRING db_value, table_value;
+  bool wild_db_value, wild_table_value;
+} LOOKUP_FIELD_VALUES;
+#endif
+
 enum find_files_result {
   FIND_FILES_OK,
   FIND_FILES_OOM,
   FIND_FILES_DIR
 };
+
+#ifndef MCP_WL1735
+int make_db_list(THD *thd, List<LEX_STRING> *files,
+                 LOOKUP_FIELD_VALUES *lookup_field_vals,
+                 bool *with_i_schema);
+#endif
 
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir);
