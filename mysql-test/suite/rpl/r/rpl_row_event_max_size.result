@@ -57,7 +57,6 @@ drop table t1;
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-drop table t1;
 ==== clean up ====
 include/stop_slave.inc
 RESET SLAVE;

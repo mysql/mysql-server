@@ -1,6 +1,8 @@
 # Partitioning test that require debug features and InnoDB
 # including crashing tests.
 
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_innodb.inc
 --source include/have_partition.inc
