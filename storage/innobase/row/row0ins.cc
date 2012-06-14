@@ -2481,7 +2481,7 @@ row_ins_sec_index_entry_low(
 		existing record */
 		offsets = rec_get_offsets(
 			btr_cur_get_rec(&cursor), index, offsets,
-			ULINT_UNDEFINED, &heap);
+			ULINT_UNDEFINED, &offsets_heap);
 
 		err = row_ins_sec_index_entry_by_modify(
 			flags, mode, &cursor, &offsets,
@@ -2492,7 +2492,7 @@ row_ins_sec_index_entry_low(
 
 		if (mode == BTR_MODIFY_LEAF) {
 			err = btr_cur_optimistic_insert(
-				flags, &cursor, &offsets, &heap,
+				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
 		} else {
@@ -2502,7 +2502,8 @@ row_ins_sec_index_entry_low(
 				err = DB_LOCK_TABLE_FULL;
 			} else {
 				err = btr_cur_pessimistic_insert(
-					flags, &cursor, &offsets, &heap,
+					flags, &cursor,
+					&offsets, &offsets_heap,
 					entry, &insert_rec,
 					&big_rec, 0, thr, &mtr);
 			}
