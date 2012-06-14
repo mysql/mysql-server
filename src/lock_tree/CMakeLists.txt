@@ -15,7 +15,8 @@ add_dependencies(lock_tree_tlog_static install_tdb_h)
 ## make the real library, it's going to go into libtokudb.so so it needs
 ## to be PIC
 add_library(lock_tree_static STATIC ${lock_tree_srcs})
-add_space_separated_property(TARGET lock_tree_static COMPILE_FLAGS "-fvisibility=hidden -fPIC")
+add_space_separated_property(TARGET lock_tree_static COMPILE_FLAGS -fPIC)
+add_space_separated_property(TARGET lock_tree_static COMPILE_FLAGS_RELEASE -fvisibility=hidden)
 set_property(TARGET lock_tree_static APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_RT_NOOVERLAPS)
 add_dependencies(lock_tree_static install_tdb_h)

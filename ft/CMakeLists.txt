@@ -8,8 +8,7 @@ set_source_files_properties(
   PROPERTIES GENERATED TRUE)
 
 add_executable(logformat logformat.c)
-add_space_separated_property(TARGET logformat COMPILE_FLAGS "-fvisibility=hidden -fPIE")
-add_space_separated_property(TARGET logformat LINK_FLAGS -pie)
+add_common_options_to_binary_targets(logformat)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY})
 
 add_custom_command(
@@ -117,15 +116,13 @@ set(bins
 foreach(bin ${bins})
   add_executable(${bin} ${bin}.c)
   add_dependencies(${bin} install_tdb_h)
-  add_space_separated_property(TARGET ${bin} COMPILE_FLAGS "-fvisibility=hidden -fPIE")
-  add_space_separated_property(TARGET ${bin} LINK_FLAGS -pie)
   target_link_libraries(${bin} ft ${LIBTOKUPORTABILITY})
 
   add_executable(${bin}_static ${bin}.c)
   add_dependencies(${bin}_static install_tdb_h)
-  add_space_separated_property(TARGET ${bin}_static COMPILE_FLAGS "-fvisibility=hidden -fPIE")
-  add_space_separated_property(TARGET ${bin}_static LINK_FLAGS -pie)
   target_link_libraries(${bin}_static ft_static z ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
+
+  add_common_options_to_binary_targets(${bin} ${bin}_static)
 endforeach(bin)
 
 # link in math.h library just for this tool.

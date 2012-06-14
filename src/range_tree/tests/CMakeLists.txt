@@ -9,7 +9,7 @@ if(BUILD_TESTING)
       add_executable(rt_${base}.${impl} ${src})
       set_property(TARGET rt_${base}.${impl} APPEND PROPERTY
         COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.c.${impl}\"")
-      add_space_separated_property(TARGET rt_${base}.${impl} COMPILE_FLAGS -fvisibility=hidden)
+      add_space_separated_property(TARGET rt_${base}.${impl} COMPILE_FLAGS_RELEASE -fvisibility=hidden)
       target_link_libraries(rt_${base}.${impl}
         range_tree_${impl}_static
         ft

@@ -147,3 +147,17 @@ function(maybe_add_gcov_to_libraries)
     endforeach(lib)
   endif (USE_GCOV)
 endfunction(maybe_add_gcov_to_libraries)
+
+## adds -fvisibility=hidden -fPIE to compile phase
+## adds -pie (or -Wl,-pie) to link phase
+## good for binaries
+function(add_common_options_to_binary_targets)
+  foreach(tgt ${ARGN})
+    add_space_separated_property(TARGET ${tgt} COMPILE_FLAGS_RELEASE "-fvisibility=hidden -fPIE")
+    if (CMAKE_C_COMPILER_ID STREQUAL Clang)
+      add_space_separated_property(TARGET ${tgt} LINK_FLAGS_RELEASE "-Wl,-pie")
+    else ()
+      add_space_separated_property(TARGET ${tgt} LINK_FLAGS_RELEASE "-pie")
+    endif ()
+  endforeach(tgt)
+endfunction(add_common_options_to_binary_targets)
