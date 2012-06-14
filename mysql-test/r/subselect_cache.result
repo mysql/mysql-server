@@ -486,9 +486,9 @@ Handler_read_key	7
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	10
+Handler_read_rnd	0
 Handler_read_rnd_deleted	0
-Handler_read_rnd_next	42
+Handler_read_rnd_next	31
 set optimizer_switch='subquery_cache=off';
 flush status;
 select a from t1 ORDER BY (select d from t2 where b=c);
@@ -514,9 +514,9 @@ Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
-Handler_read_rnd	10
+Handler_read_rnd	0
 Handler_read_rnd_deleted	0
-Handler_read_rnd_next	72
+Handler_read_rnd_next	61
 set optimizer_switch='subquery_cache=on';
 #single value subquery test (distinct ORDER BY)
 flush status;

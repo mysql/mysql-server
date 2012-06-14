@@ -2463,3 +2463,16 @@ INSERT INTO t1 VALUES (6,8,10);
 SELECT 1 FROM t1 JOIN t1 AS t2 USING (a);
 
 drop table t1;
+
+--echo #
+--echo # LP BUG#1001117 Crash on a simple select that uses a temptable view
+--echo # MySQL Bug #12330344 Crash and/or valgrind errors in free_io_cache with join, view,
+--echo # partitioned table
+--echo #
+
+CREATE TABLE t1(a INT PRIMARY KEY) PARTITION BY LINEAR KEY (a);
+CREATE ALGORITHM=TEMPTABLE VIEW vtmp AS
+SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
+SELECT * FROM vtmp;
+DROP VIEW vtmp;
+DROP TABLE t1;

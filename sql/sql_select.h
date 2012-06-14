@@ -512,6 +512,7 @@ typedef struct st_join_table {
     return (is_hash_join_key_no(key) ? hj_key : table->key_info+key);
   }
   double scan_time();
+  ha_rows get_examined_rows();
   bool preread_init();
 
   bool is_sjm_nest() { return test(bush_children); }
@@ -1281,6 +1282,7 @@ public:
   bool alloc_func_list();
   bool flatten_subqueries();
   bool optimize_unflattened_subqueries();
+  bool optimize_constant_subqueries();
   bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
 			  bool before_group_by, bool recompute= FALSE);
 
@@ -1380,6 +1382,7 @@ public:
   void get_prefix_cost_and_fanout(uint n_tables, 
                                   double *read_time_arg,
                                   double *record_count_arg);
+  double get_examined_rows();
   /* defined in opt_subselect.cc */
   bool transform_max_min_subquery();
   /* True if this JOIN is a subquery under an IN predicate. */

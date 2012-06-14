@@ -5540,7 +5540,15 @@ void Item_equal::add_const(Item *c, Item *f)
   else
   {
     Item_func_eq *func= new Item_func_eq(c, const_item);
-    func->set_cmp_func();
+    if (func->set_cmp_func())
+    {
+      /*
+        Setting a comparison function fails when trying to compare
+        incompatible charsets. Charset compatibility is checked earlier,
+        except for constant subqueries where we may do it here.
+      */
+      return;
+    }
     func->quick_fix_field();
     cond_false= !func->val_int();
   }

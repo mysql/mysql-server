@@ -1895,10 +1895,10 @@ EXPLAIN EXTENDED
 SELECT t2.a FROM t1 LEFT JOIN t2 ON (6) IN (SELECT a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	100.00	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where 1
+Note	1003	select NULL AS `a` from `test`.`t2` where 1
 DROP TABLE t1,t2,t3;
 #
 # LP bug #817384 Wrong result with outer join + subquery in ON
