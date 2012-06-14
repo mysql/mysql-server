@@ -2074,6 +2074,11 @@ mysql_execute_command(THD *thd)
       }
       DBUG_RETURN(0);
     }
+    /* 
+       Execute deferred events first
+    */
+    if (slave_execute_deferred_events(thd))
+      DBUG_RETURN(-1);
   }
   else
   {
@@ -2685,7 +2690,7 @@ end_with_restore_list:
     goto error;
 #else
     {
-      if (check_global_access(thd, SUPER_ACL))
+      if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
 	goto error;
       res = show_binlogs(thd);
       break;

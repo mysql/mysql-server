@@ -38,21 +38,23 @@ connection master;
 
 # 9000 is the value of the port we should get.
 --let $report_port= query_get_value(SHOW SLAVE HOSTS, Port, 1)
---let assert_text= The value shown for the slave's port number is 9000 which is the value set for report-port.
+--let assert_text= The value shown for the slave's port number is user specified port number which is the value set for report-port.
 --let assert_cond= $report_port = "9000"
 --source include/assert.inc
 
-
 # Start the server with the report-port being passed with no value. So on SHOW SLAVE HOSTS
 # on the master the value of slave's port should be the actual value of the slave port.
+connection master;
 
 --let $rpl_server_number= 2
---let $rpl_server_parameters= --report-port=
+--let $rpl_server_parameters= 
 --source include/rpl_restart_server.inc
 
 connection slave;
 --source include/start_slave.inc
 
+connection master;
+sync_slave_with_master;
 --echo [Slave restarted with the report-port set to the value of slave's port number]
 
 connection master;

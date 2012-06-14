@@ -2794,7 +2794,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         /* fall through */
       default:
         DBUG_PRINT("info", ("Deleting the event after it has been executed"));
-        delete ev;
+        if (!rli->is_deferred_event(ev))
+          delete ev;
         break;
     }
 
@@ -3458,6 +3459,12 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err_during_init;
   }
   thd->init_for_queries();
+  thd->rli_slave= rli;
+  if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+  {
+    rli->deferred_events= new Deferred_log_events(rli);
+  }
+
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   /*

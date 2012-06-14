@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2010 Oracle and/or its affiliates.
-   2009-2011 Monty Program Ab
+/* Copyright (c) 2000, 2012 Oracle and/or its affiliates.
+   Copyright (c) 2009, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18594,8 +18594,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_NEXT;           // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key) && ! table->key_read)
-          table->enable_keyread();
         if (tab->pre_idx_push_select_cond)
         {
           tab->set_cond(tab->pre_idx_push_select_cond);
@@ -18606,6 +18604,7 @@ check_reverse_order:
           orig_cond= 0;
           orig_cond_saved= false;
         }
+
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {

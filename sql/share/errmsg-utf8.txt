@@ -6501,6 +6501,9 @@ ER_TABLE_IN_FK_CHECK
 ER_UNUSED_1
   eng "You should never see it"
 
+ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
+  eng "INSERT into autoincrement field which is not the first part in the composed primary key is unsafe."
+
 #
 #  End of 5.5 error messages.
 #
