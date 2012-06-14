@@ -35,6 +35,14 @@ typedef struct st_schema_table ST_SCHEMA_TABLE;
 struct TABLE;
 typedef struct system_status_var STATUS_VAR;
 
+#ifndef MCP_WL1735
+typedef struct st_lookup_field_values
+{
+  LEX_STRING db_value, table_value;
+  bool wild_db_value, wild_table_value;
+} LOOKUP_FIELD_VALUES;
+#endif
+
 enum find_files_result {
   FIND_FILES_OK,
   FIND_FILES_OOM,
@@ -155,6 +163,11 @@ enum find_files_result {
 #define IS_FILES_STATUS              36
 #define IS_FILES_EXTRA               37
 
+#ifndef MCP_WL1735
+int make_db_list(THD *thd, List<LEX_STRING> *files,
+                 LOOKUP_FIELD_VALUES *lookup_field_vals,
+                 bool *with_i_schema);
+#endif
 find_files_result find_files(THD *thd, List<LEX_STRING> *files, const char *db,
                              const char *path, const char *wild, bool dir);
 
