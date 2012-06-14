@@ -1476,6 +1476,48 @@ static void ndb_notify_tables_writable()
 }
 
 /*
+
+ */
+
+static void clean_away_stray_files(THD *thd)
+{
+  /*
+    Clean-up any stray files for non-existing NDB tables
+  */
+  LOOKUP_FIELD_VALUES lookup_field_values;
+  bool with_i_schema;
+  List<LEX_STRING> db_names;
+  List_iterator_fast<LEX_STRING> it(db_names);
+  LEX_STRING *db_name;
+  List<LEX_STRING> tab_names;
+  char path[FN_REFLEN + 1];
+ 
+  DBUG_ENTER("clean_away_stray_files");
+  bzero((char*) &lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
+  if (make_db_list(thd, &db_names, &lookup_field_values, &with_i_schema))
+  {
+    thd->clear_error();
+    DBUG_PRINT("info", ("Failed to find databases"));
+    DBUG_VOID_RETURN;
+  }
+  it.rewind();
+  while ((db_name= it++))
+  {
+    DBUG_PRINT("info", ("Found database %s", db_name->str));
+    sql_print_information("NDB: Cleaning stray tables from database '%s'",
+			  db_name->str);
+    build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
+    if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
+	!= FIND_FILES_OK)
+    {
+      thd->clear_error();
+      DBUG_PRINT("info", ("Failed to find tables"));
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+/*
   Ndb has no representation of the database schema objects.
   The mysql.ndb_schema table contains the latest schema operations
   done via a mysqld, and thus reflects databases created/dropped/altered
@@ -1616,7 +1658,7 @@ static int ndbcluster_find_all_databases(THD *thd)
           if (database_exists)
           {
             /* drop missing database */
-            sql_print_information("NDB: Discovered reamining database '%s'", db);
+            sql_print_information("NDB: Discovered remaining database '%s'", db);
           }
         }
       }
@@ -1694,35 +1736,38 @@ ndb_binlog_setup(THD *thd)
     }
   }
 
+  clean_away_stray_files(thd);
+
   if (ndbcluster_find_all_databases(thd))
   {
     return false;
   }
 
-  if (!ndbcluster_find_all_files(thd))
+  if (ndbcluster_find_all_files(thd))
   {
-    mysql_mutex_lock(&LOCK_open);
-    ndb_binlog_tables_inited= TRUE;
-    if (ndb_binlog_tables_inited &&
-        ndb_binlog_running && ndb_binlog_is_ready)
-    {
-      if (opt_ndb_extra_logging)
-        sql_print_information("NDB Binlog: ndb tables writable");
-      close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
-      
-      /* 
-         Signal any waiting thread that ndb table setup is
-         now complete
-      */
-      ndb_notify_tables_writable();
-    }
-    mysql_mutex_unlock(&LOCK_open);
-    /* Signal injector thread that all is setup */
-    pthread_cond_signal(&injector_cond);
-
-    return true; // Setup completed -> OK
+    return false;
   }
-  return false;
+
+  mysql_mutex_lock(&LOCK_open);
+  ndb_binlog_tables_inited= TRUE;
+  if (ndb_binlog_tables_inited &&
+      ndb_binlog_running && ndb_binlog_is_ready)
+  {
+    if (opt_ndb_extra_logging)
+      sql_print_information("NDB Binlog: ndb tables writable");
+    close_cached_tables(NULL, NULL, TRUE, FALSE, FALSE);
+    
+    /* 
+       Signal any waiting thread that ndb table setup is
+       now complete
+    */
+    ndb_notify_tables_writable();
+  }
+  mysql_mutex_unlock(&LOCK_open);
+  /* Signal injector thread that all is setup */
+  pthread_cond_signal(&injector_cond);
+  
+  return true; // Setup completed -> OK
 }
 
 /*
@@ -2943,6 +2988,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *s_ndb,
         case SOT_DROP_DB:
           /* Drop the database locally if it only contains ndb tables */
           thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
+	  thd_ndb_options.set(TNO_NO_REMOVE_STRAY_FILES);
           if (! ndbcluster_check_if_local_tables_in_db(thd, schema->db))
           {
             const int no_print_error[1]= {0};
