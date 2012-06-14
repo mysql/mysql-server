@@ -239,6 +239,7 @@ if(BUILD_TESTING)
       test_stress6.c
       test_stress7.c
       test_stress_with_verify.c
+      test_stress_hot_indexing.c
       test_transactional_descriptor.c
       test_trans_desc_during_chkpt.c
       test_trans_desc_during_chkpt2.c
@@ -429,18 +430,20 @@ if(BUILD_TESTING)
 
   configure_file(run_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
-    string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
+    if(NOT ${src} MATCHES hot_index)
+      string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
 
-    add_test(${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000)
+      add_test(${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000)
 
-    add_custom_executable(tiny ${test} ${src})
-    add_drd_test(drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
-    add_custom_executable(mid ${test} ${src})
-    add_drd_test(drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
-    set_tests_properties(drd_mid_${test} PROPERTIES TIMEOUT 14400)
-    add_custom_executable(large ${test} ${src})
-    add_drd_test(drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
-    set_tests_properties(drd_large_${test} PROPERTIES TIMEOUT 28800)
+      add_custom_executable(tiny ${test} ${src})
+      add_drd_test(drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
+      add_custom_executable(mid ${test} ${src})
+      add_drd_test(drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
+      set_tests_properties(drd_mid_${test} PROPERTIES TIMEOUT 14400)
+      add_custom_executable(large ${test} ${src})
+      add_drd_test(drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
+      set_tests_properties(drd_large_${test} PROPERTIES TIMEOUT 28800)
+    endif()
   endforeach(src)
 
   ## for some reason this rule doesn't run with the makefile and it crashes with this rule, so I'm disabling this special case

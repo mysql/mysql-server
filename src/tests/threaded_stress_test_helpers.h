@@ -94,6 +94,8 @@ typedef struct arg *ARG;
 typedef int (*operation_t)(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra);
 
 typedef int (*test_update_callback_f)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra);
+typedef int (*test_generate_row_for_put_callback)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data);
+typedef int (*test_generate_row_for_del_callback)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data);
 
 enum stress_lock_type {
     STRESS_LOCK_NONE = 0,
@@ -110,6 +112,8 @@ struct env_args {
     u_int64_t cachetable_size;
     char *envdir;
     test_update_callback_f update_function; // update callback function
+    test_generate_row_for_put_callback generate_put_callback;
+    test_generate_row_for_del_callback generate_del_callback;    
 };
 
 enum perf_output_format {
@@ -288,9 +292,6 @@ static void print_perf_iteration(struct cli_args *cli_args, const int current_ti
             fmt->print_perf_thread_iterations_header(current_time, operation_names[op]);
         }
         for (int t = 0; t < num_threads; ++t) {
-            if (counters[t][op] == 0) {
-                continue;
-            }
             const uint64_t last = last_counters[t][op];
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
@@ -1200,7 +1201,18 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
-    r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
+    if (env_args.generate_put_callback) {
+        r = env->set_generate_row_callback_for_put(env, env_args.generate_put_callback); 
+        CKERR(r);
+    }
+    else {
+        r = env->set_generate_row_callback_for_put(env, generate_row_for_put); 
+        CKERR(r);
+    }
+    if (env_args.generate_del_callback) {
+        r = env->set_generate_row_callback_for_del(env, env_args.generate_del_callback); 
+        CKERR(r);
+    }
     r = env->open(env, env_args.envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
@@ -1298,7 +1310,18 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     env->set_update(env, env_args.update_function);
     // set the cache size to 10MB
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
-    r = env->set_generate_row_callback_for_put(env, generate_row_for_put); CKERR(r);
+    if (env_args.generate_put_callback) {
+        r = env->set_generate_row_callback_for_put(env, env_args.generate_put_callback); 
+        CKERR(r);
+    }
+    else {
+        r = env->set_generate_row_callback_for_put(env, generate_row_for_put); 
+        CKERR(r);
+    }
+    if (env_args.generate_del_callback) {
+        r = env->set_generate_row_callback_for_del(env, env_args.generate_del_callback); 
+        CKERR(r);
+    }
     r = env->open(env, env_args.envdir, DB_RECOVER|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
@@ -1338,6 +1361,8 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .cachetable_size = 300000,
     .envdir = ENVDIR,
     .update_function = update_op_callback,
+    .generate_put_callback = NULL,
+    .generate_del_callback = NULL,
 };
 
 static const struct env_args DEFAULT_PERF_ENV_ARGS = {
@@ -1349,6 +1374,8 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .cachetable_size = 1<<30,
     .envdir = ENVDIR,
     .update_function = NULL,
+    .generate_put_callback = NULL,
+    .generate_del_callback = NULL,
 };
 
 #define MIN_VAL_SIZE sizeof(int)
