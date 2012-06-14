@@ -38,8 +38,8 @@ endif ()
 ## add a version script and set -fvisibility=hidden for the shared library
 configure_file(export.map . COPYONLY)
 if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
-  add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS_RELEASE -fvisibility=hidden)
-  add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS_RELEASE "-Wl,--version-script=export.map")
+  add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS -fvisibility=hidden)
+  add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=export.map")
 endif ()
 
 ## add gcov and define _GNU_SOURCE

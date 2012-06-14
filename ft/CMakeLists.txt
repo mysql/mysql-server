@@ -8,7 +8,6 @@ set_source_files_properties(
   PROPERTIES GENERATED TRUE)
 
 add_executable(logformat logformat.c)
-add_common_options_to_binary_targets(logformat)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY})
 
 add_custom_command(
