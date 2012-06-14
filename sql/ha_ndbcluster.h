@@ -254,14 +254,19 @@ enum THD_NDB_OPTIONS
     In participating mysqld, do not try to acquire global schema
     lock, as one other mysqld already has the lock.
   */
-  TNO_NO_LOCK_SCHEMA_OP= 1 << 1
+  TNO_NO_LOCK_SCHEMA_OP= 1 << 1,
   /*
     Skip drop of ndb table in delete_table.  Used when calling
     mysql_rm_table_part2 in "show tables", as we do not want to
     remove ndb tables "by mistake".  The table should not exist
     in ndb in the first place.
   */
-  ,TNO_NO_NDB_DROP_TABLE=    1 << 2
+  TNO_NO_NDB_DROP_TABLE=    1 << 2,
+  /*
+    In participating mysqld, do not remove stray files
+    when dropping tables
+  */
+  TNO_NO_REMOVE_STRAY_FILES= 1 <<3
 };
 
 enum THD_NDB_TRANS_OPTIONS
