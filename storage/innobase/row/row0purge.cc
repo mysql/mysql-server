@@ -817,6 +817,7 @@ row_purge_record_func(
 					were updated */
 {
 	dict_index_t*	clust_index;
+	bool		purged		= true;
 
 	clust_index = dict_table_get_first_index(node->table);
 
@@ -834,7 +835,8 @@ row_purge_record_func(
 		/* fall through */
 	case TRX_UNDO_UPD_EXIST_REC:
 		if (!row_purge_upd_exist_or_extern(thr, node, undo_rec)) {
-			return(false);
+			purged = false;
+			break;
 		}
 		MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
 		break;
@@ -849,7 +851,7 @@ row_purge_record_func(
 		node->table = NULL;
 	}
 
-	return(true);
+	return(purged);
 }
 
 #ifdef UNIV_DEBUG
