@@ -1235,20 +1235,6 @@ dict_index_is_online_ddl(
 			     != ONLINE_INDEX_COMPLETE));
 }
 
-/********************************************************************//**
-Determines if a table is being rebuilt online,
-allowing concurrent modifications to the table.
-@retval true if the table is being rebuilt online
-@retval false otherwise */
-UNIV_INLINE
-bool
-dict_table_is_online_rebuild(
-/*=========================*/
-	const dict_table_t*	table)	/*!< in: table */
-{
-	return(dict_index_is_online_ddl(dict_table_get_first_index(table)));
-}
-
 /*********************************************************************//**
 Attempts to log an operation on a secondary index that is being created.
 @return TRUE if the operation was logged or the index creation failed;

@@ -2284,19 +2284,22 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
-			if (dict_index_is_clust(index)
-			    && dict_table_is_online_rebuild(old_table)) {
+			if (dict_index_is_clust(index)) {
 				const dict_index_t*	old_index
 					= dict_table_get_first_index(
 						old_table);
-				error = row_log_table_get_error(old_index);
-				if (error != DB_SUCCESS) {
-					break;
-				}
+				if (dict_index_is_online_ddl(old_index)) {
+					error = row_log_table_get_error(
+						old_index);
+					if (error != DB_SUCCESS) {
+						break;
+					}
 
-				if (row_merge_skip_rec(mrec, index, old_index,
-						       offsets)) {
-					continue;
+					if (row_merge_skip_rec(
+						    mrec, index, old_index,
+						    offsets)) {
+						continue;
+					}
 				}
 			}
 
