@@ -1386,17 +1386,6 @@ dict_index_is_online_ddl(
 /*=====================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, warn_unused_result));
-/********************************************************************//**
-Determines if a table is being rebuilt online,
-allowing concurrent modifications to the table.
-@retval true if the table is being rebuilt online
-@retval false otherwise */
-UNIV_INLINE
-bool
-dict_table_is_online_rebuild(
-/*=========================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Logs an operation to a secondary index that is being created. */
 UNIV_INTERN
