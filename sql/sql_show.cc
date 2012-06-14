@@ -2453,11 +2453,13 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
+#ifdef MCP_WL1735
 typedef struct st_lookup_field_values
 {
   LEX_STRING db_value, table_value;
   bool wild_db_value, wild_table_value;
 } LOOKUP_FIELD_VALUES;
+#endif
 
 
 /*
