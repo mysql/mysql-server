@@ -298,6 +298,7 @@ members initialized:
 dict_table_t::id
 dict_table_t::heap
 dict_table_t::name
+dict_table_t::corrupted
 dict_table_t::indexes<>
 dict_table_t::stat_initialized
 dict_table_t::stat_persistent
@@ -313,6 +314,8 @@ dict_index_t::name
 dict_index_t::table_name
 dict_index_t::table (points to the above semi-initialized object)
 dict_index_t::type
+dict_index_t::to_be_dropped
+dict_index_t::online_status
 dict_index_t::n_uniq
 dict_index_t::fields[] (only first n_uniq and only fields[i].name)
 dict_index_t::indexes<>
@@ -392,6 +395,8 @@ dict_stats_snapshot_create(
 	t->name = (char*) mem_heap_dup(
 		heap, table->name, strlen(table->name) + 1);
 
+	t->corrupted = table->corrupted;
+
 	UT_LIST_INIT(t->indexes);
 
 	for (index = dict_table_get_first_index(table);
@@ -419,10 +424,12 @@ dict_stats_snapshot_create(
 
 		idx->table = t;
 
-		//UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
 		idx->type = index->type;
 
-		//UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
+		idx->to_be_dropped = index->to_be_dropped;
+
+		idx->online_status = index->online_status;
+
 		idx->n_uniq = index->n_uniq;
 
 		idx->fields = (dict_field_t*) mem_heap_alloc(
@@ -2208,7 +2215,10 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
 
