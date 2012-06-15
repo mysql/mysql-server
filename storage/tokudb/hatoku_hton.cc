@@ -82,7 +82,7 @@ static MYSQL_THDVAR_BOOL(create_index_online,
   "if on, create index done online",
   NULL, 
   NULL, 
-  FALSE
+  TRUE
   );
 static MYSQL_THDVAR_BOOL(disable_prefetching,
   0,
