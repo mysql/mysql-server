@@ -134,13 +134,6 @@ descending to lower levels and fetch N_SAMPLE_PAGES(index) records
 from that level */
 #define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
 
-/** Open handles on the stats tables. Currently this is used to increase the
-reference count of the stats tables. */
-typedef struct dict_stats_struct {
-	dict_table_t*	table_stats;	/*!< Handle to open TABLE_STATS_NAME */
-	dict_table_t*	index_stats;	/*!< Handle to open INDEX_STATS_NAME */
-} dict_stats_t;
-
 /*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
