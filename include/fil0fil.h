@@ -348,20 +348,19 @@ fil_read_first_page(
 	ib_uint64_t*	max_flushed_lsn);	/*!< out: max of flushed
 						lsn values in data files */
 /*******************************************************************//**
-Increments the count of pending insert buffer page merges, if space is not
-being deleted.
-@return	TRUE if being deleted, and ibuf merges should be skipped */
+Increments the count of pending operation, if space is not being deleted.
+@return	TRUE if being deleted, and operation should be skipped */
 UNIV_INTERN
 ibool
-fil_inc_pending_ibuf_merges(
-/*========================*/
+fil_inc_pending_ops(
+/*================*/
 	ulint	id);	/*!< in: space id */
 /*******************************************************************//**
-Decrements the count of pending insert buffer page merges. */
+Decrements the count of pending operations. */
 UNIV_INTERN
 void
-fil_decr_pending_ibuf_merges(
-/*=========================*/
+fil_decr_pending_ops(
+/*=================*/
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
@@ -400,7 +399,9 @@ UNIV_INTERN
 ibool
 fil_delete_tablespace(
 /*==================*/
-	ulint	id);	/*!< in: space id */
+	ulint	id,		/*!< in: space id */
+	ibool	evict_all);	/*!< in: TRUE if we want all pages
+				evicted from LRU. */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -137,6 +137,11 @@ UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#ifdef UNIV_DEBUG
+/* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
+uint		trx_rseg_n_slots_debug = 0;
+#endif
+
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_max = 'x' or when we open
@@ -253,9 +258,7 @@ trx_sys_create_doublewrite_buf(void)
 {
 	buf_block_t*	block;
 	buf_block_t*	block2;
-#ifdef UNIV_SYNC_DEBUG
 	buf_block_t*	new_block;
-#endif /* UNIV_SYNC_DEBUG */
 	byte*	doublewrite;
 	byte*	fseg_header;
 	ulint	page_no;
@@ -334,10 +337,9 @@ start_again:
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 			     + FSP_EXTENT_SIZE / 2; i++) {
-			page_no = fseg_alloc_free_page(fseg_header,
-						       prev_page_no + 1,
-						       FSP_UP, &mtr);
-			if (page_no == FIL_NULL) {
+			new_block = fseg_alloc_free_page(
+				fseg_header, prev_page_no + 1, FSP_UP, &mtr);
+			if (new_block == NULL) {
 				fprintf(stderr,
 					"InnoDB: Cannot create doublewrite"
 					" buffer: you must\n"
@@ -358,13 +360,8 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-#ifdef UNIV_SYNC_DEBUG
-			new_block =
-#endif /* UNIV_SYNC_DEBUG */
-			buf_page_get(TRX_SYS_SPACE, 0, page_no,
-				     RW_X_LATCH, &mtr);
-			buf_block_dbg_add_level(new_block,
-						SYNC_NO_ORDER_CHECK);
+			ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
+			page_no = buf_block_get_page_no(new_block);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == FSP_EXTENT_SIZE);
@@ -434,7 +431,10 @@ start_again:
 		/* The doublewrite buffer has already been created:
 		just read in some numbers */
 
+		trx_doublewrite_init(doublewrite);
+
 		mtr_commit(&mtr);
+		trx_doublewrite_buf_is_being_created = FALSE;
 	} else {
 		fprintf(stderr,
 			"InnoDB: Doublewrite buffer not found in the doublewrite file:"
@@ -481,13 +481,12 @@ start_again:
 
 		for (i = 0; i < 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 			     + FSP_EXTENT_SIZE / 2; i++) {
-			page_no = fseg_alloc_free_page(fseg_header,
-						       prev_page_no + 1,
-						       FSP_UP, &mtr);
-			if (page_no == FIL_NULL) {
+			new_block = fseg_alloc_free_page(
+				fseg_header, prev_page_no + 1, FSP_UP, &mtr);
+			if (new_block == NULL) {
 				fprintf(stderr,
-					"InnoDB: Cannot create the doublewrite"
-					" buffer: You must\n"
+					"InnoDB: Cannot create doublewrite"
+					" buffer: you must\n"
 					"InnoDB: increase your"
 					" tablespace size.\n"
 					"InnoDB: Cannot continue operation.\n"
@@ -505,13 +504,8 @@ start_again:
 			the page position in the tablespace, then the page
 			has not been written to in doublewrite. */
 
-#ifdef UNIV_SYNC_DEBUG
-			new_block =
-#endif /* UNIV_SYNC_DEBUG */
-			buf_page_get(TRX_DOUBLEWRITE_SPACE, 0, page_no,
-				     RW_X_LATCH, &mtr);
-			buf_block_dbg_add_level(new_block,
-						SYNC_NO_ORDER_CHECK);
+			ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
+			page_no = buf_block_get_page_no(new_block);
 
 			if (i == FSP_EXTENT_SIZE / 2) {
 				ut_a(page_no == FSP_EXTENT_SIZE);
@@ -746,12 +740,16 @@ trx_sys_doublewrite_init_or_restore_pages(
 				if (buf_page_is_corrupted(page, zip_size)) {
 					fprintf(stderr,
 						"InnoDB: Dump of the page:\n");
-					buf_page_print(read_buf, zip_size);
+					buf_page_print(
+						read_buf, zip_size,
+						BUF_PAGE_PRINT_NO_CRASH);
 					fprintf(stderr,
 						"InnoDB: Dump of"
 						" corresponding page"
 						" in doublewrite buffer:\n");
-					buf_page_print(page, zip_size);
+					buf_page_print(
+						page, zip_size,
+						BUF_PAGE_PRINT_NO_CRASH);
 
 					fprintf(stderr,
 						"InnoDB: Also the page in the"
@@ -765,7 +763,7 @@ trx_sys_doublewrite_init_or_restore_pages(
 						"InnoDB: option:\n"
 						"InnoDB:"
 						" innodb_force_recovery=6\n");
-					exit(1);
+					ut_error;
 				}
 
 				/* Write the good page from the

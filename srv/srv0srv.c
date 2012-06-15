@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -433,6 +433,9 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulint	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
+#ifdef UNIV_DEBUG
+UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
+#endif
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -471,9 +474,6 @@ UNIV_INTERN ibool	srv_print_lock_waits		= FALSE;
 UNIV_INTERN ibool	srv_print_buf_io		= FALSE;
 UNIV_INTERN ibool	srv_print_log_io		= FALSE;
 UNIV_INTERN ibool	srv_print_latch_waits		= FALSE;
-
-UNIV_INTERN ulong	srv_flush_checkpoint_debug = 0;
-
 #endif /* UNIV_DEBUG */
 
 UNIV_INTERN ulint		srv_n_rows_inserted		= 0;
@@ -2802,6 +2802,7 @@ loop:
 			"InnoDB: Please submit a bug report"
 			" to http://bugs.mysql.com\n",
 			old_lsn, new_lsn);
+		ut_ad(0);
 	}
 
 	old_lsn = new_lsn;
@@ -2953,21 +2954,23 @@ exit_func:
 }
 
 /**********************************************************************//**
-Check whether any background thread is active.
-@return FALSE if all are are suspended or have exited. */
+Check whether any background thread is active. If so return the thread
+type
+@return ULINT_UNDEFINED if all are suspended or have exited, thread
+type if any are still active. */
 UNIV_INTERN
-ibool
-srv_is_any_background_thread_active(void)
-/*=====================================*/
+ulint
+srv_get_active_thread_type(void)
+/*============================*/
 {
 	ulint	i;
-	ibool	ret = FALSE;
+	ibool	ret = ULINT_UNDEFINED;
 
 	mutex_enter(&kernel_mutex);
 
 	for (i = 0; i <= SRV_MASTER; ++i) {
 		if (srv_n_threads_active[i] != 0) {
-			ret = TRUE;
+			ret = i;
 			break;
 		}
 	}
@@ -2975,6 +2978,57 @@ srv_is_any_background_thread_active(void)
 	mutex_exit(&kernel_mutex);
 
 	return(ret);
+}
+
+/*********************************************************************//**
+This function prints progress message every 60 seconds during server
+shutdown, for any activities that master thread is pending on. */
+static
+void
+srv_shutdown_print_master_pending(
+/*==============================*/
+	ib_time_t*	last_print_time,	/*!< last time the function
+						print the message */
+	ulint		n_tables_to_drop,	/*!< number of tables to
+						be dropped */
+	ulint		n_bytes_merged,		/*!< number of change buffer
+						just merged */
+	ulint		n_pages_flushed)	/*!< number of pages flushed */
+{
+	ib_time_t	current_time;
+	double		time_elapsed;
+
+	current_time = ut_time();
+	time_elapsed = ut_difftime(current_time, *last_print_time);
+
+	if (time_elapsed > 60) {
+		*last_print_time = ut_time();
+
+		if (n_tables_to_drop) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for "
+				"%lu table(s) to be dropped\n",
+				(ulong) n_tables_to_drop);
+		}
+
+		/* Check change buffer merge, we only wait for change buffer
+		merge if it is a slow shutdown */
+		if (!srv_fast_shutdown && n_bytes_merged) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for change "
+				"buffer merge to complete\n"
+				"  InnoDB: number of bytes of change buffer "
+				"just merged:  %lu\n",
+				n_bytes_merged);
+		}
+
+		if (n_pages_flushed) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for "
+				"%lu pages to be flushed\n",
+				(ulong) n_pages_flushed);
+		}
+        }
 }
 
 /*******************************************************************//**
@@ -3146,6 +3200,7 @@ srv_master_thread(
 	ib_uint64_t	lsn_old;
 
 	ib_uint64_t	oldest_lsn;
+	ib_time_t	last_print_time;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -3170,6 +3225,9 @@ srv_master_thread(
 	mutex_enter(&(log_sys->mutex));
 	lsn_old = log_sys->lsn;
 	mutex_exit(&(log_sys->mutex));
+
+	last_print_time = ut_time();
+
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
@@ -3620,18 +3678,11 @@ retry_flush_batch:
 			  PCT_IO(10), IB_ULONGLONG_MAX);
 	}
 
-#ifdef UNIV_DEBUG
-	if (srv_flush_checkpoint_debug != 1) {
-#endif
+	srv_main_thread_op_info = "making checkpoint";
 
-		srv_main_thread_op_info = "making checkpoint";
+	/* Make a new checkpoint about once in 10 seconds */
 
-		/* Make a new checkpoint about once in 10 seconds */
-
-		log_checkpoint(TRUE, FALSE);
-#ifdef UNIV_DEBUG
-	}
-#endif
+	log_checkpoint(TRUE, FALSE);
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -3710,10 +3761,6 @@ background_loop:
 	}
 	mutex_exit(&kernel_mutex);
 
-#ifdef UNIV_DEBUG
-	if (srv_flush_checkpoint_debug == 1)
-		goto skip_flush;
-#endif
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
@@ -3754,9 +3801,6 @@ flush_loop:
 		goto flush_loop;
 	}
 
-#ifdef UNIV_DEBUG
-skip_flush:
-#endif
 	srv_main_thread_op_info = "reserving kernel mutex";
 
 	mutex_enter(&kernel_mutex);
@@ -3771,6 +3815,14 @@ skip_flush:
 	log_archive_do(FALSE, &n_bytes_archived);
 	*/
 	n_bytes_archived = 0;
+
+	/* Print progress message every 60 seconds during shutdown */
+	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
+		srv_shutdown_print_master_pending(&last_print_time,
+						  n_tables_to_drop,
+						  n_bytes_merged,
+						  n_pages_flushed);
+	}
 
 	/* Keep looping in the background loop if still work to do */
 
@@ -3790,6 +3842,7 @@ skip_flush:
 	} else if (n_tables_to_drop
 		   + n_pages_purged + n_bytes_merged + n_pages_flushed
 		   + n_bytes_archived != 0) {
+
 		/* In a 'slow' shutdown we run purge and the insert buffer
 		merge to completion */
 

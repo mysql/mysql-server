@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -26,8 +26,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -195,6 +195,9 @@ static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
+#ifdef UNIV_DEBUG
+static ulong    innobase_sys_stats_root_page		= 0;
+#endif
 static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 static uint	innobase_buffer_pool_shm_key		= 0;
 
@@ -1174,6 +1177,9 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
+	case DB_TABLE_IN_FK_CHECK:
+		return(HA_ERR_TABLE_IN_FK_CHECK);
+
 	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
@@ -1623,70 +1629,87 @@ values we want to reserve for multi-value inserts e.g.,
 
 	INSERT INTO T VALUES(), (), ();
 
-innobase_next_autoinc() will be called with increment set to
-n * 3 where autoinc_lock_mode != TRADITIONAL because we want
-to reserve 3 values for the multi-value INSERT above.
+innobase_next_autoinc() will be called with increment set to 3 where
+autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
+the multi-value INSERT above.
 @return	the next value */
 static
 ulonglong
 innobase_next_autoinc(
 /*==================*/
 	ulonglong	current,	/*!< in: Current value */
-	ulonglong	increment,	/*!< in: increment current by */
+	ulonglong	need,		/*!< in: count of values needed */
+	ulonglong	step,		/*!< in: AUTOINC increment step */
 	ulonglong	offset,		/*!< in: AUTOINC offset */
 	ulonglong	max_value)	/*!< in: max value for type */
 {
 	ulonglong	next_value;
+	ulonglong	block = need * step;
 
 	/* Should never be 0. */
-	ut_a(increment > 0);
+	ut_a(need > 0);
+	ut_a(block > 0);
+	ut_a(max_value > 0);
+
+	/* Current value should never be greater than the maximum. */
+	ut_a(current <= max_value);
 
 	/* According to MySQL documentation, if the offset is greater than
-	the increment then the offset is ignored. */
-	if (offset > increment) {
+	the step then the offset is ignored. */
+	if (offset > block) {
 		offset = 0;
 	}
 
-	if (max_value <= current) {
+	/* Check for overflow. */
+	if (block >= max_value
+	    || offset > max_value
+	    || current == max_value
+	    || max_value - offset <= offset) {
+
 		next_value = max_value;
-	} else if (offset <= 1) {
-		/* Offset 0 and 1 are the same, because there must be at
-		least one node in the system. */
-		if (max_value - current <= increment) {
-			next_value = max_value;
-		} else {
-			next_value = current + increment;
-		}
-	} else if (max_value > current) {
-		if (current > offset) {
-			next_value = ((current - offset) / increment) + 1;
-		} else {
-			next_value = ((offset - current) / increment) + 1;
-		}
-
-		ut_a(increment > 0);
-		ut_a(next_value > 0);
-
-		/* Check for multiplication overflow. */
-		if (increment > (max_value / next_value)) {
-
-			next_value = max_value;
-		} else {
-			next_value *= increment;
-
-			ut_a(max_value >= next_value);
-
-			/* Check for overflow. */
-			if (max_value - next_value <= offset) {
-				next_value = max_value;
-			} else {
-				next_value += offset;
-			}
-		}
 	} else {
-		next_value = max_value;
+		ut_a(max_value > current);
+
+		ulonglong	free = max_value - current;
+
+		if (free < offset || free - offset <= block) {
+			next_value = max_value;
+		} else {
+			next_value = 0;
+		}
 	}
 
+	if (next_value == 0) {
+		ulonglong	next;
+
+		if (current > offset) {
+			next = (current - offset) / step;
+		} else {
+			next = (offset - current) / step;
+		}
+
+		ut_a(max_value > next);
+		next_value = next * step;
+		/* Check for multiplication overflow. */
+		ut_a(next_value >= next);
+		ut_a(max_value > next_value);
+
+		/* Check for overflow */
+		if (max_value - next_value >= block) {
+
+			next_value += block;
+
+			if (max_value - next_value >= offset) {
+				next_value += offset;
+			} else {
+				next_value = max_value;
+			}
+		} else {
+			next_value = max_value;
+		}
+	}
+
+	ut_a(next_value != 0);
 	ut_a(next_value <= max_value);
 
 	return(next_value);
@@ -2730,6 +2753,10 @@ mem_free_and_error:
 	srv_doublewrite_file = innobase_doublewrite_file;
 
 	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
+
+#ifdef UNIV_DEBUG
+	srv_sys_stats_root_page = innobase_sys_stats_root_page;
+#endif
 
 	/* -------------- Log files ---------------------------*/
 
@@ -3905,51 +3932,139 @@ ha_innobase::primary_key_is_clustered()
 	return(true);
 }
 
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)		\
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
+
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. An example:
 test/mytable. On Windows normalization puts both the database name and the
-table name always to lower case. */
+table name always to lower case if "set_lower_case" is set to TRUE. */
 static
 void
-normalize_table_name(
-/*=================*/
+normalize_table_name_low(
+/*=====================*/
 	char*		norm_name,	/*!< out: normalized name as a
 					null-terminated string */
-	const char*	name)		/*!< in: table name string */
+	const char*	name,		/*!< in: table name string */
+	ibool		set_lower_case) /*!< in: TRUE if we want to set
+					name to lower case */
 {
 	char*	name_ptr;
 	char*	db_ptr;
+	ulint	db_len;
 	char*	ptr;
 
 	/* Scan name from the end */
 
-	ptr = strend(name)-1;
+	ptr = strend(name) - 1;
 
+	/* seek to the last path separator */
 	while (ptr >= name && *ptr != '\\' && *ptr != '/') {
 		ptr--;
 	}
 
 	name_ptr = ptr + 1;
 
-	DBUG_ASSERT(ptr > name);
+	/* skip any number of path separators */
+	while (ptr >= name && (*ptr == '\\' || *ptr == '/')) {
+		ptr--;
+	}
 
-	ptr--;
+	DBUG_ASSERT(ptr >= name);
 
+	/* seek to the last but one path separator or one char before
+	the beginning of name */
+	db_len = 0;
 	while (ptr >= name && *ptr != '\\' && *ptr != '/') {
 		ptr--;
+		db_len++;
 	}
 
 	db_ptr = ptr + 1;
 
-	memcpy(norm_name, db_ptr, strlen(name) + 1 - (db_ptr - name));
+	memcpy(norm_name, db_ptr, db_len);
 
-	norm_name[name_ptr - db_ptr - 1] = '/';
+	norm_name[db_len] = '/';
 
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	memcpy(norm_name + db_len + 1, name_ptr, strlen(name_ptr) + 1);
+
+	if (set_lower_case) {
+		innobase_casedn_str(norm_name);
+	}
 }
+
+#if !defined(DBUG_OFF)
+/*********************************************************************
+Test normalize_table_name_low(). */
+static
+void
+test_normalize_table_name_low()
+/*===========================*/
+{
+	char		norm_name[128];
+	const char*	test_data[][2] = {
+		/* input, expected result */
+		{"./mysqltest/t1", "mysqltest/t1"},
+		{"./test/#sql-842b_2", "test/#sql-842b_2"},
+		{"./test/#sql-85a3_10", "test/#sql-85a3_10"},
+		{"./test/#sql2-842b-2", "test/#sql2-842b-2"},
+		{"./test/bug29807", "test/bug29807"},
+		{"./test/foo", "test/foo"},
+		{"./test/innodb_bug52663", "test/innodb_bug52663"},
+		{"./test/t", "test/t"},
+		{"./test/t1", "test/t1"},
+		{"./test/t10", "test/t10"},
+		{"/a/b/db/table", "db/table"},
+		{"/a/b/db///////table", "db/table"},
+		{"/a/b////db///////table", "db/table"},
+		{"/var/tmp/mysqld.1/#sql842b_2_10", "mysqld.1/#sql842b_2_10"},
+		{"db/table", "db/table"},
+		{"ddd/t", "ddd/t"},
+		{"d/ttt", "d/ttt"},
+		{"d/t", "d/t"},
+		{".\\mysqltest\\t1", "mysqltest/t1"},
+		{".\\test\\#sql-842b_2", "test/#sql-842b_2"},
+		{".\\test\\#sql-85a3_10", "test/#sql-85a3_10"},
+		{".\\test\\#sql2-842b-2", "test/#sql2-842b-2"},
+		{".\\test\\bug29807", "test/bug29807"},
+		{".\\test\\foo", "test/foo"},
+		{".\\test\\innodb_bug52663", "test/innodb_bug52663"},
+		{".\\test\\t", "test/t"},
+		{".\\test\\t1", "test/t1"},
+		{".\\test\\t10", "test/t10"},
+		{"C:\\a\\b\\db\\table", "db/table"},
+		{"C:\\a\\b\\db\\\\\\\\\\\\\\table", "db/table"},
+		{"C:\\a\\b\\\\\\\\db\\\\\\\\\\\\\\table", "db/table"},
+		{"C:\\var\\tmp\\mysqld.1\\#sql842b_2_10", "mysqld.1/#sql842b_2_10"},
+		{"db\\table", "db/table"},
+		{"ddd\\t", "ddd/t"},
+		{"d\\ttt", "d/ttt"},
+		{"d\\t", "d/t"},
+	};
+
+	for (size_t i = 0; i < UT_ARR_SIZE(test_data); i++) {
+		printf("test_normalize_table_name_low(): "
+		       "testing \"%s\", expected \"%s\"... ",
+		       test_data[i][0], test_data[i][1]);
+
+		normalize_table_name_low(norm_name, test_data[i][0], FALSE);
+
+		if (strcmp(norm_name, test_data[i][1]) == 0) {
+			printf("ok\n");
+		} else {
+			printf("got \"%s\"\n", norm_name);
+			ut_error;
+		}
+	}
+}
+#endif /* !DBUG_OFF */
 
 /********************************************************************//**
 Get the upper limit of the MySQL integral and floating-point type.
@@ -4297,7 +4412,7 @@ ha_innobase::innobase_initialize_autoinc()
 			nor the offset, so use a default increment of 1. */
 
 			auto_inc = innobase_next_autoinc(
-				read_auto_inc, 1, 1, col_max_value);
+				read_auto_inc, 1, 1, 0, col_max_value);
 
 			break;
 		}
@@ -4352,6 +4467,8 @@ ha_innobase::open(
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
+	ibool		par_case_name_set = FALSE;
+	char		par_case_name[MAX_FULL_NAME_LEN + 1];
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4382,51 +4499,107 @@ ha_innobase::open(
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 	}
 
-	/* Create buffers for packing the fields of a record. Why
-	table->reclength did not work here? Obviously, because char
-	fields when packed actually became 1 byte longer, when we also
-	stored the string length as the first byte. */
-
-	upd_and_key_val_buff_len =
-				table->s->reclength + table->s->max_key_length
-							+ MAX_REF_PARTS * 3;
-	if (!(uchar*) my_multi_malloc(MYF(MY_WME),
-			&upd_buff, upd_and_key_val_buff_len,
-			&key_val_buff, upd_and_key_val_buff_len,
-			NullS)) {
-		free_share(share);
-
-		DBUG_RETURN(1);
-	}
+	/* Will be allocated if it is needed in ::update_row() */
+	upd_buf = NULL;
+	upd_buf_size = 0;
 
 	/* We look for pattern #P# to see if the table is partitioned
 	MySQL table. The retry logic for partitioned tables is a
 	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
 	at support issue https://support.mysql.com/view.php?id=21080
 	for more details. */
+#ifdef __WIN__
+	is_part = strstr(norm_name, "#p#");
+#else
 	is_part = strstr(norm_name, "#P#");
+#endif /* __WIN__ */
+
 retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
 	ib_table = dict_table_get(norm_name, TRUE);
-	
+
 	if (srv_pass_corrupt_table <= 1 && ib_table && ib_table->is_corrupt) {
 		free_share(share);
-		my_free(upd_buff);
+		my_free(upd_buf);
+		upd_buf = NULL;
+		upd_buf_size = 0;
 
 		DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 	}
 
 	share->ib_table = ib_table;
 
-
-
-
-
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
-			++retries;
-			os_thread_sleep(100000);
-			goto retry;
+			/* MySQL partition engine hard codes the file name
+			separator as "#P#". The text case is fixed even if
+			lower_case_table_names is set to 1 or 2. This is true
+			for sub-partition names as well. InnoDB always
+			normalises file names to lower case on Windows, this
+			can potentially cause problems when copying/moving
+			tables between platforms.
+
+			1) If boot against an installation from Windows
+			platform, then its partition table name could
+			be all be in lower case in system tables. So we
+			will need to check lower case name when load table.
+
+			2) If  we boot an installation from other case
+			sensitive platform in Windows, we might need to
+			check the existence of table name without lowering
+			case them in the system table. */
+			if (innobase_get_lower_case_table_names() == 1) {
+
+				if (!par_case_name_set) {
+#ifndef __WIN__
+					/* Check for the table using lower
+					case name, including the partition
+					separator "P" */
+					memcpy(par_case_name, norm_name,
+					       strlen(norm_name));
+					par_case_name[strlen(norm_name)] = 0;
+					innobase_casedn_str(par_case_name);
+#else
+					/* On Windows platfrom, check
+					whether there exists table name in
+					system table whose name is
+					not being normalized to lower case */
+					normalize_table_name_low(
+						par_case_name, name, FALSE);
+#endif
+					par_case_name_set = TRUE;
+				}
+
+				ib_table = dict_table_get(
+					par_case_name, FALSE);
+			}
+			if (!ib_table) {
+				++retries;
+				os_thread_sleep(100000);
+				goto retry;
+			} else {
+#ifndef __WIN__
+				sql_print_warning("Partition table %s opened "
+						  "after converting to lower "
+						  "case. The table may have "
+						  "been moved from a case "
+						  "in-sensitive file system. "
+						  "Please recreate table in "
+						  "the current file system\n",
+						  norm_name);
+#else
+				sql_print_warning("Partition table %s opened "
+						  "after skipping the step to "
+						  "lower case the table name. "
+						  "The table may have been "
+						  "moved from a case sensitive "
+						  "file system. Please "
+						  "recreate table in the "
+						  "current file system\n",
+						  norm_name);
+#endif
+				goto table_opened;
+			}
 		}
 
 		if (is_part) {
@@ -4451,11 +4624,12 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
+
+table_opened:
 
 	if (ib_table->ibd_file_missing && !thd_tablespace_op(thd)) {
 		sql_print_error("MySQL is trying to open a table handle but "
@@ -4467,16 +4641,14 @@ retry:
 				"how you can resolve the problem.\n",
 				norm_name);
 		free_share(share);
-		my_free(upd_buff);
 		my_errno = ENOENT;
 
 		dict_table_decrement_handle_count(ib_table, FALSE);
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
-	prebuilt = row_create_prebuilt(ib_table);
+	prebuilt = row_create_prebuilt(ib_table, table->s->reclength);
 
-	prebuilt->mysql_row_len = table->s->reclength;
 	prebuilt->default_rec = table->s->default_values;
 	ut_ad(prebuilt->default_rec);
 
@@ -4665,7 +4837,13 @@ ha_innobase::close(void)
 
 	row_prebuilt_free(prebuilt, FALSE);
 
-	my_free(upd_buff);
+	if (upd_buf != NULL) {
+		ut_ad(upd_buf_size != 0);
+		my_free(upd_buf);
+		upd_buf = NULL;
+		upd_buf_size = 0;
+	}
+
 	free_share(share);
 
 	/* Tell InnoDB server that there might be work for
@@ -5759,15 +5937,16 @@ set_max_autoinc:
 				if (auto_inc <= col_max_value) {
 					ut_a(prebuilt->autoinc_increment > 0);
 
-					ulonglong	need;
 					ulonglong	offset;
+					ulonglong	increment;
 
 					offset = prebuilt->autoinc_offset;
-					need = prebuilt->autoinc_increment;
+					increment = prebuilt->autoinc_increment;
 
 					auto_inc = innobase_next_autoinc(
 						auto_inc,
-						need, offset, col_max_value);
+						1, increment, offset,
+						col_max_value);
 
 					err = innobase_set_max_autoinc(
 						auto_inc);
@@ -5970,6 +6149,23 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
+	if (upd_buf == NULL) {
+		ut_ad(upd_buf_size == 0);
+
+		/* Create a buffer for packing the fields of a record. Why
+		table->reclength did not work here? Obviously, because char
+		fields when packed actually became 1 byte longer, when we also
+		stored the string length as the first byte. */
+
+		upd_buf_size = table->s->reclength + table->s->max_key_length
+			+ MAX_REF_PARTS * 3;
+		upd_buf = (uchar*) my_malloc(upd_buf_size, MYF(MY_WME));
+		if (upd_buf == NULL) {
+			upd_buf_size = 0;
+			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+		}
+	}
+
 	ha_statistic_increment(&SSV::ha_update_count);
 
 	if (share->ib_table->is_corrupt) {
@@ -5986,11 +6182,10 @@ ha_innobase::update_row(
 	}
 
 	/* Build an update vector from the modified fields in the rows
-	(uses upd_buff of the handle) */
+	(uses upd_buf of the handle) */
 
 	calc_row_difference(uvect, (uchar*) old_row, new_row, table,
-			upd_buff, (ulint)upd_and_key_val_buff_len,
-			prebuilt, user_thd);
+			    upd_buf, upd_buf_size, prebuilt, user_thd);
 
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
@@ -6027,14 +6222,14 @@ ha_innobase::update_row(
 
 		if (auto_inc <= col_max_value && auto_inc != 0) {
 
-			ulonglong	need;
 			ulonglong	offset;
+			ulonglong	increment;
 
 			offset = prebuilt->autoinc_offset;
-			need = prebuilt->autoinc_increment;
+			increment = prebuilt->autoinc_increment;
 
 			auto_inc = innobase_next_autoinc(
-				auto_inc, need, offset, col_max_value);
+				auto_inc, 1, increment, offset, col_max_value);
 
 			error = innobase_set_max_autoinc(auto_inc);
 		}
@@ -6359,6 +6554,7 @@ ha_innobase::index_read(
 	DBUG_ENTER("index_read");
 
 	ut_a(prebuilt->trx == thd_to_trx(user_thd));
+	ut_ad(key_len != 0 || find_flag != HA_READ_KEY_EXACT);
 
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
@@ -6391,8 +6587,7 @@ ha_innobase::index_read(
 
 		row_sel_convert_mysql_key_to_innobase(
 			prebuilt->search_tuple,
-			(byte*) key_val_buff,
-			(ulint)upd_and_key_val_buff_len,
+			srch_key_val1, sizeof(srch_key_val1),
 			index,
 			(byte*) key_ptr,
 			(ulint) key_len,
@@ -7559,6 +7754,8 @@ ha_innobase::create(
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
 
+	ut_a(strlen(name) < sizeof(name2));
+
 	strcpy(name2, name);
 
 	normalize_table_name(norm_name, name2);
@@ -8002,6 +8199,11 @@ ha_innobase::delete_table(
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
+	DBUG_EXECUTE_IF(
+		"test_normalize_table_name_low",
+		test_normalize_table_name_low();
+	);
+
 	/* Strangely, MySQL passes the table name without the '.frm'
 	extension, in contrast to ::create */
 	normalize_table_name(norm_name, name);
@@ -8162,6 +8364,8 @@ innobase_rename_table(
 	normalize_table_name(norm_to, to);
 	normalize_table_name(norm_from, from);
 
+	DEBUG_SYNC_C("innodb_rename_table_ready");
+
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
@@ -8279,12 +8483,6 @@ ha_innobase::records_in_range(
 {
 	KEY*		key;
 	dict_index_t*	index;
-	uchar*		key_val_buff2	= (uchar*) my_malloc(
-						  table->s->reclength
-					+ table->s->max_key_length + 100,
-								MYF(MY_FAE));
-	ulint		buff2_len = table->s->reclength
-					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
 	ib_int64_t	n_rows;
@@ -8293,7 +8491,6 @@ ha_innobase::records_in_range(
 	mem_heap_t*	heap;
 
 	DBUG_ENTER("records_in_range");
-	DBUG_ASSERT(min_key || max_key);
 
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
@@ -8336,8 +8533,8 @@ ha_innobase::records_in_range(
 	dict_index_copy_types(range_end, index, key->key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
-				range_start, (byte*) key_val_buff,
-				(ulint)upd_and_key_val_buff_len,
+				range_start,
+				srch_key_val1, sizeof(srch_key_val1),
 				index,
 				(byte*) (min_key ? min_key->key :
 					 (const uchar*) 0),
@@ -8348,8 +8545,9 @@ ha_innobase::records_in_range(
 		    : range_start->n_fields == 0);
 
 	row_sel_convert_mysql_key_to_innobase(
-				range_end, (byte*) key_val_buff2,
-				buff2_len, index,
+				range_end,
+				srch_key_val2, sizeof(srch_key_val2),
+				index,
 				(byte*) (max_key ? max_key->key :
 					 (const uchar*) 0),
 				(ulint) (max_key ? max_key->length : 0),
@@ -8376,7 +8574,6 @@ ha_innobase::records_in_range(
 	mem_heap_free(heap);
 
 func_exit:
-	my_free(key_val_buff2);
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -10801,16 +10998,15 @@ ha_innobase::get_auto_increment(
 	/* With old style AUTOINC locking we only update the table's
 	AUTOINC counter after attempting to insert the row. */
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
-		ulonglong	need;
 		ulonglong	current;
 		ulonglong	next_value;
 
 		current = *first_value > col_max_value ? autoinc : *first_value;
-		need = *nb_reserved_values * increment;
 
 		/* Compute the last value in the interval */
 		next_value = innobase_next_autoinc(
-			current, need, offset, col_max_value);
+			current, *nb_reserved_values, increment, offset,
+			col_max_value);
 
 		prebuilt->autoinc_last_value = next_value;
 
@@ -12209,6 +12405,13 @@ static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
   "So you should use ANALYZE TABLE command intentionally.",
   NULL, NULL, FALSE);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_ULONG(sys_stats_root_page, innobase_sys_stats_root_page,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Override the SYS_STATS root page id, 0 = no override (for testing only)",
+  NULL, NULL, 0, 0, ULONG_MAX, 0);
+#endif
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -12426,6 +12629,13 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
+  PLUGIN_VAR_RQCMDARG,
+  "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
+  NULL, NULL, 0, 0, 1024, 0);
+#endif /* UNIV_DEBUG */
+
 static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The maximum size of the insert buffer. (in bytes)",
@@ -12547,14 +12757,6 @@ static MYSQL_SYSVAR_ENUM(adaptive_flushing_method, srv_adaptive_flushing_method,
   "Choose method of innodb_adaptive_flushing. (native, [estimate], keep_average)",
   NULL, innodb_adaptive_flushing_method_update, 1, &adaptive_flushing_method_typelib);
 
-#ifdef UNIV_DEBUG
-static MYSQL_SYSVAR_ULONG(flush_checkpoint_debug, srv_flush_checkpoint_debug,
-  PLUGIN_VAR_RQCMDARG,
-  "Debug flags for InnoDB flushing and checkpointing (0=none,"
-  "1=stop preflush and checkpointing)",
-  NULL, NULL, 0, 0, 1, 0);
-#endif
-
 static MYSQL_SYSVAR_ULONG(import_table_from_xtrabackup, srv_expand_import,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable converting automatically *.ibd files when import tablespace.",
@@ -12660,6 +12862,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_auto_update),
   MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(use_sys_stats_table),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(sys_stats_root_page),
+#endif
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(adaptive_hash_index_partitions),
@@ -12702,8 +12907,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(purge_batch_size),
   MYSQL_SYSVAR(rollback_segments),
 #ifdef UNIV_DEBUG
-  MYSQL_SYSVAR(flush_checkpoint_debug),
-#endif
+  MYSQL_SYSVAR(trx_rseg_n_slots_debug),
+#endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(corrupt_table_action),
   MYSQL_SYSVAR(lazy_drop_table),
   MYSQL_SYSVAR(fake_changes),

@@ -155,6 +155,9 @@ unlocking, not the corresponding function. */
 # define rw_lock_s_lock(M)					\
 	rw_lock_s_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_s_lock_inline(M, P, F, L)			\
+	rw_lock_s_lock_func((M), (P), (F), (L))
+
 # define rw_lock_s_lock_gen(M, P)				\
 	rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
 
@@ -171,11 +174,17 @@ unlocking, not the corresponding function. */
 # define rw_lock_x_lock(M)					\
 	rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_x_lock_inline(M, P, F, L)			\
+	rw_lock_x_lock_func((M), (P), (F), (L))
+
 # define rw_lock_x_lock_gen(M, P)				\
 	rw_lock_x_lock_func((M), (P), __FILE__, __LINE__)
 
 # define rw_lock_x_lock_nowait(M)				\
 	rw_lock_x_lock_func_nowait((M), __FILE__, __LINE__)
+
+# define rw_lock_x_lock_func_nowait_inline(M, F, L)		\
+	rw_lock_x_lock_func_nowait((M), (F), (L))
 
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_x_unlock_gen(L, P)	rw_lock_x_unlock_func(P, L)
@@ -208,6 +217,9 @@ unlocking, not the corresponding function. */
 # define rw_lock_s_lock(M)					\
 	pfs_rw_lock_s_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_s_lock_inline(M, P, F, L)			\
+	pfs_rw_lock_s_lock_func((M), (P), (F), (L))
+
 # define rw_lock_s_lock_gen(M, P)				\
 	pfs_rw_lock_s_lock_func((M), (P), __FILE__, __LINE__)
 
@@ -223,11 +235,17 @@ unlocking, not the corresponding function. */
 # define rw_lock_x_lock(M)					\
 	pfs_rw_lock_x_lock_func((M), 0, __FILE__, __LINE__)
 
+# define rw_lock_x_lock_inline(M, P, F, L)			\
+	pfs_rw_lock_x_lock_func((M), (P), (F), (L))
+
 # define rw_lock_x_lock_gen(M, P)				\
 	pfs_rw_lock_x_lock_func((M), (P), __FILE__, __LINE__)
 
 # define rw_lock_x_lock_nowait(M)				\
 	pfs_rw_lock_x_lock_func_nowait((M), __FILE__, __LINE__)
+
+# define rw_lock_x_lock_func_nowait_inline(M, F, L)		\
+	pfs_rw_lock_x_lock_func_nowait((M), (F), (L))
 
 # ifdef UNIV_SYNC_DEBUG
 #  define rw_lock_x_unlock_gen(L, P)	pfs_rw_lock_x_unlock_func(P, L)
