@@ -568,12 +568,12 @@ open_or_create_log_file(
 				  OS_FILE_CREATE, OS_FILE_NORMAL,
 				  OS_LOG_FILE, &ret);
 	if (ret == FALSE) {
-		if (os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
+		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 		    /* AIX 5.1 after security patch ML7 may have errno set
 		    to 0 here, which causes our function to return 100;
 		    work around that AIX problem */
-		    && os_file_get_last_error(FALSE) != 100
+		    && os_file_get_last_error(false) != 100
 #endif
 		    ) {
 			fprintf(stderr,
@@ -760,13 +760,13 @@ open_or_create_data_files(
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 
-			if (ret == FALSE && os_file_get_last_error(FALSE)
+			if (ret == FALSE && os_file_get_last_error(false)
 			    != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 			    /* AIX 5.1 after security patch ML7 may have
 			    errno set to 0 here, which causes our function
 			    to return 100; work around that AIX problem */
-			    && os_file_get_last_error(FALSE) != 100
+			    && os_file_get_last_error(false) != 100
 #endif
 			    ) {
 				fprintf(stderr,
@@ -835,7 +835,7 @@ open_or_create_data_files(
 			if (!ret) {
 				fprintf(stderr,
 					"InnoDB: Error in opening %s\n", name);
-				os_file_get_last_error(TRUE);
+				os_file_get_last_error(true);
 
 				return(DB_ERROR);
 			}
@@ -1011,12 +1011,12 @@ srv_undo_tablespace_create(
 		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
 	if (ret == FALSE
-	    && os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
+	    && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 	    /* AIX 5.1 after security patch ML7 may have
 	    errno set to 0 here, which causes our function
 	    to return 100; work around that AIX problem */
-	    && os_file_get_last_error(FALSE) != 100
+	    && os_file_get_last_error(false) != 100
 #endif
 		) {
 

@@ -525,7 +525,7 @@ os_file_create_func(
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete(
 /*===========*/
 	const char*	name);	/*!< in: file path as a null-terminated
@@ -535,7 +535,7 @@ os_file_delete(
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete_if_exists(
 /*=====================*/
 	const char*	name);	/*!< in: file path as a null-terminated
@@ -826,7 +826,7 @@ UNIV_INTERN
 ulint
 os_file_get_last_error(
 /*===================*/
-	ibool	report_all_errors);	/*!< in: TRUE if we want an error message
+	bool	report_all_errors);	/*!< in: TRUE if we want an error message
 					printed of all errors */
 /*******************************************************************//**
 NOTE! Use the corresponding macro os_file_read(), not directly this function!

@@ -716,7 +716,7 @@ fil_node_open_file(
 			OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
-			os_file_get_last_error(TRUE);
+			os_file_get_last_error(true);
 
 			ut_print_timestamp(stderr);
 
@@ -2578,10 +2578,10 @@ fil_delete_tablespace(
 	} else if (rename) {
 		char*	newpath = fil_make_ibt_name(path);
 
+		/* Delete existing ibt in case it exists. */
+		os_file_delete_if_exists(newpath);
+
 		if (!os_file_rename(
-			innodb_file_data_key, path, newpath)
-		    && !os_file_delete_if_exists(newpath)
-		    && !os_file_rename(
 			innodb_file_data_key, path, newpath)) {
 
 			/* Note: This is because we have removed the
@@ -2757,7 +2757,7 @@ fil_make_ibd_name(
 /*==============*/
 	const char*	name,		/*!< in: table name or a dir path of a
 					TEMPORARY table */
-	bool		is_temp)	/*!< in: TRUE if it is a dir path */
+	bool		is_temp)	/*!< in: true if name is a full path */
 {
 	char*	filename;
 	ulint	namelen		= strlen(name);
@@ -2972,6 +2972,7 @@ fil_create_new_single_table_tablespace(
 	byte*		buf2;
 	byte*		page;
 	char*		path;
+	const char*	fsp_name;
 	ibool		success;
 
 	ut_a(space_id > 0);
@@ -2980,6 +2981,7 @@ fil_create_new_single_table_tablespace(
 	ut_a(fsp_flags_is_valid(flags));
 
 	path = fil_make_ibd_name(tablename, is_temp);
+	fsp_name = is_temp ? path : tablename;
 
 	file = os_file_create(
 		innodb_file_data_key, path,
@@ -2996,7 +2998,7 @@ fil_create_new_single_table_tablespace(
 
 		/* The following call will print an error message */
 
-		err = os_file_get_last_error(TRUE);
+		err = os_file_get_last_error(true);
 
 		if (err == OS_FILE_ALREADY_EXISTS) {
 			fputs("InnoDB: The file already exists though"
@@ -3108,7 +3110,7 @@ error_exit2:
 
 	os_file_close(file);
 
-	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
+	success = fil_space_create(fsp_name, space_id, flags, FIL_TABLESPACE);
 
 	if (!success) {
 		goto error_exit2;
@@ -3201,7 +3203,7 @@ fil_open_single_table_tablespace(
 
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -3365,7 +3367,7 @@ fil_load_single_table_tablespace(
 		OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		fprintf(stderr,
 			"InnoDB: Error: could not open single-table tablespace"
@@ -3412,7 +3414,7 @@ fil_load_single_table_tablespace(
 
 	if (size == (os_offset_t) -1) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		fprintf(stderr,
 			"InnoDB: Error: could not measure the size"
@@ -3864,8 +3866,10 @@ ibool
 fil_space_for_table_exists_in_mem(
 /*==============================*/
 	ulint		id,		/*!< in: space id */
-	const char*	name,		/*!< in: table name in the standard
-					'databasename/tablename' format */
+	const char*	name,		/*!< in: table name used in
+					fil_space_create().  Either the
+					standard 'dbname/tablename' format
+					or table->dir_path_of_temp_table */
 	ibool		mark_space,	/*!< in: in crash recovery, at database
 					startup we mark all spaces which have
 					an associated table in the InnoDB
@@ -5242,7 +5246,7 @@ fil_tablespace_iterate(
 
 		if (!success) {
 			/* The following call prints an error message */
-			os_file_get_last_error(TRUE);
+			os_file_get_last_error(true);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Trying to import a tablespace, but could not "
@@ -5351,7 +5355,8 @@ PageCallback::set_zip_size(const buf_frame_t* page) UNIV_NOTHROW
 }
 
 /********************************************************************//**
-Delete the tablespace file and any temporary files. */
+Delete the tablespace file and any related files like .cfg or .ibt.
+This should not be called for temporary tables. */
 UNIV_INTERN
 void
 fil_delete_file(
@@ -5366,17 +5371,15 @@ fil_delete_file(
 
 	os_file_delete_if_exists(ibd_name);
 
-	mem_free(ibd_name);
-
-	char*	cfg_name = fil_make_cfg_name(name);
+	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
 	os_file_delete_if_exists(cfg_name);
 
-	mem_free(cfg_name);
-
-	char*	ibt_name = fil_make_ibt_name(name);
+	char*	ibt_name = fil_make_ibt_name(ibd_name);
 
 	os_file_delete_if_exists(ibt_name);
 
+	mem_free(ibd_name);
+	mem_free(cfg_name);
 	mem_free(ibt_name);
 }

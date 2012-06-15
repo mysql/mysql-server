@@ -3532,7 +3532,8 @@ row_drop_table_for_mysql(
 	dict_table_t*	table;
 	ibool		print_msg;
 	ulint		space_id;
-	const char*	table_name;
+	const char*	tablename_minus_db;
+	char*		tablename =  NULL;
 	bool		ibd_file_missing;
 	ulint		namelen;
 	bool		locked_dictionary	= false;
@@ -3555,19 +3556,19 @@ row_drop_table_for_mysql(
 	Certain table names starting with 'innodb_' have their special
 	meaning regardless of the database name.  Thus, we need to
 	ignore the database name prefix in the comparisons. */
-	table_name = strchr(name, '/');
+	tablename_minus_db = strchr(name, '/');
 
-	if (table_name) {
-		table_name++;
+	if (tablename_minus_db) {
+		tablename_minus_db++;
 	} else {
 		/* Ancillary FTS tables don't have '/' characters. */
-		table_name = name;
+		tablename_minus_db = name;
 	}
 
-	namelen = strlen(table_name) + 1;
+	namelen = strlen(tablename_minus_db) + 1;
 
 	if (namelen == sizeof S_innodb_monitor
-	    && !memcmp(table_name, S_innodb_monitor,
+	    && !memcmp(tablename_minus_db, S_innodb_monitor,
 		       sizeof S_innodb_monitor)) {
 
 		/* Table name equals "innodb_monitor":
@@ -3576,17 +3577,17 @@ row_drop_table_for_mysql(
 		srv_print_innodb_monitor = FALSE;
 		srv_print_innodb_lock_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_lock_monitor
-		   && !memcmp(table_name, S_innodb_lock_monitor,
+		   && !memcmp(tablename_minus_db, S_innodb_lock_monitor,
 			      sizeof S_innodb_lock_monitor)) {
 		srv_print_innodb_monitor = FALSE;
 		srv_print_innodb_lock_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_tablespace_monitor
-		   && !memcmp(table_name, S_innodb_tablespace_monitor,
+		   && !memcmp(tablename_minus_db, S_innodb_tablespace_monitor,
 			      sizeof S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = FALSE;
 	} else if (namelen == sizeof S_innodb_table_monitor
-		   && !memcmp(table_name, S_innodb_table_monitor,
+		   && !memcmp(tablename_minus_db, S_innodb_table_monitor,
 			      sizeof S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = FALSE;
@@ -3722,16 +3723,16 @@ check_next_foreign:
 
 	if (table->n_foreign_key_checks_running > 0) {
 
-		const char*	table_name = table->name;
+		const char*	save_tablename = table->name;
 		ibool		added;
 
-		added = row_add_table_to_background_drop_list(table_name);
+		added = row_add_table_to_background_drop_list(save_tablename);
 
 		if (added) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: You are trying to drop table ",
 			      stderr);
-			ut_print_name(stderr, trx, TRUE, table_name);
+			ut_print_name(stderr, trx, TRUE, save_tablename);
 			fputs("\n"
 			      "InnoDB: though there is a"
 			      " foreign key check running on it.\n"
@@ -3821,6 +3822,7 @@ check_next_foreign:
 	unsigned*	page_nos;
 	heap = mem_heap_create(
 		200 + UT_LIST_GET_LEN(table->indexes) * sizeof *page_nos);
+	tablename = mem_heap_strdup(heap, name);
 
 	page_no = page_nos = static_cast<unsigned*>(
 		mem_heap_alloc(
@@ -3926,18 +3928,18 @@ check_next_foreign:
 			   , FALSE, trx);
 
 	switch (err) {
-		ibool		is_temp;
+		ibool	is_temp;
 
 	case DB_SUCCESS:
 		/* Clone the name, in case it has been allocated
 		from table->heap, which will be freed by
 		dict_table_remove_from_cache(table) below. */
-		name = mem_heap_strdup(heap, name);
 		space_id = table->space;
 		ibd_file_missing = table->ibd_file_missing;
 
 		is_temp = table->flags2 & DICT_TF2_TEMPORARY;
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
+		ut_a(!is_temp || table->dir_path_of_temp_table);
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
@@ -3949,7 +3951,7 @@ check_next_foreign:
 				fprintf(stderr," InnoDB: Error: (%s) not "
 					"able to remove ancillary FTS tables "
 					"for table ", ut_strerr(err));
-				ut_print_name(stderr, trx, TRUE, name);
+				ut_print_name(stderr, trx, TRUE, tablename);
 				fputs("\n", stderr);
 
 				goto funct_exit;
@@ -3966,11 +3968,12 @@ check_next_foreign:
 
 		dict_table_remove_from_cache(table);
 
-		if (dict_load_table(name, TRUE, DICT_ERR_IGNORE_NONE) != NULL) {
+		if (dict_load_table(tablename, TRUE,
+				    DICT_ERR_IGNORE_NONE) != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: not able to remove table ",
 			      stderr);
-			ut_print_name(stderr, trx, TRUE, name);
+			ut_print_name(stderr, trx, TRUE, tablename);
 			fputs(" from the dictionary cache!\n", stderr);
 			err = DB_ERROR;
 		}
@@ -3980,31 +3983,33 @@ check_next_foreign:
 
 		/* Don't spam the log if we can't find the tablespace of
 		a temp table or if the tablesace has been discarded. */
-
 		print_msg = !(is_temp || ibd_file_missing);
 
 		if (err == DB_SUCCESS && space_id > 0) {
-			if (!fil_space_for_table_exists_in_mem(
-					space_id, name, FALSE, print_msg)) {
+			if (!is_temp
+			    && !fil_space_for_table_exists_in_mem(
+					space_id, tablename, FALSE, print_msg)) {
+				/* This might happen if we are dropping a
+				discarded tablespace */
 				err = DB_SUCCESS;
 
 				if (print_msg) {
-					char table_name[MAX_FULL_NAME_LEN + 1];
+					char msg_tablename[MAX_FULL_NAME_LEN + 1];
 
 					innobase_format_name(
-						table_name, sizeof(table_name),
-						name, FALSE);
+						msg_tablename, sizeof(tablename),
+						tablename, FALSE);
 
 					ib_logf(IB_LOG_LEVEL_INFO,
 						"Removed the table %s from "
 						"InnoDB's data dictionary",
-						table_name);
+						msg_tablename);
 				}
 
 				/* Force a delete of any discarded
 				or temporary files. */
 
-				fil_delete_file(name);
+				fil_delete_file(tablename);
 
 			} else if (fil_delete_tablespace(space_id, FALSE)
 				   != DB_SUCCESS) {
@@ -4012,7 +4017,7 @@ check_next_foreign:
 					"InnoDB: We removed now the InnoDB"
 					" internal data dictionary entry\n"
 					"InnoDB: of table ");
-				ut_print_name(stderr, trx, TRUE, name);
+				ut_print_name(stderr, trx, TRUE, tablename);
 				fprintf(stderr, ".\n");
 
 				ut_print_timestamp(stderr);
@@ -4020,7 +4025,7 @@ check_next_foreign:
 					"  InnoDB: Error: not able to"
 					" delete tablespace %lu of table ",
 					(ulong) space_id);
-				ut_print_name(stderr, trx, TRUE, name);
+				ut_print_name(stderr, trx, TRUE, tablename);
 				fputs("!\n", stderr);
 				err = DB_ERROR;
 			}
@@ -4050,7 +4055,7 @@ check_next_foreign:
 
 		fprintf(stderr, "InnoDB: unknown error code %lu"
 			" while dropping table:", (ulong) err);
-		ut_print_name(stderr, trx, TRUE, name);
+		ut_print_name(stderr, trx, TRUE, tablename);
 		fprintf(stderr, ".\n");
 
 		trx->error_state = DB_SUCCESS;
