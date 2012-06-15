@@ -128,7 +128,7 @@ my_error_innodb(
 #ifdef UNIV_DEBUG
 	case DB_SUCCESS:
 	case DB_DUPLICATE_KEY:
-	case DB_TABLESPACE_ALREADY_EXISTS:
+	case DB_TABLESPACE_EXISTS:
 	case DB_ONLINE_LOG_TOO_BIG:
 		/* These codes should not be passed here. */
 		ut_error;
@@ -2058,6 +2058,12 @@ prepare_inplace_alter_table_dict(
 		indexed_table = dict_mem_table_create(
 			new_table_name, 0, n_cols, flags, flags2);
 
+		if (DICT_TF_HAS_DATA_DIR(flags)) {
+			indexed_table->data_dir_path =
+				mem_heap_strdup(indexed_table->heap,
+				user_table->data_dir_path);
+		}
+
 		for (uint i = 0; i < altered_table->s->fields; i++) {
 			const Field*	field = altered_table->field[i];
 			ulint		is_unsigned;
@@ -2142,7 +2148,7 @@ col_fail:
 			ut_ad(fts_doc_id_col == altered_table->s->fields);
 		}
 
-		error = row_create_table_for_mysql(indexed_table, trx);
+		error = row_create_table_for_mysql(indexed_table, trx, false);
 
 		switch (error) {
 			dict_table_t*	temp_table;
@@ -2162,7 +2168,11 @@ col_fail:
 			holding dict_operation_lock X-latch. */
 			DBUG_ASSERT(indexed_table->n_ref_count == 1);
 			break;
-		case DB_TABLESPACE_ALREADY_EXISTS:
+		case DB_TABLESPACE_EXISTS:
+			innobase_convert_tablename(new_table_name);
+			my_error(ER_TABLESPACE_EXISTS, MYF(0),
+				 new_table_name);
+			goto new_clustered_failed;
 		case DB_DUPLICATE_KEY:
 			innobase_convert_tablename(new_table_name);
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
@@ -2198,6 +2208,7 @@ col_fail:
 
 		add_index[num_created] = row_merge_create_index(
 			trx, indexed_table, &index_defs[num_created]);
+
 		add_key_nums[num_created] = index_defs[num_created].key_number;
 
 		if (!add_index[num_created]) {
@@ -2342,8 +2353,8 @@ error_handling:
 			!exclusive && !new_clustered && !num_fts_index,
 			heap, trx, indexed_table);
 		DBUG_RETURN(false);
-	case DB_TABLESPACE_ALREADY_EXISTS:
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), "(unknown)");
+	case DB_TABLESPACE_EXISTS:
+		my_error(ER_TABLESPACE_EXISTS, MYF(0), "(unknown)");
 		break;
 	case DB_DUPLICATE_KEY:
 		my_error(ER_DUP_KEY, MYF(0), "SYS_INDEXES");
@@ -3512,7 +3523,12 @@ ha_innobase::commit_inplace_alter_table(
 		case DB_SUCCESS:
 			err = 0;
 			break;
-		case DB_TABLESPACE_ALREADY_EXISTS:
+		case DB_TABLESPACE_EXISTS:
+			ut_a(ctx->indexed_table->n_ref_count == 1);
+			innobase_convert_tablename(tmp_name);
+			my_error(ER_TABLESPACE_EXISTS, MYF(0), tmp_name);
+			err = HA_ERR_TABLESPACE_EXISTS;
+			goto drop_new_clustered;
 		case DB_DUPLICATE_KEY:
 			ut_a(ctx->indexed_table->n_ref_count == 1);
 			innobase_convert_tablename(tmp_name);

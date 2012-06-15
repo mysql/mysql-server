@@ -360,7 +360,7 @@ dict_table_remove_from_cache(
 Renames a table object.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -876,7 +876,8 @@ dict_tf_set(
 /*========*/
 	ulint*		flags,		/*!< in/out: table */
 	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize)	/*!< in: zip shift size */
+	ulint		zip_ssize,	/*!< in: zip shift size */
+	bool		remote_path)	/*!< in: table uses DATA DIRECTORY */
 	__attribute__((nonnull));
 /********************************************************************//**
 Convert a 32 bit integer table flags to the 32 bit integer that is
