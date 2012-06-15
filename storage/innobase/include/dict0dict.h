@@ -1619,6 +1619,14 @@ struct dict_table_schema_struct {
 	dict_col_meta_t*	columns;	/* metadata for the columns;
 						this array has n_cols
 						elements */
+	ulint			n_foreign;	/* number of foreign keys this
+						table has, pointing to other
+						tables (where this table is
+						FK child) */
+	ulint			n_referenced;	/* number of foreign keys other
+						tables have, pointing to this
+						table (where this table is
+						parent) */
 };
 typedef struct dict_table_schema_struct dict_table_schema_t;
 /* @} */
