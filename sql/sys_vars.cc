@@ -2246,7 +2246,7 @@ static char *system_time_zone_ptr;
 static Sys_var_charptr Sys_system_time_zone(
        "system_time_zone", "The server system time zone",
        READ_ONLY GLOBAL_VAR(system_time_zone_ptr), NO_CMD_LINE,
-       IN_FS_CHARSET, DEFAULT(system_time_zone));
+       IN_SYSTEM_CHARSET, DEFAULT(system_time_zone));
 
 static Sys_var_ulong Sys_table_def_size(
        "table_definition_cache",

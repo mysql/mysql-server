@@ -3418,14 +3418,23 @@ static int init_common_variables()
     return 1;
 
 #ifdef HAVE_TZNAME
-  {
-    struct tm tm_tmp;
-    localtime_r(&server_start_time,&tm_tmp);
-    strmake(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
-            sizeof(system_time_zone)-1);
+  struct tm tm_tmp;
+  localtime_r(&server_start_time,&tm_tmp);
+  const char *tz_name=  tzname[tm_tmp.tm_isdst != 0 ? 1 : 0];
+#ifdef _WIN32
+  /*
+    Time zone name may be localized and contain non-ASCII characters,
+    Convert from ANSI encoding to UTF8.
+  */
+  wchar_t wtz_name[sizeof(system_time_zone)];
+  mbstowcs(wtz_name, tz_name, sizeof(system_time_zone)-1);
+  WideCharToMultiByte(CP_UTF8,0, wtz_name, -1, system_time_zone, 
+    sizeof(system_time_zone) - 1, NULL, NULL);
+#else
+  strmake(system_time_zone, tz_name,  sizeof(system_time_zone)-1);
+#endif /* _WIN32 */
+#endif /* HAVE_TZNAME */
 
- }
-#endif
   /*
     We set SYSTEM time zone as reasonable default and
     also for failure of my_tz_init() and bootstrap mode.
