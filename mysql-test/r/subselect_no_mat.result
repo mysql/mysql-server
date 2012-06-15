@@ -6111,6 +6111,31 @@ NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL
 SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELECT 5) AND f1 = 7;
 f1	f2
 drop table t1,t2;
+#
+# LP BUG#1008686 Server crashes in subselect_union_engine::no_rows on SELECT with impossible
+# WHERE and UNION in HAVING
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+3	DEPENDENT UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+min_a	a
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	DEPENDENT UNION	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+min_a	a
+drop table t1;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
 set optimizer_switch=default;

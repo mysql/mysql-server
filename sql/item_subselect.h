@@ -147,8 +147,8 @@ public:
     null_value= 1;
   }
   /**
-    Set the subquery result to the default value for the predicate when the
-    subquery is known to produce an empty result.
+    Set the subquery result to a default value consistent with the semantics of
+    the result row produced for queries with implicit grouping.
   */
   void no_rows_in_result()= 0;
   virtual bool select_transformer(JOIN *join);

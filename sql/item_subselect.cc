@@ -892,7 +892,14 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_maxmin_subselect::no_rows_in_result()
 {
-  if (const_item())
+  /*
+    Subquery predicates outside of the SELECT list must be evaluated in order
+    to possibly filter the special result row generated for implicit grouping
+    if the subquery is in the HAVING clause.
+    If the predicate is constant, we need its actual value in the only result
+    row for queries with implicit grouping.
+  */
+  if (parsing_place != SELECT_LIST || const_item())
     return;
   value= Item_cache::get_cache(new Item_null());
   null_value= 0;
@@ -903,7 +910,14 @@ void Item_maxmin_subselect::no_rows_in_result()
 
 void Item_singlerow_subselect::no_rows_in_result()
 {
-  if (const_item())
+  /*
+    Subquery predicates outside of the SELECT list must be evaluated in order
+    to possibly filter the special result row generated for implicit grouping
+    if the subquery is in the HAVING clause.
+    If the predicate is constant, we need its actual value in the only result
+    row for queries with implicit grouping.
+  */
+  if (parsing_place != SELECT_LIST || const_item())
     return;
   value= Item_cache::get_cache(new Item_null());
   reset();
@@ -1367,7 +1381,14 @@ Item* Item_exists_subselect::expr_cache_insert_transformer(uchar *thd_arg)
 
 void Item_exists_subselect::no_rows_in_result()
 {
-  if (const_item())
+  /*
+    Subquery predicates outside of the SELECT list must be evaluated in order
+    to possibly filter the special result row generated for implicit grouping
+    if the subquery is in the HAVING clause.
+    If the predicate is constant, we need its actual value in the only result
+    row for queries with implicit grouping.
+  */
+  if (parsing_place != SELECT_LIST || const_item())
     return;
   value= 0;
   null_value= 0;
@@ -2713,7 +2734,14 @@ void Item_allany_subselect::print(String *str, enum_query_type query_type)
 
 void Item_allany_subselect::no_rows_in_result()
 {
-  if (const_item())
+  /*
+    Subquery predicates outside of the SELECT list must be evaluated in order
+    to possibly filter the special result row generated for implicit grouping
+    if the subquery is in the HAVING clause.
+    If the predicate is constant, we need its actual value in the only result
+    row for queries with implicit grouping.
+  */
+  if (parsing_place != SELECT_LIST || const_item())
     return;
   value= 0;
   null_value= 0;
