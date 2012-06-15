@@ -5893,6 +5893,30 @@ dict_table_schema_check(
 		}
 	}
 
+	if (req_schema->n_foreign != UT_LIST_GET_LEN(table->foreign_list)) {
+		ut_snprintf(
+			errstr, errstr_sz,
+			"Table %s has %lu foreign key(s) pointing to other "
+			"tables, but it must have %lu.",
+			ut_format_name(req_schema->table_name,
+				       TRUE, buf, sizeof(buf)),
+			UT_LIST_GET_LEN(table->foreign_list),
+			req_schema->n_foreign);
+		return(DB_ERROR);
+	}
+
+	if (req_schema->n_referenced != UT_LIST_GET_LEN(table->referenced_list)) {
+		ut_snprintf(
+			errstr, errstr_sz,
+			"There are %lu foreign key(s) pointing to %s, "
+			"but there must be %lu.",
+			UT_LIST_GET_LEN(table->referenced_list),
+			ut_format_name(req_schema->table_name,
+				       TRUE, buf, sizeof(buf)),
+			req_schema->n_referenced);
+		return(DB_ERROR);
+	}
+
 	return(DB_SUCCESS);
 }
 /* @} */

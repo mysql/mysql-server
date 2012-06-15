@@ -169,7 +169,9 @@ dict_stats_persistent_storage_check(
 	dict_table_schema_t	table_stats_schema = {
 		TABLE_STATS_NAME,
 		UT_ARR_SIZE(table_stats_columns),
-		table_stats_columns
+		table_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
 	};
 
 	/* definition for the table INDEX_STATS_NAME */
@@ -201,7 +203,9 @@ dict_stats_persistent_storage_check(
 	dict_table_schema_t	index_stats_schema = {
 		INDEX_STATS_NAME,
 		UT_ARR_SIZE(index_stats_columns),
-		index_stats_columns
+		index_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
 	};
 
 	char		errstr[512];
