@@ -93,7 +93,14 @@ INSERT INTO fts_test (title,body) VALUES
 	('MySQL Security','When configured properly, MySQL ...');
 
 # Create the FTS index
+# We could support online fulltext index creation when a FTS_DOC_ID
+# column already exists. This has not been implemented yet.
+--error ER_NOT_SUPPORTED_YET
+CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
+
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
 
 SELECT * FROM fts_test WHERE MATCH (title, body)
         AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);

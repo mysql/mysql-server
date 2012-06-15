@@ -373,11 +373,18 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	prebuilt->trx->will_lock++;
 
-	if (online
-	    && (ha_alter_info->handler_flags
-		& Alter_inplace_info::ADD_INDEX)) {
-		/* Building a full-text index requires a lock,
-		unless the table already contains an FTS_DOC_ID column. */
+	if (!online) {
+		/* We already determined that only a non-locking
+		operation is possible. */
+	} else if (innobase_need_rebuild(ha_alter_info)
+		   && innobase_fulltext_exist(altered_table->s)) {
+		online = false;
+	} else if ((ha_alter_info->handler_flags
+		    & Alter_inplace_info::ADD_INDEX)) {
+		/* Building a full-text index requires a lock.
+		We could do without a lock if the table already contains
+		an FTS_DOC_ID column, but in that case we would have
+		to apply the modification log to the full-text indexes. */
 
 		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
 			const KEY* key =
@@ -389,36 +396,12 @@ ha_innobase::check_if_supported_inplace_alter(
 						  | HA_PACK_KEY
 						  | HA_GENERATED_KEY
 						  | HA_BINARY_PACK_KEY)));
-				/* See if we need to add a hidden FTS_DOC_ID
-				column, or if one already exists. */
-				for (uint i = 0; i < altered_table->s->fields;
-				     i++) {
-					const Field*	field
-						= altered_table->s->field[i];
-					if (!strcmp(field->field_name,
-						   FTS_DOC_ID_COL_NAME)) {
-						goto can_do_online;
-					}
-				}
-
-				for (uint i = table->s->fields;
-				     i < prebuilt->table->n_cols; i++) {
-					const char*	col_name
-						= dict_table_get_col_name(
-							prebuilt->table, i);
-					if (!strcmp(col_name,
-						    FTS_DOC_ID_COL_NAME)) {
-						goto can_do_online;
-					}
-				}
-
 				online = false;
 				break;
 			}
 		}
 	}
 
-can_do_online:
 	DBUG_RETURN(online
 		    ? HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
 		    : HA_ALTER_INPLACE_SHARED_LOCK);
