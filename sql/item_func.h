@@ -1941,6 +1941,11 @@ public:
     return str;
   }
 
+  void update_null_value()
+  { 
+    execute();
+  }
+
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 
@@ -1955,6 +1960,7 @@ public:
   {
     return sp_result_field;
   }
+
   bool check_vcol_func_processor(uchar *int_arg) 
   {
     return trace_unsupported_by_check_vcol_func_processor(func_name());
