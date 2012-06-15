@@ -2222,11 +2222,13 @@ innobase_build_col_map(
 		}
 
 		/* ADD_COLUMN */
+#if 0/*TODO: review and enable this*/
 		if (altered_table->found_next_number_field
 		    == altered_table->field[i]) {
 			/* Override the default for AUTO_INCREMENT column. */
 			altered_table->s->field[i]->store(autoinc_val);
 		}
+#endif
 
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
