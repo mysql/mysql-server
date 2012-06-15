@@ -6711,6 +6711,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     create_info->comment.length= table->s->comment.length;
   }
 
+  /* Do not pass the update_create_info through to each partition. */
+  if (table->file->ht->db_type == DB_TYPE_PARTITION_DB)
+	  create_info->data_file_name = (char*) -1;
+
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
        (HA_OPTION_PACK_KEYS | HA_OPTION_NO_PACK_KEYS)) ||

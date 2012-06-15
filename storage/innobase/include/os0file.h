@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -924,6 +924,60 @@ char*
 os_file_dirname(
 /*============*/
 	const char*	path);	/*!< in: pathname */
+/****************************************************************//**
+This function returns a new path name after replacing the basename
+in an old path with a new basename.  The old_path is a full path
+name including the extension.  The tablename is in the normal
+form "databasename/tablename".  The new base name is found after
+the forward slash.  Both input strings are null terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@return	own: new full pathname */
+UNIV_INTERN
+char*
+os_file_make_new_pathname(
+/*======================*/
+	const char*	old_path,	/*!< in: pathname */
+	const char*	new_name);	/*!< in: new file name */
+/****************************************************************//**
+This function returns a remote path name by combining a data directory
+path provided in a DATA DIRECTORY clause with the tablename which is
+in the form 'database/tablename'.  It strips the file basename (which
+is the tablename) found after the last directory in the path provided.
+The full filepath created will include the database name as a directory
+under the path provided.  The filename is the tablename with the '.ibd'
+extension. All input and output strings are null-terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@return	own: A full pathname; data_dir_path/databasename/tablename.ibd */
+UNIV_INTERN
+char*
+os_file_make_remote_pathname(
+/*=========================*/
+	const char*	data_dir_path,	/*!< in: pathname */
+	const char*	tablename,	/*!< in: tablename */
+	const char*	extention);	/*!< in: file extention; ibd,cfg*/
+/****************************************************************//**
+This function reduces a null-terminated full remote path name into
+the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
+the 'databasename/tablename.ibd' found at the end of the path with just
+'tablename'.
+
+Since the result is always smaller than the path sent in, no new memory
+is allocated. The caller should allocate memory for the path sent in.
+This function manipulates that path in place.
+
+If the path format is not as expected, just return.  The result is used
+to inform a SHOW CREATE TABLE command. */
+UNIV_INTERN
+void
+os_file_make_data_dir_path(
+/*========================*/
+	char*	data_dir_path);	/*!< in/out: full path/data_dir_path */
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return	TRUE if call succeeded FALSE otherwise */

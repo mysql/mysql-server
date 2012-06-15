@@ -397,11 +397,11 @@ is the global server default. */
   Do not add error numbers before HA_ERR_FIRST.
   If necessary to add lower numbers, change HA_ERR_FIRST accordingly.
 */
-#define HA_ERR_FIRST            120     /* Copy of first error nr.*/
+#define HA_ERR_FIRST            120	/* Copy of first error nr.*/
 
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
-#define HA_ERR_INTERNAL_ERROR   122     /* Internal error */
+#define HA_ERR_INTERNAL_ERROR   122	/* Internal error */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */
 #define HA_ERR_WRONG_INDEX	124	/* Wrong index given to function */
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
@@ -420,7 +420,7 @@ is the global server default. */
 #define HA_WRONG_CREATE_OPTION	140	/* Wrong create option */
 #define HA_ERR_FOUND_DUPP_UNIQUE 141	/* Dupplicate unique on write */
 #define HA_ERR_UNKNOWN_CHARSET	 142	/* Can't open charset */
-#define HA_ERR_WRONG_MRG_TABLE_DEF 143  /* conflicting tables in MERGE */
+#define HA_ERR_WRONG_MRG_TABLE_DEF 143	/* conflicting tables in MERGE */
 #define HA_ERR_CRASHED_ON_REPAIR 144	/* Last (automatic?) repair failed */
 #define HA_ERR_CRASHED_ON_USAGE  145	/* Table must be repaired */
 #define HA_ERR_LOCK_WAIT_TIMEOUT 146
@@ -432,16 +432,16 @@ is the global server default. */
 #define HA_ERR_ROW_IS_REFERENCED 152     /* Cannot delete a parent row */
 #define HA_ERR_NO_SAVEPOINT	 153     /* No savepoint with that name */
 #define HA_ERR_NON_UNIQUE_BLOCK_SIZE 154 /* Non unique key block size */
-#define HA_ERR_NO_SUCH_TABLE     155  /* The table does not exist in engine */
-#define HA_ERR_TABLE_EXIST       156  /* The table existed in storage engine */
-#define HA_ERR_NO_CONNECTION     157  /* Could not connect to storage engine */
+#define HA_ERR_NO_SUCH_TABLE     155     /* The table does not exist in engine */
+#define HA_ERR_TABLE_EXIST       156     /* The table existed in storage engine */
+#define HA_ERR_NO_CONNECTION     157     /* Could not connect to storage engine */
 /* NULLs are not supported in spatial index */
 #define HA_ERR_NULL_IN_SPATIAL   158
-#define HA_ERR_TABLE_DEF_CHANGED 159  /* The table changed in storage engine */
+#define HA_ERR_TABLE_DEF_CHANGED 159     /* The table changed in storage engine */
 /* There's no partition in table for given value */
 #define HA_ERR_NO_PARTITION_FOUND 160
-#define HA_ERR_RBR_LOGGING_FAILED 161  /* Row-based binlogging of row failed */
-#define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr */
+#define HA_ERR_RBR_LOGGING_FAILED 161    /* Row-based binlogging of row failed */
+#define HA_ERR_DROP_INDEX_FK      162    /* Index needed in foreign key constr */
 /*
   Upholding foreign key constraints would lead to a duplicate key error
   in some other table.
@@ -461,21 +461,22 @@ is the global server default. */
                                             statement */
 #define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to
                                             illegal data being read */
-#define HA_ERR_NEW_FILE	          172	 /* New file format */
+#define HA_ERR_NEW_FILE	          172    /* New file format */
 #define HA_ERR_ROWS_EVENT_APPLY   173    /* The event could not be processed
                                             no other hanlder error happened */
 #define HA_ERR_INITIALIZATION     174    /* Error during initialization */
-#define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
-#define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
+#define HA_ERR_FILE_TOO_SHORT	  175    /* File too short */
+#define HA_ERR_WRONG_CRC	  176    /* Wrong CRC on page */
 #define HA_ERR_TOO_MANY_CONCURRENT_TRXS 177 /*Too many active concurrent transactions */
 /* There's no explicitly listed partition in table for the given value */
 #define HA_ERR_NOT_IN_LOCK_PARTITIONS 178
-#define HA_ERR_INDEX_COL_TOO_LONG 179	 /* Index column length exceeds limit */
-#define HA_ERR_INDEX_CORRUPT      180	 /* InnoDB index corrupted */
+#define HA_ERR_INDEX_COL_TOO_LONG 179    /* Index column length exceeds limit */
+#define HA_ERR_INDEX_CORRUPT      180    /* InnoDB index corrupted */
 #define HA_ERR_UNDO_REC_TOO_BIG   181    /* Undo log record too big */
-#define HA_FTS_INVALID_DOCID      182	/* Invalid InnoDB Doc ID */
+#define HA_FTS_INVALID_DOCID      182    /* Invalid InnoDB Doc ID */
 #define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
-#define HA_ERR_LAST               183    /* Copy of last error nr */
+#define HA_ERR_TABLESPACE_EXISTS  184    /* The tablespace existed in storage engine */
+#define HA_ERR_LAST               184    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

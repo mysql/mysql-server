@@ -747,7 +747,7 @@ ut_strerr(
 		return("Cannot drop constraint");
 	case DB_NO_SAVEPOINT:
 		return("No such savepoint");
-	case DB_TABLESPACE_ALREADY_EXISTS:
+	case DB_TABLESPACE_EXISTS:
 		return("Tablespace already exists");
 	case DB_TABLESPACE_DELETED:
 		return("Tablespace deleted or being deleted");

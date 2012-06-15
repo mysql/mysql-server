@@ -181,6 +181,13 @@ class ha_innobase: public handler
 	ha_rows estimate_rows_upper_bound();
 
 	void update_create_info(HA_CREATE_INFO* create_info);
+	int parse_table_name(const char*name,
+			     HA_CREATE_INFO* create_info,
+			     ulint flags,
+			     ulint flags2,
+			     char* norm_name,
+			     char* temp_path,
+			     char* remote_path);
 	int create(const char *name, register TABLE *form,
 					HA_CREATE_INFO *create_info);
 	int truncate();

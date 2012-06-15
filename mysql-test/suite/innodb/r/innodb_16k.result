@@ -11,13 +11,39 @@ SELECT variable_value FROM information_schema.global_status
 WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
 {511_or_512}
-# Test 3) The root page numbers are dependent upon the page size.
-#         Pulled from innodb-system-table-view.test
+# Test 3) Query some information_shema tables that are dependent upon
+#         the page size.
 INDEX_ID	NAME	TABLE_ID	TYPE	N_FIELDS	PAGE_NO	SPACE
 11	ID_IND	11	3	1	302	0
 12	FOR_IND	11	0	1	303	0
 13	REF_IND	11	0	1	304	0
 14	ID_IND	12	3	2	305	0
+15	SYS_TABLESPACES_SPACE	13	3	1	307	0
+16	SYS_DATAFILES_SPACE	14	3	1	308	0
+CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
+CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
+CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
+CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE space > 0 ORDER BY table_id;
+TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
+{id}	test/t1	0	5	{id}	Antelope	Redundant	0
+{id}	test/t2	1	5	{id}	Antelope	Compact	0
+{id}	test/t3	41	5	{id}	Barracuda	Compressed	8192
+{id}	test/t4	33	5	{id}	Barracuda	Dynamic	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+SPACE	NAME	FLAG	FILE_FORMAT	ROW_FORMAT	PAGE_SIZE	ZIP_PAGE_SIZE
+{id}	test/t1	0	Antelope	Compact or Redundant	16384	0
+{id}	test/t2	0	Antelope	Compact or Redundant	16384	0
+{id}	test/t3	41	Barracuda	Compressed	16384	8192
+{id}	test/t4	33	Barracuda	Dynamic	16384	0
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+SPACE	PATH
+{id}	MYSQLD_DATADIR/test/t1.ibd
+{id}	MYSQLD_DATADIR/test/t2.ibd
+{id}	MYSQLD_DATADIR/test/t3.ibd
+{id}	MYSQLD_DATADIR/test/t4.ibd
+DROP TABLE t1, t2, t3, t4;
 # Test 4) The maximum row size is dependent upon the page size.
 #         Redundant: 8123, Compact: 8126.
 #         Compressed: 8126, Dynamic: 8126.
