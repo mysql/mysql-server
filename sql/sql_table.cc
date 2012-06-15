@@ -5696,6 +5696,46 @@ static bool fill_alter_inplace_info(THD *thd,
 
 
 /**
+  Mark fields participating in newly added indexes in TABLE object which
+  corresponds to new version of altered table.
+
+  @param ha_alter_info  Alter_inplace_info describing in-place ALTER.
+  @param altered_table  TABLE object for new version of TABLE in which
+                        fields should be marked.
+*/
+
+static void update_altered_table(const Alter_inplace_info &ha_alter_info,
+                                 TABLE *altered_table)
+{
+  uint field_idx, add_key_idx;
+  KEY *key;
+  KEY_PART_INFO *end, *key_part;
+
+  /*
+    Clear marker for all fields, as we are going to set it only
+    for fields which participate in new indexes.
+  */
+  for (field_idx= 0; field_idx < altered_table->s->fields; ++field_idx)
+    altered_table->field[field_idx]->flags&= ~FIELD_IN_ADD_INDEX;
+
+  /*
+    Go through array of newly added indexes and mark fields
+    participating in them.
+  */
+  for (add_key_idx= 0; add_key_idx < ha_alter_info.index_add_count;
+       add_key_idx++)
+  {
+    key= ha_alter_info.key_info_buffer +
+         ha_alter_info.index_add_buffer[add_key_idx];
+
+    end= key->key_part + key->key_parts;
+    for (key_part= key->key_part; key_part < end; key_part++)
+      altered_table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
+  }
+}
+
+
+/**
   Compare two tables to see if their metadata are compatible.
   One table specified by a TABLE instance, the other using Alter_info
   and HA_CREATE_INFO.
@@ -7295,6 +7335,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                              alter_ctx.tmp_name,
                                              true, false)))
       goto err_new_table_cleanup;
+
+    /* Set markers for fields in TABLE object for altered table. */
+    update_altered_table(ha_alter_info, altered_table);
 
     if (ha_alter_info.handler_flags == 0)
     {
