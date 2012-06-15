@@ -171,7 +171,7 @@ ibool
 row_fts_psort_info_init(
 /*====================*/
 	trx_t*			trx,	/*!< in: transaction */
-	const row_merge_dup_t*	dup,	/*!< in: FTS index being created */
+	row_merge_dup_t*	dup,	/*!< in,own: FTS index being created */
 	const dict_table_t*	new_table,/*!< in: table on which indexes are
 					created */
 	ibool			opt_doc_id_size,
@@ -198,6 +198,7 @@ row_fts_psort_info_init(
 		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
+		ut_free(dup);
 		return FALSE;
 	}
 
@@ -215,6 +216,7 @@ row_fts_psort_info_init(
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	if (!common_info) {
+		ut_free(dup);
 		mem_free(psort_info);
 		return FALSE;
 	}
@@ -310,6 +312,7 @@ row_fts_psort_info_destroy(
 			}
 		}
 
+		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
 	}
