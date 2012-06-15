@@ -1,0 +1,6 @@
+#
+# MDEV-316 lp:1009085 Assertion failed: warn_item, file item_cmpfunc.cc, line 3613
+#
+set names swe7;
+select '' in ('',convert(0,time));
+select case '' when '' then 1 when convert(0,time) then 2 end;
