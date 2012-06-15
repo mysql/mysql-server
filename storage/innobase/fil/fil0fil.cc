@@ -3225,7 +3225,6 @@ fil_create_new_single_table_tablespace(
 	byte*		buf2;
 	byte*		page;
 	char*		path;
-	const char*	fsp_name;
 	ibool		success;
 	/* TRUE if a table is created with CREATE TEMPORARY TABLE */
 	bool		is_temp = !!(flags2 & DICT_TF2_TEMPORARY);
