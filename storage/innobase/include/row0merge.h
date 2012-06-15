@@ -270,7 +270,11 @@ dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table);		/*!< in: table instance to drop */
+	dict_table_t*	table,		/*!< in: table instance to drop */
+	bool		nonatomic)	/*!< in: whether it is permitted
+					to release and reacquire
+					dict_operation_lock */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
