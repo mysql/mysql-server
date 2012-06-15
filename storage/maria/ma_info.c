@@ -42,6 +42,7 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
   MY_STAT state;
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("maria_status");
+  DBUG_PRINT("info", ("records: %lld", info->state->records));
 
   x->recpos= info->cur_row.lastpos;
   if (flag == HA_STATUS_POS)
