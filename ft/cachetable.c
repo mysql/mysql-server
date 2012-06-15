@@ -3035,51 +3035,59 @@ set_filenum_in_array(OMTVALUE hv, u_int32_t index, void*arrayv) {
 }
 
 static int
-log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
+log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *extra) {
+    int r;
     TOKUTXN    txn    = txnv;
     TOKULOGGER logger = txn->logger;
     FILENUMS open_filenums;
     uint32_t num_filenums = toku_omt_size(txn->open_fts);
     FILENUM array[num_filenums];
-    {
-        open_filenums.num      = num_filenums;
-        open_filenums.filenums = array;
-        //Fill in open_filenums
-        int r = toku_omt_iterate(txn->open_fts, set_filenum_in_array, array);
-        assert(r==0);
+    if (!txn->begin_was_logged) {
+        invariant(num_filenums == 0);
+        goto cleanup;
     }
+    else {
+        CACHETABLE ct = extra;
+        ct->checkpoint_num_txns++;
+    }
+
+    open_filenums.num      = num_filenums;
+    open_filenums.filenums = array;
+    //Fill in open_filenums
+    r = toku_omt_iterate(txn->open_fts, set_filenum_in_array, array);
+    invariant(r==0);
     switch (toku_txn_get_state(txn)) {
     case TOKUTXN_LIVE:{
-        int r = toku_log_xstillopen(logger, NULL, 0,
-                                    toku_txn_get_txnid(txn),
-                                    toku_txn_get_txnid(toku_logger_txn_parent(txn)),
-                                    txn->roll_info.rollentry_raw_count,
-                                    open_filenums,
-                                    txn->force_fsync_on_commit,
-                                    txn->roll_info.num_rollback_nodes,
-                                    txn->roll_info.num_rollentries,
-                                    txn->roll_info.spilled_rollback_head,
-                                    txn->roll_info.spilled_rollback_tail,
-                                    txn->roll_info.current_rollback);
-        assert(r==0);
-        return 0;
+        r = toku_log_xstillopen(logger, NULL, 0,
+                                toku_txn_get_txnid(txn),
+                                toku_txn_get_txnid(toku_logger_txn_parent(txn)),
+                                txn->roll_info.rollentry_raw_count,
+                                open_filenums,
+                                txn->force_fsync_on_commit,
+                                txn->roll_info.num_rollback_nodes,
+                                txn->roll_info.num_rollentries,
+                                txn->roll_info.spilled_rollback_head,
+                                txn->roll_info.spilled_rollback_tail,
+                                txn->roll_info.current_rollback);
+        lazy_assert_zero(r);
+        goto cleanup;
     }
     case TOKUTXN_PREPARING: {
         TOKU_XA_XID xa_xid;
         toku_txn_get_prepared_xa_xid(txn, &xa_xid);
-        int r = toku_log_xstillopenprepared(logger, NULL, 0,
-                                            toku_txn_get_txnid(txn),
-                                            &xa_xid,
-                                            txn->roll_info.rollentry_raw_count,
-                                            open_filenums,
-                                            txn->force_fsync_on_commit,
-                                            txn->roll_info.num_rollback_nodes,
-                                            txn->roll_info.num_rollentries,
-                                            txn->roll_info.spilled_rollback_head,
-                                            txn->roll_info.spilled_rollback_tail,
-                                            txn->roll_info.current_rollback);
-        assert(r==0);
-        return 0;
+        r = toku_log_xstillopenprepared(logger, NULL, 0,
+                                        toku_txn_get_txnid(txn),
+                                        &xa_xid,
+                                        txn->roll_info.rollentry_raw_count,
+                                        open_filenums,
+                                        txn->force_fsync_on_commit,
+                                        txn->roll_info.num_rollback_nodes,
+                                        txn->roll_info.num_rollentries,
+                                        txn->roll_info.spilled_rollback_head,
+                                        txn->roll_info.spilled_rollback_tail,
+                                        txn->roll_info.current_rollback);
+        lazy_assert_zero(r);
+        goto cleanup;
     }
     case TOKUTXN_RETIRED:
     case TOKUTXN_COMMITTING:
@@ -3089,6 +3097,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
     }
     // default is an error
     assert(0);
+cleanup:
     return 0;
 }
 
@@ -3133,7 +3142,9 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             // The checkpoint must be performed after the lock is acquired.
             {
                 LSN begin_lsn={.lsn=-1}; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
-                int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0, 0);
+                TXN_MANAGER mgr = toku_logger_get_txn_manager(logger);
+                TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
+                int r = toku_log_begin_checkpoint(logger, &begin_lsn, 0, 0, last_xid);
                 assert(r==0);
                 ct->lsn_of_checkpoint_in_progress = begin_lsn;
             }
@@ -3153,11 +3164,10 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             }
             // Log all the open transactions MUST BE AFTER OPEN FILES
             {
-                ct->checkpoint_num_txns = toku_txn_manager_num_live_txns(logger->txn_manager);
                 int r = toku_txn_manager_iter_over_live_txns(
                     logger->txn_manager,
                     log_open_txn,
-                    NULL
+                    ct
                     );
                 assert(r==0);
             }
@@ -3343,7 +3353,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     if (logger) {
         int r = toku_log_end_checkpoint(logger, NULL,
                                         1, // want the end_checkpoint to be fsync'd
-                                        ct->lsn_of_checkpoint_in_progress.lsn, 
+                                        ct->lsn_of_checkpoint_in_progress, 
                                         0,
                                         ct->checkpoint_num_files,
                                         ct->checkpoint_num_txns);

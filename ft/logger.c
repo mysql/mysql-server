@@ -159,6 +159,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
 
     logger->next_log_file_number = nexti;
     open_logfile(logger);
+    toku_txn_manager_set_last_xid_from_logger(logger->txn_manager, logger);
 
     logger->is_open = TRUE;
     return 0;
@@ -277,7 +278,15 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 int toku_logger_shutdown(TOKULOGGER logger) {
     int r = 0;
     if (logger->is_open) {
-        if (toku_txn_manager_num_live_txns(logger->txn_manager) == 0) {
+        TXN_MANAGER mgr = logger->txn_manager;
+        if (toku_txn_manager_num_live_txns(mgr) == 0) {
+            TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
+            // Increase the LSN of the shutdown log entry if it would be smaller
+            // than last_xid because we use the LSN of the shutdown log entry
+            // to seed the last_xid on bootup.
+            if (logger->lsn.lsn < last_xid) {
+                logger->lsn.lsn = last_xid;
+            }
             r = toku_log_shutdown(logger, NULL, TRUE, 0);
         }
     }
@@ -838,7 +847,7 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs_fname = { .len=strlen(fname), .data = (char *) fname };
     // fsync log on fcreate
-    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, nodesize, basementnodesize, compression_method);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 1, txn, toku_txn_get_txnid(txn), filenum, bs_fname, mode, treeflags, nodesize, basementnodesize, compression_method);
     return r;
 }
 
@@ -848,7 +857,7 @@ int toku_logger_log_fdelete (TOKUTXN txn, FILENUM filenum) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     //No fsync.
-    int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), filenum);
+    int r = toku_log_fdelete (txn->logger, (LSN*)0, 0, txn, toku_txn_get_txnid(txn), filenum);
     return r;
 }
 

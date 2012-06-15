@@ -18,6 +18,9 @@ extern uint32_t engine_status_enable;
 // Called to use dlmalloc functions.
 void setup_dlmalloc(void) __attribute__((__visibility__("default")));
 
+// Test-only function
+void toku_env_increase_last_xid(DB_ENV *env, uint64_t increment);
+
 #if defined(__cplusplus)
 }
 #endif

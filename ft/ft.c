@@ -138,7 +138,7 @@ ft_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v) {
         //Only log if useful.
         TOKULOGGER logger = toku_cachefile_logger(cf);
         FILENUM filenum = toku_cachefile_filenum (cf);
-        r = toku_log_suppress_rollback(logger, NULL, 0, filenum, xid);
+        r = toku_log_suppress_rollback(logger, NULL, 0, NULL, filenum, xid);
     }
     return r;
 }
@@ -823,7 +823,7 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKU
 
         TXNID xid = toku_txn_get_txnid(txn);
         toku_ft_suppress_rollbacks(new_ft, txn);
-        r = toku_log_suppress_rollback(txn->logger, NULL, 0, new_filenum, xid);
+        r = toku_log_suppress_rollback(txn->logger, NULL, 0, txn, new_filenum, xid);
         assert_zero(r);
     }
     

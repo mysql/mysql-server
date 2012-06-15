@@ -8,10 +8,14 @@
 
 #define TESTDIR __SRCFILE__ ".dir"
 
-static const int magic_begin_end_checkpoint_sz = 85;  // leave this many bytes in file
-
 static int 
 run_test(void) {
+    // leave this many bytes in file
+    const int magic_begin_end_checkpoint_sz = 8 // "tokulogg" magic 8 byte header
+                                             +4 // version
+                                             +toku_log_begin_checkpoint_overhead
+                                             +toku_log_end_checkpoint_overhead;
+
     int r;
     int trim = 1;
     toku_struct_stat st;
@@ -31,13 +35,12 @@ run_test(void) {
         r = toku_logger_open(TESTDIR, logger); assert(r == 0);
         LSN beginlsn;
         // all logs must contain a valid checkpoint
-        r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
-        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0, 0, 0); assert(r == 0);
-
+        r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0, 0); assert(r == 0);
+        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn, 0, 0, 0); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, world); assert(r == 0);
-        r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
-        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0, 0, 0); assert(r == 0);
+        r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0, 0); assert(r == 0);
+        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn, 0, 0, 0); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, there); assert(r == 0);
         r = toku_logger_close(&logger); assert(r == 0);

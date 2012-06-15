@@ -29,6 +29,7 @@ struct txn_manager {
     struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
 
     toku_cond_t wait_for_unpin_of_txn;
+    TXNID last_xid;
 };
 
 static TXN_MANAGER_STATUS_S txn_manager_status;
@@ -189,7 +190,7 @@ void toku_txn_manager_get_status(TOKULOGGER logger, TXN_MANAGER_STATUS s) {
 
 void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     int r = 0;
-    TXN_MANAGER XMALLOC(txn_manager);
+    TXN_MANAGER XCALLOC(txn_manager);
     toku_mutex_init(&txn_manager->txn_manager_lock, NULL);
     r = toku_omt_create(&txn_manager->live_txns); 
     assert_zero(r);
@@ -201,6 +202,8 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     assert_zero(r);
     txn_manager->oldest_living_xid = TXNID_NONE_LIVING;
     txn_manager->oldest_living_starttime = 0;
+    txn_manager->last_xid = 0;
+    //TODO(yoni): #5062 get this from somewhere
     toku_list_init(&txn_manager->prepared_txns);
     toku_list_init(&txn_manager->prepared_and_returned_txns);
 
@@ -310,6 +313,11 @@ live_list_reverse_note_txn_start(TOKUTXN txn) {
     return r;
 }
 
+static TXNID
+max_xid(TXNID a, TXNID b) {
+    return a < b ? b : a;
+}
+
 int toku_txn_manager_start_txn(
     TOKUTXN *txnp,
     TXN_MANAGER txn_manager,
@@ -321,8 +329,22 @@ int toku_txn_manager_start_txn(
     bool for_recovery)
 {
     int r;
-    // we take the txn_manager_lock before writing to the log,
-    // because the act of getting a transaction ID and adding the
+
+    // Do as much (safe) work as possible before serializing on the txn_manager lock.
+    XIDS parent_xids;
+    if (parent == NULL)
+        parent_xids = xids_get_root_xids();
+    else
+        parent_xids = parent->xids;
+
+    TOKUTXN txn;
+    r = toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, for_recovery);
+    if (r != 0) {
+        // logger is panicked
+        return r;
+    }
+
+    // the act of getting a transaction ID and adding the
     // txn to the proper OMTs must be atomic. MVCC depends
     // on this.
     toku_mutex_lock(&txn_manager->txn_manager_lock);
@@ -330,27 +352,22 @@ int toku_txn_manager_start_txn(
         verify_snapshot_system(txn_manager);
     }
     if (xid == TXNID_NONE) {
-        LSN first_lsn;
+        invariant(!for_recovery);
+        xid = ++txn_manager->last_xid;
         invariant(logger);
-        r = toku_log_xbegin(logger, &first_lsn, 0, parent ? parent->txnid64 : 0);
-        assert_zero(r);
-        xid = first_lsn.lsn;
-    } 
-    XIDS parent_xids;
-    if (parent == NULL)
-        parent_xids = xids_get_root_xids();
-    else
-        parent_xids = parent->xids;
+    }
+    else {
+        // Recovered transactions may not come in ascending order,
+        // because we assign xids when transactions are created but
+        // log transactions only when they first perform a write.
+        invariant(for_recovery);
+        txn_manager->last_xid = max_xid(txn_manager->last_xid, xid);
+    }
     XIDS xids;
     r = xids_create_child(parent_xids, &xids, xid);
     assert_zero(r);
 
-    TOKUTXN txn;
-    r = toku_txn_create_txn(&txn, parent, logger, xid, snapshot_type, xids, container_db_txn, for_recovery);
-    if (r != 0) {
-        // logger is panicked
-        return r;
-    }
+    toku_txn_update_xids_in_txn(txn, xid, xids);
 
     if (toku_omt_size(txn_manager->live_txns) == 0) {
         assert(txn_manager->oldest_living_xid == TXNID_NONE_LIVING);
@@ -501,58 +518,55 @@ static int find_xid (OMTVALUE v, void *txnv) {
 void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     int r;
     toku_mutex_lock(&txn_manager->txn_manager_lock);
-    {
-        if (garbage_collection_debug) {
-            verify_snapshot_system(txn_manager);
-        }
-        {
-            //Remove txn from list (omt) of live transactions
-            OMTVALUE txnagain;
-            u_int32_t idx;
-            r = toku_omt_find_zero(txn_manager->live_txns, find_xid, txn, &txnagain, &idx);
-            assert(r==0);
-            assert(txn==txnagain);
-            r = toku_omt_delete_at(txn_manager->live_txns, idx);
-            assert(r==0);
-        }
 
-        if (txn->parent==NULL) {
-            OMTVALUE v;
-            u_int32_t idx;
-            //Remove txn from list of live root txns
-            r = toku_omt_find_zero(txn_manager->live_root_txns, toku_find_xid_by_xid, (OMTVALUE)txn->txnid64, &v, &idx);
-            assert(r==0);
-            TXNID xid = (TXNID) v;
-            invariant(xid == txn->txnid64);
-            r = toku_omt_delete_at(txn_manager->live_root_txns, idx);
-            assert(r==0);
-        }
-        //
-        // if this txn created a snapshot, make necessary modifications to list of snapshot txnids and live_list_reverse
-        // the order of operations is important. We first remove the txnid from the list of snapshot txnids. This is
-        // necessary because root snapshot transactions are in their own live lists. If we do not remove 
-        // the txnid from the snapshot txnid list first, then when we go to make the modifications to 
-        // live_list_reverse, we have trouble. We end up never removing (id, id) from live_list_reverse
-        //
-        if (txn->snapshot_type != TXN_SNAPSHOT_NONE && (txn->parent==NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD)) {
-            {
-                u_int32_t idx;
-                OMTVALUE v;
-                //Free memory used for snapshot_txnids
-                r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &idx);
-                invariant(r==0);
-                TXNID xid = (TXNID) v;
-                invariant(xid == txn->txnid64);
-                r = toku_omt_delete_at(txn_manager->snapshot_txnids, idx);
-                invariant(r==0);
-            }
-            live_list_reverse_note_txn_end(txn);
-            {
-                //Free memory used for live root txns local list
-                invariant(toku_omt_size(txn->live_root_txn_list) > 0);
-                toku_omt_destroy(&txn->live_root_txn_list);
-            }
-        }
+    if (garbage_collection_debug) {
+        verify_snapshot_system(txn_manager);
+    }
+    {
+        //Remove txn from list (omt) of live transactions
+        OMTVALUE txnagain;
+        u_int32_t idx;
+        r = toku_omt_find_zero(txn_manager->live_txns, find_xid, txn, &txnagain, &idx);
+        invariant_zero(r);
+        invariant(txn==txnagain);
+        r = toku_omt_delete_at(txn_manager->live_txns, idx);
+        invariant_zero(r);
+    }
+
+    if (txn->parent==NULL) {
+        OMTVALUE v;
+        u_int32_t idx;
+        //Remove txn from list of live root txns
+        r = toku_omt_find_zero(txn_manager->live_root_txns, toku_find_xid_by_xid, (OMTVALUE)txn->txnid64, &v, &idx);
+        invariant_zero(r);
+        TXNID xid = (TXNID) v;
+        invariant(xid == txn->txnid64);
+        r = toku_omt_delete_at(txn_manager->live_root_txns, idx);
+        invariant_zero(r);
+    }
+    //
+    // if this txn created a snapshot, make necessary modifications to list of snapshot txnids and live_list_reverse
+    // the order of operations is important. We first remove the txnid from the list of snapshot txnids. This is
+    // necessary because root snapshot transactions are in their own live lists. If we do not remove 
+    // the txnid from the snapshot txnid list first, then when we go to make the modifications to 
+    // live_list_reverse, we have trouble. We end up never removing (id, id) from live_list_reverse
+    //
+    if (txn->snapshot_type != TXN_SNAPSHOT_NONE && (txn->parent==NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD)) {
+        u_int32_t idx;
+        OMTVALUE v;
+        //Free memory used for snapshot_txnids
+        r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &idx);
+        invariant_zero(r);
+        TXNID xid = (TXNID) v;
+        invariant(xid == txn->txnid64);
+        r = toku_omt_delete_at(txn_manager->snapshot_txnids, idx);
+        invariant_zero(r);
+
+        live_list_reverse_note_txn_end(txn);
+
+        //Free memory used for live root txns local list
+        invariant(toku_omt_size(txn->live_root_txn_list) > 0);
+        toku_omt_destroy(&txn->live_root_txn_list);
     }
 
     assert(txn_manager->oldest_living_xid <= txn->txnid64);
@@ -784,7 +798,7 @@ void toku_txn_manager_pin_live_txn_unlocked(TXN_MANAGER UU(txn_manager), TOKUTXN
     txn->num_pin++;
 }
 
-// allows a client thread to go back to being able to transition txn 
+// allows a client thread to go back to being able to transition txn
 // from LIVE|PREPAREING -> COMMITTING|ABORTING
 void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN txn) {
     assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
@@ -796,11 +810,38 @@ void toku_txn_manager_unpin_live_txn_unlocked(TXN_MANAGER txn_manager, TOKUTXN t
 }
 
 void toku_txn_manager_suspend(TXN_MANAGER txn_manager) {
-    toku_mutex_lock(&txn_manager->txn_manager_lock);    
+    toku_mutex_lock(&txn_manager->txn_manager_lock);
 }
 void toku_txn_manager_resume(TXN_MANAGER txn_manager) {
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
 }
 
+void
+toku_txn_manager_set_last_xid_from_logger(TXN_MANAGER txn_manager, TOKULOGGER logger) {
+    invariant(txn_manager->last_xid == TXNID_NONE);
+    LSN last_lsn = toku_logger_last_lsn(logger);
+    txn_manager->last_xid = last_lsn.lsn;
+}
+
+void
+toku_txn_manager_set_last_xid_from_recovered_checkpoint(TXN_MANAGER txn_manager, TXNID last_xid) {
+    txn_manager->last_xid = last_xid;
+}
+
+TXNID
+toku_txn_manager_get_last_xid(TXN_MANAGER mgr) {
+    toku_mutex_lock(&mgr->txn_manager_lock);
+    TXNID last_xid = mgr->last_xid;
+    toku_mutex_unlock(&mgr->txn_manager_lock);
+    return last_xid;
+}
+
+// Test-only function
+void
+toku_txn_manager_increase_last_xid(TXN_MANAGER mgr, uint64_t increment) {
+    toku_mutex_lock(&mgr->txn_manager_lock);
+    mgr->last_xid += increment;
+    toku_mutex_unlock(&mgr->txn_manager_lock);
+}
 
 #undef STATUS_VALUE

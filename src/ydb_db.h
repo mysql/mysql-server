@@ -60,7 +60,7 @@ toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed, BOOL force_auto_c
     }
     BOOL nosync = (BOOL)(!force_auto_commit && !(env->i->open_flags & DB_AUTO_COMMIT));
     u_int32_t txn_flags = DB_TXN_NOWAIT | (nosync ? DB_TXN_NOSYNC : 0);
-    int r = locked_txn_begin(env, NULL, txn, txn_flags);
+    int r = toku_txn_begin(env, NULL, txn, txn_flags);
     if (r!=0) return r;
     *changed = TRUE;
     return 0;

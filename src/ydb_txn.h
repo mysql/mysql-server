@@ -13,7 +13,7 @@ extern "C" {
 // internally to synchronize with begin checkpoint. callers
 // should not hold the multi operation lock.
 
-int locked_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
+int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 int locked_txn_commit(DB_TXN *txn, u_int32_t flags);
 
@@ -21,6 +21,8 @@ int locked_txn_abort(DB_TXN *txn);
 
 void toku_keep_prepared_txn_callback(DB_ENV *env, TOKUTXN tokutxn);
 
+// Test-only function
+void toku_increase_last_xid(DB_ENV *env, uint64_t increment) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif

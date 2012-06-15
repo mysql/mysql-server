@@ -7,6 +7,7 @@
 #include "includes.h"
 #include <ft/log_header.h>
 #include "checkpoint.h"
+#include "txn_manager.h"
 
 static const char recovery_lock_file[] = "/__tokudb_recoverylock_dont_delete_me";
 
@@ -35,6 +36,7 @@ struct scan_state {
     uint64_t checkpoint_begin_timestamp;
     uint32_t checkpoint_num_fassociate;
     uint32_t checkpoint_num_xstillopen;
+    TXNID last_xid;
 };
 
 static const char *scan_state_strings[] = {
@@ -47,6 +49,7 @@ static void scan_state_init(struct scan_state *ss) {
     ss->checkpoint_end_lsn = ZERO_LSN;
     ss->checkpoint_num_fassociate = 0;
     ss->checkpoint_num_xstillopen = 0;
+    ss->last_xid = 0;
 }
 
 static const char *scan_state_string(struct scan_state *ss) {
@@ -200,10 +203,6 @@ static int recover_env_init (RECOVER_ENV renv,
                              size_t cachetable_size) {
     int r;
 
-    r = toku_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, logger);
-    assert(r == 0);
-    toku_cachetable_set_env_dir(renv->ct, env_dir);
-    if (keep_cachetable_callback) keep_cachetable_callback(env, renv->ct);
     // If we are passed a logger use it, otherwise create one.
     renv->destroy_logger_at_end = logger==NULL;
     if (logger) {
@@ -213,6 +212,10 @@ static int recover_env_init (RECOVER_ENV renv,
         assert(r == 0);
     }
     toku_logger_write_log_files(renv->logger, FALSE);
+    r = toku_create_cachetable(&renv->ct, cachetable_size ? cachetable_size : 1<<25, (LSN){0}, renv->logger);
+    assert(r == 0);
+    toku_cachetable_set_env_dir(renv->ct, env_dir);
+    if (keep_cachetable_callback) keep_cachetable_callback(env, renv->ct);
     toku_logger_set_cachetable(renv->logger, renv->ct);
     renv->env                      = env;
     renv->prepared_txn_callback    = prepared_txn_callback;
@@ -320,13 +323,23 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
 
 static int toku_recover_begin_checkpoint (struct logtype_begin_checkpoint *l, RECOVER_ENV renv) {
     int r;
+    TXN_MANAGER mgr = toku_logger_get_txn_manager(renv->logger);
     switch (renv->ss.ss) {
     case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END:
         assert(l->lsn.lsn == renv->ss.checkpoint_begin_lsn.lsn);
+        invariant(renv->ss.last_xid == TXNID_NONE);
+        renv->ss.last_xid = l->last_xid;
+        toku_txn_manager_set_last_xid_from_recovered_checkpoint(mgr, l->last_xid);
+
         r = 0;
         break;
     case FORWARD_NEWER_CHECKPOINT_END:
         assert(l->lsn.lsn > renv->ss.checkpoint_end_lsn.lsn);
+        // Verify last_xid is no older than the previous begin
+        invariant(l->last_xid >= renv->ss.last_xid);
+        // Verify last_xid is no older than the newest txn
+        invariant(l->last_xid >= toku_txn_manager_get_last_xid(mgr));
+
         r = 0; // ignore it (log only has a begin checkpoint)
         break;
     default:
@@ -369,7 +382,7 @@ static int toku_recover_end_checkpoint (struct logtype_end_checkpoint *l, RECOVE
     int r;
     switch (renv->ss.ss) {
     case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END:
-        assert(l->xid   == renv->ss.checkpoint_begin_lsn.lsn);
+        assert(l->lsn_begin_checkpoint.lsn == renv->ss.checkpoint_begin_lsn.lsn);
         assert(l->lsn.lsn == renv->ss.checkpoint_end_lsn.lsn);
         assert(l->num_fassociate_entries == renv->ss.checkpoint_num_fassociate);
         assert(l->num_xstillopen_entries == renv->ss.checkpoint_num_xstillopen);
@@ -388,11 +401,11 @@ static int toku_recover_end_checkpoint (struct logtype_end_checkpoint *l, RECOVE
 
 static int toku_recover_backward_end_checkpoint (struct logtype_end_checkpoint *l, RECOVER_ENV renv) {
     time_t tnow = time(NULL);
-    fprintf(stderr, "%.24s Tokudb recovery bw_end_checkpoint at %"PRIu64" timestamp %"PRIu64" xid %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, l->xid, recover_state(renv));
+    fprintf(stderr, "%.24s Tokudb recovery bw_end_checkpoint at %"PRIu64" timestamp %"PRIu64" xid %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, l->lsn_begin_checkpoint.lsn, recover_state(renv));
     switch (renv->ss.ss) {
     case BACKWARD_NEWER_CHECKPOINT_END:
         renv->ss.ss = BACKWARD_BETWEEN_CHECKPOINT_BEGIN_END;
-        renv->ss.checkpoint_begin_lsn.lsn = l->xid;
+        renv->ss.checkpoint_begin_lsn.lsn = l->lsn_begin_checkpoint.lsn;
         renv->ss.checkpoint_end_lsn.lsn   = l->lsn.lsn;
         renv->ss.checkpoint_end_timestamp = l->timestamp;
         return 0;
@@ -482,6 +495,9 @@ recover_transaction(TOKUTXN *txnp, TXNID xid, TXNID parentxid, TOKULOGGER logger
     }
     r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE, NULL, true);
     assert(r == 0);
+    // We only know about it because it was logged.  Restore the log bit.
+    // Logging is 'off' but it will still set the bit.
+    toku_maybe_log_begin_txn_for_write_operation(txn);
     if (txnp) *txnp = txn;
     return 0;
 }
@@ -506,6 +522,8 @@ static int recover_xstillopen_internal (TOKUTXN         *txnp,
     switch (renv->ss.ss) {
     case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END: {
         renv->ss.checkpoint_num_xstillopen++;
+        invariant(renv->ss.last_xid != TXNID_NONE);
+        invariant(xid <= renv->ss.last_xid);
         TOKUTXN txn = NULL;
         { //Create the transaction.
             r = recover_transaction(&txn, xid, parentxid, renv->logger);
@@ -637,7 +655,7 @@ static int toku_recover_backward_suppress_rollback (struct logtype_suppress_roll
 
 static int toku_recover_xbegin (struct logtype_xbegin *l, RECOVER_ENV renv) {
     int r;
-    r = recover_transaction(NULL, l->lsn.lsn, l->parentxid, renv->logger);
+    r = recover_transaction(NULL, l->xid, l->parentxid, renv->logger);
     return r;
 }
 
@@ -1167,8 +1185,10 @@ static int toku_recover_backward_hot_index(struct logtype_hot_index *UU(l), RECO
     return 0;
 }
 
-// Effects: If there are no log files, or if there is a "clean" checkpoint at the end of the log,
-// then we don't need recovery to run.  Skip the shutdown log entry if there is one.
+// Effects: If there are no log files, or if there is a clean "shutdown" at
+// the end of the log, then we don't need recovery to run.
+// Requires: the shutdown log entry does not change between tokudb versions,
+// must always remain readable.
 // Returns: TRUE if we need recovery, otherwise FALSE.
 int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     int needs_recovery;
@@ -1182,32 +1202,12 @@ int tokudb_needs_recovery(const char *log_dir, BOOL ignore_log_empty) {
     
     struct log_entry *le = NULL;
     r = toku_logcursor_last(logcursor, &le);
-    if (r == DB_NOTFOUND && ignore_log_empty) {
-        needs_recovery = FALSE; goto exit;
+    if (r == 0) {
+        needs_recovery = le->cmd != LT_shutdown;
     }
-    if (r != 0) {
-        needs_recovery = TRUE; goto exit;
+    else {
+        needs_recovery = !(r == DB_NOTFOUND && ignore_log_empty);
     }
-    if (le->cmd==LT_shutdown || le->cmd==LT_comment) {
-        r = toku_logcursor_prev(logcursor, &le);
-        if (r != 0) {
-            needs_recovery = TRUE; goto exit;
-        }
-    }
-    if (le->cmd != LT_end_checkpoint) {
-        needs_recovery = TRUE; goto exit;
-    }
-    struct log_entry end_checkpoint = *le;
-
-    r = toku_logcursor_prev(logcursor, &le);
-    if (r != 0 || le->cmd != LT_begin_checkpoint) {
-        needs_recovery = TRUE; goto exit;
-    }
-    if (le->u.begin_checkpoint.lsn.lsn != end_checkpoint.u.end_checkpoint.xid) {
-        needs_recovery = TRUE; goto exit;
-    }
-    needs_recovery = FALSE;
-
  exit:
     if (logcursor) {
         r = toku_logcursor_destroy(&logcursor);

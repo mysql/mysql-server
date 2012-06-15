@@ -13,7 +13,6 @@
 #include <valgrind/helgrind.h>
 #include "ft/txn_manager.h"
 
-static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags, TXN_PROGRESS_POLL_FUNCTION poll, 
         void *poll_extra, bool release_multi_operation_client_lock);
 static int toku_txn_abort(DB_TXN * txn, TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
@@ -235,15 +234,6 @@ toku_txn_abort(DB_TXN * txn,
     return r;
 }   
 
-// Create a new transaction.
-int 
-locked_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
-    toku_multi_operation_client_lock();
-    int r = toku_txn_begin(env, stxn, txn, flags);
-    toku_multi_operation_client_unlock();
-    return r;
-}
-
 static u_int32_t 
 locked_txn_id(DB_TXN *txn) {
     u_int32_t r = toku_txn_id(txn); 
@@ -317,7 +307,7 @@ locked_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
     return r;
 }
 
-static int 
+int 
 toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(env);
     HANDLE_ILLEGAL_WORKING_PARENT_TXN(env, stxn); //Cannot create child while child already exists.
@@ -397,8 +387,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     }
     if (flags!=0) return toku_ydb_do_error(env, EINVAL, "Invalid flags passed to DB_ENV->txn_begin\n");
 
-    struct __toku_db_txn_external *XMALLOC(eresult); // so the internal stuff is stuck on the end.
-    memset(eresult, 0, sizeof(*eresult));
+    struct __toku_db_txn_external *XCALLOC(eresult); // so the internal stuff is stuck on the end.
     DB_TXN *result = &eresult->external_part;
 
     //toku_ydb_notef("parent=%p flags=0x%x\n", stxn, flags);
@@ -416,13 +405,12 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
 
     result->parent = stxn;
 #if !TOKUDB_NATIVE_H
-    MALLOC(db_txn_struct_i(result));
+    CALLOC(db_txn_struct_i(result));
     if (!db_txn_struct_i(result)) {
         toku_free(result);
         return ENOMEM;
     }
 #endif
-    memset(db_txn_struct_i(result), 0, sizeof *db_txn_struct_i(result));
     db_txn_struct_i(result)->flags = txn_flags;
     db_txn_struct_i(result)->iso = child_isolation;
 
@@ -513,4 +501,10 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     toku_txn_set_container_db_txn(tokutxn, result);
 
     (void) __sync_fetch_and_add(&env->i->open_txns, 1);
+}
+
+// Test-only function
+void
+toku_increase_last_xid(DB_ENV *env, uint64_t increment) {
+    toku_txn_manager_increase_last_xid(toku_logger_get_txn_manager(env->i->logger), increment);
 }

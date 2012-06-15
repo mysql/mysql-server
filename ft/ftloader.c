@@ -2065,12 +2065,12 @@ static int allocate_block (struct dbout *out, int64_t *ret_block_number)
             result = errno;
             out->n_translations_limit = old_n_translations_limit;
             out->translation = old_translation;
+            goto cleanup;
         }
     }
-    if (result == 0) {
-        out->n_translations++;
-        *ret_block_number = block_number;
-    }
+    out->n_translations++;
+    *ret_block_number = block_number;
+cleanup:
     dbout_unlock(out);
     return result;
 }
@@ -2247,7 +2247,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     out.translation[1].off = -1;                                // block 1 is the block translation, filled in later
     out.translation[2].off = -1;                                // block 2 is the descriptor
     seek_align(&out);
-    int64_t lblock;
+    int64_t lblock = 0;  // make gcc --happy
     result = allocate_block(&out, &lblock);
     invariant(result == 0); // can not fail since translations reserved above
 

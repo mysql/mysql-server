@@ -110,28 +110,15 @@ toku_txn_create_txn (
     TOKUTXN *tokutxn, 
     TOKUTXN parent_tokutxn, 
     TOKULOGGER logger, 
-    TXNID xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
-    XIDS xids,
     DB_TXN *container_db_txn,
     bool for_checkpoint
-    ) 
+    )
 {
     if (logger->is_panicked) {
         return EINVAL;
     }
     assert(logger->rollback_cachefile);
-
-    TXNID snapshot_txnid64;
-    if (snapshot_type == TXN_SNAPSHOT_NONE) {
-        snapshot_txnid64 = TXNID_NONE;
-    } else if (parent_tokutxn == NULL || snapshot_type == TXN_SNAPSHOT_CHILD) {
-        snapshot_txnid64 = xid;
-    } else if (snapshot_type == TXN_SNAPSHOT_ROOT) {
-        snapshot_txnid64 = parent_tokutxn->snapshot_txnid64;
-    } else {
-        assert(false);
-    }
 
     OMT open_fts;
     {
@@ -160,16 +147,18 @@ toku_txn_create_txn (
         .progress_poll_fun = NULL,
         .progress_poll_fun_extra = NULL,
         .snapshot_type = snapshot_type,
-        .snapshot_txnid64 = snapshot_txnid64,
+        .snapshot_txnid64 = TXNID_NONE,
         .container_db_txn = container_db_txn,
         .force_fsync_on_commit = FALSE,
+        .begin_was_logged = false,
         .recovered_from_checkpoint = for_checkpoint,
         .checkpoint_needed_before_commit = FALSE,
         .state = TOKUTXN_LIVE,
         .do_fsync = FALSE,
-        .txnid64 = xid,
-        .ancestor_txnid64 = (parent_tokutxn ? parent_tokutxn->ancestor_txnid64 : xid),
-        .xids = xids,
+        .do_fsync_lsn = ZERO_LSN,
+        .txnid64 = TXNID_NONE,
+        .ancestor_txnid64 = TXNID_NONE,
+        .xids = NULL,
         .roll_info = roll_info,
         .num_pin = 0
     };
@@ -186,6 +175,39 @@ toku_txn_create_txn (
         STATUS_VALUE(TXN_MAX_OPEN) = STATUS_VALUE(TXN_NUM_OPEN);
 
     return 0;
+}
+
+void
+toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid, XIDS xids)
+{
+    // these should not have been set yet
+    invariant(txn->txnid64 == TXNID_NONE);
+    invariant(txn->ancestor_txnid64 == TXNID_NONE);
+    invariant(txn->snapshot_txnid64 == TXNID_NONE);
+    invariant(txn->xids == NULL);
+
+    TXNID snapshot_txnid64;
+    if (txn->snapshot_type == TXN_SNAPSHOT_NONE) {
+        snapshot_txnid64 = TXNID_NONE;
+    } else if (txn->parent == NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD) {
+        snapshot_txnid64 = xid;
+    } else if (txn->snapshot_type == TXN_SNAPSHOT_ROOT) {
+        snapshot_txnid64 = txn->parent->snapshot_txnid64;
+    } else {
+        assert(false);
+    }
+
+#define UNCONST(t, x) *((t *) &(x))
+
+    // we need to cast around const here in order to move
+    // toku_txn_create_txn outside of the txn_manager_lock in
+    // toku_txn_manager_start_txn
+    UNCONST(TXNID, txn->txnid64) = xid;
+    UNCONST(TXNID, txn->snapshot_txnid64) = snapshot_txnid64;
+    UNCONST(TXNID, txn->ancestor_txnid64) = (txn->parent ? txn->parent->ancestor_txnid64 : xid);
+    txn->xids = xids;
+
+#undef UNCONST
 }
 
 //Used on recovery to recover a transaction.
@@ -260,11 +282,25 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
 
-    r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
-    if (r==0) {
-        r = toku_rollback_commit(txn, oplsn);
-        STATUS_VALUE(TXN_COMMIT)++;
+    if (txn->begin_was_logged) {
+        r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
+        if (r != 0) {
+            goto cleanup;
+        }
     }
+    else {
+        // Did no work.
+        invariant(txn->roll_info.num_rollentries == 0);
+        // Was not prepared.
+        invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
+    }
+    // If !txn->begin_was_logged, we could skip toku_rollback_commit
+    // but it's cheap (only a number of function calls that return immediately)
+    // since there were no writes.  Skipping it would mean we would need to be careful
+    // in case we added any additional required cleanup into those functions in the future.
+    r = toku_rollback_commit(txn, oplsn);
+    STATUS_VALUE(TXN_COMMIT)++;
+cleanup:
     return r;
 }
 
@@ -278,19 +314,34 @@ int toku_txn_abort_txn(TOKUTXN txn,
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra)
-// Effect: Ammong other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
+// Effect: Among other things, if release_multi_operation_client_lock is true, then unlock that lock (even if an error path is taken)
 {
     toku_txn_manager_note_abort_txn(txn->logger->txn_manager, txn);
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
-    int r = 0;
+    int r;
     txn->do_fsync = FALSE;
-    r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
-    if (r==0)  {
-        r = toku_rollback_abort(txn, oplsn);
-        STATUS_VALUE(TXN_ABORT)++;
+
+    if (txn->begin_was_logged) {
+        r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
+        if (r != 0) {
+            goto cleanup;
+        }
     }
+    else {
+        // Did no work.
+        invariant(txn->roll_info.num_rollentries == 0);
+        // Was not prepared.
+        invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
+    }
+    // If !txn->begin_was_logged, we could skip toku_rollback_abort
+    // but it's cheap (only a number of function calls that return immediately)
+    // since there were no writes.  Skipping it would mean we would need to be careful
+    // in case we added any additional required cleanup into those functions in the future.
+    r = toku_rollback_abort(txn, oplsn);
+    STATUS_VALUE(TXN_ABORT)++;
+cleanup:
     return r;
 }
 
@@ -326,24 +377,10 @@ int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist prepl
         );
 }
 
-struct txn_fsync_log_info {
-    TOKULOGGER logger;
-    LSN do_fsync_lsn;
-    int r;
-};
-
-static void do_txn_fsync_log(void *thunk) {
-    struct txn_fsync_log_info *info = (struct txn_fsync_log_info *) thunk;
-    info->r = toku_logger_fsync_if_lsn_not_fsynced(info->logger, info->do_fsync_lsn);
-}
-
 int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync) {
     int r = 0;
     if (logger && do_fsync) {
-        struct txn_fsync_log_info info = { .logger = logger, .do_fsync_lsn = do_fsync_lsn };
-        //TODO(yoni): inline do_txn_fsync_log here
-        do_txn_fsync_log(&info);
-        r = info.r;
+        r = toku_logger_fsync_if_lsn_not_fsynced(logger, do_fsync_lsn);
     }
     return r;
 }
@@ -444,6 +481,38 @@ BOOL toku_is_txn_in_live_root_txn_list(OMT live_root_txn_list, TXNID xid) {
 TOKUTXN_STATE
 toku_txn_get_state(TOKUTXN txn) {
     return txn->state;
+}
+
+static void
+maybe_log_begin_txn_for_write_operation_unlocked(TOKUTXN txn) {
+    // We now hold the lock.
+    if (txn->begin_was_logged) {
+        goto cleanup;
+    }
+    TOKUTXN parent = txn->parent;
+    TXNID xid = txn->txnid64;
+    TXNID pxid = 0;
+    if (parent) {
+        // Recursively log parent first if necessary.
+        // Transactions cannot do work if they have children,
+        // so the lowest level child's lock is sufficient for ancestors.
+        maybe_log_begin_txn_for_write_operation_unlocked(parent);
+        pxid = parent->txnid64;
+    }
+
+    int r = toku_log_xbegin(txn->logger, NULL, 0, xid, pxid);
+    lazy_assert_zero(r);
+
+    txn->begin_was_logged = true;
+cleanup:
+    return;
+}
+
+void
+toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn) {
+    toku_txn_lock(txn);
+    maybe_log_begin_txn_for_write_operation_unlocked(txn);
+    toku_txn_unlock(txn);
 }
 
 #include <valgrind/helgrind.h>
