@@ -753,10 +753,11 @@ fil_make_ibd_name(
 /*==============*/
 	const char*	name,		/*!< in: table name or a dir path of a
 					TEMPORARY table */
-	bool		is_temp);	/*!< in: true if it is a dir path */
+	bool		is_temp);	/*!< in: true if name is a full path */
 
 /********************************************************************//**
-Delete the tablespace file and any temporary files. */
+Delete the tablespace file and any related files like .cfg or .ibt.
+This should not be called for temporary tables. */
 UNIV_INTERN
 void
 fil_delete_file(

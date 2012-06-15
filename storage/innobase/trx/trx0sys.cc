@@ -999,7 +999,7 @@ trx_sys_read_file_format_id(
 	);
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -1018,7 +1018,7 @@ trx_sys_read_file_format_id(
 
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -1079,7 +1079,7 @@ trx_sys_read_pertable_file_format_id(
 	);
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -1098,7 +1098,7 @@ trx_sys_read_pertable_file_format_id(
 
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 

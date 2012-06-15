@@ -377,9 +377,9 @@ static
 ulint
 os_file_get_last_error_low(
 /*=======================*/
-	ibool	report_all_errors,	/*!< in: TRUE if we want an error
+	bool	report_all_errors,	/*!< in: TRUE if we want an error
 					message printed of all errors */
-	ibool	on_error_silent)	/*!< in: TRUE then don't print any
+	bool	on_error_silent)	/*!< in: TRUE then don't print any
 					diagnostic to the log */
 {
 #ifdef __WIN__
@@ -550,10 +550,10 @@ UNIV_INTERN
 ulint
 os_file_get_last_error(
 /*===================*/
-	ibool	report_all_errors)	/*!< in: TRUE if we want an error
+	bool	report_all_errors)	/*!< in: TRUE if we want an error
 					message printed of all errors */
 {
-	return(os_file_get_last_error_low(report_all_errors, FALSE));
+	return(os_file_get_last_error_low(report_all_errors, false));
 }
 
 /****************************************************************//**
@@ -575,7 +575,7 @@ os_file_handle_error_cond_exit(
 {
 	ulint	err;
 
-	err = os_file_get_last_error_low(FALSE, on_error_silent);
+	err = os_file_get_last_error_low(false, on_error_silent);
 
 	switch (err) {
 	case OS_FILE_DISK_FULL:
@@ -1662,14 +1662,14 @@ try_again:
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete_if_exists(
 /*=====================*/
 	const char*	name)	/*!< in: file path as a null-terminated
 				string */
 {
 #ifdef __WIN__
-	BOOL	ret;
+	bool	ret;
 	ulint	count	= 0;
 loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
@@ -1678,13 +1678,15 @@ loop:
 	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
-		return(TRUE);
+		return(true);
 	}
 
-	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+	DWORD lasterr = GetLastError();
+	if (lasterr == ERROR_FILE_NOT_FOUND
+	    || lasterr == ERROR_PATH_NOT_FOUND) {
 		/* the file does not exist, this not an error */
 
-		return(TRUE);
+		return(true);
 	}
 
 	count++;
@@ -1695,14 +1697,14 @@ loop:
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
 
-		os_file_get_last_error(TRUE); /* print error information */
+		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
 
 	if (count > 2000) {
 
-		return(FALSE);
+		return(false);
 	}
 
 	goto loop;
@@ -1714,10 +1716,10 @@ loop:
 	if (ret != 0 && errno != ENOENT) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
-		return(FALSE);
+		return(false);
 	}
 
-	return(TRUE);
+	return(true);
 #endif
 }
 
@@ -1725,7 +1727,7 @@ loop:
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete(
 /*===========*/
 	const char*	name)	/*!< in: file path as a null-terminated
@@ -1741,14 +1743,14 @@ loop:
 	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
-		return(TRUE);
+		return(true);
 	}
 
 	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		/* If the file does not exist, we classify this as a 'mild'
 		error and return */
 
-		return(FALSE);
+		return(false);
 	}
 
 	count++;
@@ -1759,14 +1761,14 @@ loop:
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
 
-		os_file_get_last_error(TRUE); /* print error information */
+		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
 
 	if (count > 2000) {
 
-		return(FALSE);
+		return(false);
 	}
 
 	goto loop;
@@ -1778,10 +1780,10 @@ loop:
 	if (ret != 0) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
-		return(FALSE);
+		return(false);
 	}
 
-	return(TRUE);
+	return(true);
 #endif
 }
 
