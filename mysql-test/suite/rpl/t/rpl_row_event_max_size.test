@@ -76,14 +76,12 @@ INSERT INTO t1 (data1, data2, data3) VALUES (repeat('a',1000000), repeat('a', 10
 SELECT LENGTH(data1), LENGTH(data2), LENGTH(data3) FROM t1 WHERE a = 1;
 
 drop table t1;
+sync_slave_with_master;
 
 connection slave;
 call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log: .*");
 call mtr.add_suppression("Found invalid event in binary log");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-
-# Show slave last IO errno
-drop table t1;
 
 --echo ==== clean up ====
 

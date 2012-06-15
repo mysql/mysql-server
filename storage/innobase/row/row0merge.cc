@@ -3257,12 +3257,15 @@ dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table)		/*!< in: table to drop */
+	dict_table_t*	table,		/*!< in: table to drop */
+	bool		nonatomic)	/*!< in: whether it is permitted
+					to release and reacquire
+					dict_operation_lock */
 {
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, FALSE));
+	return(row_drop_table_for_mysql(table->name, trx, false, nonatomic));
 }
 
 
