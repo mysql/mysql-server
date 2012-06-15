@@ -866,6 +866,9 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           _ma_remove_not_visible_states(history->state_history, 0, 0);
         history->state_history= 0;
         (void) my_hash_delete(&maria_stored_state, (uchar*) history);
+        DBUG_PRINT("info", ("Reading state history.  trid: %lu  records: %lld",
+                            (ulong) share->state_history->trid,
+                            share->state_history->state.records));
       }
       else
       {
@@ -988,6 +991,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   mysql_mutex_unlock(&THR_LOCK_maria);
 
   m_info->open_flags= open_flags;
+  DBUG_PRINT("exit", ("table: %p  name: %s",m_info, name));
   DBUG_RETURN(m_info);
 
 err:

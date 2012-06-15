@@ -38,14 +38,8 @@ int maria_delete_table(const char *name)
   /** @todo LOCK take X-lock on table */
   /*
     We need to know if this table is transactional.
-    When built with RAID support, we also need to determine if this table
-    makes use of the raid feature. If yes, we need to remove all raid
-    chunks. This is done with my_raid_delete(). Unfortunately it is
-    necessary to open the table just to check this. We use
-    'open_for_repair' to be able to open even a crashed table. If even
-    this open fails, we assume no raid configuration for this table
-    and try to remove the normal data file only. This may however
-    leave the raid chunks behind.
+    Unfortunately it is necessary to open the table just to check this. We use
+    'open_for_repair' to be able to open even a crashed table.
   */
   if (!(info= maria_open(name, O_RDONLY, HA_OPEN_FOR_REPAIR)))
   {
@@ -56,6 +50,8 @@ int maria_delete_table(const char *name)
     sync_dir= (info->s->now_transactional && !info->s->temporary &&
                !maria_in_recovery) ?
       MY_SYNC_DIR : 0;
+    /* Remove history for table */
+    _ma_reset_state(info);
     maria_close(info);
   }
 

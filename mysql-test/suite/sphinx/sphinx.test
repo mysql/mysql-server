@@ -26,4 +26,6 @@ explain select * from ts where q=';groupby=attr:gid';
 SET optimizer_switch=@save_optimizer_switch;
 drop table ts;
 
-show status like "sphinx_%";
+show status like "sphinx_error%";
+show status like "sphinx_total%";
+show status like "sphinx_word%";
