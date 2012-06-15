@@ -11605,8 +11605,19 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
       it.remove();
-      // Put in list of tables to remove from disk
-      delete_list.push_back(thd->strdup(file_name->str));
+      if (thd == injector_thd &&
+	  thd_ndb->options & TNTO_NO_REMOVE_STRAY_FILES)
+      {
+	/*
+	  Don't delete anything when called from
+	  the binlog thread. This is a kludge to avoid
+	  that something is deleted when "Ndb schema dist"
+	  uses find_files() to check for "local tables in db"
+	*/
+      }
+      else
+	// Put in list of tables to remove from disk
+	delete_list.push_back(thd->strdup(file_name->str));
     }
   }
 
