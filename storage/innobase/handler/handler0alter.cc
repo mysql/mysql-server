@@ -1421,7 +1421,8 @@ enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
 	const dict_table_t*	table,		/*!< in: table definition */
-	const Alter_inplace_info*ha_alter_info,	/*!< in: alter operation */
+	const TABLE*		altered_table,	/*!< in: MySQL table
+						that is being altered */
 	ulint*			fts_doc_col_no)	/*!< out: The column number for
 						Doc ID, or ULINT_UNDEFINED
 						if it is being created in
@@ -1430,12 +1431,12 @@ innobase_fts_check_doc_id_index(
 	const dict_index_t*	index;
 	const dict_field_t*	field;
 
-	if (ha_alter_info) {
+	if (altered_table) {
 		/* Check if a unique index with the name of
 		FTS_DOC_ID_INDEX_NAME is being created. */
-		for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
-			const KEY& key = ha_alter_info->key_info_buffer[
-				ha_alter_info->index_add_buffer[i]];
+
+		for (uint i = 0; i < altered_table->s->keys; i++) {
+			const KEY& key = altered_table->s->key_info[i];
 
 			if (innobase_strcasecmp(
 				    key.name, FTS_DOC_ID_INDEX_NAME)) {
@@ -1675,7 +1676,7 @@ created_clustered:
 				altered_table, key_info, i, TRUE, FALSE,
 				indexdef, heap);
 
-			if (rebuild && indexdef->ind_type & DICT_FTS) {
+			if (rebuild && (indexdef->ind_type & DICT_FTS)) {
 				n_fts_add++;
 			}
 
@@ -1706,7 +1707,7 @@ created_clustered:
 			ulint			doc_col_no;
 
 			ret = innobase_fts_check_doc_id_index(
-				NULL, ha_alter_info, &doc_col_no);
+				NULL, altered_table, &doc_col_no);
 
 			/* This should have been checked before */
 			ut_ad(ret != FTS_INCORRECT_DOC_ID_INDEX);
@@ -2344,7 +2345,7 @@ prepare_inplace_alter_table_dict(
 	ulong			autoinc_inc	= 0;
 
 	const bool locked =
-		add_fts_doc_id
+		innobase_fulltext_exist(altered_table->s)
 		|| (add_autoinc_col != ULINT_UNDEFINED)
 		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
@@ -2356,6 +2357,8 @@ prepare_inplace_alter_table_dict(
 	DBUG_ASSERT(!n_drop_foreign == !drop_foreign);
 	DBUG_ASSERT(num_fts_index <= 1);
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_id_idx);
+	DBUG_ASSERT(!add_fts_doc_id_idx
+		    || innobase_fulltext_exist(altered_table->s));
 
 #ifndef DBUG_OFF
 	switch (ha_alter_info->alter_info->requested_lock) {
@@ -3446,7 +3449,7 @@ err_exit:
 		}
 
 		switch (innobase_fts_check_doc_id_index(
-				prebuilt->table, ha_alter_info, &doc_col_no)) {
+				prebuilt->table, altered_table, &doc_col_no)) {
 		case FTS_NOT_EXIST_DOC_ID_INDEX:
 			add_fts_doc_id_idx = true;
 			break;

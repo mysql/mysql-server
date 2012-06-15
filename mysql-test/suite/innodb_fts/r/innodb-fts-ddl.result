@@ -81,6 +81,7 @@ ERROR 42000: This version of MySQL doesn't yet support 'CREATE FULLTEXT INDEX id
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE'
+ALTER TABLE fts_test ROW_FORMAT=REDUNDANT;
 SELECT * FROM fts_test WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 FTS_DOC_ID	title	body
