@@ -99,8 +99,11 @@ CREATE TRIGGER trg2 BEFORE UPDATE ON t2 FOR EACH ROW BEGIN
 End //
 delimiter ;//
 
+# drop the ndb table inside ndb
+system exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT ; 
+
 # Restart cluster nodes and clear all meta-data
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart -i" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
 # Wait for all nodes to enter "started"
 --exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
 
