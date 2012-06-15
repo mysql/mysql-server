@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -23,6 +23,8 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
@@ -1636,6 +1638,7 @@ row_upd_sec_index_entry(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
+		ut_ad(0);
 		break;
 	case ROW_FOUND:
 		/* Delete mark the old index record; it can already be
@@ -2021,28 +2024,64 @@ row_upd_clust_rec(
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),
 				    dict_table_is_comp(index->table)));
 
-	err = btr_cur_pessimistic_update(BTR_NO_LOCKING_FLAG, btr_cur,
-					 &heap, &big_rec, node->update,
-					 node->cmpl_info, thr, mtr);
-	mtr_commit(mtr);
+	err = btr_cur_pessimistic_update(
+		 BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
+		 &heap, &big_rec, node->update,
+		 node->cmpl_info, thr, mtr);
 
 	/* skip store extern for fake_changes */
 	if (err == DB_SUCCESS && big_rec && !(thr_get_trx(thr)->fake_changes)) {
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		rec_t*		rec;
+		ulint	offsets_[REC_OFFS_NORMAL_SIZE];
+		rec_t*	rec;
 		rec_offs_init(offsets_);
 
-		mtr_start(mtr);
+		ut_a(err == DB_SUCCESS);
+		/* Write out the externally stored
+		columns while still x-latching
+		index->lock and block->lock. Allocate
+		pages for big_rec in the mtr that
+		modified the B-tree, but be sure to skip
+		any pages that were freed in mtr. We will
+		write out the big_rec pages before
+		committing the B-tree mini-transaction. If
+		the system crashes so that crash recovery
+		will not replay the mtr_commit(&mtr), the
+		big_rec pages will be left orphaned until
+		the pages are allocated for something else.
 
-		ut_a(btr_pcur_restore_position(BTR_MODIFY_TREE, pcur, mtr));
+		TODO: If the allocation extends the tablespace, it
+		will not be redo logged, in either mini-transaction.
+		Tablespace extension should be redo-logged in the
+		big_rec mini-transaction, so that recovery will not
+		fail when the big_rec was written to the extended
+		portion of the file, in case the file was somehow
+		truncated in the crash. */
+
 		rec = btr_cur_get_rec(btr_cur);
+		DEBUG_SYNC_C("before_row_upd_extern");
 		err = btr_store_big_rec_extern_fields(
 			index, btr_cur_get_block(btr_cur), rec,
 			rec_get_offsets(rec, index, offsets_,
 					ULINT_UNDEFINED, &heap),
-			mtr, TRUE, big_rec);
-		mtr_commit(mtr);
+			big_rec, mtr, BTR_STORE_UPDATE);
+		DEBUG_SYNC_C("after_row_upd_extern");
+		/* If writing big_rec fails (for example, because of
+		DB_OUT_OF_FILE_SPACE), the record will be corrupted.
+		Even if we did not update any externally stored
+		columns, our update could cause the record to grow so
+		that a non-updated column was selected for external
+		storage. This non-update would not have been written
+		to the undo log, and thus the record cannot be rolled
+		back.
+
+		However, because we have not executed mtr_commit(mtr)
+		yet, the update will not be replayed in crash
+		recovery, and the following assertion failure will
+		effectively "roll back" the operation. */
+		ut_a(err == DB_SUCCESS);
 	}
+
+	mtr_commit(mtr);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);

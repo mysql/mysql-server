@@ -11,4 +11,5 @@
 ##############################################################################
 
 innodb_trx_rseg_n_slots_debug_basic: variable innodb_trx_rseg_n_slots_debug is removed in MariaDB
+innodb_flush_checkpoint_debug_basic: removed from XtraDB-26.0
 

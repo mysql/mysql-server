@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "dict0mem.h"
 #include "trx0sys.h"
+#include "btr0btr.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -1615,7 +1616,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 
 	if (!lock_check_trx_id_sanity(page_get_max_trx_id(page),
 				      rec, index, offsets, TRUE)) {
-		buf_page_print(page, 0);
+		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning
 		NULL */
@@ -1691,7 +1692,7 @@ lock_rec_create(
 	page_no	= buf_block_get_page_no(block);
 	page = block->frame;
 
-	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	btr_assert_not_corrupted(block, index);
 
 	/* If rec is the supremum record, then we reset the gap and
 	LOCK_REC_NOT_GAP bits, as all locks on the supremum are
@@ -1799,6 +1800,7 @@ lock_rec_enqueue_waiting(
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n",
 		      stderr);
+		ut_ad(0);
 	}
 
 	/* Enqueue the lock request that will wait to be granted */
@@ -3808,6 +3810,7 @@ lock_table_enqueue_waiting(
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n",
 		      stderr);
+		ut_ad(0);
 	}
 
 	/* Enqueue the lock request that will wait to be granted */
@@ -4985,6 +4988,79 @@ function_exit:
 }
 
 /*********************************************************************//**
+Validate record locks up to a limit.
+@return lock at limit or NULL if no more locks in the hash bucket */
+static __attribute__((nonnull, warn_unused_result))
+const lock_t*
+lock_rec_validate(
+/*==============*/
+	ulint		start,		/*!< in: lock_sys->rec_hash
+					bucket */
+	ib_uint64_t*	limit)		/*!< in/out: upper limit of
+					(space, page_no) */
+{
+	lock_t*		lock;
+	ut_ad(mutex_own(&kernel_mutex));
+
+	for (lock = HASH_GET_FIRST(lock_sys->rec_hash, start);
+	     lock != NULL;
+	     lock = HASH_GET_NEXT(hash, lock)) {
+
+		ib_uint64_t	current;
+
+		ut_a(trx_in_trx_list(lock->trx));
+		ut_a(lock_get_type(lock) == LOCK_REC);
+
+		current = ut_ull_create(
+			lock->un_member.rec_lock.space,
+			lock->un_member.rec_lock.page_no);
+
+		if (current > *limit) {
+			*limit = current + 1;
+			return(lock);
+		}
+	}
+
+	return(NULL);
+}
+
+/*********************************************************************//**
+Validate a record lock's block */
+static
+void
+lock_rec_block_validate(
+/*====================*/
+	ulint		space,
+	ulint		page_no)
+{
+	/* The lock and the block that it is referring to may be freed at
+	this point. We pass BUF_GET_POSSIBLY_FREED to skip a debug check.
+	If the lock exists in lock_rec_validate_page() we assert
+	!block->page.file_page_was_freed. */
+
+	mtr_t		mtr;
+	buf_block_t*	block;
+
+	/* Make sure that the tablespace is not deleted while we are
+	trying to access the page. */
+	if (!fil_inc_pending_ops(space)) {
+		mtr_start(&mtr);
+		block = buf_page_get_gen(
+			space, fil_space_get_zip_size(space),
+			page_no, RW_X_LATCH, NULL,
+			BUF_GET_POSSIBLY_FREED,
+			__FILE__, __LINE__, &mtr);
+
+		buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
+
+		ut_ad(lock_rec_validate_page(block));
+		mtr_commit(&mtr);
+
+		fil_decr_pending_ops(space);
+	}
+}
+
+/*********************************************************************//**
 Validates the lock system.
 @return	TRUE if ok */
 static
@@ -5016,60 +5092,21 @@ lock_validate(void)
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
+	/* Iterate over all the record locks and validate the locks. We
+	don't want to hog the lock_sys_t::mutex and the trx_sys_t::mutex.
+	Release both mutexes during the validation check. */
+
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
+		const lock_t*	lock;
+		ib_uint64_t	limit = 0;
 
-		ulint		space;
-		ulint		page_no;
-		ib_uint64_t	limit	= 0;
+		while ((lock = lock_rec_validate(i, &limit)) != NULL) {
 
-		for (;;) {
-			mtr_t		mtr;
-			buf_block_t*	block;
-
-			lock = HASH_GET_FIRST(lock_sys->rec_hash, i);
-
-			while (lock) {
-				ib_uint64_t	space_page;
-				ut_a(trx_in_trx_list(lock->trx));
-
-				space = lock->un_member.rec_lock.space;
-				page_no = lock->un_member.rec_lock.page_no;
-
-				space_page = ut_ull_create(space, page_no);
-
-				if (space_page >= limit) {
-					break;
-				}
-
-				lock = HASH_GET_NEXT(hash, lock);
-			}
-
-			if (!lock) {
-
-				break;
-			}
+			ulint	space = lock->un_member.rec_lock.space;
+			ulint	page_no = lock->un_member.rec_lock.page_no;
 
 			lock_mutex_exit_kernel();
-
-			/* The lock and the block that it is referring
-			to may be freed at this point. We pass
-			BUF_GET_POSSIBLY_FREED to skip a debug check.
-			If the lock exists in lock_rec_validate_page()
-			we assert !block->page.file_page_was_freed. */
-
-			mtr_start(&mtr);
-			block = buf_page_get_gen(
-				space, fil_space_get_zip_size(space),
-				page_no, RW_X_LATCH, NULL,
-				BUF_GET_POSSIBLY_FREED,
-				__FILE__, __LINE__, &mtr);
-			buf_block_dbg_add_level(block, SYNC_NO_ORDER_CHECK);
-
-			ut_ad(lock_rec_validate_page(block));
-			mtr_commit(&mtr);
-
-			limit++;
-
+			lock_rec_block_validate(space, page_no);
 			lock_mutex_enter_kernel();
 		}
 	}

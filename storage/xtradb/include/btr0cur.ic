@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -139,7 +139,7 @@ btr_cur_compress_recommendation(
 	btr_cur_t*	cursor,	/*!< in: btr cursor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	page_t*		page;
+	const page_t*	page;
 
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
@@ -196,5 +196,26 @@ btr_cur_can_delete_without_compress(
 	}
 
 	return(TRUE);
+}
+
+/*******************************************************************//**
+Determine if an operation on off-page columns is an update.
+@return TRUE if op != BTR_STORE_INSERT */
+UNIV_INLINE
+ibool
+btr_blob_op_is_update(
+/*==================*/
+	enum blob_op	op)	/*!< in: operation */
+{
+	switch (op) {
+	case BTR_STORE_INSERT:
+		return(FALSE);
+	case BTR_STORE_INSERT_UPDATE:
+	case BTR_STORE_UPDATE:
+		return(TRUE);
+	}
+
+	ut_ad(0);
+	return(FALSE);
 }
 #endif /* !UNIV_HOTBACKUP */
