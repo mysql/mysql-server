@@ -18,6 +18,9 @@
 DB* hot_db;
 toku_mutex_t fops_lock;
 toku_mutex_t hi_lock;
+u_int32_t gid_count;
+u_int8_t hi_gid[DB_GID_SIZE];
+
 
 static int
 hi_put_callback(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data) {
@@ -112,12 +115,16 @@ cleanup:
         toku_free(dest_vals[1].data);
     }
     increment_counter(stats_extra, PUTS, i);
+    gid_count++;
+    *(u_int32_t *)hi_gid = gid_count;
+    int rr = hi_txn->prepare(hi_txn, hi_gid);
+    CKERR(rr);
     if (r || (random() % 2)) {
-        int rr = hi_txn->abort(hi_txn);
+        rr = hi_txn->abort(hi_txn);
         CKERR(rr);
     }
     else {
-        int rr = hi_txn->commit(hi_txn, 0);
+        rr = hi_txn->commit(hi_txn, 0);
         CKERR(rr);
     }
     toku_mutex_unlock(&fops_lock);
@@ -252,6 +259,8 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
 
 int
 test_main(int argc, char *const argv[]) {
+    gid_count = 0;
+    memset(hi_gid, 0, sizeof(hi_gid));
     toku_mutex_init(&hi_lock, NULL);
     toku_mutex_init(&fops_lock, NULL);
     hot_db = NULL;
