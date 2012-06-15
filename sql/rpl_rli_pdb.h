@@ -53,9 +53,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *workers);
 int wait_for_workers_to_finish(Relay_log_info const *rli,
                                Slave_worker *ignore= NULL);
-bool critical_worker(Relay_log_info *rli);
 
-#define SLAVE_WORKER_QUEUE_SIZE 8096
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
 #define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
@@ -346,7 +344,6 @@ public:
 
   int init_worker(Relay_log_info*, ulong);
   int rli_init_info(bool);
-  void end_info();
   int flush_info(bool force= FALSE);
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
@@ -359,6 +356,7 @@ protected:
                          const char *msg, va_list v_args) const;
 
 private:
+  void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
   Slave_worker& operator=(const Slave_worker& info);
