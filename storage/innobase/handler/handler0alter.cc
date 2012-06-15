@@ -2364,7 +2364,7 @@ error_handled:
 	if (new_clustered) {
 		if (indexed_table != user_table) {
 			dict_table_close(indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, indexed_table);
+			row_merge_drop_table(trx, indexed_table, true);
 		}
 
 		trx_commit_for_mysql(trx);
@@ -3093,7 +3093,8 @@ rollback_inplace_alter_table(
 	if (prebuilt->table != ctx->indexed_table) {
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		switch (row_merge_drop_table(ctx->trx, ctx->indexed_table)) {
+		switch (row_merge_drop_table(ctx->trx, ctx->indexed_table,
+					     true)) {
 		case DB_SUCCESS:
 			break;
 		default:
@@ -3452,11 +3453,9 @@ ha_innobase::commit_inplace_alter_table(
 
 	/* Wait for background stats processing to stop using the
 	indexes that we are going to drop (if any). */
-	if (ctx != NULL && ctx->num_to_drop > 0) {
+	if (ctx) {
 		dict_stats_wait_bg_to_stop_using_tables(
-			prebuilt->table,
-			ctx->drop[0]->table,
-			trx);
+			prebuilt->table, ctx->indexed_table, trx);
 	}
 
 	if (new_clustered) {
@@ -3466,6 +3465,22 @@ ha_innobase::commit_inplace_alter_table(
 		/* We copied the table. Any indexes that were
 		requested to be dropped were not created in the copy
 		of the table. */
+
+		if (prebuilt->table->fts || ctx->indexed_table->fts) {
+			row_mysql_unlock_data_dictionary(trx);
+
+			if (prebuilt->table->fts) {
+				ut_ad(!prebuilt->table->fts->add_wq);
+				fts_optimize_remove_table(prebuilt->table);
+			}
+
+			if (ctx->indexed_table->fts) {
+				ut_ad(!ctx->indexed_table->fts->add_wq);
+				fts_optimize_remove_table(ctx->indexed_table);
+			}
+
+			row_mysql_lock_data_dictionary(trx);
+		}
 
 		/* A new clustered index was defined for the table
 		and there was no error at this point. We can
@@ -3488,7 +3503,7 @@ ha_innobase::commit_inplace_alter_table(
 			dict_table_t*	old_table = prebuilt->table;
 			trx_commit_for_mysql(prebuilt->trx);
 			row_prebuilt_free(prebuilt, TRUE);
-			error = row_merge_drop_table(trx, old_table);
+			error = row_merge_drop_table(trx, old_table, false);
 			prebuilt = row_create_prebuilt(
 				ctx->indexed_table, table->s->reclength);
 		}
@@ -3511,7 +3526,7 @@ ha_innobase::commit_inplace_alter_table(
 			err = -1;
 		drop_new_clustered:
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, ctx->indexed_table);
+			row_merge_drop_table(trx, ctx->indexed_table, false);
 			ctx->indexed_table = NULL;
 			goto trx_commit;
 		}
@@ -3883,5 +3898,10 @@ ret:
 	if (err == 0) {
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
 	}
+
+	if (prebuilt->table->fts) {
+		fts_optimize_add_table(prebuilt->table);
+	}
+
 	DBUG_RETURN(err != 0);
 }

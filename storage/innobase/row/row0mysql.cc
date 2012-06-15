@@ -3522,7 +3522,10 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
-	bool		drop_db)/*!< in: true=dropping whole database */
+	bool		drop_db,/*!< in: true=dropping whole database */
+	bool		nonatomic)
+				/*!< in: whether it is permitted
+				to release and reacquire dict_operation_lock */
 {
 	dberr_t		err;
 	dict_foreign_t*	foreign;
@@ -3532,8 +3535,7 @@ row_drop_table_for_mysql(
 	const char*	table_name;
 	bool		ibd_file_missing;
 	ulint		namelen;
-	ibool		locked_dictionary	= FALSE;
-	ibool		fts_bg_thread_exited	= FALSE;
+	bool		locked_dictionary	= false;
 	pars_info_t*	info			= NULL;
 	mem_heap_t*	heap			= NULL;
 
@@ -3603,10 +3605,10 @@ row_drop_table_for_mysql(
 
 		row_mysql_lock_data_dictionary(trx);
 
-		locked_dictionary = TRUE;
+		locked_dictionary = true;
+		nonatomic = true;
 	}
 
-retry:
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -3636,38 +3638,18 @@ retry:
 		goto funct_exit;
 	}
 
-	if (table->fts) {
-		fts_t*          fts = table->fts;
-
-		/* It is possible that background 'Add' thread fts_add_thread()
-		just gets called and the fts_optimize_thread()
-		is processing deleted records. There could be undetected
-		deadlock between threads synchronization and dict_sys_mutex
-		since fts_parse_sql() requires dict_sys->mutex. Ask the
-		background thread to exit before proceeds to drop table to
-		avoid undetected deadlocks */
-		row_mysql_unlock_data_dictionary(trx);
-
-		if (fts->add_wq && (!fts_bg_thread_exited)) {
-			/* Wait for any background threads accessing the table
-			to exit. */
-			mutex_enter(&fts->bg_threads_mutex);
-			fts->fts_status |= BG_THREAD_STOP;
-
-			dict_table_wait_for_bg_threads_to_exit(table, 250000);
-
-			mutex_exit(&fts->bg_threads_mutex);
-
-			row_mysql_lock_data_dictionary(trx);
-			fts_bg_thread_exited = TRUE;
-			goto retry;
-		} else {
+	if (nonatomic) {
+		/* This trx did not acquire any locks on dictionary
+		table records yet. Thus it is safe to release and
+		reacquire the data dictionary latches. */
+		if (table->fts) {
+			ut_ad(!table->fts->add_wq);
+			row_mysql_unlock_data_dictionary(trx);
 			fts_optimize_remove_table(table);
 			row_mysql_lock_data_dictionary(trx);
 		}
+		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
 	}
-
-	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
 
 	dict_stats_remove_table_from_auto_recalc(table);
 
