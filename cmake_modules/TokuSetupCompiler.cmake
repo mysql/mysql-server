@@ -57,17 +57,21 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -ggdb -O0")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG FORTIFY_SOURCE=2)
 
 ## set extra release flags, we overwrite this because the default passes -DNDEBUG and we don't want that
-set(CMAKE_C_FLAGS_RELEASE "-g -O3")
+if (CMAKE_C_COMPILER_ID STREQUAL Clang AND CMAKE_SYSTEM_NAME STREQUAL Darwin)
+  set(CMAKE_C_FLAGS_RELEASE "-g -O4")
+else ()
+  set(CMAKE_C_FLAGS_RELEASE "-g -O3")
 
-## check how to do inter-procedural optimization
-check_c_compiler_flag(-flto HAVE_CC_FLAG_FLTO)
-check_c_compiler_flag(-ipo HAVE_CC_FLAG_IPO)
+  ## check how to do inter-procedural optimization
+  check_c_compiler_flag(-flto HAVE_CC_FLAG_FLTO)
+  check_c_compiler_flag(-ipo HAVE_CC_FLAG_IPO)
 
-## add inter-procedural optimization flags
-if (HAVE_CC_FLAG_FLTO)
-  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
-elseif (HAVE_CC_FLAG_IPO)
-  set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ip -ipo1")
+  ## add inter-procedural optimization flags
+  if (HAVE_CC_FLAG_FLTO)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -flto")
+  elseif (HAVE_CC_FLAG_IPO)
+    set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ip -ipo1")
+  endif ()
 endif ()
 
 if (CMAKE_C_COMPILER_ID MATCHES Intel)

@@ -20,8 +20,8 @@ if(BUILD_TESTING)
   endmacro(declare_custom_tests)
 
   declare_custom_tests(logcursor-fw.c logcursor-bw.c)
-  add_test(logcursor-fw echo "logcursor-fw must be run manually (needs logs to iterate over).")
-  add_test(logcursor-bw echo "logcursor-bw must be run manually (needs logs to iterate over).")
+  add_test(ft/logcursor-fw echo "logcursor-fw must be run manually (needs logs to iterate over).")
+  add_test(ft/logcursor-bw echo "logcursor-bw must be run manually (needs logs to iterate over).")
 
   get_filename_component(toku_svn_root "${TokuDB_SOURCE_DIR}/../.." REALPATH)
 
@@ -41,91 +41,91 @@ if(BUILD_TESTING)
   ## declare some tests that should be run with specific options
 
   declare_custom_tests(test-assert.c)
-  add_test(test-assertA test-assert)
-  add_test(test-assertB test-assert notok)
-  set_tests_properties(test-assertA test-assertB PROPERTIES WILL_FAIL TRUE)
-  add_test(test-assertC test-assert ok)
+  add_test(ft/test-assertA test-assert)
+  add_test(ft/test-assertB test-assert notok)
+  set_tests_properties(ft/test-assertA ft/test-assertB PROPERTIES WILL_FAIL TRUE)
+  add_test(ft/test-assertC test-assert ok)
 
   declare_custom_tests(benchmark-test.c)
-  add_test(benchmark-test benchmark-test -q --fname dir.check_benchmark-test)
-  add_test(benchmark-test_256 benchmark-test --valsize 256 --verify 1 --fname dir.check_benchmark-test_256)
+  add_test(ft/benchmark-test benchmark-test -q --fname dir.check_benchmark-test)
+  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify 1 --fname dir.check_benchmark-test_256)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.check_benchmark-test dir.check_benchmark-test_256)
 
   declare_custom_tests(ftloader-test-merge-files-dbufio.c)
-  add_test(ftloader-test-merge-files-dbufio ftloader-test-merge-files-dbufio -r 8000 -s dir.check_ftloader-test-merge-files-dbufio)
+  add_test(ft/ftloader-test-merge-files-dbufio ftloader-test-merge-files-dbufio -r 8000 -s dir.check_ftloader-test-merge-files-dbufio)
 
   declare_custom_tests(ftloader-test.c)
-  add_test(ftloader-test ftloader-test dir.check_ftloader-test)
+  add_test(ft/ftloader-test ftloader-test dir.check_ftloader-test)
 
   declare_custom_tests(ftloader-test-bad-generate.c)
-  add_test(ftloader-test-bad-generate ftloader-test-bad-generate dir.check_ftloader-test-bad-generate)
+  add_test(ft/ftloader-test-bad-generate ftloader-test-bad-generate dir.check_ftloader-test-bad-generate)
 
   declare_custom_tests(ftloader-test-extractor.c)
-  add_test(ftloader-test-extractor-1 ftloader-test-extractor -s -r 1000 --rowsets 1000 --asc dir.check_ftloader-test-extractor-1)
-  add_test(ftloader-test-extractor-2 ftloader-test-extractor -s -r 1000 --rowsets 1000 --dsc dir.check_ftloader-test-extractor-2)
-  add_test(ftloader-test-extractor-3 ftloader-test-extractor -s -r 1000 --rowsets 1000 --random dir.check_ftloader-test-extractor-3)
-  add_test(ftloader-test-extractor-1a ftloader-test-extractor -s -r 1000 --rowsets 1000 --asc dir.check_ftloader-test-extractor-1a)
-  add_test(ftloader-test-extractor-2a ftloader-test-extractor -s -r 1000 --rowsets 1000 --dsc dir.check_ftloader-test-extractor-2a)
-  add_test(ftloader-test-extractor-3a ftloader-test-extractor -s -r 1000 --rowsets 1000 --random dir.check_ftloader-test-extractor-3a)
-  add_test(ftloader-test-extractor-4a ftloader-test-extractor -s -r 1000 --rowsets 3 --asc dir.check_ftloader-test-extractor-4a)
-  add_test(ftloader-test-extractor-5a ftloader-test-extractor -s -r 1000 --rowsets 3 --asc --asc-poison dir.check_ftloader-test-extractor-5a)
+  add_test(ft/ftloader-test-extractor-1 ftloader-test-extractor -s -r 1000 --rowsets 1000 --asc dir.check_ftloader-test-extractor-1)
+  add_test(ft/ftloader-test-extractor-2 ftloader-test-extractor -s -r 1000 --rowsets 1000 --dsc dir.check_ftloader-test-extractor-2)
+  add_test(ft/ftloader-test-extractor-3 ftloader-test-extractor -s -r 1000 --rowsets 1000 --random dir.check_ftloader-test-extractor-3)
+  add_test(ft/ftloader-test-extractor-1a ftloader-test-extractor -s -r 1000 --rowsets 1000 --asc dir.check_ftloader-test-extractor-1a)
+  add_test(ft/ftloader-test-extractor-2a ftloader-test-extractor -s -r 1000 --rowsets 1000 --dsc dir.check_ftloader-test-extractor-2a)
+  add_test(ft/ftloader-test-extractor-3a ftloader-test-extractor -s -r 1000 --rowsets 1000 --random dir.check_ftloader-test-extractor-3a)
+  add_test(ft/ftloader-test-extractor-4a ftloader-test-extractor -s -r 1000 --rowsets 3 --asc dir.check_ftloader-test-extractor-4a)
+  add_test(ft/ftloader-test-extractor-5a ftloader-test-extractor -s -r 1000 --rowsets 3 --asc --asc-poison dir.check_ftloader-test-extractor-5a)
 
   declare_custom_tests(ftloader-test-extractor-errors.c)
-  add_test(ftloader-test-extractor-errors-1 ftloader-test-extractor-errors -w -m -u -r 1 dir.check_ftloader-test-extractor-errors-1)
-  add_test(ftloader-test-extractor-errors-2 ftloader-test-extractor-errors -m -r 10000 dir.check_ftloader-test-extractor-errors-2)
+  add_test(ft/ftloader-test-extractor-errors-1 ftloader-test-extractor-errors -w -m -u -r 1 dir.check_ftloader-test-extractor-errors-1)
+  add_test(ft/ftloader-test-extractor-errors-2 ftloader-test-extractor-errors -m -r 10000 dir.check_ftloader-test-extractor-errors-2)
 
   declare_custom_tests(ftloader-test-open.c)
-  add_test(ftloader-test-open ftloader-test-open dir.check_ftloader-test-open)
+  add_test(ft/ftloader-test-open ftloader-test-open dir.check_ftloader-test-open)
 
   declare_custom_tests(ftloader-test-writer.c)
-  add_test(ftloader-test-writer-1 ftloader-test-writer -r 1 -s dir.check_ftloader-test-writer-1)
-  add_test(ftloader-test-writer-1000 ftloader-test-writer -r 1000 -s dir.check_ftloader-test-writer-1000)
-  add_test(ftloader-test-writer-100000 ftloader-test-writer -r 100000 -s dir.check_ftloader-test-writer-100000)
-  add_test(ftloader-test-writer-1000000 ftloader-test-writer -r 1000000 -s dir.check_ftloader-test-writer-1000000)
-  add_test(ftloader-test-writer-1-x ftloader-test-writer -r 1 -s -x 42 dir.check_ftloader-test-writer-1-x)
-  add_test(ftloader-test-writer-1000-x ftloader-test-writer -r 1000 -s -x 42 dir.check_ftloader-test-writer-1000-x)
-  add_test(ftloader-test-writer-100000-x ftloader-test-writer -r 100000 -s -x 42 dir.check_ftloader-test-writer-100000-x)
-  add_test(ftloader-test-writer-1000000-x ftloader-test-writer -r 1000000 -s -x 42 dir.check_ftloader-test-writer-1000000-x)
+  add_test(ft/ftloader-test-writer-1 ftloader-test-writer -r 1 -s dir.check_ftloader-test-writer-1)
+  add_test(ft/ftloader-test-writer-1000 ftloader-test-writer -r 1000 -s dir.check_ftloader-test-writer-1000)
+  add_test(ft/ftloader-test-writer-100000 ftloader-test-writer -r 100000 -s dir.check_ftloader-test-writer-100000)
+  add_test(ft/ftloader-test-writer-1000000 ftloader-test-writer -r 1000000 -s dir.check_ftloader-test-writer-1000000)
+  add_test(ft/ftloader-test-writer-1-x ftloader-test-writer -r 1 -s -x 42 dir.check_ftloader-test-writer-1-x)
+  add_test(ft/ftloader-test-writer-1000-x ftloader-test-writer -r 1000 -s -x 42 dir.check_ftloader-test-writer-1000-x)
+  add_test(ft/ftloader-test-writer-100000-x ftloader-test-writer -r 100000 -s -x 42 dir.check_ftloader-test-writer-100000-x)
+  add_test(ft/ftloader-test-writer-1000000-x ftloader-test-writer -r 1000000 -s -x 42 dir.check_ftloader-test-writer-1000000-x)
 
   declare_custom_tests(ftloader-test-writer-errors.c)
-  add_test(ftloader-test-writer-errors-1 ftloader-test-writer-errors -w -m -u -r 100000 dir.check_ftloader-test-writer-errors-1)
-  add_test(ftloader-test-writer-errors-2 ftloader-test-writer-errors -s -w -m -u -r 10000 dir.check_ftloader-test-writer-errors-2)
-  add_test(ftloader-test-writer-errors-3 ftloader-test-writer-errors -s -r 20000 --malloc_limit 0 --realloc_errors dir.check_ftloader-test-writer-errors-3)
-  add_test(ftloader-test-writer-errors-4 ftloader-test-writer-errors -s -m --malloc_limit 0 -r 10000 dir.check_ftloader-test-writer-errors-4)
+  add_test(ft/ftloader-test-writer-errors-1 ftloader-test-writer-errors -w -m -u -r 100000 dir.check_ftloader-test-writer-errors-1)
+  add_test(ft/ftloader-test-writer-errors-2 ftloader-test-writer-errors -s -w -m -u -r 10000 dir.check_ftloader-test-writer-errors-2)
+  add_test(ft/ftloader-test-writer-errors-3 ftloader-test-writer-errors -s -r 20000 --malloc_limit 0 --realloc_errors dir.check_ftloader-test-writer-errors-3)
+  add_test(ft/ftloader-test-writer-errors-4 ftloader-test-writer-errors -s -m --malloc_limit 0 -r 10000 dir.check_ftloader-test-writer-errors-4)
 
   declare_custom_tests(ft-serialize-benchmark.c)
-  add_test(ft-serialize-benchmark ft-serialize-benchmark 92 200000)
+  add_test(ft/ft-serialize-benchmark ft-serialize-benchmark 92 200000)
   declare_custom_tests(bnc-insert-benchmark.c)
-  add_test(bnc-insert-benchmark bnc-insert-benchmark 100 4096000 1000)
+  add_test(ft/bnc-insert-benchmark bnc-insert-benchmark 100 4096000 1000)
 
   foreach(src ${srcs})
     if(NOT "${src}" MATCHES "dir[.].*[.]c")
       ## add a default test rule that runs with no options
       get_filename_component(base ${src} NAME_WE)
-      add_test(${base} ${base})
+      add_test(ft/${base} ${base})
     endif()
   endforeach(src)
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
-    log-test7
-    subblock-test-compression
-    is_empty
-    recovery-bad-last-entry
-    ftloader-test-extractor-3a
-    upgrade_test_simple
+    ft/log-test7
+    ft/subblock-test-compression
+    ft/is_empty
+    ft/recovery-bad-last-entry
+    ft/ftloader-test-extractor-3a
+    ft/upgrade_test_simple
     )
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
-    subblock-test-checksum
+    ft/subblock-test-checksum
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
   ## these take a really long time with valgrind
   set(phenomenally_long_tests
-    benchmark-test
-    benchmark-test_256
+    ft/benchmark-test
+    ft/benchmark-test_256
     )
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
 endif(BUILD_TESTING)
