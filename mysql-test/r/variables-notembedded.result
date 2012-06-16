@@ -164,7 +164,7 @@ max_allowed_packet	2048
 SHOW SESSION VARIABLES LIKE 'net_buffer_length';
 Variable_name	Value
 net_buffer_length	4096
-ERROR 08S01: Got a packet bigger than 'max_allowed_packet' bytes
+Got one of the listed errors
 SELECT LENGTH(a) FROM t1;
 LENGTH(a)
 SET GLOBAL max_allowed_packet=default;
