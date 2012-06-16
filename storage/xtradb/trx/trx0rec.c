@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1016,6 +1016,7 @@ trx_undo_update_rec_get_update(
 			fprintf(stderr, "\n"
 				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
 				(ulong) n_fields, (ulong) i, ptr);
+			ut_ad(0);
 			*upd = NULL;
 			return(NULL);
 		}
@@ -1210,6 +1211,7 @@ trx_undo_report_row_operation(
 	trx_t*		trx;
 	trx_undo_t*	undo;
 	ulint		page_no;
+	buf_block_t*	undo_block;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 	ulint		err		= DB_SUCCESS;
@@ -1252,10 +1254,13 @@ trx_undo_report_row_operation(
 
 		if (UNIV_UNLIKELY(!undo)) {
 			/* Did not succeed */
+			ut_ad(err != DB_SUCCESS);
 			mutex_exit(&(trx->undo_mutex));
 
 			return(err);
 		}
+
+		ut_ad(err == DB_SUCCESS);
 	} else {
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 
@@ -1269,30 +1274,30 @@ trx_undo_report_row_operation(
 
 		if (UNIV_UNLIKELY(!undo)) {
 			/* Did not succeed */
+			ut_ad(err != DB_SUCCESS);
 			mutex_exit(&(trx->undo_mutex));
 			return(err);
 		}
 
+		ut_ad(err == DB_SUCCESS);
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 	}
 
-	page_no = undo->last_page_no;
-
 	mtr_start(&mtr);
 
+	page_no = undo->last_page_no;
+	undo_block = buf_page_get_gen(
+		undo->space, undo->zip_size, page_no, RW_X_LATCH,
+		undo->guess_block, BUF_GET, __FILE__, __LINE__, &mtr);
+	buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
+
 	do {
-		buf_block_t*	undo_block;
 		page_t*		undo_page;
 		ulint		offset;
 
-		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
-					      page_no, RW_X_LATCH,
-					      undo->guess_block, BUF_GET,
-					      __FILE__, __LINE__, &mtr);
-		buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
-
 		undo_page = buf_block_get_frame(undo_block);
+		ut_ad(page_no == buf_block_get_page_no(undo_block));
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
 			offset = trx_undo_page_report_insert(
@@ -1369,12 +1374,11 @@ trx_undo_report_row_operation(
 		a pessimistic insert in a B-tree, and we must reserve the
 		counterpart of the tree latch, which is the rseg mutex. */
 
-		mutex_enter(&(rseg->mutex));
-
-		page_no = trx_undo_add_page(trx, undo, &mtr);
-
-		mutex_exit(&(rseg->mutex));
-	} while (UNIV_LIKELY(page_no != FIL_NULL));
+		mutex_enter(&rseg->mutex);
+		undo_block = trx_undo_add_page(trx, undo, &mtr);
+		mutex_exit(&rseg->mutex);
+		page_no = undo->last_page_no;
+	} while (undo_block != NULL);
 
 	/* Did not succeed: out of space */
 	err = DB_OUT_OF_FILE_SPACE;
@@ -1526,6 +1530,7 @@ trx_undo_prev_version_build(
 		      "InnoDB: record version ", stderr);
 		rec_print_new(stderr, rec, offsets);
 		putc('\n', stderr);
+		ut_ad(0);
 		return(DB_ERROR);
 	}
 
@@ -1631,6 +1636,7 @@ trx_undo_prev_version_build(
 			(ullint) old_roll_ptr, (ullint) roll_ptr);
 
 		trx_purge_sys_print();
+		ut_ad(0);
 		return(DB_ERROR);
 	}
 

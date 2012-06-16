@@ -4,11 +4,6 @@
 
 --source include/have_innodb.inc
 
-if (`select plugin_auth_version <= "1.1.8-24.1" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB 1.1.8-24.1 or earlier
-}
-
 # DEBUG_SYNC must be compiled in.
 --source include/have_debug_sync.inc
 

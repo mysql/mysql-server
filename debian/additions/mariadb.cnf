@@ -3,7 +3,7 @@
 
 [client]
 # Default is Latin1, if you need UTF-8 set this (also in server section)
-#character-set-server  = utf8 
+#default-character-set = utf8 
 
 [mysqld]
 #

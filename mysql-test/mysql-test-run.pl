@@ -1518,7 +1518,7 @@ sub command_line_setup {
 
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
-           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:/,i) )
+           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:[/\\],i) )
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
@@ -2717,6 +2717,7 @@ sub setup_vardir() {
     # hm, what paths work for debs and for rpms ?
     for (<$bindir/lib64/mysql/plugin/*.so>,
          <$bindir/lib/mysql/plugin/*.so>,
+         <$bindir/lib/plugin/*.so>,             # bintar
          <$bindir/lib/plugin/*.dll>)
     {
       my $pname=basename($_);
@@ -3462,12 +3463,6 @@ sub mysql_install_db {
 
   mtr_add_arg($args, "--lc-messages-dir=%s", $install_lang);
   mtr_add_arg($args, "--character-sets-dir=%s", $install_chsdir);
-
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem) {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
 
   # InnoDB arguments that affect file location and sizes may
   # need to be given to the bootstrap process as well as the
@@ -4742,6 +4737,7 @@ sub extract_warning_lines ($$) {
      qr|Access denied for user|,
      qr|Aborted connection|,
      qr|table.*is full|,
+     qr|Linux Native AIO|, # warning that aio does not work on /dev/shm
     );
 
   my $matched_lines= [];
@@ -5245,13 +5241,6 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "--user=root");
   }
 
-  # On some old linux kernels, aio on tmpfs is not supported
-  # Remove this if/when Bug #58421 fixes this in the server
-  if ($^O eq "linux" && $opt_mem)
-  {
-    mtr_add_arg($args, "--loose-skip-innodb-use-native-aio");
-  }
-
   if (!using_extern() and !$opt_user_args)
   {
     # Turn on logging to file
@@ -5292,6 +5281,7 @@ sub mysqld_arguments ($$$) {
     }
     elsif ($plugin = mtr_match_prefix($arg,  "--plugin-load="))
     {
+      next if $plugin =~ /=$/;
       push @plugins, $plugin unless $seen{$plugin};
       $seen{$plugin} = 1;
     }

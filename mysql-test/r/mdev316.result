@@ -1,0 +1,7 @@
+set names swe7;
+select '' in ('',convert(0,time));
+'' in ('',convert(0,time))
+1
+select case '' when '' then 1 when convert(0,time) then 2 end;
+case '' when '' then 1 when convert(0,time) then 2 end
+1

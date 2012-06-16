@@ -854,6 +854,14 @@ public:
     }
   }
   String *val_str(String *);
+  longlong val_int()
+  { return args[0]->val_int(); }
+  double val_real()
+  { return args[0]->val_real(); }
+  my_decimal *val_decimal(my_decimal *d)
+  { return args[0]->val_decimal(d); }
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
+  { return args[0]->get_date(ltime, fuzzydate); }
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }
   virtual void print(String *str, enum_query_type query_type);

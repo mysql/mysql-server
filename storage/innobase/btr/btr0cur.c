@@ -3463,6 +3463,8 @@ btr_estimate_n_rows_in_range(
 				n_rows = n_rows * 2;
 			}
 
+			DBUG_EXECUTE_IF("bug14007649", return(n_rows););
+
 			/* Do not estimate the number of rows in the range
 			to over 1 / 2 of the estimated rows in the whole
 			table */

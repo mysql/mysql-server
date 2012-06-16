@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -53,6 +53,8 @@ Created 9/17/2000 Heikki Tuuri
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
 #include "ha_prototypes.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -669,17 +671,60 @@ UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
-	dict_table_t*	table)	/*!< in: Innobase table handle */
+	dict_table_t*	table,		/*!< in: Innobase table handle */
+	ulint		mysql_row_len)	/*!< in: length in bytes of a row in
+					the MySQL format */
 {
 	row_prebuilt_t*	prebuilt;
 	mem_heap_t*	heap;
 	dict_index_t*	clust_index;
 	dtuple_t*	ref;
 	ulint		ref_len;
+	ulint		search_tuple_n_fields;
 
-	heap = mem_heap_create(sizeof *prebuilt + 128);
+	search_tuple_n_fields = 2 * dict_table_get_n_cols(table);
 
-	prebuilt = mem_heap_zalloc(heap, sizeof *prebuilt);
+	clust_index = dict_table_get_first_index(table);
+
+	/* Make sure that search_tuple is long enough for clustered index */
+	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
+
+	ref_len = dict_index_get_n_unique(clust_index);
+
+#define PREBUILT_HEAP_INITIAL_SIZE	\
+	( \
+	sizeof(*prebuilt) \
+	/* allocd in this function */ \
+	+ DTUPLE_EST_ALLOC(search_tuple_n_fields) \
+	+ DTUPLE_EST_ALLOC(ref_len) \
+	/* allocd in row_prebuild_sel_graph() */ \
+	+ sizeof(sel_node_t) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	/* allocd in row_get_prebuilt_update_vector() */ \
+	+ sizeof(upd_node_t) \
+	+ sizeof(upd_t) \
+	+ sizeof(upd_field_t) \
+	  * dict_table_get_n_cols(table) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	/* allocd in row_get_prebuilt_insert_row() */ \
+	+ sizeof(ins_node_t) \
+	/* mysql_row_len could be huge and we are not \
+	sure if this prebuilt instance is going to be \
+	used in inserts */ \
+	+ (mysql_row_len < 256 ? mysql_row_len : 0) \
+	+ DTUPLE_EST_ALLOC(dict_table_get_n_cols(table)) \
+	+ sizeof(que_fork_t) \
+	+ sizeof(que_thr_t) \
+	)
+
+	/* We allocate enough space for the objects that are likely to
+	be created later in order to minimize the number of malloc()
+	calls */
+	heap = mem_heap_create(PREBUILT_HEAP_INITIAL_SIZE);
+
+	prebuilt = mem_heap_zalloc(heap, sizeof(*prebuilt));
 
 	prebuilt->magic_n = ROW_PREBUILT_ALLOCATED;
 	prebuilt->magic_n2 = ROW_PREBUILT_ALLOCATED;
@@ -689,23 +734,15 @@ row_create_prebuilt(
 	prebuilt->sql_stat_start = TRUE;
 	prebuilt->heap = heap;
 
-	prebuilt->pcur = btr_pcur_create_for_mysql();
-	prebuilt->clust_pcur = btr_pcur_create_for_mysql();
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	prebuilt->select_lock_type = LOCK_NONE;
 	prebuilt->stored_select_lock_type = 99999999;
 	UNIV_MEM_INVALID(&prebuilt->stored_select_lock_type,
 			 sizeof prebuilt->stored_select_lock_type);
 
-	prebuilt->search_tuple = dtuple_create(
-		heap, 2 * dict_table_get_n_cols(table));
-
-	clust_index = dict_table_get_first_index(table);
-
-	/* Make sure that search_tuple is long enough for clustered index */
-	ut_a(2 * dict_table_get_n_cols(table) >= clust_index->n_fields);
-
-	ref_len = dict_index_get_n_unique(clust_index);
+	prebuilt->search_tuple = dtuple_create(heap, search_tuple_n_fields);
 
 	ref = dtuple_create(heap, ref_len);
 
@@ -721,6 +758,8 @@ row_create_prebuilt(
 	prebuilt->autoinc_increment = 1;
 
 	prebuilt->autoinc_last_value = 0;
+
+	prebuilt->mysql_row_len = mysql_row_len;
 
 	return(prebuilt);
 }
@@ -757,8 +796,8 @@ row_prebuilt_free(
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
 
-	btr_pcur_free_for_mysql(prebuilt->pcur);
-	btr_pcur_free_for_mysql(prebuilt->clust_pcur);
+	btr_pcur_reset(&prebuilt->pcur);
+	btr_pcur_reset(&prebuilt->clust_pcur);
 
 	if (prebuilt->mysql_template) {
 		mem_free(prebuilt->mysql_template);
@@ -1419,6 +1458,8 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
+	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
+
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
@@ -1429,11 +1470,11 @@ row_update_for_mysql(
 
 	clust_index = dict_table_get_first_index(table);
 
-	if (prebuilt->pcur->btr_cur.index == clust_index) {
-		btr_pcur_copy_stored_position(node->pcur, prebuilt->pcur);
+	if (prebuilt->pcur.btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
 	} else {
 		btr_pcur_copy_stored_position(node->pcur,
-					      prebuilt->clust_pcur);
+					      &prebuilt->clust_pcur);
 	}
 
 	ut_a(node->pcur->rel_pos == BTR_PCUR_ON);
@@ -1538,8 +1579,8 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 {
-	btr_pcur_t*	pcur		= prebuilt->pcur;
-	btr_pcur_t*	clust_pcur	= prebuilt->clust_pcur;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	btr_pcur_t*	clust_pcur	= &prebuilt->clust_pcur;
 	trx_t*		trx		= prebuilt->trx;
 
 	ut_ad(prebuilt && trx);
@@ -1761,7 +1802,7 @@ row_mysql_freeze_data_dictionary_func(
 {
 	ut_a(trx->dict_operation_lock_mode == 0);
 
-	rw_lock_s_lock_func(&dict_operation_lock, 0, file, line);
+	rw_lock_s_lock_inline(&dict_operation_lock, 0, file, line);
 
 	trx->dict_operation_lock_mode = RW_S_LATCH;
 }
@@ -1798,7 +1839,7 @@ row_mysql_lock_data_dictionary_func(
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks or lock waits can occur then in these operations */
 
-	rw_lock_x_lock_func(&dict_operation_lock, 0, file, line);
+	rw_lock_x_lock_inline(&dict_operation_lock, 0, file, line);
 	trx->dict_operation_lock_mode = RW_X_LATCH;
 
 	mutex_enter(&(dict_sys->mutex));
@@ -1968,6 +2009,21 @@ err_exit:
 			trx_commit_for_mysql(trx);
 		}
 		break;
+
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* We already have .ibd file here. it should be deleted. */
+
+		if (table->space && !fil_delete_tablespace(table->space,
+							   FALSE)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Error: not able to"
+				" delete tablespace %lu of table ",
+				(ulong) table->space);
+			ut_print_name(stderr, trx, TRUE, table->name);
+			fputs("!\n", stderr);
+		}
+		/* fall through */
 
 	case DB_DUPLICATE_KEY:
 	default:
@@ -3146,6 +3202,7 @@ row_drop_table_for_mysql(
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
+	dict_index_t*	index;
 	ulint		space_id;
 	ulint		err;
 	const char*	table_name;
@@ -3353,6 +3410,18 @@ check_next_foreign:
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
 
+	/* Mark all indexes unavailable in the data dictionary cache
+	before starting to drop the table. */
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+		ut_ad(!index->to_be_dropped);
+		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
+	}
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -3493,7 +3562,7 @@ check_next_foreign:
 					"InnoDB: of table ");
 				ut_print_name(stderr, trx, TRUE, name);
 				fprintf(stderr, ".\n");
-			} else if (!fil_delete_tablespace(space_id)) {
+			} else if (!fil_delete_tablespace(space_id, FALSE)) {
 				fprintf(stderr,
 					"InnoDB: We removed now the InnoDB"
 					" internal data dictionary entry\n"
@@ -3520,6 +3589,17 @@ check_next_foreign:
 		the undo log. We can directly exit here
 		and return the DB_TOO_MANY_CONCURRENT_TRXS
 		error. */
+
+		/* Mark all indexes available in the data dictionary
+		cache again. */
+
+		for (index = dict_table_get_first_index(table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+		}
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
@@ -3614,7 +3694,7 @@ row_mysql_drop_temp_tables(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table(table_name, TRUE, DICT_ERR_IGNORE_NONE);
+		table = dict_table_get_low(table_name);
 
 		if (table) {
 			row_drop_table_for_mysql(table_name, trx, FALSE);
@@ -3876,6 +3956,7 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
+	int		retry;
 
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
@@ -3956,6 +4037,25 @@ row_rename_table_for_mysql(
 
 			goto funct_exit;
 		}
+	}
+
+	/* Is a foreign key check running on this table? */
+	for (retry = 0; retry < 100
+	     && table->n_foreign_key_checks_running > 0; ++retry) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_yield();
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
+		ut_print_name(stderr, trx, TRUE, old_name);
+		fprintf(stderr, "\n"
+			"InnoDB: a FOREIGN KEY check is running.\n"
+			"InnoDB: Cannot rename table.\n");
+		err = DB_TABLE_IN_FK_CHECK;
+		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query

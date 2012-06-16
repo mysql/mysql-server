@@ -3032,6 +3032,11 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
+
+    Item *date_arg= 0;
+    if (found_types & (1 << TIME_RESULT))
+      date_arg= find_date_time_item(args, arg_count, 0);
+
     if (found_types & (1 << STRING_RESULT))
     {
       /*
@@ -3071,15 +3076,11 @@ void Item_func_case::fix_length_and_dec()
         change_item_tree_if_needed(thd, &args[nagg * 2], agg[nagg + 1]);
     }
 
-    Item *date_arg= 0;
     for (i= 0; i <= (uint)TIME_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
-
-        if ((Item_result)i == TIME_RESULT)
-          date_arg= find_date_time_item(args, arg_count, 0);
 
         if (!(cmp_items[i]=
             cmp_item::get_comparator((Item_result)i, date_arg,
@@ -4051,15 +4052,15 @@ void Item_func_in::fix_length_and_dec()
   }
   else
   {
+    if (found_types & (1 << TIME_RESULT))
+      date_arg= find_date_time_item(args, arg_count, 0);
+    if (found_types & (1 << STRING_RESULT) &&
+        agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
+      return;
     for (i= 0; i <= (uint) TIME_RESULT; i++)
     {
       if (found_types & (1 << i) && !cmp_items[i])
       {
-        if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
-          return;
-        if ((Item_result)i == TIME_RESULT)
-          date_arg= find_date_time_item(args, arg_count, 0);
         if (!cmp_items[i] && !(cmp_items[i]=
             cmp_item::get_comparator((Item_result)i, date_arg,
                                      cmp_collation.collation)))

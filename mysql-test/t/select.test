@@ -4461,3 +4461,4 @@ SELECT * FROM t1, t2 WHERE a=3 AND a=b;
 drop table t1,t2;
 
 --echo End of 5.3 tests
+

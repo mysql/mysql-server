@@ -1,3 +1,5 @@
+percona_sync_flush: removed from XtraDB-26.0
+
 percona_suppress_log_warning_1592:    Feature not merged into MariaDB
 percona_log_slow_slave_statements:    Feature not merged into MariaDB
 percona_log_slow_slave_statements-and-use_global_long_query_time:    Feature not merged into MariaDB

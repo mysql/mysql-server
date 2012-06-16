@@ -54,7 +54,10 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_BUGFIX	8
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 24.1
+/* this is *not* the version of XtraDB as in Percona-Server sources,
+   but the version of Percona-Server, where this XtraDB was taken from.
+   Because Percona does not update XtraDB version for every release */
+#define PERCONA_INNODB_VERSION 26.0
 #endif
 
 /* The following is the InnoDB version as shown in
@@ -159,14 +162,6 @@ resolved */
 /*			DEBUG VERSION CONTROL
 			===================== */
 
-/* The following flag will make InnoDB to initialize
-all memory it allocates to zero. It hides Purify
-warnings about reading unallocated memory unless
-memory is read outside the allocated blocks. */
-/*
-#define UNIV_INIT_MEM_TO_ZERO
-*/
-
 /* When this macro is defined then additional test functions will be
 compiled. These functions live at the end of each relevant source file
 and have "test_" prefix. These functions are not called from anywhere in
@@ -235,15 +230,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
-
-#ifdef HAVE_valgrind
-/* The following sets all new allocated memory to zero before use:
-this can be used to eliminate unnecessary Purify warnings, but note that
-it also masks many bugs Purify could detect. For detailed Purify analysis it
-is best to remove the define below and look through the warnings one
-by one. */
-#define UNIV_SET_MEM_TO_ZERO
-#endif
 
 /*
 #define UNIV_SQL_DEBUG
@@ -329,11 +315,17 @@ management to ensure correct alignment for doubles etc. */
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
 
-/* The maximum length of a table name. This is the MySQL limit and is
-defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
-number does not include a terminating '\0'. InnoDB probably can handle
-longer names internally */
-#define MAX_TABLE_NAME_LEN	192
+/** This is the "mbmaxlen" for my_charset_filename (defined in
+strings/ctype-utf8.c), which is used to encode File and Database names. */
+#define FILENAME_CHARSET_MAXNAMLEN	5
+
+/** The maximum length of an encode table name in bytes.  The max
+table and database names are NAME_CHAR_LEN (64) characters. After the
+encoding, the max length would be NAME_CHAR_LEN (64) *
+FILENAME_CHARSET_MAXNAMLEN (5) = 320 bytes. The number does not include a
+terminating '\0'. InnoDB can handle longer names internally */
+#define MAX_TABLE_NAME_LEN	320
+
 
 /* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
 the MySQL's NAME_LEN, see check_and_convert_db_name(). */

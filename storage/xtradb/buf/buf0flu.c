@@ -767,7 +767,8 @@ buf_flush_buffered_writes(void)
 			if (UNIV_UNLIKELY
 			    (!page_simple_validate_new(block->frame))) {
 corrupted_page:
-				buf_page_print(block->frame, 0);
+				buf_page_print(block->frame, 0,
+					       BUF_PAGE_PRINT_NO_CRASH);
 
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
@@ -2035,22 +2036,6 @@ buf_flush_list(
 		ulint		page_count = 0;
 
 		buf_pool = buf_pool_from_array(i);
-
-		if (lsn_limit != IB_ULONGLONG_MAX) {
-			buf_page_t*	bpage;
-
-			buf_flush_list_mutex_enter(buf_pool);
-			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-			if (!bpage
-			    || bpage->oldest_modification >= lsn_limit) {
-
-				buf_flush_list_mutex_exit(buf_pool);
-				continue;
-			} else {
-
-				buf_flush_list_mutex_exit(buf_pool);
-			}
-		}
 
 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
 			/* We have two choices here. If lsn_limit was

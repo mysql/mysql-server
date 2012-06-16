@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -878,6 +878,8 @@ ha_innobase::add_index(
 					prebuilt->table, indexed_table,
 					index, num_of_idx, table);
 
+	DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
+
 error_handling:
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
@@ -1020,7 +1022,12 @@ ha_innobase::final_add_index(
 			row_prebuilt_free(prebuilt, TRUE);
 			error = row_merge_drop_table(trx, old_table);
 			add->indexed_table->n_mysql_handles_opened++;
-			prebuilt = row_create_prebuilt(add->indexed_table);
+			prebuilt = row_create_prebuilt(add->indexed_table,
+				0 /* XXX Do we know the mysql_row_len here?
+				Before the addition of this parameter to
+				row_create_prebuilt() the mysql_row_len
+				member was left 0 (from zalloc) in the
+				prebuilt object. */);
 		}
 
 		err = convert_error_code_to_mysql(
@@ -1154,7 +1161,9 @@ ha_innobase::prepare_drop_index(
 			goto func_exit;
 		}
 
+		rw_lock_x_lock(dict_index_get_lock(index));
 		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 
 	/* If FOREIGN_KEY_CHECKS = 1 you may not drop an index defined
@@ -1273,7 +1282,9 @@ func_exit:
 			= dict_table_get_first_index(prebuilt->table);
 
 		do {
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 			index = dict_table_get_next_index(index);
 		} while (index);
 	}
@@ -1339,7 +1350,9 @@ ha_innobase::final_drop_index(
 		for (index = dict_table_get_first_index(prebuilt->table);
 		     index; index = dict_table_get_next_index(index)) {
 
+			rw_lock_x_lock(dict_index_get_lock(index));
 			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
 		}
 
 		goto func_exit;
