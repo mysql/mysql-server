@@ -22,21 +22,9 @@ create table t1 (f1 integer primary key) engine innodb;
 alter table t1 add constraint c1 foreign key (f1) references t1(f1);
 --source include/restart_mysqld.inc
 perl;
-
-$file = "$ENV{'error_log'}";
-open ( FILE, $file) || die "can't open file! ($file)\n";
-@lines = <FILE>;
-close (FILE);
-$count = 0; 
-foreach $line (reverse @lines) {
-    if ($line =~ "^InnoDB:") { 
-       ++$count; 
-       print "$line"; 
-       if ($count == 2) {
-          last;
-       }
-    }
-}
+$file = $ENV{error_log};
+open (FILE, '<', $file) or die "can't open(< $file): $!\n";
+print ((grep { /^InnoDB:/ and not /aio/i } <FILE>)[-2..-1]);
 EOF
 
 drop table t1;
