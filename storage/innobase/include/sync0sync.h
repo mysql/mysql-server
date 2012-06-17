@@ -226,7 +226,7 @@ UNIV_INTERN
 void
 mutex_create_func(
 /*==============*/
-	mutex_t*	mutex,		/*!< in: pointer to memory */
+	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
 	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
@@ -245,7 +245,7 @@ UNIV_INTERN
 void
 mutex_free_func(
 /*============*/
-	mutex_t*	mutex);	/*!< in: mutex */
+	ib_mutex_t*	mutex);	/*!< in: mutex */
 /**************************************************************//**
 NOTE! The following macro should be used in mutex locking, not the
 corresponding function. */
@@ -262,7 +262,7 @@ UNIV_INLINE
 void
 mutex_enter_func(
 /*=============*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line);		/*!< in: line where locked */
 /********************************************************************//**
@@ -274,7 +274,7 @@ UNIV_INTERN
 ulint
 mutex_enter_nowait_func(
 /*====================*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line);		/*!< in: line where requested */
@@ -285,7 +285,7 @@ UNIV_INLINE
 void
 mutex_exit_func(
 /*============*/
-	mutex_t*	mutex);	/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex);	/*!< in: pointer to mutex */
 
 
 #ifdef UNIV_PFS_MUTEX
@@ -300,7 +300,7 @@ void
 pfs_mutex_create_func(
 /*==================*/
 	PSI_mutex_key	key,		/*!< in: Performance Schema key */
-	mutex_t*	mutex,		/*!< in: pointer to memory */
+	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
 	const char*	cmutex_name,	/*!< in: mutex name */
 #  ifdef UNIV_SYNC_DEBUG
@@ -318,7 +318,7 @@ UNIV_INLINE
 void
 pfs_mutex_enter_func(
 /*=================*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
 	ulint		line);		/*!< in: line where locked */
 /********************************************************************//**
@@ -331,7 +331,7 @@ UNIV_INLINE
 ulint
 pfs_mutex_enter_nowait_func(
 /*========================*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line);		/*!< in: line where requested */
@@ -344,7 +344,7 @@ UNIV_INLINE
 void
 pfs_mutex_exit_func(
 /*================*/
-	mutex_t*	mutex);	/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex);	/*!< in: pointer to mutex */
 
 /******************************************************************//**
 NOTE! Please use the corresponding macro mutex_free(), not directly
@@ -355,7 +355,7 @@ UNIV_INLINE
 void
 pfs_mutex_free_func(
 /*================*/
-	mutex_t*	mutex);	/*!< in: mutex */
+	ib_mutex_t*	mutex);	/*!< in: mutex */
 
 #endif /* UNIV_PFS_MUTEX */
 
@@ -393,7 +393,7 @@ UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-	const mutex_t*	mutex);	/*!< in: mutex */
+	const ib_mutex_t*	mutex);	/*!< in: mutex */
 /******************************************************************//**
 Checks that the current thread owns the mutex. Works only
 in the debug version.
@@ -402,7 +402,7 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const mutex_t*	mutex)	/*!< in: mutex */
+	const ib_mutex_t*	mutex)	/*!< in: mutex */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
@@ -473,7 +473,7 @@ UNIV_INTERN
 void
 mutex_get_debug_info(
 /*=================*/
-	mutex_t*	mutex,		/*!< in: mutex */
+	ib_mutex_t*	mutex,		/*!< in: mutex */
 	const char**	file_name,	/*!< out: file where requested */
 	ulint*		line,		/*!< out: line where requested */
 	os_thread_id_t* thread_id);	/*!< out: id of the thread which owns
@@ -493,7 +493,7 @@ UNIV_INLINE
 lock_word_t
 mutex_get_lock_word(
 /*================*/
-	const mutex_t*	mutex);	/*!< in: mutex */
+	const ib_mutex_t*	mutex);	/*!< in: mutex */
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 NOT to be used outside this module except in debugging! Gets the waiters
@@ -503,7 +503,7 @@ UNIV_INLINE
 ulint
 mutex_get_waiters(
 /*==============*/
-	const mutex_t*	mutex);	/*!< in: mutex */
+	const ib_mutex_t*	mutex);	/*!< in: mutex */
 #endif /* UNIV_SYNC_DEBUG */
 
 /*
@@ -739,7 +739,7 @@ Do not use its fields directly! The structure used in the spin lock
 implementation of a mutual exclusion semaphore. */
 
 /** InnoDB mutex */
-struct mutex_struct {
+struct ib_mutex_t {
 	os_event_t	event;	/*!< Used by sync0arr.cc for the wait queue */
 	volatile lock_word_t	lock_word;	/*!< lock_word is the target
 				of the atomic test-and-set instruction when
@@ -754,7 +754,7 @@ struct mutex_struct {
 				may be) threads waiting in the global wait
 				array for this mutex to be released.
 				Otherwise, this is 0. */
-	UT_LIST_NODE_T(mutex_t)	list; /*!< All allocated mutexes are put into
+	UT_LIST_NODE_T(ib_mutex_t)	list; /*!< All allocated mutexes are put into
 				a list.	Pointers to the next and prev. */
 #ifdef UNIV_SYNC_DEBUG
 	const char*	file_name;	/*!< File where the mutex was locked */
@@ -773,7 +773,7 @@ struct mutex_struct {
 				which locked the mutex. */
 	ulint		magic_n;	/*!< MUTEX_MAGIC_N */
 	const char*	cmutex_name;	/*!< mutex name */
-	ulint		mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
+	ulint		ib_mutex_type;	/*!< 0=usual mutex, 1=rw_lock mutex */
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_PFS_MUTEX
 	struct PSI_mutex* pfs_psi;	/*!< The performance schema
@@ -799,12 +799,12 @@ extern ibool	sync_order_checks_on;
 extern ibool	sync_initialized;
 
 /** Global list of database mutexes (not OS mutexes) created. */
-typedef UT_LIST_BASE_NODE_T(mutex_t)  ut_list_base_node_t;
+typedef UT_LIST_BASE_NODE_T(ib_mutex_t)  ut_list_base_node_t;
 /** Global list of database mutexes (not OS mutexes) created. */
 extern ut_list_base_node_t  mutex_list;
 
 /** Mutex protecting the mutex_list variable */
-extern mutex_t mutex_list_mutex;
+extern ib_mutex_t mutex_list_mutex;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 /**********************************************************//**
@@ -813,7 +813,7 @@ UNIV_INLINE
 void
 os_atomic_dec_ulint_func(
 /*=====================*/
-	mutex_t*		mutex,		/*!< in: mutex guarding the
+	ib_mutex_t*		mutex,		/*!< in: mutex guarding the
 						decrement */
 	volatile ulint*		var,		/*!< in/out: variable to
 						decrement */
@@ -824,7 +824,7 @@ UNIV_INLINE
 void
 os_atomic_inc_ulint_func(
 /*=====================*/
-	mutex_t*		mutex,		/*!< in: mutex guarding the
+	ib_mutex_t*		mutex,		/*!< in: mutex guarding the
 						increment */
 	volatile ulint*		var,		/*!< in/out: variable to
 						increment */

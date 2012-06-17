@@ -77,7 +77,7 @@ UNIV_INTERN ulint	os_innodb_umask		= 0;
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
-UNIV_INTERN os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
+UNIV_INTERN os_ib_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /* In simulated aio, merge at most this many consecutive i/os */
 #define OS_AIO_MERGE_N_CONSECUTIVE	64
@@ -190,7 +190,7 @@ typedef struct os_aio_array_struct	os_aio_array_t;
 
 /** The asynchronous i/o array structure */
 struct os_aio_array_struct{
-	os_mutex_t	mutex;	/*!< the mutex protecting the aio array */
+	os_ib_mutex_t	mutex;	/*!< the mutex protecting the aio array */
 	os_event_t	not_full;
 				/*!< The event which is set to the
 				signaled state when there is space in
@@ -283,7 +283,7 @@ UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 #if !defined(UNIV_HOTBACKUP)	\
     && (!defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8)
 /** The mutex protecting the following counts of pending I/O operations */
-static os_mutex_t	os_file_count_mutex;
+static os_ib_mutex_t	os_file_count_mutex;
 #endif /* !UNIV_HOTBACKUP && (!HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8) */
 
 /** Number of pending os_file_pread() operations */

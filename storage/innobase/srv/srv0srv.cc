@@ -370,10 +370,10 @@ UNIV_INTERN const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 UNIV_INTERN time_t	srv_last_monitor_time;
 
-UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
+UNIV_INTERN ib_mutex_t	srv_innodb_monitor_mutex;
 
 /* Mutex for locking srv_monitor_file */
-UNIV_INTERN mutex_t	srv_monitor_file_mutex;
+UNIV_INTERN ib_mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 # ifndef HAVE_ATOMIC_BUILTINS
@@ -399,13 +399,13 @@ UNIV_INTERN FILE*	srv_monitor_file;
 /** Mutex for locking srv_dict_tmpfile.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
-UNIV_INTERN mutex_t	srv_dict_tmpfile_mutex;
+UNIV_INTERN ib_mutex_t	srv_dict_tmpfile_mutex;
 /** Temporary file for output from the data dictionary */
 UNIV_INTERN FILE*	srv_dict_tmpfile;
 /** Mutex for locking srv_misc_tmpfile.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
-UNIV_INTERN mutex_t	srv_misc_tmpfile_mutex;
+UNIV_INTERN ib_mutex_t	srv_misc_tmpfile_mutex;
 /** Temporary file for miscellanous diagnostic output */
 UNIV_INTERN FILE*	srv_misc_tmpfile;
 
@@ -539,12 +539,12 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /** The server system struct */
 struct srv_sys_struct{
-	mutex_t		tasks_mutex;		/*!< variable protecting the
+	ib_mutex_t		tasks_mutex;		/*!< variable protecting the
 						tasks queue */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;			/*!< task queue */
 
-	mutex_t		mutex;			/*!< variable protecting the
+	ib_mutex_t		mutex;			/*!< variable protecting the
 
 						fields below. */
 	ulint		n_sys_threads;		/*!< size of the sys_threads
@@ -563,7 +563,7 @@ struct srv_sys_struct{
 
 #ifndef HAVE_ATOMIC_BUILTINS
 /** Mutex protecting some server global variables. */
-UNIV_INTERN mutex_t	server_mutex;
+UNIV_INTERN ib_mutex_t	server_mutex;
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 static srv_sys_t*	srv_sys	= NULL;

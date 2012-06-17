@@ -942,7 +942,7 @@ buf_flush_page(
 	buf_page_t*	bpage,		/*!< in: buffer control block */
 	buf_flush	flush_type)	/*!< in: type of flush */
 {
-	mutex_t*	block_mutex;
+	ib_mutex_t*	block_mutex;
 	ibool		is_uncompressed;
 
 	ut_ad(flush_type < BUF_FLUSH_N_TYPES);
@@ -1112,7 +1112,7 @@ buf_flush_check_neighbor(
 
 	ret = false;
 	if (flush_type != BUF_FLUSH_LRU || buf_page_is_old(bpage)) {
-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(block_mutex);
 		if (buf_flush_ready_for_flush(bpage, flush_type)) {
@@ -1240,7 +1240,7 @@ buf_flush_try_neighbors(
 		if (flush_type != BUF_FLUSH_LRU
 		    || i == offset
 		    || buf_page_is_old(bpage)) {
-			mutex_t* block_mutex = buf_page_get_mutex(bpage);
+			ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
 
 			mutex_enter(block_mutex);
 
@@ -1299,7 +1299,7 @@ buf_flush_page_and_try_neighbors(
 	ulint*		count)		/*!< in/out: number of pages
 					flushed */
 {
-	mutex_t*	block_mutex;
+	ib_mutex_t*	block_mutex;
 	ibool		flushed = FALSE;
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
@@ -1433,7 +1433,7 @@ buf_flush_LRU_list_batch(
 	       && free_len < srv_LRU_scan_depth
 	       && lru_len > BUF_LRU_MIN_LEN) {
 
-		mutex_t* block_mutex = buf_page_get_mutex(bpage);
+		ib_mutex_t* block_mutex = buf_page_get_mutex(bpage);
 		ibool	 evict;
 
 		mutex_enter(block_mutex);
@@ -1948,7 +1948,7 @@ buf_flush_single_page_from_LRU(
 {
 	ulint		scanned;
 	buf_page_t*	bpage;
-	mutex_t*	block_mutex;
+	ib_mutex_t*	block_mutex;
 	ibool		freed;
 	ibool		evict_zip;
 

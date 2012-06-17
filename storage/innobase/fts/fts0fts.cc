@@ -4952,7 +4952,7 @@ fts_cache_append_deleted_doc_ids(
 {
 	ulint			i;
 
-	mutex_enter((mutex_t*) &cache->deleted_lock);
+	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 
 	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		fts_update_t*	update;
@@ -4963,7 +4963,7 @@ fts_cache_append_deleted_doc_ids(
 		ib_vector_push(vector, &update->doc_id);
 	}
 
-	mutex_exit((mutex_t*) &cache->deleted_lock);
+	mutex_exit((ib_mutex_t*) &cache->deleted_lock);
 }
 
 /*********************************************************************//**

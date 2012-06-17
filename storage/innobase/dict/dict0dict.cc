@@ -234,7 +234,7 @@ dict_non_lru_find_table(
 and unique key errors */
 UNIV_INTERN FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
-UNIV_INTERN mutex_t	dict_foreign_err_mutex;
+UNIV_INTERN ib_mutex_t	dict_foreign_err_mutex;
 
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */

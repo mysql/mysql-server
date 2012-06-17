@@ -52,7 +52,7 @@ struct os_mutex_struct{
 };
 
 /** Mutex protecting counts and the lists of OS mutexes and events */
-UNIV_INTERN os_mutex_t	os_sync_mutex;
+UNIV_INTERN os_ib_mutex_t	os_sync_mutex;
 /** TRUE if os_sync_mutex has been initialized */
 static ibool		os_sync_mutex_inited	= FALSE;
 /** TRUE when os_sync_free() is being executed */
@@ -329,7 +329,7 @@ os_sync_free(void)
 /*==============*/
 {
 	os_event_t	event;
-	os_mutex_t	mutex;
+	os_ib_mutex_t	mutex;
 
 	os_sync_free_called = TRUE;
 	event = UT_LIST_GET_FIRST(os_event_list);
@@ -739,22 +739,22 @@ os_event_wait_time_low(
 
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
-mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
+mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
 @return	the mutex handle */
 UNIV_INTERN
-os_mutex_t
+os_ib_mutex_t
 os_mutex_create(void)
 /*=================*/
 {
 	os_fast_mutex_t*	mutex;
-	os_mutex_t		mutex_str;
+	os_ib_mutex_t		mutex_str;
 
 	mutex = static_cast<os_fast_mutex_t*>(
 		ut_malloc(sizeof(os_fast_mutex_t)));
 
 	os_fast_mutex_init(os_mutex_key, mutex);
 
-	mutex_str = static_cast<os_mutex_t>(
+	mutex_str = static_cast<os_ib_mutex_t>(
 		ut_malloc(sizeof(os_mutex_str_t)));
 
 	mutex_str->handle = mutex;
@@ -783,7 +783,7 @@ UNIV_INTERN
 void
 os_mutex_enter(
 /*===========*/
-	os_mutex_t	mutex)	/*!< in: mutex to acquire */
+	os_ib_mutex_t	mutex)	/*!< in: mutex to acquire */
 {
 	os_fast_mutex_lock(static_cast<os_fast_mutex_t*>(mutex->handle));
 
@@ -798,7 +798,7 @@ UNIV_INTERN
 void
 os_mutex_exit(
 /*==========*/
-	os_mutex_t	mutex)	/*!< in: mutex to release */
+	os_ib_mutex_t	mutex)	/*!< in: mutex to release */
 {
 	ut_a(mutex);
 
@@ -814,7 +814,7 @@ UNIV_INTERN
 void
 os_mutex_free(
 /*==========*/
-	os_mutex_t	mutex)	/*!< in: mutex to free */
+	os_ib_mutex_t	mutex)	/*!< in: mutex to free */
 {
 	ut_a(mutex);
 

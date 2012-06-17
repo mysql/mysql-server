@@ -1537,7 +1537,7 @@ constraint */
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;
-extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
+extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
 /** the dictionary system */
 extern dict_sys_t*	dict_sys;
@@ -1546,7 +1546,7 @@ extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_struct{
-	mutex_t		mutex;		/*!< mutex protecting the data
+	ib_mutex_t		mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE

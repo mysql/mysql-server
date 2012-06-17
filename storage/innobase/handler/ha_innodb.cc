@@ -3184,7 +3184,7 @@ innobase_change_buffering_inited_ok:
 
 	/* Since we in this module access directly the fields of a trx
 	struct, and due to different headers and flags it might happen that
-	mutex_t has a different size in this module and in InnoDB
+	ib_mutex_t has a different size in this module and in InnoDB
 	modules, we check at run time that the size is the same in
 	these compilation modules. */
 
@@ -12222,11 +12222,11 @@ innodb_mutex_show_status(
 {
 	char		buf1[IO_SIZE];
 	char		buf2[IO_SIZE];
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
 	ulint		block_mutex_oswait_count = 0;
 	ulint		block_lock_oswait_count = 0;
-	mutex_t*	block_mutex = NULL;
+	ib_mutex_t*	block_mutex = NULL;
 	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
 	ulint		rw_lock_count= 0;

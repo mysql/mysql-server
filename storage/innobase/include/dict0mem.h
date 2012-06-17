@@ -556,7 +556,7 @@ struct dict_index_struct{
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
-	mutex_t		blobs_mutex;
+	ib_mutex_t		blobs_mutex;
 				/*!< mutex protecting blobs */
 	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
 				to first_blob_page_no; protected by
@@ -851,7 +851,7 @@ struct dict_table_struct{
 				space from the lock heap of the trx:
 				otherwise the lock heap would grow rapidly
 				if we do a large insert from a select */
-	mutex_t		autoinc_mutex;
+	ib_mutex_t		autoinc_mutex;
 				/*!< mutex protecting the autoincrement
 				counter */
 	ib_uint64_t	autoinc;/*!< autoinc counter value to give to the
