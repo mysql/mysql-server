@@ -289,6 +289,7 @@ static void test_merge_files (const char *template, const char *output_name) {
     };
     int r = ft_loader_init_file_infos(&bl.file_infos); CKERR(r);
     ft_loader_lock_init(&bl);
+    ft_loader_init_error_callback(&bl.error_callback);
     ft_loader_set_fractal_workers_count_from_c(&bl);
 
     struct merge_fileset fs;
@@ -335,6 +336,7 @@ static void test_merge_files (const char *template, const char *output_name) {
 
     destroy_merge_fileset(&fs);
     ft_loader_fi_destroy(&bl.file_infos, FALSE);
+    ft_loader_destroy_error_callback(&bl.error_callback);
     ft_loader_lock_destroy(&bl);
 
     // verify the dbfile
