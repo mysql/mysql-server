@@ -65,7 +65,7 @@ directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_struct {
 	int		fd;	/*!< file descriptor */
-	mutex_t		mutex;	/*!< mutex protecting max_trx and tail */
+	ib_mutex_t		mutex;	/*!< mutex protecting max_trx and tail */
 	trx_id_t	max_trx;/*!< biggest observed trx_id in
 				row_log_online_op();
 				protected by mutex and index->lock S-latch,

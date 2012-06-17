@@ -42,7 +42,7 @@ of SQL execution in the UNIV_SQL_DEBUG version */
 extern ibool	que_trace_on;
 
 /** Mutex protecting the query threads. */
-extern mutex_t	que_thr_mutex;
+extern ib_mutex_t	que_thr_mutex;
 
 /***********************************************************************//**
 Creates a query graph fork node.
