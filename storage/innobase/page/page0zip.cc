@@ -24,6 +24,10 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
+using namespace std;
+
+#include <map>
+
 #define THIS_MODULE
 #include "page0zip.h"
 #ifdef UNIV_NONINL
@@ -56,6 +60,9 @@ Created June 2005 by Marko Makela
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
 UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+/** Statistics on compression, indexed by index->id */
+/* XXX protect this guy with a mutex */
+UNIV_INTERN map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index;
 #endif /* !UNIV_HOTBACKUP */
 
 /* Compression level to be used by zlib. Settable by user. */
@@ -1274,6 +1281,7 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
+	page_zip_stat_per_index[index->id].compressed++;
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1417,8 +1425,11 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
+		ullint	time_diff = ut_time_us(NULL) - usec;
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
-			+= ut_time_us(NULL) - usec;
+			+= time_diff;
+		page_zip_stat_per_index[index->id].compressed_usec
+			+= time_diff;
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
@@ -1478,12 +1489,11 @@ err_exit:
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		zip_stat->compressed_ok++;
-		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
-	}
+	ullint	time_diff = ut_time_us(NULL) - usec;
+	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
+	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+	page_zip_stat_per_index[index->id].compressed_ok++;
+	page_zip_stat_per_index[index->id].compressed_usec += time_diff;
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -3082,16 +3092,19 @@ err_exit:
 	ut_a(page_is_comp(page));
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
+#ifndef UNIV_HOTBACKUP
+	ullint	time_diff = ut_time_us(NULL) - usec;
+	page_zip_stat[page_zip->ssize - 1].decompressed++;
+	page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
+
+	index_id_t	index_id = btr_page_get_index_id(page);
+
+	page_zip_stat_per_index[index_id].decompressed++;
+	page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+#endif /* !UNIV_HOTBACKUP */
+
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
-#ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		zip_stat->decompressed++;
-		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
-	}
-#endif /* !UNIV_HOTBACKUP */
 
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
