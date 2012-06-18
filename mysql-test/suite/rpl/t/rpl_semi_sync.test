@@ -181,7 +181,7 @@ enable_query_log;
 
 # Wait for acks from slave to avoid test failures on slow platforms.
 let $status_var= Rpl_semi_sync_master_yes_tx;
-let $status_var_value= 51;
+let $status_var_value= 52;
 source include/wait_for_status_var.inc;
 
 echo [ master status after inserts ];
