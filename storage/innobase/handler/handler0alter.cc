@@ -2031,7 +2031,7 @@ innobase_check_foreigns_low(
 
 		for (unsigned f = 0; f < foreign->n_fields; f++) {
 			if (!strcmp(foreign->foreign_col_names[f],
-				   col_name)) {
+				    col_name)) {
 				my_error(drop
 					 ? ER_FK_COLUMN_CANNOT_DROP
 					 : ER_FK_COLUMN_NOT_NULL, MYF(0),
