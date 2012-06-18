@@ -141,10 +141,11 @@ page_zip_decompress(
 	page_zip_des_t*	page_zip,/*!< in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page,	/*!< out: uncompressed page, may be trashed */
-	ibool		all)	/*!< in: TRUE=decompress the whole page;
+	ibool		all,	/*!< in: TRUE=decompress the whole page;
 				FALSE=verify but do not copy some
 				page header fields that should not change
 				after page creation */
+	ulint space_id)
 	__attribute__((nonnull(1,2)));
 
 #ifdef UNIV_DEBUG

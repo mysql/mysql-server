@@ -91,6 +91,8 @@ struct page_zip_stat_struct {
 	ulint		decompressed;
 	/** Duration of page compressions in microseconds */
 	ib_uint64_t	compressed_usec;
+	/** Duration of successful page compressions in microseconds */
+	ib_uint64_t	compressed_ok_usec;
 	/** Duration of page decompressions in microseconds */
 	ib_uint64_t	decompressed_usec;
 };

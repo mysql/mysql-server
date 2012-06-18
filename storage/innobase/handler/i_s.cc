@@ -1365,6 +1365,15 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"compress_ok_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Successful Compressions,"
+		    " in Seconds"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"uncompress_ops"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -1427,8 +1436,10 @@ i_s_cmp_fill_low(
 		table->field[2]->store(zip_stat->compressed_ok);
 		table->field[3]->store(
 			(ulong) (zip_stat->compressed_usec / 1000000));
-		table->field[4]->store(zip_stat->decompressed);
-		table->field[5]->store(
+		table->field[4]->store(
+			(ulong) (zip_stat->compressed_ok_usec / 1000000));
+		table->field[5]->store(zip_stat->decompressed);
+		table->field[6]->store(
 			(ulong) (zip_stat->decompressed_usec / 1000000));
 
 		if (reset) {
