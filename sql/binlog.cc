@@ -5842,6 +5842,20 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 }
 
 
+/**
+   Flush caches for session.
+
+   @note @c set_trans_pos is called with a pointer to the file name
+   that the binary log currently use and a rotation will change the
+   contents of the variable.
+
+   The position is used when calling the after_flush, after_commit,
+   and after_rollback hooks, but these have been placed so that they
+   occur before a rotation is executed.
+
+   It is the responsibility of any plugin that use this position to
+   copy it if they need it after the hook has returned.
+ */
 std::pair<int,my_off_t>
 MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
 {
@@ -5851,6 +5865,10 @@ MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
   int error= cache_mngr->flush(thd, &bytes, &wrote_xid);
   if (!error && bytes > 0)
   {
+    /*
+      Note that set_trans_pos does not copy the file name. See
+      this function documentation for more info.
+    */
     thd->set_trans_pos(log_file_name, my_b_tell(&log_file));
     if (wrote_xid)
     {

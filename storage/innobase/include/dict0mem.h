@@ -94,12 +94,9 @@ and SYS_TABLES.TYPE.  Similar flags found in fil_space_t and FSP_SPACE_FLAGS
 are described in fsp0fsp.h. */
 
 /* @{ */
-/** SYS_TABLES.TYPE can be equal to 1 which means that the Row format
-is one of two Antelope row formats, Redundant or Compact. */
-#define SYS_TABLE_TYPE_ANTELOPE		1
-/** dict_table_t::flags can be equal to 0 if the row format = Redundant */
+/** dict_table_t::flags bit 0 is equal to 0 if the row format = Redundant */
 #define DICT_TF_REDUNDANT		0	/*!< Redundant row format. */
-/** dict_table_t::flags can be equal to 1 if the row format = Compact */
+/** dict_table_t::flags bit 0 is equal to 1 if the row format = Compact */
 #define DICT_TF_COMPACT			1	/*!< Compact row format. */
 
 /** This bitmask is used in SYS_TABLES.N_COLS to set and test whether
@@ -116,10 +113,17 @@ Brracuda row formats store the whole blob or text field off-page atomically.
 Secondary indexes are created from this external data using row_ext_t
 to cache the BLOB prefixes. */
 #define DICT_TF_WIDTH_ATOMIC_BLOBS	1
+/** If a table is created with the MYSQL option DATA DIRECTORY and
+innodb-file-per-table, an older engine will not be able to find that table.
+This flag prevents older engines from attempting to open the table and
+allows InnoDB to update_create_info() accordingly. */
+#define DICT_TF_WIDTH_DATA_DIR		1
+
 /** Width of all the currently known table flags */
 #define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT		\
 			+ DICT_TF_WIDTH_ZIP_SSIZE	\
-			+ DICT_TF_WIDTH_ATOMIC_BLOBS)
+			+ DICT_TF_WIDTH_ATOMIC_BLOBS	\
+			+ DICT_TF_WIDTH_DATA_DIR)
 
 /** A mask of all the known/used bits in table flags */
 #define DICT_TF_BIT_MASK	(~(~0 << DICT_TF_BITS))
@@ -132,9 +136,12 @@ to cache the BLOB prefixes. */
 /** Zero relative shift position of the ATOMIC_BLOBS field */
 #define DICT_TF_POS_ATOMIC_BLOBS	(DICT_TF_POS_ZIP_SSIZE		\
 					+ DICT_TF_WIDTH_ZIP_SSIZE)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define DICT_TF_POS_UNUSED		(DICT_TF_POS_ATOMIC_BLOBS	\
+/** Zero relative shift position of the DATA_DIR field */
+#define DICT_TF_POS_DATA_DIR		(DICT_TF_POS_ATOMIC_BLOBS	\
 					+ DICT_TF_WIDTH_ATOMIC_BLOBS)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define DICT_TF_POS_UNUSED		(DICT_TF_POS_DATA_DIR		\
+					+ DICT_TF_WIDTH_DATA_DIR)
 
 /** Bit mask of the COMPACT field */
 #define DICT_TF_MASK_COMPACT				\
@@ -148,6 +155,10 @@ to cache the BLOB prefixes. */
 #define DICT_TF_MASK_ATOMIC_BLOBS			\
 		((~(~0 << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
 		<< DICT_TF_POS_ATOMIC_BLOBS)
+/** Bit mask of the DATA_DIR field */
+#define DICT_TF_MASK_DATA_DIR				\
+		((~(~0 << DICT_TF_WIDTH_DATA_DIR))	\
+		<< DICT_TF_POS_DATA_DIR)
 
 /** Return the value of the COMPACT field */
 #define DICT_TF_GET_COMPACT(flags)			\
@@ -161,6 +172,10 @@ to cache the BLOB prefixes. */
 #define DICT_TF_HAS_ATOMIC_BLOBS(flags)			\
 		((flags & DICT_TF_MASK_ATOMIC_BLOBS)	\
 		>> DICT_TF_POS_ATOMIC_BLOBS)
+/** Return the value of the ATOMIC_BLOBS field */
+#define DICT_TF_HAS_DATA_DIR(flags)			\
+		((flags & DICT_TF_MASK_DATA_DIR)	\
+		>> DICT_TF_POS_DATA_DIR)
 /** Return the contents of the UNUSED bits */
 #define DICT_TF_GET_UNUSED(flags)			\
 		(flags >> DICT_TF_POS_UNUSED)
@@ -541,7 +556,7 @@ struct dict_index_struct{
 				when InnoDB was started up */
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
-	mutex_t		blobs_mutex;
+	ib_mutex_t		blobs_mutex;
 				/*!< mutex protecting blobs */
 	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
 				to first_blob_page_no; protected by
@@ -637,6 +652,8 @@ struct dict_table_struct{
 				innodb_file_per_table is defined in my.cnf;
 				in Unix this is usually /tmp/..., in Windows
 				temp\... */
+	char*		data_dir_path; /*!< NULL or the directory path
+				specified by DATA DIRECTORY */
 	unsigned	space:32;
 				/*!< space where the clustered index of the
 				table is placed */
@@ -834,7 +851,7 @@ struct dict_table_struct{
 				space from the lock heap of the trx:
 				otherwise the lock heap would grow rapidly
 				if we do a large insert from a select */
-	mutex_t		autoinc_mutex;
+	ib_mutex_t		autoinc_mutex;
 				/*!< mutex protecting the autoincrement
 				counter */
 	ib_uint64_t	autoinc;/*!< autoinc counter value to give to the

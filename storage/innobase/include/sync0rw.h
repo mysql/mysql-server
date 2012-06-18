@@ -103,14 +103,14 @@ typedef struct rw_lock_debug_struct	rw_lock_debug_t;
 typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
 
 extern rw_lock_list_t	rw_lock_list;
-extern mutex_t		rw_lock_list_mutex;
+extern ib_mutex_t		rw_lock_list_mutex;
 
 #ifdef UNIV_SYNC_DEBUG
 /* The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
 
 acquired in addition to the mutex protecting the lock. */
-extern mutex_t		rw_lock_debug_mutex;
+extern ib_mutex_t		rw_lock_debug_mutex;
 extern os_event_t	rw_lock_debug_event;	/*!< If deadlock detection does
 					not get immediately the mutex it
 					may wait for this event */
@@ -593,7 +593,7 @@ struct rw_lock_struct {
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_t	mutex;		/*!< The mutex protecting rw_lock_struct */
+	ib_mutex_t	mutex;		/*!< The mutex protecting rw_lock_struct */
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	UT_LIST_NODE_T(rw_lock_t) list;

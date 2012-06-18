@@ -602,7 +602,7 @@ identifier is added to this 64-bit constant. */
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 
-	mutex_t		mutex;		/*!< mutex protecting most fields in
+	ib_mutex_t		mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently

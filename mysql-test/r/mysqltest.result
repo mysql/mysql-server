@@ -186,6 +186,14 @@ xyz
  is empty
  is empty
 "Yes it's empty"
+ER_FORBID_SCHEMA_CHANGE
+1105
+mysqltest: At line 1: Invalid error in input
+<Unknown>
+<Unknown>
+
+0
+0
 hello
 hello
 ;;;;;;;;

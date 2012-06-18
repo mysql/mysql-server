@@ -93,6 +93,12 @@ Slave_worker::Slave_worker(Relay_log_info *rli
 
 Slave_worker::~Slave_worker() 
 {
+  end_info();
+  if (jobs.inited_queue)
+  {
+    DBUG_ASSERT(jobs.Q.elements == jobs.size);
+    delete_dynamic(&jobs.Q);
+  }
   delete_dynamic(&curr_group_exec_parts);
   mysql_mutex_destroy(&jobs_lock);
   mysql_cond_destroy(&jobs_cond);
@@ -1578,12 +1584,16 @@ Slave_job_item * de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
    @param job_item  a pointer to struct carrying a reference to an event
    @param worker    a pointer to the assigned Worker struct
    @param rli       a pointer to Relay_log_info of Coordinator
+
+   @return false Success.
+           true  Thread killed or worker stopped while waiting for
+                 successful enqueue.
 */
-void append_item_to_jobs(slave_job_item *job_item,
+bool append_item_to_jobs(slave_job_item *job_item,
                          Slave_worker *worker, Relay_log_info *rli)
 {
   THD *thd= rli->info_thd;
-  int ret;
+  int ret= -1;
   ulong ev_size= ((Log_event*) (job_item->data))->data_written;
   ulonglong new_pend_size;
   PSI_stage_info old_stage;
@@ -1603,7 +1613,7 @@ void append_item_to_jobs(slave_job_item *job_item,
     mysql_cond_wait(&rli->pending_jobs_cond, &rli->pending_jobs_lock);
     thd->EXIT_COND(&old_stage);
     if (thd->killed)
-      return;
+      return true;
 
     mysql_mutex_lock(&rli->pending_jobs_lock);
 
@@ -1626,8 +1636,6 @@ void append_item_to_jobs(slave_job_item *job_item,
     my_sleep(nap_weight * rli->mts_coordinator_basic_nap);
     rli->mts_wq_no_underrun_cnt++;
   }
-
-  ret= -1;
 
   mysql_mutex_lock(&worker->jobs_lock);
 
@@ -1662,6 +1670,8 @@ void append_item_to_jobs(slave_job_item *job_item,
     rli->mts_pending_jobs_size -= ev_size;
     mysql_mutex_unlock(&rli->pending_jobs_lock);
   }
+
+  return (-1 != ret ? false : true);
 }
 
 

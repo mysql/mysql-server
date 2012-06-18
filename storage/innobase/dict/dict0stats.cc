@@ -134,13 +134,6 @@ descending to lower levels and fetch N_SAMPLE_PAGES(index) records
 from that level */
 #define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
 
-/** Open handles on the stats tables. Currently this is used to increase the
-reference count of the stats tables. */
-typedef struct dict_stats_struct {
-	dict_table_t*	table_stats;	/*!< Handle to open TABLE_STATS_NAME */
-	dict_table_t*	index_stats;	/*!< Handle to open INDEX_STATS_NAME */
-} dict_stats_t;
-
 /*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
@@ -176,7 +169,9 @@ dict_stats_persistent_storage_check(
 	dict_table_schema_t	table_stats_schema = {
 		TABLE_STATS_NAME,
 		UT_ARR_SIZE(table_stats_columns),
-		table_stats_columns
+		table_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
 	};
 
 	/* definition for the table INDEX_STATS_NAME */
@@ -208,7 +203,9 @@ dict_stats_persistent_storage_check(
 	dict_table_schema_t	index_stats_schema = {
 		INDEX_STATS_NAME,
 		UT_ARR_SIZE(index_stats_columns),
-		index_stats_columns
+		index_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
 	};
 
 	char		errstr[512];
@@ -298,6 +295,7 @@ members initialized:
 dict_table_t::id
 dict_table_t::heap
 dict_table_t::name
+dict_table_t::corrupted
 dict_table_t::indexes<>
 dict_table_t::stat_initialized
 dict_table_t::stat_persistent
@@ -313,6 +311,8 @@ dict_index_t::name
 dict_index_t::table_name
 dict_index_t::table (points to the above semi-initialized object)
 dict_index_t::type
+dict_index_t::to_be_dropped
+dict_index_t::online_status
 dict_index_t::n_uniq
 dict_index_t::fields[] (only first n_uniq and only fields[i].name)
 dict_index_t::indexes<>
@@ -351,9 +351,14 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		ulint	n_uniq = dict_index_get_n_unique(index);
 
@@ -390,15 +395,22 @@ dict_stats_snapshot_create(
 	t->name = (char*) mem_heap_dup(
 		heap, table->name, strlen(table->name) + 1);
 
+	t->corrupted = table->corrupted;
+
 	UT_LIST_INIT(t->indexes);
 
 	for (index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		dict_index_t*	idx;
 
@@ -415,10 +427,12 @@ dict_stats_snapshot_create(
 
 		idx->table = t;
 
-		//UNIV_MEM_ASSERT_RW(&index->type, sizeof(index->type));
 		idx->type = index->type;
 
-		//UNIV_MEM_ASSERT_RW(&index->n_uniq, sizeof(index->n_uniq));
+		idx->to_be_dropped = index->to_be_dropped;
+
+		idx->online_status = index->online_status;
+
 		idx->n_uniq = index->n_uniq;
 
 		idx->fields = (dict_field_t*) mem_heap_alloc(
@@ -509,6 +523,34 @@ dict_stats_snapshot_free(
 /* @} */
 
 /*********************************************************************//**
+Write all zeros (or 1 where it makes sense) into an index
+statistics members. The resulting stats correspond to an empty index.
+The caller must own index's table stats latch in X mode
+(dict_table_stats_lock(table, RW_X_LATCH))
+dict_stats_empty_index() @{ */
+static
+void
+dict_stats_empty_index(
+/*===================*/
+	dict_index_t*	index)	/*!< in/out: index */
+{
+	ut_ad(!(index->type & DICT_FTS));
+	ut_ad(!dict_index_is_univ(index));
+
+	ulint	n_uniq = dict_index_get_n_unique(index);
+
+	for (ulint i = 1; i <= n_uniq; i++) {
+		index->stat_n_diff_key_vals[i] = 0;
+		index->stat_n_sample_sizes[i] = 1;
+		index->stat_n_non_null_key_vals[i - 1] = 0;
+	}
+
+	index->stat_index_size = 1;
+	index->stat_n_leaf_pages = 1;
+}
+/* @} */
+
+/*********************************************************************//**
 Write all zeros (or 1 where it makes sense) into a table and its indexes'
 statistics members. The resulting stats correspond to an empty table.
 dict_stats_empty_table() @{ */
@@ -535,13 +577,13 @@ dict_stats_empty_table(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		ulint	n_uniq = dict_index_get_n_unique(index);
-		for (ulint i = 1; i <= n_uniq; i++) {
-			index->stat_n_diff_key_vals[i] = 0;
+		if (index->type & DICT_FTS) {
+			continue;
 		}
 
-		index->stat_index_size = 1;
-		index->stat_n_leaf_pages = 1;
+		ut_ad(!dict_index_is_univ(index));
+
+		dict_stats_empty_index(index);
 	}
 
 	table->stat_initialized = TRUE;
@@ -662,6 +704,8 @@ dict_stats_update_transient(
 	}
 
 	do {
+		ut_ad(!dict_index_is_univ(index));
+
 		sum_of_index_sizes +=
 			dict_stats_update_transient_for_index(index);
 
@@ -1900,6 +1944,8 @@ dict_stats_update_persistent(
 		return(DB_CORRUPTION);
 	}
 
+	ut_ad(!dict_index_is_univ(index));
+
 	dict_stats_analyze_index(index);
 
 	ulint	n_unique = dict_index_get_n_unique(index);
@@ -1916,13 +1962,19 @@ dict_stats_update_persistent(
 	     index != NULL && !(table->stats_bg_flag & BG_STAT_SHOULD_QUIT);
 	     index = dict_table_get_next_index(index)) {
 
+		if (index->type & DICT_FTS) {
+			continue;
+		}
+
 		if (dict_index_is_online_ddl(index)
-		    || (index->type & DICT_FTS)
 		    || dict_index_is_corrupted(index)
 		    || index->to_be_dropped) {
 
+			dict_stats_empty_index(index);
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		dict_stats_analyze_index(index);
 
@@ -2166,9 +2218,14 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
+
+		ut_ad(!dict_index_is_univ(index));
 
 		ret = dict_stats_save_index_stat(index, now, "size",
 						 index->stat_index_size,

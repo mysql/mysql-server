@@ -6246,7 +6246,8 @@ lock_clust_rec_read_check_and_lock(
 	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
-	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
+	err = lock_rec_lock(FALSE, mode | gap_mode,
+			    block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 

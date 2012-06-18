@@ -50,11 +50,15 @@ to the two Barracuda row formats COMPRESSED and DYNAMIC. */
 #define FSP_FLAGS_WIDTH_ATOMIC_BLOBS	1
 /** Number of flag bits used to indicate the tablespace page size */
 #define FSP_FLAGS_WIDTH_PAGE_SSIZE	4
+/** Width of the DATA_DIR flag.  This flag indicates that the tablespace
+is found in a remote location, not the default data directory. */
+#define FSP_FLAGS_WIDTH_DATA_DIR	1
 /** Width of all the currently known tablespace flags */
 #define FSP_FLAGS_WIDTH		(FSP_FLAGS_WIDTH_POST_ANTELOPE	\
 				+ FSP_FLAGS_WIDTH_ZIP_SSIZE	\
 				+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS	\
-				+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
+				+ FSP_FLAGS_WIDTH_PAGE_SSIZE	\
+				+ FSP_FLAGS_WIDTH_DATA_DIR)
 
 /** A mask of all the known/used bits in tablespace flags */
 #define FSP_FLAGS_MASK		(~(~0 << FSP_FLAGS_WIDTH))
@@ -71,8 +75,11 @@ to the two Barracuda row formats COMPRESSED and DYNAMIC. */
 #define FSP_FLAGS_POS_PAGE_SSIZE	(FSP_FLAGS_POS_ATOMIC_BLOBS	\
 					+ FSP_FLAGS_WIDTH_ATOMIC_BLOBS)
 /** Zero relative shift position of the start of the UNUSED bits */
-#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_PAGE_SSIZE	\
+#define FSP_FLAGS_POS_DATA_DIR		(FSP_FLAGS_POS_PAGE_SSIZE	\
 					+ FSP_FLAGS_WIDTH_PAGE_SSIZE)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define FSP_FLAGS_POS_UNUSED		(FSP_FLAGS_POS_DATA_DIR	\
+					+ FSP_FLAGS_WIDTH_DATA_DIR)
 
 /** Bit mask of the POST_ANTELOPE field */
 #define FSP_FLAGS_MASK_POST_ANTELOPE				\
@@ -90,6 +97,10 @@ to the two Barracuda row formats COMPRESSED and DYNAMIC. */
 #define FSP_FLAGS_MASK_PAGE_SSIZE				\
 		((~(~0 << FSP_FLAGS_WIDTH_PAGE_SSIZE))		\
 		<< FSP_FLAGS_POS_PAGE_SSIZE)
+/** Bit mask of the DATA_DIR field */
+#define FSP_FLAGS_MASK_DATA_DIR					\
+		((~(~0 << FSP_FLAGS_WIDTH_DATA_DIR))		\
+		<< FSP_FLAGS_POS_DATA_DIR)
 
 /** Return the value of the POST_ANTELOPE field */
 #define FSP_FLAGS_GET_POST_ANTELOPE(flags)			\
@@ -107,6 +118,10 @@ to the two Barracuda row formats COMPRESSED and DYNAMIC. */
 #define FSP_FLAGS_GET_PAGE_SSIZE(flags)				\
 		((flags & FSP_FLAGS_MASK_PAGE_SSIZE)		\
 		>> FSP_FLAGS_POS_PAGE_SSIZE)
+/** Return the value of the DATA_DIR field */
+#define FSP_FLAGS_HAS_DATA_DIR(flags)				\
+		((flags & FSP_FLAGS_MASK_DATA_DIR)		\
+		>> FSP_FLAGS_POS_DATA_DIR)
 /** Return the contents of the UNUSED bits */
 #define FSP_FLAGS_GET_UNUSED(flags)				\
 		(flags >> FSP_FLAGS_POS_UNUSED)

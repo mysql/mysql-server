@@ -363,7 +363,8 @@ Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
-InnoDB will try to invoke mem_validate().
+InnoDB will try to invoke mem_validate(). On failure the transaction will
+be rolled back.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
@@ -372,7 +373,8 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
-	trx_t*		trx)	/*!< in/out: transaction */
+	trx_t*		trx,	/*!< in/out: transaction */
+	bool		commit)	/*!< in: if true, commit the transaction */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure
@@ -473,7 +475,10 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: dictionary transaction handle */
-	bool		drop_db)/*!< in: true=dropping whole database */
+	bool		drop_db,/*!< in: true=dropping whole database */
+	bool		nonatomic = true)
+				/*!< in: whether it is permitted
+				to release and reacquire dict_operation_lock */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */

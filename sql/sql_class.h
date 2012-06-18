@@ -2230,6 +2230,9 @@ private:
     The file and position are zero if the current transaction has not
     been written to the binary log.
 
+    @see set_trans_pos
+    @see get_trans_pos
+
     @todo Similar information is kept in the patch for BUG#11762277
     and by the master/slave heartbeat implementation.  We should merge
     these positions instead of maintaining three different ones.
@@ -2720,20 +2723,33 @@ public:
   THD *next_to_commit;
 
   /**
-     Set transaction position.
+     Functions to set and get transaction position.
+
+     These functions are used to set the transaction position for the
+     transaction written when committing this transaction.
    */
-  void set_trans_pos(const char *file, my_off_t pos) {
+  /**@{*/
+  void set_trans_pos(const char *file, my_off_t pos)
+  {
     DBUG_ENTER("THD::set_trans_pos");
-    DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
-    // Only the file name should be used, not the full path
-    m_trans_log_file= file + dirname_length(file);
+    DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
+    if (file)
+    {
+      DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
+      // Only the file name should be used, not the full path
+      m_trans_log_file= file + dirname_length(file);
+    }
+    else
+      m_trans_log_file= NULL;
+
     m_trans_end_pos= pos;
     DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
                           m_trans_log_file, m_trans_end_pos));
     DBUG_VOID_RETURN;
   }
 
-  void get_trans_pos(const char **file_var, my_off_t *pos_var) const {
+  void get_trans_pos(const char **file_var, my_off_t *pos_var) const
+  {
     DBUG_ENTER("THD::get_trans_pos");
     if (file_var)
       *file_var = m_trans_log_file;
@@ -2744,6 +2760,7 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+  /**@}*/
 
 
   /*
