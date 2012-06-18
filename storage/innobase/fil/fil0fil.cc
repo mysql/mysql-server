@@ -4019,9 +4019,10 @@ will_not_choose:
 			return;
 		}
 
-		/* Exit here with a core dump, stack, etc. */
-		ulint will_not_choose = 0;
-		ut_a(will_not_choose);
+		exit(1);
+		/* Exit here with a core dump, stack, etc. if MTR could handle it. */
+		/* ulint will_not_choose = 0; */
+		/* ut_a(will_not_choose); */
 	}
 
 	if (def.success && remote.success) {
