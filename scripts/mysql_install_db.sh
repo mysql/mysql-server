@@ -484,7 +484,8 @@ then
   echo "databases and anonymous user created by default.  This is"
   echo "strongly recommended for production servers."
   echo
-  echo "See the MariaDB knowledge or the MySQL manual for more instructions."
+  echo "See the MariaDB Knowledgebase at http://kb.askmonty.org or the"
+  echo "MySQL manual for more instructions."
 
   if test "$in_rpm" -eq 0
   then
@@ -499,13 +500,13 @@ then
   echo
   echo "Please report any problems with the $scriptdir/mysqlbug script!"
   echo
-  echo "The latest information about MariaDB is available at http://www.askmonty.org/."
+  echo "The latest information about MariaDB is available at http://mariadb.org/."
   echo "You can find additional information about the MySQL part at:"
   echo "http://dev.mysql.com"
   echo "Support MariaDB development by buying support/new features from"
-  echo "Monty Program Ab. You can contact us about this at sales@askmonty.org".
+  echo "Monty Program Ab. You can contact us about this at sales@montyprogram.com".
   echo "Alternatively consider joining our community based development effort:"
-  echo "http://askmonty.org/wiki/index.php/MariaDB#How_can_I_participate_in_the_development_of_MariaDB"
+  echo "http://kb.askmonty.org/en/contributing-to-the-mariadb-project/"
   echo
 fi
 

@@ -2916,7 +2916,7 @@ com_help(String *buffer __attribute__((unused)),
   }
 
   put_info("\nGeneral information about MariaDB can be found at\n"
-           "http://askmonty.org/wiki/index.php/Manual:Contents\n", INFO_INFO);
+           "http://mariadb.org\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);

@@ -1,3 +1,14 @@
+Installing and Upgrading MariaDB
+
+This file contains chapter two of the MySQL manual and describes how
+to obtain and install MySQL. The instructions below are generally
+applicable to both MySQL and MariaDB, but differ in some particulars
+(like, for example, the GPG signing key we use is different).
+
+Detailed, MariaDB-specific instructions are available at:
+http://kb.askmonty.org/en/getting-installing-and-upgrading-mariadb/
+
+- - - -
 
 Chapter 2. Installing and Upgrading MySQL
 

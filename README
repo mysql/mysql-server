@@ -13,9 +13,9 @@ see the Credits appendix.  You can also do 'SHOW authors' to get a
 list of active contributors.
 
 A description of the MariaDB project and a manual can be found at:
-http://askmonty.org/wiki/index.php/MariaDB
-http://askmonty.org/wiki/index.php/MariaDB_versus_MySQL
-http://askmonty.org/wiki/index.php/Manual:Contents
+http://kb.askmonty.org/
+http://kb.askmonty.org/en/mariadb-versus-mysql-features/
+http://kb.askmonty.org/en/mariadb-versus-mysql-compatibility/
 
 As MariaDB is a full replacement of MySQL, the MySQL manual at
 http://dev.mysql.com/doc is generally applicable.
@@ -41,7 +41,7 @@ EXCEPTIONS-CLIENT file.
 IMPORTANT:
 
 Bug and/or error reports regarding MariaDB should be submitted at
-https://bugs.launchpad.net/maria
+http://mariadb.org/jira
 
 Bugs in the MySQL code can also be submitted at http://bugs.mysql.com
 
