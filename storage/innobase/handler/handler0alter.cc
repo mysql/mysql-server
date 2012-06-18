@@ -3458,6 +3458,18 @@ ha_innobase::commit_inplace_alter_table(
 		trx_start_for_ddl(trx, op);
 	}
 
+	if (new_clustered) {
+		if (prebuilt->table->fts) {
+			ut_ad(!prebuilt->table->fts->add_wq);
+			fts_optimize_remove_table(prebuilt->table);
+		}
+
+		if (ctx->indexed_table->fts) {
+			ut_ad(!ctx->indexed_table->fts->add_wq);
+			fts_optimize_remove_table(ctx->indexed_table);
+		}
+	}
+
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
@@ -3476,22 +3488,6 @@ ha_innobase::commit_inplace_alter_table(
 		/* We copied the table. Any indexes that were
 		requested to be dropped were not created in the copy
 		of the table. */
-
-		if (prebuilt->table->fts || ctx->indexed_table->fts) {
-			row_mysql_unlock_data_dictionary(trx);
-
-			if (prebuilt->table->fts) {
-				ut_ad(!prebuilt->table->fts->add_wq);
-				fts_optimize_remove_table(prebuilt->table);
-			}
-
-			if (ctx->indexed_table->fts) {
-				ut_ad(!ctx->indexed_table->fts->add_wq);
-				fts_optimize_remove_table(ctx->indexed_table);
-			}
-
-			row_mysql_lock_data_dictionary(trx);
-		}
 
 		/* A new clustered index was defined for the table
 		and there was no error at this point. We can
