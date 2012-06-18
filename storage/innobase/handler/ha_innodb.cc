@@ -15905,6 +15905,12 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   " to make the page compressible.",
   NULL, NULL, 50, 0, 75, 0);
 
+static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable INFORMATION_SCHEMA.innodb_cmp_per_index, "
+  "may have negative impact on performance (off by default)",
+  NULL, NULL, FALSE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -16039,6 +16045,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
