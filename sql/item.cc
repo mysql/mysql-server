@@ -6010,7 +6010,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(from_field)))
+        if (!(fld= new Item_field(thd, last_checked_context, from_field)))
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
