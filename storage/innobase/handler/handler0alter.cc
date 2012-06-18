@@ -1998,8 +1998,8 @@ column that is being dropped or modified to NOT NULL.
 @param drop_fk		constraints being dropped
 @param n_drop_fk	number of constraints that are being dropped
 @param drop		true=drop column, false=set NOT NULL
-@retval true		Failure (will call my_error())
-@retval false		Success
+@retval true		Not allowed (will call my_error())
+@retval false		Allowed
 */
 static __attribute__((pure, nonnull, warn_unused_result))
 bool
@@ -2091,8 +2091,8 @@ column that is being dropped or modified to NOT NULL.
 @param user_table	InnoDB table as it is before the ALTER operation
 @param drop_fk		constraints being dropped
 @param n_drop_fk	number of constraints that are being dropped
-@retval true		Failure (will call my_error())
-@retval false		Success
+@retval true		Not allowed (will call my_error())
+@retval false		Allowed
 */
 static __attribute__((pure, nonnull, warn_unused_result))
 bool
@@ -2137,8 +2137,7 @@ innobase_check_foreigns(
 @param heap	Memory heap where allocated
 @param dfield	InnoDB data field to copy to
 @param field	MySQL value for the column
-@param comp	nonzero if in compact format
- */
+@param comp	nonzero if in compact format */
 static __attribute__((nonnull))
 void
 innobase_build_col_map_add(
