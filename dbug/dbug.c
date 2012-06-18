@@ -361,7 +361,7 @@ static pthread_mutex_t THR_LOCK_dbug;
   For performance reasons,
   the member @c init_settings.flags is not protected.
 */
-static pthread_rwlock_t THR_LOCK_init_settings;
+static rw_lock_t THR_LOCK_init_settings;
 
 static CODE_STATE *code_state(void)
 {
@@ -378,7 +378,7 @@ static CODE_STATE *code_state(void)
   {
     init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
-    pthread_rwlock_init(&THR_LOCK_init_settings, NULL);
+    my_rwlock_init(&THR_LOCK_init_settings, NULL);
     memset(&init_settings, 0, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
@@ -412,7 +412,7 @@ static void read_lock_stack(CODE_STATE *cs)
   if (cs->stack == &init_settings)
   {
     if (++(cs->m_read_lock_count) == 1)
-      pthread_rwlock_rdlock(&THR_LOCK_init_settings);
+      rw_rdlock(&THR_LOCK_init_settings);
   }
 }
 
@@ -425,7 +425,7 @@ static void unlock_stack(CODE_STATE *cs)
   if (cs->stack == &init_settings)
   {
     if (--(cs->m_read_lock_count) == 0)
-      pthread_rwlock_unlock(&THR_LOCK_init_settings);
+      rw_unlock(&THR_LOCK_init_settings);
   }
 }
 
@@ -516,7 +516,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
   */
   assert(cs->m_read_lock_count == 0);
   if (stack == &init_settings)
-    pthread_rwlock_wrlock(&THR_LOCK_init_settings);
+    rw_wrlock(&THR_LOCK_init_settings);
 
   if (control[0] == '-' && control[1] == '#')
     control+=2;
@@ -548,7 +548,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
     if (stack->next == &init_settings)
     {
       assert(stack != &init_settings);
-      pthread_rwlock_rdlock(&THR_LOCK_init_settings);
+      rw_rdlock(&THR_LOCK_init_settings);
 
       /*
         Never share with the global parent - it can change under your feet.
@@ -562,7 +562,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
       stack->keywords= ListCopy(init_settings.keywords);
       stack->processes= ListCopy(init_settings.processes);
 
-      pthread_rwlock_unlock(&THR_LOCK_init_settings);
+      rw_unlock(&THR_LOCK_init_settings);
     }
     else
     {
@@ -744,7 +744,7 @@ int DbugParse(CODE_STATE *cs, const char *control)
   }
 
   if (stack == &init_settings)
-    pthread_rwlock_unlock(&THR_LOCK_init_settings);
+    rw_unlock(&THR_LOCK_init_settings);
 
   return !rel || f_used;
 }
@@ -1778,7 +1778,7 @@ void _db_end_()
     FreeState(cs, discard, 1);
   }
 
-  pthread_rwlock_wrlock(&THR_LOCK_init_settings);
+  rw_wrlock(&THR_LOCK_init_settings);
   tmp= init_settings;
   init_settings.flags=    OPEN_APPEND;
   init_settings.out_file= stderr;
@@ -1790,7 +1790,7 @@ void _db_end_()
   init_settings.p_functions= 0;
   init_settings.keywords= 0;
   init_settings.processes= 0;
-  pthread_rwlock_unlock(&THR_LOCK_init_settings);
+  rw_unlock(&THR_LOCK_init_settings);
   FreeState(cs, &tmp, 0);
 }
 
