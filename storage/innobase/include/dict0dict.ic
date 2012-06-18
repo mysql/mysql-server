@@ -1207,8 +1207,9 @@ Determines if a secondary index is being or has been created online,
 or if the table is being rebuilt online, allowing concurrent modifications
 to the table.
 @retval true if the index is being or has been built online, or
-if this is a clustered index and the table is or was being rebuilt online
-@retval false if the index has been created completely */
+if this is a clustered index and the table is being or has been rebuilt online
+@retval false if the index has been created or the table has been
+rebuilt completely */
 UNIV_INLINE
 bool
 dict_index_is_online_ddl(

@@ -251,11 +251,8 @@ mem_heap_free_heap_top(
 	ibool		error;
 	ulint		total_size;
 	ulint		size;
-#endif
 
 	ut_ad(mem_heap_check(heap));
-
-#if defined UNIV_MEM_DEBUG || defined UNIV_DEBUG
 
 	/* Validate the heap and get its total allocated size */
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &total_size,
