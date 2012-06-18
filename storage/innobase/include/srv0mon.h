@@ -598,7 +598,7 @@ Use MONITOR_DEC if appropriate mutex protection exists.
 #else /* HAVE_ATOMIC_BUILTINS_64 */
 /** Mutex protecting atomic operations on platforms that lack
 built-in operations for atomic memory access */
-extern mutex_t	monitor_mutex;
+extern ib_mutex_t	monitor_mutex;
 /****************************************************************//**
 Initialize the monitor subsystem. */
 UNIV_INTERN

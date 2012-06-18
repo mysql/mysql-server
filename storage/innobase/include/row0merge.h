@@ -199,6 +199,17 @@ row_merge_file_destroy_low(
 	int		fd);	/*!< in: merge file descriptor */
 
 /*********************************************************************//**
+Provide a new pathname for a table that is being renamed if it belongs to
+a file-per-table tablespace.  The caller is responsible for freeing the
+memory allocated for the return value.
+@return	new pathname of tablespace file, or NULL if space = 0 */
+UNIV_INTERN
+char*
+row_make_new_pathname(
+/*==================*/
+	dict_table_t*	table,		/*!< in: table to be renamed */
+	const char*	new_name);	/*!< in: new name */
+/*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
@@ -269,7 +280,11 @@ dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table);		/*!< in: table instance to drop */
+	dict_table_t*	table,		/*!< in: table instance to drop */
+	bool		nonatomic)	/*!< in: whether it is permitted
+					to release and reacquire
+					dict_operation_lock */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting

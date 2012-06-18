@@ -360,7 +360,7 @@ dict_table_remove_from_cache(
 Renames a table object.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -876,7 +876,8 @@ dict_tf_set(
 /*========*/
 	ulint*		flags,		/*!< in/out: table */
 	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize)	/*!< in: zip shift size */
+	ulint		zip_ssize,	/*!< in: zip shift size */
+	bool		remote_path)	/*!< in: table uses DATA DIRECTORY */
 	__attribute__((nonnull));
 /********************************************************************//**
 Convert a 32 bit integer table flags to the 32 bit integer that is
@@ -1536,7 +1537,7 @@ constraint */
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;
-extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
+extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
 /** the dictionary system */
 extern dict_sys_t*	dict_sys;
@@ -1545,7 +1546,7 @@ extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_struct{
-	mutex_t		mutex;		/*!< mutex protecting the data
+	ib_mutex_t		mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE
@@ -1618,6 +1619,14 @@ struct dict_table_schema_struct {
 	dict_col_meta_t*	columns;	/* metadata for the columns;
 						this array has n_cols
 						elements */
+	ulint			n_foreign;	/* number of foreign keys this
+						table has, pointing to other
+						tables (where this table is
+						FK child) */
+	ulint			n_referenced;	/* number of foreign keys other
+						tables have, pointing to this
+						table (where this table is
+						parent) */
 };
 typedef struct dict_table_schema_struct dict_table_schema_t;
 /* @} */

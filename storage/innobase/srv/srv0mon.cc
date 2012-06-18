@@ -1187,7 +1187,7 @@ UNIV_INTERN ulint		monitor_set_tbl[(NUM_MONITOR + NUM_BITS_ULINT
 #ifndef HAVE_ATOMIC_BUILTINS_64
 /** Mutex protecting atomic operations on platforms that lack
 built-in operations for atomic memory access */
-mutex_t	monitor_mutex;
+ib_mutex_t	monitor_mutex;
 
 /** Key to register monitor_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	monitor_mutex_key;

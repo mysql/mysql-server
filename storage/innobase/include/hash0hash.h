@@ -382,7 +382,7 @@ hash_get_heap(
 Gets the nth mutex in a hash table.
 @return	mutex */
 UNIV_INLINE
-mutex_t*
+ib_mutex_t*
 hash_get_nth_mutex(
 /*===============*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -400,7 +400,7 @@ hash_get_nth_lock(
 Gets the mutex for a fold value in a hash table.
 @return	mutex */
 UNIV_INLINE
-mutex_t*
+ib_mutex_t*
 hash_get_mutex(
 /*===========*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -451,7 +451,7 @@ void
 hash_mutex_exit_all_but(
 /*====================*/
 	hash_table_t*	table,		/*!< in: hash table */
-	mutex_t*	keep_mutex);	/*!< in: mutex to keep */
+	ib_mutex_t*	keep_mutex);	/*!< in: mutex to keep */
 /************************************************************//**
 s-lock a lock for a fold value in a hash table. */
 UNIV_INTERN
@@ -547,7 +547,7 @@ struct hash_table_struct {
 					rw_locks depending on the type.
 					Must be a power of 2 */
 	union {
-		mutex_t*	mutexes;/* NULL, or an array of mutexes
+		ib_mutex_t*	mutexes;/* NULL, or an array of mutexes
 					used to protect segments of the
 					hash table */
 		rw_lock_t*	rw_locks;/* NULL, or an array of rw_lcoks

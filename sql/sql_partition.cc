@@ -2012,8 +2012,85 @@ static int add_quoted_string(File fptr, const char *quotestr)
   return err + add_string(fptr, "'");
 }
 
+/**
+  @brief  Truncate the partition file name from a path it it exists.
+
+  @note  A partition file name will contian one or more '#' characters.
+One of the occurances of '#' will be either "#P#" or "#p#" depending
+on whether the storage engine has converted the filename to lower case.
+*/
+void truncate_partition_filename(char *path)
+{
+  if (path)
+  {
+    char* last_slash= strrchr(path, FN_LIBCHAR);
+
+    if (!last_slash)
+      last_slash= strrchr(path, FN_LIBCHAR2);
+
+    if (last_slash)
+    {
+      /* Look for a partition-type filename */
+      for (char* pound= strchr(last_slash, '#');
+           pound; pound = strchr(pound + 1, '#'))
+      {
+        if ((pound[1] == 'P' || pound[1] == 'p') && pound[2] == '#')
+        {
+          last_slash[0] = '\0';	/* truncate the file name */
+          break;
+        }
+      }
+    }
+  }
+}
+
+
+/**
+  @brief  Output a filepath.  Similar to add_keyword_string except it
+also converts \ to / on Windows and skips the partition file name at
+the end if found.
+
+  @note  When Mysql sends a DATA DIRECTORY from SQL for partitions it does
+not use a file name, but it does for DATA DIRECTORY on a non-partitioned
+table.  So when the storage engine is asked for the DATA DIRECTORY string
+after a restart through Handler::update_create_options(), the storage
+engine may include the filename.
+*/
+static int add_keyword_path(File fptr, const char *keyword,
+                            const char *path)
+{
+  int err= add_string(fptr, keyword);
+
+  err+= add_space(fptr);
+  err+= add_equal(fptr);
+  err+= add_space(fptr);
+
+  char temp_path[FN_REFLEN];
+  strcpy(temp_path, path);
+#ifdef __WIN__
+  /* Convert \ to / to be able to create table on unix */
+  char *pos, *end;
+  uint length= strlen(temp_path);
+  for (pos= temp_path, end= pos+length ; pos < end ; pos++)
+  {
+    if (*pos == '\\')
+      *pos = '/';
+  }
+#endif
+
+  /*
+  If the partition file name with its "#P#" identifier
+  is found after the last slash, truncate that filename.
+  */
+  truncate_partition_filename(temp_path);
+
+  err+= add_quoted_string(fptr, temp_path);
+
+  return err + add_space(fptr);
+}
+
 static int add_keyword_string(File fptr, const char *keyword,
-                              bool should_use_quotes, 
+                              bool should_use_quotes,
                               const char *keystr)
 {
   int err= add_string(fptr, keyword);
@@ -2064,11 +2141,9 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
     if (p_elem->data_file_name)
-      err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
-                               p_elem->data_file_name);
+      err+= add_keyword_path(fptr, "DATA DIRECTORY", p_elem->data_file_name);
     if (p_elem->index_file_name)
-      err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
-                               p_elem->index_file_name);
+      err+= add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
   }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);

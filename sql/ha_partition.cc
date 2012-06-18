@@ -58,6 +58,7 @@
 #include "sql_table.h"                        // tablename_to_filename
 #include "key.h"
 #include "sql_plugin.h"
+#include "sql_partition.h"
 
 #include "debug_sync.h"
 
@@ -700,7 +701,7 @@ int ha_partition::create(const char *name, TABLE *table_arg,
       List_iterator_fast <partition_element> sub_it(part_elem->subpartitions);
       for (j= 0; j < m_part_info->num_subparts; j++)
       {
-	part_elem= sub_it++;
+        part_elem= sub_it++;
         create_partition_name(name_buff, path, name_buffer_ptr,
                               NORMAL_PART_NAME, FALSE);
         if ((error= set_up_table_before_create(table_arg, name_buff,
@@ -1448,8 +1449,25 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
   int error;
   DBUG_ENTER("prepare_new_partition");
 
+  /*
+    This call to set_up_table_before_create() is done for an alter table.
+    So this may be the second time around for this partition_element,
+    depending on how many partitions and subpartitions there were before,
+    and how many there are now.
+    The first time, on the CREATE, data_file_name and index_file_name
+    came from the parser.  They did not have the file name attached to
+    the end.  But if this partition is less than the total number of
+    previous partitions, it's data_file_name has the filename attached.
+    So we need to take the partition filename off if it exists.
+    That file name may be different from part_name, which will be
+    attached in append_file_to_dir().
+  */
+  truncate_partition_filename(p_elem->data_file_name);
+  truncate_partition_filename(p_elem->index_file_name);
+
   if ((error= set_up_table_before_create(tbl, part_name, create_info, p_elem)))
     goto error_create;
+
   if ((error= file->ha_create(part_name, tbl, create_info)))
   {
     /*
@@ -1959,7 +1977,6 @@ init_error:
   DBUG_RETURN(result);
 }
 
-
 /*
   Update create info as part of ALTER TABLE
 
@@ -1971,11 +1988,16 @@ init_error:
     NONE
 
   DESCRIPTION
-    Method empty so far
+  Forward this handler call to the storage engine foreach
+  partition handler.  The data_file_name for each partition may
+  need to be reset if the tablespace was moved.  Use a dummy
+  HA_CREATE_INFO structure and transfer necessary data.
 */
 
 void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 {
+  DBUG_ENTER("ha_partition::update_create_info");
+
   /*
     Fix for bug#38751, some engines needs info-calls in ALTER.
     Archive need this since it flushes in ::info.
@@ -1989,8 +2011,114 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
   if (!(create_info->used_fields & HA_CREATE_USED_AUTO))
     create_info->auto_increment_value= stats.auto_increment_value;
 
+  /*
+    DATA DIRECTORY and INDEX DIRECTORY are never applied to the whole
+    partitioned table, only its parts.
+  */
+  my_bool from_alter = (create_info->data_file_name == (const char*) -1);
   create_info->data_file_name= create_info->index_file_name = NULL;
-  return;
+
+  /*
+  We do not need to update the individual partition DATA DIRECTORY settings
+  since they can be changed by ALTER TABLE ... REORGANIZE PARTITIONS.
+  */
+  if (from_alter)
+    DBUG_VOID_RETURN;
+
+  /*
+    send Handler::update_create_info() to the storage engine for each
+    partition that currently has a handler object.  Using a dummy
+    HA_CREATE_INFO structure to collect DATA and INDEX DIRECTORYs.
+  */
+
+  List_iterator<partition_element> part_it(m_part_info->partitions);
+  partition_element *part_elem, *sub_elem;
+  uint num_subparts= m_part_info->num_subparts;
+  uint num_parts = num_subparts ? m_file_tot_parts / num_subparts
+                                : m_file_tot_parts;
+  HA_CREATE_INFO dummy_info;
+  memset(&dummy_info, 0, sizeof(dummy_info));
+
+  /*
+  Since update_create_info() can be called from mysql_prepare_alter_table()
+  when not all handlers are set up, we look for that condition first.
+  If all handlers are not available, do not call update_create_info for any.
+  */
+  uint i, j, part;
+  for (i= 0; i < num_parts; i++)
+  {
+    part_elem= part_it++;
+    if (!part_elem)
+      DBUG_VOID_RETURN;
+    if (m_is_sub_partitioned)
+    {
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      for (j= 0; j < num_subparts; j++)
+      {
+        sub_elem= subpart_it++;
+        if (!sub_elem)
+          DBUG_VOID_RETURN;
+        part= i * num_subparts + j;
+        if (part >= m_file_tot_parts || !m_file[part])
+          DBUG_VOID_RETURN;
+      }
+    }
+    else
+    {
+      if (!m_file[i])
+        DBUG_VOID_RETURN;
+    }
+  }
+  part_it.rewind();
+
+  for (i= 0; i < num_parts; i++)
+  {
+    part_elem= part_it++;
+    DBUG_ASSERT(part_elem);
+    if (m_is_sub_partitioned)
+    {
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      for (j= 0; j < num_subparts; j++)
+      {
+        sub_elem= subpart_it++;
+        DBUG_ASSERT(sub_elem);
+        part= i * num_subparts + j;
+        DBUG_ASSERT(part < m_file_tot_parts && m_file[part]);
+        if (ha_legacy_type(m_file[part]->ht) == DB_TYPE_INNODB)
+        {
+          dummy_info.data_file_name= dummy_info.index_file_name = NULL;
+          m_file[part]->update_create_info(&dummy_info);
+
+          if (dummy_info.data_file_name || sub_elem->data_file_name)
+          {
+            sub_elem->data_file_name = (char*) dummy_info.data_file_name;
+          }
+          if (dummy_info.index_file_name || sub_elem->index_file_name)
+          {
+            sub_elem->index_file_name = (char*) dummy_info.index_file_name;
+          }
+        }
+      }
+    }
+    else
+    {
+      DBUG_ASSERT(m_file[i]);
+      if (ha_legacy_type(m_file[i]->ht) == DB_TYPE_INNODB)
+      {
+        dummy_info.data_file_name= dummy_info.index_file_name= NULL;
+        m_file[i]->update_create_info(&dummy_info);
+        if (dummy_info.data_file_name || part_elem->data_file_name)
+        {
+          part_elem->data_file_name = (char*) dummy_info.data_file_name;
+        }
+        if (dummy_info.index_file_name || part_elem->index_file_name)
+        {
+          part_elem->index_file_name = (char*) dummy_info.index_file_name;
+        }
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
 }
 
 

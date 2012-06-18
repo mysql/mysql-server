@@ -764,9 +764,9 @@ struct log_struct{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	mutex_t		mutex;		/*!< mutex protecting the log */
+	ib_mutex_t		mutex;		/*!< mutex protecting the log */
 
-	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
 					behind this mutex is to be able
