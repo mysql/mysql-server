@@ -162,6 +162,10 @@ void ft_loader_fi_destroy (struct file_infos *fi, BOOL is_error)
 // If !is_error then requires that all the temp files have been closed and destroyed
 // No error codes are returned.  If anything goes wrong with closing and unlinking then it's only in an is_error case, so we don't care.
 {
+    if (fi->file_infos == NULL) {
+        // ft_loader_init_file_infos guarantees this isn't null, so if it is, we know it hasn't been inited yet and we don't need to destroy it.
+        return;
+    }
     toku_mutex_destroy(&fi->lock);
     if (!is_error) {
         invariant(fi->n_files_open==0);
@@ -501,7 +505,9 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     else {
         bl->load_root_xid = TXNID_NONE;
     }
-
+    
+    ft_loader_init_error_callback(&bl->error_callback);
+    ft_loader_init_poll_callback(&bl->poll_callback);
 
 #define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; toku_ft_loader_internal_destroy(bl, TRUE); return r; }
 #define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; toku_ft_loader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
@@ -546,9 +552,6 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
         init_merge_fileset(&bl->fs[i]);
         bl->last_key[i].flags = DB_DBT_REALLOC; // don't really need this, but it's nice to maintain it.  We use ulen to keep track of the realloced space.
     }
-
-    ft_loader_init_error_callback(&bl->error_callback);
-    ft_loader_init_poll_callback(&bl->poll_callback);
 
     { 
         int r = init_rowset(&bl->primary_rowset, memory_per_rowset_during_extract(bl)); 
