@@ -365,4 +365,15 @@ SELECT (@v:=a) <> (@v:=1) FROM t1;
 
 DROP TABLE t1;
 
+#
+# LP BUG#1001506 Crash on a query with GROUP BY and user variables
+# MySQL Bug #11764372 57197: EVEN MORE USER VARIABLE CRASHING FUN
+#
+
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2);
+SELECT DISTINCT @a:=MIN(t1.a) FROM t1, t1 AS t2
+GROUP BY @b:=(SELECT COUNT(*) > t2.a);
+DROP TABLE t1;
+
 --echo End of 5.1 tests

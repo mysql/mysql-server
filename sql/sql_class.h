@@ -3120,7 +3120,8 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      save_copy_field= copy_field= 0;
+      save_copy_field= copy_field= NULL;
+      save_copy_field_end= copy_field_end= NULL;
     }
   }
 };

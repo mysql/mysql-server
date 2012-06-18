@@ -456,4 +456,11 @@ SELECT (@v:=a) <> (@v:=1) FROM t1;
 (@v:=a) <> (@v:=1)
 1
 DROP TABLE t1;
+CREATE TABLE t1(a int);
+INSERT INTO t1 VALUES (1), (2);
+SELECT DISTINCT @a:=MIN(t1.a) FROM t1, t1 AS t2
+GROUP BY @b:=(SELECT COUNT(*) > t2.a);
+@a:=MIN(t1.a)
+1
+DROP TABLE t1;
 End of 5.1 tests

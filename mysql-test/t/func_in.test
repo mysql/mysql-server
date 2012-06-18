@@ -577,6 +577,16 @@ DROP TABLE t1;
 --echo #
 --echo End of 5.1 tests
 
+--echo #
+--echo # LP bug#992380 Crash when creating PS for a query with
+--echo # subquery in WHERE (see also mysql bug#13012483)
+--echo #
+CREATE TABLE t1 (a INT);
+PREPARE s FROM "SELECT 1 FROM t1 WHERE 1 < ALL (SELECT @:= (1 IN (SELECT 1 FROM t1)) FROM t1)";
+EXECUTE s;
+
+DROP TABLE t1;
+
 #
 # lp:817966 int_column IN (string_constant)
 #
@@ -595,4 +605,4 @@ select * from t1 where a='2.1';
 select * from t1 where b='2.1'; 
 select * from t1 where IF(1,a,a)='2.1'; 
 drop table t1;
-
+--echo # End of 5.3 tests

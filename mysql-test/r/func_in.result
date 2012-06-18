@@ -150,8 +150,8 @@ Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` A
 drop table t1;
 set names utf8;
 create table t1 (a char(10) character set utf8 not null);
-insert into t1 values ('bbbb'),(_koi8r'√√√√'),(_latin1'ƒƒƒƒ');
-select a from t1 where a in ('bbbb',_koi8r'√√√√',_latin1'ƒƒƒƒ') order by a;
+insert into t1 values ('bbbb'),(_koi8r'√É√É√É√É'),(_latin1'√Ñ√Ñ√Ñ√Ñ');
+select a from t1 where a in ('bbbb',_koi8r'√É√É√É√É',_latin1'√Ñ√Ñ√Ñ√Ñ') order by a;
 a
 √Ñ√Ñ√Ñ√Ñ
 bbbb
@@ -787,6 +787,15 @@ DROP TABLE t1;
 # End of test  BUG#13012483
 #
 End of 5.1 tests
+#
+# LP bug#992380 Crash when creating PS for a query with
+# subquery in WHERE (see also mysql bug#13012483)
+#
+CREATE TABLE t1 (a INT);
+PREPARE s FROM "SELECT 1 FROM t1 WHERE 1 < ALL (SELECT @:= (1 IN (SELECT 1 FROM t1)) FROM t1)";
+EXECUTE s;
+1
+DROP TABLE t1;
 create table t1 (a bigint, b int);
 insert t1 values (1,1),(2,2),(3,3);
 select * from t1 where a in ('2.1');

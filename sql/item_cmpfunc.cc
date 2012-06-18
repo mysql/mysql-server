@@ -1497,6 +1497,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
   }
   if (args[1]->maybe_null)
     maybe_null=1;
+  with_subselect= 1;
   with_sum_func= with_sum_func || args[1]->with_sum_func;
   with_field= with_field || args[1]->with_field;
   used_tables_cache|= args[1]->used_tables();
@@ -4175,6 +4176,22 @@ Item_cond::fix_fields(THD *thd, Item **ref)
     if (abort_on_null)
       item->top_level_item();
 
+    /*
+      replace degraded condition:
+        was:    <field>
+        become: <field> = 1
+    */
+    if (item->type() == FIELD_ITEM)
+    {
+      Query_arena backup, *arena;
+      Item *new_item;
+      arena= thd->activate_stmt_arena_if_needed(&backup);
+      if ((new_item= new Item_func_ne(item, new Item_int(0, 1))))
+        li.replace(item= new_item);
+      if (arena)
+        thd->restore_active_arena(arena, &backup);
+    }
+
     // item can be substituted in fix_fields
     if ((!item->fixed &&
 	 item->fix_fields(thd, li.ref())) ||
@@ -4861,6 +4878,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
   with_field= args[0]->with_field || args[1]->with_field;
+  with_subselect|= args[0]->with_subselect | args[1]->with_subselect;
   max_length= 1;
   decimals= 0;
 
@@ -5230,6 +5248,28 @@ longlong Item_func_xor::val_int()
 Item *Item_func_not::neg_transformer(THD *thd)	/* NOT(x)  ->  x */
 {
   return args[0];
+}
+
+
+bool Item_func_not::fix_fields(THD *thd, Item **ref)
+{
+  if (args[0]->type() == FIELD_ITEM)
+  {
+    /* replace  "NOT <field>" with "<filed> == 0" */
+    Query_arena backup, *arena;
+    Item *new_item;
+    bool rc= TRUE;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
+    if ((new_item= new Item_func_eq(args[0], new Item_int(0, 1))))
+    {
+      new_item->name= name;
+      rc= (*ref= new_item)->fix_fields(thd, ref);
+    }
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    return rc;
+  }
+  return Item_func::fix_fields(thd, ref);
 }
 
 
@@ -5641,6 +5681,7 @@ bool Item_equal::fix_fields(THD *thd, Item **ref)
     used_tables_cache|= item->used_tables();
     tmp_table_map= item->not_null_tables();
     not_null_tables_cache|= tmp_table_map;
+    DBUG_ASSERT(!item->with_sum_func && !item->with_subselect);
     if (item->maybe_null)
       maybe_null= 1;
     if (!item->get_item_equal())

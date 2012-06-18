@@ -588,6 +588,7 @@ Item_sum_num::fix_fields(THD *thd, Item **ref)
     if (args[i]->fix_fields(thd, args + i) || args[i]->check_cols(1))
       return TRUE;
     set_if_bigger(decimals, args[i]->decimals);
+    with_subselect|= args[i]->with_subselect;
   }
   result_field=0;
   max_length=float_length(decimals);
@@ -618,6 +619,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
       (item= args[0])->check_cols(1))
     return TRUE;
   decimals=item->decimals;
+  with_subselect= args[0]->with_subselect;
 
   switch (hybrid_type= item->result_type()) {
   case INT_RESULT:
@@ -3253,6 +3255,7 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
          args[i]->fix_fields(thd, args + i)) ||
         args[i]->check_cols(1))
       return TRUE;
+      with_subselect|= args[i]->with_subselect;
   }
 
   if (agg_item_charsets(collation, func_name(),
