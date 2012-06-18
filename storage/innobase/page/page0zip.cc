@@ -30,6 +30,7 @@ Created June 2005 by Marko Makela
 # include "page0zip.ic"
 #endif
 #undef THIS_MODULE
+#include "fil0fil.h"
 #include "page0page.h"
 #include "mtr0log.h"
 #include "ut0sort.h"
@@ -1206,12 +1207,24 @@ page_zip_compress(
 	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
+	page_zip_stat_t*	zip_stat;
+#ifdef PAGE_ZIP_COMPRESS_DBG
+	FILE*		logfile;
+#endif
 #ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
+	my_fast_timer_t start;
+	ullint udiff;
+	fil_space_t* space;
+	ulint	space_id;
 #endif /* !UNIV_HOTBACKUP */
 #ifdef PAGE_ZIP_COMPRESS_DBG
-	FILE*		logfile = NULL;
+	logfile = NULL;
 #endif
+#ifndef UNIV_HOTBACKUP
+	my_get_fast_timer(&start);
+	space_id = page_get_space_id(page);
+	ut_ad(fil_system);
+#endif /* !UNIV_HOTBACKUP */
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -1417,12 +1430,24 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-		if (page_is_leaf(page)) {
-			dict_index_zip_failure(index);
+		udiff = (ullint)(1000000 * my_fast_timer_diff_now(&start, NULL));
+		page_zip_stat[page_zip->ssize - 1].compressed_usec += udiff;
+		mutex_enter(&fil_system->mutex);
+		space = fil_space_get_by_id(space_id);
+		if (space) {
+			/* this block is protected by fil_system->mutex so there is no need for
+			   atomic increments*/
+			if (space_id) {
+				space->comp_stat.page_size = UNIV_ZIP_SIZE_MIN << (page_zip->ssize - 1);
+			}
+			space->comp_stat.compressed_usec += udiff;
+			++space->comp_stat.compressed;
+ 			if (dict_index_is_clust(index)) {
+ 			  ++space->comp_stat.compressed_primary;
+ 				space->comp_stat.compressed_primary_usec += udiff;
+ 			}
 		}
-
-		page_zip_stat[page_zip->ssize - 1].compressed_usec
-			+= ut_time_us(NULL) - usec;
+		mutex_exit(&fil_system->mutex);
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
@@ -1482,16 +1507,32 @@ err_exit:
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		zip_stat->compressed_ok++;
-		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
+	udiff = (ullint)(1000000*my_fast_timer_diff_now(&start, NULL));
+	zip_stat	= &page_zip_stat[page_zip->ssize - 1];
+	++zip_stat->compressed_ok;
+	zip_stat->compressed_usec += udiff;
+	zip_stat->compressed_ok_usec += udiff;
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(space_id);
+	if (space) {
+		/* this block is protected by fil_system->mutex so there is no need for
+		   atomic increments */
+		++space->comp_stat.compressed;
+		++space->comp_stat.compressed_ok;
+		space->comp_stat.compressed_usec += udiff;
+		space->comp_stat.compressed_ok_usec += udiff;
+ 		if (dict_index_is_clust(index)) {
+ 			++space->comp_stat.compressed_primary;
+ 			++space->comp_stat.compressed_primary_ok;
+ 			space->comp_stat.compressed_primary_usec += udiff;
+ 			space->comp_stat.compressed_primary_ok_usec += udiff;
+ 		}
 	}
 
 	if (page_is_leaf(page)) {
 		dict_index_zip_success(index);
 	}
+	mutex_exit(&fil_system->mutex);
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -2895,10 +2936,11 @@ page_zip_decompress(
 	page_zip_des_t*	page_zip,/*!< in: data, ssize;
 				out: m_start, m_end, m_nonempty, n_blobs */
 	page_t*		page,	/*!< out: uncompressed page, may be trashed */
-	ibool		all)	/*!< in: TRUE=decompress the whole page;
+	ibool		all,	/*!< in: TRUE=decompress the whole page;
 				FALSE=verify but do not copy some
 				page header fields that should not change
 				after page creation */
+	ulint space_id)
 {
 	z_stream	d_stream;
 	dict_index_t*	index	= NULL;
@@ -2907,8 +2949,13 @@ page_zip_decompress(
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
 	ulint*		offsets;
+	page_zip_stat_t*	zip_stat;
 #ifndef UNIV_HOTBACKUP
-	ullint		usec = ut_time_us(NULL);
+	my_fast_timer_t start;
+	ullint udiff;
+	fil_space_t* space;
+	my_get_fast_timer(&start);
+	ut_ad(fil_system);
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(page_zip_simple_validate(page_zip));
@@ -3093,12 +3140,20 @@ err_exit:
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
 #ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		zip_stat->decompressed++;
-		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
+	udiff = (ullint)(1000000 * my_fast_timer_diff_now(&start, NULL));
+	zip_stat = &page_zip_stat[page_zip->ssize - 1];
+	zip_stat->decompressed++;
+	zip_stat->decompressed_usec += udiff;
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(space_id);
+	if (space) {
+		if (UNIV_UNLIKELY(!space->comp_stat.page_size) && space_id) {
+			space->comp_stat.page_size = UNIV_ZIP_SIZE_MIN << (page_zip->ssize - 1);
+		}
+		++space->comp_stat.decompressed;
+		space->comp_stat.decompressed_usec += udiff;
 	}
+	mutex_exit(&fil_system->mutex);
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Update the stat counter for LRU policy. */
@@ -3209,7 +3264,7 @@ page_zip_validate_low(
 #endif /* UNIV_DEBUG_VALGRIND */
 
 	temp_page_zip = *page_zip;
-	valid = page_zip_decompress(&temp_page_zip, temp_page, TRUE);
+	valid = page_zip_decompress(&temp_page_zip, temp_page, TRUE, 0);
 	if (!valid) {
 		fputs("page_zip_validate(): failed to decompress\n", stderr);
 		goto func_exit;
@@ -4695,7 +4750,7 @@ corrupt:
 		       - trailer_size, ptr + 8 + size, trailer_size);
 
 		if (UNIV_UNLIKELY(!page_zip_decompress(page_zip, page,
-						       TRUE))) {
+						       TRUE, 0))) {
 
 			goto corrupt;
 		}
