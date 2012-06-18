@@ -111,6 +111,10 @@ JOIN::exec()
 
   THD_STAGE_INFO(thd, stage_executing);
 
+  // Ignore errors of execution if option IGNORE present
+  if (thd->lex->ignore)
+    thd->lex->current_select->no_error= true;
+
   if (prepare_result(&columns_list))
     DBUG_VOID_RETURN;
 
