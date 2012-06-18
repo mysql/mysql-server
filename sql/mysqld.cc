@@ -77,6 +77,7 @@
 #include "global_threads.h"
 #include "mysqld.h"
 #include "my_default.h"
+#include "table_stats.h" /* free_global_table_stats(), init_global_table_stats() */
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
@@ -1795,6 +1796,7 @@ void clean_up(bool print_message)
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   bitmap_free(&temp_pool);
+  free_global_table_stats();
   free_max_user_conn();
 #ifdef HAVE_REPLICATION
   end_slave_list();
@@ -4677,6 +4679,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 #endif /* !EMBEDDED_LIBRARY */
 
+  init_global_table_stats();
+
+  my_init_fast_timer(1);
+
   /* call ha_init_key_cache() on all key caches to init them */
   process_key_caches(&ha_init_key_cache);
 
@@ -4982,6 +4988,7 @@ void decrement_handler_count()
 #define decrement_handler_count()
 #endif /* defined(_WIN32) || defined(HAVE_SMEM) */
 
+double my_tsc_scale = 0;
 
 #ifndef EMBEDDED_LIBRARY
 #ifndef DBUG_OFF
@@ -5345,6 +5352,14 @@ int mysqld_main(int argc, char **argv)
 
   if (init_ssl())
     return 1;
+
+  double scale = my_fast_timer_get_scale();
+  if (scale > 0) {
+    sql_print_information("time stamp counter resolution %.0f ticks/s, fast timers enabled", 1 / scale);
+  } else {
+    sql_print_error("unable to determine time stamp counter resolution, fast timers disabled");
+  }
+
   network_init();
 
 #ifdef __WIN__
