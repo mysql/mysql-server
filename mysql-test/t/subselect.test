@@ -5556,5 +5556,23 @@ SELECT SUM(a) AS f1, a AS f2 FROM (t1, t2) HAVING f2 >= ALL (SELECT 4 UNION SELE
 
 drop table t1,t2;
 
+--echo #
+--echo # LP BUG#1008686 Server crashes in subselect_union_engine::no_rows on SELECT with impossible
+--echo # WHERE and UNION in HAVING
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 0 HAVING a NOT IN ( SELECT 2 UNION SELECT 5 ) OR min_a != 1;
+
+EXPLAIN
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
+
+drop table t1;
+
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
