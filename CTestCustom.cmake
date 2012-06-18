@@ -15,9 +15,9 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/drd_test_4015.tdb
   ydb/drd_test_groupcommit_count.tdb
   ydb/filesize.tdb
-  ydb/helgrind2.tdb
-  ydb/helgrind3.tdb
   ydb/helgrind_helgrind1.tdb
+  ydb/helgrind_helgrind2.tdb
+  ydb/helgrind_helgrind3.tdb
   ydb/helgrind_test_groupcommit_count.tdb
   ydb/hot-optimize-table-tests.tdb
   ydb/insert-dup-prelock.tdb
