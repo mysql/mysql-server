@@ -306,6 +306,9 @@ UNIV_INTERN ulint	srv_force_recovery	= 0;
 
 UNIV_INTERN my_bool	srv_print_all_deadlocks = FALSE;
 
+/** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
+UNIV_INTERN my_bool	srv_cmp_per_index_enabled = FALSE;
+
 /* If the following is set to 1 then we do not run purge and insert buffer
 merge to completion before shutdown. If it is set to 2, do not even flush the
 buffer pool to data files at the shutdown: we effectively 'crash'

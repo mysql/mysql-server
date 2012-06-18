@@ -1281,7 +1281,9 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
-	page_zip_stat_per_index[index->id].compressed++;
+	if (srv_cmp_per_index_enabled) {
+		page_zip_stat_per_index[index->id].compressed++;
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1428,8 +1430,10 @@ err_exit:
 		ullint	time_diff = ut_time_us(NULL) - usec;
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= time_diff;
-		page_zip_stat_per_index[index->id].compressed_usec
-			+= time_diff;
+		if (srv_cmp_per_index_enabled) {
+			page_zip_stat_per_index[index->id].compressed_usec
+				+= time_diff;
+		}
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
@@ -1492,8 +1496,10 @@ err_exit:
 	ullint	time_diff = ut_time_us(NULL) - usec;
 	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
 	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
-	page_zip_stat_per_index[index->id].compressed_ok++;
-	page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+	if (srv_cmp_per_index_enabled) {
+		page_zip_stat_per_index[index->id].compressed_ok++;
+		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -3099,8 +3105,10 @@ err_exit:
 
 	index_id_t	index_id = btr_page_get_index_id(page);
 
-	page_zip_stat_per_index[index_id].decompressed++;
-	page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+	if (srv_cmp_per_index_enabled) {
+		page_zip_stat_per_index[index_id].decompressed++;
+		page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	page_zip_fields_free(index);
