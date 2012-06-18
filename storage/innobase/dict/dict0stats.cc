@@ -351,7 +351,10 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
 
@@ -400,7 +403,10 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
 
