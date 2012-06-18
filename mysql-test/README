@@ -69,10 +69,10 @@ extension. For example:
 
 If you want to submit your test case you can send it 
 to maria-developers@lists.launchpad.com or attach it to a bug report on
-https://bugs.launchpad.net/maria/.
+http://mariadb.org/jira/.
 
 If the test case is really big or if it contains 'not public' data,
 then put your .test file and .result file(s) into a tar.gz archive,
 add a README that explains the problem, ftp the archive to
-ftp://ftp.askmonty.org/private and send a mail to
-https://bugs.launchpad.net/maria/ about it.
+ftp://ftp.askmonty.org/private and submit a report to
+http://mariadb.org/jira about it.

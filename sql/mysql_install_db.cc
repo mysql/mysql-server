@@ -119,8 +119,8 @@ static void die(const char *fmt, ...)
    fprintf(stderr,
    "http://kb.askmonty.org/v/installation-issues-on-windows contains some help\n"
    "for solving the most common problems.  If this doesn't help you, please\n"
-   "leave a comment in the knowledge base or file a bug report at\n"
-   "https://bugs.launchpad.net/maria");
+   "leave a comment in the Knowledgebase or file a bug report at\n"
+   "http://mariadb.org/jira");
   }
   fflush(stderr);
   va_end(args);
