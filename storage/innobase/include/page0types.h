@@ -26,6 +26,10 @@ Created 2/2/1994 Heikki Tuuri
 #ifndef page0types_h
 #define page0types_h
 
+using namespace std;
+
+#include <map>
+
 #include "univ.i"
 #include "dict0types.h"
 #include "mtr0types.h"
@@ -100,6 +104,7 @@ typedef struct page_zip_stat_struct page_zip_stat_t;
 
 /** Statistics on compression, indexed by page_zip_des_struct::ssize - 1 */
 extern page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+extern map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index;
 
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must
