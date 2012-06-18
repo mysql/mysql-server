@@ -462,173 +462,24 @@ fil_write(
 					   byte_offset, len, buf, message));
 }
 
-/****************************************************************//**
-Invokes table stats callback for all entries in one cell. */
-static void
-fil_update_table_stats_one_cell(
-/*============================*/
-	ulint		cell_number,	/*!< in: cell to report */
-	comp_stat_t*	comp_stat_arr, /*!< in: buffer for compression stats */
-	ulint		max_per_cell,	/*!< in: size of buffers */
-	void		(*cb)(const char* db, const char* tbl,
-		              comp_stat_t* comp_stat),
-	char*		db_name_buf,	/*!< in: buffer for db names */
-	char*		table_name_buf)	/*!< in: buffer for table names */
+/*******************************************************************//**
+Returns the table space by a given id, NULL if not found. */
+UNIV_INLINE
+fil_space_t*
+fil_space_get_by_id(
+/*================*/
+	ulint	id)	/*!< in: space id */
 {
-	ulint		n_cells;
-	hash_cell_t*	cell;
 	fil_space_t*	space;
-	ulint		found = 0;
-	ulint		report = 0;
 
-	mutex_enter(&fil_system->mutex);
-	n_cells = hash_get_n_cells(fil_system->spaces);
+	ut_ad(mutex_own(&fil_system->mutex));
 
-	if ((cell_number + 1) > n_cells) {
-		mutex_exit(&fil_system->mutex);
-		return;
-	}
+	HASH_SEARCH(hash, fil_system->spaces, id,
+		    fil_space_t*, space,
+		    ut_ad(space->magic_n == FIL_SPACE_MAGIC_N),
+		    space->id == id);
 
-	cell = hash_get_nth_cell(fil_system->spaces, cell_number);
-	space = (fil_space_t*) (cell->node);
-
-	/* Copy out all entries for which stats must be reported */
-
-	while (space && found < max_per_cell) {
-
-		if (space->used) {
-			space->used = FALSE;
-
-			comp_stat_arr[found] = space->comp_stat;
-
-			strcpy(&(db_name_buf[found * (FN_REFLEN/2)]),
-				space->db_name);
-			strcpy(&(table_name_buf[found * (FN_REFLEN/2)]),
-				space->table_name);
-
-			found++;
-		}
-
-		space = reinterpret_cast<fil_space_t*>(
-			HASH_GET_NEXT(hash, space));
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	/* Invoke callback after releasing mutex */
-
-	for (; report < found; ++report) {
-		cb(&(db_name_buf[report * (FN_REFLEN/2)]),
-		   &(table_name_buf[report * (FN_REFLEN/2)]),
-		   &(comp_stat_arr[report]));
-	}
-}
-
-/****************************************************************//**
-Update stats with per-table data from InnoDB tables. */
-UNIV_INTERN
-void
-fil_update_table_stats(
-/*===================*/
-	/* per-table stats callback */
-	void (*cb)(const char* db, const char* tbl,
-		   comp_stat_t* comp_stat))
-{
-	ulint		n_cells;
-	ulint		n;
-	ulint		max_per_cell = 0;
-	comp_stat_t*	comp_stat_arr;
-	char*		db_name_buf;
-	char*		table_name_buf;
-	static ibool	in_progress = FALSE;
-
-	/* This invokes the callback to report table stats for all
-	tablespaces with the assumption that file-per-table is used.
-	If it is not used, then the callback consumer assigns all
-	load per tablespace to the first table in the tablespace.
-
-	The code below figures out the max number of entries per
-	cell that might have data to be reported, allocates memory
-	and then calls fil_update_table_stats_one_cell to make
-	one pass over the hash table per cell and copy out data
-	for all entries per pass. This locks the fil_system mutex
-	once per pass. The mutex is not locked when the callback
-	is invoked.
-
-	To avoid allocating memory per cell the alternative is an O(N*N)
-	iteration of the hash table. I prefer not to do that. */
-
-	mutex_enter(&fil_system->mutex);
-
-	if (in_progress) {
-		/* Return rather than wait. No need for complexity */
-		mutex_exit(&fil_system->mutex);
-		return;
-	}
-
-	in_progress = TRUE;
-
-	n_cells = hash_get_n_cells(fil_system->spaces);
-
-	/* First figure out the max number of entries per cell
-	for which data is to be reported. */
-
-	for (n = 0; n < n_cells; ++n) {
-		ulint		per_cell = 0;
-		hash_cell_t*	cell = hash_get_nth_cell(fil_system->spaces, n);
-		fil_space_t*	space = (fil_space_t*) (cell->node);
-
-		while (space) {
-			if (space->used)
-				++per_cell;
-
-			space = reinterpret_cast<fil_space_t*>(
-				HASH_GET_NEXT(hash, space));
-		}
-
-		if (per_cell > max_per_cell)
-			max_per_cell = per_cell;
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	if (!max_per_cell) {
-		in_progress = FALSE;
-		return;
-	}
-
-	/* Then allocate memory for the max */
-
-	comp_stat_arr = (comp_stat_t*) ut_malloc(
-	                                    sizeof(comp_stat_t) * max_per_cell);
-	db_name_buf = (char*) ut_malloc((FN_REFLEN/2) * max_per_cell);
-	table_name_buf = (char*) ut_malloc((FN_REFLEN/2) * max_per_cell);
-
-	if (!comp_stat_arr || !table_name_buf || !db_name_buf) {
-		if (comp_stat_arr)
-			ut_free(comp_stat_arr);
-		if (db_name_buf)
-			ut_free(db_name_buf);
-		if (table_name_buf)
-			ut_free(table_name_buf);
-		in_progress = FALSE;
-		return;
-	}
-
-	/* Then copy out the valid data one cell at a time */
-
-	for (n = 0; n < n_cells; ++n) {
-		fil_update_table_stats_one_cell(n, comp_stat_arr,
-						max_per_cell, cb, db_name_buf, table_name_buf);
-	}
-
-	ut_free(comp_stat_arr);
-	ut_free(table_name_buf);
-	ut_free(db_name_buf);
-
-	mutex_enter(&fil_system->mutex);
-	in_progress = FALSE;
-	mutex_exit(&fil_system->mutex);
+	return(space);
 }
 
 /*******************************************************************//**
@@ -1356,121 +1207,6 @@ fil_space_truncate_start(
 #endif /* UNIV_LOG_ARCHIVE */
 
 /*******************************************************************//**
-Searches from the end of a string for 'target'.
-@return pointer to it in the string if found and NULL on failure. */
-static const char*
-search_str_backwards(
-/*=================*/
-	const char *end,	/*!< in: start search here */
-	const char *start,	/*!< in: start of string */
-	char target)		/*!< in: search for this value */
-{
-	ut_a(end >= start);
-
-	while (TRUE) {
-		ut_ad(end >= start);
-
-		if (*end == target)
-			return end;
-
-		if (end == start)
-			return NULL;
-
-		end--;
-	}
-}
-
-/*******************************************************************//**
-Parse db and table name from tablespace name. Use "sys:innodb" for
-db name of the system tablespace and logfiles and tablespace names
-that cannot be parsed. Use "log" as the table name for log files.
-Use "system" as the table name for the system tablespace.
-For the tablespace "./foo/bar.ibd", the db name is "foo" and the
-table name is "bar". This expects names to be of the form:
-   "anything/db/table.ibd"
-
-@return values in db_name and table_name. */
-static void
-parse_db_and_table(
-/*===============*/
-	const char*	name,		/*!< in: name to parse */
-	char*		db_name,	/*!< out: return db name */
-	char*		table_name,	/*!< out: return table name */
-	ulint		purpose,	/*!< in: type of tablespace */
-	ulint		id)		/*!< in: tablespace id */
-{
-	size_t		name_len = strlen(name);
-	const char*	name_end = name + name_len;
-	ibool		parsed = FALSE;
-	const char*	dot_start;
-
-	if (purpose == FIL_LOG) {
-		strcpy(db_name, "sys:innodb");
-		strcpy(table_name, "log");
-		return;
-	} else if (id == 0) {
-		strcpy(db_name, "sys:innodb");
-		strcpy(table_name, "system");
-		return;
-	}
-
-	dot_start = search_str_backwards(name_end - 1, name, '.');
-	dot_start = name_end;
-
-	/* Continue when the '.' is found and there are enough chars
-	remaining for two slashes, a db name and a table name. */
-
-	if (dot_start && (dot_start - name) >= 4) {
-		const char*	table_start;
-
-		table_start = search_str_backwards(dot_start - 1, name, '/');
-
-		/* Continue when the slash is found, there are chars between
-		it and the '.' and the string between the slash and '.' is
-		not too big. */
-
-		if (table_start &&
-		    (table_start + 1) < dot_start &&
-		    (dot_start - (table_start + 1)) < (FN_REFLEN / 2)) {
-			const char*	db_start;
-
-			db_start = search_str_backwards(table_start - 1, name, '/');
-
-			/* Continue when the slash is found, there are chars between
-			it and the next slash and the string between it and the
-			next slash is not too big. */
-
-			if (db_start &&
-			   (db_start + 1) < table_start &&
-			   (table_start - (db_start + 1)) < (FN_REFLEN / 2)) {
-
-				/* Success! */
-				parsed = TRUE;
-
-				strncpy(table_name, table_start + 1,
-					dot_start - (table_start + 1));
-				table_name[dot_start - (table_start + 1)] = '\0';
-
-				strncpy(db_name, db_start + 1,
-					table_start - (db_start + 1));
-				db_name[table_start - (db_start + 1)] = '\0';
-			}
-		}
-	}
-
-	if (!parsed) {
-		strcpy(db_name, "sys:innodb");
-		strcpy(table_name, "other");
-		fprintf(stderr,
-			"InnoDB: unable to parse table and "
-			"db name from ::%s::\n", name);
-	}
-
-	ut_a(strlen(db_name) < ((FN_REFLEN / 2)));
-	ut_a(strlen(table_name) < ((FN_REFLEN / 2)));
-}
-
-/*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
 @return	TRUE if success */
@@ -1484,15 +1220,11 @@ fil_space_create(
 	ulint		purpose)/*!< in: FIL_TABLESPACE, or FIL_LOG if log */
 {
 	fil_space_t*	space;
-	char		db_name[FN_REFLEN / 2];
-	char		table_name[FN_REFLEN / 2];
 
 	DBUG_EXECUTE_IF("fil_space_create_failure", return(false););
 
 	ut_a(fil_system);
 	ut_a(fsp_flags_is_valid(flags));
-
-	parse_db_and_table(name, db_name, table_name, purpose, id);
 
 	/* Look for a matching tablespace and if found free it. */
 	do {
@@ -1543,9 +1275,6 @@ fil_space_create(
 
 	space->name = mem_strdup(name);
 	space->id = id;
-	strcpy(space->db_name, db_name);
-	strcpy(space->table_name, table_name);
-	space->used = TRUE;
 
 	fil_system->tablespace_version++;
 	space->tablespace_version = fil_system->tablespace_version;
@@ -1579,8 +1308,6 @@ fil_space_create(
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = false;
-
-	memset(&(space->comp_stat), 0, sizeof space->comp_stat);
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -5444,8 +5171,6 @@ fil_io(
 		ut_error;
 	}
 
-	space->used = TRUE;
-
 	/* Now we have made the changes in the data structures of fil_system */
 	mutex_exit(&fil_system->mutex);
 
@@ -5931,8 +5656,6 @@ fil_close(void)
 
 	fil_system = NULL;
 }
-
-fil_system_t*	fil_system = NULL;
 
 /********************************************************************//**
 Initializes a buffer control block when the buf_pool is created. */

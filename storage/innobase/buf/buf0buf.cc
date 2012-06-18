@@ -2155,7 +2155,7 @@ buf_zip_decompress(
 	switch (fil_page_get_type(frame)) {
 	case FIL_PAGE_INDEX:
 		if (page_zip_decompress(&block->page.zip,
-					block->frame, TRUE, block->page.space)) {
+					block->frame, TRUE)) {
 			return(TRUE);
 		}
 
