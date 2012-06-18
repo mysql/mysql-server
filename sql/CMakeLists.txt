@@ -163,7 +163,6 @@ SET(SQL_SHARED_SOURCES
   sys_vars.cc
   table.cc
   table_cache.cc
-  table_stats.cc
   thr_malloc.cc 
   transaction.cc
   tztime.cc

@@ -25,8 +25,6 @@
 #include "my_time.h"                   /* enum_mysql_timestamp_type */
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "my_base.h"                   /* ha_rows, ha_key_alg */
-#include "mysql_com.h"
-#include "my_perf.h" /* comp_stat_t */
 
 struct TABLE;
 class Field;
@@ -194,6 +192,7 @@ typedef struct user_resources {
   uint specified_limits;
 } USER_RESOURCES;
 
+
 /*
   This structure is used for counting resources consumed and for checking
   them against specified user limits.
@@ -225,15 +224,6 @@ typedef struct  user_conn {
   /* Maximum amount of resources which account is allowed to consume. */
   USER_RESOURCES user_resources;
 } USER_CONN;
-
-typedef struct st_table_stats {
-  char db[NAME_LEN + 1];     /* [db] + '\0' */
-  char table[NAME_LEN + 1];  /* [table] + '\0' */
-  /* Hash table key, table->s->table_cache_key for the table */
-  char hash_key[NAME_LEN * 2 + 2];
-  int hash_key_len;          /* table->s->key_length for the table */
-  comp_stat_t comp_stat;	/* Compression statistics */
-} TABLE_STATS;
 
 	/* Bits in form->update */
 #define REG_MAKE_DUPP		1	/* Make a copy of record when read */

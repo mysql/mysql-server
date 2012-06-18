@@ -38,7 +38,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sql_acl.h>	// PROCESS_ACL
 #include <debug_sync.h> // DEBUG_SYNC
 #include <my_base.h>	// HA_OPTION_*
-#include <my_perf.h>
 #include <mysys_err.h>
 #include <mysql/innodb_priv.h>
 
@@ -471,16 +470,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval
 };
-
-/****************************************************************//**
-Update stats with per-table data from InnoDB tables. */
-static
-void
-innobase_update_table_stats(
-/*===============*/
-/* per-table stats callback */
-void (*cb)(const char* db, const char* tbl,
-		   comp_stat_t *comp_state));
 
 /*************************************************************//**
 Check whether valid argument given to innodb_ft_*_stopword_table.
@@ -2826,14 +2815,7 @@ innobase_init(
 
 	innobase_hton->data = &innodb_api_cb;
 
-	innobase_hton->update_table_stats = innobase_update_table_stats;
-
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
-
-	if (my_fast_timer_get_scale() == 0) {
-		sql_print_error("fast timers failed to initialize");
-		goto error;
-	}
 
 #ifndef DBUG_OFF
 	static const char	test_filename[] = "-@";
@@ -3558,19 +3540,6 @@ retry:
 	srv_active_wake_master_thread();
 
 	DBUG_RETURN(0);
-}
-
-/****************************************************************//**
-Update stats with per-table data from InnoDB tables. */
-static
-void
-innobase_update_table_stats(
-/*===============*/
-	/* per-table stats callback */
-	void (*cb)(const char* db, const char* tbl,
-		   comp_stat_t* comp_stat))
-{
-	fil_update_table_stats(cb);
 }
 
 /*****************************************************************//**
