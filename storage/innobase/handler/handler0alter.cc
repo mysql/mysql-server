@@ -2267,6 +2267,8 @@ found_col:
 					    DICT_TF2_FTS_HAS_DOC_ID));
 			col_map[i] = ULINT_UNDEFINED;
 		}
+
+		i++;
 	} else {
 		DBUG_ASSERT(!DICT_TF2_FLAG_IS_SET(
 				    old_table,
