@@ -87,6 +87,7 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
     11001
     11006
     11003  # do not complain if some file was compiled without -ipo
+    144    # silly icc 13 bug.
     )
   string(REGEX REPLACE ";" "," intel_warning_string "${intel_warnings}")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -diag-disable ${intel_warning_string}")

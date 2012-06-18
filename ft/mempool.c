@@ -36,6 +36,7 @@ void toku_mempool_copy_construct(struct mempool *mp, const void * const data_sou
 	toku_mempool_construct(mp, data_size);
 	memcpy(mp->base, data_source, data_size);
 	mp->free_offset = data_size;                     // address of first available memory for new data
+        toku_memory_dontneed_after_but_i_touched(mp->base, mp->size, 0, data_size);
     }
     else {
 	toku_mempool_zero(mp);
@@ -115,6 +116,7 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
     } else {
         vp = (char *)mp->base + offset;
         mp->free_offset = offset + size;
+        toku_memory_dontneed_after_but_i_touched(mp->base, mp->size, offset, size);
     }
     assert(mp->free_offset <= mp->size);
     assert(((long)vp & (alignment-1)) == 0);
@@ -145,4 +147,5 @@ void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp) {
     new_mp->size = orig_mp->free_offset; // only make the cloned mempool store what is needed
     new_mp->base = toku_xmalloc(new_mp->size);
     memcpy(new_mp->base, orig_mp->base, new_mp->size);
+    toku_memory_dontneed_after_but_i_touched(new_mp->base, new_mp->size, 0, new_mp->size);
 }
