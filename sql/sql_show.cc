@@ -58,7 +58,6 @@
 #include "sql_tmp_table.h" // Tmp tables
 #include "sql_optimizer.h" // JOIN
 #include "global_threads.h"
-#include "table_stats.h" /* table_stats_fields_info, fill_table_stats */
 
 #include <algorithm>
 using std::max;
@@ -2396,8 +2395,6 @@ void reset_status_vars()
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG || ptr->type == SHOW_SIGNED_LONG)
       *(ulong*) ptr->value= 0;
-    else if (ptr->type == SHOW_DOUBLE)
-      *(double*) ptr->value= 0;
   }  
 }
 
@@ -8089,8 +8086,6 @@ ST_SCHEMA_TABLE schema_tables[]=
    get_all_tables, make_table_names_old_format, 0, 1, 2, 1, 0},
   {"TABLE_PRIVILEGES", table_privileges_fields_info, create_schema_table,
    fill_schema_table_privileges, 0, 0, -1, -1, 0, 0},
-  {"TABLE_STATISTICS", table_stats_fields_info, create_schema_table,
-   fill_table_stats, NULL, NULL, -1, -1, false, 0},
   {"TRIGGERS", triggers_fields_info, create_schema_table,
    get_all_tables, make_old_format, get_schema_triggers_record, 5, 6, 0,
    OPEN_TRIGGER_ONLY|OPTIMIZE_I_S_TABLE},

@@ -39,7 +39,6 @@
 #include <mysql/psi/mysql_table.h>
 #include "debug_sync.h"         // DEBUG_SYNC
 #include <my_bit.h>
-#include "table_stats.h"
 #include <list>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -824,24 +823,6 @@ static my_bool dropdb_handlerton(THD *unused1, plugin_ref plugin,
 void ha_drop_database(char* path)
 {
   plugin_foreach(NULL, dropdb_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, path);
-}
-
-
-static my_bool get_table_stats_handlerton(THD *unused, plugin_ref plugin,
-                                          void *cb)
-{
-  handlerton *hton= plugin_data(plugin, handlerton *);
-
-  if (hton->state == SHOW_OPTION_YES && hton->update_table_stats)
-    hton->update_table_stats((table_stats_cb) cb);
-
-  return FALSE;
-}
-
-void ha_get_table_stats(table_stats_cb cb)
-{
-  plugin_foreach(NULL, get_table_stats_handlerton,
-                 MYSQL_STORAGE_ENGINE_PLUGIN, (void*) cb);
 }
 
 
@@ -2483,9 +2464,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       dup_ref=ref+ALIGN_SIZE(ref_length);
     cached_table_flags= table_flags();
   }
-  table_stats = NULL;
   DBUG_RETURN(error);
 }
+
 
 /**
   Close handler.
@@ -6771,21 +6752,6 @@ TYPELIB* ha_known_exts()
   return known_extensions;
 }
 
-/*
-  Updates global per-table counters with work done by this instance
-
-  SYNOPSIS
-    update_global_table_stats
-
-  NOTES
-    Should be called at the end of a statement.
-    TODO(mcallaghan): support more concurrency on update, shard the hash table
-*/
-void handler::update_global_table_stats()
-{
-  if (!table_stats)
-    table_stats = get_table_stats(table);
-}
 
 static bool stat_print(THD *thd, const char *type, uint type_len,
                        const char *file, uint file_len,

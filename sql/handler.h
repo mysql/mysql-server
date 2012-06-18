@@ -29,7 +29,6 @@
 #include "thr_lock.h"          /* thr_lock_type, THR_LOCK_DATA */
 #include "sql_cache.h"
 #include "structs.h"                            /* SHOW_COMP_OPTION */
-#include "my_perf.h" /* comp_stat_t */
 
 #include <my_global.h>
 #include <my_compare.h>
@@ -706,7 +705,6 @@ enum enum_schema_tables
   SCH_TABLE_CONSTRAINTS,
   SCH_TABLE_NAMES,
   SCH_TABLE_PRIVILEGES,
-  SCH_TABLE_STATISTICS,
   SCH_TRIGGERS,
   SCH_USER_PRIVILEGES,
   SCH_VARIABLES,
@@ -952,10 +950,6 @@ struct handlerton
   bool (*is_supported_system_table)(const char *db,
                                     const char *table_name,
                                     bool is_sql_layer_system_table);
-
-  void (*update_table_stats)(void (*cb)(const char *db,
-                                        const char *tbl,
-                                        comp_stat_t *comp_stat));
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -1658,7 +1652,8 @@ public:
     data_file_length(0), max_data_file_length(0),
     index_file_length(0), delete_length(0), auto_increment_value(0),
     records(0), deleted(0), mean_rec_length(0), create_time(0),
-    check_time(0), update_time(0), block_size(0) {}
+    check_time(0), update_time(0), block_size(0)
+  {}
 };
 
 uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
@@ -1739,8 +1734,6 @@ protected:
   TABLE_SHARE *table_share;             /* The table definition */
   TABLE *table;                         /* The current open table */
   Table_flags cached_table_flags;       /* Set on init() and open() */
-  /* table_stats saves a hash table search when set. */
-  TABLE_STATS *table_stats;
 
   ha_rows estimation_rows_to_insert;
 public:
@@ -1865,7 +1858,6 @@ private:
 public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
-    table_stats(NULL),
     estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), end_range(NULL), in_range_check_pushed_down(false),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
@@ -2006,7 +1998,6 @@ public:
   {
     table= table_arg;
     table_share= share;
-    table_stats= NULL;
   }
   /* Estimates calculation */
   virtual double scan_time()
@@ -2913,11 +2904,6 @@ public:
     return 0;
   }
 
-  /* Update global per-table counters for work done by this handler. Should be
-     called at the end of a statement.
-  */
-  void update_global_table_stats();
-
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulonglong SSV::*offset) const;
@@ -3283,10 +3269,6 @@ int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
 
 /* statistics and info */
 bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat);
-
-/* Get updated table statistics from all engines */
-void ha_get_table_stats(void (*cb)(const char* db, const char* tbl,
-                                   comp_stat_t* comp_stat));
 
 /* discovery */
 int ha_create_table_from_engine(THD* thd, const char *db, const char *name);

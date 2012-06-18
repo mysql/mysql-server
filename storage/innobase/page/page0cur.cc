@@ -1217,7 +1217,7 @@ page_cur_insert_rec_zip_reorg(
 
 	/* Out of space: restore the page */
 	btr_blob_dbg_remove(page, index, "insert_zip_fail");
-	if (!page_zip_decompress(page_zip, page, FALSE, buf_block_get_space(block))) {
+	if (!page_zip_decompress(page_zip, page, FALSE)) {
 		ut_error; /* Memory corrupted? */
 	}
 	ut_ad(page_validate(page, index));
