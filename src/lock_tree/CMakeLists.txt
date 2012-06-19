@@ -14,6 +14,8 @@ set_property(TARGET lock_tree_tlog APPEND PROPERTY
 target_link_libraries(lock_tree_tlog range_tree_tlog)
 add_dependencies(lock_tree_tlog install_tdb_h)
 
+set_targets_need_intel_libs(lock_tree_lin lock_tree_tlog)
+
 ## make the real library, it's going to go into libtokudb.so so it needs
 ## to be PIC
 add_library(lock_tree_static STATIC ${lock_tree_srcs})
