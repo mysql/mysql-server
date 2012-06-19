@@ -45,6 +45,8 @@ call mtr.add_suppression("Dictionary location;");
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Attempt to open a tablespace previously opened");
 call mtr.add_suppression("A link file was found named");
+call mtr.add_suppression("Tablespaces for test/* have been found in two places;");
+call mtr.add_suppression("InnoDB: Table test/aa in the InnoDB data dictionary has tablespace id");
 --enable_query_log
 
 --echo #
@@ -409,7 +411,7 @@ SET SESSION debug="+d,crash_commit_before";
 --error 2013
 COMMIT;
 
---echo # AA; Control table, used as the source of 'wrong' tablespaces and opened first during recovery.
+--echo # AA; Control table, used as the source of 'wrong' tablespaces.
 --echo #     AA also has a link file which points to the file in the default datadir.
 --exec echo $MYSQLD_DATADIR/test/aa.ibd > $MYSQLD_DATADIR/test/aa.isl
 
@@ -421,14 +423,19 @@ COMMIT;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
---echo # Start the server and let it do recovery.
---echo # It will crash when it finds aa in the default directory and an isl file.
+--echo # Start the server and let it do recovery with aa.ibd and aa.isl.
+--echo # It will exit when it finds aa in the default directory and an isl file.
 --echo #
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 --echo # Delete the invalid aa.isl.
 --remove_file $MYSQLD_DATADIR/test/aa.isl
+
+--echo # Move the aa file so that it is not found during recovery.
+--echo # Since we cannot make all OSes return that file first,
+--echo # we cannot assure that it is opened before the copies of it.
+--move_file $MYSQLD_DATADIR/test/aa.ibd $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak
 
 --echo # YY; Found in both default directory and alt-dir.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd $MYSQLD_DATADIR/test/yy.ibd
@@ -441,8 +448,8 @@ COMMIT;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
---echo # Start the server and let it do recovery.
---echo # It will crash when it finds two copies of yy.
+--echo # Start the server and let it do recovery for yy in 2 places.
+--echo # It will exit when it finds two copies of yy.
 --echo #
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -450,17 +457,9 @@ COMMIT;
 --echo # Delete the extra copy of yy.
 --remove_file $MYSQLD_DATADIR/test/yy.ibd
 
---echo # YN; Tablespace found the default directory but not in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
-
---echo # NY; Tablespace found in alt_dir but not the default directory.
-
---echo # YW; Tablespace found in the default directory but the wrong file in alt_dir
---move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
---copy_file $MYSQLD_DATADIR/test/aa.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-
---echo # WY; The wrong tablespace found in the default directory and the corect one in alt_dir
---copy_file $MYSQLD_DATADIR/test/aa.ibd $MYSQLD_DATADIR/test/wy.ibd
+--echo # WY; The wrong tablespace is found in the default directory
+--echo # and the corect one in alt_dir.
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
 
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
@@ -470,7 +469,50 @@ COMMIT;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
---echo # Start the server and let it do recovery.
+--echo # Start the server and let it do recovery for wy in 2 places.
+--echo # It will exit when it finds two copies of wy.
+--echo #
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Delete the wrong copy of wy.
+--remove_file $MYSQLD_DATADIR/test/wy.ibd
+
+--echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
+--move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+
+--echo ---- MYSQLD_DATADIR/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Start the server and let it do recovery for yw in 2 places.
+--echo # It will exit when it finds two copies of yw.
+--echo #
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--echo # Delete the wrong copy of yw.
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+
+--echo # YN; Tablespace found the default directory but not in alt_dir.
+--move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+
+--echo # NY; Tablespace found in alt_dir but not the default directory.
+
+--echo ---- MYSQLD_DATADIR/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
+--echo #
+--echo # Start the server and let it do recovery for ny, wy, yn, yw, & yy.
 --echo #
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
@@ -482,6 +524,7 @@ SHOW VARIABLES LIKE 'innodb_strict_mode';
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
 
+--error ER_NO_SUCH_TABLE
 SELECT * FROM aa;
 SELECT * FROM yy;
 SELECT * FROM yn;
@@ -489,7 +532,7 @@ SELECT * FROM ny;
 SELECT * FROM yw;
 SELECT * FROM wy;
 
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE aa;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE yy;
@@ -527,10 +570,9 @@ DROP TABLE wy;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---remove_file $MYSQLD_DATADIR/test/wy.ibd
 --remove_file $MYSQLD_DATADIR/test/yn.isl
 --remove_file $MYSQLD_DATADIR/test/yw.isl
---remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak
 
 --echo #
 --echo # List of files after deleting unknown files
