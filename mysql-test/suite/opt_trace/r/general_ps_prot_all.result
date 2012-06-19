@@ -6642,6 +6642,26 @@ QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 update t6 set d=5 where d is NULL	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "isnull(`t6`.`d`)",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "isnull(`t6`.`d`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "isnull(`t6`.`d`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "isnull(`t6`.`d`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t6`",
       "range_analysis": {
         "table_scan": {
@@ -6706,6 +6726,26 @@ select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from t6 where d=5	{
   "steps": [
+    {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t6`.`d` = 5)",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal(5, `t6`.`d`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal(5, `t6`.`d`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal(5, `t6`.`d`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
     {
       "table": "`t6`",
       "range_analysis": {
@@ -7817,6 +7857,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -7935,6 +7995,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -8053,6 +8133,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -8170,6 +8270,26 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
     {
       "table": "`t1`",
       "range_analysis": {
@@ -8594,6 +8714,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -8712,6 +8852,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -8830,6 +8990,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -8947,6 +9127,26 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
     {
       "table": "`t1`",
       "range_analysis": {
@@ -9362,6 +9562,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -9484,6 +9704,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -9606,6 +9846,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -9727,6 +9987,26 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
     {
       "table": "`t1`",
       "range_analysis": {
@@ -10324,6 +10604,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -10442,6 +10742,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -10560,6 +10880,26 @@ insert into t1 values("z",0)	{
 delete from t1 where id="z"	{
   "steps": [
     {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
+    {
       "table": "`t1`",
       "range_analysis": {
         "table_scan": {
@@ -10677,6 +11017,26 @@ insert into t1 values("z",0)	{
 }	0	0
 delete from t1 where id="z"	{
   "steps": [
+    {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "(`t1`.`id` = 'z')",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "multiple equal('z', `t1`.`id`)"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
     {
       "table": "`t1`",
       "range_analysis": {
@@ -10945,6 +11305,26 @@ select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 delete from v1 where data=100	{
   "steps": [
+    {
+      "condition_processing": {
+        "condition": "WHERE",
+        "original_condition": "((`t1`.`data` = 100) and (`t1`.`id` < 'c'))",
+        "steps": [
+          {
+            "transformation": "equality_propagation",
+            "resulting_condition": "((`t1`.`id` < 'c') and multiple equal(100, `t1`.`data`))"
+          },
+          {
+            "transformation": "constant_propagation",
+            "resulting_condition": "((`t1`.`id` < 'c') and multiple equal(100, `t1`.`data`))"
+          },
+          {
+            "transformation": "trivial_condition_removal",
+            "resulting_condition": "((`t1`.`id` < 'c') and multiple equal(100, `t1`.`data`))"
+          }
+        ] /* steps */
+      } /* condition_processing */
+    },
     {
       "table": "`t1`",
       "range_analysis": {

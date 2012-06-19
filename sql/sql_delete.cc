@@ -185,10 +185,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     }
     /* Handler didn't support fast delete; Delete rows one by one */
   }
+
   if (conds)
   {
+    COND_EQUAL *cond_equal= NULL;
     Item::cond_result result;
-    conds= remove_eq_conds(thd, conds, &result);
+
+    conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list, 
+                         true, &result);
     if (result == Item::COND_FALSE)             // Impossible where
     {
       limit= 0;
@@ -198,6 +202,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         err= explain_no_table(thd, "Impossible WHERE");
         goto exit_without_my_ok;
       }
+    }
+    if (conds)
+    {
+      conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      conds->update_used_tables();
     }
   }
 
@@ -225,6 +234,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
     if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
     {
+      if (thd->lex->describe && !error && !thd->is_error())
+      {
+        error= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
       delete select;
       free_underlaid_joins(thd, select_lex);
       /*

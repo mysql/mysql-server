@@ -386,14 +386,6 @@ int mysql_update(THD *thd,
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(1);
 
-  if (conds)
-  {
-    Item::cond_result cond_value;
-    conds= remove_eq_conds(thd, conds, &cond_value);
-    if (cond_value == Item::COND_FALSE)
-      limit= 0;                                   // Impossible WHERE
-  }
-
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
       update.function_defaults_apply(table))
     /*
@@ -436,6 +428,71 @@ int mysql_update(THD *thd,
 #endif
   if (lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(1);
+
+  // Must be done after lock_tables()
+  if (conds)
+  {
+    COND_EQUAL *cond_equal= NULL;
+    Item::cond_result result;
+    if (table_list->check_option)
+    {
+      /*
+        If this UPDATE is on a view with CHECK OPTION, Item_fields
+        must not be replaced by constants. The reason is that when
+        'conds' is optimized, 'check_option' is also optimized (it is
+        part of 'conds'). Const replacement is fine for 'conds'
+        because it is evaluated on a read row, but 'check_option' is
+        evaluated on a row with updated fields and needs those updated
+        values to be correct.
+
+        Example:
+        CREATE VIEW v1 ... WHERE fld < 2 WITH CHECK_OPTION
+        UPDATE v1 SET fld=4 WHERE fld=1
+
+        check_option is  "(fld < 2)"
+        conds is         "(fld < 2) and (fld = 1)"
+
+        optimize_cond() would propagate fld=1 to the first argument of
+        the AND to create "(1 < 2) AND (fld = 1)". After this,
+        check_option would be "(1 < 2)". But for check_option to work
+        it must be evaluated with the *updated* value of fld: 4.
+        Otherwise it will evaluate to true even when it should be
+        false, which is the case for the UPDATE statement above.
+
+        Thus, if there is a check_option, we do only the "safe" parts
+        of optimize_cond(): Item_row -> Item_func_eq conversion (to
+        enable range access) and removal of always true/always false
+        predicates.
+
+        An alternative to restricting this optimization of 'conds' in
+        the presense of check_option: the Item-tree of 'check_option'
+        could be cloned before optimizing 'conds' and thereby avoid
+        const replacement. However, at the moment there is no such
+        thing as Item::clone().
+      */
+      conds= build_equal_items(thd, conds, NULL, false,
+                               select_lex->join_list, &cond_equal);
+      conds= remove_eq_conds(thd, conds, &result);
+    }
+    else
+      conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
+                           true, &result);
+
+    if (result == Item::COND_FALSE)
+    {
+      limit= 0;                                   // Impossible WHERE
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
+    }
+    if (conds)
+    {
+      conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      conds->update_used_tables();
+    }
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /*
@@ -491,7 +548,13 @@ int mysql_update(THD *thd,
       {
         DBUG_RETURN(1);				// Error in where
       }
-      my_ok(thd);				// No matching records
+
+      char buff[MYSQL_ERRMSG_SIZE];
+      my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
+                  (ulong) thd->get_stmt_da()->current_statement_warn_count());
+      my_ok(thd, 0, 0, buff);
+
+      DBUG_PRINT("info",("0 records updated"));
       DBUG_RETURN(0);
     }
   } // Ends scope for optimizer trace wrapper

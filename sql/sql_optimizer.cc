@@ -49,14 +49,6 @@ static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
 static bool optimize_semijoin_nests_for_materialization(JOIN *join);
 static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join, Item *item);
-static Item *build_equal_items(THD *thd, Item *cond,
-                               COND_EQUAL *inherited,
-                               List<TABLE_LIST> *join_list,
-                               COND_EQUAL **cond_equal_ref);
-static Item *optimize_cond(JOIN *join, Item *conds,
-                           List<TABLE_LIST> *join_list,
-			   bool build_equalities,
-                           Item::cond_result *cond_value);
 static bool list_contains_unique_index(JOIN_TAB *tab,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
@@ -68,9 +60,6 @@ static ORDER *create_distinct_group(THD *thd, Ref_ptr_array ref_pointer_array,
 static TABLE *get_sort_by_table(ORDER *a,ORDER *b,TABLE_LIST *tables);
 static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab);
 static Item *remove_additional_cond(Item* conds);
-static Item* substitute_for_best_equal_field(Item *cond,
-                                             COND_EQUAL *cond_equal,
-                                             void *table_join_idx);
 static bool simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                            Item *conds, bool top, bool in_sj,
                            Item **new_conds,
@@ -232,7 +221,8 @@ JOIN::optimize()
     select_lex->where and conds points to the same condition, this
     function call effectively changes select_lex->where as well.
   */
-  conds= optimize_cond(this, conds, join_list, TRUE, &select_lex->cond_value);
+  conds= optimize_cond(thd, conds, &cond_equal,
+                       join_list, true, &select_lex->cond_value);
   if (thd->is_error())
   {
     error= 1;
@@ -242,7 +232,7 @@ JOIN::optimize()
 
   {
     // Note above about optimize_cond() also applies to selec_lex->having
-    having= optimize_cond(this, having, join_list, FALSE,
+    having= optimize_cond(thd, having, &cond_equal, join_list, false,
                           &select_lex->having_value);
     if (thd->is_error())
     {
@@ -1552,13 +1542,16 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
   @param thd        thread handle
   @param cond       condition(expression) where to make replacement
   @param inherited  path to all inherited multiple equality items
+  @param do_inherit whether or not to inherit equalities from other
+                    parts of the condition
 
   @return
     pointer to the transformed condition
 */
 
 static Item *build_equal_items_for_cond(THD *thd, Item *cond,
-                                        COND_EQUAL *inherited)
+                                        COND_EQUAL *inherited,
+                                        bool do_inherit)
 {
   Item_equal *item_equal;
   COND_EQUAL cond_equal;
@@ -1621,8 +1614,9 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
     li.rewind();
     while ((item= li++))
     { 
-      Item *new_item;
-      if ((new_item= build_equal_items_for_cond(thd, item, inherited)) != item)
+      Item *new_item=
+        build_equal_items_for_cond(thd, item, inherited, do_inherit);
+      if (new_item != item)
       {
         /* This replacement happens only for standalone equalities */
         /*
@@ -1693,17 +1687,21 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
         return and_cond;
       }
     }
-    /* 
-      For each field reference in cond, not from equal item predicates,
-      set a pointer to the multiple equality it belongs to (if there is any)
-      as soon the field is not of a string type or the field reference is
-      an argument of a comparison predicate. 
-    */ 
-    uchar *is_subst_valid= (uchar *) 1;
-    cond= cond->compile(&Item::subst_argument_checker,
-                        &is_subst_valid, 
-                        &Item::equal_fields_propagator,
-                        (uchar *) inherited);
+
+    if (do_inherit)
+    {
+      /*
+        For each field reference in cond, not from equal item predicates,
+        set a pointer to the multiple equality it belongs to (if there is any)
+        as soon the field is not of a string type or the field reference is
+        an argument of a comparison predicate.
+      */
+      uchar *is_subst_valid= (uchar *) 1;
+      cond= cond->compile(&Item::subst_argument_checker,
+                          &is_subst_valid,
+                          &Item::equal_fields_propagator,
+                          (uchar *) inherited);
+    }
     cond->update_used_tables();
   }
   return cond;
@@ -1767,6 +1765,8 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
   @param thd		      Thread handler
   @param cond                condition to build the multiple equalities for
   @param inherited           path to all inherited multiple equality items
+  @param do_inherit          whether or not to inherit equalities from other
+                             parts of the condition
   @param join_list           list of join tables to which the condition
                              refers to
   @param[out] cond_equal_ref pointer to the structure to place built
@@ -1776,16 +1776,15 @@ static Item *build_equal_items_for_cond(THD *thd, Item *cond,
     pointer to the transformed condition containing multiple equalities
 */
    
-static Item *build_equal_items(THD *thd, Item *cond,
-                               COND_EQUAL *inherited,
-                               List<TABLE_LIST> *join_list,
-                               COND_EQUAL **cond_equal_ref)
+Item *build_equal_items(THD *thd, Item *cond, COND_EQUAL *inherited,
+                        bool do_inherit, List<TABLE_LIST> *join_list,
+                        COND_EQUAL **cond_equal_ref)
 {
   COND_EQUAL *cond_equal= 0;
 
   if (cond) 
   {
-    cond= build_equal_items_for_cond(thd, cond, inherited);
+    cond= build_equal_items_for_cond(thd, cond, inherited, do_inherit);
     cond->update_used_tables();
     if (cond->type() == Item::COND_ITEM &&
         ((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
@@ -1820,7 +1819,7 @@ static Item *build_equal_items(THD *thd, Item *cond,
           be restored before re-execution of PS/SP.
         */
         table->set_join_cond(build_equal_items(thd, table->join_cond(),
-                                               inherited,
+                                               inherited, do_inherit,
                                                nested_join_list,
                                                &table->cond_equal));
       }
@@ -1870,6 +1869,16 @@ static int compare_fields_by_table_order(Item_field *field1,
   if (outer_ref)
     return cmp;
   JOIN_TAB **idx= (JOIN_TAB **) table_join_idx;
+
+  /*
+    idx is NULL if this function was not called from JOIN::optimize()
+    but from e.g. mysql_delete() or mysql_update(). In these cases
+    there is only one table and both fields belong to it. Example
+    condition where this is the case: t1.fld1=t1.fld2
+  */
+  if (!idx)
+    return 0;
+
   cmp= idx[field1->field->table->tablenr]-idx[field2->field->table->tablenr];
   return cmp < 0 ? -1 : (cmp ? 1 : 0);
 }
@@ -2066,9 +2075,9 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     The transformed condition, or NULL in case of error
 */
 
-static Item* substitute_for_best_equal_field(Item *cond,
-                                             COND_EQUAL *cond_equal,
-                                             void *table_join_idx)
+Item* substitute_for_best_equal_field(Item *cond,
+                                      COND_EQUAL *cond_equal,
+                                      void *table_join_idx)
 {
   Item_equal *item_equal;
 
@@ -8189,11 +8198,11 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
 
   @return optimized conditions
 */
-static Item *
-optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
+Item *
+optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal, 
+              List<TABLE_LIST> *join_list,
               bool build_equalities, Item::cond_result *cond_value)
 {
-  THD *thd= join->thd;
   Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("optimize_cond");
 
@@ -8222,8 +8231,8 @@ optimize_cond(JOIN *join, Item *conds, List<TABLE_LIST> *join_list,
           disable_trace_wrapper(trace, !conds->has_subquery());
         Opt_trace_array
           trace_subselect(trace, "subselect_evaluation");
-        conds= build_equal_items(join->thd, conds, NULL, join_list,
-                                 &join->cond_equal);
+        conds= build_equal_items(thd, conds, NULL, true,
+                                 join_list, cond_equal);
       }
       step_wrapper.add("resulting_condition", conds);
     }
