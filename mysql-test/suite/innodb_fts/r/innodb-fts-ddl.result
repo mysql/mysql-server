@@ -167,6 +167,8 @@ ADD FULLTEXT INDEX idx5 (title);
 ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
 CREATE FULLTEXT INDEX idx on articles (title);
 ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title);
+ALTER TABLE articles ADD INDEX t20 (title(20)), LOCK=NONE;
+ALTER TABLE articles DROP INDEX t20;
 INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
 (29, 'MySQL Tutorial','DBMS stands for DataBase ...'),
 (30, 'How To Use MySQL Well','After you went through a ...'),
