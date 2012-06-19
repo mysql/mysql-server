@@ -247,7 +247,7 @@ SELECT * FROM t5980;
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
---echo # Restore the backup of *.ibd and *.cfg files 
+--echo # Restore the backup of *.ibd and *.cfg files
 --echo #
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
@@ -291,17 +291,14 @@ CHECK TABLE t5980;
 --echo #
 --echo # Relocate this discarded file to the default directory
 --echo # instead of the remote directory it was discarded from.
---echo # Put cfg, ibt, and idb files into the default directory.
---echo # Delete the isl file and the remote cfg and ibt files.
+--echo # Put cfg and idb files into the default directory.
+--echo # Delete the isl file and the remote cfg file.
 --echo # Restart the engine again.
 --echo # The tablespace is still in the discarded state.
 --echo #
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd.bak  $MYSQL_DATA_DIR/test/t5980.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg.bak  $MYSQL_DATA_DIR/test/t5980.cfg
---copy_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibt  $MYSQL_DATA_DIR/test/t5980.ibt
 --remove_file $MYSQL_DATA_DIR/test/t5980.isl
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
---remove_file $MYSQL_TMP_DIR/alt_dir/test/t5980.ibt
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -328,17 +325,15 @@ SELECT * FROM t5980;
 CHECK TABLE t5980;
 
 --echo #
---echo # Restore the ibd, ibt and cfg files to the remote directory.
---echo # Delete the ibd, ibt and cfg files from the default directory.
+--echo # Restore the ibd and cfg files to the remote directory.
+--echo # Delete the ibd and cfg files from the default directory.
 --echo # The isl file is missing, but is no longer needed since the
 --echo # remote location is in the data dictionary.
 --echo # Import the tablespace and check it out.
 --echo #
 --copy_file $MYSQL_DATA_DIR/test/t5980.ibd  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
---copy_file $MYSQL_DATA_DIR/test/t5980.ibt  $MYSQL_TMP_DIR/alt_dir/test/t5980.ibt
 --copy_file $MYSQL_DATA_DIR/test/t5980.cfg  $MYSQL_TMP_DIR/alt_dir/test/t5980.cfg
 --remove_file $MYSQL_DATA_DIR/test/t5980.ibd
---remove_file $MYSQL_DATA_DIR/test/t5980.ibt
 --remove_file $MYSQL_DATA_DIR/test/t5980.cfg
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test

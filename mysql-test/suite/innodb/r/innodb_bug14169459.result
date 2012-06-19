@@ -47,7 +47,6 @@ SELECT * FROM t14169459_2;
 ERROR HY000: InnoDB: Tablespace has been discarded for table 't14169459_2'
 ### directory of MYSQL_DATA_DIR/test
 t14169459_2.frm
-t14169459_2.ibt
 ### directory of MYSQL_TMP_DIR/mysqld.1
 #sql<temporary>.ibd
 DROP TABLE t14169459_1;

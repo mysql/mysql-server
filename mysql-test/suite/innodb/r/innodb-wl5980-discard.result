@@ -125,7 +125,6 @@ t5980.cfg.bak
 t5980.cfg.bak2
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Restore the second backup of cfg and ibd files.
 #
@@ -136,7 +135,6 @@ t5980.cfg.bak2
 t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Try to Import the second backup.  These backups have extra DDL and
 # do not match the current frm file.
@@ -152,7 +150,6 @@ t5980.cfg.bak
 t5980.cfg.bak2
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Restore the first backup of cfg and ibd files.
 #
@@ -163,7 +160,6 @@ t5980.cfg.bak2
 t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Import the tablespace and do some DDL and DML.
 #
@@ -180,7 +176,6 @@ t5980.cfg.bak2
 t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 CHECK TABLE t5980;
 Table	Op	Msg_type	Msg_text
 test.t5980	check	status	OK
@@ -315,7 +310,6 @@ t5980.cfg.bak
 t5980.cfg.bak2
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Restore the backup of *.ibd and *.cfg files 
 #
@@ -329,7 +323,6 @@ t5980.cfg.bak2
 t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Import the tablespace and check it out.
 #
@@ -354,7 +347,6 @@ t5980.cfg.bak2
 t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # DISCARD the tablespace again
 #
@@ -365,12 +357,10 @@ ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
 t5980.frm
 t5980.isl
 ### files in MYSQL_TMP_DIR/alt_dir/test
-t5980.cfg
 t5980.cfg.bak
 t5980.cfg.bak2
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 #
 # Restart the engine while the tablespace is in the discarded state
 #
@@ -384,8 +374,8 @@ test.t5980	check	error	Corrupt
 #
 # Relocate this discarded file to the default directory
 # instead of the remote directory it was discarded from.
-# Put cfg, ibt, and idb files into the default directory.
-# Delete the isl file and the remote cfg and ibt files.
+# Put cfg and idb files into the default directory.
+# Delete the isl file and the remote cfg file.
 # Restart the engine again.
 # The tablespace is still in the discarded state.
 #
@@ -393,7 +383,6 @@ test.t5980	check	error	Corrupt
 t5980.cfg
 t5980.frm
 t5980.ibd
-t5980.ibt
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
 t5980.cfg.bak2
@@ -421,8 +410,8 @@ Table	Op	Msg_type	Msg_text
 test.t5980	check	Error	InnoDB: Tablespace has been discarded for table 't5980'
 test.t5980	check	error	Corrupt
 #
-# Restore the ibd, ibt and cfg files to the remote directory.
-# Delete the ibd, ibt and cfg files from the default directory.
+# Restore the ibd and cfg files to the remote directory.
+# Delete the ibd and cfg files from the default directory.
 # The isl file is missing, but is no longer needed since the
 # remote location is in the data dictionary.
 # Import the tablespace and check it out.
@@ -436,7 +425,6 @@ t5980.cfg.bak2
 t5980.ibd
 t5980.ibd.bak
 t5980.ibd.bak2
-t5980.ibt
 ALTER TABLE t5980 IMPORT TABLESPACE;
 Warnings:
 Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
