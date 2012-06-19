@@ -50,8 +50,6 @@ FLUSH TABLE t1 FOR EXPORT;
 --copy_file $MYSQLD_DATADIR/test/t1.cfg $MYSQLD_TMPDIR/t1.cfg
 --copy_file $MYSQLD_DATADIR/test/t1.ibd $MYSQLD_TMPDIR/t1.ibd
 UNLOCK TABLES;
---echo # List temp directory
---list_files $MYSQLD_TMPDIR/
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t1;
 SELECT * FROM t1 ORDER BY b,a DESC LIMIT 3;

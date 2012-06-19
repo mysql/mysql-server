@@ -46,9 +46,6 @@ t1.cfg
 t1.frm
 t1.ibd
 UNLOCK TABLES;
-# List temp directory
-t1.cfg
-t1.ibd
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
