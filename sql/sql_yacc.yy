@@ -7891,18 +7891,18 @@ alter_list_item:
             LEX *lex=Lex;
             lex->alter_info.flags|= Alter_info::ALTER_ORDER;
           }
-        | algorithm_option
-        | lock_option
+        | alter_algorithm_option
+        | alter_lock_option
         ;
 
 opt_index_lock_algorithm:
           /* empty */
-        | lock_option
-        | algorithm_option
-        | lock_option algorithm_option
-        | algorithm_option lock_option
+        | alter_lock_option
+        | alter_algorithm_option
+        | alter_lock_option alter_algorithm_option
+        | alter_algorithm_option alter_lock_option
 
-algorithm_option:
+alter_algorithm_option:
           ALGORITHM_SYM opt_equal DEFAULT
           {
             Lex->alter_info.requested_algorithm=
@@ -7918,7 +7918,7 @@ algorithm_option:
           }
         ;
 
-lock_option:
+alter_lock_option:
           LOCK_SYM opt_equal DEFAULT
           {
             Lex->alter_info.requested_lock=

@@ -434,6 +434,93 @@ const char *Geometry::get_mbr_for_points(MBR *mbr, const char *data,
 }
 
 
+int Geometry::collection_store_shapes(Gcalc_shape_transporter *trn,
+                                      Gcalc_shape_status *st,
+                                      Geometry *collection_item) const
+{
+  uint32 n_objects;
+  const char *data= m_data;
+  Geometry_buffer buffer;
+
+  if (no_data(data, 4))
+    return 1;
+  n_objects= uint4korr(data);
+  data+= 4;
+
+  if (trn->start_collection(st, n_objects))
+    return 1;
+
+  while (n_objects--)
+  {
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+
+    Geometry *geom;
+    if (!(geom= collection_item))
+    {
+      /*
+        Item type is not known in advance, e.g. GeometryCollection.
+        Create an item object in every iteration,
+        according to the current wkb type.
+      */
+      uint32 wkb_type= uint4korr(data + 1);
+      if (!(geom= create_by_typeid(&buffer, wkb_type)))
+        return 1;
+    }
+    data+= WKB_HEADER_SIZE;
+    geom->set_data_ptr(data, (uint32) (m_data_end - data));
+    Gcalc_shape_status item_status;
+    if (geom->store_shapes(trn, &item_status))
+      return 1;
+    if (trn->collection_add_item(st, &item_status))
+      return 1;
+    data+= geom->get_data_size();
+  }
+  trn->complete_collection(st);
+  return 0;
+}
+
+
+int Geometry::collection_area(double *ar, const char **end_of_data,
+                              Geometry *collection_item) const
+{
+  uint32 n_objects;
+  const char *data= m_data;
+  Geometry_buffer buffer;
+
+  if (no_data(data, 4))
+    return 1;
+  n_objects= uint4korr(data);
+  data+= 4;
+
+  for (*ar= 0; n_objects; n_objects--)
+  {
+    if (no_data(data, WKB_HEADER_SIZE))
+      return 1;
+
+    Geometry *geom;
+    if (!(geom= collection_item))
+    {
+      /*
+        Item type is not known in advance, e.g. GeometryCollection.
+        Create an item object according to the wkb type.
+      */
+      uint32 wkb_type= uint4korr(data + 1);
+      if (!(geom= create_by_typeid(&buffer, wkb_type)))
+        return 1;
+    }
+    data+= WKB_HEADER_SIZE;
+    geom->set_data_ptr(data, (uint32) (m_data_end - data));
+    double item_area;
+    if (geom->area(&item_area, &data))
+      return 1;
+    *ar+= item_area;
+  }
+  *end_of_data= data;
+  return 0;
+}
+
+
 /***************************** Point *******************************/
 
 uint32 Gis_point::get_data_size() const
@@ -494,11 +581,13 @@ bool Gis_point::get_mbr(MBR *mbr, const char **end) const
 }
 
 
-int Gis_point::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_point::store_shapes(Gcalc_shape_transporter *trn,
+                            Gcalc_shape_status *st) const
 {
+  if (trn->skip_point())
+    return 0;
   double x, y;
-
-  return get_xy(&x, &y) || trn->single_point(x, y);
+  return get_xy(&x, &y) || trn->single_point(st, x, y);
 }
 
 
@@ -707,11 +796,15 @@ int Gis_line_string::point_n(uint32 num, String *result) const
 }
 
 
-int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn,
+                                  Gcalc_shape_status *st) const
 {
   uint32 n_points;
   double x, y;
   const char *data= m_data;
+
+  if (trn->skip_line_string())
+    return 0;
 
   if (no_data(m_data, 4))
     return 1;
@@ -720,17 +813,15 @@ int Gis_line_string::store_shapes(Gcalc_shape_transporter *trn) const
   if (n_points < 1 || no_data(data, POINT_DATA_SIZE * n_points))
     return 1;
 
-  trn->start_line();
-
+  trn->start_line(st);
   while (n_points--)
   {
     get_point(&x, &y, data);
     data+= POINT_DATA_SIZE;
-    if (trn->add_point(x, y))
+    if (trn->add_point(st, x, y))
       return 1;
   }
-
-  return trn->complete_line();
+  return trn->complete_line(st);
 }
 
 
@@ -1122,12 +1213,16 @@ int Gis_polygon::centroid(String *result) const
 }
 
 
-int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn,
+                              Gcalc_shape_status *st) const
 {
   uint32 n_linear_rings;
   const char *data= m_data;
 
-  if (trn->start_poly())
+  if (trn->skip_poly())
+    return 0;
+
+  if (trn->start_poly(st))
     return 1;
 
   if (no_data(data, 4))
@@ -1146,20 +1241,20 @@ int Gis_polygon::store_shapes(Gcalc_shape_transporter *trn) const
     if (!n_points || no_data(data, POINT_DATA_SIZE * n_points))
       return 1;
 
-    trn->start_ring();
+    trn->start_ring(st);
     while (--n_points)
     {
       double x, y;
       get_point(&x, &y, data);
       data+= POINT_DATA_SIZE;
-      if (trn->add_point(x, y))
+      if (trn->add_point(st, x, y))
         return 1;
     }
     data+= POINT_DATA_SIZE;
-    trn->complete_ring();
+    trn->complete_ring(st);
   }
 
-  trn->complete_poly();
+  trn->complete_poly(st);
   return 0;
 }
 
@@ -1313,31 +1408,13 @@ int Gis_multi_point::geometry_n(uint32 num, String *result) const
 }
 
 
-int Gis_multi_point::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_multi_point::store_shapes(Gcalc_shape_transporter *trn,
+                                  Gcalc_shape_status *st) const
 {
-  uint32 n_points;
+  if (trn->skip_point())
+    return 0;
   Gis_point pt;
-  const char *data= m_data;
-
-  if (no_data(data, 4))
-    return 1;
-  n_points= uint4korr(data);
-  data+= 4;
-
-  if (trn->start_collection(n_points))
-    return 1;
-
-  while (n_points--)
-  {
-    if (no_data(data, WKB_HEADER_SIZE))
-      return 1;
-    data+= WKB_HEADER_SIZE;
-    pt.set_data_ptr(data, (uint32) (m_data_end - data));
-    if (pt.store_shapes(trn))
-      return 1;
-    data+= pt.get_data_size();
-  }
-  return 0;
+  return collection_store_shapes(trn, st, &pt);
 }
 
 
@@ -1616,31 +1693,13 @@ int Gis_multi_line_string::is_closed(int *closed) const
 }
 
 
-int Gis_multi_line_string::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_multi_line_string::store_shapes(Gcalc_shape_transporter *trn,
+                                        Gcalc_shape_status *st) const
 {
-  uint32 n_lines;
+  if (trn->skip_line_string())
+    return 0;
   Gis_line_string ls;
-  const char *data= m_data;
-
-  if (no_data(data, 4))
-    return 1;
-  n_lines= uint4korr(data);
-  data+= 4;
-
-  if (trn->start_collection(n_lines))
-    return 1;
-
-  while (n_lines--)
-  {
-    if (no_data(data, WKB_HEADER_SIZE))
-      return 1;
-    data+= WKB_HEADER_SIZE;
-    ls.set_data_ptr(data, (uint32) (m_data_end - data));
-    if (ls.store_shapes(trn))
-      return 1;
-    data+= ls.get_data_size();
-  }
-  return 0;
+  return collection_store_shapes(trn, st, &ls);
 }
 
 
@@ -1901,29 +1960,8 @@ int Gis_multi_polygon::geometry_n(uint32 num, String *result) const
 
 int Gis_multi_polygon::area(double *ar,  const char **end_of_data) const
 {
-  uint32 n_polygons;
-  const char *data= m_data;
-  double result= 0;
-
-  if (no_data(data, 4))
-    return 1;
-  n_polygons= uint4korr(data);
-  data+= 4;
-
-  while (n_polygons--)
-  {
-    double p_area;
-    Gis_polygon p;
-
-    data+= WKB_HEADER_SIZE;
-    p.set_data_ptr(data, (uint32) (m_data_end - data));
-    if (p.area(&p_area, &data))
-      return 1;
-    result+= p_area;
-  }
-  *ar= result;
-  *end_of_data= data;
-  return 0;
+  Gis_polygon p;
+  return collection_area(ar, end_of_data, &p);
 }
 
 
@@ -1968,31 +2006,13 @@ int Gis_multi_polygon::centroid(String *result) const
 }
 
 
-int Gis_multi_polygon::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_multi_polygon::store_shapes(Gcalc_shape_transporter *trn,
+                                    Gcalc_shape_status *st) const
 {
-  uint32 n_polygons;
+  if (trn->skip_poly())
+    return 0;
   Gis_polygon p;
-  const char *data= m_data;
-
-  if (no_data(data, 4))
-    return 1;
-  n_polygons= uint4korr(data);
-  data+= 4;
-
-  if (trn->start_collection(n_polygons))
-    return 1;
-
-  while (n_polygons--)
-  {
-    if (no_data(data, WKB_HEADER_SIZE))
-      return 1;
-    data+= WKB_HEADER_SIZE;
-    p.set_data_ptr(data, (uint32) (m_data_end - data));
-    if (p.store_shapes(trn))
-      return 1;
-    data+= p.get_data_size();
-  }
-  return 0;
+  return collection_store_shapes(trn, st, &p);
 }
 
 
@@ -2216,6 +2236,12 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, const char **end) const
 }
 
 
+int Gis_geometry_collection::area(double *ar, const char **end_of_data) const
+{
+  return collection_area(ar, end_of_data, NULL);
+}
+
+
 int Gis_geometry_collection::num_geometries(uint32 *num) const
 {
   if (no_data(m_data, 4))
@@ -2317,38 +2343,10 @@ bool Gis_geometry_collection::dimension(uint32 *res_dim, const char **end) const
 }
 
 
-int Gis_geometry_collection::store_shapes(Gcalc_shape_transporter *trn) const
+int Gis_geometry_collection::store_shapes(Gcalc_shape_transporter *trn,
+                                          Gcalc_shape_status *st) const
 {
-  uint32 n_objects;
-  const char *data= m_data;
-  Geometry_buffer buffer;
-  Geometry *geom;
-
-  if (no_data(data, 4))
-    return 1;
-  n_objects= uint4korr(data);
-  data+= 4;
-
-  if (trn->start_collection(n_objects))
-    return 1;
-
-  while (n_objects--)
-  {
-    uint32 wkb_type;
-
-    if (no_data(data, WKB_HEADER_SIZE))
-      return 1;
-    wkb_type= uint4korr(data + 1);
-    data+= WKB_HEADER_SIZE;
-    if (!(geom= create_by_typeid(&buffer, wkb_type)))
-      return 1;
-    geom->set_data_ptr(data, (uint32) (m_data_end - data));
-    if (geom->store_shapes(trn))
-      return 1;
-
-    data+= geom->get_data_size();
-  }
-  return 0;
+  return collection_store_shapes(trn, st, NULL);
 }
 
 
