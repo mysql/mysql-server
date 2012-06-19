@@ -2348,7 +2348,9 @@ prepare_inplace_alter_table_dict(
 	ulong			autoinc_inc	= 0;
 
 	const bool locked =
-		innobase_fulltext_exist(altered_table->s)
+		num_fts_index > 0
+		|| (innobase_need_rebuild(ha_alter_info)
+		    && innobase_fulltext_exist(altered_table->s))
 		|| (add_autoinc_col != ULINT_UNDEFINED)
 		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
