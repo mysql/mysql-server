@@ -644,6 +644,16 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
 void update_depend_map(JOIN *join);
 void reset_nj_counters(List<TABLE_LIST> *join_list);
 Item *remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value);
+Item *optimize_cond(THD *thd, Item *conds, COND_EQUAL **cond_equal,
+                    List<TABLE_LIST> *join_list,
+                    bool build_equalities, Item::cond_result *cond_value);
+Item* substitute_for_best_equal_field(Item *cond,
+                                      COND_EQUAL *cond_equal,
+                                      void *table_join_idx);
+Item *build_equal_items(THD *thd, Item *cond,
+                        COND_EQUAL *inherited, bool do_inherit,
+                        List<TABLE_LIST> *join_list,
+                        COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
