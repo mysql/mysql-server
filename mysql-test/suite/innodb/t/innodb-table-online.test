@@ -321,10 +321,6 @@ disconnect con1;
 connection default;
 
 SHOW CREATE TABLE t1;
-# The source tablespace was discarded.
-# The rebuild will re-create t1 as an empty table.
-ALTER TABLE t1 DROP COLUMN c3, ROW_FORMAT=REDUNDANT, ALGORITHM = INPLACE;
-SELECT * FROM t1;
 
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG = '';
