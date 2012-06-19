@@ -2186,6 +2186,7 @@ row_ins_clust_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: clustered index */
+	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
@@ -2193,12 +2194,14 @@ row_ins_clust_index_entry_low(
 	btr_cur_t	cursor;
 	ulint*		offsets		= NULL;
 	dberr_t		err;
-	ulint		n_unique;
 	big_rec_t*	big_rec		= NULL;
 	mtr_t		mtr;
 	mem_heap_t*	offsets_heap	= NULL;
 
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!dict_index_is_unique(index)
+	      || n_uniq == dict_index_get_n_unique(index));
+	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 
 	mtr_start(&mtr);
 
@@ -2228,10 +2231,8 @@ row_ins_clust_index_entry_low(
 	}
 #endif
 
-	n_unique = dict_index_get_n_unique(index);
-
-	if (dict_index_is_unique(index) && (cursor.up_match >= n_unique
-					    || cursor.low_match >= n_unique)) {
+	if (n_uniq && (cursor.up_match >= n_uniq
+		       || cursor.low_match >= n_uniq)) {
 
 		/* Note that the following may return also
 		DB_LOCK_WAIT */
@@ -2585,6 +2586,7 @@ row_ins_clust_index_entry(
 	ulint		n_ext)	/*!< in: number of externally stored columns */
 {
 	dberr_t	err;
+	ulint	n_uniq;
 
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(
@@ -2595,12 +2597,14 @@ row_ins_clust_index_entry(
 		}
 	}
 
+	n_uniq = dict_index_is_unique(index) ? index->n_uniq : 0;
+
 	/* Try first optimistic descent to the B-tree */
 
 	log_free_check();
 
-	err = row_ins_clust_index_entry_low(0, BTR_MODIFY_LEAF, index, entry,
-					    n_ext, thr);
+	err = row_ins_clust_index_entry_low(
+		0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -2610,8 +2614,8 @@ row_ins_clust_index_entry(
 
 	log_free_check();
 
-	return(row_ins_clust_index_entry_low(0, BTR_MODIFY_TREE, index, entry,
-					     n_ext, thr));
+	return(row_ins_clust_index_entry_low(
+		       0, BTR_MODIFY_TREE, index, n_uniq, entry, n_ext, thr));
 }
 
 /***************************************************************//**

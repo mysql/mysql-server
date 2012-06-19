@@ -94,6 +94,7 @@ row_ins_clust_index_entry_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: clustered index */
+	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread or NULL */
