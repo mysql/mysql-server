@@ -295,10 +295,7 @@ ddl_pending_alter_table	0
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 321
-SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt4 WAIT_FOR dml4_done';
-SET lock_wait_timeout = 1;
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
-SET DEBUG_SYNC = 'now WAIT_FOR rebuilt4';
 SELECT * FROM t1 LIMIT 10;
 c22f	c1	c3	c4
 5	1	1foo	Online
@@ -311,10 +308,7 @@ c22f	c1	c3	c4
 7	8	8foofoofoofoofoofoofoofoo	Online
 8	9	9foofoofoofoofoofoofoofoofoo	Online
 9	10	10foofoofoofoofoofoofoofoofoofoo	Online
-SET lock_wait_timeout = 10;
 ALTER TABLE t1 DISCARD TABLESPACE;
-SET DEBUG_SYNC = 'now SIGNAL dml4_done';
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -323,7 +317,7 @@ t1	CREATE TABLE `t1` (
   `c3` text NOT NULL,
   `c4` varchar(6) NOT NULL DEFAULT 'Online',
   PRIMARY KEY (`c1`,`c22f`,`c4`(5))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
 ALTER TABLE t1 DROP COLUMN c3, ROW_FORMAT=REDUNDANT, ALGORITHM = INPLACE;
 SELECT * FROM t1;
 c22f	c1	c4
