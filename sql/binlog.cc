@@ -855,6 +855,9 @@ static int write_one_empty_group_to_cache(THD *thd,
     Apparently this code is not being called. We need to
     investigate if this is a bug or this code is not
     necessary. /Alfranio
+
+    Empty groups are currently being handled in the function
+    gtid_empty_group_log_and_cleanup().
   */
   DBUG_ASSERT(0); /*NOTREACHED*/
 #ifdef NON_ERROR_GTID
@@ -5751,23 +5754,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       stuff_logged= true;
     }
   }
-
-  /*
-    todo: what is the exact condition to check here?
-
-    If this transaction does not have any RW engines, we do not need
-    to write a group (since nothing was updated).
-
-    normally, we only write empty groups at the end of the
-    transaction, i.e., when all==true.
-
-    if we are not in a multi-stmt-transaction, then we can't wait for
-    ha_commit(all=true), so we have to write empty groups to the
-    trx_cache even when all==0.
-  */
-  else if (trans->rw_ha_count > 0 &&
-           (all || !thd->in_multi_stmt_transaction_mode()))
-    error= write_empty_groups_to_cache(thd, &cache_mngr->trx_cache) != 0;
 
   /*
     We commit the transaction if:
