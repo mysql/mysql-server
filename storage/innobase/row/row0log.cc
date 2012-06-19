@@ -1616,11 +1616,9 @@ delete_insert:
 	if (dict_table_get_next_index(index)) {
 		/* Construct the row corresponding to the old value of
 		the record. */
-		old_row = row_build(ROW_COPY_DATA, index,
-				    btr_pcur_get_rec(&pcur),
-				    cur_offsets, log->table,
-				    log->add_cols, log->col_map,
-				    &old_ext, heap);
+		old_row = row_build(
+			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
+			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
 		ut_ad(old_row);
 	} else {
 		old_row = NULL;
