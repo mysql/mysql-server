@@ -3119,6 +3119,7 @@ Dbspj::lookup_send(Signal* signal,
         if (!dupSection(tmp, keyInfoPtrI))
         {
           jam();
+          ndbassert(tmp == RNIL);  // Guard for memleak
           err = DbspjErr::OutOfSectionMemory;
           break;
         }
@@ -3151,8 +3152,7 @@ Dbspj::lookup_send(Signal* signal,
           jam();
           ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                    __LINE__,  __FILE__);
-          if (keyInfoPtrI != RNIL)
-            releaseSection(keyInfoPtrI);
+          releaseSection(keyInfoPtrI);
           err = DbspjErr::OutOfSectionMemory;
           break;
         }
@@ -3160,8 +3160,8 @@ Dbspj::lookup_send(Signal* signal,
         if (!dupSection(tmp, attrInfoPtrI))
         {
           jam();
-          if (keyInfoPtrI != RNIL)
-            releaseSection(keyInfoPtrI);
+          ndbassert(tmp == RNIL);  // Guard for memleak
+          releaseSection(keyInfoPtrI);
           err = DbspjErr::OutOfSectionMemory;
           break;
         }
@@ -3547,7 +3547,11 @@ Dbspj::lookup_parent_row(Signal* signal,
       bool keyIsNull;
       err = expand(ptrI, pattern, rowRef, keyIsNull);
       if (unlikely(err != 0))
+      {
+        jam();
+        releaseSection(ptrI);
         break;
+      }
 
       if (keyIsNull)
       {
@@ -3569,10 +3573,7 @@ Dbspj::lookup_parent_row(Signal* signal,
            */
           jam();
           DEBUG("..Ignore impossible KEYREQ");
-          if (ptrI != RNIL)
-          {
-            releaseSection(ptrI);
-          }
+          releaseSection(ptrI);
           return;  // Bailout, KEYREQ would have returned KEYREF(626) anyway
         }
         else  // isLookup()
@@ -3657,6 +3658,7 @@ Dbspj::lookup_parent_row(Signal* signal,
       if (!dupSection(tmp, attrInfoPtrI))
       {
         jam();
+        ndbassert(tmp == RNIL);  // Guard for memleak
         err = DbspjErr::OutOfSectionMemory;
         break;
       }
@@ -3673,7 +3675,11 @@ Dbspj::lookup_parent_row(Signal* signal,
       Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
       err = expand(tmp, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
+      {
+        jam();
+        releaseSection(tmp);
         break;
+      }
 //    ndbrequire(!hasNull);
 
       /**
@@ -4815,8 +4821,10 @@ Dbspj::parseScanIndex(Build_context& ctx,
          */
         err = expand(pattern, treeNodePtr, tree, len, origParam, cnt);
         if (unlikely(err != 0))
+        {
+          jam();
           break;
-
+        }
         treeNodePtr.p->m_bits |= TreeNode::T_PRUNE_PATTERN;
         c_Counters.incr_counter(CI_PRUNED_RANGE_SCANS_RECEIVED, 1);
       }
@@ -4834,13 +4842,18 @@ Dbspj::parseScanIndex(Build_context& ctx,
         bool hasNull;
         err = expand(prunePtrI, tree, len, origParam, cnt, hasNull);
         if (unlikely(err != 0))
+        {
+          jam();
+          releaseSection(prunePtrI);
           break;
+        }
 
         if (unlikely(hasNull))
         {
           /* API should have elliminated requests w/ const-NULL keys */
           jam();
           DEBUG("BEWARE: T_CONST_PRUNE-key contain NULL values");
+          releaseSection(prunePtrI);
 //        treeNodePtr.p->m_bits |= TreeNode::T_NULL_PRUNE;
 //        break;
           ndbrequire(false);
@@ -5181,6 +5194,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       if (unlikely(err != 0))
       {
         jam();
+        releaseSection(pruneKeyPtrI);
         break;
       }
 
@@ -5190,10 +5204,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
         DEBUG("T_PRUNE_PATTERN-key contain NULL values");
 
         // Ignore this request as 'NULL == <column>' will never give a match
-        if (pruneKeyPtrI != RNIL)
-        {
-          releaseSection(pruneKeyPtrI);
-        }
+        releaseSection(pruneKeyPtrI);
         return;  // Bailout, SCANREQ would have returned 0 rows anyway
       }
 
@@ -5244,7 +5255,6 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       list.first(fragPtr);
     }
 
-    Uint32 ptrI = fragPtr.p->m_rangePtrI;
     bool hasNull;
     if (treeNodePtr.p->m_bits & TreeNode::T_KEYINFO_CONSTRUCTED)
     {
@@ -5269,7 +5279,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
         break;
       }
 
-      err = expand(ptrI, pattern, rowRef, hasNull);
+      err = expand(fragPtr.p->m_rangePtrI, pattern, rowRef, hasNull);
       if (unlikely(err != 0))
       {
         jam();
@@ -5283,8 +5293,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       ndbrequire(false);
     }
 //  ndbrequire(!hasNull);  // FIXME, can't ignore request as we already added it to keyPattern
-    fragPtr.p->m_rangePtrI = ptrI;
-    scanIndex_fixupBound(fragPtr, ptrI, rowRef.m_src_correlation);
+    scanIndex_fixupBound(fragPtr, fragPtr.p->m_rangePtrI, rowRef.m_src_correlation);
 
     if (treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT)
     {
@@ -5714,6 +5723,7 @@ Dbspj::scanIndex_send(Signal* signal,
           if (!dupSection(tmp, attrInfoPtrI))
           {
             jam();
+            ndbassert(tmp == RNIL);  // Guard for memleak
             err = DbspjErr::OutOfSectionMemory;
             break;
           }
@@ -7175,6 +7185,7 @@ Dbspj::expandS(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
+      _dst = dst;
       return err;
     }
   }
@@ -7236,6 +7247,7 @@ Dbspj::expandL(Uint32 & _dst, Local_pattern_store& pattern,
     if (unlikely(err != 0))
     {
       jam();
+      _dst = dst;
       return err;
     }
   }
@@ -7550,7 +7562,11 @@ Dbspj::parseDA(Build_context& ctx,
          * Expand pattern into a new pattern (with linked values)
          */
         err = expand(pattern, treeNodePtr, tree, len, param, cnt);
-
+        if (unlikely(err != 0))
+        {
+          jam();
+          break;
+        }
         /**
          * This node constructs a new key for each send
          */
@@ -7567,23 +7583,25 @@ Dbspj::parseDA(Build_context& ctx,
         bool hasNull;
         Uint32 keyInfoPtrI = RNIL;
         err = expand(keyInfoPtrI, tree, len, param, cnt, hasNull);
+        if (unlikely(err != 0))
+        {
+          jam();
+          releaseSection(keyInfoPtrI);
+          break;
+        }
         if (unlikely(hasNull))
         {
           /* API should have elliminated requests w/ const-NULL keys */
           jam();
           DEBUG("BEWARE: FIXED-key contain NULL values");
+          releaseSection(keyInfoPtrI);
 //        treeNodePtr.p->m_bits |= TreeNode::T_NULL_PRUNE;
 //        break;
           ndbrequire(false);
         }
         treeNodePtr.p->m_send.m_keyInfoPtrI = keyInfoPtrI;
       }
-
-      if (unlikely(err != 0))
-      {
-        jam();
-        break;
-      }
+      ndbassert(err == 0); // All errors should have been handled
     } // DABits::NI_KEY_...
 
     const Uint32 mask =
