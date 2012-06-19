@@ -408,7 +408,7 @@ generate_log_writer (void) {
                             break;
                         }
                         case ASSERT_BEGIN_WAS_LOGGED: {
-                            fprintf(cf, "  assert(txn->begin_was_logged);\n");
+                            fprintf(cf, "  invariant(txn->begin_was_logged);\n");
                             break;
                         }
                         case IGNORE_LOG_BEGIN: break;
