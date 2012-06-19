@@ -1186,7 +1186,7 @@ row_log_table_apply_insert_low(
 	entry = row_build_index_entry(row, NULL, index, heap);
 
 	error = row_ins_clust_index_entry_low(
-		flags, BTR_MODIFY_TREE, index, entry, 0, thr);
+		flags, BTR_MODIFY_TREE, index, index->n_uniq, entry, 0, thr);
 
 	switch (error) {
 	case DB_SUCCESS:
