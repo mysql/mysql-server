@@ -298,7 +298,6 @@ public:
     Uint32 m_senderRef;  // TC (used for routing)
     Uint32 m_scan_cnt;
     Signal* m_start_signal; // Argument to first node in tree
-    SegmentedSectionPtr m_keyPtr;
 
     TreeNodeBitMask m_scans; // TreeNodes doing scans
 
