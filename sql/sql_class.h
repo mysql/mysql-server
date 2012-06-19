@@ -482,6 +482,7 @@ typedef struct system_variables
   ulonglong group_concat_max_len;
   ha_rows select_limit;
   ha_rows max_join_size;
+  ha_rows expensive_subquery_limit;
   ulong auto_increment_increment, auto_increment_offset;
   ulong lock_wait_timeout;
   ulong join_cache_level;

@@ -304,6 +304,7 @@ SELECT (SELECT numeropost FROM t1 HAVING numreponse=a),numreponse FROM (SELECT *
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=a) FROM (SELECT * FROM t1) as a;
 SELECT numreponse, (SELECT numeropost FROM t1 HAVING numreponse=1) FROM (SELECT * FROM t1) as a;
 INSERT INTO t1 (numeropost,numreponse,pseudo) VALUES (1,1,'joce'),(1,2,'joce'),(1,3,'test');
+-- error ER_SUBQUERY_NO_1_ROW
 EXPLAIN EXTENDED SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
 -- error ER_SUBQUERY_NO_1_ROW
 SELECT numreponse FROM t1 WHERE numeropost='1' AND numreponse=(SELECT 1 FROM t1 WHERE numeropost='1');
@@ -5573,6 +5574,117 @@ SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 U
 SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 UNION select a+1 from t1 ) OR min_a != 1;
 
 drop table t1;
+
+--echo #
+--echo # LP BUG#944706 Query with impossible or constant subquery in WHERE or HAVING is not
+--echo # precomputed and thus not part of optimization
+--echo #
+
+CREATE TABLE t1 ( a VARCHAR(16), KEY (a) );
+INSERT INTO t1 VALUES ('Abilene'),('Akron'),('Albany'),('Albuquerque'),('Alexandria'),('Allentown'),
+('Amarillo'),('Anaheim'),('Anchorage'),('Ann Arbor'),('Arden-Arcade');
+
+EXPLAIN
+SELECT MAX( alias2.a ) AS field
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR alias1.a = 'y'
+HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
+
+SELECT MAX( alias2.a ) AS field
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR alias1.a = 'y'
+HAVING field>'B' AND ( 'Moscow' ) IN ( SELECT a FROM t1 );
+
+EXPLAIN
+SELECT MAX( alias2.a )
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
+
+SELECT MAX( alias2.a )
+FROM t1 AS alias1, t1 AS alias2, t1 AS alias3
+WHERE alias1.a = alias2.a OR ('Moscow') IN ( SELECT a FROM t1 );
+
+drop table t1;
+
+--echo #
+--echo # MDEV-277 CHEAP SQ: Server crashes in st_join_table::get_examined_rows
+--echo # with semijoin+materialization, IN and = subqueries
+--echo #
+
+CREATE TABLE t1 (a1 INT);
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (b1 INT);
+INSERT INTO t2 VALUES (1),(7);
+
+EXPLAIN
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+
+SELECT * FROM t1
+WHERE a1 = (SELECT COUNT(*) FROM t1 WHERE a1 IN (SELECT a1 FROM t1, t2));
+
+drop table t1, t2;
+
+--echo #
+--echo # MDEV-287 CHEAP SQ: A query with subquery in SELECT list, EXISTS,
+--echo # inner joins takes hundreds times longer
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(7);
+
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (4),(5);
+
+CREATE TABLE t3 (c INT);
+INSERT INTO t3 VALUES (8),(3);
+
+set @@expensive_subquery_limit= 0;
+
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+flush status;
+
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+set @@expensive_subquery_limit= default;
+
+EXPLAIN
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+flush status;
+
+SELECT (SELECT MIN(b) FROM t1, t2 WHERE b = a AND (b = alias1.b OR EXISTS (SELECT * FROM t3)))
+FROM t2 alias1, t1 alias2, t1 alias3;
+
+show status like "subquery_cache%";
+show status like '%Handler_read%';
+
+drop table t1, t2, t3;
+
+--echo #
+--echo # MDEV-288 CHEAP SQ: Valgrind warnings "Memory lost" with IN and EXISTS nested subquery, materialization+semijoin
+--echo #
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0),(8);
+
+CREATE TABLE t2 (b INT PRIMARY KEY);
+INSERT INTO t2 VALUES (1),(2);
+
+EXPLAIN
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
+
+drop table t1,t2;
+
 
 --echo # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
