@@ -401,7 +401,7 @@ CREATE TABLE testdb_wl5522.t1 ( i bigint) ENGINE = Innodb;
 ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
 restore: t1
 ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Schema mismatch (Column i precise type mismatch.)
+ERROR HY000: Schema mismatch (Column i precise type mismatch.)
 unlink: t1.ibd
 unlink: t1.cfg
 DROP TABLE testdb_wl5522.t1;
@@ -410,7 +410,7 @@ ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
 restore: t1
 ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
 ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
+ERROR HY000: Tablespace for table 't1' exists. Please DISCARD the tablespace before IMPORT.
 SELECT * FROM testdb_wl5522.t1 ORDER BY i;
 i
 100

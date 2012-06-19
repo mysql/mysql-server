@@ -168,9 +168,6 @@ JOIN::optimize()
   if (having || (select_options & OPTION_FOUND_ROWS))
     m_select_limit= HA_POS_ERROR;
   do_send_rows = (unit->select_limit_cnt > 0) ? 1 : 0;
-  // Ignore errors of execution if option IGNORE present
-  if (thd->lex->ignore)
-    thd->lex->current_select->no_error= 1;
 
 #ifdef HAVE_REF_TO_FIELDS			// Not done yet
   /* Add HAVING to WHERE if possible */
