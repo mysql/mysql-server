@@ -6,14 +6,10 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-/*
-   Datatype mempool.
-
-   Overview: a memory pool is a contiguous region of memory that supports single
-   allocations from the pool.  These allocated regions are never recycled.
+/* a memory pool is a contiguous region of memory that supports single
+   allocations from the pool.  these allocated regions are never recycled.
    when the memory pool no longer has free space, the allocated chunks
-   must be relocated by the application to a new memory pool.
-*/
+   must be relocated by the application to a new memory pool. */
 
 #include <sys/types.h>
 
@@ -90,13 +86,6 @@ static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size
 size_t toku_mempool_footprint(struct mempool *mp);
 
 void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp);
-// Effect: Create a new mempool in which all the allocated objects are at the same offsets in the new pool as they were in the old pool.
-// Rationale: The fractal tree code clones a pool, copies the OMT (which contains pointers) and then adjusts all the pointers to be
-//   old_value - original_base + new_base.
-// Question: Is this arithmetic, in general, defined in the C standard?  You cannot simply subtract two
-//   pointers.  It is correct, however to calculate  (old_value-original_base)+new_base since the
-//   subexpression calculates the offset in the original base (that's an integer) and adds it to the
-//   new base.  So it's probably OK.
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
