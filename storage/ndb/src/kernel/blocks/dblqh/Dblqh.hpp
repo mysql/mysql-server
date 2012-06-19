@@ -249,6 +249,7 @@ class Lgman;
 #define ZWAIT_REORG_SUMA_FILTER_ENABLED 23
 #define ZREBUILD_ORDERED_INDEXES 24
 #define ZWAIT_READONLY 25
+#define ZLCP_FRAG_WATCHDOG 26
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -1083,6 +1084,72 @@ public:
     void send_io(Uint32 bytes);
     void complete_io(Uint32 bytes);
   };
+
+  /**
+   * LCPFragWatchdog
+   *
+   * Structure tracking state of LCP fragment watchdog.
+   * This watchdog polls the state of the current LCP fragment
+   * scan to ensure that forward progress is maintained at
+   * a minimal rate.
+   * It only continues running while this LQH instance 
+   * thinks a fragment scan is ongoing
+   */
+  struct LCPFragWatchdog
+  {
+    STATIC_CONST( PollingPeriodMillis = 10000 ); /* 10s */
+    STATIC_CONST( WarnPeriodsWithNoProgress = 2); /* 20s */
+    STATIC_CONST( MaxPeriodsWithNoProgress = 6 ); /* 60s */
+    
+    /* Should the watchdog be running? */
+    bool scan_running;
+    
+    /* Is there an active thread? */
+    bool thread_active;
+    
+    /* LCP position info from Backup block */
+    Uint32 tableId;
+    Uint32 fragId;
+    Uint64 rowCount;
+
+    /* Number of periods with no LCP progress observed */ 
+    Uint32 pollCount;
+
+    /* Reinitialise the watchdog */
+    void reset()
+    {
+      scan_running = false;
+      tableId = ~Uint32(0);
+      fragId = ~Uint32(0);
+      rowCount = ~Uint64(0);
+      pollCount = 0;
+    }
+
+    /* Handle an LCP Status report */
+    void handleLcpStatusRep(Uint32 repTableId,
+                            Uint32 repFragId,
+                            Uint64 repRowCount)
+    {
+      if (scan_running)
+      {
+        if ((repRowCount != rowCount) ||
+            (repFragId != fragId) ||
+            (repTableId != tableId))
+        {
+          /* Something moved since last time, reset
+           * poll counter and data.
+           */
+          pollCount = 0;
+          tableId = repTableId;
+          fragId = repFragId;
+          rowCount = repRowCount;
+        }
+      }
+    }
+  };
+  
+  LCPFragWatchdog c_lcpFragWatchdog;
+    
     
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -2565,9 +2632,9 @@ private:
   bool checkTransporterOverloaded(Signal* signal,
                                   const NodeBitmask& all,
                                   const class LqhKeyReq* req);
-  void noFreeRecordLab(Signal* signal, 
-		       const class LqhKeyReq * lqhKeyReq, 
-		       Uint32 errorCode);
+  void earlyKeyReqAbort(Signal* signal, 
+                        const class LqhKeyReq * lqhKeyReq, 
+                        Uint32 errorCode);
   void logLqhkeyrefLab(Signal* signal);
   void closeCopyLab(Signal* signal);
   void commitReplyLab(Signal* signal);
@@ -2735,6 +2802,14 @@ private:
 
   void unlockError(Signal* signal, Uint32 error);
   void handleUserUnlockRequest(Signal* signal);
+  
+  void execLCP_STATUS_CONF(Signal* signal);
+  void execLCP_STATUS_REF(Signal* signal);
+
+  void startLcpFragWatchdog(Signal* signal);
+  void stopLcpFragWatchdog();
+  void invokeLcpFragWatchdogThread(Signal* signal);
+  void checkLcpFragWatchdog(Signal* signal);
   
   Dbtup* c_tup;
   Dbacc* c_acc;

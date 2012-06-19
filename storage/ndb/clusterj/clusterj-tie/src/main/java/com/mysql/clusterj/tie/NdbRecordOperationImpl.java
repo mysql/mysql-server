@@ -110,6 +110,9 @@ public class NdbRecordOperationImpl implements Operation {
     /** The number of columns */
     int numberOfColumns;
 
+    /** The db for this operation */
+    protected DbImpl db;
+
     /** Constructor used for smart value handler for new instances,
      * and the cluster transaction is not yet known. There is only one
      * NdbRecord and one buffer, so all operations result in using
@@ -120,6 +123,7 @@ public class NdbRecordOperationImpl implements Operation {
      * @param storeTable the store table
      */
     public NdbRecordOperationImpl(ClusterConnectionImpl clusterConnection, Db db, Table storeTable) {
+        this.db = (DbImpl)db;
         this.storeTable = storeTable;
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterConnection.getCachedNdbRecordImpl(storeTable);
@@ -141,6 +145,7 @@ public class NdbRecordOperationImpl implements Operation {
      */
     public NdbRecordOperationImpl(ClusterTransactionImpl clusterTransaction, Table storeTable) {
         this.clusterTransaction = clusterTransaction;
+        this.db = clusterTransaction.db;
         this.bufferManager = clusterTransaction.getBufferManager();
         this.tableName = storeTable.getName();
         this.ndbRecordValues = clusterTransaction.getCachedNdbRecordImpl(storeTable);
@@ -765,6 +770,10 @@ public class NdbRecordOperationImpl implements Operation {
     }
 
     public void endDefinition() {
+        // by default, nothing to do
+    }
+
+    public void freeResourcesAfterExecute() {
         // by default, nothing to do
     }
 

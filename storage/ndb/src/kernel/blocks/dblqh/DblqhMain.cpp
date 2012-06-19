@@ -595,6 +595,12 @@ void Dblqh::execCONTINUEB(Signal* signal)
     wait_readonly(signal);
     return;
   }
+  case ZLCP_FRAG_WATCHDOG:
+  {
+    jam();
+    checkLcpFragWatchdog(signal);
+    return;
+  }
   default:
     ndbrequire(false);
     break;
@@ -2967,21 +2973,52 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
 /* INVOLVE COMMUNICATION WITH ACC AND TUP.                                   */
 /* ######################################################################### */
 
-void Dblqh::noFreeRecordLab(Signal* signal, 
-			    const LqhKeyReq * lqhKeyReq,
-			    Uint32 errCode) 
+/**
+ * earlyKeyReqAbort
+ *
+ * Exit early from handling an LQHKEYREQ request.
+ * Method determines which resources (if any) need freed, then
+ * signals requestor with error response.
+ * * Verify all required resources are freed if adding new callers *
+ */
+void Dblqh::earlyKeyReqAbort(Signal* signal, 
+                             const LqhKeyReq * lqhKeyReq,
+                             Uint32 errCode) 
 {
   jamEntry();
   const Uint32 transid1  = lqhKeyReq->transId1;
   const Uint32 transid2  = lqhKeyReq->transId2;
   const Uint32 reqInfo   = lqhKeyReq->requestInfo;
   
-  if(errCode == ZNO_FREE_MARKER_RECORDS_ERROR ||
-     errCode == ZNODE_SHUTDOWN_IN_PROGESS ||
-     errCode == ZNODE_FAILURE_ERROR){
+  bool tcConnectRecAllocated = (tcConnectptr.i != RNIL);
+
+  if (tcConnectRecAllocated)
+  {
     jam();
+    
+    /* Could have a commit-ack marker allocated. */
+    remove_commit_marker(tcConnectptr.p);
+    
+    /* Could have long key/attr sections linked */
+    ndbrequire(tcConnectptr.p->m_dealloc == 0);
+    releaseOprec(signal);
+    
+    
+    /* 
+     * Free the TcConnectRecord, ensuring that the
+     * table reference counts have not been incremented and
+     * so will not be decremented.
+     * Also verify that we're not present in the transid 
+     * hash
+     */
+    ndbrequire(tcConnectptr.p->tableref == RNIL);
+    /* Following is not 100% check, but a reasonable guard */
+    ndbrequire(tcConnectptr.p->nextHashRec == RNIL);
+    ndbrequire(tcConnectptr.p->prevHashRec == RNIL);
     releaseTcrec(signal, tcConnectptr);
   }
+
+  /* Now perform signalling */
 
   if (LqhKeyReq::getDirtyFlag(reqInfo) && 
       LqhKeyReq::getOperation(reqInfo) == ZREAD &&
@@ -3024,7 +3061,7 @@ void Dblqh::noFreeRecordLab(Signal* signal,
 	       LqhKeyRef::SignalLength, JBB);
   }//if
   return;
-}//Dblqh::noFreeRecordLab()
+}//Dblqh::earlyKeyReqAbort()
 
 Uint32
 Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
@@ -4343,10 +4380,11 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
      * We will notify the client that their LQHKEYREQ
      * failed
      */
+    tcConnectptr.i = RNIL;
     const LqhKeyReq * const truncatedLqhKeyReq = 
       (LqhKeyReq *) &rep->originalData[0];
     
-    noFreeRecordLab(signal, truncatedLqhKeyReq, ZGET_DATAREC_ERROR);
+    earlyKeyReqAbort(signal, truncatedLqhKeyReq, ZGET_DATAREC_ERROR);
 
     break;
   }
@@ -4401,6 +4439,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
   SectionHandle handle(this, signal);
+  tcConnectptr.i = RNIL;
 
   {
     const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
@@ -4413,7 +4452,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
          */
         jam();
         releaseSections(handle);
-        noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
         return;
       }
     }
@@ -4423,7 +4462,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   {
     jam();
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
     return;
   }
 
@@ -4436,7 +4475,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
     return;
   }//if
 
@@ -4482,14 +4521,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const Uint8 op = LqhKeyReq::getOperation(Treqinfo);
   if ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()){
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
     return;
   }
 
   if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
     releaseSections(handle);
-    noFreeRecordLab(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
     return;
   }
   
@@ -4547,7 +4586,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       if (markerPtr.i == RNIL)
       {
         releaseSections(handle);
-        noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
         return;
       }
       markerPtr.p->transid1 = sig1;
@@ -4702,8 +4741,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     if (unlikely(!ok))
     {
       jam();
-      terrorCode= ZGET_DATAREC_ERROR;
-      abortErrorLab(signal);
+      earlyKeyReqAbort(signal, lqhKeyReq, ZGET_DATAREC_ERROR);
       return;
     }
 
@@ -4719,8 +4757,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     {
       jam();
       ndbassert(! LqhKeyReq::getNrCopyFlag(Treqinfo));
-      terrorCode = ZNO_TUPLE_FOUND;
-      abortErrorLab(signal);
+      
+      /* Reply with NO_TUPLE_FOUND */
+      earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TUPLE_FOUND);
       return;
     }
 
@@ -4778,6 +4817,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       return;
     }//if
   }//if
+  /* Check that no equal element exists */
+  ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
+                            regTcPtr->tcOprec, 0) == ZNOT_FOUND);
   TcConnectionrecPtr localNextTcConnectptr;
   Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
   localNextTcConnectptr.i = ctransidHash[hashIndex];
@@ -4791,6 +4833,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     ptrCheckGuard(localNextTcConnectptr, 
                   ctcConnectrecFileSize, tcConnectionrec);
     jam();
+    ndbassert(localNextTcConnectptr.p->prevHashRec == RNIL);
     localNextTcConnectptr.p->prevHashRec = tcConnectptr.i;
   }//if
   if (tabptr.i >= ctabrecFileSize) {
@@ -7238,9 +7281,12 @@ void Dblqh::deleteTransidHash(Signal* signal)
 
   prevHashptr.i = regTcPtr->prevHashRec;
   nextHashptr.i = regTcPtr->nextHashRec;
+  /* prevHashptr and nextHashptr may be RNIL when the bucket has 1 element */
+
   if (prevHashptr.i != RNIL) {
     jam();
     ptrCheckGuard(prevHashptr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(prevHashptr.p->nextHashRec == tcConnectptr.i);
     prevHashptr.p->nextHashRec = nextHashptr.i;
   } else {
     jam();
@@ -7249,11 +7295,13 @@ void Dblqh::deleteTransidHash(Signal* signal)
 /* A NEW LEADER OF THE LIST.                                                 */
 /* ------------------------------------------------------------------------- */
     Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
+    ndbassert(ctransidHash[hashIndex] == tcConnectptr.i);
     ctransidHash[hashIndex] = nextHashptr.i;
   }//if
   if (nextHashptr.i != RNIL) {
     jam();
     ptrCheckGuard(nextHashptr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(nextHashptr.p->prevHashRec == tcConnectptr.i);
     nextHashptr.p->prevHashRec = prevHashptr.i;
   }//if
 
@@ -9777,6 +9825,10 @@ void Dblqh::execSCAN_NEXTREQ(Signal* signal)
   const Uint32 transid2 = nextReq->transId2;
   const Uint32 senderData = nextReq->senderData;
   Uint32 hashHi = signal->getSendersBlockRef();
+  // bug#13834481 hashHi!=0 caused timeout (tx not found)
+  const NodeInfo& senderInfo = getNodeInfo(refToNode(hashHi));
+  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
+    hashHi = 0;
 
   if (findTransaction(transid1, transid2, senderData, hashHi) != ZOK){
     jam();
@@ -10291,8 +10343,10 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   Uint32 hashIndex;
   TcConnectionrecPtr nextHashptr;
   Uint32 senderHi = signal->getSendersBlockRef();
-
-  const Uint32 reqinfo = scanFragReq->requestInfo;
+  // bug#13834481 hashHi!=0 caused timeout (tx not found)
+  const NodeInfo& senderInfo = getNodeInfo(refToNode(senderHi));
+  if (unlikely(senderInfo.m_version < NDBD_LONG_SCANFRAGREQ))
+    senderHi = 0;
 
   /* Short SCANFRAGREQ has no sections, Long SCANFRAGREQ has 1 or 2
    * Section 0 : Mandatory ATTRINFO section
@@ -10322,9 +10376,17 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   else
   {
     /* Short request, get Attr + Key len from signal */
-    aiLen= ScanFragReq::getAttrLen(reqinfo);
+    aiLen= ScanFragReq::getAttrLen(scanFragReq->requestInfo);
     keyLen= (scanFragReq->fragmentNoKeyLen >> 16);
+    /*
+     * bug#13834481.  Clear attribute length so that it is not
+     * re-interpreted as new 7.x bits.  initScanrec() uses signal
+     * data so we must modify signal data.
+     */
+    ScanFragReq::clearAttrLen(scanFragReq->requestInfo);
   }
+
+  const Uint32 reqinfo = scanFragReq->requestInfo;
   
   const Uint32 fragId = (scanFragReq->fragmentNoKeyLen & 0xFFFF);
   tabptr.i = scanFragReq->tableId;
@@ -10436,6 +10498,11 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   }//if
   cbookedAccOps += max_rows;
 
+  /* Check that no equal element already exists */
+  ndbassert(findTransaction(tcConnectptr.p->transid[0],
+                            tcConnectptr.p->transid[1],
+                            tcConnectptr.p->tcOprec,
+                            senderHi) == ZNOT_FOUND);
   hashIndex = (tcConnectptr.p->transid[0] ^ tcConnectptr.p->tcOprec) & 1023;
   nextHashptr.i = ctransidHash[hashIndex];
   ctransidHash[hashIndex] = tcConnectptr.i;
@@ -10448,6 +10515,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
      *   IF IT EXISTS
      * --------------------------------------------------------------------- */
     ptrCheckGuard(nextHashptr, ctcConnectrecFileSize, tcConnectionrec);
+    ndbassert(nextHashptr.p->prevHashRec == RNIL);
     nextHashptr.p->prevHashRec = tcConnectptr.i;
   }//if
   if ((! isLongReq ) && 
@@ -11293,13 +11361,13 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
   scanptr.p->m_curr_batch_size_rows = rows + 1;
   scanptr.p->m_last_row = tdata5;
 
-  const NodeBitmask& all = globalTransporterRegistry.get_status_overloaded();
+  const NodeBitmask& all = globalTransporterRegistry.get_status_slowdown();
   if (unlikely(!all.isclear()))
   {
     if (all.get(refToNode(scanptr.p->scanApiBlockref)))
     {
       /**
-       * End scan batch if transporter-buffer are overloaded
+       * End scan batch if transporter-buffer are in slowdown state
        *
        * TODO: We should have counters for this...
        */
@@ -13699,7 +13767,9 @@ void Dblqh::execLCP_PREPARE_REF(Signal* signal)
    */
   ndbrequire(refToMain(signal->getSendersBlockRef()) == BACKUP);
   lcpPtr.p->m_error = ref->errorCode;
-  
+
+  stopLcpFragWatchdog();
+
   if (lcpPtr.p->m_outstanding == 0)
   {
     jam();
@@ -13910,6 +13980,8 @@ void Dblqh::execBACKUP_FRAGMENT_CONF(Signal* signal)
   ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_START_CHKP);
   lcpPtr.p->lcpState = LcpRecord::LCP_COMPLETED;
 
+  stopLcpFragWatchdog();
+
   /* ------------------------------------------------------------------------
    *   THE LOCAL CHECKPOINT HAS BEEN COMPLETED. IT IS NOW TIME TO START 
    *   A LOCAL CHECKPOINT ON THE NEXT FRAGMENT OR COMPLETE THIS LCP ROUND.
@@ -14058,6 +14130,9 @@ void Dblqh::sendLCP_FRAGIDREQ(Signal* signal)
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   sendSignal(backupRef, GSN_LCP_PREPARE_REQ, signal, 
 	     LcpPrepareReq::SignalLength, JBB);
+
+  /* Now start the LCP fragment watchdog */
+  startLcpFragWatchdog(signal);
 
 }//Dblqh::sendLCP_FRAGIDREQ()
 
@@ -20781,6 +20856,8 @@ void Dblqh::initialiseTcrec(Signal* signal)
       tcConnectptr.p->attrInfoIVal = RNIL;
       tcConnectptr.p->m_flags= 0;
       tcConnectptr.p->tcTimer = 0;
+      tcConnectptr.p->nextHashRec = RNIL;
+      tcConnectptr.p->prevHashRec = RNIL;
       tcConnectptr.p->nextTcConnectrec = tcConnectptr.i + 1;
     }//for
     tcConnectptr.i = ctcConnectrecFileSize - 1;
@@ -22988,10 +23065,12 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
   Uint32 ttcConnectrecFileSize = ctcConnectrecFileSize;
   if(arg == 2306)
   {
+    Uint32 bucketLen[1024];
     for(Uint32 i = 0; i<1024; i++)
     {
       TcConnectionrecPtr tcRec;
       tcRec.i = ctransidHash[i];
+      bucketLen[i] = 0;
       while(tcRec.i != RNIL)
       {
 	ptrCheckGuard(tcRec, ttcConnectrecFileSize, regTcConnectionrec);
@@ -23000,8 +23079,18 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 	signal->theData[1] = tcRec.i;
 	execDUMP_STATE_ORD(signal);
 	tcRec.i = tcRec.p->nextHashRec;
+        bucketLen[i]++;
       }
     }
+    ndbout << "LQH transid hash bucket lengths : " << endl;
+    for (Uint32 i = 0; i < 1024; i++)
+    {
+      if (bucketLen[i] > 0)
+      {
+        ndbout << " bucket " << i << " len " << bucketLen[i] << endl;
+      }
+    }
+    ndbout << "Done." << endl;
   }
 
   if(arg == 2307 || arg == 2308)
@@ -23463,6 +23552,30 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
+  if (arg == 2397)
+  {
+    /* Send LCP_STATUS_REQ to BACKUP */
+    LcpStatusReq* req = (LcpStatusReq*) signal->getDataPtr();
+    req->senderRef = reference();
+    req->reqData = 0;
+    
+    BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+    sendSignal(backupRef, GSN_LCP_STATUS_REQ, signal,
+               LcpStatusReq::SignalLength, JBB);
+  }
+
+
+  if(arg == 2309)
+  {
+    CRASH_INSERTION(5075);
+
+    progError(__LINE__, NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL,
+              "Please report this as a bug. "
+              "Provide as much info as possible, expecially all the "
+              "ndb_*_out.log files, Thanks. "
+              "Shutting down node due to lack of LCP fragment scan progress");  
+  }
+
   if (arg == 5050)
   {
 #ifdef ERROR_INSERT
@@ -23690,6 +23803,195 @@ Dblqh::ndbinfo_write_op(Ndbinfo::Row & row, TcConnectionrecPtr tcPtr)
 }
 
 
+void
+Dblqh::startLcpFragWatchdog(Signal* signal)
+{
+  jam();
+  /* Must not already be running */
+  /* Thread could still be active from a previous run */
+  ndbrequire(c_lcpFragWatchdog.scan_running == false);
+  c_lcpFragWatchdog.scan_running = true;
+  
+  /* If thread is not already active, start it */
+  if (! c_lcpFragWatchdog.thread_active)
+  {
+    jam();
+    invokeLcpFragWatchdogThread(signal);
+  }
+
+  ndbrequire(c_lcpFragWatchdog.thread_active == true);
+}
+
+void
+Dblqh::invokeLcpFragWatchdogThread(Signal* signal)
+{
+  jam();
+  ndbrequire(c_lcpFragWatchdog.scan_running);
+  
+  c_lcpFragWatchdog.thread_active = true;
+  
+  signal->getDataPtrSend()[0] = ZLCP_FRAG_WATCHDOG;
+  sendSignalWithDelay(cownref, GSN_CONTINUEB, signal,
+                      LCPFragWatchdog::PollingPeriodMillis, 1);
+  
+  LcpStatusReq* req = (LcpStatusReq*)signal->getDataPtr();
+  req->senderRef = cownref;
+  req->reqData = 1;
+  BlockReference backupRef = calcInstanceBlockRef(BACKUP);
+  sendSignal(backupRef, GSN_LCP_STATUS_REQ, signal,
+             LcpStatusReq::SignalLength, JBB);
+}
+
+void
+Dblqh::execLCP_STATUS_CONF(Signal* signal)
+{
+  jamEntry();
+  LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtr();
+  
+  if (conf->reqData == 0)
+  {
+    /* DUMP STATE variant */
+    ndbout_c("Received LCP_STATUS_CONF from %x", conf->senderRef);
+    ndbout_c("  Status = %u, Table = %u, Frag = %u",
+             conf->lcpState,
+             conf->tableId,
+             conf->fragId);
+    ndbout_c("  Replica done rows %llu",
+             (((Uint64)conf->replicaDoneRowsHi) << 32) + conf->replicaDoneRowsLo);
+    ndbout_c("  Lcp done rows %llu, done bytes %llu",
+             (((Uint64)conf->lcpDoneRowsHi) << 32) + conf->lcpDoneRowsLo,
+             (((Uint64)conf->lcpDoneBytesHi) << 32) + conf->lcpDoneBytesLo);
+  }
+  
+  /* We can ignore the LCP status as if it's complete then we should
+   * promptly stop watching
+   */
+  c_lcpFragWatchdog.handleLcpStatusRep(conf->tableId,
+                                       conf->fragId,
+                                       (((Uint64)conf->replicaDoneRowsHi) << 32) + 
+                                       conf->replicaDoneRowsLo);
+}
+
+void
+Dblqh::execLCP_STATUS_REF(Signal* signal)
+{
+  jamEntry();
+  LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtr();
+
+  ndbout_c("Received LCP_STATUS_REF from %x, reqData = %u with error code %u",
+           ref->senderRef, ref->reqData, ref->error);
+
+  ndbrequire(false);
+}
+
+/**
+ * checkLcpFragWatchdog
+ *
+ * This method implements the LCP Frag watchdog 'thread', periodically
+ * checking for progress in the current LCP fragment scan
+ */
+void
+Dblqh::checkLcpFragWatchdog(Signal* signal)
+{
+  jam();
+  ndbrequire(c_lcpFragWatchdog.thread_active == true);
+
+  if (!c_lcpFragWatchdog.scan_running)
+  {
+    jam();
+    /* We've been asked to stop */
+    c_lcpFragWatchdog.thread_active = false;
+    return;
+  }
+
+  c_lcpFragWatchdog.pollCount++;
+
+  /* Check how long we've been waiting for progress on this scan */
+  if (c_lcpFragWatchdog.pollCount >=
+      LCPFragWatchdog::WarnPeriodsWithNoProgress)
+  {
+    jam();
+    warningEvent("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
+                 "  %llu rows completed",
+                 c_lcpFragWatchdog.tableId,
+                 c_lcpFragWatchdog.fragId,
+                 (LCPFragWatchdog::PollingPeriodMillis * 
+                  c_lcpFragWatchdog.pollCount) / 1000,
+                 c_lcpFragWatchdog.rowCount);
+    ndbout_c("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
+             "  %llu rows completed",
+             c_lcpFragWatchdog.tableId,
+             c_lcpFragWatchdog.fragId,
+             (LCPFragWatchdog::PollingPeriodMillis * 
+              c_lcpFragWatchdog.pollCount) / 1000,
+             c_lcpFragWatchdog.rowCount);
+    
+    if (c_lcpFragWatchdog.pollCount >= 
+        LCPFragWatchdog::MaxPeriodsWithNoProgress)
+    {
+      jam();
+      /* Too long with no progress... */
+      
+      warningEvent("LCP Frag watchdog : Checkpoint of table %u fragment %u "
+                   "too slow (no progress for > %u s).",
+                   c_lcpFragWatchdog.tableId,
+                   c_lcpFragWatchdog.fragId,
+                   (LCPFragWatchdog::PollingPeriodMillis * 
+                    LCPFragWatchdog::MaxPeriodsWithNoProgress) / 1000);
+      ndbout_c("LCP Frag watchdog : Checkpoint of table %u fragment %u "
+               "too slow (no progress for > %u s).",
+               c_lcpFragWatchdog.tableId,
+               c_lcpFragWatchdog.fragId,
+               (LCPFragWatchdog::PollingPeriodMillis * 
+                LCPFragWatchdog::MaxPeriodsWithNoProgress) / 1000);
+      
+      /* Dump some LCP state for debugging... */
+      {
+        DumpStateOrd* ds = (DumpStateOrd*) signal->getDataPtrSend();
+
+        /* DIH : */
+        ds->args[0] = DumpStateOrd::DihDumpLCPState;
+        sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        ds->args[0] = 7012;
+        sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        /* BACKUP : */
+        ds->args[0] = 23;
+        sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        ds->args[0] = 24;
+        ds->args[1] = 2424;
+        sendSignal(BACKUP_REF, GSN_DUMP_STATE_ORD, signal, 2, JBA);
+
+        /* LQH : */
+        ds->args[0] = DumpStateOrd::LqhDumpLcpState;
+        sendSignal(cownref, GSN_DUMP_STATE_ORD, signal, 1, JBA);
+        
+        /* Delay self-execution to give time for dump output */
+        ds->args[0] = 2309;
+        sendSignalWithDelay(cownref, GSN_DUMP_STATE_ORD, signal, 5*1000, 1);
+      }
+      
+      return;
+    }
+  }
+  
+  invokeLcpFragWatchdogThread(signal);
+}
+
+void
+Dblqh::stopLcpFragWatchdog()
+{
+  jam();
+  /* Mark watchdog as no longer running, 
+   * If the 'thread' is active then it will 
+   * stop at the next wakeup
+   */
+  ndbrequire(c_lcpFragWatchdog.scan_running);
+  c_lcpFragWatchdog.reset();
+};
+    
 /* **************************************************************** */
 /* ---------------------------------------------------------------- */
 /* ---------------------- TRIGGER HANDLING ------------------------ */

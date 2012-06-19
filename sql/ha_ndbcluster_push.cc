@@ -40,12 +40,19 @@
 
 #include <ndb_version.h>
 
+
+/*
+  Explain why an operation could not be pushed when using 'explain extended'
+  @param[in] msgfmt printf style format string.
+*/
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
   if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
   {                                                               \
-    ndbcluster_explain_no_push ((msgfmt), __VA_ARGS__);           \
+    push_warning_printf(current_thd,                              \
+                        MYSQL_ERROR::WARN_LEVEL_NOTE, ER_YES,     \
+                        (msgfmt), __VA_ARGS__);                   \
   }                                                               \
 }                                                                 \
 while(0)
@@ -69,29 +76,6 @@ static bool ndbcluster_is_lookup_operation(AQP::enum_access_type accessType)
     accessType == AQP::AT_MULTI_PRIMARY_KEY ||
     accessType == AQP::AT_UNIQUE_KEY;
 }
-
-/**
- * Used by 'explain extended' to explain why an operation could not be pushed.
- * @param[in] msgfmt printf style format string.
- */
-static void ndbcluster_explain_no_push(const char* msgfmt, ...)
-{
-  va_list args;
-  char wbuff[1024];
-  va_start(args,msgfmt);
-  (void) my_vsnprintf (wbuff, sizeof(wbuff), msgfmt, args);
-  va_end(args);
-  /**
-   *  FIXME:
-   *  We temp. use '9999' as errorcode, Change to use
-   *  'WARN_QUERY_NOT_PUSHED' when its deffinition has reached
-   *  one if the 'mainline' branches. (sql/share/errmsg.txt)
-   */
-  uint warn_code= 9999;
-  push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE, warn_code,
-               wbuff);
-} // ndbcluster_explain_no_push();
-
 
 uint
 ndb_table_access_map::first_table(uint start) const
@@ -950,12 +934,38 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     // This key item is const. and did not cause the set of possible parents
     // to be recalculated. Reuse what we had before this key item.
     DBUG_ASSERT(field_parents.is_clear_all());
-    /** 
-     * Scan queries cannot be pushed if the pushed query may refer column 
-     * values (paramValues) from rows stored in a join cache.  
+
+    /**
+     * Field referrence is a 'paramValue' to a column value evaluated
+     * prior to the root of this pushed join candidate. Some restrictions
+     * applies to when a field reference is allowed in a pushed join:
      */
-    if (!ndbcluster_is_lookup_operation(m_join_root->get_access_type()))
+    if (ndbcluster_is_lookup_operation(m_join_root->get_access_type()))
     {
+      /**
+       * The 'eq_ref' access function join_read_key(), may optimize away
+       * key reads if the key for a requested row is the same as the
+       * previous. Thus, iff this is the root of a pushed lookup join
+       * we do not want it to contain childs with references to columns 
+       * 'outside' the the pushed joins, as these may still change
+       * between calls to join_read_key() independent of the root key
+       * itself being the same.
+       */
+      EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s', since "
+                      "it referes to column '%s.%s' prior to a "
+                      "potential 'const' root.",
+                      table->get_table()->alias, 
+                      m_join_root->get_table()->alias,
+                      get_referred_table_access_name(key_item_field),
+                      get_referred_field_name(key_item_field));
+      DBUG_RETURN(false);
+    }
+    else  
+    {
+      /** 
+       * Scan queries cannot be pushed if the pushed query may refer column 
+       * values (paramValues) from rows stored in a join cache.  
+       */
       const TABLE* const referred_tab = key_item_field->field->table;
       uint access_no = tab_no;
       do

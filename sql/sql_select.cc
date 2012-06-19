@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2880,12 +2880,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
          no_partitions_used) &&
 	!s->dependent &&
 	(table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-#ifndef MCP_WL4784
-        !table->fulltext_searched && !join->no_const_tables &&
-        !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
-#else
         !table->fulltext_searched && !join->no_const_tables)
-#endif
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
     }
@@ -3081,7 +3076,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
               !table->fulltext_searched && 
 #ifndef MCP_WL4784
               !table->pos_in_table_list->embedding &&
-              !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+              !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
 #else
               !table->pos_in_table_list->embedding)
 #endif
@@ -6510,6 +6505,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       }
       keyuse++;
     } while (keyuse->table == table && keyuse->key == key);
+    DBUG_ASSERT(length > 0 && keyparts != 0);
   } /* not ftkey */
 
   /* set up fieldref */
@@ -6634,7 +6630,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   }
 #ifndef MCP_WL4784
   else if (keyuse_uses_no_tables &&
-           !table->file->test_push_flag(HA_PUSH_BLOCK_CONST_TABLE))
+           !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))
 #else
   else if (keyuse_uses_no_tables)
 #endif
@@ -13190,21 +13186,8 @@ join_read_last_key(JOIN_TAB *tab)
 
 	/* ARGSUSED */
 static int
-join_no_more_records(READ_RECORD *info)
+join_no_more_records(READ_RECORD *info __attribute__((unused)))
 {
-#ifndef MCP_WL4784
-  /**
-   * When a pushed join completes, and its results did not only depend on
-   * the key of this root operations: ('tab->ref.key_buff')
-   * Results from this pushed join can not be reused 
-   * for later queries having the same root key.
-   * (ref: join_read_key())
-   */
-  if (info->table->file->test_push_flag(HA_PUSH_MULTIPLE_DEPENDENCY))
-  {
-    info->table->status= STATUS_GARBAGE;
-  }
-#endif
   return -1;
 }
 
@@ -14537,6 +14520,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
+  /* Check that we are always called with first non-const table */
+  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables);
+
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
@@ -14618,7 +14604,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           while (keyuse->key != new_ref_key && keyuse->table == tab->table)
             keyuse++;
           if (create_ref_for_key(tab->join, tab, keyuse, 
-                                 tab->join->const_table_map))
+                                 (tab->join->const_table_map |
+                                  OUTER_REF_TABLE_BIT)))
             DBUG_RETURN(0);
 
           pick_table_access_method(tab);
@@ -14764,8 +14751,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_NEXT;           // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key))
-          table->set_keyread(TRUE);
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {
