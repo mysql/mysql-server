@@ -422,8 +422,10 @@ UNIV_INTERN
 dberr_t
 fil_delete_tablespace(
 /*==================*/
-	ulint	id,	/*!< in: space id */
-	bool	rename);/*!< in: true=rename to .ibt; false=remove */
+	ulint		id,		/*!< in: space id */
+	buf_remove_t	buf_remove);	/*!< in: specify the action to take
+					on the tables pages in the buffer
+					pool */
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
@@ -444,7 +446,7 @@ memory cache. Discarding is like deleting a tablespace, but
  2. We remove all insert buffer entries for the tablespace immediately;
     in DROP TABLE they are only removed gradually in the background;
 
- 3. when the user does IMPORT TABLESPACE, the tablespace will have the
+ 3. When the user does IMPORT TABLESPACE, the tablespace will have the
     same id as it originally had.
 
  4. Free all the pages in use by the tablespace if rename=TRUE.
@@ -453,8 +455,7 @@ UNIV_INTERN
 dberr_t
 fil_discard_tablespace(
 /*===================*/
-	ulint	id,	/*!< in: space id */
-	bool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	ulint	id)	/*!< in: space id */
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
@@ -816,7 +817,7 @@ fil_tablespace_is_being_deleted(
 	ulint		id);	/*!< in: space id */
 
 /********************************************************************//**
-Delete the tablespace file and any related files like .cfg or .ibt.
+Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables. */
 UNIV_INTERN
 void

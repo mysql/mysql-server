@@ -217,14 +217,6 @@ bool trans_commit(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
-  /*
-    if res is non-zero, then ha_commit_trans has rolled back the
-    transaction, so the hooks for rollback will be called.
-  */
-  if (res)
-    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  else
-    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
@@ -323,7 +315,6 @@ bool trans_rollback(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_rollback_trans(thd, TRUE);
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
@@ -389,15 +380,6 @@ bool trans_commit_stmt(THD *thd)
   else if (tc_log)
     tc_log->commit(thd, false);
 
-  /*
-    if res is non-zero, then ha_commit_trans has rolled back the
-    transaction, so the hooks for rollback will be called.
-  */
-  if (res)
-    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  else
-    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
-
   thd->transaction.stmt.reset();
 
   DBUG_RETURN(test(res));
@@ -449,8 +431,6 @@ bool trans_rollback_stmt(THD *thd)
   }
   else if (tc_log)
     tc_log->rollback(thd, false);
-
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
 
   thd->transaction.stmt.reset();
 

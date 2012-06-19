@@ -1498,6 +1498,10 @@ int ha_commit_low(THD *thd, bool all)
   if (all)
     thd->transaction.cleanup();
 
+  /* If commit succeeded, we call the after_commit hook */
+  if (!error)
+    (void) RUN_HOOK(transaction, after_commit, (thd, all));
+
   /*
     When the transaction has been committed, we clear the commit_low
     flag. This allow other parts of the system to check if commit_low
@@ -1540,6 +1544,8 @@ int ha_rollback_low(THD *thd, bool all)
         thd->transaction.xid_state.xa_state != XA_NOTR)
       thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
   }
+
+  (void) RUN_HOOK(transaction, after_rollback, (thd, all));
   return error;
 }
 

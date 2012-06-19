@@ -2289,8 +2289,10 @@ err_exit:
 		/* We already have .ibd file here. it should be deleted. */
 
 		if (table->space
-		    && fil_delete_tablespace(table->space, FALSE)
-		       != DB_SUCCESS) {
+		    && fil_delete_tablespace(
+			    table->space,
+			    BUF_REMOVE_FLUSH_NO_WRITE)
+		    != DB_SUCCESS) {
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
@@ -2916,7 +2918,7 @@ row_discard_tablespace(
 
 	/* Discard the physical file that is used for the tablespace. */
 
-	err = fil_discard_tablespace(table->space, TRUE);
+	err = fil_discard_tablespace(table->space);
 
 	switch(err) {
 	case DB_SUCCESS:
@@ -3281,7 +3283,7 @@ row_truncate_table_for_mysql(
 		dict_get_and_save_data_dir_path(table, true);
 
 		if (flags != ULINT_UNDEFINED
-		    && fil_discard_tablespace(space, FALSE) == DB_SUCCESS) {
+		    && fil_discard_tablespace(space) == DB_SUCCESS) {
 
 			dict_index_t*	index;
 
@@ -4108,7 +4110,9 @@ check_next_foreign:
 
 				fil_delete_file(filepath);
 
-			} else if (fil_delete_tablespace(space_id, FALSE)
+			} else if (fil_delete_tablespace(
+					space_id,
+					BUF_REMOVE_FLUSH_NO_WRITE)
 				   != DB_SUCCESS) {
 				fprintf(stderr,
 					"InnoDB: We removed now the InnoDB"
