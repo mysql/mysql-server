@@ -1,0 +1,19 @@
+drop table if exists t1;
+create table t1 (c1 int not null primary key, c2 int not null) engine=tokudb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1
+insert into t1 (c1,c2) values (1,1),(2,2);
+alter table t1 row_format=tokudb_lzma;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=TokuDB DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_LZMA
+drop table t1;
