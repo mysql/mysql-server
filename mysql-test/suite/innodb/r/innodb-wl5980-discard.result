@@ -116,7 +116,7 @@ a	b
 #
 ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
+ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
 t5980.frm
 t5980.isl
@@ -140,10 +140,10 @@ t5980.ibd.bak2
 # do not match the current frm file.
 #
 ALTER TABLE t5980 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Schema mismatch (Number of columns don't match, table has 5 columns but the tablespace meta-data file has 6 columns)
+ERROR HY000: Schema mismatch (Number of columns don't match, table has 5 columns but the tablespace meta-data file has 6 columns)
 CHECK TABLE t5980;
 Table	Op	Msg_type	Msg_text
-test.t5980	check	Error	InnoDB: Tablespace has been discarded for table 't5980'
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
 test.t5980	check	error	Corrupt
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -301,7 +301,7 @@ t5980.ibd.bak
 t5980.ibd.bak2
 ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
+ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
 t5980.frm
 t5980.isl
@@ -352,7 +352,7 @@ t5980.ibd.bak2
 #
 ALTER TABLE t5980 DISCARD TABLESPACE;
 SELECT * FROM t5980;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
+ERROR HY000: Tablespace has been discarded for table 't5980'
 ### files in MYSQL_DATA_DIR/test
 t5980.frm
 t5980.isl
@@ -366,10 +366,10 @@ t5980.ibd.bak2
 #
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
+ERROR HY000: Tablespace has been discarded for table 't5980'
 CHECK TABLE t5980;
 Table	Op	Msg_type	Msg_text
-test.t5980	check	Error	InnoDB: Tablespace has been discarded for table 't5980'
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
 test.t5980	check	error	Corrupt
 #
 # Relocate this discarded file to the default directory
@@ -391,10 +391,10 @@ t5980.ibd.bak2
 # Restarting ...
 SET GLOBAL innodb_file_per_table=ON;
 SELECT * FROM t5980;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
+ERROR HY000: Tablespace has been discarded for table 't5980'
 CHECK TABLE t5980;
 Table	Op	Msg_type	Msg_text
-test.t5980	check	Error	InnoDB: Tablespace has been discarded for table 't5980'
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
 test.t5980	check	error	Corrupt
 #
 # Try to import the tablespace.  It can only be imported from
@@ -404,10 +404,10 @@ test.t5980	check	error	Corrupt
 #
 ALTER TABLE t5980 IMPORT TABLESPACE;
 SELECT * FROM t5980;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't5980'
+ERROR HY000: Tablespace has been discarded for table 't5980'
 CHECK TABLE t5980;
 Table	Op	Msg_type	Msg_text
-test.t5980	check	Error	InnoDB: Tablespace has been discarded for table 't5980'
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
 test.t5980	check	error	Corrupt
 #
 # Restore the ibd and cfg files to the remote directory.

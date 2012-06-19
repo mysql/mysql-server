@@ -16286,7 +16286,7 @@ ib_senderrf(
 		/* Set l, to avoid a compiler warning. */
 		l = Sql_condition::WARN_LEVEL_ERROR;
 		/* We can't use push_warning_printf(), it is a hard error. */
-		my_printf_error(code, "InnoDB: %s", MYF(0), str);
+		my_printf_error(code, "%s", MYF(0), str);
 		break;
 	case IB_LOG_LEVEL_FATAL:
 		l = Sql_condition::WARN_LEVEL_END;
