@@ -139,12 +139,12 @@ from that level */
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
 dict_stats_persistent_storage_check() @{
-@return TRUE if exists and all tables are ok */
+@return true if exists and all tables are ok */
 static
-ibool
+bool
 dict_stats_persistent_storage_check(
 /*================================*/
-	ibool	caller_has_dict_sys_mutex)	/*!< in: TRUE if the caller
+	bool	caller_has_dict_sys_mutex)	/*!< in: true if the caller
 						owns dict_sys->mutex */
 {
 	/* definition for the table TABLE_STATS_NAME */
@@ -234,11 +234,11 @@ dict_stats_persistent_storage_check(
 	if (ret != DB_SUCCESS) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: Error: %s\n", errstr);
-		return(FALSE);
+		return(false);
 	}
 	/* else */
 
-	return(TRUE);
+	return(true);
 }
 /* @} */
 
@@ -261,7 +261,7 @@ dict_stats_exec_sql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	if (!dict_stats_persistent_storage_check(TRUE)) {
+	if (!dict_stats_persistent_storage_check(true)) {
 		pars_info_free(pinfo);
 		return(DB_STATS_DO_NOT_EXIST);
 	}
@@ -1798,7 +1798,7 @@ dict_stats_analyze_index(
 	keys (on n_prefix columns) is L, we continue from L when
 	searching for D distinct keys on n_prefix-1 columns. */
 	level = root_level;
-	level_is_analyzed = FALSE;
+	level_is_analyzed = false;
 
 	for (n_prefix = n_uniq; n_prefix >= 1; n_prefix--) {
 
@@ -1844,7 +1844,7 @@ dict_stats_analyze_index(
 			      < N_DIFF_REQUIRED(index));
 
 			level--;
-			level_is_analyzed = FALSE;
+			level_is_analyzed = false;
 		}
 
 		/* descend into the tree, searching for "good enough" level */
@@ -1878,7 +1878,7 @@ dict_stats_analyze_index(
 				/* step one level back and be satisfied with
 				whatever it contains */
 				level++;
-				level_is_analyzed = TRUE;
+				level_is_analyzed = true;
 
 				break;
 			}
@@ -1891,7 +1891,7 @@ dict_stats_analyze_index(
 						       n_diff_boundaries,
 						       &mtr);
 
-			level_is_analyzed = TRUE;
+			level_is_analyzed = true;
 
 			if (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED(index)
 			    || level == 1) {
@@ -1902,7 +1902,7 @@ dict_stats_analyze_index(
 			}
 
 			level--;
-			level_is_analyzed = FALSE;
+			level_is_analyzed = false;
 		}
 found_level:
 
@@ -2404,7 +2404,7 @@ dict_stats_fetch_table_stats_step(
 dict_stats_fetch_index_stats_step(). */
 typedef struct index_fetch_struct {
 	dict_table_t*	table;	/*!< table whose indexes are to be modified */
-	ibool		stats_were_modified; /*!< will be set to TRUE if at
+	bool		stats_were_modified; /*!< will be set to true if at
 				least one index stats were modified */
 } index_fetch_t;
 
@@ -2563,12 +2563,12 @@ dict_stats_fetch_index_stats_step(
 	if (stat_name_len == 4 /* strlen("size") */
 	    && strncasecmp("size", stat_name, stat_name_len) == 0) {
 		index->stat_index_size = (ulint) stat_value;
-		arg->stats_were_modified = TRUE;
+		arg->stats_were_modified = true;
 	} else if (stat_name_len == 12 /* strlen("n_leaf_pages") */
 		   && strncasecmp("n_leaf_pages", stat_name, stat_name_len)
 		   == 0) {
 		index->stat_n_leaf_pages = (ulint) stat_value;
-		arg->stats_were_modified = TRUE;
+		arg->stats_were_modified = true;
 	} else if (stat_name_len > PFX_LEN /* e.g. stat_name=="n_diff_pfx01" */
 		   && strncasecmp(PFX, stat_name, PFX_LEN) == 0) {
 
@@ -2642,7 +2642,7 @@ dict_stats_fetch_index_stats_step(
 			index->stat_n_sample_sizes[n_pfx] = 0;
 		}
 
-		arg->stats_were_modified = TRUE;
+		arg->stats_were_modified = true;
 	} else {
 		/* silently ignore rows with unknown stat_name, the
 		user may have developed her own stats */
@@ -2695,7 +2695,7 @@ dict_stats_fetch_from_ps(
 			       table);
 
 	index_fetch_arg.table = table;
-	index_fetch_arg.stats_were_modified = FALSE;
+	index_fetch_arg.stats_were_modified = false;
 	pars_info_bind_function(pinfo,
 			        "fetch_index_stats_step",
 			        dict_stats_fetch_index_stats_step,
@@ -2792,7 +2792,7 @@ dict_stats_update_for_index(
 
 	if (dict_stats_is_persistent_enabled(index->table)) {
 
-		if (dict_stats_persistent_storage_check(FALSE)) {
+		if (dict_stats_persistent_storage_check(false)) {
 			dict_table_stats_lock(index->table, RW_X_LATCH);
 			dict_stats_analyze_index(index);
 			dict_table_stats_unlock(index->table, RW_X_LATCH);
@@ -2876,7 +2876,7 @@ dict_stats_update(
 		before calling the potentially slow function
 		dict_stats_update_persistent(); that is a
 		prerequisite for dict_stats_save() succeeding */
-		if (dict_stats_persistent_storage_check(FALSE)) {
+		if (dict_stats_persistent_storage_check(false)) {
 
 			dberr_t	err;
 
@@ -2923,7 +2923,7 @@ dict_stats_update(
 
 		if (dict_stats_is_persistent_enabled(table)) {
 
-			if (dict_stats_persistent_storage_check(FALSE)) {
+			if (dict_stats_persistent_storage_check(false)) {
 
 				return(dict_stats_save(table));
 			}
@@ -2956,7 +2956,7 @@ dict_stats_update(
 		persistent stats enabled */
 		ut_a(strchr(table->name, '/') != NULL);
 
-		if (!dict_stats_persistent_storage_check(FALSE)) {
+		if (!dict_stats_persistent_storage_check(false)) {
 			/* persistent statistics storage does not exist
 			or is corrupted, calculate the transient stats */
 
