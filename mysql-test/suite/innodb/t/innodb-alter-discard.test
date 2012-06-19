@@ -30,6 +30,7 @@ call mtr.add_suppression("Could not find a valid tablespace file for");
 call mtr.add_suppression("InnoDB: Tablespace open failed for '\"test\"\.\"t\"', ignored");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table '\"test\"\.\"t\"' in the cache");
 call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
+call mtr.add_suppression("Table .*t in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
 
 # The ER_NO_SUCH_TABLE is being thrown by ha_innobase::open().
 # The table does exist, only the tablespace does not exist.
