@@ -46,6 +46,9 @@ t1.cfg
 t1.frm
 t1.ibd
 UNLOCK TABLES;
+# List temp directory
+t1.cfg
+t1.ibd
 INSERT INTO t1 (b, c) SELECT b,c FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
@@ -68,7 +71,6 @@ t1.ibd
 ALTER TABLE t1 DISCARD TABLESPACE;
 # List after t1 DISCARD
 t1.frm
-t1.ibt
 ALTER TABLE t1 IMPORT TABLESPACE;
 ALTER TABLE t1 ENGINE InnoDB;
 SELECT COUNT(*) FROM t1;

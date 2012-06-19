@@ -2207,7 +2207,8 @@ fil_op_log_parse_or_replay(
 	switch (type) {
 	case MLOG_FILE_DELETE:
 		if (fil_tablespace_exists_in_mem(space_id)) {
-			dberr_t	err = fil_delete_tablespace(space_id, false);
+			dberr_t	err = fil_delete_tablespace(
+				space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 			ut_a(err == DB_SUCCESS);
 		}
 
@@ -2271,30 +2272,6 @@ fil_op_log_parse_or_replay(
 	}
 
 	return(ptr);
-}
-
-/*******************************************************************//**
-Allocates a file name for a discarded single-table tablespace.  The
-string must be freed by caller with mem_free().
-@return own: file name */
-static
-char*
-fil_make_ibt_name(
-/*==============*/
-	const char*	filepath)	/*!< in: .ibd file name */
-{
-	char*	ibt_name;
-
-	/* Create a temporary file path by replacing the .ibd suffix
-	with .ibt.  Before actually importing the tablespace, rename
-	it to .ibt, so that a server crash during the import will not
-	cause trouble during crash recovery.  If an .ibt file exists,
-	try to recover it instead of an .ibd file. */
-	ut_ad(strlen(filepath) > 4);
-
-	ibt_name = mem_strdup(filepath);
-	ibt_name[strlen(ibt_name) - 1] = 't';
-	return(ibt_name);
 }
 
 /*******************************************************************//**
@@ -2515,13 +2492,10 @@ fil_close_tablespace(
 	when we drop the database the remove directory will fail. */
 
 	char*	cfg_name = fil_make_cfg_name(path);
-	char*	ibt_name = fil_make_ibt_name(path);
 
 	os_file_delete_if_exists(cfg_name);
-	os_file_delete_if_exists(ibt_name);
 
 	mem_free(path);
-	mem_free(ibt_name);
 	mem_free(cfg_name);
 
 	return(err);
@@ -2529,14 +2503,16 @@ fil_close_tablespace(
 
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
-memory cache. If rename == TRUE we "free" all pages used by the tablespace.
+memory cache.
 @return	DB_SUCCESS or error */
 UNIV_INTERN
 dberr_t
 fil_delete_tablespace(
 /*==================*/
-	ulint	id,	/*!< in: space id */
-	bool	rename)	/*!< in: true=rename to .ibt; false=remove */
+	ulint		id,		/*!< in: space id */
+	buf_remove_t	buf_remove)	/*!< in: specify the action to take
+					on the tables pages in the buffer
+					pool */
 {
 	char*		path = 0;
 	fil_space_t*	space = 0;
@@ -2577,17 +2553,9 @@ fil_delete_tablespace(
 	completely and permanently. The flag is_being_deleted also prevents
 	fil_flush() from being applied to this tablespace. */
 
-	{
-		buf_remove_t	buf_remove;
+	buf_LRU_flush_or_remove_pages(id, buf_remove, 0);
 
-		buf_remove = rename
-			? BUF_REMOVE_ALL_NO_WRITE
-			: BUF_REMOVE_FLUSH_NO_WRITE;
-
-		buf_LRU_flush_or_remove_pages(id, buf_remove, 0);
-	}
-#endif
-	/* printf("Deleting tablespace %s id %lu\n", space->name, id); */
+#endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&fil_system->mutex);
 
@@ -2600,39 +2568,16 @@ fil_delete_tablespace(
 	/* If it is a delete then also delete any generated files, otherwise
 	when we drop the database the remove directory will fail. */
 
-	if (!rename) {
+	{
 		char*	cfg_name = fil_make_cfg_name(path);
 
 		os_file_delete_if_exists(cfg_name);
 
 		mem_free(cfg_name);
-
-		char*	ibt_name = fil_make_ibt_name(path);
-
-		os_file_delete_if_exists(ibt_name);
-
-		mem_free(ibt_name);
 	}
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
-	} else if (rename) {
-		char*	newpath = fil_make_ibt_name(path);
-
-		/* Delete existing ibt in case it exists. */
-		os_file_delete_if_exists(newpath);
-
-		if (!os_file_rename(
-			innodb_file_data_key, path, newpath)) {
-
-			/* Note: This is because we have removed the
-			tablespace instance from the cache. */
-
-			err = DB_IO_ERROR;
-		}
-
-		mem_free(newpath);
-
 	} else if (!os_file_delete(path) && !os_file_delete_if_exists(path)) {
 
 		/* Note: This is because we have removed the
@@ -2699,18 +2644,17 @@ memory cache. Discarding is like deleting a tablespace, but
  2. We remove all insert buffer entries for the tablespace immediately;
     in DROP TABLE they are only removed gradually in the background;
 
- 3. Free all the pages in use by the tablespace if rename=TRUE.
+ 3. Free all the pages in use by the tablespace.
 @return	DB_SUCCESS or error */
 UNIV_INTERN
 dberr_t
 fil_discard_tablespace(
 /*===================*/
-	ulint	id,	/*!< in: space id */
-	bool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	ulint	id)	/*!< in: space id */
 {
 	dberr_t	err;
 
-	switch (err = fil_delete_tablespace(id, rename)) {
+	switch (err = fil_delete_tablespace(id, BUF_REMOVE_ALL_NO_WRITE)) {
 	case DB_SUCCESS:
 		break;
 
@@ -5943,7 +5887,7 @@ PageCallback::set_zip_size(const buf_frame_t* page) UNIV_NOTHROW
 }
 
 /********************************************************************//**
-Delete the tablespace file and any related files like .cfg or .ibt.
+Delete the tablespace file and any related files like .cfg.
 This should not be called for temporary tables. */
 UNIV_INTERN
 void
@@ -5961,10 +5905,5 @@ fil_delete_file(
 
 	os_file_delete_if_exists(cfg_name);
 
-	char*	ibt_name = fil_make_ibt_name(ibd_name);
-
-	os_file_delete_if_exists(ibt_name);
-
 	mem_free(cfg_name);
-	mem_free(ibt_name);
 }

@@ -34,13 +34,11 @@ sub ib_cleanup {
     my ($db, $table) = @_;
     my $datadir = $ENV{'MYSQLD_DATADIR'};
     my $cfg_file = sprintf("%s.cfg", $table);
-    my $ibt_file = sprintf("%s.ibt", $table);
 
     print "unlink: $cfg_file\n";
 
     # These may or may not exist
     unlink(File::Spec->catfile("$datadir", "$db", "$cfg_file"));
-    unlink("$datadir/$db/$ibt_file");
 }
 
 sub ib_unlink_tablespace {
@@ -64,22 +62,9 @@ sub ib_backup_tablespaces {
     }
 }
 
-sub ib_discard_tablespace {
-    my ($db, $table) = @_;
-    my $datadir = $ENV{'MYSQLD_DATADIR'};
-    my $ibt_file = sprintf("%s.ibt", $table);
-    my $path = File::Spec->catfile("$datadir", "$db", "$ibt_file");
+sub ib_discard_tablespace { }
 
-    unlink($path) == 1 or die "unlink $path failed: $!"
-}
-
-sub ib_discard_tablespaces {
-    my ($db, @tables) = @_;
-
-    foreach my $table (@tables) {
-	ib_discard_tablespace($db, $table);
-    }
-}
+sub ib_discard_tablespaces { }
 
 sub ib_restore_tablespace {
     my ($db, $table) = @_;
