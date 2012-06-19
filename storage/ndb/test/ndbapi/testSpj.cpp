@@ -118,6 +118,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int lookupFaults[] = {
       17001, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17013, // Simulate DbspjErr::InvalidRequest
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
@@ -208,6 +209,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int scanFaults[] = {
       17002, 17004, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17013, // Simulate DbspjErr::InvalidRequest
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory

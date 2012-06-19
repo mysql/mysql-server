@@ -426,9 +426,10 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
    *      (unless StoredProcId is set, when only paramters are sent,
    *       but this is not yet implemented)
    */
+  SegmentedSectionPtr attrPtr;
   SectionHandle handle = SectionHandle(this, signal);
-  SegmentedSectionPtr ssPtr;
-  handle.getSection(ssPtr, LqhKeyReq::AttrInfoSectionNum);
+  handle.getSection(attrPtr, LqhKeyReq::AttrInfoSectionNum);
+  const Uint32 keyPtrI = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
 
   Uint32 err;
   Ptr<Request> requestPtr = { 0, RNIL };
@@ -457,7 +458,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     Uint32 len_cnt;
 
     {
-      SectionReader r0(ssPtr, getSectionSegmentPool());
+      SectionReader r0(attrPtr, getSectionSegmentPool());
 
       err = DbspjErr::ZeroLengthQueryTree;
       if (unlikely(!r0.getWord(&len_cnt)))
@@ -468,8 +469,8 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
     Uint32 cnt = QueryTree::getNodeCnt(len_cnt);
 
     {
-      SectionReader treeReader(ssPtr, getSectionSegmentPool());
-      SectionReader paramReader(ssPtr, getSectionSegmentPool());
+      SectionReader treeReader(attrPtr, getSectionSegmentPool());
+      SectionReader paramReader(attrPtr, getSectionSegmentPool());
       paramReader.step(len); // skip over tree to parameters
 
       Build_context ctx;
@@ -477,31 +478,39 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
       ctx.m_savepointId = req->savePointId;
       ctx.m_scanPrio = 1;
       ctx.m_start_signal = signal;
-      ctx.m_keyPtr.i = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
       ctx.m_senderRef = signal->getSendersBlockRef();
 
       err = build(ctx, requestPtr, treeReader, paramReader);
       if (unlikely(err != 0))
         break;
-    }
 
-    /**
-     * a query being shipped as a LQHKEYREQ may only return finite rows
-     *   i.e be a (multi-)lookup
-     */
-    ndbassert(requestPtr.p->isLookup());
-    ndbassert(requestPtr.p->m_node_cnt == cnt);
-    err = DbspjErr::InvalidRequest;
-    if (unlikely(!requestPtr.p->isLookup() || requestPtr.p->m_node_cnt != cnt))
-      break;
+      /**
+       * Root TreeNode in Request takes ownership of keyPtr
+       * section when build has completed.
+       * We are done with attrPtr which is now released.
+       */
+      Ptr<TreeNode> rootNodePtr = ctx.m_node_list[0];
+      rootNodePtr.p->m_send.m_keyInfoPtrI = keyPtrI;
+      release(attrPtr);
+      handle.clear();
+    }
 
     /**
      * Store request in list(s)/hash(es)
      */
     store_lookup(requestPtr);
 
-    release(ssPtr);
-    handle.clear();
+    /**
+     * A query being shipped as a LQHKEYREQ may return at most a row
+     * per operation i.e be a (multi-)lookup 
+     */
+    if (ERROR_INSERTED_CLEAR(17013) ||
+        unlikely(!requestPtr.p->isLookup() || requestPtr.p->m_node_cnt != cnt))
+    {
+      jam();
+      err = DbspjErr::InvalidRequest;
+      break;
+    }
 
     start(signal, requestPtr);
     return;
@@ -514,9 +523,9 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
   if (!requestPtr.isNull())
   {
     jam();
-    m_request_pool.release(requestPtr);
+    cleanup(requestPtr);
   }
-  releaseSections(handle);
+  releaseSections(handle);  // a NOOP, if we reached 'handle.clear()' above
   handle_early_lqhkey_ref(signal, req, err);
 }
 
@@ -729,8 +738,8 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
    *              if first op is lookup - contains keyinfo for lookup
    */
   SectionHandle handle = SectionHandle(this, signal);
-  SegmentedSectionPtr ssPtr;
-  handle.getSection(ssPtr, ScanFragReq::AttrInfoSectionNum);
+  SegmentedSectionPtr attrPtr;
+  handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum);
 
   Uint32 err;
   Ptr<Request> requestPtr = { 0, RNIL };
@@ -758,7 +767,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
 
     Uint32 len_cnt;
     {
-      SectionReader r0(ssPtr, getSectionSegmentPool());
+      SectionReader r0(attrPtr, getSectionSegmentPool());
       err = DbspjErr::ZeroLengthQueryTree;
       if (unlikely(!r0.getWord(&len_cnt)))
         break;
@@ -768,8 +777,8 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
     Uint32 cnt = QueryTree::getNodeCnt(len_cnt);
 
     {
-      SectionReader treeReader(ssPtr, getSectionSegmentPool());
-      SectionReader paramReader(ssPtr, getSectionSegmentPool());
+      SectionReader treeReader(attrPtr, getSectionSegmentPool());
+      SectionReader paramReader(attrPtr, getSectionSegmentPool());
       paramReader.step(len); // skip over tree to parameters
 
       Build_context ctx;
@@ -780,35 +789,38 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
       ctx.m_start_signal = signal;
       ctx.m_senderRef = signal->getSendersBlockRef();
 
-      if (handle.m_cnt > 1)
-      {
-        jam();
-        ctx.m_keyPtr.i = handle.m_ptr[ScanFragReq::KeyInfoSectionNum].i;
-      }
-      else
-      {
-        jam();
-        ctx.m_keyPtr.i = RNIL;
-      }
-
       err = build(ctx, requestPtr, treeReader, paramReader);
       if (unlikely(err != 0))
         break;
-    }
 
-    ndbassert(requestPtr.p->isScan());
-    ndbassert(requestPtr.p->m_node_cnt == cnt);
-    err = DbspjErr::InvalidRequest;
-    if (unlikely(!requestPtr.p->isScan() || requestPtr.p->m_node_cnt != cnt))
-      break;
+      /**
+       * Root TreeNode in Request takes ownership of keyPtr
+       * section when build has completed.
+       * We are done with attrPtr which is now released.
+       */
+      Ptr<TreeNode> rootNodePtr = ctx.m_node_list[0];
+      if (handle.m_cnt > 1)
+      {
+        jam();
+        const Uint32 keyPtrI = handle.m_ptr[ScanFragReq::KeyInfoSectionNum].i;
+        rootNodePtr.p->m_send.m_keyInfoPtrI = keyPtrI;
+      }
+      release(attrPtr);
+      handle.clear();
+    }
 
     /**
      * Store request in list(s)/hash(es)
      */
     store_scan(requestPtr);
 
-    release(ssPtr);
-    handle.clear();
+    if (ERROR_INSERTED_CLEAR(17013) ||
+        unlikely(!requestPtr.p->isScan() || requestPtr.p->m_node_cnt != cnt))
+    {
+      jam();
+      err = DbspjErr::InvalidRequest;
+      break;
+    }
 
     start(signal, requestPtr);
     return;
@@ -817,9 +829,9 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   if (!requestPtr.isNull())
   {
     jam();
-    m_request_pool.release(requestPtr);
+    cleanup(requestPtr);
   }
-  releaseSections(handle);
+  releaseSections(handle);  // a NOOP, if we reached 'handle.clear()' above
   handle_early_scanfrag_ref(signal, req, err);
 }
 
@@ -1919,33 +1931,12 @@ Dbspj::cleanup(Ptr<Request> requestPtr)
       requestPtr.p->m_state = Request::RS_ABORTED;
       return;
     }
-
-#ifdef VM_TRACE
-    {
-      Request key;
-      key.m_transId[0] = requestPtr.p->m_transId[0];
-      key.m_transId[1] = requestPtr.p->m_transId[1];
-      key.m_senderData = requestPtr.p->m_senderData;
-      Ptr<Request> tmp;
-      ndbrequire(m_scan_request_hash.find(tmp, key));
-    }
-#endif
-    m_scan_request_hash.remove(requestPtr);
+    m_scan_request_hash.remove(requestPtr, *requestPtr.p);
   }
   else
   {
     jam();
-#ifdef VM_TRACE
-    {
-      Request key;
-      key.m_transId[0] = requestPtr.p->m_transId[0];
-      key.m_transId[1] = requestPtr.p->m_transId[1];
-      key.m_senderData = requestPtr.p->m_senderData;
-      Ptr<Request> tmp;
-      ndbrequire(m_lookup_request_hash.find(tmp, key));
-    }
-#endif
-    m_lookup_request_hash.remove(requestPtr);
+    m_lookup_request_hash.remove(requestPtr, *requestPtr.p);
   }
   releaseRequestBuffers(requestPtr, false);
   ArenaHead ah = requestPtr.p->m_arena;
@@ -3037,7 +3028,6 @@ Dbspj::lookup_build(Build_context& ctx,
       dst->fragmentData = fragId;
       dst->attrLen = attrLen; // fragdist is in here
 
-      treeNodePtr.p->m_send.m_keyInfoPtrI = ctx.m_keyPtr.i;
       treeNodePtr.p->m_bits |= TreeNode::T_ONE_SHOT;
     }
     return 0;
@@ -4092,6 +4082,7 @@ Dbspj::scanFrag_build(Build_context& ctx,
       break;
     }
 
+    treeNodePtr.p->m_info = &g_ScanFragOpInfo;
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
     if (ERROR_INSERTED_CLEAR(17004))
@@ -4115,7 +4106,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = scanFragHandlePtr.i;
 
     requestPtr.p->m_bits |= Request::RT_SCAN;
-    treeNodePtr.p->m_info = &g_ScanFragOpInfo;
     treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
     treeNodePtr.p->m_batch_size = ctx.m_batch_size_rows;
 
@@ -4235,7 +4225,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
       ndbassert(dst->transId2 == transId2);
 #endif
 
-      treeNodePtr.p->m_send.m_keyInfoPtrI = ctx.m_keyPtr.i;
       treeNodePtr.p->m_bits |= TreeNode::T_ONE_SHOT;
 
       if (rangeScanFlag)
