@@ -283,7 +283,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     txn->progress_poll_fun_extra = poll_extra;
 
     if (txn->begin_was_logged) {
-        r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
+        r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
         if (r != 0) {
             goto cleanup;
         }
@@ -324,7 +324,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
     txn->do_fsync = FALSE;
 
     if (txn->begin_was_logged) {
-        r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64);
+        r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
         if (r != 0) {
             goto cleanup;
         }
@@ -354,13 +354,19 @@ static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
 }
 
 int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
-    if (txn->parent) return 0; // nothing to do if there's a parent.
+    int r = 0;
+    if (txn->parent || !txn->begin_was_logged) {
+        // nothing to do if there's a parent, or if it's read-only
+        goto cleanup;
+    }
     toku_txn_manager_add_prepared_txn(txn->logger->txn_manager, txn);
     // Do we need to do an fsync?
     txn->do_fsync = (txn->force_fsync_on_commit || txn->roll_info.num_rollentries>0);
     copy_xid(&txn->xa_xid, xa_xid);
     // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
-    return toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn->txnid64, xa_xid);
+    r = toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64, xa_xid);
+cleanup:
+    return r;
 }
 
 void toku_txn_get_prepared_xa_xid (TOKUTXN txn, TOKU_XA_XID *xid) {
