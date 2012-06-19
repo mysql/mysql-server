@@ -311,7 +311,7 @@ t5980.cfg.bak2
 t5980.ibd.bak
 t5980.ibd.bak2
 #
-# Restore the backup of *.ibd and *.cfg files 
+# Restore the backup of *.ibd and *.cfg files
 #
 ### files in MYSQL_DATA_DIR/test
 t5980.frm
