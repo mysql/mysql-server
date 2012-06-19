@@ -68,7 +68,7 @@ enum dberr_t {
 					from a table failed */
 	DB_NO_SAVEPOINT,		/*!< no savepoint exists with the given
 					name */
-	DB_TABLESPACE_ALREADY_EXISTS,	/*!< we cannot create a new single-table
+	DB_TABLESPACE_EXISTS,		/*!< we cannot create a new single-table
 					tablespace because a file of the same
 					name already exists */
 	DB_TABLESPACE_DELETED,		/*!< tablespace was deleted or is

@@ -3044,6 +3044,33 @@ row_merge_rename_index_to_drop(
 }
 
 /*********************************************************************//**
+Provide a new pathname for a table that is being renamed if it belongs to
+a file-per-table tablespace.  The caller is responsible for freeing the
+memory allocated for the return value.
+@return	new pathname of tablespace file, or NULL if space = 0 */
+UNIV_INTERN
+char*
+row_make_new_pathname(
+/*==================*/
+	dict_table_t*	table,		/*!< in: table to be renamed */
+	const char*	new_name)	/*!< in: new name */
+{
+	char*	new_path;
+	char*	old_path;
+
+	ut_ad(table->space != TRX_SYS_SPACE);
+
+	old_path = fil_space_get_first_path(table->space);
+	ut_a(old_path);
+
+	new_path = os_file_make_new_pathname(old_path, new_name);
+
+	mem_free(old_path);
+
+	return(new_path);
+}
+
+/*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
@@ -3104,6 +3131,60 @@ row_merge_rename_tables(
 			   " WHERE NAME = :new_name;\n"
 			   "END;\n", FALSE, trx);
 
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
+	table is in a non-system tablespace where space > 0. */
+	if (err == DB_SUCCESS && old_table->space) {
+		/* Make pathname to update SYS_DATAFILES. */
+		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
+
+		info = pars_info_create();
+
+		pars_info_add_str_literal(info, "tmp_name", tmp_name);
+		pars_info_add_str_literal(info, "tmp_path", tmp_path);
+		pars_info_add_int4_literal(info, "old_space",
+					   (lint) old_table->space);
+
+		err = que_eval_sql(info,
+				   "PROCEDURE RENAME_OLD_SPACE () IS\n"
+				   "BEGIN\n"
+				   "UPDATE SYS_TABLESPACES"
+				   " SET NAME = :tmp_name\n"
+				   " WHERE SPACE = :old_space;\n"
+				   "UPDATE SYS_DATAFILES"
+				   " SET PATH = :tmp_path\n"
+				   " WHERE SPACE = :old_space;\n"
+				   "END;\n", FALSE, trx);
+
+		mem_free(tmp_path);
+	}
+
+	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
+	table is in a non-system tablespace where space > 0. */
+	if (err == DB_SUCCESS && new_table->space) {
+		/* Make pathname to update SYS_DATAFILES. */
+		char* old_path = row_make_new_pathname(new_table, old_name);
+
+		info = pars_info_create();
+
+		pars_info_add_str_literal(info, "old_name", old_name);
+		pars_info_add_str_literal(info, "old_path", old_path);
+		pars_info_add_int4_literal(info, "new_space",
+					   (lint) new_table->space);
+
+		err = que_eval_sql(info,
+				   "PROCEDURE RENAME_NEW_SPACE () IS\n"
+				   "BEGIN\n"
+				   "UPDATE SYS_TABLESPACES"
+				   " SET NAME = :old_name\n"
+				   " WHERE SPACE = :new_space;\n"
+				   "UPDATE SYS_DATAFILES"
+				   " SET PATH = :old_path\n"
+				   " WHERE SPACE = :new_space;\n"
+				   "END;\n", FALSE, trx);
+
+		mem_free(old_path);
+	}
+
 	if (err != DB_SUCCESS) {
 
 		goto err_exit;
@@ -3112,10 +3193,20 @@ row_merge_rename_tables(
 	/* The following calls will also rename the .ibd data files if
 	the tables are stored in a single-table tablespace */
 
-	if (!dict_table_rename_in_cache(old_table, tmp_name, FALSE)
-	    || !dict_table_rename_in_cache(new_table, old_name, FALSE)) {
+	err = dict_table_rename_in_cache(old_table, tmp_name, FALSE);
+	if (err != DB_SUCCESS) {
+		goto err_exit;
+	}
 
-		err = DB_ERROR;
+	err = dict_table_rename_in_cache(new_table, old_name, FALSE);
+	if (err != DB_SUCCESS) {
+		if (dict_table_rename_in_cache(old_table, old_name, FALSE)
+		    != DB_SUCCESS) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: Error: Cannot undo "
+				" the rename in cache from %s to %s\n",
+				old_name, tmp_name);
+		}
 		goto err_exit;
 	}
 
@@ -3124,7 +3215,6 @@ row_merge_rename_tables(
 		err = DB_ERROR; goto err_exit;);
 
 	err = dict_load_foreigns(old_name, FALSE, TRUE);
-
 	if (err != DB_SUCCESS) {
 err_exit:
 		trx->error_state = DB_SUCCESS;
@@ -3160,7 +3250,7 @@ row_merge_create_index_graph(
 	heap = mem_heap_create(512);
 
 	index->table = table;
-	node = ind_create_graph_create(index, heap);
+	node = ind_create_graph_create(index, heap, false);
 	thr = pars_complete_graph_for_exec(node, trx, heap);
 
 	ut_a(thr == que_fork_start_command(

@@ -200,6 +200,17 @@ row_merge_file_destroy_low(
 	int		fd);	/*!< in: merge file descriptor */
 
 /*********************************************************************//**
+Provide a new pathname for a table that is being renamed if it belongs to
+a file-per-table tablespace.  The caller is responsible for freeing the
+memory allocated for the return value.
+@return	new pathname of tablespace file, or NULL if space = 0 */
+UNIV_INTERN
+char*
+row_make_new_pathname(
+/*==================*/
+	dict_table_t*	table,		/*!< in: table to be renamed */
+	const char*	new_name);	/*!< in: new name */
+/*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.

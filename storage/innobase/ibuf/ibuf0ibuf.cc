@@ -289,13 +289,13 @@ type, counter, and some flags. */
 
 
 /** The mutex used to block pessimistic inserts to ibuf trees */
-static mutex_t	ibuf_pessimistic_insert_mutex;
+static ib_mutex_t	ibuf_pessimistic_insert_mutex;
 
 /** The mutex protecting the insert buffer structs */
-static mutex_t	ibuf_mutex;
+static ib_mutex_t	ibuf_mutex;
 
 /** The mutex protecting the insert buffer bitmaps */
-static mutex_t	ibuf_bitmap_mutex;
+static ib_mutex_t	ibuf_bitmap_mutex;
 
 /** The area in pages from which contract looks for page numbers for merge */
 #define	IBUF_MERGE_AREA			8UL

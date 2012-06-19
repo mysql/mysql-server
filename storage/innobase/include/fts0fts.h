@@ -314,7 +314,7 @@ typedef	enum fts_status	fts_status_t;
 struct fts_struct {
 					/*!< mutex protecting bg_threads* and
 					fts_add_wq. */
-	mutex_t		bg_threads_mutex;
+	ib_mutex_t		bg_threads_mutex;
 
 	ulint		bg_threads;	/*!< number of background threads
 					accessing this table */

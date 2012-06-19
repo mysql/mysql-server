@@ -148,7 +148,7 @@ my_error_innodb(
 #ifdef UNIV_DEBUG
 	case DB_SUCCESS:
 	case DB_DUPLICATE_KEY:
-	case DB_TABLESPACE_ALREADY_EXISTS:
+	case DB_TABLESPACE_EXISTS:
 	case DB_ONLINE_LOG_TOO_BIG:
 		/* These codes should not be passed here. */
 		ut_error;
@@ -2493,6 +2493,12 @@ prepare_inplace_alter_table_dict(
 		indexed_table = dict_mem_table_create(
 			new_table_name, 0, n_cols, flags, flags2);
 
+		if (DICT_TF_HAS_DATA_DIR(flags)) {
+			indexed_table->data_dir_path =
+				mem_heap_strdup(indexed_table->heap,
+				user_table->data_dir_path);
+		}
+
 		for (uint i = 0; i < altered_table->s->fields; i++) {
 			const Field*	field = altered_table->field[i];
 			ulint		is_unsigned;
@@ -2579,7 +2585,7 @@ col_fail:
 			indexed_table->fts->doc_col = fts_doc_id_col;
 		}
 
-		error = row_create_table_for_mysql(indexed_table, trx);
+		error = row_create_table_for_mysql(indexed_table, trx, false);
 
 		switch (error) {
 			dict_table_t*	temp_table;
@@ -2599,7 +2605,10 @@ col_fail:
 			holding dict_operation_lock X-latch. */
 			DBUG_ASSERT(indexed_table->n_ref_count == 1);
 			break;
-		case DB_TABLESPACE_ALREADY_EXISTS:
+		case DB_TABLESPACE_EXISTS:
+			my_error(ER_TABLESPACE_EXISTS, MYF(0),
+				 new_table_name);
+			goto new_clustered_failed;
 		case DB_DUPLICATE_KEY:
 			my_error(HA_ERR_TABLE_EXIST, MYF(0),
 				 altered_table->s->table_name.str);
@@ -2669,6 +2678,7 @@ col_fail:
 
 		add_index[num_created] = row_merge_create_index(
 			trx, indexed_table, &index_defs[num_created]);
+
 		add_key_nums[num_created] = index_defs[num_created].key_number;
 
 		if (!add_index[num_created]) {
@@ -2832,8 +2842,8 @@ error_handling:
 			!locked, heap, trx, indexed_table, col_map,
 			add_autoinc_col, autoinc_inc, add_cols);
 		DBUG_RETURN(false);
-	case DB_TABLESPACE_ALREADY_EXISTS:
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), "(unknown)");
+	case DB_TABLESPACE_EXISTS:
+		my_error(ER_TABLESPACE_EXISTS, MYF(0), "(unknown)");
 		break;
 	case DB_DUPLICATE_KEY:
 		my_error(ER_DUP_KEY, MYF(0), "SYS_INDEXES");
@@ -4150,6 +4160,18 @@ ha_innobase::commit_inplace_alter_table(
 		trx_start_for_ddl(trx, op);
 	}
 
+	if (new_clustered) {
+		if (prebuilt->table->fts) {
+			ut_ad(!prebuilt->table->fts->add_wq);
+			fts_optimize_remove_table(prebuilt->table);
+		}
+
+		if (ctx->indexed_table->fts) {
+			ut_ad(!ctx->indexed_table->fts->add_wq);
+			fts_optimize_remove_table(ctx->indexed_table);
+		}
+	}
+
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during the data dictionary operation. */
 	row_mysql_lock_data_dictionary(trx);
@@ -4238,22 +4260,6 @@ ha_innobase::commit_inplace_alter_table(
 			goto drop_new_clustered;
 		}
 
-		if (prebuilt->table->fts || ctx->indexed_table->fts) {
-			row_mysql_unlock_data_dictionary(trx);
-
-			if (prebuilt->table->fts) {
-				ut_ad(!prebuilt->table->fts->add_wq);
-				fts_optimize_remove_table(prebuilt->table);
-			}
-
-			if (ctx->indexed_table->fts) {
-				ut_ad(!ctx->indexed_table->fts->add_wq);
-				fts_optimize_remove_table(ctx->indexed_table);
-			}
-
-			row_mysql_lock_data_dictionary(trx);
-		}
-
 		/* A new clustered index was defined for the table
 		and there was no error at this point. We can
 		now rename the old table as a temporary table,
@@ -4283,7 +4289,11 @@ ha_innobase::commit_inplace_alter_table(
 				ctx->indexed_table, table->s->reclength);
 			err = 0;
 			break;
-		case DB_TABLESPACE_ALREADY_EXISTS:
+		case DB_TABLESPACE_EXISTS:
+			ut_a(ctx->indexed_table->n_ref_count == 1);
+			my_error(ER_TABLESPACE_EXISTS, MYF(0), tmp_name);
+			err = HA_ERR_TABLESPACE_EXISTS;
+			goto drop_new_clustered;
 		case DB_DUPLICATE_KEY:
 			ut_a(ctx->indexed_table->n_ref_count == 1);
 			my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tmp_name);

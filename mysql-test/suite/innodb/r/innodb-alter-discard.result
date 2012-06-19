@@ -3,15 +3,16 @@ CREATE TABLE t(a INT)ENGINE=InnoDB;
 call mtr.add_suppression("InnoDB: Error: trying to open a table, but could not$");
 call mtr.add_suppression("MySQL is trying to open a table handle but the \.ibd file for$");
 call mtr.add_suppression("InnoDB: Table 'test/t'$");
+call mtr.add_suppression("Could not find a valid tablespace file for");
+call mtr.add_suppression("InnoDB: Tablespace open failed for '\"test\"\.\"t\"', ignored");
+call mtr.add_suppression("InnoDB: Failed to find tablespace for table '\"test\"\.\"t\"' in the cache");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
 SELECT * FROM t;
 ERROR 42S02: Table 'test.t' doesn't exist
 ALTER TABLE t ADD INDEX (a), ALGORITHM=INPLACE;
 ERROR 42S02: Table 'test.t' doesn't exist
 ALTER TABLE t1 ADD INDEX (a), ALGORITHM=COPY;
 ERROR 42S02: Table 'test.t1' doesn't exist
-call mtr.add_suppression("InnoDB: Tablespace open failed for '\"test\"\.\"t\"', ignored");
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table '\"test\"\.\"t\"' in the cache");
-call mtr.add_suppression("InnoDB: Cannot delete tablespace [0-9]+.*not found");
 ALTER TABLE t DISCARD TABLESPACE;
 Warnings:
 Warning	1812	InnoDB: Tablespace is missing for table 'test/t'

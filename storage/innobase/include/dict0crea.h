@@ -42,7 +42,9 @@ tab_create_graph_create(
 /*====================*/
 	dict_table_t*	table,	/*!< in: table to create, built as a memory data
 				structure */
-	mem_heap_t*	heap);	/*!< in: heap where created */
+	mem_heap_t*	heap,	/*!< in: heap where created */
+	bool		commit);/*!< in: true if the commit node should be
+				added to the query graph */
 /*********************************************************************//**
 Creates an index create graph.
 @return	own: index create node */
@@ -52,7 +54,9 @@ ind_create_graph_create(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index to create, built as a memory data
 				structure */
-	mem_heap_t*	heap);	/*!< in: heap where created */
+	mem_heap_t*	heap,	/*!< in: heap where created */
+	bool		commit);/*!< in: true if the commit node should be
+				added to the query graph */
 /***********************************************************//**
 Creates a table. This is a high-level function used in SQL execution graphs.
 @return	query thread to run next or NULL */
@@ -129,6 +133,32 @@ dict_create_add_foreigns_to_dictionary(
 	dict_table_t*	table,	/*!< in: table */
 	trx_t*		trx)	/*!< in: transaction */
 	__attribute__((nonnull, warn_unused_result));
+/****************************************************************//**
+Creates the tablespaces and datafiles system tables inside InnoDB
+at server bootstrap or server start if they are not found or are
+not of the right form.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_create_or_check_sys_tablespace(void);
+/*=====================================*/
+/********************************************************************//**
+Add a single tablespace definition to the data dictionary tables in the
+database.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+dict_create_add_tablespace_to_dictionary(
+/*=====================================*/
+	ulint		space,		/*!< in: tablespace id */
+	const char*	name,		/*!< in: tablespace name */
+	ulint		flags,		/*!< in: tablespace flags */
+	const char*	path,		/*!< in: tablespace path */
+	trx_t*		trx,		/*!< in: transaction */
+	bool		commit);	/*!< in: if true then commit the
+					transaction */
+/********************************************************************//**
+Table create node structure */
 
 /********************************************************************//**
 Add a single foreign key definition to the data dictionary tables in the
