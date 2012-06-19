@@ -35,6 +35,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "data0type.h" /* dtype_t */
 #include "db0err.h" /* dberr_t */
 #include "dyn0dyn.h" /* dyn_array* */
+#include "page0page.h" /* page_align() */
 #include "pars0pars.h" /* pars_info_create() */
 #include "pars0types.h" /* pars_info_t */
 #include "que0que.h" /* que_eval_sql() */
@@ -780,9 +781,7 @@ dict_stats_analyze_index_level(
 	const page_t*	page;
 	const rec_t*	rec;
 	const rec_t*	prev_rec;
-#ifdef UNIV_DEBUG
-	int		prev_rec_was_copied;
-#endif
+	bool		prev_rec_is_copied;
 	byte*		prev_rec_buf = NULL;
 	ulint		prev_rec_buf_size = 0;
 	ulint		i;
@@ -846,9 +845,7 @@ dict_stats_analyze_index_level(
 	}
 
 	prev_rec = NULL;
-#ifdef UNIV_DEBUG
-	prev_rec_was_copied = 1;
-#endif
+	prev_rec_is_copied = false;
 
 	/* no records by default */
 	*total_recs = 0;
@@ -866,13 +863,26 @@ dict_stats_analyze_index_level(
 		ulint	matched_bytes = 0;
 		ulint	offsets_rec_onstack[REC_OFFS_NORMAL_SIZE];
 		ulint*	offsets_rec;
+		bool	rec_is_last_on_page;
 
 		rec_offs_init(offsets_rec_onstack);
 
 		rec = btr_pcur_get_rec(&pcur);
 
+		/* If rec and prev_rec are on different pages, then prev_rec
+		must have been copied, because we hold latch only on the page
+		where rec resides. */
+		if (prev_rec != NULL
+		    && page_align(rec) != page_align(prev_rec)) {
+
+			ut_a(prev_rec_is_copied);
+		}
+
+		rec_is_last_on_page =
+			page_rec_is_supremum(page_rec_get_next_const(rec));
+
 		/* increment the pages counter at the end of each page */
-		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
+		if (rec_is_last_on_page) {
 
 			(*total_pages)++;
 		}
@@ -887,6 +897,28 @@ dict_stats_analyze_index_level(
 		    rec_get_deleted_flag(
 			    rec,
 			    page_is_comp(btr_pcur_get_page(&pcur)))) {
+
+			if (rec_is_last_on_page
+			    && !prev_rec_is_copied
+			    && prev_rec != NULL) {
+				/* copy prev_rec */
+				ulint	offsets_prev_rec_onstack[
+					REC_OFFS_NORMAL_SIZE];
+				ulint*	offsets_prev_rec;
+
+				rec_offs_init(offsets_prev_rec_onstack);
+
+				offsets_prev_rec = rec_get_offsets(
+					prev_rec, index, offsets_prev_rec_onstack,
+					n_uniq, &heap);
+
+				prev_rec = rec_copy_prefix_to_buf(
+					prev_rec, index,
+					rec_offs_n_fields(offsets_prev_rec),
+					&prev_rec_buf, &prev_rec_buf_size);
+
+				prev_rec_is_copied = true;
+			}
 
 			continue;
 		}
@@ -918,7 +950,7 @@ dict_stats_analyze_index_level(
 						"rec_get_status(): %lu, "
 						"rec: %p, "
 						"prev_rec: %p, "
-						"prev_rec_was_copied: %d, "
+						"prev_rec_is_copied: %d, "
 						"page_align(rec): %p, "
 						"page_align(prev_rec): %p, "
 						"*total_recs: " UINT64PF ", "
@@ -926,7 +958,7 @@ dict_stats_analyze_index_level(
 						status,
 						rec,
 						prev_rec,
-						prev_rec_was_copied,
+						(int) prev_rec_is_copied,
 						page_align(rec),
 						page_align(prev_rec),
 						*total_recs,
@@ -1010,7 +1042,7 @@ dict_stats_analyze_index_level(
 			}
 		}
 
-		if (page_rec_is_supremum(page_rec_get_next_const(rec))) {
+		if (rec_is_last_on_page) {
 			/* end of a page has been reached */
 
 			/* we need to copy the record instead of assigning
@@ -1023,9 +1055,7 @@ dict_stats_analyze_index_level(
 			prev_rec = rec_copy_prefix_to_buf(
 				rec, index, rec_offs_n_fields(offsets_rec),
 				&prev_rec_buf, &prev_rec_buf_size);
-#ifdef UNIV_DEBUG
-			prev_rec_was_copied = 2;
-#endif
+			prev_rec_is_copied = true;
 
 		} else {
 			/* still on the same page, the next call to
@@ -1034,9 +1064,7 @@ dict_stats_analyze_index_level(
 			instead of copying the records like above */
 
 			prev_rec = rec;
-#ifdef UNIV_DEBUG
-			prev_rec_was_copied = 3;
-#endif
+			prev_rec_is_copied = false;
 		}
 	}
 
