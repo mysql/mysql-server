@@ -32,7 +32,7 @@ check fields whose sizes are given below */
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables in mem0dbg.cc. */
-extern mutex_t	mem_hash_mutex;
+extern ib_mutex_t	mem_hash_mutex;
 # endif /* !UNIV_HOTBACKUP */
 
 #define MEM_FIELD_HEADER_SIZE	ut_calc_align(2 * sizeof(ulint),\

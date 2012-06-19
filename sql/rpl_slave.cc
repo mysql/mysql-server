@@ -104,7 +104,7 @@ const ulong mts_coordinator_basic_nap= 5;
 */
 const ulong mts_worker_underrun_level= 10;
 Slave_job_item * de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret);
-void append_item_to_jobs(slave_job_item *job_item,
+bool append_item_to_jobs(slave_job_item *job_item,
                          Slave_worker *w, Relay_log_info *rli);
 
 /*
@@ -167,6 +167,15 @@ log '%s' at position %s",
     "Slave I/O thread killed during or after a reconnect done to recover from \
 failed read"
   }
+};
+
+enum enum_slave_apply_event_and_update_pos_retval
+{
+  SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK= 0,
+  SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR= 1,
+  SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR= 2,
+  SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR= 3,
+  SLAVE_APPLY_EVENT_AND_UPDATE_POS_MAX
 };
 
 
@@ -3192,14 +3201,22 @@ int ulong_cmp(ulong *id1, ulong *id2)
   @note MTS can store NULL to @c ptr_ev location to indicate
         the event is taken over by a Worker.
 
-  @retval 0 OK.
+  @retval SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK
+          OK.
 
-  @retval 1 Error calling ev->apply_event().
+  @retval SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR
+          Error calling ev->apply_event().
 
-  @retval 2 No error calling ev->apply_event(), but error calling
-  ev->update_pos().
+  @retval SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR
+          No error calling ev->apply_event(), but error calling
+          ev->update_pos().
+
+  @retval SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR
+          append_item_to_jobs() failed, thread was killed while waiting
+          for successful enqueue on worker.
 */
-int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
+enum enum_slave_apply_event_and_update_pos_retval
+apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
   bool skip_event= FALSE;
@@ -3276,7 +3293,7 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
   {
     // Sleeps if needed, and unlocks rli->data_lock.
     if (sql_delay_event(ev, thd, rli))
-      DBUG_RETURN(0);
+      DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 
     exec_res= ev->apply_event(rli);
 
@@ -3307,6 +3324,7 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
           rli->last_assigned_worker= NULL;
         }
 
+        bool append_item_to_jobs_error= false;
         if (rli->curr_group_da.elements > 0)
         {
           /*
@@ -3319,7 +3337,10 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
             get_dynamic(&rli->curr_group_da, (uchar*) &da_item.data, i);
             DBUG_PRINT("mts", ("Assigning job %llu to worker %lu",
                       ((Log_event* )da_item.data)->log_pos, w->id));
-            append_item_to_jobs(&da_item, w, rli);
+            if (!append_item_to_jobs_error)
+              append_item_to_jobs_error= append_item_to_jobs(&da_item, w, rli);
+            if (append_item_to_jobs_error)
+              delete static_cast<Log_event*>(da_item.data);
           }
           if (rli->curr_group_da.elements > rli->curr_group_da.max_element)
           {
@@ -3330,12 +3351,15 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
           }
           rli->curr_group_da.elements= 0;
         }
+        if (append_item_to_jobs_error)
+          DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
 
         DBUG_PRINT("mts", ("Assigning job %llu to worker %lu\n",
                    ((Log_event* )job_item->data)->log_pos, w->id));
 
         /* Notice `ev' instance can be destoyed after `append()' */
-        append_item_to_jobs(job_item, w, rli);
+        if (append_item_to_jobs(job_item, w, rli))
+          DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR);
         if (need_sync)
         {
           /*
@@ -3490,11 +3514,12 @@ int apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli
                   " Stopped in %s position %s",
                   rli->get_group_relay_log_name(),
                   llstr(rli->get_group_relay_log_pos(), buf));
-      DBUG_RETURN(2);
+      DBUG_RETURN(SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR);
     }
   }
 
-  DBUG_RETURN(exec_res ? 1 : 0);
+  DBUG_RETURN(exec_res ? SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR
+                       : SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 }
 
 
@@ -3550,7 +3575,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   }
   if (ev)
   {
-    int exec_res;
+    enum enum_slave_apply_event_and_update_pos_retval exec_res;
 
     ptr_ev= &ev;
     /*
@@ -3639,11 +3664,18 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
     }
 
     /*
-      update_log_pos failed: this should not happen, so we don't
-      retry.
+      exec_res == SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR
+                  update_log_pos failed: this should not happen, so we
+                  don't retry.
+      exec_res == SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPEND_JOB_ERROR
+                  append_item_to_jobs() failed, this happened because
+                  thread was killed while waiting for enqueue on worker.
     */
-    if (exec_res == 2)
+    if (exec_res >= SLAVE_APPLY_EVENT_AND_UPDATE_POS_UPDATE_POS_ERROR)
+    {
+      delete ev;
       DBUG_RETURN(1);
+    }
 
     if (slave_trans_retries)
     {
@@ -3684,7 +3716,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                             errmsg);
           else
           {
-            exec_res= 0;
+            exec_res= SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK;
             rli->cleanup_context(thd, 1);
             /* chance for concurrent connection to get more locks */
             slave_sleep(thd, min<ulong>(rli->trans_retries, MAX_SLAVE_RETRY_PAUSE),
@@ -3723,6 +3755,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
                             rli->trans_retries));
       }
     }
+    if (exec_res)
+      delete ev;
     DBUG_RETURN(exec_res);
   }
   mysql_mutex_unlock(&rli->data_lock);
@@ -4525,7 +4559,6 @@ int mts_recovery_groups(Relay_log_info *rli)
         Deletes the worker because its jobs are included in the latest
         checkpoint.
       */
-      worker->end_info();
       delete worker;
     }
   }
@@ -4714,7 +4747,6 @@ err:
   for (uint it_job= 0; it_job < above_lwm_jobs.elements; it_job++)
   {
     get_dynamic(&above_lwm_jobs, (uchar *) &job_worker, it_job);
-    job_worker.worker->end_info();
     delete job_worker.worker;
   }
 
@@ -4888,6 +4920,8 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   pthread_t th;
   Slave_worker *w= NULL;
 
+  mysql_mutex_assert_owner(&rli->run_lock);
+
   if (!(w=
         Rpl_info_factory::create_worker(opt_rli_repository_id, i, rli, false)))
   {
@@ -4923,9 +4957,6 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
 err:
   if (error && w)
   {
-    w->end_info();
-    if (w->jobs.inited_queue)
-      delete_dynamic(&(w->jobs.Q));
     delete w;
     /*
       Any failure after dynarray inserted must follow with deletion
@@ -4951,6 +4982,8 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
 {
   uint i;
   int error= 0;
+
+  mysql_mutex_assert_owner(&rli->run_lock);
 
   if (n == 0 && rli->mts_recovery_group_cnt == 0)
   {
@@ -5052,6 +5085,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
   int i;
   THD *thd= rli->info_thd;
 
+  mysql_mutex_assert_owner(&rli->run_lock);
+
   if (!*mts_inited) 
     return;
   else if (rli->slave_parallel_workers == 0)
@@ -5130,10 +5165,7 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       mysql_mutex_lock(&w->jobs_lock);
     }
     mysql_mutex_unlock(&w->jobs_lock);
-    w->end_info();
 
-    DBUG_ASSERT(w->jobs.Q.elements == w->jobs.size);
-    delete_dynamic(&w->jobs.Q);
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
@@ -5490,6 +5522,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
  err:
 
+  mysql_mutex_lock(&rli->run_lock);
   slave_stop_workers(rli, &mts_inited); // stopping worker pool
   if (rli->recovery_groups_inited)
   {
@@ -5515,7 +5548,6 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   thd->reset_db(NULL, 0);
 
   THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
-  mysql_mutex_lock(&rli->run_lock);
   /* We need data_lock, at least to wake up any waiting master_pos_wait() */
   mysql_mutex_lock(&rli->data_lock);
   DBUG_ASSERT(rli->slave_running == 1); // tracking buffer overrun

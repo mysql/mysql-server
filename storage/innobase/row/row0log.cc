@@ -85,7 +85,7 @@ directly. When also head.bytes == tail.bytes, both counts will be
 reset to 0 and the file will be truncated. */
 struct row_log_t {
 	int		fd;	/*!< file descriptor */
-	mutex_t		mutex;	/*!< mutex protecting trx_log, error,
+	ib_mutex_t	mutex;	/*!< mutex protecting trx_log, error,
 				max_trx and tail */
 	trx_id_set*	trx_rb;	/*!< set of transactions that rolled back
 				inserts of BLOBs during online table rebuild;

@@ -5,6 +5,8 @@
 SET default_storage_engine=InnoDB;
 
 --disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 # These values can change during the test
 let $innodb_file_format_orig = `SELECT @@innodb_file_format`;
 let $innodb_file_format_max_orig = `SELECT @@innodb_file_format_max`;
@@ -24,8 +26,9 @@ SELECT variable_value FROM information_schema.global_status
 SELECT variable_value FROM information_schema.global_status
        WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 
---echo # Test 3) The root page numbers are dependent upon the page size.
---echo #         Pulled from innodb-system-table-view.test
+--echo # Test 3) Query some information_shema tables that are dependent upon
+--echo #         the page size.
+# Pulled from innodb-system-table-view.test
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
 # unpredictable, probably they on whether mtr has created the database for
 # this test from scratch or is using a previously created database where
@@ -41,6 +44,19 @@ SELECT variable_value FROM information_schema.global_status
 --let $rep_table_3 = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/slave_worker_info'`
 --eval SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES WHERE table_id NOT IN ($table_stats_id, $index_stats_id, $rep_table_1, $rep_table_2, $rep_table_3)
 --enable_query_log
+CREATE TABLE t1 (a INT KEY, b TEXT) ROW_FORMAT=REDUNDANT ENGINE=innodb;
+CREATE TABLE t2 (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
+CREATE TABLE t3 (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
+CREATE TABLE t4 (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
+--replace_column 1 {id} 5 {id}
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+       WHERE space > 0 ORDER BY table_id;
+--replace_column 1 {id}
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+--replace_column 1 {id}
+--replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+DROP TABLE t1, t2, t3, t4;
 
 --echo # Test 4) The maximum row size is dependent upon the page size.
 --echo #         Redundant: 1979, Compact: 1982.

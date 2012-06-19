@@ -1241,7 +1241,7 @@ trx_undo_report_row_operation(
 	/* This table is visible only to the session that created it. */
 	if (trx->read_only) {
 		/* MySQL should block writes to non-temporary tables. */
-		ut_a(index->table->flags2 & DICT_TF2_TEMPORARY);
+		ut_a(DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_TEMPORARY));
 		if (trx->rseg == 0) {
 			trx_assign_rseg(trx);
 		}

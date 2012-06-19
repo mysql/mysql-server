@@ -134,13 +134,6 @@ descending to lower levels and fetch N_SAMPLE_PAGES(index) records
 from that level */
 #define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
 
-/** Open handles on the stats tables. Currently this is used to increase the
-reference count of the stats tables. */
-typedef struct dict_stats_struct {
-	dict_table_t*	table_stats;	/*!< Handle to open TABLE_STATS_NAME */
-	dict_table_t*	index_stats;	/*!< Handle to open INDEX_STATS_NAME */
-} dict_stats_t;
-
 /*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
@@ -176,7 +169,9 @@ dict_stats_persistent_storage_check(
 	dict_table_schema_t	table_stats_schema = {
 		TABLE_STATS_NAME,
 		UT_ARR_SIZE(table_stats_columns),
-		table_stats_columns
+		table_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
 	};
 
 	/* definition for the table INDEX_STATS_NAME */
@@ -208,7 +203,9 @@ dict_stats_persistent_storage_check(
 	dict_table_schema_t	index_stats_schema = {
 		INDEX_STATS_NAME,
 		UT_ARR_SIZE(index_stats_columns),
-		index_stats_columns
+		index_stats_columns,
+		0 /* n_foreign */,
+		0 /* n_referenced */
 	};
 
 	char		errstr[512];
@@ -354,7 +351,10 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
 
@@ -403,7 +403,10 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS
+		    || dict_index_is_online_ddl(index)
+		    || dict_index_is_corrupted(index)
+		    || index->to_be_dropped) {
 			continue;
 		}
 

@@ -367,6 +367,7 @@ private:
   bool populate_partition_name_hash();
   Partition_share *get_share();
   bool set_ha_share_ref(Handler_share **ha_share);
+  void fix_data_dir(char* path);
   bool init_partition_bitmaps();
   void free_partition_bitmaps();
 
