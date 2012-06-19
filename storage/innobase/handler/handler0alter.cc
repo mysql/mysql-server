@@ -2514,6 +2514,7 @@ prepare_inplace_alter_table_dict(
 
 			if (!col_type) {
 col_fail:
+				dict_mem_table_free(indexed_table);
 				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
 					 field->field_name);
 				goto new_clustered_failed;
@@ -2566,6 +2567,7 @@ col_fail:
 			}
 
 			if (dict_col_name_is_reserved(field->field_name)) {
+				dict_mem_table_free(indexed_table);
 				my_error(ER_WRONG_COLUMN_NAME, MYF(0),
 					 field->field_name);
 				goto new_clustered_failed;
