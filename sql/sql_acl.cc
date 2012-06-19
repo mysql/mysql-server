@@ -8539,6 +8539,8 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   bool packet_has_required_size= false;
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
+  if (mpvio->connect_errors)
+    reset_host_errors(mpvio->ip);
 
   uint charset_code= 0;
   end= (char *)net->read_pos;
@@ -8549,11 +8551,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   */
   size_t bytes_remaining_in_packet= pkt_len;
   
-  DBUG_EXECUTE_IF("host_error_packet_length",
-                  {
-                    bytes_remaining_in_packet= 0;
-                  };);
-
   /*
     Peek ahead on the client capability packet and determine which version of
     the protocol should be used.
@@ -8611,11 +8608,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     */
     charset_code= default_charset_info->number;
   }
-  DBUG_EXECUTE_IF("host_error_charset",
-                  {
-                    return packet_error;
-                  };);
-
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
   if (mpvio->charset_adapter->init_client_charset(charset_code))
@@ -8678,11 +8670,6 @@ skip_to_ssl:
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
     }
     
-    DBUG_EXECUTE_IF("host_error_SSL_layering",
-                    {
-                      packet_has_required_size= 0;
-                    };);
-
     if (!packet_has_required_size)
       return packet_error;
   }
@@ -8714,11 +8701,6 @@ skip_to_ssl:
 
   size_t user_len;
   char *user= get_string(&end, &bytes_remaining_in_packet, &user_len);
-  DBUG_EXECUTE_IF("host_error_user",
-                  {
-                    user= NULL;
-                  };);
-
   if (user == NULL)
     return packet_error;
 
@@ -8745,11 +8727,6 @@ skip_to_ssl:
     */
     passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
   }
-
-  DBUG_EXECUTE_IF("host_error_password",
-                  {
-                    passwd= NULL;
-                  };);
 
   if (passwd == NULL)
     return packet_error;
@@ -9047,15 +9024,7 @@ static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
       goto err;
   }
   else
-  {
-    /*
-      Reset previous connection failures if any.
-    */
-    if (mpvio->connect_errors)
-      reset_host_errors(mpvio->ip);
-
     *buf= mpvio->net->read_pos;
-  }
 
   DBUG_RETURN((int)pkt_len);
 
