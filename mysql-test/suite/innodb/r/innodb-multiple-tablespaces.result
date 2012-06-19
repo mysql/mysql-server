@@ -419,7 +419,7 @@ INSERT INTO wy VALUES (2, 'wy');
 SET SESSION debug="+d,crash_commit_before";
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
-# AA; Control table, used as the source of 'wrong' tablespaces and opened first during recovery.
+# AA; Control table, used as the source of 'wrong' tablespaces.
 #     AA also has a link file which points to the file in the default datadir.
 ---- MYSQLD_DATADIR/test
 aa.frm
@@ -442,14 +442,16 @@ yn.ibd
 yw.ibd
 yy.ibd
 #
-# Start the server and let it do recovery.
-# It will crash when it finds aa in the default directory and an isl file.
+# Start the server and let it do recovery with aa.ibd and aa.isl.
+# It will exit when it finds aa in the default directory and an isl file.
 #
 # Delete the invalid aa.isl.
+# Move the aa file so that it is not found during recovery.
+# Since we cannot make all OSes return that file first,
+# we cannot assure that it is opened before the copies of it.
 # YY; Found in both default directory and alt-dir.
 ---- MYSQLD_DATADIR/test
 aa.frm
-aa.ibd
 ny.frm
 ny.isl
 wy.frm
@@ -462,27 +464,77 @@ yy.frm
 yy.ibd
 yy.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
+aa.ibd.bak
 ny.ibd
 wy.ibd
 yn.ibd
 yw.ibd
 yy.ibd
 #
-# Start the server and let it do recovery.
-# It will crash when it finds two copies of yy.
+# Start the server and let it do recovery for yy in 2 places.
+# It will exit when it finds two copies of yy.
 #
 # Delete the extra copy of yy.
-# YN; Tablespace found the default directory but not in alt_dir.
-# NY; Tablespace found in alt_dir but not the default directory.
-# YW; Tablespace found in the default directory but the wrong file in alt_dir
-# WY; The wrong tablespace found in the default directory and the corect one in alt_dir
+# WY; The wrong tablespace is found in the default directory
+# and the corect one in alt_dir.
 ---- MYSQLD_DATADIR/test
 aa.frm
-aa.ibd
 ny.frm
 ny.isl
 wy.frm
 wy.ibd
+wy.isl
+yn.frm
+yn.isl
+yw.frm
+yw.isl
+yy.frm
+yy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+aa.ibd.bak
+ny.ibd
+wy.ibd
+yn.ibd
+yw.ibd
+yy.ibd
+#
+# Start the server and let it do recovery for wy in 2 places.
+# It will exit when it finds two copies of wy.
+#
+# Delete the wrong copy of wy.
+# YW; Tablespace is found in the default directory but the wrong file in alt_dir.
+---- MYSQLD_DATADIR/test
+aa.frm
+ny.frm
+ny.isl
+wy.frm
+wy.isl
+yn.frm
+yn.isl
+yw.frm
+yw.ibd
+yw.isl
+yy.frm
+yy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+aa.ibd.bak
+ny.ibd
+wy.ibd
+yn.ibd
+yw.ibd
+yy.ibd
+#
+# Start the server and let it do recovery for yw in 2 places.
+# It will exit when it finds two copies of yw.
+#
+# Delete the wrong copy of yw.
+# YN; Tablespace found the default directory but not in alt_dir.
+# NY; Tablespace found in alt_dir but not the default directory.
+---- MYSQLD_DATADIR/test
+aa.frm
+ny.frm
+ny.isl
+wy.frm
 wy.isl
 yn.frm
 yn.ibd
@@ -493,12 +545,12 @@ yw.isl
 yy.frm
 yy.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
+aa.ibd.bak
 ny.ibd
 wy.ibd
-yw.ibd
 yy.ibd
 #
-# Start the server and let it do recovery.
+# Start the server and let it do recovery for ny, wy, yn, yw, & yy.
 #
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 Variable_name	Value
@@ -512,8 +564,7 @@ MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 SELECT * FROM aa;
-c1	c2
-1	aa - control table
+ERROR 42S02: Table 'test.aa' doesn't exist
 SELECT * FROM yy;
 c1	c2
 1	yy
@@ -530,12 +581,7 @@ SELECT * FROM wy;
 c1	c2
 1	wy
 SHOW CREATE TABLE aa;
-Table	Create Table
-aa	CREATE TABLE `aa` (
-  `c1` int(11) NOT NULL,
-  `c2` text,
-  PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+ERROR 42S02: Table 'test.aa' doesn't exist
 SHOW CREATE TABLE yy;
 Table	Create Table
 yy	CREATE TABLE `yy` (
@@ -576,11 +622,9 @@ wy	CREATE TABLE `wy` (
 #
 ---- MYSQLD_DATADIR/test
 aa.frm
-aa.ibd
 ny.frm
 ny.isl
 wy.frm
-wy.ibd
 wy.isl
 yn.frm
 yn.ibd
@@ -591,9 +635,9 @@ yw.isl
 yy.frm
 yy.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
+aa.ibd.bak
 ny.ibd
 wy.ibd
-yw.ibd
 yy.ibd
 DROP TABLE aa;
 DROP TABLE yy;
@@ -605,11 +649,10 @@ DROP TABLE wy;
 # List of files after DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-wy.ibd
 yn.isl
 yw.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
-yw.ibd
+aa.ibd.bak
 #
 # List of files after deleting unknown files
 #
