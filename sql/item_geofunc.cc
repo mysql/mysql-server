@@ -823,6 +823,10 @@ int Item_func_spatial_rel::func_touches()
   if (g2->store_shapes(&trn) || func.alloc_states())
     goto mem_error;
 
+#ifndef DBUG_OFF
+  func.debug_print_function_buffer();
+#endif
+
   collector.prepare_operation();
   scan_it.init(&collector);
 
@@ -962,6 +966,10 @@ longlong Item_func_spatial_rel::val_int()
 	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
     goto exit;
 
+#ifndef DBUG_OFF
+  func.debug_print_function_buffer();
+#endif
+
   collector.prepare_operation();
   scan_it.init(&collector);
   if (spatial_rel == SP_EQUALS_FUNC)
@@ -1011,6 +1019,9 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
     goto exit;
 
+#ifndef DBUG_OFF
+  func.debug_print_function_buffer();
+#endif
   
   collector.prepare_operation();
   if (func.alloc_states())
@@ -1114,7 +1125,9 @@ static void get_n_sincos(int n, double *sinus, double *cosinus)
 }
 
 
-static int fill_half_circle(Gcalc_shape_transporter *trn, double x, double y,
+static int fill_half_circle(Gcalc_shape_transporter *trn,
+                            Gcalc_shape_status *st,
+                            double x, double y,
                             double ax, double ay)
 {
   double n_sin, n_cos;
@@ -1124,7 +1137,7 @@ static int fill_half_circle(Gcalc_shape_transporter *trn, double x, double y,
     get_n_sincos(n, &n_sin, &n_cos);
     x_n= ax * n_cos - ay * n_sin;
     y_n= ax * n_sin + ay * n_cos;
-    if (trn->add_point(x_n + x, y_n + y))
+    if (trn->add_point(st, x_n + x, y_n + y))
       return 1;
   }
   return 0;
@@ -1132,6 +1145,7 @@ static int fill_half_circle(Gcalc_shape_transporter *trn, double x, double y,
 
 
 static int fill_gap(Gcalc_shape_transporter *trn,
+                    Gcalc_shape_status *st,
                     double x, double y,
                     double ax, double ay, double bx, double by, double d,
                     bool *empty_gap)
@@ -1151,7 +1165,7 @@ static int fill_gap(Gcalc_shape_transporter *trn,
     *empty_gap= false;
     x_n= ax * n_cos - ay * n_sin;
     y_n= ax * n_sin + ay * n_cos;
-    if (trn->add_point(x_n + x, y_n + y))
+    if (trn->add_point(st, x_n + x, y_n + y))
       return 1;
   }
   return 0;
@@ -1178,15 +1192,20 @@ static void calculate_perpendicular(
 }
 
 
-int Item_func_buffer::Transporter::single_point(double x, double y)
+int Item_func_buffer::Transporter::single_point(Gcalc_shape_status *st,
+                                                double x, double y)
 {
-  return add_point_buffer(x, y);
+  return add_point_buffer(st, x, y);
 }
 
 
-int Item_func_buffer::Transporter::add_edge_buffer(
+int Item_func_buffer::Transporter::add_edge_buffer(Gcalc_shape_status *st,
   double x3, double y3, bool round_p1, bool round_p2)
 {
+  DBUG_PRINT("info", ("Item_func_buffer::Transporter::add_edge_buffer: "
+             "(%g,%g)(%g,%g)(%g,%g) p1=%d p2=%d",
+             x1, y1, x2, y2, x3, y3, (int) round_p1, (int) round_p2));
+
   Gcalc_operation_transporter trn(m_fn, m_heap);
   double e1_x, e1_y, e2_x, e2_y, p1_x, p1_y, p2_x, p2_y;
   double e1e2;
@@ -1194,8 +1213,9 @@ int Item_func_buffer::Transporter::add_edge_buffer(
   double x_n, y_n;
   bool empty_gap1, empty_gap2;
 
-  ++m_nshapes;
-  if (trn.start_simple_poly())
+  st->m_nshapes++;
+  Gcalc_shape_status dummy;
+  if (trn.start_simple_poly(&dummy))
     return 1;
 
   calculate_perpendicular(x1, y1, x2, y2, m_d, &e1_x, &e1_y, &p1_x, &p1_y);
@@ -1209,95 +1229,117 @@ int Item_func_buffer::Transporter::add_edge_buffer(
     empty_gap2= false;
     x_n= x2 + p2_x * cos1 - p2_y * sin1;
     y_n= y2 + p2_y * cos1 + p2_x * sin1;
-    if (fill_gap(&trn, x2, y2, -p1_x,-p1_y, p2_x,p2_y, m_d, &empty_gap1) ||
-        trn.add_point(x2 + p2_x, y2 + p2_y) ||
-        trn.add_point(x_n, y_n))
+    if (fill_gap(&trn, &dummy, x2, y2, -p1_x,-p1_y, p2_x,p2_y, m_d, &empty_gap1) ||
+        trn.add_point(&dummy, x2 + p2_x, y2 + p2_y) ||
+        trn.add_point(&dummy, x_n, y_n))
       return 1;
   }
   else
   {
     x_n= x2 - p2_x * cos1 - p2_y * sin1;
     y_n= y2 - p2_y * cos1 + p2_x * sin1;
-    if (trn.add_point(x_n, y_n) ||
-        trn.add_point(x2 - p2_x, y2 - p2_y) ||
-        fill_gap(&trn, x2, y2, -p2_x, -p2_y, p1_x, p1_y, m_d, &empty_gap2))
+    if (trn.add_point(&dummy, x_n, y_n) ||
+        trn.add_point(&dummy, x2 - p2_x, y2 - p2_y) ||
+        fill_gap(&trn, &dummy, x2, y2, -p2_x, -p2_y, p1_x, p1_y, m_d, &empty_gap2))
       return 1;
     empty_gap1= false;
   }
-  if ((!empty_gap2 && trn.add_point(x2 + p1_x, y2 + p1_y)) ||
-      trn.add_point(x1 + p1_x, y1 + p1_y))
+  if ((!empty_gap2 && trn.add_point(&dummy, x2 + p1_x, y2 + p1_y)) ||
+      trn.add_point(&dummy, x1 + p1_x, y1 + p1_y))
     return 1;
 
-  if (round_p1 && fill_half_circle(&trn, x1, y1, p1_x, p1_y))
+  if (round_p1 && fill_half_circle(&trn, &dummy, x1, y1, p1_x, p1_y))
     return 1;
 
-  if (trn.add_point(x1 - p1_x, y1 - p1_y) ||
-      (!empty_gap1 && trn.add_point(x2 - p1_x, y2 - p1_y)))
+  if (trn.add_point(&dummy, x1 - p1_x, y1 - p1_y) ||
+      (!empty_gap1 && trn.add_point(&dummy, x2 - p1_x, y2 - p1_y)))
     return 1;
-  return trn.complete_simple_poly();
+  return trn.complete_simple_poly(&dummy);
 }
 
 
-int Item_func_buffer::Transporter::add_last_edge_buffer()
+int Item_func_buffer::Transporter::add_last_edge_buffer(Gcalc_shape_status *st)
 {
   Gcalc_operation_transporter trn(m_fn, m_heap);
+  Gcalc_shape_status dummy;
   double e1_x, e1_y, p1_x, p1_y;
 
-  ++m_nshapes;
-  if (trn.start_simple_poly())
+  st->m_nshapes++;
+  if (trn.start_simple_poly(&dummy))
     return 1;
 
   calculate_perpendicular(x1, y1, x2, y2, m_d, &e1_x, &e1_y, &p1_x, &p1_y);
 
-  if (trn.add_point(x1 + p1_x, y1 + p1_y) ||
-      trn.add_point(x1 - p1_x, y1 - p1_y) ||
-      trn.add_point(x2 - p1_x, y2 - p1_y) ||
-      fill_half_circle(&trn, x2, y2, -p1_x, -p1_y) ||
-      trn.add_point(x2 + p1_x, y2 + p1_y))
+  if (trn.add_point(&dummy, x1 + p1_x, y1 + p1_y) ||
+      trn.add_point(&dummy, x1 - p1_x, y1 - p1_y) ||
+      trn.add_point(&dummy, x2 - p1_x, y2 - p1_y) ||
+      fill_half_circle(&trn, &dummy, x2, y2, -p1_x, -p1_y) ||
+      trn.add_point(&dummy, x2 + p1_x, y2 + p1_y))
     return 1;
-  return trn.complete_simple_poly();
+  return trn.complete_simple_poly(&dummy);
 }
 
 
-int Item_func_buffer::Transporter::add_point_buffer(double x, double y)
+int Item_func_buffer::Transporter::add_point_buffer(Gcalc_shape_status *st,
+                                                    double x, double y)
 {
   Gcalc_operation_transporter trn(m_fn, m_heap);
+  Gcalc_shape_status dummy;
 
-  m_nshapes++;
-  if (trn.start_simple_poly())
+  st->m_nshapes++;
+  if (trn.start_simple_poly(&dummy))
     return 1;
-  if (trn.add_point(x - m_d, y) ||
-      fill_half_circle(&trn, x, y, -m_d, 0.0) ||
-      trn.add_point(x + m_d, y) ||
-      fill_half_circle(&trn, x, y, m_d, 0.0))
+  if (trn.add_point(&dummy, x - m_d, y) ||
+      fill_half_circle(&trn, &dummy, x, y, -m_d, 0.0) ||
+      trn.add_point(&dummy, x + m_d, y) ||
+      fill_half_circle(&trn, &dummy, x, y, m_d, 0.0))
     return 1;
-  return trn.complete_simple_poly();
+  return trn.complete_simple_poly(&dummy);
 }
 
 
-int Item_func_buffer::Transporter::start_line()
+int Item_func_buffer::Transporter::start_line(Gcalc_shape_status *st)
 {
+  st->m_nshapes= 0;
+  if (m_fn->reserve_op_buffer(2))
+    return 1;
+  st->m_last_shape_pos= m_fn->get_next_operation_pos();
+  m_fn->add_operation(m_buffer_op, 0); // Will be set in complete_line()
   m_npoints= 0;
   int_start_line();
   return 0;
 }
 
 
-int Item_func_buffer::Transporter::start_poly()
+int Item_func_buffer::Transporter::start_poly(Gcalc_shape_status *st)
 {
-  ++m_nshapes;
-  return Gcalc_operation_transporter::start_poly();
+  st->m_nshapes= 1;
+  if (m_fn->reserve_op_buffer(2)) 
+    return 1;
+  st->m_last_shape_pos= m_fn->get_next_operation_pos();
+  m_fn->add_operation(m_buffer_op, 0); // Will be set in complete_poly()
+  return Gcalc_operation_transporter::start_poly(st);
 }
 
 
-int Item_func_buffer::Transporter::start_ring()
+int Item_func_buffer::Transporter::complete_poly(Gcalc_shape_status *st)
+{
+  if (Gcalc_operation_transporter::complete_poly(st))
+    return 1;
+  m_fn->add_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
+  return 0; 
+}
+
+
+int Item_func_buffer::Transporter::start_ring(Gcalc_shape_status *st)
 {
   m_npoints= 0;
-  return Gcalc_operation_transporter::start_ring();
+  return Gcalc_operation_transporter::start_ring(st);
 }
 
 
-int Item_func_buffer::Transporter::add_point(double x, double y)
+int Item_func_buffer::Transporter::add_point(Gcalc_shape_status *st,
+                                             double x, double y)
 {
   if (m_npoints && x == x2 && y == y2)
     return 0;
@@ -1314,7 +1356,7 @@ int Item_func_buffer::Transporter::add_point(double x, double y)
     x01= x;
     y01= y;
   }
-  else if (add_edge_buffer(x, y, (m_npoints == 3) && line_started(), false))
+  else if (add_edge_buffer(st, x, y, (m_npoints == 3) && line_started(), false))
     return 1;
 
   x1= x2;
@@ -1322,41 +1364,45 @@ int Item_func_buffer::Transporter::add_point(double x, double y)
   x2= x;
   y2= y;
 
-  return line_started() ? 0 : Gcalc_operation_transporter::add_point(x, y);
+  return line_started() ? 0 : Gcalc_operation_transporter::add_point(st, x, y);
 }
 
 
-int Item_func_buffer::Transporter::complete()
+int Item_func_buffer::Transporter::complete(Gcalc_shape_status *st)
 {
   if (m_npoints)
   {
     if (m_npoints == 1)
     {
-      if (add_point_buffer(x2, y2))
+      if (add_point_buffer(st, x2, y2))
         return 1;
     }
     else if (m_npoints == 2)
     {
-      if (add_edge_buffer(x1, y1, true, true))
+      if (add_edge_buffer(st, x1, y1, true, true))
         return 1;
     }
     else if (line_started())
     {
-      if (add_last_edge_buffer())
+      if (add_last_edge_buffer(st))
         return 1;
     }
     else
     {
-      if (x2 != x00 && y2 != y00)
+      /* 
+        Add edge only the the most recent coordinate is not
+        the same to the very first one.
+      */
+      if (x2 != x00 || y2 != y00)
       {
-        if (add_edge_buffer(x00, y00, false, false))
+        if (add_edge_buffer(st, x00, y00, false, false))
           return 1;
         x1= x2;
         y1= y2;
         x2= x00;
         y2= y00;
       }
-      if (add_edge_buffer(x01, y01, false, false))
+      if (add_edge_buffer(st, x01, y01, false, false))
         return 1;
     }
   }
@@ -1365,19 +1411,56 @@ int Item_func_buffer::Transporter::complete()
 }
 
 
-int Item_func_buffer::Transporter::complete_line()
+int Item_func_buffer::Transporter::complete_line(Gcalc_shape_status *st)
 {
-  if (complete())
+  if (complete(st))
     return 1;
   int_complete_line();
+  // Set real number of operands (points) to the operation.
+  m_fn->add_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
   return 0;
 }
 
 
-int Item_func_buffer::Transporter::complete_ring()
+int Item_func_buffer::Transporter::complete_ring(Gcalc_shape_status *st)
 {
-  return complete() ||
-         Gcalc_operation_transporter::complete_ring();
+  return complete(st) ||
+         Gcalc_operation_transporter::complete_ring(st);
+}
+
+
+int Item_func_buffer::Transporter::start_collection(Gcalc_shape_status *st,
+                                                    int n_objects)
+{
+  st->m_nshapes= 0;
+  st->m_last_shape_pos= m_fn->get_next_operation_pos();
+  return Gcalc_operation_transporter::start_collection(st, n_objects);
+}
+
+
+int Item_func_buffer::Transporter::complete_collection(Gcalc_shape_status *st)
+{
+  Gcalc_operation_transporter::complete_collection(st);
+  m_fn->set_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
+  return 0;
+}
+
+
+int Item_func_buffer::Transporter::collection_add_item(Gcalc_shape_status
+                                                       *st_collection,
+                                                       Gcalc_shape_status
+                                                       *st_item)
+{
+  /*
+    If some collection item created no shapes,
+    it means it was skipped during transformation by filters
+    skip_point(), skip_line(), skip_poly().
+    In this case nothing was added into function_buffer by the item,
+    so we don't increment shape counter of the owning collection.
+  */
+  if (st_item->m_nshapes)
+    st_collection->m_nshapes++;
+  return 0;
 }
 
 
@@ -1389,27 +1472,47 @@ String *Item_func_buffer::val_str(String *str_value)
   double dist= args[1]->val_real();
   Geometry_buffer buffer;
   Geometry *g;
-  uint32 union_pos;
   uint32 srid= 0;
   String *str_result= NULL;
   Transporter trn(&func, &collector, dist);
+  Gcalc_shape_status st;
 
   null_value= 1;
   if (args[0]->null_value || args[1]->null_value ||
       !(g= Geometry::construct(&buffer, obj->ptr(), obj->length())))
     goto mem_error;
 
-  if (func.reserve_op_buffer(2))
+  /*
+    If distance passed to ST_Buffer is too small, then we return the
+    original geometry as its buffer. This is needed to avoid division
+    overflow in buffer calculation, as well as for performance purposes.
+  */
+  if (fabs(dist) < GIS_ZERO)
+  {
+    null_value= 0;
+    str_result= obj;
     goto mem_error;
-  /* will specify operands later */
-  union_pos= func.get_next_operation_pos();
-  func.add_operation((dist > 0.0) ? Gcalc_function::op_union :
-                                    Gcalc_function::op_difference, 0);
+  }
 
-  if (g->store_shapes(&trn))
+  if (g->store_shapes(&trn, &st))
     goto mem_error;
 
-  func.add_operands_to_op(union_pos, trn.m_nshapes);
+#ifndef DBUG_OFF
+  func.debug_print_function_buffer();
+#endif
+
+  if (st.m_nshapes == 0)
+  {
+    /*
+      Buffer transformation returned empty set.
+      This is possible with negative buffer distance
+      if the original geometry consisted of only points and lines
+      and did not have any polygons.
+    */
+    str_value->length(0);
+    goto mem_error;
+  }
+
   collector.prepare_operation();
   if (func.alloc_states())
     goto mem_error;
@@ -1418,7 +1521,6 @@ String *Item_func_buffer::val_str(String *str_value)
   if (operation.count_all(&collector) ||
       operation.get_result(&res_receiver))
     goto mem_error;
-
 
   str_value->set_charset(&my_charset_bin);
   if (str_value->reserve(SRID_SIZE, 512))
@@ -1473,6 +1575,10 @@ longlong Item_func_issimple::val_int()
 
   if (g->store_shapes(&trn))
     goto mem_error;
+
+#ifndef DBUG_OFF
+  func.debug_print_function_buffer();
+#endif
 
   collector.prepare_operation();
   scan_it.init(&collector);
@@ -1715,6 +1821,10 @@ double Item_func_distance::val_real()
   if (g2->store_shapes(&trn) || func.alloc_states())
     goto mem_error;
 
+#ifndef DBUG_OFF
+  func.debug_print_function_buffer();
+#endif
+
   collector.prepare_operation();
   scan_it.init(&collector);
 
@@ -1821,6 +1931,17 @@ mem_error:
   null_value= 1;
   DBUG_RETURN(0);
 }
+
+
+#ifndef DBUG_OFF
+longlong Item_func_gis_debug::val_int()
+{
+  int val= args[0]->val_int();
+  if (!args[0]->null_value)
+    current_thd->set_gis_debug(val);
+  return current_thd->get_gis_debug();
+}
+#endif
 
 
 #endif /*HAVE_SPATIAL*/
