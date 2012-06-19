@@ -1975,7 +1975,6 @@ row_ins_duplicate_error_in_clust(
 	UT_NOT_USED(mtr);
 
 	ut_ad(dict_index_is_clust(cursor->index));
-	ut_ad(dict_index_is_unique(cursor->index));
 
 	/* NOTE: For unique non-clustered indexes there may be any number
 	of delete marked records with the same value for the non-clustered
