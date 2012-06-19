@@ -28,6 +28,7 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/preload-db-nested.tdb
   ydb/recovery_fileops_unit.tdb
   ydb/stress-gc.tdb
+  ydb/stress-gc2.tdb
   ydb/stress-test.bdb
   ydb/stress-test.tdb
   ydb/test-prepare.tdb
