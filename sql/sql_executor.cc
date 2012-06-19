@@ -1697,6 +1697,8 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
     else if (join_tab->loosescan_match_tab && 
              join_tab->loosescan_match_tab->found_match)
     { 
+      /* Loosescan algorithm requires 'sorted' retrieval of keys. */
+      DBUG_ASSERT(join_tab->sorted);
       /* 
          Previous row combination for duplicate-generating range,
          generated a match.  Compare keys of this row and previous row
