@@ -146,3 +146,39 @@ table_schema	table_name	column_name	column_type	extra
 test	t2	a	int(11)	
 test	t2	b	int(11)	VIRTUAL
 DROP TABLE t1,t2;
+create table t1 (
+a int not null, b char(2) not null,
+c enum('Y','N') as (case when b = 'aa' then 'Y' else 'N' end) persistent
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` char(2) NOT NULL,
+  `c` enum('Y','N') AS (case when b = 'aa' then 'Y' else 'N' end) PERSISTENT
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t1(a,b) values (1,'bb'), (2,'aa'), (3,'cc');
+select * from t1;
+a	b	c
+1	bb	N
+2	aa	Y
+3	cc	N
+create table t2 (
+a int, b int,
+c set("y","n") 
+as (if(a=0,if(b=0,('n,n'),('n,y')),if(b=0,('y,n'),('y,y')))) persistent
+);
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL,
+  `c` set('y','n') AS (if(a=0,if(b=0,('n,n'),('n,y')),if(b=0,('y,n'),('y,y')))) PERSISTENT
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+insert into t2(a,b) values (7,0), (2,3), (0,1);
+select * from t2;
+a	b	c
+7	0	y,n
+2	3	y
+0	1	y,n
+drop table t1,t2;
