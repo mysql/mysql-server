@@ -12,9 +12,9 @@ use strict;
 use lib "lib/";
 use My::Memcache;
 
-my $mc = My::Memcache->new();
-my $port = $ENV{MTR_BUILD_THREAD} * 10 + 10000 + 8;
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
 
+my $mc = My::Memcache->new();
 my $r = $mc->connect("localhost",$port);
 
 if($r == 0) {

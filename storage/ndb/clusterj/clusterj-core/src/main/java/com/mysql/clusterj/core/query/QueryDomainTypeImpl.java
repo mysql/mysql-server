@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Query;
 
+import com.mysql.clusterj.Query.Ordering;
 import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
@@ -29,6 +30,8 @@ import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandlerBatching;
 
+import com.mysql.clusterj.core.store.Blob;
+import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.IndexOperation;
 import com.mysql.clusterj.core.store.IndexScanOperation;
@@ -45,6 +48,8 @@ import com.mysql.clusterj.query.PredicateOperand;
 import com.mysql.clusterj.query.QueryDefinition;
 import com.mysql.clusterj.query.QueryDomainType;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -74,6 +79,15 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     /** My properties. These encapsulate the property names not the values. */
     protected Map<String, PropertyImpl> properties =
             new HashMap<String, PropertyImpl>();
+
+    /** My index for this query */
+    CandidateIndexImpl index = null;
+
+    /** My ordering fields for this query */
+    String[] orderingFields = null;
+
+    /** My ordering for this query */
+    Ordering ordering = null;
 
     public QueryDomainTypeImpl(DomainTypeHandler<T> domainTypeHandler, Class<T> cls) {
         this.cls = cls;
@@ -147,10 +161,15 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     }
 
     /** Query.getResultList delegates to this method.
+     * @param skip the number of rows to skip
+     * @param limit the limit of rows to return after skipping
+     * @param orderingFields 
+     * @param ordering 
      * 
      * @return the results of executing the query
      */
-    public List<T> getResultList(QueryExecutionContext context) {
+    public List<T> getResultList(QueryExecutionContext context, long skip, long limit,
+            Ordering ordering, String[] orderingFields) {
         assertAllParametersBound(context);
 
         SessionSPI session = context.getSession();
@@ -159,7 +178,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         List<T> resultList = new ArrayList<T>();
         try {
             // execute the query
-            ResultData resultData = getResultData(context);
+            ResultData resultData = getResultData(context, skip, limit, ordering, orderingFields);
             // put the result data into the result list
             while (resultData.next()) {
                 T row = session.newInstance(resultData, domainTypeHandler);
@@ -182,105 +201,140 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * depends on the where clause and the bound parameter values.
      * 
      * @param context the query context, including the bound parameters
+     * @param skip the number of rows to skip
+     * @param limit the limit of rows to return after skipping
+     * @param orderingFields 
+     * @param ordering 
      * @return the raw result data from the query
      * @throws ClusterJUserException if not all parameters are bound
      */
-    public ResultData getResultData(QueryExecutionContext context) {
+    public ResultData getResultData(QueryExecutionContext context, long skip, long limit,
+            Ordering ordering, String[] orderingFields) {
         SessionSPI session = context.getSession();
+        this.ordering = ordering;
+        this.orderingFields = orderingFields;
         // execute query based on what kind of scan is needed
         // if no where clause, scan the entire table
-        CandidateIndexImpl index = where==null?
-                CandidateIndexImpl.getIndexForNullWhereClause():
-                where.getBestCandidateIndex(context);
-
+        index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
+
+        if (logger.isDebugEnabled()) logger.debug("using index " + index.getIndexName() + " with scanType " + scanType);
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
         ResultData result = null;
         Index storeIndex;
+        Operation op = null;
 
-        switch (scanType) {
+        try {
+            switch (scanType) {
 
-            case PRIMARY_KEY: {
-                if (logger.isDetailEnabled()) logger.detail("Using primary key find for query.");
-                // perform a select operation
-                Operation op = session.getSelectOperation(domainTypeHandler.getStoreTable());
-                op.beginDefinition();
-                // set key values into the operation
-                index.operationSetKeys(context, op);
-                // set the expected columns into the operation
-                domainTypeHandler.operationGetValues(op);
-                op.endDefinition();
-                // execute the select and get results
-                result = op.resultData();
-                break;
-            }
-
-            case INDEX_SCAN: {
-                storeIndex = index.getStoreIndex();
-                if (logger.isDetailEnabled()) logger.detail("Using index scan with ordered index " + index.getIndexName() + " for query.");
-                IndexScanOperation op;
-                // perform an index scan operation
-                if (index.isMultiRange()) {
-                    op = session.getIndexScanOperationMultiRange(storeIndex, domainTypeHandler.getStoreTable());
-                    
-                } else {
-                    op = session.getIndexScanOperation(storeIndex, domainTypeHandler.getStoreTable());
-                    
+                case PRIMARY_KEY: {
+                    // if skipping any results or limit is zero, return no results
+                    if (skip > 0 || limit < 1) {
+                        return resultDataEmpty;
+                    }
+                    // perform a select operation
+                    op = session.getSelectOperation(domainTypeHandler.getStoreTable());
+                    op.beginDefinition();
+                    // set key values into the operation
+                    index.operationSetKeys(context, op);
+                    // set the expected columns into the operation
+                    domainTypeHandler.operationGetValues(op);
+                    op.endDefinition();
+                    // execute the select and get results
+                    result = op.resultData();
+                    break;
                 }
-                op.beginDefinition();
-                // set the expected columns into the operation
-                domainTypeHandler.operationGetValues(op);
-                // set the bounds into the operation
-                index.operationSetBounds(context, op);
-                // set additional filter conditions
-                where.filterCmpValue(context, op);
-                op.endDefinition();
-                // execute the scan and get results
-                result = op.resultData();
-                break;
-            }
 
-            case TABLE_SCAN: {
-                if (logger.isDetailEnabled()) logger.detail("Using table scan for query.");
-                // perform a table scan operation
-                ScanOperation op = session.getTableScanOperation(domainTypeHandler.getStoreTable());
-                op.beginDefinition();
-                // set the expected columns into the operation
-                domainTypeHandler.operationGetValues(op);
-                // set filter conditions into the operation
-                if (where != null) {
-                    where.filterCmpValue(context, op);
+                case INDEX_SCAN: {
+                    storeIndex = index.getStoreIndex();
+                    // perform an index scan operation
+                    if (index.isMultiRange()) {
+                        op = session.getIndexScanOperationMultiRange(storeIndex, domainTypeHandler.getStoreTable());
+                        
+                    } else {
+                        op = session.getIndexScanOperation(storeIndex, domainTypeHandler.getStoreTable());
+                        
+                    }
+                    op.beginDefinition();
+                    // set ordering if not already set to allow skip and limit to work
+                    if (ordering == null && (skip != 0 || limit != Long.MAX_VALUE)) {
+                        ordering = Ordering.ASCENDING;
+                    }
+                    ((ScanOperation)op).setOrdering(ordering);
+                    // set the expected columns into the operation
+                    domainTypeHandler.operationGetValues(op);
+                    // set the bounds into the operation
+                    index.operationSetBounds(context, (IndexScanOperation)op);
+                    // set additional filter conditions
+                    if (where != null) {
+                        where.filterCmpValue(context, (IndexScanOperation)op);
+                    }
+                    op.endDefinition();
+                    // execute the scan and get results
+                    result = ((ScanOperation)op).resultData(true, skip, limit);
+                    break;
                 }
-                op.endDefinition();
-                // execute the scan and get results
-                result = op.resultData();
-                break;
-            }
 
-            case UNIQUE_KEY: {
-                storeIndex = index.getStoreIndex();
-                if (logger.isDetailEnabled()) logger.detail("Using lookup with unique index " + index.getIndexName() + " for query.");
-                // perform a unique lookup operation
-                IndexOperation op = session.getUniqueIndexOperation(storeIndex, domainTypeHandler.getStoreTable());
-                op.beginDefinition();
-                // set the keys of the indexName into the operation
-                where.operationEqual(context, op);
-                // set the expected columns into the operation
-                //domainTypeHandler.operationGetValuesExcept(op, indexName);
-                domainTypeHandler.operationGetValues(op);
-                op.endDefinition();
-                // execute the select and get results
-                result = op.resultData();
-                break;
-            }
+                case TABLE_SCAN: {
+                    if (ordering != null) {
+                        throw new ClusterJUserException(local.message("ERR_Cannot_Use_Ordering_With_Table_Scan"));
+                    }
+                    // perform a table scan operation
+                    op = session.getTableScanOperation(domainTypeHandler.getStoreTable());
+                    op.beginDefinition();
+                    // set the expected columns into the operation
+                    domainTypeHandler.operationGetValues(op);
+                    // set filter conditions into the operation
+                    if (where != null) {
+                        where.filterCmpValue(context, (ScanOperation)op);
+                    }
+                    op.endDefinition();
+                    // execute the scan and get results
+                    result = ((ScanOperation)op).resultData(true, skip, limit);
+                    break;
+                }
 
-            default:
-                session.failAutoTransaction();
-                throw new ClusterJFatalInternalException(
-                        local.message("ERR_Illegal_Scan_Type", scanType));
+                case UNIQUE_KEY: {
+                    // if skipping any results or limit is zero, return no results
+                    if (skip > 0 || limit < 1) {
+                        return resultDataEmpty;
+                    }
+                    storeIndex = index.getStoreIndex();
+                    // perform a unique lookup operation
+                    op = session.getUniqueIndexOperation(storeIndex, domainTypeHandler.getStoreTable());
+                    op.beginDefinition();
+                    // set the keys of the indexName into the operation
+                    where.operationEqual(context, op);
+                    // set the expected columns into the operation
+                    //domainTypeHandler.operationGetValuesExcept(op, indexName);
+                    domainTypeHandler.operationGetValues(op);
+                    op.endDefinition();
+                    // execute the select and get results
+                    result = op.resultData();
+                    break;
+                }
+
+                default:
+                    session.failAutoTransaction();
+                    throw new ClusterJFatalInternalException(
+                            local.message("ERR_Illegal_Scan_Type", scanType));
+            }
         }
-        context.deleteFilters();
+        catch (ClusterJException ex) {
+            if (op != null) {
+                op.freeResourcesAfterExecute();
+            }
+            session.failAutoTransaction();
+            throw ex;
+        } catch (Exception ex) {
+            if (op != null) {
+                op.freeResourcesAfterExecute();
+            }
+            session.failAutoTransaction();
+            throw new ClusterJException(
+                    local.message("ERR_Exception_On_Query"), ex);
+        }
         return result;
     }
 
@@ -297,9 +351,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
-        CandidateIndexImpl index = where==null?
-            CandidateIndexImpl.getIndexForNullWhereClause():
-            where.getBestCandidateIndex(context);
+        index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
@@ -307,14 +359,14 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         int errorCode = 0;
         Index storeIndex;
         session.startAutoTransaction();
-
+        Operation op = null;
         try {
             switch (scanType) {
 
                 case PRIMARY_KEY: {
                     // perform a delete by primary key operation
                     if (logger.isDetailEnabled()) logger.detail("Using delete by primary key.");
-                    Operation op = session.getDeleteOperation(domainTypeHandler.getStoreTable());
+                    op = session.getDeleteOperation(domainTypeHandler.getStoreTable());
                     op.beginDefinition();
                     // set key values into the operation
                     index.operationSetKeys(context, op);
@@ -332,7 +384,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     if (logger.isDetailEnabled()) logger.detail(
                             "Using delete by unique key  " + index.getIndexName());
                     // perform a delete by unique key operation
-                    IndexOperation op = session.getUniqueIndexDeleteOperation(storeIndex,
+                    op = session.getUniqueIndexDeleteOperation(storeIndex,
                             domainTypeHandler.getStoreTable());
                     // set the keys of the indexName into the operation
                     where.operationEqual(context, op);
@@ -349,31 +401,31 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     if (logger.isDetailEnabled()) logger.detail(
                             "Using delete by index scan with index " + index.getIndexName());
                     // perform an index scan operation
-                    IndexScanOperation op = session.getIndexScanDeleteOperation(storeIndex,
+                    op = session.getIndexScanDeleteOperation(storeIndex,
                             domainTypeHandler.getStoreTable());
                     // set the expected columns into the operation
                     domainTypeHandler.operationGetValues(op);
                     // set the bounds into the operation
-                    index.operationSetBounds(context, op);
+                    index.operationSetBounds(context, (IndexScanOperation)op);
                     // set additional filter conditions
-                    where.filterCmpValue(context, op);
+                    where.filterCmpValue(context, (IndexScanOperation)op);
                     // delete results of the scan; don't abort if no row found
-                    result = session.deletePersistentAll(op, false);
+                    result = session.deletePersistentAll((IndexScanOperation)op, false);
                     break;
                 }
 
                 case TABLE_SCAN: {
                     if (logger.isDetailEnabled()) logger.detail("Using delete by table scan");
                     // perform a table scan operation
-                    ScanOperation op = session.getTableScanDeleteOperation(domainTypeHandler.getStoreTable());
+                    op = session.getTableScanDeleteOperation(domainTypeHandler.getStoreTable());
                     // set the expected columns into the operation
                     domainTypeHandler.operationGetValues(op);
                     // set the bounds into the operation
                     if (where != null) {
-                        where.filterCmpValue(context, op);
+                        where.filterCmpValue(context, (ScanOperation)op);
                     }
                     // delete results of the scan; don't abort if no row found
-                    result = session.deletePersistentAll(op, false);
+                    result = session.deletePersistentAll((ScanOperation)op, false);
                     break;
                 }
 
@@ -381,13 +433,18 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     throw new ClusterJFatalInternalException(
                             local.message("ERR_Illegal_Scan_Type", scanType));
             }
-            context.deleteFilters();
             session.endAutoTransaction();
             return result;
         } catch (ClusterJException e) {
+            if (op != null) {
+                op.freeResourcesAfterExecute();
+            }
             session.failAutoTransaction();
             throw e;
         } catch (Exception e) {
+            if (op != null) {
+                op.freeResourcesAfterExecute();
+            }
             session.failAutoTransaction();
             throw new ClusterJException(local.message("ERR_Exception_On_Query"), e);
         } 
@@ -407,9 +464,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
-        CandidateIndexImpl index = where==null?
-            CandidateIndexImpl.getIndexForNullWhereClause():
-            where.getBestCandidateIndex(context);
+        index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
@@ -492,12 +547,17 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     throw new ClusterJFatalInternalException(
                             local.message("ERR_Illegal_Scan_Type", scanType));
             }
-            context.deleteFilters();
             return result;
         } catch (ClusterJException e) {
+            for (Operation op: ops) {
+                op.freeResourcesAfterExecute();
+            }
             session.failAutoTransaction();
             throw e;
         } catch (Exception e) {
+            for (Operation op: ops) {
+                op.freeResourcesAfterExecute();
+            }
             session.failAutoTransaction();
             throw new ClusterJException(local.message("ERR_Exception_On_Query"), e);
         } 
@@ -514,12 +574,30 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      */
     public void explain(QueryExecutionContext context) {
         assertAllParametersBound(context);
-        CandidateIndexImpl index = where==null?
-                CandidateIndexImpl.getIndexForNullWhereClause():
-                where.getBestCandidateIndex(context);
+        CandidateIndexImpl index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
+    }
+
+    private CandidateIndexImpl getCandidateIndex(QueryExecutionContext context) {
+        if (where == null) {
+            // there is no filter, so without ordering this is a table scan
+            // with ordering, choose an index that contains all ordering fields
+            CandidateIndexImpl[] candidateIndexImpls = domainTypeHandler.createCandidateIndexes();
+            for (CandidateIndexImpl candidateIndexImpl: candidateIndexImpls) {
+                // choose the first index that contains all ordering fields
+                if (candidateIndexImpl.containsAllOrderingFields(orderingFields)) {
+                    index = candidateIndexImpl;
+                    return index;
+                }
+            }
+            index = CandidateIndexImpl.getIndexForNullWhereClause();
+        } else {
+            // there is a filter; choose the best index that contains all ordering fields
+            index = where.getBestCandidateIndex(context, orderingFields);
+        }
+        return index;
     }
 
     /** Create a new explain for this query.
@@ -555,4 +633,184 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         return cls;
     }
 
+    private ResultData resultDataEmpty = new ResultData() {
+
+        public boolean next() {
+            // this ResultData has no results
+            return false;
+        }
+        
+        public BigInteger getBigInteger(Column columnName) {
+            return null;
+        }
+
+        public BigInteger getBigInteger(int columnNumber) {
+            return null;
+        }
+
+        public Blob getBlob(Column storeColumn) {
+            return null;
+        }
+
+        public Blob getBlob(int columnNumber) {
+            return null;
+        }
+
+        public boolean getBoolean(Column storeColumn) {
+            return false;
+        }
+
+        public boolean getBoolean(int columnNumber) {
+            return false;
+        }
+
+        public boolean[] getBooleans(Column storeColumn) {
+            return null;
+        }
+
+        public boolean[] getBooleans(int columnNumber) {
+            return null;
+        }
+
+        public byte getByte(Column storeColumn) {
+            return 0;
+        }
+
+        public byte getByte(int columnNumber) {
+            return 0;
+        }
+
+        public byte[] getBytes(Column storeColumn) {
+            return null;
+        }
+
+        public byte[] getBytes(int columnNumber) {
+            return null;
+        }
+
+        public Column[] getColumns() {
+            return null;
+        }
+
+        public BigDecimal getDecimal(Column storeColumn) {
+            return null;
+        }
+
+        public BigDecimal getDecimal(int columnNumber) {
+            return null;
+        }
+
+        public double getDouble(Column storeColumn) {
+            return 0;
+        }
+
+        public double getDouble(int columnNumber) {
+            return 0;
+        }
+
+        public float getFloat(Column storeColumn) {
+            return 0;
+        }
+
+        public float getFloat(int columnNumber) {
+            return 0;
+        }
+
+        public int getInt(Column storeColumn) {
+            return 0;
+        }
+
+        public int getInt(int columnNumber) {
+            return 0;
+        }
+
+        public long getLong(Column storeColumn) {
+            return 0;
+        }
+
+        public long getLong(int columnNumber) {
+            return 0;
+        }
+
+        public Object getObject(Column storeColumn) {
+            return null;
+        }
+
+        public Object getObject(int column) {
+            return null;
+        }
+
+        public Boolean getObjectBoolean(Column storeColumn) {
+            return null;
+        }
+
+        public Boolean getObjectBoolean(int columnNumber) {
+            return null;
+        }
+
+        public Byte getObjectByte(Column storeColumn) {
+            return null;
+        }
+
+        public Byte getObjectByte(int columnNumber) {
+            return null;
+        }
+
+        public Double getObjectDouble(Column storeColumn) {
+            return null;
+        }
+
+        public Double getObjectDouble(int columnNumber) {
+            return null;
+        }
+
+        public Float getObjectFloat(Column storeColumn) {
+            return null;
+        }
+
+        public Float getObjectFloat(int columnNumber) {
+            return null;
+        }
+
+        public Integer getObjectInteger(Column storeColumn) {
+            return null;
+        }
+
+        public Integer getObjectInteger(int columnNumber) {
+            return null;
+        }
+
+        public Long getObjectLong(Column storeColumn) {
+            return null;
+        }
+
+        public Long getObjectLong(int columnNumber) {
+            return null;
+        }
+
+        public Short getObjectShort(Column storeColumn) {
+            return null;
+        }
+
+        public Short getObjectShort(int columnNumber) {
+            return null;
+        }
+
+        public short getShort(Column storeColumn) {
+            return 0;
+        }
+
+        public short getShort(int columnNumber) {
+            return 0;
+        }
+
+        public String getString(Column storeColumn) {
+            return null;
+        }
+
+        public String getString(int columnNumber) {
+            return null;
+        }
+
+    };
 }

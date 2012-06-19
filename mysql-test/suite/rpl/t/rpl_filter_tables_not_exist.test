@@ -206,4 +206,64 @@ SELECT * FROM t3;
 connection master;
 echo [on master];
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+
+--sync_slave_with_master
+
+#
+# BUG#11754117 - 45670: INTVAR_EVENTS FOR FILTERED-OUT QUERY_LOG_EVENTS ARE EXECUTED
+# Int-, Rand- and User- var events accompaning a filtered out Query-log-event should
+# be filtered as well.
+#
+connection master;
+CREATE TABLE test.t5 (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT); # ignored on slave
+CREATE TABLE test.t1 (a INT); # accepted on slave
+INSERT INTO test.t1 VALUES(1);
+
+--sync_slave_with_master
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+CREATE TABLE test.t_slave (a INT AUTO_INCREMENT PRIMARY KEY, b INT, c INT);
+CREATE TRIGGER t1_update AFTER UPDATE ON test.t1 FOR EACH ROW
+                               INSERT INTO test.t_slave VALUES(NULL, ROUND(RAND() * 1000), @c);
+
+connection master;
+SET INSERT_ID=2;
+SET @c=2;
+SET @@rand_seed1=10000000, @@rand_seed2=1000000;
+INSERT INTO t5 VALUES (NULL, ROUND(RAND() * 1000), @c); # to be ignored
+SELECT b into @b FROM test.t5;
+--let $b_master=`select @b`
+UPDATE test.t1 SET a=2; # to run trigger on slave
+
+--sync_slave_with_master
+
+# The proof:
+SELECT a AS 'ONE' into @a FROM test.t_slave;
+SELECT c AS 'NULL' into @c FROM test.t_slave;
+
+let $count= 1;
+let $table= test.t_slave;
+source include/wait_until_rows_count.inc;
+
+if (`SELECT @a != 2 and @c != NULL`)
+{
+    SELECT * FROM test.t_slave;
+    --die Intvar or user var from replication events unexpetedly escaped out to screw a following query applying context.
+}
+
+SELECT b into @b FROM test.t_slave;
+--let $b_slave=`select @b`
+
+if (`SELECT $b_slave = $b_master`)
+{
+    --echo Might be pure coincidence of two randoms from master and slave table. Don not panic yet.
+}
+
+# cleanup BUG#11754117
+connection master;
+drop table test.t5;
+drop table test.t1;
+
+--sync_slave_with_master
+drop table test.t_slave;
+
 --source include/rpl_end.inc

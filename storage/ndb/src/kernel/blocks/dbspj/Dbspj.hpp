@@ -1088,8 +1088,6 @@ private:
   void releaseRow(Ptr<Request>, RowRef ref);
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
-
-  void cleanupChildBranch(Ptr<Request>, Ptr<TreeNode>);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
 
   /**

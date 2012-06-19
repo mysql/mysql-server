@@ -241,6 +241,13 @@ typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
 #define HA_READ_BEFORE_WRITE_REMOVAL  (LL(1) << 38)
 #endif
 
+#ifndef MCP_WL4784
+/*
+  The handler don't want accesses to this table to 
+  be const-table optimized
+*/
+#define HA_BLOCK_CONST_TABLE          (LL(1) << 39)
+#endif
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -470,6 +477,25 @@ enum enum_binlog_command {
 /** Unused. Reserved for future versions. */
 #define HA_CREATE_USED_PAGE_CHECKSUM    (1L << 21)
 
+
+/*
+  This is master database for most of system tables. However there
+  can be other databases which can hold system tables. Respective
+  storage engines define their own system database names.
+*/
+extern const char *mysqld_system_database;
+
+/*
+  Structure to hold list of system_database.system_table.
+  This is used at both mysqld and storage engine layer.
+*/
+struct st_system_tablename
+{
+  const char *db;
+  const char *tablename;
+};
+
+
 typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define MYSQL_XID_PREFIX "MySQLXid"
 #define MYSQL_XID_PREFIX_LEN 8 // must be a multiple of 8
@@ -486,21 +512,6 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #ifndef MCP_WL4784
 namespace AQP {
   class Join_plan;
-};
-
-/* Flag used for for test_push_flag() */
-enum ha_push_flag {
-
-  /* Handler want to block const table optimization */
-  HA_PUSH_BLOCK_CONST_TABLE
-
-  /* Handler reports a pushed join as having multiple dependencies 
-     if its results does not only depend on the root operation:
-     ie. results from some child operations does not only depend
-     on results from the root operation and/or other child operations
-     within this pushed join 
-   */
-  ,HA_PUSH_MULTIPLE_DEPENDENCY
 };
 #endif
 
@@ -921,6 +932,37 @@ struct handlerton
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
    int (*global_schema_func)(THD* thd, bool lock, void* args);
 #endif
+  /**
+    List of all system tables specific to the SE.
+    Array element would look like below,
+     { "<database_name>", "<system table name>" },
+    The last element MUST be,
+     { (const char*)NULL, (const char*)NULL }
+
+    @see ha_example_system_tables in ha_example.cc
+
+    This interface is optional, so every SE need not implement it.
+  */
+  const char* (*system_database)();
+
+  /**
+    Check if the given db.tablename is a system table for this SE.
+
+    @param db                         Database name to check.
+    @param table_name                 table name to check.
+    @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                      layer system table.
+
+    @see example_is_supported_system_table in ha_example.cc
+
+    is_sql_layer_system_table is supplied to make more efficient
+    checks possible for SEs that support all SQL layer tables.
+
+    This interface is optional, so every SE need not implement it.
+  */
+  bool (*is_supported_system_table)(const char *db,
+                                    const char *table_name,
+                                    bool is_sql_layer_system_table);
 
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
@@ -2106,11 +2148,6 @@ public:
   virtual const TABLE* parent_of_pushed_join() const
   { return NULL; }
 
-  virtual bool test_push_flag(enum ha_push_flag flag) const
-  {
-    return FALSE;
-  }
-
   virtual int index_read_pushed(uchar * buf, const uchar * key,
                              key_part_map keypart_map)
   { return  HA_ERR_WRONG_COMMAND; }
@@ -2548,6 +2585,8 @@ int ha_discover(THD* thd, const char* dbname, const char* name,
 int ha_find_files(THD *thd,const char *db,const char *path,
                   const char *wild, bool dir, List<LEX_STRING>* files);
 int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
+bool ha_check_if_supported_system_table(handlerton *hton, const char* db, 
+                                        const char* table_name);
 
 /* key cache */
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);

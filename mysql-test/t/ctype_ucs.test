@@ -760,5 +760,14 @@ SET collation_connection=ucs2_general_ci;
 SET NAMES latin1;
 
 --echo #
+--echo # Bug #13832953 	MY_STRNXFRM_UNICODE: ASSERTION `SRC' FAILED
+--echo #
+CREATE TABLE t1 (c1 SET('','') CHARACTER SET ucs2);
+INSERT INTO t1 VALUES ('');
+SELECT COALESCE(c1) FROM t1 ORDER BY 1;
+DROP TABLE t1;
+
+
+--echo #
 --echo # End of 5.5 tests
 --echo #

@@ -3194,6 +3194,7 @@ void Dbacc::getdirindex(Signal* signal)
     tgdiAddress = tgdiTmp & ((fragrecptr.p->maxp << 1) | 1);
   }//if
   tgdiTmp = tgdiAddress >> fragrecptr.p->k;
+  ndbassert(tgdiTmp <= ElementHeader::HASH_VALUE_PART_MASK);
   gdiPageptr.i = getPagePtr(fragrecptr.p->directory, tgdiTmp);
   ptrCheckGuard(gdiPageptr, cpagesize, page8);
 }//Dbacc::getdirindex()
@@ -5261,6 +5262,15 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }
   if (expPageptr.i == RNIL) {
     jam();
+    // We cannot expand if the new page index cannot be
+    // represented in the stored hash bits.
+    if (texpDirInd > ElementHeader::HASH_VALUE_PART_MASK)
+    {
+      jam();
+      fragrecptr.p->dirRangeFull = ZTRUE;
+      tresult = ZDIR_RANGE_FULL_ERROR;
+      return;
+    }
     seizePage(signal);
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
@@ -6087,6 +6097,12 @@ void Dbacc::initFragAdd(Signal* signal,
   Uint32 lhFragBits = req->lhFragBits + 1;
   Uint32 minLoadFactor = (req->minLoadFactor * ZBUF_SIZE) / 100;
   Uint32 maxLoadFactor = (req->maxLoadFactor * ZBUF_SIZE) / 100;
+  if (ERROR_INSERTED(3003)) // use small LoadFactors to force sparse hash table
+  {
+    jam();
+    minLoadFactor = 1;
+    maxLoadFactor = 2; 
+  }
   if (minLoadFactor >= maxLoadFactor) {
     jam();
     minLoadFactor = maxLoadFactor - 1;

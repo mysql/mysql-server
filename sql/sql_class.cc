@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -744,7 +744,7 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 THD::THD()
    :Statement(&main_lex, &main_mem_root, STMT_CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
-   rli_fake(0),
+   rli_fake(0), rli_slave(NULL),
    user_time(0), in_sub_stmt(0),
 #ifndef MCP_WL5353
    binlog_row_event_extra_data(NULL),
@@ -1377,6 +1377,8 @@ THD::~THD()
   }
   
   mysql_audit_free_thd(this);
+  if (rli_slave)
+    rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
@@ -1696,6 +1698,10 @@ void THD::cleanup_after_query()
   {
     delete_dynamic(&lex->mi.repl_ignore_server_ids);
   }
+#ifndef EMBEDDED_LIBRARY
+  if (rli_slave)
+    rli_slave->cleanup_after_query();
+#endif
 }
 
 
@@ -2913,13 +2919,42 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
+  List_iterator_fast<my_var> var_li(var_list);
+  List_iterator_fast<Item> it(list);
+  Item *item;
+  my_var *mv;
+  Item_func_set_user_var **suv;
   
   if (var_list.elements != list.elements)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
                ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
-  }               
+  }
+
+  /*
+    Iterate over the destination variables and mark them as being
+    updated in this query.
+    We need to do this at JOIN::prepare time to ensure proper
+    const detection of Item_func_get_user_var that is determined
+    by the presence of Item_func_set_user_vars
+  */
+
+  suv= set_var_items= (Item_func_set_user_var **) 
+    sql_alloc(sizeof(Item_func_set_user_var *) * list.elements);
+
+  while ((mv= var_li++) && (item= it++))
+  {
+    if (!mv->local)
+    {
+      *suv= new Item_func_set_user_var(mv->s, item);
+      (*suv)->fix_fields(thd, 0);
+    }
+    else
+      *suv= NULL;
+    suv++;
+  }
+
   return 0;
 }
 
@@ -3236,6 +3271,7 @@ bool select_dumpvar::send_data(List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   my_var *mv;
+  Item_func_set_user_var **suv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
@@ -3248,20 +3284,19 @@ bool select_dumpvar::send_data(List<Item> &items)
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
     DBUG_RETURN(1);
   }
-  while ((mv= var_li++) && (item= it++))
+  for (suv= set_var_items; ((mv= var_li++) && (item= it++)); suv++)
   {
     if (mv->local)
     {
+      DBUG_ASSERT(!*suv);
       if (thd->spcont->set_variable(thd, mv->offset, &item))
 	    DBUG_RETURN(1);
     }
     else
     {
-      Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      if (suv->fix_fields(thd, 0))
-        DBUG_RETURN (1);
-      suv->save_item_result(item);
-      if (suv->update())
+      DBUG_ASSERT(*suv);
+      (*suv)->save_item_result(item);
+      if ((*suv)->update())
         DBUG_RETURN (1);
     }
   }

@@ -1433,3 +1433,58 @@ rename table t2 to t1;
 execute stmt1;
 deallocate prepare stmt1;
 drop table t2;
+#
+# Bug#11815557 60269: MYSQL SHOULD REJECT ATTEMPTS TO CREATE SYSTEM
+#                     TABLES IN INCORRECT ENGINE
+#
+# Note: This test assumes that only MyISAM supports system tables.
+#       If other engines are made to support system tables,
+#       then this test needs to be updated
+#
+use mysql;
+ALTER TABLE db ENGINE=innodb;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.db]
+ALTER TABLE user ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.user]
+ALTER TABLE proc ENGINE=heap;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.proc]
+ALTER TABLE func ENGINE=csv;
+ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.func]
+ALTER TABLE event ENGINE=merge;
+ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.event]
+ALTER TABLE servers ENGINE=innodb;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.servers]
+ALTER TABLE procs_priv ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.procs_priv]
+ALTER TABLE tables_priv ENGINE=heap;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.tables_priv]
+ALTER TABLE columns_priv ENGINE=csv;
+ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.columns_priv]
+ALTER TABLE time_zone ENGINE=merge;
+ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.time_zone]
+ALTER TABLE help_topic ENGINE=innodb;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.help_topic]
+CREATE TABLE db (dummy int) ENGINE=innodb;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.db]
+CREATE TABLE user (dummy int) ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.user]
+CREATE TABLE proc (dummy int) ENGINE=heap;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.proc]
+CREATE TABLE func (dummy int) ENGINE=csv;
+ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.func]
+CREATE TABLE event (dummy int) ENGINE=merge;
+ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.event]
+CREATE TABLE servers (dummy int) ENGINE=innodb;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.servers]
+CREATE TABLE procs_priv (dummy int) ENGINE=memory;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.procs_priv]
+CREATE TABLE tables_priv (dummy int) ENGINE=heap;
+ERROR HY000: Storage engine 'MEMORY' does not support system tables. [mysql.tables_priv]
+CREATE TABLE columns_priv (dummy int) ENGINE=csv;
+ERROR HY000: Storage engine 'CSV' does not support system tables. [mysql.columns_priv]
+CREATE TABLE time_zone (dummy int) ENGINE=merge;
+ERROR HY000: Storage engine 'MRG_MYISAM' does not support system tables. [mysql.time_zone]
+CREATE TABLE help_topic (dummy int) ENGINE=innodb;
+ERROR HY000: Storage engine 'InnoDB' does not support system tables. [mysql.help_topic]
+use test;
+# End of Bug#11815557

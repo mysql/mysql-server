@@ -26,7 +26,6 @@
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
-#include <util/Bitmask.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
 #include <ndbapi/NdbInterpretedCode.hpp>
 #include "../storage/ndb/src/ndbapi/NdbQueryBuilder.hpp"
@@ -49,6 +48,7 @@
 
 #include <mysql/plugin.h>
 #include <ndb_version.h>
+#include <ndb_global.h>
 #include "ndb_mi.h"
 #include "ndb_conflict.h"
 #include "ndb_anyvalue.h"
@@ -6568,46 +6568,6 @@ int ha_ndbcluster::index_read_last(uchar * buf, const uchar * key, uint key_len)
 }
 
 
-/**
-  Read first row (only) from a table.
-
-  This is actually (yet) never called for ndbcluster tables, as these table types
-  does not set HA_STATS_RECORDS_IS_EXACT.
-
-  UPDATE: Might be called if the predicate contain '<column> IS NULL', and
-          <column> is defined as 'NOT NULL' (or is part of primary key)
-
-  Implemented regardless of this as the default implememtation would break 
-  any pushed joins as it calls ha_rnd_end() / ha_index_end() at end of execution.
-  */
-int ha_ndbcluster::read_first_row(uchar * buf, uint primary_key)
-{
-  register int error;
-  DBUG_ENTER("ha_ndbcluster::read_first_row");
-
-  ha_statistic_increment(&SSV::ha_read_first_count);
-
-  /*
-    If there is very few deleted rows in the table, find the first row by
-    scanning the table.
-    TODO remove the test for HA_READ_ORDER
-  */
-  if (stats.deleted < 10 || primary_key >= MAX_KEY ||
-      !(index_flags(primary_key, 0, 0) & HA_READ_ORDER))
-  {
-    (void) ha_rnd_init(1);
-    while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED) ;
-  }
-  else
-  {
-    /* Find the first row through the primary key */
-    (void) ha_index_init(primary_key, 0);
-    error=index_first(buf);
-  }
-  DBUG_RETURN(error);
-}
-
-
 int ha_ndbcluster::read_range_first_to_buf(const key_range *start_key,
                                            const key_range *end_key,
                                            bool desc, bool sorted,
@@ -7693,23 +7653,6 @@ int ha_ndbcluster::start_statement(THD *thd,
     }
     else if (thd->slave_thread)
       thd_ndb->m_slow_path= TRUE;
-  }
-  /*
-    If this is the start of a LOCK TABLE, a table look 
-    should be taken on the table in NDB
-       
-    Check if it should be read or write lock
-  */
-  if (thd_options(thd) & (OPTION_TABLE_LOCK))
-  {
-    /* This is currently dead code in wait for implementation in NDB */
-    /* lockThisTable(); */
-    DBUG_PRINT("info", ("Locking the table..." ));
-#ifdef NOT_YET
-    push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_GET_ERRMSG, ER(ER_GET_ERRMSG), 0,
-                        "Table only locked locally in this mysqld", "NDB");
-#endif
   }
   DBUG_RETURN(0);
 }
@@ -11381,7 +11324,17 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 }
 
-
+/* Interface to mysqld, to check system tables supported by SE */
+static bool ndb_is_supported_system_table(const char *db,
+                                          const char *table_name,
+                                          bool is_sql_layer_system_table)
+{
+  if (Ndb_dist_priv_util::is_distributed_priv_table(db,
+                                                    table_name))
+    return true;
+  else
+    return false;
+}
 
 extern "C" uchar* tables_get_key(const char *entry, size_t *length,
                                 my_bool not_used __attribute__((unused)))
@@ -11652,8 +11605,19 @@ ndbcluster_find_files(handlerton *hton, THD *thd,
     {
       DBUG_PRINT("info", ("NDB says %s does not exists", file_name->str));
       it.remove();
-      // Put in list of tables to remove from disk
-      delete_list.push_back(thd->strdup(file_name->str));
+      if (thd == injector_thd &&
+	  thd_ndb->options & TNTO_NO_REMOVE_STRAY_FILES)
+      {
+	/*
+	  Don't delete anything when called from
+	  the binlog thread. This is a kludge to avoid
+	  that something is deleted when "Ndb schema dist"
+	  uses find_files() to check for "local tables in db"
+	*/
+      }
+      else
+	// Put in list of tables to remove from disk
+	delete_list.push_back(thd->strdup(file_name->str));
     }
   }
 
@@ -11866,6 +11830,34 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 
 int(*ndb_wait_setup_func)(ulong) = 0;
 #endif
+
+/* Version in composite numerical format */
+static Uint32 ndb_version = NDB_VERSION_D;
+static MYSQL_SYSVAR_UINT(
+  version,                          /* name */
+  ndb_version,                      /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version for ndbcluster",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  0,                                /* default */
+  0,                                /* min */
+  0,                                /* max */
+  0                                 /* block */
+);
+
+/* Version in ndb-Y.Y.Y[-status] format */
+static char* ndb_version_string = (char*)NDB_NDB_VERSION_STRING;
+static MYSQL_SYSVAR_STR(
+  version_string,                  /* name */
+  ndb_version_string,              /* var */
+  PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_READONLY,
+  "Compile version string for ndbcluster",
+  NULL,                             /* check func. */
+  NULL,                             /* update func. */
+  NULL                              /* default */
+);
+
 extern int ndb_dictionary_is_mysqld;
 
 static int ndbcluster_init(void *p)
@@ -11919,6 +11911,8 @@ static int ndbcluster_init(void *p)
 #ifndef NDB_WITHOUT_JOIN_PUSHDOWN
     h->make_pushed_join= ndbcluster_make_pushed_join;
 #endif
+    h->is_supported_system_table= ndb_is_supported_system_table;
+
   }
 
   // Initialize ndb interface
@@ -12480,6 +12474,14 @@ ulonglong ha_ndbcluster::table_flags(void) const
   */
   if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+
+  /**
+   * To maximize join pushability we want const-table 
+   * optimization blocked if 'ndb_join_pushdown= on'
+   */
+  if (THDVAR(thd, join_pushdown))
+    f= f | HA_BLOCK_CONST_TABLE;
+
   return f;
 }
 
@@ -14664,57 +14666,6 @@ ha_ndbcluster::parent_of_pushed_join() const
   }
   return NULL;
 }
-
-bool
-ha_ndbcluster::test_push_flag(enum ha_push_flag flag) const
-{
-  DBUG_ENTER("test_push_flag");
-  switch (flag) {
-  case HA_PUSH_BLOCK_CONST_TABLE:
-  {
-    /**
-     * We don't support join push down if...
-     *   - not LM_CommittedRead
-     *   - uses blobs
-     */
-    THD *thd= current_thd;
-    if (unlikely(!THDVAR(thd, join_pushdown)))
-      DBUG_RETURN(false);
-
-    if (table->read_set != NULL && uses_blob_value(table->read_set))
-    {
-      DBUG_RETURN(false);
-    }
-
-    NdbOperation::LockMode lm= get_ndb_lock_mode(m_lock.type);
-
-    if (lm != NdbOperation::LM_CommittedRead)
-    {
-      DBUG_RETURN(false);
-    }
-
-    DBUG_RETURN(true);
-  }
-  case HA_PUSH_MULTIPLE_DEPENDENCY:
-    /**
-     * If any child operation within this pushed join refer 
-     * column values (paramValues), the pushed join has dependencies
-     * in addition to the root operation itself.
-     */
-    if (m_pushed_join_operation==PUSHED_ROOT &&
-        m_pushed_join_member->get_field_referrences_count() > 0)  // Childs has field refs
-    {
-      DBUG_RETURN(true);
-    }
-    DBUG_RETURN(false);
-
-  default:
-    DBUG_ASSERT(0);
-    DBUG_RETURN(false);
-  }
-  DBUG_RETURN(false);
-}
-
 
 /**
   @param[in] comment  table comment defined by user
@@ -17457,6 +17408,8 @@ static struct st_mysql_sys_var* system_variables[]= {
 #ifndef DBUG_OFF
   MYSQL_SYSVAR(dbg_check_shares),
 #endif
+  MYSQL_SYSVAR(version),
+  MYSQL_SYSVAR(version_string),
   NULL
 };
 

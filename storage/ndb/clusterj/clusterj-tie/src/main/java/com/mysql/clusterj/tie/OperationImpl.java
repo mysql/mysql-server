@@ -340,4 +340,8 @@ class OperationImpl implements Operation {
         return ndbOperation.getNdbError().status();
     }
 
+    public void freeResourcesAfterExecute() {
+        
+    }
+
 }

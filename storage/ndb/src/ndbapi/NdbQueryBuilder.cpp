@@ -2181,7 +2181,8 @@ NdbQueryOperationDefImpl::printTree(Uint32 depth,
   ndbout << NdbQueryOperationDef::getTypeName(getType()) << endl;
   printMargin(depth, hasMoreSiblingsMask, false);
   // Print attributes.
-  ndbout << " opNo: " << getOpNo() << endl;
+  ndbout << " opNo: " << getOpNo()
+         << " (internal: " << getInternalOpNo() << ")" << endl;
   printMargin(depth, hasMoreSiblingsMask, false);
   ndbout << " table: " << getTable().getName() << endl;
   if (getIndex() != NULL)

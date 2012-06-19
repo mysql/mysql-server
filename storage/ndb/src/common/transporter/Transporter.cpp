@@ -43,7 +43,8 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   : m_s_port(s_port), remoteNodeId(rNodeId), localNodeId(lNodeId),
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
-    m_overload_limit(0xFFFFFFFF), isMgmConnection(_isMgmConnection),
+    m_overload_limit(0xFFFFFFFF), m_slowdown_limit(0xFFFFFFFF),
+    isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
     m_transporter_registry(t_reg)
@@ -51,7 +52,6 @@ Transporter::Transporter(TransporterRegistry &t_reg,
   DBUG_ENTER("Transporter::Transporter");
   if (rHostName && strlen(rHostName) > 0){
     strncpy(remoteHostName, rHostName, sizeof(remoteHostName));
-    Ndb_getInAddr(&remoteHostAddress, rHostName);
   }
   else
   {

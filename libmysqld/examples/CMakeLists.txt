@@ -31,6 +31,18 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_embedded ${READLINE_LIBRARY})
 ENDIF(UNIX)
 
+#ifndef MCP_BUG14058643
+IF(INSTALL_LAYOUT MATCHES "SVR4")
+  SET_TARGET_PROPERTIES(mysql_embedded PROPERTIES ENABLE_EXPORTS TRUE)
+  # The mysqltest_embedded and mysql_client_test_embedded are big, and at
+  # present may cause the Solaris SVR4 packages to be too big (>2GB) for
+  # the packaging tools to handle.
+  # Since these binaries are only used for testing the embedded server 
+  # they can safely be excluded from the build.
+  RETURN()
+ENDIF()
+#endif
+
 MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
 TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 

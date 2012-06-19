@@ -90,6 +90,14 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     /** The list of index bounds already defined; null for a single range */
     List<NdbIndexScanOperation.IndexBound> ndbIndexBoundList = null;
 
+    /** The single index bound for a single range scan */
+    NdbIndexScanOperation.IndexBound ndbIndexBound = null;
+
+    /** The buffers used for bounds; held here to prevent garbage collection */
+    List<ByteBuffer> buffers = new ArrayList<ByteBuffer>();
+
+    private Index index;
+
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
             Index storeIndex, Table storeTable, int lockMode) {
         this(clusterTransaction, storeIndex, storeTable, false, lockMode);
@@ -98,6 +106,7 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
     public NdbRecordIndexScanOperationImpl(ClusterTransactionImpl clusterTransaction,
                 Index storeIndex, Table storeTable, boolean multiRange, int lockMode) {
         super(clusterTransaction, storeTable, lockMode);
+        this.index = storeIndex;
         this.multiRange = multiRange;
         if (this.multiRange) {
             ndbIndexBoundList = new ArrayList<NdbIndexScanOperation.IndexBound>();
@@ -105,13 +114,17 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
         ndbRecordKeys = clusterTransaction.getCachedNdbRecordImpl(storeIndex, storeTable);
         keyBufferSize = ndbRecordKeys.bufferSize;
         indexBoundLowBuffer = ndbRecordKeys.newBuffer();
+        // hold a reference to the buffer to prevent garbage collection
+        buffers.add(indexBoundLowBuffer);
         indexBoundHighBuffer = ndbRecordKeys.newBuffer();
+        // hold a reference to the buffer to prevent garbage collection
+        buffers.add(indexBoundHighBuffer);
     }
 
     public void endDefinition() {
         // get the scan options which also sets the filter
         getScanOptions();
-        if (logger.isDetailEnabled()) logger.detail("scan options present " + dumpScanOptions(scanOptions.optionsPresent(), scanOptions.scan_flags()));
+        if (logger.isDetailEnabled()) logger.detail("scan index '" + index.getName() + "' with options " + dumpScanOptions(scanOptions.optionsPresent(), scanOptions.scan_flags()));
 
         // create the scan operation
         ndbIndexScanOperation = clusterTransaction.scanIndex(
@@ -127,11 +140,19 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 handleError(returnCode, ndbIndexScanOperation);
             }
         } else {
-            // only one range defined
-            NdbIndexScanOperation.IndexBound ndbIndexBound = getNdbIndexBound();
-            int returnCode = ndbIndexScanOperation.setBound(ndbRecordKeys.getNdbRecord(), ndbIndexBound);
-            handleError(returnCode, ndbIndexScanOperation);
+            // zero or one range defined
+            ndbIndexBound = getNdbIndexBound();
+            if (ndbIndexBound != null) {
+                int returnCode = ndbIndexScanOperation.setBound(ndbRecordKeys.getNdbRecord(), ndbIndexBound);
+                handleError(returnCode, ndbIndexScanOperation);
+            }
         }
+        clusterTransaction.postExecuteCallback(new Runnable() {
+            // free structures used to define operation            
+            public void run() {
+                freeResourcesAfterExecute();
+            }
+        });
     }
 
     public void setBoundBigInteger(Column storeColumn, BoundType type, BigInteger value) {
@@ -321,8 +342,8 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 reclaimed = indexBoundLowBuffer;
                 indexBoundLowBuffer = indexBoundHighBuffer;
             }
-            // set the index bound
-            NdbIndexScanOperation.IndexBound ndbindexBound = NdbIndexScanOperation.IndexBound.create();
+            // create the index bound; use a local variable that will be used for either the single or list of bounds
+            NdbIndexScanOperation.IndexBound ndbindexBound = db.createIndexBound();
             ndbindexBound.low_key(indexBoundLowBuffer);
             ndbindexBound.high_key(indexBoundHighBuffer);
             ndbindexBound.low_key_count(indexBoundLowCount);
@@ -342,8 +363,12 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
                 ndbRecordKeys.initializeBuffer(reclaimed);
             } else {
                 indexBoundLowBuffer = ndbRecordKeys.newBuffer();
+                // hold a reference to the buffer to prevent garbage collection
+                buffers.add(indexBoundLowBuffer);
             }
             indexBoundHighBuffer = ndbRecordKeys.newBuffer();
+            // hold a reference to the buffer to prevent garbage collection
+            buffers.add(indexBoundHighBuffer);
             indexBoundLowCount = 0;
             indexBoundHighCount = 0;
             indexBoundLowStrict = false;
@@ -353,6 +378,25 @@ public class NdbRecordIndexScanOperationImpl extends NdbRecordScanOperationImpl 
             return ndbindexBound;
         } else {
             return null;
+        }
+    }
+
+    /** Free resources used by this scan after the scan is executed.
+     * 
+     */
+    public void freeResourcesAfterExecute() {
+        super.freeResourcesAfterExecute();
+        // allow garbage collection for buffers used in IndexBound
+        buffers = null;
+        if (ndbIndexBound != null) {
+            db.delete(ndbIndexBound);
+            ndbIndexBound = null;
+        }
+        if (ndbIndexBoundList != null) {
+            for (NdbIndexScanOperation.IndexBound ndbindexBound: ndbIndexBoundList) {
+                db.delete(ndbindexBound);
+            }
+            ndbIndexBoundList = null;
         }
     }
 
