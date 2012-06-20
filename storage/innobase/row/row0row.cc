@@ -442,26 +442,12 @@ row_rec_to_index_entry_low(
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built; see the NOTE below! */
+@return	own: index entry built */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-	ulint			type,	/*!< in: ROW_COPY_DATA, or
-					ROW_COPY_POINTERS: the former
-					copies also the data fields to
-					heap as the latter only places
-					pointers to data fields on the
-					index page */
-	const rec_t*		rec,	/*!< in: record in the index;
-					NOTE: in the case
-					ROW_COPY_POINTERS the data
-					fields in the row will point
-					directly into this record,
-					therefore, the buffer page of
-					this record must be at least
-					s-latched and the latch held
-					as long as the dtuple is used! */
+	const rec_t*		rec,	/*!< in: record in the index */
 	const dict_index_t*	index,	/*!< in: index */
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec) */
 	ulint*			n_ext,	/*!< out: number of externally
@@ -476,18 +462,11 @@ row_rec_to_index_entry(
 	ut_ad(rec && heap && index);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (type == ROW_COPY_DATA) {
-		/* Take a copy of rec to heap */
-		buf = static_cast<byte*>(
-			mem_heap_alloc(heap, rec_offs_size(offsets)));
+	/* Take a copy of rec to heap */
+	buf = static_cast<byte*>(
+		mem_heap_alloc(heap, rec_offs_size(offsets)));
 
-		copy_rec = rec_copy(buf, rec, offsets);
-	} else {
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-		ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-		copy_rec = rec;
-	}
+	copy_rec = rec_copy(buf, rec, offsets);
 
 	rec_offs_make_valid(copy_rec, index, const_cast<ulint*>(offsets));
 	entry = row_rec_to_index_entry_low(
