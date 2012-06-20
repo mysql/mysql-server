@@ -2512,14 +2512,6 @@ prepare_inplace_alter_table_dict(
 			ulint		charset_no;
 			ulint		col_len;
 
-			if (!col_type) {
-col_fail:
-				dict_mem_table_free(indexed_table);
-				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
-					 field->field_name);
-				goto new_clustered_failed;
-			}
-
 			/* we assume in dtype_form_prtype() that this
 			fits in two bytes */
 			ut_a(field_type <= MAX_CHAR_COLL_NUM);
@@ -2540,7 +2532,10 @@ col_fail:
 				charset_no = (ulint) field->charset()->number;
 
 				if (charset_no > MAX_CHAR_COLL_NUM) {
-					goto col_fail;
+					dict_mem_table_free(indexed_table);
+					my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+						 field->field_name);
+					goto new_clustered_failed;
 				}
 			} else {
 				charset_no = 0;
