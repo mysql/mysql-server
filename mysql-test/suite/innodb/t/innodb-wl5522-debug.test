@@ -22,6 +22,54 @@ SELECT @@innodb_file_per_table;
 DROP DATABASE IF EXISTS test_wl5522;
 CREATE DATABASE test_wl5522;
 
+##### Before DISCARD commit crash
+SET SESSION debug="+d,ib_discard_before_commit_crash";
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash
+--error 2013
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET SESSION debug="-d,ib_discard_before_commit_crash";
+DROP TABLE test_wl5522.t1;
+#### Before DISCARD commit crash
+
+##### After DISCARD commit crash
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+SET SESSION debug="+d,ib_discard_after_commit_crash";
+
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+# Execute the statement that causes the crash
+--error 2013
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SET SESSION debug="-d,ib_discard_after_commit_crash";
+DROP TABLE test_wl5522.t1;
+#### After DISCARD commit crash
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
 # Create the table that we will use for crash recovery (during IMPORT)
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
@@ -1391,9 +1439,10 @@ call mtr.add_suppression("Unsupported tablespace format");
 call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
 call mtr.add_suppression("Page is marked as free");
 call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
-call mtr.add_suppression("Table .*t1 in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("but tablespace with that id or name does not exist");
+call mtr.add_suppression("trying to open a table, but could not");
+call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache");
 call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
-call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache. Attempting to load the tablespace with space id .*");
 
 #cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg

@@ -2754,6 +2754,8 @@ row_discard_tablespace_begin(
 {
 	trx->op_info = "discarding tablespace";
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx_start_if_not_started_xa(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -2838,11 +2840,15 @@ row_discard_tablespace_end(
 		dict_table_close(table, TRUE, FALSE);
 	}
 
-	DBUG_EXECUTE_IF("ib_discard_before_commit_crash", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
 
-	DBUG_EXECUTE_IF("ib_discard_after_commit_crash", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			DBUG_SUICIDE(););
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -2942,9 +2948,6 @@ row_discard_tablespace(
 			index->page = FIL_NULL;
 			index->space = FIL_NULL;
 		}
-
-		DBUG_EXECUTE_IF("ib_discard_before_root_reset_crash",
-				DBUG_SUICIDE(););
 
 		/* If the tablespace did not already exist or we couldn't
 		write to it, we treat that as a successful DISCARD. It is
