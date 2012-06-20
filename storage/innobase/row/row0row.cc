@@ -334,9 +334,6 @@ row_build(
 				/* dropped column */
 				continue;
 			}
-		} else if (col_no >= dict_table_get_n_cols(col_table)) {
-			/* dropped last columns */
-			continue;
 		}
 
 		dfield_t*	dfield = dtuple_get_nth_field(row, col_no);
