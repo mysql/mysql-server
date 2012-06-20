@@ -43,11 +43,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -85,14 +80,25 @@ SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
-# Write file to make mysql-test-run.pl start up the server again
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# Don't start up the server right away.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Execute the statement that causes the crash
 --error 2013
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
+# After the above test the results are non-deterministic,
+# delete the old tablespace files and drop the table,
+# recreate the table and do a proper import.
+-- source include/wait_until_disconnected.inc
+perl;
+do 'include/innodb-util.inc';
+ib_unlink_tablespace("test_wl5522", "t1");
+EOF
+
+--echo # Restart and reconnect to the server
 --enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
@@ -104,11 +110,6 @@ SET SESSION debug="-d,ib_import_before_checkpoint_crash";
 
 DROP TABLE test_wl5522.t1;
 
-perl;
-do 'include/innodb-util.inc';
-ib_unlink_tablespace("test_wl5522", "t1");
-EOF
-
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 
@@ -118,7 +119,6 @@ ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
 perl;
 do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
@@ -343,11 +343,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -366,11 +361,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -392,11 +382,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -416,11 +401,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -442,11 +422,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -466,11 +441,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -492,11 +462,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -516,11 +481,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -542,11 +502,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -566,11 +521,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -593,11 +543,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -630,11 +575,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -673,11 +613,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -710,11 +645,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -746,11 +676,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -780,11 +705,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -816,11 +736,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -851,11 +766,6 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -885,11 +795,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -923,11 +828,6 @@ EOF
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -963,11 +863,6 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -1240,11 +1135,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -1276,11 +1166,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -1310,11 +1195,6 @@ EOF
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -1346,11 +1226,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -1380,11 +1255,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -1406,11 +1276,6 @@ EOF
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -1443,11 +1308,6 @@ CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
-
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
@@ -1478,11 +1338,6 @@ EOF
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-
-perl;
-do 'include/innodb-util.inc';
-ib_discard_tablespaces("test_wl5522", "t1");
-EOF
 
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
@@ -1536,6 +1391,9 @@ call mtr.add_suppression("Unsupported tablespace format");
 call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
 call mtr.add_suppression("Page is marked as free");
 call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
+call mtr.add_suppression("Table .*t1 in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
+call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache. Attempting to load the tablespace with space id .*");
 
 #cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
