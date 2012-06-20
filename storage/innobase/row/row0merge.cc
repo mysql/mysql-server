@@ -3503,9 +3503,8 @@ wait_again:
 					}
 				}
 			} else {
-				// TODO: if this can report duplicates
-				// or other erroneous rows, pass
-				// col_map[] as well.
+				/* This cannot report duplicates; an
+				assertion would fail in that case. */
 				error = row_fts_merge_insert(
 					sort_idx, new_table,
 					psort_info, 0);
