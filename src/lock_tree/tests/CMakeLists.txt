@@ -11,7 +11,7 @@ if(BUILD_TESTING)
       set_property(TARGET lt_${base}.${impl} APPEND PROPERTY
         COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.c.${impl}\"")
       add_common_options_to_binary_targets(lt_${base}.${impl})
-      target_link_libraries(lt_${base}.${impl} lock_tree_${impl})
+      target_link_libraries(lt_${base}.${impl} lock_tree_${impl} ${LIBTOKUPORTABILITY})
       set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.c.${impl}")
 
       add_test(lock_tree/${base}.${impl} lt_${base}.${impl})
