@@ -755,7 +755,7 @@ toku_cachefile_close(CACHEFILE *cfp, char **error_string, BOOL oplsn_valid, LSN 
     // There may be reader, writer, or flusher threads on the kibbutz
     // that need to do work on pairs for this cf. Before we can close
     // the underlying file, we need to wait for them to finish. No new
-    // work shoudl start because clients of the cachetable are not supposed
+    // work should start because clients of the cachetable are not supposed
     // to use a cachefile in parallel with a close, or afterwards.
     wait_on_background_jobs_to_finish(cf);
 
@@ -2802,7 +2802,8 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
 
         // first we remove the PAIR from the cachetable's linked lists
         // and hashtable, so we guarantee that no other thread can access
-        // this PAIR if we release the cachetable lock        
+        // this PAIR if we release the cachetable lock (which happens in
+        // cachetable_only_write_locked_data() if the pair is dirty).
         cachetable_remove_pair(ct, p);
         // 
         // #5097 found a bug where another thread had a dirty PAIR pinned

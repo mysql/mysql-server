@@ -3140,6 +3140,7 @@ toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
 // This is the actual open, used for various purposes, such as normal use, recovery, and redirect.
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix).
 // The checkpointed version (checkpoint_lsn) of the dictionary must be no later than max_acceptable_lsn .
+// Requires: The multi-operation client lock must be held to prevent a checkpoint from occuring.
 static int
 ft_handle_open(FT_HANDLE ft_h, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, FILENUM use_filenum, DICTIONARY_ID use_dictionary_id, LSN max_acceptable_lsn) {
     int r;
@@ -3307,6 +3308,7 @@ toku_ft_handle_open_recovery(FT_HANDLE t, const char *fname_in_env, int is_creat
 }
 
 // Open a brt in normal use.  The FILENUM and dict_id are assigned by the ft_handle_open() function.
+// Requires: The multi-operation client lock must be held to prevent a checkpoint from occuring.
 int
 toku_ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn) {
     int r;
@@ -3419,6 +3421,7 @@ int
 toku_ft_handle_close (FT_HANDLE brt, bool oplsn_valid, LSN oplsn)
 // Effect: See ft-ops.h for the specification of this function.
 {
+    // There are error paths in the ft_handle_open that end with brt->ft==NULL.
     FT ft = brt->ft;
     if (ft) {
         toku_ft_remove_reference(brt->ft, oplsn_valid, oplsn, ft_remove_handle_ref_callback, brt);
@@ -5445,6 +5448,8 @@ void toku_ft_layer_destroy(void) {
     toku_portability_destroy();
 }
 
+// This lock serializes all opens and closes because the cachetable requires that clients do not try to open or close a cachefile in parallel.  We made
+// it coarser by not allowing any cachefiles to be open or closed in parallel.
 void toku_ft_open_close_lock(void) {
     toku_mutex_lock(&ft_open_close_lock);
 }
