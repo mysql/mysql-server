@@ -136,7 +136,8 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
                     // Only committed entries have return a youngest.
                     invariant(youngest == TXNID_NONE);
                 }
-                else if (youngest != TXNID_NONE) {
+                else {
+                    invariant(youngest != TXNID_NONE);
                     // A committed entry might have been read-only, in which case it won't return anything.
                     // This snapshot reads 'live_xid' so it's youngest cannot be older than snapshot_xid.
                     invariant(youngest >= snapshot_xid);
@@ -586,7 +587,7 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         r = toku_omt_delete_at(txn_manager->live_root_txns, idx);
         invariant_zero(r);
 
-        if (txn->begin_was_logged) {
+        if (txn->begin_was_logged || garbage_collection_debug) {
             if (!is_snapshot) {
                 // If it's a snapshot, we already calculated index_in_snapshot_txnids.
                 // Otherwise, calculate it now.
