@@ -6397,7 +6397,7 @@ type:
             if (Lex->length)
             {
               errno= 0;
-              ulonglong length= strtoul(Lex->length, NULL, 10);
+              ulong length= strtoul(Lex->length, NULL, 10);
               if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
               {
                 /* Reset unsupported positive column width to default value */
