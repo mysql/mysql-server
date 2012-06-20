@@ -3167,7 +3167,7 @@ btr_cur_pessimistic_delete(
 		goto return_after_reservations;
 	}
 
-	if (UNIV_LIKELY(flags == 0)) {
+	if (flags == 0) {
 		lock_update_delete(block, rec);
 	}
 
