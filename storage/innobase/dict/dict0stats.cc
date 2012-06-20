@@ -352,10 +352,11 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS
-		    || dict_index_is_online_ddl(index)
+		if ((index->type & DICT_FTS)
 		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped) {
+		    || index->to_be_dropped
+		    || (!dict_index_is_clust(index)
+			&& dict_index_is_online_ddl(index))) {
 			continue;
 		}
 
@@ -404,10 +405,11 @@ dict_stats_snapshot_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS
-		    || dict_index_is_online_ddl(index)
+		if ((index->type & DICT_FTS)
 		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped) {
+		    || index->to_be_dropped
+		    || (!dict_index_is_clust(index)
+			&& dict_index_is_online_ddl(index))) {
 			continue;
 		}
 
@@ -606,8 +608,10 @@ dict_stats_update_transient_for_index(
 /*==================================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
-	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)
-	    || dict_index_is_corrupted(index)) {
+	if ((index->type & DICT_FTS)
+	    || dict_index_is_corrupted(index)
+	    || (!dict_index_is_clust(index)
+		&& dict_index_is_online_ddl(index))) {
 		return(0);
 	}
 
@@ -1961,7 +1965,6 @@ dict_stats_update_persistent(
 	index = dict_table_get_first_index(table);
 
 	if (index == NULL
-	    || dict_index_is_online_ddl(index)
 	    || dict_index_is_corrupted(index)
 	    || (index->type | DICT_UNIQUE) != (DICT_CLUSTERED | DICT_UNIQUE)) {
 
@@ -2246,10 +2249,11 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if (index->type & DICT_FTS
-		    || dict_index_is_online_ddl(index)
+		if ((index->type & DICT_FTS)
 		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped) {
+		    || index->to_be_dropped
+		    || (!dict_index_is_clust(index)
+			&& dict_index_is_online_ddl(index))) {
 			continue;
 		}
 
