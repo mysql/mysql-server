@@ -9070,7 +9070,7 @@ innobase_table_flags(
 {
 	DBUG_ENTER("innobase_table_flags");
 
-	const char*	fts_index_bad = NULL;
+	const char*	fts_doc_id_index_bad = NULL;
 	bool		zip_allowed = true;
 	ulint		zip_ssize = 0;
 	enum row_type	row_format;
@@ -9099,7 +9099,7 @@ innobase_table_flags(
 				DBUG_RETURN(false);
 			}
 
-			if (fts_index_bad) {
+			if (fts_doc_id_index_bad) {
 				goto index_bad;
 			}
 		}
@@ -9113,13 +9113,13 @@ innobase_table_flags(
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {
-			fts_index_bad = key->name;
+			fts_doc_id_index_bad = key->name;
 		}
 
-		if (fts_index_bad && (*flags2 & DICT_TF2_FTS)) {
+		if (fts_doc_id_index_bad && (*flags2 & DICT_TF2_FTS)) {
 index_bad:
 			my_error(ER_INNODB_FT_WRONG_DOCID_INDEX, MYF(0),
-				 fts_index_bad);
+				 fts_doc_id_index_bad);
 			DBUG_RETURN(false);
 		}
 	}
