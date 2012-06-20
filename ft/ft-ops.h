@@ -164,8 +164,8 @@ int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, char *panic_string)  __at
 
 int toku_dump_ft (FILE *,FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 
-void ft_fsync (FT_HANDLE); /* fsync, but don't clear the caches. */
-void ft_flush (FT_HANDLE); /* fsync and clear the caches. */
+//void ft_fsync (FT_HANDLE); /* fsync, but don't clear the caches. */
+//void ft_flush (FT_HANDLE); /* fsync and clear the caches. */
 
 extern int toku_ft_debug_mode;
 int toku_verify_ft (FT_HANDLE brt)  __attribute__ ((warn_unused_result));
@@ -203,9 +203,6 @@ int toku_ft_cursor_close (FT_CURSOR curs)  __attribute__ ((warn_unused_result));
 BOOL toku_ft_cursor_uninitialized(FT_CURSOR c)  __attribute__ ((warn_unused_result));
 
 void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
-
-typedef struct ftenv *FTENV;
-int ftenv_checkpoint (FTENV env)  __attribute__ ((warn_unused_result));
 
 extern int toku_ft_do_push_cmd; // control whether push occurs eagerly.
 
