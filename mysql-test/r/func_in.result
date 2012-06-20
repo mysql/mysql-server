@@ -150,8 +150,8 @@ Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` A
 drop table t1;
 set names utf8;
 create table t1 (a char(10) character set utf8 not null);
-insert into t1 values ('bbbb'),(_koi8r'ÃƒÃƒÃƒÃƒ'),(_latin1'Ã„Ã„Ã„Ã„');
-select a from t1 where a in ('bbbb',_koi8r'ÃƒÃƒÃƒÃƒ',_latin1'Ã„Ã„Ã„Ã„') order by a;
+insert into t1 values ('bbbb'),(_koi8r'ÃÃÃÃ'),(_latin1'ÄÄÄÄ');
+select a from t1 where a in ('bbbb',_koi8r'ÃÃÃÃ',_latin1'ÄÄÄÄ') order by a;
 a
 Ã„Ã„Ã„Ã„
 bbbb
@@ -811,3 +811,4 @@ a	b
 select * from t1 where IF(1,a,a)='2.1';
 a	b
 drop table t1;
+# End of 5.3 tests
