@@ -213,8 +213,7 @@ row_upd_check_references_constraints(
 
 	heap = mem_heap_create(500);
 
-	entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, offsets,
-				       &n_ext, heap);
+	entry = row_rec_to_index_entry(rec, index, offsets, &n_ext, heap);
 
 	mtr_commit(mtr);
 

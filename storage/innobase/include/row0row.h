@@ -173,26 +173,12 @@ row_rec_to_index_entry_low(
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built; see the NOTE below! */
+@return	own: index entry built */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-	ulint			type,	/*!< in: ROW_COPY_DATA, or
-					ROW_COPY_POINTERS: the former
-					copies also the data fields to
-					heap as the latter only places
-					pointers to data fields on the
-					index page */
-	const rec_t*		rec,	/*!< in: record in the index;
-					NOTE: in the case
-					ROW_COPY_POINTERS the data
-					fields in the row will point
-					directly into this record,
-					therefore, the buffer page of
-					this record must be at least
-					s-latched and the latch held
-					as long as the dtuple is used! */
+	const rec_t*		rec,	/*!< in: record in the index */
 	const dict_index_t*	index,	/*!< in: index */
 	const ulint*		offsets,/*!< in/out: rec_get_offsets(rec) */
 	ulint*			n_ext,	/*!< out: number of externally

@@ -5038,9 +5038,8 @@ not_ok:
 
 		mem_heap_empty(heap);
 
-		prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec,
-						    index, offsets,
-						    &n_ext, heap);
+		prev_entry = row_rec_to_index_entry(
+			rec, index, offsets, &n_ext, heap);
 
 		if (UNIV_LIKELY_NULL(tmp_heap)) {
 			mem_heap_free(tmp_heap);

@@ -2092,7 +2092,7 @@ any_extern:
 			+ DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
 	}
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, *offsets,
+	new_entry = row_rec_to_index_entry(rec, index, *offsets,
 					   &n_ext, *heap);
 	/* We checked above that there are no externally stored fields. */
 	ut_a(!n_ext);
@@ -2365,7 +2365,7 @@ btr_cur_pessimistic_update(
 		rec, index, *offsets, ULINT_UNDEFINED, offsets_heap);
 
 	dtuple_t*	new_entry = row_rec_to_index_entry(
-		ROW_COPY_DATA, rec, index, *offsets, &n_ext, entry_heap);
+		rec, index, *offsets, &n_ext, entry_heap);
 
 	/* The page containing the clustered index record
 	corresponding to new_entry is latched in mtr.  If the
