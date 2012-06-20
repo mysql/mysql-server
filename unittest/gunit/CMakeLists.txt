@@ -237,6 +237,7 @@ SET(TESTS
   bounded_queue
   bounds_checked_array
   byteorder
+  client_string
   cost_estimate
   dbug
   decimal
@@ -251,6 +252,7 @@ SET(TESTS
   my_regex
   sql_list
   sql_plist
+  sql_string
   stdcxx
   thread_utils
   )
