@@ -2567,6 +2567,84 @@ do_result_format_version(struct st_command *command)
   dynstr_free(&ds_version);
 }
 
+/* List of error names to error codes */
+typedef struct
+{
+  const char *name;
+  uint        code;
+  const char *text;
+} st_error;
+
+static st_error global_error_names[] =
+{
+  { "<No error>", -1, "" },
+#include <mysqld_ername.h>
+  { 0, 0, 0 }
+};
+
+uint get_errcode_from_name(char *, char *);
+
+/*
+
+  This function is useful when one needs to convert between error numbers and  error strings
+
+  SYNOPSIS
+  var_set_convert_error(struct st_command *command,VAR *var)
+
+  DESCRIPTION
+  let $var=convert_error(ER_UNKNOWN_ERROR); 
+  let $var=convert_error(1234); 
+  
+  The variable var will be populated with error number if the argument is string.
+  The variable var will be populated with error string if the argument is number.
+
+*/
+void var_set_convert_error(struct st_command *command,VAR *var)
+{
+  char *last;
+  char *first=command->query;
+  const char *err_name;
+    
+  DBUG_ENTER("var_set_query_get_value");
+
+  DBUG_PRINT("info", ("query: %s", command->query));
+
+  /* the command->query contains the statement convert_error(1234) */ 
+  first=strchr(command->query,'(') + 1;
+  last=strchr(command->query,')');
+
+
+  if( last == first )  /* denoting an empty string */
+  {
+    eval_expr(var,"0",0);
+    DBUG_VOID_RETURN;
+  }
+  
+
+  /* if the string is an error string , it starts with 'E' as is the norm*/
+  if ( *first == 'E')    
+  {
+    char str[100];
+    uint num;
+    num=get_errcode_from_name(first, last);
+    sprintf(str,"%i",num);
+    eval_expr(var,str,0);
+  }
+  else  if (my_isdigit(charset_info, *first ))/* if the error is a number */
+  {
+    long int err;
+
+    err=strtol(first,&last,0);
+    err_name = get_errname_from_code(err);
+    eval_expr(var,err_name,0);
+  }
+  else
+  {
+    die("Invalid error in input");
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Set variable from the result of a field in a query
@@ -2770,6 +2848,20 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
       command.first_argument= command.query + len;
       command.end= (char*)*p_end;
       var_set_query_get_value(&command, v);
+      DBUG_VOID_RETURN;
+    }
+    /* Check if this is a "let $var= convert_error()" */
+    const char* get_value_str1= "convert_error";
+    const size_t len1= strlen(get_value_str1);
+    if (strncmp(p, get_value_str1, len1)==0)
+    {
+      struct st_command command;
+      memset(&command, 0, sizeof(command));
+      command.query= (char*)p;
+      command.first_word_len= len;
+      command.first_argument= command.query + len;
+      command.end= (char*)*p_end;
+      var_set_convert_error(&command, v);
       DBUG_VOID_RETURN;
     }
   }
@@ -4764,20 +4856,6 @@ void do_shutdown_server(struct st_command *command)
 }
 
 
-/* List of error names to error codes */
-typedef struct
-{
-  const char *name;
-  uint        code;
-  const char *text;
-} st_error;
-
-static st_error global_error_names[] =
-{
-  { "<No error>", -1, "" },
-#include <mysqld_ername.h>
-  { 0, 0, 0 }
-};
 
 uint get_errcode_from_name(char *error_name, char *error_end)
 {

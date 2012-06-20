@@ -138,7 +138,7 @@ UNIV_INTERN rw_lock_stats_t	rw_lock_stats;
 
 /* The global list of rw-locks */
 UNIV_INTERN rw_lock_list_t	rw_lock_list;
-UNIV_INTERN mutex_t		rw_lock_list_mutex;
+UNIV_INTERN ib_mutex_t		rw_lock_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
@@ -150,7 +150,7 @@ UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
 
-UNIV_INTERN mutex_t		rw_lock_debug_mutex;
+UNIV_INTERN ib_mutex_t		rw_lock_debug_mutex;
 
 # ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	rw_lock_debug_mutex_key;
@@ -229,7 +229,7 @@ rw_lock_create_func(
 	lock->mutex.cline = cline;
 
 	ut_d(lock->mutex.cmutex_name = cmutex_name);
-	ut_d(lock->mutex.mutex_type = 1);
+	ut_d(lock->mutex.ib_mutex_type = 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 # ifdef UNIV_DEBUG
 	UT_NOT_USED(cmutex_name);
@@ -287,7 +287,7 @@ rw_lock_free_func(
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 	ut_ad(rw_lock_validate(lock));

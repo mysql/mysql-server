@@ -113,7 +113,7 @@ buf_dblwr_write_single_page(
 
 /** Doublewrite control struct */
 struct buf_dblwr_struct{
-	mutex_t	mutex;		/*!< mutex protecting the first_free field and
+	ib_mutex_t	mutex;		/*!< mutex protecting the first_free field and
 				write_buf */
 	ulint	block1;		/*!< the page number of the first
 				doublewrite block (64 pages) */

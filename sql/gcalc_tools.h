@@ -41,6 +41,8 @@
 class Gcalc_function
 {
 private:
+  static const uint32 function_buffer_item_size= 4;
+  static const uint32 shape_buffer_item_size= 4;
   String shapes_buffer;
   String function_buffer;
   const char *cur_func;
@@ -48,6 +50,16 @@ private:
   uint32 cur_object_id;
   uint n_shapes;
   int count_internal();
+#ifndef DBUG_OFF
+  /**
+    Convert operation code to its readable name.
+  */
+  const char *op_name(int code);
+  /**
+    Convert shape code to its readable name.
+  */
+  const char *shape_name(int code);
+#endif
 public:
   enum op_type
   {
@@ -77,7 +89,14 @@ public:
   void add_operation(op_type operation, uint32 n_operands);
   void add_not_operation(op_type operation, uint32 n_operands);
   uint32 get_next_operation_pos() { return function_buffer.length(); }
+  /**
+    Read operand number from the given position and add more operands.
+  */
   void add_operands_to_op(uint32 operation_pos, uint32 n_operands);
+  /**
+    Set operand number at the given position (replace the old operand number).
+  */
+  void set_operands_to_op(uint32 operation_pos, uint32 n_operands);
   void set_cur_obj(uint32 cur_obj) { cur_object_id= cur_obj; }
   int reserve_shape_buffer(uint n_shapes);
   int reserve_op_buffer(uint n_ops);
@@ -100,6 +119,16 @@ public:
   void reset();
 
   int find_function(Gcalc_scan_iterator &scan_it);
+
+#ifndef DBUG_OFF
+  /**
+    Print function buffer created after shape transformation
+    into mysqld log and into client side warnings.
+    Printing to mysqld log is useful when server crashed during an operation.
+    Printing to client side warnings is useful for mtr purposes.
+  */
+  void debug_print_function_buffer();
+#endif
 };
 
 
@@ -119,15 +148,18 @@ public:
   Gcalc_operation_transporter(Gcalc_function *fn, Gcalc_heap *heap) :
     Gcalc_shape_transporter(heap), m_fn(fn) {}
 
-  int single_point(double x, double y);
-  int start_line();
-  int complete_line();
-  int start_poly();
-  int complete_poly();
-  int start_ring();
-  int complete_ring();
-  int add_point(double x, double y);
-  int start_collection(int n_objects);
+  int single_point(Gcalc_shape_status *st, double x, double y);
+  int start_line(Gcalc_shape_status *st);
+  int complete_line(Gcalc_shape_status *st);
+  int start_poly(Gcalc_shape_status *st);
+  int complete_poly(Gcalc_shape_status *st);
+  int start_ring(Gcalc_shape_status *st);
+  int complete_ring(Gcalc_shape_status *st);
+  int add_point(Gcalc_shape_status *st, double x, double y);
+  int start_collection(Gcalc_shape_status *st, int nshapes);
+  int complete_collection(Gcalc_shape_status *st);
+  int collection_add_item(Gcalc_shape_status *st_collection,
+                          Gcalc_shape_status *st_item);
 };
 
 

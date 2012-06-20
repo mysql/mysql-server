@@ -1461,6 +1461,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_UNDO_REC_TOO_BIG);
 	case DB_OUT_OF_MEMORY:
 		return(HA_ERR_OUT_OF_MEM);
+	case DB_TABLESPACE_EXISTS:
+		return(HA_ERR_TABLESPACE_EXISTS);
 	}
 }
 
@@ -2646,6 +2648,19 @@ trx_is_strict(
 	return(trx && trx->mysql_thd && THDVAR(trx->mysql_thd, strict_mode));
 }
 
+/**********************************************************************//**
+Determines if the current MySQL thread is running in strict mode.
+If thd==NULL, THDVAR returns the global value of innodb-strict-mode.
+@return	TRUE if strict */
+UNIV_INLINE
+ibool
+thd_is_strict(
+/*==========*/
+	THD*	thd)	/*!< in: MySQL thread descriptor */
+{
+	return(THDVAR(thd, strict_mode));
+}
+
 /**************************************************************//**
 Resets some fields of a prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
@@ -3183,7 +3198,7 @@ innobase_change_buffering_inited_ok:
 
 	/* Since we in this module access directly the fields of a trx
 	struct, and due to different headers and flags it might happen that
-	mutex_t has a different size in this module and in InnoDB
+	ib_mutex_t has a different size in this module and in InnoDB
 	modules, we check at run time that the size is the same in
 	these compilation modules. */
 
@@ -3983,9 +3998,11 @@ normalize_table_name_low(
 					to lower case */
 {
 	char*	name_ptr;
+	ulint	name_len;
 	char*	db_ptr;
 	ulint	db_len;
 	char*	ptr;
+	ulint	norm_len;
 
 	/* Scan name from the end */
 
@@ -3997,6 +4014,7 @@ normalize_table_name_low(
 	}
 
 	name_ptr = ptr + 1;
+	name_len = strlen(name_ptr);
 
 	/* skip any number of path separators */
 	while (ptr >= name && (*ptr == '\\' || *ptr == '/')) {
@@ -4015,11 +4033,15 @@ normalize_table_name_low(
 
 	db_ptr = ptr + 1;
 
+	norm_len = db_len + name_len + sizeof "/";
+	ut_a(norm_len < FN_REFLEN - 1);
+
 	memcpy(norm_name, db_ptr, db_len);
 
 	norm_name[db_len] = '/';
 
-	memcpy(norm_name + db_len + 1, name_ptr, strlen(name_ptr) + 1);
+	/* Copy the name and null-byte. */
+	memcpy(norm_name + db_len + 1, name_ptr, name_len + 1);
 
 	if (set_lower_case) {
 		innobase_casedn_str(norm_name);
@@ -4034,7 +4056,7 @@ void
 test_normalize_table_name_low()
 /*===========================*/
 {
-	char		norm_name[128];
+	char		norm_name[FN_REFLEN];
 	const char*	test_data[][2] = {
 		/* input, expected result */
 		{"./mysqltest/t1", "mysqltest/t1"},
@@ -4561,12 +4583,12 @@ ha_innobase::open(
 	uint		test_if_locked)	/*!< in: not used */
 {
 	dict_table_t*	ib_table;
-	char		norm_name[1000];
+	char		norm_name[FN_REFLEN];
 	THD*		thd;
 	ulint		retries = 0;
 	char*		is_part = NULL;
 	ibool		par_case_name_set = FALSE;
-	char		par_case_name[MAX_FULL_NAME_LEN + 1];
+	char		par_case_name[FN_REFLEN];
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -4637,9 +4659,7 @@ retry:
 					/* Check for the table using lower
 					case name, including the partition
 					separator "P" */
-					memcpy(par_case_name, norm_name,
-					       strlen(norm_name));
-					par_case_name[strlen(norm_name)] = 0;
+					strcpy(par_case_name, norm_name);
 					innobase_casedn_str(par_case_name);
 #else
 					/* On Windows platfrom, check
@@ -4747,6 +4767,7 @@ table_opened:
 		my_errno = ENOENT;
 
 		dict_table_close(ib_table, FALSE, FALSE);
+
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
@@ -8308,14 +8329,15 @@ create_table_def(
 	const TABLE*	form,		/*!< in: information on table
 					columns and indexes */
 	const char*	table_name,	/*!< in: table name */
-	const char*	path_of_temp_table,
-					/*!< in: if this is a table explicitly
+	const char*	temp_path,	/*!< in: if this is a table explicitly
 					created by the user with the
 					TEMPORARY keyword, then this
 					parameter is the dir path where the
 					table should be placed if we create
 					an .ibd file for it (no .ibd extension
-					in the path, though) */
+					in the path, though). Otherwise this
+					is a zero length-string */
+	const char*	remote_path,	/*!< in: Remote path or zero length-string */
 	ulint		flags,		/*!< in: table flags */
 	ulint		flags2)		/*!< in: table flags2 */
 {
@@ -8399,10 +8421,17 @@ create_table_def(
 	}
 
 	if (flags2 & DICT_TF2_TEMPORARY) {
+		ut_a(strlen(temp_path));
 		table->dir_path_of_temp_table =
-			mem_heap_strdup(table->heap, path_of_temp_table);
+			mem_heap_strdup(table->heap, temp_path);
 	}
 
+	if (DICT_TF_HAS_DATA_DIR(flags)) {
+		ut_a(strlen(remote_path));
+		table->data_dir_path = mem_heap_strdup(table->heap, remote_path);
+	} else {
+		table->data_dir_path = NULL;
+	}
 	heap = mem_heap_create(1000);
 
 	for (i = 0; i < n_cols; i++) {
@@ -8498,11 +8527,11 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	err = row_create_table_for_mysql(table, trx);
+	err = row_create_table_for_mysql(table, trx, true);
 
 	mem_heap_free(heap);
 
-	if (err == DB_DUPLICATE_KEY) {
+	if (err == DB_DUPLICATE_KEY || err == DB_TABLESPACE_EXISTS) {
 		char display_name[FN_REFLEN];
 		char* buf_end = innobase_convert_identifier(
 			display_name, sizeof(display_name) - 1,
@@ -8510,7 +8539,10 @@ err_col:
 			thd, TRUE);
 
 		*buf_end = '\0';
-		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), display_name);
+
+		my_error(err == DB_DUPLICATE_KEY
+			 ? ER_TABLE_EXISTS_ERROR
+			 : ER_TABLESPACE_EXISTS, MYF(0), display_name);
 	}
 
 	if (err == DB_SUCCESS && (flags2 & DICT_TF2_FTS)) {
@@ -8769,7 +8801,7 @@ create_options_are_valid(
 	ut_ad(thd != NULL);
 
 	/* If innodb_strict_mode is not set don't do any validation. */
-	if (!(THDVAR(thd, strict_mode))) {
+	if (!thd_is_strict(thd)) {
 		return(TRUE);
 	}
 
@@ -8869,6 +8901,36 @@ create_options_are_valid(
 		break;
 	}
 
+	/* Use DATA DIRECTORY only with file-per-table. */
+	if (create_info->data_file_name && !use_tablespace) {
+		push_warning(
+			thd, Sql_condition::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY requires"
+			" innodb_file_per_table.");
+		ret = FALSE;
+	}
+
+	/* Do not use DATA DIRECTORY with TEMPORARY TABLE. */
+	if (create_info->data_file_name
+	    && create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		push_warning(
+			thd, Sql_condition::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: DATA DIRECTORY cannot be used"
+			" for TEMPORARY tables.");
+		ret = FALSE;
+	}
+
+	/* Do not allow INDEX_DIRECTORY */
+	if (create_info->index_file_name) {
+		push_warning_printf(
+			thd, Sql_condition::WARN_LEVEL_WARN,
+			ER_ILLEGAL_HA_CREATE_OPTION,
+			"InnoDB: INDEX DIRECTORY is not supported");
+		ret = FALSE;
+	}
+
 	return(ret);
 }
 
@@ -8883,6 +8945,13 @@ ha_innobase::update_create_info(
 	if (!(create_info->used_fields & HA_CREATE_USED_AUTO)) {
 		ha_innobase::info(HA_STATUS_AUTO);
 		create_info->auto_increment_value = stats.auto_increment_value;
+	}
+
+	/* Update the DATA DIRECTORY name from SYS_DATAFILES. */
+	dict_get_and_save_data_dir_path(prebuilt->table, false);
+
+	if (prebuilt->table->data_dir_path) {
+		create_info->data_file_name = prebuilt->table->data_dir_path;
 	}
 }
 
@@ -8901,6 +8970,110 @@ innobase_fts_load_stopword(
 				 fts_server_stopword_table,
 				 THDVAR(thd, ft_user_stopword_table),
 				 THDVAR(thd, ft_enable_stopword), FALSE));
+}
+
+/*****************************************************************//**
+Parses the table name into normal name and either temp path or remote path
+if needed.
+@return	0 if successful, otherwise, error number */
+UNIV_INTERN
+int
+ha_innobase::parse_table_name(
+/*==========================*/
+	const char*	name,		/*!< in/out: table name provided*/
+	HA_CREATE_INFO*	create_info,	/*!< in: more information of the
+					created table, contains also the
+					create statement string */
+	ulint		flags,		/*!< in: flags*/
+	ulint		flags2,		/*!< in: flags2*/
+	char*		norm_name,	/*!< out: normalized table name */
+	char*		temp_path,	/*!< out: absolute path of table */
+	char*		remote_path)	/*!< out: remote path of table */
+{
+	THD*		thd = ha_thd();
+	bool		use_tablespace = flags2 & DICT_TF2_USE_TABLESPACE;
+	DBUG_ENTER("ha_innobase::parse_table_name");
+
+#ifdef __WIN__
+	/* Names passed in from server are in two formats:
+	1. <database_name>/<table_name>: for normal table creation
+	2. full path: for temp table creation, or DATA DIRECTORY.
+
+	When srv_file_per_table is on and mysqld_embedded is off,
+	check for full path pattern, i.e.
+	X:\dir\...,		X is a driver letter, or
+	\\dir1\dir2\...,	UNC path
+	returns error if it is in full path format, but not creating a temp.
+	table. Currently InnoDB does not support symbolic link on Windows. */
+
+	if (use_tablespace
+	    && !mysqld_embedded
+	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+
+		if ((name[1] == ':')
+		    || (name[0] == '\\' && name[1] == '\\')) {
+			sql_print_error("Cannot create table %s\n", name);
+			DBUG_RETURN(HA_ERR_GENERIC);
+		}
+	}
+#endif
+
+	normalize_table_name(norm_name, name);
+	temp_path[0] = '\0';
+	remote_path[0] = '\0';
+
+	/* A full path is used for TEMPORARY TABLE and DATA DIRECTORY.
+	In the case of;
+	  CREATE TEMPORARY TABLE ... DATA DIRECTORY={path} ... ;
+	We ignore the DATA DIRECTORY. */
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		strncpy(temp_path, name, FN_REFLEN - 1);
+	}
+
+	if (create_info->data_file_name) {
+		bool ignore = false;
+
+		/* Use DATA DIRECTORY only with file-per-table. */
+		if (!use_tablespace) {
+			push_warning(
+				thd, Sql_condition::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: DATA DIRECTORY requires"
+				" innodb_file_per_table.");
+			ignore = true;
+		}
+
+		/* Do not use DATA DIRECTORY with TEMPORARY TABLE. */
+		if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+			push_warning(
+				thd, Sql_condition::WARN_LEVEL_WARN,
+				ER_ILLEGAL_HA_CREATE_OPTION,
+				"InnoDB: DATA DIRECTORY cannot be"
+				" used for TEMPORARY tables.");
+			ignore = true;
+		}
+
+		if (ignore) {
+			push_warning_printf(
+				thd, Sql_condition::WARN_LEVEL_WARN,
+				WARN_OPTION_IGNORED,
+				ER_DEFAULT(WARN_OPTION_IGNORED),
+				"DATA DIRECTORY");
+		} else {
+			strncpy(remote_path, create_info->data_file_name,
+				FN_REFLEN - 1);
+		}
+	}
+
+	if (create_info->index_file_name) {
+		push_warning_printf(
+			thd, Sql_condition::WARN_LEVEL_WARN,
+			WARN_OPTION_IGNORED,
+			ER_DEFAULT(WARN_OPTION_IGNORED),
+			"INDEX DIRECTORY");
+	}
+
+	DBUG_RETURN(0);
 }
 
 /*****************************************************************//**
@@ -8926,6 +9099,8 @@ innobase_table_flags(
 	ulint		zip_ssize = 0;
 	enum row_type	row_format;
 	rec_format_t	innodb_row_format = REC_FORMAT_COMPACT;
+	bool		use_data_dir;
+
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
 	const ulint	file_format_allowed = srv_file_format;
@@ -9106,7 +9281,11 @@ innobase_table_flags(
 		zip_ssize = 0;
 	}
 
-	dict_tf_set(flags, innodb_row_format, zip_ssize);
+	use_data_dir = use_tablespace
+		       && ((create_info->data_file_name != NULL)
+		       && !(create_info->options & HA_LEX_CREATE_TMP_TABLE));
+
+	dict_tf_set(flags, innodb_row_format, zip_ssize, use_data_dir);
 
 	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		*flags2 |= DICT_TF2_TEMPORARY;
@@ -9133,13 +9312,14 @@ ha_innobase::create(
 					created table, contains also the
 					create statement string */
 {
-	int		err;
+	int		error;
 	trx_t*		parent_trx;
 	trx_t*		trx;
 	int		primary_key_no;
 	uint		i;
-	char		name2[FN_REFLEN];
-	char		norm_name[FN_REFLEN];
+	char		norm_name[FN_REFLEN];	/* {database}/{tablename} */
+	char		temp_path[FN_REFLEN];	/* absolute path of temp frm */
+	char		remote_path[FN_REFLEN];	/* absolute path of table */
 	THD*		thd = ha_thd();
 	ib_int64_t	auto_inc_value;
 
@@ -9164,40 +9344,12 @@ ha_innobase::create(
 	DBUG_ASSERT(thd != NULL);
 	DBUG_ASSERT(create_info != NULL);
 
-#ifdef __WIN__
-	/* Names passed in from server are in two formats:
-	1. <database_name>/<table_name>: for normal table creation
-	2. full path: for temp table creation, or sym link
-
-	When srv_file_per_table is on and mysqld_embedded is off,
-	check for full path pattern, i.e.
-	X:\dir\...,		X is a driver letter, or
-	\\dir1\dir2\...,	UNC path
-	returns error if it is in full path format, but not creating a temp.
-	table. Currently InnoDB does not support symbolic link on Windows. */
-
-	if (use_tablespace
-	    && !mysqld_embedded
-	    && !(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
-
-		if ((name[1] == ':')
-		    || (name[0] == '\\' && name[1] == '\\')) {
-			sql_print_error("Cannot create table %s\n", name);
-			DBUG_RETURN(HA_ERR_GENERIC);
-		}
-	}
-#endif
-
 	if (form->s->fields > 1000) {
 		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
 		but we play safe here */
 
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	}
-
-	strcpy(name2, name);
-
-	normalize_table_name(norm_name, name2);
 
 	/* Create the table definition in InnoDB */
 
@@ -9211,6 +9363,12 @@ ha_innobase::create(
 				  thd, use_tablespace,
 				  &flags, &flags2)) {
 		DBUG_RETURN(-1);
+	}
+
+	error = parse_table_name(name, create_info, flags, flags2,
+				 norm_name, temp_path, remote_path);
+	if (error) {
+		DBUG_RETURN(error);
 	}
 
 	/* Look for a primary key */
@@ -9251,9 +9409,9 @@ ha_innobase::create(
 
 	row_mysql_lock_data_dictionary(trx);
 
-	err = create_table_def(trx, form, norm_name, name2, flags, flags2);
-
-	if (err) {
+	error = create_table_def(trx, form, norm_name, temp_path,
+				 remote_path, flags, flags2);
+	if (error) {
 		goto cleanup;
 	}
 
@@ -9264,9 +9422,9 @@ ha_innobase::create(
 		order the rows by their row id which is internally generated
 		by InnoDB */
 
-		err = create_clustered_index_when_no_primary(
+		error = create_clustered_index_when_no_primary(
 			trx, flags, norm_name);
-		if (err) {
+		if (error) {
 			goto cleanup;
 		}
 	}
@@ -9274,7 +9432,7 @@ ha_innobase::create(
 	if (primary_key_no != -1) {
 		/* In InnoDB the clustered index must always be created
 		first */
-		if ((err = create_index(trx, form, flags, norm_name,
+		if ((error = create_index(trx, form, flags, norm_name,
 					  (uint) primary_key_no))) {
 			goto cleanup;
 		}
@@ -9317,22 +9475,22 @@ ha_innobase::create(
 			dict_table_close(innobase_table, TRUE, FALSE);
 			my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
 				 FTS_DOC_ID_INDEX_NAME);
-			err = -1;
+			error = -1;
 			goto cleanup;
 		case FTS_EXIST_DOC_ID_INDEX:
 		case FTS_NOT_EXIST_DOC_ID_INDEX:
 			break;
 		}
 
-		dberr_t error = fts_create_common_tables(
+		dberr_t	err = fts_create_common_tables(
 			trx, innobase_table, norm_name,
 			(ret == FTS_EXIST_DOC_ID_INDEX));
 
-		err = convert_error_code_to_mysql(error, 0, NULL);
+		error = convert_error_code_to_mysql(err, 0, NULL);
 
 		dict_table_close(innobase_table, TRUE, FALSE);
 
-		if (err) {
+		if (error) {
 			goto cleanup;
 		}
 	}
@@ -9341,7 +9499,7 @@ ha_innobase::create(
 
 		if (i != static_cast<uint>(primary_key_no)) {
 
-			if ((err = create_index(trx, form, flags,
+			if ((error = create_index(trx, form, flags,
 						  norm_name, i))) {
 				goto cleanup;
 			}
@@ -9351,11 +9509,11 @@ ha_innobase::create(
 	stmt = innobase_get_stmt(thd, &stmt_len);
 
 	if (stmt) {
-		dberr_t error = row_table_add_foreign_constraints(
+		dberr_t	err = row_table_add_foreign_constraints(
 			trx, stmt, stmt_len, norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
-		switch (error) {
+		switch (err) {
 
 		case DB_PARENT_NO_INDEX:
 			push_warning_printf(
@@ -9380,9 +9538,9 @@ ha_innobase::create(
 			break;
 		}
 
-		err = convert_error_code_to_mysql(error, flags, NULL);
+		error = convert_error_code_to_mysql(err, flags, NULL);
 
-		if (err) {
+		if (error) {
 			goto cleanup;
 		}
 	}
@@ -9482,7 +9640,7 @@ cleanup:
 
 	trx_free_for_mysql(trx);
 
-	DBUG_RETURN(err);
+	DBUG_RETURN(error);
 }
 
 /*****************************************************************//**
@@ -9622,11 +9780,11 @@ ha_innobase::delete_table(
 	const char*	name)	/*!< in: table name */
 {
 	ulint	name_len;
-	dberr_t	error;
+	dberr_t	err;
 	trx_t*	parent_trx;
 	trx_t*	trx;
 	THD	*thd = ha_thd();
-	char	norm_name[1000];
+	char	norm_name[FN_REFLEN];
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
@@ -9669,11 +9827,11 @@ ha_innobase::delete_table(
 	++trx->will_lock;
 
 	/* Drop the table in InnoDB */
-	error = row_drop_table_for_mysql(
+	err = row_drop_table_for_mysql(
 		norm_name, trx, thd_sql_command(thd) == SQLCOM_DROP_DB);
 
 
-	if (error == DB_TABLE_NOT_FOUND
+	if (err == DB_TABLE_NOT_FOUND
 	    && innobase_get_lower_case_table_names() == 1) {
 		char*	is_part = NULL;
 #ifdef __WIN__
@@ -9683,23 +9841,23 @@ ha_innobase::delete_table(
 #endif /* __WIN__ */
 
 		if (is_part) {
-			char	par_case_name[MAX_FULL_NAME_LEN + 1];
+			char	par_case_name[FN_REFLEN];
 
 #ifndef __WIN__
 			/* Check for the table using lower
 			case name, including the partition
 			separator "P" */
-			memcpy(par_case_name, norm_name, strlen(norm_name));
-			par_case_name[strlen(norm_name)] = 0;
+			strcpy(par_case_name, norm_name);
 			innobase_casedn_str(par_case_name);
 #else
 			/* On Windows platfrom, check
 			whether there exists table name in
 			system table whose name is
 			not being normalized to lower case */
-			normalize_table_name_low(par_case_name, name, FALSE);
+			normalize_table_name_low(
+				par_case_name, name, FALSE);
 #endif
-			error = row_drop_table_for_mysql(
+			err = row_drop_table_for_mysql(
 				par_case_name, trx,
 				thd_sql_command(thd) == SQLCOM_DROP_DB);
 		}
@@ -9719,7 +9877,8 @@ ha_innobase::delete_table(
 	innobase_commit_low(trx);
 
 	trx_free_for_mysql(trx);
-	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
+
+	DBUG_RETURN(convert_error_code_to_mysql(err, 0, NULL));
 }
 
 /*****************************************************************//**
@@ -9800,6 +9959,7 @@ innobase_drop_database(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 }
+
 /*********************************************************************//**
 Renames an InnoDB table.
 @return DB_SUCCESS or error code */
@@ -9812,15 +9972,11 @@ innobase_rename_table(
 	const char*	to)	/*!< in: new name of the table */
 {
 	dberr_t	error;
-	char*	norm_to;
-	char*	norm_from;
+	char	norm_to[FN_REFLEN];
+	char	norm_from[FN_REFLEN];
 
 	DBUG_ENTER("innobase_rename_table");
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
-
-	// Magic number 64 arbitrary
-	norm_to = (char*) my_malloc(strlen(to) + 64, MYF(0));
-	norm_from = (char*) my_malloc(strlen(from) + 64, MYF(0));
 
 	normalize_table_name(norm_to, to);
 	normalize_table_name(norm_from, from);
@@ -9851,27 +10007,23 @@ innobase_rename_table(
 #endif /* __WIN__ */
 
 			if (is_part) {
-				char	par_case_name[MAX_FULL_NAME_LEN + 1];
-
+				char	par_case_name[FN_REFLEN];
 #ifndef __WIN__
 				/* Check for the table using lower
 				case name, including the partition
 				separator "P" */
-				memcpy(par_case_name, norm_from,
-				       strlen(norm_from));
-				par_case_name[strlen(norm_from)] = 0;
+				strcpy(par_case_name, norm_from);
 				innobase_casedn_str(par_case_name);
 #else
 				/* On Windows platfrom, check
 				whether there exists table name in
 				system table whose name is
 				not being normalized to lower case */
-				normalize_table_name_low(par_case_name,
-							 from, FALSE);
+				normalize_table_name_low(
+					par_case_name, from, FALSE);
 #endif
 				error = row_rename_table_for_mysql(
 					par_case_name, norm_to, trx, TRUE);
-
 			}
 		}
 
@@ -9910,9 +10062,6 @@ innobase_rename_table(
 	if the user runs with innodb_flush_log_at_trx_commit = 0 */
 
 	log_buffer_flush_to_disk();
-
-	my_free(norm_to);
-	my_free(norm_from);
 
 	DBUG_RETURN(error);
 }
@@ -12087,11 +12236,11 @@ innodb_mutex_show_status(
 {
 	char		buf1[IO_SIZE];
 	char		buf2[IO_SIZE];
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
 	ulint		block_mutex_oswait_count = 0;
 	ulint		block_lock_oswait_count = 0;
-	mutex_t*	block_mutex = NULL;
+	ib_mutex_t*	block_mutex = NULL;
 	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
 	ulint		rw_lock_count= 0;
@@ -15822,7 +15971,9 @@ i_s_innodb_sys_indexes,
 i_s_innodb_sys_columns,
 i_s_innodb_sys_fields,
 i_s_innodb_sys_foreign,
-i_s_innodb_sys_foreign_cols
+i_s_innodb_sys_foreign_cols,
+i_s_innodb_sys_tablespaces,
+i_s_innodb_sys_datafiles
 
 mysql_declare_plugin_end;
 
@@ -16149,7 +16300,7 @@ ib_senderrf(
 		/* Set l, to avoid a compiler warning. */
 		l = Sql_condition::WARN_LEVEL_ERROR;
 		/* We can't use push_warning_printf(), it is a hard error. */
-		my_printf_error(code, "InnoDB: %s", MYF(0), str);
+		my_printf_error(code, "%s", MYF(0), str);
 		break;
 	case IB_LOG_LEVEL_FATAL:
 		l = Sql_condition::WARN_LEVEL_END;

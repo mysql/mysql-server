@@ -1,0 +1,492 @@
+#
+# This test shows DISCARD/IMPORT of a remote tablespace.
+#
+SET default_storage_engine=InnoDB;
+SET GLOBAL innodb_file_per_table=ON;
+DROP TABLE IF EXISTS t5980;
+#
+# CREATE TABLE ... DATA DIRECTORY
+# combined with  WL#5522 - Transportable Tablespace
+# Create the tablespace in MYSQL_TMP_DIR/alt_dir
+# InnoDB will create the sub-directories if needed.
+# Test that DISCARD and IMPORT work correctly.
+#
+CREATE TABLE t5980 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO t5980 VALUES (1, "Create the tablespace");
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.ibd
+#
+# Check that DATA DIRECTORY shows up in the SHOW CREATE TABLE  results.
+#
+SHOW CREATE TABLE t5980;
+Table	Create Table
+t5980	CREATE TABLE `t5980` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+#
+# Backup the cfg and ibd files.
+#
+FLUSH TABLES t5980 FOR EXPORT;
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+UNLOCK TABLES;
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.ibd
+t5980.ibd.bak
+#
+# Do some DDL and DML.
+#
+INSERT INTO t5980 VALUES (2,'Remote table has been FLUSHed and UNLOCKed');
+START TRANSACTION;
+INSERT INTO t5980 VALUES (12,'Transactional record inserted');
+COMMIT;
+START TRANSACTION;
+INSERT INTO t5980 VALUES (13,'Rollback this transactional record');
+ROLLBACK;
+SELECT COUNT(*) FROM t5980;
+COUNT(*)
+3
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+2	Remote table has been FLUSHed and UNLOCKed
+12	Transactional record inserted
+ALTER TABLE t5980 DROP PRIMARY KEY;
+ALTER TABLE t5980 ADD COLUMN c VARCHAR(50) DEFAULT NULL;
+INSERT INTO t5980(a,b,c) VALUES (2,'Duplicate value since primary key has been dropped','third column added');
+SELECT * FROM t5980;
+a	b	c
+1	Create the tablespace	NULL
+2	Remote table has been FLUSHed and UNLOCKed	NULL
+12	Transactional record inserted	NULL
+2	Duplicate value since primary key has been dropped	third column added
+#
+# Make a second backup of the cfg and ibd files.
+#
+FLUSH TABLES t5980 FOR EXPORT;
+SELECT * FROM t5980;
+a	b	c
+1	Create the tablespace	NULL
+2	Remote table has been FLUSHed and UNLOCKed	NULL
+12	Transactional record inserted	NULL
+2	Duplicate value since primary key has been dropped	third column added
+UNLOCK TABLES;
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# DROP the table and make sure all files except the backups are gone.
+#
+DROP TABLE t5980;
+### files in MYSQL_DATA_DIR/test
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# CREATE the table again.
+#
+CREATE TABLE t5980 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO t5980 VALUES (1, "Create the tablespace a second time");
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace a second time
+#
+# DISCARD existing tablespace so backed-up .ibd which can be imported/restored
+#
+ALTER TABLE t5980 DISCARD TABLESPACE;
+SELECT * FROM t5980;
+ERROR HY000: Tablespace has been discarded for table 't5980'
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Restore the second backup of cfg and ibd files.
+#
+"### files in MYSQL_TMP_DIR/alt_dir/test"
+t5980.cfg
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Try to Import the second backup.  These backups have extra DDL and
+# do not match the current frm file.
+#
+ALTER TABLE t5980 IMPORT TABLESPACE;
+ERROR HY000: Schema mismatch (Number of columns don't match, table has 5 columns but the tablespace meta-data file has 6 columns)
+CHECK TABLE t5980;
+Table	Op	Msg_type	Msg_text
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
+test.t5980	check	error	Corrupt
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Restore the first backup of cfg and ibd files.
+#
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Import the tablespace and do some DDL and DML.
+#
+ALTER TABLE t5980 IMPORT TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+CHECK TABLE t5980;
+Table	Op	Msg_type	Msg_text
+test.t5980	check	status	OK
+SELECT COUNT(*) FROM t5980;
+COUNT(*)
+1
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+INSERT INTO t5980 VALUES (2,'Inserted record after IMPORT');
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+2	Inserted record after IMPORT
+START TRANSACTION;
+INSERT INTO t5980 VALUES (12,'Transactional record inserted');
+COMMIT;
+START TRANSACTION;
+INSERT INTO t5980 VALUES (13,'Rollback this transactional record');
+ROLLBACK;
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+2	Inserted record after IMPORT
+12	Transactional record inserted
+ALTER TABLE t5980 DROP PRIMARY KEY;
+ALTER TABLE t5980 ADD COLUMN c VARCHAR(50) DEFAULT NULL;
+INSERT INTO t5980(a,b,c) VALUES (2,'Duplicate value since primary key has been dropped','third column added');
+SELECT * FROM t5980;
+a	b	c
+1	Create the tablespace	NULL
+2	Inserted record after IMPORT	NULL
+12	Transactional record inserted	NULL
+2	Duplicate value since primary key has been dropped	third column added
+#
+# Show that the system tables have this table in them correctly.
+#
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t5980	6	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces;
+name	file_format	row_format
+mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/innodb_index_stats	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_worker_info	Antelope	Compact or Redundant
+test/t5980	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles;
+path
+./mysql/innodb_table_stats.ibd
+./mysql/innodb_index_stats.ibd
+./mysql/slave_relay_log_info.ibd
+./mysql/slave_master_info.ibd
+./mysql/slave_worker_info.ibd
+MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+#
+# Drop the imported table and show that the system tables are updated.
+#
+DROP TABLE t5980;
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces;
+name	file_format	row_format
+mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/innodb_index_stats	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_worker_info	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles;
+path
+./mysql/innodb_table_stats.ibd
+./mysql/innodb_index_stats.ibd
+./mysql/slave_relay_log_info.ibd
+./mysql/slave_master_info.ibd
+./mysql/slave_worker_info.ibd
+### files in MYSQL_DATA_DIR/test
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# CREATE the table a third time.
+#
+CREATE TABLE t5980 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO t5980 VALUES (1, "Create the tablespace a third time");
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace a third time
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Restart the server
+# This test makes sure that you can still execute the FLUSH TABLES command
+# after restarting the server and the tablespace can still be found.
+#
+SET GLOBAL innodb_file_per_table=ON;
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace a third time
+FLUSH TABLES t5980 FOR EXPORT;
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace a third time
+UNLOCK TABLES;
+#
+# Restart the server again.  This test makes sure that you can
+# still DISCARD a remote table after restarting the server.
+#
+SET GLOBAL innodb_file_per_table=ON;
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace a third time
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+ALTER TABLE t5980 DISCARD TABLESPACE;
+SELECT * FROM t5980;
+ERROR HY000: Tablespace has been discarded for table 't5980'
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Restore the backup of *.ibd and *.cfg files
+#
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Import the tablespace and check it out.
+#
+ALTER TABLE t5980 IMPORT TABLESPACE;
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+SHOW CREATE TABLE t5980;
+Table	Create Table
+t5980	CREATE TABLE `t5980` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# DISCARD the tablespace again
+#
+ALTER TABLE t5980 DISCARD TABLESPACE;
+SELECT * FROM t5980;
+ERROR HY000: Tablespace has been discarded for table 't5980'
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+t5980.isl
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+#
+# Restart the engine while the tablespace is in the discarded state
+#
+SET GLOBAL innodb_file_per_table=ON;
+SELECT * FROM t5980;
+ERROR HY000: Tablespace has been discarded for table 't5980'
+CHECK TABLE t5980;
+Table	Op	Msg_type	Msg_text
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
+test.t5980	check	error	Corrupt
+#
+# Relocate this discarded file to the default directory
+# instead of the remote directory it was discarded from.
+# Put cfg and idb files into the default directory.
+# Delete the isl file and the remote cfg file.
+# Restart the engine again.
+# The tablespace is still in the discarded state.
+#
+### files in MYSQL_DATA_DIR/test
+t5980.cfg
+t5980.frm
+t5980.ibd
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd.bak
+t5980.ibd.bak2
+# Restarting ...
+SET GLOBAL innodb_file_per_table=ON;
+SELECT * FROM t5980;
+ERROR HY000: Tablespace has been discarded for table 't5980'
+CHECK TABLE t5980;
+Table	Op	Msg_type	Msg_text
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
+test.t5980	check	error	Corrupt
+#
+# Try to import the tablespace.  It can only be imported from
+# the location it was discarded from.
+# The error message for 1810 (IO_READ_ERROR) refers to a local path
+# so do not display it.
+#
+ALTER TABLE t5980 IMPORT TABLESPACE;
+SELECT * FROM t5980;
+ERROR HY000: Tablespace has been discarded for table 't5980'
+CHECK TABLE t5980;
+Table	Op	Msg_type	Msg_text
+test.t5980	check	Error	Tablespace has been discarded for table 't5980'
+test.t5980	check	error	Corrupt
+#
+# Restore the ibd and cfg files to the remote directory.
+# Delete the ibd and cfg files from the default directory.
+# The isl file is missing, but is no longer needed since the
+# remote location is in the data dictionary.
+# Import the tablespace and check it out.
+#
+### files in MYSQL_DATA_DIR/test
+t5980.frm
+### files in MYSQL_TMP_DIR/alt_dir/test
+t5980.cfg
+t5980.cfg.bak
+t5980.cfg.bak2
+t5980.ibd
+t5980.ibd.bak
+t5980.ibd.bak2
+ALTER TABLE t5980 IMPORT TABLESPACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980'
+INSERT INTO t5980 VALUES (2, "Insert this record after IMPORT");
+SELECT * FROM t5980;
+a	b
+1	Create the tablespace
+2	Insert this record after IMPORT
+SHOW CREATE TABLE t5980;
+Table	Create Table
+t5980	CREATE TABLE `t5980` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+#
+# Show that the system tables have this table in them correctly.
+#
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t5980	5	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces;
+name	file_format	row_format
+mysql/innodb_table_stats	Antelope	Compact or Redundant
+mysql/innodb_index_stats	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_worker_info	Antelope	Compact or Redundant
+test/t5980	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles;
+path
+./mysql/innodb_table_stats.ibd
+./mysql/innodb_index_stats.ibd
+./mysql/slave_relay_log_info.ibd
+./mysql/slave_master_info.ibd
+./mysql/slave_worker_info.ibd
+MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
+#
+# Cleanup
+#
+DROP TABLE t5980;
+### files in MYSQL_DATA_DIR/test
+### files in MYSQL_TMP_DIR/alt_dir/test

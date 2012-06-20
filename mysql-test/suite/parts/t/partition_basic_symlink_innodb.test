@@ -14,16 +14,20 @@
 # Change Author: mattiasj                                                      #
 # Change Date: 2008-03-16                                                      #
 # Change: Replaced all test with alter -> myisam, since innodb does not support#
-#         DATA/INDEX DIRECTORY                                                 #
+# Change Author: Kevin lewis                                                   #
+# Change Date: 2012-03-02                                                      #
+# Change: WL5980 activates DATA DIRECTORY for InnoDB                           #
 ################################################################################
 
-# NOTE: Until InnoDB supports DATA/INDEX DIR, test that a partitioned table
-#       remembers the DATA/INDEX DIR and it is used if altered to MyISAM
+# NOTE: As of WL5980, InnoDB supports DATA DIRECTORY, but not INDEX DIRECTORY.
+#       See innodb.innodb-tablespace for tests using partition engine, innodb
+#       and DATADIRECTORY.  The purpose of this test is to show that a
+#       partitioned table remembers the DATA/INDEX DIR and it is used if
+#       altered to MyISAM
 #
---echo # Will not run partition_basic_symlink on InnoDB, since it is the same
---echo # as partition_basic, since InnoDB does not support DATA/INDEX DIR
---echo # Will only verify that the DATA/INDEX DIR is stored and used if
---echo # ALTER to MyISAM.
+--echo #
+--echo # Verify that the DATA/INDEX DIR is stored and used if ALTER to MyISAM.
+--echo #
 --source include/have_innodb.inc
 # The server must support partitioning.
 --source include/have_partition.inc
@@ -35,17 +39,54 @@
 # Does not work with --embedded
 --source include/not_embedded.inc
 
+--disable_query_log
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+# These values can change during the test
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
+--enable_query_log
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-let $MYSQLD_DATADIR= `select @@datadir`;
-
 --mkdir $MYSQLTEST_VARDIR/mysql-test-data-dir
 --mkdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
+
+SET SESSION innodb_strict_mode = ON;
+
+--echo #
+--echo # InnoDB only supports DATA DIRECTORY with innodb_file_per_table=ON
+--echo #
+SET GLOBAL innodb_file_per_table = OFF;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval CREATE TABLE t1 (c1 INT)
-ENGINE = InnoDB
+--error ER_GET_ERRNO
+eval CREATE TABLE t1 (c1 INT)  ENGINE = InnoDB
+PARTITION BY HASH (c1) (
+  PARTITION p0
+    DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
+    INDEX DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-idx-dir',
+  PARTITION p1
+    DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
+    INDEX DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-idx-dir'
+);
+--replace_result ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
+SHOW WARNINGS;
+
+--echo #
+--echo # InnoDB is different from MyISAM in that it uses a text file
+--echo # with an '.isl' extension instead of a symbolic link so that
+--echo # the tablespace can be re-located on any OS. Also, instead of
+--echo # putting the file directly into the DATA DIRECTORY,
+--echo # it adds a folder under it with the name of the database.
+--echo # Since strict mode is off, InnoDB ignores the INDEX DIRECTORY
+--echo # and it is no longer part of the definition.
+--echo #
+SET SESSION innodb_strict_mode = OFF;
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH (c1)
 (PARTITION p0
  DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
@@ -54,116 +95,70 @@ PARTITION BY HASH (c1)
  DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-idx-dir'
 );
---echo # Verifying .frm and .par files
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1.par
---echo # Verifying that there are no MyISAM files
---error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
---error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
---error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYD
---error 1
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYI
---error 1
---file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p0.MYD
---error 1
---file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p0.MYI
---error 1
---file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p1.MYD
---error 1
---file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p1.MYI
+SHOW WARNINGS;
+
+--echo # Verifying .frm, .par, .isl & .ibd files
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
+--list_files $MYSQLTEST_VARDIR/mysql-test-data-dir/test
+--echo # The ibd tablespaces should not be directly under the DATA DIRECTORY
+--echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
+--list_files $MYSQLTEST_VARDIR/mysql-test-data-dir
+--echo ---- MYSQLTEST_VARDIR/mysql-test-idx-dir
+--list_files $MYSQLTEST_VARDIR/mysql-test-idx-dir
+
 FLUSH TABLES;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
-ALTER TABLE t1 ENGINE = MyISAM;
+
+--echo #
+--echo # Verify that the DATA/INDEX DIRECTORY is stored and used if we
+--echo # ALTER TABLE to MyISAM.
+--echo #
+ALTER TABLE t1 engine=MyISAM;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t1;
 --echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
---file_exists $MYSQLD_DATADIR/test/t1.frm
---file_exists $MYSQLD_DATADIR/test/t1.par
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYD
---file_exists $MYSQLD_DATADIR/test/t1#P#p0.MYI
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYD
---file_exists $MYSQLD_DATADIR/test/t1#P#p1.MYI
---file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p0.MYD
---file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p0.MYI
---file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p1.MYD
---file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p1.MYI
-FLUSH TABLES;
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
+--list_files $MYSQLTEST_VARDIR/mysql-test-data-dir
+--echo ---- MYSQLTEST_VARDIR/mysql-test-idx-dir
+--list_files $MYSQLTEST_VARDIR/mysql-test-idx-dir
+
+--echo #
+--echo # Now verify that the DATA DIRECTORY is used again if we
+--echo # ALTER TABLE back to InnoDB.
+--echo #
+SET SESSION innodb_strict_mode = ON;
+ALTER TABLE t1 engine=InnoDB;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 SHOW CREATE TABLE t1;
+--echo # Verifying .frm, .par, .isl and InnoDB .ibd files
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir
+--list_files $MYSQLTEST_VARDIR/mysql-test-data-dir
+--echo ---- MYSQLTEST_VARDIR/mysql-test-idx-dir
+--list_files $MYSQLTEST_VARDIR/mysql-test-idx-dir
+--echo ---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
+--list_files $MYSQLTEST_VARDIR/mysql-test-data-dir/test
+
 DROP TABLE t1;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--rmdir $MYSQLTEST_VARDIR/mysql-test-data-dir/test
 --rmdir $MYSQLTEST_VARDIR/mysql-test-data-dir
 --rmdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
---exit
-# here is the old test, which is tested by partition_basic_innodb
 
-#
-# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
-#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
-#       THE SOURCED FILES ONLY.
-#
-# Please read the README at the end of inc/partition.pre before changing
-# any of the variables.
-#
+--disable_query_log
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+--enable_query_log
 
-#------------------------------------------------------------------------------#
-# General not engine specific settings and requirements
 
-##### Options, for debugging support #####
-let $debug= 0;
-let $with_partitioning= 1;
 
-##### Option, for displaying files #####
-let $ls= 1;
-
-##### Number of rows for the INSERT/UPDATE/DELETE/SELECT experiments #####
-#     on partioned tables
-SET @max_row = 20;
-
-##### Execute more tests                                             #####
-let $more_trigger_tests= 0;
-let $more_pk_ui_tests= 0;
-
-# The server must support partitioning.
---source include/have_partition.inc
-# The server must support symlink for DATA/INDEX DIRECTORY.
---source include/have_symlink.inc
-# windows does not support symlink for DATA/INDEX DIRECTORY.
---source include/not_windows.inc
-
-#------------------------------------------------------------------------------#
-# Engine specific settings and requirements
-
-##### Storage engine to be tested
---source include/have_innodb.inc
-let $engine= 'InnoDB';
-
-##### Execute the test of "table" files
-# InnoDB has no files per PK, UI, ...
-let $do_file_tests= 0;
-
-##### Execute PRIMARY KEY tests                                      #####
-# AFAIK InnoDB clusters the table around PRIMARY KEYs.
-let $do_pk_tests= 1;
-
-##### Assign a big number smaller than the maximum value for partitions  #####
-#     and smaller than the maximum value of SIGNED INTEGER
-let $MAX_VALUE= (2147483646);
-
-# Generate the prerequisites ($variables, @variables, tables) needed
---source suite/parts/inc/partition.pre
-
-##### Workarounds for known open engine specific bugs
-#     none
-
-#------------------------------------------------------------------------------#
-# Execute the tests to be applied to all storage engines
---source suite/parts/inc/partition_basic_symlink.inc
-
-#------------------------------------------------------------------------------#
-# Execute storage engine specific tests
-
-#------------------------------------------------------------------------------#
-# Cleanup
---source suite/parts/inc/partition_cleanup.inc

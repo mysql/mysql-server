@@ -572,6 +572,9 @@ dict_tf_is_valid(
 		}
 	}
 
+	/* CREATE TABLE ... DATA DIRECTORY is supported for any row format,
+	so the DATA_DIR flag is compatible with all other table flags. */
+
 	return(true);
 }
 
@@ -592,9 +595,7 @@ dict_sys_tables_type_validate(
 	ulint	atomic_blobs = DICT_TF_HAS_ATOMIC_BLOBS(type);
 	ulint	unused = DICT_TF_GET_UNUSED(type);
 
-	/* If the format is UNIV_FORMAT_A, table->flags == 0, but
-	SYS_TABLES.TYPE == 1, which is defined as SYS_TABLE_TYPE_ANTELOPE.
-	The low order bit of SYS_TABLES.TYPE is always set to 1.
+	/* The low order bit of SYS_TABLES.TYPE is always set to 1.
 	If the format is UNIV_FORMAT_B or higher, this field is the same
 	as dict_table_t::flags. Zero is not allowed here. */
 	if (!low_order_bit) {
@@ -602,12 +603,9 @@ dict_sys_tables_type_validate(
 	}
 
 	if (redundant) {
-		/* This is Redundant row format, only the first bit
-		should be set in SYS_TABLES.TYPE */
-		if (type != SYS_TABLE_TYPE_ANTELOPE) {
+		if (zip_ssize || atomic_blobs) {
 			return(ULINT_UNDEFINED);
 		}
-		return(DICT_TF_REDUNDANT);
 	}
 
 	/* Make sure there are no bits that we do not know about. */
@@ -643,6 +641,11 @@ dict_sys_tables_type_validate(
 			return(ULINT_UNDEFINED);
 		}
 	}
+
+	/* There is nothing to validate for the data_dir field.
+	CREATE TABLE ... DATA DIRECTORY is supported for any row
+	format, so the DATA_DIR flag is compatible with any other
+	table flags. However, it is not used with TEMPORARY tables.*/
 
 	/* Return the validated SYS_TABLES.TYPE. */
 	return(type);
@@ -715,7 +718,8 @@ dict_tf_set(
 /*========*/
 	ulint*		flags,		/*!< in/out: table flags */
 	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize)	/*!< in: zip shift size */
+	ulint		zip_ssize,	/*!< in: zip shift size */
+	bool		use_data_dir)	/*!< in: table uses DATA DIRECTORY */
 {
 	switch (format) {
 	case REC_FORMAT_REDUNDANT:
@@ -737,6 +741,10 @@ dict_tf_set(
 		ut_ad(zip_ssize == 0);
 		break;
 	}
+
+	if (use_data_dir) {
+		*flags |= (1 << DICT_TF_POS_DATA_DIR);
+	}
 }
 
 /********************************************************************//**
@@ -754,18 +762,59 @@ UNIV_INLINE
 ulint
 dict_tf_to_fsp_flags(
 /*=================*/
-	ulint	flags)	/*!< in: dict_table_t::flags */
+	ulint	table_flags)	/*!< in: dict_table_t::flags */
 {
+	ulint fsp_flags;
+
 	DBUG_EXECUTE_IF("dict_tf_to_fsp_flags_failure",
 			return(ULINT_UNDEFINED););
 
 	/* Adjust bit zero. */
-	flags = (flags == DICT_TF_COMPACT) ? 0 : flags;
+	fsp_flags = DICT_TF_HAS_ATOMIC_BLOBS(table_flags) ? 1 : 0;
+
+	/* ZIP_SSIZE and ATOMIC_BLOBS are at the same position. */
+	fsp_flags |= table_flags & DICT_TF_MASK_ZIP_SSIZE;
+	fsp_flags |= table_flags & DICT_TF_MASK_ATOMIC_BLOBS;
 
 	/* In addition, tablespace flags also contain the page size. */
-	flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
+	fsp_flags |= fsp_flags_set_page_size(fsp_flags, UNIV_PAGE_SIZE);
 
-	ut_a(fsp_flags_is_valid(flags));
+	/* The DATA_DIR flag is in a different position in fsp_flag */
+	fsp_flags |= DICT_TF_HAS_DATA_DIR(table_flags)
+		     ? FSP_FLAGS_MASK_DATA_DIR : 0;
+
+	ut_a(fsp_flags_is_valid(fsp_flags));
+
+	return(fsp_flags);
+}
+
+/********************************************************************//**
+Convert a 32 bit integer from SYS_TABLES.TYPE to dict_table_t::flags
+The following chart shows the translation of the low order bit.
+Other bits are the same.
+========================= Low order bit ==========================
+                    | REDUNDANT | COMPACT | COMPRESSED and DYNAMIC
+SYS_TABLES.TYPE     |     1     |    1    |     1
+dict_table_t::flags |     0     |    1    |     1
+==================================================================
+@return	ulint containing SYS_TABLES.TYPE */
+UNIV_INLINE
+ulint
+dict_sys_tables_type_to_tf(
+/*=======================*/
+	ulint	type,	/*!< in: SYS_TABLES.TYPE field */
+	ulint	n_cols)	/*!< in: SYS_TABLES.N_COLS field */
+{
+	ulint	flags;
+	ulint	redundant = !(n_cols & DICT_N_COLS_COMPACT);
+
+	/* Adjust bit zero. */
+	flags = redundant ? 0 : 1;
+
+	/* ZIP_SSIZE, ATOMIC_BLOBS & DATA_DIR are the same. */
+	flags |= type & (DICT_TF_MASK_ZIP_SSIZE
+			 | DICT_TF_MASK_ATOMIC_BLOBS
+			 | DICT_TF_MASK_DATA_DIR);
 
 	return(flags);
 }
@@ -786,14 +835,19 @@ dict_tf_to_sys_tables_type(
 /*=======================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 {
-	if (!DICT_TF_HAS_ATOMIC_BLOBS(flags)) {
-		ut_a(flags == DICT_TF_REDUNDANT
-		     || flags == DICT_TF_COMPACT);
-		return(SYS_TABLE_TYPE_ANTELOPE);
-	}
+	ulint type;
 
 	ut_a(dict_tf_is_valid(flags));
-	return(flags);
+
+	/* Adjust bit zero. It is always 1 in SYS_TABLES.TYPE */
+	type = 1;
+
+	/* ZIP_SSIZE, ATOMIC_BLOBS & DATA_DIR are the same. */
+	type |= flags & (DICT_TF_MASK_ZIP_SSIZE
+			 | DICT_TF_MASK_ATOMIC_BLOBS
+			 | DICT_TF_MASK_DATA_DIR);
+
+	return(type);
 }
 
 /********************************************************************//**
