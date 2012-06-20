@@ -1225,10 +1225,8 @@ srv_undo_tablespaces_init(
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error opening undo "
-				"tablespace %s.\n", name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Opening undo tablespace %s.", name);
 
 			return(err);
 		}
@@ -1286,10 +1284,14 @@ srv_undo_tablespaces_init(
 	}
 
 	if (n_undo_tablespaces > 0) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Opened %lu undo tablespaces\n",
-			n_conf_tablespaces);
+		ib_logf(IB_LOG_LEVEL_INFO, "Opened %lu undo tablespaces",
+			n_undo_tablespaces);
+
+		if (n_conf_tablespaces == 0) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Using the system tablespace for all UNDO "
+				"logging because innodb_undo_tablespaces=0");
+		}
 	}
 
 	if (create_new_db) {
