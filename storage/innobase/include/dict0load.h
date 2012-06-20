@@ -29,11 +29,12 @@ Created 4/24/1996 Heikki Tuuri
 
 #include "univ.i"
 #include "dict0types.h"
+#include "trx0types.h"
 #include "ut0byte.h"
 #include "mem0mem.h"
 #include "btr0types.h"
 
-/** enum that defines all 6 system table IDs */
+/** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
 enum dict_system_table_id {
 	SYS_TABLES = 0,
 	SYS_INDEXES,
@@ -41,6 +42,8 @@ enum dict_system_table_id {
 	SYS_FIELDS,
 	SYS_FOREIGN,
 	SYS_FOREIGN_COLS,
+	SYS_TABLESPACES,
+	SYS_DATAFILES,
 
 	/* This must be last item. Defines the number of system tables. */
 	SYS_NUM_SYSTEM_TABLES
@@ -154,6 +157,27 @@ dict_load_field_low(
 	mem_heap_t*	heap,		/*!< in/out: memory heap
 					for temporary storage */
 	const rec_t*	rec);		/*!< in: SYS_FIELDS record */
+/********************************************************************//**
+Using the table->heap, copy the null-terminated filepath into
+table->data_dir_path and put a null byte before the extension.
+This allows SHOW CREATE TABLE to return the correct DATA DIRECTORY path.
+Make this data directory path only if it has not yet been saved. */
+UNIV_INTERN
+void
+dict_save_data_dir_path(
+/*====================*/
+	dict_table_t*	table,		/*!< in/out: table */
+	char*		filepath);	/*!< in: filepath of tablespace */
+/*****************************************************************//**
+Make sure the data_file_name is saved in dict_table_t if needed. Try to
+read it from the file dictionary first, then from SYS_DATAFILES. */
+UNIV_INTERN
+void
+dict_get_and_save_data_dir_path(
+/*============================*/
+	dict_table_t*	table,		/*!< in/out: table */
+	bool		dict_mutex_own);	/*!< in: true if dict_sys->mutex
+					is owned already */
 /********************************************************************//**
 Loads a table definition and also all its index definitions, and also
 the cluster definition if the table is a member in a cluster. Also loads
@@ -323,6 +347,66 @@ dict_process_sys_foreign_col_rec(
 	const char**	ref_col_name,	/*!< out: referenced column name
 					in referenced table */
 	ulint*		pos);		/*!< out: column position */
+/********************************************************************//**
+This function parses a SYS_TABLESPACES record, extracts necessary
+information from the record and returns to caller.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_tablespaces(
+/*=========================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_TABLESPACES rec */
+	ulint*		space,		/*!< out: pace id */
+	const char**	name,		/*!< out: tablespace name */
+	ulint*		flags);		/*!< out: tablespace flags */
+/********************************************************************//**
+This function parses a SYS_DATAFILES record, extracts necessary
+information from the record and returns to caller.
+@return error message, or NULL on success */
+UNIV_INTERN
+const char*
+dict_process_sys_datafiles(
+/*=======================*/
+	mem_heap_t*	heap,		/*!< in/out: heap memory */
+	const rec_t*	rec,		/*!< in: current SYS_DATAFILES rec */
+	ulint*		space,		/*!< out: pace id */
+	const char**	path);		/*!< out: datafile path */
+/********************************************************************//**
+Get the filepath for a spaceid from SYS_DATAFILES. This function provides
+a temporary heap which is used for the table lookup, but not for the path.
+The caller must free the memory for the path returned. This function can
+return NULL if the space ID is not found in SYS_DATAFILES, then the caller
+will assume that the ibd file is in the normal datadir.
+@return	own: A copy of the first datafile found in SYS_DATAFILES.PATH for
+the given space ID. NULL if space ID is zero or not found. */
+UNIV_INTERN
+char*
+dict_get_first_path(
+/*================*/
+	ulint		space,	/*!< in: space id */
+	const char*	name);	/*!< in: tablespace name */
+/********************************************************************//**
+Update the record for space_id in SYS_TABLESPACES to this filepath.
+@return	DB_SUCCESS if OK, dberr_t if the insert failed */
+UNIV_INTERN
+dberr_t
+dict_update_filepath(
+/*=================*/
+	ulint		space_id,	/*!< in: space id */
+	const char*	filepath);	/*!< in: filepath */
+/********************************************************************//**
+Insert records into SYS_TABLESPACES and SYS_DATAFILES.
+@return	DB_SUCCESS if OK, dberr_t if the insert failed */
+UNIV_INTERN
+dberr_t
+dict_insert_tablespace_and_filepath(
+/*================================*/
+	ulint		space,		/*!< in: space id */
+	const char*	name,		/*!< in: talespace name */
+	const char*	filepath,	/*!< in: filepath */
+	ulint		fsp_flags);	/*!< in: tablespace flags */
+
 #ifndef UNIV_NONINL
 #include "dict0load.ic"
 #endif

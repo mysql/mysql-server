@@ -254,8 +254,7 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dtuple_t*	row;
 	dberr_t		error;
-	const char*	path_or_name;
-	ibool		is_path;
+	const char*	path;
 	mtr_t		mtr;
 	ulint		space = 0;
 	bool		use_tablespace;
@@ -263,7 +262,8 @@ dict_build_table_def_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
-	use_tablespace = !!(table->flags2 & DICT_TF2_USE_TABLESPACE);
+	use_tablespace =
+		DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
@@ -286,23 +286,15 @@ dict_build_table_def_step(
 		- page 3 will contain the root of the clustered index of the
 		table we create here. */
 
-		if (table->dir_path_of_temp_table) {
-			/* We place tables created with CREATE TEMPORARY
-			TABLE in the tmp dir of mysqld server */
-
-			path_or_name = table->dir_path_of_temp_table;
-			is_path = TRUE;
-		} else {
-			path_or_name = table->name;
-			is_path = FALSE;
-		}
+		path = table->data_dir_path ? table->data_dir_path
+					    : table->dir_path_of_temp_table;
 
 		ut_ad(dict_table_get_format(table) <= UNIV_FORMAT_MAX);
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
 		error = fil_create_new_single_table_tablespace(
-			space, path_or_name, is_path,
+			space, table->name, path,
 			dict_tf_to_fsp_flags(table->flags),
 			table->flags2,
 			FIL_IBD_FILE_INITIAL_SIZE);
@@ -919,7 +911,9 @@ tab_create_graph_create(
 /*====================*/
 	dict_table_t*	table,	/*!< in: table to create, built as a memory data
 				structure */
-	mem_heap_t*	heap)	/*!< in: heap where created */
+	mem_heap_t*	heap,	/*!< in: heap where created */
+	bool		commit)	/*!< in: true if the commit node should be
+				added to the query graph */
 {
 	tab_node_t*	node;
 
@@ -941,8 +935,12 @@ tab_create_graph_create(
 					heap);
 	node->col_def->common.parent = node;
 
-	node->commit_node = trx_commit_node_create(heap);
-	node->commit_node->common.parent = node;
+	if (commit) {
+		node->commit_node = trx_commit_node_create(heap);
+		node->commit_node->common.parent = node;
+	} else {
+		node->commit_node = 0;
+	}
 
 	return(node);
 }
@@ -956,7 +954,9 @@ ind_create_graph_create(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index to create, built as a memory data
 				structure */
-	mem_heap_t*	heap)	/*!< in: heap where created */
+	mem_heap_t*	heap,	/*!< in: heap where created */
+	bool		commit)	/*!< in: true if the commit node should be
+				added to the query graph */
 {
 	ind_node_t*	node;
 
@@ -979,8 +979,12 @@ ind_create_graph_create(
 					  dict_sys->sys_fields, heap);
 	node->field_def->common.parent = node;
 
-	node->commit_node = trx_commit_node_create(heap);
-	node->commit_node->common.parent = node;
+	if (commit) {
+		node->commit_node = trx_commit_node_create(heap);
+		node->commit_node->common.parent = node;
+	} else {
+		node->commit_node = 0;
+	}
 
 	return(node);
 }
@@ -1216,48 +1220,52 @@ function_exit:
 }
 
 /****************************************************************//**
-Check whether the system foreign key tables exist. Additionally, If
-they exist then move them to non-LRU end of the table LRU list.
-@return TRUE if they exist. */
+Check whether a system table exists.  Additionally, if it exists,
+move it to the non-LRU end of the table LRU list.  This is oly used
+for system tables that can be upgraded or added to an older database,
+which include SYS_FOREIGN, SYS_FOREIGN_COLS, SYS_TABLESPACES and
+SYS_DATAFILES.
+@return DB_SUCCESS if the sys table exists, DB_CORRUPTION if it exists
+but is not current, DB_TABLE_NOT_FOUND if it does not exist*/
 static
-ibool
-dict_check_sys_foreign_tables_exist(void)
-/*=====================================*/
+dberr_t
+dict_check_if_system_table_exists(
+/*==============================*/
+	const char*	tablename,	/*!< in: name of table */
+	ulint		num_fields,	/*!< in: number of fields */
+	ulint		num_indexes)	/*!< in: number of indexes */
 {
-	dict_table_t*	sys_foreign;
-	ibool		exists = FALSE;
-	dict_table_t*	sys_foreign_cols;
+	dict_table_t*	sys_table;
+	dberr_t		error = DB_SUCCESS;
 
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	mutex_enter(&dict_sys->mutex);
 
-	sys_foreign = dict_table_get_low("SYS_FOREIGN");
-	sys_foreign_cols = dict_table_get_low("SYS_FOREIGN_COLS");
+	sys_table = dict_table_get_low(tablename);
 
-	if (sys_foreign != NULL
-	    && sys_foreign_cols != NULL
-	    && UT_LIST_GET_LEN(sys_foreign->indexes) == 3
-	    && UT_LIST_GET_LEN(sys_foreign_cols->indexes) == 1) {
+	if (sys_table == NULL) {
+		error = DB_TABLE_NOT_FOUND;
 
-		/* Foreign constraint system tables have already been
-		created, and they are ok. Ensure that they can't be
-		evicted from the table LRU cache.  */
+	} else if (UT_LIST_GET_LEN(sys_table->indexes) != num_indexes
+		   || sys_table->n_cols != num_fields) {
+		error = DB_CORRUPTION;
 
-		dict_table_move_from_lru_to_non_lru(sys_foreign);
-		dict_table_move_from_lru_to_non_lru(sys_foreign_cols);
+	} else {
+		/* This table has already been created, and it is OK.
+		Ensure that it can't be evicted from the table LRU cache. */
 
-		exists = TRUE;
+		dict_table_move_from_lru_to_non_lru(sys_table);
 	}
 
 	mutex_exit(&dict_sys->mutex);
 
-	return(exists);
+	return(error);
 }
 
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
-at database creation or database start if they are not found or are
+at server bootstrap or server start if they are not found or are
 not of the right form.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
@@ -1266,15 +1274,23 @@ dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
 {
 	trx_t*		trx;
-	dberr_t		error;
-	ibool		success;
-	ibool		srv_file_per_table_backup;
+	my_bool		srv_file_per_table_backup;
+	dberr_t		err;
+	dberr_t		sys_foreign_err;
+	dberr_t		sys_foreign_cols_err;
 
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 
 	/* Note: The master thread has not been started at this point. */
 
-	if (dict_check_sys_foreign_tables_exist()) {
+
+	sys_foreign_err = dict_check_if_system_table_exists(
+		"SYS_FOREIGN", DICT_NUM_FIELDS__SYS_FOREIGN + 1, 3);
+	sys_foreign_cols_err = dict_check_if_system_table_exists(
+		"SYS_FOREIGN_COLS", DICT_NUM_FIELDS__SYS_FOREIGN_COLS + 1, 1);
+
+	if (sys_foreign_err == DB_SUCCESS
+	    && sys_foreign_cols_err == DB_SUCCESS) {
 		return(DB_SUCCESS);
 	}
 
@@ -1286,23 +1302,23 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	/* Check which incomplete table definition to drop. */
 
-	if (dict_table_get_low("SYS_FOREIGN") != NULL) {
-		fprintf(stderr,
-			"InnoDB: dropping incompletely created"
-			" SYS_FOREIGN table\n");
+	if (sys_foreign_err == DB_CORRUPTION) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Dropping incompletely created "
+			"SYS_FOREIGN table.\n");
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
-	if (dict_table_get_low("SYS_FOREIGN_COLS") != NULL) {
-		fprintf(stderr,
-			"InnoDB: dropping incompletely created"
-			" SYS_FOREIGN_COLS table\n");
+	if (sys_foreign_cols_err == DB_CORRUPTION) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Dropping incompletely created "
+			"SYS_FOREIGN_COLS table.\n");
 
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
-	fprintf(stderr,
-		"InnoDB: Creating foreign key constraint system tables\n");
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"Creating foreign key constraint system tables.\n");
 
 	/* NOTE: in dict_load_foreigns we use the fact that
 	there are 2 secondary indexes on SYS_FOREIGN, and they
@@ -1314,50 +1330,50 @@ dict_create_or_check_foreign_constraint_tables(void)
 	VARBINARY, like in other InnoDB system tables, to get a clean
 	design. */
 
-	srv_file_per_table_backup = (ibool) srv_file_per_table;
+	srv_file_per_table_backup = srv_file_per_table;
 
 	/* We always want SYSTEM tables to be created inside the system
 	tablespace. */
 
 	srv_file_per_table = 0;
 
-	error = que_eval_sql(NULL,
-			     "PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
-			     "BEGIN\n"
-			     "CREATE TABLE\n"
-			     "SYS_FOREIGN(ID CHAR, FOR_NAME CHAR,"
-			     " REF_NAME CHAR, N_COLS INT);\n"
-			     "CREATE UNIQUE CLUSTERED INDEX ID_IND"
-			     " ON SYS_FOREIGN (ID);\n"
-			     "CREATE INDEX FOR_IND"
-			     " ON SYS_FOREIGN (FOR_NAME);\n"
-			     "CREATE INDEX REF_IND"
-			     " ON SYS_FOREIGN (REF_NAME);\n"
-			     "CREATE TABLE\n"
-			     "SYS_FOREIGN_COLS(ID CHAR, POS INT,"
-			     " FOR_COL_NAME CHAR, REF_COL_NAME CHAR);\n"
-			     "CREATE UNIQUE CLUSTERED INDEX ID_IND"
-			     " ON SYS_FOREIGN_COLS (ID, POS);\n"
-			     "END;\n"
-			     , FALSE, trx);
+	err = que_eval_sql(
+		NULL,
+		"PROCEDURE CREATE_FOREIGN_SYS_TABLES_PROC () IS\n"
+		"BEGIN\n"
+		"CREATE TABLE\n"
+		"SYS_FOREIGN(ID CHAR, FOR_NAME CHAR,"
+		" REF_NAME CHAR, N_COLS INT);\n"
+		"CREATE UNIQUE CLUSTERED INDEX ID_IND"
+		" ON SYS_FOREIGN (ID);\n"
+		"CREATE INDEX FOR_IND"
+		" ON SYS_FOREIGN (FOR_NAME);\n"
+		"CREATE INDEX REF_IND"
+		" ON SYS_FOREIGN (REF_NAME);\n"
+		"CREATE TABLE\n"
+		"SYS_FOREIGN_COLS(ID CHAR, POS INT,"
+		" FOR_COL_NAME CHAR, REF_COL_NAME CHAR);\n"
+		"CREATE UNIQUE CLUSTERED INDEX ID_IND"
+		" ON SYS_FOREIGN_COLS (ID, POS);\n"
+		"END;\n",
+		FALSE, trx);
 
-	if (error != DB_SUCCESS) {
-		fprintf(stderr, "InnoDB: error %lu in creation\n",
-			(ulong) error);
+	if (err != DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS "
+			"has failed with error %lu.  Tablespace is full. "
+			"Dropping incompletely created tables.\n",
+			(ulong) err);
 
-		ut_a(error == DB_OUT_OF_FILE_SPACE
-		     || error == DB_TOO_MANY_CONCURRENT_TRXS);
-
-		fprintf(stderr,
-			"InnoDB: creation failed\n"
-			"InnoDB: tablespace is full\n"
-			"InnoDB: dropping incompletely created"
-			" SYS_FOREIGN tables\n");
+		ut_ad(err == DB_OUT_OF_FILE_SPACE
+		      || err == DB_TOO_MANY_CONCURRENT_TRXS);
 
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 
-		error = DB_MUST_GET_MORE_FILE_SPACE;
+		if (err == DB_OUT_OF_FILE_SPACE) {
+			err = DB_MUST_GET_MORE_FILE_SPACE;
+		}
 	}
 
 	trx_commit_for_mysql(trx);
@@ -1366,21 +1382,24 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	trx_free_for_mysql(trx);
 
-	if (error == DB_SUCCESS) {
-		fprintf(stderr,
-			"InnoDB: Foreign key constraint system tables"
-			" created\n");
+	srv_file_per_table = srv_file_per_table_backup;
+
+	if (err == DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Foreign key constraint system tables created\n");
 	}
 
 	/* Note: The master thread has not been started at this point. */
 	/* Confirm and move to the non-LRU part of the table LRU list. */
+	sys_foreign_err = dict_check_if_system_table_exists(
+		"SYS_FOREIGN", DICT_NUM_FIELDS__SYS_FOREIGN + 1, 3);
+	ut_a(sys_foreign_err == DB_SUCCESS);
 
-	success = dict_check_sys_foreign_tables_exist();
-	ut_a(success);
+	sys_foreign_cols_err = dict_check_if_system_table_exists(
+		"SYS_FOREIGN_COLS", DICT_NUM_FIELDS__SYS_FOREIGN_COLS + 1, 1);
+	ut_a(sys_foreign_cols_err == DB_SUCCESS);
 
-	srv_file_per_table = (my_bool) srv_file_per_table_backup;
-
-	return(error);
+	return(err);
 }
 
 /****************************************************************//**
@@ -1607,4 +1626,179 @@ dict_create_add_foreigns_to_dictionary(
 	trx->op_info = "";
 
 	return(DB_SUCCESS);
+}
+
+/****************************************************************//**
+Creates the tablespaces and datafiles system tables inside InnoDB
+at server bootstrap or server start if they are not found or are
+not of the right form.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_create_or_check_sys_tablespace(void)
+/*=====================================*/
+{
+	trx_t*		trx;
+	my_bool		srv_file_per_table_backup;
+	dberr_t		err;
+	dberr_t		sys_tablespaces_err;
+	dberr_t		sys_datafiles_err;
+
+	ut_a(srv_get_active_thread_type() == SRV_NONE);
+
+	/* Note: The master thread has not been started at this point. */
+
+	sys_tablespaces_err = dict_check_if_system_table_exists(
+		"SYS_TABLESPACES", DICT_NUM_FIELDS__SYS_TABLESPACES + 1, 1);
+	sys_datafiles_err = dict_check_if_system_table_exists(
+		"SYS_DATAFILES", DICT_NUM_FIELDS__SYS_DATAFILES + 1, 1);
+
+	if (sys_tablespaces_err == DB_SUCCESS
+	    && sys_datafiles_err == DB_SUCCESS) {
+		return(DB_SUCCESS);
+	}
+
+	trx = trx_allocate_for_mysql();
+
+	trx->op_info = "creating tablepace and datafile sys tables";
+
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Check which incomplete table definition to drop. */
+
+	if (sys_tablespaces_err == DB_CORRUPTION) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Dropping incompletely created "
+			"SYS_TABLESPACES table.\n");
+		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
+	}
+
+	if (sys_datafiles_err == DB_CORRUPTION) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Dropping incompletely created "
+			"SYS_DATAFILES table.\n");
+
+		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
+	}
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Creating tablespace and datafile system tables.\n");
+
+	/* We always want SYSTEM tables to be created inside the system
+	tablespace. */
+	srv_file_per_table_backup = srv_file_per_table;
+	srv_file_per_table = 0;
+
+	err = que_eval_sql(
+		NULL,
+		"PROCEDURE CREATE_SYS_TABLESPACE_PROC () IS\n"
+		"BEGIN\n"
+		"CREATE TABLE SYS_TABLESPACES(\n"
+		" SPACE INT, NAME CHAR, FLAGS INT);\n"
+		"CREATE UNIQUE CLUSTERED INDEX SYS_TABLESPACES_SPACE"
+		" ON SYS_TABLESPACES (SPACE);\n"
+		"CREATE TABLE SYS_DATAFILES(\n"
+		" SPACE INT, PATH CHAR);\n"
+		"CREATE UNIQUE CLUSTERED INDEX SYS_DATAFILES_SPACE"
+		" ON SYS_DATAFILES (SPACE);\n"
+		"END;\n",
+		FALSE, trx);
+
+	if (err != DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Creation of SYS_TABLESPACES and SYS_DATAFILES "
+			"has failed with error %lu.  Tablespace is full. "
+			"Dropping incompletely created tables.\n",
+			(ulong) err);
+
+		ut_a(err == DB_OUT_OF_FILE_SPACE
+		     || err == DB_TOO_MANY_CONCURRENT_TRXS);
+
+		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
+		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
+
+		if (err == DB_OUT_OF_FILE_SPACE) {
+			err = DB_MUST_GET_MORE_FILE_SPACE;
+		}
+	}
+
+	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
+
+	trx_free_for_mysql(trx);
+
+	srv_file_per_table = srv_file_per_table_backup;
+
+	if (err == DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Tablespace and datafile system tables created\n");
+	}
+
+	/* Note: The master thread has not been started at this point. */
+	/* Confirm and move to the non-LRU part of the table LRU list. */
+
+	sys_tablespaces_err = dict_check_if_system_table_exists(
+		"SYS_TABLESPACES", DICT_NUM_FIELDS__SYS_TABLESPACES + 1, 1);
+	ut_a(sys_tablespaces_err == DB_SUCCESS);
+
+	sys_datafiles_err = dict_check_if_system_table_exists(
+		"SYS_DATAFILES", DICT_NUM_FIELDS__SYS_DATAFILES + 1, 1);
+	ut_a(sys_datafiles_err == DB_SUCCESS);
+
+	return(err);
+}
+
+/********************************************************************//**
+Add a single tablespace definition to the data dictionary tables in the
+database.
+@return	error code or DB_SUCCESS */
+UNIV_INTERN
+dberr_t
+dict_create_add_tablespace_to_dictionary(
+/*=====================================*/
+	ulint		space,		/*!< in: tablespace id */
+	const char*	name,		/*!< in: tablespace name */
+	ulint		flags,		/*!< in: tablespace flags */
+	const char*	path,		/*!< in: tablespace path */
+	trx_t*		trx,		/*!< in/out: transaction */
+	bool		commit)		/*!< in: if true then commit the
+					transaction */
+{
+	dberr_t		error;
+
+	pars_info_t*	info = pars_info_create();
+
+	ut_a(space > TRX_SYS_SPACE);
+
+	pars_info_add_int4_literal(info, "space", space);
+
+	pars_info_add_str_literal(info, "name", name);
+
+	pars_info_add_int4_literal(info, "flags", flags);
+
+	pars_info_add_str_literal(info, "path", path);
+
+	error = que_eval_sql(info,
+			     "PROCEDURE P () IS\n"
+			     "BEGIN\n"
+			     "INSERT INTO SYS_TABLESPACES VALUES"
+			     "(:space, :name, :flags);\n"
+			     "INSERT INTO SYS_DATAFILES VALUES"
+			     "(:space, :path);\n"
+			     "END;\n",
+			     FALSE, trx);
+
+	if (error != DB_SUCCESS) {
+		return(error);
+	}
+
+	if (commit) {
+		trx->op_info = "committing tablespace and datafile definition";
+		trx_commit(trx);
+	}
+
+	trx->op_info = "";
+
+	return(error);
 }

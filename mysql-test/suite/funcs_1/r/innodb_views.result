@@ -7994,6 +7994,7 @@ affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
 UPDATE v1 SET f2 = 'number' WHERE f1 = 1;
 affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 0
 
 Testcase 3.3.1.46 
 --------------------------------------------------------------------------------

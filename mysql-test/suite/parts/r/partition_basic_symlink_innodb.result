@@ -1,10 +1,40 @@
-# Will not run partition_basic_symlink on InnoDB, since it is the same
-# as partition_basic, since InnoDB does not support DATA/INDEX DIR
-# Will only verify that the DATA/INDEX DIR is stored and used if
-# ALTER to MyISAM.
+#
+# Verify that the DATA/INDEX DIR is stored and used if ALTER to MyISAM.
+#
 DROP TABLE IF EXISTS t1;
-CREATE TABLE t1 (c1 INT)
-ENGINE = InnoDB
+SET SESSION innodb_strict_mode = ON;
+#
+# InnoDB only supports DATA DIRECTORY with innodb_file_per_table=ON
+#
+SET GLOBAL innodb_file_per_table = OFF;
+CREATE TABLE t1 (c1 INT)  ENGINE = InnoDB
+PARTITION BY HASH (c1) (
+PARTITION p0
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
+    INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir',
+PARTITION p1
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
+    INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir'
+);
+ERROR HY000: Got error 140 from storage engine
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1478	InnoDB: INDEX DIRECTORY is not supported
+Error	1030	Got error 140 from storage engine
+Error	6	Error on delete of 'MYSQLD_DATADIR/test/t1.par' (Errcode: 2 - No such file or directory)
+#
+# InnoDB is different from MyISAM in that it uses a text file
+# with an '.isl' extension instead of a symbolic link so that
+# the tablespace can be re-located on any OS. Also, instead of
+# putting the file directly into the DATA DIRECTORY,
+# it adds a folder under it with the name of the database.
+# Since strict mode is off, InnoDB ignores the INDEX DIRECTORY
+# and it is no longer part of the definition.
+#
+SET SESSION innodb_strict_mode = OFF;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (c1 INT) ENGINE = InnoDB
 PARTITION BY HASH (c1)
 (PARTITION p0
 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
@@ -13,8 +43,26 @@ PARTITION p1
 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
  INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir'
 );
-# Verifying .frm and .par files
-# Verifying that there are no MyISAM files
+Warnings:
+Warning	1618	<INDEX DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1618	<INDEX DIRECTORY> option ignored
+Warning	1618	<INDEX DIRECTORY> option ignored
+# Verifying .frm, .par, .isl & .ibd files
+---- MYSQLD_DATADIR/test
+t1#P#p0.isl
+t1#P#p1.isl
+t1.frm
+t1.par
+---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
+t1#P#p0.ibd
+t1#P#p1.ibd
+# The ibd tablespaces should not be directly under the DATA DIRECTORY
+---- MYSQLTEST_VARDIR/mysql-test-data-dir
+test
+---- MYSQLTEST_VARDIR/mysql-test-idx-dir
 FLUSH TABLES;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -22,17 +70,61 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = InnoDB,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = InnoDB) */
-ALTER TABLE t1 ENGINE = MyISAM;
-# Verifying .frm, .par and MyISAM files (.MYD, MYI)
-FLUSH TABLES;
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB) */
+#
+# Verify that the DATA/INDEX DIRECTORY is stored and used if we
+# ALTER TABLE to MyISAM.
+#
+ALTER TABLE t1 engine=MyISAM;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (c1)
-(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = MyISAM,
- PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = MyISAM) */
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = MyISAM,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = MyISAM) */
+# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+---- MYSQLD_DATADIR/test
+t1#P#p0.MYD
+t1#P#p0.MYI
+t1#P#p1.MYD
+t1#P#p1.MYI
+t1.frm
+t1.par
+---- MYSQLTEST_VARDIR/mysql-test-data-dir
+t1#P#p0.MYD
+t1#P#p1.MYD
+test
+---- MYSQLTEST_VARDIR/mysql-test-idx-dir
+#
+# Now verify that the DATA DIRECTORY is used again if we
+# ALTER TABLE back to InnoDB.
+#
+SET SESSION innodb_strict_mode = ON;
+ALTER TABLE t1 engine=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (c1)
+(PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' ENGINE = InnoDB) */
+# Verifying .frm, .par, .isl and InnoDB .ibd files
+---- MYSQLD_DATADIR/test
+t1#P#p0.isl
+t1#P#p1.isl
+t1.frm
+t1.par
+---- MYSQLTEST_VARDIR/mysql-test-data-dir
+test
+---- MYSQLTEST_VARDIR/mysql-test-idx-dir
+---- MYSQLTEST_VARDIR/mysql-test-data-dir/test
+t1#P#p0.ibd
+t1#P#p1.ibd
 DROP TABLE t1;
+#
+# Cleanup
+#

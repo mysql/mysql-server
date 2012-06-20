@@ -855,6 +855,9 @@ static int write_one_empty_group_to_cache(THD *thd,
     Apparently this code is not being called. We need to
     investigate if this is a bug or this code is not
     necessary. /Alfranio
+
+    Empty groups are currently being handled in the function
+    gtid_empty_group_log_and_cleanup().
   */
   DBUG_ASSERT(0); /*NOTREACHED*/
 #ifdef NON_ERROR_GTID
@@ -5753,23 +5756,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   }
 
   /*
-    todo: what is the exact condition to check here?
-
-    If this transaction does not have any RW engines, we do not need
-    to write a group (since nothing was updated).
-
-    normally, we only write empty groups at the end of the
-    transaction, i.e., when all==true.
-
-    if we are not in a multi-stmt-transaction, then we can't wait for
-    ha_commit(all=true), so we have to write empty groups to the
-    trx_cache even when all==0.
-  */
-  else if (trans->rw_ha_count > 0 &&
-           (all || !thd->in_multi_stmt_transaction_mode()))
-    error= write_empty_groups_to_cache(thd, &cache_mngr->trx_cache) != 0;
-
-  /*
     We commit the transaction if:
      - We are not in a transaction and committing a statement, or
      - We are in a transaction and a full transaction is committed.
@@ -5842,6 +5828,20 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
 }
 
 
+/**
+   Flush caches for session.
+
+   @note @c set_trans_pos is called with a pointer to the file name
+   that the binary log currently use and a rotation will change the
+   contents of the variable.
+
+   The position is used when calling the after_flush, after_commit,
+   and after_rollback hooks, but these have been placed so that they
+   occur before a rotation is executed.
+
+   It is the responsibility of any plugin that use this position to
+   copy it if they need it after the hook has returned.
+ */
 std::pair<int,my_off_t>
 MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
 {
@@ -5851,6 +5851,10 @@ MYSQL_BIN_LOG::flush_thread_caches(THD *thd)
   int error= cache_mngr->flush(thd, &bytes, &wrote_xid);
   if (!error && bytes > 0)
   {
+    /*
+      Note that set_trans_pos does not copy the file name. See
+      this function documentation for more info.
+    */
     thd->set_trans_pos(log_file_name, my_b_tell(&log_file));
     if (wrote_xid)
     {

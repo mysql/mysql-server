@@ -5819,6 +5819,7 @@ void THD::reset_for_next_command()
   thd->m_trans_log_file= NULL;
   thd->commit_error= 0;
   thd->durability_property= HA_REGULAR_DURABILITY;
+  thd->set_trans_pos(NULL, 0);
 
   DBUG_PRINT("debug",
              ("is_current_stmt_binlog_format_row(): %d",

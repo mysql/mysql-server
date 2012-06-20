@@ -426,6 +426,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
            should not happen since LooseScan strategy is only picked if sorted 
            output is supported.
         */
+        tab->sorted= true;
         if (tab->select && tab->select->quick)
         {
           if (tab->select->quick->index == pos->loosescan_key)
@@ -2779,8 +2780,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     /*
       For eq_ref there is at most one join match for each row from
       previous tables so ordering is not useful.
+      NOTE: setup_semijoin_dups_elimination() might have requested 
+            'sorted', thus a '|=' is required to preserve that.
     */
-    tab->sorted= (tab->type != JT_EQ_REF) ? sorted : false;
+    tab->sorted|= (sorted && tab->type != JT_EQ_REF);
     sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
     tab->read_first_record= NULL; // Access methods not set yet

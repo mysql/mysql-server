@@ -6364,7 +6364,13 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
 
   const JOIN_TAB *field_tab= field->field->table->reginfo.join_tab;
 
-  if (sj_is_materialize_strategy(field_tab->get_sj_strategy()))
+  /*
+    field_tab is NULL if this function was not called from
+    JOIN::optimize() but from e.g. mysql_delete() or mysql_update().
+    In these cases there is only one table and no semijoin
+  */
+  if (field_tab &&
+      sj_is_materialize_strategy(field_tab->get_sj_strategy()))
   {
     /*
       It's a field from a materialized semijoin. We can substitute it only

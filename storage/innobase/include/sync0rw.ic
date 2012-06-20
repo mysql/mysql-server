@@ -158,7 +158,7 @@ rw_lock_get_reader_count(
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
 UNIV_INLINE
-mutex_t*
+ib_mutex_t*
 rw_lock_get_mutex(
 /*==============*/
 	rw_lock_t*	lock)

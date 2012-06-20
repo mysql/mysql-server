@@ -62,7 +62,6 @@ SELECT * FROM t1 ORDER BY a DESC LIMIT 3;
 ALTER TABLE t1 DISCARD TABLESPACE;
 --echo # List after t1 DISCARD
 --list_files $MYSQLD_DATADIR/test
---remove_file $MYSQLD_DATADIR/test/t1.ibt
 --copy_file $MYSQLD_TMPDIR/t1.cfg $MYSQLD_DATADIR/test/t1.cfg
 --copy_file $MYSQLD_TMPDIR/t1.ibd $MYSQLD_DATADIR/test/t1.ibd
 ALTER TABLE t1 IMPORT TABLESPACE;

@@ -1113,6 +1113,21 @@ protected:
 };
 
 
+#if defined(HAVE_SPATIAL) && !defined(DBUG_OFF)
+class Create_func_gis_debug : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_gis_debug s_singleton;
+
+protected:
+  Create_func_gis_debug() {}
+  virtual ~Create_func_gis_debug() {}
+};
+#endif
+
+
 #ifdef HAVE_SPATIAL
 class Create_func_glength : public Create_func_arg1
 {
@@ -3917,6 +3932,17 @@ Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
+#if defined(HAVE_SPATIAL) && !defined(DBUG_OFF)
+Create_func_gis_debug Create_func_gis_debug::s_singleton;
+
+Item*
+Create_func_gis_debug::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_gis_debug(arg1);
+}
+#endif
+
+
 #ifdef HAVE_SPATIAL
 Create_func_glength Create_func_glength::s_singleton;
 
@@ -5581,6 +5607,9 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_GEOMETRYTYPE") }, GEOM_BUILDER(Create_func_geometry_type)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+#ifndef DBUG_OFF
+  { { C_STRING_WITH_LEN("ST_GIS_DEBUG") }, GEOM_BUILDER(Create_func_gis_debug)},
+#endif
   { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_equals)},
   { { C_STRING_WITH_LEN("ST_INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { C_STRING_WITH_LEN("ST_INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},

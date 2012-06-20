@@ -1840,7 +1840,7 @@ fts_create_one_index_table(
 	dict_mem_table_add_col(new_table, heap, "ilist", DATA_BLOB,
 			       4130048,	0);
 
-	error = row_create_table_for_mysql(new_table, trx);
+	error = row_create_table_for_mysql(new_table, trx, true);
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
@@ -4952,7 +4952,7 @@ fts_cache_append_deleted_doc_ids(
 {
 	ulint			i;
 
-	mutex_enter((mutex_t*) &cache->deleted_lock);
+	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 
 	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		fts_update_t*	update;
@@ -4963,7 +4963,7 @@ fts_cache_append_deleted_doc_ids(
 		ib_vector_push(vector, &update->doc_id);
 	}
 
-	mutex_exit((mutex_t*) &cache->deleted_lock);
+	mutex_exit((ib_mutex_t*) &cache->deleted_lock);
 }
 
 /*********************************************************************//**

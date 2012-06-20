@@ -25,6 +25,7 @@ Created 1/8/1996 Heikki Tuuri
 
 #include "dict0dict.h"
 #include "fts0fts.h"
+#include "fil0fil.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -233,7 +234,7 @@ dict_non_lru_find_table(
 and unique key errors */
 UNIV_INTERN FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
-UNIV_INTERN mutex_t	dict_foreign_err_mutex;
+UNIV_INTERN ib_mutex_t	dict_foreign_err_mutex;
 
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -1375,7 +1376,7 @@ dict_index_find_on_id_low(
 Renames a table object.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -1406,28 +1407,28 @@ dict_table_rename_in_cache(
 	fold = ut_fold_string(new_name);
 
 	/* Look for a table with the same name: error if such exists */
-	{
-		dict_table_t*	table2;
-		HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
-			    dict_table_t*, table2, ut_ad(table2->cached),
-			    (ut_strcmp(table2->name, new_name) == 0));
-		if (UNIV_LIKELY_NULL(table2)) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: dictionary cache"
-			      " already contains a table ", stderr);
-			ut_print_name(stderr, NULL, TRUE, new_name);
-			fputs("\n"
-			      "InnoDB: cannot rename table ", stderr);
-			ut_print_name(stderr, NULL, TRUE, old_name);
-			putc('\n', stderr);
-			return(FALSE);
-		}
+	dict_table_t*	table2;
+	HASH_SEARCH(name_hash, dict_sys->table_hash, fold,
+			dict_table_t*, table2, ut_ad(table2->cached),
+			(ut_strcmp(table2->name, new_name) == 0));
+	DBUG_EXECUTE_IF("dict_table_rename_in_cache_failure",
+		if (table2 == NULL) {
+			table2 = (dict_table_t*) -1;
+		} );
+	if (table2) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot rename table '%s' to '%s' since the "
+			"dictionary cache already contains '%s'.\n",
+			old_name, new_name, new_name);
+		return(DB_ERROR);
 	}
 
 	/* If the table is stored in a single-table tablespace, rename the
-	.ibd file */
+	.ibd file and rebuild the .isl file if needed. */
 
 	if (!dict_table_is_discarded(table) && table->space != TRX_SYS_SPACE) {
+		ibool	success;
+		char*	new_path = NULL;
 		if (table->dir_path_of_temp_table != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: trying to rename a"
@@ -1437,10 +1438,43 @@ dict_table_rename_in_cache(
 			ut_print_filename(stderr,
 					  table->dir_path_of_temp_table);
 			fputs(" )\n", stderr);
-			return(FALSE);
-		} else if (!fil_rename_tablespace(old_name, table->space,
-						  new_name)) {
-			return(FALSE);
+			return(DB_ERROR);
+		}
+
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+			char*		old_path;
+
+			old_path = fil_space_get_first_path(table->space);
+
+			new_path = os_file_make_new_pathname(
+				old_path, new_name);
+			mem_free(old_path);
+
+			dberr_t	err = fil_create_link_file(
+				new_name, new_path);
+
+			if (err != DB_SUCCESS) {
+				mem_free(new_path);
+				return(DB_TABLESPACE_EXISTS);
+			}
+		}
+
+		success = fil_rename_tablespace(
+			old_name, table->space, new_name, new_path);
+
+		/* If the tablespace is remote, a new .isl file was created
+		If success, delete the old one. If not, delete the new one.  */
+		if (new_path) {
+			mem_free(new_path);
+			if (success) {
+				fil_delete_link_file(old_name);
+			} else {
+				fil_delete_link_file(new_name);
+			}
+		}
+
+		if (!success) {
+			return(DB_ERROR);
 		}
 	}
 
@@ -1507,7 +1541,7 @@ dict_table_rename_in_cache(
 
 		UT_LIST_INIT(table->referenced_list);
 
-		return(TRUE);
+		return(DB_SUCCESS);
 	}
 
 	/* Update the table name fields in foreign constraints, and update also
@@ -1607,7 +1641,7 @@ dict_table_rename_in_cache(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	return(TRUE);
+	return(DB_SUCCESS);
 }
 
 /**********************************************************************//**
@@ -5857,6 +5891,30 @@ dict_table_schema_check(
 
 			return(DB_ERROR);
 		}
+	}
+
+	if (req_schema->n_foreign != UT_LIST_GET_LEN(table->foreign_list)) {
+		ut_snprintf(
+			errstr, errstr_sz,
+			"Table %s has %lu foreign key(s) pointing to other "
+			"tables, but it must have %lu.",
+			ut_format_name(req_schema->table_name,
+				       TRUE, buf, sizeof(buf)),
+			UT_LIST_GET_LEN(table->foreign_list),
+			req_schema->n_foreign);
+		return(DB_ERROR);
+	}
+
+	if (req_schema->n_referenced != UT_LIST_GET_LEN(table->referenced_list)) {
+		ut_snprintf(
+			errstr, errstr_sz,
+			"There are %lu foreign key(s) pointing to %s, "
+			"but there must be %lu.",
+			UT_LIST_GET_LEN(table->referenced_list),
+			ut_format_name(req_schema->table_name,
+				       TRUE, buf, sizeof(buf)),
+			req_schema->n_referenced);
+		return(DB_ERROR);
 	}
 
 	return(DB_SUCCESS);

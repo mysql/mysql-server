@@ -990,6 +990,9 @@ THD::THD(bool enable_plugins)
 
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
+#ifndef DBUG_OFF
+  gis_debug= 0;
+#endif
 }
 
 
