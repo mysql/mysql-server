@@ -160,3 +160,23 @@ SELECT LEAST(1.1,1.2,NULL,1.0) FROM DUAL;
 SELECT GREATEST(1.5E+2,1.3E+2,NULL) FROM DUAL;
 
 # End of 4.1 tests
+
+#
+# test of replacing NOT <field>
+#
+create table t1 (a int);
+insert into t1 values (1), (100), (0), (NULL);
+
+select not a from t1;
+explain extended select not a from t1;
+
+select * from t1 where not a;
+explain extended select * from t1 where not a;
+
+select not (a+0) from t1;
+explain extended select not (a+0) from t1;
+
+select * from t1 where not (a+0);
+explain extended select * from t1 where not (a+0);
+
+drop table t1;

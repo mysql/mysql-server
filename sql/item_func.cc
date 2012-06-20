@@ -3338,6 +3338,7 @@ udf_handler::fix_fields(THD *thd, Item_result_field *func,
 	func->maybe_null=1;
       func->with_sum_func= func->with_sum_func || item->with_sum_func;
       func->with_field= func->with_field || item->with_field;
+      func->with_subselect|= item->with_subselect;
       used_tables_cache|=item->used_tables();
       const_item_cache&=item->const_item();
       f_args.arg_type[i]=item->result_type();

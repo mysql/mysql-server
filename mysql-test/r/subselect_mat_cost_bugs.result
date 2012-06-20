@@ -209,8 +209,8 @@ WHERE t1.f1 AND alias2.f10
 ORDER BY field1 ;
 field1
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'f'
-Warning	1292	Truncated incorrect INTEGER value: 'd'
+Warning	1292	Truncated incorrect DOUBLE value: 'f'
+Warning	1292	Truncated incorrect DOUBLE value: 'd'
 set optimizer_switch=@tmp_optimizer_switch;
 drop table t1,t2;
 #

@@ -4324,13 +4324,13 @@ MM
 ZZ
 ZZ
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'VV'
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
 EXPLAIN EXTENDED
 SELECT * FROM v1 WHERE a > 'JJ' OR a AND a = 'VV';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	range	a	a	13	NULL	4	100.00	Using where; Using index
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'VV'
+Warning	1292	Truncated incorrect DOUBLE value: 'VV'
 Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` > 'JJ')
 DROP VIEW v1;
 DROP TABLE t1;

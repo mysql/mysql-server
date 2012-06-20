@@ -5821,6 +5821,111 @@ static KEY_CACHE_FUNCS partitioned_key_cache_funcs =
           
 ******************************************************************************/
 
+static
+int repartition_key_cache_internal(KEY_CACHE *keycache,
+                                   uint key_cache_block_size, size_t use_mem,
+                                   uint division_limit, uint age_threshold,
+                                   uint partitions, my_bool use_op_lock);
+
+/*
+  Initialize a key cache : internal
+
+  SYNOPSIS
+    init_key_cache_internal()
+    keycache           pointer to the key cache to be initialized
+    key_cache_block_size    size of blocks to keep cached data
+    use_mem             total memory to use for cache buffers/structures 
+    division_limit      division limit (may be zero)
+    age_threshold       age threshold (may be zero)
+    partitions          number of partitions in the key cache
+    use_op_lock        if TRUE use keycache->op_lock, otherwise - ignore it
+
+  DESCRIPTION
+    The function performs the actions required from init_key_cache().
+    It has an additional parameter: use_op_lock. When the parameter
+    is TRUE than the function initializes keycache->op_lock if needed,
+    then locks it, and unlocks it before the return. Otherwise the actions
+    with the lock are omitted. 
+
+  RETURN VALUE
+    total number of blocks in key cache partitions, if successful,
+    <= 0 - otherwise.
+
+  NOTES
+    if keycache->key_cache_inited != 0 we assume that the memory
+    for the control block of the key cache has been already allocated.
+*/
+
+static
+int init_key_cache_internal(KEY_CACHE *keycache, uint key_cache_block_size,
+		            size_t use_mem, uint division_limit,
+		            uint age_threshold, uint partitions,
+                            my_bool use_op_lock)
+{
+  void *keycache_cb;
+  int blocks;
+  if (keycache->key_cache_inited)
+  {
+    if (use_op_lock)
+      pthread_mutex_lock(&keycache->op_lock);
+    keycache_cb= keycache->keycache_cb;
+  }
+  else
+  {
+    if (partitions == 0)
+    {
+      if (!(keycache_cb= (void *)  my_malloc(sizeof(SIMPLE_KEY_CACHE_CB),
+                                             MYF(0)))) 
+        return 0;
+      ((SIMPLE_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
+      keycache->key_cache_type= SIMPLE_KEY_CACHE;
+      keycache->interface_funcs= &simple_key_cache_funcs;
+    }
+    else
+    {
+      if (!(keycache_cb= (void *)  my_malloc(sizeof(PARTITIONED_KEY_CACHE_CB),
+                                             MYF(0)))) 
+        return 0;
+      ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
+      keycache->key_cache_type= PARTITIONED_KEY_CACHE;
+      keycache->interface_funcs= &partitioned_key_cache_funcs;
+    }
+    /*
+      Initialize op_lock if it's not initialized before. 
+      The mutex may have been initialized before if we are being called
+      from repartition_key_cache_internal().
+    */
+    if (use_op_lock)
+      pthread_mutex_init(&keycache->op_lock, MY_MUTEX_INIT_FAST);      
+    keycache->keycache_cb= keycache_cb;
+    keycache->key_cache_inited= 1;
+    if (use_op_lock)
+      pthread_mutex_lock(&keycache->op_lock);
+  }
+
+  if (partitions != 0)
+  {
+    ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions= partitions;
+  }
+  keycache->can_be_used= 0;
+  blocks= keycache->interface_funcs->init(keycache_cb, key_cache_block_size,
+                                          use_mem, division_limit,
+                                          age_threshold);
+  keycache->partitions= partitions ? 
+                        ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions :
+                        0;
+  DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
+  keycache->key_cache_mem_size=
+    keycache->partitions ?
+    ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->key_cache_mem_size :
+    ((SIMPLE_KEY_CACHE_CB *) keycache_cb)->key_cache_mem_size;
+  if (blocks > 0)
+    keycache->can_be_used= 1;
+  if (use_op_lock)
+    pthread_mutex_unlock(&keycache->op_lock);
+  return blocks;
+}
+
 
 /*
   Initialize a key cache
@@ -5845,16 +5950,15 @@ static KEY_CACHE_FUNCS partitioned_key_cache_funcs =
     age_threshold determine the initial values of those characteristics of
     the key cache that are used for midpoint insertion strategy. The parameter
     use_mem  specifies the total amount of memory to be allocated for the
-    key cache buffers and for all auxiliary structures.       
+    key cache buffers and for all auxiliary structures.  
+    The function calls init_key_cache_internal() to perform all these actions
+    with the last parameter set to TRUE.     
 
   RETURN VALUE
     total number of blocks in key cache partitions, if successful,
     <= 0 - otherwise.
 
   NOTES
-    if keycache->key_cache_inited != 0 we assume that the memory
-    for the control block of the key cache has been already allocated.
-
     It's assumed that no two threads call this function simultaneously
     referring to the same key cache handle.
 */
@@ -5863,53 +5967,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		   size_t use_mem, uint division_limit,
 		   uint age_threshold, uint partitions)
 {
-  void *keycache_cb;
-  int blocks;
-  if (keycache->key_cache_inited)
-    keycache_cb= keycache->keycache_cb;
-  else
-  {
-    if (partitions == 0)
-    {
-      if (!(keycache_cb= (void *)  my_malloc(sizeof(SIMPLE_KEY_CACHE_CB),
-                                             MYF(0)))) 
-        return 0;
-      ((SIMPLE_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
-      keycache->key_cache_type= SIMPLE_KEY_CACHE;
-      keycache->interface_funcs= &simple_key_cache_funcs;
-    }
-    else
-    {
-      if (!(keycache_cb= (void *)  my_malloc(sizeof(PARTITIONED_KEY_CACHE_CB),
-                                             MYF(0)))) 
-        return 0;
-      ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
-      keycache->key_cache_type= PARTITIONED_KEY_CACHE;
-      keycache->interface_funcs= &partitioned_key_cache_funcs;
-    }
-    keycache->keycache_cb= keycache_cb;
-    keycache->key_cache_inited= 1;
-  }
-
-  if (partitions != 0)
-  {
-    ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions= partitions;
-  }
-  keycache->can_be_used= 0;
-  blocks= keycache->interface_funcs->init(keycache_cb, key_cache_block_size,
-                                          use_mem, division_limit,
-                                          age_threshold);
-  keycache->partitions= partitions ? 
-                        ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions :
-                        0;
-  DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
-  keycache->key_cache_mem_size=
-    keycache->partitions ?
-    ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->key_cache_mem_size :
-    ((SIMPLE_KEY_CACHE_CB *) keycache_cb)->key_cache_mem_size;
-  if (blocks > 0)
-    keycache->can_be_used= 1;
-  return blocks;
+  return init_key_cache_internal(keycache,  key_cache_block_size, use_mem,
+				 division_limit, age_threshold, partitions, 1);
 }
 
 
@@ -5953,11 +6012,13 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   int blocks= -1;
   if (keycache->key_cache_inited)
   {
+    pthread_mutex_lock(&keycache->op_lock);
     if ((uint) keycache->param_partitions != keycache->partitions && use_mem)
-      blocks= repartition_key_cache(keycache,
-                                    key_cache_block_size, use_mem,
-                                    division_limit, age_threshold, 
-                                    (uint) keycache->param_partitions);
+      blocks= repartition_key_cache_internal(keycache,
+                                             key_cache_block_size, use_mem,
+                                             division_limit, age_threshold, 
+                                             (uint) keycache->param_partitions,
+                                             0);
     else
     {
       blocks= keycache->interface_funcs->resize(keycache->keycache_cb,
@@ -5976,6 +6037,7 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     ((SIMPLE_KEY_CACHE_CB *)(keycache->keycache_cb))->key_cache_mem_size;
 
     keycache->can_be_used= (blocks >= 0);
+    pthread_mutex_unlock(&keycache->op_lock);
   } 
   return blocks;
 }
@@ -6009,10 +6071,57 @@ void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
 {
   if (keycache->key_cache_inited)
   {
-    
+    pthread_mutex_lock(&keycache->op_lock);    
     keycache->interface_funcs->change_param(keycache->keycache_cb,
                                             division_limit,
-                                            age_threshold);
+                                            age_threshold);    
+    pthread_mutex_unlock(&keycache->op_lock);
+  }
+}
+
+
+/*
+  Destroy a key cache : internal
+
+  SYNOPSIS
+    end_key_cache_internal()
+    keycache            pointer to the key cache to be destroyed
+    cleanup             <=> complete free 
+    use_op_lock         if TRUE use keycache->op_lock, otherwise - ignore it
+
+  DESCRIPTION
+    The function performs the actions required from end_key_cache().
+    It has an additional parameter: use_op_lock. When the parameter
+    is TRUE than the function destroys keycache->op_lock if cleanup is true.
+    Otherwise the action with the lock is omitted. 
+
+  RETURN VALUE
+    none
+*/
+
+static
+void end_key_cache_internal(KEY_CACHE *keycache, my_bool cleanup,
+                            my_bool use_op_lock)
+{
+  if (keycache->key_cache_inited)
+  {
+    keycache->interface_funcs->end(keycache->keycache_cb, cleanup);
+    if (cleanup)
+    {
+      if (keycache->keycache_cb)
+      {
+        my_free(keycache->keycache_cb);
+        keycache->keycache_cb= 0;
+      }
+      /*
+        We do not destroy op_lock if we are going to reuse the same key cache.
+        This happens if we are called from  repartition_key_cache_internal().
+      */
+      if (use_op_lock)
+        pthread_mutex_destroy(&keycache->op_lock);
+      keycache->key_cache_inited= 0;
+    }
+    keycache->can_be_used= 0;
   }
 }
 
@@ -6030,6 +6139,8 @@ void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
     auxiliary structures used by the key cache keycache. If the value
     of the parameter cleanup is TRUE then all resources used by the key
     cache are to be freed.
+    The function calls end_key_cache_internal() to perform all these actions
+    with the last parameter set to TRUE.     
 
   RETURN VALUE
     none
@@ -6037,20 +6148,7 @@ void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
 
 void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
 {
-  if (keycache->key_cache_inited)
-  {
-    keycache->interface_funcs->end(keycache->keycache_cb, cleanup);
-    if (cleanup)
-    {
-      if (keycache->keycache_cb)
-      {
-        my_free(keycache->keycache_cb);
-        keycache->keycache_cb= 0;
-      }
-      keycache->key_cache_inited= 0;
-    }
-    keycache->can_be_used= 0;
-  }
+  end_key_cache_internal(keycache, cleanup, 1);
 }
 
 
@@ -6098,7 +6196,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
                       uchar *buff, uint length,
 		      uint block_length, int return_buffer)
 {
-  if (keycache->key_cache_inited && keycache->can_be_used)
+  if (keycache->can_be_used)
     return keycache->interface_funcs->read(keycache->keycache_cb,
                                            file, filepos, level,
                                            buff, length,
@@ -6150,7 +6248,7 @@ int key_cache_insert(KEY_CACHE *keycache,
                      File file, my_off_t filepos, int level,
                      uchar *buff, uint length)
 {
-  if (keycache->key_cache_inited && keycache->can_be_used)
+  if (keycache->can_be_used)
     return keycache->interface_funcs->insert(keycache->keycache_cb,
                                              file, filepos, level,
                                              buff, length);
@@ -6205,7 +6303,7 @@ int key_cache_write(KEY_CACHE *keycache,
                     uchar *buff, uint length,
 		    uint block_length, int force_write)
 {
-  if (keycache->key_cache_inited && keycache->can_be_used)
+  if (keycache->can_be_used)
     return keycache->interface_funcs->write(keycache->keycache_cb,
                                             file, file_extra,
                                             filepos, level,
@@ -6257,7 +6355,7 @@ int flush_key_blocks(KEY_CACHE *keycache,
                      int file, void *file_extra,
                      enum flush_type type)
 {
-  if (keycache->key_cache_inited)
+  if (keycache->can_be_used)
     return keycache->interface_funcs->flush(keycache->keycache_cb,
                                             file, file_extra, type);
   return 0;  
@@ -6289,13 +6387,15 @@ int reset_key_cache_counters(const char *name __attribute__((unused)),
                              KEY_CACHE *keycache,
                              void *unused __attribute__((unused)))
 {
+  int rc= 0;
   if (keycache->key_cache_inited)
   {
-    
-    return keycache->interface_funcs->reset_counters(name,
-                                                     keycache->keycache_cb);
+    pthread_mutex_lock(&keycache->op_lock);
+    rc= keycache->interface_funcs->reset_counters(name,
+                                                  keycache->keycache_cb);
+    pthread_mutex_unlock(&keycache->op_lock);
   }
-  return 0;
+  return rc;
 }
 
 
@@ -6325,9 +6425,61 @@ void get_key_cache_statistics(KEY_CACHE *keycache, uint partition_no,
 {
   if (keycache->key_cache_inited)
   {    
+    pthread_mutex_lock(&keycache->op_lock);
     keycache->interface_funcs->get_stats(keycache->keycache_cb,
                                          partition_no, key_cache_stats);
+    pthread_mutex_unlock(&keycache->op_lock);
   }
+}
+
+
+/*
+  Repartition a key cache : internal
+
+  SYNOPSIS
+    repartition_key_cache_internal()
+    keycache           pointer to the key cache to be repartitioned
+    key_cache_block_size    size of blocks to keep cached data
+    use_mem             total memory to use for the new key cache
+    division_limit      new division limit (if not zero)
+    age_threshold       new age threshold (if not zero)
+    partitions          new number of partitions in the key cache 
+    use_op_lock         if TRUE use keycache->op_lock, otherwise - ignore it
+
+  DESCRIPTION
+    The function performs the actions required from repartition_key_cache().
+    It has an additional parameter: use_op_lock. When the parameter
+    is TRUE then the function locks keycache->op_lock at start and
+    unlocks it before the return. Otherwise the actions with the lock
+    are omitted. 
+
+  RETURN VALUE
+    number of blocks in the key cache, if successful,
+    0 - otherwise.
+*/
+
+static
+int repartition_key_cache_internal(KEY_CACHE *keycache,
+                                   uint key_cache_block_size, size_t use_mem,
+                                   uint division_limit, uint age_threshold,
+                                   uint partitions, my_bool use_op_lock)
+{
+  uint blocks= -1;
+  if (keycache->key_cache_inited)
+  {
+    if (use_op_lock)
+      pthread_mutex_lock(&keycache->op_lock);
+    keycache->interface_funcs->resize(keycache->keycache_cb,
+                                      key_cache_block_size, 0,
+                                      division_limit, age_threshold);
+    end_key_cache_internal(keycache, 1, 0);
+    blocks= init_key_cache_internal(keycache, key_cache_block_size, use_mem,
+                                    division_limit, age_threshold, partitions,
+                                    0);
+    if (use_op_lock)
+      pthread_mutex_unlock(&keycache->op_lock);
+  } 
+  return blocks;
 }
 
 /*
@@ -6353,16 +6505,14 @@ void get_key_cache_statistics(KEY_CACHE *keycache, uint partition_no,
     that are used for midpoint insertion strategy. The parameter use_mem
     specifies the total amount of  memory to be allocated for the new key
     cache buffers and for all auxiliary structures.
+    The function calls repartition_key_cache_internal() to perform all these
+    actions with the last parameter set to TRUE.     
 
   RETURN VALUE
     number of blocks in the key cache, if successful,
     0 - otherwise.
 
   NOTES
-    The function does not block the calls and executions of other functions
-    from the key cache interface. However it assumes that the calls of 
-    resize_key_cache itself are serialized.
-
     Currently the function is called when the value of the variable
     key_cache_partitions is being reset for the key cache keycache.
 */
@@ -6371,16 +6521,8 @@ int repartition_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 		          size_t use_mem, uint division_limit,
                           uint age_threshold, uint partitions)
 {
-  uint blocks= -1;
-  if (keycache->key_cache_inited)
-  {
-    keycache->interface_funcs->resize(keycache->keycache_cb,
-                                      key_cache_block_size, 0,
-                                      division_limit, age_threshold);
-    end_key_cache(keycache, 1);
-    blocks= init_key_cache(keycache, key_cache_block_size, use_mem,
-                           division_limit, age_threshold, partitions);
-  } 
-  return blocks;
+  return repartition_key_cache_internal(keycache, key_cache_block_size, use_mem,
+			                division_limit, age_threshold,
+                                        partitions, 1);
 }
 
