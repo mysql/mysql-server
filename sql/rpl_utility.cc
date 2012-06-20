@@ -1174,6 +1174,7 @@ void Deferred_log_events::rewind()
       freeze_size(&array);
     reset_dynamic(&array);
   }
+  last_added= NULL;
 }
 
 #endif
