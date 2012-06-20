@@ -101,11 +101,6 @@ BOOL toku_is_txn_in_live_root_txn_list(OMT live_root_txn_list, TXNID xid);
 
 TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn);
 
-typedef struct {
-    TXNID xid1;
-    TXNID xid2;
-} XID_PAIR_S, *XID_PAIR;
-
 #include "txn_state.h"
 
 TOKUTXN_STATE toku_txn_get_state(TOKUTXN txn);

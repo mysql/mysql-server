@@ -17,12 +17,9 @@ struct txn_manager {
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     OMT live_root_txns; // a sorted tree.
     OMT snapshot_txnids;    //contains TXNID x | x is snapshot txn
-    //contains TXNID pairs (x,y) | y is oldest txnid s.t. x is in y's live list
-    // every TXNID that is in some snapshot's live list is used as the key for this OMT, x, as described above. 
-    // The second half of the pair, y, is the youngest snapshot txnid (that is, has the highest LSN), such that x is in its live list.
-    // So, for example, Say T_800 begins, T_800 commits right after snapshot txn T_1100  begins. Then (800,1100) is in 
-    // this list
-    OMT live_list_reverse;  
+    // Contains 3-tuples: (TXNID begin_id, TXNID end_id, uint64_t num_live_list_references)
+    //                    for committed root transaction ids that are still referenced by a live list.
+    OMT referenced_xids;
     TXNID oldest_living_xid;
     time_t oldest_living_starttime;   // timestamp in seconds of when txn with oldest_living_xid started
     struct toku_list prepared_txns; // transactions that have been prepared and are unresolved, but have not been returned through txn_recover.
@@ -60,18 +57,27 @@ static BOOL is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
     return (result != NULL);
 }
 
+struct referenced_xid_tuple {
+    TXNID begin_id;
+    TXNID end_id;
+    uint32_t references;
+};
+
+//Heaviside function to search through an OMT by a TXNID
+static int find_by_xid (OMTVALUE v, void *txnidv);
+
 static void
-verify_snapshot_system(TXN_MANAGER txn_manager) {
-    int     num_snapshot_txnids = toku_omt_size(txn_manager->snapshot_txnids);
+verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
+    uint32_t    num_snapshot_txnids = toku_omt_size(txn_manager->snapshot_txnids);
     TXNID       snapshot_txnids[num_snapshot_txnids];
-    int     num_live_txns = toku_omt_size(txn_manager->live_txns);
+    uint32_t    num_live_txns = toku_omt_size(txn_manager->live_txns);
     TOKUTXN     live_txns[num_live_txns];
-    int     num_live_list_reverse = toku_omt_size(txn_manager->live_list_reverse);
-    XID_PAIR    live_list_reverse[num_live_list_reverse];
+    uint32_t    num_referenced_xid_tuples = toku_omt_size(txn_manager->referenced_xids);
+    struct      referenced_xid_tuple  *referenced_xid_tuples[num_referenced_xid_tuples];
 
     int r;
-    int i;
-    int j;
+    uint32_t i;
+    uint32_t j;
     //set up arrays for easier access
     for (i = 0; i < num_snapshot_txnids; i++) {
         OMTVALUE v;
@@ -85,11 +91,11 @@ verify_snapshot_system(TXN_MANAGER txn_manager) {
         assert_zero(r);
         live_txns[i] = v;
     }
-    for (i = 0; i < num_live_list_reverse; i++) {
+    for (i = 0; i < num_referenced_xid_tuples; i++) {
         OMTVALUE v;
-        r = toku_omt_fetch(txn_manager->live_list_reverse, i, &v);
+        r = toku_omt_fetch(txn_manager->referenced_xids, i, &v);
         assert_zero(r);
-        live_list_reverse[i] = v;
+        referenced_xid_tuples[i] = v;
     }
 
     {
@@ -99,7 +105,7 @@ verify_snapshot_system(TXN_MANAGER txn_manager) {
             invariant(is_txnid_live(txn_manager, snapshot_xid));
             TOKUTXN snapshot_txn;
             toku_txn_manager_id2txn_unlocked(txn_manager, snapshot_xid, &snapshot_txn);
-            int   num_live_root_txn_list = toku_omt_size(snapshot_txn->live_root_txn_list);
+            uint32_t num_live_root_txn_list = toku_omt_size(snapshot_txn->live_root_txn_list);
             TXNID     live_root_txn_list[num_live_root_txn_list];
             {
                 for (j = 0; j < num_live_root_txn_list; j++) {
@@ -109,41 +115,96 @@ verify_snapshot_system(TXN_MANAGER txn_manager) {
                     live_root_txn_list[j] = (TXNID)v;
                 }
             }
+            {
+                // Only committed entries have return a youngest.
+                TXNID youngest = toku_get_youngest_live_list_txnid_for(
+                    snapshot_xid,
+                    txn_manager->snapshot_txnids,
+                    txn_manager->referenced_xids
+                    );
+                invariant(youngest == TXNID_NONE);
+            }
             for (j = 0; j < num_live_root_txn_list; j++) {
                 TXNID live_xid = live_root_txn_list[j];
                 invariant(live_xid <= snapshot_xid);
                 TXNID youngest = toku_get_youngest_live_list_txnid_for(
-                    live_xid, 
-                    txn_manager->live_list_reverse
+                    live_xid,
+                    txn_manager->snapshot_txnids,
+                    txn_manager->referenced_xids
                     );
-                invariant(youngest!=TXNID_NONE);
-                invariant(youngest>=snapshot_xid);
+                if (is_txnid_live(txn_manager, live_xid)) {
+                    // Only committed entries have return a youngest.
+                    invariant(youngest == TXNID_NONE);
+                }
+                else {
+                    invariant(youngest != TXNID_NONE);
+                    // This snapshot reads 'live_xid' so it's youngest cannot be older than snapshot_xid.
+                    invariant(youngest >= snapshot_xid);
+                }
             }
         }
     }
     {
-        //Verify live_list_reverse
-        for (i = 0; i < num_live_list_reverse; i++) {
-            XID_PAIR pair = live_list_reverse[i];
-            invariant(pair->xid1 <= pair->xid2);
+        // Verify referenced_xids.
+        for (i = 0; i < num_referenced_xid_tuples; i++) {
+            struct referenced_xid_tuple *tuple = referenced_xid_tuples[i];
+            invariant(tuple->begin_id < tuple->end_id);
+            invariant(tuple->references > 0);
 
             {
-                //verify pair->xid2 is in snapshot_xids
-                u_int32_t index;
-                OMTVALUE v2;
+                //verify neither pair->begin_id nor end_id is in live_list
+                r = toku_omt_find_zero(txn_manager->live_txns,
+                                       find_by_xid,
+                                       (OMTVALUE) tuple->begin_id, NULL, NULL);
+                invariant(r == DB_NOTFOUND);
+                r = toku_omt_find_zero(txn_manager->live_txns,
+                                       find_by_xid,
+                                       (OMTVALUE) tuple->end_id, NULL, NULL);
+                invariant(r == DB_NOTFOUND);
+            }
+            {
+                //verify neither pair->begin_id nor end_id is in snapshot_xids
                 r = toku_omt_find_zero(txn_manager->snapshot_txnids,
                                        toku_find_xid_by_xid,
-                                       (OMTVALUE) pair->xid2, &v2, &index);
-                assert_zero(r);
+                                       (OMTVALUE) tuple->begin_id, NULL, NULL);
+                invariant(r == DB_NOTFOUND);
+                r = toku_omt_find_zero(txn_manager->snapshot_txnids,
+                                       toku_find_xid_by_xid,
+                                       (OMTVALUE) tuple->end_id, NULL, NULL);
+                invariant(r == DB_NOTFOUND);
             }
-            for (j = 0; j < num_live_txns; j++) {
-                TOKUTXN txn = live_txns[j];
-                if (txn->snapshot_type != TXN_SNAPSHOT_NONE) {
-                    BOOL expect = txn->snapshot_txnid64 >= pair->xid1 &&
-                                  txn->snapshot_txnid64 <= pair->xid2;
-                    BOOL found = toku_is_txn_in_live_root_txn_list(txn->live_root_txn_list, pair->xid1);
-                    invariant((expect==FALSE) == (found==FALSE));
+            {
+                // Verify number of references is correct
+                uint32_t refs_found = 0;
+                for (j = 0; j < num_snapshot_txnids; j++) {
+                    TXNID snapshot_xid = snapshot_txnids[j];
+                    TOKUTXN snapshot_txn;
+                    toku_txn_manager_id2txn_unlocked(txn_manager, snapshot_xid, &snapshot_txn);
+
+                    if (toku_is_txn_in_live_root_txn_list(snapshot_txn->live_root_txn_list, tuple->begin_id)) {
+                        refs_found++;
+                    }
+                    invariant(!toku_is_txn_in_live_root_txn_list(
+                                snapshot_txn->live_root_txn_list,
+                                tuple->end_id));
                 }
+                invariant(refs_found == tuple->references);
+            }
+            {
+                // Verify youngest makes sense.
+                TXNID youngest = toku_get_youngest_live_list_txnid_for(
+                    tuple->begin_id,
+                    txn_manager->snapshot_txnids,
+                    txn_manager->referenced_xids
+                    );
+                invariant(youngest != TXNID_NONE);
+                invariant(youngest > tuple->begin_id);
+                invariant(youngest < tuple->end_id);
+                // Youngest must be found, and must be a snapshot txn
+                r = toku_omt_find_zero(txn_manager->snapshot_txnids,
+                                       toku_find_xid_by_xid,
+                                       (OMTVALUE) youngest, NULL, NULL);
+                invariant_zero(r);
             }
         }
     }
@@ -192,18 +253,17 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     int r = 0;
     TXN_MANAGER XCALLOC(txn_manager);
     toku_mutex_init(&txn_manager->txn_manager_lock, NULL);
-    r = toku_omt_create(&txn_manager->live_txns); 
+    r = toku_omt_create(&txn_manager->live_txns);
     assert_zero(r);
     r = toku_omt_create(&txn_manager->live_root_txns);
     assert_zero(r);
     r = toku_omt_create(&txn_manager->snapshot_txnids);
     assert_zero(r);
-    r = toku_omt_create(&txn_manager->live_list_reverse);
+    r = toku_omt_create(&txn_manager->referenced_xids);
     assert_zero(r);
     txn_manager->oldest_living_xid = TXNID_NONE_LIVING;
     txn_manager->oldest_living_starttime = 0;
     txn_manager->last_xid = 0;
-    //TODO(yoni): #5062 get this from somewhere
     toku_list_init(&txn_manager->prepared_txns);
     toku_list_init(&txn_manager->prepared_and_returned_txns);
 
@@ -216,15 +276,15 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager) {
     toku_omt_destroy(&txn_manager->live_txns);
     toku_omt_destroy(&txn_manager->live_root_txns);
     toku_omt_destroy(&txn_manager->snapshot_txnids);
-    toku_omt_destroy(&txn_manager->live_list_reverse);
+    toku_omt_destroy(&txn_manager->referenced_xids);
     toku_cond_destroy(&txn_manager->wait_for_unpin_of_txn);
     toku_free(txn_manager);
 }
 
 static TXNID txn_manager_get_oldest_living_xid_unlocked(
-    TXN_MANAGER txn_manager, 
+    TXN_MANAGER txn_manager,
     time_t * oldest_living_starttime
-    ) 
+    )
 {
     TXNID rval = 0;
     rval = txn_manager->oldest_living_xid;
@@ -261,54 +321,6 @@ snapshot_txnids_note_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     int r;
     OMT txnids = txn_manager->snapshot_txnids;
     r = toku_omt_insert_at(txnids, (OMTVALUE) txn->txnid64, toku_omt_size(txnids));
-    assert_zero(r);
-    return r;
-}
-
-// If live txn is not in reverse live list, then add it.
-// If live txn is in reverse live list, update it by setting second xid in pair to new txn that is being started.
-static int
-live_list_reverse_note_txn_start_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
-    TOKUTXN txn = txnv;
-    TXNID xid   = txn->txnid64;     // xid of new txn that is being started
-    TXNID live_xid = (TXNID)live_xidv;    // xid on the new txn's live list
-    OMTVALUE pairv;
-    XID_PAIR pair;
-    uint32_t idx;
-
-    int r;
-    OMT reverse = txn->logger->txn_manager->live_list_reverse;
-    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, (void *)live_xid, &pairv, &idx);
-    if (r==0) {
-        pair = pairv;
-        invariant(pair->xid1 == live_xid); //sanity check
-        invariant(pair->xid2 < xid);        //Must be older
-        pair->xid2 = txn->txnid64;
-    }
-    else {
-        invariant(r==DB_NOTFOUND);
-        //Make new entry
-        XMALLOC(pair);
-        pair->xid1 = live_xid;
-        pair->xid2 = txn->txnid64;
-        r = toku_omt_insert_at(reverse, pair, idx);
-        assert_zero(r);
-    }
-    return r;
-}
-
-// Maintain the reverse live list.  The reverse live list is a list of xid pairs.  The first xid in the pair
-// is a txn that was live when some txn began, and the second xid in the pair is the newest still-live xid to 
-// have that first xid in its live list.  (The first xid may be closed, it only needed to be live when the 
-// second txn began.)
-// When a new txn begins, we need to scan the live list of this new txn.  For each live txn, we either 
-// add it to the reverse live list (if it is not already there), or update to the reverse live list so
-// that this new txn is the second xid in the pair associated with the txn in the live list.
-static int
-live_list_reverse_note_txn_start(TOKUTXN txn) {
-    int r;
-
-    r = toku_omt_iterate(txn->live_root_txn_list, live_list_reverse_note_txn_start_iter, txn);
     assert_zero(r);
     return r;
 }
@@ -388,21 +400,19 @@ int toku_txn_manager_start_txn(
         //  2. if the transaction is creating a snapshot:
         //    - create a live list for the transaction
         //    - add the id to the list of snapshot ids
-        //    - make the necessary modifications to the live_list_reverse
         //
         // The order of operations is important here, and must be taken
         // into account when the transaction is closed. The txn is added
         // to the live_root_txns first (if it is a root txn). This has the implication
         // that a root level snapshot transaction is in its own live list. This fact
         // is taken into account when the transaction is closed.
-        //
 
         // add ancestor information, and maintain global live root txn list
         if (parent == NULL) {
             //Add txn to list (omt) of live root txns
             r = toku_omt_insert_at(
-                txn_manager->live_root_txns, 
-                (OMTVALUE) txn->txnid64, 
+                txn_manager->live_root_txns,
+                (OMTVALUE) txn->txnid64,
                 toku_omt_size(txn_manager->live_root_txns)
                 ); //We know it is the newest one.
             assert_zero(r);
@@ -416,8 +426,6 @@ int toku_txn_manager_start_txn(
                 r = setup_live_root_txn_list(txn_manager, txn);  
                 assert_zero(r);
                 r = snapshot_txnids_note_txn(txn_manager, txn);
-                assert_zero(r);
-                r = live_list_reverse_note_txn_start(txn);
                 assert_zero(r);
             }
             // in this case, it is a child transaction that specified its snapshot to be that 
@@ -439,69 +447,84 @@ int toku_txn_manager_start_txn(
     return 0;
 }
 
-// For each xid on the closing txn's live list, find the corresponding entry in the reverse live list.
-// There must be one.
-// If the second xid in the pair is not the xid of the closing transaction, then the second xid must be newer
-// than the closing txn, and there is nothing to be done (except to assert the invariant).
-// If the second xid in the pair is the xid of the closing transaction, then we need to find the next oldest
-// txn.  If the live_xid is in the live list of the next oldest txn, then set the next oldest txn as the 
-// second xid in the pair, otherwise delete the entry from the reverse live list.
 static int
-live_list_reverse_note_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), void*txnv) {
-    TOKUTXN txn = txnv;
-    TXNID xid = txn->txnid64;          // xid of txn that is closing
-    TXNID live_xid = (TXNID)live_xidv;       // xid on closing txn's live list
-    OMTVALUE pairv;
-    XID_PAIR pair;
-    uint32_t idx;
+find_tuple_by_xid (OMTVALUE v, void *xidv) {
+    struct referenced_xid_tuple *tuple = v;
+    TXNID xidfind = (TXNID)xidv;
+    if (tuple->begin_id < xidfind) return -1;
+    if (tuple->begin_id > xidfind) return +1;
+    return 0;
+}
 
+TXNID
+toku_get_youngest_live_list_txnid_for(TXNID xc, OMT snapshot_txnids, OMT referenced_xids) {
+    OMTVALUE tuplev;
+    struct referenced_xid_tuple *tuple;
     int r;
-    OMT reverse = txn->logger->txn_manager->live_list_reverse;
-    r = toku_omt_find_zero(reverse, toku_find_pair_by_xid, (void *)live_xid, &pairv, &idx);
-    invariant(r==0);
-    pair = pairv;
-    invariant(pair->xid1 == live_xid); //sanity check
-    if (pair->xid2 == xid) {
-        //There is a record that needs to be either deleted or updated
-        TXNID olderxid;
-        OMTVALUE olderv;
-        uint32_t olderidx;
-        OMT snapshot = txn->logger->txn_manager->snapshot_txnids;
-        BOOL should_delete = TRUE;
-        // find the youngest txn in snapshot that is older than xid
-        r = toku_omt_find(snapshot, toku_find_xid_by_xid, (OMTVALUE) xid, -1, &olderv, &olderidx);
-        if (r==0) {
-            //There is an older txn
-            olderxid = (TXNID) olderv;
-            invariant(olderxid < xid);
-            if (olderxid >= live_xid) {
-                //older txn is new enough, we need to update.
-                pair->xid2 = olderxid;
-                should_delete = FALSE;
-            }
-        }
-        else {
-            invariant(r==DB_NOTFOUND);
-        }
-        if (should_delete) {
-            //Delete record
-            toku_free(pair);
-            r = toku_omt_delete_at(reverse, idx);
-            invariant(r==0);
-        }
+    TXNID rval = TXNID_NONE;
+
+    r = toku_omt_find_zero(referenced_xids, find_tuple_by_xid, (OMTVALUE)xc, &tuplev, NULL);
+    if (r == DB_NOTFOUND) {
+        goto done;
     }
-    else {
-        invariant(pair->xid2 > xid);
+    tuple = tuplev;
+    TXNID endid = tuple->end_id;
+    TXNID live;
+    OMTVALUE livev;
+
+    r = toku_omt_find(snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE)endid, -1, &livev, NULL);
+    if (r == DB_NOTFOUND) {
+        goto done;
     }
-    return r;
+    live = (TXNID)livev;
+    invariant(live < tuple->end_id);
+    if (live > tuple->begin_id) {
+        rval = live;
+    }
+done:
+    return rval;
+}
+
+static int
+referenced_xids_note_snapshot_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), void *referenced_xidsv) {
+    OMT referenced_xids = referenced_xidsv;
+    TXNID live_xid = (TXNID)live_xidv;  // xid on closing txn's live list
+    int r;
+    uint32_t idx;
+    struct referenced_xid_tuple *tuple;
+    OMTVALUE tuplev;
+
+    r = toku_omt_find_zero(
+        referenced_xids,
+        find_tuple_by_xid,
+        (OMTVALUE)live_xid,
+        &tuplev,
+        &idx);
+    if (r == DB_NOTFOUND) {
+        goto done;
+    }
+    invariant_zero(r);
+    invariant(tuplev != NULL);
+    tuple = tuplev;
+    invariant(tuple->references > 0);
+    if (--tuple->references == 0) {
+        r = toku_omt_delete_at(referenced_xids, idx);
+        lazy_assert_zero(r);
+    }
+done:
+    return 0;
 }
 
 // When txn ends, update reverse live list.  To do that, examine each txn in this (closing) txn's live list.
 static int
-live_list_reverse_note_txn_end(TOKUTXN txn) {
+referenced_xids_note_snapshot_txn_end(TXN_MANAGER mgr, OMT live_root_txn_list) {
     int r;
 
-    r = toku_omt_iterate(txn->live_root_txn_list, live_list_reverse_note_txn_end_iter, txn);
+    r = toku_omt_iterate(
+        live_root_txn_list,
+        referenced_xids_note_snapshot_txn_end_iter,
+        mgr->referenced_xids);
+
     invariant(r==0);
     return r;
 }
@@ -533,6 +556,25 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         invariant_zero(r);
     }
 
+    bool is_snapshot = (txn->snapshot_type != TXN_SNAPSHOT_NONE && (txn->parent==NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD));
+    uint32_t index_in_snapshot_txnids;
+    if (is_snapshot) {
+        OMTVALUE v;
+        //Free memory used for snapshot_txnids
+        r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &index_in_snapshot_txnids);
+        invariant_zero(r);
+        TXNID xid = (TXNID) v;
+        invariant(xid == txn->txnid64);
+        r = toku_omt_delete_at(txn_manager->snapshot_txnids, index_in_snapshot_txnids);
+        invariant_zero(r);
+
+        referenced_xids_note_snapshot_txn_end(txn_manager, txn->live_root_txn_list);
+
+        //Free memory used for live root txns local list
+        invariant(toku_omt_size(txn->live_root_txn_list) > 0);
+        toku_omt_destroy(&txn->live_root_txn_list);
+    }
+
     if (txn->parent==NULL) {
         OMTVALUE v;
         u_int32_t idx;
@@ -543,30 +585,28 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         invariant(xid == txn->txnid64);
         r = toku_omt_delete_at(txn_manager->live_root_txns, idx);
         invariant_zero(r);
-    }
-    //
-    // if this txn created a snapshot, make necessary modifications to list of snapshot txnids and live_list_reverse
-    // the order of operations is important. We first remove the txnid from the list of snapshot txnids. This is
-    // necessary because root snapshot transactions are in their own live lists. If we do not remove 
-    // the txnid from the snapshot txnid list first, then when we go to make the modifications to 
-    // live_list_reverse, we have trouble. We end up never removing (id, id) from live_list_reverse
-    //
-    if (txn->snapshot_type != TXN_SNAPSHOT_NONE && (txn->parent==NULL || txn->snapshot_type == TXN_SNAPSHOT_CHILD)) {
-        u_int32_t idx;
-        OMTVALUE v;
-        //Free memory used for snapshot_txnids
-        r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, &v, &idx);
-        invariant_zero(r);
-        TXNID xid = (TXNID) v;
-        invariant(xid == txn->txnid64);
-        r = toku_omt_delete_at(txn_manager->snapshot_txnids, idx);
-        invariant_zero(r);
 
-        live_list_reverse_note_txn_end(txn);
+        if (!is_snapshot) {
+            // If it's a snapshot, we already calculated index_in_snapshot_txnids.
+            r = toku_omt_find_zero(txn_manager->snapshot_txnids, toku_find_xid_by_xid, (OMTVALUE) txn->txnid64, NULL, &index_in_snapshot_txnids);
+            invariant(r == DB_NOTFOUND);
+        }
+        uint32_t num_references = toku_omt_size(txn_manager->snapshot_txnids) - index_in_snapshot_txnids;
+        if (num_references > 0) {
+            // This transaction exists in a live list of another transaction.
+            struct referenced_xid_tuple *XMALLOC(tuple);
+            tuple->begin_id = txn->txnid64;
+            tuple->end_id = ++txn_manager->last_xid;
+            tuple->references = num_references;
 
-        //Free memory used for live root txns local list
-        invariant(toku_omt_size(txn->live_root_txn_list) > 0);
-        toku_omt_destroy(&txn->live_root_txn_list);
+            r = toku_omt_insert(
+                txn_manager->referenced_xids,
+                tuple,
+                find_tuple_by_xid,
+                (OMTVALUE)txn->txnid64,
+                NULL);
+            lazy_assert_zero(r);
+        }
     }
 
     assert(txn_manager->oldest_living_xid <= txn->txnid64);
@@ -594,20 +634,20 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
 }
 
 void toku_txn_manager_clone_state_for_gc(
-    TXN_MANAGER txn_manager, 
-    OMT* snapshot_xids, 
-    OMT* live_list_reverse, 
+    TXN_MANAGER txn_manager,
+    OMT* snapshot_xids,
+    OMT* referenced_xids,
     OMT* live_root_txns
-    ) 
+    )
 {
     int r = 0;
     toku_mutex_lock(&txn_manager->txn_manager_lock);
     r = toku_omt_clone_noptr(snapshot_xids,
                              txn_manager->snapshot_txnids);
     assert_zero(r);
-    r = toku_omt_clone_pool(live_list_reverse,
-                            txn_manager->live_list_reverse,
-                            sizeof(XID_PAIR_S));
+    r = toku_omt_clone_pool(referenced_xids,
+                            txn_manager->referenced_xids,
+                            sizeof(struct referenced_xid_tuple));
     assert_zero(r);
     r = toku_omt_clone_noptr(live_root_txns,
                              txn_manager->live_root_txns);
@@ -619,7 +659,7 @@ void toku_txn_manager_clone_state_for_gc(
 static int
 find_by_xid (OMTVALUE v, void *txnidv) {
     TOKUTXN txn = v;
-    TXNID   txnidfind = *(TXNID*)txnidv;
+    TXNID   txnidfind = (TXNID)txnidv;
     if (txn->txnid64<txnidfind) return -1;
     if (txn->txnid64>txnidfind) return +1;
     return 0;
@@ -627,7 +667,7 @@ find_by_xid (OMTVALUE v, void *txnidv) {
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID txnid, TOKUTXN *result) {
     OMTVALUE txnfound;
-    int r = toku_omt_find_zero(txn_manager->live_txns, find_by_xid, &txnid, &txnfound, NULL);
+    int r = toku_omt_find_zero(txn_manager->live_txns, find_by_xid, (OMTVALUE)txnid, &txnfound, NULL);
     if (r==0) {
         TOKUTXN txn = txnfound;
         assert(txn->txnid64==txnid);

@@ -35,15 +35,6 @@ toku_find_xid_by_xid (OMTVALUE v, void *xidv) {
     return 0;
 }
 
-int
-toku_find_pair_by_xid (OMTVALUE v, void *xidv) {
-    XID_PAIR pair = v;
-    TXNID xidfind = (TXNID)xidv;
-    if (pair->xid1<xidfind) return -1;
-    if (pair->xid1>xidfind) return +1;
-    return 0;
-}
-
 void *toku_malloc_in_rollback(ROLLBACK_LOG_NODE log, size_t size) {
     return malloc_in_memarena(log->rollentry_arena, size);
 }

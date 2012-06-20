@@ -2100,7 +2100,7 @@ ft_basement_node_gc_once(BASEMENTNODE bn,
                           u_int32_t index,
                           LEAFENTRY leaf_entry,
                           OMT snapshot_xids,
-                          OMT live_list_reverse,
+                          OMT referenced_xids,
                           OMT live_root_txns,
                           STAT64INFO_S * delta)
 {
@@ -2129,7 +2129,7 @@ ft_basement_node_gc_once(BASEMENTNODE bn,
                               &bn->buffer_mempool,
                               &maybe_free,
                               snapshot_xids,
-                              live_list_reverse,
+                              referenced_xids,
                               live_root_txns);
 
     // These will represent the number of bytes and rows changed as
@@ -2171,7 +2171,7 @@ exit:
 static void
 basement_node_gc_all_les(BASEMENTNODE bn,
                          OMT snapshot_xids,
-                         OMT live_list_reverse,
+                         OMT referenced_xids,
                          OMT live_root_txns,
                          STAT64INFO_S * delta)
 {
@@ -2184,7 +2184,7 @@ basement_node_gc_all_les(BASEMENTNODE bn,
         r = toku_omt_fetch(bn->buffer, index, &storedatav);
         assert(r == 0);
         leaf_entry = storedatav;
-        ft_basement_node_gc_once(bn, index, leaf_entry, snapshot_xids, live_list_reverse, live_root_txns, delta);
+        ft_basement_node_gc_once(bn, index, leaf_entry, snapshot_xids, referenced_xids, live_root_txns, delta);
         // Check if the leaf entry was deleted or not.
         if (num_leafentries_before == toku_omt_size(bn->buffer)) {
             ++index;
@@ -2197,7 +2197,7 @@ static void
 ft_leaf_gc_all_les(FTNODE node,
                     FT h,
                     OMT snapshot_xids,
-                    OMT live_list_reverse,
+                    OMT referenced_xids,
                     OMT live_root_txns)
 {
     toku_assert_entire_node_in_memory(node);
@@ -2209,7 +2209,7 @@ ft_leaf_gc_all_les(FTNODE node,
         STAT64INFO_S delta;
         delta.numrows = 0;
         delta.numbytes = 0;
-        basement_node_gc_all_les(bn, snapshot_xids, live_list_reverse, live_root_txns, &delta);
+        basement_node_gc_all_les(bn, snapshot_xids, referenced_xids, live_root_txns, &delta);
         toku_ft_update_stats(&h->in_memory_stats, delta);
     }
 }
@@ -2247,12 +2247,12 @@ toku_bnc_flush_to_child(
     TOKULOGGER logger = toku_cachefile_logger(h->cf);
     if (child->height == 0 && logger) {
         OMT snapshot_txnids = NULL;
-        OMT live_list_reverse = NULL;
+        OMT referenced_xids = NULL;
         OMT live_root_txns = NULL;
         toku_txn_manager_clone_state_for_gc(
             logger->txn_manager,
             &snapshot_txnids,
-            &live_list_reverse,
+            &referenced_xids,
             &live_root_txns
             );
         size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
@@ -2260,13 +2260,13 @@ toku_bnc_flush_to_child(
         // may be misleading if there's a broadcast message in there
         STATUS_VALUE(FT_MSG_BYTES_CURR) -= buffsize;
         // Perform the garbage collection.
-        ft_leaf_gc_all_les(child, h, snapshot_txnids, live_list_reverse, live_root_txns);
+        ft_leaf_gc_all_les(child, h, snapshot_txnids, referenced_xids, live_root_txns);
 
         // Free the OMT's we used for garbage collecting.
         toku_omt_destroy(&snapshot_txnids);
         toku_omt_destroy(&live_root_txns);
-        toku_omt_free_items_pool(live_list_reverse);
-        toku_omt_destroy(&live_list_reverse);
+        toku_omt_free_items_pool(referenced_xids);
+        toku_omt_destroy(&referenced_xids);
     }
 
     return 0;

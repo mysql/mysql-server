@@ -27,6 +27,7 @@
 #include "xids.h"
 #include "ft_msg.h"
 #include "ule.h"
+#include "txn_manager.h"
 #include "ule-internal.h"
 
 
@@ -188,36 +189,16 @@ get_next_older_txnid(TXNID xc, OMT omt) {
     return xid;
 }
 
-TXNID
-toku_get_youngest_live_list_txnid_for(TXNID xc, OMT live_list_reverse) {
-    OMTVALUE pairv;
-    XID_PAIR pair;
-    uint32_t idx;
-    TXNID rval;
-    int r;
-    r = toku_omt_find_zero(live_list_reverse, toku_find_pair_by_xid, (void *)xc, &pairv, &idx);
-    if (r==0) {
-        pair = pairv;
-        invariant(pair->xid1 == xc); //sanity check
-        rval = pair->xid2;
-    }
-    else {
-        invariant(r==DB_NOTFOUND);
-        rval = TXNID_NONE;
-    }
-    return rval;
-}
-
 //
 // This function returns TRUE if live transaction TL1 is allowed to read a value committed by
 // transaction xc, false otherwise.
 //
 static BOOL
-xid_reads_committed_xid(TXNID tl1, TXNID xc, OMT live_list_reverse) {
+xid_reads_committed_xid(TXNID tl1, TXNID xc, OMT snapshot_txnids, OMT referenced_xids) {
     BOOL rval;
     if (tl1 < xc) rval = FALSE; //cannot read a newer txn
     else {
-        TXNID x = toku_get_youngest_live_list_txnid_for(xc, live_list_reverse);
+        TXNID x = toku_get_youngest_live_list_txnid_for(xc, snapshot_txnids, referenced_xids);
         if (x == TXNID_NONE) rval = TRUE; //Not in ANY live list, tl1 can read it.
         else rval = tl1 > x;              //Newer than the 'newest one that has it in live list'
         // we know tl1 > xc
@@ -230,7 +211,7 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, OMT live_list_reverse) {
 }
 
 static void
-garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse, OMT live_root_txns) {
+garbage_collection(ULE ule, OMT snapshot_xids, OMT referenced_xids, OMT live_root_txns) {
     if (ule->num_cuxrs == 1) goto done;
     // will fail if too many num_cuxrs
     BOOL necessary_static[MAX_TRANSACTION_RECORDS];
@@ -266,7 +247,7 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse, OMT live_r
             continue;            
         }
 
-        tl1 = toku_get_youngest_live_list_txnid_for(xc, live_list_reverse);
+        tl1 = toku_get_youngest_live_list_txnid_for(xc, snapshot_xids, referenced_xids);
         if (tl1 == xc) {
             // if tl1 == xc, that means xc should be live and show up in 
             // live_root_txns, which we check above. So, if we get
@@ -294,7 +275,7 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse, OMT live_r
         curr_committed_entry--;
         while (curr_committed_entry > 0) {
             xc = ule->uxrs[curr_committed_entry].xid;
-            if (xid_reads_committed_xid(tl1, xc, live_list_reverse)) {
+            if (xid_reads_committed_xid(tl1, xc, snapshot_xids, referenced_xids)) {
                 break;
             }
             curr_committed_entry--;
@@ -387,7 +368,7 @@ apply_msg_to_leafentry(FT_MSG   msg,		// message to apply to leafentry
 // the memory completely, if we removed the leaf entry.
 // -- snapshot_xids : we use these in memory transaction ids to
 // determine what to garbage collect.
-// -- live_list_reverse : list of in memory active transactions.
+// -- referenced_xids : list of in memory active transactions.
 // NOTE: it is not a good idea to garbage collect a leaf
 // entry with only one committed value.
 int
@@ -398,15 +379,15 @@ garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
                           struct mempool *mp,
                           void **maybe_free,
                           OMT snapshot_xids,
-                          OMT live_list_reverse,
+                          OMT referenced_xids,
                           OMT live_root_txns) {
     int r = 0;
     ULE_S ule;
     le_unpack(&ule, old_leaf_entry);
     assert(snapshot_xids);
-    assert(live_list_reverse);
+    assert(referenced_xids);
     assert(live_root_txns);
-    garbage_collection(&ule, snapshot_xids, live_list_reverse, live_root_txns);
+    garbage_collection(&ule, snapshot_xids, referenced_xids, live_root_txns);
     r = le_pack(&ule,
                 new_leaf_entry_memory_size,
                 new_leaf_entry,
