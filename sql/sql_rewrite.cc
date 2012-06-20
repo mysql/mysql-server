@@ -137,7 +137,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
       if (lex->x509_issuer)
       {
         rlb->append(STRING_WITH_LEN(" ISSUER '"));
-        rlb->append(lex->x509_subject);
+        rlb->append(lex->x509_issuer);
         rlb->append(STRING_WITH_LEN("'"));
       }
       if (lex->ssl_cipher)
