@@ -933,6 +933,7 @@ THD::THD(bool enable_plugins)
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= abort_on_warning= 0;
+  m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.flags.enabled= true;
@@ -1403,8 +1404,10 @@ void THD::change_user(void)
 }
 
 
-/* Do operations that may take a long time */
-
+/*
+  Do what's needed when one invokes change user.
+  Also used during THD::release_resources, i.e. prior to THD destruction.
+*/
 void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
@@ -1474,12 +1477,13 @@ void THD::cleanup(void)
 }
 
 
-THD::~THD()
+/**
+  Release most resources, prior to THD destruction.
+ */
+void THD::release_resources()
 {
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
-  THD_CHECK_SENTRY(this);
-  DBUG_ENTER("~THD()");
-  DBUG_PRINT("info", ("THD dtor, this %p", this));
+  DBUG_ASSERT(m_release_resources_done == false);
 
   /* Ensure that no one is using THD */
   mysql_mutex_lock(&LOCK_thd_data);
@@ -1506,6 +1510,20 @@ THD::~THD()
   mysql_audit_release(this);
   if (m_enable_plugins)
     plugin_thdvar_cleanup(this);
+
+  m_release_resources_done= true;
+}
+
+
+THD::~THD()
+{
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
+  THD_CHECK_SENTRY(this);
+  DBUG_ENTER("~THD()");
+  DBUG_PRINT("info", ("THD dtor, this %p", this));
+
+  if (!m_release_resources_done)
+    release_resources();
 
   clear_next_event_pos();
 

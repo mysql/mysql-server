@@ -2825,7 +2825,6 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   if (init_thr_lock() || thd->store_globals())
 #endif
   {
-    thd->cleanup();
     DBUG_RETURN(-1);
   }
 
@@ -4251,12 +4250,15 @@ err:
 
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
+
+  thd->release_resources();
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   if (thd_added)
     remove_global_thread(thd);
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
+
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->info_thd= 0;
@@ -4447,13 +4449,15 @@ err:
     DBUG_ASSERT(thd->net.buff != 0);
     net_end(&thd->net);
 
-    mysql_mutex_lock(&LOCK_thread_count);
-    THD_CHECK_SENTRY(thd);
     /*
       to avoid close_temporary_tables() closing temp tables as those
       are Coordinator's burden.
     */
     thd->system_thread= NON_SYSTEM_THREAD;
+    thd->release_resources();
+
+    mysql_mutex_lock(&LOCK_thread_count);
+    THD_CHECK_SENTRY(thd);
     if (thd_added)
       remove_global_thread(thd);
     mysql_mutex_unlock(&LOCK_thread_count);
@@ -5575,6 +5579,8 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   THD_CHECK_SENTRY(thd);
   rli->info_thd= 0;
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
+
+  thd->release_resources();
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   if (thd_added)

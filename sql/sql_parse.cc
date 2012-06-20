@@ -837,7 +837,7 @@ void do_handle_bootstrap(THD *thd)
 
 end:
   net_end(&thd->net);
-  thd->cleanup();
+  thd->release_resources();
 
   if (thd_added)
   {
@@ -846,9 +846,8 @@ end:
     mysql_mutex_unlock(&LOCK_thread_count);
   }
   /*
-    We need to delete the thd before signalling that bootstrap is done.
-    The reason is that we have to call ha_close_connection(thd)
-    before shutting down InnoDB (this is done by THD::~THD())
+    For safety we delete the thd before signalling that bootstrap is done,
+    since the server will be taken down immediately.
   */
   delete thd;
 

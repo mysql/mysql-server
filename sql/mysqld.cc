@@ -491,7 +491,7 @@ ulong delay_key_write_options;
 uint protocol_version;
 uint lower_case_table_names;
 ulong tc_heuristic_recover= 0;
-int32 thread_running;
+int32 num_thread_running;
 ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
@@ -814,6 +814,7 @@ void remove_global_thread(THD *thd)
   DBUG_PRINT("info", ("remove_global_thread %p current_linfo %p",
                       thd, thd->current_linfo));
   mysql_mutex_assert_owner(&LOCK_thread_count);
+  DBUG_ASSERT(thd->release_resources_done());
 
   const size_t num_erased= global_thread_list->erase(thd);
   if (num_erased == 1)
@@ -2364,16 +2365,16 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 
 
 /*
-  Cleanup THD object
+  Rlease resources of the THD, prior to destruction.
 
   SYNOPSIS
-    thd_cleanup()
+    thd_release_resources()
     thd    Thread handler
 */
 
-void thd_cleanup(THD *thd)
+void thd_release_resources(THD *thd)
 {
-  thd->cleanup();
+  thd->release_resources();
 }
 
 /*
@@ -2493,7 +2494,7 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_ENTER("one_thread_per_connection_end");
   DBUG_PRINT("info", ("thd %p block_pthread %d", thd, (int) block_pthread));
 
-  thd->cleanup();
+  thd->release_resources();
   dec_connection_count();
 
   mysql_mutex_lock(&LOCK_thread_count);
@@ -5702,7 +5703,6 @@ void create_thread_to_handle_connection(THD *thd)
     /* Create new thread to handle connection */
     int error;
     thread_created++;
-    add_global_thread(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
     thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error= mysql_thread_create(key_thread_one_connection,
@@ -5714,7 +5714,6 @@ void create_thread_to_handle_connection(THD *thd)
       DBUG_PRINT("error",
                  ("Can't create thread to handle request (error %d)",
                   error));
-      remove_global_thread(thd);
       thd->killed= THD::KILL_CONNECTION;      // Safety
       mysql_mutex_unlock(&LOCK_thread_count);
 
@@ -5733,6 +5732,7 @@ void create_thread_to_handle_connection(THD *thd)
       return;
       /* purecov: end */
     }
+    add_global_thread(thd);
   }
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("Thread created"));
@@ -7572,7 +7572,7 @@ SHOW_VAR status_vars[]= {
   {"Threads_cached",           (char*) &blocked_pthread_count,    SHOW_LONG_NOFLUSH},
   {"Threads_connected",        (char*) &connection_count,       SHOW_INT},
   {"Threads_created",        (char*) &thread_created,   SHOW_LONG_NOFLUSH},
-  {"Threads_running",          (char*) &thread_running,         SHOW_INT},
+  {"Threads_running",          (char*) &num_thread_running,     SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
 #ifdef ENABLED_PROFILING
   {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
@@ -7732,7 +7732,7 @@ static int mysql_init_variables(void)
   cleanup_done= 0;
   server_id_supplied= 0;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
-  global_thread_count= thread_running= kill_blocked_pthreads_flag= wake_pthread=0;
+  global_thread_count= num_thread_running= kill_blocked_pthreads_flag= wake_pthread=0;
   slave_open_temp_tables= 0;
   blocked_pthread_count= 0;
   opt_endinfo= using_udf_functions= 0;
