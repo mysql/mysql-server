@@ -20,6 +20,9 @@
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
 
+# Warning message(s) produced for a statement can be printed by explicitly
+# adding a 'SHOW WARNINGS' after the statement.
+
 set sql_mode='';
 set storage_engine=MyISAM;
 
@@ -698,14 +701,16 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 --
 
 -- SCRAMBLED_PASSWORD_CHAR_LENGTH_323 = 16
-SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16 AND plugin='');
+SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16);
 
 -- signal the deprecation error
 DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
-CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash is deprecated and will be removed in a future release. Please upgrade the user definitions using it to a new format.';
+CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.';
 SET @cmd='call mysql.warn_pre41_pwd()';
 SET @str=IF(@deprecated_pwds > 0, @cmd, 'SET @dummy=0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
+-- Get warnings (if any)
+SHOW WARNINGS;
 DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_pre41_pwd;
