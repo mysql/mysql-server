@@ -445,14 +445,14 @@ struct ft {
     TXNID txnid_that_created_or_locked_when_empty;
     TXNID txnid_that_suppressed_recovery_logs;
 
-    // Logically the reference count is zero if live_ft_handles is empty, txns is empty, and pinned_by_checkpoint is false.
+    // Logically the reference count is zero if live_ft_handles is empty, txns is 0, and pinned_by_checkpoint is false.
 
     // ft_ref_lock protects modifying live_ft_handles, txns, and pinned_by_checkpoint.
     toku_mutex_t ft_ref_lock;     
     struct toku_list live_ft_handles;
-    // transactions that are using this header.  you should only be able
-    // to modify this if you have a valid handle in the list of live brts
-    OMT txns;
+    // Number of transactions that are using this FT.  you should only be able
+    // to modify this if you have a valid handle in live_ft_handles
+    uint32_t num_txns;
     // A checkpoint is running.  If true, then keep this header around for checkpoint, like a transaction
     bool pinned_by_checkpoint;
 

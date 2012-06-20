@@ -158,8 +158,6 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     ft->panic = 0;
     ft->panic_string = 0;
     toku_list_init(&ft->live_ft_handles);
-    r = toku_omt_create(&ft->txns);
-    assert_zero(r);
 
     //version MUST be in network order on disk regardless of disk order
     ft->layout_version_read_from_disk = rbuf_network_int(rb);
