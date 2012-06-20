@@ -1557,7 +1557,14 @@ trx_undo_prev_version_build(
 
 	ptr = trx_undo_rec_get_pars(undo_rec, &type, &cmpl_info,
 				    &dummy_extern, &undo_no, &table_id);
-	ut_a(table_id == index->table->id);
+
+	if (table_id != index->table->id) {
+		/* The table should have been rebuilt, but purge has
+		not yet removed the undo log records for the
+		now-dropped old table (table_id). */
+		ut_a(!index->trx_id || index->trx_id > rec_trx_id);
+		return(DB_SUCCESS);
+	}
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
 					       &info_bits);
