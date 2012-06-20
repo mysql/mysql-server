@@ -496,7 +496,12 @@ let $cleanup_stmt1= drop event e2;
 --echo #
 let $statement= create user mysqltest_u1;
 let $cleanup_stmt1= drop user mysqltest_u1;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 
 --echo #
 --echo # 8.x) The rest of CREATE variants (CREATE LOGFILE GROUP,
@@ -749,14 +754,24 @@ let $cleanup_stmt1= create database mysqltest1;
 --echo #
 let $statement= drop function f1;
 let $cleanup_stmt1= create function f1() returns int return 0;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 
 --echo #
 --echo # 13.5) DROP PROCEDURE is incompatible with FTWRL.
 --echo #
 let $statement= drop procedure p1;
 let $cleanup_stmt1= create procedure p1() begin end;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 
 --echo #
 --echo # 13.6) DROP USER should be incompatible with FTWRL.
@@ -764,8 +779,12 @@ let $cleanup_stmt1= create procedure p1() begin end;
 create user mysqltest_u1;
 let $statement= drop user mysqltest_u1;
 let $cleanup_stmt1= create user mysqltest_u1;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
-drop user mysqltest_u1;
+let $skip_3rd_check= ;
 
 --echo #
 --echo # 13.7) DROP VIEW should be incompatible with FTWRL.
@@ -894,7 +913,12 @@ let $cleanup_stmt= ;
 --echo #
 let $statement= grant all privileges on t1_base to mysqltest_u1;
 let $cleanup_stmt1= revoke all privileges on t1_base from mysqltest_u1;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 drop user mysqltest_u1;
 
 
@@ -1289,7 +1313,12 @@ let $cleanup_stmt1= rename table t3_base to t1_base;
 create user mysqltest_u1;
 let $statement= rename user mysqltest_u1 to mysqltest_u2;
 let $cleanup_stmt1= rename user mysqltest_u2 to mysqltest_u1;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 drop user mysqltest_u1;
 
 
@@ -1370,13 +1399,23 @@ let $cleanup_stmt= ;
 grant all privileges on t1_base to mysqltest_u1;
 let $statement= revoke all privileges on t1_base from mysqltest_u1;
 let $cleanup_stmt1= grant all privileges on t1_base to mysqltest_u1;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 
 --echo # 
 --echo # 29.2) REVOKE ALL PRIVILEGES, GRANT OPTION is incompatible with FTWRL.
 let $statement= revoke all privileges, grant option from mysqltest_u1;
 let $cleanup_stmt1= grant all privileges on t1_base to mysqltest_u1;
+--echo # Skip last part of testing as this statement does
+--echo # implicit commit and releases metadata locks in
+--echo # non-standard place.
+let $skip_3rd_check= 1;
 --source include/check_ftwrl_incompatible.inc
+let $skip_3rd_check= ;
 drop user mysqltest_u1;
 
 
