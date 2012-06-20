@@ -544,34 +544,40 @@ toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live) {
     toku_ft_release_reflock(ft);
 }
 
-bool
-toku_ft_needed_unlocked(FT h) 
-// Effect: Return true iff the reference count is positive.
-{
-    return !toku_list_empty(&h->live_ft_handles) || toku_omt_size(h->txns) != 0 || h->pinned_by_checkpoint;
-}
-
-BOOL
-toku_ft_has_one_reference_unlocked(FT ft) {
+// the reference count for a ft is the number of txn's that
+// touched it plus the number of open handles plus one if
+// pinned by a checkpoint.
+static int
+ft_get_reference_count(FT ft) {
     u_int32_t pinned_by_checkpoint = ft->pinned_by_checkpoint ? 1 : 0;
     u_int32_t num_txns = toku_omt_size(ft->txns);
     int num_handles = toku_list_num_elements_est(&ft->live_ft_handles);
-    return ((pinned_by_checkpoint + num_txns + num_handles) == 1);
+    return pinned_by_checkpoint + num_txns + num_handles;
 }
 
+// a ft is needed in memory iff its reference count is non-zero
+bool
+toku_ft_needed_unlocked(FT ft) {
+    return ft_get_reference_count(ft) != 0;
+}
 
-// Close brt.  If opsln_valid, use given oplsn as lsn in brt header instead of logging 
-// the close and using the lsn provided by logging the close.  (Subject to constraint 
-// that if a newer lsn is already in the dictionary, don't overwrite the dictionary.)
-int toku_remove_ft (FT h, char **error_string, BOOL oplsn_valid, LSN oplsn)
-// Requires: we hold the open_close lock (because we are closing) and the multi_operation lock (to prevent checkpoints).
-{
+// get the reference count and return true if it was 1
+bool
+toku_ft_has_one_reference_unlocked(FT ft) {
+    return ft_get_reference_count(ft) == 1;
+}
+
+// evict a ft from memory by closing its cachefile. any future work
+// will have to read in the ft in a new cachefile and new FT object.
+int toku_ft_evict_from_memory(FT ft, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     int r = 0;
-    // Must do this work before closing the cf
-    if (h->cf) {
-        if (error_string) assert(*error_string == 0);
-        r = toku_cachefile_close(&h->cf, error_string, oplsn_valid, oplsn);
-        if (r==0 && error_string) assert(*error_string == 0);
+    assert(ft->cf);
+    if (error_string) {
+        assert(*error_string == 0);
+    }
+    r = toku_cachefile_close(&ft->cf, error_string, oplsn_valid, oplsn);
+    if (r == 0 && error_string) {
+        assert(*error_string == 0);
     }
     return r;
 }
@@ -989,13 +995,13 @@ toku_ft_remove_reference(FT ft, bool oplsn_valid, LSN oplsn, remove_ft_ref_callb
         toku_ft_grab_reflock(ft);
 
         remove_ref(ft, extra);
-        BOOL needed = toku_ft_needed_unlocked(ft);
+        bool needed = toku_ft_needed_unlocked(ft);
         toku_ft_release_reflock(ft);
         if (!needed) {
             // close header
             char *error_string = NULL;
             int r;
-            r = toku_remove_ft(ft, &error_string, oplsn_valid, oplsn);
+            r = toku_ft_evict_from_memory(ft, &error_string, oplsn_valid, oplsn);
             assert_zero(r);
             assert(error_string == NULL);
         }

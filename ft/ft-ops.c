@@ -3283,7 +3283,7 @@ exit:
             if (!needed) {
                 //Close immediately.
                 char *error_string = NULL;
-                r = toku_remove_ft(ft, &error_string, false, ZERO_LSN);
+                r = toku_ft_evict_from_memory(ft, &error_string, false, ZERO_LSN);
                 lazy_assert_zero(r);
             }
         }
@@ -5488,7 +5488,7 @@ int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, char *panic_string) {
 //           synchronize with begin checkpoint.
 // Contract: the iname of the ft should never be reused.
 int 
-toku_ft_remove_on_commit(FT_HANDLE handle, TOKUTXN txn) {
+toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn) {
     int r;
     CACHEFILE cf;
 
@@ -5516,7 +5516,7 @@ toku_ft_remove_on_commit(FT_HANDLE handle, TOKUTXN txn) {
 //         close works in toku_cachefile_close();
 // Requires: serialized with begin checkpoint
 void 
-toku_ft_remove(FT_HANDLE handle) {
+toku_ft_unlink(FT_HANDLE handle) {
     CACHEFILE cf;
     cf = handle->ft->cf;
     toku_cachefile_unlink_on_close(cf);
