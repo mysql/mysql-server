@@ -824,7 +824,8 @@ static int run_sql_fix_privilege_tables(void)
         found_real_errors++;
         print_line(line);
       }
-      else if (strncmp(line, "WARNING", 7) == 0)
+      else if ((strncmp(line, "WARNING", 7) == 0) ||
+               (strncmp(line, "Warning", 7) == 0))
       {
         print_line(line);
       }
