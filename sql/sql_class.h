@@ -2835,8 +2835,8 @@ public:
     it returned an error on master, and this is OK on the slave.
   */
   bool       is_slave_error;
-  bool       bootstrap, cleanup_done;
-  
+  bool       bootstrap;
+
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
   /**  
@@ -2939,8 +2939,31 @@ public:
   bool m_enable_plugins;
 
   THD(bool enable_plugins= true);
+
+  /*
+    The THD dtor is effectively split in two:
+      THD::release_resources() and ~THD().
+
+    We want to minimize the time we hold LOCK_thread_count,
+    so when destroying a global thread, do:
+
+    thd->release_resources()
+    mysql_mutex_lock(&LOCK_thread_count);
+    remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
+    delete thd;
+   */
   ~THD();
 
+  void release_resources();
+  bool release_resources_done() const { return m_release_resources_done; }
+
+private:
+  bool m_release_resources_done;
+  bool cleanup_done;
+  void cleanup(void);
+
+public:
   void init(void);
   /*
     Initialize memory roots necessary for query processing and (!)
@@ -2953,7 +2976,6 @@ public:
   */
   void init_for_queries(Relay_log_info *rli= NULL);
   void change_user(void);
-  void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();

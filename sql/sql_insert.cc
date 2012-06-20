@@ -2178,6 +2178,7 @@ public:
       close_thread_tables(&thd);
       thd.mdl_context.release_transactional_locks();
     }
+    thd.release_resources();
     mysql_mutex_lock(&LOCK_thread_count);
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
