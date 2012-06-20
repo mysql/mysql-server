@@ -1085,6 +1085,32 @@ static void buffered_option_error_reporter(enum loglevel level,
   va_end(args);
   buffered_logs.buffer(level, buffer);
 }
+
+
+/**
+  Character set and collation error reporter that prints to sql error log.
+  @param level          log message level
+  @param format         log message format string
+
+  This routine is used to print character set and collation
+  warnings and errors inside an already running mysqld server,
+  e.g. when a character set or collation is requested for the very first time
+  and its initialization does not go well for some reasons.
+
+  Note: At early mysqld initialization stage,
+  when error log is not yet available,
+  we use buffered_option_error_reporter() instead,
+  to print general character set subsystem initialization errors,
+  such as Index.xml syntax problems, bad XML tag hierarchy, etc.
+*/
+static void charset_error_reporter(enum loglevel level,
+                                   const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vprint_msg_to_log(level, format, args);
+  va_end(args);                      
+}
 C_MODE_END
 
 static MYSQL_SOCKET unix_sock, ip_sock;
@@ -4414,6 +4440,13 @@ static int init_server_components()
   buffered_logs.print();
   buffered_logs.cleanup();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+  /*
+    Now that the logger is available, redirect character set
+    errors directly to the logger
+    (instead of the buffered_logs used at the server startup time).
+  */
+  my_charset_error_reporter= charset_error_reporter;
 
   if (xid_cache_init())
   {
