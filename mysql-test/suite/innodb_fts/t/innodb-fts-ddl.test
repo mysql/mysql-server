@@ -237,3 +237,36 @@ alter ignore table articles add primary key  (`col32`)  ;
 
 drop table articles;
 
+# Create a table with FTS index, this will create hidden column FTS_DOC_ID
+CREATE TABLE articles (
+	id INT UNSIGNED NOT NULL,
+	title VARCHAR(200),
+	body TEXT
+	) ENGINE=InnoDB;
+
+INSERT INTO articles VALUES
+	(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+	(2, 'How To Use MySQL Well','After you went through a ...'),
+	(3, 'Optimizing MySQL','In this tutorial we will show ...'),
+	(4, '1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+	(5, 'MySQL vs. YourSQL','In the following database comparison ...'),
+	(6, 'MySQL Security','When configured properly, MySQL ...');
+
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+# Drop the FTS index, however, this will keep the FTS_DOC_ID hidden
+# column (to avoid a table rebuild)
+DROP INDEX idx ON articles;
+
+# Now create cluster index on id online; The rebuild should still
+# have the FTS_DOC_ID
+CREATE UNIQUE INDEX idx2 ON articles(id);
+
+# Recreate FTS index, this should not require a rebuild,
+# since the FTS_DOC_ID is still there
+CREATE FULLTEXT INDEX idx on articles (title, body);
+
+SELECT * FROM articles WHERE MATCH (title, body)
+	AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
