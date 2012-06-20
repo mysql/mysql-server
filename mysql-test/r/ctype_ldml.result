@@ -1133,3 +1133,8 @@ DROP TABLE t1;
 #
 # End of WL#5624
 #
+#
+# Bug#14197426 PARSE ERRORS IN LOADABLE UCA / LDML COLLATIONS ARE SILENTLY IGNORED
+#
+# Search for occurrences of [ERROR] Syntax error at '[strength tertiary]'
+Occurances : 1
