@@ -6,6 +6,28 @@ DROP DATABASE IF EXISTS test_wl5522;
 Warnings:
 Note	1008	Can't drop database 'test_wl5522'; database doesn't exist
 CREATE DATABASE test_wl5522;
+SET SESSION debug="+d,ib_discard_before_commit_crash";
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_discard_before_commit_crash";
+DROP TABLE test_wl5522.t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+SET SESSION debug="+d,ib_discard_after_commit_crash";
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_discard_after_commit_crash";
+DROP TABLE test_wl5522.t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
@@ -906,7 +928,8 @@ call mtr.add_suppression("Unsupported tablespace format");
 call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
 call mtr.add_suppression("Page is marked as free");
 call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
-call mtr.add_suppression("Table .*t1 in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("but tablespace with that id or name does not exist");
+call mtr.add_suppression("trying to open a table, but could not");
+call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache");
 call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
-call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache. Attempting to load the tablespace with space id .*");
 SET GLOBAL INNODB_FILE_PER_TABLE=0;
