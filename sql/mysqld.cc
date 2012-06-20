@@ -1847,6 +1847,18 @@ static void clean_up_mutexes()
 ** Init IP and UNIX socket
 ****************************************************************************/
 
+
+/**
+  MY_BIND_ALL_ADDRESSES defines a special value for the bind-address option,
+  which means that the server should listen to all available network addresses,
+  both IPv6 (if available) and IPv4.
+
+  Basically, this value instructs the server to make an attempt to bind the
+  server socket to '::' address, and rollback to '0.0.0.0' if the attempt fails.
+*/
+const char *MY_BIND_ALL_ADDRESSES= "*";
+
+
 #ifndef EMBEDDED_LIBRARY
 static void set_ports()
 {
@@ -2092,21 +2104,59 @@ static void network_init(void)
     struct addrinfo *ai;
     struct addrinfo hints;
 
+    const char *bind_address_str= NULL;
+    const char *ipv6_all_addresses= "::";
+    const char *ipv4_all_addresses= "0.0.0.0";
+
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
                           my_bind_addr_str, mysqld_port);
 
-    // Get list of IP-addresses associated with the server hostname.
+    // Get list of IP-addresses associated with the bind-address.
+
     memset(&hints, 0, sizeof (hints));
     hints.ai_flags= AI_PASSIVE;
     hints.ai_socktype= SOCK_STREAM;
     hints.ai_family= AF_UNSPEC;
 
     my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
-    if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
+
+    if (strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
     {
-      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
-      sql_print_error("Can't start server: cannot resolve hostname!");
-      unireg_abort(1);				/* purecov: tested */
+      /*
+        That's the case when bind-address is set to a special value ('*'),
+        meaning "bind to all available IP addresses". If the box supports
+        the IPv6 stack, that means binding to '::'. If only IPv4 is available,
+        bind to '0.0.0.0'.
+      */
+
+      if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai))
+      {
+        bind_address_str= ipv6_all_addresses;
+      }
+      else
+      {
+        sql_print_information("IPv6 is not available.");
+
+        if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai))
+        {
+          sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));
+          sql_print_error("Can't start server: cannot resolve hostname!");
+          unireg_abort(1);
+        }
+
+        bind_address_str= ipv4_all_addresses;
+      }
+    }
+    else
+    {
+      if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
+      {
+        sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+        sql_print_error("Can't start server: cannot resolve hostname!");
+        unireg_abort(1);                          /* purecov: tested */
+      }
+
+      bind_address_str= my_bind_addr_str;
     }
 
     // Log all the IP-addresses.
@@ -2122,7 +2172,7 @@ static void network_init(void)
       }
 
       sql_print_information("  - '%s' resolves to '%s';",
-                            my_bind_addr_str, ip_addr);
+                            bind_address_str, ip_addr);
     }
 
     /*

@@ -567,7 +567,7 @@ static Sys_var_charptr Sys_basedir(
 static Sys_var_charptr Sys_my_bind_addr(
        "bind_address", "IP address to bind to.",
        READ_ONLY GLOBAL_VAR(my_bind_addr_str), CMD_LINE(REQUIRED_ARG),
-       IN_FS_CHARSET, DEFAULT("0.0.0.0"));
+       IN_FS_CHARSET, DEFAULT(MY_BIND_ALL_ADDRESSES));
 
 static bool fix_binlog_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {

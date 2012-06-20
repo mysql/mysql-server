@@ -718,4 +718,6 @@ inline THD *_current_thd(void)
 #endif
 #define current_thd _current_thd()
 
+extern const char *MY_BIND_ALL_ADDRESSES;
+
 #endif /* MYSQLD_INCLUDED */
