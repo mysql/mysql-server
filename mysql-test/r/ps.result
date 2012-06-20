@@ -1008,7 +1008,7 @@ NULL	NULL
 SET @a = 1;
 EXECUTE stmt USING @a;
 (VARIANCE(i) = 1)	VARIANCE(i)
-0	0.0000
+0	0
 SET @a = 0;
 EXECUTE stmt USING @a;
 (VARIANCE(i) = 1)	VARIANCE(i)
@@ -1021,7 +1021,7 @@ NULL	NULL
 SET @a = 1;
 EXECUTE stmt USING @a;
 (STDDEV(i) = 1)	STDDEV(i)
-0	0.0000
+0	0
 SET @a = 0;
 EXECUTE stmt USING @a;
 (STDDEV(i) = 1)	STDDEV(i)
