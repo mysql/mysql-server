@@ -19,7 +19,7 @@ SET GLOBAL log_output =       'FILE,TABLE';
 SET GLOBAL general_log=       'ON';
 
 # SET NAMES / SET CHARSET
-# keep these in lower case we can tell them from the upper case rewrites!
+# keep these in lower case so we can tell them from the upper case rewrites!
 set character set 'hebrew';
 set charset default,@dummy='A';
 set names 'latin1',@dummy='B';
@@ -27,7 +27,25 @@ set names 'latin1' collate 'latin1_german2_ci';
 set names default,@dummy='c';
 
 # 1.1.1.1
-GRANT ALL on *.* TO test_user1 IDENTIFIED BY 'azundris1';
+
+CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
+CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
+CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
+
+GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER
+      on test.t1 TO test_user1 IDENTIFIED BY 'azundris1';
+GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
+GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
+GRANT USAGE ON TABLE test.* TO test_user3@localhost REQUIRE SSL;
+GRANT SELECT,USAGE ON test.* TO test_user3@localhost REQUIRE X509 WITH
+      MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2
+      MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4;
+GRANT SELECT ON test.* TO test_user3@localhost REQUIRE NONE
+      WITH GRANT OPTION;
+
+DROP PROCEDURE proc_rewrite_1;
+DROP FUNCTION  func_rewrite_1;
+DROP TABLE     t1;
 
 # 1.1.1.2
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
@@ -45,6 +63,7 @@ SET PASSWORD FOR 'test_user4'@'localhost' = PASSWORD('azundris4');
 SET GLOBAL general_log=       'OFF';
 
 DROP USER 'test_user4'@'localhost';
+DROP USER 'test_user3'@'localhost';
 DROP USER test_user2;
 DROP USER test_user1;
 
@@ -72,6 +91,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE '%PASSWORD %';
 --echo ------ rewrite ------
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET CHARACTER SET %';
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET NAMES %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
 --echo ------ done ------ see log_tables.test for more proof! :)
 
 --echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
