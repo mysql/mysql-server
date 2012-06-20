@@ -226,7 +226,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
             assert(!ft->h->dirty); // it should not have been dirtied by the toku_ft_is_empty test.
         }
 
-        r = toku_ft_handle_close(ft_to_close, FALSE, ZERO_LSN);
+        toku_ft_handle_close(ft_to_close);
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }

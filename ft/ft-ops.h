@@ -93,6 +93,13 @@ int toku_ft_handle_open(FT_HANDLE, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn)  __attribute__ ((warn_unused_result));
 int toku_ft_handle_open_recovery(FT_HANDLE, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, 
 			   FILENUM use_filenum, LSN max_acceptable_lsn)  __attribute__ ((warn_unused_result));
+
+// close an ft handle during normal operation. the underlying ft may or may not close,
+// depending if there are still references. an lsn for this close will come from the logger.
+void toku_ft_handle_close(FT_HANDLE ft_handle);
+// close an ft handle during recovery. the underlying ft must close, and will use the given lsn.
+void toku_ft_handle_close_recovery(FT_HANDLE ft_handle, LSN oplsn);
+
 int
 toku_ft_handle_open_with_dict_id(
     FT_HANDLE t, 
@@ -148,8 +155,6 @@ int toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, BOOL oplsn_valid, 
 int toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type) __attribute__ ((warn_unused_result));
 int toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
 int toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
-
-int toku_ft_handle_close (FT_HANDLE brt, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 int toku_close_ft_handle_nolsn (FT_HANDLE, char **error_string)  __attribute__ ((warn_unused_result));
 

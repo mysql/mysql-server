@@ -123,20 +123,18 @@ toku_db_close(DB * db) {
         // internal (non-user) dictionary has no dname
         env_note_db_closed(db->dbenv, db);  // tell env that this db is no longer in use by the user of this api (user-closed, may still be in use by fractal tree internals)
     }
-    r = toku_ft_handle_close(db->i->ft_handle, FALSE, ZERO_LSN);
-    if (r == 0) {
-        // go ahead and close this DB handle right away.
-        if (db->i->lt) {
-            toku_lt_remove_db_ref(db->i->lt);
-        }
-        toku_sdbt_cleanup(&db->i->skey);
-        toku_sdbt_cleanup(&db->i->sval);
-        if (db->i->dname) {
-            toku_free(db->i->dname);
-        }
-        toku_free(db->i);
-        toku_free(db);
+    // close the ft handle, and possibly close the locktree
+    toku_ft_handle_close(db->i->ft_handle);
+    if (db->i->lt) {
+        toku_lt_remove_db_ref(db->i->lt);
     }
+    toku_sdbt_cleanup(&db->i->skey);
+    toku_sdbt_cleanup(&db->i->sval);
+    if (db->i->dname) {
+        toku_free(db->i->dname);
+    }
+    toku_free(db->i);
+    toku_free(db);
     return r;
 }
 
