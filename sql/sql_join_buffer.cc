@@ -2106,6 +2106,11 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   /* This function may be called only for inner tables of outer joins */ 
   DBUG_ASSERT(join_tab->first_inner);
 
+  // Make sure that the rowid buffer is bound, duplicates weedout needs it
+  if (join_tab->copy_current_rowid &&
+      !join_tab->copy_current_rowid->buffer_is_bound())
+    join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
+
   for ( ; cnt; cnt--)
   {
     if (join->thd->killed)

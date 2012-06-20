@@ -396,6 +396,11 @@ public:
   uint          packed_info;
 
   READ_RECORD::Setup_func materialize_table;
+  /**
+     Initialize table for reading and fetch the first row from the table. If
+     table is a materialized derived one, function must materialize it with
+     prepare_scan().
+  */
   READ_RECORD::Setup_func read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;

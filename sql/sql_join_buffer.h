@@ -63,6 +63,7 @@ typedef struct st_cache_field {
       next_copy_rowid->bind_buffer(buffer);
     str= buffer;
   }
+  bool buffer_is_bound() const { return str != NULL; }
 } CACHE_FIELD;
 
 
