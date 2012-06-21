@@ -360,7 +360,7 @@ public:
     char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;
-    Uint16 ReplicaData[MAX_FRAGMENT_DATA_BYTES];
+    Uint16 ReplicaData[MAX_FRAGMENT_DATA_ENTRIES];
     Uint32 FragmentDataLen;
     Uint16 FragmentData[3*MAX_NDB_PARTITIONS];
 
