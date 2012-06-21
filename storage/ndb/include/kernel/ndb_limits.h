@@ -224,6 +224,16 @@
 
 #define NDB_FILE_BUFFER_SIZE (256*1024)
 
+/*
+ * NDB_FS_RW_PAGES must be big enough for biggest request,
+ * probably PACK_TABLE_PAGES (see Dbdih.hpp)
+ */
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+#define NDB_FS_RW_PAGES 32
+#else
+#define NDB_FS_RW_PAGES 134
+#endif
+
 /**
  * MAX_ATTRIBUTES_IN_TABLE old handling
  */

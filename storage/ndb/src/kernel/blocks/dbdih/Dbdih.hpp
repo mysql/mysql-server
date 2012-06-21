@@ -100,11 +100,29 @@
 /*#########*/
 /* SIZES   */
 /*#########*/
-#define ZPAGEREC 100
+/*
+ * Only pages enough for one table needed, since only
+ * one metadata change at the time is allowed.
+ */
+#define ZPAGEREC PACK_TABLE_PAGES
 #define ZCREATE_REPLICA_FILE_SIZE 4
 #define ZPROXY_MASTER_FILE_SIZE 10
 #define ZPROXY_FILE_SIZE 10
 #endif
+
+/*
+ * Pack table into pages.
+ * See use of writePageWord() in
+ * packTableIntoPagesLab() and helper
+ * functions to determine the constants
+ * below.
+ */
+#define MAX_CRASHED_REPLICAS 8
+#define PACK_REPLICAS_WORDS (4 + 4 * MAX_LCP_STORED + 2 * MAX_CRASHED_REPLICAS)
+#define PACK_FRAGMENT_WORDS (6 + 2 * MAX_REPLICAS * PACK_REPLICAS_WORDS)
+#define PACK_TABLE_WORDS (10 + MAX_NDB_PARTITIONS * PACK_FRAGMENT_WORDS)
+#define PACK_TABLE_PAGE_WORDS (2048 - 32)
+#define PACK_TABLE_PAGES ((PACK_TABLE_WORDS + PACK_TABLE_PAGE_WORDS - 1) / PACK_TABLE_PAGE_WORDS)
 
 class Dbdih: public SimulatedBlock {
 #ifdef ERROR_INSERT
@@ -515,7 +533,7 @@ public:
     Method method;
     Storage tabStorage;
 
-    Uint32 pageRef[32];
+    Uint32 pageRef[PACK_TABLE_PAGES]; // TODO: makedynamic
 //-----------------------------------------------------------------------------
 // Each entry in this array contains a reference to 16 fragment records in a
 // row. Thus finding the correct record is very quick provided the fragment id.
@@ -547,7 +565,7 @@ public:
 
     Uint8 kvalue;
     Uint8 noOfBackups;
-    Uint8 noPages;
+    Uint16 noPages;
     Uint16 tableType;
     Uint16 primaryTableId;
 
