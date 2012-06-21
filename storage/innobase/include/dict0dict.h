@@ -1364,23 +1364,26 @@ enum online_index_status
 dict_index_get_online_status(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: secondary index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Sets the status of online index creation. */
 UNIV_INLINE
 void
 dict_index_set_online_status(
 /*=========================*/
-	dict_index_t*			index,	/*!< in/out: secondary index */
+	dict_index_t*			index,	/*!< in/out: index */
 	enum online_index_status	status)	/*!< in: status */
 	__attribute__((nonnull));
 /********************************************************************//**
 Determines if a secondary index is being or has been created online,
-allowing concurrent modifications to the table.
-@retval TRUE if the index is being or has been built online
-@retval FALSE if the index has been created completely */
+or if the table is being rebuilt online, allowing concurrent modifications
+to the table.
+@retval true if the index is being or has been built online, or
+if this is a clustered index and the table is being or has been rebuilt online
+@retval false if the index has been created or the table has been
+rebuilt completely */
 UNIV_INLINE
-ibool
+bool
 dict_index_is_online_ddl(
 /*=====================*/
 	const dict_index_t*	index)	/*!< in: index */
@@ -1667,7 +1670,7 @@ ulint
 dict_table_is_corrupted(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 /**********************************************************************//**
 Check whether the index is corrupted.
@@ -1677,7 +1680,7 @@ ulint
 dict_index_is_corrupted(
 /*====================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 #endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**

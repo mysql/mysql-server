@@ -1183,6 +1183,7 @@ dict_create_index_step(
 		}
 
 		node->index->page = node->page_no;
+		node->index->trx_id = trx->id;
 		node->state = INDEX_COMMIT_WORK;
 	}
 

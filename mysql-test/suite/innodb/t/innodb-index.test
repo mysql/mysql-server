@@ -7,10 +7,14 @@ let $format=`select @@innodb_file_format`;
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
 
+SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS;
+
 # Bug#13654923 BOGUS DEBUG ASSERTION IN INDEX CREATION FOR ZERO-LENGTH RECORD
 create table t1(a varchar(2) primary key) engine=innodb;
 insert into t1 values('');
+--enable_info
 create index t1a1 on t1(a(1));
+--disable_info
 drop table t1;
 
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
@@ -20,7 +24,9 @@ commit;
 alter table t1 add index b (b), add index b (b);
 --error ER_DUP_FIELDNAME
 alter table t1 add index (b,b);
+--enable_info
 alter table t1 add index d2 (d);
+--disable_info
 show create table t1;
 -- disable_result_log
 analyze table t1;
@@ -30,13 +36,18 @@ select * from t1 force index (d2) order by d;
 --error ER_DUP_ENTRY
 alter table t1 add unique index (b);
 show create table t1;
+--enable_info
 alter table t1 add index (b);
+--disable_info
 show create table t1;
 
+--enable_info
 alter table t1 add unique index (c), add index (d);
+--disable_info
 show create table t1;
 analyze table t1;
 explain select * from t1 force index(c) order by c;
+--enable_info
 alter table t1 add primary key (a), drop index c;
 show create table t1;
 --error ER_MULTIPLE_PRI_KEY
@@ -44,11 +55,14 @@ alter table t1 add primary key (c);
 --error ER_DUP_ENTRY
 alter table t1 drop primary key, add primary key (b);
 create unique index c on t1 (c);
+--disable_info
 show create table t1;
 analyze table t1;
 explain select * from t1 force index(c) order by c;
 select * from t1 force index(c) order by c;
+--enable_info
 alter table t1 drop index b, add index (b);
+--disable_info
 show create table t1;
 insert into t1 values(6,1,'ggg','ggg');
 select * from t1;
@@ -67,10 +81,12 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ad','ad'),(4,4,'afe','afe');
 commit;
+--enable_info
 alter table t1 add index (c(2));
 show create table t1;
 alter table t1 add unique index (d(10));
 show create table t1;
+--disable_info
 insert into t1 values(5,1,'ggg','ggg');
 -- disable_result_log
 analyze table t1;
@@ -82,7 +98,9 @@ explain select * from t1 order by b;
 explain select * from t1 force index(c) order by c;
 explain select * from t1 force index(d) order by d;
 show create table t1;
+--enable_info
 alter table t1 drop index d;
+--disable_info
 insert into t1 values(8,9,'fff','fff');
 select * from t1;
 select * from t1 force index(c) order by c;
@@ -98,7 +116,9 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,2,'ad','ad'),(4,4,'afe','afe');
 commit;
+--enable_info
 alter table t1 add unique index (b,c);
+--disable_info
 insert into t1 values(8,9,'fff','fff');
 select * from t1;
 select * from t1 force index(b) order by b;
@@ -107,7 +127,9 @@ analyze table t1;
 -- enable_result_log
 explain select * from t1 force index(b) order by b;
 show create table t1;
+--enable_info
 alter table t1 add index (b,c);
+--disable_info
 insert into t1 values(11,11,'kkk','kkk');
 select * from t1;
 select * from t1 force index(b) order by b;
@@ -116,7 +138,9 @@ analyze table t1;
 -- enable_result_log
 explain select * from t1 force index(b) order by b;
 show create table t1;
+--enable_info
 alter table t1 add unique index (c,d);
+--disable_info
 insert into t1 values(13,13,'yyy','aaa');
 select * from t1;
 select * from t1 force index(b) order by b;
@@ -132,9 +156,9 @@ drop table t1;
 create table t1(a int not null, b int not null, c int, primary key (a), key (b)) engine = innodb;
 create table t3(a int not null, c int not null, d int, primary key (a), key (c)) engine = innodb;
 create table t4(a int not null, d int not null, e int, primary key (a), key (d)) engine = innodb;
-create table t2(a int not null, b int not null, c int not null, d int not null, e int,
-foreign key (b) references t1(b) on delete cascade,
-foreign key (c) references t3(c), foreign key (d) references t4(d))
+create table t2(a int not null, b int, c int, d int, e int,
+foreign key (b) references t1(b) on delete set null,
+foreign key (c) references t3(c), foreign key (d) references t4(d) on update set null)
 engine = innodb;
 --error ER_DROP_INDEX_FK
 alter table t1 drop index b;
@@ -146,32 +170,82 @@ alter table t4 drop index d;
 alter table t2 drop index b;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index b, drop index c, drop index d;
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+--error ER_ERROR_ON_RENAME
+alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
+--error ER_FK_COLUMN_NOT_NULL
+alter table t2 MODIFY b INT NOT NULL;
+
+SET FOREIGN_KEY_CHECKS=0;
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+--error ER_ERROR_ON_RENAME
+alter table t2 DROP COLUMN b, ALGORITHM=COPY;
+--error ER_FK_COLUMN_CANNOT_DROP
+alter table t2 DROP COLUMN b;
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+--error ER_ERROR_ON_RENAME
+alter table t1 DROP COLUMN b, ALGORITHM=COPY;
+--error ER_FK_COLUMN_CANNOT_DROP_CHILD
+alter table t1 DROP COLUMN b;
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+
+--enable_info
 # Apparently, the following makes mysql_alter_table() drop index d.
 create unique index dc on t2 (d,c);
 create index dc on t1 (b,c);
 # This should preserve the foreign key constraints.
-alter table t2 add primary key (a);
+--error ER_FK_COLUMN_NOT_NULL
+alter table t2 add primary key (alpha), change a alpha int,
+change b beta int not null, change c charlie int not null;
+--error ER_FK_COLUMN_NOT_NULL
+alter table t2 add primary key (alpha), change a alpha int,
+change c charlie int not null, change d delta int not null;
+alter table t2 add primary key (alpha), change a alpha int,
+change b beta int, modify c int not null;
+--disable_info
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
 insert into t4 values (1,1,1);
 insert into t2 values (1,1,1,1,1);
 commit;
+--enable_info
 alter table t4 add constraint dc foreign key (a) references t1(a);
+--disable_info
 show create table t4;
---replace_regex /'#sql-[0-9a-f_]*'/'#sql-temporary'/
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 # a foreign key 'test/dc' already exists
 --error ER_DUP_KEY
 alter table t3 add constraint dc foreign key (a) references t1(a);
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_FK_FAIL_ADD_SYSTEM
+alter table t3 add constraint dc foreign key (a) references t1(a);
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 show create table t3;
-alter table t2 drop index b, add index (b);
+--enable_info
+alter table t2 drop index b, add index (beta);
+--disable_info
 show create table t2;
 --error ER_ROW_IS_REFERENCED_2
 delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
 --error ER_CANT_DROP_FIELD_OR_KEY
+--enable_info
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;
+--disable_info
 select * from t2;
 delete from t1;
 select * from t2;
@@ -213,7 +287,9 @@ drop table t1;
 
 create table t1(a int not null, b int not null, c int, primary key (a), key(c)) engine=innodb;
 insert into t1 values (5,1,5),(4,2,4),(3,3,3),(2,4,2),(1,5,1);
+--enable_info
 alter table t1 add unique index (b);
+--disable_info
 insert into t1 values (10,20,20),(11,19,19),(12,18,18),(13,17,17);
 show create table t1;
 check table t1;
@@ -230,7 +306,9 @@ drop table t1;
 
 create table t1(a int not null, b int not null) engine=innodb;
 insert into t1 values (1,1);
+--enable_info
 alter table t1 add primary key(b);
+--disable_info
 insert into t1 values (2,2);
 show create table t1;
 check table t1;
@@ -244,7 +322,9 @@ drop table t1;
 
 create table t1(a int not null) engine=innodb;
 insert into t1 values (1);
+--enable_info
 alter table t1 add primary key(a);
+--disable_info
 insert into t1 values (2);
 show create table t1;
 check table t1;
@@ -264,7 +344,7 @@ eval set global innodb_file_format_max=$format;
 # constraint modifications (Issue #70, Bug #38786)
 #
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
-SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
+SET FOREIGN_KEY_CHECKS=0;
 
 CREATE TABLE t1(
   c1	BIGINT(12) NOT NULL,
@@ -307,8 +387,10 @@ CREATE TABLE t2(
   PRIMARY KEY (c1,c2,c3)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+SET FOREIGN_KEY_CHECKS=0;
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3) REFERENCES t1(c1);
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 
 SHOW CREATE TABLE t2;
 
@@ -338,22 +420,60 @@ CREATE TABLE t2(
   PRIMARY KEY (c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
+SET FOREIGN_KEY_CHECKS=0;
+--enable_info
+
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c1);
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
---error ER_CANNOT_ADD_FOREIGN
+
+# FIXME (WL#6251 problem): this should fail, like the ALGORITHM=COPY below
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
-ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
+ALTER TABLE t2 DROP FOREIGN KEY fk_t2_ca;
+
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1), ALGORITHM=COPY;
+
+ALTER TABLE t1 MODIFY COLUMN c2 BIGINT(12) NOT NULL;
+# mysqltest first does replace_regex, then replace_result
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+# Embedded server doesn't chdir to data directory
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
+--error ER_CANNOT_ADD_FOREIGN
+ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
+ FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2), ALGORITHM=COPY;
+--error ER_FK_NO_INDEX_PARENT
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c1,c2);
 
 ALTER TABLE t2 ADD CONSTRAINT fk_t2_ca
  FOREIGN KEY (c3,c2) REFERENCES t1(c2,c1);
+
+SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
+
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 CREATE INDEX i_t2_c2_c1 ON t2(c2, c1);
@@ -362,6 +482,7 @@ CREATE INDEX i_t2_c3_c1_c2 ON t2(c3, c1, c2);
 SHOW CREATE TABLE t2;
 CREATE INDEX i_t2_c3_c2 ON t2(c3, c2);
 SHOW CREATE TABLE t2;
+--disable_info
 
 DROP TABLE t2;
 DROP TABLE t1;
@@ -372,7 +493,11 @@ connection a;
 CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
 CREATE TABLE t2 (a INT, b CHAR(1)) ENGINE=InnoDB;
+CREATE TABLE t2i (a INT, b CHAR(1) NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t2c (a INT, b CHAR(1) NOT NULL) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2i SELECT * FROM t1;
+INSERT INTO t2c SELECT * FROM t1;
 connection b;
 BEGIN;
 # This acquires a MDL lock on t1 until commit.
@@ -382,14 +507,34 @@ connection a;
 SET lock_wait_timeout=1;
 --error ER_LOCK_WAIT_TIMEOUT
 CREATE INDEX t1a ON t1(a);
+--enable_info
 CREATE INDEX t2a ON t2(a);
+ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
+ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
+--disable_info
 connection b;
+# t2i and t2c are too new for this transaction, because they were rebuilt
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2i;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2i FORCE INDEX(t2a) ORDER BY a;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2c;
+--error ER_TABLE_DEF_CHANGED
+SELECT * FROM t2c FORCE INDEX(t2a) ORDER BY a;
+# In t2, only the new index t2a is too new for this transaction.
 SELECT * FROM t2;
 --error ER_TABLE_DEF_CHANGED
 SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
 SELECT * FROM t2;
 COMMIT;
+# For a new transaction, all of t2, t2i, t2c are accessible.
+SELECT * FROM t2;
 SELECT * FROM t2 FORCE INDEX(t2a) ORDER BY a;
+SELECT * FROM t2i;
+SELECT * FROM t2i FORCE INDEX(t2a) ORDER BY a;
+SELECT * FROM t2c;
+SELECT * FROM t2c FORCE INDEX(t2a) ORDER BY a;
 connection default;
 disconnect a;
 disconnect b;
@@ -398,5 +543,9 @@ disconnect b;
 alter table t2 add index t2a(b);
 alter table t2 drop index t2a, add index t2a(b);
 show create table t2;
+show create table t2i;
+show create table t2c;
 
-DROP TABLE t1,t2;
+--disable_info
+
+DROP TABLE t1,t2,t2c,t2i;

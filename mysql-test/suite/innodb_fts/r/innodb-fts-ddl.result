@@ -76,7 +76,12 @@ INSERT INTO fts_test (title,body) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE'
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
+ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE'
+ALTER TABLE fts_test ROW_FORMAT=REDUNDANT;
 SELECT * FROM fts_test WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 FTS_DOC_ID	title	body
@@ -144,7 +149,7 @@ PRIMARY KEY (FTS_DOC_ID),
 KEY FTS_DOC_ID_INDEX (FTS_DOC_ID),
 FULLTEXT KEY idx (title,text)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1;
-ERROR 42000: Incorrect index name 'FTS_DOC_ID_INDEX'
+ERROR HY000: Index 'FTS_DOC_ID_INDEX' is of wrong type for an InnoDB FULLTEXT index
 CREATE TABLE articles (
 FTS_DOC_ID BIGINT UNSIGNED NOT NULL ,
 title VARCHAR(200),
@@ -162,6 +167,8 @@ ADD FULLTEXT INDEX idx5 (title);
 ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
 CREATE FULLTEXT INDEX idx on articles (title);
 ALTER TABLE articles ADD FULLTEXT INDEX idx3 (title);
+ALTER TABLE articles ADD INDEX t20 (title(20)), LOCK=NONE;
+ALTER TABLE articles DROP INDEX t20;
 INSERT INTO articles (FTS_DOC_ID, title, body) VALUES
 (29, 'MySQL Tutorial','DBMS stands for DataBase ...'),
 (30, 'How To Use MySQL Well','After you went through a ...'),
@@ -194,3 +201,29 @@ create table articles(`FTS_DOC_ID` serial,
 create fulltext index `idx5` on articles(`col115`)  ;
 alter ignore table articles add primary key  (`col32`)  ;
 drop table articles;
+CREATE TABLE articles (
+id INT UNSIGNED NOT NULL,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+INSERT INTO articles VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...'),
+(4, '1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+(5, 'MySQL vs. YourSQL','In the following database comparison ...'),
+(6, 'MySQL Security','When configured properly, MySQL ...');
+CREATE FULLTEXT INDEX idx on articles (title, body);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+DROP INDEX idx ON articles;
+CREATE UNIQUE INDEX idx2 ON articles(id);
+CREATE FULLTEXT INDEX idx on articles (title, body);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT * FROM articles WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE articles;

@@ -380,9 +380,6 @@ ib_read_tuple(
 	ptr = mem_heap_alloc(tuple->heap, rec_offs_size(offsets));
 	copy = rec_copy(ptr, rec, offsets);
 
-	/* Avoid a debug assertion in rec_offs_validate(). */
-	rec_offs_make_valid(rec, index, (ulint*) offsets);
-
 	n_index_fields = ut_min(
 		rec_offs_n_fields(offsets), dtuple_get_n_fields(dtuple));
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,11 +27,16 @@ UNIV_INTERN
 void
 innobase_rec_to_mysql(
 /*==================*/
-	struct TABLE*		table,		/*!< in/out: MySQL table */
-	const rec_t*		rec,		/*!< in: record */
-	const dict_index_t*	index,		/*!< in: index */
-	const ulint*		offsets);	/*!< in: rec_get_offsets(
-						rec, index, ...) */
+	struct TABLE*		table,	/*!< in/out: MySQL table */
+	const ulint*		col_map,/*!< in: mapping of column
+					numbers in table to the
+					rebuilt table (index->table),
+					or NULL if not rebuilding table */
+	const rec_t*		rec,	/*!< in: record */
+	const dict_index_t*	index,	/*!< in: index */
+	const ulint*		offsets)/*!< in: rec_get_offsets(
+					rec, index, ...) */
+	__attribute__((nonnull(1,3,4,5)));
 
 /*************************************************************//**
 Resets table->record[0]. */
@@ -39,4 +44,5 @@ UNIV_INTERN
 void
 innobase_rec_reset(
 /*===============*/
-	struct TABLE*		table);		/*!< in/out: MySQL table */
+	struct TABLE*		table)		/*!< in/out: MySQL table */
+	__attribute__((nonnull));

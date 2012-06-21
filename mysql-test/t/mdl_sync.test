@@ -4065,7 +4065,7 @@ create table t1 (i int) engine=InnoDB;
 connection con50913_1;
 set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL parked WAIT_FOR go';
 --echo # Sending:
---send alter table t1 add column j int
+--send alter table t1 add column j int, ALGORITHM=COPY
 
 --echo # Switching to connection 'default'.
 connection default;
