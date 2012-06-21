@@ -5164,7 +5164,7 @@ int NdbQueryOperationImpl::setParallelism(Uint32 parallelism){
     getQuery().setErrorCode(Err_FunctionNotImplemented);
     return -1;
   }
-  else if (parallelism < 1 || parallelism > MAX_NDB_PARTITIONS)
+  else if (parallelism < 1 || parallelism > NDB_PARTITION_MASK)
   {
     getQuery().setErrorCode(Err_ParameterError);
     return -1;
