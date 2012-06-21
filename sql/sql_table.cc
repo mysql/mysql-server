@@ -5394,8 +5394,11 @@ compare_tables(THD *thd,
     for(; key_part != end; key_part++)
     {
       /* Mark field to be part of new key */
-      if ((field= table->field[key_part->fieldnr]))
+      if (key_part->fieldnr < table->s->fields)
+      {
+        field= table->field[key_part->fieldnr];
         field->flags|= FIELD_IN_ADD_INDEX;
+      }
     }
     *table_changes= IS_EQUAL_NO;
     DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
@@ -5429,16 +5432,18 @@ compare_tables(THD *thd,
       end= key_part + new_key->key_parts;
       for(; key_part != end; key_part++)
       {
-        /*
-          Check if all fields in key are declared
-          NOT NULL
-         */
         if (key_part->fieldnr < table->s->fields)
         {
-          /* Mark field to be part of new key */
           field= table->field[key_part->fieldnr];
+          /* Mark field to be part of new key */
           field->flags|= FIELD_IN_ADD_INDEX;
-          is_not_null= (is_not_null && (!field->maybe_null()));
+          /*
+            Check if all fields in key are declared
+            NOT NULL
+          */
+          is_not_null=
+            (is_not_null && 
+             (!field->maybe_null()));
         }
         else
         {
