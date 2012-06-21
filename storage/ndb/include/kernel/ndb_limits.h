@@ -191,7 +191,7 @@
  */
 #define LCP_RESTORE_BUFFER (4*32)
 
-#define NDB_DEFAULT_HASHMAP_BUCKTETS 240
+#define NDB_DEFAULT_HASHMAP_BUCKETS 240
 
 /**
  * Bits/mask used for coding/decoding blockno/blockinstance
