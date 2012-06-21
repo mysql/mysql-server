@@ -70,10 +70,12 @@ cmp_debug_dtuple_rec_with_match(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint*		matched_fields);/*!< in/out: number of already
+	ulint		n_cmp,	/*!< in: number of fields to compare */
+	ulint*		matched_fields)/*!< in/out: number of already
 				completely  matched fields; when function
 				returns, contains the value for current
 				comparison */
+	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 /*************************************************************//**
 This function is used to compare two data fields for which the data type
@@ -622,14 +624,15 @@ respectively, when only the common first fields are compared, or until
 the first externally stored field in rec */
 UNIV_INTERN
 int
-cmp_dtuple_rec_with_match(
-/*======================*/
+cmp_dtuple_rec_with_match_low(
+/*==========================*/
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
 	const rec_t*	rec,	/*!< in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint		n_cmp,	/*!< in: number of fields to compare */
 	ulint*		matched_fields, /*!< in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
@@ -653,7 +656,7 @@ cmp_dtuple_rec_with_match(
 	ulint		cur_field;	/* current field number */
 	ulint		cur_bytes;	/* number of already matched bytes
 					in current field */
-	int		ret = 3333;	/* return value */
+	int		ret;		/* return value */
 
 	ut_ad(dtuple && rec && matched_fields && matched_bytes);
 	ut_ad(dtuple_check_typed(dtuple));
@@ -662,7 +665,9 @@ cmp_dtuple_rec_with_match(
 	cur_field = *matched_fields;
 	cur_bytes = *matched_bytes;
 
-	ut_ad(cur_field <= dtuple_get_n_fields_cmp(dtuple));
+	ut_ad(n_cmp > 0);
+	ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
+	ut_ad(cur_field <= n_cmp);
 	ut_ad(cur_field <= rec_offs_n_fields(offsets));
 
 	if (cur_bytes == 0 && cur_field == 0) {
@@ -682,7 +687,7 @@ cmp_dtuple_rec_with_match(
 	/* Match fields in a loop; stop if we run out of fields in dtuple
 	or find an externally stored field */
 
-	while (cur_field < dtuple_get_n_fields_cmp(dtuple)) {
+	while (cur_field < n_cmp) {
 
 		ulint	mtype;
 		ulint	prtype;
@@ -839,7 +844,7 @@ next_field:
 order_resolved:
 	ut_ad((ret >= - 1) && (ret <= 1));
 	ut_ad(ret == cmp_debug_dtuple_rec_with_match(dtuple, rec, offsets,
-						     matched_fields));
+						     n_cmp, matched_fields));
 	ut_ad(*matched_fields == cur_field); /* In the debug version, the
 					     above cmp_debug_... sets
 					     *matched_fields to a value */
@@ -1024,14 +1029,19 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index,	/*!< in: data dictionary index */
-	struct TABLE*		table)	/*!< in: MySQL table, for reporting
+	struct TABLE*		table,	/*!< in: MySQL table, for reporting
 					duplicate key value if applicable,
 					or NULL */
+	const ulint*		col_map)/*!< in: mapping of column
+					numbers in table to the
+					rebuilt table (index->table),
+					or NULL if not rebuilding table */
 {
 	ulint		n;
 	ulint		n_uniq	= dict_index_get_n_unique(index);
 	bool		null_eq	= false;
 
+	ut_ad(!col_map || table);
 	ut_ad(rec_offs_n_fields(offsets1) >= n_uniq);
 	ut_ad(rec_offs_n_fields(offsets2) == rec_offs_n_fields(offsets2));
 
@@ -1061,7 +1071,7 @@ cmp_rec_rec_simple(
 	equal to rec2. Issue a duplicate key error if needed. */
 
 	if (!null_eq && table && dict_index_is_unique(index)) {
-		innobase_rec_to_mysql(table, rec1, index, offsets1);
+		innobase_rec_to_mysql(table, col_map, rec1, index, offsets1);
 		return(0);
 	}
 
@@ -1352,6 +1362,7 @@ cmp_debug_dtuple_rec_with_match(
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint		n_cmp,	/*!< in: number of fields to compare */
 	ulint*		matched_fields) /*!< in/out: number of already
 				completely matched fields; when function
 				returns, contains the value for current
@@ -1364,14 +1375,16 @@ cmp_debug_dtuple_rec_with_match(
 					field data */
 	ulint		rec_f_len;	/* length of current field in rec */
 	const byte*	rec_f_data;	/* pointer to the current rec field */
-	int		ret = 3333;	/* return value */
+	int		ret;		/* return value */
 	ulint		cur_field;	/* current field number */
 
 	ut_ad(dtuple && rec && matched_fields);
 	ut_ad(dtuple_check_typed(dtuple));
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 
-	ut_ad(*matched_fields <= dtuple_get_n_fields_cmp(dtuple));
+	ut_ad(n_cmp > 0);
+	ut_ad(n_cmp <= dtuple_get_n_fields(dtuple));
+	ut_ad(*matched_fields <= n_cmp);
 	ut_ad(*matched_fields <= rec_offs_n_fields(offsets));
 
 	cur_field = *matched_fields;
@@ -1397,7 +1410,7 @@ cmp_debug_dtuple_rec_with_match(
 
 	/* Match fields in a loop; stop if we run out of fields in dtuple */
 
-	while (cur_field < dtuple_get_n_fields_cmp(dtuple)) {
+	while (cur_field < n_cmp) {
 
 		ulint	mtype;
 		ulint	prtype;

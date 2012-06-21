@@ -103,6 +103,9 @@ UNIV_INTERN char*	srv_undo_dir = NULL;
 /** The number of tablespaces to use for rollback segments. */
 UNIV_INTERN ulong	srv_undo_tablespaces = 8;
 
+/** The number of UNDO tablespaces that are open and ready to use. */
+UNIV_INTERN ulint	srv_undo_tablespaces_open = 8;
+
 /* The number of rollback segments to use */
 UNIV_INTERN ulong	srv_undo_logs = 1;
 

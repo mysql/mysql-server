@@ -224,6 +224,9 @@ extern char*	srv_undo_dir;
 /** Number of undo tablespaces to use. */
 extern ulong	srv_undo_tablespaces;
 
+/** The number of UNDO tablespaces that are open and ready to use. */
+extern ulint	srv_undo_tablespaces_open;
+
 /* The number of undo segments to use */
 extern ulong	srv_undo_logs;
 

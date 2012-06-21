@@ -93,8 +93,8 @@ enum dberr_t {
 					work with e.g., FT indexes created by
 					a later version of the engine. */
 
-	DB_PRIMARY_KEY_IS_NULL,		/*!< a column in the PRIMARY KEY
-					was found to be NULL */
+	DB_INVALID_NULL,		/*!< a NOT NULL column was found to
+					be NULL during table rebuild */
 
 	DB_STATS_DO_NOT_EXIST,		/*!< an operation that requires the
 					persistent storage, used for recording

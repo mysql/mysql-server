@@ -4769,7 +4769,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* We can abort create table for any table type */
   thd->abort_on_warning= thd->is_strict_mode();
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  /*
+    Promote first timestamp column, when explicit_defaults_for_timestamp
+    is not set
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
@@ -5379,8 +5384,9 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
-    /* Clear marker for renamed field which we are going to set later. */
-    field->flags&= ~FIELD_IS_RENAMED;
+    /* Clear marker for renamed or dropped field
+    which we are going to set later. */
+    field->flags&= ~(FIELD_IS_RENAMED | FIELD_IS_DROPPED);
 
     /* Use transformed info to evaluate flags for storage engine. */
     uint new_field_index= 0;
@@ -5478,6 +5484,7 @@ static bool fill_alter_inplace_info(THD *thd,
         Corresponding storage engine flag should be already set.
       */
       DBUG_ASSERT(ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN);
+      field->flags|= FIELD_IS_DROPPED;
     }
   }
 
@@ -7287,7 +7294,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* We can abort alter table for any table type */
   thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  /*
+    Promote first timestamp column, when explicit_defaults_for_timestamp
+    is not set
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   /*
     Create .FRM for new version of table with a temporary name.

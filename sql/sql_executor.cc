@@ -1814,6 +1814,11 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
 
   for ( ; join_tab <= last_inner_tab ; join_tab++)
   {
+    // Make sure that the rowid buffer is bound, duplicates weedout needs it
+    if (join_tab->copy_current_rowid &&
+        !join_tab->copy_current_rowid->buffer_is_bound())
+      join_tab->copy_current_rowid->bind_buffer(join_tab->table->file->ref);
+
     /* Change the the values of guard predicate variables. */
     join_tab->found= 1;
     join_tab->not_null_compl= 0;

@@ -57,6 +57,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "buf0lru.h"
 #include "btr0btr.h"
 #include "btr0sea.h"
+#include "row0log.h"
 #include "row0purge.h"
 #include "row0upd.h"
 #include "trx0rec.h"
@@ -253,7 +254,6 @@ btr_cur_latch_leaves(
 	switch (latch_mode) {
 	case BTR_SEARCH_LEAF:
 	case BTR_MODIFY_LEAF:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
 		mode = latch_mode == BTR_SEARCH_LEAF ? RW_S_LATCH : RW_X_LATCH;
 		get_block = btr_block_get(
 			space, zip_size, page_no, mode, cursor->index, mtr);
@@ -263,7 +263,6 @@ btr_cur_latch_leaves(
 		get_block->check_index_page_at_flush = TRUE;
 		return;
 	case BTR_MODIFY_TREE:
-	case BTR_MODIFY_TREE_APPLY_LOG:
 		/* x-latch also brothers from left to right */
 		left_page_no = btr_page_get_prev(page, mtr);
 
@@ -384,7 +383,7 @@ btr_cur_search_to_nth_level(
 	page_t*		page;
 	buf_block_t*	block;
 	ulint		space;
-	buf_block_t*	guess	= NULL;
+	buf_block_t*	guess;
 	ulint		height;
 	ulint		page_no;
 	ulint		up_match;
@@ -472,7 +471,9 @@ btr_cur_search_to_nth_level(
 	/* Turn the flags unrelated to the latch mode off. */
 	latch_mode = BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode);
 
-	ut_ad(!s_latch_by_caller || latch_mode == BTR_SEARCH_LEAF);
+	ut_ad(!s_latch_by_caller
+	      || latch_mode == BTR_SEARCH_LEAF
+	      || latch_mode == BTR_MODIFY_LEAF);
 
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
@@ -480,18 +481,6 @@ btr_cur_search_to_nth_level(
 #ifndef BTR_CUR_ADAPT
 	guess = NULL;
 #else
-	switch (latch_mode) {
-	default:
-		if (level == 0 || !dict_index_is_online_ddl(index)) {
-			break;
-		}
-		/* fall through */
-	case BTR_MODIFY_TREE_APPLY_LOG:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
-		info = NULL;
-		goto no_guess;
-	}
-
 	info = btr_search_get_info(index);
 
 	guess = info->root_guess;
@@ -529,7 +518,6 @@ btr_cur_search_to_nth_level(
 		return;
 	}
 # endif /* BTR_CUR_HASH_ADAPT */
-no_guess:
 #endif /* BTR_CUR_ADAPT */
 	btr_cur_n_non_sea++;
 
@@ -548,7 +536,6 @@ no_guess:
 
 	switch (latch_mode) {
 	case BTR_MODIFY_TREE:
-	case BTR_MODIFY_TREE_APPLY_LOG:
 		mtr_x_lock(dict_index_get_lock(index), mtr);
 		break;
 	case BTR_CONT_MODIFY_TREE:
@@ -724,7 +711,7 @@ retry_page_get:
 		cursor->tree_height = root_height + 1;
 
 #ifdef BTR_CUR_ADAPT
-		if (block != guess && info) {
+		if (block != guess) {
 			info->root_guess = block;
 		}
 #endif
@@ -740,7 +727,6 @@ retry_page_get:
 
 		switch (latch_mode) {
 		case BTR_MODIFY_TREE:
-		case BTR_MODIFY_TREE_APPLY_LOG:
 		case BTR_CONT_MODIFY_TREE:
 			break;
 		default:
@@ -816,14 +802,8 @@ retry_page_get:
 		will properly check btr_search_enabled again in
 		btr_search_build_page_hash_index() before building a
 		page hash index, while holding btr_search_latch. */
-		switch (latch_mode) {
-		case BTR_MODIFY_TREE_APPLY_LOG:
-		case BTR_MODIFY_LEAF_APPLY_LOG:
-			break;
-		default:
-			if (btr_search_enabled) {
-				btr_search_info_update(index, cursor);
-			}
+		if (btr_search_enabled) {
+			btr_search_info_update(index, cursor);
 		}
 #endif
 		ut_ad(cursor->up_match != ULINT_UNDEFINED
@@ -884,9 +864,6 @@ btr_cur_open_at_index_side_func(
 	savepoint = mtr_set_savepoint(mtr);
 
 	switch (latch_mode) {
-	case BTR_MODIFY_TREE_APPLY_LOG:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
-		ut_error;
 	case BTR_CONT_MODIFY_TREE:
 		break;
 	case BTR_MODIFY_TREE:
@@ -937,7 +914,6 @@ btr_cur_open_at_index_side_func(
 			switch (latch_mode) {
 			case BTR_MODIFY_TREE:
 			case BTR_CONT_MODIFY_TREE:
-			case BTR_MODIFY_TREE_APPLY_LOG:
 				break;
 			default:
 				/* Release the tree s-latch */
@@ -1014,14 +990,11 @@ btr_cur_open_at_rnd_pos_func(
 	rec_offs_init(offsets_);
 
 	switch (latch_mode) {
-	case BTR_CONT_MODIFY_TREE:
-	case BTR_MODIFY_TREE_APPLY_LOG:
-	case BTR_MODIFY_LEAF_APPLY_LOG:
-		ut_error;
 	case BTR_MODIFY_TREE:
 		mtr_x_lock(dict_index_get_lock(index), mtr);
 		break;
 	default:
+		ut_ad(latch_mode != BTR_CONT_MODIFY_TREE);
 		mtr_s_lock(dict_index_get_lock(index), mtr);
 	}
 
@@ -1087,7 +1060,7 @@ be freed by reorganizing. Differs from btr_cur_optimistic_insert because
 no heuristics is applied to whether it pays to use CPU time for
 reorganizing the page or not.
 @return	pointer to inserted record if succeed, else NULL */
-static
+static __attribute__((nonnull, warn_unused_result))
 rec_t*
 btr_cur_insert_if_possible(
 /*=======================*/
@@ -1095,6 +1068,8 @@ btr_cur_insert_if_possible(
 				cursor stays valid */
 	const dtuple_t*	tuple,	/*!< in: tuple to insert; the size info need not
 				have been stored to tuple */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
@@ -1110,8 +1085,8 @@ btr_cur_insert_if_possible(
 	page_cursor = btr_cur_get_page_cur(cursor);
 
 	/* Now, try the insert */
-	rec = page_cur_tuple_insert(page_cursor, tuple,
-				    cursor->index, n_ext, mtr);
+	rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
+				    offsets, heap, n_ext, mtr);
 
 	if (UNIV_UNLIKELY(!rec)) {
 		/* If record did not fit, reorganize */
@@ -1121,11 +1096,13 @@ btr_cur_insert_if_possible(
 			page_cur_search(block, cursor->index, tuple,
 					PAGE_CUR_LE, page_cursor);
 
-			rec = page_cur_tuple_insert(page_cursor, tuple,
-						    cursor->index, n_ext, mtr);
+			rec = page_cur_tuple_insert(
+				page_cursor, tuple, cursor->index,
+				offsets, heap, n_ext, mtr);
 		}
 	}
 
+	ut_ad(!rec || rec_offs_validate(rec, cursor->index, *offsets));
 	return(rec);
 }
 
@@ -1158,7 +1135,9 @@ btr_cur_ins_lock_and_undo(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 
 	err = lock_rec_insert_check_and_lock(flags, rec,
 					     btr_cur_get_block(cursor),
@@ -1172,7 +1151,7 @@ btr_cur_ins_lock_and_undo(
 
 	err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
 					    thr, index, entry,
-					    NULL, 0, NULL,
+					    NULL, 0, NULL, NULL,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
@@ -1224,6 +1203,8 @@ btr_cur_optimistic_insert(
 				specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -1257,7 +1238,9 @@ btr_cur_optimistic_insert(
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
 	index = cursor->index;
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 	zip_size = buf_block_get_zip_size(block);
 #ifdef UNIV_DEBUG_VALGRIND
 	if (zip_size) {
@@ -1379,7 +1362,7 @@ fail_err:
 	{
 		const rec_t* page_cursor_rec = page_cur_get_rec(page_cursor);
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
-					     n_ext, mtr);
+					     offsets, heap, n_ext, mtr);
 		reorg = page_cursor_rec != page_cur_get_rec(page_cursor);
 
 		if (UNIV_UNLIKELY(reorg)) {
@@ -1404,7 +1387,7 @@ fail_err:
 		page_cur_search(block, index, entry, PAGE_CUR_LE, page_cursor);
 
 		*rec = page_cur_tuple_insert(page_cursor, entry, index,
-					     n_ext, mtr);
+					     offsets, heap, n_ext, mtr);
 
 		if (UNIV_UNLIKELY(!*rec)) {
 			if (zip_size != 0) {
@@ -1490,6 +1473,9 @@ btr_cur_pessimistic_insert(
 				insertion will certainly succeed */
 	btr_cur_t*	cursor,	/*!< in: cursor after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -1503,7 +1489,6 @@ btr_cur_pessimistic_insert(
 	dict_index_t*	index		= cursor->index;
 	ulint		zip_size	= dict_table_zip_size(index->table);
 	big_rec_t*	big_rec_vec	= NULL;
-	mem_heap_t*	heap		= NULL;
 	dberr_t		err;
 	ibool		dummy_inh;
 	ibool		success;
@@ -1519,15 +1504,18 @@ btr_cur_pessimistic_insert(
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 
 	/* Try first an optimistic insert; reset the cursor flag: we do not
 	assume anything of how it was positioned */
 
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-					big_rec, n_ext, thr, mtr);
+	err = btr_cur_optimistic_insert(
+		flags, cursor, offsets, heap, entry, rec,
+		big_rec, n_ext, thr, mtr);
 	if (err != DB_FAIL) {
 
 		return(err);
@@ -1589,14 +1577,10 @@ btr_cur_pessimistic_insert(
 
 		/* The page is the root page */
 		*rec = btr_root_raise_and_insert(
-			flags, cursor, entry, n_ext, mtr);
+			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	} else {
 		*rec = btr_page_split_and_insert(
-			flags, cursor, entry, n_ext, mtr);
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
+			flags, cursor, offsets, heap, entry, n_ext, mtr);
 	}
 
 	ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec);
@@ -1629,6 +1613,7 @@ btr_cur_upd_lock_and_undo(
 /*======================*/
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	btr_cur_t*	cursor,	/*!< in: cursor on record to update */
+	const ulint*	offsets,/*!< in: rec_get_offsets() on cursor */
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
@@ -1638,7 +1623,7 @@ btr_cur_upd_lock_and_undo(
 	roll_ptr_t*	roll_ptr)/*!< out: roll pointer */
 {
 	dict_index_t*	index;
-	rec_t*		rec;
+	const rec_t*	rec;
 	dberr_t		err;
 
 	ut_ad(thr || (flags & BTR_NO_LOCKING_FLAG));
@@ -1646,9 +1631,12 @@ btr_cur_upd_lock_and_undo(
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
 
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(rec_offs_validate(rec, index, offsets));
 
 	if (!dict_index_is_clust(index)) {
+		ut_ad(dict_index_is_online_ddl(index)
+		      == !!(flags & BTR_CREATE_FLAG));
+
 		/* We do undo logging only when we update a clustered index
 		record */
 		return(lock_sec_rec_modify_check_and_lock(
@@ -1659,32 +1647,21 @@ btr_cur_upd_lock_and_undo(
 	/* Check if we have to wait for a lock: enqueue an explicit lock
 	request if yes */
 
-	err = DB_SUCCESS;
-
 	if (!(flags & BTR_NO_LOCKING_FLAG)) {
-		mem_heap_t*	heap		= NULL;
-		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-		rec_offs_init(offsets_);
-
 		err = lock_clust_rec_modify_check_and_lock(
 			flags, btr_cur_get_block(cursor), rec, index,
-			rec_get_offsets(rec, index, offsets_,
-					ULINT_UNDEFINED, &heap), thr);
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
+			offsets, thr);
 		if (err != DB_SUCCESS) {
-
 			return(err);
 		}
 	}
 
 	/* Append the info about the update in the undo log */
 
-	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
-					    index, NULL, update,
-					    cmpl_info, rec, roll_ptr);
-	return(err);
+	return(trx_undo_report_row_operation(
+		       flags, TRX_UNDO_MODIFY_OP, thr,
+		       index, NULL, update,
+		       cmpl_info, rec, offsets, roll_ptr));
 }
 
 /***********************************************************//**
@@ -1694,15 +1671,15 @@ void
 btr_cur_update_in_place_log(
 /*========================*/
 	ulint		flags,		/*!< in: flags */
-	rec_t*		rec,		/*!< in: record */
+	const rec_t*	rec,		/*!< in: record */
 	dict_index_t*	index,		/*!< in: index of the record */
 	const upd_t*	update,		/*!< in: update vector */
 	trx_id_t	trx_id,		/*!< in: transaction id */
 	roll_ptr_t	roll_ptr,	/*!< in: roll ptr */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	byte*	log_ptr;
-	page_t*	page	= page_align(rec);
+	byte*		log_ptr;
+	const page_t*	page	= page_align(rec);
 	ut_ad(flags < 256);
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
@@ -1887,6 +1864,7 @@ btr_cur_update_in_place(
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
+	const ulint*	offsets,/*!< in: offsets on cursor->page_cur.rec */
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
@@ -1904,24 +1882,22 @@ btr_cur_update_in_place(
 	roll_ptr_t	roll_ptr	= 0;
 	ulint		was_delete_marked;
 	ibool		is_hashed;
-	mem_heap_t*	heap		= NULL;
-	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
-	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
+	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
+	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
 	ut_ad(btr_page_get_index_id(btr_cur_get_page(cursor)) == index->id);
 
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops) {
 		btr_cur_trx_report(trx_id, index, "update ");
@@ -1940,13 +1916,11 @@ btr_cur_update_in_place(
 	}
 
 	/* Do lock checking and undo logging */
-	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
+	err = btr_cur_upd_lock_and_undo(flags, cursor, offsets,
+					update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 		return(err);
 	}
 
@@ -2005,9 +1979,6 @@ btr_cur_update_in_place(
 					     rec, index, offsets, mtr);
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
 	return(DB_SUCCESS);
 }
 
@@ -2028,6 +1999,8 @@ btr_cur_optimistic_update(
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
+	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	const upd_t*	update,	/*!< in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
@@ -2050,10 +2023,8 @@ btr_cur_optimistic_update(
 	ulint		old_rec_size;
 	dtuple_t*	new_entry;
 	roll_ptr_t	roll_ptr;
-	mem_heap_t*	heap;
 	ulint		i;
 	ulint		n_ext;
-	ulint*		offsets;
 
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
@@ -2063,46 +2034,46 @@ btr_cur_optimistic_update(
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
+	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(btr_page_get_index_id(page) == index->id);
 
-	heap = mem_heap_create(1024);
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+	*offsets = rec_get_offsets(rec, index, *offsets,
+				   ULINT_UNDEFINED, heap);
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	ut_a(!rec_offs_any_null_extern(rec, *offsets)
 	     || trx_is_recv(thr_get_trx(thr)));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops) {
 		btr_cur_trx_report(trx_id, index, "update ");
-		rec_print_new(stderr, rec, offsets);
+		rec_print_new(stderr, rec, *offsets);
 	}
 #endif /* UNIV_DEBUG */
 
-	if (!row_upd_changes_field_size_or_external(index, offsets, update)) {
+	if (!row_upd_changes_field_size_or_external(index, *offsets, update)) {
 
 		/* The simplest and the most common case: the update does not
 		change the size of any field and none of the updated fields is
 		externally stored in rec or update, and there is enough space
 		on the compressed page to log the update. */
 
-		mem_heap_free(heap);
 		return(btr_cur_update_in_place(
-			       flags, cursor, update,
+			       flags, cursor, *offsets, update,
 			       cmpl_info, thr, trx_id, mtr));
 	}
 
-	if (rec_offs_any_extern(offsets)) {
+	if (rec_offs_any_extern(*offsets)) {
 any_extern:
 		/* Externally stored fields are treated in pessimistic
 		update */
 
-		mem_heap_free(heap);
 		return(DB_OVERFLOW);
 	}
 
@@ -2115,8 +2086,14 @@ any_extern:
 
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, offsets,
-					   &n_ext, heap);
+	if (!*heap) {
+		*heap = mem_heap_create(
+			rec_offs_size(*offsets)
+			+ DTUPLE_EST_ALLOC(rec_offs_n_fields(*offsets)));
+	}
+
+	new_entry = row_rec_to_index_entry(rec, index, *offsets,
+					   &n_ext, *heap);
 	/* We checked above that there are no externally stored fields. */
 	ut_a(!n_ext);
 
@@ -2124,8 +2101,8 @@ any_extern:
 	corresponding to new_entry is latched in mtr.
 	Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, heap);
-	old_rec_size = rec_offs_size(offsets);
+						     FALSE, *heap);
+	old_rec_size = rec_offs_size(*offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
 	page_zip = buf_block_get_page_zip(block);
@@ -2136,16 +2113,14 @@ any_extern:
 	if (page_zip
 	    && !btr_cur_update_alloc_zip(page_zip, block, index,
 					 new_rec_size, TRUE, mtr)) {
-		err = DB_ZIP_OVERFLOW;
-		goto err_exit;
+		return(DB_ZIP_OVERFLOW);
 	}
 
 	if (UNIV_UNLIKELY(new_rec_size
 			  >= (page_get_free_space_of_empty(page_is_comp(page))
 			      / 2))) {
 
-		err = DB_OVERFLOW;
-		goto err_exit;
+		return(DB_OVERFLOW);
 	}
 
 	if (UNIV_UNLIKELY(page_get_data_size(page)
@@ -2154,8 +2129,7 @@ any_extern:
 
 		/* The page would become too empty */
 
-		err = DB_UNDERFLOW;
-		goto err_exit;
+		return(DB_UNDERFLOW);
 	}
 
 	max_size = old_rec_size
@@ -2169,16 +2143,16 @@ any_extern:
 		reorganize: for simplicity, we decide what to do assuming a
 		reorganization is needed, though it might not be necessary */
 
-		err = DB_OVERFLOW;
-		goto err_exit;
+		return(DB_OVERFLOW);
 	}
 
 	/* Do lock checking and undo logging */
-	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
+	err = btr_cur_upd_lock_and_undo(flags, cursor, *offsets,
+					update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 
-		goto err_exit;
+		return(err);
 	}
 
 	/* Ok, we may do the replacement. Store on the page infimum the
@@ -2189,13 +2163,7 @@ any_extern:
 
 	btr_search_update_hash_on_delete(cursor);
 
-	/* The call to row_rec_to_index_entry(ROW_COPY_DATA, ...) above
-	invokes rec_offs_make_valid() to point to the copied record that
-	the fields of new_entry point to.  We have to undo it here. */
-	ut_ad(rec_offs_validate(NULL, index, offsets));
-	rec_offs_make_valid(page_cur_get_rec(page_cursor), index, offsets);
-
-	page_cur_delete_rec(page_cursor, index, offsets, mtr);
+	page_cur_delete_rec(page_cursor, index, *offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
 
@@ -2207,7 +2175,8 @@ any_extern:
 	}
 
 	/* There are no externally stored columns in new_entry */
-	rec = btr_cur_insert_if_possible(cursor, new_entry, 0/*n_ext*/, mtr);
+	rec = btr_cur_insert_if_possible(
+		cursor, new_entry, offsets, heap, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	if (page_zip && !dict_index_is_clust(index)
@@ -2222,10 +2191,7 @@ any_extern:
 
 	page_cur_move_to_next(page_cursor);
 
-	err = DB_SUCCESS;
-err_exit:
-	mem_heap_free(heap);
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /*************************************************************//**
@@ -2292,7 +2258,13 @@ btr_cur_pessimistic_update(
 	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
 				cursor may become invalid if *big_rec == NULL
 				|| !(flags & BTR_KEEP_POS_FLAG) */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
+	mem_heap_t*	entry_heap,
+				/*!< in/out: memory heap for allocating
+				big_rec and the index tuple */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	const upd_t*	update,	/*!< in: update vector; this is allowed also
@@ -2314,7 +2286,6 @@ btr_cur_pessimistic_update(
 	page_zip_des_t*	page_zip;
 	rec_t*		rec;
 	page_cur_t*	page_cursor;
-	dtuple_t*	new_entry;
 	dberr_t		err;
 	dberr_t		optim_err;
 	roll_ptr_t	roll_ptr;
@@ -2322,8 +2293,8 @@ btr_cur_pessimistic_update(
 	ulint		n_extents	= 0;
 	ulint		n_reserved;
 	ulint		n_ext;
-	ulint*		offsets		= NULL;
 
+	*offsets = NULL;
 	*big_rec = NULL;
 
 	block = btr_cur_get_block(cursor);
@@ -2340,13 +2311,16 @@ btr_cur_pessimistic_update(
 #endif /* UNIV_ZIP_DEBUG */
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
+	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
+	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || flags == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
-			       | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
+	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
-	optim_err = btr_cur_optimistic_update(flags, cursor, update,
-					      cmpl_info, thr, trx_id, mtr);
+	optim_err = btr_cur_optimistic_update(
+		flags, cursor, offsets, offsets_heap, update,
+		cmpl_info, thr, trx_id, mtr);
 
 	switch (optim_err) {
 	case DB_UNDERFLOW:
@@ -2358,7 +2332,8 @@ btr_cur_pessimistic_update(
 	}
 
 	/* Do lock checking and undo logging */
-	err = btr_cur_upd_lock_and_undo(flags, cursor, update, cmpl_info,
+	err = btr_cur_upd_lock_and_undo(flags, cursor, *offsets,
+					update, cmpl_info,
 					thr, mtr, &roll_ptr);
 	if (err != DB_SUCCESS) {
 
@@ -2386,18 +2361,11 @@ btr_cur_pessimistic_update(
 		}
 	}
 
-	if (!*heap) {
-		*heap = mem_heap_create(1024);
-	}
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, heap);
+	*offsets = rec_get_offsets(
+		rec, index, *offsets, ULINT_UNDEFINED, offsets_heap);
 
-	new_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index, offsets,
-					   &n_ext, *heap);
-	/* The call to row_rec_to_index_entry(ROW_COPY_DATA, ...) above
-	invokes rec_offs_make_valid() to point to the copied record that
-	the fields of new_entry point to.  We have to undo it here. */
-	ut_ad(rec_offs_validate(NULL, index, offsets));
-	rec_offs_make_valid(rec, index, offsets);
+	dtuple_t*	new_entry = row_rec_to_index_entry(
+		rec, index, *offsets, &n_ext, entry_heap);
 
 	/* The page containing the clustered index record
 	corresponding to new_entry is latched in mtr.  If the
@@ -2406,7 +2374,7 @@ btr_cur_pessimistic_update(
 	purge would also have removed the clustered index record
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, *heap);
+						     FALSE, entry_heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);
@@ -2414,7 +2382,7 @@ btr_cur_pessimistic_update(
 					      trx_id);
 	}
 
-	if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(offsets)) {
+	if ((flags & BTR_NO_UNDO_LOG_FLAG) && rec_offs_any_extern(*offsets)) {
 		/* We are in a transaction rollback undoing a row
 		update: we must free possible externally stored fields
 		which got new values in the update, if they are not
@@ -2425,7 +2393,7 @@ btr_cur_pessimistic_update(
 		ut_ad(big_rec_vec == NULL);
 
 		btr_rec_free_updated_extern_fields(
-			index, rec, page_zip, offsets, update,
+			index, rec, page_zip, *offsets, update,
 			trx_is_recv(thr_get_trx(thr))
 			? RB_RECOVERY : RB_NORMAL, mtr);
 	}
@@ -2434,8 +2402,8 @@ btr_cur_pessimistic_update(
 	record to be inserted: we have to remember which fields were such */
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
-	ut_ad(rec_offs_validate(rec, index, offsets));
-	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
+	ut_ad(rec_offs_validate(rec, index, *offsets));
+	n_ext += btr_push_update_extern_fields(new_entry, update, entry_heap);
 
 	if (page_zip) {
 		ut_ad(page_is_comp(page));
@@ -2481,11 +2449,12 @@ make_external:
 #endif /* UNIV_ZIP_DEBUG */
 	page_cursor = btr_cur_get_page_cur(cursor);
 
-	page_cur_delete_rec(page_cursor, index, offsets, mtr);
+	page_cur_delete_rec(page_cursor, index, *offsets, mtr);
 
 	page_cur_move_to_prev(page_cursor);
 
-	rec = btr_cur_insert_if_possible(cursor, new_entry, n_ext, mtr);
+	rec = btr_cur_insert_if_possible(cursor, new_entry,
+					 offsets, offsets_heap, n_ext, mtr);
 
 	if (rec) {
 		page_cursor->rec = rec;
@@ -2493,20 +2462,19 @@ make_external:
 		lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
 						   rec, block);
 
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, heap);
-
-		if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+		if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
 			/* The new inserted record owns its possible externally
 			stored fields */
-			btr_cur_unmark_extern_fields(page_zip,
-						     rec, index, offsets, mtr);
+			btr_cur_unmark_extern_fields(
+				page_zip, rec, index, *offsets, mtr);
 		}
 
-		btr_cur_compress_if_useful(
-			cursor,
-			big_rec_vec != NULL && (flags & BTR_KEEP_POS_FLAG),
-			mtr);
+		bool adjust = big_rec_vec && (flags & BTR_KEEP_POS_FLAG);
+
+		if (btr_cur_compress_if_useful(cursor, adjust, mtr)
+		    && adjust) {
+			rec_offs_make_valid(page_cursor->rec, index, *offsets);
+		}
 
 		if (page_zip && !dict_index_is_clust(index)
 		    && page_is_leaf(page)) {
@@ -2520,8 +2488,7 @@ make_external:
 		ut_a(optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
-		if (!dict_index_is_clust(index)
-		    && page_is_leaf(page)) {
+		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 	}
@@ -2551,11 +2518,13 @@ make_external:
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
 					 | BTR_KEEP_SYS_FLAG,
-					 cursor, new_entry, &rec,
+					 cursor, offsets, offsets_heap,
+					 new_entry, &rec,
 					 &dummy_big_rec, n_ext, NULL, mtr);
 	ut_a(rec);
 	ut_a(err == DB_SUCCESS);
 	ut_a(dummy_big_rec == NULL);
+	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	page_cursor->rec = rec;
 
 	if (dict_index_is_sec_or_ibuf(index)) {
@@ -2571,7 +2540,7 @@ make_external:
 				       trx_id, mtr);
 	}
 
-	if (!rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+	if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
 		/* The new inserted record owns its possible externally
 		stored fields */
 		buf_block_t*	rec_block = btr_cur_get_block(cursor);
@@ -2582,10 +2551,8 @@ make_external:
 #endif /* UNIV_ZIP_DEBUG */
 		page_zip = buf_block_get_page_zip(rec_block);
 
-		offsets = rec_get_offsets(rec, index, offsets,
-					  ULINT_UNDEFINED, heap);
 		btr_cur_unmark_extern_fields(page_zip,
-					     rec, index, offsets, mtr);
+					     rec, index, *offsets, mtr);
 	}
 
 	lock_rec_restore_from_page_infimum(btr_cur_get_block(cursor),
@@ -2787,7 +2754,7 @@ btr_cur_del_mark_set_clust_rec(
 	}
 
 	err = trx_undo_report_row_operation(0, TRX_UNDO_MODIFY_OP, thr,
-					    index, NULL, NULL, 0, rec,
+					    index, NULL, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
 
@@ -2804,6 +2771,13 @@ btr_cur_del_mark_set_clust_rec(
 	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
 
 	trx = thr_get_trx(thr);
+
+	if (dict_index_is_online_ddl(index)) {
+		row_log_table_delete(
+			rec, index, offsets,
+			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
+					+ rec));
+	}
 
 	row_upd_rec_sys_fields(rec, page_zip, index, offsets, trx, roll_ptr);
 
@@ -3035,6 +3009,7 @@ btr_cur_optimistic_delete_func(
 
 	ut_ad(page_is_leaf(buf_block_get_frame(block)));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
+	      || dict_index_is_clust(cursor->index)
 	      || (flags & BTR_CREATE_FLAG));
 
 	rec = btr_cur_get_rec(cursor);
@@ -3123,7 +3098,6 @@ btr_cur_pessimistic_delete(
 	page_zip_des_t*	page_zip;
 	dict_index_t*	index;
 	rec_t*		rec;
-	dtuple_t*	node_ptr;
 	ulint		n_extents	= 0;
 	ulint		n_reserved;
 	ibool		success;
@@ -3137,7 +3111,9 @@ btr_cur_pessimistic_delete(
 	index = btr_cur_get_index(cursor);
 
 	ut_ad(flags == 0 || flags == BTR_CREATE_FLAG);
-	ut_ad(!dict_index_is_online_ddl(index) || (flags & BTR_CREATE_FLAG));
+	ut_ad(!dict_index_is_online_ddl(index)
+	      || dict_index_is_clust(index)
+	      || (flags & BTR_CREATE_FLAG));
 	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
@@ -3186,13 +3162,15 @@ btr_cur_pessimistic_delete(
 
 		btr_discard_page(cursor, mtr);
 
-		*err = DB_SUCCESS;
 		ret = TRUE;
 
 		goto return_after_reservations;
 	}
 
-	lock_update_delete(block, rec);
+	if (flags == 0) {
+		lock_update_delete(block, rec);
+	}
+
 	level = btr_page_get_level(page, mtr);
 
 	if (level > 0
@@ -3221,12 +3199,12 @@ btr_cur_pessimistic_delete(
 
 			btr_node_ptr_delete(index, block, mtr);
 
-			node_ptr = dict_index_build_node_ptr(
+			dtuple_t*	node_ptr = dict_index_build_node_ptr(
 				index, next_rec, buf_block_get_page_no(block),
 				heap, level);
 
-			btr_insert_on_non_leaf_level(flags, index,
-						     level + 1, node_ptr, mtr);
+			btr_insert_on_non_leaf_level(
+				flags, index, level + 1, node_ptr, mtr);
 		}
 	}
 
@@ -3239,9 +3217,9 @@ btr_cur_pessimistic_delete(
 
 	ut_ad(btr_check_node_ptr(index, block, mtr));
 
+return_after_reservations:
 	*err = DB_SUCCESS;
 
-return_after_reservations:
 	mem_heap_free(heap);
 
 	if (ret == FALSE) {
@@ -3268,8 +3246,8 @@ btr_cur_add_path_info(
 	ulint		root_height)	/*!< in: root node height in tree */
 {
 	btr_path_t*	slot;
-	rec_t*		rec;
-	page_t*		page;
+	const rec_t*	rec;
+	const page_t*	page;
 
 	ut_a(cursor->path_arr);
 

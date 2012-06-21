@@ -349,6 +349,18 @@ public:
   void slave_worker_ends_group(Log_event*, int);
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   bool reset_recovery_info();
+  /**
+     Different from the parent method in that this does not delete
+     rli_description_event.
+     The method runs by Coordinator when Worker are synched or being
+     destroyed.
+  */
+  void set_rli_description_event(Format_description_log_event *fdle)
+  {
+    rli_description_event= fdle;
+    if (fdle && fdle->server_id != (uint32) ::server_id)
+      adapt_to_master_version(fdle);
+  }
 
 protected:
 

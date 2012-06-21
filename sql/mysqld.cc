@@ -491,7 +491,7 @@ ulong delay_key_write_options;
 uint protocol_version;
 uint lower_case_table_names;
 ulong tc_heuristic_recover= 0;
-int32 thread_running;
+int32 num_thread_running;
 ulong thread_created;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
@@ -814,6 +814,7 @@ void remove_global_thread(THD *thd)
   DBUG_PRINT("info", ("remove_global_thread %p current_linfo %p",
                       thd, thd->current_linfo));
   mysql_mutex_assert_owner(&LOCK_thread_count);
+  DBUG_ASSERT(thd->release_resources_done());
 
   const size_t num_erased= global_thread_list->erase(thd);
   if (num_erased == 1)
@@ -1083,6 +1084,32 @@ static void buffered_option_error_reporter(enum loglevel level,
   my_vsnprintf(buffer, sizeof(buffer), format, args);
   va_end(args);
   buffered_logs.buffer(level, buffer);
+}
+
+
+/**
+  Character set and collation error reporter that prints to sql error log.
+  @param level          log message level
+  @param format         log message format string
+
+  This routine is used to print character set and collation
+  warnings and errors inside an already running mysqld server,
+  e.g. when a character set or collation is requested for the very first time
+  and its initialization does not go well for some reasons.
+
+  Note: At early mysqld initialization stage,
+  when error log is not yet available,
+  we use buffered_option_error_reporter() instead,
+  to print general character set subsystem initialization errors,
+  such as Index.xml syntax problems, bad XML tag hierarchy, etc.
+*/
+static void charset_error_reporter(enum loglevel level,
+                                   const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  vprint_msg_to_log(level, format, args);
+  va_end(args);                      
 }
 C_MODE_END
 
@@ -1846,6 +1873,18 @@ static void clean_up_mutexes()
 ** Init IP and UNIX socket
 ****************************************************************************/
 
+
+/**
+  MY_BIND_ALL_ADDRESSES defines a special value for the bind-address option,
+  which means that the server should listen to all available network addresses,
+  both IPv6 (if available) and IPv4.
+
+  Basically, this value instructs the server to make an attempt to bind the
+  server socket to '::' address, and rollback to '0.0.0.0' if the attempt fails.
+*/
+const char *MY_BIND_ALL_ADDRESSES= "*";
+
+
 #ifndef EMBEDDED_LIBRARY
 static void set_ports()
 {
@@ -2091,21 +2130,59 @@ static void network_init(void)
     struct addrinfo *ai;
     struct addrinfo hints;
 
+    const char *bind_address_str= NULL;
+    const char *ipv6_all_addresses= "::";
+    const char *ipv4_all_addresses= "0.0.0.0";
+
     sql_print_information("Server hostname (bind-address): '%s'; port: %d",
                           my_bind_addr_str, mysqld_port);
 
-    // Get list of IP-addresses associated with the server hostname.
+    // Get list of IP-addresses associated with the bind-address.
+
     memset(&hints, 0, sizeof (hints));
     hints.ai_flags= AI_PASSIVE;
     hints.ai_socktype= SOCK_STREAM;
     hints.ai_family= AF_UNSPEC;
 
     my_snprintf(port_buf, NI_MAXSERV, "%d", mysqld_port);
-    if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
+
+    if (strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
     {
-      sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
-      sql_print_error("Can't start server: cannot resolve hostname!");
-      unireg_abort(1);				/* purecov: tested */
+      /*
+        That's the case when bind-address is set to a special value ('*'),
+        meaning "bind to all available IP addresses". If the box supports
+        the IPv6 stack, that means binding to '::'. If only IPv4 is available,
+        bind to '0.0.0.0'.
+      */
+
+      if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai))
+      {
+        bind_address_str= ipv6_all_addresses;
+      }
+      else
+      {
+        sql_print_information("IPv6 is not available.");
+
+        if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai))
+        {
+          sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));
+          sql_print_error("Can't start server: cannot resolve hostname!");
+          unireg_abort(1);
+        }
+
+        bind_address_str= ipv4_all_addresses;
+      }
+    }
+    else
+    {
+      if (getaddrinfo(my_bind_addr_str, port_buf, &hints, &ai))
+      {
+        sql_perror(ER_DEFAULT(ER_IPSOCK_ERROR));  /* purecov: tested */
+        sql_print_error("Can't start server: cannot resolve hostname!");
+        unireg_abort(1);                          /* purecov: tested */
+      }
+
+      bind_address_str= my_bind_addr_str;
     }
 
     // Log all the IP-addresses.
@@ -2121,7 +2198,7 @@ static void network_init(void)
       }
 
       sql_print_information("  - '%s' resolves to '%s';",
-                            my_bind_addr_str, ip_addr);
+                            bind_address_str, ip_addr);
     }
 
     /*
@@ -2364,16 +2441,16 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
 
 
 /*
-  Cleanup THD object
+  Rlease resources of the THD, prior to destruction.
 
   SYNOPSIS
-    thd_cleanup()
+    thd_release_resources()
     thd    Thread handler
 */
 
-void thd_cleanup(THD *thd)
+void thd_release_resources(THD *thd)
 {
-  thd->cleanup();
+  thd->release_resources();
 }
 
 /*
@@ -2493,7 +2570,7 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_ENTER("one_thread_per_connection_end");
   DBUG_PRINT("info", ("thd %p block_pthread %d", thd, (int) block_pthread));
 
-  thd->cleanup();
+  thd->release_resources();
   dec_connection_count();
 
   mysql_mutex_lock(&LOCK_thread_count);
@@ -4369,6 +4446,13 @@ static int init_server_components()
   buffered_logs.cleanup();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
+  /*
+    Now that the logger is available, redirect character set
+    errors directly to the logger
+    (instead of the buffered_logs used at the server startup time).
+  */
+  my_charset_error_reporter= charset_error_reporter;
+
   if (xid_cache_init())
   {
     sql_print_error("Out of memory");
@@ -5707,7 +5791,6 @@ void create_thread_to_handle_connection(THD *thd)
     /* Create new thread to handle connection */
     int error;
     thread_created++;
-    add_global_thread(thd);
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
     thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error= mysql_thread_create(key_thread_one_connection,
@@ -5719,7 +5802,6 @@ void create_thread_to_handle_connection(THD *thd)
       DBUG_PRINT("error",
                  ("Can't create thread to handle request (error %d)",
                   error));
-      remove_global_thread(thd);
       thd->killed= THD::KILL_CONNECTION;      // Safety
       mysql_mutex_unlock(&LOCK_thread_count);
 
@@ -5738,6 +5820,7 @@ void create_thread_to_handle_connection(THD *thd)
       return;
       /* purecov: end */
     }
+    add_global_thread(thd);
   }
   mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("Thread created"));
@@ -7577,7 +7660,7 @@ SHOW_VAR status_vars[]= {
   {"Threads_cached",           (char*) &blocked_pthread_count,    SHOW_LONG_NOFLUSH},
   {"Threads_connected",        (char*) &connection_count,       SHOW_INT},
   {"Threads_created",        (char*) &thread_created,   SHOW_LONG_NOFLUSH},
-  {"Threads_running",          (char*) &thread_running,         SHOW_INT},
+  {"Threads_running",          (char*) &num_thread_running,     SHOW_INT},
   {"Uptime",                   (char*) &show_starttime,         SHOW_FUNC},
 #ifdef ENABLED_PROFILING
   {"Uptime_since_flush_status",(char*) &show_flushstatustime,   SHOW_FUNC},
@@ -7737,7 +7820,7 @@ static int mysql_init_variables(void)
   cleanup_done= 0;
   server_id_supplied= 0;
   test_flags= select_errors= dropping_tables= ha_open_options=0;
-  global_thread_count= thread_running= kill_blocked_pthreads_flag= wake_pthread=0;
+  global_thread_count= num_thread_running= kill_blocked_pthreads_flag= wake_pthread=0;
   slave_open_temp_tables= 0;
   blocked_pthread_count= 0;
   opt_endinfo= using_udf_functions= 0;
@@ -8360,6 +8443,17 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                       global_system_variables.net_buffer_length,
                       global_system_variables.max_allowed_packet);
   }
+
+  /*
+    TIMESTAMP columns get implicit DEFAULT values when
+    --explicit_defaults_for_timestamp is not set. 
+    This behavior is deprecated now.
+  */
+  if (!global_system_variables.explicit_defaults_for_timestamp)
+    sql_print_warning("TIMESTAMP with implicit DEFAULT value is deprecated. "
+                      "Please use --explicit_defaults_for_timestamp server "
+                      "option (see documentation for more details).");
+
 
   if (log_error_file_ptr != disabled_my_option)
     opt_error_log= 1;

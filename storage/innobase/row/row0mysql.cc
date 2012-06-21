@@ -2754,6 +2754,8 @@ row_discard_tablespace_begin(
 {
 	trx->op_info = "discarding tablespace";
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx_start_if_not_started_xa(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -2838,11 +2840,15 @@ row_discard_tablespace_end(
 		dict_table_close(table, TRUE, FALSE);
 	}
 
-	DBUG_EXECUTE_IF("ib_discard_before_commit_crash", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
 
-	DBUG_EXECUTE_IF("ib_discard_after_commit_crash", DBUG_SUICIDE(););
+	DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
+			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			DBUG_SUICIDE(););
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -2942,9 +2948,6 @@ row_discard_tablespace(
 			index->page = FIL_NULL;
 			index->space = FIL_NULL;
 		}
-
-		DBUG_EXECUTE_IF("ib_discard_before_root_reset_crash",
-				DBUG_SUICIDE(););
 
 		/* If the tablespace did not already exist or we couldn't
 		write to it, we treat that as a successful DISCARD. It is
@@ -4017,6 +4020,12 @@ check_next_foreign:
 		However, during recovery, we might have a temp flag but
 		not know the temp path */
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
+		if (dict_table_is_discarded(table)
+		    || table->ibd_file_missing) {
+			/* Do not attempt to drop known-to-be-missing
+			tablespaces. */
+			space_id = 0;
+		}
 
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
@@ -5032,9 +5041,8 @@ not_ok:
 
 		mem_heap_empty(heap);
 
-		prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec,
-						    index, offsets,
-						    &n_ext, heap);
+		prev_entry = row_rec_to_index_entry(
+			rec, index, offsets, &n_ext, heap);
 
 		if (UNIV_LIKELY_NULL(tmp_heap)) {
 			mem_heap_free(tmp_heap);

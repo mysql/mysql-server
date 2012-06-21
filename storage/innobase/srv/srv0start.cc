@@ -1138,14 +1138,19 @@ srv_undo_tablespaces_init(
 /*======================*/
 	ibool		create_new_db,		/*!< in: TRUE if new db being
 						created */
-	const ulint	n_conf_tablespaces)	/*!< in: configured undo
+	const ulint	n_conf_tablespaces,	/*!< in: configured undo
 						tablespaces */
+	ulint*		n_opened)		/*!< out: number of UNDO
+						tablespaces successfully
+						discovered and opened */
 {
 	ulint		i;
 	dberr_t		err = DB_SUCCESS;
 	ulint		prev_space_id = 0;
 	ulint		n_undo_tablespaces;
 	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+
+	*n_opened = 0;
 
 	ut_a(n_conf_tablespaces <= TRX_SYS_N_RSEGS);
 
@@ -1172,10 +1177,10 @@ srv_undo_tablespaces_init(
 			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Could not create "
-				"undo tablespace '%s'.\n", name);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Could not create undo tablespace '%s'.",
+				name);
 
 			return(err);
 		}
@@ -1225,13 +1230,16 @@ srv_undo_tablespaces_init(
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
 		if (err != DB_SUCCESS) {
+
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Opening undo tablespace %s.", name);
+				"Unable to open undo tablespace '%s'.", name);
 
 			return(err);
 		}
 
 		prev_space_id = undo_tablespace_ids[i];
+
+		++*n_opened;
 	}
 
 	/* Open any extra unused undo tablespaces. These must be contiguous.
@@ -1254,6 +1262,8 @@ srv_undo_tablespaces_init(
 		}
 
 		++n_undo_tablespaces;
+
+		++*n_opened;
 	}
 
 	/* If the user says that there are fewer than what we find we
@@ -1281,9 +1291,9 @@ srv_undo_tablespaces_init(
 			"value is %lu\n", n_undo_tablespaces);
 
 		return(err != DB_SUCCESS ? err : DB_ERROR);
-	}
 
-	if (n_undo_tablespaces > 0) {
+	} else  if (n_undo_tablespaces > 0) {
+
 		ib_logf(IB_LOG_LEVEL_INFO, "Opened %lu undo tablespaces",
 			n_undo_tablespaces);
 
@@ -1941,7 +1951,10 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_open_log_and_system_tablespace_files();
 
-	err = srv_undo_tablespaces_init(create_new_db, srv_undo_tablespaces);
+	err = srv_undo_tablespaces_init(
+		create_new_db,
+		srv_undo_tablespaces,
+		&srv_undo_tablespaces_open);
 
 	/* If the force recovery is set very high then we carry on regardless
 	of all errors. Basically this is fingers crossed mode. */

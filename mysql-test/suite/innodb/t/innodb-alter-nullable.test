@@ -1,0 +1,68 @@
+--source include/have_innodb.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+CREATE TABLE t (c1 INT PRIMARY KEY, c2 INT NOT NULL, c3 INT) ENGINE=InnoDB;
+INSERT INTO t VALUES (1,2,3),(4,5,6),(7,8,9);
+
+--enable_info
+# This one will be a no-op.
+# MySQL should perhaps issue an error, because it refuses to modify
+# the PRIMARY KEY column c1 from NOT NULL to NULL.
+ALTER TABLE t CHANGE c1 c1 INT NULL FIRST, ALGORITHM=INPLACE;
+
+ALTER TABLE t MODIFY c3 INT NOT NULL, ALGORITHM=INPLACE;
+
+# Request some conflicting changes for a single column.
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t CHANGE c2 c2 INT, CHANGE c2 c2 INT NOT NULL;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t MODIFY c2 INT, MODIFY c2 INT NOT NULL;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t MODIFY c2 INT UNSIGNED, MODIFY c2 INT;
+--error ER_BAD_FIELD_ERROR
+ALTER TABLE t MODIFY c2 CHAR(1) NOT NULL, MODIFY c2 INT NOT NULL;
+
+# No-ops.
+ALTER TABLE t CHANGE c2 c2 INT NOT NULL;
+ALTER TABLE t MODIFY c2 INT NOT NULL;
+--disable_info
+
+connect (con1,localhost,root,,);
+connection con1;
+
+SET SQL_MODE='STRICT_ALL_TABLES';
+
+--error ER_BAD_NULL_ERROR
+UPDATE t SET c2=NULL;
+
+SELECT * FROM t;
+
+connection default;
+
+# This should change the column to NULL.
+ALTER TABLE t MODIFY c2 INT, ALGORITHM=INPLACE;
+
+connection con1;
+BEGIN;
+UPDATE t SET c2=NULL;
+SELECT * FROM t;
+ROLLBACK;
+SELECT * FROM t;
+
+disconnect con1;
+connection default;
+
+# This should be no-op.
+ALTER TABLE t MODIFY c2 INT NULL, ALGORITHM=INPLACE;
+
+--replace_column 1 # 5 #
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
+WHERE NAME='test/t';
+
+DROP TABLE t;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

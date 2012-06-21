@@ -396,7 +396,7 @@ explain t2;
 select * from t2;
 drop table t1, t2;
 
-create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, l datetime, m enum('a','b'), n set('a','b'), o char(10));
 create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
 show create table t2;
 drop table t1,t2;
@@ -1475,7 +1475,7 @@ DROP TABLE IF EXISTS t3;
 
 --echo
 
-CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
+CREATE TABLE t1(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00');
 
 --echo
 
@@ -1487,7 +1487,7 @@ DROP TABLE t2;
 
 --echo
 --error ER_INVALID_DEFAULT
-CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
+CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
 
 --echo
 --echo # -- Check that NULL column still can be created.

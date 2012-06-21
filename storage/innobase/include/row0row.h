@@ -143,11 +143,17 @@ row_build(
 					consulted instead; the user
 					columns in this table should be
 					the same columns as in index->table */
+	const dtuple_t*		add_cols,
+					/*!< in: default values of
+					added columns, or NULL */
+	const ulint*		col_map,/*!< in: mapping of old column
+					numbers to new ones, or NULL */
 	row_ext_t**		ext,	/*!< out, own: cache of
 					externally stored column
 					prefixes, or NULL */
-	mem_heap_t*		heap);	/*!< in: memory heap from which
+	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
+	__attribute__((nonnull(2,3,9), warn_unused_result));
 /*******************************************************************//**
 Converts an index record to a typed data tuple.
 @return index entry built; does not set info_bits, and the data fields
@@ -161,37 +167,25 @@ row_rec_to_index_entry_low(
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
-	mem_heap_t*		heap);	/*!< in: memory heap from which
+	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built; see the NOTE below! */
+@return	own: index entry built */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-	ulint			type,	/*!< in: ROW_COPY_DATA, or
-					ROW_COPY_POINTERS: the former
-					copies also the data fields to
-					heap as the latter only places
-					pointers to data fields on the
-					index page */
-	const rec_t*		rec,	/*!< in: record in the index;
-					NOTE: in the case
-					ROW_COPY_POINTERS the data
-					fields in the row will point
-					directly into this record,
-					therefore, the buffer page of
-					this record must be at least
-					s-latched and the latch held
-					as long as the dtuple is used! */
+	const rec_t*		rec,	/*!< in: record in the index */
 	const dict_index_t*	index,	/*!< in: index */
-	ulint*			offsets,/*!< in/out: rec_get_offsets(rec) */
+	const ulint*		offsets,/*!< in/out: rec_get_offsets(rec) */
 	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
-	mem_heap_t*		heap);	/*!< in: memory heap from which
+	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record.
@@ -212,8 +206,9 @@ row_build_row_ref(
 				the buffer page of this record must be
 				at least s-latched and the latch held
 				as long as the row reference is used! */
-	mem_heap_t*	heap);	/*!< in: memory heap from which the memory
+	mem_heap_t*	heap)	/*!< in: memory heap from which the memory
 				needed is allocated */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
@@ -234,7 +229,8 @@ row_build_row_ref_in_tuple(
 	const dict_index_t*	index,	/*!< in: secondary index */
 	ulint*			offsets,/*!< in: rec_get_offsets(rec, index)
 					or NULL */
-	trx_t*			trx);	/*!< in: transaction */
+	trx_t*			trx)	/*!< in: transaction or NULL */
+	__attribute__((nonnull(1,2,3)));
 /*******************************************************************//**
 Builds from a secondary index record a row reference with which we can
 search the clustered index record. */
@@ -264,7 +260,8 @@ row_search_on_row_ref(
 	ulint			mode,	/*!< in: BTR_MODIFY_LEAF, ... */
 	const dict_table_t*	table,	/*!< in: table */
 	const dtuple_t*		ref,	/*!< in: row reference */
-	mtr_t*			mtr);	/*!< in/out: mtr */
+	mtr_t*			mtr)	/*!< in/out: mtr */
+	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Fetches the clustered index record for a secondary index record. The latches
 on the secondary index record are preserved.
@@ -277,7 +274,8 @@ row_get_clust_rec(
 	const rec_t*	rec,	/*!< in: record in a secondary index */
 	dict_index_t*	index,	/*!< in: secondary index */
 	dict_index_t**	clust_index,/*!< out: clustered index */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull, warn_unused_result));
 
 /** Result of row_search_index_entry */
 enum row_search_result {
@@ -304,8 +302,8 @@ row_search_index_entry(
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF, ... */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor, which must
 				be closed by the caller */
-	mtr_t*		mtr);	/*!< in: mtr */
-
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull, warn_unused_result));
 
 #define ROW_COPY_DATA		1
 #define ROW_COPY_POINTERS	2
@@ -332,8 +330,9 @@ row_raw_format(
 						in bytes */
 	const dict_field_t*	dict_field,	/*!< in: index field */
 	char*			buf,		/*!< out: output buffer */
-	ulint			buf_size);	/*!< in: output buffer size
+	ulint			buf_size)	/*!< in: output buffer size
 						in bytes */
+	__attribute__((nonnull, warn_unused_result));
 
 #ifndef UNIV_NONINL
 #include "row0row.ic"

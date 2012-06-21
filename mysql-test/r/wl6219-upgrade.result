@@ -204,6 +204,7 @@ Repairing tables
 test.t1
 Warning  : YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 status   : OK
+Warning: Using a password on the command line interface can be insecure.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

@@ -1,5 +1,5 @@
 # Test of ipv6 format
-# Options: --skip-name-resolve, --bind-address=:: (see corresponding opt file).
+# Options: --skip-name-resolve (see corresponding opt file).
 #
 --source include/check_ipv6.inc
 # Can't be tested with embedded server

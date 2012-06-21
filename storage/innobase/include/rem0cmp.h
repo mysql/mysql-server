@@ -156,21 +156,28 @@ respectively, when only the common first fields are compared, or until
 the first externally stored field in rec */
 UNIV_INTERN
 int
-cmp_dtuple_rec_with_match(
-/*======================*/
+cmp_dtuple_rec_with_match_low(
+/*==========================*/
 	const dtuple_t*	dtuple,	/*!< in: data tuple */
 	const rec_t*	rec,	/*!< in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint*		matched_fields, /*!< in/out: number of already completely
+	ulint		n_cmp,	/*!< in: number of fields to compare */
+	ulint*		matched_fields,
+				/*!< in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
-	ulint*		matched_bytes); /*!< in/out: number of already matched
+	ulint*		matched_bytes)
+				/*!< in/out: number of already matched
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
+	__attribute__((nonnull));
+#define cmp_dtuple_rec_with_match(tuple,rec,offsets,fields,bytes)	\
+	cmp_dtuple_rec_with_match_low(					\
+		tuple,rec,offsets,dtuple_get_n_fields_cmp(tuple),fields,bytes)
 /**************************************************************//**
 Compares a data tuple to a physical record.
 @see cmp_dtuple_rec_with_match
@@ -208,10 +215,14 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index,	/*!< in: data dictionary index */
-	struct TABLE*		table)	/*!< in: MySQL table, for reporting
+	struct TABLE*		table,	/*!< in: MySQL table, for reporting
 					duplicate key value if applicable,
 					or NULL */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	const ulint*		col_map)/*!< in: mapping of column
+					numbers in table to the
+					rebuilt table (index->table),
+					or NULL if not rebuilding table */
+	__attribute__((nonnull(1,2,3,4), warn_unused_result));
 /*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is

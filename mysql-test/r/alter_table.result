@@ -1543,8 +1543,7 @@ ALTER TABLE t1 ADD COLUMN (c1 INT);
 ALTER TABLE t1 ADD COLUMN (c2 INT), ALGORITHM= DEFAULT;
 ALTER TABLE t1 ADD COLUMN (c3 INT), ALGORITHM= COPY;
 ALTER TABLE t1 ADD COLUMN (c4 INT), ALGORITHM= INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD COLUMN (c4 INT), ALGORITHM= INPLACE'
-ALTER TABLE t1 DROP COLUMN c1, DROP COLUMN c2, DROP COLUMN c3;
+ALTER TABLE t1 DROP COLUMN c1, DROP COLUMN c2, DROP COLUMN c3, DROP COLUMN c4;
 #
 # 4: Test LOCK keyword
 #
@@ -1646,26 +1645,26 @@ affected rows: 0
 ALTER TABLE tm1;
 affected rows: 0
 ALTER TABLE ti1 ADD COLUMN d VARCHAR(200);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN d VARCHAR(200);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN d2 VARCHAR(200);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN d2 VARCHAR(200);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN e ENUM('a', 'b') FIRST;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN e ENUM('a', 'b') FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN f INT AFTER a;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN f INT AFTER a;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1704,8 +1703,8 @@ ALTER TABLE tm1 ADD PRIMARY KEY(a);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP COLUMN d2;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 DROP COLUMN d2;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1752,26 +1751,26 @@ ALTER TABLE tm1 MODIFY COLUMN e INT;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT AFTER h;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN e INT AFTER h;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT FIRST;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN c INT NULL;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN c INT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1782,14 +1781,14 @@ ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30) AFTER d;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30) AFTER d;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP COLUMN h;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 DROP COLUMN h;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0

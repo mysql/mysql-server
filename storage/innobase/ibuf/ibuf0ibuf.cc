@@ -3452,7 +3452,9 @@ ibuf_insert_low(
 	btr_pcur_t	pcur;
 	btr_cur_t*	cursor;
 	dtuple_t*	ibuf_entry;
+	mem_heap_t*	offsets_heap	= NULL;
 	mem_heap_t*	heap;
+	ulint*		offsets		= NULL;
 	ulint		buffered;
 	lint		min_n_recs;
 	rec_t*		ins_rec;
@@ -3500,7 +3502,7 @@ ibuf_insert_low(
 		return(DB_STRONG_FAIL);
 	}
 
-	heap = mem_heap_create(512);
+	heap = mem_heap_create(1024);
 
 	/* Build the entry which contains the space id and the page number
 	as the first fields and the type information for other fields, and
@@ -3670,9 +3672,11 @@ fail_exit:
 	cursor = btr_pcur_get_btr_cur(&pcur);
 
 	if (mode == BTR_MODIFY_PREV) {
-		err = btr_cur_optimistic_insert(BTR_NO_LOCKING_FLAG, cursor,
-						ibuf_entry, &ins_rec,
-						&dummy_big_rec, 0, thr, &mtr);
+		err = btr_cur_optimistic_insert(
+			BTR_NO_LOCKING_FLAG,
+			cursor, &offsets, &offsets_heap,
+			ibuf_entry, &ins_rec,
+			&dummy_big_rec, 0, thr, &mtr);
 		block = btr_cur_get_block(cursor);
 		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
 
@@ -3697,11 +3701,11 @@ fail_exit:
 
 		root = ibuf_tree_root_get(&mtr);
 
-		err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
-						 | BTR_NO_UNDO_LOG_FLAG,
-						 cursor,
-						 ibuf_entry, &ins_rec,
-						 &dummy_big_rec, 0, thr, &mtr);
+		err = btr_cur_pessimistic_insert(
+			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG,
+			cursor, &offsets, &offsets_heap,
+			ibuf_entry, &ins_rec,
+			&dummy_big_rec, 0, thr, &mtr);
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
 		ibuf_size_update(root, &mtr);
 		mutex_exit(&ibuf_mutex);
@@ -3709,6 +3713,10 @@ fail_exit:
 
 		block = btr_cur_get_block(cursor);
 		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
+	}
+
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
 	}
 
 	if (err == DB_SUCCESS && op != IBUF_OP_DELETE) {
@@ -3898,7 +3906,7 @@ skip_watch:
 /********************************************************************//**
 During merge, inserts to an index page a secondary index entry extracted
 from the insert buffer. */
-static
+static __attribute__((nonnull))
 void
 ibuf_insert_to_index_page_low(
 /*==========================*/
@@ -3906,6 +3914,8 @@ ibuf_insert_to_index_page_low(
 	buf_block_t*	block,	/*!< in/out: index page where the buffered
 				entry should be placed */
 	dict_index_t*	index,	/*!< in: record descriptor */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	mtr_t*		mtr,	/*!< in/out: mtr */
 	page_cur_t*	page_cur)/*!< in/out: cursor positioned on the record
 				after which to insert the buffered entry */
@@ -3917,8 +3927,8 @@ ibuf_insert_to_index_page_low(
 	const page_t*	bitmap_page;
 	ulint		old_bits;
 
-	if (UNIV_LIKELY
-	    (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL)) {
+	if (page_cur_tuple_insert(
+		    page_cur, entry, index, offsets, &heap, 0, mtr) != NULL) {
 		return;
 	}
 
@@ -3929,8 +3939,8 @@ ibuf_insert_to_index_page_low(
 
 	/* This time the record must fit */
 
-	if (UNIV_LIKELY
-	    (page_cur_tuple_insert(page_cur, entry, index, 0, mtr) != NULL)) {
+	if (page_cur_tuple_insert(page_cur, entry, index,
+				  offsets, &heap, 0, mtr) != NULL) {
 		return;
 	}
 
@@ -3984,6 +3994,8 @@ ibuf_insert_to_index_page(
 	ulint		low_match;
 	page_t*		page		= buf_block_get_frame(block);
 	rec_t*		rec;
+	ulint*		offsets;
+	mem_heap_t*	heap;
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
@@ -4034,10 +4046,14 @@ dump:
 	low_match = page_cur_search(block, index, entry,
 				    PAGE_CUR_LE, &page_cur);
 
+	heap = mem_heap_create(
+		sizeof(upd_t)
+		+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
+		+ dtuple_get_n_fields(entry)
+		* (sizeof(upd_field_t) + sizeof *offsets));
+
 	if (UNIV_UNLIKELY(low_match == dtuple_get_n_fields(entry))) {
-		mem_heap_t*	heap;
 		upd_t*		update;
-		ulint*		offsets;
 		page_zip_des_t*	page_zip;
 
 		rec = page_cur_get_rec(&page_cur);
@@ -4045,12 +4061,6 @@ dump:
 		/* This is based on
 		row_ins_sec_index_entry_by_modify(BTR_MODIFY_LEAF). */
 		ut_ad(rec_get_deleted_flag(rec, page_is_comp(page)));
-
-		heap = mem_heap_create(
-			sizeof(upd_t)
-			+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
-			+ dtuple_get_n_fields(entry)
-			* (sizeof(upd_field_t) + sizeof *offsets));
 
 		offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED,
 					  &heap);
@@ -4065,9 +4075,7 @@ dump:
 			Bug #56680 was fixed. */
 			btr_cur_set_deleted_flag_for_ibuf(
 				rec, page_zip, FALSE, mtr);
-updated_in_place:
-			mem_heap_free(heap);
-			return;
+			goto updated_in_place;
 		}
 
 		/* Copy the info bits. Clear the delete-mark. */
@@ -4111,15 +4119,20 @@ updated_in_place:
 		lock_rec_store_on_page_infimum(block, rec);
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
 		page_cur_move_to_prev(&page_cur);
-		mem_heap_free(heap);
 
-		ibuf_insert_to_index_page_low(entry, block, index, mtr,
+		ibuf_insert_to_index_page_low(entry, block, index,
+					      &offsets, heap, mtr,
 					      &page_cur);
 		lock_rec_restore_from_page_infimum(block, rec, block);
 	} else {
-		ibuf_insert_to_index_page_low(entry, block, index, mtr,
+		offsets = NULL;
+		ibuf_insert_to_index_page_low(entry, block, index,
+					      &offsets, heap, mtr,
 					      &page_cur);
 	}
+
+updated_in_place:
+	mem_heap_free(heap);
 }
 
 /****************************************************************//**
@@ -4153,7 +4166,7 @@ ibuf_set_del_mark(
 		/* Delete mark the old index record. According to a
 		comment in row_upd_sec_index_entry(), it can already
 		have been delete marked if a lock wait occurred in
-		row_ins_index_entry() in a previous invocation of
+		row_ins_sec_index_entry() in a previous invocation of
 		row_upd_sec_index_entry(). */
 
 		if (UNIV_LIKELY
