@@ -1276,6 +1276,7 @@ int ha_commit_trans(THD *thd, bool all)
     need_prepare_ordered|= (ht->prepare_ordered != NULL);
     need_commit_ordered|= (ht->commit_ordered != NULL);
   }
+  DEBUG_SYNC(thd, "ha_commit_trans_after_prepare");
   DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
 
   if (!is_real_trans)

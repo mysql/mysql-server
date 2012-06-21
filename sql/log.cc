@@ -2464,9 +2464,10 @@ void MYSQL_LOG::init_pthread_objects()
 
   SYNOPSIS
     close()
-    exiting     Bitmask. For the slow and general logs the only used bit is
-                LOG_CLOSE_TO_BE_OPENED. This is used if we intend to call
-                open at once after close.
+    exiting     Bitmask. LOG_CLOSE_TO_BE_OPENED is used if we intend to call
+                open at once after close. LOG_CLOSE_DELAYED_CLOSE is used for
+                binlog rotation, to delay actual close of the old file until
+                we have successfully created the new file.
 
   NOTES
     One can do an open on the object at once after doing a close.
@@ -2487,7 +2488,8 @@ void MYSQL_LOG::close(uint exiting)
       sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
     }
 
-    if (mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
+    if (!(exiting & LOG_CLOSE_DELAYED_CLOSE) &&
+        mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
     {
       write_error= 1;
       sql_print_error(ER(ER_ERROR_ON_WRITE), name, errno);
@@ -3189,6 +3191,10 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
     if (write_file_name_to_index_file)
     {
 #ifdef HAVE_REPLICATION
+#ifdef ENABLED_DEBUG_SYNC
+      if (current_thd)
+        DEBUG_SYNC(current_thd, "binlog_open_before_update_index");
+#endif
       DBUG_EXECUTE_IF("crash_create_critical_before_update_index", DBUG_SUICIDE(););
 #endif
 
@@ -4297,6 +4303,10 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
 {
   int error= 0, close_on_error= FALSE;
   char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
+  uint close_flag;
+  bool delay_close= false;
+  File old_file;
+  LINT_INIT(old_file);
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
   if (!is_open())
@@ -4380,7 +4390,20 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   }
   old_name=name;
   name=0;				// Don't free name
-  close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
+  close_flag= LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX;
+  if (!is_relay_log)
+  {
+    /*
+      We need to keep the old binlog file open (and marked as in-use) until
+      the new one is fully created and synced to disk and index. Otherwise we
+      leave a window where if we crash, there is no binlog file marked as
+      crashed for server restart to detect the need for recovery.
+    */
+    old_file= log_file.file;
+    close_flag|= LOG_CLOSE_DELAYED_CLOSE;
+    delay_close= true;
+  }
+  close(close_flag);
   if (log_type == LOG_BIN && checksum_alg_reset != BINLOG_CHECKSUM_ALG_UNDEF)
   {
     DBUG_ASSERT(!is_relay_log);
@@ -4422,6 +4445,12 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock)
   my_free(old_name);
 
 end:
+
+  if (delay_close)
+  {
+    clear_inuse_flag_when_closing(old_file);
+    mysql_file_close(old_file, MYF(MY_WME));
+  }
 
   if (error && close_on_error /* rotate or reopen failed */)
   {
@@ -6275,6 +6304,8 @@ int MYSQL_BIN_LOG::wait_for_update_bin_log(THD* thd,
           - LOG_CLOSE_TO_BE_OPENED : if we intend to call open
                                      at once after close.
           - LOG_CLOSE_STOP_EVENT : write a 'stop' event to the log
+          - LOG_CLOSE_DELAYED_CLOSE : do not yet close the file and clear the
+                                      LOG_EVENT_BINLOG_IN_USE_F flag
 
   @note
     One can do an open on the object at once after doing a close.
@@ -6304,12 +6335,11 @@ void MYSQL_BIN_LOG::close(uint exiting)
 #endif /* HAVE_REPLICATION */
 
     /* don't pwrite in a file opened with O_APPEND - it doesn't work */
-    if (log_file.type == WRITE_CACHE && log_type == LOG_BIN)
+    if (log_file.type == WRITE_CACHE && log_type == LOG_BIN
+        && !(exiting & LOG_CLOSE_DELAYED_CLOSE))
     {
-      my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
       my_off_t org_position= mysql_file_tell(log_file.file, MYF(0));
-      uchar flags= 0;            // clearing LOG_EVENT_BINLOG_IN_USE_F
-      mysql_file_pwrite(log_file.file, &flags, 1, offset, MYF(0));
+      clear_inuse_flag_when_closing(log_file.file);
       /*
         Restore position so that anything we have in the IO_cache is written
         to the correct position.
@@ -6341,6 +6371,18 @@ void MYSQL_BIN_LOG::close(uint exiting)
   my_free(name);
   name= NULL;
   DBUG_VOID_RETURN;
+}
+
+
+/*
+  Clear the LOG_EVENT_BINLOG_IN_USE_F; this marks the binlog file as cleanly
+  closed and not needing crash recovery.
+*/
+void MYSQL_BIN_LOG::clear_inuse_flag_when_closing(File file)
+{
+  my_off_t offset= BIN_LOG_HEADER_SIZE + FLAGS_OFFSET;
+  uchar flags= 0;            // clearing LOG_EVENT_BINLOG_IN_USE_F
+  mysql_file_pwrite(file, &flags, 1, offset, MYF(0));
 }
 
 

@@ -202,6 +202,7 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_INDEX		1
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
+#define LOG_CLOSE_DELAYED_CLOSE 8
 
 /* 
   Maximum unique log filename extension.
@@ -665,6 +666,7 @@ public:
                         bool need_mutex);
   bool reset_logs(THD* thd);
   void close(uint exiting);
+  void clear_inuse_flag_when_closing(File file);
 
   // iterating through the log index file
   int find_log_pos(LOG_INFO* linfo, const char* log_name,
