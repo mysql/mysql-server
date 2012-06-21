@@ -861,7 +861,7 @@ buf_LRU_insert_zip_clean(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	//ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+	//ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(mutex_own(&buf_pool->zip_mutex));
 	ut_ad(buf_page_get_state(bpage) == BUF_BLOCK_ZIP_PAGE);
 
