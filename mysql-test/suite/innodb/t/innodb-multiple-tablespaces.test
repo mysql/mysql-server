@@ -312,7 +312,11 @@ DROP TABLE nolink;
 --remove_file $MYSQLD_DATADIR/test/yyn.ibd
 --remove_file $MYSQLD_DATADIR/test/yyy.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/www.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/nyw.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/nyy.ibd
 --remove_file $MYSQL_TMP_DIR/new_dir/test/www.ibd

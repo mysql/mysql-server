@@ -297,17 +297,17 @@ ALTER TABLE t1 DROP INDEX c2, CHANGE c3 c2 INT;
 
 CREATE TABLE t1o LIKE t1;
 
-# This will implicitly add a DOC_ID column, copying the table while
-# holding an exclusive lock. The LOCK=SHARED should thus fail.
+# This will implicitly add a DOC_ID column.
+# The LOCK=NONE should thus fail.
 --error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
-ALGORITHM=INPLACE, LOCK=SHARED;
+ALGORITHM=INPLACE, LOCK=NONE;
 
 # Retry with LOCK=EXCLUSIVE.
 ALTER TABLE t1 ADD FULLTEXT INDEX (ct),
 CHANGE c1 pk INT, ALTER c2 SET DEFAULT 42, RENAME TO tt,
-ALGORITHM=INPLACE, LOCK=EXCLUSIVE;
+ALGORITHM=INPLACE, LOCK=SHARED;
 
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
@@ -447,8 +447,10 @@ ALGORITHM=INPLACE;
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---error ER_INNODB_FT_WRONG_DOCID_COLUMN
-ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
+# This would create a hidden FTS_DOC_ID column, which cannot be done online.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
+LOCK=NONE;
 
 # This should not show duplicates.
 SELECT sc.pos FROM information_schema.innodb_sys_columns sc
@@ -460,7 +462,7 @@ WHERE st.NAME='test/t1o' AND sc.NAME='FTS_DOC_ID';
 SHOW CREATE TABLE t1o;
 
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL,
-DROP INDEX ct, ALGORITHM=INPLACE;
+DROP INDEX ct, LOCK=NONE;
 
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
@@ -485,13 +487,6 @@ FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN i WHERE FOR_NAME='test/t1o';
 
 # Ensure that there exists no hidden FTS_DOC_ID_INDEX on foo_id.
 
-# Renaming the FTS_DOC_ID column and creating a FULLTEXT index
-# does not work in one go.
---error ER_INNODB_FT_WRONG_DOCID_INDEX
-ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(FTS_DOC_ID),
-ADD FULLTEXT INDEX(ct),
-CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
-
 ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(foo_id);
 
 --echo ### files in MYSQL_DATA_DIR/test
@@ -499,19 +494,15 @@ ALTER TABLE t1o ADD UNIQUE INDEX FTS_DOC_ID_INDEX(foo_id);
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---error ER_INNODB_FT_WRONG_DOCID_INDEX
 ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
 ADD FULLTEXT INDEX(ct);
-
-ALTER TABLE t1o CHANGE foo_id FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
-CREATE FULLTEXT INDEX ct ON t1o (ct);
 
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---error ER_INNODB_FT_WRONG_DOCID_COLUMN
+--error ER_INNODB_FT_WRONG_DOCID_INDEX
 ALTER TABLE t1o CHANGE FTS_DOC_ID foo_id BIGINT UNSIGNED NOT NULL;
 
 DROP TABLE sys_indexes;
@@ -536,4 +527,3 @@ DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
 -- enable_query_log
-

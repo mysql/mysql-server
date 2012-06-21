@@ -3461,7 +3461,9 @@ fts_get_max_doc_id(
 
 	dfield = dict_index_get_nth_field(index, 0);
 
+#if 0 /* This can fail when renaming a column to FTS_DOC_ID_COL_NAME. */
 	ut_ad(innobase_strcasecmp(FTS_DOC_ID_COL_NAME, dfield->name) == 0);
+#endif
 
 	mtr_start(&mtr);
 
@@ -4853,13 +4855,13 @@ fts_get_doc_id_from_rec(
 
 	col_no = dict_col_get_clust_pos(
 		&table->cols[table->fts->doc_col], clust_index);
+	ut_ad(col_no != ULINT_UNDEFINED);
 
-	/* We have no choice but to cast rec here :-( */
-	data = rec_get_nth_field((rec_t*) rec, offsets, col_no, &len);
+	data = rec_get_nth_field(rec, offsets, col_no, &len);
 
 	ut_a(len == 8);
-	ut_a(len == sizeof(doc_id));
-	doc_id = (doc_id_t) mach_read_from_8(data);
+	ut_ad(8 == sizeof(doc_id));
+	doc_id = static_cast<doc_id_t>(mach_read_from_8(data));
 
 	return(doc_id);
 }

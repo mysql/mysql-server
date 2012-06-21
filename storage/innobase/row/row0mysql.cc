@@ -4020,6 +4020,12 @@ check_next_foreign:
 		However, during recovery, we might have a temp flag but
 		not know the temp path */
 		ut_a(table->dir_path_of_temp_table == NULL || is_temp);
+		if (dict_table_is_discarded(table)
+		    || table->ibd_file_missing) {
+			/* Do not attempt to drop known-to-be-missing
+			tablespaces. */
+			space_id = 0;
+		}
 
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
@@ -5035,9 +5041,8 @@ not_ok:
 
 		mem_heap_empty(heap);
 
-		prev_entry = row_rec_to_index_entry(ROW_COPY_DATA, rec,
-						    index, offsets,
-						    &n_ext, heap);
+		prev_entry = row_rec_to_index_entry(
+			rec, index, offsets, &n_ext, heap);
 
 		if (UNIV_LIKELY_NULL(tmp_heap)) {
 			mem_heap_free(tmp_heap);
