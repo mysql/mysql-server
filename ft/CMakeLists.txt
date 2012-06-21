@@ -119,7 +119,7 @@ foreach(bin ${bins})
 
   add_executable(${bin}_static ${bin}.c)
   add_dependencies(${bin}_static install_tdb_h)
-  target_link_libraries(${bin}_static ft_static z ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
+  target_link_libraries(${bin}_static ft_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
 
   add_common_options_to_binary_targets(${bin} ${bin}_static)
 endforeach(bin)

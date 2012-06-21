@@ -42,6 +42,11 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include "ydb_txn.h"
 #include "ft/txn_manager.h"
 
+// Include ydb_lib.c here so that its constructor/destructor gets put into
+// ydb.o, to make sure they don't get erased at link time (when linking to
+// a static libtokudb.a that was compiled with gcc).  See #5094.
+#include "ydb_lib.c"
+
 #ifdef TOKUTRACE
  #define DB_ENV_CREATE_FUN db_env_create_toku10
  #define DB_CREATE_FUN db_create_toku10
