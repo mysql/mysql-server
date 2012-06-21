@@ -4429,6 +4429,7 @@ void Dbtc::seizeApiConnectCopy(Signal* signal)
   ptrCheckGuard(locApiConnectptr, TapiConnectFilesize, localApiConnectRecord);
   cfirstfreeApiConnectCopy = locApiConnectptr.p->nextApiConnect;
   locApiConnectptr.p->nextApiConnect = RNIL;
+  ndbassert(regApiPtr->apiCopyRecord == RNIL);
   regApiPtr->apiCopyRecord = locApiConnectptr.i;
   regApiPtr->triggerPending = false;
   regApiPtr->isIndexOp = false;
@@ -4470,7 +4471,9 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
    * WE WILL INSERT THE TRANSACTION INTO ITS PROPER QUEUE OF 
    * TRANSACTIONS FOR ITS GLOBAL CHECKPOINT.              
    *-------------------------------------------------------------------------*/
-  if (TApifailureNr != Tfailure_nr) {
+  if (TApifailureNr != Tfailure_nr ||
+      ERROR_INSERTED(8094)) {
+    jam();
     DIVER_node_fail_handling(signal, Tgci);
     return;
   }//if
@@ -4913,7 +4916,12 @@ err8055:
   Ptr<ApiConnectRecord> copyPtr;
   UintR TapiConnectFilesize = capiConnectFilesize;
   UintR TcommitCount = c_counters.ccommitCount;
+  /**
+   * Unlink copy connect record from main connect record to allow main record 
+   * re-use.
+   */
   copyPtr.i = regApiPtr.p->apiCopyRecord;
+  regApiPtr.p->apiCopyRecord = RNIL;
   UintR TapiFailState = regApiPtr.p->apiFailState;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
@@ -5276,6 +5284,7 @@ void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 void Dbtc::releaseApiConCopy(Signal* signal) 
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  ndbassert(regApiPtr->nextApiConnect == RNIL);
   UintR TfirstfreeApiConnectCopyOld = cfirstfreeApiConnectCopy;
   cfirstfreeApiConnectCopy = apiConnectptr.i;
   regApiPtr->nextApiConnect = TfirstfreeApiConnectCopyOld;
@@ -10805,6 +10814,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->currSavePointId = 0;
     apiConnectptr.p->m_transaction_nodes.clear();
     apiConnectptr.p->singleUserMode = 0;
+    apiConnectptr.p->apiCopyRecord = RNIL;
   }//for
   apiConnectptr.i = tiacTmp - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -10834,6 +10844,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->currSavePointId = 0;
       apiConnectptr.p->m_transaction_nodes.clear();
       apiConnectptr.p->singleUserMode = 0;
+      apiConnectptr.p->apiCopyRecord = RNIL;
     }//for
   apiConnectptr.i = (2 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -10863,6 +10874,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->currSavePointId = 0;
     apiConnectptr.p->m_transaction_nodes.clear();
     apiConnectptr.p->singleUserMode = 0;
+    apiConnectptr.p->apiCopyRecord = RNIL;
   }//for
   apiConnectptr.i = (3 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -11171,6 +11183,19 @@ void Dbtc::releaseAbortResources(Signal* signal)
   TcConnectRecordPtr rarTcConnectptr;
 
   c_counters.cabortCount++;
+  if (apiConnectptr.p->apiCopyRecord != RNIL)
+  {
+    // Put apiCopyRecord back in free list.
+    jam();
+    ApiConnectRecordPtr copyPtr;
+    copyPtr.i = apiConnectptr.p->apiCopyRecord;
+    ptrCheckGuard(copyPtr, capiConnectFilesize, apiConnectRecord);
+    ndbassert(copyPtr.p->apiCopyRecord == RNIL);
+    ndbassert(copyPtr.p->nextApiConnect == RNIL);
+    copyPtr.p->nextApiConnect = cfirstfreeApiConnectCopy;
+    cfirstfreeApiConnectCopy = copyPtr.i;
+    apiConnectptr.p->apiCopyRecord = RNIL;
+  }
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
     ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
@@ -11270,6 +11295,8 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
 
   TlocalApiConnectptr.i = TapiConnectPtr;
   ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+  ndbassert(TlocalApiConnectptr.p->apiCopyRecord == RNIL);
+  ndbassert(TlocalApiConnectptr.p->nextApiConnect == RNIL);
   TlocalApiConnectptr.p->nextApiConnect = cfirstfreeApiConnect;
   cfirstfreeApiConnect = TlocalApiConnectptr.i;
   setApiConTimer(TlocalApiConnectptr.i, 0, __LINE__);
