@@ -170,3 +170,13 @@ select t1.a, (case t1.a when 0 then 0 else t1.b end) d from t1
 drop table t1, t2;
 
 --echo End of 5.0 tests
+
+#
+# LP BUG#1001510
+# Bug #11764313 57135: CRASH IN ITEM_FUNC_CASE::FIND_ITEM WITH CASE WHEN
+# ELSE CLAUSE
+#
+
+CREATE TABLE t1(a YEAR);
+SELECT 1 FROM t1 WHERE a=1 AND CASE 1 WHEN a THEN 1 ELSE 1 END;
+DROP TABLE t1;
