@@ -1032,6 +1032,8 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
 
+%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
+
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
 %attr(755, root, root) %{_bindir}/innochecksum
