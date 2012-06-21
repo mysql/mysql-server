@@ -744,6 +744,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       must have been removed from ActiveTranx.
     */
     assert(thd_killed(NULL) ||
+           !getMasterEnabled() ||
            !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
     

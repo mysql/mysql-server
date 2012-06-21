@@ -1,7 +1,7 @@
 --source include/have_semisync_plugin.inc
 --source include/not_embedded.inc
---source include/have_binlog_format_mixed_or_statement.inc
 --source include/have_debug_sync.inc
+--source include/have_binlog_format_mixed_or_statement.inc
 --source include/master-slave.inc
 
 # MDEV-359: There was a server crash when the code first checks if semisync
