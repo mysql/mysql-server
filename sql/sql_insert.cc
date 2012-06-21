@@ -2178,6 +2178,7 @@ public:
       close_thread_tables(&thd);
       thd.mdl_context.release_transactional_locks();
     }
+    thd.release_resources();
     mysql_mutex_lock(&LOCK_thread_count);
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
@@ -3907,7 +3908,8 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
              create_info->db_type == heap_hton);
   tmp_table.null_row=tmp_table.maybe_null=0;
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   while ((item=it++))
   {

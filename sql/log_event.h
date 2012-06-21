@@ -4944,6 +4944,28 @@ inline bool is_gtid_event(Log_event* evt)
           evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
 }
 
+inline ulong version_product(const uchar* version_split)
+{
+  return ((version_split[0] * 256 + version_split[1]) * 256
+          + version_split[2]);
+}
+
+inline void do_server_version_split(char* version, uchar split_versions[3])
+{
+  char *p= version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    split_versions[i]= (uchar) number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
+}
+
 /**
   @} (end of group Replication)
 */

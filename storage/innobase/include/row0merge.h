@@ -120,14 +120,15 @@ struct merge_index_def_struct {
 typedef struct merge_index_def_struct	merge_index_def_t;
 
 /** Structure for reporting duplicate records. */
-struct row_merge_dup_struct {
-	const dict_index_t*	index;		/*!< index being sorted */
-	struct TABLE*		table;		/*!< MySQL table object */
-	ulint			n_dup;		/*!< number of duplicates */
+struct row_merge_dup_t {
+	dict_index_t*		index;	/*!< index being sorted */
+	struct TABLE*		table;	/*!< MySQL table object */
+	const ulint*		col_map;/*!< mapping of column numbers
+					in table to the rebuilt table
+					(index->table), or NULL if not
+					rebuilding table */
+	ulint			n_dup;	/*!< number of duplicates */
 };
-
-/** Structure for reporting duplicate records. */
-typedef struct row_merge_dup_struct row_merge_dup_t;
 
 /*************************************************************//**
 Report a duplicate key. */
@@ -305,10 +306,19 @@ row_merge_build_indexes(
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	const ulint*	key_numbers,	/*!< in: MySQL key numbers */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	struct TABLE*	table)		/*!< in/out: MySQL table, for
+	struct TABLE*	table,		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
-	__attribute__((nonnull, warn_unused_result));
+	const dtuple_t*	add_cols,	/*!< in: default values of
+					added columns, or NULL */
+	const ulint*	col_map,	/*!< in: mapping of old column
+					numbers to new ones, or NULL
+					if old_table == new_table */
+	ulint		add_autoinc,	/*!< in: number of added
+					AUTO_INCREMENT column, or
+					ULINT_UNDEFINED if none is added */
+	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
+	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */
 UNIV_INTERN
@@ -317,7 +327,8 @@ row_merge_buf_write(
 /*================*/
 	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
 	const merge_file_t*	of,	/*!< in: output file */
-	row_merge_block_t*	block);	/*!< out: buffer for writing to file */
+	row_merge_block_t*	block)	/*!< out: buffer for writing to file */
+	__attribute__((nonnull));
 /********************************************************************//**
 Sort a buffer. */
 UNIV_INTERN
@@ -364,14 +375,12 @@ dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
-	const dict_index_t*	index,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: descriptor of
+					index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
+	int*			tmpfd)	/*!< in/out: temporary file handle */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Allocate a sort buffer.

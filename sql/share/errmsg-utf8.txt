@@ -6906,6 +6906,19 @@ ER_FK_DUP_NAME
 
 ER_PASSWORD_FORMAT
   eng "The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function."
+
+ER_FK_COLUMN_CANNOT_DROP
+        eng "Cannot drop column '%-.192s': needed in a foreign key constraint '%-.192s'"
+        ger "Kann Spalte '%-.192s' nicht löschen: wird für eine Fremdschlüsselbeschränkung '%-.192s' benötigt"
+
+ER_FK_COLUMN_CANNOT_DROP_CHILD
+        eng "Cannot drop column '%-.192s': needed in a foreign key constraint '%-.192s' of table '%-.192s'"
+        ger "Kann Spalte '%-.192s' nicht löschen: wird für eine Fremdschlüsselbeschränkung '%-.192s' der Tabelle '%-.192s' benötigt"
+
+ER_FK_COLUMN_NOT_NULL
+        eng "Column '%-.192s' cannot be NOT NULL: needed in a foreign key constraint '%-.192s' SET NULL"
+        ger "Spalte '%-.192s' kann nicht NOT NULL sein: wird für eine Fremdschlüsselbeschränkung '%-.192s' SET NULL benötigt"
+
 #
 #  End of 5.6 error messages.
 #

@@ -32,7 +32,7 @@ drop table t1;
 # Test insert of now() and curtime()
 #
 
-CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
+CREATE TABLE t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
 select date_format(a,"%Y-%m-%d")=b,right(a+0,6)=c+0,a=d+0 from t1;
 drop table t1;
@@ -182,7 +182,7 @@ if (`SELECT CURTIME() > SEC_TO_TIME(24 * 3600 - 5)`)
    # So a sleep time of 5 seconds brings us between '00:00:01' and '00:00:04'.
    --real_sleep 5
 }
-create table t1 (f1 date, f2 datetime, f3 timestamp);
+create table t1 (f1 date, f2 datetime, f3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1(f1) values(curdate());
 select curdate() < now(), f1 < now(), cast(f1 as date) < now() from t1;
 delete from t1;
@@ -201,7 +201,7 @@ drop table t1;
 #
 # Bug#16377: Wrong DATE/DATETIME comparison in BETWEEN function.
 #
-create table t1 (f1 date, f2 datetime, f3 timestamp);
+create table t1 (f1 date, f2 datetime, f3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values('2001-01-01','2001-01-01 01:01:01','2001-01-01 01:01:01');
 insert into t1 values('2001-02-05','2001-02-05 00:00:00','2001-02-05 01:01:01');
 insert into t1 values('2001-03-10','2001-03-09 01:01:01','2001-03-10 01:01:01');

@@ -217,15 +217,7 @@ btr_search_disable_ref_count(
 	for (index = dict_table_get_first_index(table); index;
 	     index = dict_table_get_next_index(index)) {
 
-		switch (dict_index_get_online_status(index)) {
-		case ONLINE_INDEX_CREATION:
-		case ONLINE_INDEX_ABORTED:
-		case ONLINE_INDEX_ABORTED_DROPPED:
-			break;
-		case ONLINE_INDEX_COMPLETE:
-			btr_search_get_info(index)->ref_count = 0;
-			break;
-		}
+		index->search_info->ref_count = 0;
 	}
 }
 
@@ -1112,6 +1104,8 @@ retry:
 	ut_a(!dict_index_is_ibuf(index));
 #ifdef UNIV_DEBUG
 	switch (dict_index_get_online_status(index)) {
+	case ONLINE_INDEX_CREATION:
+		/* The index is being created (bulk loaded). */
 	case ONLINE_INDEX_COMPLETE:
 		/* The index has been published. */
 	case ONLINE_INDEX_ABORTED:
@@ -1119,12 +1113,8 @@ retry:
 		error observed by InnoDB (in which case there should
 		not be any adaptive hash index entries), or it was
 		completed and then flagged aborted in
-		rollback_inplace_alter_table(). In the latter case,
-		there could exist adaptive hash index entries. */
+		rollback_inplace_alter_table(). */
 		break;
-	case ONLINE_INDEX_CREATION:
-		/* The adaptive hash index should not be built during
-		online index creation. */
 	case ONLINE_INDEX_ABORTED_DROPPED:
 		/* The index should have been dropped from the tablespace
 		already, and the adaptive hash index entries should have
@@ -1331,7 +1321,6 @@ btr_search_build_page_hash_index(
 
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));
-	ut_ad(!dict_index_is_online_ddl(index));
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_EX));
@@ -1471,7 +1460,7 @@ btr_search_build_page_hash_index(
 	have to take care not to increment the counter in that
 	case. */
 	if (!block->index) {
-		btr_search_get_info(index)->ref_count++;
+		index->search_info->ref_count++;
 	}
 
 	block->n_hash_helps = 0;

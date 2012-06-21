@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -123,22 +123,6 @@ btr_page_get_level_low(
 	ut_ad(level <= BTR_MAX_NODE_LEVEL);
 
 	return(level);
-}
-
-/********************************************************//**
-Gets the node level field in an index page.
-@return	level, leaf level == 0 */
-UNIV_INLINE
-ulint
-btr_page_get_level(
-/*===============*/
-	const page_t*	page,	/*!< in: index page */
-	mtr_t*		mtr __attribute__((unused)))
-				/*!< in: mini-transaction handle */
-{
-	ut_ad(page && mtr);
-
-	return(btr_page_get_level_low(page));
 }
 
 /********************************************************//**
@@ -278,6 +262,7 @@ btr_node_ptr_get_child_page_no(
 			" in a node ptr record at offset %lu\n",
 			(ulong) page_offset(rec));
 		buf_page_print(page_align(rec), 0, 0);
+		ut_ad(0);
 	}
 
 	return(page_no);

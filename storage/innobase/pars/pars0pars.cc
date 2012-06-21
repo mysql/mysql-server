@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2253,7 +2253,7 @@ que_thr_t*
 pars_complete_graph_for_exec(
 /*=========================*/
 	que_node_t*	node,	/*!< in: root node for an incomplete
-				query graph */
+				query graph, or NULL for dummy graph */
 	trx_t*		trx,	/*!< in: transaction handle */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 {
@@ -2267,7 +2267,9 @@ pars_complete_graph_for_exec(
 
 	thr->child = node;
 
-	que_node_set_parent(node, thr);
+	if (node) {
+		que_node_set_parent(node, thr);
+	}
 
 	trx->graph = NULL;
 

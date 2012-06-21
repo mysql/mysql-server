@@ -4763,9 +4763,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                                                alter_ctx->table_name,
                                                MDL_INTENTION_EXCLUSIVE));
 
-    /* We change the part_info, so the table must be reopened. */
-    table->m_needs_reopen= true;
-
     tab_part_info= table->part_info;
 
     if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
@@ -4787,6 +4784,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           without any changes at all.
         */
         *fast_alter_table= true;
+        /* Force table re-open for consistency with the main case. */
+        table->m_needs_reopen= true;
         thd->work_part_info= tab_part_info;
         DBUG_RETURN(FALSE);
       }
@@ -4815,7 +4814,28 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       goto err;
     }
     if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
+    {
+      /*
+        "Fast" change of partitioning is supported in this case.
+        We will change TABLE::part_info (as this is how we pass
+        information to storage engine in this case), so the table
+        must be reopened.
+      */
       *fast_alter_table= true;
+      table->m_needs_reopen= true;
+    }
+    else
+    {
+      /*
+        "Fast" changing of partitioning is not supported. Create
+        a copy of TABLE::part_info object, so we can modify it safely.
+        Modifying original TABLE::part_info will cause problems when
+        we read data from old version of table using this TABLE object
+        while copying them to new version of table.
+      */
+      if (!(tab_part_info= tab_part_info->get_clone()))
+        DBUG_RETURN(TRUE);
+    }
     DBUG_PRINT("info", ("*fast_alter_table flags: 0x%x", flags));
     if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) ||
         (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION))
@@ -5577,7 +5597,9 @@ the generated partition syntax in a correct manner.
        There was no partitioning before and no partitioning defined.
        Obviously no work needed.
     */
-    if (table->part_info)
+    partition_info *tab_part_info= table->part_info;
+
+    if (tab_part_info)
     {
       if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
       {
@@ -5585,7 +5607,7 @@ the generated partition syntax in a correct manner.
         if (!(create_info->used_fields & HA_CREATE_USED_ENGINE))
         {
           DBUG_PRINT("info", ("No explicit engine used"));
-          create_info->db_type= table->part_info->default_engine_type;
+          create_info->db_type= tab_part_info->default_engine_type;
         }
         DBUG_PRINT("info", ("New engine type: %s",
                    ha_resolve_storage_engine_name(create_info->db_type)));
@@ -5597,16 +5619,20 @@ the generated partition syntax in a correct manner.
         /*
           Retain partitioning but possibly with a new storage engine
           beneath.
+
+          Create a copy of TABLE::part_info to be able to modify it freely.
         */
-        thd->work_part_info= table->part_info;
+        if (!(tab_part_info= tab_part_info->get_clone()))
+          DBUG_RETURN(TRUE);
+        thd->work_part_info= tab_part_info;
         if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
-            create_info->db_type != table->part_info->default_engine_type)
+            create_info->db_type != tab_part_info->default_engine_type)
         {
           /*
             Make sure change of engine happens to all partitions.
           */
           DBUG_PRINT("info", ("partition changed"));
-          if (table->part_info->is_auto_partitioned)
+          if (tab_part_info->is_auto_partitioned)
           {
             /*
               If the user originally didn't specify partitioning to be
@@ -5634,7 +5660,7 @@ the generated partition syntax in a correct manner.
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->work_part_info != table->part_info)
+      if (thd->work_part_info != tab_part_info)
       {
         DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
@@ -5651,8 +5677,8 @@ the generated partition syntax in a correct manner.
         part_info->default_engine_type= create_info->db_type;
       else
       {
-        if (table->part_info)
-          part_info->default_engine_type= table->part_info->default_engine_type;
+        if (tab_part_info)
+          part_info->default_engine_type= tab_part_info->default_engine_type;
         else
           part_info->default_engine_type= create_info->db_type;
       }

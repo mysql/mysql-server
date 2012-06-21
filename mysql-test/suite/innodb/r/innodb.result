@@ -716,7 +716,8 @@ update t1 set sca_pic="test" where sca_pic is null;
 delete from t1 where sca_code='pd';
 drop table t1;
 set @a:=now();
-CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=innodb;
+CREATE TABLE t1 (a int not null, b timestamp not null default 
+current_timestamp on update current_timestamp, primary key (a)) engine=innodb;
 insert into t1 (a) values(1),(2),(3);
 select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
 a
@@ -1679,7 +1680,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1043
+1006
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 866
@@ -3007,7 +3008,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150 - Foreign key constraint is incorrectly formed)
+ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)

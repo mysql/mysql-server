@@ -308,6 +308,7 @@ void check_password_policy(String *password);
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0
 #endif
+void close_acl_tables(THD *thd);
 
 /**
   Result of an access check for an internal schema or table.

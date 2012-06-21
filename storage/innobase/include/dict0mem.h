@@ -502,25 +502,26 @@ struct dict_index_struct{
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
 	unsigned	to_be_dropped:1;
-				/*!< TRUE if the index is to be dropped */
+				/*!< TRUE if the index is to be dropped;
+				protected by dict_operation_lock */
 	unsigned	online_status:2;
-				/*!< enum online_index_status */
+				/*!< enum online_index_status.
+				Transitions from ONLINE_INDEX_COMPLETE (to
+				ONLINE_INDEX_CREATION) are protected
+				by dict_operation_lock and
+				dict_sys->mutex. Other changes are
+				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
-	union {
-		btr_search_t*	search; /*!< info used in optimistic searches;
-					valid when online_status is one of
-					ONLINE_INDEX_COMPLETE,
-					ONLINE_INDEX_ABORTED,
-					ONLINE_INDEX_ABORTED_DROPPED */
-		row_log_t*	online_log;
-					/*!< the log of modifications
-					during online index creation;
-					valid when online_status is
-					ONLINE_INDEX_CREATION */
-	} info;
+	btr_search_t*	search_info;
+				/*!< info used in optimistic searches */
+	row_log_t*	online_log;
+				/*!< the log of modifications
+				during online index creation;
+				valid when online_status is
+				ONLINE_INDEX_CREATION */
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
@@ -576,8 +577,11 @@ enum online_index_status {
 	/** the index is being created, online
 	(allowing concurrent modifications) */
 	ONLINE_INDEX_CREATION,
-	/** the online index creation was aborted and the index
-	should be dropped as soon as index->table->n_ref_count reaches 0 */
+	/** secondary index creation was aborted and the index
+	should be dropped as soon as index->table->n_ref_count reaches 0,
+	or online table rebuild was aborted and the clustered index
+	of the original table should soon be restored to
+	ONLINE_INDEX_COMPLETE */
 	ONLINE_INDEX_ABORTED,
 	/** the online index creation was aborted, the index was
 	dropped from the data dictionary and the tablespace, and it

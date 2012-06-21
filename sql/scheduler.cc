@@ -32,7 +32,7 @@
 
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
-  thd_cleanup(thd);
+  thd_release_resources(thd);
   dec_connection_count();
 
   // THD is an incomplete type here, so use destroy_thd() to delete it.

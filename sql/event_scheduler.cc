@@ -130,13 +130,12 @@ post_init_event_thread(THD *thd)
   (void) init_new_connection_handler_thread();
   if (init_thr_lock() || thd->store_globals())
   {
-    thd->cleanup();
     return TRUE;
   }
 
+  inc_thread_running();
   mysql_mutex_lock(&LOCK_thread_count);
   add_global_thread(thd);
-  inc_thread_running();
   mysql_mutex_unlock(&LOCK_thread_count);
   return FALSE;
 }
@@ -157,9 +156,11 @@ deinit_event_thread(THD *thd)
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net);
   DBUG_PRINT("exit", ("Event thread finishing"));
+
+  dec_thread_running();
+  thd->release_resources();
   mysql_mutex_lock(&LOCK_thread_count);
   remove_global_thread(thd);
-  dec_thread_running();
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 }
@@ -431,9 +432,11 @@ Event_scheduler::start()
     new_thd->proc_info= "Clearing";
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
+
+    dec_thread_running();
+    new_thd->release_resources();
     mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(new_thd);
-    dec_thread_running();
     mysql_mutex_unlock(&LOCK_thread_count);
     delete new_thd;
   }
@@ -564,9 +567,11 @@ error:
     new_thd->proc_info= "Clearing";
     DBUG_ASSERT(new_thd->net.buff != 0);
     net_end(&new_thd->net);
+
+    dec_thread_running();
+    new_thd->release_resources();
     mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(new_thd);
-    dec_thread_running();
     mysql_mutex_unlock(&LOCK_thread_count);
     delete new_thd;
   }

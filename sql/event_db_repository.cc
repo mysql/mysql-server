@@ -1191,8 +1191,7 @@ Event_db_repository::check_system_tables(THD *thd)
   {
     if (table_intact.check(tables.table, &mysql_db_table_def))
       ret= 1;
-
-    close_mysql_tables(thd);
+    close_acl_tables(thd);
   }
   /* Check mysql.user */
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_READ);
@@ -1212,7 +1211,7 @@ Event_db_repository::check_system_tables(THD *thd)
                       event_priv_column_position);
       ret= 1;
     }
-    close_mysql_tables(thd);
+    close_acl_tables(thd);
   }
   /* Check mysql.event */
   tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);

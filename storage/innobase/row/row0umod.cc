@@ -37,6 +37,7 @@ Created 2/27/1997 Heikki Tuuri
 #include "mach0data.h"
 #include "row0undo.h"
 #include "row0vers.h"
+#include "row0log.h"
 #include "trx0trx.h"
 #include "trx0rec.h"
 #include "row0row.h"
@@ -106,6 +107,14 @@ dberr_t
 row_undo_mod_clust_low(
 /*===================*/
 	undo_node_t*	node,	/*!< in: row undo node */
+	ulint**		offsets,/*!< out: rec_get_offsets() on the record */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: memory heap that can be emptied */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const dtuple_t**rebuilt_old_pk,
+				/*!< out: row_log_table_get_pk()
+				before the update, or NULL if
+				the table is not being rebuilt online */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -118,7 +127,7 @@ row_undo_mod_clust_low(
 	ibool		success;
 #endif /* UNIV_DEBUG */
 
-	pcur = &(node->pcur);
+	pcur = &node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
 #ifdef UNIV_DEBUG
@@ -127,32 +136,40 @@ row_undo_mod_clust_low(
 	btr_pcur_restore_position(mode, pcur, mtr);
 
 	ut_ad(success);
+	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur),
+			     btr_cur_get_index(btr_cur))
+	      == thr_get_trx(thr)->id);
 
-	if (mode == BTR_MODIFY_LEAF) {
-
-		err = btr_cur_optimistic_update(BTR_NO_LOCKING_FLAG
-						| BTR_NO_UNDO_LOG_FLAG
-						| BTR_KEEP_SYS_FLAG,
-						btr_cur, node->update,
-						node->cmpl_info, thr,
-						thr_get_trx(thr)->id, mtr);
+	if (mode != BTR_MODIFY_LEAF
+	    && dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
+		*rebuilt_old_pk = row_log_table_get_pk(
+			btr_cur_get_rec(btr_cur),
+			btr_cur_get_index(btr_cur), NULL, &heap);
 	} else {
-		mem_heap_t*	heap		= NULL;
-		big_rec_t*	dummy_big_rec;
+		*rebuilt_old_pk = NULL;
+	}
 
-		ut_ad(mode == BTR_MODIFY_TREE);
+	if (mode != BTR_MODIFY_TREE) {
+		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
+
+		err = btr_cur_optimistic_update(
+			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG
+			| BTR_KEEP_SYS_FLAG,
+			btr_cur, offsets, offsets_heap,
+			node->update, node->cmpl_info,
+			thr, thr_get_trx(thr)->id, mtr);
+	} else {
+		big_rec_t*	dummy_big_rec;
 
 		err = btr_cur_pessimistic_update(
 			BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG
 			| BTR_KEEP_SYS_FLAG,
-			btr_cur, &heap, &dummy_big_rec, node->update,
+			btr_cur, offsets, offsets_heap, heap,
+			&dummy_big_rec, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 
 		ut_a(!dummy_big_rec);
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
 	}
 
 	return(err);
@@ -189,6 +206,12 @@ row_undo_mod_remove_clust_low(
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&node->pcur);
+
+	/* We are about to remove an old, delete-marked version of the
+	record that may have been delete-marked by a different transaction
+	than the rolling-back one. */
+	ut_ad(rec_get_deleted_flag(btr_cur_get_rec(btr_cur),
+				   dict_table_is_comp(node->table)));
 
 	if (mode == BTR_MODIFY_LEAF) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, mtr)
@@ -227,11 +250,18 @@ row_undo_mod_clust(
 	btr_pcur_t*	pcur;
 	mtr_t		mtr;
 	dberr_t		err;
+	dict_index_t*	index;
+	bool		online;
 	ibool		success;
 	ibool		more_vers;
 	undo_no_t	new_undo_no;
 
-	ut_ad(node && thr);
+	ut_ad(thr_get_trx(thr) == node->trx);
+	ut_ad(node->trx->dict_operation_lock_mode);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED)
+	      || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 
 	log_free_check();
 
@@ -240,14 +270,31 @@ row_undo_mod_clust(
 
 	more_vers = row_undo_mod_undo_also_prev_vers(node, &new_undo_no);
 
-	pcur = &(node->pcur);
+	pcur = &node->pcur;
+
+	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
+
+	online = dict_index_is_online_ddl(index);
+	if (online) {
+		ut_ad(node->trx->dict_operation_lock_mode != RW_X_LATCH);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	}
+
+	mem_heap_t*	heap		= mem_heap_create(1024);
+	mem_heap_t*	offsets_heap	= NULL;
+	ulint*		offsets		= NULL;
+	const dtuple_t*	rebuilt_old_pk;
 
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
 
-	err = row_undo_mod_clust_low(node, thr, &mtr, BTR_MODIFY_LEAF);
+	err = row_undo_mod_clust_low(node, &offsets, &offsets_heap,
+				     heap, &rebuilt_old_pk,
+				     thr, &mtr, online
+				     ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+				     : BTR_MODIFY_LEAF);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -257,7 +304,40 @@ row_undo_mod_clust(
 
 		mtr_start(&mtr);
 
-		err = row_undo_mod_clust_low(node, thr, &mtr, BTR_MODIFY_TREE);
+		err = row_undo_mod_clust_low(
+			node, &offsets, &offsets_heap, heap, &rebuilt_old_pk,
+			thr, &mtr, BTR_MODIFY_TREE);
+		ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
+	}
+
+	/* Online rebuild cannot be initiated while we are holding
+	dict_operation_lock and index->lock. (It can be aborted.) */
+	ut_ad(online || !dict_index_is_online_ddl(index));
+
+	if (err == DB_SUCCESS && online) {
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
+		      || rw_lock_own(&index->lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+		switch (node->rec_type) {
+		case TRX_UNDO_UPD_DEL_REC:
+			row_log_table_insert(
+				btr_pcur_get_rec(pcur), index, offsets);
+			break;
+		case TRX_UNDO_UPD_EXIST_REC:
+			row_log_table_update(
+				btr_pcur_get_rec(pcur), index, offsets,
+				rebuilt_old_pk);
+			break;
+		case TRX_UNDO_DEL_MARK_REC:
+			row_log_table_delete(
+				btr_pcur_get_rec(pcur), index, offsets,
+				node->trx->id);
+			break;
+		default:
+			ut_ad(0);
+			break;
+		}
 	}
 
 	btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -266,8 +346,11 @@ row_undo_mod_clust(
 
 		mtr_start(&mtr);
 
-		err = row_undo_mod_remove_clust_low(node, thr, &mtr,
-						    BTR_MODIFY_LEAF);
+		/* It is not necessary to call row_log_table,
+		because the record is delete-marked and would thus
+		be omitted from the rebuilt copy of the table. */
+		err = row_undo_mod_remove_clust_low(
+			node, thr, &mtr, BTR_MODIFY_LEAF);
 		if (err != DB_SUCCESS) {
 			btr_pcur_commit_specify_mtr(pcur, &mtr);
 
@@ -278,6 +361,9 @@ row_undo_mod_clust(
 
 			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
 							    BTR_MODIFY_TREE);
+
+			ut_ad(err == DB_SUCCESS
+			      || err == DB_OUT_OF_FILE_SPACE);
 		}
 
 		btr_pcur_commit_specify_mtr(pcur, &mtr);
@@ -301,6 +387,10 @@ row_undo_mod_clust(
 		}
 	}
 
+	if (offsets_heap) {
+		mem_heap_free(offsets_heap);
+	}
+	mem_heap_free(heap);
 	return(err);
 }
 
@@ -497,7 +587,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	switch (search_result) {
 		mem_heap_t*	heap;
-		const ulint*	offsets;
+		mem_heap_t*	offsets_heap;
+		ulint*		offsets;
 	case ROW_BUFFERED:
 	case ROW_NOT_DELETED_REF:
 		/* These are invalid outcomes, because the mode passed
@@ -528,11 +619,11 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(
 			sizeof(upd_t)
-			+ REC_OFFS_HEADER_SIZE * sizeof(*offsets)
-			+ dtuple_get_n_fields(entry)
-			* (sizeof(upd_field_t) + sizeof *offsets));
-		offsets = rec_get_offsets(btr_cur_get_rec(btr_cur),
-					  index, NULL, ULINT_UNDEFINED, &heap);
+			+ dtuple_get_n_fields(entry) * sizeof(upd_field_t));
+		offsets_heap = NULL;
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(btr_cur),
+			index, NULL, ULINT_UNDEFINED, &offsets_heap);
 		update = row_upd_build_sec_rec_difference_binary(
 			btr_cur_get_rec(btr_cur), index, offsets, entry, heap);
 		if (upd_get_n_fields(update) == 0) {
@@ -543,10 +634,11 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			/* Try an optimistic updating of the record, keeping
 			changes within the page */
 
+			/* TODO: pass offsets, not &offsets */
 			err = btr_cur_optimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, update, 0, thr,
-				thr_get_trx(thr)->id, &mtr);
+				btr_cur, &offsets, &offsets_heap,
+				update, 0, thr, thr_get_trx(thr)->id, &mtr);
 			switch (err) {
 			case DB_OVERFLOW:
 			case DB_UNDERFLOW:
@@ -559,12 +651,14 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			ut_a(mode == BTR_MODIFY_TREE);
 			err = btr_cur_pessimistic_update(
 				BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG,
-				btr_cur, &heap, &dummy_big_rec,
+				btr_cur, &offsets, &offsets_heap,
+				heap, &dummy_big_rec,
 				update, 0, thr, thr_get_trx(thr)->id, &mtr);
 			ut_a(!dummy_big_rec);
 		}
 
 		mem_heap_free(heap);
+		mem_heap_free(offsets_heap);
 	}
 
 	btr_pcur_close(&pcur);
@@ -899,6 +993,8 @@ row_undo_mod(
 
 	row_undo_mod_parse_undo_rec(node, thr, dict_locked);
 
+	ut_ad(thr_get_trx(thr) == node->trx);
+
 	if (node->table == NULL) {
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
@@ -909,8 +1005,18 @@ row_undo_mod(
 		return(DB_SUCCESS);
 	}
 
-	node->index = dict_table_get_next_index(
-		dict_table_get_first_index(node->table));
+	node->index = dict_table_get_first_index(node->table);
+	ut_ad(dict_index_is_clust(node->index));
+
+	if (dict_index_is_online_ddl(node->index)) {
+		/* Note that we are rolling back this transaction, so
+		that all inserts and updates with this DB_TRX_ID can
+		be skipped. */
+		row_log_table_rollback(node->index, node->trx->id);
+	}
+
+	/* Skip the clustered index (the first index) */
+	node->index = dict_table_get_next_index(node->index);
 
 	/* Skip all corrupted secondary index */
 	dict_table_skip_corrupt_index(node->index);

@@ -311,7 +311,7 @@ initialized. */
 static fil_system_t*	fil_system	= NULL;
 
 /** Determine if (i) is a user tablespace id or not. */
-# define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces)
+# define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */

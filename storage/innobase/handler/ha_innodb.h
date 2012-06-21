@@ -233,8 +233,8 @@ class ha_innobase: public handler
 	by ALTER TABLE and holding data used during in-place alter.
 
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
-	@retval HA_ALTER_INPLACE_EXCLUSIVE_LOCK	Supported, but requires X-lock
-	@retval HA_ALTER_INPLACE_NO_LOCK Supported
+	@retval HA_ALTER_INPLACE_NO_LOCK	Supported
+	@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires lock
 	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
 	*/
 	enum_alter_inplace_result check_if_supported_inplace_alter(
@@ -428,6 +428,13 @@ bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
   @return a durability property.
 */
 enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
+
+/** Get the auto_increment_offset auto_increment_increment.
+@param thd	Thread object
+@param off	auto_increment_offset
+@param inc	auto_increment_increment */
+void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
+__attribute__((nonnull));
 } /* extern "C" */
 
 typedef struct trx_struct trx_t;
@@ -474,7 +481,6 @@ UNIV_INTERN
 bool
 innobase_table_flags(
 /*=================*/
-	const char*		name,		/*!< in: table name */
 	const TABLE*		form,		/*!< in: table */
 	const HA_CREATE_INFO*	create_info,	/*!< in: information
 						on table columns and indexes */
@@ -483,6 +489,23 @@ innobase_table_flags(
 						outside system tablespace */
 	ulint*			flags,		/*!< out: DICT_TF flags */
 	ulint*			flags2)		/*!< out: DICT_TF2 flags */
+	__attribute__((nonnull, warn_unused_result));
+
+/*****************************************************************//**
+Validates the create options. We may build on this function
+in future. For now, it checks two specifiers:
+KEY_BLOCK_SIZE and ROW_FORMAT
+If innodb_strict_mode is not set then this function is a no-op
+@return	NULL if valid, string if not. */
+UNIV_INTERN
+const char*
+create_options_are_invalid(
+/*=======================*/
+	THD*		thd,		/*!< in: connection thread. */
+	TABLE*		form,		/*!< in: information on table
+					columns and indexes */
+	HA_CREATE_INFO*	create_info,	/*!< in: create info. */
+	bool		use_tablespace)	/*!< in: srv_file_per_table */
 	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
@@ -542,8 +565,8 @@ enum fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
 	const dict_table_t*	table,		/*!< in: table definition */
-	const Alter_inplace_info*ha_alter_info,	/*!< in: alter operation,
-						or NULL if none */
+	const TABLE*		altered_table,	/*!< in: MySQL table
+						that is being altered */
 	ulint*			fts_doc_col_no)	/*!< out: The column number for
 						Doc ID */
 	__attribute__((warn_unused_result));

@@ -212,6 +212,8 @@ btr_cur_optimistic_insert(
 				specified */
 	btr_cur_t*	cursor,	/*!< in: cursor on page after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -220,11 +222,12 @@ btr_cur_optimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr);	/*!< in: mtr; if this function returns
+	mtr_t*		mtr)	/*!< in: mtr; if this function returns
 				DB_SUCCESS on a leaf page of a secondary
 				index in a compressed tablespace, the
 				mtr must be committed before latching
 				any further pages */
+	__attribute__((nonnull(2,3,4,5,6,7,10), warn_unused_result));
 /*************************************************************//**
 Performs an insert on a page of an index tree. It is assumed that mtr
 holds an x-latch on the tree and on the cursor page. If the insert is
@@ -243,6 +246,9 @@ btr_cur_pessimistic_insert(
 				insertion will certainly succeed */
 	btr_cur_t*	cursor,	/*!< in: cursor after which to insert;
 				cursor stays valid */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
 	dtuple_t*	entry,	/*!< in/out: entry to insert */
 	rec_t**		rec,	/*!< out: pointer to inserted record if
 				succeed */
@@ -251,7 +257,8 @@ btr_cur_pessimistic_insert(
 				NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr,	/*!< in: query thread or NULL */
-	mtr_t*		mtr);	/*!< in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
+	__attribute__((nonnull(2,3,4,5,6,7,10), warn_unused_result));
 /*************************************************************//**
 See if there is enough place in the page modification log to log
 an update-in-place.
@@ -279,6 +286,7 @@ btr_cur_update_in_place(
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
+	const ulint*	offsets,/*!< in: offsets on cursor->page_cur.rec */
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
@@ -287,7 +295,7 @@ btr_cur_update_in_place(
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
-	__attribute__((warn_unused_result, nonnull(2,3,7)));
+	__attribute__((warn_unused_result, nonnull(2,3,4,8)));
 /*************************************************************//**
 Tries to update a record on a page in an index tree. It is assumed that mtr
 holds an x-latch on the page. The operation does not succeed if there is too
@@ -304,6 +312,8 @@ btr_cur_optimistic_update(
 	btr_cur_t*	cursor,	/*!< in: cursor on the record to update;
 				cursor stays valid and positioned on the
 				same record */
+	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	const upd_t*	update,	/*!< in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
@@ -313,7 +323,7 @@ btr_cur_optimistic_update(
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
-	__attribute__((warn_unused_result, nonnull(2,3,7)));
+	__attribute__((warn_unused_result, nonnull(2,3,4,5,9)));
 /*************************************************************//**
 Performs an update of a record on a page of a tree. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. If the
@@ -329,7 +339,13 @@ btr_cur_pessimistic_update(
 	btr_cur_t*	cursor,	/*!< in/out: cursor on the record to update;
 				cursor may become invalid if *big_rec == NULL
 				|| !(flags & BTR_KEEP_POS_FLAG) */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
+	mem_heap_t**	offsets_heap,
+				/*!< in/out: pointer to memory heap
+				that can be emptied, or NULL */
+	mem_heap_t*	entry_heap,
+				/*!< in/out: memory heap for allocating
+				big_rec and the index tuple */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
 	const upd_t*	update,	/*!< in: update vector; this is allowed also
@@ -342,7 +358,7 @@ btr_cur_pessimistic_update(
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
-	__attribute__((warn_unused_result, nonnull(2,5,9)));
+	__attribute__((warn_unused_result, nonnull(2,3,4,5,6,7,11)));
 /***********************************************************//**
 Marks a clustered index record deleted. Writes an undo log record to
 undo log on this delete marking. Writes in the trx id field the id

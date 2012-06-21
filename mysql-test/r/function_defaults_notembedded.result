@@ -10,7 +10,7 @@ SET TIME_ZONE = "+00:00";
 #
 # 2011-04-19 08:02:40 UTC
 SET TIMESTAMP = 1303200160.123456;
-CREATE TABLE t1 ( a INT, b TIMESTAMP );
+CREATE TABLE t1 ( a INT, b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT DELAYED INTO t1 SET a = 1;
 Warnings:
 Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
@@ -34,7 +34,7 @@ DROP TABLE t1;
 #
 # 2011-04-19 08:04:01 UTC
 SET TIMESTAMP = 1303200241.234567;
-CREATE TABLE t1 ( a INT, b TIMESTAMP );
+CREATE TABLE t1 ( a INT, b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT DELAYED INTO t1 ( a ) VALUES (1);
 Warnings:
 Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
@@ -55,7 +55,7 @@ DROP TABLE t1;
 # Test of a delayed insert handler servicing two insert operations
 # with different sets of active defaults.
 #
-CREATE TABLE t1 ( a INT, b TIMESTAMP );
+CREATE TABLE t1 ( a INT, b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 # 2011-04-19 08:04:01 UTC
 SET TIMESTAMP = 1303200241.345678;
 SET debug_sync = 'before_write_delayed SIGNAL parked WAIT_FOR go';
@@ -78,7 +78,7 @@ DROP TABLE t1;
 #
 # Test of early activation of function defaults.
 #
-CREATE TABLE t1 ( a INT, b TIMESTAMP );
+CREATE TABLE t1 ( a INT, b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 SET TIMESTAMP = 1317235172.987654;
 INSERT DELAYED INTO t1 ( a ) VALUES (1), (2), (3);
 Warnings:
@@ -106,7 +106,7 @@ SET TIME_ZONE = "+00:00";
 #
 # 2011-04-19 08:02:40 UTC
 SET TIMESTAMP = 1303200160.123456;
-CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
+CREATE TABLE t1 ( a INT, b TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6));
 INSERT DELAYED INTO t1 SET a = 1;
 Warnings:
 Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
@@ -130,7 +130,7 @@ DROP TABLE t1;
 #
 # 2011-04-19 08:04:01 UTC
 SET TIMESTAMP = 1303200241.234567;
-CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
+CREATE TABLE t1 ( a INT, b TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6));
 INSERT DELAYED INTO t1 ( a ) VALUES (1);
 Warnings:
 Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
@@ -151,7 +151,7 @@ DROP TABLE t1;
 # Test of a delayed insert handler servicing two insert operations
 # with different sets of active defaults.
 #
-CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
+CREATE TABLE t1 ( a INT, b TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6));
 # 2011-04-19 08:04:01 UTC
 SET TIMESTAMP = 1303200241.345678;
 SET debug_sync = 'before_write_delayed SIGNAL parked WAIT_FOR go';
@@ -174,7 +174,7 @@ DROP TABLE t1;
 #
 # Test of early activation of function defaults.
 #
-CREATE TABLE t1 ( a INT, b TIMESTAMP(6) );
+CREATE TABLE t1 ( a INT, b TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6));
 SET TIMESTAMP = 1317235172.987654;
 INSERT DELAYED INTO t1 ( a ) VALUES (1), (2), (3);
 Warnings:

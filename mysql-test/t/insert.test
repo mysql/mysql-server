@@ -30,7 +30,7 @@ drop table t1;
 # Test insert syntax
 #
 
-create table t1 (a int not null auto_increment, primary key (a), t timestamp, c char(10) default "hello", i int);
+create table t1 (a int not null auto_increment, primary key (a), t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c char(10) default "hello", i int);
 insert into t1 values (default,default,default,default), (default,default,default,default), (4,0,"a",5),(default,default,default,default);
 select a,t>0,c,i from t1;
 truncate table t1;

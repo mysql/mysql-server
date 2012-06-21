@@ -130,6 +130,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   my_atomic_rwlock_init(&slave_open_temp_tables_lock);
 
   relay_log.init_pthread_objects();
+  do_server_version_split(::server_version, slave_version_split);
 
   DBUG_VOID_RETURN;
 }
@@ -2109,4 +2110,185 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
+}
+
+/**
+   Delete the existing event and set a new one. This class is
+   responsible for freeing the event, the caller should not do that.
+   When a new FD is from the master adaptation routine is invoked
+   to align the slave applier execution context with the master version.
+
+   The method is run by SQL thread/MTS Coordinator.
+   Although notice that MTS worker runs it, inefficiently (see assert),
+   once at its destruction time.
+   todo: fix Slave_worker and Relay_log_info inheritance relation.
+*/
+
+void Relay_log_info::set_rli_description_event
+                     (Format_description_log_event *fdle)
+{
+  DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fdle);
+
+  if (fdle)
+  {
+    adapt_to_master_version(fdle);
+    if (info_thd && is_parallel_exec())
+    {
+      for (uint i= 0; i < workers.elements; i++)
+      {
+        Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
+        w->set_rli_description_event(fdle);
+      }
+    }
+  }
+  if (rli_description_event)
+    delete rli_description_event;
+  rli_description_event= fdle;
+}
+
+struct st_feature_version
+{
+  /*
+    The enum must be in the version non-descending top-down order,
+    the last item formally corresponds to highest possible server
+    version (never reached, thereby no adapting actions here);
+    enumeration starts from zero.
+  */
+  enum
+  {
+    WL6292_TIMESTAMP_EXPLICIT_DEFAULT= 0,
+    _END_OF_LIST // always last
+  } item;
+  /*
+    Version where the feature is introduced.
+  */
+  uchar version_split[3];
+  /*
+    Action to perform when according to FormatDescriptor event Master 
+    is found to be feature-aware while previously it has *not* been.
+  */
+  void (*upgrade) (THD*);
+  /*
+    Action to perform when according to FormatDescriptor event Master 
+    is found to be feature-*un*aware while previously it has been.
+  */
+  void (*downgrade) (THD*);
+};
+
+void wl6292_upgrade_func(THD *thd)
+{
+  thd->variables.explicit_defaults_for_timestamp= false;
+  if (global_system_variables.explicit_defaults_for_timestamp)
+    thd->variables.explicit_defaults_for_timestamp= true;
+
+  return;
+}
+
+void wl6292_downgrade_func(THD *thd)
+{
+  if (global_system_variables.explicit_defaults_for_timestamp)
+    thd->variables.explicit_defaults_for_timestamp= false;
+
+  return;
+}
+
+/**
+   Sensitive to Master-vs-Slave version difference features
+   should be listed in the version non-descending order.
+*/
+static st_feature_version s_features[]=
+{
+  // order is the same as in the enum
+  { st_feature_version::WL6292_TIMESTAMP_EXPLICIT_DEFAULT,
+    {5, 6, 6}, wl6292_upgrade_func, wl6292_downgrade_func },
+  { st_feature_version::_END_OF_LIST,
+    {255, 255, 255}, NULL, NULL }
+};
+
+/**
+   The method lists rules of adaptation for the slave applier 
+   to specific master versions.
+   It's executed right before a new master FD is set for
+   slave appliers execution context.
+   Comparison of the old and new version yields the adaptive
+   actions direction.
+   Current execution FD's version, V_0, is compared with the new being set up
+   FD (the arg), let's call it V_1. 
+   In the case of downgrade features that are defined in [V_0, V_1-1] range 
+   (V_1 excluded) are "removed" by running the downgrade actions.
+   In the upgrade case the featured defined in [V_0 + 1, V_1] range are
+   "added" by running the upgrade actions.
+
+   Notice, that due to relay log may have two FD events, one the slave local
+   and the other from the Master. That can lead to extra
+   adapt_to_master_version() calls and in case Slave and Master are of different
+   versions the extra two calls should compensate each other.
+
+   Also, at composing downgrade/upgrade actions keep in mind that
+   at initialization Slave sets up FD of version 4.0 and then transits to
+   the current server version. At transition all upgrading actions in 
+   the range of [4.0..current] are run.
+
+   @param fdle  a pointer to new Format Description event that is being set
+                up for execution context.
+*/
+void Relay_log_info::adapt_to_master_version(Format_description_log_event *fdle)
+{
+  THD *thd=info_thd;
+  ulong master_version, current_version;
+  int changed= !fdle || ! rli_description_event ? 0 :
+    (master_version= fdle->get_version_product()) - 
+    (current_version= rli_description_event->get_version_product());
+
+  /* When the last version is not changed nothing to adapt for */
+  if (!changed)
+    return;
+
+  /*
+    find item starting from and ending at for which adaptive actions run
+    for downgrade or upgrade branches.
+    (todo: convert into bsearch when number of features will grow significantly)
+  */
+  bool downgrade= changed < 0;
+  long i, i_first= st_feature_version::_END_OF_LIST, i_last= i_first;
+
+  for (i= 0; i < st_feature_version::_END_OF_LIST; i++)
+  {
+    ulong ver_f= version_product(s_features[i].version_split);
+
+    if ((downgrade ? master_version : current_version) < ver_f && 
+        i_first == st_feature_version::_END_OF_LIST)
+      i_first= i;
+    if ((downgrade ? current_version : master_version) < ver_f)
+    {
+      i_last= i;
+      DBUG_ASSERT(i_last >= i_first);
+      break;
+    }
+  }
+
+  /* 
+     actions, executed in version non-descending st_feature_version order
+  */
+  for (i= i_first; i < i_last; i++)
+  {
+    /* Run time check of the st_feature_version items ordering */
+    DBUG_ASSERT(!i ||
+                version_product(s_features[i - 1].version_split) <=
+                version_product(s_features[i].version_split));
+
+    DBUG_ASSERT((downgrade ? master_version : current_version) <
+                version_product(s_features[i].version_split) &&
+                (downgrade ? current_version : master_version  >=
+                 version_product(s_features[i].version_split)));
+
+    if (downgrade && s_features[i].downgrade)
+    {
+      s_features[i].downgrade(thd);
+    }
+    else if (s_features[i].upgrade)
+    {
+      s_features[i].upgrade(thd);
+    }
+  }
 }

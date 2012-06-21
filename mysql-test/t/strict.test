@@ -1130,11 +1130,11 @@ drop table t1;
 #
 
 set @@sql_mode='traditional';
-create table t1(a int, b timestamp);
+create table t1(a int, b timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 alter table t1 add primary key(a);
 show create table t1;
 drop table t1;
-create table t1(a int, b timestamp default 20050102030405);
+create table t1(a int, b timestamp not null default 20050102030405);
 alter table t1 add primary key(a);
 show create table t1;
 drop table t1;

@@ -20,6 +20,9 @@
 # because these just mean that your tables are already up to date.
 # This script is safe to run even if your tables are already up to date!
 
+# Warning message(s) produced for a statement can be printed by explicitly
+# adding a 'SHOW WARNINGS' after the statement.
+
 set sql_mode='';
 set storage_engine=MyISAM;
 
@@ -233,7 +236,7 @@ ALTER TABLE func
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
 ALTER TABLE general_log
-  MODIFY event_time TIMESTAMP NOT NULL,
+  MODIFY event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   MODIFY user_host MEDIUMTEXT NOT NULL,
   MODIFY thread_id INTEGER NOT NULL,
   MODIFY server_id INTEGER UNSIGNED NOT NULL,
@@ -244,7 +247,7 @@ SET GLOBAL general_log = @old_log_state;
 SET @old_log_state = @@global.slow_query_log;
 SET GLOBAL slow_query_log = 'OFF';
 ALTER TABLE slow_log
-  MODIFY start_time TIMESTAMP NOT NULL,
+  MODIFY start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   MODIFY user_host MEDIUMTEXT NOT NULL,
   MODIFY query_time TIME NOT NULL,
   MODIFY lock_time TIME NOT NULL,
@@ -381,7 +384,7 @@ ALTER TABLE procs_priv
     COLLATE utf8_general_ci NOT NULL AFTER Routine_name;
 
 ALTER TABLE procs_priv
-  MODIFY Timestamp timestamp AFTER Proc_priv;
+  MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
 
 #
 # proc
@@ -698,14 +701,16 @@ ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE ut
 --
 
 -- SCRAMBLED_PASSWORD_CHAR_LENGTH_323 = 16
-SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16 AND plugin='');
+SET @deprecated_pwds=(SELECT COUNT(*) FROM mysql.user WHERE LENGTH(password) = 16);
 
 -- signal the deprecation error
 DROP PROCEDURE IF EXISTS mysql.warn_pre41_pwd;
-CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash is deprecated and will be removed in a future release. Please upgrade the user definitions using it to a new format.';
+CREATE PROCEDURE mysql.warn_pre41_pwd() SIGNAL SQLSTATE '01000' SET MESSAGE_TEXT='Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.';
 SET @cmd='call mysql.warn_pre41_pwd()';
 SET @str=IF(@deprecated_pwds > 0, @cmd, 'SET @dummy=0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
+-- Get warnings (if any)
+SHOW WARNINGS;
 DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_pre41_pwd;
