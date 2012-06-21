@@ -360,7 +360,7 @@ public:
     char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;
-    Uint16 ReplicaData[MAX_FRAGMENT_DATA_BYTES];
+    Uint16 ReplicaData[MAX_FRAGMENT_DATA_ENTRIES];
     Uint32 FragmentDataLen;
     Uint16 FragmentData[3*MAX_NDB_PARTITIONS];
 
@@ -802,7 +802,7 @@ struct DictHashMapInfo {
   struct HashMap {
     char   HashMapName[MAX_TAB_NAME_SIZE];
     Uint32 HashMapBuckets;
-    Uint16 HashMapValues[512];
+    Uint16 HashMapValues[NDB_DEFAULT_HASHMAP_BUCKETS];
     Uint32 HashMapObjectId;
     Uint32 HashMapVersion;
     HashMap() {}

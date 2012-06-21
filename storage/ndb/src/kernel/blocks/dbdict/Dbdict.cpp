@@ -4931,9 +4931,12 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
       tablePtr.p->fragmentCount = fragments = get_default_fragments(signal);
     }
 
+    tabRequire(fragments <= MAX_NDB_PARTITIONS,
+               CreateTableRef::TooManyFragments);
+
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
-                         NDB_DEFAULT_HASHMAP_BUCKTETS,
+                         NDB_DEFAULT_HASHMAP_BUCKETS,
                          fragments);
     DictObject* dictObj = get_object(buf);
     if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
@@ -6452,17 +6455,18 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
 
   // fragmentation in long signal section
   {
-    Uint32 page[1024];
+    Uint32 page[MAX_FRAGMENT_DATA_WORDS];
     LinearSectionPtr ptr[3];
     Uint32 noOfSections = 0;
 
     const Uint32 size = fragSec.getSize();
+    ndbrequire(size <= NDB_ARRAY_SIZE(page));
 
     // wl3600_todo add ndbrequire on SR, NR
     if (size != 0) {
       jam();
       LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
-      bool ok = copyOut(op_sec_pool, fragSec, page, 1024);
+      bool ok = copyOut(op_sec_pool, fragSec, page, size);
       ndbrequire(ok);
       ptr[noOfSections].sz = size;
       ptr[noOfSections].p = page;
@@ -23053,7 +23057,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   and still continue transaction
      *   but that i dont know how
      */
-    Uint32 buckets = 240;
+    Uint32 buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
     Uint32 fragments = get_default_fragments(signal, 1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
@@ -28615,7 +28619,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (impl_req->requestType & CreateHashMapReq::CreateDefault)
     {
       jam();
-      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKTETS;
+      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
       impl_req->fragments = 0;
     }
 
@@ -28626,6 +28630,13 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
       jam();
 
       fragments = get_default_fragments(signal);
+    }
+
+    if (fragments > MAX_NDB_PARTITIONS)
+    {
+      jam();
+      setError(error, CreateTableRef::TooManyFragments, __LINE__);
+      return;
     }
 
     BaseString::snprintf(hm.HashMapName, sizeof(hm.HashMapName),
@@ -28858,12 +28869,17 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     Uint32 tmp = 0;
     for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
     {
-      ndbrequire(hm.HashMapValues[i] < 256);
-      map_ptr.p->m_map[i] = (Uint8)hm.HashMapValues[i];
+      map_ptr.p->m_map[i] = hm.HashMapValues[i];
       if (hm.HashMapValues[i] > tmp)
         tmp = hm.HashMapValues[i];
     }
     map_ptr.p->m_fragments = tmp + 1;
+  }
+  if (map_ptr.p->m_fragments > MAX_NDB_PARTITIONS)
+  {
+    jam();
+    setError(error, CreateTableRef::TooManyFragments, __LINE__);
+    goto error;
   }
 
   if (ERROR_INSERTED(6211))
