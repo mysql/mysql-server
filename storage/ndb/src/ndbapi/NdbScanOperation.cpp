@@ -1408,6 +1408,9 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
     return -1;
   }//if
   
+  NdbImpl* impl = theNdb->theImpl;
+  Uint32 nodeId = theNdbCon->theDBnode;
+  Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
   theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ, refToBlock(theNdbCon->m_tcRef));
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   req->apiConnectPtr = theNdbCon->theTCConPtr;
@@ -1419,7 +1422,17 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   req->first_batch_size = batch; // Save user specified batch size
   
   Uint32 reqInfo = 0;
-  ScanTabReq::setParallelism(reqInfo, parallel);
+  if (!ndbd_scan_tabreq_implicit_parallelism(nodeVersion))
+  {
+    // Implicit parallelism implies support for greater
+    // parallelism than storable explicitly in old reqInfo.
+    if (parallel > PARALLEL_MASK)
+    {
+      setErrorCodeAbort(4000 /* TODO: TooManyFragments, to too old cluster version */);
+      return -1;
+    }
+    ScanTabReq::setParallelism(reqInfo, parallel);
+  }
   ScanTabReq::setScanBatch(reqInfo, 0);
   ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
   ScanTabReq::setTupScanFlag(reqInfo, tupScan);
