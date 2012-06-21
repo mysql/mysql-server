@@ -1458,6 +1458,79 @@ void acl_free(bool end)
 }
 
 
+/**
+  A helper function to commit statement transaction and close
+  ACL tables after reading some data from them as part of FLUSH
+  PRIVILEGES statement or during server initialization.
+
+  @note We assume that we have only read from the tables so commit
+        can't fail. @sa close_mysql_tables().
+*/
+
+void close_acl_tables(THD *thd)
+{
+#ifndef DBUG_OFF
+  bool res=
+#endif
+    trans_commit_stmt(thd);
+  DBUG_ASSERT(res == false);
+
+  close_mysql_tables(thd);
+}
+
+
+/**
+  Commit ACL statement (and transaction) ignoring the fact that it might have
+  ended with an error, close tables which it has opened and release metadata
+  locks.
+
+  @note In case of failure to commit transaction we try to restore correct
+        state of in-memory structures by reloading privileges.
+
+  @retval False - Success.
+  @retval True  - Error.
+*/
+
+static bool acl_trans_commit_and_close_tables(THD *thd)
+{
+  bool result;
+
+  /*
+    Try to commit a transaction even if we had some failures.
+
+    Without this step changes to privilege tables will be rolled back at the
+    end of mysql_execute_command() in the presence of error, leaving on-disk
+    and in-memory descriptions of privileges out of sync and making behavior
+    of ACL statements for transactional tables incompatible with legacy
+    behavior.
+
+    We need to commit both statement and normal transaction to make behavior
+    consistent with both autocommit on and off.
+
+    It is safe to do so since ACL statement always do implicit commit at the
+    end of statement.
+  */
+  DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
+
+  result= trans_commit_stmt(thd);
+  result|= trans_commit_implicit(thd);
+  close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
+
+  if (result)
+  {
+    /*
+      Try to bring in-memory structures back in sync with on-disk data if we
+      have failed to commit our changes.
+    */
+    (void) acl_reload(thd);
+    (void) grant_reload(thd);
+  }
+
+  return result;
+}
+
+
 /*
   Forget current user/db-level privileges and read new privileges
   from the privilege tables.
@@ -1553,7 +1626,7 @@ my_bool acl_reload(THD *thd)
   if (old_initialized)
     mysql_mutex_unlock(&acl_cache->lock);
 end:
-  close_mysql_tables(thd);
+  close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -2379,18 +2452,14 @@ bool change_password(THD *thd, const char *host, const char *user,
   acl_cache->clear(1);				// Clear locked hostname cache
   mysql_mutex_unlock(&acl_cache->lock);
   result= 0;
-  if (mysql_bin_log.is_open())
-  {
-    query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
-                          acl_user->user ? acl_user->user : "",
-                          acl_user->host.get_host() ? acl_user->host.get_host() : "",
-                          new_password);
-    thd->clear_error();
-    result= thd->binlog_query(THD::STMT_QUERY_TYPE, buff, query_length,
-                              FALSE, FALSE, FALSE, 0);
-  }
+  query_length= sprintf(buff, "SET PASSWORD FOR '%-.120s'@'%-.120s'='%-.120s'",
+                        acl_user->user ? acl_user->user : "",
+                        acl_user->host.get_host() ? acl_user->host.get_host() : "",
+                        new_password);
+  result= write_bin_log(thd, true, buff, query_length,
+                        table->file->has_transactions());
 end:
-  close_mysql_tables(thd);
+  result|= acl_trans_commit_and_close_tables(thd);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -4131,6 +4200,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   char *db_name, *table_name;
   bool save_binlog_row_based;
   bool should_write_to_binlog= FALSE;
+  bool transactional_tables;
   DBUG_ENTER("mysql_table_grant");
 
   if (!initialized)
@@ -4273,6 +4343,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
   }
 
+  transactional_tables= (tables[0].table->file->has_transactions() ||
+                         tables[1].table->file->has_transactions() ||
+                         (tables[2].table &&
+                          tables[2].table->file->has_transactions()));
+
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
   bool result= FALSE;
@@ -4405,13 +4480,16 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (should_write_to_binlog)
     result= result |
-            write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+            write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+                          transactional_tables);
+
   mysql_rwlock_unlock(&LOCK_grant);
+
+  result|= acl_trans_commit_and_close_tables(thd);
 
   if (!result) /* success */
     my_ok(thd);
 
-  /* Tables are automatically closed */
   thd->lex->restore_backup_query_tables_list(&backup);
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -4446,6 +4524,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   bool create_new_users=0, result=0;
   char *db_name, *table_name;
   bool save_binlog_row_based, should_write_to_binlog= FALSE;
+  bool transactional_tables;
   DBUG_ENTER("mysql_routine_grant");
 
   if (!initialized)
@@ -4514,6 +4593,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       thd->set_current_stmt_binlog_format_row();
     DBUG_RETURN(TRUE);
   }
+
+  transactional_tables= (tables[0].table->file->has_transactions() ||
+                         tables[1].table->file->has_transactions());
 
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
@@ -4593,7 +4675,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   {
     if (revoke_grant)
     {
-      if (write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+      if (write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+                        transactional_tables))
         result= TRUE;
     }
     else
@@ -4601,18 +4684,21 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       DBUG_ASSERT(thd->rewritten_query.length());
       if (write_bin_log(thd, FALSE,
                         thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length()))
+                        thd->rewritten_query.length(),
+                        transactional_tables))
         result= TRUE;
     }
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+  result|= acl_trans_commit_and_close_tables(thd);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
-
-  /* Tables are automatically closed */
+ 
   DBUG_RETURN(result);
 }
 
@@ -4700,6 +4786,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
   bool should_write_to_binlog= FALSE;
+  bool transactional_tables;
   DBUG_ENTER("mysql_grant");
   if (!initialized)
   {
@@ -4777,6 +4864,9 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     DBUG_RETURN(TRUE);				/* purecov: deadcode */
   }
 
+  transactional_tables= (tables[0].table->file->has_transactions() ||
+                         tables[1].table->file->has_transactions());
+
   if (!revoke_grant)
     create_new_users= test_if_create_new_users(thd);
 
@@ -4844,16 +4934,21 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
       result= result |
           write_bin_log(thd, FALSE,
                         thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length());
+                        thd->rewritten_query.length(),
+                        transactional_tables);
     else
       result= result |
-              write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+              write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+                            transactional_tables);
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
 
+  result|= acl_trans_commit_and_close_tables(thd);
+  
   if (!result)
     my_ok(thd);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -5136,7 +5231,7 @@ static my_bool grant_reload_procs_priv(THD *thd)
   }
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_mysql_tables(thd);
+  close_acl_tables(thd);
   DBUG_RETURN(return_val);
 }
 
@@ -5207,7 +5302,7 @@ my_bool grant_reload(THD *thd)
     free_root(&old_mem,MYF(0));
   }
   mysql_rwlock_unlock(&LOCK_grant);
-  close_mysql_tables(thd);
+  close_acl_tables(thd);
 
   /*
     It is OK failing to load procs_priv table because we may be
@@ -6460,29 +6555,33 @@ void get_mqh(const char *user, const char *host, USER_CONN *uc)
   mysql_mutex_unlock(&acl_cache->lock);
 }
 
-/*
+/**
   Open the grant tables.
 
-  SYNOPSIS
-    open_grant_tables()
-    thd                         The current thread.
-    tables (out)                The 4 elements array for the opened tables.
+  @param          thd                   The current thread.
+  @param[in/out]  tables                Array of GRANT_TABLES table list elements
+                                        which will be used for opening tables.
+  @param[out]     transactional_tables  Set to true if one of grant tables is
+                                        transactional, false otherwise.
 
-  DESCRIPTION
+  @note
     Tables are numbered as follows:
     0 user
     1 db
     2 tables_priv
     3 columns_priv
+    4 procs_priv
+    5 proxies_priv
 
-  RETURN
-    1           Skip GRANT handling during replication.
-    0           OK.
-    < 0         Error.
+  @retval  1    Skip GRANT handling during replication.
+  @retval  0    OK.
+  @retval  < 0  Error.
 */
 
 #define GRANT_TABLES 6
-int open_grant_tables(THD *thd, TABLE_LIST *tables)
+
+static int
+open_grant_tables(THD *thd, TABLE_LIST *tables, bool *transactional_tables)
 {
   DBUG_ENTER("open_grant_tables");
 
@@ -6491,6 +6590,8 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
     DBUG_RETURN(-1);
   }
+
+  *transactional_tables= false;
 
   tables->init_one_table(C_STRING_WITH_LEN("mysql"),
                          C_STRING_WITH_LEN("user"), "user", TL_WRITE);
@@ -6541,35 +6642,14 @@ int open_grant_tables(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(-1);
   }
 
+  for (uint i= 0; i < GRANT_TABLES; ++i)
+    *transactional_tables= (*transactional_tables ||
+                            (tables[i].table &&
+                             tables[i].table->file->has_transactions()));
+
   DBUG_RETURN(0);
 }
 
-ACL_USER *check_acl_user(LEX_USER *user_name,
-			 uint *acl_acl_userdx)
-{
-  ACL_USER *acl_user= 0;
-  uint counter;
-
-  mysql_mutex_assert_owner(&acl_cache->lock);
-
-  for (counter= 0 ; counter < acl_users.elements ; counter++)
-  {
-    const char *user,*host;
-    acl_user= dynamic_element(&acl_users, counter, ACL_USER*);
-    if (!(user=acl_user->user))
-      user= "";
-    if (!(host=acl_user->host.get_host()))
-      host= "";
-    if (!strcmp(user_name->user.str,user) &&
-	!my_strcasecmp(system_charset_info, user_name->host.str, host))
-      break;
-  }
-  if (counter == acl_users.elements)
-    return 0;
-
-  *acl_acl_userdx= counter;
-  return acl_user;
-}
 
 /*
   Modify a privilege table.
@@ -7288,6 +7368,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_created= FALSE;
   bool save_binlog_row_based;
+  bool transactional_tables;
   DBUG_ENTER("mysql_create_user");
 
   /*
@@ -7299,7 +7380,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     thd->clear_current_stmt_binlog_format_row();
 
   /* CREATE USER may be skipped on replication client. */
-  if ((result= open_grant_tables(thd, tables)))
+  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7366,10 +7447,14 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   {
     result|= write_bin_log(thd, FALSE,
                            thd->rewritten_query.c_ptr_safe(),
-                           thd->rewritten_query.length());
+                           thd->rewritten_query.length(),
+                           transactional_tables);
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+  result|= acl_trans_commit_and_close_tables(thd);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -7401,6 +7486,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   bool some_users_deleted= FALSE;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool save_binlog_row_based;
+  bool transactional_tables;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -7412,7 +7498,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     thd->clear_current_stmt_binlog_format_row();
 
   /* DROP USER may be skipped on replication client. */
-  if ((result= open_grant_tables(thd, tables)))
+  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7451,9 +7537,13 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted)
-    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+                            transactional_tables);
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+  result|= acl_trans_commit_and_close_tables(thd);
+
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7486,6 +7576,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   TABLE_LIST tables[GRANT_TABLES];
   bool some_users_renamed= FALSE;
   bool save_binlog_row_based;
+  bool transactional_tables;
   DBUG_ENTER("mysql_rename_user");
 
   /*
@@ -7497,7 +7588,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     thd->clear_current_stmt_binlog_format_row();
 
   /* RENAME USER may be skipped on replication client. */
-  if ((result= open_grant_tables(thd, tables)))
+  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7546,10 +7637,14 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
-  if (some_users_renamed && mysql_bin_log.is_open())
-    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  if (some_users_renamed)
+    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+                            transactional_tables);
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+  result|= acl_trans_commit_and_close_tables(thd);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -7650,27 +7745,27 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   acl_cache->clear(1);				// Clear locked hostname cache
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (!result && some_passwords_expired && mysql_bin_log.is_open())
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
+
+  if (!result && some_passwords_expired)
   {
     const char *query= thd->rewritten_query.length() ?
       thd->rewritten_query.c_ptr_safe() : thd->query();
     const size_t query_length= thd->rewritten_query.length() ?
       thd->rewritten_query.length() : thd->query_length();
-    result= (write_bin_log(thd, false, query, query_length) != 0);
+    result= (write_bin_log(thd, false, query, query_length,
+                           table->file->has_transactions()) != 0);
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
 
-  close_mysql_tables(thd);
+  result|= acl_trans_commit_and_close_tables(thd);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
-
-  if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "ALTER USER", wrong_users.c_ptr_safe());
-
   DBUG_RETURN(result);
 }
 
@@ -7696,6 +7791,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
   bool save_binlog_row_based, should_write_to_binlog= FALSE;
+  bool transactional_tables;
   DBUG_ENTER("mysql_revoke_all");
 
   /*
@@ -7706,7 +7802,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  if ((result= open_grant_tables(thd, tables)))
+  if ((result= open_grant_tables(thd, tables, &transactional_tables)))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7868,10 +7964,14 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (should_write_to_binlog)
   {
     result= result |
-      write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+      write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+                    transactional_tables);
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
+
+  result|= acl_trans_commit_and_close_tables(thd);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -7968,9 +8068,10 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
   Silence_routine_definer_errors error_handler;
   bool save_binlog_row_based;
+  bool not_used;
   DBUG_ENTER("sp_revoke_privileges");
 
-  if ((result= open_grant_tables(thd, tables)))
+  if ((result= open_grant_tables(thd, tables, &not_used)))
     DBUG_RETURN(result != 1);
 
   /* Be sure to pop this before exiting this scope! */
@@ -8019,13 +8120,16 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   mysql_mutex_unlock(&acl_cache->lock);
   mysql_rwlock_unlock(&LOCK_grant);
 
+  result= acl_trans_commit_and_close_tables(thd);
+
   thd->pop_internal_handler();
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
 
-  DBUG_RETURN(error_handler.has_errors());
+  DBUG_RETURN(error_handler.has_errors() || result);
 }
 
 
