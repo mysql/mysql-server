@@ -7,7 +7,7 @@ SET TIME_ZONE = "+00:00";
 --echo # 2011-04-19 08:02:40 UTC
 SET TIMESTAMP = 1303200160.123456;
 
-eval CREATE TABLE t1 ( a INT, b $timestamp );
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT CURRENT_$timestamp ON UPDATE CURRENT_$timestamp);
 
 INSERT DELAYED INTO t1 SET a = 1;
 FLUSH TABLE t1;
@@ -29,7 +29,7 @@ DROP TABLE t1;
 --echo # 2011-04-19 08:04:01 UTC
 SET TIMESTAMP = 1303200241.234567;
 
-eval CREATE TABLE t1 ( a INT, b $timestamp );
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT CURRENT_$timestamp ON UPDATE CURRENT_$timestamp);
 
 INSERT DELAYED INTO t1 ( a ) VALUES (1);
 FLUSH TABLE t1;
@@ -45,7 +45,7 @@ DROP TABLE t1;
 --echo # Test of a delayed insert handler servicing two insert operations
 --echo # with different sets of active defaults.
 --echo #
-eval CREATE TABLE t1 ( a INT, b $timestamp );
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT CURRENT_$timestamp ON UPDATE CURRENT_$timestamp);
 
 --connect(con1, localhost, root,,)
 --echo # 2011-04-19 08:04:01 UTC
@@ -80,7 +80,7 @@ DROP TABLE t1;
 --echo # Test of early activation of function defaults.
 --echo #
 
-eval CREATE TABLE t1 ( a INT, b $timestamp );
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT CURRENT_$timestamp ON UPDATE CURRENT_$timestamp);
 
 SET TIMESTAMP = 1317235172.987654; # 2011-09-28 18:39:32 UTC
 INSERT DELAYED INTO t1 ( a ) VALUES (1), (2), (3);

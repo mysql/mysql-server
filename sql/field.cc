@@ -9695,11 +9695,22 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   comment= *fld_comment;
   /*
     Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
-    it is NOT NULL, not an AUTO_INCREMENT field and not a TIMESTAMP.
+    it is NOT NULL and not an AUTO_INCREMENT field.
   */
-  if (!fld_default_value && !(fld_type_modifier & AUTO_INCREMENT_FLAG) &&
-      (fld_type_modifier & NOT_NULL_FLAG) && !is_timestamp_type(fld_type))
-    flags|= NO_DEFAULT_VALUE_FLAG;
+  if (!fld_default_value &&
+      (fld_type_modifier & NOT_NULL_FLAG) &&
+      !(fld_type_modifier & AUTO_INCREMENT_FLAG))
+  {
+    /*
+      TIMESTAMP columns get implicit DEFAULT value when
+      explicit_defaults_for_timestamp is not set.
+    */
+    if (thd->variables.explicit_defaults_for_timestamp ||
+        !is_timestamp_type(fld_type))
+    {
+      flags|= NO_DEFAULT_VALUE_FLAG;
+    }
+  }
 
   if (fld_length != NULL)
   {

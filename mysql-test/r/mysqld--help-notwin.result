@@ -192,6 +192,11 @@ The following options may be given as the first argument:
  If non-zero, binary logs will be purged after
  expire_logs_days days; possible purges happen at startup
  and at binary log rotation
+ --explicit-defaults-for-timestamp 
+ This option causes CREATE TABLE to create all TIMESTAMP
+ columns as NULL with DEFAULT NULL attribute, Without this
+ option, TIMESTAMP columns are NOT NULL and have implicit
+ DEFAULT clauses. The old behavior is deprecated.
  --external-locking  Use system (external) locking (disabled by default). 
  With this option enabled you can run myisamchk to test
  (not repair) tables while the MySQL server is running.
@@ -1000,6 +1005,7 @@ end-markers-in-json FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
+explicit-defaults-for-timestamp FALSE
 external-locking FALSE
 flush FALSE
 flush-time 0

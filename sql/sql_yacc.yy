@@ -6422,8 +6422,11 @@ type:
             {
               /* 
                 Unlike other types TIMESTAMP fields are NOT NULL by default.
+                This behavior is deprecated now.
               */
-              Lex->type|= NOT_NULL_FLAG;
+              if (!YYTHD->variables.explicit_defaults_for_timestamp)
+                Lex->type|= NOT_NULL_FLAG;
+
               $$=MYSQL_TYPE_TIMESTAMP2;
             }
           }

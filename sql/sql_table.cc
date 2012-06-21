@@ -4769,7 +4769,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* We can abort create table for any table type */
   thd->abort_on_warning= thd->is_strict_mode();
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  /*
+    Promote first timestamp column, when explicit_defaults_for_timestamp
+    is not set
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
@@ -7287,7 +7292,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* We can abort alter table for any table type */
   thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  /*
+    Promote first timestamp column, when explicit_defaults_for_timestamp
+    is not set
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   /*
     Create .FRM for new version of table with a temporary name.

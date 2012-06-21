@@ -15,7 +15,7 @@ drop table if exists t1,t2;
 
 select 1, 1.0, -1, "hello", NULL;
 
-create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, l datetime, m enum('a','b'), n set('a','b'), o char(10));
 select * from t1;
 select a b, b c from t1 as t2;
 drop table t1;
@@ -176,7 +176,7 @@ dcol_uns double unsigned,
 # date/time types
 date_col date,
 time_col time,
-timestamp_col timestamp,
+timestamp_col timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 year_col year,
 datetime_col datetime,
 # string types
@@ -212,9 +212,13 @@ CREATE TABLE t1 (
   dt6 DATETIME(6), dt5 DATETIME(5), dt4 DATETIME(4),
   dt3 DATETIME(3), dt2 DATETIME(2), dt1 DATETIME(1),
   dt0 DATETIME,
-  ts6 TIMESTAMP(6), ts5 TIMESTAMP(5), ts4 TIMESTAMP(4),
-  ts3 TIMESTAMP(3), ts2 TIMESTAMP(2), ts1 TIMESTAMP(1),
-  ts0 TIMESTAMP
+  ts6 TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  ts5 TIMESTAMP(5) NOT NULL DEFAULT '0000-00-00 00:00:00', 
+  ts4 TIMESTAMP(4) NOT NULL DEFAULT '0000-00-00 00:00:00',
+  ts3 TIMESTAMP(3) NOT NULL DEFAULT '0000-00-00 00:00:00',
+  ts2 TIMESTAMP(2) NOT NULL DEFAULT '0000-00-00 00:00:00',
+  ts1 TIMESTAMP(1) NOT NULL DEFAULT '0000-00-00 00:00:00',
+  ts0 TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00'
 );
 --enable_metadata
 SELECT * FROM t1;
