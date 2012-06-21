@@ -608,6 +608,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
     set_timespec(start_ts, 0);
 
+    DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
     /* Acquire the mutex. */
     lock();
 
@@ -738,7 +739,6 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       }
     }
 
-  l_end:
     /*
       At this point, the binlog file and position of this transaction
       must have been removed from ActiveTranx.
@@ -747,6 +747,7 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
            !active_tranxs_->is_tranx_end_pos(trx_wait_binlog_name,
                                              trx_wait_binlog_pos));
     
+  l_end:
     /* Update the status counter. */
     if (is_on())
       rpl_semi_sync_master_yes_transactions++;
