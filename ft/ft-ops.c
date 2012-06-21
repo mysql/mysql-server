@@ -3074,7 +3074,6 @@ toku_ft_change_descriptor(
     )
 {
     int r = 0;
-    int fd;
     DESCRIPTOR_S new_d;
     BYTESTRING old_desc_bs = { old_descriptor->size, old_descriptor->data };
     BYTESTRING new_desc_bs = { new_descriptor->size, new_descriptor->data };
@@ -3108,8 +3107,7 @@ toku_ft_change_descriptor(
 
     // write new_descriptor to header
     new_d.dbt = *new_descriptor;
-    fd = toku_cachefile_get_fd (ft_h->ft->cf);
-    r = toku_update_descriptor(ft_h->ft, &new_d, fd);
+    toku_ft_update_descriptor(ft_h->ft, &new_d);
     // very infrequent operation, worth precise threadsafe count
     if (r == 0) {
         STATUS_VALUE(FT_DESCRIPTOR_SET)++;

@@ -46,9 +46,8 @@ toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR des
 //Descriptor is written to disk during toku_ft_handle_open iff we have a new (or changed)
 //descriptor.
 //Descriptors are NOT written during the header checkpoint process.
-int
+void
 toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset) {
-    int r = 0;
     // make the checksum
     int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
     struct wbuf w;
@@ -65,7 +64,6 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
         toku_os_full_pwrite(fd, w.buf, size, offset);
     }
     toku_free(w.buf);
-    return r;
 }
 
 static void
@@ -334,10 +332,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     // version if it gets written out, we need to write the descriptor in
     // the new format (without those bytes) before that happens.
     if (version <= FT_LAYOUT_VERSION_13) {
-        r = toku_update_descriptor(ft, &ft->cmp_descriptor, fd);
-        if (r != 0) {
-            goto exit;
-        }
+        toku_ft_update_descriptor(ft, &ft->cmp_descriptor);
     }
     r = 0;
 exit:

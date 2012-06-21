@@ -463,7 +463,7 @@ struct ft {
 };
 
 // Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
-// In combination with the annotation in toku_update_descriptor, this seems to be enough to convince test_4015 that all is well.
+// In combination with the annotation in toku_ft_update_descriptor, this seems to be enough to convince test_4015 that all is well.
 // Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
 static const struct __toku_db zero_db; // it's static, so it's all zeros.  icc needs this to be a global
 static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
@@ -595,7 +595,7 @@ int toku_serialize_ft_to_wbuf (
     DISKOFF translation_size_on_disk
     );
 int toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
-int toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
+void toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
 BASEMENTNODE toku_create_empty_bn(void);
 BASEMENTNODE toku_create_empty_bn_no_buffer(void); // create a basement node with a null buffer.

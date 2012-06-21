@@ -209,7 +209,7 @@ ft_checkpoint (CACHEFILE cf, int fd, void *header_v) {
             r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
             if (r!=0) goto handle_error;
         }
-        uint64_t now = (uint64_t) time(NULL); // 4018;
+        uint64_t now = (uint64_t) time(NULL);
         ft->h->time_of_last_modification = now;
         ch->time_of_last_modification = now;
         ch->checkpoint_count++;
@@ -906,49 +906,41 @@ toku_ft_stat64 (FT ft, struct ftstat64_s *s) {
         n = 0;
     }
     s->dsize = n; 
-
-    // 4018
     s->create_time_sec = ft->h->time_of_creation;
     s->modify_time_sec = ft->h->time_of_last_modification;
     s->verify_time_sec = ft->h->time_of_last_verification;    
 }
 
-// TODO: (Zardosht), once the fdlock has been removed from cachetable, remove
-// fd as parameter and access it in this function
-int 
-toku_update_descriptor(FT h, DESCRIPTOR d, int fd) 
-// Effect: Change the descriptor in a tree (log the change, make sure it makes it to disk eventually).
-//  Updates to the descriptor must be performed while holding some sort of lock.  (In the ydb layer
-//  there is a row lock on the directory that provides exclusion.)
+void 
+toku_ft_update_descriptor(FT ft, DESCRIPTOR d) 
+// Effect: Changes the descriptor in a tree (log the change, make sure it makes it to disk eventually).
+// requires: updates do not happen in parallel for an FT (ydb layer uses a row lock to enforce this)
 {
-    int r = 0;
-    DISKOFF offset;
-    // 4 for checksum
-    toku_realloc_descriptor_on_disk(h->blocktable, toku_serialize_descriptor_size(d)+4, &offset, h, fd);
-    r = toku_serialize_descriptor_contents_to_fd(fd, d, offset);
-    if (r) {
-        goto cleanup;
-    }
-    if (h->descriptor.dbt.data) {
-        toku_free(h->descriptor.dbt.data);
-    }
-    h->descriptor.dbt.size = d->dbt.size;
-    h->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
+    // the checksum is four bytes, so that's where the magic number comes from
+    // make space for the new descriptor and write it out to disk
+    DISKOFF offset, size;
+    size = toku_serialize_descriptor_size(d) + 4;
+    int fd = toku_cachefile_get_fd(ft->cf);
+    toku_realloc_descriptor_on_disk(ft->blocktable, size, &offset, ft, fd);
+    toku_serialize_descriptor_contents_to_fd(fd, d, offset);
 
-    r = 0;
-cleanup:
-    return r;
+    // cleanup the old descriptor and set the in-memory descriptor to the new one
+    if (ft->descriptor.dbt.data) {
+        toku_free(ft->descriptor.dbt.data);
+    }
+    ft->descriptor.dbt.size = d->dbt.size;
+    ft->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
 }
 
 void 
-toku_ft_update_cmp_descriptor(FT h) {
-    if (h->cmp_descriptor.dbt.data != NULL) {
-        toku_free(h->cmp_descriptor.dbt.data);
+toku_ft_update_cmp_descriptor(FT ft) {
+    if (ft->cmp_descriptor.dbt.data != NULL) {
+        toku_free(ft->cmp_descriptor.dbt.data);
     }
-    h->cmp_descriptor.dbt.size = h->descriptor.dbt.size;
-    h->cmp_descriptor.dbt.data = toku_xmemdup(
-        h->descriptor.dbt.data, 
-        h->descriptor.dbt.size
+    ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
+    ft->cmp_descriptor.dbt.data = toku_xmemdup(
+        ft->descriptor.dbt.data, 
+        ft->descriptor.dbt.size
         );
 }
 
