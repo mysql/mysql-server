@@ -171,7 +171,8 @@ ibool
 row_fts_psort_info_init(
 /*====================*/
 	trx_t*			trx,	/*!< in: transaction */
-	row_merge_dup_t*	dup,	/*!< in,own: FTS index being created */
+	row_merge_dup_t*	dup,	/*!< in,own: descriptor of
+					FTS index being created */
 	const dict_table_t*	new_table,/*!< in: table on which indexes are
 					created */
 	ibool			opt_doc_id_size,

@@ -375,7 +375,8 @@ dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
-	const row_merge_dup_t*	dup,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: descriptor of
+					index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */

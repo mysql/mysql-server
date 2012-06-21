@@ -1802,7 +1802,8 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_blocks(
 /*=============*/
-	const row_merge_dup_t*	dup,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: descriptor of
+					index being created */
 	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	const merge_file_t*	file,	/*!< in: file containing
 					index entries */
@@ -1988,7 +1989,8 @@ dberr_t
 row_merge(
 /*======*/
 	trx_t*			trx,	/*!< in: transaction */
-	const row_merge_dup_t*	dup,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: descriptor of
+					index being created */
 	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
@@ -2118,7 +2120,8 @@ dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
-	const row_merge_dup_t*	dup,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: descriptor of
+					index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
