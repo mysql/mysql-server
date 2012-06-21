@@ -10423,9 +10423,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   const Uint32 buddyPtr = (tmpXX == 0xFFFFFFFF ? RNIL : tmpXX);
   Uint32 currSavePointId = 0;
   
-  Uint32 scanConcurrency = scanTabReq->getParallelism(ri);
   Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(ri);
-  Uint32 scanParallel = scanConcurrency;
   Uint32 errCode;
   ScanRecordPtr scanptr;
 
@@ -10441,6 +10439,9 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
   handle.getSection(api_op_ptr, 0);
+  // Scan parallelism is determined by the number of receiver ids sent
+  Uint32 scanParallel = api_op_ptr.sz;
+  Uint32 scanConcurrency = scanParallel;
   Uint32 * apiPtr = signal->theData+25; // temp storage
   copy(apiPtr, api_op_ptr);
 
