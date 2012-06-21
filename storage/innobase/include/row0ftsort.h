@@ -60,7 +60,7 @@ struct fts_psort_t;
 
 /** Common info passed to each parallel sort thread */
 struct fts_psort_common_t {
-	row_merge_dup_t*	dup;		/*!< FTS index */
+	row_merge_dup_t*	dup;		/*!< descriptor of FTS index */
 	dict_table_t*		new_table;	/*!< source table */
 	trx_t*			trx;		/*!< transaction */
 	fts_psort_t*		all_info;	/*!< all parallel sort info */
@@ -168,7 +168,8 @@ ibool
 row_fts_psort_info_init(
 /*====================*/
 	trx_t*			trx,	/*!< in: transaction */
-	row_merge_dup_t*	dup,	/*!< in,own: FTS index being created */
+	row_merge_dup_t*	dup,	/*!< in,own: descriptor of
+					FTS index being created */
 	const dict_table_t*	new_table,/*!< in: table where indexes are
 					created */
 	ibool			opt_doc_id_size,
