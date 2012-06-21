@@ -346,6 +346,9 @@ static int run_command(char* cmd,
     }
   }
 
+  if (! ds_res)
+    fflush(stdout);
+
   error= pclose(res_file);
   return WEXITSTATUS(error);
 }
