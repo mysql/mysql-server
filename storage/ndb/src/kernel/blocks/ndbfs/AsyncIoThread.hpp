@@ -82,7 +82,7 @@ public:
 	char *buf;
 	size_t size;
 	off_t offset;
-      } pages[32];
+      } pages[NDB_FS_RW_PAGES];
     } readWrite;
     struct {
       const char * buf;
