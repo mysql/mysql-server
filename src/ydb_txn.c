@@ -141,6 +141,12 @@ toku_txn_id(DB_TXN * txn) {
     return -1;
 }
 
+static u_int64_t 
+toku_txn_id64(DB_TXN * txn) {
+    HANDLE_PANICKED_ENV(txn->mgrp);
+    return toku_txn_get_id(db_txn_struct_i(txn)->tokutxn);
+}
+
 static int 
 toku_txn_abort_only(DB_TXN * txn,
                     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
@@ -402,6 +408,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     STXN(xa_prepare);
     STXN(txn_stat);
 #undef STXN
+    result->id64 = toku_txn_id64;
 
     result->parent = stxn;
 #if !TOKUDB_NATIVE_H
@@ -479,6 +486,7 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     STXN(prepare);
     STXN(txn_stat);
 #undef STXN
+    result->id64 = toku_txn_id64;
     
     result->parent = NULL;
     

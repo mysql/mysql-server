@@ -13,99 +13,7 @@
 #define TESTDIR __SRCFILE__ ".dir"
 #define FILENAME "test0.ft"
 
-static void test_setup(TOKULOGGER *loggerp, CACHETABLE *ctp) {
-    *loggerp = NULL;
-    *ctp = NULL;
-    int r;
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
-    r = toku_os_mkdir(TESTDIR, S_IRWXU);
-    CKERR(r);
-
-    r = toku_logger_create(loggerp);
-    CKERR(r);
-    TOKULOGGER logger = *loggerp;
-
-    r = toku_logger_open(TESTDIR, logger);
-    CKERR(r);
-
-    r = toku_create_cachetable(ctp, 0, ZERO_LSN, logger);
-    CKERR(r);
-    CACHETABLE ct = *ctp;
-    toku_cachetable_set_env_dir(ct, TESTDIR);
-
-    toku_logger_set_cachetable(logger, ct);
-
-    r = toku_logger_open_rollback(logger, ct, TRUE);
-    CKERR(r);
-
-    r = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
-    CKERR(r);
-}
-
-static void
-xid_lsn_keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable) {
-    CACHETABLE *ctp = (void*)env;
-    *ctp = cachetable;
-}
-
-static void test_setup_and_recover(TOKULOGGER *loggerp, CACHETABLE *ctp) {
-    int r;
-    TOKULOGGER logger = NULL;
-    CACHETABLE ct = NULL;
-    r = toku_logger_create(&logger);
-    CKERR(r);
-
-    void *ctv = &ct;  // Use intermediate void* to avoid compiler warning.
-    r = tokudb_recover(ctv,
-                       NULL_prepared_txn_callback,
-                       xid_lsn_keep_cachetable_callback,
-                       logger,
-                       TESTDIR, TESTDIR, 0, 0, 0, NULL, 0);
-    CKERR(r);
-    if (!toku_logger_is_open(logger)) {
-        //Did not need recovery.
-        invariant(ct==NULL);
-        r = toku_logger_open(TESTDIR, logger);
-        CKERR(r);
-        r = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);
-        CKERR(r);
-        toku_logger_set_cachetable(logger, ct);
-    }
-    *ctp = ct;
-    *loggerp = logger;
-}
-
-static void clean_shutdown(TOKULOGGER *loggerp, CACHETABLE *ctp) {
-    int r;
-    r = toku_checkpoint(*ctp, *loggerp, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
-    CKERR(r);
-
-    r = toku_logger_close_rollback(*loggerp, false);
-    CKERR(r);
-
-    r = toku_checkpoint(*ctp, *loggerp, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
-    CKERR(r);
-
-    r = toku_logger_shutdown(*loggerp);
-    CKERR(r);
-
-    r = toku_cachetable_close(ctp);
-    CKERR(r);
-
-    r = toku_logger_close(loggerp);
-    CKERR(r);
-}
-
-static void shutdown_after_recovery(TOKULOGGER *loggerp, CACHETABLE *ctp) {
-    int r;
-    r = toku_logger_close_rollback(*loggerp, false);
-    CKERR(r);
-    r = toku_cachetable_close(ctp);
-    CKERR(r);
-    r = toku_logger_close(loggerp);
-    CKERR(r);
-}
+#include "test-ft-txns.h"
 
 static void do_txn(TOKULOGGER logger, bool readonly) {
     int r;
@@ -310,7 +218,7 @@ static void test_xid_lsn_independent_parents(int N) {
 int test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     for (int i=1; i<=128; i *= 2) {
-	test_xid_lsn_independent(i);
+        test_xid_lsn_independent(i);
         test_xid_lsn_independent_crash_recovery(i);
         test_xid_lsn_independent_shutdown_recovery(i);
         test_xid_lsn_independent_parents(i);

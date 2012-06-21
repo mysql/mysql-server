@@ -167,6 +167,7 @@ struct arg {
     int thread_idx;
     int num_threads;
     struct cli_args *cli;
+    bool do_prepare;
 };
 
 DB_TXN * const null_txn = 0;
@@ -180,6 +181,7 @@ static void arg_init(struct arg *arg, DB **dbp, DB_ENV *env, struct cli_args *cl
     arg->lock_type = STRESS_LOCK_NONE;
     arg->txn_type = DB_TXN_SNAPSHOT;
     arg->operation_extra = NULL;
+    arg->do_prepare = false;
 }
 
 enum operation_type {
@@ -401,6 +403,15 @@ static void *worker(void *arg_v) {
             r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
+        if (!arg->cli->single_txn && arg->do_prepare) {
+            u_int8_t gid[DB_GID_SIZE];
+            memset(gid, 0, DB_GID_SIZE);
+            u_int64_t gid_val = txn->id64(txn);
+            u_int64_t *gid_count_p = (void *)gid;  // make gcc --happy about -Wstrict-aliasing
+            *gid_count_p = gid_val;
+            int rr = txn->prepare(txn, gid);
+            assert_zero(rr);
+        }
         if (r == 0) {
             if (!arg->cli->single_txn) {
                 { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
@@ -1302,6 +1313,28 @@ static int fill_tables_with_zeroes(DB **dbs, int num_DBs, int num_elements, u_in
     return 0;
 }
 
+static void do_xa_recovery(DB_ENV* env) {    
+    DB_PREPLIST preplist[1];
+    long num_recovered= 0;
+    int r = 0;
+    r = env->txn_recover(env, preplist, 1, &num_recovered, DB_NEXT);
+    while(r==0 && num_recovered > 0) {
+        DB_TXN* recovered_txn = preplist[0].txn;
+        if (verbose) {
+            printf("recovering transaction with id %"PRIu64" \n", recovered_txn->id64(recovered_txn));
+        }
+        if (random() % 2 == 0) {
+            int rr = recovered_txn->commit(recovered_txn, 0);
+            CKERR(rr);
+        }
+        else {
+            int rr = recovered_txn->abort(recovered_txn);
+            CKERR(rr);
+        }
+        r = env->txn_recover(env, preplist, 1, &num_recovered, DB_NEXT);
+    }
+}
+
 static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
                       int (*bt_compare)(DB *, const DBT *, const DBT *),
                       struct env_args env_args) {
@@ -1328,6 +1361,7 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         CKERR(r);
     }
     r = env->open(env, env_args.envdir, DB_RECOVER|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    do_xa_recovery(env);
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
     r = env->cleaner_set_iterations(env, env_args.cleaner_iterations); CKERR(r);
