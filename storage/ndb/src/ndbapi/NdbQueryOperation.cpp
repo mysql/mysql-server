@@ -3071,7 +3071,21 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     ScanTabReq::setViaSPJFlag(reqInfo, 1);
     ScanTabReq::setPassAllConfsFlag(reqInfo, 1);
-    ScanTabReq::setParallelism(reqInfo, getRootFragCount());
+
+    Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
+    if (!ndbd_scan_tabreq_implicit_parallelism(nodeVersion))
+    {
+      // Implicit parallelism implies support for greater
+      // parallelism than storable explicitly in old reqInfo.
+      Uint32 fragments = getRootFragCount();
+      if (fragments > PARALLEL_MASK)
+      {
+        setErrorCode(Err_SendFailed /* TODO: TooManyFragments, to too old cluster version */);
+        return -1;
+      }
+      ScanTabReq::setParallelism(reqInfo, fragments);
+    }
+
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);

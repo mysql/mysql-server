@@ -85,7 +85,6 @@
 extern EventLogger * g_eventLogger;
 
 #define SYSFILE ((Sysfile *)&sysfileData[0])
-#define MAX_CRASHED_REPLICAS 8
 #define ZINIT_CREATE_GCI Uint32(0)
 #define ZINIT_REPLICA_LAST_GCI Uint32(-1)
 
@@ -17457,6 +17456,7 @@ void Dbdih::writeTabfile(Signal* signal, TabRecord* tab, FileRecordPtr filePtr)
   signal->theData[4] = ZVAR_NO_WORD;
   signal->theData[5] = tab->noPages;
 
+  NDB_STATIC_ASSERT(NDB_ARRAY_SIZE(tab->pageRef) <= NDB_FS_RW_PAGES);
   Uint32 section[2 * NDB_ARRAY_SIZE(tab->pageRef)];
   for (Uint32 i = 0; i < tab->noPages; i++)
   {
