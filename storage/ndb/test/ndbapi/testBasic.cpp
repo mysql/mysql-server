@@ -23,6 +23,7 @@
 #include <Bitmask.hpp>
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbConfig.hpp>
 
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 
@@ -2094,6 +2095,63 @@ runBug59496_case2(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+// An 'assert' that is always executed, so that 'cond' may have side effects.
+#ifdef NDEBUG
+#define ASSERT_ALWAYS(cond) if(!(cond)){abort();}
+#else
+#define ASSERT_ALWAYS assert
+#endif
+
+// Regression test for bug #14208924
+static int
+runLeakApiConnectObjects(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  /**
+   * This error insert inc ombination with bug #14208924 will 
+   * cause TC to leak ApiConnectRecord objects.
+   */
+  restarter.insertErrorInAllNodes(8094);
+
+  Ndb* const ndb = GETNDB(step);
+  Uint32 maxTrans = 0;
+  NdbConfig conf(GETNDB(step)->getNodeId()+1);
+  ASSERT_ALWAYS(conf.getProperty(conf.getMasterNodeId(),
+                                 NODE_TYPE_DB,
+                                 CFG_DB_NO_TRANSACTIONS,
+                                 &maxTrans));
+  ASSERT_ALWAYS(maxTrans > 0);
+
+  HugoOperations hugoOps(*ctx->getTab());
+  // One ApiConnectRecord object is leaked for each iteration.
+  for (uint i = 0; i < maxTrans+1; i++)
+  {
+    ASSERT_ALWAYS(hugoOps.startTransaction(ndb) == 0);
+    ASSERT_ALWAYS(hugoOps.pkInsertRecord(ndb, i) == 0);
+    NdbTransaction* const trans = hugoOps.getTransaction();
+    /**
+     * The error insert causes trans->execute(Commit) to fail with error code
+     * 286 even if the bug is fixed. Therefore, we ignore this error code.
+     */
+    if (trans->execute(Commit) != 0 && 
+        trans->getNdbError().code != 286)
+    {
+      g_err << "trans->execute() gave unexpected error : " 
+            << trans->getNdbError() << endl;
+      restarter.insertErrorInAllNodes(0);
+      return NDBT_FAILED;
+    }
+    ASSERT_ALWAYS(hugoOps.closeTransaction(ndb) == 0);
+  }
+  restarter.insertErrorInAllNodes(0);
+
+  UtilTransactions utilTrans(*ctx->getTab());
+  if (utilTrans.clearTable(ndb) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testBasic);
 TESTCASE("PkInsert", 
 	 "Verify that we can insert and delete from this table using PK"
@@ -2418,6 +2476,10 @@ TESTCASE("Bug59496_case2", "")
   INITIALIZER(runLoadTable);
   STEP(runBug59496_case2);
   STEPS(runBug59496_scan, 10);
+}
+TESTCASE("LeakApiConnectObjects", "")
+{
+  INITIALIZER(runLeakApiConnectObjects);
 }
 NDBT_TESTSUITE_END(testBasic);
 
