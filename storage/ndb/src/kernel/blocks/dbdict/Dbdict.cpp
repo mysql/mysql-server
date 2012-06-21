@@ -4933,7 +4933,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
-                         NDB_DEFAULT_HASHMAP_BUCKTETS,
+                         NDB_DEFAULT_HASHMAP_BUCKETS,
                          fragments);
     DictObject* dictObj = get_object(buf);
     if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
@@ -28615,7 +28615,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (impl_req->requestType & CreateHashMapReq::CreateDefault)
     {
       jam();
-      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKTETS;
+      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
       impl_req->fragments = 0;
     }
 
