@@ -384,9 +384,11 @@ Success: FTWRL is blocked when 'create event e2 on schedule every 1 minute do be
 #
 # 8.9) CREATE USER should be incompatible with FTWRL.
 #
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'create user mysqltest_u1' under FTWRL.
 Success: 'create user mysqltest_u1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'create user mysqltest_u1' is active in another connection.
 #
 # 8.x) The rest of CREATE variants (CREATE LOGFILE GROUP,
 #      CREATE TABLESPACE and CREATE SERVER) are too special
@@ -578,23 +580,28 @@ Success: FTWRL is blocked when 'drop database mysqltest1' is active in another c
 #
 # 13.4) DROP FUNCTION is incompatible with FTWRL.
 #
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'drop function f1' under FTWRL.
 Success: 'drop function f1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'drop function f1' is active in another connection.
 #
 # 13.5) DROP PROCEDURE is incompatible with FTWRL.
 #
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'drop procedure p1' under FTWRL.
 Success: 'drop procedure p1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'drop procedure p1' is active in another connection.
 #
 # 13.6) DROP USER should be incompatible with FTWRL.
 #
 create user mysqltest_u1;
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'drop user mysqltest_u1' under FTWRL.
 Success: 'drop user mysqltest_u1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'drop user mysqltest_u1' is active in another connection.
-drop user mysqltest_u1;
 #
 # 13.7) DROP VIEW should be incompatible with FTWRL.
 #
@@ -695,9 +702,11 @@ Success: Was able to run FTWRL while 'flush privileges' was active in another co
 #
 # 15) GRANT statement should be incompatible with FTWRL.
 #
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'grant all privileges on t1_base to mysqltest_u1' under FTWRL.
 Success: 'grant all privileges on t1_base to mysqltest_u1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'grant all privileges on t1_base to mysqltest_u1' is active in another connection.
 drop user mysqltest_u1;
 #
 # 16) All HANDLER variants are half-compatible with FTWRL.
@@ -997,9 +1006,11 @@ Success: FTWRL is blocked when 'rename table t1_base to t3_base' is active in an
 #
 # 26.2) RENAME USER is incompatible with FTWRL.
 create user mysqltest_u1;
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'rename user mysqltest_u1 to mysqltest_u2' under FTWRL.
 Success: 'rename user mysqltest_u1 to mysqltest_u2' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'rename user mysqltest_u1 to mysqltest_u2' is active in another connection.
 drop user mysqltest_u1;
 #
 # 27) REPAIR TABLE statement.
@@ -1060,14 +1071,18 @@ Success: Was able to run FTWRL while 'replace into t1_temp select * from t1_base
 # 
 # 29.1) REVOKE privileges is incompatible with FTWRL. 
 grant all privileges on t1_base to mysqltest_u1;
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'revoke all privileges on t1_base from mysqltest_u1' under FTWRL.
 Success: 'revoke all privileges on t1_base from mysqltest_u1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'revoke all privileges on t1_base from mysqltest_u1' is active in another connection.
 # 
 # 29.2) REVOKE ALL PRIVILEGES, GRANT OPTION is incompatible with FTWRL.
+# Skip last part of testing as this statement does
+# implicit commit and releases metadata locks in
+# non-standard place.
 Success: Was not able to run 'revoke all privileges, grant option from mysqltest_u1' under FTWRL.
 Success: 'revoke all privileges, grant option from mysqltest_u1' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'revoke all privileges, grant option from mysqltest_u1' is active in another connection.
 drop user mysqltest_u1;
 #
 # 30) Compatibility of SELECT statement with FTWRL depends on
