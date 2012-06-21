@@ -106,7 +106,13 @@
 #define MAX_FRAGMENT_DATA_ENTRIES (2 + (1 + MAX_REPLICAS) * MAX_NDB_PARTITIONS)
 #define MAX_FRAGMENT_DATA_BYTES (2 * MAX_FRAGMENT_DATA_ENTRIES)
 #define MAX_FRAGMENT_DATA_WORDS ((MAX_FRAGMENT_DATA_BYTES + 3) / 4)
+
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
+#define MAX_NDB_PARTITIONS 240
+#else
 #define MAX_NDB_PARTITIONS 1024
+#endif
+
 #define NDB_PARTITION_BITS 16
 #define NDB_PARTITION_MASK ((Uint32)((1 << NDB_PARTITION_BITS) - 1))
 
@@ -203,7 +209,21 @@
  */
 #define LCP_RESTORE_BUFFER (4*32)
 
+
+/**
+ * Support at least one partition per LDM. And
+ * also try to make size a multiple of all possible
+ * data node counts, so that all partitions are
+ * related to the same number of hashmap buckets
+ * as possible, otherwise some partitions will be
+ * bigger than others.
+ */
+
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
+#else
+#define NDB_DEFAULT_HASHMAP_BUCKETS (48 * 16 * 5) /* 3840 */
+#endif
 #define NDB_DEFAULT_HASHMAP_BUCKETS_BYTES (2 * NDB_DEFAULT_HASHMAP_BUCKETS)
 
 /**
