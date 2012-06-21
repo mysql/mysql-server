@@ -6455,17 +6455,18 @@ Dbdict::createTab_dih(Signal* signal, SchemaOpPtr op_ptr)
 
   // fragmentation in long signal section
   {
-    Uint32 page[1024];
+    Uint32 page[MAX_FRAGMENT_DATA_WORDS];
     LinearSectionPtr ptr[3];
     Uint32 noOfSections = 0;
 
     const Uint32 size = fragSec.getSize();
+    ndbrequire(size <= NDB_ARRAY_SIZE(page));
 
     // wl3600_todo add ndbrequire on SR, NR
     if (size != 0) {
       jam();
       LocalArenaPoolImpl op_sec_pool(op_ptr.p->m_trans_ptr.p->m_arena,c_opSectionBufferPool);
-      bool ok = copyOut(op_sec_pool, fragSec, page, 1024);
+      bool ok = copyOut(op_sec_pool, fragSec, page, size);
       ndbrequire(ok);
       ptr[noOfSections].sz = size;
       ptr[noOfSections].p = page;

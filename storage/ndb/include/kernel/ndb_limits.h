@@ -96,7 +96,16 @@
 #define MAX_KEY_SIZE_IN_WORDS 1023
 #define MAX_FRM_DATA_SIZE 6000
 #define MAX_NULL_BITS 4096
-#define MAX_FRAGMENT_DATA_BYTES (4+(2 * 8 * MAX_REPLICAS * MAX_NDB_NODES))
+/*
+ * Fragmentation data are Uint16, first two are #replicas,
+ * and #fragments, then for each fragment, first log-part-id
+ * then nodeid for each replica.
+ * See creation in Dbdih::execCREATE_FRAGMENTATION_REQ()
+ * and read in Dbdih::execDIADDTABREQ()
+ */
+#define MAX_FRAGMENT_DATA_ENTRIES (2 + (1 + MAX_REPLICAS) * MAX_NDB_PARTITIONS)
+#define MAX_FRAGMENT_DATA_BYTES (2 * MAX_FRAGMENT_DATA_ENTRIES)
+#define MAX_FRAGMENT_DATA_WORDS ((MAX_FRAGMENT_DATA_BYTES + 3) / 4)
 #define MAX_NDB_PARTITIONS 1024
 #define NDB_PARTITION_BITS 16
 #define NDB_PARTITION_MASK ((Uint32)((1 << NDB_PARTITION_BITS) - 1))
