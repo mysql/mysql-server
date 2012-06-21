@@ -300,4 +300,22 @@
 #define MAX_INDEX_STAT_VALUE_CSIZE  512 /* Longvarbinary(2048) */
 #define MAX_INDEX_STAT_VALUE_FORMAT 1
 
+#ifdef NDB_STATIC_ASSERT
+
+static inline void ndb_limits_constraints()
+{
+  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_DEFAULT_HASHMAP_BUCKETS);
+
+  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
+
+  // MAX_NDB_NODES should be 48, but code assumes it is 49
+  STATIC_CONST(MAX_NDB_DATA_NODES = MAX_DATA_NODE_ID);
+  NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
+
+  // Default partitioning is 1 partition per LDM
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_THREADS <= MAX_NDB_PARTITIONS);
+}
+
+#endif
+
 #endif
