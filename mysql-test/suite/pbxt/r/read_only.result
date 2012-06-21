@@ -48,7 +48,7 @@ unlock tables ;
 set global read_only=1;
 select @@global.read_only;
 @@global.read_only
-0
+1
 unlock tables ;
 select @@global.read_only;
 @@global.read_only
@@ -62,7 +62,7 @@ unlock tables ;
 set global read_only=1;
 select @@global.read_only;
 @@global.read_only
-0
+1
 unlock tables ;
 select @@global.read_only;
 @@global.read_only
