@@ -337,14 +337,15 @@ const
 SimpleProperties::SP2StructMapping
 DictHashMapInfo::Mapping[] = {
   DHMIMAPS(HashMap, HashMapName, HashMapName, 0, MAX_TAB_NAME_SIZE),
-  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, 256),
+  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, NDB_DEFAULT_HASHMAP_BUCKETS),
   DTIMAP(HashMap, HashMapObjectId, HashMapObjectId),
   DTIMAP(HashMap, HashMapVersion, HashMapVersion),
 
   /**
    * This *should* change to Uint16 or similar once endian is pushed
    */
-  DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0, 256*2, HashMapBuckets)
+  DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0,
+           NDB_DEFAULT_HASHMAP_BUCKETS_BYTES, HashMapBuckets)
 };
 
 //static

@@ -23053,7 +23053,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   and still continue transaction
      *   but that i dont know how
      */
-    Uint32 buckets = 240;
+    Uint32 buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
     Uint32 fragments = get_default_fragments(signal, 1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
