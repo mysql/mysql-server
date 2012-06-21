@@ -753,16 +753,52 @@ loop:
 	goto loop;
 
 exit:
+	/* Do a final sort of the last (or latest) batch of records
+	in block memory. Flush them to temp file if records cannot
+	be hold in one block memory */
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 		if (t_ctx.rows_added[i]) {
 			row_merge_buf_sort(buf[i], NULL);
 			row_merge_buf_write(
 				buf[i], (const merge_file_t*) merge_file[i],
 				block[i]);
-			row_merge_write(merge_file[i]->fd,
-					merge_file[i]->offset++, block[i]);
 
-			UNIV_MEM_INVALID(block[i][0], srv_sort_buf_size);
+			/* Write to temp file, only if records have
+			been flushed to temp file before (offset > 0):
+			The pseudo code for sort is following:
+
+				while (there are rows) {
+					tokenize rows, put result in block[]
+				  	if (block[] runs out) {
+						sort rows;
+				      		write to temp file with
+						row_merge_write();
+				      		offset++;
+				  	}
+				}
+
+				# write out the last batch 
+				if (offset > 0) {
+					row_merge_write();
+					offset++;
+				} else {
+					# no need to write anything
+					offset stay as 0
+				}
+
+			so if merge_file[i]->offset is 0 when we come to
+			here as the last batch, this means rows have
+			never flush to temp file, it can be held all in
+			memory */
+			if (merge_file[i]->offset != 0) {
+				row_merge_write(merge_file[i]->fd,
+						merge_file[i]->offset++,
+						block[i]);
+
+				UNIV_MEM_INVALID(block[i][0],
+						 srv_sort_buf_size);
+			}
+
 			buf[i] = row_merge_buf_empty(buf[i]);
 			t_ctx.rows_added[i] = 0;
 		}
@@ -780,10 +816,10 @@ exit:
 
 		tmpfd[i] = innobase_mysql_tmpfile();
 		row_merge_sort(psort_info->psort_common->trx,
-				       psort_info->psort_common->sort_index,
-				       merge_file[i],
-				       (row_merge_block_t*) block[i], &tmpfd[i],
-				       psort_info->psort_common->table);
+			       psort_info->psort_common->sort_index,
+			       merge_file[i],
+			       (row_merge_block_t*) block[i], &tmpfd[i],
+			       psort_info->psort_common->table);
 		total_rec += merge_file[i]->n_rec;
 		close(tmpfd[i]);
 	}
@@ -1348,8 +1384,13 @@ row_fts_merge_insert(
 			/* No Rows to read */
 			mrec[i] = b[i] = NULL;
 		} else {
-			if (!row_merge_read(fd[i], foffs[i],
-			    (row_merge_block_t*) block[i])) {
+			/* Read from temp file only if it has been
+			written to. Otherwise, block memory holds
+			all the sorted records */
+			if (psort_info[i].merge_file[id]->offset > 0
+			    && (!row_merge_read(
+					fd[i], foffs[i],
+					(row_merge_block_t*) block[i]))) {
 				error = DB_CORRUPTION;
 				goto exit;
 			}
