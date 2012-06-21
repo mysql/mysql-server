@@ -520,7 +520,7 @@ public:
 // Each entry in this array contains a reference to 16 fragment records in a
 // row. Thus finding the correct record is very quick provided the fragment id.
 //-----------------------------------------------------------------------------
-    Uint32 startFid[MAX_NDB_NODES * MAX_FRAG_PER_LQH / NO_OF_FRAGS_PER_CHUNK];
+    Uint32 startFid[(MAX_NDB_PARTITIONS - 1) / NO_OF_FRAGS_PER_CHUNK + 1];
 
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
