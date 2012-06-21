@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <db.h>
 #include "ydb-internal.h"
+#include <ft/ft.h>
 #include <ft/ft-flusher.h>
 #include <ft/checkpoint.h>
 #include "indexer.h"
@@ -310,16 +311,23 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     return r;
 }
 
+// set the descriptor and cmp_descriptor to the
+// descriptors from the given ft
+static void
+db_set_descriptors(DB *db, FT_HANDLE ft_handle) {
+    db->descriptor = toku_ft_get_descriptor(ft_handle);
+    db->cmp_descriptor = toku_ft_get_cmp_descriptor(ft_handle);
+}
+
 // callback that sets the descriptors when 
-// a dictionary is redirected at the brt layer
+// a dictionary is redirected at the ft layer
 // I wonder if client applications can safely access
 // the descriptor via db->descriptor, because
 // a redirect may be happening underneath the covers.
 // Need to investigate further.
-static void db_on_redirect_callback(FT_HANDLE brt, void* extra) {
-    DB* db = extra;
-    db->descriptor = &brt->ft->descriptor;
-    db->cmp_descriptor = &brt->ft->cmp_descriptor;
+static void db_on_redirect_callback(FT_HANDLE ft_handle, void* extra) {
+    DB *db = extra;
+    db_set_descriptors(db, ft_handle);
 }
 
 int 
@@ -351,38 +359,39 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
                                             flags&=~DB_READ_COMMITTED;
                                             flags&=~DB_SERIALIZABLE;
                                             flags&=~DB_IS_HOT_INDEX;
-    if (flags & ~DB_THREAD) return EINVAL; // unknown flags
-
-    if (is_db_excl && !is_db_create) return EINVAL;
+    // unknown or conflicting flags are bad
+    if ((flags & ~DB_THREAD) || (is_db_excl && !is_db_create)) {
+        return EINVAL;
+    }
 
     /* tokudb supports no duplicates and sorted duplicates only */
     unsigned int tflags;
     r = toku_ft_get_flags(db->i->ft_handle, &tflags);
-    if (r != 0) 
+    if (r != 0)  {
         return r;
+    }
 
-    if (db_opened(db))
+    if (db_opened(db)) {
         return EINVAL;              /* It was already open. */
+    }
     
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    FT_HANDLE brt = db->i->ft_handle;
-    r = toku_ft_handle_open(brt, iname_in_env,
+    FT_HANDLE ft_handle = db->i->ft_handle;
+    r = toku_ft_handle_open(ft_handle, iname_in_env,
                       is_db_create, is_db_excl,
                       db->dbenv->i->cachetable,
                       txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
-    if (r != 0)
+    if (r != 0) {
         goto error_cleanup;
+    }
 
     db->i->opened = 1;
 
-    // now that the brt has successfully opened, a valid descriptor
-    // is in the brt header. we need a copy of the pointer in the DB.
-    // TODO: there may be a cleaner way to do this. 
-    // toku_ft_get_descriptor(db, &cmp_desc, &desc); ??
-    db->descriptor = &brt->ft->descriptor;
-    db->cmp_descriptor = &brt->ft->cmp_descriptor;
+    // now that the handle has successfully opened, a valid descriptor
+    // is in the ft. we need to set the db's descriptor pointers
+    db_set_descriptors(db, ft_handle);
 
     if (need_locktree) {
         db->i->dict_id = toku_ft_get_dictionary_id(db->i->ft_handle);
