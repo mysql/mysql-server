@@ -886,11 +886,8 @@ public:
     Delete the existing event and set a new one.  This class is
     responsible for freeing the event, the caller should not do that.
   */
-  void set_rli_description_event(Format_description_log_event *fdle)
-  {
-    delete rli_description_event;
-    rli_description_event= fdle;
-  }
+  virtual void set_rli_description_event(Format_description_log_event *fdle);
+
   /**
     Return the current Format_description_log_event.
   */
@@ -899,8 +896,16 @@ public:
     return rli_description_event;
   }
 
-private:
+  /**
+    adaptation for the slave applier to specific master versions.
+  */
+  void adapt_to_master_version(Format_description_log_event *fdle);
+  uchar slave_version_split[3]; // bytes of the slave server version
+
+protected:
   Format_description_log_event *rli_description_event;
+
+private:
 
   /**
     Delay slave SQL thread by this amount, compared to master (in

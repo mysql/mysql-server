@@ -3,13 +3,15 @@ use test;
 
 #dt TIMESTAMP, user CHAR(255), uuidf LONGBLOB,
 eval CREATE TABLE test.regular_tbl(id INT NOT NULL AUTO_INCREMENT,
-                           dt TIMESTAMP, user CHAR(255), uuidf VARBINARY(255),
+                           dt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
+                           CURRENT_TIMESTAMP, user CHAR(255), uuidf VARBINARY(255),
                            fkid INT, filler VARCHAR(255),
                            PRIMARY KEY(id))
                            ENGINE=$engine_type;
 
 eval CREATE TABLE test.byrange_tbl(id INT NOT NULL AUTO_INCREMENT,
-                           dt TIMESTAMP, user CHAR(255), uuidf VARBINARY(255),
+                           dt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE 
+                           CURRENT_TIMESTAMP, user CHAR(255), uuidf VARBINARY(255),
                            fkid INT, filler VARCHAR(255),
                            PRIMARY KEY(id))
                            ENGINE=$engine_type

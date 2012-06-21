@@ -787,6 +787,25 @@ static Sys_var_mybool Sys_binlog_direct(
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
+/**
+  This variable is not visible to and is read only to users. It can be
+  enabled or disabled only at mysqld startup. This variable is used by
+  User thread and as well as by replication slave applier thread to apply
+  relay_log. Slave applier thread enables/disables this option based on
+  relay_log's from replication master versions. There is possibility of
+  slave applier thread and User thread to have different setting for
+  explicit_defaults_for_timestamp, hence this options is defined as
+  SESSION_VAR rather than GLOBAL_VAR.
+*/
+static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
+       "explicit_defaults_for_timestamp",
+       "This option causes CREATE TABLE to create all TIMESTAMP columns "
+       "as NULL with DEFAULT NULL attribute, Without this option, "
+       "TIMESTAMP columns are NOT NULL and have implicit DEFAULT clauses. "
+       "The old behavior is deprecated.",
+       READ_ONLY NOT_VISIBLE SESSION_VAR(explicit_defaults_for_timestamp),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
 {
   bool ret= FALSE;

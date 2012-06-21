@@ -3386,7 +3386,7 @@ t2	CREATE TABLE `t2` (
   `concat(a)` varbinary(64) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
@@ -3698,7 +3698,7 @@ hex(a)
 0000000000000001
 drop table t1;
 drop view v1;
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);

@@ -523,6 +523,14 @@ typedef struct system_variables
   MY_LOCALE *lc_time_names;
 
   Time_zone *time_zone;
+  /*
+    TIMESTAMP fields are by default created with DEFAULT clauses
+    implicitly without users request. This flag when set, disables
+    implicit default values and expect users to provide explicit
+    default clause. i.e., when set columns are defined as NULL,
+    instead of NOT NULL by default.
+  */
+  my_bool explicit_defaults_for_timestamp;
 
   my_bool sysdate_is_now;
   my_bool binlog_rows_query_log_events;

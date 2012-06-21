@@ -102,6 +102,7 @@ Slave_worker::~Slave_worker()
   delete_dynamic(&curr_group_exec_parts);
   mysql_mutex_destroy(&jobs_lock);
   mysql_cond_destroy(&jobs_cond);
+  set_rli_description_event(NULL);
 }
 
 /**
