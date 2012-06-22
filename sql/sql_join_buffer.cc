@@ -2097,8 +2097,6 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   bool is_first_inner= join_tab == join_tab->first_unmatched;
   DBUG_ENTER("JOIN_CACHE::join_null_complements");
 
-  if (join_tab->prepare_scan())                                                     DBUG_RETURN(NESTED_LOOP_ERROR);
-
   /* Return at once if there are no records in the join buffer */
   if (!records)
     DBUG_RETURN(NESTED_LOOP_OK);

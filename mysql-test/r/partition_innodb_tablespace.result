@@ -40,22 +40,13 @@ name	n_cols	file_format	row_format
 test/t1#p#p0	5	Antelope	Compact
 test/t1#p#p1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1#p#p0	Antelope	Compact or Redundant
 test/t1#p#p1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 # Verifying .frm, .par, .isl & .ibd files
@@ -88,22 +79,13 @@ name	n_cols	file_format	row_format
 test/t1#p#p0	5	Antelope	Compact
 test/t1#p#p1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1#p#p0	Antelope	Compact or Redundant
 test/t1#p#p1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 # Verifying .frm, .par and MyISAM files (.MYD, MYI)
@@ -125,22 +107,13 @@ name	n_cols	file_format	row_format
 test/t11#p#p0	5	Antelope	Compact
 test/t11#p#p1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t11#p#p0	Antelope	Compact or Redundant
 test/t11#p#p1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
 # Verifying .frm, .par and MyISAM files (.MYD, MYI)
@@ -171,22 +144,13 @@ name	n_cols	file_format	row_format
 test/t1#p#p0	5	Antelope	Compact
 test/t1#p#p1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1#p#p0	Antelope	Compact or Redundant
 test/t1#p#p1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
 DROP TABLE t1;
@@ -251,31 +215,22 @@ test/t1#p#p1#sp#s3	5	Antelope	Compact
 test/t1#p#p2#sp#s4	5	Antelope	Compact
 test/t1#p#p2#sp#s5	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1#p#p0#sp#s0	Antelope	Compact or Redundant
 test/t1#p#p0#sp#s1	Antelope	Compact or Redundant
 test/t1#p#p1#sp#s2	Antelope	Compact or Redundant
 test/t1#p#p1#sp#s3	Antelope	Compact or Redundant
 test/t1#p#p2#sp#s4	Antelope	Compact or Redundant
 test/t1#p#p2#sp#s5	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 # Verifying .frm, .par, .isl & .ibd files
 DROP TABLE t1;
@@ -342,31 +297,22 @@ test/t1#p#p1#sp#s3	5	Barracuda	Dynamic
 test/t1#p#p2#sp#s4	5	Barracuda	Dynamic
 test/t1#p#p2#sp#s5	5	Barracuda	Dynamic
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1#p#p0#sp#s0	Barracuda	Dynamic
 test/t1#p#p0#sp#s1	Barracuda	Dynamic
 test/t1#p#p1#sp#s2	Barracuda	Dynamic
 test/t1#p#p1#sp#s3	Barracuda	Dynamic
 test/t1#p#p2#sp#s4	Barracuda	Dynamic
 test/t1#p#p2#sp#s5	Barracuda	Dynamic
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
-MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
-MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
 MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
 # Verifying .frm, .par, .isl & .ibd files
 #

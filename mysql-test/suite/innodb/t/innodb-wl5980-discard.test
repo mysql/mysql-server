@@ -183,7 +183,8 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
 --echo # Drop the imported table and show that the system tables are updated.
@@ -193,7 +194,8 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+	WHERE path LIKE '%test%' ORDER BY space;
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -353,8 +355,8 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
-
+SELECT path FROM information_schema.innodb_sys_datafiles
+	WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
 --echo # Cleanup

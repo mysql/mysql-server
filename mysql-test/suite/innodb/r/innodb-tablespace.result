@@ -108,13 +108,9 @@ mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 #
 # Show that the system tables are updated on drop table
@@ -131,13 +127,9 @@ mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 #
 # Create the same table a second time in the same place
 #
@@ -166,13 +158,9 @@ mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 t1.frm
@@ -200,13 +188,9 @@ mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 ---- MYSQLD_DATADIR/test
 t1.frm
@@ -235,13 +219,9 @@ mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 ---- MYSQLD_DATADIR/test
 t2.frm
@@ -271,13 +251,9 @@ mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 test/t3	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
-MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
-MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
-MYSQLD_DATADIR/mysql/slave_master_info.ibd
-MYSQLD_DATADIR/mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t2.ibd
 MYSQLD_DATADIR/test/t3.ibd
 ---- MYSQLD_DATADIR/test
@@ -300,13 +276,9 @@ mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
 #
@@ -364,13 +336,9 @@ DROP TABLE t1;
 #
 CREATE PROCEDURE static_proc() BEGIN CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir'; END |
 CALL static_proc;
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 INSERT INTO t1 VALUES (7, "Create the remote table via static DDL statements");
 SELECT * FROM t1;
@@ -395,13 +363,9 @@ DROP TABLE t1;
 #
 CREATE PROCEDURE dynamic_proc() BEGIN PREPARE stmt1 FROM "CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir'"; EXECUTE stmt1; END |
 CALL dynamic_proc;
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 INSERT INTO t1 VALUES (8, "Create the remote table via dynamic DDL statements");
 SELECT * FROM t1;
@@ -474,13 +438,8 @@ test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 test/emp#p#west	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
-ORDER BY path;
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
@@ -535,13 +494,8 @@ mysql/slave_worker_info	Antelope	Compact or Redundant
 test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
-ORDER BY path;
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 SELECT * FROM emp;
@@ -597,13 +551,8 @@ test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 test/emp#p#west	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
-ORDER BY path;
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd
@@ -662,13 +611,8 @@ test/emp#p#east	Antelope	Compact or Redundant
 test/emp#p#north	Antelope	Compact or Redundant
 test/emp#p#west	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
-ORDER BY path;
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_index_stats.ibd
-./mysql/innodb_table_stats.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east.ibd
 MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north.ibd
 MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west.ibd

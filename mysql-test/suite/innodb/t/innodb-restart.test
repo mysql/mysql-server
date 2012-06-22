@@ -156,7 +156,8 @@ SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
 --echo # Shutdown the server and list the tablespace OS files
@@ -213,7 +214,8 @@ SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 DROP TABLE t1;
 DROP TABLE t2;
@@ -230,7 +232,8 @@ ALTER TABLE t7 TRUNCATE PARTITION p1;
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 INSERT INTO t5 VALUES (1000000000, 'MySQL', 'InnoDB', '2011-11-11', 'Read this after reboot');
 INSERT INTO t5 (SELECT 0, c2, c3, c4, c5 FROM t5);
@@ -274,7 +277,8 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 SELECT count(*) FROM t5;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -328,7 +332,8 @@ RENAME TABLE t7 TO t77;
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 INSERT INTO t55 (SELECT 0, c2, c3, c4, c5 FROM t55);
 SELECT count(*) FROM t55;
@@ -360,7 +365,8 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 INSERT INTO t55 (SELECT 0, c2, c3, c4, c5 FROM t55);
 SELECT count(*) FROM t55;
@@ -457,7 +463,8 @@ SHOW CREATE TABLE t77;
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR  $MYSQL_DATA_DIR MYSQL_DATA_DIR  ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
 SELECT count(*) FROM t4;
@@ -545,7 +552,8 @@ SHOW CREATE TABLE t77;
 
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_DATA_DIR MYSQL_DATA_DIR ./ MYSQL_DATA_DIR/
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 INSERT INTO t4 (SELECT 0, c2, c3, c4, c5 FROM t4);
 SELECT count(*) FROM t4;
