@@ -44,7 +44,7 @@ static void setup_tree(void) {
     assert(ltm);
     //ask ltm for lock tree
     DICTIONARY_ID dict_id = {0x1234};
-    r = toku_ltm_get_lt(ltm, &lt, dict_id, NULL, intcmp);
+    r = toku_ltm_get_lt(ltm, &lt, dict_id, NULL, intcmp, NULL, NULL, NULL);
 
     CKERR(r);
     assert(lt);

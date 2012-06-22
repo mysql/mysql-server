@@ -41,7 +41,7 @@ static void setup_tree(void) {
     r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
     CKERR(r);
     assert(ltm);
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp, NULL, NULL, NULL);
     CKERR(r);
     assert(lt);
     init_query();

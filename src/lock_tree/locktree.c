@@ -1283,8 +1283,9 @@ toku_lt_create(toku_lock_tree** ptree,
         r = EINVAL; goto cleanup;
     }
 
-    tmp_tree = (toku_lock_tree*)toku_xmalloc(sizeof(*tmp_tree));
-    memset(tmp_tree, 0, sizeof(toku_lock_tree));
+    // allocate a tree, initialized to zeroes
+    tmp_tree = toku_xmalloc(sizeof(*tmp_tree));
+    memset(tmp_tree, 0, sizeof(*tmp_tree));
     tmp_tree->mgr              = mgr;
     tmp_tree->compare_fun = compare_fun;
     tmp_tree->lock_escalation_allowed = TRUE;
@@ -1297,9 +1298,6 @@ toku_lt_create(toku_lock_tree** ptree,
     tmp_tree->buf    = (toku_range*) toku_xmalloc(tmp_tree->buflen * sizeof(toku_range));
     tmp_tree->bw_buflen = __toku_default_buflen;
     tmp_tree->bw_buf    = (toku_range*) toku_xmalloc(tmp_tree->bw_buflen * sizeof(toku_range));
-    tmp_tree->verify_buflen = 0;
-    tmp_tree->verify_buf = NULL;
-    assert(r == 0);
     lock_request_tree_init(tmp_tree);
     toku_mutex_init(&tmp_tree->mutex, NULL);
     tmp_tree->ref_count = 1;
@@ -1345,7 +1343,9 @@ toku_lt_update_descriptor(toku_lock_tree* tree, DESCRIPTOR desc) {
 }
 
 int 
-toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, toku_dbt_cmp compare_fun) {
+toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DESCRIPTOR desc, 
+        toku_dbt_cmp compare_fun, toku_lt_on_create_cb on_create_callback, void *on_create_extra,
+        toku_lt_on_close_cb on_close_callback) {
     /* first look in hash table to see if lock tree exists for that db,
        if so return it */
     int r = ENOSYS;
@@ -1370,6 +1370,12 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
     if (r != 0) {
         goto cleanup;
     }
+    // we just created the locktree, so call the callback if necessary
+    if (on_create_callback) {
+        on_create_callback(tree, on_create_extra);
+    }
+    // set the on close callback
+    tree->on_close_callback = on_close_callback;
     
     lt_set_dict_id(tree, dict_id);
     /* add tree to ltm */
@@ -1412,6 +1418,10 @@ cleanup:
             toku_lt_close(tree); 
         }
         mgr->STATUS_VALUE(LTM_LT_CREATE_FAIL)++;
+        // need to make sure the on close callback is called
+        // here, otherwise we might leak something from the 
+        // on create callback.
+        on_close_callback(tree);
     }
     ltm_mutex_unlock(mgr);
     return r;
@@ -1423,6 +1433,10 @@ toku_lt_close(toku_lock_tree* tree) {
     int first_error = 0;
     if (!tree) { 
         r = EINVAL; goto cleanup; 
+    }
+    // call the on close callback if necessary
+    if (tree->on_close_callback) {
+        tree->on_close_callback(tree);
     }
     tree->mgr->STATUS_VALUE(LTM_LT_DESTROY)++;
     tree->mgr->STATUS_VALUE(LTM_LT_NUM)--;
@@ -2181,6 +2195,16 @@ void
 toku_lt_remove_db_ref(toku_lock_tree* tree) {
     int r = toku_lt_remove_ref(tree);
     assert_zero(r);
+}
+
+void 
+toku_lt_set_userdata(toku_lock_tree *tree, void *userdata) {
+    tree->userdata = userdata;
+}
+
+void *
+toku_lt_get_userdata(toku_lock_tree *tree) {
+    return tree->userdata;
 }
 
 static void

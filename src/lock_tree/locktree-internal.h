@@ -81,6 +81,11 @@ struct __toku_lock_tree {
     uint32_t            bw_buflen;
     toku_range*         verify_buf;
     uint32_t            verify_buflen;
+
+    // reserved for the lock tree user's data
+    void *userdata;
+    // first thing called when toku_lt_close() happens
+    toku_lt_on_close_cb on_close_callback;
 };
 
 toku_range_tree* toku_lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);

@@ -39,7 +39,7 @@ int main(int argc, const char *argv[]) {
     assert(r == 0 && ltm);
 
     toku_lock_tree *lt = NULL;
-    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp);
+    r = toku_ltm_get_lt(ltm, &lt, (DICTIONARY_ID){1}, NULL, dbcmp, NULL, NULL, NULL);
     assert(r == 0 && lt);
 
     DBT key_l; dbt_init(&key_l, "L", 1);

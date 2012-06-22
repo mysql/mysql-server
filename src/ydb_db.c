@@ -17,7 +17,7 @@
 #include "ydb_row_lock.h"
 #include "ydb_db.h"
 #include "ydb_write.h"
-
+#include <lock_tree/locktree.h>
 
 static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #ifdef STATUS_VALUE
@@ -325,9 +325,40 @@ db_set_descriptors(DB *db, FT_HANDLE ft_handle) {
 // the descriptor via db->descriptor, because
 // a redirect may be happening underneath the covers.
 // Need to investigate further.
-static void db_on_redirect_callback(FT_HANDLE ft_handle, void* extra) {
+static void
+db_on_redirect_callback(FT_HANDLE ft_handle, void* extra) {
     DB *db = extra;
     db_set_descriptors(db, ft_handle);
+}
+
+struct lt_on_create_callback_extra {
+    DB_TXN *txn;
+    FT_HANDLE ft_handle;
+};
+
+// when a locktree is created, clone a ft handle and store it
+// as userdata so we can close it later.
+static void
+lt_on_create_callback(toku_lock_tree *lt, void *extra) {
+    int r;
+    struct lt_on_create_callback_extra *info = extra;
+    TOKUTXN ttxn = info->txn ? db_txn_struct_i(info->txn)->tokutxn : NULL;
+    FT_HANDLE ft_handle = info->ft_handle;
+
+    FT_HANDLE cloned_ft_handle;
+    r = toku_ft_handle_clone(&cloned_ft_handle, ft_handle, ttxn);
+    invariant_zero(r);
+
+    assert(toku_lt_get_userdata(lt) == NULL);
+    toku_lt_set_userdata(lt, cloned_ft_handle);
+}
+
+// when a locktree closes, get its ft handle as userdata and close it.
+static void
+lt_on_close_callback(toku_lock_tree *lt) {
+    FT_HANDLE ft_handle = toku_lt_get_userdata(lt);
+    assert(ft_handle);
+    toku_ft_handle_close(ft_handle);
 }
 
 int 
@@ -395,8 +426,15 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
 
     if (need_locktree) {
         db->i->dict_id = toku_ft_get_dictionary_id(db->i->ft_handle);
-        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, toku_ft_get_bt_compare(db->i->ft_handle));
-        if (r!=0) { goto error_cleanup; }
+        struct lt_on_create_callback_extra on_create_extra = {
+            .txn = txn,
+            .ft_handle = db->i->ft_handle,
+        };
+        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, db->i->dict_id, db->cmp_descriptor, 
+                toku_ft_get_bt_compare(db->i->ft_handle), lt_on_create_callback, &on_create_extra, lt_on_close_callback);
+        if (r != 0) { 
+            goto error_cleanup; 
+        }
     }
     return 0;
  
