@@ -1722,10 +1722,10 @@ static inline uint field_in_record_is_null(TABLE *table,
   int null_offset;
   DBUG_ENTER("ha_federated::field_in_record_is_null");
 
-  if (!field->null_ptr)
+  if (!field->real_maybe_null())
     DBUG_RETURN(0);
 
-  null_offset= (uint) ((char*)field->null_ptr - (char*)table->record[0]);
+  null_offset= field->null_offset();
 
   if (record[null_offset] & field->null_bit)
     DBUG_RETURN(1);

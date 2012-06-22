@@ -1384,7 +1384,7 @@ Field::do_last_null_byte() const
 {
   DBUG_ASSERT(null_ptr == NULL || null_ptr >= table->record[0]);
   if (null_ptr)
-    return (size_t) (null_ptr - table->record[0]) + 1;
+    return null_offset() + 1;
   return LAST_NULL_BYTE_UNDEF;
 }
 

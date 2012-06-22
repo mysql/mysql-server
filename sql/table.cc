@@ -789,7 +789,7 @@ void KEY_PART_INFO::init_from_field(Field *fld)
   field= fld;
   fieldnr= field->field_index + 1;
   null_bit= field->null_bit;
-  null_offset= (uint) (field->null_ptr - (uchar*) field->table->record[0]);
+  null_offset= field->null_offset();
   offset= field->offset(field->table->record[0]);
   length= (uint16) field->key_length();
   store_length= length;
@@ -1622,7 +1622,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	{
 	  uint fieldnr= key_part[i].fieldnr;
 	  if (!fieldnr ||
-	      share->field[fieldnr-1]->null_ptr ||
+	      share->field[fieldnr-1]->real_maybe_null() ||
 	      share->field[fieldnr-1]->key_length() !=
 	      key_part[i].length)
 	  {
@@ -1647,10 +1647,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
         key_part->type= field->key_type();
-        if (field->null_ptr)
+        if (field->real_maybe_null())
         {
-          key_part->null_offset=(uint) ((uchar*) field->null_ptr -
-                                        share->default_values);
+          key_part->null_offset=field->null_offset(share->default_values);
           key_part->null_bit= field->null_bit;
           key_part->store_length+=HA_KEY_NULL_LENGTH;
           keyinfo->flags|=HA_NULL_PART_KEY;
