@@ -160,26 +160,22 @@ yyy.ibd
 #
 # Start the server and show the tablespaces.
 #
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
-MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
-MYSQLD_DATADIR/mysql/slave_master_info.ibd
-MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
-MYSQLD_DATADIR/mysql/slave_worker_info.ibd
-MYSQLD_DATADIR/test/ynw.ibd
-MYSQLD_DATADIR/test/ywn.ibd
-MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
-MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
-MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
 MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
-MYSQL_TMP_DIR/alt_dir/test/www.ibd
-MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
 MYSQL_TMP_DIR/alt_dir/test/yny.ibd
 MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
-MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
 MYSQL_TMP_DIR/new_dir/test/nwy.ibd
 MYSQL_TMP_DIR/new_dir/test/wny.ibd
+MYSQLD_DATADIR/test/ynw.ibd
+MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+MYSQLD_DATADIR/test/ywn.ibd
+MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
+MYSQL_TMP_DIR/alt_dir/test/www.ibd
+MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
 SELECT * FROM yyy;
 ERROR 42S02: Table 'test.yyy' doesn't exist
 SELECT * FROM nyy;
@@ -564,19 +560,15 @@ yy.ibd
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 Variable_name	Value
 innodb_strict_mode	OFF
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
-MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
-MYSQLD_DATADIR/mysql/slave_master_info.ibd
-MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
-MYSQLD_DATADIR/mysql/slave_worker_info.ibd
 MYSQLD_DATADIR/test/aa.ibd
-MYSQL_TMP_DIR/alt_dir/test/ny.ibd
-MYSQL_TMP_DIR/alt_dir/test/wy.ibd
-MYSQL_TMP_DIR/alt_dir/test/yn.ibd
-MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+MYSQL_TMP_DIR/alt_dir/test/wy.ibd
 SELECT * FROM aa;
 ERROR 42S02: Table 'test.aa' doesn't exist
 SELECT * FROM yy;

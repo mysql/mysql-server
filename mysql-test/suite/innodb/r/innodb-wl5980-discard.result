@@ -226,13 +226,9 @@ mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t5980	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 #
 # Drop the imported table and show that the system tables are updated.
@@ -249,13 +245,9 @@ mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 ### files in MYSQL_DATA_DIR/test
 ### files in MYSQL_TMP_DIR/alt_dir/test
 t5980.cfg.bak
@@ -476,13 +468,9 @@ mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t5980	Antelope	Compact or Redundant
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
-./mysql/innodb_table_stats.ibd
-./mysql/innodb_index_stats.ibd
-./mysql/slave_relay_log_info.ibd
-./mysql/slave_master_info.ibd
-./mysql/slave_worker_info.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 #
 # Cleanup

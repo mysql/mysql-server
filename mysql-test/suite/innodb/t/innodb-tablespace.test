@@ -97,7 +97,8 @@ SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
 --echo # Show that the system tables are updated on drop table
@@ -107,7 +108,8 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
 --echo # Create the same table a second time in the same place
@@ -124,7 +126,8 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -141,7 +144,8 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -158,7 +162,8 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -175,7 +180,8 @@ SELECT name,n_cols,file_format,row_format
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 
@@ -187,7 +193,8 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces;
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -242,7 +249,8 @@ eval CREATE PROCEDURE static_proc() BEGIN CREATE TABLE t1 (a int KEY, b text) $d
 DELIMITER ;|
 CALL static_proc;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 INSERT INTO t1 VALUES (7, "Create the remote table via static DDL statements");
 SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -263,7 +271,8 @@ eval CREATE PROCEDURE dynamic_proc() BEGIN PREPARE stmt1 FROM "CREATE TABLE t1 (
 DELIMITER ;|
 CALL dynamic_proc;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 INSERT INTO t1 VALUES (8, "Create the remote table via dynamic DDL statements");
 SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
@@ -313,7 +322,7 @@ SELECT name,file_format,row_format
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-       ORDER BY path;
+       WHERE path LIKE '%test%' ORDER BY space;
 SELECT * FROM emp;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex /emp#P#/emp#p#/
@@ -346,7 +355,7 @@ SELECT name,file_format,row_format
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-       ORDER BY path;
+       WHERE path LIKE '%test%' ORDER BY space;
 SELECT * FROM emp;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex /emp#P#/emp#p#/
@@ -382,7 +391,7 @@ SELECT name,file_format,row_format
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-       ORDER BY path;
+       WHERE path LIKE '%test%' ORDER BY space;
 INSERT INTO emp VALUES(3,'IBM','NAIL',70);
 SELECT * FROM emp;
 --echo ---- MYSQLD_DATADIR/test
@@ -417,7 +426,7 @@ SELECT name,file_format,row_format
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-       ORDER BY path;
+       WHERE path LIKE '%test%' ORDER BY space;
 SELECT * FROM emp;
 INSERT INTO emp VALUES(3,'IBM','NAIL',70);
 SELECT * FROM emp;

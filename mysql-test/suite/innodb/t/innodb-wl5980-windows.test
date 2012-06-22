@@ -146,8 +146,8 @@ SELECT COUNT(*) FROM purchase;
 
 --echo # Check the system tables have the proper entry of the tables.
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles 
-       ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 SELECT name,file_format,row_format 
        FROM information_schema.innodb_sys_tablespaces
        ORDER BY name;

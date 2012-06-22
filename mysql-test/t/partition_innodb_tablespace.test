@@ -53,9 +53,10 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo # Verifying .frm, .par, .isl & .ibd files
 --file_exists $MYSQLD_DATADIR/test/t1.frm
@@ -102,9 +103,10 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
 --file_exists $MYSQLD_DATADIR/test/t1.frm
 --file_exists $MYSQLD_DATADIR/test/t1.par
@@ -122,9 +124,10 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t11#P t11#p
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t11#P t11#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
 --file_exists $MYSQLD_DATADIR/test/t11.frm
 --file_exists $MYSQLD_DATADIR/test/t11.par
@@ -152,9 +155,10 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result t1#P t1#p
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 DROP TABLE t1;
 
 
@@ -193,9 +197,10 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo # Verifying .frm, .par, .isl & .ibd files
 --file_exists $MYSQLD_DATADIR/test/t1.frm
@@ -251,9 +256,10 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo # Verifying .frm, .par, .isl & .ibd files
 --file_exists $MYSQLD_DATADIR/test/t1.frm

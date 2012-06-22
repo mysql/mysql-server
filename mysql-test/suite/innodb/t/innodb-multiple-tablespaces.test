@@ -213,7 +213,8 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --source include/start_mysqld.inc
 
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --error ER_NO_SUCH_TABLE
 SELECT * FROM yyy;
@@ -526,7 +527,8 @@ COMMIT;
 SHOW VARIABLES LIKE 'innodb_strict_mode';
 
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SELECT path FROM information_schema.innodb_sys_datafiles ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --error ER_NO_SUCH_TABLE
 SELECT * FROM aa;

@@ -61,7 +61,8 @@ SELECT name, n_cols, file_format, row_format
 SELECT name, file_format, row_format
        FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
 --replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
-SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
+       WHERE path LIKE '%test%' ORDER BY space;
 
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 --disable_query_log

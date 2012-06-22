@@ -104,17 +104,17 @@ SELECT COUNT(*) FROM purchase;
 COUNT(*)
 0
 # Check the system tables have the proper entry of the tables.
-SELECT path FROM information_schema.innodb_sys_datafiles 
-ORDER BY path;
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
 path
 ./test/emp1.ibd
+MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd
+MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd
+MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd
 MYSQL_TMP_DIR/mysqld.5980/part0/test/purchase#p#p0#sp#s0.ibd
 MYSQL_TMP_DIR/mysqld.5980/part1/test/purchase#p#p0#sp#s1.ibd
 MYSQL_TMP_DIR/mysqld.5980/part2/test/purchase#p#p1#sp#s2.ibd
 MYSQL_TMP_DIR/mysqld.5980/part3/test/purchase#p#p1#sp#s3.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab1/test/emp2#p#p1.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab2/test/emp2#p#p2.ibd
-MYSQL_TMP_DIR/mysqld.5980/tab3/test/emp3.ibd
 MYSQL_TMP_DIR/mysqld.5980/tab4/test/emp4#p#p1.ibd
 MYSQL_TMP_DIR/mysqld.5980/tab5/test/emp4#p#p2.ibd
 SELECT name,file_format,row_format 

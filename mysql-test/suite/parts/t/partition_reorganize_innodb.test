@@ -52,16 +52,15 @@ SHOW CREATE TABLE emp;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%'
-       ORDER BY name;
+       WHERE name LIKE 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
+       WHERE name LIKE 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-       ORDER BY path;
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
@@ -103,16 +102,15 @@ SHOW CREATE TABLE emp;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables
-       WHERE name LIKE 'test%'
-       ORDER BY name;
+       WHERE name LIKE 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,file_format,row_format
        FROM information_schema.innodb_sys_tablespaces
-       ORDER BY name;
+       WHERE name LIKE 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-       ORDER BY path;
+       WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test

@@ -71,13 +71,9 @@ test/t_redundant	Antelope	Compact or Redundant
 test/t_compact	Antelope	Compact or Redundant
 test/t_compressed	Barracuda	Compressed
 test/t_dynamic	Barracuda	Dynamic
-SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES;
+SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
+WHERE path LIKE '%test%' ORDER BY space;
 path
-MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
-MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
-MYSQLD_DATADIR/mysql/slave_relay_log_info.ibd
-MYSQLD_DATADIR/mysql/slave_master_info.ibd
-MYSQLD_DATADIR/mysql/slave_worker_info.ibd
 MYSQLD_DATADIR/test/t_redundant.ibd
 MYSQLD_DATADIR/test/t_compact.ibd
 MYSQLD_DATADIR/test/t_compressed.ibd
