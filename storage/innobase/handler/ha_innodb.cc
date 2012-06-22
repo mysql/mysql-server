@@ -5003,35 +5003,6 @@ get_field_offset(
 	return((uint) (field->ptr - table->record[0]));
 }
 
-/**************************************************************//**
-Checks if a field in a record is SQL NULL. Uses the record format
-information in table to track the null bit in record.
-@return	1 if NULL, 0 otherwise */
-static inline
-uint
-field_in_record_is_null(
-/*====================*/
-	TABLE*	table,	/*!< in: MySQL table object */
-	Field*	field,	/*!< in: MySQL field object */
-	char*	record)	/*!< in: a row in MySQL format */
-{
-	int	null_offset;
-
-	if (!field->real_maybe_null()) {
-
-		return(0);
-	}
-
-	null_offset = field->null_offset();
-
-	if (record[null_offset] & field->null_bit) {
-
-		return(1);
-	}
-
-	return(0);
-}
-
 /*************************************************************//**
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. NOTE that the prototype
@@ -6743,13 +6714,11 @@ calc_row_difference(
 
 
 		if (field->real_maybe_null()) {
-			if (field_in_record_is_null(table, field,
-							(char*) old_row)) {
+			if (field->is_null_in_record(old_row)) {
 				o_len = UNIV_SQL_NULL;
 			}
 
-			if (field_in_record_is_null(table, field,
-							(char*) new_row)) {
+			if (field->is_null_in_record(new_row)) {
 				n_len = UNIV_SQL_NULL;
 			}
 		}
