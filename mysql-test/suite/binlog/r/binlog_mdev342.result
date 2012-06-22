@@ -1,5 +1,6 @@
 SET GLOBAL max_binlog_size= 4096;
 SET GLOBAL innodb_flush_log_at_trx_commit= 1;
+RESET MASTER;
 CREATE TABLE t1 (a INT PRIMARY KEY, b MEDIUMTEXT) ENGINE=Innodb;
 SET DEBUG_SYNC= "binlog_open_before_update_index SIGNAL con1_ready WAIT_FOR con1_cont";
 SET SESSION debug_dbug="+d,crash_create_critical_before_update_index";

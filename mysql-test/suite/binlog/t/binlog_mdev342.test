@@ -8,6 +8,7 @@
 # (We do not need to restore these settings, as we crash the server).
 SET GLOBAL max_binlog_size= 4096;
 SET GLOBAL innodb_flush_log_at_trx_commit= 1;
+RESET MASTER;
 
 CREATE TABLE t1 (a INT PRIMARY KEY, b MEDIUMTEXT) ENGINE=Innodb;
 
@@ -35,6 +36,9 @@ SET DEBUG_SYNC= "now WAIT_FOR con2_ready";
 --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 wait-binlog_mdev342.test
 EOF
+# If con1 manages to race ahead and crash, we can see the crash already in the
+# SET DEBUG_SYNC statement, so need --error here also.
+--error 0,2006,2013
 SET DEBUG_SYNC= "now SIGNAL con1_cont";
 connection con1;
 --error 2006,2013
