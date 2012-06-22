@@ -1117,7 +1117,7 @@ static bool make_empty_rec(THD *thd, File file,
 
     if (!(field->flags & NOT_NULL_FLAG))
     {
-      *regfield->null_ptr|= regfield->null_bit;
+      regfield->set_null();
       null_count++;
     }
 

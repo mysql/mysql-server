@@ -560,8 +560,8 @@ int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
       if (key_part->null_bit)
       {
         /* The key_part can contain NULL values */
-        bool first_is_null= field->is_null_in_record_with_offset(first_diff);
-        bool sec_is_null= field->is_null_in_record_with_offset(sec_diff);
+        bool first_is_null= field->is_real_null(first_diff);
+        bool sec_is_null= field->is_real_null(sec_diff);
         /*
           NULL is smaller then everything so if first is NULL and the other
           not then we know that we should return -1 and for the opposite

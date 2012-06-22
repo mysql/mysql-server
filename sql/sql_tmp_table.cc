@@ -1009,12 +1009,12 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if (!using_unique_constraint)
       {
 	cur_group->buff=(char*) group_buff;
-	if (!(cur_group->field= field->new_key_field(thd->mem_root,table,
-                                                     group_buff +
-                                                     test(maybe_null),
-                                                     field->null_ptr,
-                                                     field->null_bit)))
+	cur_group->field= field->new_key_field(thd->mem_root, table,
+                                               group_buff + test(maybe_null));
+
+	if (!cur_group->field)
 	  goto err; /* purecov: inspected */
+
 	if (maybe_null)
 	{
 	  /*
@@ -1396,10 +1396,8 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
       key_part_info->key_type = FIELDFLAG_BINARY;
       if (!using_unique_constraint)
       {
-	if (!(key_field= field->new_key_field(thd->mem_root, table,
-                                              group_buff,
-                                              field->null_ptr,
-                                              field->null_bit)))
+        key_field= field->new_key_field(thd->mem_root, table, group_buff);
+        if (!key_field)
 	  goto err;
         key_part_info->key_part_flag|= HA_END_SPACE_ARE_EQUAL; //todo need this?
       }
@@ -1699,7 +1697,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       if (!(field->flags & NOT_NULL_FLAG))
       {
 	seg->null_bit= field->null_bit;
-	seg->null_pos= (uint) (field->null_ptr - (uchar*) table->record[0]);
+	seg->null_pos= field->null_offset();
 	/*
 	  We are using a GROUP BY on something that contains NULL
 	  In this case we have to tell MyISAM that two NULL should

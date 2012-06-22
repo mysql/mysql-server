@@ -4752,7 +4752,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   {
     // Don't remove column IS NULL on a LEFT JOIN table
     if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
-        !field->table->maybe_null || field->null_ptr)
+        !field->table->maybe_null || field->real_maybe_null())
       return;					// Not a key. Skip it
     exists_optimize= KEY_OPTIMIZE_EXISTS;
     DBUG_ASSERT(num_values == 1);
@@ -4772,7 +4772,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     if (!(usable_tables & field->table->map))
     {
       if (!eq_func || (*value)->type() != Item::NULL_ITEM ||
-          !field->table->maybe_null || field->null_ptr)
+          !field->table->maybe_null || field->real_maybe_null())
 	return;					// Can't use left join optimize
       exists_optimize= KEY_OPTIMIZE_EXISTS;
     }

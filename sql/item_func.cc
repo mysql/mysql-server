@@ -6671,8 +6671,7 @@ Item_func_sp::init_result_field(THD *thd)
   else
     sp_result_field->move_field(result_buf);
   
-  sp_result_field->null_ptr= (uchar *) &null_value;
-  sp_result_field->null_bit= 1;
+  sp_result_field->set_null_ptr((uchar *) &null_value, 1);
   DBUG_RETURN(FALSE);
 }
 

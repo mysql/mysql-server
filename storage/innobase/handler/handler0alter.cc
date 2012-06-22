@@ -1613,7 +1613,7 @@ innobase_create_key_defs(
 				& FIELDFLAG_MAYBE_NULL;
 			DBUG_ASSERT(!maybe_null
 				    == !key_info[*add].key_part[key_part].
-				    field->null_ptr);
+				    field->real_maybe_null());
 
 			if (maybe_null) {
 				new_primary = false;
@@ -2112,7 +2112,7 @@ innobase_check_foreigns(
 		cf_it.rewind();
 		const Create_field* new_field;
 
-		ut_ad(!(*fp)->null_ptr == !!((*fp)->flags & NOT_NULL_FLAG));
+		ut_ad(!(*fp)->real_maybe_null() == !!((*fp)->flags & NOT_NULL_FLAG));
 
 		while ((new_field = cf_it++)) {
 			if (new_field->field == *fp) {
@@ -2516,7 +2516,7 @@ prepare_inplace_alter_table_dict(
 			fits in two bytes */
 			ut_a(field_type <= MAX_CHAR_COLL_NUM);
 
-			if (!field->null_ptr) {
+			if (!field->real_maybe_null()) {
 				field_type |= DATA_NOT_NULL;
 			}
 
