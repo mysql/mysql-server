@@ -225,6 +225,7 @@ if(BUILD_TESTING)
       test_dupsort_set_range_reverse.c
       test_get_max_row_size.c
       test_large_update_broadcast_small_cachetable.c
+      test_locktree_close.c
       test_logflush.c
       test_multiple_checkpoints_block_commit.c
       test_query.c
