@@ -5017,36 +5017,6 @@ get_field_offset(
 	return((uint) (field->ptr - table->record[0]));
 }
 
-/**************************************************************//**
-Checks if a field in a record is SQL NULL. Uses the record format
-information in table to track the null bit in record.
-@return	1 if NULL, 0 otherwise */
-static inline
-uint
-field_in_record_is_null(
-/*====================*/
-	TABLE*	table,	/*!< in: MySQL table object */
-	Field*	field,	/*!< in: MySQL field object */
-	char*	record)	/*!< in: a row in MySQL format */
-{
-	int	null_offset;
-
-	if (!field->null_ptr) {
-
-		return(0);
-	}
-
-	null_offset = (uint) ((char*) field->null_ptr
-		    - (char*) table->record[0]);
-
-	if (record[null_offset] & field->null_bit) {
-
-		return(1);
-	}
-
-	return(0);
-}
-
 /*************************************************************//**
 InnoDB uses this function to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. NOTE that the prototype
@@ -5966,10 +5936,9 @@ build_template_field(
 		templ->rec_field_no = dict_index_get_nth_col_pos(index, i);
 	}
 
-	if (field->null_ptr) {
+	if (field->real_maybe_null()) {
 		templ->mysql_null_byte_offset =
-			(ulint) ((char*) field->null_ptr
-				 - (char*) table->record[0]);
+			field->null_offset();
 
 		templ->mysql_null_bit_mask = (ulint) field->null_bit;
 	} else {
@@ -6758,14 +6727,12 @@ calc_row_difference(
 		}
 
 
-		if (field->null_ptr) {
-			if (field_in_record_is_null(table, field,
-							(char*) old_row)) {
+		if (field->real_maybe_null()) {
+			if (field->is_null_in_record(old_row)) {
 				o_len = UNIV_SQL_NULL;
 			}
 
-			if (field_in_record_is_null(table, field,
-							(char*) new_row)) {
+			if (field->is_null_in_record(new_row)) {
 				n_len = UNIV_SQL_NULL;
 			}
 		}
@@ -8284,7 +8251,7 @@ create_table_check_doc_id_col(
 			/* Note the name is case sensitive due to
 			our internal query parser */
 			if (col_type == DATA_INT
-			    && !field->null_ptr
+			    && !field->real_maybe_null()
 			    && col_len == sizeof(doc_id_t)
 			    && (strcmp(field->field_name,
 				      FTS_DOC_ID_COL_NAME) == 0)) {
@@ -8443,7 +8410,7 @@ create_table_def(
 			goto err_col;
 		}
 
-		nulls_allowed = field->null_ptr ? 0 : DATA_NOT_NULL;
+		nulls_allowed = field->real_maybe_null() ? 0 : DATA_NOT_NULL;
 		binary_type = field->binary() ? DATA_BINARY_TYPE : 0;
 
 		charset_no = 0;
