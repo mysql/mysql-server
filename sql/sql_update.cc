@@ -88,7 +88,7 @@ bool compare_records(const TABLE *table)
       {
         if (field->real_maybe_null())
         {
-          uchar null_byte_index= field->null_ptr - table->record[0];
+          uchar null_byte_index= field->null_offset();
           
           if (((table->record[0][null_byte_index]) & field->null_bit) !=
               ((table->record[1][null_byte_index]) & field->null_bit))

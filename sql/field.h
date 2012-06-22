@@ -481,11 +481,15 @@ public:
   { TRASH(ptr_arg, size); }
 
   uchar		*ptr;			// Position to field in record
+
+protected:
   /**
      Byte where the @c NULL bit is stored inside a record. If this Field is a
      @c NOT @c NULL field, this member is @c NULL.
   */
   uchar		*null_ptr;
+
+public:
   /*
     Note that you can use table->in_use as replacement for current_thd member 
     only inside of val_*() and store() members (e.g. you can't use it in cons)
@@ -783,7 +787,7 @@ public:
     my_ptrdiff_t l_offset= (my_ptrdiff_t) (table->s->default_values -
 					  table->record[0]);
     memcpy(ptr, ptr + l_offset, pack_length());
-    if (null_ptr)
+    if (real_maybe_null())
       *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
 		  (null_ptr[l_offset] & null_bit));
   }
@@ -852,23 +856,20 @@ public:
     in str and restore it with set() if needed
   */
   virtual void sql_type(String &str) const =0;
+
   bool is_temporal() const
-  {
-    return is_temporal_type(type());
-  }
+  { return is_temporal_type(type()); }
+
   bool is_temporal_with_date() const
-  {
-    return is_temporal_type_with_date(type());
-  }
+  { return is_temporal_type_with_date(type()); }
+
   bool is_temporal_with_time() const
-  {
-    return is_temporal_type_with_time(type());
-  }
+  { return is_temporal_type_with_time(type()); }
+
   bool is_temporal_with_date_and_time() const
-  {
-    return is_temporal_type_with_date_and_time(type());
-  }
-  inline bool is_null (my_ptrdiff_t row_offset= 0) const
+  { return is_temporal_type_with_date_and_time(type()); }
+
+  bool is_null(my_ptrdiff_t row_offset= 0) const
   {
     /*
       The table may have been marked as containing only NULL values
@@ -882,39 +883,45 @@ public:
       pointer, and its NULLity is recorded in the "null_bit" bit of
       null_ptr[row_offset].
     */
-    if (table->null_row)
-      return true;
+    return table->null_row ? true : is_real_null(row_offset);
+  }
 
-    if (null_ptr)
-      return (null_ptr[row_offset] & null_bit);
+  bool is_real_null(my_ptrdiff_t row_offset= 0) const
+  { return real_maybe_null() ? test(null_ptr[row_offset] & null_bit) : false; }
 
-    return false;
-  }
-  inline bool is_real_null (my_ptrdiff_t row_offset= 0) const
-    { return null_ptr && (null_ptr[row_offset] & null_bit); }
-  inline bool is_null_in_record (const uchar *record) const
+  bool is_null_in_record(const uchar *record) const
+  { return real_maybe_null() ? test(record[null_offset()] & null_bit) : false; }
+
+  void set_null(my_ptrdiff_t row_offset= 0)
   {
-    if (!null_ptr)
-      return 0;
-    return test(record[(uint) (null_ptr -table->record[0])] &
-		null_bit);
+    if (real_maybe_null())
+      null_ptr[row_offset]|= null_bit;
   }
-  inline bool is_null_in_record_with_offset (my_ptrdiff_t offset) const
+
+  void set_notnull(my_ptrdiff_t row_offset= 0)
   {
-    if (!null_ptr)
-      return 0;
-    return test(null_ptr[offset] & null_bit);
+    if (real_maybe_null())
+      null_ptr[row_offset]&= (uchar) ~null_bit;
   }
-  inline void set_null(my_ptrdiff_t row_offset= 0)
-    { if (null_ptr) null_ptr[row_offset]|= null_bit; }
-  inline void set_notnull(my_ptrdiff_t row_offset= 0)
-    { if (null_ptr) null_ptr[row_offset]&= (uchar) ~null_bit; }
-  inline bool maybe_null(void) const
-    { return null_ptr != 0 || table->maybe_null; }
-  /**
-     Signals that this field is NULL-able.
-  */
-  inline bool real_maybe_null(void) const { return null_ptr != 0; }
+
+  bool maybe_null(void) const
+  { return real_maybe_null() || table->maybe_null; }
+
+  /// @return true if this field is NULL-able, false otherwise.
+  bool real_maybe_null(void) const
+  { return null_ptr != 0; }
+
+  uint null_offset(const uchar *record) const
+  { return (uint) (null_ptr - record); }
+
+  uint null_offset() const
+  { return null_offset(table->record[0]); }
+
+  void set_null_ptr(uchar *p_null_ptr, uint p_null_bit)
+  {
+    null_ptr= p_null_ptr;
+    null_bit= p_null_bit;
+  }
 
   enum {
     LAST_NULL_BYTE_UNDEF= 0
@@ -970,6 +977,9 @@ public:
   virtual Field *new_key_field(MEM_ROOT *root, TABLE *new_table,
                                uchar *new_ptr, uchar *new_null_ptr,
                                uint new_null_bit);
+
+  Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr)
+  { return new_key_field(root, new_table, new_ptr, null_ptr, null_bit); }
 
   /**
      Makes a shallow copy of the Field object.
