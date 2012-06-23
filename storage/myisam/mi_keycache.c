@@ -75,6 +75,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     in the old key cache.
   */
 
+  pthread_mutex_lock(&share->key_cache->op_lock);
   if (flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
                        FLUSH_RELEASE))
   {
@@ -82,6 +83,7 @@ int mi_assign_to_key_cache(MI_INFO *info,
     mi_print_error(info->s, HA_ERR_CRASHED);
     mi_mark_crashed(info);		/* Mark that table must be checked */
   }
+  pthread_mutex_unlock(&share->key_cache->op_lock);
 
   /*
     Flush the new key cache for this file.  This is needed to ensure
