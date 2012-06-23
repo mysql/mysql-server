@@ -789,6 +789,19 @@ DROP TABLE t1;
 # End of test  BUG#13012483
 #
 End of 5.1 tests
+create table t1 (a bigint, b int);
+insert t1 values (1,1),(2,2),(3,3);
+select * from t1 where a in ('2.1');
+a	b
+select * from t1 where b in ('2.1');
+a	b
+select * from t1 where a='2.1';
+a	b
+select * from t1 where b='2.1';
+a	b
+select * from t1 where IF(1,a,a)='2.1';
+a	b
+drop table t1;
 #
 # LP bug#992380 Crash when creating PS for a query with
 # subquery in WHERE (see also mysql bug#13012483)
