@@ -8449,7 +8449,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
     --explicit_defaults_for_timestamp is not set. 
     This behavior is deprecated now.
   */
-  if (!global_system_variables.explicit_defaults_for_timestamp)
+  if (!opt_help && !global_system_variables.explicit_defaults_for_timestamp)
     sql_print_warning("TIMESTAMP with implicit DEFAULT value is deprecated. "
                       "Please use --explicit_defaults_for_timestamp server "
                       "option (see documentation for more details).");

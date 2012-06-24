@@ -357,9 +357,9 @@ public:
   */
   void set_rli_description_event(Format_description_log_event *fdle)
   {
-    rli_description_event= fdle;
-    if (fdle && fdle->server_id != (uint32) ::server_id)
+    if (fdle)
       adapt_to_master_version(fdle);
+    rli_description_event= fdle;
   }
 
 protected:

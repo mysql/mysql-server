@@ -2122,28 +2122,29 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
    Although notice that MTS worker runs it, inefficiently (see assert),
    once at its destruction time.
    todo: fix Slave_worker and Relay_log_info inheritance relation.
+
+   @param  a pointer to be installed into execution context 
+           FormatDescriptor event
 */
 
-void Relay_log_info::set_rli_description_event
-                     (Format_description_log_event *fdle)
+void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
 {
-  DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fdle);
+  DBUG_ASSERT(!info_thd || !is_mts_worker(info_thd) || !fe);
 
-  if (fdle)
+  if (fe)
   {
-    adapt_to_master_version(fdle);
+    adapt_to_master_version(fe);
     if (info_thd && is_parallel_exec())
     {
       for (uint i= 0; i < workers.elements; i++)
       {
         Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
-        w->set_rli_description_event(fdle);
+        w->set_rli_description_event(fe);
       }
     }
   }
-  if (rli_description_event)
-    delete rli_description_event;
-  rli_description_event= fdle;
+  delete rli_description_event;
+  rli_description_event= fe;
 }
 
 struct st_feature_version
