@@ -118,6 +118,11 @@ struct env_args {
 
 enum perf_output_format {
     HUMAN = 0,
+    CSV,
+    TSV,
+#if 0
+    GNUPLOT,
+#endif
     NUM_OUTPUT_FORMATS
 };
 
@@ -139,6 +144,7 @@ struct cli_args {
     bool crash_on_operation_failure; 
     bool print_performance;
     bool print_thread_performance;
+    bool print_iteration_performance;
     enum perf_output_format perf_output_format;
     int performance_period;
     u_int32_t txn_size; // specifies number of updates/puts/whatevers per txn
@@ -191,7 +197,7 @@ enum operation_type {
     NUM_OPERATION_TYPES
 };
 const char *operation_names[] = {
-    "operations",
+    "ops",
     "puts",
     "ptqueries",
     NULL
@@ -206,140 +212,275 @@ static void increment_counter(void *extra, enum operation_type type, uint64_t in
 }
 
 struct perf_formatter {
-    void (*print_perf_totals_header)(void);
-    void (*print_perf_thread_totals_header)(int);
-    void (*print_perf_thread_total)(int, const char *, uint64_t);
-    void (*print_perf_thread_totals_footer)(int);
-    void (*print_perf_overall_totals_header)(void);
-    void (*print_perf_overall_total)(const char *, uint64_t);
-    void (*print_perf_overall_totals_footer)(void);
-    void (*print_perf_iterations_header)(int);
-    void (*print_perf_thread_iterations_header)(int, const char *);
-    void (*print_perf_thread_iteration)(int, int, const char *, uint64_t);
-    void (*print_perf_thread_iterations_footer)(int, const char *);
-    void (*print_perf_overall_iterations_header)(int);
-    void (*print_perf_overall_iteration)(int, const char *, uint64_t);
-    void (*print_perf_overall_iterations_footer)(int);
+    void (*header)(const struct cli_args *cli_args, const int num_threads);
+    void (*iteration)(const struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads);
+    void (*totals)(const struct cli_args *cli_args, uint64_t *counters[], const int num_threads);
 };
 
-// "Human readable" performance formatter
-static void perf_human_totals_header(void) {
-    printf("\nOverall performance:\n");
-}
-static void perf_human_thread_totals_header(int t) {
-    printf("Thread %d:", t);
-}
-static void perf_human_thread_totals_footer(int UU(t)) {
-    printf("\n");
-}
-static void perf_human_total(const char *name, uint64_t val) {
-    printf("\t%s\t%'10"PRIu64, name, val);
-}
-static void perf_human_thread_total(int UU(t), const char *name, uint64_t val) {
-    perf_human_total(name, val);
-}
-static void perf_human_overall_totals_header(void) {
-    printf("All threads:");
-}
-static void perf_human_overall_totals_footer(void) {
-    printf("\n");
-}
-static void perf_human_iterations_header(int UU(current_time)) {
-}
-static void perf_human_thread_iterations_header(int current_time, const char *name) {
-    printf("%8d\t%s", current_time, name);
-    for (int i = strlen(name); i < 12; ++i) {
-        printf(" ");
-    }
-}
-static void perf_human_thread_iterations_footer(int UU(current_time), const char *UU(name)) {
-}
-static void perf_human_iteration(int UU(current_time), const char *UU(name), uint64_t val) {
-    printf("\t%'10"PRIu64, val);
-}
-static void perf_human_thread_iteration(int current_time, int UU(t), const char *name, uint64_t val) {
-    perf_human_iteration(current_time, name, val);
-}
-static void perf_human_overall_iterations_header(int UU(current_time)) {
-}
-static void perf_human_overall_iterations_footer(int UU(current_time)) {
-    printf("\n");
+static inline int
+seconds_in_this_iteration(const int current_time, const int performance_period)
+{
+    const int iteration = (current_time + performance_period - 1) / performance_period;
+    return current_time - ((iteration - 1) * performance_period);
 }
 
-const struct perf_formatter perf_formatters[] = {
-    [HUMAN] = {
-        .print_perf_totals_header = perf_human_totals_header,
-        .print_perf_thread_totals_header = perf_human_thread_totals_header,
-        .print_perf_thread_total = perf_human_thread_total,
-        .print_perf_thread_totals_footer = perf_human_thread_totals_footer,
-        .print_perf_overall_totals_header = perf_human_overall_totals_header,
-        .print_perf_overall_total = perf_human_total,
-        .print_perf_overall_totals_footer = perf_human_overall_totals_footer,
-        .print_perf_iterations_header = perf_human_iterations_header,
-        .print_perf_thread_iterations_header = perf_human_thread_iterations_header,
-        .print_perf_thread_iteration = perf_human_thread_iteration,
-        .print_perf_thread_iterations_footer = perf_human_thread_iterations_footer,
-        .print_perf_overall_iterations_header = perf_human_overall_iterations_header,
-        .print_perf_overall_iteration = perf_human_iteration,
-        .print_perf_overall_iterations_footer = perf_human_overall_iterations_footer,
-    }
-};
+static void
+human_print_perf_header(const struct cli_args *UU(cli_args), const int UU(num_threads)) {}
 
-static void print_perf_iteration(struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads) {
-    const struct perf_formatter *fmt = &perf_formatters[(int) cli_args->perf_output_format];
-    fmt->print_perf_iterations_header(current_time);
+static void
+human_print_perf_iteration(const struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads)
+{
+    const int secondsthisiter = seconds_in_this_iteration(current_time, cli_args->performance_period);
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
         uint64_t period_total = 0;
-        if (cli_args->print_thread_performance) {
-            fmt->print_perf_thread_iterations_header(current_time, operation_names[op]);
+        printf("%4d %s", current_time, operation_names[op]);
+        for (int i = strlen(operation_names[op]); i < 12; ++i) {
+            printf(" ");
         }
         for (int t = 0; t < num_threads; ++t) {
             const uint64_t last = last_counters[t][op];
             const uint64_t current = counters[t][op];
+            const uint64_t this = current - last;
             if (cli_args->print_thread_performance) {
-                fmt->print_perf_thread_iteration(current_time, t, operation_names[op], current - last);
+                const double persecond = (double) this / secondsthisiter;
+                printf("\t%'12"PRIu64" (%'12.1lf/s)", this, persecond);
             }
-            period_total += (current - last);
+            period_total += this;
             last_counters[t][op] = current;
         }
-        if (cli_args->print_thread_performance) {
-            fmt->print_perf_thread_iterations_footer(current_time, operation_names[op]);
-        }
-        fmt->print_perf_overall_iterations_header(current_time);
-        fmt->print_perf_overall_iteration(current_time, operation_names[op], period_total);
-        fmt->print_perf_overall_iterations_footer(current_time);
+        const double totalpersecond = (double) period_total / secondsthisiter;
+        printf("\tTotal %'12"PRIu64" (%'12.1lf/s)\n", period_total, totalpersecond);
     }
 }
 
-static void print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], const int num_threads) {
-    const struct perf_formatter *fmt = &perf_formatters[(int) cli_args->perf_output_format];
-    fmt->print_perf_totals_header();
+static void
+human_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], const int num_threads)
+{
+    if (cli_args->print_iteration_performance) {
+        printf("\n");
+    }
+    printf("Overall performance:\n");
     uint64_t overall_totals[(int) NUM_OPERATION_TYPES];
     ZERO_ARRAY(overall_totals);
     for (int t = 0; t < num_threads; ++t) {
         if (cli_args->print_thread_performance) {
-            fmt->print_perf_thread_totals_header(t);
+            printf("Thread %4d: ", t + 1);
         }
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
             const uint64_t current = counters[t][op];
-            if (current == 0) {
-                continue;
-            }
             if (cli_args->print_thread_performance) {
-                fmt->print_perf_thread_total(t, operation_names[op], current);
+                const double persecond = (double) current / cli_args->time_of_test;
+                printf("\t%s\t%'12"PRIu64" (%'12.1lf/s)", operation_names[op], current, persecond);
             }
             overall_totals[op] += current;
         }
         if (cli_args->print_thread_performance) {
-            fmt->print_perf_thread_totals_footer(t);
+            printf("\n");
         }
     }
-    fmt->print_perf_overall_totals_header();
+    printf("All threads: ");
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-        fmt->print_perf_overall_total(operation_names[op], overall_totals[op]);
+        const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
+        printf("\t%s\t%'12"PRIu64" (%'12.1lf/s)", operation_names[op], overall_totals[op], totalpersecond);
     }
-    fmt->print_perf_overall_totals_footer();
+    printf("\n");
 }
+
+static void
+csv_print_perf_header(const struct cli_args *cli_args, const int num_threads)
+{
+    printf("seconds");
+    if (cli_args->print_thread_performance) {
+        for (int t = 1; t <= num_threads; ++t) {
+            for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+                printf(",\"Thread %d %s\",\"Thread %d %s/s\"", t, operation_names[op], t, operation_names[op]);
+            }
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        printf(",\"Total %s\",\"Total %s/s\"", operation_names[op], operation_names[op]);
+    }
+    printf("\n");
+}
+
+static void
+csv_print_perf_iteration(const struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads)
+{
+    const int secondsthisiter = seconds_in_this_iteration(current_time, cli_args->performance_period);
+    printf("%d", current_time);
+    uint64_t period_totals[(int) NUM_OPERATION_TYPES];
+    ZERO_ARRAY(period_totals);
+    for (int t = 0; t < num_threads; ++t) {
+        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+            const uint64_t last = last_counters[t][op];
+            const uint64_t current = counters[t][op];
+            const uint64_t this = current - last;
+            if (cli_args->print_thread_performance) {
+                const double persecond = (double) this / secondsthisiter;
+                printf(",%"PRIu64",%.1lf", this, persecond);
+            }
+            period_totals[op] += this;
+            last_counters[t][op] = current;
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        const double totalpersecond = (double) period_totals[op] / secondsthisiter;
+        printf(",%"PRIu64",%.1lf", period_totals[op], totalpersecond);
+    }
+    printf("\n");
+}
+
+static void
+csv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], const int num_threads) {
+    printf("overall");
+    uint64_t overall_totals[(int) NUM_OPERATION_TYPES];
+    ZERO_ARRAY(overall_totals);
+    for (int t = 0; t < num_threads; ++t) {
+        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+            const uint64_t current = counters[t][op];
+            if (cli_args->print_thread_performance) {
+                const double persecond = (double) current / cli_args->time_of_test;
+                printf(",%"PRIu64",%.1lf", current, persecond);
+            }
+            overall_totals[op] += current;
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
+        printf(",%"PRIu64",%.1lf", overall_totals[op], totalpersecond);
+    }
+    printf("\n");
+}
+
+static void
+tsv_print_perf_header(const struct cli_args *cli_args, const int num_threads)
+{
+    printf("\"seconds\"");
+    if (cli_args->print_thread_performance) {
+        for (int t = 1; t <= num_threads; ++t) {
+            for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+                printf("\t\"Thread %d %s\"\t\"Thread %d %s/s\"", t, operation_names[op], t, operation_names[op]);
+            }
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        printf("\t\"Total %s\"\t\"Total %s/s\"", operation_names[op], operation_names[op]);
+    }
+    printf("\n");
+}
+
+static void
+tsv_print_perf_iteration(const struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads)
+{
+    const int secondsthisiter = seconds_in_this_iteration(current_time, cli_args->performance_period);
+    printf("%d", current_time);
+    uint64_t period_totals[(int) NUM_OPERATION_TYPES];
+    ZERO_ARRAY(period_totals);
+    for (int t = 0; t < num_threads; ++t) {
+        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+            const uint64_t last = last_counters[t][op];
+            const uint64_t current = counters[t][op];
+            const uint64_t this = current - last;
+            if (cli_args->print_thread_performance) {
+                const double persecond = (double) this / secondsthisiter;
+                printf("\t%"PRIu64"\t%.1lf", this, persecond);
+            }
+            period_totals[op] += this;
+            last_counters[t][op] = current;
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        const double totalpersecond = (double) period_totals[op] / secondsthisiter;
+        printf("\t%"PRIu64"\t%.1lf", period_totals[op], totalpersecond);
+    }
+    printf("\n");
+}
+
+static void
+tsv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], const int num_threads) {
+    printf("\"overall\"");
+    uint64_t overall_totals[(int) NUM_OPERATION_TYPES];
+    ZERO_ARRAY(overall_totals);
+    for (int t = 0; t < num_threads; ++t) {
+        for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+            const uint64_t current = counters[t][op];
+            if (cli_args->print_thread_performance) {
+                const double persecond = (double) current / cli_args->time_of_test;
+                printf("\t%"PRIu64"\t%.1lf", current, persecond);
+            }
+            overall_totals[op] += current;
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
+        printf("\t%"PRIu64"\t%.1lf", overall_totals[op], totalpersecond);
+    }
+    printf("\n");
+}
+
+#if 0
+static void
+gnuplot_print_perf_header(const struct cli_args *cli_args, const int num_threads)
+{
+    printf("set terminal postscript solid color\n");
+    printf("set output \"foo.eps\"\n");
+    printf("set xlabel \"seconds\"\n");
+    printf("set xrange [0:*]\n");
+    printf("set ylabel \"X/s\"\n");
+    printf("plot ");
+    if (cli_args->print_thread_performance) {
+        for (int t = 1; t <= num_threads; ++t) {
+            for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+                const int col = (2 * ((t - 1) * (int) NUM_OPERATION_TYPES + op)) + 2;
+                //printf("'-' u 1:%d w lines t \"Thread %d %s\", ", col, t, operation_names[op]);
+                printf("'-' u 1:%d w lines t \"Thread %d %s/s\", ", col + 1, t, operation_names[op]);
+            }
+        }
+    }
+    for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
+        const int col = (2 * (num_threads * (int) NUM_OPERATION_TYPES + op)) + 2;
+        //printf("'-' u 1:%d w lines t \"Total %s\", ", col);
+        printf("'-' u 1:%d w lines t \"Total %s/s\"%s", col + 1, operation_names[op], op == ((int) NUM_OPERATION_TYPES - 1) ? "\n" : ", ");
+    }
+}
+
+static void
+gnuplot_print_perf_iteration(const struct cli_args *cli_args, const int current_time, uint64_t last_counters[][(int) NUM_OPERATION_TYPES], uint64_t *counters[], const int num_threads)
+{
+    tsv_print_perf_iteration(cli_args, current_time, last_counters, counters, num_threads);
+}
+
+static void
+gnuplot_print_perf_totals(const struct cli_args *UU(cli_args), uint64_t *UU(counters[]), const int UU(num_threads))
+{
+    printf("e\n");
+}
+#endif
+
+const struct perf_formatter perf_formatters[] = {
+    [HUMAN] = {
+        .header = human_print_perf_header,
+        .iteration = human_print_perf_iteration,
+        .totals = human_print_perf_totals
+    },
+    [CSV] = {
+        .header = csv_print_perf_header,
+        .iteration = csv_print_perf_iteration,
+        .totals = csv_print_perf_totals
+    },
+    [TSV] = {
+        .header = tsv_print_perf_header,
+        .iteration = tsv_print_perf_iteration,
+        .totals = tsv_print_perf_totals
+    },
+#if 0
+    [GNUPLOT] = {
+        .header = gnuplot_print_perf_header,
+        .iteration = gnuplot_print_perf_iteration,
+        .totals = gnuplot_print_perf_totals
+    }
+#endif
+};
 
 struct worker_extra {
     struct arg* thread_arg;
@@ -392,7 +533,8 @@ static void *worker(void *arg_v) {
     DB_ENV *env = arg->env;
     DB_TXN *txn = NULL;
     if (verbose) {
-        printf("%lu starting %p\n", (unsigned long) toku_pthread_self(), arg->operation);
+        // cast through void * to silence warnings on osx
+        printf("%lu starting %p\n", (unsigned long)(void *) toku_pthread_self(), arg->operation);
     }
     if (arg->cli->single_txn) {
         r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
@@ -434,8 +576,10 @@ static void *worker(void *arg_v) {
     if (arg->cli->single_txn) {
         { int chk_r = txn->commit(txn, 0); CKERR(chk_r); }
     }
-    if (verbose)
-        printf("%lu returning\n", (unsigned long) toku_pthread_self());
+    if (verbose) {
+        // cast through void * to silence warnings on osx
+        printf("%lu returning\n", (unsigned long)(void *) toku_pthread_self());
+    }
     toku_free(random_buf);
     return arg;
 }
@@ -1085,6 +1229,15 @@ static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operat
     return 0;
 }
 
+static inline int
+intmin(const int a, const int b)
+{
+    if (a < b) {
+        return a;
+    }
+    return b;
+}
+
 struct test_time_extra {
     int num_seconds;
     bool crash_at_end;
@@ -1096,6 +1249,7 @@ struct test_time_extra {
 static void *test_time(void *arg) {
     struct test_time_extra* tte = arg;
     int num_seconds = tte->num_seconds;
+    const struct perf_formatter *perf_formatter = &perf_formatters[tte->cli_args->perf_output_format];
 
     //
     // if num_Seconds is set to 0, run indefinitely
@@ -1112,10 +1266,12 @@ static void *test_time(void *arg) {
     if (verbose) {
         printf("Sleeping for %d seconds\n", num_seconds);
     }
-    for (int i = 0; i < num_seconds; i += tte->cli_args->performance_period) {
-        usleep(tte->cli_args->performance_period*1000*1000);
-        if (tte->cli_args->print_performance) {
-            print_perf_iteration(tte->cli_args, i, last_counter_values, counters, tte->num_wes);
+    for (int i = 0; i < num_seconds; ) {
+        const int sleeptime = intmin(tte->cli_args->performance_period, num_seconds - i);
+        usleep(sleeptime*1000*1000);
+        i += sleeptime;
+        if (tte->cli_args->print_performance && tte->cli_args->print_iteration_performance) {
+            perf_formatter->iteration(tte->cli_args, i, last_counter_values, counters, tte->num_wes);
         }
     }
 
@@ -1141,12 +1297,16 @@ static int run_workers(
     ) 
 {
     int r;
+    const struct perf_formatter *perf_formatter = &perf_formatters[cli_args->perf_output_format];
     toku_mutex_t mutex;
     toku_mutex_init(&mutex, NULL);
     struct rwlock rwlock;
     rwlock_init(&rwlock);
     toku_pthread_t tids[num_threads];
     toku_pthread_t time_tid;
+    if (cli_args->print_performance) {
+        perf_formatter->header(cli_args, num_threads);
+    }
     struct worker_extra *worker_extra = (struct worker_extra *)
         memalign(64, num_threads * sizeof (struct worker_extra)); // allocate worker_extra's on cache line boundaries
     struct test_time_extra tte;
@@ -1186,7 +1346,7 @@ static int run_workers(
         for (int i = 0; i < num_threads; ++i) {
             counters[i] = worker_extra[i].counters;
         }
-        print_perf_totals(cli_args, counters, num_threads);
+        perf_formatter->totals(cli_args, counters, num_threads);
     }
 
     for (int i = 0; i < num_threads; ++i) {
@@ -1438,7 +1598,8 @@ static struct cli_args UU() get_default_args(void) {
         .interleave = false,
         .crash_on_operation_failure = true,
         .print_performance = false,
-        .print_thread_performance = false,
+        .print_thread_performance = true,
+        .print_iteration_performance = true,
         .performance_period = 1,
         .txn_size = 1000,
         .key_size = MIN_KEY_SIZE,
@@ -1753,19 +1914,31 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
     .min={.member=min_val}, \
     .max={.member=max_val}, \
 }
+#define MAKE_LOCAL_ARG(name_string, type, member, default, variable, suffix, min_val, max_val) { \
+    .name=(name_string), \
+    .description=&(type), \
+    .default_val={.member=default}, \
+    .target=&(variable), \
+    .help_suffix=(suffix), \
+    .min={.member=min_val}, \
+    .max={.member=max_val}, \
+}
 #define UINT32_ARG(name_string, variable, suffix) \
-        MAKE_ARG(name_string, type_uint32, u32, variable, suffix, 0, UINT32_MAX) 
+        MAKE_ARG(name_string, type_uint32, u32, variable, suffix, 0, UINT32_MAX)
 #define UINT32_ARG_R(name_string, variable, suffix, min, max) \
-        MAKE_ARG(name_string, type_uint32, u32, variable, suffix, min, max) 
+        MAKE_ARG(name_string, type_uint32, u32, variable, suffix, min, max)
 #define UINT64_ARG(name_string, variable, suffix) \
-        MAKE_ARG(name_string, type_uint64, u64, variable, suffix, 0, UINT64_MAX) 
+        MAKE_ARG(name_string, type_uint64, u64, variable, suffix, 0, UINT64_MAX)
 #define DOUBLE_ARG_R(name_string, variable, suffix, min, max) \
-        MAKE_ARG(name_string, type_double, d, variable, suffix, min, max) 
+        MAKE_ARG(name_string, type_double, d, variable, suffix, min, max)
 #define BOOL_ARG(name_string, variable) \
-        MAKE_ARG(name_string, type_bool, b, variable, "", false, false) 
+        MAKE_ARG(name_string, type_bool, b, variable, "", false, false)
 #define STRING_ARG(name_string, variable) \
-        MAKE_ARG(name_string, type_string, s, variable, "", "", "") 
+        MAKE_ARG(name_string, type_string, s, variable, "", "", "")
+#define LOCAL_STRING_ARG(name_string, variable, default) \
+        MAKE_LOCAL_ARG(name_string, type_string, s, default, variable, "", "", "")
 
+    const char *perf_format_s = NULL;
     struct arg_type arg_types[] = {
         UINT32_ARG("--num_elements",            num_elements,                  ""),
         UINT32_ARG("--num_DBs",                 num_DBs,                       ""),
@@ -1780,7 +1953,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         UINT32_ARG("--num_put_threads",         num_put_threads,               " threads"),
         UINT32_ARG("--num_update_threads",      num_update_threads,            " threads"),
         UINT32_ARG("--txn_size",                txn_size,                      " rows"),
-        UINT32_ARG("--performance_period",      performance_period,            "s"),
+        UINT32_ARG_R("--performance_period",      performance_period,          "s", 1, UINT32_MAX),
 
         UINT64_ARG("--cachetable_size",         env_args.cachetable_size,      " bytes"),
 
@@ -1797,18 +1970,23 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("warm_cache",                  warm_cache),
         BOOL_ARG("print_performance",           print_performance),
         BOOL_ARG("print_thread_performance",    print_thread_performance),
+        BOOL_ARG("print_iteration_performance", print_iteration_performance),
         BOOL_ARG("only_create", only_create),
         BOOL_ARG("only_stress", only_stress),
         BOOL_ARG("test",        do_test_and_crash),
         BOOL_ARG("recover",     do_recover),
 
         STRING_ARG("--envdir",    env_args.envdir),
+        LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
         //TODO(add --quiet, -v, -h)
     };
 #undef UINT32_ARG
 #undef UINT32_ARG_R
 #undef UINT64_ARG
 #undef DOUBLE_ARG_R
+#undef BOOL_ARG
+#undef STRING_ARG
+#undef MAKE_ARG
 
     int num_arg_types = sizeof(arg_types) / sizeof(arg_types[0]);
 
@@ -1818,12 +1996,12 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             verbose++;
             argv++;
             argc--;
-        } 
+        }
         else if (!strcmp(argv[1], "-q") || !strcmp(argv[1], "--quiet")) {
             verbose = 0;
             argv++;
             argc--;
-        } 
+        }
         else if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
             fprintf(stderr, "HELP INVOKED\n");
             do_usage(argv0, num_arg_types, arg_types);
@@ -1852,6 +2030,24 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
                 do_usage(argv0, num_arg_types, arg_types);
                 exit(EINVAL);
             }
+        }
+    }
+    if (perf_format_s != NULL) {
+        if (!strcmp(perf_format_s, "human")) {
+            args->perf_output_format = HUMAN;
+        } else if (!strcmp(perf_format_s, "csv")) {
+            args->perf_output_format = CSV;
+        } else if (!strcmp(perf_format_s, "tsv")) {
+            args->perf_output_format = TSV;
+#if 0
+        } else if (!strcmp(perf_format_s, "gnuplot")) {
+            args->perf_output_format = GNUPLOT;
+#endif
+        } else {
+            fprintf(stderr, "valid values for --perf_format are \"human\", \"csv\", and \"tsv\"\n");
+            //fprintf(stderr, "valid values for --perf_format are \"human\", \"csv\", \"tsv\", and \"gnuplot\"\n");
+            do_usage(argv0, num_arg_types, arg_types);
+            exit(EINVAL);
         }
     }
     if (args->only_create && args->only_stress) {
