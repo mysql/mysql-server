@@ -1439,25 +1439,33 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       {
         /*
           Get virtual column data stored in the .frm file as follows:
-          byte 1      = 1 (always 1 to allow for future extensions)
+          byte 1      = 1 | 2
           byte 2      = sql_type
           byte 3      = flags (as of now, 0 - no flags, 1 - field is physically stored)
-          byte 4-...  = virtual column expression (text data)
+          [byte 4]    = optional interval_id for sql_type (only if byte 1 == 2) 
+          next byte ...  = virtual column expression (text data)
         */
         vcol_info= new Virtual_column_info();
-        if ((uint)vcol_screen_pos[0] != 1)
+        bool opt_interval_id= (uint)vcol_screen_pos[0] == 2;
+        field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
+        if (opt_interval_id)
+          interval_nr= (uint)vcol_screen_pos[3];
+        else if ((uint)vcol_screen_pos[0] != 1)
         {
           error= 4;
           goto err;
         }
-        field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
         fld_stored_in_db= (bool) (uint) vcol_screen_pos[2];
-        vcol_expr_length= vcol_info_length-(uint)FRM_VCOL_HEADER_SIZE;
+        vcol_expr_length= vcol_info_length -
+                          (uint)(FRM_VCOL_HEADER_SIZE(opt_interval_id));
         if (!(vcol_info->expr_str.str=
               (char *)memdup_root(&share->mem_root,
-                                  vcol_screen_pos+(uint)FRM_VCOL_HEADER_SIZE,
+                                  vcol_screen_pos +
+                                  (uint) FRM_VCOL_HEADER_SIZE(opt_interval_id),
                                   vcol_expr_length)))
           goto err;
+        if (opt_interval_id)
+          interval_nr= (uint) vcol_screen_pos[3];
         vcol_info->expr_str.length= vcol_expr_length;
         vcol_screen_pos+= vcol_info_length;
         share->vfields++;

@@ -156,6 +156,29 @@ SELECT table_schema, table_name, column_name, column_type, extra
 DROP TABLE t1,t2;
 
 #
+# Bug mdev-354: virtual columns of ENUM and SET types
+#
+
+create table t1 (
+  a int not null, b char(2) not null,
+  c enum('Y','N') as (case when b = 'aa' then 'Y' else 'N' end) persistent
+);
+show create table t1;
+insert into t1(a,b) values (1,'bb'), (2,'aa'), (3,'cc');
+select * from t1;
+
+create table t2 (
+  a int, b int,
+  c set("y","n") 
+  as (if(a=0,if(b=0,('n,n'),('n,y')),if(b=0,('y,n'),('y,y')))) persistent
+);
+show create table t2;
+insert into t2(a,b) values (7,0), (2,3), (0,1);
+select * from t2;
+
+drop table t1,t2;
+
+#
 #  SELECT that uses a virtual column and executed with BKA
 #
 

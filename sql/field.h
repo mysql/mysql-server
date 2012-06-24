@@ -2244,6 +2244,10 @@ public:
   {
     return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
   }
+  uint virtual_col_expr_maxlen()
+  {
+    return 255 - FRM_VCOL_HEADER_SIZE(interval != NULL);
+  }
 private:
   const String empty_set_string;
 };

@@ -726,18 +726,19 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
     }
     if (field->vcol_info)
     {
+      uint col_expr_maxlen= field->virtual_col_expr_maxlen();
       tmp_len=
         system_charset_info->cset->charpos(system_charset_info,
                                            field->vcol_info->expr_str.str,
                                            field->vcol_info->expr_str.str +
                                            field->vcol_info->expr_str.length,
-                                           VIRTUAL_COLUMN_EXPRESSION_MAXLEN);
+                                           col_expr_maxlen);
 
       if (tmp_len < field->vcol_info->expr_str.length)
       {
         my_error(ER_WRONG_STRING_LENGTH, MYF(0),
                  field->vcol_info->expr_str.str,"VIRTUAL COLUMN EXPRESSION",
-                 (uint) VIRTUAL_COLUMN_EXPRESSION_MAXLEN);
+                 col_expr_maxlen);
         DBUG_RETURN(1);
       }
       /*
@@ -746,7 +747,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
         expressions saved in the frm file for virtual columns.
       */
       vcol_info_length+= field->vcol_info->expr_str.length+
-                         (uint)FRM_VCOL_HEADER_SIZE;
+	                 FRM_VCOL_HEADER_SIZE(field->interval!=NULL);
     }
 
     totlength+= field->length;
@@ -949,8 +950,9 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
         the additional data saved for the virtual field
       */
       buff[12]= cur_vcol_expr_len= field->vcol_info->expr_str.length +
-                (uint)FRM_VCOL_HEADER_SIZE;
-      vcol_info_length+= cur_vcol_expr_len+(uint)FRM_VCOL_HEADER_SIZE;
+	                           FRM_VCOL_HEADER_SIZE(field->interval!=NULL);
+      vcol_info_length+= cur_vcol_expr_len + 
+	                 FRM_VCOL_HEADER_SIZE(field->interval!=NULL);
       buff[13]= (uchar) MYSQL_TYPE_VIRTUAL;
     }
     int2store(buff+15, field->comment.length);
@@ -1055,17 +1057,20 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     {
       /*
         Pack each virtual field as follows:
-        byte 1      = 1 (always 1 to allow for future extensions)
+        byte 1      = interval_id == 0 ? 1 : 2 
         byte 2      = sql_type
         byte 3      = flags (as of now, 0 - no flags, 1 - field is physically stored)
-        byte 4-...  = virtual column expression (text data)
+        [byte 4]    = possible interval_id for sql_type
+        next byte ...  = virtual column expression (text data)
       */
       if (field->vcol_info && field->vcol_info->expr_str.length)
       {
-        buff[0]= (uchar)1;
+        buff[0]= (uchar)(1 + test(field->interval_id));
         buff[1]= (uchar) field->sql_type;
         buff[2]= (uchar) field->stored_in_db;
-        if (my_write(file, buff, 3, MYF_RW))
+        if (field->interval_id)
+          buff[3]= (uchar) field->interval_id;
+      if (my_write(file, buff, 3 + test(field->interval_id), MYF_RW))
           DBUG_RETURN(1);
         if (my_write(file,
                      (uchar*) field->vcol_info->expr_str.str,
