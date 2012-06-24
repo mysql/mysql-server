@@ -4424,6 +4424,7 @@ pthread_handler_t handle_slave_worker(void *arg)
   mysql_mutex_lock(&w->jobs_lock);
 
   w->running_status= Slave_worker::NOT_RUNNING;
+  w->info_thd= NULL; // required by ~Slave_worker; thd is deleted by this thread
   if (log_warnings > 1)
     sql_print_information("Worker %lu statistics: "
                           "events processed = %lu "
