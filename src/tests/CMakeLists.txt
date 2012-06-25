@@ -217,6 +217,7 @@ if(BUILD_TESTING)
       test_bulk_fetch.c
       test_compression_methods.c
       test_cmp_descriptor.c
+      test_db_change_xxx.c
       test_cursor_delete_2119.c
       test_db_descriptor.c
       test_db_descriptor_named_db.c
