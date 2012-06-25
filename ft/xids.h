@@ -36,6 +36,12 @@ void xids_cpy(XIDS target, XIDS source);
 //Creates an XIDS representing this transaction.
 //You must pass in an XIDS representing the parent of this transaction.
 int  xids_create_child(XIDS parent_xids, XIDS *xids_p, TXNID this_xid);
+
+// The following two functions (in order) are equivalent to xids_create child,
+// but allow you to do most of the work without knowing the new xid.
+int xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p);
+void xids_finalize_with_child(XIDS xids, TXNID this_xid);
+
 void xids_create_from_buffer(struct rbuf *rb, XIDS * xids_p);
 
 void xids_destroy(XIDS *xids_p);

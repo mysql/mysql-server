@@ -60,37 +60,50 @@ xids_get_root_xids(void) {
 
     XIDS rval = (XIDS)&root_xids;
     return rval;
-} 
+}
 
 
-// xids is immutable.  This function creates a new xids by copying the 
-// parent's list and then appending the xid of the new transaction.
-int
-xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
-		  XIDS * xids_p,		// xids list created
-		  TXNID  this_xid) {		// xid of this transaction (new innermost)
+inline int
+xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
+    // Postcondition:
+    //  xids_p points to an xids that is an exact copy of parent_xids, but with room for one more xid.
     int rval;
     invariant(parent_xids);
-    invariant(this_xid > xids_get_innermost_xid(parent_xids));
     u_int32_t num_child_xids = parent_xids->num_xids + 1;
     invariant(num_child_xids > 0);
     invariant(num_child_xids <= MAX_TRANSACTION_RECORDS);
     if (num_child_xids == MAX_TRANSACTION_RECORDS) rval = EINVAL;
     else {
-        XIDS xids = toku_malloc(sizeof(*xids) + num_child_xids*sizeof(xids->ids[0]));
-        if (!xids) rval = ENOMEM;
-        else {
-            // comment: invariant (num_child_xids <= MAX_TRANSACTION_RECORDS) 
-            // makes this cast ok
-            xids->num_xids = (u_int8_t)num_child_xids;
-            memcpy(xids->ids,
-                   parent_xids->ids,
-                   parent_xids->num_xids*sizeof(parent_xids->ids[0])); 
-            TXNID this_xid_disk = toku_htod64(this_xid);
-            xids->ids[num_child_xids-1] = this_xid_disk;
-            *xids_p = xids;
-            rval = 0;
-        }
+        size_t new_size = sizeof(*parent_xids) + num_child_xids*sizeof(parent_xids->ids[0]);
+        XIDS xids = toku_xmalloc(new_size);
+        // Clone everything (parent does not have the newest xid).
+        memcpy(xids, parent_xids, new_size - sizeof(xids->ids[0]));
+        *xids_p = xids;
+        rval = 0;
+    }
+    return rval;
+}
+
+void
+xids_finalize_with_child(XIDS xids, TXNID this_xid) {
+    // Precondition:
+    //  - xids was created by xids_create_unknown_child
+    //  - All error checking (except that this_xid is higher than its parent) is already complete
+    invariant(this_xid > xids_get_innermost_xid(xids));
+    TXNID this_xid_disk = toku_htod64(this_xid);
+    u_int32_t num_child_xids = ++xids->num_xids;
+    xids->ids[num_child_xids - 1] = this_xid_disk;
+}
+
+// xids is immutable.  This function creates a new xids by copying the
+// parent's list and then appending the xid of the new transaction.
+int
+xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
+		  XIDS * xids_p,		// xids list created
+		  TXNID  this_xid) {		// xid of this transaction (new innermost)
+    int rval = xids_create_unknown_child(parent_xids, xids_p);
+    if (rval == 0) {
+        xids_finalize_with_child(*xids_p, this_xid);
     }
     return rval;
 }

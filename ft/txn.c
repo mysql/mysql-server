@@ -118,6 +118,7 @@ toku_txn_create_txn (
     TOKULOGGER logger, 
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
+    XIDS xids,
     bool for_checkpoint
     )
 {
@@ -164,7 +165,7 @@ toku_txn_create_txn (
         .do_fsync_lsn = ZERO_LSN,
         .txnid64 = TXNID_NONE,
         .ancestor_txnid64 = TXNID_NONE,
-        .xids = NULL,
+        .xids = xids,
         .roll_info = roll_info,
         .num_pin = 0
     };
@@ -184,13 +185,12 @@ toku_txn_create_txn (
 }
 
 void
-toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid, XIDS xids)
+toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid)
 {
     // these should not have been set yet
     invariant(txn->txnid64 == TXNID_NONE);
     invariant(txn->ancestor_txnid64 == TXNID_NONE);
     invariant(txn->snapshot_txnid64 == TXNID_NONE);
-    invariant(txn->xids == NULL);
 
     TXNID snapshot_txnid64;
     if (txn->snapshot_type == TXN_SNAPSHOT_NONE) {
@@ -211,7 +211,6 @@ toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid, XIDS xids)
     UNCONST(TXNID, txn->txnid64) = xid;
     UNCONST(TXNID, txn->snapshot_txnid64) = snapshot_txnid64;
     UNCONST(TXNID, txn->ancestor_txnid64) = (txn->parent ? txn->parent->ancestor_txnid64 : xid);
-    txn->xids = xids;
 
 #undef UNCONST
 }
