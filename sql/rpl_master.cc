@@ -838,15 +838,15 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 
   if (slave_gtid_done != NULL)
   {
-    global_sid_lock.wrlock();
-    if (!gtid_state.get_lost_gtids()->is_subset(slave_gtid_done))
+    global_sid_lock->wrlock();
+    if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_done))
     {
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
       my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
       GOTO_ERR;
     }
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
   }
 
   name=search_file_name;
@@ -1722,16 +1722,16 @@ bool show_master_status(THD* thd)
 
   DBUG_ENTER("show_binlog_info");
 
-  global_sid_lock.wrlock();
-  const Gtid_set* gtid_set= gtid_state.get_logged_gtids();
+  global_sid_lock->wrlock();
+  const Gtid_set* gtid_set= gtid_state->get_logged_gtids();
   if ((gtid_set_size= gtid_set->to_string(&gtid_set_buffer)) < 0)
   {
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     my_eof(thd);
     my_free(gtid_set_buffer);
     DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
 
   field_list.push_back(new Item_empty_string("File", FN_REFLEN));
   field_list.push_back(new Item_return_int("Position",20,

@@ -1829,11 +1829,11 @@ public:
   bool session_update(THD *thd, set_var *var)
   {
     DBUG_ENTER("Sys_var_gtid::session_update");
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
     bool ret= (((Gtid_specification *)session_var_ptr(thd))->
-               parse(&global_sid_map,
+               parse(global_sid_map,
                      var->save_result.string_value.str) != 0);
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN(ret);
   }
   bool global_update(THD *thd, set_var *var)
@@ -1873,10 +1873,10 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid::session_value_ptr");
     char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
     ((Gtid_specification *)session_var_ptr(thd))->
-      to_string(&global_sid_map, buf);
-    global_sid_lock.unlock();
+      to_string(global_sid_map, buf);
+    global_sid_lock->unlock();
     char *ret= thd->strdup(buf);
     DBUG_RETURN((uchar *)ret);
   }
@@ -1922,7 +1922,7 @@ public:
       gsn->set_null();
     else
     {
-      Gtid_set *gs= gsn->set_non_null(&global_sid_map);
+      Gtid_set *gs= gsn->set_non_null(global_sid_map);
       if (gs == NULL)
       {
         my_error(ER_OUT_OF_RESOURCES, MYF(0)); // allocation failed
@@ -1939,9 +1939,9 @@ public:
       else
         gs->clear();
       // Add specified set of groups to Gtid_set.
-      global_sid_lock.rdlock();
+      global_sid_lock->rdlock();
       enum_return_status ret= gs->add_gtid_text(value);
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       if (ret != RETURN_STATUS_OK)
       {
         gsn->set_null();
@@ -1993,13 +1993,13 @@ public:
     if (gs == NULL)
       DBUG_RETURN(NULL);
     char *buf;
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
     buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf)
       gs->to_string(buf);
     else
       my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->alloc faile
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
   }
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
@@ -2063,13 +2063,13 @@ public:
                                          Gtid_set_getter get_gtid_set)
   {
     DBUG_ENTER("Sys_var_gtid_ended_groups::session_value_ptr");
-    Gtid_set gs(&global_sid_map);
+    Gtid_set gs(global_sid_map);
     char *buf;
     // As an optimization, add 10 Intervals that do not need to be
     // allocated.
     Gtid_set::Interval ivs[10];
     gs.add_interval_memory(10, ivs);
-    global_sid_lock.wrlock();
+    global_sid_lock->wrlock();
     if (get_gtid_set(thd, &gs) != RETURN_STATUS_OK)
       goto error;
     // allocate string and print to it
@@ -2080,10 +2080,10 @@ public:
       goto error;
     }
     gs.to_string(buf);
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
   error:
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN(NULL);
   }
 };
@@ -2101,14 +2101,14 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_done::global_value_ptr");
-    global_sid_lock.wrlock();
-    const Gtid_set *gs= gtid_state.get_logged_gtids();
+    global_sid_lock->wrlock();
+    const Gtid_set *gs= gtid_state->get_logged_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
     else
       gs->to_string(buf);
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
   }
 
@@ -2144,14 +2144,14 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_lost::global_value_ptr");
-    global_sid_lock.wrlock();
-    const Gtid_set *gs= gtid_state.get_lost_gtids();
+    global_sid_lock->wrlock();
+    const Gtid_set *gs= gtid_state->get_lost_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
     else
       gs->to_string(buf);
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
   }
 
@@ -2179,9 +2179,9 @@ public:
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
       if (buf)
       {
-        global_sid_lock.rdlock();
+        global_sid_lock->rdlock();
         thd->owned_gtid_set.to_string(buf);
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
       }
       else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -2194,9 +2194,9 @@ public:
       buf= (char *)thd->alloc(Gtid::MAX_TEXT_LENGTH + 1);
       if (buf)
       {
-        global_sid_lock.rdlock();
-        thd->owned_gtid.to_string(&global_sid_map, buf);
-        global_sid_lock.unlock();
+        global_sid_lock->rdlock();
+        thd->owned_gtid.to_string(global_sid_map, buf);
+        global_sid_lock->unlock();
       }
       else
         my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -2207,14 +2207,14 @@ public:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_owned::global_value_ptr");
-    const Owned_gtids *owned_gtids= gtid_state.get_owned_gtids();
-    global_sid_lock.wrlock();
+    const Owned_gtids *owned_gtids= gtid_state->get_owned_gtids();
+    global_sid_lock->wrlock();
     char *buf= (char *)thd->alloc(owned_gtids->get_max_string_length());
     if (buf)
       owned_gtids->to_string(buf);
     else
       my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->alloc faile
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN((uchar *)buf);
   }
 };

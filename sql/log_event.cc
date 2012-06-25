@@ -12847,9 +12847,9 @@ Gtid_log_event::Gtid_log_event(THD* thd_arg, bool using_trans,
   spec= spec_arg ? *spec_arg : thd_arg->variables.gtid_next;
   if (spec.type == GTID_GROUP)
   {
-    global_sid_lock.rdlock();
-    sid= global_sid_map.sidno_to_sid(spec.gtid.sidno);
-    global_sid_lock.unlock();
+    global_sid_lock->rdlock();
+    sid= global_sid_map->sidno_to_sid(spec.gtid.sidno);
+    global_sid_lock->unlock();
   }
   else
     sid.clear();
@@ -12995,7 +12995,7 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
             Log_event::EVENT_IMMEDIATE_LOGGING)
 {
   DBUG_ENTER("Previous_gtids_log_event::Previous_gtids_log_event(THD *, const Gtid_set *)");
-  global_sid_lock.assert_some_lock();
+  global_sid_lock->assert_some_lock();
   buf_size= set->get_encoded_length();
   uchar *buffer= (uchar *) my_malloc(buf_size, MYF(MY_WME));
   if (buffer != NULL)
@@ -13013,9 +13013,9 @@ Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
 int Previous_gtids_log_event::pack_info(Protocol *protocol)
 {
   size_t length= 0;
-  global_sid_lock.rdlock();
+  global_sid_lock->rdlock();
   char *str= get_str(&length, &Gtid_set::default_string_format);
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
   if (str == NULL)
     return 1;
   protocol->store(str, length, &my_charset_bin);
@@ -13030,9 +13030,9 @@ void Previous_gtids_log_event::print(FILE *file,
 {
   IO_CACHE *const head= &print_event_info->head_cache;
 
-  global_sid_lock.rdlock();
+  global_sid_lock->rdlock();
   char *str= get_str(NULL, &Gtid_set::commented_string_format);
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
   if (str != NULL)
   {
     if (!print_event_info->short_form)

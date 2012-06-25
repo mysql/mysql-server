@@ -23,8 +23,9 @@
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <my_global.h>
-
-
+#ifdef MYSQL_SERVER
+#include <mysqld.h>
+#endif
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -320,7 +321,13 @@ public:
 #else
     is_write_lock= false;
 #endif
-    mysql_rwlock_init(0, &rwlock);
+    mysql_rwlock_init(
+#ifdef MYSQL_SERVER
+                      key_rwlock_global_sid_lock
+#else
+                      0
+#endif
+                      , &rwlock);
   }
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock()
@@ -436,7 +443,7 @@ private:
 
 
 /// Protects Gtid_state.  See comment above gtid_state for details.
-extern Checkable_rwlock global_sid_lock;
+extern Checkable_rwlock *global_sid_lock;
 
 
 /**
@@ -600,7 +607,7 @@ private:
 };
 
 
-extern Sid_map global_sid_map;
+extern Sid_map *global_sid_map;
 
 
 /**
@@ -1782,10 +1789,10 @@ public:
   {
     char *p= out;
     rpl_sidno max_sidno= get_max_sidno();
-    rpl_sidno sid_map_max_sidno= global_sid_map.get_max_sidno();
+    rpl_sidno sid_map_max_sidno= global_sid_map->get_max_sidno();
     for (rpl_sidno sid_i= 0; sid_i < sid_map_max_sidno; sid_i++)
     {
-      rpl_sidno sidno= global_sid_map.get_sorted_sidno(sid_i);
+      rpl_sidno sidno= global_sid_map->get_sorted_sidno(sid_i);
       if (sidno > max_sidno)
         continue;
       HASH *hash= get_hash(sidno);
@@ -1796,7 +1803,7 @@ public:
         DBUG_ASSERT(node != NULL);
         if (!printed_sid)
         {
-          p+= global_sid_map.sidno_to_sid(sidno).to_string(p);
+          p+= global_sid_map->sidno_to_sid(sidno).to_string(p);
           printed_sid= true;
         }
         p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
@@ -2198,7 +2205,7 @@ private:
 
 
 /// Global state of GTIDs.
-extern Gtid_state gtid_state;
+extern Gtid_state *gtid_state;
 
 
 /**
@@ -2291,7 +2298,7 @@ struct Gtid_specification
   void print() const
   {
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(&global_sid_map, buf);
+    to_string(global_sid_map, buf);
     printf("%s\n", buf);
   }
 #endif
@@ -2303,7 +2310,7 @@ struct Gtid_specification
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(&global_sid_map, buf);
+    to_string(global_sid_map, buf);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }

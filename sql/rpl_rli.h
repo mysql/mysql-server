@@ -245,8 +245,8 @@ public:
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
-    global_sid_lock.assert_some_lock();
-    DBUG_ASSERT(sidno <= global_sid_map.get_max_sidno());
+    global_sid_lock->assert_some_lock();
+    DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
     if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
       ret= 1;
