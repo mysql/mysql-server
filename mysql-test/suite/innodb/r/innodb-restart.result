@@ -212,13 +212,8 @@ test/t7#p#p0#sp#s1	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s2	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s3	8	Barracuda	Dynamic
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 test/t3	Barracuda	Compressed
@@ -414,13 +409,8 @@ test/t7#p#p0#sp#s1	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s2	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s3	8	Barracuda	Dynamic
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 test/t3	Barracuda	Compressed
