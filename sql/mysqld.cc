@@ -769,6 +769,9 @@ static std::set<THD*> *global_thread_list= NULL;
 ulong max_blocked_pthreads= 0;
 static ulong blocked_pthread_count= 0;
 static std::list<THD*> *waiting_thd_list= NULL;
+Checkable_rwlock *global_sid_lock= NULL;
+Sid_map *global_sid_map= NULL;
+Gtid_state *gtid_state= NULL;
 
 /*
   global_thread_list and waiting_thd_list are both pointers to objects
@@ -1685,6 +1688,40 @@ static void mysqld_exit(int exit_code)
 
 #endif /* !EMBEDDED_LIBRARY */
 
+/**
+   GTID cleanup destroys objects and reset their pointer.
+   Function is reentrant.
+*/
+inline void gtid_server_cleanup()
+{
+  delete gtid_state;
+  delete global_sid_map;
+  delete global_sid_lock;
+  global_sid_lock= NULL;
+  global_sid_map= NULL;
+  gtid_state= NULL;
+}
+
+/**
+   GTID initialization.
+
+   @return true if allocation does not succeed
+           false if OK
+*/
+inline bool gtid_server_init()
+{
+  bool res=
+    (!(global_sid_lock= new Checkable_rwlock) ||
+     !(global_sid_map= new Sid_map(global_sid_lock)) ||
+     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map)));
+  if (res)
+  {
+    gtid_server_cleanup();
+  }
+  return res;
+}
+
+
 void clean_up(bool print_message)
 {
   DBUG_PRINT("exit",("clean_up"));
@@ -1705,6 +1742,7 @@ void clean_up(bool print_message)
 
   injector::free_instance();
   mysql_bin_log.cleanup();
+  gtid_server_cleanup();
 
 #ifdef HAVE_REPLICATION
   if (use_slave_mask)
@@ -4610,6 +4648,11 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   if (opt_ignore_builtin_innodb)
     sql_print_warning("ignore-builtin-innodb is ignored "
                       "and will be removed in future releases.");
+  if (gtid_server_init())
+  {
+    sql_print_error("Failed to initialize GTID structures.");
+    unireg_abort(1);
+  }
 
   if (plugin_init(&remaining_argc, remaining_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
@@ -4761,7 +4804,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       corretly compute the set of previous gtids.
     */
     mysql_bin_log.set_previous_gtid_set(
-      const_cast<Gtid_set*>(gtid_state.get_logged_gtids()));
+      const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
                                   WRITE_CACHE, max_binlog_size, false,
                                   true/*need_lock_index=true*/,
@@ -5215,15 +5258,15 @@ int mysqld_main(int argc, char **argv)
 
         No error message is needed: init_sid_map() prints a message.
       */
-      global_sid_lock.rdlock();
-      int ret= gtid_state.init();
-      global_sid_lock.unlock();
+      global_sid_lock->rdlock();
+      int ret= gtid_state->init();
+      global_sid_lock->unlock();
       if (ret)
         unireg_abort(1);
 
       if (mysql_bin_log.init_gtid_sets(
-            const_cast<Gtid_set *>(gtid_state.get_logged_gtids()),
-            const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
+            const_cast<Gtid_set *>(gtid_state->get_logged_gtids()),
+            const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
             opt_master_verify_checksum,
             true/*true=need lock*/))
         unireg_abort(1);
@@ -5238,12 +5281,12 @@ int mysqld_main(int argc, char **argv)
       */
       if (gtid_mode > 0)
       {
-        global_sid_lock.wrlock();
-        const Gtid_set *logged_gtids= gtid_state.get_logged_gtids();
+        global_sid_lock->wrlock();
+        const Gtid_set *logged_gtids= gtid_state->get_logged_gtids();
         if (gtid_mode > 1 || !logged_gtids->is_empty())
         {
           Previous_gtids_log_event prev_gtids_ev(logged_gtids);
-          global_sid_lock.unlock();
+          global_sid_lock->unlock();
 
           prev_gtids_ev.checksum_alg= binlog_checksum_options;
 
@@ -5256,7 +5299,7 @@ int mysqld_main(int argc, char **argv)
             unireg_abort(1);
         }
         else
-          global_sid_lock.unlock();
+          global_sid_lock->unlock();
       }
     }
   }
@@ -8955,6 +8998,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_log;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_LOCK_sql_rand;
+PSI_mutex_key key_gtid_ensure_index_mutex;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -9023,12 +9067,14 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
-  { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL}
+  { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
+  { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
-  key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock;
+  key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
+  key_rwlock_global_sid_lock;
 
 static PSI_rwlock_info all_server_rwlocks[]=
 {
@@ -9040,7 +9086,8 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_GLOBAL},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_GLOBAL},
-  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0}
+  { &key_rwlock_query_cache_query_lock, "Query_cache_query::lock", 0},
+  { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP
@@ -9063,6 +9110,7 @@ PSI_cond_key key_BINLOG_update_cond,
 PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_BINLOG_COND_done;
 PSI_cond_key key_RELAYLOG_COND_done;
+PSI_cond_key key_gtid_ensure_index_cond;
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -9099,7 +9147,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_COND_thread_count, "COND_thread_count", PSI_FLAG_GLOBAL},
   { &key_COND_thread_cache, "COND_thread_cache", PSI_FLAG_GLOBAL},
-  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL}
+  { &key_COND_flush_thread_cache, "COND_flush_thread_cache", PSI_FLAG_GLOBAL},
+  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL}
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,

@@ -924,24 +924,24 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
 
   Group_cache* group_cache= &cache_data->group_cache;
 
-  global_sid_lock.rdlock();
+  global_sid_lock->rdlock();
 
   if (thd->variables.gtid_next.type == AUTOMATIC_GROUP)
   {
     if (group_cache->generate_automatic_gno(thd) !=
         RETURN_STATUS_OK)
     {
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       DBUG_RETURN(1); 
     }
   }
   if (write_empty_groups_to_cache(thd, cache_data) != 0)
   {
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN(1);
   }
 
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
 
   /*
     If an automatic group number was generated, change the first event
@@ -2534,14 +2534,14 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
     if (all_gtids != NULL)
       mysql_mutex_lock(&LOCK_log);
     mysql_mutex_lock(&LOCK_index);
-    global_sid_lock.wrlock();
+    global_sid_lock->wrlock();
   }
   else
   {
     if (all_gtids != NULL)
       mysql_mutex_assert_owner(&LOCK_log);
     mysql_mutex_assert_owner(&LOCK_index);
-    global_sid_lock.assert_some_wrlock();
+    global_sid_lock->assert_some_wrlock();
   }
 
   // Gather the set of files to be accessed.
@@ -2627,7 +2627,7 @@ end:
     lost_gtids->dbug_print("lost_gtids");
   if (need_lock)
   {
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     mysql_mutex_unlock(&LOCK_index);
     if (all_gtids != NULL)
       mysql_mutex_unlock(&LOCK_log);
@@ -2778,12 +2778,12 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   if (current_thd && gtid_mode > 0)
   {
     if (need_sid_lock)
-      global_sid_lock.wrlock();
+      global_sid_lock->wrlock();
     else
-      global_sid_lock.assert_some_wrlock();
+      global_sid_lock->assert_some_wrlock();
     Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
     if (need_sid_lock)
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
     prev_gtids_ev.checksum_alg= s.checksum_alg;
     if (prev_gtids_ev.write(&log_file))
       goto err;
@@ -3275,7 +3275,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   mysql_mutex_lock(&LOCK_log);
   mysql_mutex_lock(&LOCK_index);
 
-  global_sid_lock.wrlock();
+  global_sid_lock->wrlock();
 
   /* Save variables so that we can reopen the log */
   save_name=name;
@@ -3369,9 +3369,9 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
   else
   {
-    gtid_state.clear();
+    gtid_state->clear();
     // don't clear global_sid_map because it's used by the relay log too
-    if (gtid_state.init() != 0)
+    if (gtid_state->init() != 0)
       goto err;
   }
 #endif
@@ -3388,7 +3388,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 err:
   if (error == 1)
     name= const_cast<char*>(save_name);
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
   mysql_mutex_unlock(&LOCK_thread_count);
   mysql_mutex_unlock(&LOCK_index);
   mysql_mutex_unlock(&LOCK_log);
@@ -3779,13 +3779,13 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   // Update gtid_state->lost_gtids
   if (gtid_mode > 0 && !is_relay_log)
   {
-    global_sid_lock.wrlock();
+    global_sid_lock->wrlock();
     if (init_gtid_sets(NULL,
-                       const_cast<Gtid_set *>(gtid_state.get_lost_gtids()),
+                       const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
                        opt_master_verify_checksum,
                        false/*false=don't need lock*/))
       goto err;
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
   }
 
   DBUG_EXECUTE_IF("crash_purge_critical_after_update_index", DBUG_SUICIDE(););
@@ -5280,13 +5280,13 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
-      global_sid_lock.rdlock();
-      if (gtid_state.update(thd, true) != RETURN_STATUS_OK)
+      global_sid_lock->rdlock();
+      if (gtid_state->update(thd, true) != RETURN_STATUS_OK)
       {
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
         goto err;
       }
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
     }
     update_thd_next_event_pos(thd);
   }

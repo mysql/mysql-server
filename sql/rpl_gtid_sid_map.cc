@@ -139,8 +139,8 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
           If this is the global_sid_map, we take the opportunity to
           resize all arrays in gtid_state while holding the wrlock.
         */
-        if (this != &global_sid_map ||
-            gtid_state.ensure_sidno() == RETURN_STATUS_OK)
+        if (this != global_sid_map ||
+            gtid_state->ensure_sidno() == RETURN_STATUS_OK)
 #endif
         {
           // We have added one element to the end of _sorted.  Now we

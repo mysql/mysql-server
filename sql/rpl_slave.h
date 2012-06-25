@@ -148,23 +148,23 @@ extern bool server_id_supplied;
       )
 
     start_slave:
-      mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock.wrlock
+      mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock->wrlock
 
     reset_logs:
-      LOCK_thread_count, .LOCK_log, .LOCK_index, global_sid_lock.wrlock
+      LOCK_thread_count, .LOCK_log, .LOCK_index, global_sid_lock->wrlock
 
     purge_relay_logs:
       rli.data_lock, (relay.reset_logs) LOCK_thread_count,
-      relay.LOCK_log, relay.LOCK_index, global_sid_lock.wrlock
+      relay.LOCK_log, relay.LOCK_index, global_sid_lock->wrlock
 
     reset_master:
       (binlog.reset_logs) LOCK_thread_count, binlog.LOCK_log,
-      binlog.LOCK_index, global_sid_lock.wrlock
+      binlog.LOCK_index, global_sid_lock->wrlock
 
     reset_slave:
       mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,
       LOCK_thread_count, relay.LOCK_log, relay.LOCK_index,
-      global_sid_lock.wrlock
+      global_sid_lock->wrlock
 
     purge_logs:
       .LOCK_index, LOCK_thread_count, thd.linfo.lock
@@ -186,12 +186,12 @@ extern bool server_id_supplied;
     MYSQL_BIN_LOG::new_file_impl:
       .LOCK_log, .LOCK_index,
       ( [ if binlog: LOCK_prep_xids ]
-      | global_sid_lock.wrlock
+      | global_sid_lock->wrlock
       )
 
     rotate_relay_log:
       (relay.new_file_impl) relay.LOCK_log, relay.LOCK_index,
-      global_sid_lock.wrlock
+      global_sid_lock->wrlock
 
     kill_zombie_dump_threads:
       LOCK_thread_count, thd.LOCK_thd_data
@@ -202,7 +202,7 @@ extern bool server_id_supplied;
     rli_init_info:
       rli.data_lock,
       ( relay.log_lock
-      | global_sid_lock.wrlock
+      | global_sid_lock->wrlock
       | (relay.open_binlog)
       | (init_relay_log_pos) rli.data_lock, relay.log_lock
       )
@@ -221,7 +221,7 @@ extern bool server_id_supplied;
             ( binlog.LOCK_log, binlog.LOCK_index
             | relay.LOCK_log, relay.LOCK_index
             ),
-            ( rli.log_space_lock | global_sid_lock.wrlock )
+            ( rli.log_space_lock | global_sid_lock->wrlock )
           | binlog.LOCK_log, binlog.LOCK_index, LOCK_prep_xids
           | thd.LOCK_data
           )

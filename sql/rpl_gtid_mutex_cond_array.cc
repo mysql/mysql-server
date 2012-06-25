@@ -80,8 +80,8 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
         Mutex_cond *mutex_cond= (Mutex_cond *)my_malloc(sizeof(Mutex_cond), MYF(MY_WME));
         if (mutex_cond == NULL)
           goto error;
-        mysql_mutex_init(0, &mutex_cond->mutex, NULL);
-        mysql_cond_init(0, &mutex_cond->cond, NULL);
+        mysql_mutex_init(key_gtid_ensure_index_mutex, &mutex_cond->mutex, NULL);
+        mysql_cond_init(key_gtid_ensure_index_cond, &mutex_cond->cond, NULL);
         insert_dynamic(&array, &mutex_cond);
         DBUG_ASSERT(&get_mutex_cond(i)->mutex == &mutex_cond->mutex);
       }
