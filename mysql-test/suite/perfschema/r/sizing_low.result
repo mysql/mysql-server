@@ -25,7 +25,7 @@ performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	1556
 performance_schema_max_mutex_classes	200
-performance_schema_max_mutex_instances	2500
+performance_schema_max_mutex_instances	2945
 performance_schema_max_rwlock_classes	30
 performance_schema_max_rwlock_instances	1612
 performance_schema_max_socket_classes	10
@@ -91,8 +91,8 @@ performance_schema	(pfs_file_class).row_size	320
 performance_schema	(pfs_file_class).row_count	50
 performance_schema	(pfs_file_class).memory	16000
 performance_schema	mutex_instances.row_size	128
-performance_schema	mutex_instances.row_count	2500
-performance_schema	mutex_instances.memory	320000
+performance_schema	mutex_instances.row_count	2945
+performance_schema	mutex_instances.memory	376960
 performance_schema	rwlock_instances.row_size	192
 performance_schema	rwlock_instances.row_count	1612
 performance_schema	rwlock_instances.memory	309504
@@ -220,4 +220,4 @@ performance_schema	(table_share_hash).count	83
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5
-performance_schema	performance_schema.memory	24384000
+performance_schema	performance_schema.memory	24440960

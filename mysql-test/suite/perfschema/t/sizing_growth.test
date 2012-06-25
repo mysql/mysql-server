@@ -370,8 +370,9 @@ show status like "performance_schema%";
 # This is very storage engine dependent
 # For innodb:
 # - wait/synch/mutex/innodb/autoinc_mutex
+# - wait/synch/mutex/innodb/os_mutex
 # 
-select @mutex_per_share <= 4;
+select @mutex_per_share <= 5;
 
 #
 # Expecting 1:
@@ -444,12 +445,12 @@ select @file_per_handle;
 # IMPORTANT NOTE:
 # when any measurement here changes, the heuristics
 # in storage/perfschema/pfs_autosize.cc need to be updated.
-# Note that this in turns imply to update the results for sizing_*,
-# which will lead to different estimations for automated sizing.
+# Note that this in turns will lead to different estimations for automated
+# sizing, and imply to update the results for sizing_*.
 #
 
 select if(
-      (@mutex_per_share <= 4)
+      (@mutex_per_share <= 5)
   AND (@rwlock_per_share <= 3)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
