@@ -63,6 +63,9 @@ enum Derivation
 #define my_charset_numeric      my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
+/* The length of the header part for each virtual column in the .frm file */
+#define FRM_VCOL_HEADER_SIZE(b) (3 + test(b))
+
 struct ha_field_option_struct;
 
 struct st_cache_field;

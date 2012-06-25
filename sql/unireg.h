@@ -161,9 +161,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 
 #define DEFAULT_KEY_CACHE_NAME "default"
 
-/* The length of the header part for each virtual column in the .frm file */
-#define FRM_VCOL_HEADER_SIZE(b) (3 + test(b))
-
 
 /* Include prototypes for unireg */
 
