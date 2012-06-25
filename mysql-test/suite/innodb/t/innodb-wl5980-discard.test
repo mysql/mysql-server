@@ -181,7 +181,7 @@ SELECT * FROM t5980;
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
@@ -193,7 +193,7 @@ DROP TABLE t5980;
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 SELECT path FROM information_schema.innodb_sys_datafiles
 	WHERE path LIKE '%test%' ORDER BY space;
 --echo ### files in MYSQL_DATA_DIR/test
@@ -353,7 +353,7 @@ SHOW CREATE TABLE t5980;
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
 	WHERE path LIKE '%test%' ORDER BY space;
