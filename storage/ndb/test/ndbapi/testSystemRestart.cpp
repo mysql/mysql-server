@@ -38,7 +38,7 @@ int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 int
 clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbBackup backup(GETNDB(step)->getNodeId());
+  NdbBackup backup;
   backup.clearOldBackups();
   return NDBT_OK;
 }
@@ -1391,7 +1391,7 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   int result = NDBT_OK;
   Uint32 loops = ctx->getNumLoops();
   NdbRestarter restarter;
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
 
@@ -1491,7 +1491,7 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 loops = ctx->getNumLoops();
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
   int error = (int)ctx->getProperty("ERROR", (unsigned)0);
@@ -1597,7 +1597,7 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 loops = ctx->getNumLoops();
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
   int error = (int)ctx->getProperty("ERROR", (unsigned)0);
