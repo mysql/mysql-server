@@ -2182,7 +2182,7 @@ Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
   req->requestInfo = 0;
   req->transId = c_schemaTransId;
   req->transKey = c_schemaTransKey;
-  req->buckets = 240;
+  req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
   req->fragments = 0;
   sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
 	     CreateHashMapReq::SignalLength, JBB);
