@@ -1065,6 +1065,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
+%attr(755, root, root) %{_bindir}/ndb_blob_tool
 %attr(755, root, root) %{_bindir}/ndb_config
 %attr(755, root, root) %{_bindir}/ndb_delete_all
 %attr(755, root, root) %{_bindir}/ndb_desc
