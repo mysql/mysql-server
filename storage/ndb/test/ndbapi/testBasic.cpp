@@ -3023,7 +3023,7 @@ runLeakApiConnectObjects(NDBT_Context* ctx, NDBT_Step* step)
 
   Ndb* const ndb = GETNDB(step);
   Uint32 maxTrans = 0;
-  NdbConfig conf(GETNDB(step)->getNodeId()+1);
+  NdbConfig conf;
   ASSERT_ALWAYS(conf.getProperty(conf.getMasterNodeId(),
                                  NODE_TYPE_DB,
                                  CFG_DB_NO_TRANSACTIONS,

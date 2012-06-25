@@ -26,8 +26,8 @@
 
 class NdbBackup : public NdbConfig {
 public:
-  NdbBackup(int _own_id, const char* _addr = 0) 
-    : NdbConfig(_own_id, _addr) {};
+  NdbBackup(const char* _addr = 0)
+    : NdbConfig(_addr) {};
 
   int start(unsigned & _backup_id,
 	    int flags = 2,
