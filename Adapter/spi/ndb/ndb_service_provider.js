@@ -35,12 +35,12 @@ var NdbDefaultConnectionProperties = {
 
 exports.getDefaultConnectionProperties = function() {
   return NdbDefaultConnectionProperties;
-}
+};
 
 
 exports.connectSync = function(properties) {
   var dbconn = new ndbconnection.DBConnection(properties);
   dbconn.connectSync();
   return dbconn;
-}
+};
 

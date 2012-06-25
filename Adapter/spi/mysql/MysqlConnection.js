@@ -51,20 +51,20 @@ function getDriverProperties(props) {
 exports.DBConnection = function(props) {
   driverproperties = getDriverProperties(props);
   dbconn = mysql.createConnection(driverproperties);
-}
+};
 
 
 exports.DBConnection.prototype.connectSync = function() {
   dbconn.connect();
   is_connected = 1;  // but what if connection failed? 
-}
+};
 
 exports.DBConnection.prototype.closeSync = function() {
   dbconn.end();
-}
+};
 
 exports.DBConnection.prototype.destroy = function() { };
 
 exports.DBConnection.prototype.isConnected = function() {
   return is_connected;
-}
+};

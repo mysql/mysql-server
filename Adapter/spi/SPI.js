@@ -24,4 +24,4 @@ exports.getDBServiceProvider = function(name) {
   var module = path.join(__dirname, name, name + "_service_provider.js");
   var spi = require(module);
   return spi;
-}
+};

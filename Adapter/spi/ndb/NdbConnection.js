@@ -43,7 +43,7 @@ exports.DBConnection = function(props) {
 
   ndbconn = new ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
   ndbconn.set_name("nodejs");
-}
+};
 
 
 /* Blocking connect.  
@@ -57,7 +57,7 @@ exports.DBConnection.prototype.connectSync = function() {
   if(r == 0) is_connected = true;
 
   return is_connected;
-}
+};
 
 
 /* DBConnection.isConnected() method.
@@ -66,5 +66,5 @@ exports.DBConnection.prototype.connectSync = function() {
  */
 exports.DBConnection.prototype.isConnected = function() {
   return is_connected;
-}
+};
 

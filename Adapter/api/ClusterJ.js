@@ -32,10 +32,10 @@ function spi_connect_sync(properties) {
 
 exports.Annotations = function() {
   return new Annotations();
-}
+};
 
 
 exports.ConnectionProperties = function(name) {
   var sp = spi.getDBServiceProvider(name);
   return sp.getDefaultConnectionProperties();
-}
+};

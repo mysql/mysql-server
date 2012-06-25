@@ -27,6 +27,6 @@ exports.isSubset = function(obj, dom) {
     if(obj.hasOwnProperty(k) && ! dom.hasOwnProperty(k)) 
       return false;
   return true;
-}
+};
 
 

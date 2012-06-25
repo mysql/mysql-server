@@ -24,12 +24,12 @@ var harness = require(global.test_harness_module);
 var t1 = new harness.Test("ndbProperties");
 t1.run = function() {
   var properties = new api.ConnectionProperties("ndb");
-}
+};
 
 var t2 = new harness.Test("Annotations");
 t2.run = function() {
   var annotations = new api.Annotations();
-}
+};
 
 
 var suite = new harness.Test("api").makeTestSuite();

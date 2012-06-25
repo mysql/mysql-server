@@ -29,18 +29,18 @@ var MysqlDefaultConnectionProperties = {
   "mysql_user"     : null,
   "mysql_password" : null,
   "mysql_socket"   : null,
-  "mysql_debug"    : false, 
+  "mysql_debug"    : false
 };
 
 
 exports.getDefaultConnectionProperties = function() {
   return MysqlDefaultConnectionProperties;
-}
+};
 
 
 exports.connectSync = function(properties) {
   var conn = new mysqlconnection.DBConnection(properties);
   conn.connectSync();
   return conn;
-}
+};
 

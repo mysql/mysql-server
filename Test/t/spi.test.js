@@ -26,13 +26,13 @@ var harness = require(global.test_harness_module);
 var getSPItest = function() { 
   var prov = spi.getDBServiceProvider(this.impl);
   assert(typeof prov.connectSync == 'function', "has no connectSync() method");
-}
+};
 
 /**** getDBServiceProvider and getDefaultConnectionProperties ***/
 var getPropertiesTest = function() {
   var provider = spi.getDBServiceProvider(this.impl);
   provider.getDefaultConnectionProperties();
-}
+};
 
 /**** Actually connect using the default properties.  
       Requires something to connect to. 
@@ -42,7 +42,7 @@ var connectSyncTest = function() {
   var properties = provider.getDefaultConnectionProperties();
   var conn = provider.connectSync(properties);
   assert(conn.isConnected(), "failed to connect");
-}  
+};
 
 
 /******************* TEST SUITES ********/

@@ -82,13 +82,13 @@ Test.prototype.test = function(result) {
   }
   this.teardown(); 
   result.listener.endTest(this);
-}
+};
 
-Test.prototype.isTest = function() { return true; }
-Test.prototype.isFatal = function() { return false; }
+Test.prototype.isTest = function() { return true; };
+Test.prototype.isFatal = function() { return false; };
 Test.prototype.setFatal = function() { 
-  this.isFatal = function() { return true; }
-}
+  this.isFatal = function() { return true; };
+};
 Test.prototype.setup = function() {};
 Test.prototype.teardown = function() {};
 
@@ -96,22 +96,22 @@ Test.prototype.run = function() {
   throw {
     "name" : "unimplementedTest",
     "message" : "this test does not have a run() method"
-  }
-}
+  };
+};
 
 Test.prototype.makeTestSuite = function() {
   var tests = [];  // private!
   this.addTest = function(t) { 
     tests.push(t);
     t.name = this.name + "." + t.name;
-  }     
+  };
   this.test = function(result) {
     for(var i = 0; i < tests.length ; i++) {
       tests[i].test(result);
     }
-  }
+  };
   return this;
-}
+};
 
 
 /* Listener
@@ -123,10 +123,10 @@ Listener.prototype.startTest = function(t) {};
 Listener.prototype.endTest = function(t) {};
 Listener.prototype.pass = function(t) {
   console.log("[pass]", t.name );
-}
+};
 Listener.prototype.fail = function(t, e) {
   console.log("[FAIL]", t.name, "\t", e.message);
-}
+};
 
 
 
@@ -140,12 +140,12 @@ function Result() {
 Result.prototype.pass = function(t) {
   this.passed.push(t.name);
   this.listener.pass(t);
-}
+};
 
 Result.prototype.fail = function(t, e) {
   this.failed.push(t.name);
   this.listener.fail(t, e);
-}
+};
 
 
 /* Exports from this module */

@@ -9,7 +9,7 @@ def set_options(opt):
 
 def configure(conf):
   import Options
-  ndbinclude = Options.options.mysql + "include/storage/ndb"
+  ndbinclude = Options.options.mysql + "include/mysql/storage/ndb"
   
   conf.check_tool('compiler_cxx')
   conf.check_tool('node_addon')
@@ -17,13 +17,12 @@ def configure(conf):
   conf.env.append_unique('CXXFLAGS', "-I../../../../tie/include")
   conf.env.append_unique('CXXFLAGS', ["-I" + ndbinclude])
   conf.env.append_unique('CXXFLAGS', ["-I" + ndbinclude + "/ndbapi"])
-  conf.env.append_unique('LINKFLAGS', ['-L' + Options.options.mysql + 'lib'])
+  conf.env.append_unique('LINKFLAGS', ['-L' + Options.options.mysql + 'lib/mysql'])
   conf.env.append_unique('LINKFLAGS', ['-lndbclient'])
-  conf.env.append_unique('LINKFLAGS', ['-rpath ' + Options.options.mysql + 'lib'])
+  conf.env.append_unique('LINKFLAGS', ['-rpath ' + Options.options.mysql + 'lib/mysql'])
 
 
 def build(bld):
   obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
   obj.target = 'ndbapi'
   obj.source = "node_module.cpp Ndb_init_wrapper.cpp Ndb_cluster_connection_wrapper.cpp"
-  

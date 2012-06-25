@@ -30,6 +30,6 @@ t.run = function() {
   var module_path = path.join(global.adapter,"spi","ndb","tie",
                               "build","Release","ndbapi.node");
   var ndbapi = require(module_path);
-}
+};
 
 module.exports = t;
