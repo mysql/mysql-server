@@ -20,28 +20,23 @@ typedef struct le_cursor *LE_CURSOR;
 // Create a leaf cursor for a tree (brt) within a transaction (txn)
 // Success: returns 0, stores the LE_CURSOR in the le_cursor_result
 // Failure: returns a non-zero error number
-int le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN txn);
+int toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN txn);
 
 // Close and free the LE_CURSOR
 // Success: returns 0
 // Failure: returns a non-zero error number
-int le_cursor_close(LE_CURSOR le_cursor);
+int toku_le_cursor_close(LE_CURSOR le_cursor);
 
 // Retrieve the next leaf entry under the LE_CURSOR
 // Success: returns zero, stores the leaf entry key into the key dbt, and the leaf entry into the val dbt
 // Failure: returns a non-zero error number
-int le_cursor_next(LE_CURSOR le_cursor, DBT *le);
+int toku_le_cursor_next(LE_CURSOR le_cursor, DBT *le);
 
-// Return TRUE if the key is to the right of the LE_CURSOR position
-// Otherwise returns FALSE when the key is at or to the left of the LE_CURSOR position
+// Return TRUE if the key is to the right of the LE_CURSOR position. that is, current cursor key < given key
+// Otherwise returns FALSE when the key is at or to the left of the LE_CURSOR position. that is, current cursor key >= given key
 // The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns TRUE.
 // When the cursor runs off the right edge of the tree, the LE_CURSOR position is set to +infinity.  Any key comparision with +infinity
 // returns FALSE.
-// TODO: review the DB parameter. it probably makes sense to get rid of it
-// to reduce complexity. instead, we can get the descriptor from:
-// lecursor->ftcursor->ft_handle->h->desc
-// or:
-// some flavor of toku_ft_get_desc() etc
-BOOL is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, DB *keycompare_db);
+bool toku_le_cursor_is_key_greater(LE_CURSOR le_cursor, const DBT *key);
 
 #endif

@@ -3,7 +3,7 @@
 #ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
-// test the LE_CURSOR is_key_right_of_le_cursor function
+// test the LE_CURSOR toku_le_cursor_is_key_greater function
 // - LE_CURSOR at neg infinity
 // - LE_CURSOR at pos infinity
 // - LE_CURSOR somewhere else
@@ -85,7 +85,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 }
 
-// test is_key_right_of_le_cursor when the LE_CURSOR is positioned at -infinity
+// test toku_le_cursor_is_key_greater when the LE_CURSOR is positioned at -infinity
 static void 
 test_neg_infinity(const char *fname, int n) {
     if (verbose) fprintf(stderr, "%s %s %d\n", __FUNCTION__, fname, n);
@@ -101,18 +101,18 @@ test_neg_infinity(const char *fname, int n) {
 
     // position the cursor at -infinity
     LE_CURSOR cursor = NULL;
-    error = le_cursor_create(&cursor, brt, NULL);
+    error = toku_le_cursor_create(&cursor, brt, NULL);
     assert(error == 0);
 
     for (int i = 0; i < 2*n; i++) {
         int k = toku_htonl(i);
         DBT key;
         toku_fill_dbt(&key, &k, sizeof k);
-        int right = is_key_right_of_le_cursor(cursor, &key, null_db);
+        int right = toku_le_cursor_is_key_greater(cursor, &key);
         assert(right == TRUE);
     }
         
-    error = le_cursor_close(cursor);
+    error = toku_le_cursor_close(cursor);
     assert(error == 0);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
@@ -122,7 +122,7 @@ test_neg_infinity(const char *fname, int n) {
     assert(error == 0);
 }
 
-// test is_key_right_of_le_cursor when the LE_CURSOR is positioned at +infinity
+// test toku_le_cursor_is_key_greater when the LE_CURSOR is positioned at +infinity
 static void 
 test_pos_infinity(const char *fname, int n) {
     if (verbose) fprintf(stderr, "%s %s %d\n", __FUNCTION__, fname, n);
@@ -138,7 +138,7 @@ test_pos_infinity(const char *fname, int n) {
 
     // position the LE_CURSOR at +infinity
     LE_CURSOR cursor = NULL;
-    error = le_cursor_create(&cursor, brt, NULL);
+    error = toku_le_cursor_create(&cursor, brt, NULL);
     assert(error == 0);
 
     DBT key;
@@ -148,7 +148,7 @@ test_pos_infinity(const char *fname, int n) {
 
     int i;
     for (i = 0; ; i++) {
-        error = le_cursor_next(cursor, &val);
+        error = toku_le_cursor_next(cursor, &val);
         if (error != 0) 
             break;
         
@@ -169,11 +169,11 @@ test_pos_infinity(const char *fname, int n) {
         int k = toku_htonl(i);
         DBT key2;
         toku_fill_dbt(&key2, &k, sizeof k);
-        int right = is_key_right_of_le_cursor(cursor, &key2, null_db);
+        int right = toku_le_cursor_is_key_greater(cursor, &key2);
         assert(right == FALSE);
     }
 
-    error = le_cursor_close(cursor);
+    error = toku_le_cursor_close(cursor);
     assert(error == 0);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
@@ -183,7 +183,7 @@ test_pos_infinity(const char *fname, int n) {
     assert(error == 0);
 }
 
-// test is_key_right_of_le_cursor when the LE_CURSOR is positioned in between -infinity and +infinity
+// test toku_le_cursor_is_key_greater when the LE_CURSOR is positioned in between -infinity and +infinity
 static void 
 test_between(const char *fname, int n) {
     if (verbose) fprintf(stderr, "%s %s %d\n", __FUNCTION__, fname, n);
@@ -199,7 +199,7 @@ test_between(const char *fname, int n) {
 
     // position the LE_CURSOR at +infinity
     LE_CURSOR cursor = NULL;
-    error = le_cursor_create(&cursor, brt, NULL);
+    error = toku_le_cursor_create(&cursor, brt, NULL);
     assert(error == 0);
 
     DBT key;
@@ -210,7 +210,7 @@ test_between(const char *fname, int n) {
     int i;
     for (i = 0; ; i++) {
         // move the LE_CURSOR forward
-        error = le_cursor_next(cursor, &val);
+        error = toku_le_cursor_next(cursor, &val);
         if (error != 0) 
             break;
         
@@ -226,7 +226,7 @@ test_between(const char *fname, int n) {
             int k = toku_htonl(j);
             DBT key2;
             toku_fill_dbt(&key2, &k, sizeof k);
-            int right = is_key_right_of_le_cursor(cursor, &key2, null_db);
+            int right = toku_le_cursor_is_key_greater(cursor, &key2);
             assert(right == FALSE);
         }
 
@@ -235,7 +235,7 @@ test_between(const char *fname, int n) {
             int k = toku_htonl(j);
             DBT key2;
             toku_fill_dbt(&key2, &k, sizeof k);
-            int right = is_key_right_of_le_cursor(cursor, &key2, null_db);
+            int right = toku_le_cursor_is_key_greater(cursor, &key2);
             assert(right == TRUE);
         }
 
@@ -245,7 +245,7 @@ test_between(const char *fname, int n) {
     toku_destroy_dbt(&key);
     toku_destroy_dbt(&val);
 
-    error = le_cursor_close(cursor);
+    error = toku_le_cursor_close(cursor);
     assert(error == 0);
 
     error = toku_close_ft_handle_nolsn(brt, 0);

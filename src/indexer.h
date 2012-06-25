@@ -66,9 +66,9 @@ int toku_indexer_set_error_callback(DB_INDEXER *indexer,
                                     void *error_extra);
 
 // Is the key right of the indexer's leaf entry cursor?
-// Returns TRUE  if right of le_cursor
-// Returns FALSE if left or equal to le_cursor
-BOOL toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, DB *db, const DBT *key);
+// Returns true  if right of le_cursor
+// Returns false if left or equal to le_cursor
+bool toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key);
 
 // Get the indexer's source db
 DB *toku_indexer_get_src_db(DB_INDEXER *indexer);
@@ -92,7 +92,7 @@ typedef enum {
 } indexer_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[INDEXER_STATUS_NUM_ROWS];
 } INDEXER_STATUS_S, *INDEXER_STATUS;
 
