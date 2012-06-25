@@ -5691,8 +5691,6 @@ static bool fill_alter_inplace_info(THD *thd,
   {
     table_key= *dropped_key;
 
-    DBUG_PRINT("info", ("Found dropped index %s", table_key->name));
-
     if (table_key->flags & HA_NOSAME)
     {
       /*
@@ -5719,8 +5717,6 @@ static bool fill_alter_inplace_info(THD *thd,
   for (uint add_key_idx= 0; add_key_idx < ha_alter_info->index_add_count; add_key_idx++)
   {
     new_key= ha_alter_info->key_info_buffer + ha_alter_info->index_add_buffer[add_key_idx];
-    
-    DBUG_PRINT("info", ("Found added index %s", new_key->name));
 
     if (new_key->flags & HA_NOSAME)
     {
