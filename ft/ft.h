@@ -102,4 +102,12 @@ void toku_ft_remove_reference(FT ft,
                               bool oplsn_valid, LSN oplsn,
                               remove_ft_ref_callback remove_ref, void *extra);
 
+void toku_ft_set_nodesize(FT ft, unsigned int nodesize);
+void toku_ft_get_nodesize(FT ft, unsigned int *nodesize);
+void toku_ft_set_basementnodesize(FT ft, unsigned int basementnodesize);
+void toku_ft_get_basementnodesize(FT ft, unsigned int *basementnodesize);
+void toku_ft_set_compression_method(FT ft, enum toku_compression_method method);
+void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp);
+
+
 #endif

@@ -665,12 +665,9 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
     assert_zero(r);
     r = toku_ft_set_update(t, old_h->update_fun);
     assert_zero(r);
-    r = toku_ft_set_nodesize(t, old_h->h->nodesize);
-    assert_zero(r);
-    r = toku_ft_set_basementnodesize(t, old_h->h->basementnodesize);
-    assert_zero(r);
-    r = toku_ft_set_compression_method(t, old_h->h->compression_method);
-    assert_zero(r);
+    toku_ft_handle_set_nodesize(t, old_h->h->nodesize);
+    toku_ft_handle_set_basementnodesize(t, old_h->h->basementnodesize);
+    toku_ft_handle_set_compression_method(t, old_h->h->compression_method);
     CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
     r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
     assert_zero(r);
@@ -1013,4 +1010,44 @@ toku_ft_remove_reference(FT ft, bool oplsn_valid, LSN oplsn, remove_ft_ref_callb
         toku_ft_release_reflock(ft);
     }
 }
+
+void toku_ft_set_nodesize(FT ft, unsigned int nodesize) {
+    toku_ft_lock(ft);
+    ft->h->nodesize = nodesize;
+    ft->h->dirty = 1;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_get_nodesize(FT ft, unsigned int *nodesize) {
+    toku_ft_lock(ft);
+    *nodesize = ft->h->nodesize;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_set_basementnodesize(FT ft, unsigned int basementnodesize) {
+    toku_ft_lock(ft);
+    ft->h->basementnodesize = basementnodesize;
+    ft->h->dirty = 1;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_get_basementnodesize(FT ft, unsigned int *basementnodesize) {
+    toku_ft_lock(ft);
+    *basementnodesize = ft->h->basementnodesize;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_set_compression_method(FT ft, enum toku_compression_method method) {
+    toku_ft_lock(ft);
+    ft->h->compression_method = method;
+    ft->h->dirty = 1;
+    toku_ft_unlock(ft);
+}
+
+void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp) {
+    toku_ft_lock(ft);
+    *methodp = ft->h->compression_method;
+    toku_ft_unlock(ft);
+}
+
 
