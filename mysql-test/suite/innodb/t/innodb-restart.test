@@ -153,7 +153,7 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name like 'test%';
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -211,7 +211,7 @@ SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name like 'test%';
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
