@@ -73,6 +73,8 @@ else ()
     set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -ip -ipo1")
   endif ()
 endif ()
+## but we do want -DNVALGRIND
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELEASE NVALGRIND=1)
 
 if (CMAKE_C_COMPILER_ID MATCHES Intel)
   ## make sure intel libs are linked statically
