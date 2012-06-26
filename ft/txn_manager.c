@@ -599,7 +599,6 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
 
         //Free memory used for live root txns local list
         invariant(toku_omt_size(txn->live_root_txn_list) > 0);
-        toku_omt_destroy(&txn->live_root_txn_list);
     }
 
     if (txn->parent==NULL) {
@@ -662,6 +661,12 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         verify_snapshot_system(txn_manager);
     }
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
+
+    //Cleanup that does not require the txn_manager lock
+    if (is_snapshot) {
+        invariant(txn->live_root_txn_list != NULL);
+        toku_omt_destroy(&txn->live_root_txn_list);
+    }
 }
 
 void toku_txn_manager_clone_state_for_gc(
