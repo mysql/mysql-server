@@ -1,4 +1,4 @@
-#if MYSQL_VERSION_ID < 50500
+#if TOKU_INCLUDE_ALTER_51
 
 volatile int ha_tokudb_add_index_wait = 0;
 
