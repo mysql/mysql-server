@@ -27,6 +27,8 @@
 
 #define DEBUG_NEXT_RESULT 0
 
+static const int Err_scanAlreadyComplete = 4120;
+
 NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
   NdbOperation(aNdb, aType),
   m_transConnection(NULL)
@@ -1883,6 +1885,15 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
 
   if(theError.code)
   {
+    if (theError.code == Err_scanAlreadyComplete)
+    {
+      /**
+       * The scan is already complete. There must be a bug in the api 
+       * application such that is calls nextResult()/nextResultNdbRecord() 
+       * again after getting return value 1 (meaning end of scan).
+       */
+      return -1;
+    }
     goto err4;
   }
 
@@ -1928,8 +1939,9 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
       {
         /**
          * No completed & no sent -> EndOfData
+         * Make sure user gets error if he tries again.
          */
-        theError.code= -1; // make sure user gets error if he tries again
+        theError.code= Err_scanAlreadyComplete;
         return 1;
       }
 
@@ -3677,7 +3689,7 @@ NdbIndexScanOperation::next_result_ordered_ndbrecord(const char * & out_row,
   }
   else
   {
-    theError.code= -1;
+    theError.code= Err_scanAlreadyComplete;
     return 1;                                   // End-of-file
   }
 }
