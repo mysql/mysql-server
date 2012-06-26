@@ -177,49 +177,6 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     return result;
 }
 
-static void fill_prov_info(
-    ULEHANDLE ule,
-    TXNID* prov_ids,
-    TOKUTXN_STATE* prov_states,
-    TOKUTXN* prov_txns,
-    DB_INDEXER *indexer
-    )
-{
-    uint32_t num_provisional = ule_get_num_provisional(ule);
-    uint32_t num_committed = ule_get_num_committed(ule);
-    DB_ENV *env = indexer->i->env;
-    TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
-    toku_txn_manager_suspend(txn_manager);
-    for (uint32_t i = 0; i < num_provisional; i++) {
-        UXRHANDLE uxr = ule_get_uxr(ule, num_committed+i);
-        prov_ids[i] = uxr_get_txnid(uxr);
-        if (indexer->i->test_xid_state) {
-            prov_states[i] = indexer->i->test_xid_state(indexer, prov_ids[i]);
-            prov_txns[i] = NULL;
-        }
-        else {
-            TOKUTXN txn = NULL;
-            toku_txn_manager_id2txn_unlocked(
-                txn_manager, 
-                prov_ids[i], 
-                &txn
-                );
-            prov_txns[i] = txn;
-            if (txn) {
-                prov_states[i] = toku_txn_get_state(txn);
-                if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
-                    // pin
-                    toku_txn_manager_pin_live_txn_unlocked(txn_manager, txn);
-                }
-            }
-            else {
-                prov_states[i] = TOKUTXN_RETIRED;
-            }
-        }
-    }
-    toku_txn_manager_resume(txn_manager);
-}
-
 static void release_txns(
     ULEHANDLE ule,
     TOKUTXN_STATE* prov_states,
@@ -255,24 +212,24 @@ exit:
 }
 
 static int
-indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
+indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info) {
     int result = 0;
-    uint32_t num_committed = ule_get_num_committed(ule);
-    uint32_t num_provisional = ule_get_num_provisional(ule);
     indexer_commit_keys_set_empty(&indexer->i->commit_keys);
 
     // init the xids to the root xid
     XIDS xids = xids_get_root_xids();
 
-    TXNID prov_ids[num_provisional];
-    TOKUTXN_STATE prov_states[num_provisional];
-    TOKUTXN prov_txns[num_provisional];
-    memset(prov_txns, 0, sizeof(prov_txns));
+    uint32_t num_provisional = prov_info->num_provisional;
+    uint32_t num_committed = prov_info->num_committed;
+    TXNID *prov_ids = prov_info->prov_ids;
+    TOKUTXN *prov_txns = prov_info->prov_txns;
+    TOKUTXN_STATE *prov_states = prov_info->prov_states;
+
+    // nothing to do if there's nothing provisional
     if (num_provisional == 0) {
         goto exit;
     }
 
-    fill_prov_info(ule, prov_ids, prov_states, prov_txns, indexer);
     TXNID outermost_xid_state = prov_states[0];
     
     // scan the provisional stack from the outermost to the innermost transaction record
@@ -407,13 +364,14 @@ exit:
 }
 
 int
-indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
+indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info) {
     int result = indexer_undo_do_committed(indexer, hotdb, ule);
-    if (result == 0)
-        result = indexer_undo_do_provisional(indexer, hotdb, ule);
-        
-    if ( indexer->i->test_only_flags == INDEXER_TEST_ONLY_ERROR_CALLBACK ) 
+    if (result == 0) {
+        result = indexer_undo_do_provisional(indexer, hotdb, ule, prov_info);
+    }
+    if (indexer->i->test_only_flags == INDEXER_TEST_ONLY_ERROR_CALLBACK)  {
         result = EINVAL;
+    }
 
     return result;
 }

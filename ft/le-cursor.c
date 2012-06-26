@@ -13,8 +13,6 @@
 //  - does not perform snapshot reads. it reads everything, including uncommitted.
 //
 // A LE_CURSOR is good for scanning a FT from beginning to end. Useful for hot indexing.
-//
-// It caches the key that is was last positioned over to speed up key comparisions.
 
 struct le_cursor {
     // TODO: remove DBs from the ft layer comparison function 
@@ -22,26 +20,22 @@ struct le_cursor {
     // use a fake db for comparisons. 
     struct __toku_db fake_db;
     FT_CURSOR ft_cursor;
-    DBT key;           // the key that the le cursor is positioned at
-                       // TODO a better implementation would fetch the key from the brt cursor 
     bool neg_infinity; // true when the le cursor is positioned at -infinity (initial setting)
     bool pos_infinity; // true when the le cursor is positioned at +infinity (when _next returns DB_NOTFOUND)
 };
 
 int 
-toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN txn) {
+toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE ft_handle, TOKUTXN txn) {
     int result = 0;
     LE_CURSOR le_cursor = (LE_CURSOR) toku_malloc(sizeof (struct le_cursor));
     if (le_cursor == NULL) {
         result = errno;
     }
     else {
-        result = toku_ft_cursor(brt, &le_cursor->ft_cursor, txn, false, false);
+        result = toku_ft_cursor(ft_handle, &le_cursor->ft_cursor, txn, false, false);
         if (result == 0) {
-            // TODO move the leaf mode to the brt cursor constructor
+            // TODO move the leaf mode to the ft cursor constructor
             toku_ft_cursor_set_leaf_mode(le_cursor->ft_cursor);
-            toku_init_dbt(&le_cursor->key); 
-            le_cursor->key.flags = DB_DBT_REALLOC;
             le_cursor->neg_infinity = true;
             le_cursor->pos_infinity = false;
             // zero out the fake DB. this is a rare operation so it's not too slow.
@@ -61,45 +55,25 @@ toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE brt, TOKUTXN txn) {
 int 
 toku_le_cursor_close(LE_CURSOR le_cursor) {
     int result = toku_ft_cursor_close(le_cursor->ft_cursor);
-    toku_destroy_dbt(&le_cursor->key);
     toku_free(le_cursor);
     return result;
 }
 
-// this implementation copies the key and leafentry into the supplied DBTs.
-// this may be too slow.  an alternative implementation could avoid copying the
-// key by fetching the key from the brt cursor, and could avoid copying the leaf entry
-// by processing the leaf entry in the brt cursor callback.
-
-struct le_cursor_callback_arg {
-    DBT *key, *val;
-};
-
-// copy the key and the leaf entry to the given DBTs
-static int
-le_cursor_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
-    if (lock_only) {
-        ; // do nothing
-    } else {
-        struct le_cursor_callback_arg *arg = (struct le_cursor_callback_arg *) v;
-        toku_dbt_set(keylen, key, arg->key, NULL);
-        toku_dbt_set(vallen, val, arg->val, NULL);
-    }
-    return 0;
-}
-
+// Move to the next leaf entry under the LE_CURSOR
+// Success: returns zero, calls the getf callback with the getf_v parameter
+// Failure: returns a non-zero error number
 int 
-toku_le_cursor_next(LE_CURSOR le_cursor, DBT *le) {
+toku_le_cursor_next(LE_CURSOR le_cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v) {
     int result;
-    if (le_cursor->pos_infinity)
+    if (le_cursor->pos_infinity) {
         result = DB_NOTFOUND;
-    else {
+    } else {
         le_cursor->neg_infinity = false;
-        struct le_cursor_callback_arg arg = { &le_cursor->key, le };
-        // TODO replace this with a non deprecated function
-        result = toku_ft_cursor_get(le_cursor->ft_cursor, NULL, le_cursor_callback, &arg, DB_NEXT);
-        if (result == DB_NOTFOUND)
+        // TODO replace this with a non deprecated function. Which?
+        result = toku_ft_cursor_get(le_cursor->ft_cursor, NULL, getf, getf_v, DB_NEXT);
+        if (result == DB_NOTFOUND) {
             le_cursor->pos_infinity = true;
+        }
     }
     return result;
 }
@@ -115,9 +89,10 @@ toku_le_cursor_is_key_greater(LE_CURSOR le_cursor, const DBT *key) {
         // get the comparison function and descriptor from the cursor's ft
         FT_HANDLE ft_handle = le_cursor->ft_cursor->ft_handle;
         ft_compare_func keycompare = toku_ft_get_bt_compare(ft_handle);
-        // store the descriptor in the fake DB to do a key comparison
         le_cursor->fake_db.cmp_descriptor = toku_ft_get_cmp_descriptor(ft_handle);
-        int r = keycompare(&le_cursor->fake_db, &le_cursor->key, key);
+        // get the current position from the cursor and compare it to the given key.
+        DBT *cursor_key = &le_cursor->ft_cursor->key;
+        int r = keycompare(&le_cursor->fake_db, cursor_key, key);
         if (r < 0) {
             result = true;  // key is right of the cursor key
         } else {

@@ -23,6 +23,19 @@ struct indexer_commit_keys {
     DBT *keys;           // the variable length keys array
 };
 
+// a ule and all of its provisional txn info
+// used by the undo-do algorithm to gather up ule provisional info in
+// a cursor callback that provides exclusive access to the source DB
+// with respect to txn commit and abort
+struct ule_prov_info {
+    ULEHANDLE ule;
+    uint32_t num_provisional;
+    uint32_t num_committed;
+    TXNID *prov_ids;
+    TOKUTXN *prov_txns;
+    TOKUTXN_STATE *prov_states;
+};
+
 struct __toku_indexer_internal {
     DB_ENV *env;
     DB_TXN *txn;    
@@ -63,6 +76,6 @@ void indexer_undo_do_init(DB_INDEXER *indexer);
 
 void indexer_undo_do_destroy(DB_INDEXER *indexer);
 
-int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule);
+int indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struct ule_prov_info *prov_info);
 
 #endif
