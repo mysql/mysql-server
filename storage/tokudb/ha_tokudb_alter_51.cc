@@ -542,10 +542,16 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
                                 alter_flags->is_set(HA_DROP_UNIQUE_INDEX) ||
                                 alter_flags->is_set(HA_ADD_INDEX) ||
                                 alter_flags->is_set(HA_ADD_UNIQUE_INDEX);
+    
+    // Check if the row format (read: compression) has 
+    // changed as part of this alter statment.
+    bool has_row_format_changes = alter_flags->is_set(HA_ALTER_ROW_FORMAT);
+    
     bool has_non_indexing_changes = false;
     bool has_non_dropped_changes = false;
     bool has_non_added_changes = false;
     bool has_non_column_rename_changes = false;
+    bool has_non_row_format_changes = false;
     bool has_non_auto_inc_change = alter_has_other_flag_set(alter_flags, HA_CHANGE_AUTOINCREMENT_VALUE);
 
     for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
@@ -595,6 +601,16 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
         }
         if (alter_flags->is_set(i)) {
             has_non_added_changes = true;
+            break;
+        }
+    }
+    // See if any flags other than row format have been set.
+    for (uint i = 0; i < HA_MAX_ALTER_FLAGS; i++) {
+        if (i == HA_ALTER_ROW_FORMAT) {
+            continue;
+        }
+        if (alter_flags->is_set(i)) {
+            has_non_row_format_changes = true;
             break;
         }
     }
@@ -681,6 +697,9 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
     else if (has_added_columns && !has_non_added_changes) {
+        retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
+    }
+    else if (has_row_format_changes && !has_non_row_format_changes) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
     else if (has_auto_inc_change && !has_non_auto_inc_change) {
@@ -1131,6 +1150,7 @@ ha_tokudb::alter_table_phase2(
     bool modified_DBs = false;
     bool has_dropped_columns = alter_flags->is_set(HA_DROP_COLUMN);
     bool has_added_columns = alter_flags->is_set(HA_ADD_COLUMN);
+    bool has_row_format_changes = alter_flags->is_set(HA_ALTER_ROW_FORMAT);
     KEY_AND_COL_INFO altered_kc_info;
     memset(&altered_kc_info, 0, sizeof(altered_kc_info));
     u_int32_t max_new_desc_size = 0;
@@ -1328,6 +1348,23 @@ ha_tokudb::alter_table_phase2(
                 if (error) { goto cleanup; }
             }
         }
+    }
+    
+    // Check if compression type has been altered.
+    if (has_row_format_changes) {
+        // Determine the new compression type.
+        enum toku_compression_method method = TOKU_NO_COMPRESSION;
+        method = row_type_to_compression_method(create_info->row_type);
+
+        // Set the new type.
+        u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+	for (u_int32_t i = 0; i < curr_num_DBs; ++i) {
+	  DB *db = share->key_file[i];
+	  error = db->change_compression_method(db, method);
+	  if (error) {
+            goto cleanup;
+	  }
+	}
     }
 
     // update frm file    
