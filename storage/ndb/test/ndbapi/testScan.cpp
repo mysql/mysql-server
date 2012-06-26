@@ -1721,7 +1721,8 @@ runExtraNextResult(NDBT_Context* ctx, NDBT_Step* step)
     }
     
     // Do a random numer of scans in this transaction.
-    for (Uint32 j=0; j < random()%4; j++)
+    const int scanCount = rand()%4;
+    for (int j=0; j < scanCount; j++)
     {
       NdbScanOperation* const scan = trans->getNdbScanOperation(pTab);
       if (scan == NULL)
