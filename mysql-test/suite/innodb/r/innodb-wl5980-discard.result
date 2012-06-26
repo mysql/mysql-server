@@ -214,11 +214,13 @@ a	b	c
 # Show that the system tables have this table in them correctly.
 #
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables
+WHERE name LIKE 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/t5980	6	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY space;
 name	file_format	row_format
 test/t5980	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -230,10 +232,12 @@ MYSQL_TMP_DIR/alt_dir/test/t5980.ibd
 #
 DROP TABLE t5980;
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables
+WHERE name LIKE 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY space;
 name	file_format	row_format
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
@@ -446,11 +450,13 @@ t5980	CREATE TABLE `t5980` (
 # Show that the system tables have this table in them correctly.
 #
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables
+WHERE name LIKE 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/t5980	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY space;
 name	file_format	row_format
 test/t5980	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles

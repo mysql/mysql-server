@@ -150,10 +150,12 @@ SELECT count(*) FROM t7;
 --echo #
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name like 'test%';
+       FROM information_schema.innodb_sys_tables
+       WHERE name like 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -206,12 +208,17 @@ SELECT count(*) FROM t5;
 SELECT count(*) FROM t6;
 SELECT count(*) FROM t7;
 
+--echo #
+--echo # Show these tables in information_schema.
+--echo #
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name like 'test%';
+       FROM information_schema.innodb_sys_tables
+       WHERE name like 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY name;
 --replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --replace_result ./ MYSQL_DATA_DIR/  $MYSQL_DATA_DIR MYSQL_DATA_DIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles

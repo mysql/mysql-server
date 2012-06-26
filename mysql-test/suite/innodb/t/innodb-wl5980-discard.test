@@ -179,9 +179,11 @@ SELECT * FROM t5980;
 --echo # Show that the system tables have this table in them correctly.
 --echo #
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables
+       WHERE name LIKE 'test%' ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY space;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
@@ -191,11 +193,14 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo #
 DROP TABLE t5980;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables
+       WHERE name LIKE 'test%' ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY space;
 SELECT path FROM information_schema.innodb_sys_datafiles
-	WHERE path LIKE '%test%' ORDER BY space;
+       WHERE path LIKE '%test%' ORDER BY space;
+
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
 --echo ### files in MYSQL_TMP_DIR/alt_dir/test
@@ -351,12 +356,14 @@ SHOW CREATE TABLE t5980;
 --echo # Show that the system tables have this table in them correctly.
 --echo #
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables
+       WHERE name LIKE 'test%' ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY space;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
-	WHERE path LIKE '%test%' ORDER BY space;
+       WHERE path LIKE '%test%' ORDER BY space;
 
 --echo #
 --echo # Cleanup
