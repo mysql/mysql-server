@@ -59,7 +59,8 @@ SELECT name, n_cols, file_format, row_format
        FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
        WHERE space > 0 ORDER BY table_id;
 SELECT name, file_format, row_format
-       FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+       FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+       WHERE name LIKE 'test%' ORDER BY space;
 --replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
 SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
        WHERE path LIKE '%test%' ORDER BY space;
