@@ -245,14 +245,8 @@ env_fs_redzone(DB_ENV *env, uint64_t total) {
 // Check the available space in the file systems used by tokudb and erect barriers when available space gets low.
 static int
 env_fs_poller(void *arg) {
-    if (0) printf("%s:%d %p\n", __FUNCTION__, __LINE__, arg);
- 
     DB_ENV *env = (DB_ENV *) arg;
     int r;
-#if 0
-    // get the cachetable size limit (not yet needed)
-    uint64_t cs = toku_cachetable_get_size_limit(env->i->cachetable);
-#endif
 
     int in_yellow; // set true to issue warning to user
     int in_red;    // set true to prevent certain operations (returning ENOSPC)
@@ -261,15 +255,13 @@ env_fs_poller(void *arg) {
     uint64_t avail_size, total_size;
     r = toku_get_filesystem_sizes(env->i->dir, &avail_size, NULL, &total_size);
     assert(r == 0);
-    if (0) fprintf(stderr, "%s %"PRIu64" %"PRIu64"\n", env->i->dir, avail_size, total_size);
     in_yellow = (avail_size < 2 * env_fs_redzone(env, total_size));
     in_red = (avail_size < env_fs_redzone(env, total_size));
-    
+
     // get the fs sizes for the data dir if different than the home dir
     if (strcmp(env->i->dir, env->i->real_data_dir) != 0) {
         r = toku_get_filesystem_sizes(env->i->real_data_dir, &avail_size, NULL, &total_size);
         assert(r == 0);
-        if (0) fprintf(stderr, "%s %"PRIu64" %"PRIu64"\n", env->i->real_data_dir, avail_size, total_size);
         in_yellow += (avail_size < 2 * env_fs_redzone(env, total_size));
         in_red += (avail_size < env_fs_redzone(env, total_size));
     }
@@ -278,12 +270,11 @@ env_fs_poller(void *arg) {
     if (strcmp(env->i->dir, env->i->real_log_dir) != 0 && strcmp(env->i->real_data_dir, env->i->real_log_dir) != 0) {
         r = toku_get_filesystem_sizes(env->i->real_log_dir, &avail_size, NULL, &total_size);
         assert(r == 0);
-        if (0) fprintf(stderr, "%s %"PRIu64" %"PRIu64"\n", env->i->real_log_dir, avail_size, total_size);
         in_yellow += (avail_size < 2 * env_fs_redzone(env, total_size));
         in_red += (avail_size < env_fs_redzone(env, total_size));
     }
 
-    
+
     env->i->fs_seq++;                    // how many times through this polling loop?
     uint64_t now = env->i->fs_seq;
 
