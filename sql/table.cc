@@ -4041,7 +4041,14 @@ bool TABLE_LIST::check_single_table(TABLE_LIST **table_arg,
        tbl;
        tbl= tbl->next_local)
   {
-    if (tbl->table)
+    /*
+      Merged view has also temporary table attached (in 5.2 if it has table
+      then it was real table), so we have filter such temporary tables out
+      by checking that it is not merged view
+    */
+    if (tbl->table &&
+        !(tbl->is_view() &&
+          tbl->is_merged_derived()))
     {
       if (tbl->table->map & map)
       {
