@@ -60,13 +60,9 @@ test/t_compact	5	Antelope	Compact
 test/t_compressed	5	Barracuda	Compressed
 test/t_dynamic	5	Barracuda	Dynamic
 SELECT name, file_format, row_format
-FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES;
+FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+WHERE name LIKE 'test%' ORDER BY space;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
-mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
-mysql/slave_master_info	Antelope	Compact or Redundant
-mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t_redundant	Antelope	Compact or Redundant
 test/t_compact	Antelope	Compact or Redundant
 test/t_compressed	Barracuda	Compressed
