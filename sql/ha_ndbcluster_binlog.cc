@@ -1107,7 +1107,7 @@ static void clean_away_stray_files(THD *thd)
   char path[FN_REFLEN + 1];
  
   DBUG_ENTER("clean_away_stray_files");
-  bzero((char*) &lookup_field_values, sizeof(LOOKUP_FIELD_VALUES));
+  memset(&lookup_field_values, 0, sizeof(LOOKUP_FIELD_VALUES));
   if (make_db_list(thd, &db_names, &lookup_field_values, &with_i_schema))
   {
     thd->clear_error();
