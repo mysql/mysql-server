@@ -1,0 +1,52 @@
+#--source include/have_tokudb.inc
+#
+# Verify that row format changes are non-blocking, hot operations.
+#
+SET STORAGE_ENGINE='tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+
+set session tokudb_disable_slow_alter=ON;
+CREATE TABLE foo(a int auto_increment, b int, primary key(a))engine=TokuDB;
+INSERT INTO foo (b)
+VALUES (11), (21), (32);
+
+SELECT * FROM foo;
+
+#
+# Verify each compression type change is hot/non-blocking.
+#
+ALTER TABLE foo row_format=TOKUDB_LZMA;
+SHOW CREATE TABLE foo;
+ALTER TABLE foo row_format=TOKUDB_QUICKLZ;
+SHOW CREATE TABLE foo;
+ALTER TABLE foo row_format=TOKUDB_UNCOMPRESSED;
+SHOW CREATE TABLE foo;
+ALTER TABLE foo row_format=TOKUDB_ZLIB;
+SHOW CREATE TABLE foo;
+ALTER TABLE foo row_format=TOKUDB_FAST;
+SHOW CREATE TABLE foo;
+ALTER TABLE foo row_format=TOKUDB_SMALL;
+SHOW CREATE TABLE foo;
+
+#
+# Trying to change row format along with another 
+# option should NOT be hot/non-blocking.  
+#
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE foo row_format=TOKUDB_LZMA, add column c int;
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE foo row_format=TOKUDB_LZMA, drop column b;
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE foo row_format=TOKUDB_LZMA,  add key b(b);
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE foo row_format=TOKUDB_LZMA,  change b b bigint;
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE foo row_format=TOKUDB_LZMA, change b c int;
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE foo auto_increment=100000, ROW_FORMAT=TOKUDB_LZMA;
+
+DROP TABLE foo;
+
