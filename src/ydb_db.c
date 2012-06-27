@@ -189,17 +189,6 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     return r ? r : r2;
 }
 
-#if 0
-static int 
-toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
-    HANDLE_PANICKED_DB(db);
-    HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    txn=txn; dbt=dbt; kr=kr; flags=flags;
-    toku_ydb_barf();
-    abort();
-}
-#endif
-
 static int
 db_open_subdb(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     int r;
