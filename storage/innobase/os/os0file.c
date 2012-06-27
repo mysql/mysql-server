@@ -3361,12 +3361,23 @@ os_aio_array_create(
 		if (!os_aio_linux_create_io_ctx(n/n_segments,
 					   &array->aio_ctx[i])) {
 			/* If something bad happened during aio setup
-			we should call it a day and return right away.
-			We don't care about any leaks because a failure
-			to initialize the io subsystem means that the
-			server (or atleast the innodb storage engine)
-			is not going to startup. */
-			return(NULL);
+			we disable linux native aio.
+                        The disadvantage will be a small memory leak
+                        at shutdown but that's ok compared to a crash
+                        or a not working server.
+                        This frequently happens when running the test suite
+                        with many threads on a system with low fs.aio-max-nr!
+                        */
+
+                        fprintf(stderr,
+                                "  InnoDB: Warning: Linux Native AIO disabled "
+                                "because os_aio_linux_create_io_ctx() "
+                                "failed. To get rid of this warning you can "
+                                "try increasing system "
+                                "fs.aio-max-nr to 1048576 or larger or "
+                                "setting innodb_use_native_aio = 0 in my.cnf\n");
+                        srv_use_native_aio = FALSE;
+			goto skip_native_aio;
 		}
 	}
 
