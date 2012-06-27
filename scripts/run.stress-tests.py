@@ -487,7 +487,7 @@ def main(opts):
 
                 # never run test_stress_openclose.tdb on existing
                 # environments, it doesn't want them
-                if opts.run_upgrade and test != 'test_stress_openclose.tdb'::
+                if opts.run_upgrade and test != 'test_stress_openclose.tdb':
                     for version in opts.old_versions:
                         for pristine_or_stressed in ['pristine', 'stressed']:
                             upgrade_kwargs = {
