@@ -17,6 +17,7 @@
 
 #cmakedefine HAVE_POSIX_MEMALIGN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_NANOSLEEP 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SELF 1
 #cmakedefine HAVE_SCHED_GET_PRIORITY_MIN 1

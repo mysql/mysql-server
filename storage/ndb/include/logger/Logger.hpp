@@ -153,11 +153,11 @@ public:
   bool createEventLogHandler(const char* source_name);
 
   /**
-   * Create a default handler that logs to a file called logger.log.
+   * Create a default handler which writes to the specified file name.
    *
    * @return true if successful.
    */
-  bool createFileHandler(char* filename= 0);
+  bool createFileHandler(char* filename);
 
   /**
    * Remove the default file handler.
@@ -183,16 +183,6 @@ public:
    * @return true if successful.
    */
   bool addHandler(LogHandler* pHandler);
-
-  /**
-   * Add a new handler
-   *
-   * @param logstring string describing the handler to add
-   * @param err OS errno in event of error
-   * @param len max length of errStr buffer
-   * @param errStr logger error string in event of error
-   */
-  bool addHandler(const BaseString &logstring, int *err, int len, char* errStr);
 
   /**
    * Remove a log handler.

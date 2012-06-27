@@ -41,6 +41,8 @@ CREATE_JAR(clusterjpa ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterjpa_manifest.mf
   DEPENDENCIES ${DEP}
+  EXTRA_FILES src/main/resources/META-INF
+              src/main/resources/com
   MERGE_JARS ${JARS})
 
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterjpa-${MYSQL_CLUSTER_VERSION}.jar
