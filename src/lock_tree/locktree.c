@@ -1284,8 +1284,7 @@ toku_lt_create(toku_lock_tree** ptree,
     }
 
     // allocate a tree, initialized to zeroes
-    tmp_tree = toku_xmalloc(sizeof(*tmp_tree));
-    memset(tmp_tree, 0, sizeof(*tmp_tree));
+    XCALLOC(tmp_tree);
     tmp_tree->mgr              = mgr;
     tmp_tree->compare_fun = compare_fun;
     tmp_tree->lock_escalation_allowed = TRUE;
@@ -1358,9 +1357,9 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
     // mutually null or mutually non-null.
     if ((on_close_callback == NULL) != (on_close_callback == NULL)) {
         r = EINVAL;
-        goto out;
+        goto cleanup;
     }
-    
+
     ltm_mutex_lock(mgr);
     map = toku_idlth_find(mgr->idlth, dict_id);
     if (map != NULL) {
@@ -1384,10 +1383,10 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
     if (on_create_callback) {
         on_create_callback(tree, on_create_extra);
     } else {
-        assert(on_close_callback == NULL);
+        invariant(on_close_callback == NULL);
     }
     tree->on_close_callback = on_close_callback;
-    
+
     lt_set_dict_id(tree, dict_id);
     /* add tree to ltm */
     r = ltm_add_lt(mgr, tree);
@@ -1405,12 +1404,12 @@ toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id, DE
         goto cleanup;
     }
     added_to_idlth = TRUE;
-    
+
     map = toku_idlth_find(mgr->idlth, dict_id);
     assert(map);
     map->tree = tree;
 
-    /* No add ref needed because ref count was set to 1 in toku_lt_create */        
+    /* No add ref needed because ref count was set to 1 in toku_lt_create */
     *ptree = tree;
     r = 0;
 cleanup:

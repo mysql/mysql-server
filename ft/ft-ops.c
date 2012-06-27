@@ -3328,7 +3328,7 @@ toku_ft_handle_clone(FT_HANDLE *cloned_ft_handle, FT_HANDLE ft_handle, TOKUTXN t
     int r;
     FT_HANDLE result_ft_handle; 
     r = toku_ft_handle_create(&result_ft_handle);
-    invariant_zero(r);
+    resource_assert_zero(r);
 
     // we're cloning, so the handle better have an open ft and open cf
     invariant(ft_handle->ft);
