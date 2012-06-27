@@ -197,7 +197,8 @@ count(*)
 # Show these tables in information_schema.
 #
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name like 'test%';
+FROM information_schema.innodb_sys_tables
+WHERE name like 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/t1	8	Antelope	Redundant
 test/t2	8	Antelope	Compact
@@ -212,7 +213,8 @@ test/t7#p#p0#sp#s1	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s2	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s3	8	Barracuda	Dynamic
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY name;
 name	file_format	row_format
 test/t1	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
@@ -393,8 +395,12 @@ count(*)
 SELECT count(*) FROM t7;
 count(*)
 32
+#
+# Show these tables in information_schema.
+#
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name like 'test%';
+FROM information_schema.innodb_sys_tables
+WHERE name like 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
 test/t1	8	Antelope	Redundant
 test/t2	8	Antelope	Compact
@@ -409,7 +415,8 @@ test/t7#p#p0#sp#s1	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s2	8	Barracuda	Dynamic
 test/t7#p#p1#sp#s3	8	Barracuda	Dynamic
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY name;
 name	file_format	row_format
 test/t1	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant

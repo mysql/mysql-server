@@ -336,8 +336,6 @@ SET SESSION debug="-d,ib_import_OOM_2";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
 unlink: t1.cfg
-unlink: t1.ibd
-unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
@@ -914,22 +912,4 @@ set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;
 set global innodb_monitor_reset_all = default;
-call mtr.add_suppression("'Resource temporarily unavailable'");
-call mtr.add_suppression("Monitor ibuf_merges is already enabled");
-call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
-call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
-call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
-call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
-call mtr.add_suppression(".*There was an error writing to the meta data file.*");
-call mtr.add_suppression("Trying to import a table.*, but could not open the tablespace file.*t1.ibd");
-call mtr.add_suppression("Unsupported tablespace format");
-call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
-call mtr.add_suppression("Page is marked as free");
-call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
-call mtr.add_suppression("but tablespace with that id or name does not exist");
-call mtr.add_suppression("trying to open a table, but could not");
-call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache");
-call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
 SET GLOBAL INNODB_FILE_PER_TABLE=1;

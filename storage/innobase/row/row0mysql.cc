@@ -3193,12 +3193,23 @@ row_truncate_table_for_mysql(
 	/* Prevent foreign key checks etc. while we are truncating the
 	table */
 
+wait_for_persistent_stats:
 	row_mysql_lock_data_dictionary(trx);
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+
+	if (table->stats_bg_flag == BG_STAT_IN_PROGRESS) {
+
+		row_mysql_unlock_data_dictionary(trx);
+
+		os_thread_sleep(100000);
+
+    		goto wait_for_persistent_stats;
+	}
+
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
