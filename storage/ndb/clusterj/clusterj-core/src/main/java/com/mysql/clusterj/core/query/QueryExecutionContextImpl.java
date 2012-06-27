@@ -127,7 +127,8 @@ public class QueryExecutionContextImpl implements QueryExecutionContext {
     }
 
     public ResultData getResultData(QueryDomainType<?> queryDomainType) {
-        return ((QueryDomainTypeImpl<?>)queryDomainType).getResultData(this);
+        // TODO handle skip and limit
+        return ((QueryDomainTypeImpl<?>)queryDomainType).getResultData(this, 0, Long.MAX_VALUE);
     }
 
     /** Add a filter to the list of filters created for this query.

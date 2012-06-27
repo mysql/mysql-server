@@ -58,6 +58,12 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
     private boolean autotransaction;
 
+    /** The lower limit (number of returned rows to skip) */
+    protected Long skip = null;
+
+    /** The upper limit (number of rows to return) */
+    protected Long limit = null;
+
     @Override
     public void localSetUp() {
         setAutotransaction(false);
@@ -74,6 +80,16 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
     protected void setAutotransaction(boolean b) {
         autotransaction = b;
+    }
+
+    protected void setLimit(long limit) {
+        this.skip = null;
+        this.limit = limit;
+    }
+
+    protected void setLimits(long skip, long limit) {
+        this.skip = skip;
+        this.limit = limit;
     }
 
     class QueryHolder {
@@ -246,6 +262,13 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
 
         @SuppressWarnings("unchecked")
         public void checkResults(String theQuery) {
+            if (limit != null) {
+                if (skip != null) {
+                    query.setLimits(skip, limit);
+                } else {
+                    query.setLimits(0, limit);
+                }
+            }
             Set<Integer> actualSet = new HashSet<Integer>();
             List<IdBase> resultList = (List<IdBase>) query.getResultList();
             for (IdBase result: resultList) {
@@ -259,6 +282,13 @@ abstract public class AbstractQueryTest extends AbstractClusterJModelTest {
             }
 
         public void checkDeletePersistentAll(String where, int expectedNumberOfDeletedInstances) {
+            if (limit != null) {
+                if (skip != null) {
+                    query.setLimits(skip, limit);
+                } else {
+                    query.setLimits(0, limit);
+                }
+            }
             int result = query.deletePersistentAll();
             errorIfNotEqual("Wrong index used for " + where + " delete  query: ",
                     expectedIndex, query.explain().get("IndexUsed"));
