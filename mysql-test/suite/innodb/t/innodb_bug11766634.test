@@ -16,6 +16,9 @@
 create table t1 (f1 char(255)) engine innodb;
 let $MYSQLD_DATADIR=`select @@datadir`;
 let IBDATA1=$MYSQLD_DATADIR/ibdata1;
+let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
+let $rnd=`SELECT FLOOR(1 + (RAND() * 100000))`;
+let TMPFILE=$MYSQLD_TMPDIR/bug11766634-$rnd.txt
 
 let $recs = 36262;
 
@@ -32,7 +35,9 @@ commit work;
 
 perl;
 my $filesize = -s $ENV{'IBDATA1'};
-print "ibdata1 size: $filesize bytes\n";
+open FILE, ">" . $ENV{'TMPFILE'} or die $!;
+print FILE "$filesize\n";
+close(FILE);
 EOF
 
 drop table t1;
@@ -50,8 +55,14 @@ commit work;
 --enable_query_log
 
 perl;
-my $filesize = -s $ENV{'IBDATA1'};
-print "ibdata1 size: $filesize bytes\n";
+my $newfilesize = -s $ENV{'IBDATA1'};
+open FILE, "<" . $ENV{'TMPFILE'} or die $!;
+my @lines = <FILE>;
+close(FILE);
+die "File size read from temp file was 0!\n" if $lines[0] == 0;
+my $diff = $newfilesize - $lines[0];
+print "Difference in ibdata1 file size: $diff\n";
+unlink($ENV{'TMPFILE'}) or die $!;
 EOF
 
 drop table t1;
