@@ -86,7 +86,7 @@ struct __toku_db_env_internal {
     int enospc_redzone_ctr;                             // number of operations rejected by enospc prevention  (red zone)
     int fs_poll_time;                                   // Time in seconds between statfs calls
     struct minicron fs_poller;                          // Poll the file systems
-    BOOL fs_poller_is_init;    
+    BOOL fs_poller_is_init;
     int envdir_lockfd;
     int datadir_lockfd;
     int logdir_lockfd;
