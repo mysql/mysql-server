@@ -13,10 +13,10 @@ LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
 --enable_query_log
 
 # The IDs of mysql.innodb_table_stats and mysql.innodb_index_stats are
-# unpredictable, probably they on whether mtr has created the database for
-# this test from scratch or is using a previously created database where
-# those tables have been dropped and recreated. If we can force mtr to
-# use a freshly created database for this test then the following
+# unpredictable, probably they depend on whether mtr has created the
+# database for this test from scratch or is using a previously created
+# database where those tables have been dropped and recreated. If we can
+# force mtr to use a freshly created database for this test then the following
 # complications can be removed and the test be reverted to the version
 # it was before the patch that adds this comment.
 --let $table_stats_id = `SELECT table_id FROM information_schema.innodb_sys_tables WHERE name = 'mysql/innodb_table_stats'`
@@ -39,8 +39,10 @@ SELECT index_id,pos,name FROM INFORMATION_SCHEMA.INNODB_SYS_FIELDS
        WHERE name NOT IN ('database_name', 'table_name', 'index_name', 'stat_name', 'Master_Id', 'Worker_Id')
        ORDER BY index_id, pos;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 
 SET GLOBAL innodb_file_format=`Barracuda`;
@@ -55,15 +57,18 @@ CREATE TABLE t_compact (a INT KEY, b TEXT) ROW_FORMAT=COMPACT ENGINE=innodb;
 CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innodb;
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 
+--sorted_result
 SELECT name, n_cols, file_format, row_format
        FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-       WHERE space > 0 ORDER BY table_id;
+       WHERE space > 0;
+--sorted_result
 SELECT name, file_format, row_format
        FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-       WHERE name LIKE 'test%' ORDER BY space;
+       WHERE name LIKE 'test%';
 --replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
+--sorted_result
 SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-       WHERE path LIKE '%test%' ORDER BY space;
+       WHERE path LIKE '%test%';
 
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 --disable_query_log
@@ -85,32 +90,39 @@ CREATE TABLE child (id INT, parent_id INT,
                     FOREIGN KEY (parent_id) REFERENCES parent(id)
                       ON DELETE CASCADE) ENGINE=INNODB;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 
 # Insert a row in the table "parent", and see whether that reflected in
 # INNODB_SYS_TABLESTATS
 INSERT INTO parent VALUES(1);
 
+--sorted_result
 SELECT name, num_rows, ref_count 
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
 
+--sorted_result
 SELECT NAME, FLAG, N_COLS FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES;
 
+--sorted_result
 SELECT name, n_fields
 from INFORMATION_SCHEMA.INNODB_SYS_INDEXES
 WHERE table_id In (SELECT table_id from
 	INFORMATION_SCHEMA.INNODB_SYS_TABLES
 	WHERE name LIKE "%parent%");
 
+--sorted_result
 SELECT name, n_fields
 from INFORMATION_SCHEMA.INNODB_SYS_INDEXES
 WHERE table_id In (SELECT table_id from
 	INFORMATION_SCHEMA.INNODB_SYS_TABLES
 	WHERE name LIKE "%child%");
 
+--sorted_result
 SELECT name, pos, mtype, len
 from INFORMATION_SCHEMA.INNODB_SYS_COLUMNS
 WHERE table_id In (SELECT table_id from
@@ -131,15 +143,19 @@ CREATE TABLE child (id INT, parent_id INT,
                     FOREIGN KEY (id, parent_id) REFERENCES parent(id, newid)
                       ON DELETE CASCADE) ENGINE=INNODB;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 
+--sorted_result
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 
 INSERT INTO parent VALUES(1, 9);
 
 # Nested query will open the table handle twice
+--sorted_result
 SELECT * FROM parent WHERE id IN (SELECT id FROM parent);
 
+--sorted_result
 SELECT name, num_rows, ref_count 
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
