@@ -2678,6 +2678,7 @@ typedef struct st_lookup_field_values
 } LOOKUP_FIELD_VALUES;
 #endif
 
+
 /*
   Store record to I_S table, convert HEAP table
   to MyISAM if necessary

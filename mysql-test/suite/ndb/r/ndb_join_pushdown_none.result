@@ -113,9 +113,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	ALL	NULL	NULL	NULL	NULL	16	100.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	x3	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.d	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x2' as child, 'type' must be a 'ref' access
-Note	9999	Cannot push table 'x3' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
-Note	9999	Cannot push table 'x3' as child of 'x2', since it referes to column 'x1.c' which will be stored in a join buffer.
+Note	1003	Can't push table 'x2' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'x3' as child of table 'x1'. Doing so would prevent using join buffer for table 'x2'.
+Note	1003	Cannot push table 'x3' as child of 'x2', since it referes to column 'x1.c' which will be stored in a join buffer.
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` where ((`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x3`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`d` > (`test`.`x2`.`a` + 1000)))
 select straight_join count(*) 
 from t1 as x1 
@@ -134,9 +134,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x3	ALL	NULL	NULL	NULL	NULL	16	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	8	test.x3.c,test.x1.d	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x3' as child, 'type' must be a 'ref' access
-Note	9999	Cannot push table 'x4' as child of table 'x1'. Doing so would prevent using join buffer for table 'x3'.
-Note	9999	Cannot push table 'x4' as child of 'x3', since it referes to column 'x1.d' which will be stored in a join buffer.
+Note	1003	Can't push table 'x3' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'x4' as child of table 'x1'. Doing so would prevent using join buffer for table 'x3'.
+Note	1003	Cannot push table 'x4' as child of 'x3', since it referes to column 'x1.d' which will be stored in a join buffer.
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x1`.`d` AS `d`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c`,`test`.`x2`.`d` AS `d`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b`,`test`.`x3`.`c` AS `c`,`test`.`x3`.`d` AS `d`,`test`.`x4`.`a` AS `a`,`test`.`x4`.`b` AS `b`,`test`.`x4`.`c` AS `c`,`test`.`x4`.`d` AS `d` from `test`.`t1` `x1` join `test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4` where ((`test`.`x2`.`a` = `test`.`x1`.`c`) and (`test`.`x1`.`a` = 1) and (`test`.`x2`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`a` = `test`.`x3`.`c`))
 select * 
 from t1 as x1 
@@ -311,8 +311,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: 'PROCEDURE'-clause post processing cannot be pushed.
-Note	9999	Table 't2' is not pushable: 'PROCEDURE'-clause post processing cannot be pushed.
+Note	1003	Table 't1' is not pushable: 'PROCEDURE'-clause post processing cannot be pushed.
+Note	1003	Table 't2' is not pushable: 'PROCEDURE'-clause post processing cannot be pushed.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`d`) and (`test`.`t2`.`a` = `test`.`t1`.`c`))
 explain extended
 select *
@@ -559,9 +559,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	y	ALL	NULL	NULL	NULL	NULL	16	100.00	Using join buffer (Block Nested Loop)
 1	SIMPLE	z	eq_ref	PRIMARY	PRIMARY	8	test.x.a,test.y.b	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'y' as child, 'type' must be a 'ref' access
-Note	9999	Cannot push table 'z' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
-Note	9999	Cannot push table 'z' as child of 'y', since it referes to column 'x.a' which will be stored in a join buffer.
+Note	1003	Can't push table 'y' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'z' as child of table 'x'. Doing so would prevent using join buffer for table 'y'.
+Note	1003	Cannot push table 'z' as child of 'y', since it referes to column 'x.a' which will be stored in a join buffer.
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`x`.`d` AS `d`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c`,`test`.`y`.`d` AS `d`,`test`.`z`.`a` AS `a`,`test`.`z`.`b` AS `b`,`test`.`z`.`c` AS `c`,`test`.`z`.`d` AS `d` from `test`.`t1` `x` join `test`.`t1` `y` join `test`.`t1` `z` where ((`test`.`z`.`b` = `test`.`y`.`b`) and (`test`.`z`.`a` = `test`.`x`.`a`))
 select straight_join *
 from (t1 as x cross join t1 as y)
@@ -833,7 +833,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	100.00	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
+Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = (`test`.`t1`.`b` + 0)))
 select *
 from t1
@@ -864,7 +864,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	func,test.t1.c	1	100.00	Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
+Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`d` = 1) and (`test`.`t1`.`a` = 1) and (`test`.`t2`.`a` = (`test`.`t1`.`b` + 0)))
 select *
 from t1
@@ -883,8 +883,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	func	1	100.00	Parent of 2 pushed join@1; Using where
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t2.b	1	100.00	Child of 't2' in pushed join@1
 Warnings:
-Note	9999	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
-Note	9999	Can't push table 't3' as child of 't1', column 't2.b' is outside scope of pushable join
+Note	1003	Can't push table 't2' as child, column 'a' does neither 'ref' a column nor a constant
+Note	1003	Can't push table 't3' as child of 't1', column 't2.b' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` where ((`test`.`t3`.`b` = `test`.`t2`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = (`test`.`t1`.`b` + 0)))
 select *
 from t1
@@ -1048,8 +1048,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
-Note	9999	Push of table 't2' as scan-child with lookup-root 't1' not implemented
-Note	9999	Can't push table 't3' as child of 't1', column 't2.c' is outside scope of pushable join
+Note	1003	Push of table 't2' as scan-child with lookup-root 't1' not implemented
+Note	1003	Can't push table 't3' as child of 't1', column 't2.c' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`a` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`) and (`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1))
 select *
 from t1
@@ -1071,8 +1071,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.c	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
 Warnings:
-Note	9999	Push of table 't2' as scan-child with lookup-root 't1' not implemented
-Note	9999	Can't push table 't3' as child of 't1', column 't2.c' is outside scope of pushable join
+Note	1003	Push of table 't2' as scan-child with lookup-root 't1' not implemented
+Note	1003	Can't push table 't3' as child of 't1', column 't2.c' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on((`test`.`t2`.`a` = `test`.`t1`.`c`)) left join `test`.`t1` `t3` on(((`test`.`t3`.`b` = `test`.`t2`.`d`) and (`test`.`t3`.`a` = `test`.`t2`.`c`))) where ((`test`.`t1`.`b` = 1) and (`test`.`t1`.`a` = 1))
 select *
 from t1
@@ -1524,7 +1524,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t2.c	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 't4' as child of 't1', dependencies on outer joined grandparents not implemented
+Note	1003	Can't push table 't4' as child of 't1', dependencies on outer joined grandparents not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) join `test`.`t1` `t3` left join `test`.`t1` `t4` on(((`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t4`.`a` = `test`.`t3`.`c`))) where ((`test`.`t3`.`b` = `test`.`t1`.`d`) and (`test`.`t3`.`a` = `test`.`t1`.`c`))
 explain extended
 select straight_join *
@@ -1551,7 +1551,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t2.c	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 't4' as child of 't1', dependencies on outer joined grandparents not implemented
+Note	1003	Can't push table 't4' as child of 't1', dependencies on outer joined grandparents not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) join `test`.`t1` `t3` left join `test`.`t1` `t4` on(((`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t4`.`a` = `test`.`t3`.`c`))) where (`test`.`t3`.`a` = `test`.`t1`.`a`)
 explain extended
 select straight_join *
@@ -1565,8 +1565,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Parent of 2 pushed join@2
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t3.c,test.t2.c	1	100.00	Child of 't3' in pushed join@2
 Warnings:
-Note	9999	Can't push table 't3' as child of 't1', outer join of scan-child not implemented
-Note	9999	Can't push table 't4' as child of 't1', column 't3.c' is outside scope of pushable join
+Note	1003	Can't push table 't3' as child of 't1', outer join of scan-child not implemented
+Note	1003	Can't push table 't4' as child of 't1', column 't3.c' is outside scope of pushable join
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` left join `test`.`t1` `t3` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))) left join `test`.`t1` `t4` on(((`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t4`.`a` = `test`.`t3`.`c`))) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 explain extended
 select straight_join *
@@ -1580,7 +1580,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t4	ref	PRIMARY	PRIMARY	4	test.t3.c	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 't4' as child of 't1', outer join of scan-child not implemented
+Note	1003	Can't push table 't4' as child of 't1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` left join `test`.`t1` `t2` on(((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))) join `test`.`t1` `t3` left join `test`.`t1` `t4` on((`test`.`t4`.`a` = `test`.`t3`.`c`)) where (`test`.`t3`.`a` = `test`.`t1`.`a`)
 explain extended
 select straight_join *
@@ -1594,9 +1594,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	NULL
 1	SIMPLE	t4	ref	PRIMARY	PRIMARY	4	test.t3.c	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 't3' as child of 't1', outer join of scan-child not implemented
-Note	9999	Can't push table 't4' as child of 't1', column 't3.c' is outside scope of pushable join
-Note	9999	Can't push table 't4' as child of 't3', outer join of scan-child not implemented
+Note	1003	Can't push table 't3' as child of 't1', outer join of scan-child not implemented
+Note	1003	Can't push table 't4' as child of 't1', column 't3.c' is outside scope of pushable join
+Note	1003	Can't push table 't4' as child of 't3', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` left join `test`.`t1` `t3` on(((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`))) left join `test`.`t1` `t4` on((`test`.`t4`.`a` = `test`.`t3`.`c`)) where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`))
 set ndb_join_pushdown=true;
 explain extended 
@@ -1781,8 +1781,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable, need filesort before joining child tables
-Note	9999	Can't push table 't3' as child of 't2', their dependency is 'const'
+Note	1003	Table 't1' is not pushable, need filesort before joining child tables
+Note	1003	Can't push table 't3' as child of 't2', their dependency is 'const'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`c`,`test`.`t1`.`d`,`test`.`t1`.`a`,`test`.`t1`.`b`
 select *
 from t1
@@ -1943,8 +1943,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable, need filesort before joining child tables
-Note	9999	Can't push table 't3' as child of 't2', their dependency is 'const'
+Note	1003	Table 't1' is not pushable, need filesort before joining child tables
+Note	1003	Can't push table 't3' as child of 't2', their dependency is 'const'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`b`,`test`.`t1`.`a`
 select *
 from t1
@@ -1988,8 +1988,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable, need filesort before joining child tables
-Note	9999	Can't push table 't3' as child of 't2', their dependency is 'const'
+Note	1003	Table 't1' is not pushable, need filesort before joining child tables
+Note	1003	Can't push table 't3' as child of 't2', their dependency is 'const'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`b`
 explain extended
 select t1.a, t1.b, count(*)
@@ -2076,8 +2076,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Using where
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	NULL
 Warnings:
-Note	9999	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	9999	Table 't1' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't1' is not pushable: GROUP BY cannot be done using index on grouped columns.
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`b` = `test`.`t2`.`d`) and (`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`b` = 4) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 select t2.c, count(distinct t2.a)
 from t1
@@ -2096,8 +2096,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	3	100.00	Using where; Using filesort
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	NULL
 Warnings:
-Note	9999	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	9999	Table 't1' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't1' is not pushable: GROUP BY cannot be done using index on grouped columns.
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`b` = `test`.`t2`.`d`) and (`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
 select t2.c, count(distinct t2.a)
 from t1
@@ -2117,8 +2117,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Using where
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	NULL
 Warnings:
-Note	9999	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	9999	Table 't1' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 't1' is not pushable: GROUP BY cannot be done using index on grouped columns.
 Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t1`.`b` = `test`.`t2`.`d`) and (`test`.`t1`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`b` = 4) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c` order by `test`.`t2`.`c`
 select t2.c, count(distinct t2.a)
 from t1
@@ -2209,8 +2209,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: has user defined partioning
-Note	9999	Table 't2' is not pushable: has user defined partioning
+Note	1003	Table 't1' is not pushable: has user defined partioning
+Note	1003	Table 't2' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 alter table t1 partition by list(a) (
 partition p1 values in (1),
@@ -2226,8 +2226,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: has user defined partioning
-Note	9999	Table 't2' is not pushable: has user defined partioning
+Note	1003	Table 't1' is not pushable: has user defined partioning
+Note	1003	Table 't2' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 alter table t1 partition by range(a) partitions 4 (
 partition p1 values less than (0),
@@ -2243,8 +2243,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: has user defined partioning
-Note	9999	Table 't2' is not pushable: has user defined partioning
+Note	1003	Table 't1' is not pushable: has user defined partioning
+Note	1003	Table 't2' is not pushable: has user defined partioning
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 drop table t1;
 set new=default;
@@ -2386,7 +2386,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where with pushed condition (`test`.`x`.`b` = 0x1f)
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'y' as child of 'x', their dependency is 'const'
+Note	1003	Can't push table 'y' as child of 'x', their dependency is 'const'
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`a` = 0x1f) and (`test`.`x`.`b` = 0x1f))
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 a	b	a	b
@@ -2397,7 +2397,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where with pushed condition (`test`.`x`.`b` = 0x1f)
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where
 Warnings:
-Note	9999	Can't push table 'y' as child of 'x', their dependency is 'const'
+Note	1003	Can't push table 'y' as child of 'x', their dependency is 'const'
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`a` = `test`.`x`.`b`) and (`test`.`x`.`b` = 0x1f))
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 a	b	a	b
@@ -2543,8 +2543,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x16	eq_ref	t3_d3	t3_d3	4	test.x15.b3	1	100.00	Parent of 2 pushed join@2
 1	SIMPLE	x17	eq_ref	t3_d3	t3_d3	4	test.x16.b3	1	100.00	Child of 'x16' in pushed join@2
 Warnings:
-Note	9999	Cannot push table 'x16' as child of 'x0'. Max number of pushable tables exceeded.
-Note	9999	Cannot push table 'x17' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	Cannot push table 'x16' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	Cannot push table 'x17' as child of 'x0'. Max number of pushable tables exceeded.
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` `x0` join `test`.`t3` `x1` join `test`.`t3` `x2` join `test`.`t3` `x3` join `test`.`t3` `x4` join `test`.`t3` `x5` join `test`.`t3` `x6` join `test`.`t3` `x7` join `test`.`t3` `x8` join `test`.`t3` `x9` join `test`.`t3` `x10` join `test`.`t3` `x11` join `test`.`t3` `x12` join `test`.`t3` `x13` join `test`.`t3` `x14` join `test`.`t3` `x15` join `test`.`t3` `x16` join `test`.`t3` `x17` where ((`test`.`x0`.`d3` = 8) and (`test`.`x1`.`d3` = `test`.`x0`.`b3`) and (`test`.`x2`.`d3` = `test`.`x1`.`b3`) and (`test`.`x3`.`d3` = `test`.`x2`.`b3`) and (`test`.`x4`.`d3` = `test`.`x3`.`b3`) and (`test`.`x5`.`d3` = `test`.`x4`.`b3`) and (`test`.`x6`.`d3` = `test`.`x5`.`b3`) and (`test`.`x7`.`d3` = `test`.`x6`.`b3`) and (`test`.`x8`.`d3` = `test`.`x7`.`b3`) and (`test`.`x9`.`d3` = `test`.`x8`.`b3`) and (`test`.`x10`.`d3` = `test`.`x9`.`b3`) and (`test`.`x11`.`d3` = `test`.`x10`.`b3`) and (`test`.`x12`.`d3` = `test`.`x11`.`b3`) and (`test`.`x13`.`d3` = `test`.`x12`.`b3`) and (`test`.`x14`.`d3` = `test`.`x13`.`b3`) and (`test`.`x15`.`d3` = `test`.`x14`.`b3`) and (`test`.`x16`.`d3` = `test`.`x15`.`b3`) and (`test`.`x17`.`d3` = `test`.`x16`.`b3`))
 select count(*) from t3 as x0
 join t3 as x1 on x0.b3=x1.d3 and x0.d3=8
@@ -2636,8 +2636,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x32	ref	PRIMARY	PRIMARY	4	test.x31.c3	1	100.00	Parent of 2 pushed join@2
 1	SIMPLE	x33	ref	PRIMARY	PRIMARY	4	test.x32.c3	1	100.00	Child of 'x32' in pushed join@2
 Warnings:
-Note	9999	Cannot push table 'x32' as child of 'x0'. Max number of pushable tables exceeded.
-Note	9999	Cannot push table 'x33' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	Cannot push table 'x32' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	Cannot push table 'x33' as child of 'x0'. Max number of pushable tables exceeded.
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` `x0` join `test`.`t3` `x1` join `test`.`t3` `x2` join `test`.`t3` `x3` join `test`.`t3` `x4` join `test`.`t3` `x5` join `test`.`t3` `x6` join `test`.`t3` `x7` join `test`.`t3` `x8` join `test`.`t3` `x9` join `test`.`t3` `x10` join `test`.`t3` `x11` join `test`.`t3` `x12` join `test`.`t3` `x13` join `test`.`t3` `x14` join `test`.`t3` `x15` join `test`.`t3` `x16` join `test`.`t3` `x17` join `test`.`t3` `x18` join `test`.`t3` `x19` join `test`.`t3` `x20` join `test`.`t3` `x21` join `test`.`t3` `x22` join `test`.`t3` `x23` join `test`.`t3` `x24` join `test`.`t3` `x25` join `test`.`t3` `x26` join `test`.`t3` `x27` join `test`.`t3` `x28` join `test`.`t3` `x29` join `test`.`t3` `x30` join `test`.`t3` `x31` join `test`.`t3` `x32` join `test`.`t3` `x33` where ((`test`.`x1`.`a3` = `test`.`x0`.`c3`) and (`test`.`x2`.`a3` = `test`.`x1`.`c3`) and (`test`.`x3`.`a3` = `test`.`x2`.`c3`) and (`test`.`x4`.`a3` = `test`.`x3`.`c3`) and (`test`.`x5`.`a3` = `test`.`x4`.`c3`) and (`test`.`x6`.`a3` = `test`.`x5`.`c3`) and (`test`.`x7`.`a3` = `test`.`x6`.`c3`) and (`test`.`x8`.`a3` = `test`.`x7`.`c3`) and (`test`.`x9`.`a3` = `test`.`x8`.`c3`) and (`test`.`x10`.`a3` = `test`.`x9`.`c3`) and (`test`.`x11`.`a3` = `test`.`x10`.`c3`) and (`test`.`x12`.`a3` = `test`.`x11`.`c3`) and (`test`.`x13`.`a3` = `test`.`x12`.`c3`) and (`test`.`x14`.`a3` = `test`.`x13`.`c3`) and (`test`.`x15`.`a3` = `test`.`x14`.`c3`) and (`test`.`x16`.`a3` = `test`.`x15`.`c3`) and (`test`.`x17`.`a3` = `test`.`x16`.`c3`) and (`test`.`x18`.`a3` = `test`.`x17`.`c3`) and (`test`.`x19`.`a3` = `test`.`x18`.`c3`) and (`test`.`x20`.`a3` = `test`.`x19`.`c3`) and (`test`.`x21`.`a3` = `test`.`x20`.`c3`) and (`test`.`x22`.`a3` = `test`.`x21`.`c3`) and (`test`.`x23`.`a3` = `test`.`x22`.`c3`) and (`test`.`x24`.`a3` = `test`.`x23`.`c3`) and (`test`.`x25`.`a3` = `test`.`x24`.`c3`) and (`test`.`x26`.`a3` = `test`.`x25`.`c3`) and (`test`.`x27`.`a3` = `test`.`x26`.`c3`) and (`test`.`x28`.`a3` = `test`.`x27`.`c3`) and (`test`.`x29`.`a3` = `test`.`x28`.`c3`) and (`test`.`x30`.`a3` = `test`.`x29`.`c3`) and (`test`.`x31`.`a3` = `test`.`x30`.`c3`) and (`test`.`x32`.`a3` = `test`.`x31`.`c3`) and (`test`.`x33`.`a3` = `test`.`x32`.`c3`))
 select count(*) from t3 as x0
 join t3 as x1 on x0.c3=x1.a3
@@ -2715,8 +2715,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x17	ref	PRIMARY	PRIMARY	4	test.x15.b3	1	100.00	Child of 'x15' in pushed join@1
 1	SIMPLE	x18	eq_ref	t3_d3	t3_d3	4	test.x16.b3	1	100.00	Child of 'x16' in pushed join@2
 Warnings:
-Note	9999	Cannot push table 'x16' as child of 'x0'. Max number of pushable tables exceeded.
-Note	9999	Cannot push table 'x18' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	Cannot push table 'x16' as child of 'x0'. Max number of pushable tables exceeded.
+Note	1003	Cannot push table 'x18' as child of 'x0'. Max number of pushable tables exceeded.
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t3` `x0` join `test`.`t3` `x1` join `test`.`t3` `x2` join `test`.`t3` `x3` join `test`.`t3` `x4` join `test`.`t3` `x5` join `test`.`t3` `x6` join `test`.`t3` `x7` join `test`.`t3` `x8` join `test`.`t3` `x9` join `test`.`t3` `x10` join `test`.`t3` `x11` join `test`.`t3` `x12` join `test`.`t3` `x13` join `test`.`t3` `x14` join `test`.`t3` `x15` join `test`.`t3` `x16` join `test`.`t3` `x17` join `test`.`t3` `x18` where ((`test`.`x1`.`d3` = `test`.`x0`.`b3`) and (`test`.`x2`.`d3` = `test`.`x1`.`b3`) and (`test`.`x3`.`d3` = `test`.`x2`.`b3`) and (`test`.`x4`.`d3` = `test`.`x3`.`b3`) and (`test`.`x5`.`d3` = `test`.`x4`.`b3`) and (`test`.`x6`.`d3` = `test`.`x5`.`b3`) and (`test`.`x7`.`d3` = `test`.`x6`.`b3`) and (`test`.`x8`.`d3` = `test`.`x7`.`b3`) and (`test`.`x9`.`d3` = `test`.`x8`.`b3`) and (`test`.`x10`.`d3` = `test`.`x9`.`b3`) and (`test`.`x11`.`d3` = `test`.`x10`.`b3`) and (`test`.`x12`.`d3` = `test`.`x11`.`b3`) and (`test`.`x13`.`d3` = `test`.`x12`.`b3`) and (`test`.`x14`.`d3` = `test`.`x13`.`b3`) and (`test`.`x15`.`d3` = `test`.`x14`.`b3`) and (`test`.`x16`.`d3` = `test`.`x15`.`b3`) and (`test`.`x17`.`a3` = `test`.`x15`.`b3`) and (`test`.`x18`.`d3` = `test`.`x16`.`b3`))
 select count(*) from t3 as x0
 join t3 as x1 on x0.b3=x1.d3
@@ -3101,8 +3101,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	ref	b3,c3,c3_2	b3	4	func	1	100.00	Parent of 2 pushed join@2; Using where with pushed condition (`test`.`x2`.`c3` is not null)
 1	SIMPLE	y2	ref	b3	b3	9	test.x2.c3,test.x1.c3	1	100.00	Child of 'x2' in pushed join@2
 Warnings:
-Note	9999	Can't push table 'x2' as child, column 'b3' does neither 'ref' a column nor a constant
-Note	9999	Can't push table 'y2' as child of 'x1', column 'x2.c3' is outside scope of pushable join
+Note	1003	Can't push table 'x2' as child, column 'b3' does neither 'ref' a column nor a constant
+Note	1003	Can't push table 'y2' as child of 'x1', column 'x2.c3' is outside scope of pushable join
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`a3` AS `a3`,`test`.`x1`.`b3` AS `b3`,`test`.`x1`.`c3` AS `c3`,`test`.`x1`.`d3` AS `d3`,`test`.`y1`.`a3` AS `a3`,`test`.`y1`.`b3` AS `b3`,`test`.`y1`.`c3` AS `c3`,`test`.`y1`.`d3` AS `d3`,`test`.`x2`.`a3` AS `a3`,`test`.`x2`.`b3` AS `b3`,`test`.`x2`.`c3` AS `c3`,`test`.`x2`.`d3` AS `d3`,`test`.`y2`.`a3` AS `a3`,`test`.`y2`.`b3` AS `b3`,`test`.`y2`.`c3` AS `c3`,`test`.`y2`.`d3` AS `d3` from `test`.`t3` `x1` join `test`.`t3` `y1` join `test`.`t3` `x2` join `test`.`t3` `y2` where ((`test`.`y1`.`d3` = `test`.`x1`.`d3`) and (`test`.`y1`.`b3` = `test`.`x1`.`b3`) and (`test`.`y2`.`d3` = `test`.`x1`.`c3`) and (`test`.`y2`.`b3` = `test`.`x2`.`c3`) and (`test`.`x2`.`b3` = (`test`.`x1`.`b3` + 0)))
 select straight_join * from
 t3 as x1
@@ -3268,7 +3268,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t3.b	1	100.00	Child of 't3' in pushed join@1
 1	SIMPLE	t1	ALL	PRIMARY,b	NULL	NULL	NULL	6	100.00	Range checked for each record (index map: 0x3)
 Warnings:
-Note	9999	Table 't1' is not pushable: Access type was not chosen at 'prepare' time
+Note	1003	Table 't1' is not pushable: Access type was not chosen at 'prepare' time
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` where ((`test`.`t3`.`a` = `test`.`t2`.`a`) and (`test`.`t4`.`a` = `test`.`t3`.`b`) and ((`test`.`t1`.`b` = `test`.`t2`.`b`) or (`test`.`t1`.`a` = `test`.`t2`.`b`)))
 select *
 from t1
@@ -3314,7 +3314,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	y	eq_ref	PRIMARY,b	PRIMARY	4	test.t1.b	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
-Note	9999	Can't push table 'y' as child of 'x', column 't1.b' is outside scope of pushable join
+Note	1003	Can't push table 'y' as child of 'x', column 't1.b' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,(/* select#2 */ select straight_join `test`.`x`.`a` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`a`) and (`test`.`y`.`a` = `test`.`t1`.`b`))) AS `(select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b)` from `test`.`t1`
 select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 a	(select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b)
@@ -3338,7 +3338,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	PRIMARY	NULL	NULL	NULL	4	75.00	Using where; Using join buffer (Block Nested Loop)
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	NULL
 Warnings:
-Note	9999	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
+Note	1003	Cannot push table 't3' as child of table 't1'. Doing so would prevent using join buffer for table 't2'.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b` from `test`.`t1` join `test`.`t2` join `test`.`t1` `t3` where ((`test`.`t3`.`a` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 select * from t1, t2, t1 as t3
 where t2.a = t1.b
@@ -3434,7 +3434,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition (`test`.`t1`.`b` is not null)
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`a` = `test`.`t1`.`b`)
 select *
 from t1, t2
@@ -3453,7 +3453,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where with pushed condition (`test`.`t1`.`b` is not null)
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`a` = 2) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 select *
 from t1, t2
@@ -3469,7 +3469,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition (`test`.`t2`.`b` is not null)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`b`)
 select *
 from t1, t2
@@ -3488,7 +3488,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	Using where with pushed condition (`test`.`t2`.`b` is not null)
 1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	NULL
 Warnings:
-Note	9999	Table 't1' is not pushable: select list can't contain BLOB columns
+Note	1003	Table 't1' is not pushable: select list can't contain BLOB columns
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = 3) and (`test`.`t1`.`a` = `test`.`t2`.`b`))
 select *
 from t1, t2
@@ -3875,7 +3875,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	5	test.x.b3,const	1	100.00	Using where
 Warnings:
-Note	9999	Can't push table 'y' as child, column 'a3' does not have same datatype as ref'ed column 'x.b3'
+Note	1003	Can't push table 'y' as child, column 'a3' does not have same datatype as ref'ed column 'x.b3'
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`a3` = `test`.`x`.`b3`) and (`test`.`y`.`b3` = '63'))
 select * from t3 x, t3 y where y.a3=x.b3 and y.b3="63";
 a3	b3	c3	d3	a3	b3	c3	d3
@@ -3921,8 +3921,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@2
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 't2' as child, column 'k' does neither 'ref' a column nor a constant
-Note	9999	Can't push table 't3' as child of 't1', column 't2.b' is outside scope of pushable join
+Note	1003	Can't push table 't2' as child, column 'k' does neither 'ref' a column nor a constant
+Note	1003	Can't push table 't3' as child of 't1', column 't2.b' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`k` AS `k`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`k` AS `k`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`k` AS `k`,`test`.`t4`.`b` AS `b` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` straight_join `test`.`t1` `t4` where ((`test`.`t3`.`k` = `test`.`t2`.`b`) and (`test`.`t4`.`k` = `test`.`t1`.`b`) and (`test`.`t2`.`k` = (`test`.`t1`.`b` + 0)))
 select *
 from t1
@@ -3947,8 +3947,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	4	test.t2.b	1	100.00	Child of 't2' in pushed join@2
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.b	1	100.00	Child of 't1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 't2' as child of 't1', their dependency is 'const'
-Note	9999	Can't push table 't3' as child of 't1', column 't2.b' is outside scope of pushable join
+Note	1003	Can't push table 't2' as child of 't1', their dependency is 'const'
+Note	1003	Can't push table 't3' as child of 't1', column 't2.b' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`t1`.`k` AS `k`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`k` AS `k`,`test`.`t2`.`b` AS `b`,`test`.`t3`.`k` AS `k`,`test`.`t3`.`b` AS `b`,`test`.`t4`.`k` AS `k`,`test`.`t4`.`b` AS `b` from `test`.`t1` straight_join `test`.`t1` `t2` straight_join `test`.`t1` `t3` straight_join `test`.`t1` `t4` where ((`test`.`t3`.`k` = `test`.`t2`.`b`) and (`test`.`t4`.`k` = `test`.`t1`.`b`) and (`test`.`t2`.`k` = 1) and (1 = (`test`.`t1`.`b` + 0)))
 select *
 from t1
@@ -4443,7 +4443,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	4	const	1	100.00	NULL
 1	SIMPLE	x	eq_ref	PRIMARY,a	PRIMARY	4	const	1	100.00	Using where
 Warnings:
-Note	9999	Can't push table 'x' as child of 'y', their dependency is 'const'
+Note	1003	Can't push table 'x' as child of 'y', their dependency is 'const'
 Note	1003	/* select#1 */ select `test`.`x`.`pk` AS `pk`,`test`.`x`.`a` AS `a`,`test`.`y`.`pk` AS `pk`,`test`.`y`.`a` AS `a` from `test`.`t1` `y` left join `test`.`t1` `x` on(((`test`.`y`.`a` = 2) and (`test`.`x`.`pk` = 2) and (`test`.`x`.`a` = 2))) where (`test`.`y`.`pk` = 2)
 select * from t1 as x right join t1 as y
 on x.pk = y.pk
@@ -4545,7 +4545,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
 1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x1`.`a` = `test`.`x2`.`b`)) where 1
 select count(*) from t1 as x1 left join t1 as x2 on x1.a=x2.b;
 count(*)
@@ -4563,7 +4563,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.u	1	100.00	Child of 'x1' in pushed join@1
 1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x1`.`u` = `test`.`x2`.`pk`)) left join `test`.`t1` `x3` on((`test`.`x2`.`a` = `test`.`x3`.`b`)) where 1
 select count(*) from t1 as x1 
 left join t1 as x2 on x1.u=x2.pk 
@@ -4589,10 +4589,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x4	eq_ref	PRIMARY	PRIMARY	4	test.x3.u	1	100.00	Child of 'x3' in pushed join@2
 1	SIMPLE	x5	ref	ix1	ix1	5	test.x4.a	2	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
-Note	9999	Can't push table 'x4' as child of 'x1', column 'x3.u' is outside scope of pushable join
-Note	9999	Can't push table 'x5' as child of 'x1', column 'x4.a' is outside scope of pushable join
-Note	9999	Can't push table 'x5' as child of 'x3', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x4' as child of 'x1', column 'x3.u' is outside scope of pushable join
+Note	1003	Can't push table 'x5' as child of 'x1', column 'x4.a' is outside scope of pushable join
+Note	1003	Can't push table 'x5' as child of 'x3', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x1`.`u` = `test`.`x2`.`pk`)) left join `test`.`t1` `x3` on((`test`.`x2`.`a` = `test`.`x3`.`b`)) left join `test`.`t1` `x4` on((`test`.`x3`.`u` = `test`.`x4`.`pk`)) left join `test`.`t1` `x5` on((`test`.`x4`.`a` = `test`.`x5`.`b`)) where 1
 select count(*) from t1 as x1
 left join t1 as x2 on x1.u=x2.pk
@@ -4617,7 +4617,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	index_merge	PRIMARY,ix2	ix2,PRIMARY	4,4	NULL	2	100.00	Using sort_union(ix2,PRIMARY); Using where with pushed condition (((`test`.`x1`.`pk` = 1) or (`test`.`x1`.`u` = 1)) and (`test`.`x1`.`a` is not null))
 1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	NULL
 Warnings:
-Note	9999	Push of table 'x2' as scan-child with lookup-root 'x1' not implemented
+Note	1003	Push of table 'x2' as scan-child with lookup-root 'x1' not implemented
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` where ((`test`.`x2`.`b` = `test`.`x1`.`a`) and ((`test`.`x1`.`pk` = 1) or (`test`.`x1`.`u` = 1)))
 select count(*) from t1 as x1
 join t1 as x2 on x1.a=x2.b
@@ -4636,8 +4636,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table2	ref	PRIMARY,ix1	ix1	5	test.table1.pk	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	table3	ref	ix1	ix1	5	test.table2.pk	2	100.00	Child of 'table2' in pushed join@1
 Warnings:
-Note	9999	Can't push table 'table2' as child of 'table1', outer join of scan-child not implemented
-Note	9999	Can't push table 'table3' as child of 'table1', column 'table2.pk' is outside scope of pushable join
+Note	1003	Can't push table 'table2' as child of 'table1', outer join of scan-child not implemented
+Note	1003	Can't push table 'table3' as child of 'table1', column 'table2.pk' is outside scope of pushable join
 Note	1003	/* select#1 */ select straight_join `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`u` AS `u`,`test`.`table1`.`a` AS `a`,`test`.`table1`.`b` AS `b`,`test`.`table2`.`pk` AS `pk`,`test`.`table2`.`u` AS `u`,`test`.`table2`.`a` AS `a`,`test`.`table2`.`b` AS `b`,`test`.`table3`.`pk` AS `pk`,`test`.`table3`.`u` AS `u`,`test`.`table3`.`a` AS `a`,`test`.`table3`.`b` AS `b` from `test`.`t1` `table1` left join (`test`.`t1` `table2` join `test`.`t1` `table3`) on(((`test`.`table1`.`pk` = `test`.`table2`.`b`) and (`test`.`table2`.`pk` = `test`.`table3`.`b`))) where 1
 select straight_join * from t1 as table1
 left join 
@@ -4683,7 +4683,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
 1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x2`.`b` = `test`.`x1`.`a`)) where 1
 explain extended select straight_join * from t1 as x1 
 right join t1 as x2 on x2.b = x1.a;
@@ -4691,7 +4691,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	ALL	NULL	NULL	NULL	NULL	13	100.00	NULL
 1	SIMPLE	x1	ALL	NULL	NULL	NULL	NULL	13	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	9999	Can't push table 'x1' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'x1' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b` from `test`.`t1` `x2` left join `test`.`t1` `x1` on((`test`.`x2`.`b` = `test`.`x1`.`a`)) where 1
 explain extended select straight_join * from 
 t1 as x1 inner join
@@ -4712,7 +4712,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.a	1	100.00	Child of 'x1' in pushed join@1
 1	SIMPLE	x3	ref	ix1	ix1	5	test.x2.a	2	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`pk` AS `pk`,`test`.`x1`.`u` AS `u`,`test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x2`.`pk` AS `pk`,`test`.`x2`.`u` AS `u`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x3`.`pk` AS `pk`,`test`.`x3`.`u` AS `u`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on(((`test`.`x2`.`pk` = `test`.`x1`.`a`) and (`test`.`x3`.`b` = `test`.`x2`.`a`))) where 1
 explain extended select straight_join count(*) from t1 as x1 
 join t1 as x2 on x2.b = x1.a
@@ -4773,7 +4773,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	NULL
 1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	2	100.00	Child of 'x1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x2` on((`test`.`x2`.`b` = `test`.`x1`.`a`)) join `test`.`t1` `x3` where (`test`.`x3`.`b` = `test`.`x1`.`b`)
 set ndb_join_pushdown=off;
 select straight_join count(*) from t1 as x1 
@@ -4795,7 +4795,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	ref	ix1	ix1	5	test.x1.a	2	100.00	Child of 'x1' in pushed join@1
 1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.b	2	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` left join `test`.`t1` `x3` on((`test`.`x3`.`b` = `test`.`x1`.`b`)) where (`test`.`x2`.`b` = `test`.`x1`.`a`)
 set ndb_join_pushdown=off;
 select straight_join count(*) from t1 as x1 
@@ -4840,7 +4840,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x3	ref	ix1	ix1	5	test.x1.a	2	100.00	NULL
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	4	test.x1.a	1	100.00	Child of 'x1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child of 'x1', outer join of scan-child not implemented
 Note	1003	/* select#1 */ select straight_join count(0) AS `count(*)` from `test`.`t1` `x1` left join `test`.`t1` `x3` on(((`test`.`x3`.`b` = `test`.`x1`.`a`) and (`test`.`x2`.`pk` = `test`.`x1`.`a`))) join `test`.`t1` `x2` where (`test`.`x2`.`pk` = `test`.`x1`.`a`)
 select straight_join count(*) from t1 as x1 
 left join t1 as x3 on x3.b = x1.a
@@ -4887,9 +4887,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table2	eq_ref	PRIMARY,ix2	PRIMARY	4	const	1	100.00	Using where with pushed condition (`test`.`table2`.`a` is not null)
 1	SIMPLE	table3	ref	ix2	ix2	9	test.table2.a,test.table1.u	1	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'table2' as child of 'table1', their dependency is 'const'
-Note	9999	Can't push table 'table3' as child of 'table1', column 'table2.a' is outside scope of pushable join
-Note	9999	Cannot push table 'table3' as child of 'table2', since it referes to column 'table1.u' prior to a potential 'const' root.
+Note	1003	Can't push table 'table2' as child of 'table1', their dependency is 'const'
+Note	1003	Can't push table 'table3' as child of 'table1', column 'table2.a' is outside scope of pushable join
+Note	1003	Cannot push table 'table3' as child of 'table2', since it referes to column 'table1.u' prior to a potential 'const' root.
 Note	1003	/* select#1 */ select straight_join `test`.`table1`.`pk` AS `pk`,`test`.`table1`.`u` AS `u`,`test`.`table1`.`a` AS `a`,`test`.`table1`.`b` AS `b`,`test`.`table2`.`pk` AS `pk`,`test`.`table2`.`u` AS `u`,`test`.`table2`.`a` AS `a`,`test`.`table2`.`b` AS `b`,`test`.`table3`.`pk` AS `pk`,`test`.`table3`.`u` AS `u`,`test`.`table3`.`a` AS `a`,`test`.`table3`.`b` AS `b` from `test`.`t1` `table1` join `test`.`t1` `table2` join `test`.`t1` `table3` where ((`test`.`table3`.`a` = `test`.`table2`.`a`) and (`test`.`table3`.`u` = `test`.`table1`.`u`) and (`test`.`table2`.`pk` = 3))
 select straight_join * from
 t1 as table1 join 
@@ -5308,10 +5308,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table3	eq_ref	PRIMARY	PRIMARY	4	test.table2.pk	1	100.00	Child of 'table2' in pushed join@1; Distinct
 1	SIMPLE	table4	eq_ref	PRIMARY	PRIMARY	4	test.table1.a	1	100.00	Using where; Distinct
 Warnings:
-Note	9999	Can't push table 'table2' as child, 'type' must be a 'ref' access
-Note	9999	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	9999	Cannot push table 'table4' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
-Note	9999	Cannot push table 'table4' as child of 'table2', since it referes to column 'table1.a' which will be stored in a join buffer.
+Note	1003	Can't push table 'table2' as child, 'type' must be a 'ref' access
+Note	1003	Cannot push table 'table3' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Cannot push table 'table4' as child of table 'table1'. Doing so would prevent using join buffer for table 'table2'.
+Note	1003	Cannot push table 'table4' as child of 'table2', since it referes to column 'table1.a' which will be stored in a join buffer.
 Note	1003	/* select#1 */ select straight_join distinct `test`.`table1`.`pk` AS `pk` from `test`.`t` `table1` join `test`.`t` `table2` join `test`.`t` `table3` join `test`.`t` `table4` where ((`test`.`table3`.`pk` = `test`.`table2`.`pk`) and (`test`.`table4`.`a` = `test`.`table2`.`pk`) and (`test`.`table4`.`pk` = `test`.`table1`.`a`) and (`test`.`table2`.`pk` <> 6))
 select distinct straight_join table1.pk FROM 
 t as table1  join
@@ -5367,7 +5367,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	ALL	ix1	NULL	NULL	NULL	4	100.00	NULL
 1	SIMPLE	b	ref_or_null	ix1	ix1	5	test.a.uq	2	100.00	Using where
 Warnings:
-Note	9999	Table 'b' is not pushable: This table access method can not be pushed.
+Note	1003	Table 'b' is not pushable: This table access method can not be pushed.
 Note	1003	/* select#1 */ select straight_join `test`.`a`.`k` AS `k`,`test`.`a`.`uq` AS `uq`,`test`.`b`.`k` AS `k`,`test`.`b`.`uq` AS `uq` from `test`.`t` `a` join `test`.`t` `b` where ((`test`.`b`.`uq` = `test`.`a`.`uq`) or isnull(`test`.`b`.`uq`))
 select straight_join * from t as a join t as b 
 on a.uq=b.uq or b.uq is null;
@@ -5389,7 +5389,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
 1	SIMPLE	b	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	9999	Can't push table 'b' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'b' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`a`.`k` AS `k`,`test`.`a`.`uq` AS `uq`,`test`.`b`.`k` AS `k`,`test`.`b`.`uq` AS `uq` from `test`.`t` `a` left join `test`.`t` `b` on((isnull(`test`.`a`.`k`) and (`test`.`a`.`uq` = `test`.`b`.`uq`))) where 1
 select * from t as a left join t as b 
 on a.k is null and a.uq=b.uq;
@@ -5415,8 +5415,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ref	uk1	uk1	13	test.x2.a	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	x3	ref	uk1	uk1	26	test.x2.b,test.x1.c	1	100.00	Child of 'x1' in pushed join@1
 Warnings:
-Note	9999	Can't push table 'x1' as child of 'x2', outer join of scan-child not implemented
-Note	9999	Can't push table 'x3' as child of 'x2', column 'x1.c' is outside scope of pushable join
+Note	1003	Can't push table 'x1' as child of 'x2', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child of 'x2', column 'x1.c' is outside scope of pushable join
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b`,`test`.`x3`.`c` AS `c` from `test`.`tc` `x2` left join `test`.`tc` `x1` on((`test`.`x1`.`b` = `test`.`x2`.`a`)) left join `test`.`tc` `x3` on(((`test`.`x2`.`b` = `test`.`x3`.`b`) and (`test`.`x1`.`c` = `test`.`x3`.`c`))) where 1
 select * from tc as x1 
 right outer join tc as x2 on x1.b=x2.a   
@@ -5430,8 +5430,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	ALL	uk1	NULL	NULL	NULL	3	100.00	Using where with pushed condition (`test`.`x1`.`b` is not null)
 1	SIMPLE	x2	eq_ref	PRIMARY	PRIMARY	12	test.x1.b	1	100.00	NULL
 Warnings:
-Note	9999	Table 'x1' is not pushable: lock modes other than 'read committed' not implemented
-Note	9999	Table 'x2' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Table 'x1' is not pushable: lock modes other than 'read committed' not implemented
+Note	1003	Table 'x2' is not pushable: lock modes other than 'read committed' not implemented
 Note	1003	/* select#1 */ select `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c` from `test`.`tc` `x1` join `test`.`tc` `x2` where (`test`.`x2`.`a` = `test`.`x1`.`b`)
 explain extended select * from tc as x1, tc as x2 where x1.b=x2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -5488,10 +5488,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x4	ALL	NULL	NULL	NULL	NULL	8	100.00	Parent of 2 pushed join@1; Using where
 1	SIMPLE	x1	ref	PRIMARY	PRIMARY	4	test.x4.d	1	100.00	Child of 'x4' in pushed join@1
 Warnings:
-Note	9999	Can't push table 'x3' as child of 'x2', outer join of scan-child not implemented
-Note	9999	Can't push table 'x4' as child, 'type' must be a 'ref' access
-Note	9999	Can't push table 'x1' as child of 'x2', column 'x4.d' is outside scope of pushable join
-Note	9999	Can't push table 'x1' as child of 'x3', column 'x4.d' is outside scope of pushable join
+Note	1003	Can't push table 'x3' as child of 'x2', outer join of scan-child not implemented
+Note	1003	Can't push table 'x4' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'x1' as child of 'x2', column 'x4.d' is outside scope of pushable join
+Note	1003	Can't push table 'x1' as child of 'x3', column 'x4.d' is outside scope of pushable join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` join `test`.`t1` `x2` left join (`test`.`t1` `x3` join `test`.`t1` `x4`) on((`test`.`x3`.`a` = `test`.`x2`.`d`)) where (`test`.`x1`.`a` = `test`.`x4`.`d`)
 select count(*) from t1 as x1 
 join (t1 as x2 
@@ -5510,8 +5510,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x2	ref	PRIMARY	PRIMARY	4	test.x1.d	1	100.00	NULL
 1	SIMPLE	x3	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 Warnings:
-Note	9999	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
-Note	9999	Can't push table 'x3' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'x2' as child of 'x1', outer join of scan-child not implemented
+Note	1003	Can't push table 'x3' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3`) on((`test`.`x1`.`d` = `test`.`x2`.`a`)) where 1
 select count(*) from t1 as x1 
 left join (t1 as x2 
@@ -5534,14 +5534,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x3	ref	PRIMARY	PRIMARY	4	test.x2.d	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	x4	ref	PRIMARY	PRIMARY	4	test.x3.d	1	100.00	Child of 'x3' in pushed join@1; Using where
 Warnings:
-Note	9999	Can't push table 'x1' as child of 'x0', outer join of scan-child not implemented
-Note	9999	Can't push table 'x2' as child, 'type' must be a 'ref' access
-Note	9999	Can't push table 'x3' as child of 'x0', column 'x2.d' is outside scope of pushable join
-Note	9999	Can't push table 'x4' as child of 'x0', column 'x3.d' is outside scope of pushable join
-Note	9999	Can't push table 'x3' as child of 'x1', column 'x2.d' is outside scope of pushable join
-Note	9999	Can't push table 'x4' as child of 'x1', column 'x3.d' is outside scope of pushable join
-Note	9999	Can't push table 'x3' as child of 'x2', outer join of scan-child not implemented
-Note	9999	Can't push table 'x4' as child of 'x2', column 'x3.d' is outside scope of pushable join
+Note	1003	Can't push table 'x1' as child of 'x0', outer join of scan-child not implemented
+Note	1003	Can't push table 'x2' as child, 'type' must be a 'ref' access
+Note	1003	Can't push table 'x3' as child of 'x0', column 'x2.d' is outside scope of pushable join
+Note	1003	Can't push table 'x4' as child of 'x0', column 'x3.d' is outside scope of pushable join
+Note	1003	Can't push table 'x3' as child of 'x1', column 'x2.d' is outside scope of pushable join
+Note	1003	Can't push table 'x4' as child of 'x1', column 'x3.d' is outside scope of pushable join
+Note	1003	Can't push table 'x3' as child of 'x2', outer join of scan-child not implemented
+Note	1003	Can't push table 'x4' as child of 'x2', column 'x3.d' is outside scope of pushable join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` `x0` left join (`test`.`t1` `x1` join `test`.`t1` `x2` left join (`test`.`t1` `x3` join `test`.`t1` `x4`) on(((`test`.`x2`.`d` = `test`.`x3`.`a`) and (`test`.`x3`.`d` = `test`.`x4`.`a`)))) on(((`test`.`x0`.`d` = `test`.`x1`.`a`) and (isnull(`test`.`x2`.`c`) or (`test`.`x1`.`a` = `test`.`x4`.`d`)))) where 1
 select count(*) from t1 as x0 
 left join (t1 as x1 
@@ -5733,6 +5733,16 @@ count(*)
 243
 set global debug=@save_debug;
 drop table t;
+create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
+insert into t1 values (4,null, 2);
+explain
+select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	eq_ref	PRIMARY,b	PRIMARY	4	const	1	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	4	test.x.b	1	Child of 'x' in pushed join@1
+select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
+a
+drop table t1;
 create temporary table spj_counts_at_end
 select counter_name, sum(val) as val 
 from ndbinfo.counters 
@@ -5754,7 +5764,7 @@ CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	254
 PRUNED_RANGE_SCANS_RECEIVED	27
 RANGE_SCANS_RECEIVED	737
-READS_RECEIVED	47
+READS_RECEIVED	48
 TABLE_SCANS_RECEIVED	254
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
