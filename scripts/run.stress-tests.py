@@ -420,7 +420,7 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
     devnull.close()
     if not compiler_works(cc):
         error('Cannot find working compiler named "%s".  Try sourcing the icc env script or providing another compiler with --cc.', cc)
-        sys.exit(r)
+        sys.exit(2)
     if cc == 'icc':
         iccstr = 'ON'
     else:
