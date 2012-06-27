@@ -27,6 +27,13 @@
 */
 #define NDB_MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
+/*
+  Creates a stringified version from major, minor and build
+  ex: NDB_MAKE_STRING_VERSION(7,0,22) => "7.0.22"
+*/
+#define NDB_MAKE_QUOTED_VERSION(A,B,C) #A "." #B "." #C
+#define NDB_MAKE_STRING_VERSION(A,B,C) NDB_MAKE_QUOTED_VERSION(A,B,C)
+
 /* NDB version numbers and status  */
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
@@ -36,6 +43,12 @@
 /* Composite version number for NDB */
 #define NDB_VERSION_D \
   NDB_MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
+
+/* Version string for NDB, ex: "ndb-7.0.22" */
+#define NDB_NDB_VERSION_STRING \
+  "ndb-" NDB_MAKE_STRING_VERSION(NDB_VERSION_MAJOR, \
+                                 NDB_VERSION_MINOR, \
+                                 NDB_VERSION_BUILD) NDB_VERSION_STATUS
 
 /*
   The version number of the MySQL Server that NDB is built

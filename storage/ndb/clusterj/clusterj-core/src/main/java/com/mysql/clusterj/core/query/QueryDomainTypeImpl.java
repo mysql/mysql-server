@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.Query;
 
+import com.mysql.clusterj.Query.Ordering;
 import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
@@ -78,6 +79,15 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     /** My properties. These encapsulate the property names not the values. */
     protected Map<String, PropertyImpl> properties =
             new HashMap<String, PropertyImpl>();
+
+    /** My index for this query */
+    CandidateIndexImpl index = null;
+
+    /** My ordering fields for this query */
+    String[] orderingFields = null;
+
+    /** My ordering for this query */
+    Ordering ordering = null;
 
     public QueryDomainTypeImpl(DomainTypeHandler<T> domainTypeHandler, Class<T> cls) {
         this.cls = cls;
@@ -153,10 +163,13 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     /** Query.getResultList delegates to this method.
      * @param skip the number of rows to skip
      * @param limit the limit of rows to return after skipping
+     * @param orderingFields 
+     * @param ordering 
      * 
      * @return the results of executing the query
      */
-    public List<T> getResultList(QueryExecutionContext context, long skip, long limit) {
+    public List<T> getResultList(QueryExecutionContext context, long skip, long limit,
+            Ordering ordering, String[] orderingFields) {
         assertAllParametersBound(context);
 
         SessionSPI session = context.getSession();
@@ -165,7 +178,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         List<T> resultList = new ArrayList<T>();
         try {
             // execute the query
-            ResultData resultData = getResultData(context, skip, limit);
+            ResultData resultData = getResultData(context, skip, limit, ordering, orderingFields);
             // put the result data into the result list
             while (resultData.next()) {
                 T row = session.newInstance(resultData, domainTypeHandler);
@@ -190,18 +203,22 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @param context the query context, including the bound parameters
      * @param skip the number of rows to skip
      * @param limit the limit of rows to return after skipping
+     * @param orderingFields 
+     * @param ordering 
      * @return the raw result data from the query
      * @throws ClusterJUserException if not all parameters are bound
      */
-    public ResultData getResultData(QueryExecutionContext context, long skip, long limit) {
+    public ResultData getResultData(QueryExecutionContext context, long skip, long limit,
+            Ordering ordering, String[] orderingFields) {
         SessionSPI session = context.getSession();
+        this.ordering = ordering;
+        this.orderingFields = orderingFields;
         // execute query based on what kind of scan is needed
         // if no where clause, scan the entire table
-        CandidateIndexImpl index = where==null?
-                CandidateIndexImpl.getIndexForNullWhereClause():
-                where.getBestCandidateIndex(context);
-
+        index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
+
+        if (logger.isDebugEnabled()) logger.debug("using index " + index.getIndexName() + " with scanType " + scanType);
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
         ResultData result = null;
@@ -216,7 +233,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     if (skip > 0 || limit < 1) {
                         return resultDataEmpty;
                     }
-                    if (logger.isDetailEnabled()) logger.detail("Using primary key find for query.");
                     // perform a select operation
                     op = session.getSelectOperation(domainTypeHandler.getStoreTable());
                     op.beginDefinition();
@@ -232,7 +248,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
 
                 case INDEX_SCAN: {
                     storeIndex = index.getStoreIndex();
-                    if (logger.isDetailEnabled()) logger.detail("Using index scan with ordered index " + index.getIndexName() + " for query.");
                     // perform an index scan operation
                     if (index.isMultiRange()) {
                         op = session.getIndexScanOperationMultiRange(storeIndex, domainTypeHandler.getStoreTable());
@@ -242,12 +257,19 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                         
                     }
                     op.beginDefinition();
+                    // set ordering if not already set to allow skip and limit to work
+                    if (ordering == null && (skip != 0 || limit != Long.MAX_VALUE)) {
+                        ordering = Ordering.ASCENDING;
+                    }
+                    ((ScanOperation)op).setOrdering(ordering);
                     // set the expected columns into the operation
                     domainTypeHandler.operationGetValues(op);
                     // set the bounds into the operation
                     index.operationSetBounds(context, (IndexScanOperation)op);
                     // set additional filter conditions
-                    where.filterCmpValue(context, (IndexScanOperation)op);
+                    if (where != null) {
+                        where.filterCmpValue(context, (IndexScanOperation)op);
+                    }
                     op.endDefinition();
                     // execute the scan and get results
                     result = ((ScanOperation)op).resultData(true, skip, limit);
@@ -255,7 +277,9 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 }
 
                 case TABLE_SCAN: {
-                    if (logger.isDetailEnabled()) logger.detail("Using table scan for query.");
+                    if (ordering != null) {
+                        throw new ClusterJUserException(local.message("ERR_Cannot_Use_Ordering_With_Table_Scan"));
+                    }
                     // perform a table scan operation
                     op = session.getTableScanOperation(domainTypeHandler.getStoreTable());
                     op.beginDefinition();
@@ -277,7 +301,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                         return resultDataEmpty;
                     }
                     storeIndex = index.getStoreIndex();
-                    if (logger.isDetailEnabled()) logger.detail("Using lookup with unique index " + index.getIndexName() + " for query.");
                     // perform a unique lookup operation
                     op = session.getUniqueIndexOperation(storeIndex, domainTypeHandler.getStoreTable());
                     op.beginDefinition();
@@ -328,9 +351,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
-        CandidateIndexImpl index = where==null?
-            CandidateIndexImpl.getIndexForNullWhereClause():
-            where.getBestCandidateIndex(context);
+        index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
@@ -339,7 +360,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         Index storeIndex;
         session.startAutoTransaction();
         Operation op = null;
-
         try {
             switch (scanType) {
 
@@ -444,9 +464,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         SessionSPI session = context.getSession();
         // calculate what kind of scan is needed
         // if no where clause, scan the entire table
-        CandidateIndexImpl index = where==null?
-            CandidateIndexImpl.getIndexForNullWhereClause():
-            where.getBestCandidateIndex(context);
+        index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
@@ -556,12 +574,30 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      */
     public void explain(QueryExecutionContext context) {
         assertAllParametersBound(context);
-        CandidateIndexImpl index = where==null?
-                CandidateIndexImpl.getIndexForNullWhereClause():
-                where.getBestCandidateIndex(context);
+        CandidateIndexImpl index = getCandidateIndex(context);
         ScanType scanType = index.getScanType();
         Map<String, Object> explain = newExplain(index, scanType);
         context.setExplain(explain);
+    }
+
+    private CandidateIndexImpl getCandidateIndex(QueryExecutionContext context) {
+        if (where == null) {
+            // there is no filter, so without ordering this is a table scan
+            // with ordering, choose an index that contains all ordering fields
+            CandidateIndexImpl[] candidateIndexImpls = domainTypeHandler.createCandidateIndexes();
+            for (CandidateIndexImpl candidateIndexImpl: candidateIndexImpls) {
+                // choose the first index that contains all ordering fields
+                if (candidateIndexImpl.containsAllOrderingFields(orderingFields)) {
+                    index = candidateIndexImpl;
+                    return index;
+                }
+            }
+            index = CandidateIndexImpl.getIndexForNullWhereClause();
+        } else {
+            // there is a filter; choose the best index that contains all ordering fields
+            index = where.getBestCandidateIndex(context, orderingFields);
+        }
+        return index;
     }
 
     /** Create a new explain for this query.

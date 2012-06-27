@@ -90,6 +90,8 @@ public:
   {
     m_transporter_registry.set_status_overloaded(remoteNodeId,
                                                  used >= m_overload_limit);
+    m_transporter_registry.set_status_slowdown(remoteNodeId,
+                                               used >= m_slowdown_limit);
   }
 
   virtual int doSend() = 0;
@@ -155,6 +157,7 @@ protected:
   Uint32 m_max_send_buffer;
   /* Overload limit, as configured with the OverloadLimit config parameter. */
   Uint32 m_overload_limit;
+  Uint32 m_slowdown_limit;
 
 private:
 
