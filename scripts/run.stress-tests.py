@@ -432,7 +432,7 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
               '-DCMAKE_BUILD_TYPE=Debug',
               '-DINTELCC=%s' % iccstr,
               '-DCMAKE_INSTALL_DIR=%s' % installdir,
-              tokudb]
+              tokudb],
              cwd=builddir)
     r = call(['make', '-s'] + tests, cwd=builddir)
     if r != 0:
