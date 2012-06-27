@@ -186,7 +186,8 @@ public class SQLExecutor {
             session.startAutoTransaction();
             try {
                 valueHandlerBatching.next();
-                ResultData resultData = queryDomainType.getResultData(context);
+                // TODO get skip and limit from the SQL query
+                ResultData resultData = queryDomainType.getResultData(context, 0, Long.MAX_VALUE);
                 // session.endAutoTransaction();
                 return new ResultSetInternalMethodsImpl(resultData, columnNumberToFieldNumberMap, 
                         columnNameToFieldNumberMap, session);

@@ -29,6 +29,8 @@ import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandlerBatching;
 
+import com.mysql.clusterj.core.store.Blob;
+import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.IndexOperation;
 import com.mysql.clusterj.core.store.IndexScanOperation;
@@ -45,6 +47,8 @@ import com.mysql.clusterj.query.PredicateOperand;
 import com.mysql.clusterj.query.QueryDefinition;
 import com.mysql.clusterj.query.QueryDomainType;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -147,10 +151,12 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     }
 
     /** Query.getResultList delegates to this method.
+     * @param skip the number of rows to skip
+     * @param limit the limit of rows to return after skipping
      * 
      * @return the results of executing the query
      */
-    public List<T> getResultList(QueryExecutionContext context) {
+    public List<T> getResultList(QueryExecutionContext context, long skip, long limit) {
         assertAllParametersBound(context);
 
         SessionSPI session = context.getSession();
@@ -159,7 +165,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         List<T> resultList = new ArrayList<T>();
         try {
             // execute the query
-            ResultData resultData = getResultData(context);
+            ResultData resultData = getResultData(context, skip, limit);
             // put the result data into the result list
             while (resultData.next()) {
                 T row = session.newInstance(resultData, domainTypeHandler);
@@ -182,10 +188,12 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * depends on the where clause and the bound parameter values.
      * 
      * @param context the query context, including the bound parameters
+     * @param skip the number of rows to skip
+     * @param limit the limit of rows to return after skipping
      * @return the raw result data from the query
      * @throws ClusterJUserException if not all parameters are bound
      */
-    public ResultData getResultData(QueryExecutionContext context) {
+    public ResultData getResultData(QueryExecutionContext context, long skip, long limit) {
         SessionSPI session = context.getSession();
         // execute query based on what kind of scan is needed
         // if no where clause, scan the entire table
@@ -204,6 +212,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
             switch (scanType) {
 
                 case PRIMARY_KEY: {
+                    // if skipping any results or limit is zero, return no results
+                    if (skip > 0 || limit < 1) {
+                        return resultDataEmpty;
+                    }
                     if (logger.isDetailEnabled()) logger.detail("Using primary key find for query.");
                     // perform a select operation
                     op = session.getSelectOperation(domainTypeHandler.getStoreTable());
@@ -238,7 +250,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     where.filterCmpValue(context, (IndexScanOperation)op);
                     op.endDefinition();
                     // execute the scan and get results
-                    result = op.resultData();
+                    result = ((ScanOperation)op).resultData(true, skip, limit);
                     break;
                 }
 
@@ -255,11 +267,15 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     }
                     op.endDefinition();
                     // execute the scan and get results
-                    result = op.resultData();
+                    result = ((ScanOperation)op).resultData(true, skip, limit);
                     break;
                 }
 
                 case UNIQUE_KEY: {
+                    // if skipping any results or limit is zero, return no results
+                    if (skip > 0 || limit < 1) {
+                        return resultDataEmpty;
+                    }
                     storeIndex = index.getStoreIndex();
                     if (logger.isDetailEnabled()) logger.detail("Using lookup with unique index " + index.getIndexName() + " for query.");
                     // perform a unique lookup operation
@@ -581,4 +597,184 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         return cls;
     }
 
+    private ResultData resultDataEmpty = new ResultData() {
+
+        public boolean next() {
+            // this ResultData has no results
+            return false;
+        }
+        
+        public BigInteger getBigInteger(Column columnName) {
+            return null;
+        }
+
+        public BigInteger getBigInteger(int columnNumber) {
+            return null;
+        }
+
+        public Blob getBlob(Column storeColumn) {
+            return null;
+        }
+
+        public Blob getBlob(int columnNumber) {
+            return null;
+        }
+
+        public boolean getBoolean(Column storeColumn) {
+            return false;
+        }
+
+        public boolean getBoolean(int columnNumber) {
+            return false;
+        }
+
+        public boolean[] getBooleans(Column storeColumn) {
+            return null;
+        }
+
+        public boolean[] getBooleans(int columnNumber) {
+            return null;
+        }
+
+        public byte getByte(Column storeColumn) {
+            return 0;
+        }
+
+        public byte getByte(int columnNumber) {
+            return 0;
+        }
+
+        public byte[] getBytes(Column storeColumn) {
+            return null;
+        }
+
+        public byte[] getBytes(int columnNumber) {
+            return null;
+        }
+
+        public Column[] getColumns() {
+            return null;
+        }
+
+        public BigDecimal getDecimal(Column storeColumn) {
+            return null;
+        }
+
+        public BigDecimal getDecimal(int columnNumber) {
+            return null;
+        }
+
+        public double getDouble(Column storeColumn) {
+            return 0;
+        }
+
+        public double getDouble(int columnNumber) {
+            return 0;
+        }
+
+        public float getFloat(Column storeColumn) {
+            return 0;
+        }
+
+        public float getFloat(int columnNumber) {
+            return 0;
+        }
+
+        public int getInt(Column storeColumn) {
+            return 0;
+        }
+
+        public int getInt(int columnNumber) {
+            return 0;
+        }
+
+        public long getLong(Column storeColumn) {
+            return 0;
+        }
+
+        public long getLong(int columnNumber) {
+            return 0;
+        }
+
+        public Object getObject(Column storeColumn) {
+            return null;
+        }
+
+        public Object getObject(int column) {
+            return null;
+        }
+
+        public Boolean getObjectBoolean(Column storeColumn) {
+            return null;
+        }
+
+        public Boolean getObjectBoolean(int columnNumber) {
+            return null;
+        }
+
+        public Byte getObjectByte(Column storeColumn) {
+            return null;
+        }
+
+        public Byte getObjectByte(int columnNumber) {
+            return null;
+        }
+
+        public Double getObjectDouble(Column storeColumn) {
+            return null;
+        }
+
+        public Double getObjectDouble(int columnNumber) {
+            return null;
+        }
+
+        public Float getObjectFloat(Column storeColumn) {
+            return null;
+        }
+
+        public Float getObjectFloat(int columnNumber) {
+            return null;
+        }
+
+        public Integer getObjectInteger(Column storeColumn) {
+            return null;
+        }
+
+        public Integer getObjectInteger(int columnNumber) {
+            return null;
+        }
+
+        public Long getObjectLong(Column storeColumn) {
+            return null;
+        }
+
+        public Long getObjectLong(int columnNumber) {
+            return null;
+        }
+
+        public Short getObjectShort(Column storeColumn) {
+            return null;
+        }
+
+        public Short getObjectShort(int columnNumber) {
+            return null;
+        }
+
+        public short getShort(Column storeColumn) {
+            return 0;
+        }
+
+        public short getShort(int columnNumber) {
+            return 0;
+        }
+
+        public String getString(Column storeColumn) {
+            return null;
+        }
+
+        public String getString(int columnNumber) {
+            return null;
+        }
+
+    };
 }
