@@ -2548,7 +2548,7 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
       }
       for (Uint32 i = 0; i<tmp.m_map.size(); i++)
       {
-        assert(tmp.m_map[i] <= 255);
+        assert(tmp.m_map[i] <= NDB_PARTITION_MASK);
         rt->m_hash_map.push_back(tmp.m_map[i]);
       }
     }
@@ -8225,6 +8225,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   hm.HashMapBuckets = src.getMapLen();
   for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
   {
+    assert(NdbHashMapImpl::getImpl(src).m_map[i] <= NDB_PARTITION_MASK);
     hm.HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
   }
 

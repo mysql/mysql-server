@@ -627,6 +627,7 @@ ErrorBundle ErrorCodes[] = {
   { 4116, DMEC, AE, "Operation was not defined correctly, probably missing a key" },
   { 4117, DMEC, AE, "Could not start transporter, configuration error"}, 
   { 4118, DMEC, AE, "Parameter error in API call" },
+  { 4120, DMEC, AE, "Scan already complete" },
   { 4300, DMEC, AE, "Tuple Key Type not correct" },
   { 4301, DMEC, AE, "Fragment Type not correct" },
   { 4302, DMEC, AE, "Minimum Load Factor not correct" },

@@ -27,15 +27,12 @@
 
 class NdbConfig : public NdbRestarter {
 public:
-  NdbConfig(int own_id, const char* addr = 0) 
-    : NdbRestarter(addr), 
-      ownNodeId(own_id) {};
+  NdbConfig(const char* addr = 0)
+    : NdbRestarter(addr)
+  {};
 
   bool getProperty(unsigned nodeid, unsigned type, unsigned key, Uint32 * val);
-
   bool getHostName(unsigned int node_id, const char ** hostname);
-  //protected:  
-  int ownNodeId;
 };
 
 #endif
