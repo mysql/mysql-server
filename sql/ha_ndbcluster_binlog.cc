@@ -1089,6 +1089,51 @@ static void ndb_notify_tables_writable()
 }
 
 /*
+
+ */
+
+static void clean_away_stray_files(THD *thd)
+{
+  /*
+    Clean-up any stray files for non-existing NDB tables
+  */
+  LOOKUP_FIELD_VALUES lookup_field_values;
+  bool with_i_schema;
+  List<LEX_STRING> db_names;
+  List_iterator_fast<LEX_STRING> it(db_names);
+  LEX_STRING *db_name;
+  List<LEX_STRING> tab_names;
+  char path[FN_REFLEN + 1];
+ 
+  DBUG_ENTER("clean_away_stray_files");
+  memset(&lookup_field_values, 0, sizeof(LOOKUP_FIELD_VALUES));
+  if (make_db_list(thd, &db_names, &lookup_field_values, &with_i_schema))
+  {
+    thd->clear_error();
+    DBUG_PRINT("info", ("Failed to find databases"));
+    DBUG_VOID_RETURN;
+  }
+  it.rewind();
+  while ((db_name= it++))
+  {
+    DBUG_PRINT("info", ("Found database %s", db_name->str));
+    if (strcmp(NDB_REP_DB, db_name->str)) /* Skip system database */
+    {
+      sql_print_information("NDB: Cleaning stray tables from database '%s'",
+                            db_name->str);
+      build_table_filename(path, sizeof(path) - 1, db_name->str, "", "", 0);
+      if (find_files(thd, &tab_names, db_name->str, path, NullS, 0)
+          != FIND_FILES_OK)
+      {
+        thd->clear_error();
+        DBUG_PRINT("info", ("Failed to find tables"));
+      }
+    }
+  }
+  DBUG_VOID_RETURN;
+}
+
+/*
   Ndb has no representation of the database schema objects.
   The mysql.ndb_schema table contains the latest schema operations
   done via a mysqld, and thus reflects databases created/dropped/altered
@@ -1226,7 +1271,7 @@ static int ndbcluster_find_all_databases(THD *thd)
           if (database_exists)
           {
             /* drop missing database */
-            sql_print_information("NDB: Discovered reamining database '%s'", db);
+            sql_print_information("NDB: Discovered remaining database '%s'", db);
           }
         }
       }
@@ -1440,6 +1485,8 @@ ndb_binlog_setup(THD *thd)
         return false;
     }
   }
+
+  clean_away_stray_files(thd);
 
   if (ndbcluster_find_all_databases(thd))
   {

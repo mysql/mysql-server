@@ -24,6 +24,7 @@
 #include "ScanFunctions.hpp"
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbConfig.hpp>
 
 const NdbDictionary::Table *
 getTable(Ndb* pNdb, int i){
@@ -1682,6 +1683,99 @@ runBug13394788(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+/**
+ * This is a regression test for bug #11748194 "TRANSACTION OBJECT CREATED 
+ * AND UNRELEASED BY EXTRA CALL TO NEXTRESULT()".
+ * If a transaction made an extra call to nextResult() after getting
+ * end-of-scan from nextResult(), the API would leak transaction objects. 
+ */
+static int
+runExtraNextResult(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  // Fill table with 10 rows.
+  HugoTransactions hugoTrans(*pTab);
+  Ndb* const ndb = GETNDB(step);
+  hugoTrans.loadTable(ndb, 10);
+  // Read MaxNoOfConcurrentTransactions configuration value.
+  Uint32 maxTrans = 0;
+  NdbConfig conf;
+  require(conf.getProperty(conf.getMasterNodeId(),
+                           NODE_TYPE_DB,
+                           CFG_DB_NO_TRANSACTIONS,
+                           &maxTrans));
+  require(maxTrans > 0);
+  
+  /**
+   * The bug causes each scan to leak one object.
+   */
+  int result = NDBT_OK;
+  Uint32 i = 0;
+  while (i < maxTrans+1)
+  {
+    NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      g_err << "ndb->startTransaction() gave unexpected error : " 
+            << ndb->getNdbError() << " in the " << i << "th iteration." <<endl;
+    }
+    
+    // Do a random numer of scans in this transaction.
+    const int scanCount = rand()%4;
+    for (int j=0; j < scanCount; j++)
+    {
+      NdbScanOperation* const scan = trans->getNdbScanOperation(pTab);
+      if (scan == NULL)
+      {
+        g_err << "trans->getNdbScanOperation() gave unexpected error : " 
+              << trans->getNdbError() << " in the " << i
+              << "th iteration." <<endl;
+        return NDBT_FAILED;
+      }
+      
+      require(scan->readTuples(NdbOperation::LM_CommittedRead) == 0);
+      require(scan->getValue(0u) != 0);
+      require(trans->execute(NoCommit) == 0);
+      
+      // Scan table until end.
+      int scanResult;
+      do
+      {
+        // Fetch new batch.
+        scanResult = scan->nextResult(true);
+        while (scanResult == 0)
+        {
+          // Iterate over batch.
+          scanResult = scan->nextResult(false);
+        }
+      } while (scanResult == 0 || scanResult == 2);
+
+      /** 
+       * Do extra nextResult. This is the application error that triggers the 
+       * bug.
+       */
+      scanResult = scan->nextResult(true);
+      require(scanResult < 0);
+      // Here we got the undefined error code -1. So check for that too.
+      // if (trans->getNdbError().code != 4120
+      if (scan->getNdbError().code != 4120
+          && result == NDBT_OK)
+      {
+        g_err << "scan->nextResult() gave unexpected error : " 
+              << scan->getNdbError() << " in the " << i << "th iteration." 
+              << endl;
+        result = NDBT_FAILED;
+      }
+      i++;
+    }
+    ndb->closeTransaction(trans);
+  } // while (i < maxTrans+1)
+
+  // Delete table rows.
+  require(UtilTransactions(*ctx->getTab()).clearTable(ndb) == 0);
+  return result;
+}
+
 NDBT_TESTSUITE(testScan);
 TESTCASE("ScanRead", 
 	 "Verify scan requirement: It should be possible "\
@@ -2246,6 +2340,11 @@ TESTCASE("Bug13394788", "")
   STEP(runBug13394788);
   FINALIZER(createOrderedPkIndex_Drop);
   FINALIZER(runClearTable);
+}
+TESTCASE("extraNextResultBug11748194",
+         "Regression test for bug #11748194")
+{
+  INITIALIZER(runExtraNextResult);
 }
 NDBT_TESTSUITE_END(testScan);
 
