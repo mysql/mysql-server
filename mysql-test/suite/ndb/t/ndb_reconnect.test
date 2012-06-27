@@ -100,7 +100,7 @@ End //
 delimiter ;//
 
 # drop the ndb table inside ndb
-system exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT ; 
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT 
 
 # Restart cluster nodes and clear all meta-data
 --exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
