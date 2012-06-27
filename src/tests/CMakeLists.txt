@@ -111,6 +111,7 @@ if(BUILD_TESTING)
       queries_with_deletes.c
       recover-2483.c
       recover-3113.c
+      recover-5146.c
       recover-compare-db.c
       recover-compare-db-descriptor.c
       recover-del-multiple.c
