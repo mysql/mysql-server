@@ -27,9 +27,23 @@ ENDIF()
 IF(HAVE_VISIBILITY_HIDDEN)
   SET_SOURCE_FILES_PROPERTIES(my_aes.cc
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(my_md5.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(my_sha1.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
+  SET_SOURCE_FILES_PROPERTIES(my_sha2.cc
+    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
-SET(MYSYS_SSL_SOURCES my_default.cc my_getopt.cc my_aes.cc)
+SET(MYSYS_SSL_SOURCES
+    my_default.cc
+    my_getopt.cc
+    my_aes.cc
+    my_sha1.cc
+    my_sha2.cc
+    my_md5.cc
+    my_rnd.cc
+   )
 
 ADD_CONVENIENCE_LIBRARY(mysys_ssl ${MYSYS_SSL_SOURCES})
 TARGET_LINK_LIBRARIES(mysys_ssl dbug strings ${SSL_LIBRARIES})
