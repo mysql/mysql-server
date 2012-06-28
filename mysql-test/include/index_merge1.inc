@@ -195,7 +195,6 @@ if ($index_merge_random_rows_in_EXPLAIN)
 explain select * from t0 where
   (key1 < 3 or key2 < 2) and (key3 < 3 or key4 < 3) and (key5 < 2 or key6 < 2);
 
-#   now index_merge is not used at all when "range" is possible
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 9 #
@@ -203,7 +202,6 @@ if ($index_merge_random_rows_in_EXPLAIN)
 explain select * from t0 where
   (key1 < 3 or key2 < 3) and (key3 < 70);
 
-#   this even can cause "all" scan:
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 9 #

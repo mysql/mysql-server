@@ -517,6 +517,14 @@ EXPLAIN SELECT * FROM t1 WHERE key1 < 3 OR key2 > 1020	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
                   "analyzing_index_merge": [
                     {
                       "indices_to_merge": [
@@ -1764,6 +1772,14 @@ EXPLAIN SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
                   "analyzing_index_merge": [
                     {
                       "indices_to_merge": [
@@ -2859,6 +2875,14 @@ EXPLAIN SELECT * FROM t1 WHERE (key1 > 1 OR key2  > 2)	{
                     "chosen": false,
                     "cause": "not_group_by_or_distinct"
                   } /* group_index_range */,
+                  "analyzing_range_alternatives": {
+                    "range_scan_alternatives": [
+                    ] /* range_scan_alternatives */,
+                    "analyzing_roworder_intersect": {
+                      "usable": false,
+                      "cause": "too_few_roworder_scans"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */,
                   "analyzing_index_merge": [
                     {
                       "indices_to_merge": [
