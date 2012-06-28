@@ -581,8 +581,7 @@ void ExternalValue::setMiscColumns(Operation & op) const {
   /* Set flags */
   if(wqitem->prefix_info.has_flags_col) {
     uint32_t flags = hash_item_get_flags(wqitem->cache_item);
-    if(flags)
-      op.setColumnInt(COL_STORE_FLAGS, ntohl(flags));
+    op.setColumnInt(COL_STORE_FLAGS, ntohl(flags));
   }
 }
 
