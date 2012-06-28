@@ -28,7 +28,12 @@ struct indexer_commit_keys {
 // a cursor callback that provides exclusive access to the source DB
 // with respect to txn commit and abort
 struct ule_prov_info {
+    // these are pointers to the allocated leafentry and ule needed to calculate
+    // provisional info. we only borrow them - whoever created the provisional info
+    // is responsible for cleaning up the leafentry and ule when done.
+    LEAFENTRY le;
     ULEHANDLE ule;
+    // provisional txn info for the ule
     uint32_t num_provisional;
     uint32_t num_committed;
     TXNID *prov_ids;
