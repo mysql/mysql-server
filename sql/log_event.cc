@@ -199,16 +199,16 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
   }
 
   if (ha_error != 0)
-    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
-                "Could not execute %s event on table %s.%s;"
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() :
+                ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
                 "%s handler error %s; "
                 "the event's master log %s, end_log_pos %lu",
                 type, table->s->db.str, table->s->table_name.str,
                 buff, handler_error == NULL ? "<unknown>" : handler_error,
                 log_name, pos);
   else
-    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0,
-                "Could not execute %s event on table %s.%s;"
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() :
+                ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
                 "%s the event's master log %s, end_log_pos %lu",
                 type, table->s->db.str, table->s->table_name.str,
                 buff, log_name, pos);
@@ -4652,13 +4652,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         clear_all_errors(thd, const_cast<Relay_log_info*>(rli)); /* Can ignore query */
       else
       {
-        rli->report(ERROR_LEVEL, expected_error, 
-                          "\
-Query partially completed on the master (error on master: %d) \
-and was aborted. There is a chance that your master is inconsistent at this \
-point. If you are sure that your master is ok, run this query manually on the \
-slave and then restart the slave with SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1; \
-START SLAVE; . Query: '%s'", expected_error, thd->query());
+        rli->report(ERROR_LEVEL, ER_ERROR_ON_MASTER, ER(ER_ERROR_ON_MASTER),
+                    expected_error, thd->query());
         thd->is_slave_error= 1;
       }
       goto end;
@@ -4706,12 +4701,7 @@ compare_errors:
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
     {
-      rli->report(ERROR_LEVEL, 0,
-                      "\
-Query caused different errors on master and slave.     \
-Error on master: message (format)='%s' error code=%d ; \
-Error on slave: actual message='%s', error code=%d. \
-Default database: '%s'. Query: '%s'",
+      rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
                       ER_SAFE(expected_error),
                       expected_error,
                       actual_error ? thd->get_stmt_da()->message() : "no error",
@@ -7767,6 +7757,12 @@ bool Create_file_log_event::write_base(IO_CACHE* file)
 {
   bool res;
   fake_base= 1;                                 // pretend we are Load event
+  DBUG_EXECUTE_IF("simulate_cache_write_failure",
+                  {
+                  res= TRUE;
+                  my_error(ER_UNKNOWN_ERROR, MYF(0));
+                  return res;
+                  });
   res= write(file);
   fake_base= 0;
   return res;
@@ -7932,8 +7928,8 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
 		    MYF(MY_WME|MY_NABP)))
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
-                "Error in Create_file event: could not open file '%s'",
-                fname_buf);
+                "Error in Create_file event: could not open file '%s', '%s'",
+                fname_buf, thd->get_stmt_da()->message());
     goto err;
   }
   
@@ -7943,9 +7939,9 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   if (write_base(&file))
   {
     strmov(ext, ".info"); // to have it right in the error message
-    rli->report(ERROR_LEVEL, my_errno,
-                "Error in Create_file event: could not write to file '%s'",
-                fname_buf);
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in Create_file event: could not write to file '%s', '%s'",
+                fname_buf, thd->get_stmt_da()->message());
     goto err;
   }
   end_io_cache(&file);
@@ -7954,14 +7950,18 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   // fname_buf now already has .data, not .info, because we did our trick
   /* old copy may exist already */
   mysql_file_delete(key_file_log_event_data, fname_buf, MYF(0));
+  DBUG_EXECUTE_IF("simulate_file_create_error_create_log_event_2",
+                  {
+                  strcat(fname_buf, "/");
+                  });
   if ((fd= mysql_file_create(key_file_log_event_data,
                              fname_buf, CREATE_MODE,
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   {
-    rli->report(ERROR_LEVEL, my_errno,
-                "Error in Create_file event: could not open file '%s'",
-                fname_buf);
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in Create_file event: could not open file '%s', '%s'",
+                fname_buf, thd->get_stmt_da()->message());
     goto err;
   }
   /**
@@ -7975,8 +7975,8 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
-                "Error in Create_file event: write to '%s' failed",
-                fname_buf);
+                "Error in Create_file event: write to '%s' failed, '%s'",
+                fname_buf, thd->get_stmt_da()->message());
     goto err;
   }
   error=0;					// Everything is ok
@@ -8121,14 +8121,18 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
     mysql_reset_thd_for_next_command(thd);
     /* old copy may exist already */
     mysql_file_delete(key_file_log_event_data, fname, MYF(0));
+    DBUG_EXECUTE_IF("simulate_file_create_error_Append_block_event",
+                    {
+                    strcat(fname, "/");
+                    });
     if ((fd= mysql_file_create(key_file_log_event_data,
                                fname, CREATE_MODE,
                                O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                                MYF(MY_WME))) < 0)
     {
-      rli->report(ERROR_LEVEL, my_errno,
-                  "Error in %s event: could not create file '%s'",
-                  get_type_str(), fname);
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                  "Error in %s event: could not create file '%s', '%s'",
+                  get_type_str(), fname, thd->get_stmt_da()->message());
       goto err;
     }
   }
@@ -8137,22 +8141,25 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                                 O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
                                 MYF(MY_WME))) < 0)
   {
-    rli->report(ERROR_LEVEL, my_errno,
-                "Error in %s event: could not open file '%s'",
-                get_type_str(), fname);
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in %s event: could not open file '%s', '%s'",
+                get_type_str(), fname, thd->get_stmt_da()->message());
     goto err;
   }
-
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
                   {
                     my_delete_allow_opened(fname, MYF(0));
                   });
 
+  DBUG_EXECUTE_IF("simulate_file_write_error_Append_block_event",
+                  {
+                    mysql_file_close(fd, MYF(0));
+                  });
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, my_errno,
-                "Error in %s event: write to '%s' failed",
-                get_type_str(), fname);
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+                "Error in %s event: write to '%s' failed, '%s'",
+                get_type_str(), fname, thd->get_stmt_da()->message());
     goto err;
   }
   error=0;
@@ -8384,8 +8391,8 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
 		    MYF(MY_WME|MY_NABP)))
   {
     rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
-                "Error in Exec_load event: could not open file '%s'",
-                fname);
+                "Error in Exec_load event: could not open file, '%s'",
+                thd->get_stmt_da()->message());
     goto err;
   }
   if (!(lev= (Load_log_event*)
@@ -8395,8 +8402,8 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
                                   opt_slave_sql_verify_checksum)) ||
       lev->get_type_code() != NEW_LOAD_EVENT)
   {
-    rli->report(ERROR_LEVEL, 0, "Error in Exec_load event: "
-                    "file '%s' appears corrupted", fname);
+    rli->report(ERROR_LEVEL, ER_FILE_CORRUPT, ER(ER_FILE_CORRUPT),
+                fname);
     goto err;
   }
   lev->thd = thd;
