@@ -96,6 +96,9 @@ void toku_compress (enum toku_compression_method a,
 						 source, sourceLen,
 						 dest, &out_pos, *destLen);
 	    assert(out_pos < *destLen);
+            if (r != LZMA_OK) {
+                fprintf(stderr, "lzma_easy_buffer_encode() returned %d\n", (int) r);
+            }
 	    assert(r==LZMA_OK);
 	    *destLen = out_pos;
 	}
