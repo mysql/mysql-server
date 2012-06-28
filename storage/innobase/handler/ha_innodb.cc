@@ -10528,9 +10528,10 @@ in various fields of the handle object.
 @return HA_ERR_* error code or 0 */
 UNIV_INTERN
 int
-ha_innobase::info(
-/*==============*/
-	uint	flag)	/*!< in: what information is requested */
+ha_innobase::info_low(
+/*==================*/
+	uint	flag,	/*!< in: what information is requested */
+	bool	is_analyze)
 {
 	dict_table_t*	ib_table;
 	ha_rows		rec_per_key;
@@ -10561,8 +10562,7 @@ ha_innobase::info(
 	DBUG_ASSERT(ib_table->n_ref_count > 0);
 
 	if (flag & HA_STATUS_TIME) {
-		if (thd_sql_command(user_thd) == SQLCOM_ANALYZE
-		    || innobase_stats_on_metadata) {
+		if (is_analyze || innobase_stats_on_metadata) {
 
 			dict_stats_upd_option_t	opt;
 			dberr_t			ret;
@@ -10570,7 +10570,7 @@ ha_innobase::info(
 			prebuilt->trx->op_info = "updating table statistics";
 
 			if (dict_stats_is_persistent_enabled(ib_table)) {
-				if (thd_sql_command(user_thd) == SQLCOM_ANALYZE) {
+				if (is_analyze) {
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {
 					/* This is e.g. 'SHOW INDEXES', fetch
@@ -10898,6 +10898,19 @@ func_exit:
 	DBUG_RETURN(0);
 }
 
+/*********************************************************************//**
+Returns statistics information of the table to the MySQL interpreter,
+in various fields of the handle object.
+@return HA_ERR_* error code or 0 */
+UNIV_INTERN
+int
+ha_innobase::info(
+/*==============*/
+	uint	flag)	/*!< in: what information is requested */
+{
+	return(this->info_low(flag, false /* not ANALYZE */));
+}
+
 /**********************************************************************//**
 Updates index cardinalities of the table, based on random dives into
 each index tree. This does NOT calculate exact statistics on the table.
@@ -10911,9 +10924,11 @@ ha_innobase::analyze(
 {
 	int	ret;
 
-	/* Simply call ::info() with all the flags
+	/* Simply call this->info_low() with all the flags
 	and request recalculation of the statistics */
-	ret = info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
+	ret = this->info_low(
+		HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE,
+		true /* this is ANALYZE */);
 
 	if (ret != 0) {
 		return(HA_ADMIN_FAILED);
