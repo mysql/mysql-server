@@ -2139,7 +2139,10 @@ void Relay_log_info::set_rli_description_event(Format_description_log_event *fe)
       for (uint i= 0; i < workers.elements; i++)
       {
         Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
-        w->set_rli_description_event(fe);
+        mysql_mutex_lock(&w->jobs_lock);
+        if (w->running_status == Slave_worker::RUNNING)
+          w->set_rli_description_event(fe);
+        mysql_mutex_unlock(&w->jobs_lock);
       }
     }
   }
