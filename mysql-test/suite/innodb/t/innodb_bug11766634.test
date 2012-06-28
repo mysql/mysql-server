@@ -18,7 +18,7 @@ let $MYSQLD_DATADIR=`select @@datadir`;
 let IBDATA1=$MYSQLD_DATADIR/ibdata1;
 let $MYSQLD_TMPDIR = `SELECT @@tmpdir`;
 let $rnd=`SELECT FLOOR(1 + (RAND() * 100000))`;
-let TMPFILE=$MYSQLD_TMPDIR/bug11766634-$rnd.txt
+let TMPFILE=$MYSQLD_TMPDIR/bug11766634-$rnd.txt;
 
 let $recs = 36262;
 
