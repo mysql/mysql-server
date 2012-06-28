@@ -8671,6 +8671,23 @@ String *Item_cache_datetime::val_str(String *str)
 my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+
+  if (str_value_cached)
+  {
+    switch (cached_field_type)
+    {
+    case MYSQL_TYPE_TIME:
+      return val_decimal_from_time(decimal_val);
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATE:
+      return val_decimal_from_date(decimal_val);
+    default:
+      DBUG_ASSERT(0);
+      return NULL;
+    }
+  }
+
   if ((!value_cached && !cache_value_int()) || null_value)
     return 0;
   return my_decimal_from_datetime_packed(decimal_val, field_type(), int_value);
