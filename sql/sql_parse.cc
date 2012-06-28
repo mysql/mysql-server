@@ -4782,65 +4782,45 @@ create_sp_error:
   }
   case SQLCOM_CREATE_SERVER:
   {
-    int error;
-    LEX *lex= thd->lex;
-    DBUG_PRINT("info", ("case SQLCOM_CREATE_SERVER"));
-
     if (check_global_access(thd, SUPER_ACL))
-      break;
+      goto error;
 
-    if ((error= create_server(thd, &lex->server_options)))
-    {
-      DBUG_PRINT("info", ("problem creating server <%s>",
-                          lex->server_options.server_name));
-      my_error(error, MYF(0), lex->server_options.server_name);
-      break;
-    }
+    if (create_server(thd, &thd->lex->server_options))
+      goto error;
+
     my_ok(thd, 1);
     break;
   }
   case SQLCOM_ALTER_SERVER:
   {
-    int error;
-    LEX *lex= thd->lex;
-    DBUG_PRINT("info", ("case SQLCOM_ALTER_SERVER"));
-
     if (check_global_access(thd, SUPER_ACL))
-      break;
+      goto error;
 
-    if ((error= alter_server(thd, &lex->server_options)))
-    {
-      DBUG_PRINT("info", ("problem altering server <%s>",
-                          lex->server_options.server_name));
-      my_error(error, MYF(0), lex->server_options.server_name);
-      break;
-    }
+    if (alter_server(thd, &thd->lex->server_options))
+      goto error;
+
     my_ok(thd, 1);
     break;
   }
   case SQLCOM_DROP_SERVER:
   {
-    int err_code;
-    LEX *lex= thd->lex;
-    DBUG_PRINT("info", ("case SQLCOM_DROP_SERVER"));
-
     if (check_global_access(thd, SUPER_ACL))
-      break;
+      goto error;
 
-    if ((err_code= drop_server(thd, &lex->server_options)))
+    LEX *lex= thd->lex;
+    if (drop_server(thd, &lex->server_options, lex->drop_if_exists))
     {
-      if (! lex->drop_if_exists && err_code == ER_FOREIGN_SERVER_DOESNT_EXIST)
-      {
-        DBUG_PRINT("info", ("problem dropping server %s",
-                            lex->server_options.server_name));
-        my_error(err_code, MYF(0), lex->server_options.server_name);
-      }
-      else
-      {
-        my_ok(thd, 0);
-      }
+      /*
+        drop_server() can fail without reporting an error
+        due to IF EXISTS clause. In this case, call my_ok().
+      */
+      if (thd->is_error() || thd->killed)
+        goto error;
+      DBUG_ASSERT(lex->drop_if_exists);
+      my_ok(thd, 0);
       break;
     }
+
     my_ok(thd, 1);
     break;
   }
