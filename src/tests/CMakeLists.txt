@@ -451,6 +451,25 @@ if(BUILD_TESTING)
     endif()
   endforeach(src)
 
+  configure_file(run_upgrade_stress_test.sh . COPYONLY)
+  foreach(src ${stress_test_srcs})
+    if (NOT ${src} MATCHES test_stress_openclose)
+      string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
+
+      foreach(oldver 4.2.0 5.0.8 5.2.7)
+        foreach(p_or_s pristine stressed)
+          if (NOT (${src} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
+            foreach(size 2000 200000 50000000)
+              add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${src})
+              add_test(ydb/${test}/upgrade/${oldver}/${p_or_s}
+                ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${src}.c.tdb ${size} 600)
+            endforeach(size)
+          endif ()
+        endforeach(p_or_s)
+      endforeach(ver)
+    endif ()
+  endforeach(src)
+
   ## for some reason this rule doesn't run with the makefile and it crashes with this rule, so I'm disabling this special case
   #declare_custom_tests(test_thread_stack.tdb)
   #add_custom_command(OUTPUT run_test_thread_stack.sh
