@@ -396,10 +396,8 @@ get_indexer_if_exists(
             if (!first_indexer) {
                 first_indexer = indexer;
             }
-            else {
-                if (first_indexer != indexer) {
-                    r = EINVAL;
-                }
+            else if (first_indexer != indexer) {
+                r = EINVAL;
             }
         }
     }
@@ -442,7 +440,6 @@ env_del_multiple(
         goto cleanup;
     }
 
-    {
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
     FT_HANDLE brts[num_dbs];
@@ -456,7 +453,7 @@ env_del_multiple(
             del_keys[which_db] = *src_key;
         }
         else {
-        //Generate the key
+            //Generate the key
             r = env->i->generate_row_for_del(db, src_db, &keys[which_db], src_key, src_val);
             if (r != 0) goto cleanup;
             del_keys[which_db] = keys[which_db];
@@ -492,7 +489,7 @@ env_del_multiple(
     else {
         r = log_del_multiple(txn, src_db, src_key, src_val, num_dbs, brts, del_keys);
     }
-    if (r == 0) 
+    if (r == 0) {
         r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key);
     }
     toku_multi_operation_client_unlock();
