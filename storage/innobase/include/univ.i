@@ -43,7 +43,7 @@ Created 1/20/1994 Heikki Tuuri
 #define IB_TO_STR(s)	_IB_TO_STR(s)
 
 #define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	2
+#define INNODB_VERSION_MINOR	3
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
