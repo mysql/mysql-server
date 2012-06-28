@@ -46,6 +46,10 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (NULL,1,1), (6,2,2), (5,3,3), (NULL,4,4);
 INSERT INTO t1 VALUES (1,NULL,6), (8,5,7), (NULL,8,8), (8,NULL,5);
 
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+
 CREATE TABLE t2 (
   pk INT PRIMARY KEY
 ) ENGINE=InnoDB;
