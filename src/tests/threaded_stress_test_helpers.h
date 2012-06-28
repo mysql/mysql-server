@@ -639,6 +639,12 @@ static int scan_op_and_maybe_check_sum(
             r = cursor->c_getf_prev(cursor, 0, scan_cb, &e);
         }
         assert(r==0 || r==DB_NOTFOUND);
+        if (!run_test) {
+            // terminate early because this op takes a while under drd.
+            // don't check the sum if we do this.
+            check_sum = false;
+            break;
+        }
     }
     { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
     if (r == DB_NOTFOUND) {
@@ -874,7 +880,7 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
 
 static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {
     struct scan_op_extra* extra = operation_extra;
-    for (int i = 0; i < arg->cli->num_DBs; i++) {
+    for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, true);
         assert_zero(r);
     }
@@ -883,7 +889,7 @@ static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *U
 
 static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     struct scan_op_extra* extra = operation_extra;
-    for (int i = 0; i < arg->cli->num_DBs; i++) {
+    for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, false);
         assert_zero(r);
     }
@@ -2109,6 +2115,8 @@ do_warm_cache(DB_ENV *env, DB **dbs, struct cli_args *args)
     scan_arg.lock_type = STRESS_LOCK_NONE;
     DB_TXN* txn = NULL;
     int r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
+    // make sure the scan doesn't terminate early
+    run_test = true;
     scan_op_no_check(txn, &scan_arg, &soe, NULL);
     r = txn->commit(txn,0); CKERR(r);
 }
@@ -2171,6 +2179,8 @@ UU() stress_recover(struct cli_args *args) {
     soe.fast = TRUE;
     soe.fwd = TRUE;
     soe.prefetch = FALSE;
+    // make sure the scan doesn't terminate early
+    run_test = true;
     r = scan_op(txn, &recover_args, &soe, NULL);
     CKERR(r);
     { int chk_r = txn->commit(txn,0); CKERR(chk_r); }
