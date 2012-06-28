@@ -41,6 +41,7 @@ void setup_server_for_unit_tests()
   randominit(&sql_rand, 0, 0);
   xid_cache_init();
   delegates_init();
+  gtid_server_init();
   error_handler_hook= test_error_handler_hook;
 }
 
@@ -48,6 +49,7 @@ void teardown_server_for_unit_tests()
 {
   delegates_destroy();
   xid_cache_free();
+  gtid_server_cleanup();
 }
 
 void Server_initializer::set_expected_error(uint val)
