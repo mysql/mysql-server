@@ -466,7 +466,7 @@ if(BUILD_TESTING)
             endforeach(size)
           endif ()
         endforeach(p_or_s)
-      endforeach(ver)
+      endforeach(oldver)
     endif ()
   endforeach(src)
 
