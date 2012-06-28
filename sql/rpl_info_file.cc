@@ -360,6 +360,10 @@ bool Rpl_info_file::do_is_transactional()
 
 bool Rpl_info_file::do_update_is_transactional()
 {
+  DBUG_EXECUTE_IF("simulate_update_is_transactional_error",
+                  {
+                  return TRUE;
+                  });
   return FALSE;
 }
 

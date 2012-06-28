@@ -4366,7 +4366,7 @@ pthread_handler_t handle_slave_worker(void *arg)
 
   if (w->update_is_transactional())
   {
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                 "Error checking if the worker repository is transactional.");
     goto err;
   }
@@ -5256,7 +5256,7 @@ pthread_handler_t handle_slave_sql(void *arg)
     */
     mysql_cond_broadcast(&rli->start_cond);
     mysql_mutex_unlock(&rli->run_lock);
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                 "Failed during slave thread initialization");
     goto err;
   }
@@ -5274,7 +5274,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   {
     mysql_cond_broadcast(&rli->start_cond);
     mysql_mutex_unlock(&rli->run_lock);
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                 "Failed during slave workers initialization");
     goto err;
   }
@@ -5304,7 +5304,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   {
     mysql_cond_broadcast(&rli->start_cond);
     mysql_mutex_unlock(&rli->run_lock);
-    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, 
+    rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
                 "Error checking if the relay log repository is transactional.");
     goto err;
   }
@@ -5396,7 +5396,8 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
     if (thd->is_slave_error)
     {
       rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
-                  "Slave SQL thread aborted. Can't execute init_slave query");
+                  "Slave SQL thread aborted. Can't execute init_slave query,"
+                  "'%s'", thd->get_stmt_da()->message());
       goto err;
     }
   }

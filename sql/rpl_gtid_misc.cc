@@ -26,7 +26,6 @@
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
-#define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Gtid::parse");
   rpl_sid sid;
   const char *s= text;
