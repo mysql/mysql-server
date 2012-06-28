@@ -456,7 +456,7 @@ if(BUILD_TESTING)
     if (NOT ${src} MATCHES test_stress_openclose)
       string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
 
-      foreach(oldver 4.2.0 5.0.8 5.2.7)
+      foreach(oldver 4.2.0 5.0.8 5.2.7 6.0.0)
         foreach(p_or_s pristine stressed)
           if (NOT (${src} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
             foreach(size 2000)
