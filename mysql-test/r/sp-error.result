@@ -1494,9 +1494,9 @@ CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
 SELECT inexistent(), 1 + ,;
-ERROR 42000: FUNCTION inexistent does not exist
+ERROR 3D000: No database selected
 SELECT inexistent();
-ERROR 42000: FUNCTION inexistent does not exist
+ERROR 3D000: No database selected
 SELECT .inexistent();
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '()' at line 1
 SELECT ..inexistent();
