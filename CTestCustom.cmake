@@ -86,14 +86,8 @@ foreach(test ${stress_tests})
     ydb/drd_mid_${test}
     ydb/drd_large_${test}
     )
-  if(NOT test MATCHES "test_stress(1|3).tdb")
-    list(APPEND CTEST_CUSTOM_TESTS_IGNORE
-      ydb/drd_large_${test}
-      )
-  endif()
   if(NOT @RUN_LONG_TESTS@)
     list(APPEND CTEST_CUSTOM_TESTS_IGNORE
-      ydb/drd_mid_${test}
       ydb/drd_large_${test}
       )
   endif()
