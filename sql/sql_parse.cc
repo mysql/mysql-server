@@ -2611,7 +2611,10 @@ case SQLCOM_PREPARE:
       value of constant
     */
     it->quick_fix_field();
-    res = purge_master_logs_before_date(thd, (ulong)it->val_int());
+    time_t purge_time= static_cast<time_t>(it->val_int());
+    if (thd->is_error())
+      goto error;
+    res = purge_master_logs_before_date(thd, purge_time);
     break;
   }
 #endif
