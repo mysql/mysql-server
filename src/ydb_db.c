@@ -466,6 +466,12 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
 // This function is used both to set an initial descriptor of a DB and to
 // change a descriptor. (only way to set a descriptor of a DB)
 //
+// Requires:
+//  - The caller must not call put_multiple, del_multiple, or update_multiple concurrently
+//  - The caller must not have a hot index running concurrently on db
+//  - If the caller has passed DB_UPDATE_CMP_DESCRIPTOR as a flag, then he is calling this function
+//     ONLY immediately after creating the dictionary and before doing any actual work on the dictionary.
+//
 static int 
 toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
