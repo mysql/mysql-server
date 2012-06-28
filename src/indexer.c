@@ -364,16 +364,21 @@ struct le_cursor_extra {
 // cachetable pair locks. because no txn can commit on this db, read
 // the provisional info for the newly read ule.
 static int
-le_cursor_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *extra, bool lock_only) {
+le_cursor_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec val, void *extra, bool lock_only) {
     if (lock_only || val == NULL) {
-        ; // do nothing if only locking or val==NULL, meaning there are no more elements
+        ; // do nothing if only locking. do nothing if val==NULL, means DB_NOTFOUND
     } else {
         struct le_cursor_extra *cursor_extra = extra;
         struct ule_prov_info *prov_info = cursor_extra->prov_info;
-        // TODO(John): Do we need to actually copy this ule and save it after
-        // copying all of the provisional info? or is the info all we need?
-        void *le_buf = toku_xmemdup(val, vallen);
-        ULEHANDLE ule = toku_ule_create(le_buf);
+        // the val here is a leafentry. ule_create copies the contents of a
+        // leafentry into its own buffers, so we don't need to malloc space
+        // for this value to exist outside the callback.
+        //
+        // this cast is only necssary because the typedef is preventing us
+        // from declaring a "const LEAFENTRY" le. we're only able to say
+        // const "LEAFENTRY le".
+        const LEAFENTRY le = (const LEAFENTRY) val;
+        ULEHANDLE ule = toku_ule_create(le);
         invariant(ule);
         ule_prov_info_init(prov_info, ule);
         indexer_fill_prov_info(cursor_extra->indexer, prov_info);
