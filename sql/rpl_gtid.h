@@ -326,13 +326,11 @@ public:
 #else
     is_write_lock= false;
 #endif
-    mysql_rwlock_init(
 #ifdef MYSQL_SERVER
-                      key_rwlock_global_sid_lock
+    mysql_rwlock_init(key_rwlock_global_sid_lock, &rwlock);
 #else
-                      0
+    mysql_rwlock_init(0, &rwlock);
 #endif
-                      , &rwlock);
   }
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock()
