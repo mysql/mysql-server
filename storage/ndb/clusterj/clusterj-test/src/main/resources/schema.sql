@@ -3,6 +3,13 @@ drop table if exists t_basic;
 # the second statement is a test; if it succeeds, skip the rest of the file.
 select id from t_basic where id = 9999;
 # the following statements are delimited by semicolon
+
+DROP TABLE IF EXISTS twopk;
+CREATE TABLE IF NOT EXISTS twopk (
+  id int not null,
+  name varchar(30)
+) ENGINE = ndbcluster;
+
 DROP TABLE IF EXISTS subscriber ;
 
 CREATE TABLE IF NOT EXISTS subscriber (
