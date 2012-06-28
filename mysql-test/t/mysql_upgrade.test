@@ -128,6 +128,14 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # so the following command should never fail.
 --remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
+--echo # Running mysql_upgrade with --write-binlog..
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --skip-verbose --write-binlog
+
+# mysql_upgrade must have created mysql_upgrade_info file,
+# so the following command should never fail.
+--remove_file $MYSQLD_DATADIR/mysql_upgrade_info
+
 --echo #
 --echo # Bug# 13586336: issue deprecation warning
 --echo #   for legacy authentication method

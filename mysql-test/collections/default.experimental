@@ -22,12 +22,6 @@ main.sp-lock @solaris			 # Bug#11753919 2012-05-22 Hemant Several test cases fai
 main.sp-prelocking @solaris              # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
 main.sp-fib @solaris                     # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
 
-main.innodb_explain_json_non_select_all  # Bug#14185642 2012-06-12 Hemant Failing after Olav push for WL#6082
-main.innodb_explain_non_select_none      # Bug#14185642 2012-06-12 Hemant Failing after Olav push for WL#6082
-main.innodb_explain_json_non_select_none # Bug#14185642 2012-06-12 Hemant Failing after Olav push for WL#6082
-main.innodb_explain_non_select_all       # Bug#14185642 2012-06-12 Hemant Failing after Olav push for WL#6082
-opt_trace.bugs_no_prot_all               # Bug#14185642 2012-06-12 Hemant Failing after Olav push for WL#6082
-
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
 
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb

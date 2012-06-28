@@ -2152,12 +2152,13 @@ DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
-# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here,
-# the result is implementation dependent:
-# See Bug#29816 for details
---error ER_SP_DOES_NOT_EXIST
+# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here, the result is
+# implementation dependent: See Bug#29816 for details.  
+# ER_SP_DOES_NOT_EXIST has been replaced by ER_NO_DB_ERROR since it is valid in
+# this scenario. See Bug# 13864485 for details.
+--error ER_NO_DB_ERROR 
 SELECT inexistent(), 1 + ,;
---error ER_SP_DOES_NOT_EXIST
+--error ER_NO_DB_ERROR
 SELECT inexistent();
 --error ER_PARSE_ERROR
 SELECT .inexistent();

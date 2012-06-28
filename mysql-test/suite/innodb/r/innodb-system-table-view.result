@@ -48,32 +48,32 @@ CREATE TABLE t_compressed (a INT KEY, b TEXT) ROW_FORMAT=COMPRESSED ENGINE=innod
 CREATE TABLE t_dynamic (a INT KEY, b TEXT) ROW_FORMAT=DYNAMIC ENGINE=innodb;
 SELECT name, n_cols, file_format, row_format
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES
-WHERE space > 0 ORDER BY table_id;
+WHERE space > 0;
 name	n_cols	file_format	row_format
-mysql/innodb_table_stats	9	Antelope	Compact
 mysql/innodb_index_stats	11	Antelope	Compact
-mysql/slave_relay_log_info	11	Antelope	Compact
+mysql/innodb_table_stats	9	Antelope	Compact
 mysql/slave_master_info	27	Antelope	Compact
+mysql/slave_relay_log_info	11	Antelope	Compact
 mysql/slave_worker_info	16	Antelope	Compact
-test/t_redundant	5	Antelope	Redundant
 test/t_compact	5	Antelope	Compact
 test/t_compressed	5	Barracuda	Compressed
 test/t_dynamic	5	Barracuda	Dynamic
+test/t_redundant	5	Antelope	Redundant
 SELECT name, file_format, row_format
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
-WHERE name LIKE 'test%' ORDER BY space;
+WHERE name LIKE 'test%';
 name	file_format	row_format
-test/t_redundant	Antelope	Compact or Redundant
 test/t_compact	Antelope	Compact or Redundant
 test/t_compressed	Barracuda	Compressed
 test/t_dynamic	Barracuda	Dynamic
+test/t_redundant	Antelope	Compact or Redundant
 SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
-WHERE path LIKE '%test%' ORDER BY space;
+WHERE path LIKE '%test%';
 path
-MYSQLD_DATADIR/test/t_redundant.ibd
 MYSQLD_DATADIR/test/t_compact.ibd
 MYSQLD_DATADIR/test/t_compressed.ibd
 MYSQLD_DATADIR/test/t_dynamic.ibd
+MYSQLD_DATADIR/test/t_redundant.ibd
 DROP TABLE t_redundant, t_compact, t_compressed, t_dynamic;
 SELECT count(*) FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS;
 count(*)
