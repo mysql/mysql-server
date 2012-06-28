@@ -4806,12 +4806,12 @@ public:
     if (spec.gtid.sidno < 0)
     {
       if (need_lock)
-        global_sid_lock.rdlock();
+        global_sid_lock->rdlock();
       else
-        global_sid_lock.assert_some_lock();
-      spec.gtid.sidno= global_sid_map.add_sid(sid);
+        global_sid_lock->assert_some_lock();
+      spec.gtid.sidno= global_sid_map->add_sid(sid);
       if (need_lock)
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
     }
     return spec.gtid.sidno;
   }

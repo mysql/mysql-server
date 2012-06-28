@@ -2411,8 +2411,8 @@ bool show_slave_status(THD* thd, Master_info* mi)
  
   if (mi != NULL)
   { 
-    global_sid_lock.wrlock();
-    const Gtid_set* sql_gtid_set= gtid_state.get_logged_gtids();
+    global_sid_lock->wrlock();
+    const Gtid_set* sql_gtid_set= gtid_state->get_logged_gtids();
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
     if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
         (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
@@ -2420,10 +2420,10 @@ bool show_slave_status(THD* thd, Master_info* mi)
       my_eof(thd);
       my_free(sql_gtid_set_buffer);
       my_free(io_gtid_set_buffer);
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       DBUG_RETURN(true);
     }
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
   }
 
   field_list.push_back(new Item_empty_string("Slave_IO_State",
@@ -2905,16 +2905,16 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     // get set of GTIDs
     Sid_map sid_map(NULL/*no lock needed*/);
     Gtid_set gtid_done(&sid_map);
-    global_sid_lock.wrlock();
-    gtid_state.dbug_print();
+    global_sid_lock->wrlock();
+    gtid_state->dbug_print();
     if (gtid_done.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
-        gtid_done.add_gtid_set(gtid_state.get_logged_gtids()) !=
+        gtid_done.add_gtid_set(gtid_state->get_logged_gtids()) !=
         RETURN_STATUS_OK)
     {
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       goto err;
     }
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
      
     // allocate buffer
     size_t unused_size= 0;
@@ -6307,12 +6307,12 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
       error= ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF;
       goto err;
     }
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
     Gtid_log_event gtid_ev(buf, checksum_alg != BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
     gtid.sidno= gtid_ev.get_sidno(false);
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     if (gtid.sidno < 0)
       goto err;
     gtid.gno= gtid_ev.get_gno();
@@ -6406,9 +6406,9 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
 
       if (event_type == GTID_LOG_EVENT)
       {
-        global_sid_lock.rdlock();
+        global_sid_lock->rdlock();
         int ret= rli->add_logged_gtid(gtid.sidno, gtid.gno);
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
         if (ret != 0)
           goto err;
       }
@@ -7617,7 +7617,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         }
         else if (thd->lex->mi.gtid)
         {
-          global_sid_lock.wrlock();
+          global_sid_lock->wrlock();
           mi->rli->clear_until_condition();
           if (mi->rli->until_sql_gtids.add_gtid_text(thd->lex->mi.gtid)
               != RETURN_STATUS_OK)
@@ -7628,7 +7628,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
               ? Relay_log_info::UNTIL_SQL_BEFORE_GTIDS
               : Relay_log_info::UNTIL_SQL_AFTER_GTIDS;
           }
-          global_sid_lock.unlock();
+          global_sid_lock->unlock();
         }
         else if (thd->lex->mi.until_after_gaps)
         {

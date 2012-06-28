@@ -4146,15 +4146,15 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
   // Read specification
   Gtid_specification spec;
-  global_sid_lock.rdlock();
-  if (spec.parse(&global_sid_map, var->save_result.string_value.str) !=
+  global_sid_lock->rdlock();
+  if (spec.parse(global_sid_map, var->save_result.string_value.str) !=
       RETURN_STATUS_OK)
   {
     // fail on out of memory
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     DBUG_RETURN(true);
   }
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
 
   // check compatibility with GTID_MODE
   if (gtid_mode == 0 && spec.type == GTID_GROUP)
@@ -4169,9 +4169,9 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
     {
       char buf[Gtid_specification::MAX_TEXT_LENGTH + 1];
-      global_sid_lock.rdlock();
-      spec.gtid.to_string(&global_sid_map, buf);
-      global_sid_lock.unlock();
+      global_sid_lock->rdlock();
+      spec.gtid.to_string(global_sid_map, buf);
+      global_sid_lock->unlock();
       my_error(ER_GTID_NEXT_IS_NOT_IN_GTID_NEXT_LIST, MYF(0), buf);
       DBUG_RETURN(true);
     }
@@ -4193,14 +4193,14 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
     char buf[Gtid::MAX_TEXT_LENGTH + 1];
 #ifndef DBUG_OFF
     DBUG_ASSERT(thd->owned_gtid.sidno > 0);
-    global_sid_lock.wrlock();
-    DBUG_ASSERT(gtid_state.get_owned_gtids()->
+    global_sid_lock->wrlock();
+    DBUG_ASSERT(gtid_state->get_owned_gtids()->
                 thread_owns_anything(thd->thread_id));
 #else
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
 #endif
-    thd->owned_gtid.to_string(&global_sid_map, buf);
-    global_sid_lock.unlock();
+    thd->owned_gtid.to_string(global_sid_map, buf);
+    global_sid_lock->unlock();
     my_error(ER_CANT_SET_GTID_NEXT_WHEN_OWNING_GTID, MYF(0), buf);
     DBUG_RETURN(true);
   }
