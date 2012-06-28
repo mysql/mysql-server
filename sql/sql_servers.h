@@ -1,7 +1,7 @@
 #ifndef SQL_SERVERS_INCLUDED
 #define SQL_SERVERS_INCLUDED
 
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,13 +38,13 @@ bool servers_reload(THD *thd);
 void servers_free(bool end=0);
 
 /* insert functions */
-int create_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
+bool create_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
 
-/* drop functions */ 
-int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
+/* drop functions */
+bool drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options, bool if_exists);
 
 /* update functions */
-int alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
+bool alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
 
 /* lookup functions */
 FOREIGN_SERVER *get_server_by_name(MEM_ROOT *mem, const char *server_name,
