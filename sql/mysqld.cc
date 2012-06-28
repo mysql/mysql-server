@@ -1692,7 +1692,7 @@ static void mysqld_exit(int exit_code)
    GTID cleanup destroys objects and reset their pointer.
    Function is reentrant.
 */
-inline void gtid_server_cleanup()
+void gtid_server_cleanup()
 {
   delete gtid_state;
   delete global_sid_map;
@@ -1708,7 +1708,7 @@ inline void gtid_server_cleanup()
    @return true if allocation does not succeed
            false if OK
 */
-inline bool gtid_server_init()
+bool gtid_server_init()
 {
   bool res=
     (!(global_sid_lock= new Checkable_rwlock) ||
