@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1268,7 +1268,7 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
 ***************************************************************************/
 
 MYSQL_FIELD *
-unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
+unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 	      my_bool default_value, uint server_capabilities)
 {
   MYSQL_ROWS	*row;
@@ -1281,6 +1281,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
   if (!result)
   {
     free_rows(data);				/* Free old data */
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
   bzero((char*) field, (uint) sizeof(MYSQL_FIELD)*fields);
@@ -1308,6 +1309,14 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->org_name_length=	lengths[5];
 
       /* Unpack fixed length parts */
+      if (lengths[6] != 12)
+      {
+        /* malformed packet. signal an error. */
+        free_rows(data);			/* Free old data */
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        DBUG_RETURN(0);
+      }
+
       pos= (uchar*) row->data[6];
       field->charsetnr= uint2korr(pos);
       field->length=	(uint) uint4korr(pos+2);
@@ -2868,7 +2877,7 @@ get_info:
 
   if (!(fields=cli_read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 7:5)))
     DBUG_RETURN(1);
-  if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
+  if (!(mysql->fields=unpack_fields(mysql, fields,&mysql->field_alloc,
 				    (uint) field_count,0,
 				    mysql->server_capabilities)))
     DBUG_RETURN(1);

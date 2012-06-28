@@ -1,4 +1,5 @@
-/* Copyright (C) 2003-2004, 2006 MySQL AB
+/*
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +24,9 @@ extern "C" {
 #endif
 
 extern CHARSET_INFO *default_client_charset_info;
-MYSQL_FIELD *unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
-			   my_bool default_value, uint server_capabilities);
+MYSQL_FIELD *unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,
+                           uint fields, my_bool default_value, 
+                           uint server_capabilities);
 void free_rows(MYSQL_DATA *cur);
 void free_old_query(MYSQL *mysql);
 void end_server(MYSQL *mysql);
