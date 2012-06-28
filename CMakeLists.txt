@@ -29,11 +29,8 @@ if (USE_CILK AND (NOT CMAKE_C_COMPILER_ID MATCHES Intel))
   message(FATAL_ERROR "You specified USE_CILK=ON so you need INTEL_CC=ON.")
 endif ()
 
-## default includes and libraries
-include_directories(SYSTEM
-  /usr/local/include
-  ${ZLIB_INCLUDE_DIRS}
-  ${VALGRIND_INCLUDE_DIRS}
+include_directories(
+  ${VALGRIND_INCLUDE_DIR}
   )
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -48,6 +45,12 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/toku_include)
 ## build db.h and include where it will be generated
 add_subdirectory(buildheader)
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/buildheader)
+
+## default includes and libraries
+include_directories(SYSTEM
+  /usr/local/include
+  ${ZLIB_INCLUDE_DIRS}
+  )
 
 ## add subdirectories
 add_subdirectory(portability)
