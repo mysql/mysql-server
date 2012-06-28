@@ -759,6 +759,65 @@ cleanup:
     return r;
 }
 
+static int UU() random_put_multiple_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
+    const int num_dbs = arg->cli->num_DBs;
+    DB **dbs = arg->dbp;
+    DB_ENV *env = arg->env;
+    DBT mult_key_dbt[num_dbs];
+    DBT mult_put_dbt[num_dbs];
+    uint32_t mult_put_flags[num_dbs];
+    memset(mult_key_dbt, 0, sizeof(mult_key_dbt));
+    memset(mult_put_dbt, 0, sizeof(mult_put_dbt));
+    memset(mult_put_flags, 0, sizeof(mult_put_dbt));
+
+    int r = 0;
+    uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
+    uint64_t *rand_key_key = (void *) rand_key_b;
+    uint16_t *rand_key_i = (void *) rand_key_b;
+    ZERO_ARRAY(rand_key_b);
+    uint8_t valbuf[arg->cli->val_size];
+    ZERO_ARRAY(valbuf);
+
+    uint64_t puts_to_increment = 0;
+    for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
+        rand_key_key[0] = randu64(arg->random_data);
+        if (arg->cli->interleave) {
+            rand_key_i[3] = arg->thread_idx;
+        } else {
+            rand_key_i[0] = arg->thread_idx;
+        }
+        fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
+        DBT key, val;
+        dbt_init(&key, &rand_key_b, sizeof rand_key_b);
+        dbt_init(&val, valbuf, sizeof valbuf);
+        r = env->put_multiple(
+            env, 
+            dbs[0], // source db. this is arbitrary.
+            txn, 
+            &key, // source db key
+            &val, // source db value
+            num_dbs, // total number of dbs
+            dbs, // array of dbs
+            mult_key_dbt, // array of keys
+            mult_put_dbt, // array of values
+            mult_put_flags // array of flags
+            );
+        if (r != 0) {
+            goto cleanup;
+        }
+        puts_to_increment++;
+        if (puts_to_increment == 100) {
+            increment_counter(stats_extra, PUTS, puts_to_increment);
+            puts_to_increment = 0;
+        }
+    }
+cleanup:
+    return r;
+}
+
+struct leaf_entry * le;
+const struct leaf_entry * le;
+
 static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
