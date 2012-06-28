@@ -357,6 +357,12 @@ public:
   */
   void set_rli_description_event(Format_description_log_event *fdle)
   {
+    DBUG_ASSERT(!fdle || (running_status == Slave_worker::RUNNING && info_thd));
+#ifndef DBUG_OFF
+    if (fdle)
+      mysql_mutex_assert_owner(&jobs_lock);
+#endif
+
     if (fdle)
       adapt_to_master_version(fdle);
     rli_description_event= fdle;
