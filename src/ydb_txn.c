@@ -47,8 +47,8 @@ toku_txn_release_locks(DB_TXN* txn) {
 
 static void
 toku_txn_destroy(DB_TXN *txn) {
-    (void) __sync_fetch_and_sub(&txn->mgrp->i->open_txns, 1);
-    assert(txn->mgrp->i->open_txns>=0);
+    int32_t open_txns = __sync_sub_and_fetch(&txn->mgrp->i->open_txns, 1);
+    invariant(open-txns > 0);
     toku_txn_destroy_txn(db_txn_struct_i(txn)->tokutxn);
     toku_mutex_destroy(&db_txn_struct_i(txn)->txn_mutex);
 #if !TOKUDB_NATIVE_H

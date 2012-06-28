@@ -773,10 +773,8 @@ static void invalidate_xa_xid (TOKU_XA_XID *xid) {
 }
 
 void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
-    if (!txn->begin_was_logged) {
-        //Read only transaction
+    if (toku_txn_is_read_only(txn)) {
         invariant(txn->state==TOKUTXN_LIVE);
-        invariant(txn->num_pin==0);
         txn->state = TOKUTXN_ABORTING;
         goto done;
     }
@@ -802,10 +800,8 @@ done:
 }
 
 void toku_txn_manager_note_commit_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
-    if (!txn->begin_was_logged) {
-        //Read only transaction
+    if (toku_txn_is_read_only(txn)) {
         invariant(txn->state==TOKUTXN_LIVE);
-        invariant(txn->num_pin==0);
         txn->state = TOKUTXN_COMMITTING;
         goto done;
     }

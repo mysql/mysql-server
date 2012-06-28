@@ -519,9 +519,9 @@ toku_txn_is_read_only(TOKUTXN txn) {
     if (!txn->begin_was_logged) {
         // Did no work.
         invariant(txn->roll_info.num_rollentries == 0);
-        // Was not prepared.
         invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
         invariant(toku_omt_size(txn->open_fts) == 0);
+        invariant(txn->num_pin==0);
         return true;
     }
     return false;
