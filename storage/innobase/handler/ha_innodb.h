@@ -303,6 +303,8 @@ private:
 	@see build_template() */
 	inline void reset_template();
 
+	int info_low(uint, bool);
+
 public:
 	/** @name Multi Range Read interface @{ */
 	/** Initialize multi range read @see DsMrr_impl::dsmrr_init
