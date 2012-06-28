@@ -905,6 +905,10 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                      SEL_ARG *keypart_root,
                                      const KEY_PART_INFO *key_parts);
 #endif
+static inline void dbug_print_tree(const char *tree_name,
+                                   SEL_TREE *tree, 
+                                   const RANGE_OPT_PARAM *param);
+
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
                   const uchar *min_key, const uchar *max_key,
@@ -2755,8 +2759,13 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
       */
-      if (tree->merges.is_empty())
+      dbug_print_tree("final_tree", tree, &param);
+
       {
+        /*
+          Calculate cost of single index range scan and possible
+          intersections of these
+        */
         Opt_trace_object trace_range(trace,
                                      "analyzing_range_alternatives",
                                      Opt_trace_context::RANGE_OPTIMIZER);
@@ -2805,7 +2814,9 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           }
         }
       }
-      else
+
+      // Here we calculate cost of union index merge
+      if (!tree->merges.is_empty())
       {
         // Cannot return rows in descending order.
         if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
@@ -2816,8 +2827,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           SEL_IMERGE *imerge;
           TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
           LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
-          DBUG_PRINT("info",("No range reads possible,"
-                             " trying to construct index_merge"));
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace,
                                           "analyzing_index_merge",
@@ -6173,6 +6182,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
             param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
 	  DBUG_RETURN(0);	// out of memory
 	tree=tree_and(param,tree,new_tree);
+        dbug_print_tree("after_and", tree, param);
 	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
 	  break;
       }
@@ -6189,11 +6199,13 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 	  if (!new_tree)
 	    DBUG_RETURN(0);	// out of memory
 	  tree=tree_or(param,tree,new_tree);
+          dbug_print_tree("after_or", tree, param);
 	  if (!tree || tree->type == SEL_TREE::ALWAYS)
 	    break;
 	}
       }
     }
+    dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
   /* 
@@ -6214,6 +6226,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
                             new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
     param->thd->mem_root= tmp_root;
+    dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
 
@@ -6316,6 +6329,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       }
     }
     
+    dbug_print_tree("tree_returned", ftree, param);
     DBUG_RETURN(ftree);
   }
   default:
@@ -6352,6 +6366,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     }
   }
 
+  dbug_print_tree("tree_returned", ftree, param);
   DBUG_RETURN(ftree);
 }
 
@@ -7044,6 +7059,10 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     tree1->type=SEL_TREE::KEY_SMALLER;
     DBUG_RETURN(tree1);
   }
+
+  dbug_print_tree("tree1", tree1, param);
+  dbug_print_tree("tree2", tree2, param);
+
   key_map  result_keys;
   
   /* Join the trees key per key */
@@ -7072,12 +7091,6 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     }
   }
   tree1->keys_map= result_keys;
-  /* dispose index_merge if there is a "range" option */
-  if (!result_keys.is_clear_all())
-  {
-    tree1->merges.empty();
-    DBUG_RETURN(tree1);
-  }
 
   /* ok, both trees are index_merge trees */
   imerge_list_and_list(&tree1->merges, &tree2->merges);
@@ -7098,6 +7111,9 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
   DBUG_ENTER("sel_trees_can_be_ored");
   common_keys.intersect(tree2->keys_map);
 
+  dbug_print_tree("tree1", tree1, param);
+  dbug_print_tree("tree2", tree2, param);
+
   if (common_keys.is_clear_all())
     DBUG_RETURN(FALSE);
 
@@ -7110,9 +7126,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
       key1= tree1->keys + key_no;
       key2= tree2->keys + key_no;
       if ((*key1)->part == (*key2)->part)
-      {
         DBUG_RETURN(TRUE);
-      }
     }
   }
   DBUG_RETURN(FALSE);
@@ -13250,7 +13264,10 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 static void
 print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
 {
-  String tmp;
+  char buff[128];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  tmp.length(0);
+
   uint store_length;
   TABLE *table= key_part->field->table;
   my_bitmap_map *old_sets[2];
@@ -13380,10 +13397,151 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
     }
     keypart_range= keypart_range->next;
   }
-
 }
 
 #endif //OPTIMIZER_TRACE
+
+#ifndef DBUG_OFF
+
+static void print_range_all_keyparts(String *range_so_far,
+                                     SEL_ARG *keypart_root,
+                                     const KEY_PART_INFO *key_parts)
+{
+  DBUG_ASSERT(keypart_root && keypart_root != &null_element);
+
+  // Navigate to first interval in red-black tree
+  const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
+  const SEL_ARG *keypart_range= keypart_root->first();
+
+  char buff1[512];
+  String range_former_keyparts(buff1, sizeof(buff1), system_charset_info);
+  range_former_keyparts.length(0);
+  range_former_keyparts.append(*range_so_far);
+
+  while (keypart_range)
+  {
+    /*
+      Skip the rest if the string becomes too long to avoid OOM.
+      Printing very long range conditions normally doesn't make sense
+      either.
+     */
+    if (range_so_far->length() > 500)
+    {
+      range_so_far->append(STRING_WITH_LEN("..."));
+      break;
+    }
+
+    char buff2[512];
+    String range_cur_keypart(buff2, sizeof(buff2), system_charset_info);
+    range_cur_keypart.length(0);
+    range_cur_keypart.append(range_former_keyparts);
+
+    // Append the current range to the range String
+    append_range(&range_cur_keypart, cur_key_part,
+                 keypart_range->min_value, keypart_range->max_value,
+                 keypart_range->min_flag | keypart_range->max_flag);
+
+    if (keypart_range->next_key_part)
+    {
+      // Not done - there are ranges in consecutive keyparts as well
+      print_range_all_keyparts(&range_cur_keypart,
+                               keypart_range->next_key_part, key_parts);
+    }
+    else
+    {
+      /*
+        This is the last keypart with a range. Print full range
+        info to the optimizer trace
+      */
+      if (range_so_far->length() > 0)
+        range_so_far->append(STRING_WITH_LEN(" OR "));
+        
+      range_so_far->append(range_cur_keypart.ptr(),
+                           range_cur_keypart.length());
+    }
+    keypart_range= keypart_range->next;
+  }
+}
+
+#endif // DBUG_OFF
+
+/**
+  Print the ranges in a SEL_TREE to debug log.
+
+  @param tree_name   Descriptive name of the tree
+  @param tree        The SEL_TREE that will be printed to debug log
+  @param param       PARAM from SQL_SELECT::test_quick_select
+*/
+static inline void dbug_print_tree(const char *tree_name,
+                                   SEL_TREE *tree,
+                                   const RANGE_OPT_PARAM *param)
+{
+#ifndef DBUG_OFF
+  if (!param->using_real_indexes)
+  {
+    DBUG_PRINT("info",
+               ("sel_tree: "
+                "%s uses a partitioned index and cannot be printed",
+                tree_name));
+    return;
+  }
+
+  if (!tree)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is NULL", tree_name));
+    return;
+  }
+
+  if (tree->type == SEL_TREE::IMPOSSIBLE)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is IMPOSSIBLE", tree_name));
+    return;
+  }
+
+  if (tree->type == SEL_TREE::ALWAYS)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is ALWAYS", tree_name));
+    return;
+  }
+
+  if (!tree->merges.is_empty())
+  {
+    DBUG_PRINT("info",
+               ("sel_tree: "
+                "%s contains the following merges", tree_name));
+
+    List_iterator<SEL_IMERGE> it(tree->merges);
+    int i= 0;
+    for (SEL_IMERGE *el= it++; el; el= it++, i++)
+    {
+      for (SEL_TREE** current= el->trees;
+           current != el->trees_next;
+           current++)
+        dbug_print_tree("  merge_tree", *current, param);
+    }
+  }
+
+  for (uint i= 0; i< param->keys; i++)
+  {
+    if (tree->keys[i] == NULL || tree->keys[i] == &null_element)
+      continue;
+
+    uint real_key_nr= param->real_keynr[i];
+
+    const KEY &cur_key= param->table->key_info[real_key_nr];
+    const KEY_PART_INFO *key_part= cur_key.key_part;
+
+    char buff[512];
+    String range_info(buff, sizeof(buff), system_charset_info);
+    range_info.length(0);
+
+    print_range_all_keyparts(&range_info, tree->keys[i], key_part);
+    DBUG_PRINT("info",
+               ("sel_tree: %s->keys[%d(real_keynr: %d)]: %s",
+                tree_name, i, real_key_nr, range_info.ptr()));
+  }
+#endif
+}
 
 /*****************************************************************************
 ** Print a quick range for debugging
