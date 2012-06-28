@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6848,6 +6848,8 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     */
     if ((counter==0) && mysql_read_query_result(mysql))
     {
+      /* we've failed to collect the result set */
+      cn->pending= TRUE;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
