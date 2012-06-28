@@ -47,6 +47,11 @@
 #include "lf.h"
 #include "my_atomic.h"
 
+/**
+  This macro is used to check that the given character, pointed to by the
+  character pointer, is a space or not.
+*/
+#define SKIP_WHITESPACE() while (my_isspace(&my_charset_utf8_general_ci, *s)) s++
 /*
   This macro must be used to filter out parts of the code that
   is not used now but may be useful in future. In other words,
