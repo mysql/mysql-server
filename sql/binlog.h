@@ -432,7 +432,7 @@ public:
     Previous_gtids_log_event.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
-    global_sid_lock.wrlock are acquired; otherwise they are asserted
+    global_sid_lock->wrlock are acquired; otherwise they are asserted
     to be taken already.
     @return false on success, true on error.
   */

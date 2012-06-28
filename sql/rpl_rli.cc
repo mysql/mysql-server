@@ -75,14 +75,14 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    save_temporary_tables(0),
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
-   gtid_set(&global_sid_map, &global_sid_lock),
+   gtid_set(global_sid_map, global_sid_lock),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), until_condition(UNTIL_NONE),
    until_log_pos(0),
-   until_sql_gtids(&global_sid_map),
-   until_sql_gtids_seen(&global_sid_map),
+   until_sql_gtids(global_sid_map),
+   until_sql_gtids_seen(global_sid_map),
    until_sql_gtids_first_event(true),
    retried_trans(0),
    tables_to_lock(0), tables_to_lock_count(0),
@@ -809,14 +809,14 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
      slave_running briefly switches between 1/0/1.
   */
   init_abort_pos_wait= abort_pos_wait;
-  Gtid_set wait_gtid_set(&global_sid_map);
-  global_sid_lock.rdlock();
+  Gtid_set wait_gtid_set(global_sid_map);
+  global_sid_lock->rdlock();
   if (wait_gtid_set.add_gtid_text(gtid->c_ptr_safe()) != RETURN_STATUS_OK)
   { 
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
     goto err;
   }
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
 
   /* The "compare and wait" main loop */
   while (!thd->killed &&
@@ -829,8 +829,8 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     //wait for master update, with optional timeout.
 
-    global_sid_lock.wrlock();
-    const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
+    global_sid_lock->wrlock();
+    const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
       gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids)));
@@ -838,10 +838,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     if (wait_gtid_set.is_subset(logged_gtids))
     {
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       break;
     }
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
 
     DBUG_PRINT("info",("Waiting for master update"));
 
@@ -1221,35 +1221,35 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
     if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
     {
       Gtid_log_event *gev= (Gtid_log_event *)ev;
-      global_sid_lock.rdlock();
+      global_sid_lock->rdlock();
       if (until_sql_gtids.contains_gtid(gev->get_sidno(false), gev->get_gno()))
       {
         char *buffer= until_sql_gtids.to_string();
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
         sql_print_information("Slave SQL thread stopped because it reached "
                               "UNTIL SQL_BEFORE_GTIDS %s", buffer);
         my_free(buffer);
         DBUG_RETURN(true);
       }
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
       // We only need to check once if logged_gtids set contains any of the until_sql_gtids.
       if (until_sql_gtids_first_event)
       {
         until_sql_gtids_first_event= false;
-        global_sid_lock.wrlock();
+        global_sid_lock->wrlock();
         /* Check if until GTIDs were already applied. */
-        const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
+        const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
         if (until_sql_gtids.is_intersection(logged_gtids))
         {
           char *buffer= until_sql_gtids.to_string();
-          global_sid_lock.unlock();
+          global_sid_lock->unlock();
           sql_print_information("Slave SQL thread stopped because "
                                 "UNTIL SQL_BEFORE_GTIDS %s is already "
                                 "applied", buffer);
           my_free(buffer);
           DBUG_RETURN(true);
         }
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
       }
     }
     DBUG_RETURN(false);
@@ -1258,18 +1258,18 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   case UNTIL_SQL_AFTER_GTIDS:
     if (ev != NULL && ev->get_type_code() == GTID_LOG_EVENT)
     {
-      global_sid_lock.wrlock();
+      global_sid_lock->wrlock();
       // We only need to compute until_sql_gtids_seen once.
       if (until_sql_gtids_first_event)
       {
         until_sql_gtids_first_event= false;
-        const Gtid_set* logged_gtids= gtid_state.get_logged_gtids();
+        const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
         until_sql_gtids.intersection(logged_gtids, &until_sql_gtids_seen);
       }
       if (until_sql_gtids.is_subset(const_cast<Gtid_set *>(&until_sql_gtids_seen)))
       {
         char *buffer= until_sql_gtids.to_string();
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
         sql_print_information("Slave SQL thread stopped because it reached "
                               "UNTIL SQL_AFTER_GTIDS %s", buffer);
         my_free(buffer);
@@ -1278,7 +1278,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
       Gtid_log_event *gev= (Gtid_log_event *)ev;
       until_sql_gtids_seen.ensure_sidno(gev->get_sidno(false));
       until_sql_gtids_seen._add_gtid(gev->get_sidno(false), gev->get_gno());
-      global_sid_lock.unlock();
+      global_sid_lock->unlock();
     }
     DBUG_RETURN(false);
     break;
@@ -1718,9 +1718,9 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       DBUG_RETURN(1);
     }
 #ifndef DBUG_OFF
-    global_sid_lock.wrlock();
+    global_sid_lock->wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log before initialization");
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
 #endif
     if (!current_thd &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
@@ -1731,9 +1731,9 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       DBUG_RETURN(1);
     }
 #ifndef DBUG_OFF
-    global_sid_lock.wrlock();
+    global_sid_lock->wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
-    global_sid_lock.unlock();
+    global_sid_lock->unlock();
 #endif
     /*
       Configures what object is used by the current log to store processed
