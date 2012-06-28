@@ -807,7 +807,11 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
         make_sortkey(param, fs_info->get_record_buffer(idx++), ref_pos);
       }
     }
-    else
+    /*
+      Don't try unlocking the row if skip_record reported an error since in
+      this case the transaction might have been rolled back already.
+    */
+    else if (!thd->is_error())
       file->unlock_row();
     /* It does not make sense to read more keys in case of a fatal error */
     if (thd->is_error())
