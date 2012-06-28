@@ -61,6 +61,7 @@
 function Test(name) {
   this.name = name;
   this.order = 3;
+  this.errorMessages = '';
 }
 
 Test.prototype.test = function(result) {
@@ -113,6 +114,12 @@ Test.prototype.makeTestSuite = function() {
   return this;
 };
 
+Test.prototype.errorIfNotEqual = function(message, o1, o2) {
+	if (o1 != o2) {
+		this.errorMessages += message;
+		console.log(message);
+	}
+};
 
 /* Listener
 */

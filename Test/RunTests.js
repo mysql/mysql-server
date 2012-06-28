@@ -29,7 +29,7 @@ var parent = path.dirname(__dirname);
 global.test_harness_module = path.join(__dirname, "harness.js");
 global.adapter = path.join(parent, "Adapter");
 
-global.api_module = path.join(parent, "Adapter", "api", "ClusterJ.js");
+global.api_module = path.join(parent, "Adapter", "api", "mynode.js");
 global.spi_module = path.join(parent, "Adapter", "spi", "SPI.js");
 
 var Test = require(global.test_harness_module);
