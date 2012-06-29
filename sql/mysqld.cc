@@ -8297,6 +8297,10 @@ mysqld_get_one_option(int optid,
   case OPT_DEFAULT_AUTH:
     set_default_auth_plugin(argument, strlen(argument));
     break;
+  case OPT_SECURE_AUTH:
+    if (opt_secure_auth == 0)
+      WARN_DEPRECATED(NULL, "pre-4.1 password hash", "post-4.1 password hash");
+    break;
   case OPT_PFS_INSTRUMENT:
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY
