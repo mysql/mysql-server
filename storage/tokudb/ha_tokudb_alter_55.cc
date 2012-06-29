@@ -196,4 +196,10 @@ ha_tokudb::prepare_for_alter() {
     DBUG_VOID_RETURN;
 }
 
+bool
+ha_tokudb::try_hot_alter_table() {
+    TOKUDB_DBUG_ENTER("try_hot_alter_table");
+    DBUG_RETURN(true);
+}
+
 #endif

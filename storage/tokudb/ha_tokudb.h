@@ -574,6 +574,7 @@ public:
     bool is_alter_table_hot();
     void prepare_for_alter();
     int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
+    bool try_hot_alter_table();
 #endif
 #if TOKU_INCLUDE_ALTER_51
  public:
