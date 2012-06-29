@@ -4460,7 +4460,7 @@ sub extract_server_log ($$) {
       if ( $line =~ /^CURRENT_TEST:/)
       {
 	@lines= ();
-	$found_test= $line =~ /^CURRENT_TEST: $tname/;
+	$found_test= $line =~ /^CURRENT_TEST: $tname$/;
       }
       else
       {
@@ -4475,7 +4475,7 @@ sub extract_server_log ($$) {
     else
     {
       # Search for beginning of test, until found
-      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname/);
+      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname$/);
     }
   }
   $Ferr = undef; # Close error log file
