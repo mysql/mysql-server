@@ -3686,7 +3686,7 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
       keyuse++;
 
     const table_map const_tables= tab->join->const_table_map;
-    do
+    while (keyuse->key == ref_key && keyuse->table == tab->table)
     {
       if (!(keyuse->used_tables & ~const_tables))
       {
@@ -3694,7 +3694,7 @@ is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
           return true;
       }
       keyuse++;
-    } while (keyuse->key == ref_key && keyuse->table == tab->table);
+    }
   }
   return false;
 }
