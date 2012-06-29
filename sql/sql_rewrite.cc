@@ -16,6 +16,22 @@
    02110-1301  USA */
 
 
+/*
+  In here, we rewrite queries (to obfuscate passwords etc.) that need it
+  before we log them.
+
+  Stored procedures may also rewrite their statements (to show the actual
+  values of their variables etc.). There is currently no scenario where
+  a statement can be eligible for both rewrites. (see sp_instr.cc)
+  Special consideration will need to be taken if this assertion is changed.
+
+  We also do not intersect with query cache at this time, as QC only
+  caches SELECTs (which we don't rewrite). If and when QC becomes more
+  general, it should probably cache the rewritten query along with the
+  user-submitted one. (see sql_parse.cc)
+*/
+
+
 #include "sql_acl.h"    // append_user
 #include "sql_parse.h"  // get_current_user
 #include "sql_show.h"   // append_identifier
@@ -39,7 +55,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   {
     ulong priv;
 
-    for (c= 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1)
+    for (c= 0, priv= SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1)
     {
       if (priv == GRANT_ACL)
         continue;
@@ -54,7 +70,13 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
         cols.length(0);
         cols.append(STRING_WITH_LEN(" ("));
 
-        while ((column = column_iter++))
+        /*
+          If the statement was GRANT SELECT(f2), INSERT(f3), UPDATE(f1,f3, f2),
+          our list cols will contain the order f2, f3, f1, and thus that's
+          the order we'll recreate the privilege: UPDATE (f2, f3, f1)
+        */
+
+        while ((column= column_iter++))
         {
           if (column->rights & priv)
           {
@@ -95,12 +117,14 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   {
     append_identifier(thd, rlb, first_table->db, strlen(first_table->db));
     rlb->append(STRING_WITH_LEN("."));
-    append_identifier(thd, rlb, first_table->table_name, strlen(first_table->table_name));
+    append_identifier(thd, rlb, first_table->table_name,
+                      strlen(first_table->table_name));
   }
   else
   {
     if (lex->current_select->db)
-      append_identifier(thd, rlb, lex->current_select->db, strlen(lex->current_select->db));
+      append_identifier(thd, rlb, lex->current_select->db,
+                        strlen(lex->current_select->db));
     else
       rlb->append("*");
     rlb->append(STRING_WITH_LEN(".*"));
@@ -137,7 +161,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
       if (lex->x509_issuer)
       {
         rlb->append(STRING_WITH_LEN(" ISSUER '"));
-        rlb->append(lex->x509_subject);
+        rlb->append(lex->x509_issuer);
         rlb->append(STRING_WITH_LEN("'"));
       }
       if (lex->ssl_cipher)
