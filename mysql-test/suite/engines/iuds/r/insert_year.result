@@ -3235,9 +3235,21 @@ c1	c2	c3	c4
 1999	1999	1998-12-30	1998-12-30 11:30:45
 DROP TABLE t1,t2,t3,t4;
 CREATE TABLE t1(c1 YEAR(2) NOT NULL, c2 YEAR(2) NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1), UNIQUE INDEX(c2));
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 CREATE TABLE t2(c1 YEAR(2) NOT NULL, c2 YEAR(2) NULL, c3 DATE, c4 DATETIME, PRIMARY KEY(c1,c2));
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 CREATE TABLE t3(c1 YEAR(2) NOT NULL, c2 YEAR(2) NULL, c3 DATE, c4 DATETIME, UNIQUE INDEX idx(c1,c2));
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 CREATE TABLE t4(c1 YEAR(2) NOT NULL, c2 YEAR(2) NULL, c3 DATE, c4 DATETIME);
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 INSERT INTO t1 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
 INSERT INTO t2 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
 INSERT INTO t3 VALUES('1901','1901','98-12-31','98.12.31 11:30:45'),('1999','1999','98-12-30','98.12.30 11:30:45'),('2000','2000','98-12-29','98.12.29 11:30:45'),('2001','2001','98-12-28','98.12.28 11:30:45'),('2099','2099','98-12-27','98.12.27 11:30:45'),('2100','2100','98-12-26','98.12.26 11:30:45'),('2155','2155','98-12-26','98.12.26 11:30:45');
