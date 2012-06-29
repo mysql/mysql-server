@@ -1164,9 +1164,10 @@ buf_page_init_for_read(
 	ulint		offset);/*!< in: page number */
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
-the buffer pool. */
+the buffer pool.
+@return true if successful */
 UNIV_INTERN
-void
+bool
 buf_page_io_complete(
 /*=================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */

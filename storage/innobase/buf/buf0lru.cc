@@ -2379,10 +2379,28 @@ buf_LRU_free_one_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	const ulint	fold = buf_page_address_fold(bpage->space,
+						     bpage->offset);
+	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
+	ut_ad(buf_pool_mutex_own(buf_pool));
+
+	rw_lock_x_lock(hash_lock);
+	mutex_enter(block_mutex);
+
 	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
 	    != BUF_BLOCK_ZIP_FREE) {
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	}
+
+	/* buf_LRU_block_remove_hashed_page() releases hash_lock and block_mutex */
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!mutex_own(block_mutex));
 }
 
 /**********************************************************************//**
