@@ -13403,7 +13403,25 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
 
 #ifndef DBUG_OFF
 
-static void print_range_all_keyparts(String *range_so_far,
+/**
+  Traverse an R-B tree of range conditions and append all ranges for
+  this keypart and consecutive keyparts to a String. See description
+  of R-B trees/SEL_ARG for details on how ranges are linked.
+
+  @see trace_range_all_keyparts
+
+  @param[in,out] range_result  The string where range predicates are
+                               appended when the last keypart has
+                               been reached.
+  @param[in]     range_so_far  String containing ranges for keyparts prior
+                               to this keypart.
+  @param[in]     keypart_root  The root of the R-B tree containing intervals
+                               for this keypart.
+  @param[in]     key_parts     Index components description, used when adding
+                               information to the optimizer trace
+*/
+static void print_range_all_keyparts(String *range_result,
+                                     String *range_so_far,
                                      SEL_ARG *keypart_root,
                                      const KEY_PART_INFO *key_parts)
 {
@@ -13413,10 +13431,7 @@ static void print_range_all_keyparts(String *range_so_far,
   const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
   const SEL_ARG *keypart_range= keypart_root->first();
 
-  char buff1[512];
-  String range_former_keyparts(buff1, sizeof(buff1), system_charset_info);
-  range_former_keyparts.length(0);
-  range_former_keyparts.append(*range_so_far);
+  const uint save_range_so_far_length= range_so_far->length();
 
   while (keypart_range)
   {
@@ -13425,41 +13440,44 @@ static void print_range_all_keyparts(String *range_so_far,
       Printing very long range conditions normally doesn't make sense
       either.
      */
-    if (range_so_far->length() > 500)
+    if (range_result->length() > 500)
     {
-      range_so_far->append(STRING_WITH_LEN("..."));
+      range_result->append(STRING_WITH_LEN("..."));
       break;
     }
 
-    char buff2[512];
-    String range_cur_keypart(buff2, sizeof(buff2), system_charset_info);
-    range_cur_keypart.length(0);
-    range_cur_keypart.append(range_former_keyparts);
-
     // Append the current range to the range String
-    append_range(&range_cur_keypart, cur_key_part,
+    append_range(range_so_far, cur_key_part,
                  keypart_range->min_value, keypart_range->max_value,
                  keypart_range->min_flag | keypart_range->max_flag);
 
     if (keypart_range->next_key_part)
     {
       // Not done - there are ranges in consecutive keyparts as well
-      print_range_all_keyparts(&range_cur_keypart,
+      print_range_all_keyparts(range_result, range_so_far,
                                keypart_range->next_key_part, key_parts);
     }
     else
     {
       /*
         This is the last keypart with a range. Print full range
-        info to the optimizer trace
+        info to range_result
       */
-      if (range_so_far->length() > 0)
-        range_so_far->append(STRING_WITH_LEN(" OR "));
-        
-      range_so_far->append(range_cur_keypart.ptr(),
-                           range_cur_keypart.length());
+      if (range_result->length() == 0)
+        range_result->append(STRING_WITH_LEN("("));
+      else
+        range_result->append(STRING_WITH_LEN(" OR ("));
+
+      range_result->append(range_so_far->ptr(), range_so_far->length());
+      range_result->append(STRING_WITH_LEN(")"));
     }
     keypart_range= keypart_range->next;
+    /*
+      Now moving to next range for this keypart, so "reset"
+      range_so_far to include only range description of earlier
+      keyparts
+    */
+    range_so_far->length(save_range_so_far_length);
   }
 }
 
@@ -13531,14 +13549,28 @@ static inline void dbug_print_tree(const char *tree_name,
     const KEY &cur_key= param->table->key_info[real_key_nr];
     const KEY_PART_INFO *key_part= cur_key.key_part;
 
-    char buff[512];
-    String range_info(buff, sizeof(buff), system_charset_info);
-    range_info.length(0);
+    /*
+      String holding the final range description from
+      print_range_all_keyparts()
+    */
+    char buff1[512];
+    String range_result(buff1, sizeof(buff1), system_charset_info);
+    range_result.length(0);
 
-    print_range_all_keyparts(&range_info, tree->keys[i], key_part);
+    /*
+      Range description up to a certain keypart - used internally in
+      print_range_all_keyparts()
+    */
+    char buff2[128];
+    String range_so_far(buff2, sizeof(buff2), system_charset_info);
+    range_so_far.length(0);
+
+    print_range_all_keyparts(&range_result, &range_so_far,
+                             tree->keys[i], key_part);
+
     DBUG_PRINT("info",
                ("sel_tree: %s->keys[%d(real_keynr: %d)]: %s",
-                tree_name, i, real_key_nr, range_info.ptr()));
+                tree_name, i, real_key_nr, range_result.ptr()));
   }
 #endif
 }
