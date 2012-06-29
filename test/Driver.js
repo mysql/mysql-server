@@ -37,7 +37,7 @@ var Test = require(global.test_harness_module);
 var result = new Test.Result();
 result.listener = new Test.Listener();
 
-var re_matching_test_case = /\.test\.js$/;
+var re_matching_test_case = /Test\.js$/;
 
 function runTestsInDir(d) {
   var tests = [];
