@@ -2487,7 +2487,7 @@ static Sys_var_mybool Sys_secure_auth(
        "secure_auth",
        "Disallow authentication for accounts that have old (pre-4.1) "
        "passwords",
-       GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG),
+       GLOBAL_VAR(opt_secure_auth), CMD_LINE(OPT_ARG, OPT_SECURE_AUTH),
        DEFAULT(TRUE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(on_check_opt_secure_auth)
