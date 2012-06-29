@@ -3877,6 +3877,8 @@ buf_mark_space_corrupt(
 			BUF_IO_READ);
 	}
 
+	mutex_exit(buf_page_get_mutex(bpage));
+
 	/* Find the table with specified space id, and mark it corrupted */
 	if (dict_set_corrupted_by_space(space)) {
 		buf_LRU_free_one_page(bpage);
@@ -3887,7 +3889,6 @@ buf_mark_space_corrupt(
 	ut_ad(buf_pool->n_pend_reads > 0);
 	buf_pool->n_pend_reads--;
 
-	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
 
 	return(ret);
@@ -3895,9 +3896,10 @@ buf_mark_space_corrupt(
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
-the buffer pool. */
+the buffer pool.
+@return true if successful */
 UNIV_INTERN
-void
+bool
 buf_page_io_complete(
 /*=================*/
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
@@ -3989,7 +3991,7 @@ buf_page_io_complete(
 				    && buf_mark_space_corrupt(bpage)) {
 					ib_logf(IB_LOG_LEVEL_INFO,
 						"Simulated page corruption");
-					return;
+					return(true);
 				}
 				goto page_not_corrupt;
 				;);
@@ -4036,7 +4038,7 @@ corrupt:
 				table as corrupted instead of crashing server */
 				if (bpage->space > TRX_SYS_SPACE
 				    && buf_mark_space_corrupt(bpage)) {
-					return;
+					return(false);
 				} else {
 					fputs("InnoDB: Ending processing"
 					      " because of"
@@ -4131,6 +4133,8 @@ corrupt:
 
 	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
+
+	return(true);
 }
 
 /*********************************************************************//**
