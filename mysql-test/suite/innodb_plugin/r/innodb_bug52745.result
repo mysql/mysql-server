@@ -58,6 +58,7 @@ col89 float unsigned zerofill DEFAULT NULL,
 col90 tinyblob
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 INSERT INTO bug52745 SET
