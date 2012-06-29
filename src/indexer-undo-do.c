@@ -125,8 +125,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             break;
 
         // placeholders in the committed stack are not allowed
-        if (uxr_is_placeholder(uxr))
-            assert(0);
+        invariant(!uxr_is_placeholder(uxr));
 
         // undo
         if (xrindex > 0) {
@@ -292,7 +291,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, struc
                     switch (outermost_xid_state) {
                     case TOKUTXN_LIVE:
                     case TOKUTXN_PREPARING:
-                        assert(this_xid_state != TOKUTXN_ABORTING);
+                        invariant(this_xid_state != TOKUTXN_ABORTING);
                         result = indexer_ft_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids, curr_txn);
                         if (result == 0)
                             result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, prov_ids[0], curr_txn);
