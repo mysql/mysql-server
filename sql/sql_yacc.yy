@@ -5034,7 +5034,23 @@ type:
             $$= MYSQL_TYPE_VARCHAR;
           }
         | YEAR_SYM opt_field_length field_options
-          { $$=MYSQL_TYPE_YEAR; }
+          {
+            if (Lex->length)
+            {
+              errno= 0;
+              ulong length= strtoul(Lex->length, NULL, 10);
+              if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
+              {
+                char buff[sizeof("YEAR()") + MY_INT64_NUM_DECIMAL_DIGITS + 1];
+                snprintf(buff, sizeof(buff), "YEAR(%lu)", length);
+                push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                                    ER_WARN_DEPRECATED_SYNTAX,
+                                    ER(ER_WARN_DEPRECATED_SYNTAX),
+                                    buff, "YEAR(4)");
+              }
+            }
+            $$=MYSQL_TYPE_YEAR;
+          }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
         | TIME_SYM
