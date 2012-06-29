@@ -1,0 +1,92 @@
+
+
+/***
+ * ConnectionProperties()
+ * IMMEDIATE
+ * CONSTRUCTOR
+ *
+ * This constructor returns a complete set of default connection
+ * properties for "impl"
+ *
+ */
+ Object ConnectionProperties(String impl);
+
+
+/***
+ * Annotations()
+ * IMMEDIATE
+ * CONSTRUCTOR
+ *
+ * This constructor returns an empty Annotations object.
+ *
+ */
+ Object Annotations();
+
+
+/* 
+ * connect()
+ * ASYNC
+ * 
+ * Connect to the data source.  This is a "superheavyweight" call: 
+ * it could involve connecting to many other nodes on the network,
+ * waiting for them to become ready, and making multiple requests to them.
+ *
+ * It returns a SessionFactory in the callback function.
+ * The "implementation" member of the properties object determines the 
+ * implementation of the Session
+ *
+ * If Annotations is null, the entire schema for the database is read
+ * and stored internally for later use. This allows unlimited access
+ * to all tables in the database.
+ * 
+ * If Annotations is not null, the schema for only the tables named
+ * is read. Subsequent references to tables not described in Annotations
+ * will return errors.
+ *
+ *  @param properties  properties object describing the session
+ *  @param annotations Annotations object describing the mapping 
+ *  @param callback    function called after connection is complete.
+ *  @return void
+ */
+connect(Properties, Annotations, Function(err, SessionFactory) callback);
+
+/* 
+ * connectSync() -- synchronous version of connect.
+ */
+SessionFactory connectSync(Properties, Annotations);
+
+/* 
+ * getSession()
+ * ASYNC
+ * 
+ * Connect to the data source and get a Session.  This is a "superheavyweight" call: 
+ * it could involve connecting to many other nodes on the network,
+ * waiting for them to become ready, and making multiple requests to them.
+ *
+ * This is a convenience method. It returns a Session in the callback function.
+ * This is equivalent to calling connect and then getSession on the
+ * SessionFactory that is returned in the callback function.
+ *
+ * The "implementation" member of the properties object determines the 
+ * implementation of the Session
+ *
+ * If Annotations is null, the entire schema for the database is read
+ * and stored internally for later use. This allows unlimited access
+ * to all tables in the database.
+ * 
+ * If Annotations is not null, the schema for only the tables named
+ * is read. Subsequent references to tables not described in Annotations
+ * will return errors.
+ *
+ *  @param properties  properties object describing the session
+ *  @param annotations Annotations object describing the mapping 
+ *  @param callback    function called after connection is complete.
+ *  @return void
+ */
+getSession(Properties, Annotations, Function(err, Session));
+
+/** Get all SessionFactories that have been created by this module.
+ * All session factories are returned in an array. 
+ * @return open session factories
+ */
+Array getOpenSessionFactories();

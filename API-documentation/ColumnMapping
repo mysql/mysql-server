@@ -1,0 +1,16 @@
+/** Return the column name
+ */
+String getColumnName()
+
+/** Return the property name
+ */
+String getPropertyName()
+
+/** Return the database column type
+ */
+ int getColumnType()
+
+/** Return the javascript property type
+ */
+ int getPropertyType()
+ 
