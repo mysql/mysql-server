@@ -180,7 +180,7 @@ static MYSQL_SYSVAR_ULONG(timeout, rpl_semi_sync_master_timeout,
  "The timeout value (in ms) for semi-synchronous replication in the master",
   NULL, 			// check
   fix_rpl_semi_sync_master_timeout,	// update
-  10000, 0, ~0L, 1);
+  10000, 0, ~0UL, 1);
 
 static MYSQL_SYSVAR_BOOL(wait_no_slave, rpl_semi_sync_master_wait_no_slave,
   PLUGIN_VAR_OPCMDARG,
@@ -194,7 +194,7 @@ static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
  "The tracing level for semi-sync replication.",
   NULL,				  // check
   &fix_rpl_semi_sync_master_trace_level, // update
-  32, 0, ~0L, 1);
+  32, 0, ~0UL, 1);
 
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
