@@ -10227,6 +10227,17 @@ Create_field::Create_field(Field *old_field,Field *orig_field)
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
+  case MYSQL_TYPE_YEAR:
+    if (length != 4)
+    {
+      char buff[sizeof("YEAR()") + MY_INT64_NUM_DECIMAL_DIGITS + 1];
+      snprintf(buff, sizeof(buff), "YEAR(%lu)", length);
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                          ER_WARN_DEPRECATED_SYNTAX,
+                          ER(ER_WARN_DEPRECATED_SYNTAX),
+                          buff, "YEAR(4)");
+    }
+    break;
   default:
     break;
   }
