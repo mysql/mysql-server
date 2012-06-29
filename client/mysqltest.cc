@@ -2577,7 +2577,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1, "" },
+  { "<No error>", -1U, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
