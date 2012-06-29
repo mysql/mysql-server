@@ -408,8 +408,6 @@ buf_flush_insert_sorted_into_flush_list(
 				     prev_b, &block->page);
 	}
 
-	MONITOR_INC(MONITOR_PAGE_INFLUSH);
-
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -552,8 +550,6 @@ buf_flush_remove(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-
-	MONITOR_DEC(MONITOR_PAGE_INFLUSH);
 
 	buf_flush_list_mutex_exit(buf_pool);
 }

@@ -25,7 +25,6 @@ buffer_pool_size	disabled
 buffer_pool_reads	disabled
 buffer_pool_read_requests	disabled
 buffer_pool_write_requests	disabled
-buffer_pool_pages_in_flush	disabled
 buffer_pool_wait_free	disabled
 buffer_pool_read_ahead	disabled
 buffer_pool_read_ahead_evicted	disabled
