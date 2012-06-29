@@ -2131,19 +2131,19 @@ dict_get_and_save_data_dir_path(
 		if (!dict_mutex_own) {
 			dict_mutex_enter_for_mysql();
 		}
-		if (!path) {
+		if (!path && !srv_force_recovery) {
 			path = dict_get_first_path(
 				table->space, table->name);
 		}
 
 		if (path) {
 			dict_save_data_dir_path(table, path);
+			mem_free(path);
 		}
 
 		if (!dict_mutex_own) {
 			dict_mutex_exit_for_mysql();
 		}
-		mem_free(path);
 	}
 }
 
@@ -2261,8 +2261,10 @@ err_exit:
 	} else if (!fil_space_for_table_exists_in_mem(
 			table->space, name, FALSE, FALSE)) {
 
-		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
-			/* Do not bother to retry opening temporary tables. */
+		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)
+		    || srv_force_recovery) {
+			/* Do not bother to retry opening temporary tables
+			or retry any tablespace if force_recovery is on. */
 			table->ibd_file_missing = TRUE;
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,

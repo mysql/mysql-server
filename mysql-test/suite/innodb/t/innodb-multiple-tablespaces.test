@@ -130,13 +130,10 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --source include/shutdown_mysqld.inc
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo # YYY; Tablespace found in 3 places
@@ -198,13 +195,10 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --remove_file $MYSQLD_DATADIR/test/nolink.isl
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
@@ -265,13 +259,10 @@ SHOW CREATE TABLE nolink;
 --echo # List of files before DROP TABLES
 --echo #
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
@@ -296,20 +287,16 @@ DROP TABLE nolink;
 --echo # List of files not deleted by the DROP TABLES
 --echo #
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --remove_file $MYSQLD_DATADIR/test/www.ibd
 --remove_file $MYSQLD_DATADIR/test/wny.ibd
 --remove_file $MYSQLD_DATADIR/test/wyn.ibd
 --remove_file $MYSQLD_DATADIR/test/yny.ibd
---remove_file $MYSQLD_DATADIR/test/ywn.isl
 --remove_file $MYSQLD_DATADIR/test/yyn.ibd
 --remove_file $MYSQLD_DATADIR/test/yyy.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
@@ -326,16 +313,13 @@ DROP TABLE nolink;
 --remove_file $MYSQL_TMP_DIR/new_dir/test/yyy.ibd
 
 --echo #
---echo # List of files after removing unused files
+--echo # List of files after removing leftover files
 --echo #
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 --echo ---- MYSQL_TMP_DIR/new_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/new_dir/test
 
 --echo #
@@ -421,10 +405,8 @@ COMMIT;
 --exec echo $MYSQLD_DATADIR/test/aa.ibd > $MYSQLD_DATADIR/test/aa.isl
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -467,10 +449,8 @@ COMMIT;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -488,10 +468,8 @@ COMMIT;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -510,10 +488,8 @@ COMMIT;
 --echo # NY; Tablespace found in alt_dir but not the default directory.
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
@@ -553,10 +529,8 @@ SHOW CREATE TABLE wy;
 --echo # List of files before DROP TABLES
 --echo #
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 DROP TABLE aa;
@@ -570,24 +544,18 @@ DROP TABLE wy;
 --echo # List of files after DROP TABLES
 --echo #
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
---remove_file $MYSQLD_DATADIR/test/yn.isl
---remove_file $MYSQLD_DATADIR/test/yw.isl
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak
 
 --echo #
 --echo # List of files after deleting unknown files
 --echo #
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #

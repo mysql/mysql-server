@@ -349,7 +349,6 @@ wny.ibd
 www.ibd
 wyn.ibd
 yny.ibd
-ywn.isl
 yyn.ibd
 yyy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -367,7 +366,7 @@ ynw.ibd
 yny.ibd
 yyy.ibd
 #
-# List of files after removing unused files
+# List of files after removing leftover files
 #
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
@@ -655,8 +654,6 @@ DROP TABLE wy;
 # List of files after DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-yn.isl
-yw.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 aa.ibd.bak
 #

@@ -2557,6 +2557,19 @@ fil_delete_tablespace(
 
 #endif /* !UNIV_HOTBACKUP */
 
+	/* If it is a delete then also delete any generated files, otherwise
+	when we drop the database the remove directory will fail. */
+	{
+		char*	cfg_name = fil_make_cfg_name(path);
+		os_file_delete_if_exists(cfg_name);
+		mem_free(cfg_name);
+	}
+
+	/* Delete the link file pointing to the ibd file we are deleting. */
+	if (FSP_FLAGS_HAS_DATA_DIR(space->flags)) {
+		fil_delete_link_file(space->name);
+	}
+
 	mutex_enter(&fil_system->mutex);
 
 	if (!fil_space_free(id, TRUE)) {
@@ -2564,17 +2577,6 @@ fil_delete_tablespace(
 	}
 
 	mutex_exit(&fil_system->mutex);
-
-	/* If it is a delete then also delete any generated files, otherwise
-	when we drop the database the remove directory will fail. */
-
-	{
-		char*	cfg_name = fil_make_cfg_name(path);
-
-		os_file_delete_if_exists(cfg_name);
-
-		mem_free(cfg_name);
-	}
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);

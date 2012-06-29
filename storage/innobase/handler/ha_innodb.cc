@@ -9699,7 +9699,8 @@ int
 ha_innobase::truncate()
 /*===================*/
 {
-	dberr_t		error;
+	dberr_t		err;
+	int		error;
 
 	DBUG_ENTER("ha_innobase::truncate");
 
@@ -9713,10 +9714,29 @@ ha_innobase::truncate()
 	}
 	/* Truncate the table in InnoDB */
 
-	error = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
+	err = row_truncate_table_for_mysql(prebuilt->table, prebuilt->trx);
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, prebuilt->table->flags,
-						NULL));
+	switch (err) {
+
+	case DB_TABLESPACE_DELETED:
+	case DB_TABLESPACE_NOT_FOUND:
+		ib_senderrf(
+			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			(err == DB_TABLESPACE_DELETED ?
+			ER_TABLESPACE_DISCARDED : ER_TABLESPACE_MISSING),
+			table->s->table_name.str);
+		table->status = STATUS_NOT_FOUND;
+		error = HA_ERR_NO_SUCH_TABLE;
+		break;
+
+	default:
+		error = convert_error_code_to_mysql(
+			err, prebuilt->table->flags,
+			prebuilt->trx->mysql_thd);
+		table->status = STATUS_NOT_FOUND;
+		break;
+	}
+	DBUG_RETURN(error);
 }
 
 /*****************************************************************//**
