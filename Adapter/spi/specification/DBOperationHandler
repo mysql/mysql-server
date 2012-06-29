@@ -1,0 +1,16 @@
+
+
+    /** setUserData()
+     *  IMMEDIATE
+     *
+     *  Allows the ORM layer to store arbitrary data with the Operation
+     */
+    setUserData(Object data);
+    
+    
+    /** getUserData()
+     *  IMMEDIATE
+     * 
+     *  Allows the ORM layer to fetch its data stored in the Operation
+     */
+    Object getUserData();

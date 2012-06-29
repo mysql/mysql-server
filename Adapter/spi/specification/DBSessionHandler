@@ -1,0 +1,103 @@
+
+
+
+    /** Implement Sesion::load()
+     *  IMMEDIATE
+     *  Define an operation which when executed will fetch a row
+     * 
+     *  @return DBOperationHandler 
+     */
+    DBOperation read(TableHandler table, Array primaryKey,
+                     Buffer KeyBuffer,  Buffer RowBuffer);
+
+
+    /** Implement Session::makePersistent()
+     *  IMMEDIATE
+     *  Define an operation which when executed will insert a row
+     *
+     *  @return DBOperationHandler 
+     */
+    DBOperation insert(TableHandler table, Array row, Buffer RowBuffer);
+
+
+    /** Implemtent Session::updatePersistent()
+     * IMMEDIATE
+     *  Define an operation which when executed will update a row
+     * 
+     *  @return DBOperationHandler 
+     */
+    DBOperation update(TableHandler table, Array primaryKey, Array row,
+                       Buffer KeyBuffer,  Buffer RowBuffer);
+
+
+    /** Implement Session::savePersistent() 
+     * IMMEDIATE
+     *  Define an operation which when executed will update or insert
+     *
+     *  @return DBOperationHandler 
+     */
+    DBOperation write(TableHandler table, Array primaryKey, Array row,
+                      Buffer KeyBuffer,  Buffer RowBuffer);
+
+
+    /** Implement Session::deletePersistent 
+     *  IMMEDIATE 
+     *  Define an operation which when executed will delete a row
+     *
+     *  @return DBOperationHandler 
+     */  
+    DBOperation delete(TableHandler table, Array primaryKey, Buffer KeyBuffer);
+
+    
+    /** Implement Session::deletePersistentAll() for entire table
+     *  IMMEDIATE
+     *  Define an operation which when executed will delete all rows
+     *
+     *  @return DBOperationHandler 
+     */
+    DBOperation truncateTable(TableHandler table);
+
+
+    /** Open a transaction.
+     *  IMMEDIATE
+     *  In the NDB case, making this IMMEDIATE will require prefetching 
+     *  transactions at startup time.
+     *
+     *  @return DBTransactionHandler
+     */
+    DBTransactionHandler openTransaction();
+
+ 
+    /** Implement Session::flush()
+     *  ASYNC.
+     *  Executes all of the DBOperations that have been added to the 
+     *  transaction's list -- see DBTransactionHandler::addOperation().
+     * 
+     * @param tx The current DBTransaction
+     * @param execmode, one of NOCOMMIT, COMMIT, ROLLBACK
+     * @param callback Function that will be called on completion.
+     *      
+     */
+    execute(DBTransaction tx, int execmode, callback );
+
+
+    /** Implement Session::setPartitionKey()
+     * IMMEDIATE
+     * 
+     * In NDB, setting the partition key causes the NDB API to select a 
+     * Transaction Coordinator on the node that would be the primary node
+     * for a row with that key.
+     *      
+     */
+    setPartitionKey(TableHandler Table, Array key, Buffer HashBuffer);
+
+
+    /** Implement Session::setLockMode()
+     * IMMEDIATE
+     * Set the lock mode for read operations. This will take effect immediately
+     * and will remain in effect until this session is closed or this method
+     * is called again.
+     * @param lockmode the LockMode
+     */
+    void setLockMode(LockMode lockmode);
+

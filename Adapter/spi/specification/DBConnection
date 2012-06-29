@@ -1,0 +1,93 @@
+
+
+/* DBConnection specifies a common SPI for a database connection.
+
+   Each implementation is expected to require impl-specific properties 
+   in the constructor.
+*/
+
+
+/* DBConnection constructor.
+   IMMEDIATE.
+   Does not perform any IO. 
+   Throws an exception if the Properties object is invalid.
+*/   
+DBConnection(Properties connectionProperties); 
+
+
+/* DBConnection.connect() method.
+   ASYNC. 
+   Connect to the database, using the properties supplied in the constructor.
+*/
+   connect(function(error, DBConnection) callback);
+
+
+/* DBConnection.connectSync() method.
+   SYNC.
+   Blocking connect.  
+   This is a convenience method for code startup.
+   Returns true on success and false on error.
+*/
+   connectSync();
+
+
+/* DBConnection.isConnected() method.
+   IMMEDIATE.
+   Returns bool true/false
+*/
+   isConnected();
+
+
+/* DBConnection.close() method.
+   ASYNC.
+   On successful close, the connection object is passed to the callback.
+   It can subsequently be either reopened or destroyed.
+*/
+   close(function(error, DBConnection) callback); 
+
+
+/* DBConnection.closeSync() method.
+   SYNC.
+   Wait for the connection to close, and destroy the DBConnection object.
+   This is a convenience method for code shutdown.
+   Returns null.
+*/
+  closeSync();
+
+
+/* DBConnection.destroy() method.
+   IMMEDIATE. 
+   Frees any native code resources associated with the connection, so that 
+   the DBConnection object can safely be freed by the garbage collector.
+   
+   Returns true on success and false on error.
+   It is an error if the DBConnection is not closed.
+*/
+   destroy();
+
+
+/* DBConnection.openDatabase() method.
+   ASYNC.
+   Open the named database.
+   Returns null.
+*/
+   openDatabase(String name, function(error, DBDatabase) callback);
+
+
+/* DBConnection.getDatabase() method.
+   IMMEDIATE.
+   This method allows for continued logical program flow in the case where 
+   it is programatically known that the database has already been opened.
+   Returns a previously-opened DBDatabase on success.
+   Returns null if the database must be opened with an openDatabase() call.
+*/
+   getDatabase(String name);
+   
+
+/* DBConnection.closeDatabase() method.
+   IMMEDIATE.
+   Close the named database.
+   Returns true if the named database had been opened; false otherwise.
+*/
+   closeDatabase(String name);
+

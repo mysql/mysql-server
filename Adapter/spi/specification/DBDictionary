@@ -1,0 +1,60 @@
+
+/* Methods on DBDictionary */
+{  
+  /** List all tables in the schema
+    * ASYNC
+    * 
+    */
+    listTables(databaseName, callback);
+
+    
+  /** Fetch metadata for a table
+    * ASYNC
+    * 
+    */
+    getTable(databaseName, tableName, callback);
+}
+ 
+
+
+DBColumn = {
+  columnType : "",     //  a ColumnType
+  intSize : ""   ,     //  1,2,3,4, or 8
+  isUnsigned: "" ,     //  TRUE for UNSIGNED
+  isNullable: "" ,     //  TRUE if NULLABLE
+  scale: ""      ,     //  DECIMAL scale
+  precision: ""  ,     //  DECIMAL precision
+  length: ""     ,     //  CHAR or VARCHAR length
+  isBinary: ""   ,     //  TRUE for BLOB/BINARY/VARBINARY
+  charset: ""    ,     //  name of charset
+  name: ""       ,     //  column name
+  columnNo: ""   ,     //  position of column in table
+  isPrimaryKey: "",    //  TRUE if column is part of PK
+  userData : ""        //  Data stored in the DBColumn by the ORM layer
+};
+
+
+DBTable = {
+  name : ""            ,    // Table Name
+  columns : ""         ,    // an array of DBColumn objects
+  primaryKey : ""      ,    // an array of DBcolumn objects 
+  userData : ""             // Data stored in the DBTable by the ORM layer
+}
+
+
+ColumnTypes =  [
+  "INT", 
+  "FLOAT",
+  "DOUBLE",
+  "DECIMAL",
+  "CHAR",
+  "VARCHAR",
+  "BLOB",
+  "DATE",
+  "TIME",
+  "DATETIME",
+  "YEAR",
+  "TIMESTAMP",
+  "BIT",
+];
+

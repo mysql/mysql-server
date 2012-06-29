@@ -1,0 +1,42 @@
+
+
+    /** addOperation()
+     *  IMMEDIATE
+     * 
+     *  Add an operation to the list that will be performed the next time
+     *  this transaction is executed.
+     *  
+     */
+    addOperation(DBOperation);
+
+
+    /** getStatus() 
+     *  IMMEDIATE
+     * 
+     *  Get the transaction status:  NotStarted / Started / Committed / Aborted 
+     */
+    int getStatus();
+    
+
+    /** close()
+     * IMMEDIATE
+     * 
+     * If the transaction has not been executed, this returns an error.
+     */
+    error close();
+    
+    
+    /** setUserData()
+     *  IMMEDIATE
+     *
+     *  Allows the ORM layer to store arbitrary data with the Transaction
+     */
+    setUserData(Object data);
+    
+    
+    /** getUserData()
+     *  IMMEDIATE
+     * 
+     *  Allows the ORM layer to fetch its data stored in the Transaction
+     */
+    Object getUserData();

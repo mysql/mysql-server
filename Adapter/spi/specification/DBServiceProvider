@@ -1,0 +1,23 @@
+
+/* This is the top level of the Database Storage Service Provider Interface.
+   Its methods correspond to top-level methods in the API. 
+*/
+
+
+/* returns an object containing all of the valid properties 
+   for this service provider, all set to their default values.
+   IMMEDIATE.
+ */   
+Object getDefaultConnectionProperties();
+
+
+/* Blocking connect.  
+   SYNC.
+*/
+DBConnection connectSync(Object properties);
+
+
+/* Async connect.
+   ASYNC.
+*/
+connect(Object properties, Function(err, DBConnection) callback);
