@@ -719,8 +719,25 @@ public:
 
   virtual bool format_derived(Opt_trace_context *json)
   {
-    DBUG_ASSERT(derived_select_number == 0 || derived_from != NULL);
-    return derived_from && derived_from->format(json);
+    DBUG_ASSERT(derived_select_number == 0 || derived_from.elements != 0);
+    if (derived_from.elements == 0)
+      return false;
+    else if (derived_from.elements == 1)
+      return derived_from.head()->format(json);
+    else
+    {
+      Opt_trace_array loops(json, K_NESTED_LOOP);
+
+      List_iterator<context> it(derived_from);
+      context *c;
+      while((c= it++))
+      {
+        Opt_trace_object anonymous_wrapper(json);
+        if (c->format(json))
+          return true;
+      }
+    }
+    return false;
   }
 };
 
@@ -777,14 +794,13 @@ public:
 
   virtual bool find_and_set_derived(context *subquery)
   {
-    DBUG_ASSERT(derived_from == NULL);
     /*
       message_ctx is designed to represent a single fake JOIN_TAB in the JOIN,
       so if the JOIN have a derived table, then this message_ctx represent this
       derived table.
-      Unconditionally set derived_from to a subquery:
+      Unconditionally add subquery:
     */
-    derived_from= subquery;
+    derived_from.push_back(subquery);
     return true;
   }
 
@@ -864,8 +880,7 @@ public:
   {
     if (derived_select_number == subquery->id())
     {
-      DBUG_ASSERT(derived_from == NULL);
-      derived_from= subquery;
+      derived_from.push_back(subquery);
       return true;
     }
     return false;

@@ -338,6 +338,16 @@ bool Item_subselect::explain_subquery_checker(uchar **arg)
     return false;
   }
 
+  if (m->type == CTX_HAVING && unit->explain_marker == CTX_WHERE)
+  {
+    /*
+      This subquery was in SELECT list of outer subquery transformed
+      with IN->EXISTS, so is referenced by WHERE and HAVING;
+      see Item_in_subselect::single_value_in_to_exists_transformer()
+    */
+    return false;
+  }
+
   if (unit->explain_marker == CTX_NONE)
     goto overwrite;
 
