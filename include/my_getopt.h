@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ struct my_option
   enum get_opt_arg_type arg_type;
   longlong   def_value;                 /* Default value */
   longlong   min_value;                 /* Min allowed value */
-  longlong   max_value;                 /* Max allowed value */
+  ulonglong  max_value;                 /* Max allowed value */
   longlong   sub_size;                  /* Subtract this from given value */
   long       block_size;                /* Value should be a mult. of this */
   void       *app_type;                 /* To be used by an application */
