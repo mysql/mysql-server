@@ -2261,10 +2261,8 @@ err_exit:
 	} else if (!fil_space_for_table_exists_in_mem(
 			table->space, name, FALSE, FALSE)) {
 
-		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)
-		    || srv_force_recovery) {
-			/* Do not bother to retry opening temporary tables
-			or retry any tablespace if force_recovery is on. */
+		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
+			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,
