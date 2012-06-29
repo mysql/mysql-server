@@ -5473,7 +5473,7 @@ type:
               if (errno == 0 && length <= MAX_FIELD_BLOBLENGTH && length != 4)
               {
                 char buff[sizeof("YEAR()") + MY_INT64_NUM_DECIMAL_DIGITS + 1];
-                snprintf(buff, sizeof(buff), "YEAR(%lu)", length);
+                my_snprintf(buff, sizeof(buff), "YEAR(%lu)", length);
                 push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_NOTE,
                                     ER_WARN_DEPRECATED_SYNTAX,
                                     ER(ER_WARN_DEPRECATED_SYNTAX),
