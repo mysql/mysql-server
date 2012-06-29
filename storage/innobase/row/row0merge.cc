@@ -3136,7 +3136,9 @@ row_merge_rename_tables(
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
 	table is in a non-system tablespace where space > 0. */
-	if (err == DB_SUCCESS && old_table->space) {
+	if (err == DB_SUCCESS
+	    && old_table->space != TRX_SYS_SPACE
+	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
 
@@ -3163,7 +3165,9 @@ row_merge_rename_tables(
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
-	if (err == DB_SUCCESS && new_table->space) {
+	if (err == DB_SUCCESS
+	    && new_table->space != TRX_SYS_SPACE
+	    && !new_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(new_table, old_name);
 

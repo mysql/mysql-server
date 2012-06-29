@@ -3182,6 +3182,12 @@ row_truncate_table_for_mysql(
 		return(DB_ERROR);
 	}
 
+	if (dict_table_is_discarded(table)) {
+		return(DB_TABLESPACE_DELETED);
+	} else if (table->ibd_file_missing) {
+		return(DB_TABLESPACE_NOT_FOUND);
+	}
+
 	trx_start_if_not_started(trx);
 
 	trx->op_info = "truncating table";
@@ -4032,7 +4038,7 @@ check_next_foreign:
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
 			dict_get_and_save_data_dir_path(table, true);
 			ut_a(table->data_dir_path);
 
@@ -4089,7 +4095,7 @@ check_next_foreign:
 		a temp table or if the tablesace has been discarded. */
 		print_msg = !(is_temp || ibd_file_missing);
 
-		if (err == DB_SUCCESS && space_id > 0) {
+		if (err == DB_SUCCESS && space_id > TRX_SYS_SPACE) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
 					space_id, tablename, FALSE, print_msg)) {
@@ -4596,7 +4602,9 @@ row_rename_table_for_mysql(
 		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
-	} else if (!dict_table_is_discarded(table) && table->ibd_file_missing) {
+
+	} else if (table->ibd_file_missing
+		   && !dict_table_is_discarded(table)) {
 
 		err = DB_TABLE_NOT_FOUND;
 
@@ -4606,6 +4614,7 @@ row_rename_table_for_mysql(
 			old_name);
 
 		goto funct_exit;
+
 	} else if (new_is_tmp) {
 		/* MySQL is doing an ALTER TABLE command and it renames the
 		original table to a temporary table name. We want to preserve
@@ -4662,7 +4671,9 @@ row_rename_table_for_mysql(
 
 	/* SYS_TABLESPACES and SYS_DATAFILES track non-system tablespaces
 	which have space IDs > 0. */
-	if (err == DB_SUCCESS && table->space) {
+	if (err == DB_SUCCESS
+	    && table->space != TRX_SYS_SPACE
+	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);
 
