@@ -214,11 +214,6 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_WRITE_REQUEST},
 
-	{"buffer_pool_pages_in_flush", "buffer",
-	 "Number of pages in flush list",
-	 MONITOR_NONE,
-	 MONITOR_DEFAULT_START, MONITOR_PAGE_INFLUSH},
-
 	{"buffer_pool_wait_free", "buffer",
 	 "Number of times waited for free buffer"
 	 " (innodb_buffer_pool_wait_free)",
