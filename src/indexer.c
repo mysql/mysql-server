@@ -428,7 +428,6 @@ build_index(DB_INDEXER *indexer) {
         else {
             invariant(prov_info.le);
             invariant(prov_info.ule);
-            LEAFENTRY le = prov_info.le;
             ULEHANDLE ule = prov_info.ule;
             for (int which_db = 0; (which_db < indexer->i->N) && (result == 0); which_db++) {
                 DB *db = indexer->i->dest_dbs[which_db];
