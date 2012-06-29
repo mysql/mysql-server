@@ -21,13 +21,13 @@
 var api = require(global.api_module);
 var harness = require(global.test_harness_module);
 
-var t1 = new harness.Test("Annotations");
+var t1 = new harness.Test("ndbProperties");
 t1.run = function() {
-  var annotations = new api.Annotations();
+  var properties = new api.ConnectionProperties("ndb");
 };
 
 
-var suite = new harness.Test("annotations").makeTestSuite();
+var suite = new harness.Test("properties").makeTestSuite();
 suite.addTest(t1);
 
 module.exports = suite;
