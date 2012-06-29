@@ -1014,7 +1014,6 @@ static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
 static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
     // helgrind
     CACHETABLE_FLUSH_CALLBACK flush_callback = p->flush_callback;
-    CACHEFILE cachefile = p->cachefile;
     CACHEKEY key = p->key;
     void *value = p->value_data;
     void* disk_data = p->disk_data;
@@ -1026,7 +1025,11 @@ static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
     PAIR_ATTR new_attr = p->attr;
     // Note that flush_callback is called with write_me FALSE, so the only purpose of this 
     // call is to tell the brt layer to evict the node (keep_me is FALSE).
-    flush_callback(cachefile, cachefile->fd, key, value, &disk_data, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE, FALSE);
+    // Also, because we have already removed the PAIR from the cachetable in 
+    // cachetable_remove_pair, we cannot pass in p->cachefile and p->cachefile->fd
+    // for the first two parameters, as these may be invalid (#5171), so, we
+    // pass in NULL and -1, dummy values
+    flush_callback(NULL, -1, key, value, &disk_data, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE, FALSE);
     
     cachetable_lock(ct);
     
