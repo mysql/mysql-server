@@ -7497,9 +7497,13 @@ BEGIN
 declare x, y, z year(3) default 2005;
 SELECT x, y, z;
 END//
+Warnings:
+Note	1287	'YEAR(3)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 CALL sp1();
 x	y	z
 2005	2005	2005
+Warnings:
+Note	1287	'YEAR(3)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
