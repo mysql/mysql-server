@@ -387,9 +387,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
       Use also the space previously used by string pointers in sort_buffer
       for temporary key storage.
     */
-    param.max_keys_per_buffer=((param.max_keys_per_buffer *
-                                (param.rec_length + sizeof(char*))) /
-                               param.rec_length - 1);
+    param.max_keys_per_buffer= table_sort.sort_buffer_size() / param.rec_length;
     maxbuffer--;				// Offset from 0
     if (merge_many_buff(&param,
                         (uchar*) table_sort.get_sort_keys(),
