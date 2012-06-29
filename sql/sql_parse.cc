@@ -3421,24 +3421,7 @@ end_with_restore_list:
         if (lex->describe)
           res= explain_multi_table_modification(thd, sel_result);
         else
-        {
           res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
-          /*
-            Invalidate the table in the query cache if something changed
-            after unlocking when changes become visible.
-            TODO: this is workaround. right way will be move invalidating in
-            the unlock procedure.
-          */
-          if (!res && first_table->lock_type ==  TL_WRITE_CONCURRENT_INSERT &&
-              thd->lock)
-          {
-            /* INSERT ... SELECT should invalidate only the very first table */
-            TABLE_LIST *save_table= first_table->next_local;
-            first_table->next_local= 0;
-            query_cache_invalidate3(thd, first_table, 1);
-            first_table->next_local= save_table;
-          }
-        }
         delete sel_result;
       }
       /* revert changes for SP */
