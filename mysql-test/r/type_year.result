@@ -354,6 +354,16 @@ total_rows	min_value	MAX(c1)
 3	0	2155
 DROP TABLE t1;
 #
+# WL#6219: Deprecate and remove YEAR(2) type
+#
+CREATE TABLE t1 (c1 YEAR(2), c2 YEAR(4));
+Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
+Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
+DROP TABLE t1;
+#
 End of 5.1 tests
 #
 # Start of 5.6 tests
