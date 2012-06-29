@@ -333,9 +333,10 @@ select f1();
 select sleep(4);
 sleep(4)
 0
+# The below select should not see any rows in t1 as it is
+# run before t1 is unlocked by stored function/insert.
 select * from t1;
 id
-3
 f1()
 0
 select * from t1;
