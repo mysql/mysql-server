@@ -19,7 +19,6 @@
  */
 
 
-
 #define THROW_EXCEPTION(MESSAGE) \
   ThrowException(Exception::TypeError(String::New(MESSAGE)))
   

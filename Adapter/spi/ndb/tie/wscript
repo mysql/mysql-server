@@ -9,6 +9,7 @@ def set_options(opt):
 
 def configure(conf):
   import Options
+  # FIXME: support multiple tree layouts, e.g. also "include/storage/ndb"
   ndbinclude = Options.options.mysql + "include/mysql/storage/ndb"
   
   conf.check_tool('compiler_cxx')

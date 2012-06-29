@@ -105,6 +105,18 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 }
 
 
+
+Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(0);  
+  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
+
+  delete c;
+  return scope.Close(toJS<int>(0));
+}
+
+
 void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
   Local<FunctionTemplate> JSNdb_cluster_connection;
 
@@ -118,6 +130,8 @@ void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
                    Ndb_cluster_connection_wait_until_ready);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "node_id",
                    Ndb_cluster_connection_node_id);
+  DEFINE_JS_METHOD(JSNdb_cluster_connection, "delete",
+                   Ndb_cluster_connection_delete_wrapper);
   DEFINE_JS_CONSTRUCTOR(target, "Ndb_cluster_connection", JSNdb_cluster_connection);
 }
   
