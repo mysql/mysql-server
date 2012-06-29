@@ -343,9 +343,9 @@ public:
   uint derived_select_number; ///< "derived" subquery id
 
   /**
-    Pointer to "derived" subquery tree
+    List of "derived" subquery trees
   */
-  opt_explain_json_namespace::context *derived_from;
+  List<opt_explain_json_namespace::context> derived_from;
 
   bool is_dependent;
   bool is_cacheable;
@@ -355,7 +355,6 @@ public:
 
   qep_row() :
     derived_select_number(0),
-    derived_from(NULL),
     is_dependent(false),
     is_cacheable(true),
     using_temporary(false),
@@ -386,7 +385,7 @@ public:
       just for the consistency).
     */
     derived_select_number= 0;
-    derived_from= NULL;
+    derived_from.empty();
     is_dependent= false;
     is_cacheable= true;
     using_temporary= false;
