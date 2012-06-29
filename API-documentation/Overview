@@ -1,0 +1,83 @@
+1) PUBLIC API
+
+Clusterj:
+  ConnectionProperties returns a properties object filled in with default 
+    connection properties for an implementation
+  Annotations() creates an Annotations object.
+  connect() and connectSync() connect to a cluster and returns a SessionFactory.
+
+Annotations:
+  mapClass()
+  mapField()
+  registerFieldConverter()
+  registerColumnConverter()
+  registerTypeConverter()
+  registerCharsetConverter()
+  
+Converter:
+  a converter implements either readFromString() + writeToString()
+  or readFromBuffer() + writeToBuffer()
+
+Session:
+  find()
+  load()
+  found()
+  newInstance()
+  makePersistent()
+  persist()
+  makePersistentAll()
+  deletePersistent()
+  remove()
+  deletePersistentAll()
+  updatePersistent()
+  updatePersistentAll()
+  savePersistent()
+  savePersistentAll()
+  currentTransaction()
+  close()
+  isClosed()
+  flush()
+  setPartitionKey()
+  setLockMode()
+  markModified()
+  unloadSchema()
+
+SessionFactory:
+  getSession()
+  close()
+
+Transaction:
+  begin()
+  commit()
+  rollback()
+  isActive()
+  setRollbackOnly()
+  getRollbackOnly()
+
+
+2) STORAGE SPI
+  
+DBDictionary:
+  listTables()
+  getTable()
+
+DBSessionHandler:
+  read()
+  insert()
+  update()
+  write()
+  delete()
+  truncateTable()
+  openTransaction()
+  execute()
+  setPartitionKey()
+  setLockMode()
+  
+DBTransactionHandler:
+  addOperation()
+  getStatus()
+  close()
+  setUserData()
+  getUserData()
+
+  

@@ -1,0 +1,40 @@
+
+/*   
+   Converter classes convert between JavaScript types and MySQL types.
+   If a user supplies a javascript converter, and it will be used to read 
+   and write the database.
+  
+   A converter can implement either readFromString() and writeToString(),
+   or readFromBuffer() and writeToBuffer().  If it implements both, the 
+   buffer-based calls will be used.
+
+   QUESTION: How to return errors from converters? 
+  
+   A converter can be registerd for: 
+     a particular field in a domain object
+     a particular column in a table
+     all instances of a MySQL data type (e.g. DECIMAL)
+     all instances of a MySQL character set
+   
+   The initial need for Converters is the fact that there is no 
+   standard JavaScript type to repesent MySQL DECIMAL and MySQL BIGINT.
+   Registering a converter for DECIMAL and BIGINT columns allows the user
+   to map them to a JavaScript library of their own choice.
+   
+   Secondly, there are several possible implementations of character set
+   conversions for strings, and our prior experience with Java has shown
+   some significant performance differences between them.  
+  
+   Finally, registering converters allows the user to serialize JavaScript
+   objects into CHAR or BINARY columns using their own choice of format.
+*/ 
+
+
+Converter.prototype = {
+  "readFromString" : function(object, string) {},
+  "writeToString"  : function(object, string) {},
+  "readFromBuffer" : function(object, Buffer, offset, length) {},
+  "writeToBuffer"  : function(object, Buffer, offset, length) {}
+};
+
+

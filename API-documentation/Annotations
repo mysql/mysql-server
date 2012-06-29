@@ -1,0 +1,144 @@
+
+/** Annotations provide the system with the user's guidance on the
+ * mapping from the database to javascript domain objects.
+ * Users can request that all tables in the database be mapped,
+ * by setting the flag "MapAllTables".
+ * Users can request that all columns in the table be mapped,
+ * by setting the flag "mapAllColumns" for the table.
+*/
+
+
+/* Annotations instance methods */
+{
+    /** mapAllTables(boolean flag)
+     * IMMEDIATE 
+     * Request that all tables be mapped.
+     *
+     * @param flag true to map all tables; false to map only tables specified
+     * with mapClass().
+     */
+    mapAllTables(boolean flag);
+
+    /** mapClass()
+     * IMMEDIATE 
+     * Supply annotations to a prototype or token object.
+     *
+     * Annotations specify details of how the object is mapped to the database.
+     * 
+     * @param token_object prototype object to annotate
+     * @param annotations field annotations object 
+     */
+    mapClass(Object token_object, Object objectAnnotations);
+
+
+    /** mapField() 
+     * IMMEDIATE
+     * supply annotations for a particular field of a token object.
+     *
+     * @param token_object a prototype object 
+     * @param field_name   the name of a field in the token object
+     * @param annotations  annotations to apply to this field
+     */
+    mapField(Object token_object, String field_name, Object annotations);
+
+
+    /** registerFieldConverter
+     * IMMEDIATE
+     * Register a converter for a field in a domain object
+     *
+     */
+    registerFieldConverter(Object token_object, String field_name, Converter c);
+
+  
+    /** registerColumnConverter
+     * IMMEDIATE
+     * Register a converter for a column in a table
+     *
+     */
+    registerColumnConverter(String table, String column, Converter c);
+    
+    
+    /** registerTypeConverter 
+     *  IMMEDIATE
+     *  Register a converter for a SQL data type 
+     *
+     *  @param type is as defined in DBDictionary for the storage SPI
+     */
+    registerTypeConverter(string typeName, Converter c);
+  
+  
+    /** registerCharsetConverter
+     *  IMMEDIATE
+     *  Register a converter to/from Javascript String for a SQL charset
+     */
+    registerCharsetConverter(String charsetName, Converter c);
+}
+
+
+
+/* Javascript Annotations */
+
+/* 1:  Object annotations 
+ * 
+ * annotate(prototype_object, annotations_object) 
+ * 
+ */
+ 
+ObjectAnnotations =  {
+
+  "PersistenceCapable" : {
+    "table" : "",         // the table to use for persisting this class 
+    "database" : "",      // the database to use for persisting this class 
+    "schema"  : "",       // the schema to use for persisting this class
+    "autoIncrementBatchSize" : 1,  // prefetch size 
+    "mapAllColumns": true
+  }
+}
+
+/* QUESTIONS:  
+ *      Q: Keep "PersistenceCapable" in the interface, or make it implied ? 
+ *      A: Any object that has the named properties can be used.
+ *      Q: Why both "database" and "schema" ? 
+ *      Q: If the annotation uses one database and the session uses another,
+ *       which one wins?
+ */
+ 
+ 
+
+
+/* 2: Field annotations 
+ *
+ * annotateField(prototype_object, field_name, annotations_object) 
+ *
+ */
+ 
+ FieldAnnotations = {
+  "nullValue" : "",     /* Behavior when this member contains a null value when
+                           persisting the object.
+                           One of "NONE", "EXCEPTION", or "DEFAULT"  */ 
+
+  "column" : "",        /* Column name where this field is stored.  The default
+                           is a column with the same name as the field. */
+
+  "notPersistent" : "", /* Specify that a field is not to be persisted in the
+                           database. */
+
+  "converter" : ""      /* Specify the converter to use for this field/column.
+                           The default is to use the converter based on the SQL type.*/
+}
+
+
+/*   QUESTIONS:
+ *
+ *      Keep "PrimaryKey", or get it from the data dictionary?
+ *      Keep "Index", or get it from the data dictionary?
+ *      Keep "PartitionKey", or get it from the data dictionary?
+ *      Keep "Column" and "Columns"? 
+ *
+ *      What to do with Lob annotation?
+ *      Keep vendor extensions? 
+ *      
+ *      
+ * 
+ */
+            

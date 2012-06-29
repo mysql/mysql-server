@@ -1,0 +1,32 @@
+/*
+ * 
+ * getSession() : get a database session object
+ *
+ * Session provides a context for database transactions and operations.
+ * Each independent user should have its own Session.
+ *
+ * The resources required for sessions are allocated in advance. 
+ * It may return an error indicating that those resources are not available.
+ * QUESTION: how? with an exception?
+ *
+ * @param annotations the list of annotations to be used in this session
+ *
+ * TODO: make a list of all the allowed properties.
+ *
+ * @return a Session object.
+ */
+ getSession(Annotations annotations, Function(Object error, Number number) callback);
+ 
+/** Get all open sessions that have been created by this factory.
+ *
+ * @return all sessions
+ */
+Array getOpenSessions();
+
+/* 
+ * close():
+ * 
+ * close the connection to the datastore.
+ * This ensures proper disconnection from the cluster.
+ */
+close();

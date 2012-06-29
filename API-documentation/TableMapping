@@ -1,0 +1,12 @@
+/** Return the name for this mapping
+ */
+String getName()
+
+/** Return the table name for this mapping
+*/
+String getTable();
+
+/** Return the column-property mappings as an Array
+ */
+ Array getFieldMappings()
+ 
