@@ -382,19 +382,27 @@ static int ai_poll_fun(void *extra, float progress) {
         sprintf(context->write_status_msg, "The process has been killed, aborting add index.");
         return ER_ABORTING_CONNECTION;
     }
-    sprintf(context->write_status_msg, "Adding of indexes about %.1f%% done", progress*100);
+    float percentage = progress * 100;
+    sprintf(context->write_status_msg, "Adding of indexes about %.1f%% done", percentage);
     thd_proc_info(context->thd, context->write_status_msg);
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+    thd_progress_report(context->thd, (unsigned long long) percentage, 100);
+#endif
     return 0;
 }
 
-static int poll_fun(void *extra, float progress) {
+static int loader_poll_fun(void *extra, float progress) {
     LOADER_CONTEXT context = (LOADER_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting bulk load.");
         return ER_ABORTING_CONNECTION;
     }
-    sprintf(context->write_status_msg, "Loading of data about %.1f%% done", progress*100);
+    float percentage = progress * 100;
+    sprintf(context->write_status_msg, "Loading of data about %.1f%% done", percentage);
     thd_proc_info(context->thd, context->write_status_msg);
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+    thd_progress_report(context->thd, (unsigned long long) percentage, 100);
+#endif
     return 0;
 }
 
@@ -3182,6 +3190,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                 }
                 u_int32_t loader_flags = (get_load_save_space(thd)) ? 
                     LOADER_USE_PUTS : 0;
+
                 int error = db_env->create_loader(
                     db_env, 
                     transaction, 
@@ -3201,7 +3210,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
                 lc.thd = thd;
                 lc.ha = this;
                 
-                error = loader->set_poll_function(loader, poll_fun, &lc);
+                error = loader->set_poll_function(loader, loader_poll_fun, &lc);
                 assert(!error);
 
                 error = loader->set_error_callback(loader, loader_dup_fun, &lc);
@@ -3285,7 +3294,6 @@ cleanup:
     }
     num_DBs_locked_in_bulk = false;
     lock_count = 0;
-
     if (loader) {
         error = sprintf(write_status_msg, "aborting bulk load"); 
         thd_proc_info(thd, write_status_msg);
@@ -7407,7 +7415,6 @@ int ha_tokudb::tokudb_add_index(
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
     ulonglong num_processed = 0; //variable that stores number of elements inserted thus far
     thd_proc_info(thd, "Adding indexes");
-
     
     //
     // in unpack_row, MySQL passes a buffer that is this long,
@@ -7508,7 +7515,14 @@ int ha_tokudb::tokudb_add_index(
         rw_unlock(&share->num_DBs_lock);
         rw_lock_taken = false;
         
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+        // initialize a one phase progress report.
+        // incremental reports are done in the indexer's callback function.
+        thd_progress_init(thd, 1);
+#endif
+
         error = indexer->build(indexer);
+
         if (error) { goto cleanup; }
 
         rw_wrlock(&share->num_DBs_lock);
@@ -7542,7 +7556,7 @@ int ha_tokudb::tokudb_add_index(
             );
         if (error) { goto cleanup; }
 
-        error = loader->set_poll_function(loader, poll_fun, &lc);
+        error = loader->set_poll_function(loader, loader_poll_fun, &lc);
         if (error) { goto cleanup; }
 
         error = loader->set_error_callback(loader, loader_ai_err_fun, &lc);
@@ -7573,6 +7587,12 @@ int ha_tokudb::tokudb_add_index(
         rows_fetched_using_bulk_fetch = 0;
         bulk_fetch_iteration = HA_TOKU_BULK_FETCH_ITERATION_MAX;
         cursor_ret_val = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED,smart_dbt_bf_callback, &bf_info);
+
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+        // initialize a two phase progress report.
+        // first phase: putting rows into the loader
+        thd_progress_init(thd, 2);
+#endif
 
         while (cursor_ret_val != DB_NOTFOUND || ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) > 0)) {
             if ((bytes_used_in_range_query_buff - curr_range_query_buff_offset) == 0) {
@@ -7620,6 +7640,11 @@ int ha_tokudb::tokudb_add_index(
                     sprintf(status_msg, "Adding indexes: Fetched %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
                 }
                 thd_proc_info(thd, status_msg);
+
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+                thd_progress_report(thd, num_processed, (long long unsigned) share->rows);
+#endif
+
                 if (thd->killed) {
                     error = ER_ABORTING_CONNECTION;
                     goto cleanup;
@@ -7630,8 +7655,15 @@ int ha_tokudb::tokudb_add_index(
         assert(error==0);
         tmp_cursor = NULL;
 
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+        // next progress report phase: closing the loader. 
+        // incremental reports are done in the loader's callback function.
+        thd_progress_next_stage(thd);
+#endif
+
         error = loader->close(loader);
         loader = NULL;
+
         if (error) goto cleanup;
     }
     curr_index = curr_num_DBs;
@@ -7672,6 +7704,9 @@ int ha_tokudb::tokudb_add_index(
     
     error = 0;
 cleanup:
+#ifdef HA_TOKUDB_HAS_THD_PROGRESS
+    thd_progress_end(thd);
+#endif
     if (rw_lock_taken) {
         rw_unlock(&share->num_DBs_lock);
         rw_lock_taken = false;
