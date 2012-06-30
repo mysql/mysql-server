@@ -118,7 +118,8 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     return r2;
 }
 
-#define TMPFTFMT "%s-tmpdata.ft_handle"
+#define TMPFTFMT "%s-tmpdata.ft"
+static const char *origft_6_0 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.6.0.gz";
 static const char *origft_5_0 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.5.0.gz";
 static const char *origft_4_2 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.4.2.gz";
 static const char *not_flat_4_2 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.4.2.not.flat.gz";
@@ -163,6 +164,8 @@ test_main(int argc __attribute__((__unused__)), const char *argv[])
 {
     int r;
 
+    r = run_test(argv[0], origft_6_0);
+    CKERR(r);
     r = run_test(argv[0], origft_5_0);
     CKERR(r);
     r = run_test(argv[0], origft_4_2);
