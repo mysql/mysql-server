@@ -10027,6 +10027,12 @@ int QUICK_RANGE_SELECT::reset()
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
+  /* set keyread to TRUE if index is covering */
+  if(!head->no_keyread && head->covering_keys.is_set(index))
+    head->set_keyread(true);
+  else
+    head->set_keyread(false);
+
   if (!file->inited)
   {
     if (in_ror_merged_scan)
