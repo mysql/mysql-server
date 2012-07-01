@@ -13,4 +13,8 @@ String getPropertyName()
 /** Return the javascript property type
  */
  int getPropertyType()
+
+/** Return the Converter class 
+ */
+ Converter getConverter()
  

@@ -132,4 +132,4 @@
     /** Is this a batch?
      * @return true if this context is a batch; false if this context is a session
      */
-     isBatch();
+    isBatch();
