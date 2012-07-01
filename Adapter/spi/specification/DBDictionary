@@ -5,14 +5,14 @@
     * ASYNC
     * 
     */
-    listTables(databaseName, callback);
+    listTables(databaseName, callback(error, array));
 
     
   /** Fetch metadata for a table
     * ASYNC
     * 
     */
-    getTable(databaseName, tableName, callback);
+    getTable(databaseName, tableName, callback(error, DBTable));
 }
  
 
@@ -34,11 +34,21 @@ DBColumn = {
 };
 
 
+DBIndex = {
+  isPrimaryKey : "",    // bool
+  isUnique     : "",    // bool
+  isOrdered    : "",    // bool; can scan if true
+  columns      : [],    // an array of DBColumn objects
+  userData     : ""     // Data stored in the DBIndex by the ORM layer
+};
+
+
 DBTable = {
-  name : ""            ,    // Table Name
-  columns : ""         ,    // an array of DBColumn objects
-  primaryKey : ""      ,    // an array of DBcolumn objects 
-  userData : ""             // Data stored in the DBTable by the ORM layer
+  name :             "",    // Table Name
+  columns :          [],    // an array of DBColumn objects
+  primaryKey :       "",    // a DBIndex object
+  secondaryIndexes : [],    // an array of DBIndex objects 
+  userData :         ""     // Data stored in the DBTable by the ORM layer
 }
 
 
