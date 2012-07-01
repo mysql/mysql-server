@@ -1825,7 +1825,7 @@ mysql_declare_plugin(tokudb)
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
     &tokudb_user_data_exact_information_schema, 
-    "TokuDB_dictionary_info", 
+    "TokuDB_file_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_PROPRIETARY,
@@ -1892,7 +1892,7 @@ maria_declare_plugin(tokudb)
 {
     MYSQL_INFORMATION_SCHEMA_PLUGIN, 
     &tokudb_user_data_exact_information_schema, 
-    "TokuDB_dictionary_info", 
+    "TokuDB_file_map", 
     "Tokutek Inc", 
     "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
     PLUGIN_LICENSE_PROPRIETARY,
