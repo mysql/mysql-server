@@ -626,7 +626,6 @@ if(BUILD_TESTING)
     ydb/loader-cleanup-test2.tdb
     ydb/manyfiles.tdb
     ydb/recovery_fileops_stress.tdb
-    ydb/recovery_fileops_unit.tdb
     ydb/root_fifo_1.tdb
     ydb/root_fifo_2.tdb
     ydb/root_fifo_31.tdb
@@ -669,6 +668,7 @@ if(BUILD_TESTING)
     ydb/loader-stress-del.nop.loader
     ydb/loader-stress-del.p.loader
     ydb/loader-stress-test4.tdb
+    ydb/recovery_fileops_unit.tdb
     ydb/test3039.tdb
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
