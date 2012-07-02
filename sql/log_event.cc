@@ -3324,10 +3324,10 @@ bool Query_log_event::write(IO_CACHE* file)
     compile_time_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS);
 
     /* 
-       in case of the number of db:s exceeds  MAX_DBS_IN_EVENT_MTS
+       In case of the number of db:s exceeds MAX_DBS_IN_EVENT_MTS
        no db:s is written and event will require the sequential applying on slave.
     */
-    dbs= *start++=
+    dbs=
       (thd->get_binlog_accessed_db_names()->elements <= MAX_DBS_IN_EVENT_MTS) ?
       thd->get_binlog_accessed_db_names()->elements : OVER_MAX_DBS_IN_EVENT_MTS;
 
@@ -3336,13 +3336,24 @@ bool Query_log_event::write(IO_CACHE* file)
     if (dbs <= MAX_DBS_IN_EVENT_MTS)
     {
       List_iterator_fast<char> it(*thd->get_binlog_accessed_db_names());
-      char *db_name;
-
-      while ((db_name= it++))
-      {
-        strcpy((char*) start, db_name);
-        start += strlen(db_name) + 1;
-      }
+      char *db_name= it++;
+      /* 
+         the single "" db in the acccessed db list corresponds to the same as
+         exceeds MAX_DBS_IN_EVENT_MTS case, so dbs is set to the over-max.
+      */
+      if (dbs == 1 && !strcmp(db_name, ""))
+        dbs= OVER_MAX_DBS_IN_EVENT_MTS;
+      *start++= dbs;
+      if (dbs != OVER_MAX_DBS_IN_EVENT_MTS)
+        do
+        {
+          strcpy((char*) start, db_name);
+          start += strlen(db_name) + 1;
+        } while ((db_name= it++));
+    }
+    else
+    {
+      *start++= dbs;
     }
   }
 
@@ -11364,7 +11375,20 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
-
+  /*
+    Marking event to require sequential execution in MTS
+    if the query might have updated FK-referenced db.
+    Unlike Query_log_event where this fact is encoded through 
+    the accessed db list in the Table_map case m_flags is exploited.
+  */
+  uchar dbs= thd->get_binlog_accessed_db_names() ?
+    thd->get_binlog_accessed_db_names()->elements : 0;
+  if (dbs == 1)
+  {
+    char *db_name= thd->get_binlog_accessed_db_names()->head();
+    if (!strcmp(db_name, ""))
+      m_flags |= TM_REFERRED_FK_DB_F;
+  }
 }
 #endif /* !defined(MYSQL_CLIENT) */
 
