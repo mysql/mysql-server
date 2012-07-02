@@ -140,6 +140,7 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
     }
     cursor->logfiles = NULL;
     cursor->n_logfiles = 0;
+    cursor->cur_fp = NULL;
     cursor->cur_lsn.lsn=0;
     cursor->last_direction=LC_FIRST;
     
