@@ -548,7 +548,11 @@ PSI_digest_locker* pfs_digest_add_token_v1(PSI_digest_locker *locker,
 
   digest_storage= &state->m_digest_storage;
 
-  if (digest_storage->m_full)
+  /*
+    Stop collecting further tokens if digest storage is full or
+    if END token is received.
+  */
+  if (digest_storage->m_full || token == END_OF_INPUT)
     return NULL;
 
   /* 
