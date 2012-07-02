@@ -4742,14 +4742,12 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  st_select_lex::Resolve_place save_resolve=
-    thd->lex->current_select->resolve_place;
+  Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+                           st_select_lex::RESOLVE_NONE,
+                           functype() != COND_AND_FUNC);
   uchar buff[sizeof(char*)];			// Max local vars in function
   used_tables_cache= 0;
   const_item_cache= true;
-
-  if (functype() != COND_AND_FUNC)
-    thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
     not_null_tables_cache= 0;
@@ -4805,7 +4803,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null= true;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->lex->current_select->resolve_place= save_resolve;
   fix_length_and_dec();
   fixed= true;
   return false;

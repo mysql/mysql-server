@@ -3712,16 +3712,31 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     }
   }
 
-  if (where)
+  if (where && !where_processed)
   {
-    if (!where->fixed && !where_processed && where->fix_fields(thd, &where))
-      DBUG_RETURN(TRUE);
+
+    if (!where->fixed)
+    {
+      /*
+        This WHERE will be included in check_option. If it contains a
+        subquery, fix_fields() may convert it to semijoin, making it
+        impossible to call val_int() on the Item[...]_subselect, preventing
+        evaluation of check_option when we insert/update/delete a row.
+        So we must forbid semijoin transformation in fix_fields():
+      */
+      Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+                               st_select_lex::RESOLVE_NONE,
+                               effective_with_check != VIEW_CHECK_NONE);
+
+      if (where->fix_fields(thd, &where))
+        DBUG_RETURN(TRUE);
+    }
 
     /*
       check that it is not VIEW in which we insert with INSERT SELECT
       (in this case we can't add view WHERE condition to main SELECT_LEX)
     */
-    if (!no_where_clause && !where_processed)
+    if (!no_where_clause)
     {
       TABLE_LIST *tbl= this;
       Query_arena *arena= thd->stmt_arena, backup;
