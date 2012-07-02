@@ -458,7 +458,7 @@ if(BUILD_TESTING)
       add_drd_test(ydb/drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
       add_custom_executable(large ${test} ${src})
       add_drd_test(ydb/drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
-      set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 6000)
+      set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 7200)
     endif()
   endforeach(src)
 
