@@ -664,6 +664,7 @@ if(BUILD_TESTING)
       ydb/root_fifo_31.bdb
       ydb/rowsize.bdb
       ydb/test1426.tdb
+      ydb/test_groupcommit_count.bdb
       ydb/test_log10.bdb
       ydb/test_log7.bdb
       ydb/test_logmax.bdb
