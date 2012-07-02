@@ -516,6 +516,8 @@ toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn) {
 
 bool
 toku_txn_is_read_only(TOKUTXN txn) {
+    // No need to recursively check children because parents are
+    // recursively logged before children.
     if (!txn->begin_was_logged) {
         // Did no work.
         invariant(txn->roll_info.num_rollentries == 0);

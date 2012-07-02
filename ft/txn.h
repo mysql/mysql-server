@@ -114,6 +114,8 @@ struct tokulogger_preplist {
 int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
 
 void toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn);
+
+// Return whether txn (or it's descendents) have done no work.
 bool toku_txn_is_read_only(TOKUTXN txn);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)

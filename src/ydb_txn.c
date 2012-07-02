@@ -13,11 +13,6 @@
 #include <valgrind/helgrind.h>
 #include "ft/txn_manager.h"
 
-static int toku_txn_commit(DB_TXN * txn, u_int32_t flags, TXN_PROGRESS_POLL_FUNCTION poll,
-        void *poll_extra, bool release_mo_client_lock_if_held, bool *holds_mo_lock);
-static int toku_txn_abort(DB_TXN * txn, TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-        bool *holds_mo_lock);
-
 static int 
 toku_txn_release_locks(DB_TXN* txn) {
     assert(txn);
@@ -60,20 +55,12 @@ toku_txn_destroy(DB_TXN *txn) {
 static int
 toku_txn_commit(DB_TXN * txn, u_int32_t flags,
                 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-                bool release_mo_lock_if_held,
-                bool *holds_mo_lock) {
+                bool release_mo_lock) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    // Don't take multi-operation lock until we see a non-readonly txn.
-    if (!*holds_mo_lock &&
-        !toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
-        toku_multi_operation_client_lock();
-        *holds_mo_lock = true;
-    }
     //Recursively kill off children
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child,
-                flags, NULL, NULL, false, holds_mo_lock);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, flags, NULL, NULL, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
@@ -125,7 +112,7 @@ toku_txn_commit(DB_TXN * txn, u_int32_t flags,
     // this lock must be held until the references to the open FTs is released
     // begin checkpoint logs these associations, so we must be protect
     // the changing of these associations with checkpointing
-    if (release_mo_lock_if_held && *holds_mo_lock) {
+    if (release_mo_lock) {
         toku_multi_operation_client_unlock();
     }
     toku_txn_maybe_fsync_log(logger, do_fsync_lsn, do_fsync);
@@ -154,20 +141,12 @@ toku_txn_id64(DB_TXN * txn) {
 
 static int 
 toku_txn_abort(DB_TXN * txn,
-               TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-               bool *holds_mo_lock) {
+               TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    // Don't take multi-operation lock until we see a non-readonly txn.
-    if (!*holds_mo_lock &&
-        !toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
-        toku_multi_operation_client_lock();
-        *holds_mo_lock = true;
-    }
     //Recursively kill off children (abort or commit are both correct, commit is cheaper)
     if (db_txn_struct_i(txn)->child) {
         //commit of child sets the child pointer to NULL
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child,
-                DB_TXN_NOSYNC, NULL, NULL, false, holds_mo_lock);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, DB_TXN_NOSYNC, NULL, NULL, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent abort.\n");
         }
@@ -216,7 +195,7 @@ toku_txn_xa_prepare (DB_TXN *txn, TOKU_XA_XID *xid) {
         //commit of child sets the child pointer to NULL
 
         // toku_txn_commit will take the mo_lock if not held and a non-readonly txn is found.
-        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, 0, NULL, NULL, false, &holds_mo_lock);
+        int r_child = toku_txn_commit(db_txn_struct_i(txn)->child, 0, NULL, NULL, false);
         if (r_child !=0 && !toku_env_is_panicked(txn->mgrp)) {
             env_panic(txn->mgrp, r_child, "Recursive child commit failed during parent commit.\n");
         }
@@ -278,12 +257,16 @@ locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
         toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
     }
     bool holds_mo_lock = false;
+    if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
+        toku_multi_operation_client_lock();
+        holds_mo_lock = true;
+    }
     // cannot begin a checkpoint.
     // the multi operation lock is taken the first time we
     // see a non-readonly txn in the recursive commit.
     // But released in the first-level toku_txn_commit (if taken),
     // this way, we don't hold it while we fsync the log.
-    int r = toku_txn_commit(txn, flags, poll, poll_extra, true, &holds_mo_lock);
+    int r = toku_txn_commit(txn, flags, poll, poll_extra, holds_mo_lock);
     return r;
 }
 
@@ -295,7 +278,11 @@ locked_txn_abort_with_progress(DB_TXN *txn,
     // see a non-readonly txn in the abort (or recursive commit).
     // But released here so we don't have to hold additional state.
     bool holds_mo_lock = false;
-    int r = toku_txn_abort(txn, poll, poll_extra, &holds_mo_lock);
+    if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {
+        toku_multi_operation_client_lock();
+        holds_mo_lock = true;
+    }
+    int r = toku_txn_abort(txn, poll, poll_extra);
     if (holds_mo_lock) {
         toku_multi_operation_client_unlock();
     }
