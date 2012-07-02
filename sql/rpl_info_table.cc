@@ -539,6 +539,10 @@ bool Rpl_info_table::do_update_is_transactional()
   Open_tables_backup backup;
 
   DBUG_ENTER("Rpl_info_table::do_update_is_transactional");
+  DBUG_EXECUTE_IF("simulate_update_is_transactional_error",
+                  {
+                    DBUG_RETURN(TRUE);
+                  });
 
   THD *thd= access->create_thd();
   saved_mode= thd->variables.sql_mode;
