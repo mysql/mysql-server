@@ -174,12 +174,10 @@ Item_func::fix_fields(THD *thd, Item **ref)
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
 
-  st_select_lex::Resolve_place save_resolve= st_select_lex::RESOLVE_NONE;
-  if (thd->lex->current_select != NULL)
-  {
-    save_resolve= thd->lex->current_select->resolve_place;
-    thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
-  }
+  Switch_resolve_place SRP(thd->lex->current_select ?
+                           &thd->lex->current_select->resolve_place : NULL,
+                           st_select_lex::RESOLVE_NONE,
+                           thd->lex->current_select);
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
   const_item_cache=1;
@@ -234,8 +232,6 @@ Item_func::fix_fields(THD *thd, Item **ref)
   if (thd->is_error()) // An error inside fix_length_and_dec occured
     return TRUE;
   fixed= 1;
-  if (thd->lex->current_select != NULL)
-    thd->lex->current_select->resolve_place= save_resolve;
   return FALSE;
 }
 
