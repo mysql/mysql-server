@@ -33,6 +33,9 @@
 
 #include <my_user.h>
 
+/* Used in error handling only */
+#define SP_TYPE_STRING(LP) \
+    ((LP)->sphead->m_type == SP_TYPE_FUNCTION ? "FUNCTION" : "PROCEDURE")
 static bool
 create_string(THD *thd, String *buf,
 	      enum_sp_type sp_type,
@@ -984,13 +987,13 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
   followed by an implicit grant (sp_grant_privileges())
   and this subsequent call opens and closes mysql.procs_priv.
 
-  @return Error code. SP_OK is returned on success. Other
-  SP_ constants are used to indicate about errors.
+  @retval false success
+  @retval true  error
 */
 
-int sp_create_routine(THD *thd, sp_head *sp)
+bool sp_create_routine(THD *thd, sp_head *sp)
 {
-  int ret;
+  bool error= true;
   TABLE *table;
   char definer[USER_HOST_BUFF_SIZE];
   sql_mode_t saved_mode= thd->variables.sql_mode;
@@ -1016,7 +1019,22 @@ int sp_create_routine(THD *thd, sp_head *sp)
 
   /* Grab an exclusive MDL lock. */
   if (lock_object_name(thd, mdl_type, sp->m_db.str, sp->m_name.str))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+  {
+    my_error(ER_SP_STORE_FAILED, MYF(0),
+             SP_TYPE_STRING(thd->lex),sp->m_name.str);
+    DBUG_RETURN(true);
+  }
+
+  /*
+   Check that a database directory with this name
+   exists. Design note: This won't work on virtual databases
+   like information_schema.
+  */
+  if (check_db_dir_existence(sp->m_db.str))
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), sp->m_db.str);
+    DBUG_RETURN(true);
+  }
 
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
@@ -1033,7 +1051,10 @@ int sp_create_routine(THD *thd, sp_head *sp)
   thd->count_cuted_fields= CHECK_FIELD_WARN;
 
   if (!(table= open_proc_table_for_update(thd)))
-    ret= SP_OPEN_TABLE_FAILED;
+  {
+    my_error(ER_SP_STORE_FAILED, MYF(0),
+             SP_TYPE_STRING(thd->lex),sp->m_name.str);
+  }
   else
   {
     restore_record(table, s->default_values); // Get default values for fields
@@ -1044,7 +1065,8 @@ int sp_create_routine(THD *thd, sp_head *sp)
 
     if (table->s->fields < MYSQL_PROC_FIELD_COUNT)
     {
-      ret= SP_GET_FIELD_FAILED;
+      my_error(ER_SP_STORE_FAILED, MYF(0),
+               SP_TYPE_STRING(thd->lex),sp->m_name.str);
       goto done;
     }
 
@@ -1053,12 +1075,12 @@ int sp_create_routine(THD *thd, sp_head *sp)
                                             sp->m_name.str+sp->m_name.length) >
         table->field[MYSQL_PROC_FIELD_NAME]->char_length())
     {
-      ret= SP_BAD_IDENTIFIER;
+      my_error(ER_TOO_LONG_IDENT, MYF(0), sp->m_name.str);
       goto done;
     }
     if (sp->m_body.length > table->field[MYSQL_PROC_FIELD_BODY]->field_length)
     {
-      ret= SP_BODY_TOO_LONG;
+      my_error(ER_TOO_LONG_BODY, MYF(0), sp->m_name.str);
       goto done;
     }
 
@@ -1147,17 +1169,13 @@ int sp_create_routine(THD *thd, sp_head *sp)
 	if (access == SP_CONTAINS_SQL ||
 	    access == SP_MODIFIES_SQL_DATA)
 	{
-	  my_message(ER_BINLOG_UNSAFE_ROUTINE,
-		     ER(ER_BINLOG_UNSAFE_ROUTINE), MYF(0));
-	  ret= SP_INTERNAL_ERROR;
+          my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
 	  goto done;
 	}
       }
       if (!(thd->security_ctx->master_access & SUPER_ACL))
       {
-	my_message(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,
-		   ER(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER), MYF(0));
-	ret= SP_INTERNAL_ERROR;
+        my_error(ER_BINLOG_CREATE_ROUTINE_NEED_SUPER,MYF(0));
 	goto done;
       }
     }
@@ -1188,17 +1206,21 @@ int sp_create_routine(THD *thd, sp_head *sp)
 
     if (store_failed)
     {
-      ret= SP_FLD_STORE_FAILED;
+      my_error(ER_CANT_CREATE_SROUTINE, MYF(0), sp->m_name.str);
       goto done;
     }
 
-    ret= SP_OK;
     if (table->file->ha_write_row(table->record[0]))
-      ret= SP_WRITE_ROW_FAILED;
-    if (ret == SP_OK)
-      sp_cache_invalidate();
+    {
+       my_error(ER_SP_ALREADY_EXISTS, MYF(0),
+                SP_TYPE_STRING(thd->lex), sp->m_name.str);
+       goto done;
+    }
 
-    if (ret == SP_OK && mysql_bin_log.is_open())
+    sp_cache_invalidate();
+
+    error= false;
+    if (mysql_bin_log.is_open())
     {
       thd->clear_error();
 
@@ -1217,7 +1239,9 @@ int sp_create_routine(THD *thd, sp_head *sp)
                          &(thd->lex->definer->host),
                          saved_mode))
       {
-        ret= SP_INTERNAL_ERROR;
+        my_error(ER_SP_STORE_FAILED, MYF(0),
+                 SP_TYPE_STRING(thd->lex), sp->m_name.str);
+        error= true;
         goto done;
       }
       /* restore sql_mode when binloging */
@@ -1227,7 +1251,11 @@ int sp_create_routine(THD *thd, sp_head *sp)
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             log_query.c_ptr(), log_query.length(),
                             FALSE, FALSE, FALSE, 0))
-        ret= SP_INTERNAL_ERROR;
+      {
+        my_error(ER_SP_STORE_FAILED, MYF(0),
+                 SP_TYPE_STRING(thd->lex), sp->m_name.str);
+        error= true;
+      };
       thd->variables.sql_mode= 0;
     }
   }
@@ -1239,7 +1267,7 @@ done:
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
     thd->set_current_stmt_binlog_format_row();
-  DBUG_RETURN(ret);
+  DBUG_RETURN(error);
 }
 
 

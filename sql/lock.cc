@@ -812,10 +812,8 @@ bool lock_schema_name(THD *thd, const char *db)
   @param db          The schema the object belongs to.
   @param name        Object name in the schema.
 
-  This function assumes that no metadata locks were acquired
-  before calling it. Additionally, it cannot be called while
-  holding LOCK_open mutex. Both these invariants are enforced by
-  asserts in MDL_context::acquire_locks().
+  This function cannot be called while holding LOCK_open_mutex.
+  This invariant is enforced by asserts in MDL_context::acquire_locks.
   To avoid deadlocks, we do not try to obtain exclusive metadata
   locks in LOCK TABLES mode, since in this mode there may be
   other metadata locks already taken by the current connection,

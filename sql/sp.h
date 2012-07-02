@@ -107,7 +107,7 @@ bool sp_exist_routines(THD *thd, TABLE_LIST *procs, bool is_proc);
 
 bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name);
 
-int sp_create_routine(THD *thd, sp_head *sp);
+bool sp_create_routine(THD *thd, sp_head *sp);
 
 int sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
                       st_sp_chistics *chistics);
