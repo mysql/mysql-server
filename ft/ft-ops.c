@@ -2597,7 +2597,7 @@ toku_ft_optimize (FT_HANDLE brt) {
 
     TOKULOGGER logger = toku_cachefile_logger(brt->ft->cf);
     if (logger) {
-        TXNID oldest = toku_txn_manager_get_oldest_living_xid(logger->txn_manager, NULL);
+        TXNID oldest = toku_txn_manager_get_oldest_living_xid(logger->txn_manager);
 
         XIDS root_xids = xids_get_root_xids();
         XIDS message_xids;
