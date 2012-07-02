@@ -1016,6 +1016,7 @@ public:
   Switch_resolve_place(SELECT_LEX::Resolve_place *rp_ptr,
                        SELECT_LEX::Resolve_place new_rp,
                        bool apply)
+    : rp(NULL), saved_rp()
   {
     if (apply)
     {
@@ -1023,8 +1024,6 @@ public:
       saved_rp= *rp;
       *rp= new_rp;
     }
-    else
-      rp= NULL;
   }
   ~Switch_resolve_place()
   {
