@@ -1720,11 +1720,6 @@ uint my_strxfrm_flag_normalize(uint flags, uint maximum)
         flags|= (flag_dsc & dst_bit) << MY_STRXFRM_DESC_SHIFT;
         flags|= (flag_rev & dst_bit) << MY_STRXFRM_REVERSE_SHIFT;
       }
-      else
-      {
-        /* Check that there are no DESC or REVERSE flag for skipped level */
-        DBUG_ASSERT(!(flag_dsc & src_bit) && !(flag_rev & src_bit));
-      }
     }
     flags|= flag_pad;
   }
