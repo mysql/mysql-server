@@ -17,9 +17,11 @@ tests once a day.
 import logging
 import os
 import re
+import stat
 import sys
 import time
 
+from email.mime.text import MIMEText
 from glob import glob
 from logging import debug, info, warning, error, exception
 from optparse import OptionGroup, OptionParser
@@ -28,6 +30,8 @@ from random import randrange, shuffle
 from resource import setrlimit, RLIMIT_CORE
 from shutil import copy, copytree, move, rmtree
 from signal import signal, SIGHUP, SIGINT, SIGPIPE, SIGALRM, SIGTERM
+from smtplib import SMTP
+from socket import gethostname
 from subprocess import call, Popen, PIPE, STDOUT
 from tempfile import mkdtemp, mkstemp
 from threading import Event, Thread, Timer
@@ -163,9 +167,11 @@ class TestRunnerBase(object):
             except Killed:
                 pass
             except TestFailure:
-                savedir = self.save()
+                self.times[1] = time.time()
+                savedtarfile = self.save()
                 self.scheduler.report_failure(self)
-                warning('Saved environment to %s', savedir)
+                warning('Saved environment to %s', savedtarfile)
+                self.scheduler.email_failure(self, savedtarfile)
             else:
                 self.scheduler.report_success(self)
         finally:
@@ -191,7 +197,14 @@ class TestRunnerBase(object):
         for lib in glob(os.path.join(self.installdir, 'lib', '*.so')):
             copy(lib, targetfor(lib))
 
-        return savedir
+        tarfile = '%s.tar' % savedir
+        r = call(['tar', 'cf', os.path.basename(tarfile), os.path.basename(savedir)], cwd=os.path.dirname(savedir))
+        if r != 0:
+            error('tarring up %s failed.' % savedir)
+            sys.exit(r)
+        os.chmod(tarfile, stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IROTH)
+
+        return tarfile
 
     def waitfor(self, proc):
         while proc.poll() is None:
@@ -338,7 +351,7 @@ class Worker(Thread):
         debug('%s exiting.' % self)
 
 class Scheduler(Queue):
-    def __init__(self, nworkers, maxlarge, logger):
+    def __init__(self, nworkers, maxlarge, logger, email):
         Queue.__init__(self)
         info('Initializing scheduler with %d jobs.', nworkers)
         self.nworkers = nworkers
@@ -351,6 +364,7 @@ class Scheduler(Queue):
         self.stopping = Event()
         self.timer = None
         self.error = None
+        self.email = email
 
     def run(self, timeout):
         info('Starting workers.')
@@ -403,6 +417,48 @@ class Scheduler(Queue):
         self.logger.warning('FAILED %s', runner.infostr())
         warning('%s FAILED %s', self.reportstr(), runner.infostr())
 
+    def email_failure(self, runner, savedtarfile):
+        if not self.email:
+            return
+
+        h = gethostname()
+        if isinstance(runner, UpgradeTestRunnerMixin):
+            upgradestr = '''The test was upgrading from %s.
+''' % runner.oldversionstr
+        else:
+            upgradestr = ''
+        m = MIMEText('''A stress test failed on %(hostname)s at svn revision %(rev)s after %(test_duration)d seconds.
+%(upgradestr)sIts environment is saved to %(tarfile)s on that machine.
+
+The test configuration was:
+
+testname:            %(execf)s
+num_elements:        %(tsize)d
+cachetable_size:     %(csize)d
+num_ptquery_threads: %(num_ptquery)d
+num_update_threads:  %(num_update)d
+''' % {
+                'hostname': h,
+                'rev': runner.rev,
+                'test_duration': runner.time,
+                'upgradestr': upgradestr,
+                'tarfile': savedtarfile,
+                'execf': runner.execf,
+                'tsize': runner.tsize,
+                'csize': runner.csize,
+                'num_ptquery': runner.num_ptquery,
+                'num_update': runner.num_update
+                })
+
+        fromaddr = 'tim@tokutek.com'
+        toaddrs = ['tokueng@tokutek.com']
+        m['From'] = fromaddr
+        m['To'] = ', '.join(toaddrs)
+        m['Subject'] = 'Stress test failure on %s.' % h
+        s = SMTP('192.168.1.114')
+        s.sendmail(fromaddr, toaddrs, str(m))
+        s.quit()
+
 def compiler_works(cc):
     try:
         devnull = open(os.devnull, 'w')
@@ -431,10 +487,18 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
     r = call(['cmake',
               '-DCMAKE_BUILD_TYPE=Debug',
               '-DINTEL_CC=%s' % iccstr,
-              '-DCMAKE_INSTALL_DIR=%s' % installdir,
+              '-DCMAKE_INSTALL_PREFIX=%s' % installdir,
+              '-DUSE_BDB=OFF',
+              '-DUSE_GTAGS=OFF',
+              '-DUSE_CTAGS=OFF',
+              '-DUSE_ETAGS=OFF',
+              '-DUSE_CSCOPE=OFF',
               tokudb],
              cwd=builddir)
-    r = call(['make', '-s'] + tests, cwd=builddir)
+    if r != 0:
+        error('Building the tests failed.')
+        sys.exit(r)
+    r = call(['make', '-j8', 'install'], cwd=builddir)
     if r != 0:
         error('Building the tests failed.')
         sys.exit(r)
@@ -465,7 +529,7 @@ def main(opts):
     info('Saving pass/fail logs to %s.', opts.log)
     info('Saving failure environments to %s.', opts.savedir)
 
-    scheduler = Scheduler(opts.jobs, opts.maxlarge, logger)
+    scheduler = Scheduler(opts.jobs, opts.maxlarge, logger, opts.email)
 
     runners = []
     for tsize in [2000, 200000, 50000000]:
@@ -616,6 +680,7 @@ if __name__ == '__main__':
     parser.add_option('-s', '--savedir', type='string', dest='savedir',
                       default='/tmp/run.stress-tests.failures',
                       help='where to save environments and extra data for failed tests')
+    parser.add_option('--no-email', action='store_false', dest='email', default=True, help='suppress emails on failure')
     default_toplevel = os.path.dirname(os.path.dirname(a0))
     parser.add_option('--tokudb', type='string', dest='tokudb',
                       default=default_toplevel,
