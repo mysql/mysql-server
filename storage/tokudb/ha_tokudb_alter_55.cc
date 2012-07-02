@@ -199,7 +199,9 @@ ha_tokudb::prepare_for_alter() {
 bool
 ha_tokudb::try_hot_alter_table() {
     TOKUDB_DBUG_ENTER("try_hot_alter_table");
-    DBUG_RETURN(true);
+    THD *thd = ha_thd();
+    bool disable_hot_alter = get_disable_hot_alter(thd);
+    DBUG_RETURN(!disable_hot_alter);
 }
 
 #endif

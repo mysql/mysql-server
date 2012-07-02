@@ -24,6 +24,7 @@ typedef enum srv_row_format_enum srv_row_format_t;
 uint get_pk_insert_mode(THD* thd);
 bool get_load_save_space(THD* thd);
 bool get_disable_slow_alter(THD* thd);
+bool get_disable_hot_alter(THD* thd);
 bool get_create_index_online(THD* thd);
 bool get_disable_prefetching(THD* thd);
 bool get_prelock_empty(THD* thd);

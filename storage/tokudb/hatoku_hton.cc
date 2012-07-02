@@ -77,6 +77,13 @@ static MYSQL_THDVAR_BOOL(disable_slow_alter,
   NULL, 
   FALSE
   );
+static MYSQL_THDVAR_BOOL(disable_hot_alter,
+  0,
+  "if on, hot alter table is disabled",
+  NULL, 
+  NULL, 
+  FALSE
+  );
 static MYSQL_THDVAR_BOOL(create_index_online,
   0,
   "if on, create index done online",
@@ -690,6 +697,10 @@ bool get_load_save_space(THD* thd) {
 
 bool get_disable_slow_alter(THD* thd) {
     return (THDVAR(thd, disable_slow_alter) != 0);
+}
+
+bool get_disable_hot_alter(THD* thd) {
+    return THDVAR(thd, disable_hot_alter) != 0;
 }
 
 bool get_create_index_online(THD* thd) {
@@ -1616,6 +1627,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(pk_insert_mode),
     MYSQL_SYSVAR(load_save_space),
     MYSQL_SYSVAR(disable_slow_alter),
+    MYSQL_SYSVAR(disable_hot_alter),
     MYSQL_SYSVAR(create_index_online),
     MYSQL_SYSVAR(disable_prefetching),
     MYSQL_SYSVAR(version),
