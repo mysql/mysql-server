@@ -73,6 +73,20 @@ my $cmake_version_id;
   die "Could not parse cmake version" unless ($cmake_version_id);
 }
 
+# Replace gcc with g++ in CXX environment variable
+if(defined $ENV{"CXX"} and $ENV{"CXX"} =~ m/gcc/)
+{
+  my $old_cxx= $ENV{"CXX"};
+  $ENV{"CXX"} =~ s/gcc/g++/;
+  print("compile-cluster: switched CXX compiler from '$old_cxx' to '$ENV{CXX}'\n");
+}
+
+# Remove -fno-exceptions from CXXFLAGS environment variable
+if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
+{
+  $ENV{"CXXFLAGS"} =~ s/-fno-exceptions//g;
+  print("compile-cluster: stripped off -fno-exceptions from CXXFLAGS='$ENV{CXXFLAGS}'\n");
+}
 
 #
 # Configure
@@ -85,7 +99,7 @@ my $cmake_version_id;
   my @args;
   
   # Hardcoded options controlling how to build MySQL Server
-  push(@args, "-DWITH_SSL=bundled");
+  push(@args, "-DWITH_SSL=bundled"); # Consistent error messages
  
   if ($opt_debug)
   {
