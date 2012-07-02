@@ -3745,7 +3745,8 @@ public:
   enum 
   {
     TM_NO_FLAGS = 0U,
-    TM_BIT_LEN_EXACT_F = (1U << 0)
+    TM_BIT_LEN_EXACT_F = (1U << 0),
+    TM_REFERRED_FK_DB_F = (1U << 1)
   };
 
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
@@ -3780,6 +3781,19 @@ public:
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_dbnam; }
+  virtual uint8 mts_number_dbs()
+  { 
+    return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
+  }
+  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  {
+    List<char> *res= new List<char>;
+
+    res->push_back(strdup_root(mem_root,
+                               get_flags(TM_REFERRED_FK_DB_F) ? "" : get_db()));
+    return res;
+  }
+
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
