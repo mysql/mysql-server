@@ -50,17 +50,17 @@ private:
   uint32 cur_object_id;
   uint n_shapes;
   int count_internal();
+public:
 #ifndef DBUG_OFF
   /**
     Convert operation code to its readable name.
   */
-  const char *op_name(int code);
+  static const char *op_name(int code);
   /**
     Convert shape code to its readable name.
   */
-  const char *shape_name(int code);
+  static const char *shape_name(int code);
 #endif
-public:
   enum op_type
   {
     op_shape= 0,
