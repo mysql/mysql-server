@@ -410,7 +410,8 @@ build_index(DB_INDEXER *indexer) {
         // grab the next leaf entry and get its provisional info. we'll
         // need the provisional info for the undo-do algorithm, and we get
         // it here so it can be read atomically with respect to txn commit
-        // and abort.
+        // and abort. the atomicity comes from the root-to-leaf path pinned
+        // by the query and in the getf callback function
         //
         // this allocates space for the prov info, so we have to destroy it
         // when we're done.
@@ -471,6 +472,7 @@ build_index(DB_INDEXER *indexer) {
     return result;
 }
 
+// Clients must not operate on any of the hot dbs concurrently with close
 static int 
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
@@ -498,6 +500,7 @@ close_indexer(DB_INDEXER *indexer) {
     return r;
 }
 
+// Clients must not operate on any of the hot dbs concurrently with abort
 static int 
 abort_indexer(DB_INDEXER *indexer) {
     (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
