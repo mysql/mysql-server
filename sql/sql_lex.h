@@ -1009,6 +1009,34 @@ inline bool st_select_lex_unit::is_union ()
     first_select()->next_select()->linkage == UNION_TYPE;
 }
 
+/// Utility RAII class to save/modify/restore a Resolve_place
+class Switch_resolve_place
+{
+public:
+  Switch_resolve_place(SELECT_LEX::Resolve_place *rp_ptr,
+                       SELECT_LEX::Resolve_place new_rp,
+                       bool apply)
+  {
+    if (apply)
+    {
+      rp= rp_ptr;
+      saved_rp= *rp;
+      *rp= new_rp;
+    }
+    else
+      rp= NULL;
+  }
+  ~Switch_resolve_place()
+  {
+    if (rp)
+      *rp= saved_rp;
+  }
+private:
+  SELECT_LEX::Resolve_place *rp;
+  SELECT_LEX::Resolve_place saved_rp;
+};
+
+
 typedef struct struct_slave_connection
 {
   char *user;
