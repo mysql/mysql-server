@@ -698,8 +698,14 @@ if __name__ == '__main__':
 
 
     default_testnames = ['test_stress1.tdb',
+                         'test_stress2.tdb',
+                         'test_stress3.tdb',
+                         'test_stress4.tdb',
                          'test_stress5.tdb',
-                         'test_stress6.tdb']
+                         'test_stress6.tdb',
+                         'test_stress7.tdb',
+                         'test_stress_hot_indexing.tdb',
+                         'test_stress_openclose.tdb']
     default_recover_testnames = ['recover-test_stress1.tdb',
                                  'recover-test_stress2.tdb',
                                  'recover-test_stress3.tdb']
