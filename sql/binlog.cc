@@ -7159,7 +7159,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       DBUG_RETURN(-1);
     }
 
-    if (is_write && !is_current_stmt_binlog_format_row() &&
+    if (is_write &&
         lex->sql_command != SQLCOM_END /* rows-event applying by slave */)
     {
       /*
@@ -7172,7 +7172,21 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       {
         if (table->placeholder())
           continue;
-        add_to_binlog_accessed_dbs(table->db);
+
+        DBUG_ASSERT(table->table);
+
+        if (table->table->file->referenced_by_foreign_key())
+        {
+          /* 
+             FK-referenced dbs can't be gathered currently. The following
+             event will be marked for sequential execution on slave.
+          */
+          binlog_accessed_db_names= NULL;
+          add_to_binlog_accessed_dbs("");
+          break;
+        }
+        if (!is_current_stmt_binlog_format_row())
+          add_to_binlog_accessed_dbs(table->db);
       }
     }
     DBUG_PRINT("info", ("decision: logging in %s format",
