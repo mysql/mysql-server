@@ -316,6 +316,16 @@ if(BUILD_TESTING)
     loader-tpch-load.loader
     )
 
+  ## #5138 only reproduces when using the static library.
+  list(REMOVE_ITEM tdb_bins test-5138.tdb)
+  add_executable(test-5138.tdb test-5138.c)
+  target_link_libraries(test-5138.tdb ${LIBTOKUDB}_static ${LIBTOKUPORTABILITY}_static)
+  set_property(TARGET test-5138.tdb APPEND PROPERTY
+    COMPILE_DEFINITIONS "ENVDIR=\"dir.test-5138.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.test-5138.tdb")
+  add_common_options_to_binary_targets(test-5138.tdb)
+  add_test(ydb/test-5138.tdb test-5138.tdb)
+
   foreach(bin ${tdb_bins})
     get_filename_component(base ${bin} NAME_WE)
     set(src ${base}.c)
