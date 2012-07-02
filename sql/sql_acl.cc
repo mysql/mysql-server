@@ -2182,9 +2182,13 @@ void rebuild_check_host(void)
 
 bool acl_check_host(const char *host, const char *ip)
 {
-  if (allow_all_hosts)
-    return 0;
   mysql_mutex_lock(&acl_cache->lock);
+  if (allow_all_hosts)
+  {
+    
+    mysql_mutex_unlock(&acl_cache->lock);
+    return 0;
+  }
 
   if ((host && my_hash_search(&acl_check_hosts,(uchar*) host,strlen(host))) ||
       (ip && my_hash_search(&acl_check_hosts,(uchar*) ip, strlen(ip))))
