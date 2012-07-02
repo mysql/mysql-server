@@ -4892,7 +4892,15 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
                  ref->item_name.ptr(), "forward reference in item list");
         return NULL;
       }
-      DBUG_ASSERT((*select_ref)->fixed);
+      /*
+       Assert if its an incorrect reference . We do not assert if its a outer
+       reference, as they get fixed later in fix_innner_refs function.
+      */
+      DBUG_ASSERT((*select_ref)->fixed ||
+                  ((*select_ref)->type() == Item::REF_ITEM &&
+                   ((Item_ref *)(*select_ref))->ref_type() ==
+                   Item_ref::OUTER_REF));
+
       return &select->ref_pointer_array[counter];
     }
     if (group_by_ref)
