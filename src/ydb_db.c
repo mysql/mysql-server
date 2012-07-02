@@ -690,6 +690,12 @@ locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYP
     int ret, r;
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
+    //
+    // Note that this function opens a db with a transaction. Should
+    // the transaction abort, the user is responsible for closing the DB
+    // before aborting the transaction. Not doing so results in undefined
+    // behavior.
+    //    
     DB_ENV *env = db->dbenv;
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;
