@@ -24,17 +24,17 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     if (verbose) printf("starting creation of pthreads\n");
     const int num_threads = cli_args->num_put_threads;
     struct arg myargs[num_threads];
-    operation_t put_op = random_put_multiple_op;
     struct serial_put_extra spe[num_threads];
     ZERO_ARRAY(spe);
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
-        myargs[i].operation = put_op;
+        myargs[i].operation = random_put_multiple_op;
         if (cli_args->serial_insert) {
             myargs[i].operation_extra = &spe[i];
         }
     }
-    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
+    const bool crash_at_end = false;
+    run_workers(myargs, num_threads, cli_args->time_of_test, crash_at_end, cli_args);
 }
 
 int
