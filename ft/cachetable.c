@@ -3083,7 +3083,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *extra) {
     invariant(r==0);
     switch (toku_txn_get_state(txn)) {
     case TOKUTXN_LIVE:{
-        r = toku_log_xstillopen(logger, NULL, 0,
+        r = toku_log_xstillopen(logger, NULL, 0, txn,
                                 toku_txn_get_txnid(txn),
                                 toku_txn_get_txnid(toku_logger_txn_parent(txn)),
                                 txn->roll_info.rollentry_raw_count,
@@ -3100,7 +3100,7 @@ log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *extra) {
     case TOKUTXN_PREPARING: {
         TOKU_XA_XID xa_xid;
         toku_txn_get_prepared_xa_xid(txn, &xa_xid);
-        r = toku_log_xstillopenprepared(logger, NULL, 0,
+        r = toku_log_xstillopenprepared(logger, NULL, 0, txn,
                                         toku_txn_get_txnid(txn),
                                         &xa_xid,
                                         txn->roll_info.rollentry_raw_count,

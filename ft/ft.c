@@ -137,7 +137,10 @@ ft_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v) {
         //Only log if useful.
         TOKULOGGER logger = toku_cachefile_logger(cf);
         FILENUM filenum = toku_cachefile_filenum (cf);
-        r = toku_log_suppress_rollback(logger, NULL, 0, NULL, filenum, xid);
+        // We don't have access to the txn here, but the txn is
+        // necessarily already marked as non-readonly.  Use NULL.
+        TOKUTXN txn = NULL;
+        r = toku_log_suppress_rollback(logger, NULL, 0, txn, filenum, xid);
     }
     return r;
 }
