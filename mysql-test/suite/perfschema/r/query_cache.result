@@ -36,9 +36,9 @@ Qcache_hits	1
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 spins
 NULL
-select name from performance_schema.setup_instruments order by name limit 1;
-name
-idle
+select * from performance_schema.setup_timers where name='wait';
+NAME	TIMER_NAME
+wait	CYCLE
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
@@ -51,9 +51,9 @@ Qcache_hits	1
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 spins
 NULL
-select name from performance_schema.setup_instruments order by name limit 1;
-name
-idle
+select * from performance_schema.setup_timers where name='wait';
+NAME	TIMER_NAME
+wait	CYCLE
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	1
