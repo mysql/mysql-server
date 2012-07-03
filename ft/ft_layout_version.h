@@ -25,7 +25,9 @@ enum ft_layout_version_e {
     FT_LAYOUT_VERSION_17 = 17, // Dr. No:  Add STAT64INFO_S to brt_header
     FT_LAYOUT_VERSION_18 = 18, // Dr. No:  Add HOT info to brt_header
     FT_LAYOUT_VERSION_19 = 19, // Doofenshmirtz: Add compression method, highest_unused_msn_for_upgrade
-    FT_LAYOUT_VERSION_20 = 20, // Clayface: Add compression method to log_fcreate, mgr_last_xid after begin checkpoint
+    FT_LAYOUT_VERSION_20 = 20, // Deadshot: Add compression method to log_fcreate,
+                               // mgr_last_xid after begin checkpoint,
+                               // last_xid to shutdown
     FT_NEXT_VERSION,           // the version after the current version
     FT_LAYOUT_VERSION   = FT_NEXT_VERSION-1, // A hack so I don't have to change this line.
     FT_LAYOUT_MIN_SUPPORTED_VERSION = FT_LAYOUT_VERSION_13, // Minimum version supported

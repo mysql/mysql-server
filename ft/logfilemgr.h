@@ -27,7 +27,7 @@ typedef struct toku_logfilemgr *TOKULOGFILEMGR;
 int toku_logfilemgr_create(TOKULOGFILEMGR *lfm);
 int toku_logfilemgr_destroy(TOKULOGFILEMGR *lfm);
 
-int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir);
+int toku_logfilemgr_init(TOKULOGFILEMGR lfm, const char *log_dir, TXNID *last_xid_if_clean_shutdown);
 int toku_logfilemgr_num_logfiles(TOKULOGFILEMGR lfm);
 int toku_logfilemgr_add_logfile_info(TOKULOGFILEMGR lfm, TOKULOGFILEINFO lf_info);
 TOKULOGFILEINFO toku_logfilemgr_get_oldest_logfile_info(TOKULOGFILEMGR lfm);

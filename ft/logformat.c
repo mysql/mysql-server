@@ -197,13 +197,22 @@ const struct logtype logtypes[] = {
     {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
                         {"BYTESTRING", "comment", 0},
                         NULLFIELD}, IGNORE_LOG_BEGIN},
-    // Note: Shutdown log entry is NOT ALLOWED TO BE CHANGED.
+    // Note: shutdown_up_to_19 log entry is NOT ALLOWED TO BE CHANGED.
     // Do not change the letter ('Q'), do not add fields,
     // do not remove fields.
+    // TODO: Kill this logentry entirely once we no longer support version 19.
+    {"shutdown_up_to_19", 'Q', FA{{"u_int64_t", "timestamp", 0},
+                         NULLFIELD}, IGNORE_LOG_BEGIN},
+    // Note: Shutdown log entry is NOT ALLOWED TO BE CHANGED.
+    // Do not change the letter ('0'), do not add fields,
+    // do not remove fields.
+    // You CAN leave this alone and add a new one, but then you have
+    // to deal with the upgrade mechanism again.
     // This is how we detect clean shutdowns from OLDER VERSIONS.
     // This log entry must always be readable for future versions.
     // If you DO change it, you need to write a separate log upgrade mechanism.
-    {"shutdown", 'Q', FA{{"u_int64_t", "timestamp", 0},
+    {"shutdown", '0', FA{{"u_int64_t", "timestamp", 0},
+                         {"TXNID", "last_xid", 0},
                          NULLFIELD}, IGNORE_LOG_BEGIN},
     {"load", 'l', FA{{"TXNID",      "xid", 0},
                      {"FILENUM",    "old_filenum", 0},
