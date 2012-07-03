@@ -3238,7 +3238,7 @@ void JOIN::cleanup(bool full)
     {
       for (tab= join_tab, end= tab + tables + tmp_tables; tab < end; tab++)
       {
-	if (tab->table)
+	if (tab->table && tab->table->created)
         {
           tab->table->file->ha_index_or_rnd_end();
           if (tab->op &&
