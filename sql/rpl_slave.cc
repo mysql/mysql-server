@@ -5193,7 +5193,12 @@ end:
   destroy_hash_workers(rli);
   delete rli->gaq;
   delete_dynamic(&rli->least_occupied_workers);    // least occupied
+
+  // Destroy buffered events of the current group prior to exit.
+  for (uint i= 0; i < rli->curr_group_da.elements; i++)
+    delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, i);
   delete_dynamic(&rli->curr_group_da);             // GCDA
+
   delete_dynamic(&rli->curr_group_assigned_parts); // GCAP
   rli->deinit_workers();
   rli->slave_parallel_workers= 0;
