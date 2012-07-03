@@ -78,32 +78,28 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[3].operation_extra = &soe[3];
     myargs[3].operation = scan_op_no_check;
 
-    struct update_op_args uoe[cli_args->num_update_threads];
     // make the guy that updates the db
-    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
-        int* update_history_buffer = toku_xmalloc(n * (sizeof uoe[i-4].update_history_buffer[0]));
-        uoe[i-4] = get_update_op_args(cli_args,update_history_buffer);
-        memset(uoe[i-4].update_history_buffer, 0, n * (sizeof uoe[i-4].update_history_buffer[0]));
-        myargs[i].operation = update_with_history_op;
-        myargs[i].operation_extra = &uoe[i-4];
-    }
+    invariant(cli_args->num_update_threads == 1);
+    int *XCALLOC_N(n, update_history_buffer);
+    struct update_op_args uoe = get_update_op_args(cli_args, update_history_buffer);
+    myargs[4].operation = update_with_history_op;
+    myargs[4].operation_extra = &uoe;
 
     // make the guys that do point queries
-    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
+    for (int i = 5; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
 
     run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
 
-    for (int i = 0; i < cli_args->num_update_threads; ++i) {
-        toku_free(uoe[i].update_history_buffer);
-    }
+    toku_free(update_history_buffer);
 }
 
 int
 test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args();
     parse_stress_test_args(argc, argv, &args);
+    args.num_update_threads = 1;  // if we had more than 1 update thread, we would need locking for the update_history_buffer.
     stress_test_main(&args);
     return 0;
 }
