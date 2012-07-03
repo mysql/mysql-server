@@ -37,13 +37,11 @@ int test_main(int argc, char * const argv[]) {
     DBT key, val;
     unsigned int i;
     DBT *keyp = dbt_init(&key, &i, sizeof(i));
-    char *XCALLOC_N(4096, valbuf);
-    DBT *valp = dbt_init(&val, valbuf, 4096);
-    for (i = 0; i < 100000; ++i) {
+    DBT *valp = dbt_init(&val, &i, sizeof(i));
+    for (i = 0; i < 1000; ++i) {
         r = db->put(db, txn, keyp, valp, 0);
         CKERR(r);
     }
-    toku_free(valbuf);
 
     r = txn->commit(txn, 0);
     CKERR(r);
