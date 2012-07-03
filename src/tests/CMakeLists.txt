@@ -159,6 +159,7 @@ if(BUILD_TESTING)
       recover-test_stress1.c
       recover-test_stress2.c
       recover-test_stress3.c
+      recover-test_stress_openclose.c
       recover-upgrade-db-descriptor-multihandle.c
       recover-upgrade-db-descriptor.c
       recover-update-multiple.c
@@ -203,7 +204,6 @@ if(BUILD_TESTING)
       test3522.c
       test3522b.c
       test3529.c
-      test938c.c
       test_3645.c
       test_3529_insert_2.c
       test_3529_table_lock.c
@@ -212,6 +212,8 @@ if(BUILD_TESTING)
       test_4368.c
       test_4657.c
       test_5015.c
+      test-5138.c
+      test938c.c
       test_abort1.c
       test_abort4.c
       test_abort5.c
@@ -663,7 +665,6 @@ if(BUILD_TESTING)
       ydb/root_fifo_1.bdb
       ydb/root_fifo_31.bdb
       ydb/rowsize.bdb
-      ydb/test1426.tdb
       ydb/test_groupcommit_count.bdb
       ydb/test_log10.bdb
       ydb/test_log7.bdb
@@ -682,6 +683,11 @@ if(BUILD_TESTING)
     ydb/recovery_fileops_unit.tdb
     ydb/test3039.tdb
     )
+  if (BDB_FOUND)
+    list(APPEND extra_long_tests
+      ydb/test1426.tdb
+      )
+  endif (BDB_FOUND)
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
   ## these really take a long time with valgrind
   set(phenomenally_long_tests
