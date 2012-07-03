@@ -210,7 +210,7 @@ int create_logfiles() {
    //xstillopen                's': lsn=10 txnid=7 parent=0 crc=00061816 len=37 <- obsolete
     {
         FILENUMS filenums = {0, NULL};
-        r = toku_log_xstillopen(logger, &lsn, NO_FSYNC, txnid, 0,
+        r = toku_log_xstillopen(logger, &lsn, NO_FSYNC, NULL, txnid, 0,
                                 0, filenums, 0, 0, 0,
                                 ROLLBACK_NONE, ROLLBACK_NONE, ROLLBACK_NONE);
         assert(r==0);
