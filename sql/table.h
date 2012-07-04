@@ -1502,7 +1502,7 @@ private:
   Item		*m_join_cond;           /* Used with outer join */
 public:
   Item         **join_cond_ref() { return &m_join_cond; }
-  Item          *join_cond() { return m_join_cond; }
+  Item          *join_cond() const { return m_join_cond; }
   Item          *set_join_cond(Item *val)
                  { return m_join_cond= val; }
   /*
@@ -1941,11 +1941,10 @@ public:
   st_select_lex_unit *get_unit();
 
   /**
-    @brief Returns whether the table (or join nest) that this TABLE_LIST 
-    represents, is part of an outer-join nest.
+    @brief Returns the outer join nest that this TABLE_LIST belongs to, if any.
 
     @details There are two kinds of join nests, outer-join nests and semi-join 
-    nests.  This function returns @c TRUE in the following cases:
+    nests.  This function returns non-NULL in the following cases:
       @li 1. If this table/nest is embedded in a nest and this nest IS NOT a 
              semi-join nest.  (In other words, it is an outer-join nest.)
       @li 2. If this table/nest is embedded in a nest and this nest IS a 
@@ -1955,10 +1954,16 @@ public:
              @c simplify_joins() ).
     Note: This function assumes that @c simplify_joins() has been performed.
     Before that, join nests will be present for all types of join.
+
+    @return outer join nest, or NULL if none.
    */
-  bool in_outer_join_nest() const
-  { 
-    return (embedding && (!embedding->sj_on_expr || embedding->embedding)); 
+  TABLE_LIST *outer_join_nest() const
+  {
+    if (!embedding)
+      return NULL;
+    if (embedding->sj_on_expr)
+      return embedding->embedding;
+    return embedding;
   }
 
 private:
