@@ -16,7 +16,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   PRIMARY KEY (`Master_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
@@ -30,7 +30,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   PRIMARY KEY (`Master_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SET @@global.relay_log_info_repository="TABLE";
 SET @@global.master_info_repository="TABLE";
 SET @@global.sync_master_info= 1;
@@ -153,7 +153,7 @@ slave_master_info	CREATE TABLE `slave_master_info` (
   `Ssl_crlpath` text CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
   `Enabled_auto_position` tinyint(1) NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.',
   PRIMARY KEY (`Master_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Master Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Master Information'
 SHOW CREATE TABLE mysql.slave_relay_log_info;
 Table	Create Table
 slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
@@ -166,7 +166,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   PRIMARY KEY (`Master_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='Relay Log Information'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 # Search for occurrences of slave_master_info in the output from mysqldump
 - Occurrences: 1
 DROP TABLE t_innodb;
