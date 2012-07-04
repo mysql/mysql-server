@@ -2008,7 +2008,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   if (reuse_handler)
   {
     DBUG_PRINT("info", ("Reusing handler 0x%lx", (long) file));
-    if (init() || reset())
+    if (init())
     {
       DBUG_RETURN(1);
     }
@@ -2043,7 +2043,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   if (file->ha_external_lock(thd, F_RDLCK))
     goto failure;
 
-  if (init() || reset())
+  if (init())
   {
     file->ha_external_lock(thd, F_UNLCK);
     file->ha_close();
@@ -2090,7 +2090,18 @@ end:
   head->key_read= org_key_read;
   bitmap_copy(&column_bitmap, head->read_set);
   head->column_bitmaps_set(&column_bitmap, &column_bitmap);
-
+ 
+  if (reset())
+  {
+    if (!reuse_handler)
+    {
+      file->ha_external_lock(thd, F_UNLCK);
+      file->ha_close();
+      goto failure;
+    }
+    else
+      DBUG_RETURN(1);
+  }
   DBUG_RETURN(0);
 
 failure:
