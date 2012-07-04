@@ -18,18 +18,20 @@
  02110-1301  USA
  */
 
+/** This is the smoke test for the spi suite
+ */
 var path = require("path");
 
 var harness = require(global.test_harness_module);
 
-var t = new harness.Test("dlopen");
+var test = new harness.Test("SmokeTest");
 
-t.order = 1;
+test.phase = 0;
 
-t.run = function() {
+test.run = function() {
   var module_path = path.join(global.adapter,"spi","ndb","tie",
                               "build","Release","ndbapi.node");
   var ndbapi = require(module_path);
 };
 
-module.exports = t;
+module.exports = test;

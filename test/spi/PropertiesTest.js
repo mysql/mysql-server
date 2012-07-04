@@ -18,16 +18,15 @@
  02110-1301  USA
  */
 
-var api = require(global.api_module);
+var mynode = require(global.api_module);
 var harness = require(global.test_harness_module);
 
-var t1 = new harness.Test("ndbProperties");
-t1.run = function() {
-  var properties = new api.ConnectionProperties("ndb");
+var test1 = new harness.Test("Properties Constructor");
+test1.run = function() {
+  var properties = new mynode.ConnectionProperties("ndb");
 };
 
 
-var suite = new harness.Test("properties").makeTestSuite();
-suite.addTest(t1);
+var group = new harness.Test("properties").makeTestGroup(test1);
 
-module.exports = suite;
+module.exports = group;

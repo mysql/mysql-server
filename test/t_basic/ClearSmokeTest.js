@@ -18,15 +18,29 @@
  02110-1301  USA
  */
 
-var mynode = require(global.api_module);
+/** This is the smoke test for the t_basic suite.
+ */
+var path = require("path");
+
 var harness = require(global.test_harness_module);
 
-var test1 = new harness.Test("Annotations Constructor");
-test1.run = function() {
-  var annotations = new mynode.Annotations();
+var test = new harness.Test("ClearSmokeTest");
+
+test.phase = 3;
+
+test.run = function() {
+  var module_path = path.join(global.adapter,"spi","ndb","tie",
+                              "build","Release","ndbapi.node");
+  var ndbapi = require(module_path);
+  var t = this;
+  dropSQL(this.suite, function(error) {
+    if (error) {
+      t.fail('dropSQL failed: ' + error);
+    } else {
+      t.pass();
+    }
+  });
+  return true;
 };
 
-
-var group = new harness.Test("annotations").makeTestGroup(test1);
-
-module.exports = group;
+module.exports = test;
