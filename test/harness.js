@@ -96,7 +96,7 @@ Test.prototype.test = function(result) {
       }
     }
     catch(e) {
-      console.log('result.fail');
+      if (debug) console.log('result.fail');
       this.failed = true;
       result.fail(this, e);
     }
