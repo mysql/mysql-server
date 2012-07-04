@@ -2745,6 +2745,9 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
     NESTED_JOIN *nested_join;
     if ((nested_join= table->nested_join))
     {
+      // We should have either a join condition or a semi-join condition
+      DBUG_ASSERT((table->join_cond() == NULL) == (table->sj_on_expr != NULL));
+
       nested_join->nj_map= 0;
       nested_join->nj_total= 0;
       /*
@@ -3038,7 +3041,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 
     s->on_expr_ref= tables->join_cond_ref();
 
-    if (tables->in_outer_join_nest())
+    if (tables->outer_join_nest())
     {
       /* s belongs to a nested join, maybe to several embedding joins */
       s->embedding_map= 0;
@@ -3178,7 +3181,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
     const bool all_partitions_pruned_away= false;
 #endif
 
-    if (tables->in_outer_join_nest())
+    if (tables->outer_join_nest())
     {
       /*
         Table belongs to a nested join, no candidate for const table extraction.
@@ -3319,7 +3322,7 @@ const_table_extraction_done:
         */
 	if (table->file->stats.records <= 1L &&                            // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 1
-            !tl->in_outer_join_nest() &&                                   // 2
+            !tl->outer_join_nest() &&                                      // 2
             !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()))       // 3
 	{					// system table
 	  int tmp= 0;
@@ -3373,7 +3376,7 @@ const_table_extraction_done:
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched &&                           // 1
-              !tl->in_outer_join_nest() &&                           // 2
+              !tl->outer_join_nest() &&                              // 2
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
               !(*s->on_expr_ref && (*s->on_expr_ref)->is_expensive()) &&// 4
               !(table->file->ha_table_flags() & HA_BLOCK_CONST_TABLE))  // 5
@@ -5874,12 +5877,11 @@ static void
 make_outerjoin_info(JOIN *join)
 {
   DBUG_ENTER("make_outerjoin_info");
-  for (uint i=join->const_tables ; i < join->tables ; i++)
+  for (uint i= join->const_tables; i < join->tables; i++)
   {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *table=tab->table;
-    TABLE_LIST *tbl= table->pos_in_table_list;
-    TABLE_LIST *embedding= tbl->embedding;
+    JOIN_TAB   *const tab= join->join_tab + i;
+    TABLE      *const table= tab->table;
+    TABLE_LIST *const tbl= table->pos_in_table_list;
 
     if (tbl->outer_join)
     {
@@ -5891,30 +5893,22 @@ make_outerjoin_info(JOIN *join)
       tab->last_inner= tab->first_inner= tab;
       tab->on_expr_ref= tbl->join_cond_ref();
       tab->cond_equal= tbl->cond_equal;
-      if (embedding)
-      {
-        // This outer join nest is embedded in another join nest
-        if (embedding->nested_join->nj_map)
-        {
-          // The embedding nest is an outer join nest, link the join-tabs:
-          tab->first_upper= embedding->nested_join->first_nested;
-        }
-        else if (embedding->embedding)
-        {
-          /*
-            The embedding nest is not an outer join nest, but there is a
-            nest that embeds this nest, which must be an outer join nest.
-          */
-          tab->first_upper= embedding->embedding->nested_join->first_nested;
-        }
-      }
+      /*
+        If this outer join nest is embedded in another join nest,
+        link the join-tabs:
+      */
+      TABLE_LIST *const outer_join_nest= tbl->outer_join_nest();
+      if (outer_join_nest)
+        tab->first_upper= outer_join_nest->nested_join->first_nested;
     }    
-    for ( ; embedding ; embedding= embedding->embedding)
+    for (TABLE_LIST *embedding= tbl->embedding;
+         embedding;
+         embedding= embedding->embedding)
     {
-      // Ignore all join nests that are not outer join nests (ie semi-joins):
-      if (!embedding->nested_join->nj_map)
+      // Ignore join nests that are not outer join nests:
+      if (!embedding->join_cond())
         continue;
-      NESTED_JOIN *nested_join= embedding->nested_join;
+      NESTED_JOIN *const nested_join= embedding->nested_join;
       if (!nested_join->nj_counter)
       {
         /* 
@@ -5924,15 +5918,10 @@ make_outerjoin_info(JOIN *join)
         nested_join->first_nested= tab;
         tab->on_expr_ref= embedding->join_cond_ref();
         tab->cond_equal= tbl->cond_equal;
-        TABLE_LIST *const outer_nest= embedding->embedding;
-        if (outer_nest)
-        {
-          // This outer join nest is embedded in another join nest
-          if (outer_nest->nested_join->nj_map)
-            tab->first_upper= outer_nest->nested_join->first_nested;
-          else if (outer_nest->embedding)
-            tab->first_upper= outer_nest->embedding->nested_join->first_nested;
-        }
+
+        TABLE_LIST *const outer_join_nest= embedding->outer_join_nest();
+        if (outer_join_nest)
+          tab->first_upper= outer_join_nest->nested_join->first_nested;
       }
       if (!tab->first_inner)  
         tab->first_inner= nested_join->first_nested;
