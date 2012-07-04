@@ -2557,6 +2557,11 @@ fts_optimize_add_table(
 		return;
 	}
 
+	/* Make sure table with FTS index cannot be evicted */
+	if (table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(table);
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
