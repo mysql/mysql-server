@@ -2099,7 +2099,7 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
   const ScanFragNextReq * req = (ScanFragNextReq*)&signal->theData[0];
 
 #ifdef DEBUG_SCAN_FRAGREQ
-  DEBUG("Incomming SCAN_NEXTREQ";
+  DEBUG("Incomming SCAN_NEXTREQ");
   printSCANFRAGNEXTREQ(stdout, &signal->theData[0],
                        ScanFragNextReq::SignalLength, DBLQH);
 #endif
@@ -4944,7 +4944,11 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     jam();
     ScanFragReq::setReorgFlag(dst->requestInfo, 1);
   }
-
+  if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
+  {
+    jam();
+    fragCount = 1;
+  }
   data.m_fragCount = fragCount;
   data.m_scanCookie = cookie;
 
@@ -4963,30 +4967,34 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
   do
   {
     Ptr<ScanFragHandle> fragPtr;
-    Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
 
-    if (ERROR_INSERTED_CLEAR(17012))
+    /** Allocate & init all 'fragCnt' fragment desriptors */
     {
-      jam();
-      ndbout_c("Injecting OutOfQueryMemory error 17012 at line %d file %s",
-               __LINE__,  __FILE__);
-      err = DbspjErr::OutOfQueryMemory;
-      break;
-    }
+      Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
 
-    if (likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
-    {
-      jam();
-      fragPtr.p->init(fragNoOffs);
-      fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
-      list.addLast(fragPtr);
-    }
-    else
-    {
-      jam();
-      err = DbspjErr::OutOfQueryMemory;
-      break;
-    }
+      for (Uint32 i = 0; i<fragCount; i++)
+      {
+        jam();
+        Ptr<ScanFragHandle> fragPtr;
+        Uint16 fragNo = (fragNoOffs+i) % fragCount;
+
+        if (!ERROR_INSERTED_CLEAR(17012) &&
+            likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
+        {
+          jam();
+          fragPtr.p->init(fragNo);
+          fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
+          list.addLast(fragPtr);
+        }
+        else
+        {
+          jam();
+          err = DbspjErr::OutOfQueryMemory;
+          goto error;
+        }
+      }
+      list.first(fragPtr); // Needed if T_CONST_PRUNE
+    } // end 'Alloc scope'
 
     if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
     {
@@ -5018,7 +5026,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
       fragPtr.p->m_fragId = tmp.fragId;
       fragPtr.p->m_ref = tmp.receiverRef;
-      data.m_fragCount = 1;
+      ndbassert(data.m_fragCount == 1);
     }
     else if (fragCount == 1)
     {
@@ -5044,28 +5052,6 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
        */
       pruned = false;
     }
-    else
-    {
-      for (Uint32 i = 1; i<fragCount; i++)
-      {
-        jam();
-        Ptr<ScanFragHandle> fragPtr;
-        Uint16 fragNo = (fragNoOffs+i) % fragCount;
-        if (likely(m_scanfraghandle_pool.seize(requestPtr.p->m_arena, fragPtr)))
-        {
-          jam();
-          fragPtr.p->init(fragNo);
-          fragPtr.p->m_treeNodePtrI = treeNodePtr.i;
-          list.addLast(fragPtr);
-        }
-        else
-        {
-          jam();
-          err = DbspjErr::OutOfQueryMemory;
-          goto error;
-        }
-      }
-    }
     data.m_frags_complete = data.m_fragCount;
 
     if (!pruned)
@@ -5078,6 +5064,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
       req->scanCookie = cookie;
 
       Uint32 cnt = 0;
+      Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
       for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
       {
         jam();
