@@ -186,7 +186,7 @@ Listener.prototype.pass = function(t) {
   console.log("[pass]", t.suite.name + ' ' + t.name );
 };
 Listener.prototype.fail = function(t, e) {
-  console.log("[FAIL]", t.name, "\t", e.message);
+  console.log("[FAIL]", t.name, "\t", e.stack);
 };
 
 
