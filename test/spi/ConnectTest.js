@@ -45,52 +45,44 @@ var connectSyncTest = function() {
 };
 
 
-/******************* TEST SUITES ********/
-var suite = new harness.Test("spi").makeTestSuite();
-
-var ndb_suite = new harness.Test("ndb").makeTestSuite();
-var mysql_suite = new harness.Test("mysql").makeTestSuite();
-
-suite.addTest(ndb_suite);
-suite.addTest(mysql_suite);
-
 /*** spi.ndb.getSPI ***/
 var t1 = new harness.Test("getSPI");
 t1.impl= "ndb";
 t1.run = getSPItest;
-ndb_suite.addTest(t1);
 
 /*** spi.ndb.getProperties ***/
 var t2 = new harness.Test("getProperties");
 t2.impl= "ndb";
 t2.run = getPropertiesTest;
-ndb_suite.addTest(t2);
 
 /*** spi.ndb.connectSync ***/
 var t3 = new harness.Test("connectSync");
 t3.impl = "ndb";
 t3.run = connectSyncTest;
-ndb_suite.addTest(t3);
 
 /*** spi.mysql.getSPI ***/
 var t4 =  new harness.Test("getSPI");
 t4.impl= "mysql";
 t4.run = getSPItest;
-mysql_suite.addTest(t4);
 
 /*** spi.mysql.getProperties ***/
 var t5 = new harness.Test("getProperties");
 t5.impl = "mysql";
 t5.run = getPropertiesTest;
-mysql_suite.addTest(t5);
 
 /*** spi.mysql.connectSync ***/
 var t6 = new harness.Test("connectSync");
 t6.impl = "mysql";
 t6.run = connectSyncTest;
-mysql_suite.addTest(t6);
+
+/******************* TEST GROUPS ********/
+
+var ndb_group = new harness.Test("ndb").makeTestGroup(t1, t2, t3);
+
+var mysql_group = new harness.Test("mysql").makeTestGroup(t4, t5, t6);
+
+var group = new harness.Test("spi").makeTestGroup(ndb_group, mysql_group);
 
 
-
-/*************** EXPORT THE TOP-LEVEL SUITE ********/
-module.exports = suite;
+/*************** EXPORT THE TOP-LEVEL GROUP ********/
+module.exports = group;

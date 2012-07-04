@@ -60,11 +60,16 @@
 */
 function Test(name) {
   this.name = name;
-  this.order = 3;
+  this.phase = 2;
   this.errorMessages = '';
+  this.index = 0;
+  this.failed = false;
+  this.result;
 }
 
 Test.prototype.test = function(result) {
+  if (debug) console.log('test starting: ' + this.name);
+  this.result = result;
   result.listener.startTest(this);
   this.setup();
 
@@ -74,10 +79,25 @@ Test.prototype.test = function(result) {
   }
   else {
     try {
-      this.run();
-      result.pass(this);
+      if (debug) console.log('test.run: ' + this.name);
+      if (this.run()) {
+        if (debug) console.log('test returning from async call without calling pass or fail for test ' + this.name);
+        // async test must call Test.pass or Test.fail when done
+        return;
+      }
+      // fail if any error messages have been reported
+      if (this.errorMessages == '') {
+        if (debug) console.log(this.name + ' result.pass');
+        result.pass(this);
+      } else {
+        this.failed = true;
+        if (debug) console.log(this.name + 'result.fail');
+    	  result.fail(this);
+      }
     }
     catch(e) {
+      console.log('result.fail');
+      this.failed = true;
       result.fail(this, e);
     }
   }
@@ -85,6 +105,23 @@ Test.prototype.test = function(result) {
   result.listener.endTest(this);
 };
 
+Test.prototype.pass = function() {
+  this.result.pass(this);
+};
+
+Test.prototype.fail = function(message) {
+  this.failed = true;
+  this.appendMessage(message);
+  this.result.fail(this,
+      { 'message' : this.errorMessage});
+};
+
+Test.prototype.appendMessage = function(message) {
+  this.errorMessages += message;
+  this.errorMessages += '\n';
+};
+
+Test.prototype.getTestCases = function() { return [this];};
 Test.prototype.isTest = function() { return true; };
 Test.prototype.isFatal = function() { return false; };
 Test.prototype.setFatal = function() { 
@@ -100,13 +137,30 @@ Test.prototype.run = function() {
   };
 };
 
-Test.prototype.makeTestSuite = function() {
+Test.prototype.makeTestGroup = function() {
   var tests = [];  // private!
+  for (var i = 0; i < arguments.length; ++i) {
+		tests.push(arguments[i]);
+	}
+  this.getTestCases = function() {
+	  var result = [];
+	  if (debug) console.log('harness.makeTestGroup.getTestCases has ' + tests.length);
+	  for (var i = 0; i < tests.length; ++i) {
+		  var testCases = tests[i].getTestCases();
+		  if (debug) console.log('harness.makeTestGroup.getTestCases has ' + testCases.length);
+		  for (var j = 0; j < testCases.length; ++j) {
+		      result.push(testCases[j]);
+		  }
+	  }
+	  if (debug) console.log('harness.makeTestGroup function getTestCases returns ' + result.length);
+	  return result;
+  }
   this.addTest = function(t) { 
     tests.push(t);
     t.name = this.name + "." + t.name;
   };
   this.test = function(result) {
+  	if (debug) console.log("Running group " + this.name);
     for(var i = 0; i < tests.length ; i++) {
       tests[i].test(result);
     }
@@ -129,7 +183,7 @@ function Listener() {
 Listener.prototype.startTest = function(t) {};
 Listener.prototype.endTest = function(t) {};
 Listener.prototype.pass = function(t) {
-  console.log("[pass]", t.name );
+  console.log("[pass]", t.suite.name + ' ' + t.name );
 };
 Listener.prototype.fail = function(t, e) {
   console.log("[FAIL]", t.name, "\t", e.message);
@@ -139,7 +193,8 @@ Listener.prototype.fail = function(t, e) {
 
 /* Result 
 */
-function Result() {
+function Result(driver) {
+  this.driver = driver;
   this.passed = [];
   this.failed = [];
 }
@@ -147,11 +202,13 @@ function Result() {
 Result.prototype.pass = function(t) {
   this.passed.push(t.name);
   this.listener.pass(t);
+  this.driver.testCompleted(t);
 };
 
 Result.prototype.fail = function(t, e) {
   this.failed.push(t.name);
   this.listener.fail(t, e);
+  this.driver.testCompleted(t);
 };
 
 
