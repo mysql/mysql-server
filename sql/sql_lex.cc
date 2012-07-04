@@ -2576,6 +2576,19 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
+  if (!thd->lex->describe && join && join->need_tmp)
+  {
+    /*
+      Items have been repointed to columns of an internal temporary table, it
+      is possible that the JOIN has gone through exec() and join_free(),
+      so items may have been freed by [tmp_JOIN_TAB]::cleanup(full=true),
+      and thus may not be printable. Unless this is EXPLAIN, in which case the
+      freeing is delayed by JOIN::join_free().
+    */
+    str->append(STRING_WITH_LEN("<already_cleaned_up>"));
+    return;
+  }
+
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
     str->append(STRING_WITH_LEN("straight_join "));
