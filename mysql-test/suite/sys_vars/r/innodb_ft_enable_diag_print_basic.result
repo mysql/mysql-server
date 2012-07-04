@@ -1,28 +1,28 @@
 SET @start_global_value = @@global.innodb_ft_enable_diag_print;
 SELECT @start_global_value;
 @start_global_value
-1
+0
 Valid values are 'ON' and 'OFF' 
 select @@global.innodb_ft_enable_diag_print in (0, 1);
 @@global.innodb_ft_enable_diag_print in (0, 1)
 1
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
-1
+0
 select @@session.innodb_ft_enable_diag_print;
 ERROR HY000: Variable 'innodb_ft_enable_diag_print' is a GLOBAL variable
 show global variables like 'innodb_ft_enable_diag_print';
 Variable_name	Value
-innodb_ft_enable_diag_print	ON
+innodb_ft_enable_diag_print	OFF
 show session variables like 'innodb_ft_enable_diag_print';
 Variable_name	Value
-innodb_ft_enable_diag_print	ON
+innodb_ft_enable_diag_print	OFF
 select * from information_schema.global_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
+INNODB_FT_ENABLE_DIAG_PRINT	OFF
 select * from information_schema.session_variables where variable_name='innodb_ft_enable_diag_print';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_ENABLE_DIAG_PRINT	ON
+INNODB_FT_ENABLE_DIAG_PRINT	OFF
 set global innodb_ft_enable_diag_print='OFF';
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
@@ -89,4 +89,4 @@ ERROR 42000: Variable 'innodb_ft_enable_diag_print' can't be set to the value of
 SET @@global.innodb_ft_enable_diag_print = @start_global_value;
 SELECT @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
-1
+0
