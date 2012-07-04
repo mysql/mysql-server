@@ -3174,6 +3174,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void *my_str_malloc_mysqld(size_t size);
 extern "C" void my_str_free_mysqld(void *ptr);
+extern "C" void *my_str_realloc_mysqld(void *ptr, size_t size);
 
 void *my_str_malloc_mysqld(size_t size)
 {
@@ -3184,6 +3185,11 @@ void *my_str_malloc_mysqld(size_t size)
 void my_str_free_mysqld(void *ptr)
 {
   my_free(ptr);
+}
+
+void *my_str_realloc_mysqld(void *ptr, size_t size)
+{
+  return my_realloc(ptr, size, MYF(MY_FAE));
 }
 #endif /* EMBEDDED_LIBRARY */
 
@@ -5319,10 +5325,11 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   /*
-   Initialize my_str_malloc() and my_str_free()
+   Initialize my_str_malloc(), my_str_realloc() and my_str_free()
   */
   my_str_malloc= &my_str_malloc_mysqld;
   my_str_free= &my_str_free_mysqld;
+  my_str_realloc= &my_str_realloc_mysqld;
 
   /*
     init signals & alarm
