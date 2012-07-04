@@ -2690,7 +2690,7 @@ bool Optimize_table_order::check_interleaving_with_nj(JOIN_TAB *tab)
   for (; next_emb != emb_sjm_nest; next_emb= next_emb->embedding)
   {
     // Ignore join nests that are not outer joins.
-    if (!next_emb->nested_join->nj_map)
+    if (!next_emb->join_cond())
       continue;
 
     next_emb->nested_join->nj_counter++;
@@ -3674,11 +3674,11 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables,
 
   for (; last_emb != emb_sjm_nest; last_emb= last_emb->embedding)
   {
-    NESTED_JOIN *const nest= last_emb->nested_join;
-
     // Ignore join nests that are not outer joins.
-    if (!nest->nj_map)
+    if (!last_emb->join_cond())
       continue;
+
+    NESTED_JOIN *const nest= last_emb->nested_join;
 
     DBUG_ASSERT(nest->nj_counter > 0);
 
