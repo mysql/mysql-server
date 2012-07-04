@@ -42,7 +42,9 @@ public:
   // Rows for for each of the operations
   Vector<Uint32> m_rows_found;
 
-  int runLookupQuery(Ndb*, int records, int batchsize = 1);
+  int runLookupQuery(Ndb*,
+                     int queries = 100,
+                     int batchsize = 1);
   int runScanQuery(Ndb*,
                    int abort = 4,
                    int parallelism = 0,
