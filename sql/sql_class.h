@@ -497,7 +497,6 @@ typedef struct system_variables
   my_bool low_priority_updates;
   my_bool new_mode;
   my_bool query_cache_wlock_invalidate;
-  my_bool engine_condition_pushdown;
   my_bool keep_files_on_create;
 
   my_bool old_alter_table;
