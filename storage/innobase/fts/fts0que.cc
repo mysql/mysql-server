@@ -2901,10 +2901,13 @@ fts_query_calculate_idf(
 			}
 		}
 
-		fprintf(stderr,"'%s' -> " UINT64PF "/" UINT64PF " %6.5lf\n",
-		       word_freq->word,
-		       query->total_docs, word_freq->doc_count,
-		       word_freq->idf);
+		if (fts_enable_diag_print) {
+			fprintf(stderr,"'%s' -> " UINT64PF "/" UINT64PF
+				" %6.5lf\n",
+			        word_freq->word,
+			        query->total_docs, word_freq->doc_count,
+			        word_freq->idf);
+		}
 	}
 }
 

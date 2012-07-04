@@ -1484,12 +1484,12 @@ fts_drop_table(
 				ut_strerr(error), table_name);
 		}
 	} else {
-		ut_print_timestamp(stderr);
-
-		/* FIXME: Should provide appropriate error return code
-		rather than printing message indiscriminately. */
-		fprintf(stderr, "  InnoDB: %s not found.\n",
-			table_name);
+		if (fts_enable_diag_print) {
+			/* FIXME: Should provide appropriate error return code
+			rather than printing message indiscriminately. */
+			ib_logf(IB_LOG_LEVEL_WARN, "%s not found.\n",
+				table_name);
+		}
 	}
 
 	return(error);

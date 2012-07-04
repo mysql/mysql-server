@@ -7891,8 +7891,6 @@ ha_innobase::ft_init()
 {
 	DBUG_ENTER("ft_init");
 
-	fprintf(stderr, "ft_init()\n");
-
 	trx_t*	trx = check_trx_exists(ha_thd());
 
 	/* FTS queries are not treated as autocommit non-locking selects.
@@ -7931,15 +7929,15 @@ ha_innobase::ft_init_ext(
 	ulint			buf_tmp_used;
 	uint			num_errors;
 
-	fprintf(stderr, "ft_init_ext()\n");
+	if (fts_enable_diag_print) {
+		fprintf(stderr, "keynr=%u, '%.*s'\n",
+			keynr, (int) key->length(), (byte*) key->ptr());
 
-	fprintf(stderr, "keynr=%u, '%.*s'\n",
-		keynr, (int) key->length(), (byte*) key->ptr());
-
-	if (flags & FT_BOOL) {
-		fprintf(stderr, "BOOL search\n");
-	} else {
-		fprintf(stderr, "NL search\n");
+		if (flags & FT_BOOL) {
+			fprintf(stderr, "BOOL search\n");
+		} else {
+			fprintf(stderr, "NL search\n");
+		}
 	}
 
 	/* FIXME: utf32 and utf16 are not compatible with some
@@ -15469,7 +15467,7 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   PLUGIN_VAR_OPCMDARG,
   "Whether to enable additional FTS diagnostic printout ",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   PLUGIN_VAR_OPCMDARG,
