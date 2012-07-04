@@ -867,7 +867,7 @@ static bool update_user_table(THD *, TABLE *table, const char *host,
                               const char *new_password,
                               uint new_password_len,
                               enum mysql_user_table_field password_field,
-                              const char must_expire);
+                              bool password_expired);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
@@ -2447,7 +2447,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
                         acl_user->user ? acl_user->user : "",
-                        new_password, new_password_len, password_field, 'N'))
+                        new_password, new_password_len, password_field, false))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -2637,7 +2637,7 @@ update_user_table(THD *thd, TABLE *table,
                   const char *host, const char *user,
                   const char *new_password, uint new_password_len,
                   enum mysql_user_table_field password_field,
-                  const char password_expired)
+                  bool password_expired)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -2662,17 +2662,25 @@ update_user_table(THD *thd, TABLE *table,
     DBUG_RETURN(1);				/* purecov: deadcode */
   }
   store_record(table,record[1]);
-  
-  table->field[(int) password_field]->store(new_password, new_password_len,
-                                            system_charset_info);
-  if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
-      password_field == MYSQL_USER_FIELD_PASSWORD)
+ 
+  /* 
+    When the flag is on we're inside ALTER TABLE ... PASSWORD EXPIRE and we 
+    have no password to update.
+  */
+  if (!password_expired)
   {
-    WARN_DEPRECATED_41_PWD_HASH(thd);
+    table->field[(int) password_field]->store(new_password, new_password_len,
+                                              system_charset_info);
+    if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323 &&
+        password_field == MYSQL_USER_FIELD_PASSWORD)
+    {
+      WARN_DEPRECATED_41_PWD_HASH(thd);
+    }
   }
 
   /* password_expired */
-  table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(&password_expired, 1,
+  table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ? 
+                                                         "Y" : "N", 1,
                                                          system_charset_info);
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
@@ -7734,7 +7742,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
                            acl_user->host.get_host() ?
                            acl_user->host.get_host() : "",
                            acl_user->user ? acl_user->user : "",
-                           NULL, 0, password_field,'Y'))
+                           NULL, 0, password_field, true))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
