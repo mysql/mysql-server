@@ -3,7 +3,7 @@ SET STORAGE_ENGINE='tokudb';
 # test of problem with date fields
 #
 --disable_warnings
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 --enable_warnings
 
 create table t1 (a char(16), b date, c datetime);
