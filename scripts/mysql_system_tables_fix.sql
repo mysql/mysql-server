@@ -695,6 +695,11 @@ flush privileges;
 
 ALTER TABLE slave_master_info ADD Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)';
 ALTER TABLE slave_master_info ADD Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files';
+ALTER TABLE slave_master_info STATS_PERSISTENT=0;
+ALTER TABLE slave_worker_info STATS_PERSISTENT=0;
+ALTER TABLE slave_relay_log_info STATS_PERSISTENT=0;
+ALTER TABLE innodb_table_stats STATS_PERSISTENT=0;
+ALTER TABLE innodb_index_stats STATS_PERSISTENT=0;
 
 --
 -- Check for accounts with old pre-4.1 passwords and issue a warning

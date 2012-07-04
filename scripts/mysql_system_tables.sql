@@ -142,7 +142,7 @@ SET @cmd="CREATE TABLE IF NOT EXISTS slave_relay_log_info (
   Master_log_pos BIGINT UNSIGNED NOT NULL COMMENT 'The master log position of the last executed event.', 
   Sql_delay INTEGER NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.', 
   Number_of_workers INTEGER UNSIGNED NOT NULL, 
-  PRIMARY KEY(Master_id)) DEFAULT CHARSET=utf8 COMMENT 'Relay Log Information'";
+  PRIMARY KEY(Master_id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Relay Log Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
@@ -174,7 +174,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_master_info (
   Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)', 
   Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files', 
   Enabled_auto_position BOOLEAN NOT NULL COMMENT 'Indicates whether GTIDs will be used to retrieve events from the master.', 
-  PRIMARY KEY(Master_id)) DEFAULT CHARSET=utf8 COMMENT 'Master Information'";
+  PRIMARY KEY(Master_id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Master Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
@@ -195,7 +195,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS slave_worker_info (
   Checkpoint_seqno INT UNSIGNED NOT NULL, 
   Checkpoint_group_size INTEGER UNSIGNED NOT NULL, 
   Checkpoint_group_bitmap BLOB NOT NULL, 
-  PRIMARY KEY(Master_id, Worker_id)) DEFAULT CHARSET=utf8 COMMENT 'Worker Information'";
+  PRIMARY KEY(Master_id, Worker_id)) DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT 'Worker Information'";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;
