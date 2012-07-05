@@ -1136,7 +1136,8 @@ static const char *default_options[]=
   "connect-timeout", "local-infile", "disable-local-infile",
   "ssl-cipher", "max-allowed-packet", "protocol", "shared-memory-base-name",
   "multi-results", "multi-statements", "multi-queries", "secure-auth",
-  "report-data-truncation", "plugin-dir", "default-auth",
+  "report-data-truncation", "plugin-dir", "default-auth", 
+  "enable-cleartext-plugin",
   NullS
 };
 enum option_id {
@@ -1148,6 +1149,7 @@ enum option_id {
   OPT_ssl_cipher, OPT_max_allowed_packet, OPT_protocol, OPT_shared_memory_base_name, 
   OPT_multi_results, OPT_multi_statements, OPT_multi_queries, OPT_secure_auth, 
   OPT_report_data_truncation, OPT_plugin_dir, OPT_default_auth, 
+  OPT_enable_cleartext_plugin,
   OPT_keep_this_one_last
 };
 
@@ -1180,14 +1182,27 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
-#define EXTENSION_SET_STRING(OPTS, X, STR)                       \
-    if ((OPTS)->extension)                                       \
-      my_free((OPTS)->extension->X);     \
-    else                                                         \
+#define ALLOCATE_EXTENSIONS(OPTS)                                \
       (OPTS)->extension= (struct st_mysql_options_extention *)   \
         my_malloc(sizeof(struct st_mysql_options_extention),     \
-                  MYF(MY_WME | MY_ZEROFILL));                    \
-    (OPTS)->extension->X= my_strdup((STR), MYF(MY_WME));
+                  MYF(MY_WME | MY_ZEROFILL))                     \
+
+#define ENSURE_EXTENSIONS_PRESENT(OPTS)                          \
+    do {                                                         \
+      if (!(OPTS)->extension)                                    \
+        ALLOCATE_EXTENSIONS(OPTS);                               \
+    } while (0)
+
+
+#define EXTENSION_SET_STRING(OPTS, X, STR)                       \
+    do {                                                         \
+      if ((OPTS)->extension)                                     \
+        my_free((OPTS)->extension->X);                           \
+      else                                                       \
+        ALLOCATE_EXTENSIONS(OPTS);                               \
+      (OPTS)->extension->X= ((STR) != NULL) ?                    \
+        my_strdup((STR), MYF(MY_WME)) : NULL;                    \
+    } while (0)
 
 void mysql_read_default_options(struct st_mysql_options *options,
 				const char *filename,const char *group)
@@ -1386,6 +1401,12 @@ void mysql_read_default_options(struct st_mysql_options *options,
         case OPT_default_auth:
           EXTENSION_SET_STRING(options, default_auth, opt_arg);
           break;
+
+        case OPT_enable_cleartext_plugin:
+          ENSURE_EXTENSIONS_PRESENT(options);
+          options->extension->enable_cleartext_plugin= 
+            (!opt_arg || atoi(opt_arg) != 0) ? TRUE : FALSE;
+
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
 	}
@@ -2782,6 +2803,27 @@ static void client_mpvio_info(MYSQL_PLUGIN_VIO *vio,
   mpvio_info(mpvio->mysql->net.vio, info);
 }
 
+
+my_bool libmysql_cleartext_plugin_enabled= 0;
+
+static my_bool check_plugin_enabled(MYSQL *mysql, auth_plugin_t *plugin)
+{
+  if (plugin == &clear_password_client_plugin &&
+      (!libmysql_cleartext_plugin_enabled &&
+       (!mysql->options.extension ||
+       !mysql->options.extension->enable_cleartext_plugin)))
+  {
+    set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_CANNOT_LOAD,
+                             unknown_sqlstate,
+                             ER(CR_AUTH_PLUGIN_CANNOT_LOAD),
+                             clear_password_client_plugin.name,
+                             "plugin not enabled");
+    return TRUE;
+  }
+  return FALSE;
+}
+
+
 /**
   Client side of the plugin driver authentication.
 
@@ -2823,6 +2865,9 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
       &native_password_client_plugin : &old_password_client_plugin;
     auth_plugin_name= auth_plugin->name;
   }
+
+  if (check_plugin_enabled(mysql, auth_plugin))
+    DBUG_RETURN(1);
 
   DBUG_PRINT ("info", ("using plugin %s", auth_plugin_name));
 
@@ -2914,6 +2959,9 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     if (!(auth_plugin= (auth_plugin_t *) mysql_client_find_plugin(mysql,
                          auth_plugin_name, MYSQL_CLIENT_AUTHENTICATION_PLUGIN)))
       DBUG_RETURN (1);
+
+    if (check_plugin_enabled(mysql, auth_plugin))
+      DBUG_RETURN(1);
 
     mpvio.plugin= auth_plugin;
     res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
@@ -4117,6 +4165,11 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_DEFAULT_AUTH:
     EXTENSION_SET_STRING(&mysql->options, default_auth, arg);
     break;
+  case MYSQL_ENABLE_CLEARTEXT_PLUGIN:
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    mysql->options.extension->enable_cleartext_plugin= 
+      (*(my_bool*) arg) ? TRUE : FALSE;
+    break;
   default:
     DBUG_RETURN(1);
   }
@@ -4336,5 +4389,3 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   return res ? CR_ERROR : CR_OK;
 }
-
-
