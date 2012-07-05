@@ -1686,6 +1686,8 @@ mysql_init(MYSQL *mysql)
     (mysql.reconnect=0) will not see a behaviour change.
   */
   mysql->reconnect= 0;
+ 
+  mysql->options.secure_auth= TRUE;
 
   return mysql;
 }
