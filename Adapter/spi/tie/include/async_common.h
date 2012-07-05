@@ -18,15 +18,17 @@
  02110-1301  USA
  */
 
-#include "node.h"
+#include "uv.h"
 
-class AsyncMethodWrapper {
-public:
-  AsyncMethodWrapper() {};
-  
-  virtual void work_thd_run(void) = {};
-  virtual void main_thd_complete(v8::Local<v8::Object> context) = {};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-  v8::Persistent<v8::Function> *callback;
+  void work_thd_run(uv_work_t *);
+  void main_thd_complete(uv_work_t *);
+
+#ifdef __cplusplus
 }
+#endif
+
 

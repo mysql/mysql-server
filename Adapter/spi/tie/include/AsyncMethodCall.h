@@ -20,30 +20,14 @@
 
 #include "node.h"
 
-#include "AsyncMethodWrapper.h"
-#include "async_common.h"
-
-void work_thd_run(uv_work_t *req) {
-  AsyncMethodWrapper *w = (AsyncMethodWrapper *) req->data;
+class AsyncMethodCall {
+public:
+  AsyncMethodCall() {};
   
-  w->main_thd_run();
-}
+  virtual void work_thd_run(void) = 0;
+  virtual void main_thd_complete(v8::Local<v8::Object> context) = 0;
 
+  v8::Function *callback;
+};
 
-void main_thd_complete(uw_work_t *req) {
-  HandleScope scope;
-  TryCatch try_catch;
-  
-  AsyncMethodWrapper *w = (AsyncMethodWrapper *) req->data;
-
-  w->main_thd_complete(v8::Context::GetCurrent()->Global());
-  
-  /* cleanup */
-  w->callback.Dispose();
-  delete w;
-  delete req;
-  
-  if(try_catch.HasCaught())
-    v8::FatalException(try_catch);
-}
 

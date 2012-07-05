@@ -136,3 +136,4 @@ public:
   JsValueConverter(jsvalue v) {  wrapper = Wrapper<P>::Unwrap(v->ToObject()); };  
   P * toC() { return wrapper->object; };
 };
+
