@@ -2562,14 +2562,23 @@ public:
   Item_result type;
   uint charset_number;
   bool is_null;
+<<<<<<< TREE
   uchar flags;
 #ifdef MYSQL_SERVER
+=======
+#ifndef MYSQL_CLIENT
+  bool deferred;
+>>>>>>> MERGE-SOURCE
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg)
     :Log_event(), name(name_arg), name_len(name_len_arg), val(val_arg),
     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
+<<<<<<< TREE
     flags(flags_arg)
+=======
+    deferred(false)
+>>>>>>> MERGE-SOURCE
     { is_null= !val; }
   void pack_info(Protocol* protocol);
 #else
@@ -2582,6 +2591,13 @@ public:
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
+  /* 
+     Getter and setter for deferred User-event. 
+     Returns true if the event is not applied directly 
+     and which case the applier adjusts execution path.
+  */
+  bool is_deferred() { return deferred; }
+  void set_deferred() { deferred= val; }
 #endif
   bool is_valid() const { return 1; }
 
