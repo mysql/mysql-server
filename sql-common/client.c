@@ -1406,6 +1406,7 @@ void mysql_read_default_options(struct st_mysql_options *options,
           ENSURE_EXTENSIONS_PRESENT(options);
           options->extension->enable_cleartext_plugin= 
             (!opt_arg || atoi(opt_arg) != 0) ? TRUE : FALSE;
+          break;
 
 	default:
 	  DBUG_PRINT("warning",("unknown option: %s",option[0]));
