@@ -429,10 +429,10 @@ CREATE USER uplain@localhost IDENTIFIED WITH 'cleartext_plugin_server'
 --echo ## test plugin auth
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR : this should fail : no grant
-connect(cleartext_fail_con,localhost,uplain,cleartext_test2);
+connect(cleartext_fail_con,localhost,uplain,cleartext_test2,,,,CLEARTEXT);
 --enable_query_log
 
-connect(cleartext_con,localhost,uplain,cleartext_test);
+connect(cleartext_con,localhost,uplain,cleartext_test,,,,CLEARTEXT);
 connection cleartext_con;
 select USER(),CURRENT_USER();
 

@@ -154,6 +154,8 @@ static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
@@ -1539,6 +1541,10 @@ static struct my_option my_long_options[] =
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", &delimiter_str,
    &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
+    "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Disables --force and history file.)", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
@@ -1776,6 +1782,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_LOCAL_INFILE:
     using_opt_local_infile=1;
+    break;
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
     break;
   case OPT_TEE:
     if (argument == disabled_my_option)
@@ -4520,9 +4529,14 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(&mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
 
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
+                  (char*) &opt_enable_cleartext_plugin);
+
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
                  "program_name", "mysql");
+
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS))
