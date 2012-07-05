@@ -25,7 +25,8 @@ int toku_ft_loader_open (FTLOADER *bl,
 			  ft_compare_func bt_compare_functions[/*N*/],
 			  const char *temp_file_template,
                           LSN load_lsn,
-                          TOKUTXN txn);
+                          TOKUTXN txn,
+                          BOOL reserve_memory);
 
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val);
 

@@ -194,6 +194,7 @@ int toku_loader_create_loader(DB_ENV *env,
     *blp = NULL;           // set later when created
 
     DB_LOADER *loader = NULL;
+    BOOL use_puts = loader_flags&LOADER_USE_PUTS;
     XCALLOC(loader);       // init to all zeroes (thus initializing the error_callback and poll_func)
     XCALLOC(loader->i);    // init to all zeroes (thus initializing all pointers to NULL)
 
@@ -272,7 +273,8 @@ int toku_loader_create_loader(DB_ENV *env,
                                  compare_functions,
                                  loader->i->temp_file_template,
                                  load_lsn,
-                                 ttxn);
+                                 ttxn,
+                                 use_puts);
         if ( r!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
@@ -282,7 +284,7 @@ int toku_loader_create_loader(DB_ENV *env,
         loader->i->inames_in_env = new_inames_in_env;
         toku_free(brts);
 
-        if (loader->i->loader_flags & LOADER_USE_PUTS) {
+        if (use_puts) {
             XCALLOC_N(loader->i->N, loader->i->ekeys);
             XCALLOC_N(loader->i->N, loader->i->evals);
             // the following function grabs the ydb lock, so we

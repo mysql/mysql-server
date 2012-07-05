@@ -202,7 +202,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     //
     for (int i = 0; i < N; i++) {
         DB_LOADER* loader = NULL;
-        int r = env->create_loader(env, txn, &loader, dest_dbs[i], 1, &dest_dbs[i], NULL, NULL, DB_PRELOCKED_WRITE);
+        int r = env->create_loader(env, txn, &loader, dest_dbs[i], 1, &dest_dbs[i], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_USE_PUTS);
         if (r) {
             goto create_exit;
         }
@@ -485,7 +485,7 @@ close_indexer(DB_INDEXER *indexer) {
     (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
 
     // Mark txn as needing a checkpoint.  
-    // (This will cause a local checkpoint of created index files, which is necessary 
+    // (This will cause a checkpoint, which is necessary 
     //   because these files are not necessarily on disk and all the operations 
     //   to create them are not in the recovery log.)
     DB_TXN     *txn = indexer->i->txn;

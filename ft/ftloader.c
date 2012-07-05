@@ -374,7 +374,8 @@ void toku_ft_loader_internal_destroy (FTLOADER bl, BOOL is_error) {
     toku_free(bl->fractal_queues);
     toku_free(bl->fractal_threads_live);
 
-    if (bl->cachetable)
+    if (bl->did_reserve_memory)
+        invariant(bl->cachetable);
         toku_cachetable_release_reserved_memory(bl->cachetable, bl->reserved_memory);
 
     ft_loader_destroy_error_callback(&bl->error_callback);
@@ -482,7 +483,8 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    ft_compare_func bt_compare_functions[/*N*/],
                                    const char *temp_file_template,
                                    LSN load_lsn,
-                                   TOKUTXN txn)
+                                   TOKUTXN txn,
+                                   BOOL reserve_memory)
 // Effect: Allocate and initialize a FTLOADER, but do not create the extractor thread.
 {
     FTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
@@ -490,10 +492,14 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
-    if (bl->cachetable)
+    if (reserve_memory && bl->cachetable) {
+        bl->did_reserve_memory = TRUE;
         bl->reserved_memory = toku_cachetable_reserve_memory(bl->cachetable, 2.0/3.0); // allocate 2/3 of the unreserved part (which is 3/4 of the memory to start with).
-    else
+    }
+    else {
+        bl->did_reserve_memory = FALSE;
         bl->reserved_memory = 512*1024*1024; // if no cache table use 512MB.
+    }
     //printf("Reserved memory=%ld\n", bl->reserved_memory);
 
     bl->src_db = src_db;
@@ -579,7 +585,8 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           ft_compare_func bt_compare_functions[/*N*/],
                           const char *temp_file_template,
                           LSN load_lsn,
-                          TOKUTXN txn)
+                          TOKUTXN txn,
+                          BOOL reserve_memory)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
  * Arguments:
  *   blp                  Return the brt loader here.
@@ -600,7 +607,8 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                                               bt_compare_functions,
                                               temp_file_template,
                                               load_lsn,
-                                              txn);
+                                              txn,
+                                              reserve_memory);
         if (r!=0) result = r;
     }
     if (result==0) {
