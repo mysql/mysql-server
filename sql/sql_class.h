@@ -3829,10 +3829,15 @@ public:
     @param non_transactional_table true if the statement updates some
     non-transactional table; false otherwise.
 
+    @param non_transactional_tmp_tables true if row binlog format is
+    used and all non-transactional tables are temporary.
+
     @retval true if the statement is compatible;
     @retval false if the statement is not compatible.
   */
-  bool is_dml_gtid_compatible(bool non_transactional) const;
+  bool
+  is_dml_gtid_compatible(bool non_transactional,
+                         bool non_transactional_tmp_tables) const;
   bool is_ddl_gtid_compatible() const;
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
