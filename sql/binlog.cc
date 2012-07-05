@@ -6944,8 +6944,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        A pointer to a previous table that was accessed.
     */
     TABLE* prev_access_table= NULL;
-    // true if at least one table is non-transactional.
+    /*
+      True if at least one table is non-transactional.
+    */
     bool write_to_some_non_transactional_table= false;
+    /*
+       True if all non-transactional tables that has been updated
+       are temporary.
+    */
+    bool write_all_non_transactional_are_tmp_tables= true;
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -6994,6 +7001,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TRANS_TABLE :
                                                LEX::STMT_WRITES_NON_TRANS_TABLE);
 
+        /*
+         Non-transactional updates are allowed when row binlog format is
+         used and all non-transactional tables are temporary.
+         Binlog format is checked on THD::is_dml_gtid_compatible() method.
+        */
+        if (!trans)
+          write_all_non_transactional_are_tmp_tables=
+            write_all_non_transactional_are_tmp_tables &&
+            table->table->s->tmp_table;
+
         flags_write_all_set &= flags;
         flags_write_some_set |= flags;
         is_write= TRUE;
@@ -7020,6 +7037,13 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       prev_access_table= table->table;
     }
+    /*
+      write_all_non_transactional_are_tmp_tables may be true if any
+      non-transactional table was not updated, so we fix its value here.
+    */
+    write_all_non_transactional_are_tmp_tables=
+      write_all_non_transactional_are_tmp_tables &&
+      write_to_some_non_transactional_table;
 
     DBUG_PRINT("info", ("flags_write_all_set: 0x%llx", flags_write_all_set));
     DBUG_PRINT("info", ("flags_write_some_set: 0x%llx", flags_write_some_set));
@@ -7151,7 +7175,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
 
     if (!error && disable_gtid_unsafe_statements &&
-        !is_dml_gtid_compatible(write_to_some_non_transactional_table))
+        !is_dml_gtid_compatible(write_to_some_non_transactional_table,
+                                write_all_non_transactional_are_tmp_tables))
       error= 1;
 
     if (error) {
@@ -7254,9 +7279,11 @@ bool THD::is_ddl_gtid_compatible() const
 }
 
 
-bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
+bool
+THD::is_dml_gtid_compatible(bool non_transactional_table,
+                            bool non_transactional_tmp_tables) const
 {
-  DBUG_ENTER("THD::is_dml_gtid_compatible(bool)");
+  DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool)");
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
@@ -7269,6 +7296,9 @@ bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
     inside a transaction, then the non-transactional statement's
     GTID will be the same as the surrounding transaction's GTID.
 
+    Non-transactional updates are allowed when row binlog format is
+    used and all non-transactional tables are temporary.
+
     Only statements that generate row events can be unsafe: otherwise,
     the statement either has an implicit pre-commit or is not
     binlogged at all.
@@ -7279,6 +7309,7 @@ bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
     mind.
   */
   if (sqlcom_can_generate_row_events(this) &&
+      !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
       non_transactional_table &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
