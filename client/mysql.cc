@@ -144,7 +144,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       opt_secure_auth= 0,
+	       opt_secure_auth= TRUE,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
@@ -1695,7 +1695,7 @@ static struct my_option my_long_options[] =
    1, ULONG_MAX, 0, 1, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
@@ -4466,7 +4466,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-  if (opt_secure_auth)
+  if (!opt_secure_auth)
     mysql_options(&mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
   if (using_opt_local_infile)
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
