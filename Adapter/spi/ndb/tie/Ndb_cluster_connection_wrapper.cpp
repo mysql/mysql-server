@@ -61,7 +61,7 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
 
 /* int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
 */
-Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
+Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(3);
@@ -74,6 +74,15 @@ Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
   int r = c->connect(arg0.toC(), arg1.toC(), arg2.toC());
   
   return scope.Close(toJS<int>(r));
+}
+
+
+Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
+  HandleScope scope;
+  
+  //todo
+  
+  return scope.Close(toJS<int>(0));
 }
 
 
@@ -124,8 +133,10 @@ void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
                   Ndb_cluster_connection_new_wrapper);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "set_name",
                    Ndb_cluster_connection_set_name);
-  DEFINE_JS_METHOD(JSNdb_cluster_connection, "connect",
-                   Ndb_cluster_connection_connect);
+  DEFINE_JS_METHOD(JSNdb_cluster_connection, "connectSync",
+                   Ndb_cluster_connection_connectSync);
+  DEFINE_JS_METHOD(JSNdb_cluster_connection, "connectAsync",
+                   Ndb_cluster_connection_connectAsync);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "wait_until_ready",
                    Ndb_cluster_connection_wait_until_ready);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "node_id",
