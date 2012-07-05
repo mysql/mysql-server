@@ -27,12 +27,14 @@ DROP TABLE t1;
 DROP TABLE t2;
 SET SQL_LOG_BIN = 1;
 ==== Non-transactional updates not allowed ====
+Non-transactional updates are allowed when row binlog format
+is used and all non-transactional tables on a transaction are
+temporary.
 CREATE TABLE t1 (a INT) ENGINE = MyISAM;
 CREATE TEMPORARY TABLE t2 (a INT) ENGINE = MyISAM;
 INSERT INTO t1 VALUES (1);
 ERROR HY000: Updates to non-transactional tables are forbidden when DISABLE_GTID_UNSAFE_STATEMENTS = 1.
 INSERT INTO t2 VALUES (1);
-ERROR HY000: Updates to non-transactional tables are forbidden when DISABLE_GTID_UNSAFE_STATEMENTS = 1.
 CREATE TABLE t3 (a INT) ENGINE = InnoDB;
 CREATE TRIGGER trig BEFORE INSERT ON t3 FOR EACH ROW BEGIN INSERT INTO t1 VALUES (1); END;
 INSERT INTO t3 VALUES (1);
