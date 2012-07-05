@@ -540,35 +540,14 @@ int Gcalc_result_receiver::get_result_typeid()
 }
 
 
-int Gcalc_result_receiver::move_hole(uint32 dest_position, uint32 source_position,
-                                     uint32 *new_dest_position)
-{
-  char *ptr;
-  int source_len;
-  if (dest_position == source_position)
-  {
-    *new_dest_position= position();
-    return 0;
-  }
-
-  source_len= buffer.length() - source_position;
-  if (buffer.reserve(source_len, MY_ALIGN(source_len, 512)))
-    return 1;
-
-  ptr= (char *) buffer.ptr();
-  memmove(ptr + dest_position + source_len, ptr + dest_position,
-          buffer.length() - dest_position);
-  memcpy(ptr + dest_position, ptr + buffer.length(), source_len);
-  *new_dest_position= dest_position + source_len;
-  return 0;
-}
-
-
 Gcalc_operation_reducer::Gcalc_operation_reducer(size_t blk_size) :
   Gcalc_dyn_list(blk_size, sizeof(res_point)),
   m_res_hook((Gcalc_dyn_list::Item **)&m_result),
   m_first_active_thread(NULL)
-{}
+{
+  // We use sizeof(res_point) in constructor, the other items must be smaller
+  DBUG_ASSERT(sizeof(res_point) >= sizeof(active_thread));
+}
 
 
 void Gcalc_operation_reducer::init(Gcalc_function *fn, modes mode)
@@ -1272,41 +1251,97 @@ int Gcalc_operation_reducer::get_line_result(res_point *cur,
 }
 
 
+static int chunk_info_cmp(const Gcalc_result_receiver::chunk_info *a1,
+                          const Gcalc_result_receiver::chunk_info *a2)
+{
+  if (a1->first_point != a2->first_point)
+    return a1->first_point < a2->first_point ? -1 : 1;
+  if (a1->is_poly_hole != a2->is_poly_hole)
+    return a1->is_poly_hole < a2->is_poly_hole ? -1 : 1;
+  DBUG_ASSERT(a1->order != a2->order);
+  return a1->order < a2->order ? -1 : 1;
+}
+
+
+#ifndef DBUG_OFF
+void Gcalc_result_receiver::chunk_info::dbug_print() const
+{
+  DBUG_PRINT("info", ("first_point=%p order=%d position=%d length=%d",
+                      first_point, (int) order, (int) position, (int) length));
+}
+#endif
+
+
+/**
+  Rearrange the result shape chunks according to the required order.
+*/
+int Gcalc_result_receiver::reorder_chunks(chunk_info *chunks, int nchunks)
+{
+  DBUG_ENTER("Gcalc_result_receiver::sort_polygon_rings");
+
+  String tmp;
+  uint32 reserve_length= buffer.length();
+  if (tmp.reserve_and_set_length(reserve_length, MY_ALIGN(reserve_length, 512)))
+    DBUG_RETURN(1);
+
+  char *sorted= (char *) tmp.ptr();
+  const char *unsorted= buffer.ptr();
+
+  // Put shape data in the required order
+  for (chunk_info *chunk= chunks, *end= chunks + nchunks; chunk < end; chunk++)
+  {
+#ifndef DBUG_OFF
+    chunk->dbug_print();
+#endif
+    memmove(sorted, unsorted + chunk->position, (size_t) chunk->length);
+    sorted+= chunk->length;
+  }
+  // Make sure all chunks were put
+  DBUG_ASSERT(sorted - tmp.ptr() == buffer.length());
+  // Get all data from tmp and unlink tmp from its buffer.
+  buffer.takeover(tmp);
+  DBUG_RETURN(0);
+}
+
+
 int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
 {
   DBUG_ENTER("Gcalc_operation_reducer::get_result");
+  Dynamic_array<Gcalc_result_receiver::chunk_info> chunks;
+  bool polygons_found= false;
+
   *m_res_hook= NULL;
   while (m_result)
   {
+    Gcalc_function::shape_type shape;
+    Gcalc_result_receiver::chunk_info chunk;
+
+    chunk.first_point= m_result;
+    chunk.order= chunks.elements();
+    chunk.position= storage->position();
+    chunk.is_poly_hole= false;
+
     if (!m_result->up)
     {
       if (get_single_result(m_result, storage))
-        DBUG_RETURN(1);
-      continue;
+	DBUG_RETURN(1);
+      goto end_shape;
     }
-    Gcalc_function::shape_type shape= m_fn->get_shape_kind(m_result->pi->shape);
+    
+    shape= m_fn->get_shape_kind(m_result->pi->shape);
     if (shape == Gcalc_function::shape_polygon)
     {
-      if (m_result->outer_poly)
+      polygons_found= true;
+      if (m_result->outer_poly) // Inner ring (hole)
       {
-        uint32 *insert_position, hole_position;
-        insert_position= &m_result->outer_poly->first_poly_node->poly_position;
-        DBUG_ASSERT(*insert_position);
-        hole_position= storage->position();
-        storage->start_shape(Gcalc_function::shape_hole);
-        if (get_polygon_result(m_result, storage) ||
-            storage->move_hole(*insert_position, hole_position,
-                               insert_position))
-           DBUG_RETURN(1);
+        chunk.first_point= m_result->outer_poly;
+        chunk.is_poly_hole= true;
+        shape= Gcalc_function::shape_hole;
       }
-      else
-      {
-        uint32 *poly_position= &m_result->poly_position;
-        storage->start_shape(Gcalc_function::shape_polygon);
-        if (get_polygon_result(m_result, storage))
-          DBUG_RETURN(1);
-        *poly_position= storage->position();
-      }
+      storage->start_shape(shape);
+      if (get_polygon_result(m_result, storage))
+        DBUG_RETURN(1);
+      chunk.first_point= ((res_point*) chunk.first_point)->first_poly_node;
     }
     else
     {
@@ -1314,6 +1349,21 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
       if (get_line_result(m_result, storage))
         DBUG_RETURN(1);
     }
+
+end_shape:
+    chunk.length= storage->position() - chunk.position;
+    chunks.append(chunk);
+  }
+
+  /*
+    In case if some polygons where found, we need to reorder polygon rings
+    in the output buffer to make all hole rings go after their outer rings.
+  */
+  if (polygons_found && chunks.elements() > 1)
+  {
+    chunks.sort(chunk_info_cmp);
+    if (storage->reorder_chunks(chunks.front(), chunks.elements()))
+      DBUG_RETURN(1);
   }
   
   m_res_hook= (Gcalc_dyn_list::Item **)&m_result;

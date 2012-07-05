@@ -359,6 +359,30 @@ public:
     }
     return *this;
   }
+  /**
+    Takeover the buffer owned by another string.
+    "this" becames the owner of the buffer and
+    is further responsible to free it.
+    The string "s" is detouched from the buffer (cleared).
+
+    @param s - a String object to steal buffer from.
+  */
+  inline void takeover(String &s)
+  {
+    DBUG_ASSERT(this != &s);
+    // Make sure buffers of the two Strings do not overlap
+    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
+    free();
+    Ptr= s.Ptr;
+    str_length= s.str_length;
+    Alloced_length= s.Alloced_length;
+    alloced= s.alloced;
+    str_charset= s.str_charset;
+    s.Ptr= NULL;
+    s.Alloced_length= 0;
+    s.str_length= 0;
+    s.alloced= 0;
+  }
 
   bool copy();					// Alloc string if not alloced
   bool copy(const String &s);			// Allocate new string
@@ -421,6 +445,24 @@ public:
     return realloc(str_length + space_needed);
   }
   int reserve(uint32 space_needed, uint32 grow_by);
+  /**
+    Reserve additional space_needed bytes and increment length by space_needed.
+    The space added to the buffer remains uninitialized, so the caller
+    is further responsible to pupulate the allocated space with data.
+
+    @param space_needes - size of the additional space needed.
+    @param grow_by      - minimum block size to allocate.
+    @return             - operation result
+    @retval             - 0 on success
+    @retval             - 1 on error
+  */
+  bool reserve_and_set_length(uint32 space_needed, uint32 grow_by)
+  {
+    if (reserve(space_needed, grow_by))
+      return true;
+    str_length+= space_needed;
+    return false;
+  }
 
   /*
     The following append operations do NOT check alloced memory

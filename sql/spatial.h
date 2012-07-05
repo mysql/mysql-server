@@ -255,7 +255,7 @@ public:
   virtual uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
                              String *res)=0;
   virtual uint init_from_opresult(String *bin,
-                                  const char *opres, uint32 n_shapes=1)
+                                  const char *opres, uint opres_length)
   { return init_from_wkb(opres + 4, UINT_MAX32, wkb_ndr, bin) + 4; }
 
   virtual bool get_data_as_wkt(String *txt, const char **end) const=0;
@@ -383,6 +383,16 @@ protected:
   */
   int collection_area(double *ar, const char **end_of_data, Geometry *it) const;
 
+  /**
+    Initialize a collection from an operation result.
+    Share between: GeometryCollection, MultiLineString, MultiPolygon.
+    The meaning of the "collection_item" is the same to
+    the similare agument in collection_store_shapes().
+  */
+  uint collection_init_from_opresult(String *bin,
+                                     const char *opres, uint opres_length,
+                                     Geometry *collection_item);
+
 };
 
 
@@ -475,13 +485,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint priv_init_from_opresult(String *bin, const char *opres,
-                               uint32 n_shapes, uint32 *poly_shapes);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes)
-  {
-    uint32 foo;
-    return priv_init_from_opresult(bin, opres, n_shapes, &foo);
-  }
+  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int area(double *ar, const char **end) const;
@@ -511,7 +515,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
@@ -537,7 +541,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int num_geometries(uint32 *num) const;
@@ -579,7 +583,7 @@ public:
   }
   int store_shapes(Gcalc_shape_transporter *trn, Gcalc_shape_status *st) const;
   const Class_info *get_class_info() const;
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
 };
 
 
@@ -593,7 +597,7 @@ public:
   uint32 get_data_size() const;
   bool init_from_wkt(Gis_read_stream *trs, String *wkb);
   uint init_from_wkb(const char *wkb, uint len, wkbByteOrder bo, String *res);
-  uint init_from_opresult(String *bin, const char *opres, uint32 n_shapes);
+  uint init_from_opresult(String *bin, const char *opres, uint opres_length);
   bool get_data_as_wkt(String *txt, const char **end) const;
   bool get_mbr(MBR *mbr, const char **end) const;
   int area(double *ar, const char **end) const;
