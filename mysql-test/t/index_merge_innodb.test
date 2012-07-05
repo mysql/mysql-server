@@ -156,6 +156,21 @@ select * from t1 where t1.zone_id=830 AND modified=9;
 
 drop table t0, t1;
 
+--echo #
+--echo # MDEV-376: Wrong result (missing rows) with index_merge+index_merge_intersection, join
+--echo #
+CREATE TABLE t1 (
+  a INT, b CHAR(1), c CHAR(1), KEY(a), KEY(b)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (8,'v','v'),(8,'m','m'),(9,'d','d');
+
+
+SELECT ta.* FROM t1 AS ta, t1 AS tb
+WHERE ( tb.b != ta.b OR tb.a = ta.a )
+  AND ( tb.b = ta.c OR tb.b = ta.b );
+
+DROP TABLE t1;
 
 set optimizer_switch= @optimizer_switch_save;
 
