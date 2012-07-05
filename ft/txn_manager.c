@@ -809,6 +809,7 @@ exit:
 // a leafentry.
 void toku_txn_manager_pin_live_txn_unlocked(TXN_MANAGER UU(txn_manager), TOKUTXN txn) {
     assert(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING);
+    assert(!toku_txn_is_read_only(txn));
     txn->num_pin++;
 }
 
