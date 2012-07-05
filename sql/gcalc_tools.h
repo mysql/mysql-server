@@ -186,6 +186,20 @@ class Gcalc_result_receiver
   double first_x, first_y, prev_x, prev_y;
   double shape_area;
 public:
+
+  class chunk_info
+  {
+  public:
+    void *first_point;
+    uint32 order;
+    uint32 position;
+    uint32 length;
+    bool is_poly_hole;
+#ifndef DBUG_OFF
+    inline void dbug_print() const;
+#endif
+  };
+
   Gcalc_result_receiver() : collection_result(FALSE), n_shapes(0), n_holes(0)
     {}
   int start_shape(Gcalc_function::shape_type shape);
@@ -201,8 +215,7 @@ public:
   int get_nholes() { return n_holes; }
   int get_result_typeid();
   uint32 position() { return buffer.length(); }
-  int move_hole(uint32 dest_position, uint32 source_position,
-                uint32 *new_dest_position);
+  int reorder_chunks(chunk_info *chunks, int nchunks);
 };
 
 
@@ -244,14 +257,10 @@ public:
     res_point *glue;
     union
     {
-      const Gcalc_heap::Info *pi;
-      res_point *first_poly_node;
+      const Gcalc_heap::Info *pi; // is valid before get_result_thread()
+      res_point *first_poly_node; // is valid after get_result_thread()
     };
-    union
-    {
-      res_point *outer_poly;
-      uint32 poly_position;
-    };
+    res_point *outer_poly;
     Gcalc_dyn_list::Item **prev_hook;
     res_point *get_next() { return (res_point *)next; }
   };
