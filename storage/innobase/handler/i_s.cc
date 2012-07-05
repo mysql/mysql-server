@@ -4086,11 +4086,13 @@ i_s_innodb_stats_fill(
 
 	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(info->n_pages_written));
 
+	OK(fields[IDX_BUF_STATS_GET]->store(info->n_page_gets));
+
 	OK(fields[IDX_BUF_STATS_PAGE_READ_RATE]->store(info->pages_read_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_CREATED]->store(info->pages_created_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_CREATE_RATE]->store(info->pages_created_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(info->pages_written_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN_RATE]->store(info->pages_written_rate));
 
 	if (info->n_page_get_delta) {
 		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(
