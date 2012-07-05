@@ -18,12 +18,34 @@
  02110-1301  USA
  */
 
-#include "uv.h"
+#include <v8.h>
+#include "node.h"
 
-extern "C" {
+#include "AsyncMethodCall.h"
+#include "async_common.h"
 
-  void work_thd_run(uv_work_t *);
-  void main_thd_complete(uv_work_t *);
+void work_thd_run(uv_work_t *req) {
+  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
+  
+  m->work_thd_run();
+}
 
+
+void main_thd_complete(uv_work_t *req) {
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  
+  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
+
+  m->main_thd_complete(v8::Context::GetCurrent()->Global());
+  
+  /* cleanup */
+  m->callback->Dispose();
+  delete m;
+  delete req;
+  
+  /* exceptions */
+  //if(try_catch.HasCaught())
+  //  FatalException(try_catch);
 }
 
