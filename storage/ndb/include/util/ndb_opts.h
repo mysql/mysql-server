@@ -132,6 +132,13 @@ void ndb_short_usage_sub(const char* extra);
 
 my_bool ndb_is_load_default_arg_separator(const char* arg);
 
+/* Read the given [groups] from <conf_file> and return in argc/argv */
+int ndb_load_defaults(const char* conf_file,
+                      const char** groups,
+                      int *argc, char*** argv);
+/* Free memory returned in "argv" from ndb_load_defaults() */
+void ndb_free_defaults(char** argv);
+
 #ifdef __cplusplus
 }
 #endif
