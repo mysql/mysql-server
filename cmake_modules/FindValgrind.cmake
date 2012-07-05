@@ -8,8 +8,8 @@
 # If you have valgrind installed in a non-standard place, you can define
 # VALGRIND_PREFIX to tell cmake where it is.
 
-find_path(VALGRIND_INCLUDE_DIR valgrind/memcheck.h ${VALGRIND_PREFIX}/include /usr/local/include /usr/include)
-find_program(VALGRIND_PROGRAM NAMES valgrind PATH ${VALGRIND_PREFIX}/bin /usr/local/bin /usr/bin)
+find_path(VALGRIND_INCLUDE_DIR valgrind/memcheck.h)
+find_program(VALGRIND_PROGRAM NAMES valgrind)
 
 find_package_handle_standard_args(VALGRIND DEFAULT_MSG
     VALGRIND_INCLUDE_DIR

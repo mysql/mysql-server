@@ -5,17 +5,9 @@
 #  BDB_LIBRARIES - The libraries needed to use BDB
 #  BDB_DEFINITIONS - Compiler switches required for using BDB
 
-set(BDBDIR "/usr" CACHE FILEPATH "Where to find include/db.h for Berkeley DB.")
+find_path(BDB_INCLUDE_DIR db.h)
 
-find_path(BDB_INCLUDE_DIR db.h PATHS
-  ${BDBDIR}/include
-  NO_DEFAULT_PATH
-  )
-
-find_library(BDB_LIBRARY NAMES db libdb PATHS
-  ${BDBDIR}/lib
-  NO_DEFAULT_PATH
-  )
+find_library(BDB_LIBRARY NAMES db libdb)
 
 include(CheckSymbolExists)
 ## check if the found bdb has DB_TXN_SNAPSHOT
