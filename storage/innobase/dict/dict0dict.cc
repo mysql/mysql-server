@@ -2284,10 +2284,11 @@ undo_size_ok:
 		/* Give some sensible values to stat_n_... in case we do
 		not calculate statistics quickly enough */
 
-		for (i = 0; i <= dict_index_get_n_unique(new_index); i++) {
+		for (i = 1; i <= dict_index_get_n_unique(new_index); i++) {
 
-			new_index->stat_n_diff_key_vals[i] = 100;
-			new_index->stat_n_sample_sizes[i] = 0;
+			new_index->stat_n_diff_key_vals[i] = 0;
+			new_index->stat_n_sample_sizes[i] = 1;
+			new_index->stat_n_non_null_key_vals[i - 1] = 0;
 		}
 	}
 
