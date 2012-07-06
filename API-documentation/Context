@@ -84,7 +84,7 @@
     * @return undefined
      * 
      */
-    persist(Object instance, Function(Object error, Object instance, Context context) callback);
+    persist(Object instance, Function(Object error, Object instance, ...) callback, [...]);
     
     /** Delete an instance of a class from the database by its primary key.
      * Only the id field(s) is (are) used to determine which instance 

@@ -44,3 +44,8 @@ exports.connectSync = function(properties) {
   return dbconn;
 };
 
+
+exports.connect = function(properties, user_callback) {
+  var dbconn = new ndbconnection.DBConnection(properties);
+  dbconn.connect(user_callback);
+}

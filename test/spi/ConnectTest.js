@@ -45,6 +45,18 @@ var connectSyncTest = function() {
 };
 
 
+var connectAsyncTest = function() {
+  var testCase = this;
+  var provider = spi.getDBServiceProvider(this.impl);
+  var properties = provider.getDefaultConnectionProperties();
+  provider.connect(properties, function(err, connection) {
+    if(err) testCase.fail(err);
+    else testCase.pass();
+  });
+  return true;
+};
+
+
 /*** spi.ndb.getSPI ***/
 var t1 = new harness.Test("getSPI");
 t1.impl= "ndb";
@@ -75,9 +87,15 @@ var t6 = new harness.Test("connectSync");
 t6.impl = "mysql";
 t6.run = connectSyncTest;
 
+/** spi.ndb.connect ***/
+var t7 = new harness.Test("connect");
+t7.impl = "ndb";
+t7.run = connectAsyncTest;
+
+
 /******************* TEST GROUPS ********/
 
-var ndb_group = new harness.Test("ndb").makeTestGroup(t1, t2, t3);
+var ndb_group = new harness.Test("ndb").makeTestGroup(t1, t2, t3, t7);
 
 var mysql_group = new harness.Test("mysql").makeTestGroup(t4, t5, t6);
 

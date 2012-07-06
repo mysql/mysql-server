@@ -1,0 +1,44 @@
+srcdir = '.'
+blddir = 'build'
+VERSION = '0.0.1'
+
+def set_options(opt):
+  opt.tool_options('compiler_cxx')
+  opt.add_option('--mysql', action='store')
+
+
+def configure(conf):
+  import Options
+  ndbinclude1 = Options.options.mysql + "include/mysql/storage/ndb"
+  ndbinclude2 = Options.options.mysql + "include/storage/ndb"
+
+  if os.path.isdir(ndbinclude1):
+  	ndbinclude = ndbinclude1
+  else:
+    ndbinclude = ndbinclude2
+    
+  ndblib = Options.options.mysql + 'lib'
+  if os.path.isdir(ndblib + '/mysql'):
+    ndblib = ndblib + "/mysql"
+  
+  conf.check_tool('compiler_cxx')
+  conf.check_tool('node_addon')
+
+  conf.env.append_unique('CXXFLAGS', ["-I" + "../tie/include"])
+  conf.env.append_unique('CXXFLAGS', ["-I" + ndbinclude])
+  conf.env.append_unique('CXXFLAGS', ["-I" + ndbinclude + "/ndbapi"])
+  conf.env.append_unique('LINKFLAGS', ['-L' + ndblib])
+  conf.env.append_unique('LINKFLAGS', ['-lndbclient'])
+  conf.env.append_unique('LINKFLAGS', ['-rpath ' + ndblib])
+
+
+def build(bld):
+  obj = bld.new_task_gen("cxx", "shlib", "node_addon")
+  obj.target = "ndbapi"
+  
+  common_src = "tie/src/async_common.cpp"
+
+  ndb_src = "ndb/tie/node_module.cpp ndb/tie/Ndb_init_wrapper.cpp " + \
+  "ndb/tie/Ndb_cluster_connection_wrapper.cpp " 
+
+  obj.source = common_src + " " + ndb_src

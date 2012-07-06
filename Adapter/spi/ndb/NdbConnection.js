@@ -51,13 +51,32 @@ exports.DBConnection = function(props) {
    Returns true on success and false on error.
 */
 exports.DBConnection.prototype.connectSync = function() {
-  var r = ndbconn.connect(properties.ndb_connect_retries,
-                          properties.ndb_connect_delay,
-                          properties.ndb_connect_verbose);
+  var r = ndbconn.connectSync(properties.ndb_connect_retries,
+                              properties.ndb_connect_delay,
+                              properties.ndb_connect_verbose);
   if(r == 0) is_connected = true;
 
   return is_connected;
 };
+
+
+/* Async connect 
+*/
+exports.DBConnection.prototype.connect = function(user_callback) {
+  var theDbConn = this;
+  
+  var NdbConnection_callback = function(rval) { 
+    var err = null;
+    if(rval != 0) 
+      err = new Error('NDB Connect failed' + rval);
+    user_callback(err, theDbConn);
+  }
+  
+  ndbconn.connectAsync(properties.ndb_connect_retries,
+                       properties.ndb_connect_delay,
+                       properties.ndb_connect_verbose,
+                       NdbConnection_callback);
+}
 
 
 /* DBConnection.isConnected() method.
