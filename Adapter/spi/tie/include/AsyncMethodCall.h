@@ -27,7 +27,7 @@ public:
   virtual void work_thd_run(void) = 0;
   virtual void main_thd_complete(v8::Local<v8::Object> context) = 0;
 
-  v8::Function *callback;
+  v8::Persistent<v8::Function> callback;
 };
 
 

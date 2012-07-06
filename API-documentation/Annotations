@@ -5,6 +5,11 @@
  * by setting the flag "MapAllTables".
  * Users can request that all columns in the table be mapped,
  * by setting the flag "mapAllColumns" for the table.
+ * 
+ * The Annotations methods are all immediate methods that simply describe 
+ * mappings.  The actualy work of validating annotations against a
+ * data dictionary fetched from the server is deferred until connect time.
+ * 
 */
 
 

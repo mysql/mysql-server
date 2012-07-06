@@ -1,5 +1,6 @@
 This project contains the mynode definition and implementation.
-To build the native implementation for this project, cd to the Adapter/spi/ndb/tie/build
+
+To build the native implementation for this project, cd to the Adapter/spi/
 directory. The wscript file defines the build process. 
 In this directory, call the node-waf program, passing the location of an installed mysql.
 
@@ -8,6 +9,6 @@ node-waf clean configure build --mysql=/usr/local/mysql-5.1.24-rc-osx10.5-x86_64
 
 Be sure to include the trailing "/".
 
-This will create the file Adapter/spi/ndb/tie/build/Release/ndbapi.node which
+This will create the file Adapter/spi/build/Release/ndbapi.node which
 will be used to bind to the dynamic ndbclient library identified in the node-waf command.
 

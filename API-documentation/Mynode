@@ -83,7 +83,7 @@ SessionFactory connectSync(Properties, Annotations);
  *  @param callback    function called after connection is complete.
  *  @return void
  */
-getSession(Properties, Annotations, Function(err, Session));
+openSession(Properties, Annotations, Function(err, Session));
 
 /** Get all SessionFactories that have been created by this module.
  * All session factories are returned in an array. 

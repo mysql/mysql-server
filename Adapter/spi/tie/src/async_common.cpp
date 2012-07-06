@@ -40,7 +40,7 @@ void main_thd_complete(uv_work_t *req) {
   m->main_thd_complete(v8::Context::GetCurrent()->Global());
   
   /* cleanup */
-  m->callback->Dispose();
+  m->callback.Dispose();
   delete m;
   delete req;
   

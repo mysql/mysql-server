@@ -55,9 +55,9 @@ void Async_Ndb_cluster_connection_connect::work_thd_run() {
 
 void Async_Ndb_cluster_connection_connect::main_thd_complete(Local<Object> context) {
 
-  Handle<Value> cb_args[1];   //todo: actually 2 arguments
+  Handle<Value> cb_args[1];
   
-  cb_args[0] = toJS<int>(rval);  // return value
+  cb_args[0] = toJS<int>(rval);
   
   callback->Call(context, 1, cb_args);
 }
@@ -134,7 +134,6 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
 
   uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
 
-  
   return scope.Close(toJS<int>(0));
 }
 
