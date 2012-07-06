@@ -7332,10 +7332,10 @@ ON alias2.col_varchar_10_latin1_key
 ON alias1.col_varchar_1024_utf8_key
 WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-1	SIMPLE	alias1	ALL	NULL	NULL	NULL	NULL	4	Using where; Start materialize
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	alias1	ref	PRIMARY,col_varchar_10_latin1_key	col_varchar_10_latin1_key	13	test.t3.col_varchar_10_latin1_key	2	Using where
 1	SIMPLE	alias3	index	NULL	PRIMARY	4	NULL	1	Using where; Using index
-1	SIMPLE	alias2	index	NULL	col_varchar_10_latin1_key	13	NULL	4	Using where; Using index; End materialize
+1	SIMPLE	alias2	index	NULL	col_varchar_10_latin1_key	13	NULL	4	Using where; Using index; FirstMatch(t3)
 SELECT * 
 FROM t3 
 WHERE col_varchar_10_latin1_key IN (
@@ -8799,10 +8799,10 @@ ON alias5.col_int_key < alias4.col_int_key
 ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	alias1	index	NULL	col_datetime_key	5	NULL	2	Using where; Using index; Start materialize; Scan
+1	SIMPLE	alias1	index	col_datetime_key	col_datetime_key	5	NULL	2	Using index; LooseScan
 1	SIMPLE	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	NULL
 1	SIMPLE	alias5	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	Using where; Using index
-1	SIMPLE	alias3	index	NULL	col_int_key	4	NULL	2	Using index; End materialize
+1	SIMPLE	alias3	index	NULL	col_int_key	4	NULL	2	Using index; FirstMatch(alias1)
 1	SIMPLE	outr	ref	col_datetime_key	col_datetime_key	5	test.alias1.col_datetime_key	2	Using index
 SELECT col_datetime_key
 FROM t1 as outr
@@ -8985,10 +8985,10 @@ ON alias5.col_int_key < alias4.col_int_key
 ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	alias1	index	NULL	col_datetime_key	5	NULL	2	Using where; Using index; Start materialize; Scan
+1	SIMPLE	alias1	index	col_datetime_key	col_datetime_key	5	NULL	2	Using index; LooseScan
 1	SIMPLE	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	NULL
 1	SIMPLE	alias5	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	Using where; Using index
-1	SIMPLE	alias3	index	NULL	col_int_key	4	NULL	2	Using index; End materialize
+1	SIMPLE	alias3	index	NULL	col_int_key	4	NULL	2	Using index; FirstMatch(alias1)
 1	SIMPLE	outr	ref	col_datetime_key	col_datetime_key	5	test.alias1.col_datetime_key	2	Using index
 SELECT col_datetime_key
 FROM t1 as outr
