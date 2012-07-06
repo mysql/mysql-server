@@ -2608,6 +2608,8 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_ENTER("one_thread_per_connection_end");
   DBUG_PRINT("info", ("thd %p block_pthread %d", thd, (int) block_pthread));
 
+  // Reset DA so that we don't get asserts if errors occur during disconnect
+  thd->get_stmt_da()->reset_diagnostics_area();
   thd->release_resources();
   dec_connection_count();
 
