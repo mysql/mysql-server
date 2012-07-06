@@ -397,8 +397,7 @@ op_status_t WorkerStep1::do_write() {
   /* Set flags */
   if(wqitem->prefix_info.has_flags_col) {
     uint32_t flags = hash_item_get_flags(wqitem->cache_item);
-    if(flags)
-      op.setColumnInt(COL_STORE_FLAGS, ntohl(flags));
+    op.setColumnInt(COL_STORE_FLAGS, ntohl(flags));
   }
   
   /* Start the transaction */
