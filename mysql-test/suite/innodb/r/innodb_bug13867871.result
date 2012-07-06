@@ -29,3 +29,4 @@ A	D	B	C
 2	5	khD	khD
 DROP TABLE ibtest11c;
 DROP TABLE ibtest11a;
+SET DEBUG_SYNC = 'RESET';
