@@ -1175,7 +1175,7 @@ bool Explain_join::shallow_explain()
       tab->type= calc_join_type(quick_type);
     }
 
-    if (tab->flush_weedout_table)
+    if (tab->starts_weedout())
       fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
 
     uint sj_strategy= join->best_positions[t].sj_strategy;
@@ -1486,22 +1486,22 @@ bool Explain_join::explain_extra()
         push_extra(ET_DISTINCT))
       return true;
 
-    if (tab->loosescan_match_tab && push_extra(ET_LOOSESCAN))
+    if (tab->do_loosescan() && push_extra(ET_LOOSESCAN))
       return true;
 
-    if (tab->flush_weedout_table)
+    if (tab->starts_weedout())
     {
       if (!fmt->is_hierarchical() && push_extra(ET_START_TEMPORARY))
         return true;
     }
-    if (tab->check_weed_out_table)
+    if (tab->finishes_weedout())
     {
       if (!fmt->is_hierarchical() && push_extra(ET_END_TEMPORARY))
         return true;
     }
-    else if (tab->do_firstmatch)
+    else if (tab->do_firstmatch())
     {
-      if (tab->do_firstmatch == join->join_tab - 1)
+      if (tab->firstmatch_return == join->join_tab - 1)
       {
         if (push_extra(ET_FIRST_MATCH))
           return true;
@@ -1509,7 +1509,7 @@ bool Explain_join::explain_extra()
       else
       {
         StringBuffer<64> buff(cs);
-        TABLE *prev_table= tab->do_firstmatch->table;
+        TABLE *prev_table= tab->firstmatch_return->table;
         if (prev_table->derived_select_number && !fmt->is_hierarchical())
         {
           char namebuf[NAME_LEN];
