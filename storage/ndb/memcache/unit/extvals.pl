@@ -193,3 +193,10 @@ if($do_test=='11' || $do_all) {
   $mc->set("b:testtoobig", $val_too_big);
   $mc->{error} =~ "VALUE_TOO_LARGE" || Carp::confess "Expected TOO_LARGE";
 }
+
+if($do_test=='12' || $do_all) {
+  # Test SET with flags
+  $mc->set_flags(0);
+  $mc->set("b:test12", "Mikrokosmos");
+}
+
