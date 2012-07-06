@@ -176,7 +176,7 @@ static void mgmd_exit(int result)
   g_eventLogger->close();
 
   /* Free memory allocated by 'load_defaults' */
-  free_defaults(defaults_argv);
+  ndb_free_defaults(defaults_argv);
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
 
@@ -193,7 +193,7 @@ static int mgmd_main(int argc, char** argv)
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
   defaults_argv= argv; /* Must be freed by 'free_defaults' */
 
   int ho_error;
