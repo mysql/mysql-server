@@ -1297,7 +1297,7 @@ int Gcalc_result_receiver::reorder_chunks(chunk_info *chunks, int nchunks)
     sorted+= chunk->length;
   }
   // Make sure all chunks were put
-  DBUG_ASSERT(sorted - tmp.ptr() == buffer.length());
+  DBUG_ASSERT(sorted - tmp.ptr() == (size_t) buffer.length());
   // Get all data from tmp and unlink tmp from its buffer.
   buffer.takeover(tmp);
   DBUG_RETURN(0);
