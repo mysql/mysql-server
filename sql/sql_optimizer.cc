@@ -3052,7 +3052,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
         NESTED_JOIN *nested_join= embedding->nested_join;
         s->embedding_map|=nested_join->nj_map;
         s->dependent|= embedding->dep_tables;
-        outer_join|= nested_join->used_tables;
+        if (embedding->join_cond())
+          outer_join|= nested_join->used_tables;
       }
     }
     else if (*s->on_expr_ref)
@@ -3121,7 +3122,14 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       }
 
       if (outer_join & s->table->map)
+      {
+        /*
+          Semijoin inner tables in ON condition of outer join have been moved
+          into outer join nest, but after setup_table_map(), so maybe_null is
+          not yet set for them:
+        */
         s->table->maybe_null= 1;
+      }
       s->key_dependent= s->dependent;
     }
   }
