@@ -445,25 +445,6 @@ public:
     return realloc(str_length + space_needed);
   }
   int reserve(uint32 space_needed, uint32 grow_by);
-  /**
-    Reserve additional space_needed bytes and increment length by space_needed.
-    The space added to the buffer remains uninitialized, so the caller
-    is further responsible to pupulate the allocated space with data.
-
-    @param space_needes - size of the additional space needed.
-    @param grow_by      - minimum block size to allocate.
-    @return             - operation result
-    @retval             - 0 on success
-    @retval             - 1 on error
-  */
-  bool reserve_and_set_length(uint32 space_needed, uint32 grow_by)
-  {
-    if (reserve(space_needed, grow_by))
-      return true;
-    str_length+= space_needed;
-    return false;
-  }
-
   /*
     The following append operations do NOT check alloced memory
     q_*** methods writes values of parameters itself
