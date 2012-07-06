@@ -19,7 +19,9 @@
 #include <ndb_opts.h>
 
 #include <ndb_version.h>
-
+#ifdef HAVE_MY_DEFAULT_H
+#include <my_default.h>
+#endif
 
 static void default_ndb_opt_short(void)
 {
@@ -40,6 +42,7 @@ static void default_ndb_opt_usage(void)
 static void (*g_ndb_opt_short_usage)(void)= default_ndb_opt_short;
 static void (*g_ndb_opt_usage)(void)= default_ndb_opt_usage;
 
+extern "C"
 void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void))
 {
@@ -60,6 +63,7 @@ const char* ndb_progname(void)
   return "<unknown program>";
 }
 
+extern "C"
 void ndb_short_usage_sub(const char* extra)
 {
   printf("Usage: %s [OPTIONS]%s%s\n", ndb_progname(),
@@ -67,6 +71,7 @@ void ndb_short_usage_sub(const char* extra)
          (extra)?extra:"");
 }
 
+extern "C"
 void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
                struct my_option *my_long_options)
 {
@@ -79,7 +84,7 @@ void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
   my_print_variables(my_long_options);
 }
 
-
+extern "C"
 my_bool
 ndb_std_get_one_option(int optid,
                        const struct my_option *opt __attribute__((unused)),
@@ -104,6 +109,7 @@ ndb_std_get_one_option(int optid,
   return 0;
 }
 
+extern "C"
 void ndb_std_print_version()
 {
 #ifndef DBUG_OFF
@@ -115,6 +121,7 @@ void ndb_std_print_version()
          NDB_VERSION_STRING,suffix,SYSTEM_TYPE,MACHINE_TYPE);
 }
 
+extern "C"
 my_bool ndb_is_load_default_arg_separator(const char* arg)
 {
 #ifndef MYSQL_VERSION_ID
@@ -132,5 +139,21 @@ my_bool ndb_is_load_default_arg_separator(const char* arg)
   (void)arg;
 #endif
   return FALSE;
+}
+
+extern "C"
+int
+ndb_load_defaults(const char* conf_file, const char** groups,
+                  int *argc, char*** argv)
+{
+  return my_load_defaults(conf_file ? conf_file : MYSQL_CONFIG_NAME,
+                          groups, argc, argv, NULL);
+}
+
+extern "C"
+void
+ndb_free_defaults(char** argv)
+{
+  free_defaults(argv);
 }
 

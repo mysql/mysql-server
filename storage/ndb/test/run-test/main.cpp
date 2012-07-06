@@ -22,9 +22,6 @@
 #endif
 
 #include "atrt.hpp"
-#include <my_sys.h>
-#include <my_getopt.h>
-
 #include <NdbOut.hpp>
 #include <NdbAutoPtr.hpp>
 
