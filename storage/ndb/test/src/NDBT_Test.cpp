@@ -1398,7 +1398,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
 
-  load_defaults("my",load_default_groups,&argc,&_argv);
+  ndb_load_defaults(NULL, load_default_groups,&argc,&_argv);
 
   int ho_error;
 #ifndef DBUG_OFF
