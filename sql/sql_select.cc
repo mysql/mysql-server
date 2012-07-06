@@ -415,7 +415,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       {
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         /* We jump from the last table to the first one */
-        tab->loosescan_match_tab= last_sj_tab;
+        tab->match_tab= last_sj_tab;
 
         /* For LooseScan, duplicate elimination is based on rows being sorted 
            on key. We need to make sure that range select keeps the sorted index
@@ -441,8 +441,11 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           keylen += tab->table->key_info[keyno].key_part[kp].store_length;
 
         tab->loosescan_key_len= keylen;
-        if (pos->n_sj_tables > 1) 
-          last_sj_tab->do_firstmatch= tab;
+        if (pos->n_sj_tables > 1)
+        {
+          last_sj_tab->firstmatch_return= tab;
+          last_sj_tab->match_tab= last_sj_tab;
+        }
         tableno+= pos->n_sj_tables;
         break;
       }
@@ -637,6 +640,15 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       }
       case SJ_OPT_FIRST_MATCH:
       {
+        /*
+          Setup a "jump" from the last table in the range of inner tables
+          to the last outer table before the inner tables.
+          If there are outer tables inbetween the inner tables, we have to
+          setup a "split jump": Jump from the last inner table to the last
+          outer table within the range, then from the last inner table
+          before the outer table(s), jump to the last outer table before
+          this range of inner tables, etc.
+        */
         JOIN_TAB *jump_to= tab - 1;
         DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         for (JOIN_TAB *tab_in_range= tab; 
@@ -658,7 +670,10 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
               inner tables.
             */
             if (tab_in_range == last_sj_tab || !(tab_in_range+1)->emb_sj_nest)
-              tab_in_range->do_firstmatch= jump_to;
+            {
+              tab_in_range->firstmatch_return= jump_to;
+              tab_in_range->match_tab= last_sj_tab;
+            }
           }
         }
         tableno+= pos->n_sj_tables;
@@ -1372,7 +1387,8 @@ bool JOIN::set_access_methods()
     if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
       continue;                      // Handled in make_join_statistics()
 
-    tab->loosescan_match_tab= NULL;  //non-nulls will be set later
+    DBUG_ASSERT(tab->match_tab == NULL);
+    tab->match_tab= NULL;  //non-nulls will be set later
     tab->ref.key = -1;
     tab->ref.key_parts=0;
 
@@ -2793,7 +2809,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     Opt_trace_object trace_refine_table(trace);
     trace_refine_table.add_utf8_table(table);
 
-    if (tab->loosescan_match_tab)
+    if (tab->do_loosescan())
     {
       if (!(tab->loosescan_buf= (uchar*)join->thd->alloc(tab->
                                                          loosescan_key_len)))
@@ -2903,7 +2919,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
             else
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    */
-            if (!tab->loosescan_match_tab)
+            if (!tab->do_loosescan())
               tab->index=find_shortest_key(table, & table->covering_keys);
 	    tab->read_first_record= join_read_first;
             tab->type=JT_INDEX_SCAN;      // Read with index_first / index_next

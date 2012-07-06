@@ -1349,7 +1349,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
   READ_RECORD *info= &join_tab->read_record;
 
-  if (join_tab->flush_weedout_table)
+  if (join_tab->starts_weedout())
   {
     do_sj_reset(join_tab->flush_weedout_table);
   }
@@ -1368,13 +1368,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     /* Set first_unmatched for the last inner table of this group */
     join_tab->last_inner->first_unmatched= join_tab;
   }
-  if (join_tab->loosescan_match_tab)
+  if (join_tab->do_firstmatch() || join_tab->do_loosescan())
   {
     /*
-      join_tab is the first table of a LooseScan range. Reset the LooseScan
-      matching for this round of execution.
+      join_tab is the first table of a LooseScan range, or has a "jump"
+      address in a FirstMatch range.
+      Reset the matching for this round of execution.
     */
-    join_tab->loosescan_match_tab->found_match= false;
+    join_tab->match_tab->found_match= false;
   }
 
   join->thd->get_stmt_da()->reset_current_row_for_warning();
@@ -1686,7 +1687,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
 
     JOIN_TAB *return_tab= join->return_tab;
 
-    if (join_tab->check_weed_out_table && found)
+    if (join_tab->finishes_weedout() && found)
     {
       int res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table);
       if (res == -1)
@@ -1694,8 +1695,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
       else if (res == 1)
         found= FALSE;
     }
-    else if (join_tab->loosescan_match_tab && 
-             join_tab->loosescan_match_tab->found_match)
+    else if (join_tab->do_loosescan() && join_tab->match_tab->found_match)
     { 
       /* Loosescan algorithm requires 'sorted' retrieval of keys. */
       DBUG_ASSERT(join_tab->sorted);
@@ -1711,20 +1711,12 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
            Reset found_match for last table of duplicate-generating range, 
            to avoid comparing keys until a new match has been found.
         */
-        join_tab->loosescan_match_tab->found_match= FALSE;
+        join_tab->match_tab->found_match= false;
       else
-        found= FALSE;
-    }
-    else if (join_tab->do_firstmatch)
-    {
-      /* 
-        We should return to the join_tab->do_firstmatch after we have 
-        enumerated all the suffixes for current prefix row combination
-      */
-      return_tab= join_tab->do_firstmatch;
+        found= false;
     }
 
-    join_tab->found_match= TRUE;
+    join_tab->found_match= true;
 
     /*
       It was not just a return to lower loop level when one
@@ -1744,8 +1736,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
-      if (join_tab->loosescan_match_tab && 
-          join_tab->loosescan_match_tab->found_match)
+      if (join_tab->do_loosescan() && join_tab->match_tab->found_match)
       {
         /* 
            A match was found for a duplicate-generating range of a semijoin. 
@@ -1755,6 +1746,14 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
         KEY *key= join_tab->table->key_info + join_tab->index;
         key_copy(join_tab->loosescan_buf, join_tab->read_record.record, key, 
                  join_tab->loosescan_key_len);
+      }
+      else if (join_tab->do_firstmatch() && join_tab->match_tab->found_match)
+      {
+        /* 
+          We should return to join_tab->firstmatch_return after we have 
+          enumerated all the suffixes for current prefix row combination
+        */
+        set_if_smaller(return_tab, join_tab->firstmatch_return);
       }
 
       /*
@@ -1825,7 +1824,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
     /* The outer row is complemented by nulls for each inner tables */
     restore_record(join_tab->table,s->default_values);  // Make empty record
     mark_as_null_row(join_tab->table);       // For group by without error
-    if (join_tab->flush_weedout_table && join_tab > first_inner_tab)
+    if (join_tab->starts_weedout() && join_tab > first_inner_tab)
     {
       // sub_select() has not performed a reset for this table.
       do_sj_reset(join_tab->flush_weedout_table);

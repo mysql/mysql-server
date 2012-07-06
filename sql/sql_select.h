@@ -363,21 +363,33 @@ typedef struct st_join_table : public Sql_alloc
   void add_prefix_tables(table_map tables)
   { prefix_tables_map|= tables; added_tables_map|= tables; }
 
+  /// Return true if join_tab should perform a FirstMatch action
+  bool do_firstmatch() const { return firstmatch_return; }
+
+  /// Return true if join_tab should perform a LooseScan action
+  bool do_loosescan() const { return loosescan_key_len; }
+
+  /// Return true if join_tab starts a Duplicate Weedout action
+  bool starts_weedout() const { return flush_weedout_table; }
+
+  /// Return true if join_tab finishes a Duplicate Weedout action
+  bool finishes_weedout() const { return check_weed_out_table; }
+
   TABLE		*table;
-  Key_use	*keyuse;			/**< pointer to first used key */
+  Key_use	*keyuse;        /**< pointer to first used key               */
   SQL_SELECT	*select;
 private:
-  Item          *m_condition;   /**< condition for this join_tab               */
+  Item          *m_condition;   /**< condition for this join_tab             */
 public:
   QUICK_SELECT_I *quick;
-  Item	       **on_expr_ref;   /**< pointer to the associated on expression   */
-  COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression */
-  st_join_table *first_inner;   /**< first inner table for including outerjoin */
-  bool           found;         /**< true after all matches or null complement */
-  bool           not_null_compl;/**< true before null complement is added      */
-  st_join_table *last_inner;    /**< last table table for embedding outer join */
-  st_join_table *first_upper;  /**< first inner table for embedding outer join */
-  st_join_table *first_unmatched; /**< used for optimization purposes only     */
+  Item	       **on_expr_ref;   /**< pointer to the associated on expression */
+  COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
+  st_join_table *first_inner;   /**< first inner table for including outerjoin*/
+  bool           found;         /**< true after all matches or null complement*/
+  bool           not_null_compl;/**< true before null complement is added    */
+  st_join_table *last_inner;    /**< last table table for embedding outer join*/
+  st_join_table *first_upper;  /**< first inner table for embedding outer join*/
+  st_join_table *first_unmatched; /**< used for optimization purposes only   */
   /* 
     The value of m_condition before we've attempted to do Index Condition
     Pushdown. We may need to restore everything back if we first choose one
@@ -516,24 +528,31 @@ public:
     join->join_tab[-1] which means stop join execution after the first
     match.
   */
-  struct st_join_table  *do_firstmatch;
+  struct st_join_table  *firstmatch_return;
  
-  /* 
-     ptr  - We're doing a LooseScan, this join tab is the first (i.e. 
-            "driving") join tab), and ptr points to the last join tab
-            handled by the strategy. loosescan_match_tab->found_match
-            should be checked to see if the current value group had a match.
-     NULL - Not doing a loose scan on this join tab.
+  /*
+    Length of key tuple (depends on #keyparts used) to store in loosescan_buf.
+    If zero, means that loosescan is not used.
   */
-  struct st_join_table *loosescan_match_tab;
+  uint loosescan_key_len;
 
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *loosescan_buf;
-  
-  /* Length of key tuple (depends on #keyparts used) to store in the above */
-  uint loosescan_key_len;
 
-  /* Used by LooseScan. TRUE<=> there has been a matching record combination */
+  /* 
+    If doing a LooseScan, this join tab is the first (i.e.  "driving") join
+    tab, and match_tab points to the last join tab handled by the strategy.
+    match_tab->found_match should be checked to see if the current value group
+    had a match.
+    If doing a FirstMatch, check this join tab to see if there is a match.
+    Unless the FirstMatch performs a "split jump", this is equal to the
+    current join_tab.
+  */
+  struct st_join_table *match_tab;
+  /*
+    Used by FirstMatch and LooseScan. TRUE <=> there is a matching
+    record combination
+  */
   bool found_match;
   
   /*
@@ -727,10 +746,10 @@ st_join_table::st_join_table()
 
     flush_weedout_table(NULL),
     check_weed_out_table(NULL),
-    do_firstmatch(NULL),
-    loosescan_match_tab(NULL),
-    loosescan_buf(NULL),
+    firstmatch_return(NULL),
     loosescan_key_len(0),
+    loosescan_buf(NULL),
+    match_tab(NULL),
     found_match(FALSE),
 
     keep_current_rowid(0),
