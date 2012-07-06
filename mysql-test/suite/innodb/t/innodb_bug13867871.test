@@ -39,8 +39,6 @@ CREATE INDEX idx ON ibtest11c(B, C);
 DROP INDEX B ON ibtest11c;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 
--- sleep 2
-
 SELECT * FROM ibtest11c;
 SELECT * FROM ibtest11a;
 
@@ -70,9 +68,10 @@ reap;
 disconnect con1;
 
 CONNECTION default;
--- sleep 1
 SELECT * FROM ibtest11c;
 SELECT * FROM ibtest11a;
 
 DROP TABLE ibtest11c;
 DROP TABLE ibtest11a;
+
+SET DEBUG_SYNC = 'RESET';
