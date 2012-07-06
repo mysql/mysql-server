@@ -9973,7 +9973,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `derived1`.`col_varchar_nokey` AS `col_varchar_nokey`,`derived1`.`col_varchar_key` AS `col_varchar_key` from (/* select#2 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `derived1` semi join (`test`.`t2` `derived2`) left join `test`.`t1` on((`test`.`t1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`)) where ((`test`.`derived2`.`col_varchar_key` = `test`.`derived2`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`))
+Note	1003	/* select#1 */ select `derived1`.`col_varchar_nokey` AS `col_varchar_nokey`,`derived1`.`col_varchar_key` AS `col_varchar_key` from (/* select#2 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `derived1` semi join (`test`.`t2` `derived2`) left join `test`.`t1` on(((`derived1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`) and (`test`.`t1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`))) where ((`test`.`derived2`.`col_varchar_key` = `test`.`derived2`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `test`.`derived2`.`col_varchar_nokey`))
 SELECT *
 FROM (SELECT * FROM t2) AS derived1
 LEFT JOIN t1

@@ -1967,12 +1967,26 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
           generate the equality predicate regardless.
         */
         if (item != item_field &&
-            sj_is_materialize_strategy(
-              item_field->field->table->reginfo.join_tab->get_sj_strategy()) &&
-            item_equal->get_subst_item(item_field) == item_field &&
             item->field->table->reginfo.join_tab->emb_sj_nest !=
             item_field->field->table->reginfo.join_tab->emb_sj_nest)
-          item= item_field;
+        {
+          /*
+            Original field is in a materialized semi-join nest and
+            substitution field is in an outer table:
+          */
+          if (sj_is_materialize_strategy(
+                item_field->field->table->reginfo.join_tab->get_sj_strategy())&&
+              item_equal->get_subst_item(item_field) == item_field)
+            item= item_field;
+          /*
+            Original field is in an outer table, and the substitution field
+            is in a materialized semi-join nest:
+          */
+          if (sj_is_materialize_strategy(
+                item->field->table->reginfo.join_tab->get_sj_strategy()) &&
+              item_equal->get_subst_item(item_field) == item)
+            item= item_field;
+        }
       }
     }
     if (item == item_field)
