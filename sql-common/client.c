@@ -3415,6 +3415,12 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     mysql->server_status=uint2korr(end+3);
     mysql->server_capabilities|= uint2korr(end+5) << 16;
     pkt_scramble_len= end[7];
+    if (pkt_scramble_len < 0)
+    {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET,
+                      unknown_sqlstate);        /* purecov: inspected */
+      goto error;
+    }
   }
   end+= 18;
 
