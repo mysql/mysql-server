@@ -1281,11 +1281,8 @@ int Gcalc_result_receiver::reorder_chunks(chunk_info *chunks, int nchunks)
 
   String tmp;
   uint32 reserve_length= buffer.length();
-  if (tmp.reserve_and_set_length(reserve_length, MY_ALIGN(reserve_length, 512)))
+  if (tmp.reserve(reserve_length, MY_ALIGN(reserve_length, 512)))
     DBUG_RETURN(1);
-
-  char *sorted= (char *) tmp.ptr();
-  const char *unsorted= buffer.ptr();
 
   // Put shape data in the required order
   for (chunk_info *chunk= chunks, *end= chunks + nchunks; chunk < end; chunk++)
@@ -1293,11 +1290,10 @@ int Gcalc_result_receiver::reorder_chunks(chunk_info *chunks, int nchunks)
 #ifndef DBUG_OFF
     chunk->dbug_print();
 #endif
-    memmove(sorted, unsorted + chunk->position, (size_t) chunk->length);
-    sorted+= chunk->length;
+    tmp.append(buffer.ptr() + chunk->position, (size_t) chunk->length);
   }
   // Make sure all chunks were put
-  DBUG_ASSERT(sorted - tmp.ptr() == (size_t) buffer.length());
+  DBUG_ASSERT(tmp.length() == buffer.length());
   // Get all data from tmp and unlink tmp from its buffer.
   buffer.takeover(tmp);
   DBUG_RETURN(0);
