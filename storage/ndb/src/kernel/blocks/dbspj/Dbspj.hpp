@@ -69,6 +69,8 @@ private:
   void execDIH_SCAN_GET_NODES_REF(Signal*);
   void execDIH_SCAN_GET_NODES_CONF(Signal*);
 
+  void execSIGNAL_DROPPED_REP(Signal*);
+
   /**
    * Signals from LQH
    */
@@ -296,7 +298,6 @@ public:
     Uint32 m_senderRef;  // TC (used for routing)
     Uint32 m_scan_cnt;
     Signal* m_start_signal; // Argument to first node in tree
-    SegmentedSectionPtr m_keyPtr;
 
     TreeNodeBitMask m_scans; // TreeNodes doing scans
 
@@ -1261,6 +1262,13 @@ private:
   void releaseGlobal(Signal*);
   SLList<RowPage>::Head m_free_page_list;
   ArrayPool<RowPage> m_page_pool;
+
+  /* Random fault injection */
+
+#ifdef ERROR_INSERT
+  bool appendToSection(Uint32& firstSegmentIVal,
+                       const Uint32* src, Uint32 len);
+#endif
 
   /**
    * Scratch buffers...

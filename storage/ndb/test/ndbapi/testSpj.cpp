@@ -31,7 +31,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17121
+  FI_END = 17510
 };
 
 int
@@ -75,6 +75,7 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int records = ctx->getNumRecords();
+  int queries = records/joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
 
@@ -86,7 +87,7 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
     g_info << i << ": ";
-    if (hugoTrans.runLookupQuery(GETNDB(step), records))
+    if (hugoTrans.runLookupQuery(GETNDB(step), queries))
     {
       g_info << endl;
       return NDBT_FAILED;
@@ -103,6 +104,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 8);
   int records = ctx->getNumRecords();
+  int queries = records/joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
 
@@ -116,6 +118,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int lookupFaults[] = {
       17001, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17013, // Simulate DbspjErr::InvalidRequest
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
@@ -123,7 +126,8 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
       17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
       17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
-      17120, 17121 // execTRANSID_AI -> OutOfRowMemory
+      17120, 17121, // execTRANSID_AI -> OutOfRowMemory
+      17510 // random failure when allocating seection memory
   }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
 
@@ -148,7 +152,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
     // It'd be better if test could differentiates failures from
     // fault injection and others.
     // We expect to fail, and it's a failure if we don't
-    if (!hugoTrans.runLookupQuery(GETNDB(step), records))
+    if (!hugoTrans.runLookupQuery(GETNDB(step), queries))
     {
       g_info << "LookUpJoinError didn't fail as expected."<< endl;
       // return NDBT_FAILED;
@@ -205,6 +209,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int scanFaults[] = {
       17002, 17004, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17013, // Simulate DbspjErr::InvalidRequest
       17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
       17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
       17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
@@ -215,7 +220,8 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17090, 17091, 17092, 17093, // scanIndex_send -> OutOfQueryMemory
       17100, // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
       17110, 17111, 17112, // scanIndex_sends invalid schema version, to get a SCAN_FRAGREF
-      17120, 17121 // execTRANSID_AI -> OutOfRowMemory
+      17120, 17121, // execTRANSID_AI -> OutOfRowMemory
+      17510 // random failure when allocating seection memory
   }; 
   loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
 
@@ -258,6 +264,7 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int joinlevel = ctx->getProperty("JoinLevel", 3);
   int records = ctx->getNumRecords();
+  int queries = records/joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
   Uint32 stepNo = step->getStepNo();
 
@@ -278,7 +285,7 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
       g_info << endl;
       return NDBT_FAILED;
     }
-    if (hugoTrans2.runLookupQuery(GETNDB(step), records))
+    if (hugoTrans2.runLookupQuery(GETNDB(step), queries))
     {
       g_info << endl;
       return NDBT_FAILED;
@@ -351,7 +358,7 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
 
     if (waitprogress)
     {
-      Uint32 maxwait = 30;
+      Uint32 maxwait = 60;
       ndbout_c("running: 0x%.8x", running);
       for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++)
       {
@@ -391,7 +398,7 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
 
     if (waitprogress)
     {
-      Uint32 maxwait = 30;
+      Uint32 maxwait = 60;
       ndbout_c("running: 0x%.8x", running);
       for (Uint32 checks = 0; checks < 3 && !ctx->isTestStopped(); checks++)
       {
