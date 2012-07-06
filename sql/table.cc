@@ -667,6 +667,13 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
                  MYSQL50_TABLE_NAME_PREFIX_LENGTH))
       goto err_not_open;
 
+    /*
+      Trying unencoded 5.0 name for temporary tables does not
+      make sense since such tables are not persistent.
+    */
+    if (share->tmp_table)
+      goto err_not_open;
+
     /* Try unencoded 5.0 name */
     uint length;
     strxnmov(path, sizeof(path)-1,
