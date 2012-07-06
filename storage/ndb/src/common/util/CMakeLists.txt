@@ -48,7 +48,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             strdup.c
             ConfigValues.cpp
             ndb_init.cpp
-            ndb_opts.c
+            ndb_opts.cpp
             basestring_vsnprintf.c
             Bitmask.cpp
 	    SparseBitmask.cpp
@@ -61,7 +61,14 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
             CharsetMap.cpp
             CharsetMapImpl.cpp
 )
-TARGET_LINK_LIBRARIES(ndbgeneral ndbtrace ${ZLIB_LIBRARY} mysys)
+SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys)
+# Some parts of mysys has been split into it's own library
+# called mysys_ssl, existence of new library is indicated
+# by new include file my_default.h detected in ndb_configure.cmake
+IF(HAVE_MY_DEFAULT_H)
+  LIST(APPEND NDBGENERAL_LIBS mysys_ssl) 
+ENDIF()
+TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 
 ADD_EXECUTABLE(BaseString-t BaseString.cpp)
 SET_TARGET_PROPERTIES(BaseString-t

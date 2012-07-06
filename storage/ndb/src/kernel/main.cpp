@@ -133,7 +133,7 @@ real_main(int argc, char** argv)
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";
