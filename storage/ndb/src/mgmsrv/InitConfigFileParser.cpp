@@ -645,6 +645,9 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
 
 #include <my_sys.h>
 #include <my_getopt.h>
+#ifdef HAVE_MY_DEFAULT_H
+#include <my_default.h>
+#endif
 
 static int order = 1;
 static 

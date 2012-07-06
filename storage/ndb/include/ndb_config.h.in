@@ -47,3 +47,4 @@
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_SETTYPE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_BZERO 1
+#cmakedefine HAVE_MY_DEFAULT_H 1
