@@ -27,11 +27,16 @@ var parent = path.dirname(__dirname);
    for the use of test cases
 */
 global.test_harness_module = path.join(__dirname, "harness.js");
+global.harness = require(global.test_harness_module);
+
 global.adapter = path.join(parent, "Adapter");
 
 global.api_module = path.join(parent, "Adapter", "api", "mynode.js");
+global.mynode = require(global.api_module);
+
 global.spi_module = path.join(parent, "Adapter", "spi", "SPI.js");
 
+global.adapter;
 global.debug = false;
 global.exit = false;
 
@@ -83,7 +88,7 @@ function Suite(name, path) {
 	this.nextSerialTestIndex = -1;
 	this.clearSmokeTest;
 	this.numberOfRunningConcurrentTests = 0;
-//	this.phase = 0;
+	this.group = null;
 	if (debug) console.log('creating Suite for ' + name + ' ' + path);
 }
 
@@ -101,6 +106,8 @@ Suite.prototype.createTests = function() {
         };
       }
       if (debug) console.log('Suite ' + this.name + ' found test ' + f);
+      t.name = f; // the name of this group is the test program name
+      t.group = this;
       this.tests.push(t);
     }
   }
@@ -265,6 +272,14 @@ Suite.prototype.testCompleted = function(testCase) {
   }
 };
 
+Suite.prototype.fullName = function() {
+  var result = '';
+  if (this.group) {
+    result = this.group.fullName();
+  }
+  return result + ' ' + this.name;
+};
+
 function Driver() {
   this.suites = [];
 };
@@ -312,26 +327,48 @@ driver = new Driver();
 
 var usageMessage = 
   "Usage: node driver [options]\n" +
-  "              -h: print this message\n" +
-  "          --help: print this message\n" +
-  "              -d: set the debug flag\n" +
-  "         --debug: set the debug flag]\n";
+  "                 -h: print this message\n" +
+  "             --help: print this message\n" +
+  "                 -d: set the debug flag\n" +
+  "            --debug: set the debug flag\n" +
+  "--adapter=<adapter>: set the mynode adapter (ndb or mysql)\n"
+  ;
 
 // handle command line arguments
 process.argv.forEach(function (val, index, array) {
-  switch (val) {
-  case '--debug':
-  case '-d':
-    console.log('Setting debug to true');
-    debug = true;
-    break;
-  case '--help':
-  case '-h':
-    console.log(usageMessage);
-    exit = true;
+  if (index >= 2) { // ignore first two values (node driver)
+    switch (val) {
+    case '--debug':
+    case '-d':
+      console.log('Setting debug to true');
+      debug = true;
+      break;
+    case '--help':
+    case '-h':
+      exit = true;
+      break;
+    default:
+      values = val.split('=');
+      if (values.length == 2) {
+        switch (values[0]) {
+        case '--adapter':
+          global.adapter = values[1];
+          break;
+        default:
+          console.log('Invalid option ' + val);
+          exit = true;
+        }
+      } else {
+        console.log('Invalid option ' + val);
+        exit = true;
+     }
+    }
   }
 });
-if (exit) process.exit(0);
+if (exit) {
+  console.log(usageMessage);
+  process.exit(0);
+}
 
 var result = new Test.Result(driver);
 result.listener = new Test.Listener();
@@ -361,6 +398,6 @@ if (driver.numberOfRunningSuites == 0) {
 var timeoutMillis = 10000;
 // set a timeout to prevent process from waiting forever
 if (debug) console.log('Setting timeout of ' + timeoutMillis);
-setTimeout(function() {
-  console.log('TIMEOUT');
-}, timeoutMillis);
+  setTimeout(function() {
+    console.log('TIMEOUT');
+  }, timeoutMillis);

@@ -65,6 +65,7 @@ function Test(name) {
   this.index = 0;
   this.failed = false;
   this.result;
+  this.group;
 }
 
 Test.prototype.test = function(result) {
@@ -111,16 +112,25 @@ Test.prototype.pass = function() {
 
 Test.prototype.fail = function(message) {
   this.failed = true;
-  this.appendMessage(message);
+  if (typeof(message.toString()) != 'undefined' ) {
+    this.appendErrorMessage(message);
+  }
   this.result.fail(this,
-      { 'message' : this.errorMessage});
+      { 'message' : this.errorMessages});
 };
 
-Test.prototype.appendMessage = function(message) {
+Test.prototype.appendErrorMessage = function(message) {
   this.errorMessages += message;
   this.errorMessages += '\n';
 };
 
+Test.prototype.failOnError = function() {
+  if (errorMessages !== '') {
+    this.fail();
+  } else {
+    this.pass();
+  }
+}
 Test.prototype.getTestCases = function() { return [this];};
 Test.prototype.isTest = function() { return true; };
 Test.prototype.isFatal = function() { return false; };
@@ -129,6 +139,13 @@ Test.prototype.setFatal = function() {
 };
 Test.prototype.setup = function() {};
 Test.prototype.teardown = function() {};
+
+Test.prototype.fullName = function() {
+  var result = '';
+  if (this.group) {
+    result = this.group.fullName();
+  }
+  return result + ' ' + this.name;};
 
 Test.prototype.run = function() {
   throw {
@@ -140,21 +157,23 @@ Test.prototype.run = function() {
 Test.prototype.makeTestGroup = function() {
   var tests = [];  // private!
   for (var i = 0; i < arguments.length; ++i) {
-		tests.push(arguments[i]);
+    var testCase = arguments[i];
+    testCase.group = this;
+    tests.push(testCase);
 	}
   this.getTestCases = function() {
-	  var result = [];
-	  if (debug) console.log('harness.makeTestGroup.getTestCases has ' + tests.length);
-	  for (var i = 0; i < tests.length; ++i) {
-		  var testCases = tests[i].getTestCases();
-		  if (debug) console.log('harness.makeTestGroup.getTestCases has ' + testCases.length);
-		  for (var j = 0; j < testCases.length; ++j) {
-		      result.push(testCases[j]);
-		  }
-	  }
-	  if (debug) console.log('harness.makeTestGroup function getTestCases returns ' + result.length);
-	  return result;
-  }
+    var result = [];
+    if (debug) console.log('harness.makeTestGroup.getTestCases for ' + this.name + ' has ' + tests.length + ' tests.');
+    for (var i = 0; i < tests.length; ++i) {
+      var testCases = tests[i].getTestCases();
+      if (debug) console.log('harness.makeTestGroup.getTestCases has ' + testCases.length + ' test cases.');
+      for (var j = 0; j < testCases.length; ++j) {
+        result.push(testCases[j]);
+      }
+    }
+    if (debug) console.log('harness.makeTestGroup function getTestCases returns ' + result.length);
+    return result;
+  };
   this.addTest = function(t) { 
     tests.push(t);
     t.name = this.name + "." + t.name;
@@ -183,10 +202,17 @@ function Listener() {
 Listener.prototype.startTest = function(t) {};
 Listener.prototype.endTest = function(t) {};
 Listener.prototype.pass = function(t) {
-  console.log("[pass]", t.suite.name + ' ' + t.name );
+  console.log("[pass]", t.group.fullName() + ' ' + t.name );
 };
 Listener.prototype.fail = function(t, e) {
-  console.log("[FAIL]", t.name, "\t", e.stack);
+  var message = e.toString();
+  if (typeof(e.stack) !== 'undefined') {
+    message = e.stack;
+  } else if (typeof(e.message) !== 'undefined') {
+    message = e.message;
+  }
+//  console.log("[FAIL]", t.group.fullName() + ' ' + t.name, "\t", message);
+  console.log("[FAIL]", t.fullName(), "\t", message);
 };
 
 

@@ -18,14 +18,10 @@
  02110-1301  USA
  */
 
-var mynode = require(global.api_module);
-var harness = require(global.test_harness_module);
-
-var test1 = new harness.Test("Annotations Constructor");
+var test1 = new harness.Test("AnnotationsConstructor");
 test1.run = function() {
   var annotations = new mynode.Annotations();
 };
-
 
 var group = new harness.Test("annotations").makeTestGroup(test1);
 
