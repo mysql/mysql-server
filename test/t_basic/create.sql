@@ -1,4 +1,5 @@
 use test;
+drop table if exists t_basic;
 create table if not exists t_basic (
   id int not null,
   name varchar(32),
