@@ -18,50 +18,14 @@
  02110-1301  USA
 */
 
-#include <v8.h>
-#include <uv.h>
 
 #include <NdbApi.hpp>
 
 #include "js_wrapper_macros.h"
-#include "JsConverter.h"
-#include "AsyncMethodCall.h"
+#include "NativeMethodCall.h"
 #include "async_common.h"
 
 using namespace v8;
-
-
-/* Async_Ndb_cluster_connection_connect */
-class Async_Ndb_cluster_connection_connect : public AsyncMethodCall {
-public:
-  Async_Ndb_cluster_connection_connect(Ndb_cluster_connection *c,
-                                       int a1, int a2, int a3) :
-                                       obj(c), arg1(a1), arg2(a2), arg3(a3)
-                                       {};
-  void work_thd_run(void);
-  void main_thd_complete(v8::Local<v8::Object>);
-
-private:
-  Ndb_cluster_connection *obj;
-  int arg1, arg2, arg3;
-  int rval;
-};
-
-
-void Async_Ndb_cluster_connection_connect::work_thd_run() {
-  rval = obj->connect(arg1, arg2, arg3);
-}
-
-
-void Async_Ndb_cluster_connection_connect::main_thd_complete(Local<Object> context) {
-
-  Handle<Value> cb_args[1];
-  
-  cb_args[0] = toJS<int>(rval);
-  
-  callback->Call(context, 1, cb_args);
-}
-
 
 
 /*  Ndb_cluster_connection(const char * connectstring = 0);
@@ -80,19 +44,18 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
 
 
 /*   void set_name(const char *name);
+     TODO: Is this sync or async?
 */
 Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
-
-  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
   
-  JsValueConverter<const char *> arg0(args[0]);
-  c->set_name(arg0.toC());
+  NativeVoidMethodCall_1_<Ndb_cluster_connection, const char *> mcall(args);
+  mcall.method = & Ndb_cluster_connection::set_name;
+  mcall.run();
   
-  //FIXME: How to map function returning void?
-  return scope.Close(toJS<int>(0));
+  return scope.Close(JS_VOID_RETURN);
 }
 
 
@@ -102,15 +65,12 @@ Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(3);
-  
-  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
-  JsValueConverter<int> arg0(args[0]);
-  JsValueConverter<int> arg1(args[1]);
-  JsValueConverter<int> arg2(args[2]);
 
-  int r = c->connect(arg0.toC(), arg1.toC(), arg2.toC());
-  
-  return scope.Close(toJS<int>(r));
+  NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> mcall(args);
+  mcall.method = & Ndb_cluster_connection::connect;
+  mcall.run();
+      
+  return scope.Close(mcall.jsReturnVal());
 }
 
 
@@ -119,52 +79,58 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(4);
   
-  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
-  JsValueConverter<int> arg0(args[0]);
-  JsValueConverter<int> arg1(args[1]);
-  JsValueConverter<int> arg2(args[2]);
+  NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> * mcallptr = 
+    new NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int>(args);
 
-  Async_Ndb_cluster_connection_connect *mcall = 
-    new Async_Ndb_cluster_connection_connect(c, arg0.toC(), arg1.toC(), arg2.toC());
+  mcallptr->method = & Ndb_cluster_connection::connect;
+  mcallptr->setCallback(args[3]);
 
   uv_work_t *req = new uv_work_t;
-  req->data = (void *) mcall;
-  
-  mcall->callback = Persistent<Function>::New(Local<Function>::Cast(args[3]));
-
+  req->data = (void *) mcallptr;
   uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
 
-  return scope.Close(toJS<int>(0));
+  return scope.Close(JS_VOID_RETURN);
 }
 
 
 /*   int wait_until_ready(int timeout_for_first_alive,
-                          int timeout_after_first_alive);
+                          int timeout_after_first_alive,
+                          callback);
+     ASYNC
 */
 Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(2);
+  REQUIRE_ARGS_LENGTH(3);
   
-  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
-  JsValueConverter<int> arg0(args[0]);
-  JsValueConverter<int> arg1(args[1]);
+  NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> * mcallptr = 
+    new NativeMethodCall_2_<int, Ndb_cluster_connection, int, int>(args);
+
+  mcallptr->method = & Ndb_cluster_connection::wait_until_ready;
+  mcallptr->setCallback(args[3]);
+
+  uv_work_t *req = new uv_work_t;
+  req->data = (void *) mcallptr;
+  uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
   
-  int r = c->wait_until_ready(arg0.toC(), arg1.toC());
-  return scope.Close(toJS<int>(r));
+  return scope.Close(JS_VOID_RETURN);
 }
 
 
 /*  unsigned node_id();
+    IMMEDIATE
 */
 Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(0);
-  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
-  return scope.Close(toJS<int>(c->node_id()));
-}
+  REQUIRE_ARGS_LENGTH(0);  
+  
+  NativeMethodCall_0_<unsigned int, Ndb_cluster_connection> mcall(args);
+  mcall.method = & Ndb_cluster_connection::node_id;
+  mcall.run();
 
+  return scope.Close(mcall.jsReturnVal());
+ }
 
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
@@ -174,7 +140,7 @@ Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
   Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
 
   delete c;
-  return scope.Close(toJS<int>(0));
+  return scope.Close(JS_VOID_RETURN);
 }
 
 
