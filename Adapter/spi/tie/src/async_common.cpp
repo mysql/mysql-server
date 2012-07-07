@@ -21,13 +21,13 @@
 #include <v8.h>
 #include "node.h"
 
-#include "AsyncMethodCall.h"
+#include "NativeMethodCall.h"
 #include "async_common.h"
 
 void work_thd_run(uv_work_t *req) {
   AsyncMethodCall *m = (AsyncMethodCall *) req->data;
   
-  m->work_thd_run();
+  m->run();
 }
 
 
@@ -37,7 +37,7 @@ void main_thd_complete(uv_work_t *req) {
   
   AsyncMethodCall *m = (AsyncMethodCall *) req->data;
 
-  m->main_thd_complete(v8::Context::GetCurrent()->Global());
+  m->doAsyncCallback(v8::Context::GetCurrent()->Global());
   
   /* cleanup */
   m->callback.Dispose();
