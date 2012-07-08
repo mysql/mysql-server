@@ -36,7 +36,8 @@ global.mynode = require(global.api_module);
 
 global.spi_module = path.join(parent, "Adapter", "spi", "SPI.js");
 
-global.adapter;
+global.suitesToRun = null;
+
 global.debug = false;
 global.exit = false;
 
@@ -290,11 +291,20 @@ Driver.prototype.findSuites = function(directory) {
   for(var i = 0; i < files.length ; i++) {
     var f = files[i];
     var st = fs.statSync(path.join(directory, f));
-    if (st.isDirectory()) { 
+    if (st.isDirectory() && this.isSuiteToRun(f)) {
       if (debug) console.log('Driver.findSuites found directory ' + f);
       this.suites.push(new Suite(f, path.join(directory, f)));
     }
   }
+};
+
+Driver.prototype.isSuiteToRun = function(directoryName) {
+  if (suitesToRun != null && suitesToRun.indexOf(directoryName) == -1) {
+    if (debug) console.log('Driver.isSuiteToRun for ' + directoryName + ' returns false.');
+    return false;
+  }
+   if (debug) console.log('Driver.isSuiteToRun for ' + directoryName + ' returns true.');
+  return true;
 };
 
 Driver.prototype.testCompleted = function(testCase) {
@@ -331,6 +341,8 @@ var usageMessage =
   "             --help: print this message\n" +
   "                 -d: set the debug flag\n" +
   "            --debug: set the debug flag\n" +
+  "    --suite=<suite>: only run the named suite(s)\n" +
+  "   --suites=<suite>: only run the named suite(s)\n" +
   "--adapter=<adapter>: set the mynode adapter (ndb or mysql)\n"
   ;
 
@@ -354,6 +366,10 @@ process.argv.forEach(function (val, index, array) {
         case '--adapter':
           global.adapter = values[1];
           break;
+        case '--suite':
+        case '--suites':
+          global.suitesToRun = values[1].split(',');
+          break;
         default:
           console.log('Invalid option ' + val);
           exit = true;
@@ -365,6 +381,7 @@ process.argv.forEach(function (val, index, array) {
     }
   }
 });
+
 if (exit) {
   console.log(usageMessage);
   process.exit(0);
