@@ -20,18 +20,9 @@
 
 /** This is the smoke test for the t_basic suite.
  */
-var path = require("path");
-
-var harness = require(global.test_harness_module);
-
-var test = new harness.Test("ClearSmokeTest");
-
-test.phase = 3;
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {
-  var module_path = path.join(global.adapter,"spi",
-                              "build","Release","ndbapi.node");
-  var ndbapi = require(module_path);
   var t = this;
   dropSQL(this.suite, function(error) {
     if (error) {

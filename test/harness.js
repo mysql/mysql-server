@@ -58,15 +58,35 @@
 
 /* Test  
 */
-function Test(name) {
+function Test(name, phase) {
   this.name = name;
-  this.phase = 2;
+  this.phase = (typeof(phase) == 'number') ? phase : 2;
   this.errorMessages = '';
   this.index = 0;
   this.failed = false;
   this.result;
   this.group;
-}
+};
+
+function SmokeTest(name) {
+};
+
+SmokeTest.prototype = new Test(this.name, 0);
+
+function ConcurrentTest(name) {
+};
+
+ConcurrentTest.prototype = new Test(this.name, 1);
+
+function SerialTest(name) {
+};
+
+SerialTest.prototype = new Test(this.name, 2);
+
+function ClearSmokeTest(name) {
+};
+
+ClearSmokeTest.prototype = new Test(this.name, 3);
 
 Test.prototype.test = function(result) {
   if (debug) console.log('test starting: ' + this.name);
@@ -242,3 +262,7 @@ Result.prototype.fail = function(t, e) {
 exports.Test = Test;
 exports.Listener = Listener;
 exports.Result = Result;
+exports.SmokeTest = SmokeTest;
+exports.ConcurrentTest = ConcurrentTest;
+exports.SerialTest = SerialTest;
+exports.ClearSmokeTest = ClearSmokeTest;

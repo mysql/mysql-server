@@ -18,13 +18,7 @@
  02110-1301  USA
  */
 
-var path = require("path");
-var parent = path.dirname(__dirname);
-
 var harness = require(global.test_harness_module);
-
-global.mynode_path = path.join(parent, "..", "Adapter", "api", "mynode.js");
-global.mynode = require(global.mynode_path);
 
 /***** Insert ***/
 var testInsert = function() {
@@ -60,12 +54,12 @@ var testInsert = function() {
 };
 
 /*** t_basic.ndb.testInsert ***/
-var t1 = new harness.Test("testInsert");
+var t1 = new harness.SerialTest("testInsert");
 t1.impl= "ndb";
 t1.run = testInsert;
 
 /*** t_basic.mysql.testInsert ***/
-var t2 = new harness.Test("testInsert");
+var t2 = new harness.SerialTest("testInsert");
 t2.impl= "mysql";
 t2.run = testInsert;
 
