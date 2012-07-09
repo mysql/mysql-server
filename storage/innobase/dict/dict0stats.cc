@@ -774,21 +774,13 @@ Calculates new estimates for index statistics. This function is
 relatively quick and is used to calculate transient statistics that
 are not saved on disk. This was the only way to calculate statistics
 before the Persistent Statistics feature was introduced.
-dict_stats_update_transient_for_index() @{
-@return size of the index in pages, or 0 if skipped */
+dict_stats_update_transient_for_index() @{ */
 static
-ulint
+void
 dict_stats_update_transient_for_index(
 /*==================================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
-	if ((index->type & DICT_FTS)
-	    || dict_index_is_corrupted(index)
-	    || (!dict_index_is_clust(index)
-		&& dict_index_is_online_ddl(index))) {
-		return(0);
-	}
-
 	if (UNIV_LIKELY
 	    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 	     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
@@ -811,7 +803,8 @@ dict_stats_update_transient_for_index(
 
 		switch (size) {
 		case ULINT_UNDEFINED:
-			goto fake_statistics;
+			dict_stats_empty_index(index);
+			return;
 		case 0:
 			/* The root node of the tree is a leaf */
 			size = 1;
@@ -827,21 +820,8 @@ dict_stats_update_transient_for_index(
 		Initialize some bogus index cardinality
 		statistics, so that the data can be queried in
 		various means, also via secondary indexes. */
-		ulint	i;
-
-fake_statistics:
-		index->stat_index_size = index->stat_n_leaf_pages = 1;
-
-		for (i = dict_index_get_n_unique(index); i; ) {
-			index->stat_n_diff_key_vals[i--] = 1;
-		}
-
-		memset(index->stat_n_non_null_key_vals, 0,
-		       (1 + dict_index_get_n_unique(index))
-		       * sizeof(*index->stat_n_non_null_key_vals));
+		dict_stats_empty_index(index);
 	}
-
-	return(index->stat_index_size);
 }
 /* @} */
 
@@ -885,8 +865,15 @@ dict_stats_update_transient(
 	do {
 		ut_ad(!dict_index_is_univ(index));
 
-		sum_of_index_sizes +=
+		if (!((index->type & DICT_FTS)
+		      || dict_index_is_corrupted(index)
+		      || (!dict_index_is_clust(index)
+			  && dict_index_is_online_ddl(index)))) {
+
 			dict_stats_update_transient_for_index(index);
+
+			sum_of_index_sizes += index->stat_index_size;
+		}
 
 		index = dict_table_get_next_index(index);
 	} while (index);
