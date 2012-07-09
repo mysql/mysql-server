@@ -7,143 +7,87 @@
  * by setting the flag "mapAllColumns" for the table.
  * 
  * The Annotations methods are all immediate methods that simply describe 
- * mappings.  The actualy work of validating annotations against a
- * data dictionary fetched from the server is deferred until connect time.
+ * mappings.  The actual work of validating annotations against a
+ * data dictionary fetched from the server is deferred until later.
  * 
 */
 
-
 /* Annotations instance methods */
 {
-    /** mapAllTables(boolean flag)
-     * IMMEDIATE 
-     * Request that all tables be mapped.
-     *
-     * @param flag true to map all tables; false to map only tables specified
-     * with mapClass().
-     */
-    mapAllTables(boolean flag);
+  /** mapAllTables(boolean flag)
+   * IMMEDIATE 
+   * Request that all tables be mapped. If this method is not called, the
+   * default is to map all tables.
+   *
+   * @param flag true to map all tables; false to map only tables specified
+   * with mapClass().
+   */
+  mapAllTables(boolean flag);
 
-    /** mapClass()
-     * IMMEDIATE 
-     * Supply annotations to a prototype or token object.
-     *
-     * Annotations specify details of how the object is mapped to the database.
-     * 
-     * @param token_object prototype object to annotate
-     * @param annotations field annotations object 
-     */
-    mapClass(Object token_object, Object objectAnnotations);
+  /** mapClass
+   * IMMEDIATE 
+   * Supply annotations to a prototype or token object.
+   *
+   * Annotations specify details of how the object is mapped to the database.
+   * The annotations object is a javascript object that contains optional
+   * properties and defaults:
+   *
+   * "table"              : "" the name of the table in the base.
+   * "schema"                 : "" the name of the schema for the table
+   * "database"               : "" the name of the database for the table
+   * "autoIncrementBatchSize" : 1 the batch size of the autoincrement
+   * "mapAllColumns"          : true map all columns in this table
+   *
+   * Another property of the annotations object is named "field" or "fields".
+   *
+   * The field or fields property is either a field mapping object or an array,
+   * each element of which is a field mapping. 
+   * The field mapping object is a javascript object that contains
+   * properties and defaults:
+   *
+   * "nullValue"     : "NONE" Behavior when this field contains a null value when
+   *                      persisting the object.
+   *                      One of "NONE", "EXCEPTION", or "DEFAULT"
+   *
+   * "column"        : "" Column name where this field is stored.  The default
+   *                      is a column with the same name as the field.
+   *
+   * "notPersistent" : "" Specify that a field is not to be persisted in the
+   *                      database.
+   *
+   * "converter"     : "" Specify the converter to use for this field.
+   *                      The default is to use the converter based on the SQL type.
+   * 
+   * @param token_object prototype object to annotate
+   * @param annotations annotations object 
+   */
+  mapClass(Object token_object, Object objectAnnotations);
 
+  /** registerFieldConverter
+   * IMMEDIATE
+   * Register a converter for a field in a domain object
+   *
+   */
+  registerFieldConverter(Object token_object, String field_name, Converter c);
 
-    /** mapField() 
-     * IMMEDIATE
-     * supply annotations for a particular field of a token object.
-     *
-     * @param token_object a prototype object 
-     * @param field_name   the name of a field in the token object
-     * @param annotations  annotations to apply to this field
-     */
-    mapField(Object token_object, String field_name, Object annotations);
+  /** registerColumnConverter
+   * IMMEDIATE
+   * Register a converter for a column in a table
+   *
+   */
+  registerColumnConverter(String table, String column, Converter c);
 
+  /** registerTypeConverter 
+   *  IMMEDIATE
+   *  Register a converter for a SQL data type 
+   *
+   *  @param type is as defined in DBDictionary for the storage SPI
+   */
+  registerTypeConverter(string typeName, Converter c);
 
-    /** registerFieldConverter
-     * IMMEDIATE
-     * Register a converter for a field in a domain object
-     *
-     */
-    registerFieldConverter(Object token_object, String field_name, Converter c);
-
-  
-    /** registerColumnConverter
-     * IMMEDIATE
-     * Register a converter for a column in a table
-     *
-     */
-    registerColumnConverter(String table, String column, Converter c);
-    
-    
-    /** registerTypeConverter 
-     *  IMMEDIATE
-     *  Register a converter for a SQL data type 
-     *
-     *  @param type is as defined in DBDictionary for the storage SPI
-     */
-    registerTypeConverter(string typeName, Converter c);
-  
-  
-    /** registerCharsetConverter
-     *  IMMEDIATE
-     *  Register a converter to/from Javascript String for a SQL charset
-     */
-    registerCharsetConverter(String charsetName, Converter c);
+  /** registerCharsetConverter
+   *  IMMEDIATE
+   *  Register a converter to/from Javascript String for a SQL charset
+   */
+  registerCharsetConverter(String charsetName, Converter c);
 }
-
-
-
-/* Javascript Annotations */
-
-/* 1:  Object annotations 
- * 
- * annotate(prototype_object, annotations_object) 
- * 
- */
- 
-ObjectAnnotations =  {
-
-  "PersistenceCapable" : {
-    "table" : "",         // the table to use for persisting this class 
-    "database" : "",      // the database to use for persisting this class 
-    "schema"  : "",       // the schema to use for persisting this class
-    "autoIncrementBatchSize" : 1,  // prefetch size 
-    "mapAllColumns": true
-  }
-}
-
-/* QUESTIONS:  
- *      Q: Keep "PersistenceCapable" in the interface, or make it implied ? 
- *      A: Any object that has the named properties can be used.
- *      Q: Why both "database" and "schema" ? 
- *      Q: If the annotation uses one database and the session uses another,
- *       which one wins?
- */
- 
- 
-
-
-/* 2: Field annotations 
- *
- * annotateField(prototype_object, field_name, annotations_object) 
- *
- */
- 
- FieldAnnotations = {
-  "nullValue" : "",     /* Behavior when this member contains a null value when
-                           persisting the object.
-                           One of "NONE", "EXCEPTION", or "DEFAULT"  */ 
-
-  "column" : "",        /* Column name where this field is stored.  The default
-                           is a column with the same name as the field. */
-
-  "notPersistent" : "", /* Specify that a field is not to be persisted in the
-                           database. */
-
-  "converter" : ""      /* Specify the converter to use for this field/column.
-                           The default is to use the converter based on the SQL type.*/
-}
-
-
-/*   QUESTIONS:
- *
- *      Keep "PrimaryKey", or get it from the data dictionary?
- *      Keep "Index", or get it from the data dictionary?
- *      Keep "PartitionKey", or get it from the data dictionary?
- *      Keep "Column" and "Columns"? 
- *
- *      What to do with Lob annotation?
- *      Keep vendor extensions? 
- *      
- *      
- * 
- */
-            
