@@ -326,7 +326,8 @@ get_server_from_table_to_cache(TABLE *table)
   table->use_all_columns();
 
   /* get each field into the server struct ptr */
-  server->server_name= get_field(&mem, table->field[0]);
+  ptr= get_field(&mem, table->field[0]);
+  server->server_name= ptr ? ptr : blank;
   server->server_name_length= (uint) strlen(server->server_name);
   ptr= get_field(&mem, table->field[1]);
   server->host= ptr ? ptr : blank;
