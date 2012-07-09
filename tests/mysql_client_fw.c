@@ -1231,7 +1231,7 @@ and you are welcome to modify and redistribute it under the GPL license\n");
  my_print_variables(client_test_long_options);
 }
 
-struct my_tests_st *get_my_tests();  /* Will be defined in main .c file */
+static struct my_tests_st *get_my_tests();  /* To be defined in main .c file */
 
 static struct my_tests_st *my_testlist= 0;
 
