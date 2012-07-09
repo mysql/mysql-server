@@ -254,3 +254,63 @@ SELECT * FROM t1 WHERE b < (SELECT CAST(a as date) FROM t1 GROUP BY a);
 a	b
 2011-05-13	0
 DROP TABLE t1;
+#
+# Bug #11766300  59387: FAILING ASSERTION: CURSOR->POS_STATE == 1997660512 (BTR_PCUR_IS_POSITIONE
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0);
+CREATE TABLE t2 (d BINARY(2), PRIMARY KEY (d(1)), UNIQUE KEY (d)) ENGINE=INNODB;
+SELECT 1 FROM t1 WHERE NOT EXISTS
+(SELECT 1 FROM t2 WHERE d = (SELECT d FROM t2 WHERE a >= 1) ORDER BY d);
+1
+1
+EXPLAIN SELECT 1 FROM t1 WHERE NOT EXISTS
+(SELECT 1 FROM t2 WHERE d = (SELECT d FROM t2 WHERE a >= 1) ORDER BY d);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	Using where
+2	DEPENDENT SUBQUERY	t2	eq_ref	PRIMARY,d	d	2	func	1	Using where
+3	DEPENDENT SUBQUERY	t2	index	NULL	d	2	NULL	1	Using where; Using index
+DROP TABLE t2;
+CREATE TABLE t2 (b INT, c INT, UNIQUE KEY (b), UNIQUE KEY (b, c )) ENGINE=INNODB;
+INSERT INTO t2 VALUES (1, 1);
+SELECT 1 FROM t1
+WHERE a != (SELECT 1 FROM t2 WHERE a <=> b OR a > '' AND 6 = 7 ORDER BY b, c);
+1
+DROP TABLE t1, t2;
+#
+# Bug #13639204 64111: CRASH ON SELECT SUBQUERY WITH NON UNIQUE
+# INDEX
+#
+CREATE TABLE t1 (
+id int
+) ENGINE=InnoDB;
+INSERT INTO t1 (id) VALUES (11);
+CREATE TABLE t2 (
+t1_id int,
+position int,
+KEY t1_id (t1_id),
+KEY t1_id_position (t1_id,position)
+) ENGINE=InnoDB;
+EXPLAIN SELECT
+(SELECT position FROM t2
+WHERE t2.t1_id = t1.id
+ORDER BY t2.t1_id , t2.position
+LIMIT 10,1
+) AS maxkey
+FROM t1
+LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	1	
+2	DEPENDENT SUBQUERY	t2	ref	t1_id,t1_id_position	t1_id_position	5	test.t1.id	1	Using where
+SELECT
+(SELECT position FROM t2
+WHERE t2.t1_id = t1.id
+ORDER BY t2.t1_id , t2.position
+LIMIT 10,1
+) AS maxkey
+FROM t1
+LIMIT 1;
+maxkey
+NULL
+DROP TABLE t1,t2;
+End of 5.1 tests

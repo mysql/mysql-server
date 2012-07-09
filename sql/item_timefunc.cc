@@ -2694,7 +2694,7 @@ longlong Item_datetime_typecast::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (get_arg0_date(&ltime,1))
+  if (get_arg0_date(&ltime, TIME_FUZZY_DATE))
   {
     null_value= 1;
     return 0;

@@ -5078,6 +5078,7 @@ void Dbtc::seizeApiConnectCopy(Signal* signal)
   ptrCheckGuard(locApiConnectptr, TapiConnectFilesize, localApiConnectRecord);
   cfirstfreeApiConnectCopy = locApiConnectptr.p->nextApiConnect;
   locApiConnectptr.p->nextApiConnect = RNIL;
+  ndbassert(regApiPtr->apiCopyRecord == RNIL);
   regApiPtr->apiCopyRecord = locApiConnectptr.i;
   tc_clearbit(regApiPtr->m_flags,
               ApiConnectRecord::TF_TRIGGER_PENDING);
@@ -5120,7 +5121,9 @@ void Dbtc::execDIVERIFYCONF(Signal* signal)
    * WE WILL INSERT THE TRANSACTION INTO ITS PROPER QUEUE OF 
    * TRANSACTIONS FOR ITS GLOBAL CHECKPOINT.              
    *-------------------------------------------------------------------------*/
-  if (TApifailureNr != Tfailure_nr) {
+  if (TApifailureNr != Tfailure_nr ||
+      ERROR_INSERTED(8094)) {
+    jam();
     DIVER_node_fail_handling(signal, Tgci);
     return;
   }//if
@@ -5616,7 +5619,12 @@ Dbtc::sendApiCommit(Signal* signal)
 err8055:
   Ptr<ApiConnectRecord> copyPtr;
   UintR TapiConnectFilesize = capiConnectFilesize;
+  /**
+   * Unlink copy connect record from main connect record to allow main record 
+   * re-use.
+   */
   copyPtr.i = regApiPtr.p->apiCopyRecord;
+  regApiPtr.p->apiCopyRecord = RNIL;
   UintR TapiFailState = regApiPtr.p->apiFailState;
   ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
 
@@ -6300,6 +6308,7 @@ void Dbtc::handleGcp(Signal* signal, Ptr<ApiConnectRecord> regApiPtr)
 void Dbtc::releaseApiConCopy(Signal* signal) 
 {
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
+  ndbassert(regApiPtr->nextApiConnect == RNIL);
   UintR TfirstfreeApiConnectCopyOld = cfirstfreeApiConnectCopy;
   cfirstfreeApiConnectCopy = apiConnectptr.i;
   regApiPtr->nextApiConnect = TfirstfreeApiConnectCopyOld;
@@ -10568,9 +10577,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   const Uint32 buddyPtr = (tmpXX == 0xFFFFFFFF ? RNIL : tmpXX);
   Uint32 currSavePointId = 0;
   
-  Uint32 scanConcurrency = scanTabReq->getParallelism(ri);
   Uint32 noOprecPerFrag = ScanTabReq::getScanBatch(ri);
-  Uint32 scanParallel = scanConcurrency;
   Uint32 errCode;
   ScanRecordPtr scanptr;
 
@@ -10586,6 +10593,9 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
   SectionHandle handle(this, signal);
   SegmentedSectionPtr api_op_ptr;
   handle.getSection(api_op_ptr, 0);
+  // Scan parallelism is determined by the number of receiver ids sent
+  Uint32 scanParallel = api_op_ptr.sz;
+  Uint32 scanConcurrency = scanParallel;
   Uint32 * apiPtr = signal->theData+25; // temp storage
   copy(apiPtr, api_op_ptr);
 
@@ -12359,6 +12369,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->currSavePointId = 0;
     apiConnectptr.p->m_transaction_nodes.clear();
     apiConnectptr.p->singleUserMode = 0;
+    apiConnectptr.p->apiCopyRecord = RNIL;
   }//for
   apiConnectptr.i = tiacTmp - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -12388,6 +12399,7 @@ void Dbtc::initApiConnect(Signal* signal)
       apiConnectptr.p->currSavePointId = 0;
       apiConnectptr.p->m_transaction_nodes.clear();
       apiConnectptr.p->singleUserMode = 0;
+      apiConnectptr.p->apiCopyRecord = RNIL;
     }//for
   apiConnectptr.i = (2 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -12417,6 +12429,7 @@ void Dbtc::initApiConnect(Signal* signal)
     apiConnectptr.p->currSavePointId = 0;
     apiConnectptr.p->m_transaction_nodes.clear();
     apiConnectptr.p->singleUserMode = 0;
+    apiConnectptr.p->apiCopyRecord = RNIL;
   }//for
   apiConnectptr.i = (3 * tiacTmp) - 1;
   ptrCheckGuard(apiConnectptr, capiConnectFilesize, apiConnectRecord);
@@ -12677,6 +12690,19 @@ void Dbtc::releaseAbortResources(Signal* signal)
   TcConnectRecordPtr rarTcConnectptr;
 
   c_counters.cabortCount++;
+  if (apiConnectptr.p->apiCopyRecord != RNIL)
+  {
+    // Put apiCopyRecord back in free list.
+    jam();
+    ApiConnectRecordPtr copyPtr;
+    copyPtr.i = apiConnectptr.p->apiCopyRecord;
+    ptrCheckGuard(copyPtr, capiConnectFilesize, apiConnectRecord);
+    ndbassert(copyPtr.p->apiCopyRecord == RNIL);
+    ndbassert(copyPtr.p->nextApiConnect == RNIL);
+    copyPtr.p->nextApiConnect = cfirstfreeApiConnectCopy;
+    cfirstfreeApiConnectCopy = copyPtr.i;
+    apiConnectptr.p->apiCopyRecord = RNIL;
+  }
   if (apiConnectptr.p->cachePtr != RNIL) {
     cachePtr.i = apiConnectptr.p->cachePtr;
     ptrCheckGuard(cachePtr, ccacheFilesize, cacheRecord);
@@ -12779,6 +12805,8 @@ void Dbtc::releaseApiCon(Signal* signal, UintR TapiConnectPtr)
 
   TlocalApiConnectptr.i = TapiConnectPtr;
   ptrCheckGuard(TlocalApiConnectptr, capiConnectFilesize, apiConnectRecord);
+  ndbassert(TlocalApiConnectptr.p->apiCopyRecord == RNIL);
+  ndbassert(TlocalApiConnectptr.p->nextApiConnect == RNIL);
   TlocalApiConnectptr.p->nextApiConnect = cfirstfreeApiConnect;
   cfirstfreeApiConnect = TlocalApiConnectptr.i;
   setApiConTimer(TlocalApiConnectptr.i, 0, __LINE__);

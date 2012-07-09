@@ -343,6 +343,8 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
     set_stmt_errmsg(stmt, net);
     DBUG_RETURN(1);
   }
+  else if (stmt->mysql->status == MYSQL_STATUS_GET_RESULT)
+           stmt->mysql->status= MYSQL_STATUS_STATEMENT_GET_RESULT;
   DBUG_RETURN(0);
 }
 

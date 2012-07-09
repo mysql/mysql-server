@@ -166,7 +166,7 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
     my_safe_printf_stderr("%s",
       "Error when traversing the stack, stack appears corrupt.\n");
   else
-    my_safe_printf_stderr("%s"
+    my_safe_printf_stderr("%s",
       "Please read "
       "http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
       "and follow instructions on how to resolve the stack trace.\n"

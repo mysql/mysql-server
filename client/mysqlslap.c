@@ -141,7 +141,8 @@ static my_bool opt_compress= FALSE, tty_password= FALSE,
 const char *auto_generate_sql_type= "mixed";
 
 static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
-                                    CLIENT_MULTI_STATEMENTS;
+                                    CLIENT_MULTI_STATEMENTS |
+                                    CLIENT_REMEMBER_OPTIONS;
 
 static int verbose, delimiter_length;
 static uint commit_rate;

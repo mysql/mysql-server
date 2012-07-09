@@ -90,7 +90,7 @@ rw_lock_set_waiter_flag(
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	os_compare_and_swap_ulint(&lock->waiters, 0, 1);
+	(void) os_compare_and_swap_ulint(&lock->waiters, 0, 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 1;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -107,7 +107,7 @@ rw_lock_reset_waiter_flag(
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	os_compare_and_swap_ulint(&lock->waiters, 1, 0);
+	(void) os_compare_and_swap_ulint(&lock->waiters, 1, 0);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 0;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
@@ -564,8 +564,6 @@ rw_lock_x_unlock_func(
 	if (lock->lock_word == 0) {
 		/* Last caller in a possible recursive chain. */
 		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
 	}
 
 #ifdef UNIV_SYNC_DEBUG
@@ -610,8 +608,6 @@ rw_lock_x_unlock_direct(
 
 	if (lock->lock_word == 0) {
 		lock->recursive = FALSE;
-		UNIV_MEM_INVALID(&lock->writer_thread,
-				 sizeof lock->writer_thread);
 	}
 
 	lock->lock_word += X_LOCK_DECR;

@@ -37,6 +37,11 @@
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
 
+/* Interface to mysqld, to check system tables supported by SE */
+static bool myisam_is_supported_system_table(const char *db,
+                                             const char *table_name,
+                                             bool is_sql_layer_system_table);
+
 /* bits in myisam_recover_options */
 const char *myisam_recover_names[] =
 { "DEFAULT", "BACKUP", "FORCE", "QUICK", "OFF", NullS};
@@ -665,6 +670,42 @@ const char **ha_myisam::bas_ext() const
   return ha_myisam_exts;
 }
 
+/**
+  @brief Check if the given db.tablename is a system table for this SE.
+
+  @param db                         Database name to check.
+  @param table_name                 table name to check.
+  @param is_sql_layer_system_table  if the supplied db.table_name is a SQL
+                                    layer system table.
+
+  @note Currently, only MYISAM engine supports all the SQL layer
+        system tables, and hence it returns true, when
+        is_sql_layer_system_table is set.
+
+  @note In case there is a need to define MYISAM specific system
+        database, then please see reference implementation in
+        ha_example.cc.
+
+  @return
+    @retval TRUE   Given db.table_name is supported system table.
+    @retval FALSE  Given db.table_name is not a supported system table.
+*/
+static bool myisam_is_supported_system_table(const char *db,
+                                             const char *table_name,
+                                             bool is_sql_layer_system_table)
+{
+  // Does MYISAM support "ALL" SQL layer system tables ?
+  if (is_sql_layer_system_table)
+    return true;
+
+  /*
+    Currently MYISAM does not support any other SE specific
+    system tables. If in future it does, please see ha_example.cc
+    for reference implementation.
+  */
+
+  return false;
+}
 
 const char *ha_myisam::index_type(uint key_number)
 {
@@ -2070,6 +2111,8 @@ static int myisam_init(void *p)
   myisam_hton->create= myisam_create_handler;
   myisam_hton->panic= myisam_panic;
   myisam_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
+  myisam_hton->is_supported_system_table= myisam_is_supported_system_table;
+
   return 0;
 }
 

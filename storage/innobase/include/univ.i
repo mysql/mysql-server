@@ -303,11 +303,17 @@ management to ensure correct alignment for doubles etc. */
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
 
-/* The maximum length of a table name. This is the MySQL limit and is
-defined in mysql_com.h like NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN, the
-number does not include a terminating '\0'. InnoDB probably can handle
-longer names internally */
-#define MAX_TABLE_NAME_LEN	192
+/** This is the "mbmaxlen" for my_charset_filename (defined in
+strings/ctype-utf8.c), which is used to encode File and Database names. */
+#define FILENAME_CHARSET_MAXNAMLEN	5
+
+/** The maximum length of an encode table name in bytes.  The max
+table and database names are NAME_CHAR_LEN (64) characters. After the
+encoding, the max length would be NAME_CHAR_LEN (64) *
+FILENAME_CHARSET_MAXNAMLEN (5) = 320 bytes. The number does not include a
+terminating '\0'. InnoDB can handle longer names internally */
+#define MAX_TABLE_NAME_LEN	320
+
 
 /* The maximum length of a database name. Like MAX_TABLE_NAME_LEN this is
 the MySQL's NAME_LEN, see check_and_convert_db_name(). */

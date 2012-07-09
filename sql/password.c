@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -531,7 +531,7 @@ check_scramble(const uchar *scramble_arg, const char *message,
   mysql_sha1_reset(&sha1_context);
   mysql_sha1_input(&sha1_context, buf, SHA1_HASH_SIZE);
   mysql_sha1_result(&sha1_context, hash_stage2_reassured);
-  return memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE);
+  return test(memcmp(hash_stage2, hash_stage2_reassured, SHA1_HASH_SIZE));
 }
 
 

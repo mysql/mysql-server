@@ -896,7 +896,7 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   automatically by NDBT...
    *   so when we enter here, this is already tested
    */
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
 
   ndbout << "Starting backup..." << flush;
   if (backup.start() != 0)

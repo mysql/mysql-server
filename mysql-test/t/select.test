@@ -4253,3 +4253,35 @@ DROP VIEW view_t1;
 
 --echo # End of test  BUG#63020
 
+
+--echo #
+--echo # Bug#12713907: STRANGE OPTIMIZE & WRONG RESULT UNDER ORDER BY 
+--echo # COUNT(*) LIMIT.
+--echo #
+
+CREATE TABLE t1 (
+id BIGINT(20) ,
+member_id_to INT(11) ,
+r_date DATE ,
+PRIMARY KEY (id,r_date),
+KEY r_date_idx (r_date),
+KEY t1_idx01 (member_id_to)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES 
+(107924526,518491,'2011-05-01'),
+(107924527,518491,'2011-05-01'),
+(107924534,518491,'2011-06-21'),
+(107924535,518491,'2011-06-21'),
+(107924542,1601319,'2011-06-21'),
+(107924543,1601319,'2011-06-21'),
+(107924544,1601319,'2011-06-21'),
+(107924545,1601319,'2011-06-21');
+
+SELECT member_id_to, COUNT(*) FROM t1 WHERE r_date =
+  '2011-06-21' GROUP BY member_id_to ORDER BY 2 LIMIT 1;
+
+DROP TABLE t1;
+
+--echo # End of test  BUG#12713907
+

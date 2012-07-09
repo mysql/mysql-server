@@ -1,6 +1,5 @@
 # Can't run test of external client with embedded server
 --source include/not_embedded.inc
---source include/not_windows.inc
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=20 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql
 
@@ -37,7 +36,7 @@
 
 --exec $MYSQL_SLAP --only-print --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --engine="heap,myisam" --post-query="SHOW TABLES" --pre-query="SHOW TABLES";
 
- --exec $MYSQL_SLAP --only-print --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --engine="heap,myisam" --post-query="SHOW TABLES" --pre-query="SHOW TABLES" --number-of-queries=6 --commit=1;
+ --exec $MYSQL_SLAP --only-print --delimiter=";" --query="select * from t1;select * from t2" --create="CREATE TABLE t1 (id int, name varchar(64)); create table t2(foo1 varchar(32), foo2 varchar(32)); INSERT INTO t1 VALUES (1, 'This is a test'); insert into t2 values ('test', 'test2')" --engine="heap,myisam" --post-query="SHOW TABLES" --pre-query="SHOW TABLES" --number-of-queries=6 --commit=1
 
 --exec $MYSQL_SLAP --silent --concurrency=5 --iterations=1 --number-int-cols=2 --number-char-cols=3 --auto-generate-sql --auto-generate-sql-add-autoincrement --auto-generate-sql-load-type=write --detach=2
 
@@ -68,3 +67,9 @@ SHOW DATABASES;
 SHOW DATABASES;
 DROP DATABASE bug58090;
 
+--echo #
+--echo # Bug #11766072 - 59107: MYSQLSLAP CRASHES IF STARTED WITH NO ARGUMENTS ON WINDOWS
+--echo #
+
+--replace_regex /queries: [0-9]+.[0-9]+/queries: TIME/
+--exec $MYSQL_SLAP

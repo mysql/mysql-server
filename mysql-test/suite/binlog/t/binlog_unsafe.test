@@ -17,6 +17,7 @@
 #  - CREATE TABLE [IGNORE/REPLACE] SELECT
 #  - INSERT IGNORE...SELECT
 #  - UPDATE IGNORE
+#  - INSERT... ON DUPLICATE KEY UPDATE on a table with two UNIQUE KEYS
 #
 # Note that statements that use stored functions, stored procedures,
 # triggers, views, or prepared statements that invoke unsafe
@@ -714,6 +715,9 @@ DROP TABLE t1;
 #UPDATE IGNORE 
 #CREATE TABLE... IGNORE SELECT 
 #CREATE TABLE... REPLACE SELECT
+#
+###BUG 11765650 - 58637: MARK UPDATES THAT DEPEND ON ORDER OF TWO KEYS UNSAFE 
+#INSERT.... ON DUP KEY UPDATE on a table with more than one UNIQUE KEY
 
 #setup tables
 CREATE TABLE filler_table (a INT, b INT);
@@ -723,6 +727,8 @@ CREATE TABLE replace_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO replace_table values (1,1),(2,2);
 CREATE TABLE update_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO update_table values (1,1),(2,2);
+CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY) ENGINE = InnoDB;
+INSERT INTO insert_2_keys values (1, 1);
 
 #INSERT IGNORE... SELECT
 INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
@@ -740,6 +746,10 @@ CREATE TABLE create_replace_test (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT *
 #temporary tables should not throw the warning.
 CREATE TEMPORARY TABLE temp1 (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
 
+#INSERT.... ON DUP KEY UPDATE on a table with more than one UNIQUE KEY
+INSERT INTO insert_2_keys VALUES (1, 2) 
+       ON DUPLICATE KEY UPDATE a=VALUES(a)+10, b=VALUES(b)+10;
+
 ###clean up
 DROP TABLE filler_table;
 DROP TABLE insert_table;
@@ -747,5 +757,6 @@ DROP TABLE update_table;
 DROP TABLE replace_table;
 DROP TABLE create_ignore_test;
 DROP TABLE create_replace_test;
+DROP TABLE insert_2_keys;
 
 --echo "End of tests"

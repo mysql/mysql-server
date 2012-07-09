@@ -202,6 +202,13 @@ public:
   bool ignore_log_space_limit;
 
   /*
+    Used by the SQL thread to instructs the IO thread to rotate 
+    the logs when the SQL thread needs to purge to release some
+    disk space.
+   */
+  bool sql_force_rotate_relay;
+
+  /*
     When it commits, InnoDB internally stores the master log position it has
     processed so far; the position to store is the one of the end of the
     committing event (the COMMIT query event, or the event if in autocommit
@@ -381,6 +388,41 @@ public:
   */
   time_t last_event_start_time;
 
+  /*
+    A container to hold on Intvar-, Rand-, Uservar- log-events in case
+    the slave is configured with table filtering rules.
+    The withhold events are executed when their parent Query destiny is
+    determined for execution as well.
+  */
+  Deferred_log_events *deferred_events;
+
+  /*
+    State of the container: true stands for IRU events gathering, 
+    false does for execution, either deferred or direct.
+  */
+  bool deferred_events_collecting;
+
+  /* 
+     Returns true if the argument event resides in the containter;
+     more specifically, the checking is done against the last added event.
+  */
+  bool is_deferred_event(Log_event * ev)
+  {
+    return deferred_events_collecting ? deferred_events->is_last(ev) : false;
+  };
+  /* The general cleanup that slave applier may need at the end of query. */
+  inline void cleanup_after_query()
+  {
+    if (deferred_events)
+      deferred_events->rewind();
+  };
+  /* The general cleanup that slave applier may need at the end of session. */
+  void cleanup_after_session()
+  {
+    if (deferred_events)
+      delete deferred_events;
+  };
+   
   /**
     Helper function to do after statement completion.
 

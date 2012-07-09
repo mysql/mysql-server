@@ -304,6 +304,7 @@ public:
 private:
   void config_changed(NodeId, const Config*);
   void setClusterLog(const Config* conf);
+  void configure_eventlogger(const BaseString& logdestination) const;
 public:
 
   /**

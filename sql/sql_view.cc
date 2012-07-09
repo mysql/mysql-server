@@ -444,6 +444,13 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   view= lex->unlink_first_table(&link_to_local);
 
+  if (check_db_dir_existence(view->db))
+  {
+    my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
+    res= TRUE;
+    goto err;
+  }
+
   if (mode == VIEW_ALTER && fill_defined_view_parts(thd, view))
   {
     res= TRUE;

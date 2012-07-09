@@ -585,7 +585,7 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
 void 
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
-  Uint32 theData[25 + 2 * 32];
+  Uint32 theData[25 + 2 * NDB_FS_RW_PAGES];
   memcpy(theData, signal->theData, 4 * signal->getLength());
   SectionHandle handle(this, signal);
   if (handle.m_cnt > 0)

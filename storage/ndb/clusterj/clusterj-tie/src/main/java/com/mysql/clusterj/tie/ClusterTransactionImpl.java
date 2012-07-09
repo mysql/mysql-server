@@ -273,10 +273,10 @@ class ClusterTransactionImpl implements ClusterTransaction {
         handleError(ndbIndex, ndbDictionary);
         NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
         handleError(ndbOperation, ndbTransaction);
-        int scanFlags = 0;
+        int scanFlags = ScanFlag.SF_OrderBy;
         int lockMode = indexScanLockMode;
         if (lockMode != com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode.LM_CommittedRead) {
-            scanFlags = ScanFlag.SF_KeyInfo;
+            scanFlags |= ScanFlag.SF_KeyInfo;
         }
         scanFlags |= ScanFlag.SF_MultiRange;
         int parallel = 0;

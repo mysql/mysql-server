@@ -2632,9 +2632,9 @@ private:
   bool checkTransporterOverloaded(Signal* signal,
                                   const NodeBitmask& all,
                                   const class LqhKeyReq* req);
-  void noFreeRecordLab(Signal* signal, 
-		       const class LqhKeyReq * lqhKeyReq, 
-		       Uint32 errorCode);
+  void earlyKeyReqAbort(Signal* signal, 
+                        const class LqhKeyReq * lqhKeyReq, 
+                        Uint32 errorCode);
   void logLqhkeyrefLab(Signal* signal);
   void closeCopyLab(Signal* signal);
   void commitReplyLab(Signal* signal);
