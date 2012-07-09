@@ -6506,6 +6506,9 @@ ER_UNSUPPORTED_ENGINE
 ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
   eng "INSERT into autoincrement field which is not the first part in the composed primary key is unsafe."
 
+ER_WARNING_SUPPRESSION_MSG
+        eng "The following warning was suppressed %d times during the last %d seconds in the error log"
+
 #
 #  End of 5.5 error messages.
 #
