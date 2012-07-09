@@ -44,10 +44,9 @@ class AsyncMethodCall {
     virtual void doAsyncCallback(Local<Object>) = 0;
     
     /* Base Class Methods */
-
-  void setCallback(Local<Value> v) {
-    callback = Persistent<Function>::New(Local<Function>::Cast(v));
-  }
+    void setCallback(Local<Value> f) {
+      callback = Persistent<Function>::New(Local<Function>::Cast(f));
+    }
 };  
 
 
@@ -64,7 +63,6 @@ public:
   NativeMethodCall<RETURN_TYPE>() : return_val(0) {};
 
   /* Methods */
-
   Local<Value> jsReturnVal() {
     return toJS<RETURN_TYPE>(return_val);
   }
@@ -94,8 +92,8 @@ public:
   void (C::*method)(A0);  // "method" is pointer to member function
   
   /* Constructor */
- NativeVoidMethodCall_1_<C, A0>(const Arguments &args) : method(0) 
- {
+  NativeVoidMethodCall_1_<C, A0>(const Arguments &args) : method(0) 
+  {
     native_obj = JsMethodThis<C>(args);
     
     JsValueConverter<A0> arg0converter(args[0]);

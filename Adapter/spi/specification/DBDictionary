@@ -20,12 +20,12 @@
 DBColumn = {
   columnType : "",     //  a ColumnType
   intSize : ""   ,     //  1,2,3,4, or 8
-  isUnsigned: "" ,     //  TRUE for UNSIGNED
+  isSigned:   "" ,     //  TRUE for SIGNED; FALSE for UNSIGNED
   isNullable: "" ,     //  TRUE if NULLABLE
   scale: ""      ,     //  DECIMAL scale
   precision: ""  ,     //  DECIMAL precision
   length: ""     ,     //  CHAR or VARCHAR length
-  isBinary: ""   ,     //  TRUE for BLOB/BINARY/VARBINARY
+  isBinary: ""   ,     //  TRUE for BLOB/BINARY/VARBINARY, FALSE for TEXT/CHAR/VARCHAR
   charset: ""    ,     //  name of charset
   name: ""       ,     //  column name
   columnNo: ""   ,     //  position of column in table
@@ -66,5 +66,7 @@ ColumnTypes =  [
   "YEAR",
   "TIMESTAMP",
   "BIT",
+  "BINARY",
+  "VARBINARY"
 ];
 
