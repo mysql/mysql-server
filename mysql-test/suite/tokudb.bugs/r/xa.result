@@ -73,6 +73,8 @@ count(*)
 xa end 'a','c';
 xa rollback 'a','c';
 xa start 'a','c';
+xa end 'a','b';
+xa rollback 'a','b';
 drop table t1;
 #
 # BUG#51342 - more xid crashing
@@ -129,4 +131,5 @@ XA ROLLBACK 'xid1';
 XA START 'xid1';
 XA END 'xid1';
 XA ROLLBACK 'xid1';
+commit;
 DROP TABLE t1;
