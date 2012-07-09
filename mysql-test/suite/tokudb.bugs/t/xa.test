@@ -122,6 +122,11 @@ connect (con3,localhost,root,,);
 --connection con3
 xa start 'a','c';
 
+--connection con1
+--reap
+xa end 'a','b';
+xa rollback 'a','b';
+--connection con3
 --disconnect con1
 --disconnect con3
 --connection default
@@ -229,6 +234,10 @@ XA START 'xid1';
 XA END 'xid1';
 XA ROLLBACK 'xid1';
 
+connection con1;
+--reap
+commit;
+connection default;
 disconnect con1;
 DROP TABLE t1;
 
