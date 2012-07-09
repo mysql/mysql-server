@@ -216,6 +216,7 @@ static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
 static bool
 has_write_table_with_auto_increment_and_select(TABLE_LIST *tables);
+static bool has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
 
 uint cached_open_tables(void)
 {
@@ -5708,7 +5709,39 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
     if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables &&
         has_write_table_with_auto_increment_and_select(tables))
       thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_WRITE_AUTOINC_SELECT);
+    /* Todo: merge all has_write_table_auto_inc with decide_logging_format */
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables)
+    {
+      if (has_write_table_auto_increment_not_first_in_pk(tables))
+        thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST);
+    }
 
+    /* 
+     INSERT...ON DUPLICATE KEY UPDATE on a table with more than one unique keys
+     can be unsafe.
+     */
+    uint unique_keys= 0;
+    for (TABLE_LIST *query_table= tables; query_table && unique_keys <= 1;
+         query_table= query_table->next_global)
+      if(query_table->table)
+      {
+        uint keys= query_table->table->s->keys, i= 0;
+        unique_keys= 0;
+        for (KEY* keyinfo= query_table->table->s->key_info;
+             i < keys && unique_keys <= 1; i++, keyinfo++)
+        {
+          if (keyinfo->flags & HA_NOSAME)
+            unique_keys++;
+        }
+        if (!query_table->placeholder() &&
+            query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
+            unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
+            /* Duplicate key update is not supported by INSERT DELAYED */
+            thd->command != COM_DELAYED_INSERT &&
+            thd->lex->duplicates == DUP_UPDATE)
+          thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
+      }
+ 
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
     if (thd->lex->requires_prelocking())
     {
@@ -9187,6 +9220,32 @@ has_write_table_with_auto_increment_and_select(TABLE_LIST *tables)
       }
   }
   return(has_select && has_auto_increment_tables);
+}
+
+/*
+  Tells if there is a table whose auto_increment column is a part
+  of a compound primary key while is not the first column in
+  the table definition.
+
+  @param tables Table list
+
+  @return true if the table exists, fais if does not.
+*/
+
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        && table->table->s->next_number_keypart != 0)
+      return 1;
+  }
+
+  return 0;
 }
 
 

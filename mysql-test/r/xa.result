@@ -174,7 +174,6 @@ CREATE TABLE t1 (a INT) engine=InnoDB;
 XA START 'a';
 INSERT INTO t1 VALUES (1);
 SAVEPOINT savep;
-ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
 XA END 'a';
 SELECT * FROM t1;
 ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state

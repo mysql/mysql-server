@@ -1,0 +1,50 @@
+#
+# BUG#47103
+# 
+# This test case checks whether the slave crashes or not when there is
+# a merge table in use.
+#
+# Description
+# ===========
+#
+# The test case creates two regular MyISAM tables on the master and
+# one MERGE table. Then it populates the MyISAM tables, updates and 
+# deletes their contents through the merge table. Finally, the slave
+# is synchronized with the master and (after the fix) it won't crash.
+# 
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+--connection master
+
+CREATE TABLE t1 (a int) ENGINE=MyISAM;
+CREATE TABLE t2 (a int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2), (3);
+INSERT INTO t2 VALUES (4), (5), (6);
+CREATE TABLE IF NOT EXISTS t1_merge LIKE t1;
+ALTER TABLE t1_merge ENGINE=MERGE UNION (t2, t1);
+
+--sync_slave_with_master
+
+--let diff_tables=master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--let diff_tables=master:test.t2, slave:test.t2
+--source include/diff_tables.inc
+
+--connection master
+UPDATE t1_merge SET a=10 WHERE a=1;
+DELETE FROM t1_merge WHERE a=10;
+
+--sync_slave_with_master
+--connection master
+
+--let diff_tables=master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--let diff_tables=master:test.t2, slave:test.t2
+--source include/diff_tables.inc
+
+DROP TABLE t1_merge, t1, t2;
+--sync_slave_with_master
+
+--source include/rpl_end.inc

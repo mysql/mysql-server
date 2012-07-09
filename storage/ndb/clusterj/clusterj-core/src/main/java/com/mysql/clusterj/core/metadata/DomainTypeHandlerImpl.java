@@ -268,6 +268,14 @@ public class DomainTypeHandlerImpl<T> extends AbstractDomainTypeHandlerImpl<T> {
             indexHandler.assertAllColumnsHaveFields();
         }
 
+        // Make sure that the PRIMARY index is usable
+        // If not, this table has no primary key or there is no primary key field
+        if (!indexHandlerImpls.get(0).isUsable()) {
+            String reason = local.message("ERR_Primary_Field_Missing", name);
+            logger.info(reason);
+            throw new ClusterJUserException(reason);
+        }
+
         if (logger.isDebugEnabled()) {
             logger.debug(toString());
             logger.debug("DomainTypeHandlerImpl " + name + "Indices " + indexHandlerImpls);

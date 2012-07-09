@@ -76,7 +76,8 @@ struct CreateTableRef {
     NoLoggingTemporaryTable = 778,
     InvalidHashMap = 790,
     TableDefinitionTooBig = 793,
-    FeatureRequiresUpgrade = 794
+    FeatureRequiresUpgrade = 794,
+    TooManyFragments = 1224
   };
 
   Uint32 senderRef;

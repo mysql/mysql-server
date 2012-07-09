@@ -1,0 +1,45 @@
+SET DEBUG_SYNC='reset';
+create table t1 (f1 integer, key k1 (f1)) engine=innodb;
+create table t2 (f1 int, f2 int, key(f1), key(f2)) engine=innodb;
+create table t3 (f2 int, key(f2)) engine=innodb;
+insert into t1 values (10);
+insert into t2 values (10, 20);
+insert into t3 values (20);
+alter table t2 add constraint c1 foreign key (f1)
+references t1(f1) on update cascade;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) DEFAULT NULL,
+  KEY `k1` (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) DEFAULT NULL,
+  `f2` int(11) DEFAULT NULL,
+  KEY `f1` (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `c1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f2` int(11) DEFAULT NULL,
+  KEY `f2` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SET DEBUG_SYNC='innodb_rename_table_ready SIGNAL update_can_proceed
+                   WAIT_FOR dict_unfreeze';
+alter table t2 add constraint z1 foreign key (f2)
+references t3(f2) on update cascade;
+SET DEBUG_SYNC='innodb_row_update_for_mysql_begin
+                            WAIT_FOR update_can_proceed';
+SET DEBUG_SYNC='innodb_dml_cascade_dict_unfreeze SIGNAL dict_unfreeze
+                            WAIT_FOR  foreign_free_cache';
+update ignore t1 set f1 = 20;
+ERROR HY000: Error on rename of './test/t2' to '#sql2-temporary' (errno: 181)
+SET DEBUG_SYNC='now SIGNAL foreign_free_cache';
+drop table t2;
+drop table t1;
+drop table t3;
+SET DEBUG_SYNC='reset';

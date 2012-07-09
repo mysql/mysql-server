@@ -1442,7 +1442,7 @@ sub command_line_setup {
 
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
-           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:/,i) )
+           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:[/\\],i) )
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
@@ -2789,7 +2789,7 @@ sub check_ndbcluster_support ($) {
   # Check if this is MySQL Cluster, ie. mysql version string ends
   # with -ndb-Y.Y.Y[-status]
   if ( defined $mysql_version_extra &&
-       $mysql_version_extra =~ /^-ndb-/ )
+       $mysql_version_extra =~ /-ndb-([0-9]*)\.([0-9]*)\.([0-9]*)/ )
   {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites

@@ -49,6 +49,8 @@ Created 4/20/1996 Heikki Tuuri
 #include "data0data.h"
 #include "usr0sess.h"
 #include "buf0lru.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #define	ROW_INS_PREV	1
 #define	ROW_INS_NEXT	2
@@ -1085,6 +1087,9 @@ row_ins_foreign_check_on_constraint(
 	release the latch. */
 
 	row_mysql_unfreeze_data_dictionary(thr_get_trx(thr));
+
+	DEBUG_SYNC_C("innodb_dml_cascade_dict_unfreeze");
+
 	row_mysql_freeze_data_dictionary(thr_get_trx(thr));
 
 	mtr_start(mtr);

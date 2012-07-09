@@ -4106,10 +4106,10 @@ may_communicate(unsigned from, unsigned to)
   }
   else if (is_tc_thread(from))
   {
-    // TC threads can communicate with LQH-, main- and itself
+    // TC threads can communicate with SPJ-, LQH-, main- and itself
     return is_main_thread(to) ||
            is_ldm_thread(to)  ||
-           (to == from);
+           is_tc_thread(to);      // Cover both SPJs and itself 
   }
   else
   {
@@ -4426,12 +4426,13 @@ compute_jb_pages(struct EmulatorData * ed)
          job_queue_pages_per_thread;
 
   /**
-   * TC threads can communicate with LQH threads and main threads.
+   * TC threads can communicate with SPJ-, LQH- and main threads.
    * Cannot communicate with receive threads and other TC threads,
-   * but it can communicate with itself.
+   * but as SPJ is located together with TC, it is counted as it
+   * communicate with all TC threads.
    */
   tot += num_tc_threads *
-         (num_lqh_threads + num_main_threads + 1) *
+         (num_lqh_threads + num_main_threads + num_tc_threads) *
          job_queue_pages_per_thread;
 
   /**

@@ -2485,21 +2485,23 @@ loop:
 }
 
 /**********************************************************************//**
-Check whether any background thread is active.
-@return FALSE if all are are suspended or have exited. */
+Check whether any background thread is active. If so return the thread
+type
+@return ULINT_UNDEFINED if all are suspended or have exited, thread
+type if any are still active. */
 UNIV_INTERN
-ibool
-srv_is_any_background_thread_active(void)
-/*=====================================*/
+ulint
+srv_get_active_thread_type(void)
+/*============================*/
 {
 	ulint	i;
-	ibool	ret = FALSE;
+	ibool	ret = ULINT_UNDEFINED;
 
 	mutex_enter(&kernel_mutex);
 
 	for (i = 0; i <= SRV_MASTER; ++i) {
 		if (srv_n_threads_active[i] != 0) {
-			ret = TRUE;
+			ret = i;
 			break;
 		}
 	}
@@ -2507,6 +2509,57 @@ srv_is_any_background_thread_active(void)
 	mutex_exit(&kernel_mutex);
 
 	return(ret);
+}
+
+/*********************************************************************//**
+This function prints progress message every 60 seconds during server
+shutdown, for any activities that master thread is pending on. */
+static
+void
+srv_shutdown_print_master_pending(
+/*==============================*/
+	ib_time_t*	last_print_time,	/*!< last time the function
+						print the message */
+	ulint		n_tables_to_drop,	/*!< number of tables to
+						be dropped */
+	ulint		n_bytes_merged,		/*!< number of change buffer
+						just merged */
+	ulint		n_pages_flushed)	/*!< number of pages flushed */
+{
+	ib_time_t	current_time;
+	double		time_elapsed;
+
+	current_time = ut_time();
+	time_elapsed = ut_difftime(current_time, *last_print_time);
+
+	if (time_elapsed > 60) {
+		*last_print_time = ut_time();
+
+		if (n_tables_to_drop) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for "
+				"%lu table(s) to be dropped\n",
+				(ulong) n_tables_to_drop);
+		}
+
+		/* Check change buffer merge, we only wait for change buffer
+		merge if it is a slow shutdown */
+		if (!srv_fast_shutdown && n_bytes_merged) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for change "
+				"buffer merge to complete\n"
+				"  InnoDB: number of bytes of change buffer "
+				"just merged:  %lu\n",
+				n_bytes_merged);
+		}
+
+		if (n_pages_flushed) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: Waiting for "
+				"%lu pages to be flushed\n",
+				(ulong) n_pages_flushed);
+		}
+        }
 }
 
 /*******************************************************************//**
@@ -2664,6 +2717,7 @@ srv_master_thread(
 	ulint		n_pend_ios;
 	ulint		next_itr_time;
 	ulint		i;
+	ib_time_t	last_print_time;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
@@ -2685,6 +2739,7 @@ srv_master_thread(
 
 	mutex_exit(&kernel_mutex);
 
+	last_print_time = ut_time();
 loop:
 	/*****************************************************************/
 	/* ---- When there is database activity by users, we cycle in this
@@ -3030,6 +3085,14 @@ flush_loop:
 	*/
 	n_bytes_archived = 0;
 
+	/* Print progress message every 60 seconds during shutdown */
+	if (srv_shutdown_state > 0 && srv_print_verbose_log) {
+		srv_shutdown_print_master_pending(&last_print_time,
+						  n_tables_to_drop,
+						  n_bytes_merged,
+						  n_pages_flushed);
+	}
+
 	/* Keep looping in the background loop if still work to do */
 
 	if (srv_fast_shutdown && srv_shutdown_state > 0) {
@@ -3048,6 +3111,7 @@ flush_loop:
 	} else if (n_tables_to_drop
 		   + n_pages_purged + n_bytes_merged + n_pages_flushed
 		   + n_bytes_archived != 0) {
+
 		/* In a 'slow' shutdown we run purge and the insert buffer
 		merge to completion */
 

@@ -2679,6 +2679,8 @@ CREATE TABLE replace_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO replace_table values (1,1),(2,2);
 CREATE TABLE update_table (a INT, b INT, PRIMARY KEY(a));
 INSERT INTO update_table values (1,1),(2,2);
+CREATE TABLE insert_2_keys (a INT UNIQUE KEY, b INT UNIQUE KEY) ENGINE = InnoDB;
+INSERT INTO insert_2_keys values (1, 1);
 INSERT IGNORE INTO insert_table SELECT * FROM filler_table;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT IGNORE... SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are ignored. This order cannot be predicted and may differ on master and the slave.
@@ -2702,10 +2704,15 @@ Note	1592	Unsafe statement written to the binary log using statement format sinc
 CREATE TEMPORARY TABLE temp1 (a INT, b INT, PRIMARY KEY(b)) REPLACE SELECT * FROM filler_table;
 Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. CREATE... REPLACE SELECT is unsafe because the order in which rows are retrieved by the SELECT determines which (if any) rows are replaced. This order cannot be predicted and may differ on master and the slave.
+INSERT INTO insert_2_keys VALUES (1, 2) 
+ON DUPLICATE KEY UPDATE a=VALUES(a)+10, b=VALUES(b)+10;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. INSERT... ON DUPLICATE KEY UPDATE  on a table with more than one UNIQUE KEY is unsafe
 DROP TABLE filler_table;
 DROP TABLE insert_table;
 DROP TABLE update_table;
 DROP TABLE replace_table;
 DROP TABLE create_ignore_test;
 DROP TABLE create_replace_test;
+DROP TABLE insert_2_keys;
 "End of tests"

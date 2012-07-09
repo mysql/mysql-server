@@ -219,7 +219,7 @@ public:
   Uint32 m_hashValueMask;
   Uint32 m_hashpointerValue;
   Vector<Uint16> m_fragments;
-  Vector<Uint8> m_hash_map;
+  Vector<Uint16> m_hash_map;
 
   Uint64 m_max_rows;
   Uint64 m_min_rows;

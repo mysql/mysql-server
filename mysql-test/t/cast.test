@@ -295,4 +295,16 @@ connection default;
 disconnect newconn;
 SET @@GLOBAL.max_allowed_packet=default;
 
+--echo #
+--echo # Bug#13519724 63793: CRASH IN DTCOLLATION::SET(DTCOLLATION &SET)
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(50));
+
+SELECT a FROM t1 
+WHERE CAST(a as BINARY)=x'62736D697468' 
+  AND CAST(a AS BINARY)=x'65736D697468';
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

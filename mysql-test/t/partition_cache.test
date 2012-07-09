@@ -1,0 +1,21 @@
+# t/cache_innodb.test
+#
+# Last update:
+# 2006-07-26 ML test refactored (MySQL 5.1)
+#               main code t/innodb_cache.test --> include/query_cache.inc
+#               new wrapper t/cache_innodb.test
+#
+
+--source include/have_query_cache.inc
+
+--source include/have_innodb.inc
+--source include/have_partition.inc
+let $engine_type= InnoDB;
+# Using SELECT to get a space as first character.
+let $partitions_a= `SELECT ' PARTITION BY KEY (a) PARTITIONS 3'`;
+let $partitions_id= `SELECT ' PARTITION BY HASH (id) PARTITIONS 3'`;
+let $partitions_s1= `SELECT ' PARTITION BY KEY (s1) PARTITIONS 3'`;
+# partitioning does not support FOREIGN KEYs
+let $test_foreign_keys= 0;
+
+--source include/query_cache.inc

@@ -1896,7 +1896,7 @@ NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
 {
   BaseString tmp;
   tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
-             NDB_DEFAULT_HASHMAP_BUCKTETS, fragments);
+             NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
 
   return getHashMap(dst, tmp.c_str());
 }
@@ -1928,12 +1928,12 @@ NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
 {
   BaseString tmp;
   tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
-             NDB_DEFAULT_HASHMAP_BUCKTETS, fragments);
+             NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
 
   dst.setName(tmp.c_str());
 
   Vector<Uint32> map;
-  for (Uint32 i = 0; i<NDB_DEFAULT_HASHMAP_BUCKTETS; i++)
+  for (Uint32 i = 0; i < NDB_DEFAULT_HASHMAP_BUCKETS; i++)
   {
     map.push_back(i % fragments);
   }
@@ -2057,14 +2057,14 @@ retry:
     if (cnt == 0)
     {
       newmap.m_name.assfmt("HASHMAP-%u-%u-%u",
-                           NDB_DEFAULT_HASHMAP_BUCKTETS,
+                           NDB_DEFAULT_HASHMAP_BUCKETS,
                            oldcnt,
                            newcnt);
     }
     else
     {
       newmap.m_name.assfmt("HASHMAP-%u-%u-%u-#%u",
-                           NDB_DEFAULT_HASHMAP_BUCKTETS,
+                           NDB_DEFAULT_HASHMAP_BUCKETS,
                            oldcnt,
                            newcnt,
                            cnt);

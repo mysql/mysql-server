@@ -390,7 +390,7 @@ bool trans_savepoint(THD *thd, LEX_STRING name)
     DBUG_RETURN(FALSE);
 
   enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (xa_state != XA_NOTR)
+  if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
   {
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(TRUE);

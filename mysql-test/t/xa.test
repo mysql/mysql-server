@@ -298,7 +298,6 @@ CREATE TABLE t1 (a INT) engine=InnoDB;
 XA START 'a';
 INSERT INTO t1 VALUES (1);
 
---error ER_XAER_RMFAIL
 SAVEPOINT savep;
 
 XA END 'a';

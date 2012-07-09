@@ -7747,6 +7747,44 @@ CALL p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
+
+# Bug#13805127: Stored program cache produces wrong result in same THD
+
+CREATE PROCEDURE p1(x INT UNSIGNED)
+BEGIN
+SELECT c1, t2.c2, count(c3)
+FROM
+(
+SELECT 3 as c2 FROM dual WHERE x = 1
+UNION
+SELECT 2       FROM dual WHERE x = 1 OR x = 2
+) AS t1,
+(
+SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+UNION
+SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+UNION
+SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2
+;
+END|
+
+CALL p1(1);
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+CALL p1(2);
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+CALL p1(1);
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+DROP PROCEDURE p1;
 # End of 5.5 test
 #
 # Bug#12663165 SP DEAD CODE REMOVAL DOESN'T UNDERSTAND CONTINUE HANDLERS

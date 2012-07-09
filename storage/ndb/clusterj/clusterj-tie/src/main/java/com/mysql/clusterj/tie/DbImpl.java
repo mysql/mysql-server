@@ -431,9 +431,9 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         IndexBound.delete(ndbIndexBound);
     }
 
-    public NdbInterpretedCode createInterpretedCode(TableConst ndbTable, ByteBuffer buffer, int i) {
+    public NdbInterpretedCode createInterpretedCode(TableConst ndbTable, int i) {
         ++numberOfInterpretedCodeCreated;
-        return NdbInterpretedCode.create(ndbTable, buffer, i);
+        return NdbInterpretedCode.create(ndbTable, null, i);
     }
 
     public void delete(NdbInterpretedCode ndbInterpretedCode) {

@@ -48,6 +48,9 @@
 #include <NdbSleep.h>
 #include <portlib/NdbDir.hpp>
 #include <EventLogger.hpp>
+#include <logger/FileLogHandler.hpp>
+#include <logger/ConsoleLogHandler.hpp>
+#include <logger/SysLogHandler.hpp>
 #include <DebuggerNames.hpp>
 #include <ndb_version.h>
 
@@ -579,6 +582,71 @@ MgmtSrvr::start()
 
 
 void
+MgmtSrvr::configure_eventlogger(const BaseString& logdestination) const
+{
+  // Close old log handlers before creating the new
+  g_eventLogger->close();
+
+  Vector<BaseString> logdestinations;
+  logdestination.split(logdestinations, ";");
+
+  for(unsigned i = 0; i < logdestinations.size(); i++)
+  {
+    // Extract type(everything left of colon)
+    Vector<BaseString> v_type_params;
+    logdestinations[i].split(v_type_params, ":", 2);
+    BaseString type(v_type_params[0]);
+    
+    // Extract params(everything right of colon)
+    BaseString params;
+    if(v_type_params.size() >= 2)
+      params = v_type_params[1];
+
+    LogHandler *handler = NULL;
+    if(type == "FILE")
+    {
+      char *default_file_name= NdbConfig_ClusterLogFileName(_ownNodeId);
+      handler = new FileLogHandler(default_file_name);
+      free(default_file_name);
+    }
+    else if(type == "CONSOLE")
+    {
+      handler = new ConsoleLogHandler();
+    }
+#ifndef _WIN32
+    else if(type == "SYSLOG")
+    {
+      handler = new SysLogHandler();
+    }
+#endif  
+    if(handler == NULL)
+    {
+      ndbout_c("INTERNAL ERROR: Could not create log handler for: '%s'",
+               logdestinations[i].c_str());
+      continue;
+    }
+
+    if(!handler->parseParams(params))
+    {
+      ndbout_c("Failed to parse parameters for log handler: '%s', error: %d '%s'",
+               logdestinations[i].c_str(), handler->getErrorCode(), handler->getErrorStr());
+      delete handler;
+      continue;
+    }
+
+    if (!g_eventLogger->addHandler(handler))
+    {
+      ndbout_c("INTERNAL ERROR: Could not add %s log handler", handler->handler_type());
+      g_eventLogger->error("INTERNAL ERROR: Could not add %s log handler",
+                           handler->handler_type());
+      delete handler;
+      continue;
+    }
+  }
+}
+
+
+void
 MgmtSrvr::setClusterLog(const Config* config)
 {
   DBUG_ASSERT(_ownNodeId);
@@ -615,21 +683,7 @@ MgmtSrvr::setClusterLog(const Config* config)
     logdest_configured = false;
   }
 
-  g_eventLogger->close();
-
-  int err= 0;
-  char errStr[100]= {0};
-  if(!g_eventLogger->addHandler(logdest, &err, sizeof(errStr), errStr)) {
-    ndbout << "Warning: could not add log destination '"
-           << logdest.c_str() << "'. Reason: ";
-    if(err)
-      ndbout << strerror(err);
-    if(err && errStr[0]!='\0')
-      ndbout << ", ";
-    if(errStr[0]!='\0')
-      ndbout << errStr;
-    ndbout << endl;
-  }
+  configure_eventlogger(logdest);
 
   if (logdest_configured == false &&
       m_opts.non_interactive)

@@ -119,11 +119,13 @@ public:
   void suma_ndbrequire(bool v);
 
   // wl4391_todo big enough for now
+  // Keep m_fragDesc within 32 bit,
+  // m_dummy is used to pass value.
   union FragmentDescriptor { 
     struct  {
-      Uint8 m_fragmentNo;
+      Uint16 m_fragmentNo;
       Uint8 m_lqhInstanceKey;
-      Uint16 m_nodeId;
+      Uint8 m_nodeId;
     } m_fragDesc;
     Uint32 m_dummy;
   };

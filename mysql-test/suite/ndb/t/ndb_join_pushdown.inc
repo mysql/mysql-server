@@ -4184,6 +4184,18 @@ set global debug=@save_debug;
 
 drop table t;
 
+####################################################
+# Test LQH handling of zero-length key in LQHKEYREQ
+# Bug#
+create table t1 (a int primary key, b int, c int, index(b,c)) engine = ndb;
+insert into t1 values (4,null, 2);
+
+explain
+select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
+select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
+
+drop table t1; 
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
