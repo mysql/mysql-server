@@ -53,6 +53,7 @@
   JSCLASS->SetClassName(String::NewSymbol(NAME)); \
   JSCLASS->InstanceTemplate()->SetInternalFieldCount(1);
 
+/* This could be replaced with NODE_SET_PROTOTYPE_METHOD from node.h */
 #define DEFINE_JS_METHOD(CLASS, NAME, FN) \
   DEFINE_JS_FUNCTION(CLASS->PrototypeTemplate(), NAME, FN);
 
