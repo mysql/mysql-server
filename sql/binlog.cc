@@ -57,6 +57,19 @@ static struct timezone limit_unsafe_suppression_start_time_zone;
 static bool unsafe_warning_suppression_is_activated= false;
 static int limit_unsafe_warning_count= 0;
 
+/*
+  Constants required for the limit unsafe warnings suppression
+ */
+//seconds after which the limit unsafe warnings suppression will be activated
+#define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
+//number of limit unsafe warnings after which the suppression will be activated
+#define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
+
+static struct timeval limit_unsafe_suppression_start_time;
+static struct timezone limit_unsafe_suppression_start_time_zone;
+static bool unsafe_warning_suppression_is_activated= false;
+static int limit_unsafe_warning_count= 0;
+
 static handlerton *binlog_hton;
 bool opt_binlog_order_commits= true;
 
@@ -7934,7 +7947,8 @@ unsafety warning suppression has been activated."));
         /*
           Print the suppression note and the unsafe warning.
         */
-        sql_print_information(ER(ER_WARNING_SUPPRESSION_MSG),
+        sql_print_information("The following warning was suppressed %d times \
+during the last %d seconds in the error log",
                               limit_unsafe_warning_count,
                               (int)
                               (now.tv_sec -
@@ -8003,7 +8017,6 @@ void THD::issue_unsafe_warnings()
   }
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Log the current query.
