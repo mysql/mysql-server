@@ -33,6 +33,7 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			grant.pl grant.res test_delayed_insert.pl \
 			pmail.pl mail_to_db.pl table_types.pl \
 			myisam-big-rows.tst \
+			mysql_client_fw.c \
 			CMakeLists.txt
 
 bin_PROGRAMS =		mysql_client_test
