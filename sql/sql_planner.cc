@@ -2420,6 +2420,7 @@ bool Optimize_table_order::fix_semijoin_strategies()
     }
 
     uint first;
+    LINT_INIT(first);
     if (pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
     {
       TABLE_LIST *const sjm_nest= pos->table->emb_sj_nest;
