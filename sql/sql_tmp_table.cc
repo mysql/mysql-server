@@ -1296,7 +1296,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     share->db_plugin= ha_lock_engine(0, myisam_hton);
     table->file= get_new_handler(share, &table->mem_root,
                                  share->db_type());
-    DBUG_ASSERT(uniq_tuple_length_arg <= table->file->max_key_length());
   }
   else
   {
