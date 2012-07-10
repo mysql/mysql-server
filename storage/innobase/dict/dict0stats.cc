@@ -353,12 +353,9 @@ dict_stats_table_clone_create(
 		for (ulint i = 0; i < n_uniq; i++) {
 			heap_size += strlen(index->fields[i].name) + 1;
 		}
-		heap_size += (n_uniq + 1)
-			* sizeof(index->stat_n_diff_key_vals[0]);
-		heap_size += (n_uniq + 1)
-			* sizeof(index->stat_n_sample_sizes[0]);
-		heap_size += (n_uniq + 1)
-			* sizeof(index->stat_n_non_null_key_vals[0]);
+		heap_size += n_uniq * sizeof(index->stat_n_diff_key_vals[0]);
+		heap_size += n_uniq * sizeof(index->stat_n_sample_sizes[0]);
+		heap_size += n_uniq * sizeof(index->stat_n_non_null_key_vals[0]);
 	}
 
 	/* Allocate the memory and copy the members */
@@ -433,18 +430,15 @@ dict_stats_table_clone_create(
 
 		idx->stat_n_diff_key_vals = (ib_uint64_t*) mem_heap_alloc(
 			heap,
-			(idx->n_uniq + 1)
-			* sizeof(idx->stat_n_diff_key_vals[0]));
+			idx->n_uniq * sizeof(idx->stat_n_diff_key_vals[0]));
 
 		idx->stat_n_sample_sizes = (ib_uint64_t*) mem_heap_alloc(
 			heap,
-			(idx->n_uniq + 1)
-			* sizeof(idx->stat_n_sample_sizes[0]));
+			idx->n_uniq * sizeof(idx->stat_n_sample_sizes[0]));
 
 		idx->stat_n_non_null_key_vals = (ib_uint64_t*) mem_heap_alloc(
 			heap,
-			(idx->n_uniq + 1)
-			* sizeof(idx->stat_n_non_null_key_vals[0]));
+			idx->n_uniq * sizeof(idx->stat_n_non_null_key_vals[0]));
 #ifdef UNIV_DEBUG
 		idx->magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
@@ -488,10 +482,10 @@ dict_stats_empty_index(
 
 	ulint	n_uniq = index->n_uniq;
 
-	for (ulint i = 1; i <= n_uniq; i++) {
+	for (ulint i = 0; i < n_uniq; i++) {
 		index->stat_n_diff_key_vals[i] = 0;
 		index->stat_n_sample_sizes[i] = 1;
-		index->stat_n_non_null_key_vals[i - 1] = 0;
+		index->stat_n_non_null_key_vals[i] = 0;
 	}
 
 	index->stat_index_size = 1;
@@ -591,11 +585,11 @@ dict_stats_assert_initialized(
 		}
 
 		UNIV_MEM_ASSERT_RW(
-			index->stat_n_diff_key_vals + 1,
+			index->stat_n_diff_key_vals,
 			index->n_uniq * sizeof(index->stat_n_diff_key_vals[0]));
 
 		UNIV_MEM_ASSERT_RW(
-			index->stat_n_sample_sizes + 1,
+			index->stat_n_sample_sizes,
 			index->n_uniq * sizeof(index->stat_n_sample_sizes[0]));
 
 		UNIV_MEM_ASSERT_RW(
@@ -684,12 +678,12 @@ dict_stats_copy(
 			n_copy_el = dst_idx->n_uniq;
 		}
 
-		memmove(dst_idx->stat_n_diff_key_vals + 1,
-			src_idx->stat_n_diff_key_vals + 1,
+		memmove(dst_idx->stat_n_diff_key_vals,
+			src_idx->stat_n_diff_key_vals,
 			n_copy_el * sizeof(dst_idx->stat_n_diff_key_vals[0]));
 
-		memmove(dst_idx->stat_n_sample_sizes + 1,
-			src_idx->stat_n_sample_sizes + 1,
+		memmove(dst_idx->stat_n_sample_sizes,
+			src_idx->stat_n_sample_sizes,
 			n_copy_el * sizeof(dst_idx->stat_n_sample_sizes[0]));
 
 		memmove(dst_idx->stat_n_non_null_key_vals,
@@ -881,7 +875,7 @@ dict_stats_update_transient(
 	index = dict_table_get_first_index(table);
 
 	table->stat_n_rows = index->stat_n_diff_key_vals[
-		dict_index_get_n_unique(index)];
+		dict_index_get_n_unique(index) - 1];
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -917,12 +911,10 @@ dict_stats_analyze_index()
 /*********************************************************************//**
 Find the total number and the number of distinct keys on a given level in
 an index. Each of the 1..n_uniq prefixes are looked up and the results are
-saved in the array n_diff[]. Notice that n_diff[] must be able to store
-n_uniq+1 numbers because the results are saved in
-n_diff[1] .. n_diff[n_uniq]. The total number of records on the level is
-saved in total_recs.
+saved in the array n_diff[0] .. n_diff[n_uniq - 1]. The total number of
+records on the level is saved in total_recs.
 Also, the index of the last record in each group of equal records is saved
-in n_diff_boundaries[1..n_uniq], records indexing starts from the leftmost
+in n_diff_boundaries[0..n_uniq - 1], records indexing starts from the leftmost
 record on the level and continues cross pages boundaries, counting from 0.
 dict_stats_analyze_index_level() @{ */
 static
@@ -959,16 +951,14 @@ dict_stats_analyze_index_level(
 
 	n_uniq = dict_index_get_n_unique(index);
 
-	/* elements in the n_diff array are 1..n_uniq (inclusive) */
-	memset(n_diff, 0x0, (n_uniq + 1) * sizeof(*n_diff));
+	/* elements in the n_diff array are 0..n_uniq-1 (inclusive) */
+	memset(n_diff, 0x0, n_uniq * sizeof(n_diff[0]));
 
 	heap = mem_heap_create(256);
 
-	/* reset the dynamic arrays n_diff_boundaries[1..n_uniq];
-	n_diff_boundaries[0] is ignored to follow the same convention
-	as n_diff[] */
+	/* reset the dynamic arrays n_diff_boundaries[0..n_uniq-1] */
 	if (n_diff_boundaries != NULL) {
-		for (i = 1; i <= n_uniq; i++) {
+		for (i = 0; i < n_uniq; i++) {
 			dyn_array_free(&n_diff_boundaries[i]);
 
 			dyn_array_create(&n_diff_boundaries[i]);
@@ -1169,7 +1159,7 @@ dict_stats_analyze_index_level(
 					       &matched_fields,
 					       &matched_bytes);
 
-			for (i = matched_fields + 1; i <= n_uniq; i++) {
+			for (i = matched_fields; i < n_uniq; i++) {
 
 				if (n_diff_boundaries != NULL) {
 					/* push the index of the previous
@@ -1197,12 +1187,13 @@ dict_stats_analyze_index_level(
 				}
 
 				/* increment the number of different keys
-				for n_prefix=i */
+				for n_prefix=i+1 (e.g. if i=0 then we increment
+				for n_prefix=1 which is stored in n_diff[0]) */
 				n_diff[i]++;
 			}
 		} else {
 			/* this is the first non-delete marked record */
-			for (i = 1; i <= n_uniq; i++) {
+			for (i = 0; i < n_uniq; i++) {
 				n_diff[i] = 1;
 			}
 		}
@@ -1252,7 +1243,7 @@ dict_stats_analyze_index_level(
 		/* remember the index of the last record on the level as the
 		last one from the last group of equal keys; this holds for
 		all possible prefixes */
-		for (i = 1; i <= n_uniq; i++) {
+		for (i = 0; i < n_uniq; i++) {
 			void*		p;
 			ib_uint64_t	idx;
 
@@ -1266,10 +1257,10 @@ dict_stats_analyze_index_level(
 	}
 
 	/* now in n_diff_boundaries[i] there are exactly n_diff[i] integers,
-	for i=1..n_uniq */
+	for i=0..n_uniq-1 */
 
 #ifdef UNIV_STATS_DEBUG
-	for (i = 1; i <= n_uniq; i++) {
+	for (i = 0; i < n_uniq; i++) {
 
 		DEBUG_PRINTF("    %s(): total recs: " UINT64PF
 			     ", total pages: " UINT64PF
@@ -1580,8 +1571,8 @@ dict_stats_analyze_index_below_cur(
 For a given level in an index select N_SAMPLE_PAGES(index)
 (or less) records from that level and dive below them to the corresponding
 leaf pages, then scan those leaf pages and save the sampling results in
-index->stat_n_diff_key_vals[n_prefix] and the number of pages scanned in
-index->stat_n_sample_sizes[n_prefix].
+index->stat_n_diff_key_vals[n_prefix - 1] and the number of pages scanned in
+index->stat_n_sample_sizes[n_prefix - 1].
 dict_stats_analyze_index_for_n_prefix() @{ */
 static
 void
@@ -1796,11 +1787,11 @@ dict_stats_analyze_index_for_n_prefix(
 
 	/* n_diff_sum_of_all_analyzed_pages can be 0 here if all the leaf
 	pages sampled contained only delete-marked records. In this case
-	we should assign 0 to index->stat_n_diff_key_vals[n_prefix], which
+	we should assign 0 to index->stat_n_diff_key_vals[n_prefix - 1], which
 	the formula below does. */
 
 	/* See REF01 for an explanation of the algorithm */
-	index->stat_n_diff_key_vals[n_prefix]
+	index->stat_n_diff_key_vals[n_prefix - 1]
 		= index->stat_n_leaf_pages
 
 		* n_diff_for_this_prefix
@@ -1809,13 +1800,13 @@ dict_stats_analyze_index_for_n_prefix(
 		* n_diff_sum_of_all_analyzed_pages
 		/ n_recs_to_dive_below;
 
-	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
+	index->stat_n_sample_sizes[n_prefix - 1] = n_recs_to_dive_below;
 
 	DEBUG_PRINTF("    %s(): n_diff=" UINT64PF " for n_prefix=%lu "
 		     "(%lu"
 		     " * " UINT64PF " / " UINT64PF
 		     " * " UINT64PF " / " UINT64PF ")\n",
-		     __func__, index->stat_n_diff_key_vals[n_prefix],
+		     __func__, index->stat_n_diff_key_vals[n_prefix - 1],
 		     n_prefix,
 		     index->stat_n_leaf_pages,
 		     n_diff_for_this_prefix, total_recs_on_level,
@@ -1916,7 +1907,7 @@ dict_stats_analyze_index(
 					       NULL /* boundaries not needed */,
 					       &mtr);
 
-		for (ulint i = 1; i <= n_uniq; i++) {
+		for (ulint i = 0; i < n_uniq; i++) {
 			index->stat_n_sample_sizes[i] = total_pages;
 		}
 
@@ -1927,15 +1918,13 @@ dict_stats_analyze_index(
 
 	/* set to zero */
 	n_diff_on_level = reinterpret_cast<ib_uint64_t*>
-		(mem_zalloc((n_uniq + 1) * sizeof(ib_uint64_t)));
+		(mem_zalloc(n_uniq * sizeof(ib_uint64_t)));
 
 	n_diff_boundaries = reinterpret_cast<dyn_array_t*>
-		(mem_alloc((n_uniq + 1) * sizeof(dyn_array_t)));
+		(mem_alloc(n_uniq * sizeof(dyn_array_t)));
 
-	for (ulint i = 1; i <= n_uniq; i++) {
-		/* initialize the dynamic arrays, the first one
-		(index=0) is ignored to follow the same indexing
-		scheme as n_diff_on_level[] */
+	for (ulint i = 0; i < n_uniq; i++) {
+		/* initialize the dynamic arrays */
 		dyn_array_create(&n_diff_boundaries[i]);
 	}
 
@@ -1984,7 +1973,7 @@ dict_stats_analyze_index(
 		distinct records because we do not want to scan the
 		leaf level because it may contain too many records */
 		if (level_is_analyzed
-		    && (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED(index)
+		    && (n_diff_on_level[n_prefix - 1] >= N_DIFF_REQUIRED(index)
 			|| level == 1)) {
 
 			goto found_level;
@@ -1996,7 +1985,7 @@ dict_stats_analyze_index(
 
 			/* if this does not hold we should be on
 			"found_level" instead of here */
-			ut_ad(n_diff_on_level[n_prefix]
+			ut_ad(n_diff_on_level[n_prefix - 1]
 			      < N_DIFF_REQUIRED(index));
 
 			level--;
@@ -2049,7 +2038,8 @@ dict_stats_analyze_index(
 
 			level_is_analyzed = true;
 
-			if (n_diff_on_level[n_prefix] >= N_DIFF_REQUIRED(index)
+			if (n_diff_on_level[n_prefix - 1]
+			    >= N_DIFF_REQUIRED(index)
 			    || level == 1) {
 				/* we found a good level with many distinct
 				records or we have reached the last level we
@@ -2064,7 +2054,7 @@ found_level:
 
 		DEBUG_PRINTF("  %s(): found level %lu that has " UINT64PF
 			     " distinct records for n_prefix=%lu\n",
-			     __func__, level, n_diff_on_level[n_prefix],
+			     __func__, level, n_diff_on_level[n_prefix - 1],
 			     n_prefix);
 
 		/* here we are either on level 1 or the level that we are on
@@ -2080,13 +2070,13 @@ found_level:
 
 		dict_stats_analyze_index_for_n_prefix(
 			index, level, total_recs, n_prefix,
-			n_diff_on_level[n_prefix],
-			&n_diff_boundaries[n_prefix], &mtr);
+			n_diff_on_level[n_prefix - 1],
+			&n_diff_boundaries[n_prefix - 1], &mtr);
 	}
 
 	mtr_commit(&mtr);
 
-	for (ulint i = 1; i <= n_uniq; i++) {
+	for (ulint i = 0; i < n_uniq; i++) {
 		dyn_array_free(&n_diff_boundaries[i]);
 	}
 
@@ -2133,7 +2123,7 @@ dict_stats_update_persistent(
 
 	ulint	n_unique = dict_index_get_n_unique(index);
 
-	table->stat_n_rows = index->stat_n_diff_key_vals[n_unique];
+	table->stat_n_rows = index->stat_n_diff_key_vals[n_unique - 1];
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -2432,27 +2422,27 @@ dict_stats_save(
 			goto end;
 		}
 
-		for (ulint i = 1; i <= index->n_uniq; i++) {
+		for (ulint i = 0; i < index->n_uniq; i++) {
 
 			char	stat_name[16];
 			char	stat_description[1024];
 			ulint	j;
 
 			ut_snprintf(stat_name, sizeof(stat_name),
-				    "n_diff_pfx%02lu", i);
+				    "n_diff_pfx%02lu", i + 1);
 
 			/* craft a string that contains the columns names */
 			ut_snprintf(stat_description,
 				    sizeof(stat_description),
 				    "%s", index->fields[0].name);
-			for (j = 2; j <= i; j++) {
+			for (j = 1; j <= i; j++) {
 				size_t	len;
 
 				len = strlen(stat_description);
 
 				ut_snprintf(stat_description + len,
 					    sizeof(stat_description) - len,
-					    ",%s", index->fields[j - 1].name);
+					    ",%s", index->fields[j].name);
 			}
 
 			ret = dict_stats_save_index_stat(
@@ -2795,14 +2785,14 @@ dict_stats_fetch_index_stats_step(
 		}
 		/* else */
 
-		index->stat_n_diff_key_vals[n_pfx] = stat_value;
+		index->stat_n_diff_key_vals[n_pfx - 1] = stat_value;
 
 		if (sample_size != UINT64_UNDEFINED) {
-			index->stat_n_sample_sizes[n_pfx] = sample_size;
+			index->stat_n_sample_sizes[n_pfx - 1] = sample_size;
 		} else {
 			/* hmm, strange... the user must have UPDATEd the
 			table manually and SET sample_size = NULL */
-			index->stat_n_sample_sizes[n_pfx] = 0;
+			index->stat_n_sample_sizes[n_pfx - 1] = 0;
 		}
 
 		index->stat_n_non_null_key_vals[n_pfx - 1] = 0;
@@ -3882,12 +3872,12 @@ test_dict_stats_save()
 	dict_table_t	table;
 	dict_index_t	index1;
 	dict_field_t	index1_fields[1];
-	ib_uint64_t	index1_stat_n_diff_key_vals[2];
-	ib_uint64_t	index1_stat_n_sample_sizes[2];
+	ib_uint64_t	index1_stat_n_diff_key_vals[1];
+	ib_uint64_t	index1_stat_n_sample_sizes[1];
 	dict_index_t	index2;
 	dict_field_t	index2_fields[4];
-	ib_uint64_t	index2_stat_n_diff_key_vals[5];
-	ib_uint64_t	index2_stat_n_sample_sizes[5];
+	ib_uint64_t	index2_stat_n_diff_key_vals[4];
+	ib_uint64_t	index2_stat_n_sample_sizes[4];
 	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
@@ -3911,10 +3901,8 @@ test_dict_stats_save()
 	index1.stat_index_size = TEST_IDX1_INDEX_SIZE;
 	index1.stat_n_leaf_pages = TEST_IDX1_N_LEAF_PAGES;
 	index1_fields[0].name = TEST_IDX1_COL1_NAME;
-	index1_stat_n_diff_key_vals[0] = 1; /* dummy */
-	index1_stat_n_diff_key_vals[1] = TEST_IDX1_N_DIFF1;
-	index1_stat_n_sample_sizes[0] = 0; /* dummy */
-	index1_stat_n_sample_sizes[1] = TEST_IDX1_N_DIFF1_SAMPLE_SIZE;
+	index1_stat_n_diff_key_vals[0] = TEST_IDX1_N_DIFF1;
+	index1_stat_n_sample_sizes[0] = TEST_IDX1_N_DIFF1_SAMPLE_SIZE;
 
 	ut_d(index2.magic_n = DICT_INDEX_MAGIC_N);
 	index2.name = TEST_IDX2_NAME;
@@ -3930,16 +3918,14 @@ test_dict_stats_save()
 	index2_fields[1].name = TEST_IDX2_COL2_NAME;
 	index2_fields[2].name = TEST_IDX2_COL3_NAME;
 	index2_fields[3].name = TEST_IDX2_COL4_NAME;
-	index2_stat_n_diff_key_vals[0] = 1; /* dummy */
-	index2_stat_n_diff_key_vals[1] = TEST_IDX2_N_DIFF1;
-	index2_stat_n_diff_key_vals[2] = TEST_IDX2_N_DIFF2;
-	index2_stat_n_diff_key_vals[3] = TEST_IDX2_N_DIFF3;
-	index2_stat_n_diff_key_vals[4] = TEST_IDX2_N_DIFF4;
-	index2_stat_n_sample_sizes[0] = 0; /* dummy */
-	index2_stat_n_sample_sizes[1] = TEST_IDX2_N_DIFF1_SAMPLE_SIZE;
-	index2_stat_n_sample_sizes[2] = TEST_IDX2_N_DIFF2_SAMPLE_SIZE;
-	index2_stat_n_sample_sizes[3] = TEST_IDX2_N_DIFF3_SAMPLE_SIZE;
-	index2_stat_n_sample_sizes[4] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
+	index2_stat_n_diff_key_vals[0] = TEST_IDX2_N_DIFF1;
+	index2_stat_n_diff_key_vals[1] = TEST_IDX2_N_DIFF2;
+	index2_stat_n_diff_key_vals[2] = TEST_IDX2_N_DIFF3;
+	index2_stat_n_diff_key_vals[3] = TEST_IDX2_N_DIFF4;
+	index2_stat_n_sample_sizes[0] = TEST_IDX2_N_DIFF1_SAMPLE_SIZE;
+	index2_stat_n_sample_sizes[1] = TEST_IDX2_N_DIFF2_SAMPLE_SIZE;
+	index2_stat_n_sample_sizes[2] = TEST_IDX2_N_DIFF3_SAMPLE_SIZE;
+	index2_stat_n_sample_sizes[3] = TEST_IDX2_N_DIFF4_SAMPLE_SIZE;
 
 	ret = dict_stats_save(&table);
 
@@ -4039,11 +4025,11 @@ test_dict_stats_fetch_from_ps()
 {
 	dict_table_t	table;
 	dict_index_t	index1;
-	ib_uint64_t	index1_stat_n_diff_key_vals[2];
-	ib_uint64_t	index1_stat_n_sample_sizes[2];
+	ib_uint64_t	index1_stat_n_diff_key_vals[1];
+	ib_uint64_t	index1_stat_n_sample_sizes[1];
 	dict_index_t	index2;
-	ib_uint64_t	index2_stat_n_diff_key_vals[5];
-	ib_uint64_t	index2_stat_n_sample_sizes[5];
+	ib_uint64_t	index2_stat_n_diff_key_vals[4];
+	ib_uint64_t	index2_stat_n_sample_sizes[4];
 	dberr_t		ret;
 
 	/* craft a dummy dict_table_t */
@@ -4084,19 +4070,19 @@ test_dict_stats_fetch_from_ps()
 
 	ut_a(index1.stat_index_size == TEST_IDX1_INDEX_SIZE);
 	ut_a(index1.stat_n_leaf_pages == TEST_IDX1_N_LEAF_PAGES);
-	ut_a(index1_stat_n_diff_key_vals[1] == TEST_IDX1_N_DIFF1);
-	ut_a(index1_stat_n_sample_sizes[1] == TEST_IDX1_N_DIFF1_SAMPLE_SIZE);
+	ut_a(index1_stat_n_diff_key_vals[0] == TEST_IDX1_N_DIFF1);
+	ut_a(index1_stat_n_sample_sizes[0] == TEST_IDX1_N_DIFF1_SAMPLE_SIZE);
 
 	ut_a(index2.stat_index_size == TEST_IDX2_INDEX_SIZE);
 	ut_a(index2.stat_n_leaf_pages == TEST_IDX2_N_LEAF_PAGES);
-	ut_a(index2_stat_n_diff_key_vals[1] == TEST_IDX2_N_DIFF1);
-	ut_a(index2_stat_n_sample_sizes[1] == TEST_IDX2_N_DIFF1_SAMPLE_SIZE);
-	ut_a(index2_stat_n_diff_key_vals[2] == TEST_IDX2_N_DIFF2);
-	ut_a(index2_stat_n_sample_sizes[2] == TEST_IDX2_N_DIFF2_SAMPLE_SIZE);
-	ut_a(index2_stat_n_diff_key_vals[3] == TEST_IDX2_N_DIFF3);
-	ut_a(index2_stat_n_sample_sizes[3] == TEST_IDX2_N_DIFF3_SAMPLE_SIZE);
-	ut_a(index2_stat_n_diff_key_vals[4] == TEST_IDX2_N_DIFF4);
-	ut_a(index2_stat_n_sample_sizes[4] == TEST_IDX2_N_DIFF4_SAMPLE_SIZE);
+	ut_a(index2_stat_n_diff_key_vals[0] == TEST_IDX2_N_DIFF1);
+	ut_a(index2_stat_n_sample_sizes[0] == TEST_IDX2_N_DIFF1_SAMPLE_SIZE);
+	ut_a(index2_stat_n_diff_key_vals[1] == TEST_IDX2_N_DIFF2);
+	ut_a(index2_stat_n_sample_sizes[1] == TEST_IDX2_N_DIFF2_SAMPLE_SIZE);
+	ut_a(index2_stat_n_diff_key_vals[2] == TEST_IDX2_N_DIFF3);
+	ut_a(index2_stat_n_sample_sizes[2] == TEST_IDX2_N_DIFF3_SAMPLE_SIZE);
+	ut_a(index2_stat_n_diff_key_vals[3] == TEST_IDX2_N_DIFF4);
+	ut_a(index2_stat_n_sample_sizes[3] == TEST_IDX2_N_DIFF4_SAMPLE_SIZE);
 
 	printf("OK: fetch successful\n");
 }

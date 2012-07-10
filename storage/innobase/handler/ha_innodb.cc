@@ -10499,9 +10499,7 @@ innodb_rec_per_key(
 
 	ut_ad(i < dict_index_get_n_unique(index));
 
-	/* Note the stat_n_diff_key_vals[] stores the diff value with
-	n-prefix indexing, so it is always stat_n_diff_key_vals[i + 1] */
-	if (index->stat_n_diff_key_vals[i + 1] == 0) {
+	if (index->stat_n_diff_key_vals[i] == 0) {
 
 		rec_per_key = records;
 	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
@@ -10522,19 +10520,19 @@ innodb_rec_per_key(
 		large than that of the distinct values, we could
 		consider that the table consists mostly of NULL value.
 		Set rec_per_key to 1. */
-		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
+		if (index->stat_n_diff_key_vals[i] <= num_null) {
 			rec_per_key = 1;
 		} else {
 			/* Need to exclude rows with NULL values from
 			rec_per_key calculation */
 			rec_per_key = (ha_rows)(
 				(records - num_null)
-				/ (index->stat_n_diff_key_vals[i + 1]
+				/ (index->stat_n_diff_key_vals[i]
 				   - num_null));
 		}
 	} else {
 		rec_per_key = (ha_rows)
-			 (records / index->stat_n_diff_key_vals[i + 1]);
+			 (records / index->stat_n_diff_key_vals[i]);
 	}
 
 	return(rec_per_key);

@@ -528,8 +528,9 @@ struct dict_index_struct{
 	ib_uint64_t*	stat_n_diff_key_vals;
 				/*!< approximate number of different
 				key values for this index, for each
-				n-column prefix where n <=
-				dict_get_n_unique(index); we
+				n-column prefix where 1 <= n <=
+				dict_get_n_unique(index) (the array is
+				indexed from 0 to n_uniq-1); we
 				periodically calculate new
 				estimates */
 	ib_uint64_t*	stat_n_sample_sizes;
@@ -540,7 +541,8 @@ struct dict_index_struct{
 	ib_uint64_t*	stat_n_non_null_key_vals;
 				/* approximate number of non-null key values
 				for this index, for each column where
-				n < dict_get_n_unique(index); This
+				1 <= n <= dict_get_n_unique(index) (the array
+				is indexed from 0 to n_uniq-1); This
 				is used when innodb_stats_method is
 				"nulls_ignored". */
 	ulint		stat_index_size;
