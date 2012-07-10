@@ -2876,6 +2876,7 @@ public:
   bool is_null;
   uchar flags;
 #ifdef MYSQL_SERVER
+  bool deferred;
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg,
@@ -2883,7 +2884,7 @@ public:
                      enum_event_logging_type logging_type_arg)
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg), name(name_arg),
      name_len(name_len_arg), val(val_arg), val_len(val_len_arg), type(type_arg),
-     charset_number(charset_number_arg), flags(flags_arg)
+     charset_number(charset_number_arg), flags(flags_arg), deferred(false)
     { 
       is_null= !val;
     }
@@ -2898,6 +2899,13 @@ public:
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
+  /* 
+     Getter and setter for deferred User-event. 
+     Returns true if the event is not applied directly 
+     and which case the applier adjusts execution path.
+  */
+  bool is_deferred() { return deferred; }
+  void set_deferred() { deferred= val; }
 #endif
   bool is_valid() const { return 1; }
 
