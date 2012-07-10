@@ -2394,10 +2394,10 @@ ndb_set_record_specification(uint field_no,
 {
   spec->column= ndb_table->getColumn(field_no);
   spec->offset= Uint32(table->field[field_no]->ptr - table->record[0]);
-  if (table->field[field_no]->null_ptr)
+  if (table->field[field_no]->real_maybe_null())
   {
     spec->nullbit_byte_offset=
-      Uint32(table->field[field_no]->null_ptr - table->record[0]);
+      Uint32(table->field[field_no]->null_offset());
     spec->nullbit_bit_in_byte=
       null_bit_mask_to_bit_number(table->field[field_no]->null_bit);
   }
@@ -16064,7 +16064,7 @@ enum_alter_inplace_result
          {
            my_ptrdiff_t src_offset= field->table->s->default_values 
              - field->table->record[0];
-           if ((! field->is_null_in_record_with_offset(src_offset)) ||
+           if ((! field->is_real_null(src_offset)) ||
                ((field->flags & NOT_NULL_FLAG)))
            {
              DBUG_PRINT("info",("Adding column with non-null default value is not supported on-line"));
