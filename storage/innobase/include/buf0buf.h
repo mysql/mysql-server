@@ -592,34 +592,34 @@ ib_uint64_t
 buf_block_get_modify_clock(
 /*=======================*/
 	buf_block_t*	block);	/*!< in: block */
-#else /* !UNIV_HOTBACKUP */
-# define buf_block_modify_clock_inc(block) ((void) 0)
-#endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
 Increments the bufferfix count. */
 UNIV_INLINE
 void
 buf_block_buf_fix_inc_func(
 /*=======================*/
-#ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_SYNC_DEBUG
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line */
-#endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_SYNC_DEBUG */
 	buf_block_t*	block)	/*!< in/out: block to bufferfix */
 	__attribute__((nonnull));
-#ifdef UNIV_SYNC_DEBUG
+# ifdef UNIV_SYNC_DEBUG
 /** Increments the bufferfix count.
 @param b	in/out: block to bufferfix
 @param f	in: file name where requested
 @param l	in: line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(f,l,b)
-#else /* UNIV_SYNC_DEBUG */
+# else /* UNIV_SYNC_DEBUG */
 /** Increments the bufferfix count.
 @param b	in/out: block to bufferfix
 @param f	in: file name where requested
 @param l	in: line number where requested */
 # define buf_block_buf_fix_inc(b,f,l) buf_block_buf_fix_inc_func(b)
-#endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_SYNC_DEBUG */
+#else /* !UNIV_HOTBACKUP */
+# define buf_block_modify_clock_inc(block) ((void) 0)
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Checks if a page is corrupt.
 @return	TRUE if corrupted */
@@ -882,7 +882,7 @@ buf_page_belongs_to_unzip_LRU(
 Gets the mutex of a block.
 @return	pointer to mutex protecting bpage */
 UNIV_INLINE
-mutex_t*
+ib_mutex_t*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
@@ -1164,9 +1164,10 @@ buf_page_init_for_read(
 	ulint		offset);/*!< in: page number */
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
-the buffer pool. */
+the buffer pool.
+@return true if successful */
 UNIV_INTERN
-void
+bool
 buf_page_io_complete(
 /*=================*/
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
@@ -1597,7 +1598,7 @@ struct buf_block_struct{
 					decompressed LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	mutex_t		mutex;		/*!< mutex protecting this block:
+	ib_mutex_t		mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
 					and accessed; we introduce this new
@@ -1761,9 +1762,9 @@ struct buf_pool_struct{
 
 	/** @name General fields */
 	/* @{ */
-	mutex_t		mutex;		/*!< Buffer pool mutex of this
+	ib_mutex_t		mutex;		/*!< Buffer pool mutex of this
 					instance */
-	mutex_t		zip_mutex;	/*!< Zip mutex of this buffer
+	ib_mutex_t		zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */
@@ -1817,7 +1818,7 @@ struct buf_pool_struct{
 
 	/* @{ */
 
-	mutex_t		flush_list_mutex;/*!< mutex protecting the
+	ib_mutex_t		flush_list_mutex;/*!< mutex protecting the
 					flush list access. This mutex
 					protects flush_list, flush_rbt
 					and bpage::list pointers when

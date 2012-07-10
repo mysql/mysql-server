@@ -249,7 +249,9 @@ Y
 z
 Z
 DROP TABLE t1;
+SET sql_mode='';
 CREATE TABLE t1 ENGINE=FALCON AS SELECT repeat('a', 5) AS s1 LIMIT 0;
+SET sql_mode=DEFAULT;
 INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1
@@ -285,7 +287,9 @@ Y
 z
 Z
 DROP TABLE t1;
+SET sql_mode='';
 CREATE TABLE t1 ENGINE=MARIA AS SELECT repeat('a', 5) AS s1 LIMIT 0;
+SET sql_mode=DEFAULT;
 INSERT INTO t1 VALUES ('x'),('y'),('z'),('X'),('Y'),('Z');
 SELECT * FROM t1 GROUP BY s1;
 s1

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ ENDIF()
 
 
 SET(LIBS 
-  dbug strings regex mysys vio 
+  dbug strings regex mysys mysys_ssl vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_PLUGIN_LIBS}

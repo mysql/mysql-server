@@ -101,6 +101,21 @@ trx_undo_roll_ptr_is_insert(
 	ut_ad(roll_ptr < (1ULL << 56));
 	return((ibool) (roll_ptr >> 55));
 }
+
+/***********************************************************************//**
+Returns true if the record is of the insert type.
+@return	true if the record was freshly inserted (not updated). */
+UNIV_INLINE
+bool
+trx_undo_trx_id_is_insert(
+/*======================*/
+	const byte*	trx_id)	/*!< in: DB_TRX_ID, followed by DB_ROLL_PTR */
+{
+#if DATA_TRX_ID + 1 != DATA_ROLL_PTR
+# error
+#endif
+	return(static_cast<bool>(trx_id[DATA_TRX_ID_LEN] >> 7));
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /*****************************************************************//**

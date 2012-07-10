@@ -77,9 +77,6 @@ struct st_partition_iter;
 bool is_partition_in_list(char *part_name, List<char> list_part_names);
 char *are_partitions_in_table(partition_info *new_part_info,
                               partition_info *old_part_info);
-bool check_reorganise_list(partition_info *new_part_info,
-                           partition_info *old_part_info,
-                           List<char> list_part_names);
 handler *get_ha_partition(partition_info *part_info);
 int get_parts_for_update(const uchar *old_data, uchar *new_data,
                          const uchar *rec0, partition_info *part_info,
@@ -124,6 +121,7 @@ bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
 Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs);
 void mem_alloc_error(size_t size);
+void truncate_partition_filename(char *path);
 
 /*
   A "Get next" function for partition iterator.

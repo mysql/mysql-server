@@ -47,6 +47,12 @@ INSERT INTO t1 VALUES (0, 0, 0), (1, 1, 1), (2, 2, 2), (3, 3, 3), (4, 4, 4), (5,
 INSERT INTO t1 SELECT id + 8, id2 + 8, id3 +8 FROM t1;
 INSERT INTO t1 SELECT id + 16, 7, 0 FROM t1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 EXPLAIN SELECT SQL_NO_CACHE count(*) FROM t1 WHERE id2=7 AND id3=0;
 
 DROP TABLE t1;

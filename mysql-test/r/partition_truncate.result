@@ -5,7 +5,7 @@ partition by list (a)
 alter table t1 truncate partition p1,p1;
 ERROR HY000: Incorrect partition name
 alter table t1 truncate partition p0;
-ERROR HY000: Incorrect partition name
+ERROR HY000: Unknown partition 'p0' in table 't1'
 drop table t1;
 create table t1 (a int)
 partition by list (a)

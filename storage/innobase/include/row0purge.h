@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -46,7 +46,8 @@ row_purge_node_create(
 /*==================*/
 	que_thr_t*	parent,		/*!< in: parent node, i.e., a
 					thr node */
-	mem_heap_t*	heap);		/*!< in: memory heap where created */
+	mem_heap_t*	heap)		/*!< in: memory heap where created */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************//**
 Determines if it is possible to remove a secondary index entry.
 Removal is possible if the secondary index entry does not refer to any
@@ -56,19 +57,20 @@ is newer than the purge view.
 NOTE: This function should only be called by the purge thread, only
 while holding a latch on the leaf page of the secondary index entry
 (or keeping the buffer pool watch on the page).  It is possible that
-this function first returns TRUE and then FALSE, if a user transaction
+this function first returns true and then false, if a user transaction
 inserts a record that the secondary index entry would refer to.
 However, in that case, the user transaction would also re-insert the
 secondary index entry after purge has removed it and released the leaf
 page latch.
-@return	TRUE if the secondary index record can be purged */
+@return	true if the secondary index record can be purged */
 UNIV_INTERN
-ibool
+bool
 row_purge_poss_sec(
 /*===============*/
 	purge_node_t*	node,	/*!< in/out: row purge node */
 	dict_index_t*	index,	/*!< in: secondary index */
-	const dtuple_t*	entry);	/*!< in: secondary index entry */
+	const dtuple_t*	entry)	/*!< in: secondary index entry */
+	__attribute__((nonnull, warn_unused_result));
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
@@ -77,7 +79,8 @@ UNIV_INTERN
 que_thr_t*
 row_purge_step(
 /*===========*/
-	que_thr_t*	thr);	/*!< in: query thread */
+	que_thr_t*	thr)	/*!< in: query thread */
+	__attribute__((nonnull, warn_unused_result));
 
 /* Purge node structure */
 

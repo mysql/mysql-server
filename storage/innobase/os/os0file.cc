@@ -77,7 +77,7 @@ UNIV_INTERN ulint	os_innodb_umask		= 0;
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
-UNIV_INTERN os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
+UNIV_INTERN os_ib_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /* In simulated aio, merge at most this many consecutive i/os */
 #define OS_AIO_MERGE_N_CONSECUTIVE	64
@@ -190,7 +190,7 @@ typedef struct os_aio_array_struct	os_aio_array_t;
 
 /** The asynchronous i/o array structure */
 struct os_aio_array_struct{
-	os_mutex_t	mutex;	/*!< the mutex protecting the aio array */
+	os_ib_mutex_t	mutex;	/*!< the mutex protecting the aio array */
 	os_event_t	not_full;
 				/*!< The event which is set to the
 				signaled state when there is space in
@@ -283,7 +283,7 @@ UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 #if !defined(UNIV_HOTBACKUP)	\
     && (!defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8)
 /** The mutex protecting the following counts of pending I/O operations */
-static os_mutex_t	os_file_count_mutex;
+static os_ib_mutex_t	os_file_count_mutex;
 #endif /* !UNIV_HOTBACKUP && (!HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8) */
 
 /** Number of pending os_file_pread() operations */
@@ -377,14 +377,17 @@ static
 ulint
 os_file_get_last_error_low(
 /*=======================*/
-	ibool	report_all_errors,	/*!< in: TRUE if we want an error
+	bool	report_all_errors,	/*!< in: TRUE if we want an error
 					message printed of all errors */
-	ibool	on_error_silent)	/*!< in: TRUE then don't print any
+	bool	on_error_silent)	/*!< in: TRUE then don't print any
 					diagnostic to the log */
 {
 #ifdef __WIN__
 
 	ulint	err = (ulint) GetLastError();
+	if (err == ERROR_SUCCESS) {
+		return 0;
+	}
 
 	if (report_all_errors
 	    || (!on_error_silent
@@ -468,6 +471,9 @@ os_file_get_last_error_low(
 	}
 #else
 	int err = errno;
+	if (err == 0) {
+		return 0;
+	}
 
 	if (report_all_errors
 	    || (err != ENOSPC && err != EEXIST && !on_error_silent)) {
@@ -550,10 +556,10 @@ UNIV_INTERN
 ulint
 os_file_get_last_error(
 /*===================*/
-	ibool	report_all_errors)	/*!< in: TRUE if we want an error
+	bool	report_all_errors)	/*!< in: TRUE if we want an error
 					message printed of all errors */
 {
-	return(os_file_get_last_error_low(report_all_errors, FALSE));
+	return(os_file_get_last_error_low(report_all_errors, false));
 }
 
 /****************************************************************//**
@@ -575,7 +581,7 @@ os_file_handle_error_cond_exit(
 {
 	ulint	err;
 
-	err = os_file_get_last_error_low(FALSE, on_error_silent);
+	err = os_file_get_last_error_low(false, on_error_silent);
 
 	switch (err) {
 	case OS_FILE_DISK_FULL:
@@ -643,7 +649,8 @@ os_file_handle_error_cond_exit(
 
 			ut_print_timestamp(stderr);
 			fprintf(stderr, "  InnoDB: File operation call: "
-				"'%s'.\n", operation);
+				"'%s' returned OS error " ULINTPF ".\n",
+				operation, err);
 		}
 
 		if (should_exit) {
@@ -1052,10 +1059,12 @@ next_file:
 }
 
 /*****************************************************************//**
-This function attempts to create a directory named pathname. The new directory
-gets default permissions. On Unix the permissions are (0770 & ~umask). If the
-directory exists already, nothing is done and the call succeeds, unless the
-fail_if_exists arguments is true.
+This function attempts to create a directory named pathname. The new
+directory gets default permissions. On Unix the permissions are
+(0770 & ~umask). If the directory exists already, nothing is done and
+the call succeeds, unless the fail_if_exists arguments is true.
+If another error occurs, such as a permission error, this does not crash,
+but reports the error and returns FALSE.
 @return	TRUE if call succeeds, FALSE on error */
 UNIV_INTERN
 ibool
@@ -1074,7 +1083,7 @@ os_file_create_directory(
 	      || (GetLastError() == ERROR_ALREADY_EXISTS
 		  && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(pathname, "CreateDirectory");
+		os_file_handle_error_no_exit(pathname, "CreateDirectory", FALSE);
 
 		return(FALSE);
 	}
@@ -1087,7 +1096,7 @@ os_file_create_directory(
 
 	if (!(rcode == 0 || (errno == EEXIST && !fail_if_exists))) {
 		/* failure */
-		os_file_handle_error(pathname, "mkdir");
+		os_file_handle_error_no_exit(pathname, "mkdir", FALSE);
 
 		return(FALSE);
 	}
@@ -1662,14 +1671,14 @@ try_again:
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete_if_exists(
 /*=====================*/
 	const char*	name)	/*!< in: file path as a null-terminated
 				string */
 {
 #ifdef __WIN__
-	BOOL	ret;
+	bool	ret;
 	ulint	count	= 0;
 loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
@@ -1678,13 +1687,15 @@ loop:
 	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
-		return(TRUE);
+		return(true);
 	}
 
-	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
+	DWORD lasterr = GetLastError();
+	if (lasterr == ERROR_FILE_NOT_FOUND
+	    || lasterr == ERROR_PATH_NOT_FOUND) {
 		/* the file does not exist, this not an error */
 
-		return(TRUE);
+		return(true);
 	}
 
 	count++;
@@ -1695,14 +1706,14 @@ loop:
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
 
-		os_file_get_last_error(TRUE); /* print error information */
+		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
 
 	if (count > 2000) {
 
-		return(FALSE);
+		return(false);
 	}
 
 	goto loop;
@@ -1714,10 +1725,10 @@ loop:
 	if (ret != 0 && errno != ENOENT) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
-		return(FALSE);
+		return(false);
 	}
 
-	return(TRUE);
+	return(true);
 #endif
 }
 
@@ -1725,7 +1736,7 @@ loop:
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete(
 /*===========*/
 	const char*	name)	/*!< in: file path as a null-terminated
@@ -1741,14 +1752,14 @@ loop:
 	ret = DeleteFile((LPCTSTR) name);
 
 	if (ret) {
-		return(TRUE);
+		return(true);
 	}
 
 	if (GetLastError() == ERROR_FILE_NOT_FOUND) {
 		/* If the file does not exist, we classify this as a 'mild'
 		error and return */
 
-		return(FALSE);
+		return(false);
 	}
 
 	count++;
@@ -1759,14 +1770,14 @@ loop:
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
 
-		os_file_get_last_error(TRUE); /* print error information */
+		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
 
 	if (count > 2000) {
 
-		return(FALSE);
+		return(false);
 	}
 
 	goto loop;
@@ -1778,10 +1789,10 @@ loop:
 	if (ret != 0) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
-		return(FALSE);
+		return(false);
 	}
 
-	return(TRUE);
+	return(true);
 #endif
 }
 
@@ -3000,6 +3011,151 @@ os_file_get_status(
 #else
 #  define OS_FILE_PATH_SEPARATOR	'/'
 #endif
+
+/****************************************************************//**
+This function returns a new path name after replacing the basename
+in an old path with a new basename.  The old_path is a full path
+name including the extension.  The tablename is in the normal
+form "databasename/tablename".  The new base name is found after
+the forward slash.  Both input strings are null terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@return	own: new full pathname */
+UNIV_INTERN
+char*
+os_file_make_new_pathname(
+/*======================*/
+	const char*	old_path,	/*!< in: pathname */
+	const char*	tablename)	/*!< in: contains new base name */
+{
+	ulint		dir_len;
+	char*		last_slash;
+	char*		base_name;
+	char*		new_path;
+	ulint		new_path_len;
+
+	/* Get a pointer to the Separate the database name string from the base name in
+	the new tablename. */
+	last_slash = strrchr((char*) tablename, '/');
+	base_name = last_slash ? last_slash + 1 : (char*) tablename;
+
+	/* Find the offset of the last slash. We will strip off the
+	old basename.ibd which starts after that slash. */
+	last_slash = strrchr((char*) old_path, OS_FILE_PATH_SEPARATOR);
+	dir_len = last_slash ? last_slash - old_path : strlen(old_path);
+
+	/* allocate a new path and move the old directory path to it. */
+	new_path_len = dir_len + strlen(base_name) + sizeof "/.ibd";
+	new_path = static_cast<char*>(mem_alloc(new_path_len));
+	memcpy(new_path, old_path, dir_len);
+
+	ut_snprintf(new_path + dir_len,
+		    new_path_len - dir_len,
+		    "%c%s.ibd",
+		    OS_FILE_PATH_SEPARATOR,
+		    base_name);
+
+	return(new_path);
+}
+
+/****************************************************************//**
+This function returns a remote path name by combining a data directory
+path provided in a DATA DIRECTORY clause with the tablename which is
+in the form 'database/tablename'.  It strips the file basename (which
+is the tablename) found after the last directory in the path provided.
+The full filepath created will include the database name as a directory
+under the path provided.  The filename is the tablename with the '.ibd'
+extension. All input and output strings are null-terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@return	own: A full pathname; data_dir_path/databasename/tablename.ibd */
+UNIV_INTERN
+char*
+os_file_make_remote_pathname(
+/*=========================*/
+	const char*	data_dir_path,	/*!< in: pathname */
+	const char*	tablename,	/*!< in: tablename */
+	const char*	extention)	/*!< in: file extention; ibd,cfg */
+{
+	ulint		data_dir_len;
+	char*		last_slash;
+	char*		new_path;
+	ulint		new_path_len;
+
+	ut_ad(extention && strlen(extention) == 3);
+
+	/* Find the offset of the last slash. We will strip off the
+	old basename or tablename which starts after that slash. */
+	last_slash = strrchr((char*) data_dir_path, OS_FILE_PATH_SEPARATOR);
+	data_dir_len = last_slash ? last_slash - data_dir_path : strlen(data_dir_path);
+
+	/* allocate a new path and move the old directory path to it. */
+	new_path_len = data_dir_len + strlen(tablename)
+		       + sizeof "/." + strlen(extention);
+	new_path = static_cast<char*>(mem_alloc(new_path_len));
+	memcpy(new_path, data_dir_path, data_dir_len);
+	ut_snprintf(new_path + data_dir_len,
+		    new_path_len - data_dir_len,
+		    "%c%s.%s",
+		    OS_FILE_PATH_SEPARATOR,
+		    tablename,
+		    extention);
+
+	srv_normalize_path_for_win(new_path);
+
+	return(new_path);
+}
+
+/****************************************************************//**
+This function reduces a null-terminated full remote path name into
+the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
+the 'databasename/tablename.ibd' found at the end of the path with just
+'tablename'.
+
+Since the result is always smaller than the path sent in, no new memory
+is allocated. The caller should allocate memory for the path sent in.
+This function manipulates that path in place.
+
+If the path format is not as expected, just return.  The result is used
+to inform a SHOW CREATE TABLE command. */
+UNIV_INTERN
+void
+os_file_make_data_dir_path(
+/*========================*/
+	char*	data_dir_path)	/*!< in/out: full path/data_dir_path */
+{
+	char*	ptr;
+	char*	tablename;
+	ulint	tablename_len;
+
+	/* Replace the period before the extension with a null byte. */
+	ptr = strrchr((char*) data_dir_path, '.');
+	if (!ptr) {
+		return;
+	}
+	ptr[0] = '\0';
+
+	/* The tablename starts after the last slash. */
+	ptr = strrchr((char*) data_dir_path, OS_FILE_PATH_SEPARATOR);
+	if (!ptr) {
+		return;
+	}
+	ptr[0] = '\0';
+	tablename = ptr + 1;
+
+	/* The databasename starts after the next to last slash. */
+	ptr = strrchr((char*) data_dir_path, OS_FILE_PATH_SEPARATOR);
+	if (!ptr) {
+		return;
+	}
+	tablename_len = ut_strlen(tablename);
+
+	ut_memmove(++ptr, tablename, tablename_len);
+}
 
 /****************************************************************//**
 The function os_file_dirname returns a directory component of a

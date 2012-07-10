@@ -538,7 +538,6 @@ class THD;
 class select_result;
 class JOIN;
 class select_union;
-class Procedure;
 
 
 class st_select_lex_unit: public st_select_lex_node {
@@ -599,7 +598,6 @@ public:
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
-  Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
   /**
     Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
@@ -1100,6 +1098,37 @@ public:
   SQL_I_List<Sroutine_hash_entry> sroutines_list;
   Sroutine_hash_entry **sroutines_list_own_last;
   uint sroutines_list_own_elements;
+
+  /**
+    Locking state of tables in this particular statement.
+
+    If we under LOCK TABLES or in prelocked mode we consider tables
+    for the statement to be "locked" if there was a call to lock_tables()
+    (which called handler::start_stmt()) for tables of this statement
+    and there was no matching close_thread_tables() call.
+
+    As result this state may differ significantly from one represented
+    by Open_tables_state::lock/locked_tables_mode more, which are always
+    "on" under LOCK TABLES or in prelocked mode.
+  */
+  enum enum_lock_tables_state {
+    LTS_NOT_LOCKED = 0,
+    LTS_LOCKED
+  };
+  enum_lock_tables_state lock_tables_state;
+  bool is_query_tables_locked()
+  {
+    return (lock_tables_state == LTS_LOCKED);
+  }
+
+  /**
+    Number of tables which were open by open_tables() and to be locked
+    by lock_tables().
+    Note that we set this member only in some cases, when this value
+    needs to be passed from open_tables() to lock_tables() which are
+    separated by some amount of code.
+  */
+  uint table_count;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -2128,6 +2157,23 @@ public:
   PSI_digest_locker* m_digest_psi;
 };
 
+
+/**
+  Argument values for PROCEDURE ANALYSE(...)
+*/
+
+struct Proc_analyse_params: public Sql_alloc
+{
+  uint max_tree_elements; //< maximum number of distinct values per column
+  uint max_treemem; //< maximum amount of memory to allocate per column
+
+  Proc_analyse_params()
+    : max_tree_elements(256),
+      max_treemem(8192)
+  {}
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
@@ -2205,7 +2251,10 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_I_List<ORDER> proc_list;
+  /**
+    Argument values for PROCEDURE ANALYSE(); is NULL for other queries
+  */
+  Proc_analyse_params *proc_analyse;
   SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
@@ -2257,12 +2306,6 @@ struct LEX: public Query_tables_list
   enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
-  /*
-    In LEX representing update which were transformed to multi-update
-    stores total number of tables. For LEX representing multi-delete
-    holds number of tables from which we will delete records.
-  */
-  uint table_count;
   uint8 describe;
   /*
     A flag that indicates what kinds of derived tables are present in the
@@ -2304,6 +2347,7 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
+  bool is_change_password;
 
 private:
   /// Current SP parsing context.

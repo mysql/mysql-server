@@ -19,7 +19,7 @@
 #include "sql_select.h"
 #include "sql_optimizer.h"
 #include "abstract_query_plan.h"
-
+#include "sql_join_buffer.h"
 
 namespace AQP
 {
@@ -282,18 +282,6 @@ namespace AQP
     JOIN* const join= join_tab->join;
 
     /**
-     * There are some JOIN arguments we don't fully understand or has 
-     * not yet invested time into exploring pushability of:
-     */
-    if (join->procedure)
-    {
-      m_access_type= AT_OTHER;
-      m_other_access_reason = 
-        "'PROCEDURE'-clause post processing cannot be pushed.";
-      DBUG_VOID_RETURN;
-    }
-
-    /**
      * OLEJA: I think this restriction can be removed
      * now as WL5558 and other changes has cleaned up the 
      * ORDER/GROUP BY optimize + execute path.
@@ -480,7 +468,7 @@ namespace AQP
   */
   bool Table_access::uses_join_cache() const
   {
-    return get_join_tab()->next_select == sub_select_cache;
+    return get_join_tab()->use_join_cache != JOIN_CACHE::ALG_NONE;
   }
 
   /**

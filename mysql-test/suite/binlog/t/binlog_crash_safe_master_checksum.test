@@ -16,6 +16,8 @@
 # WL#5493 Binlog crash-safe when master crashed
 # WL#5440 Test binlog and replication when master crashed
 
+--let $old_debug = `select @@global.debug`
+--let $prefix = `select CONCAT(IF(LENGTH(@@global.debug) > 0, CONCAT(@@global.debug, ":"), ''), "d,debug,info,enter,return,query,")`
 # Don't test this under valgrind, memory leaks will occur
 -- source include/not_valgrind.inc
 -- source include/not_embedded.inc
@@ -44,13 +46,17 @@ INSERT INTO t2 (a) VALUES (REPEAT('a',1));
 
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',1));
-SET SESSION debug="d,fault_injection_crc_value";
+--disable_query_log
+eval SET SESSION debug=CONCAT('$prefix', "fault_injection_crc_value");
+--enable_query_log
 INSERT INTO t1 (a) VALUES (REPEAT('a',2));
 COMMIT;
 
 BEGIN;
 INSERT INTO t1 (a) VALUES (REPEAT('a',3));
-SET SESSION debug="d,crash_commit_after_prepare";
+--disable_query_log
+eval SET SESSION debug=CONCAT('$prefix', "crash_commit_after_prepare");
+--enable_query_log
 # Run the crashing query
 -- error 2013
 COMMIT;

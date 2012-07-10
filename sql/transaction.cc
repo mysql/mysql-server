@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -200,6 +200,16 @@ bool trans_commit(THD *thd)
   int res;
   DBUG_ENTER("trans_commit");
 
+#ifndef DBUG_OFF
+  char buf1[256], buf2[256];
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
+
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
@@ -207,14 +217,6 @@ bool trans_commit(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
-  /*
-    if res is non-zero, then ha_commit_trans has rolled back the
-    transaction, so the hooks for rollback will be called.
-  */
-  if (res)
-    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  else
-    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
@@ -239,6 +241,16 @@ bool trans_commit_implicit(THD *thd)
   bool res= FALSE;
   DBUG_ENTER("trans_commit_implicit");
 
+#ifndef DBUG_OFF
+  char buf1[256], buf2[256];
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
+
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
@@ -253,6 +265,8 @@ bool trans_commit_implicit(THD *thd)
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
     res= test(ha_commit_trans(thd, TRUE));
   }
+  else if (tc_log)
+    tc_log->commit(thd, true);
 
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
@@ -284,6 +298,16 @@ bool trans_rollback(THD *thd)
   int res;
   DBUG_ENTER("trans_rollback");
 
+#ifndef DBUG_OFF
+  char buf1[256], buf2[256];
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
+
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
@@ -291,7 +315,6 @@ bool trans_rollback(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_rollback_trans(thd, TRUE);
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->transaction.all.reset_unsafe_rollback_flags();
   thd->lex->start_transaction_opt= 0;
@@ -318,6 +341,13 @@ bool trans_rollback(THD *thd)
 bool trans_commit_stmt(THD *thd)
 {
   DBUG_ENTER("trans_commit_stmt");
+#ifndef DBUG_OFF
+  char buf1[256], buf2[256];
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+#endif
+
   int res= FALSE;
   /*
     We currently don't invoke commit/rollback at end of
@@ -326,6 +356,15 @@ bool trans_commit_stmt(THD *thd)
     savepoint when statement has succeeded.
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
+
+#ifndef DBUG_OFF
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
 
   thd->transaction.merge_unsafe_rollback_flags();
 
@@ -338,15 +377,8 @@ bool trans_commit_stmt(THD *thd)
       thd->tx_read_only= thd->variables.tx_read_only;
     }
   }
-
-  /*
-    if res is non-zero, then ha_commit_trans has rolled back the
-    transaction, so the hooks for rollback will be called.
-  */
-  if (res)
-    (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  else
-    (void) RUN_HOOK(transaction, after_commit, (thd, FALSE));
+  else if (tc_log)
+    tc_log->commit(thd, false);
 
   thd->transaction.stmt.reset();
 
@@ -374,6 +406,16 @@ bool trans_rollback_stmt(THD *thd)
   */
   DBUG_ASSERT(! thd->in_sub_stmt);
 
+#ifndef DBUG_OFF
+  char buf1[256], buf2[256];
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
+
   thd->transaction.merge_unsafe_rollback_flags();
 
   if (thd->transaction.stmt.ha_list)
@@ -387,8 +429,8 @@ bool trans_rollback_stmt(THD *thd)
       thd->tx_read_only= thd->variables.tx_read_only;
     }
   }
-
-  (void) RUN_HOOK(transaction, after_rollback, (thd, FALSE));
+  else if (tc_log)
+    tc_log->rollback(thd, false);
 
   thd->transaction.stmt.reset();
 
@@ -505,6 +547,16 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   int res= FALSE;
   SAVEPOINT *sv= *find_savepoint(thd, name);
   DBUG_ENTER("trans_rollback_to_savepoint");
+
+#ifndef DBUG_OFF
+  char buf1[256], buf2[256];
+  DBUG_PRINT("enter", ("stmt.ha_list: %s, all.ha_list: %s",
+                       ha_list_names(thd->transaction.stmt.ha_list, buf1),
+                       ha_list_names(thd->transaction.all.ha_list, buf2)));
+
+  thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
+  thd->transaction.all.dbug_unsafe_rollback_flags("all");
+#endif
 
   if (sv == NULL)
   {
@@ -748,7 +800,7 @@ bool trans_xa_commit(THD *thd)
     {
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
-      res= test(ha_commit_one_phase(thd, 1));
+      res= test(ha_commit_low(thd, /* all */ true));
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
     }

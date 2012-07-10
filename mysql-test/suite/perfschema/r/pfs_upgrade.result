@@ -10,6 +10,7 @@ Tables_in_performance_schema (user_table)
 user_table
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 159: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 184: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 209: Table 'events_waits_history' already exists
@@ -60,7 +61,9 @@ ERROR 1050 (42S01) at line 1184: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1193: Table 'users' already exists
 ERROR 1050 (42S01) at line 1203: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1237: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1974: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1247: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1253: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 1990: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)
@@ -75,6 +78,7 @@ Tables_in_performance_schema (user_view)
 user_view
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 159: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 184: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 209: Table 'events_waits_history' already exists
@@ -125,7 +129,9 @@ ERROR 1050 (42S01) at line 1184: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1193: Table 'users' already exists
 ERROR 1050 (42S01) at line 1203: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1237: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1974: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1247: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1253: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 1990: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_view";
 Tables_in_performance_schema (user_view)
@@ -138,6 +144,7 @@ select "Not supposed to be here";
 update mysql.proc set db='performance_schema' where name='user_proc';
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 159: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 184: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 209: Table 'events_waits_history' already exists
@@ -188,7 +195,9 @@ ERROR 1050 (42S01) at line 1184: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1193: Table 'users' already exists
 ERROR 1050 (42S01) at line 1203: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1237: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1974: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1247: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1253: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 1990: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -201,6 +210,7 @@ return 0;
 update mysql.proc set db='performance_schema' where name='user_func';
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 159: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 184: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 209: Table 'events_waits_history' already exists
@@ -251,7 +261,9 @@ ERROR 1050 (42S01) at line 1184: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1193: Table 'users' already exists
 ERROR 1050 (42S01) at line 1203: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1237: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1974: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1247: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1253: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 1990: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.proc where db='performance_schema';
 name
@@ -264,6 +276,7 @@ select "not supposed to be here";
 update mysql.event set db='performance_schema' where name='user_event';
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 ERROR 1050 (42S01) at line 159: Table 'cond_instances' already exists
 ERROR 1050 (42S01) at line 184: Table 'events_waits_current' already exists
 ERROR 1050 (42S01) at line 209: Table 'events_waits_history' already exists
@@ -314,7 +327,9 @@ ERROR 1050 (42S01) at line 1184: Table 'hosts' already exists
 ERROR 1050 (42S01) at line 1193: Table 'users' already exists
 ERROR 1050 (42S01) at line 1203: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1237: Table 'events_statements_summary_by_digest' already exists
-ERROR 1644 (HY000) at line 1974: Unexpected content found in the performance_schema database.
+ERROR 1050 (42S01) at line 1247: Table 'session_connect_attrs' already exists
+ERROR 1050 (42S01) at line 1253: Table 'session_account_connect_attrs' already exists
+ERROR 1644 (HY000) at line 1990: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name

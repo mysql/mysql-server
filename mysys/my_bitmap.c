@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -552,6 +552,52 @@ uint bitmap_get_first_set(const MY_BITMAP *map)
       return get_first_set(*data_ptr, word_pos);
 
   return get_first_set(*map->last_word_ptr & ~map->last_word_mask, word_pos);
+}
+
+
+/**
+  Get the next set bit.
+
+  @param  map         Bitmap
+  @param  bitmap_bit  Bit to start search from
+
+  @return Index to first bit set after bitmap_bit
+*/
+
+uint bitmap_get_next_set(const MY_BITMAP *map, uint bitmap_bit)
+{
+  uint word_pos, byte_to_mask, i;
+  my_bitmap_map first_word;
+  unsigned char *ptr= (unsigned char*) &first_word;
+  my_bitmap_map *data_ptr, *end= map->last_word_ptr;
+
+  DBUG_ASSERT(map->bitmap);
+
+  /* Look for the next bit */
+  bitmap_bit++;
+  if (bitmap_bit >= map->n_bits)
+    return MY_BIT_NONE;
+  word_pos= bitmap_bit / 32;
+  data_ptr= map->bitmap + word_pos;
+  first_word= *data_ptr;
+
+  /* Mask out previous bits */
+  byte_to_mask= (bitmap_bit % 32) / 8;
+  for (i= 0; i < byte_to_mask; i++)
+    ptr[i]= 0;
+  ptr[byte_to_mask]&= 0xFFU << (bitmap_bit & 7);
+
+  if (data_ptr == end)
+    return get_first_set(first_word & ~map->last_word_mask, word_pos);
+   
+  if (first_word)
+    return get_first_set(first_word, word_pos);
+
+  for (data_ptr++, word_pos++; data_ptr < end; data_ptr++, word_pos++)
+    if (*data_ptr)
+      return get_first_set(*data_ptr, word_pos);
+
+  return get_first_set(*end & ~map->last_word_mask, word_pos);
 }
 
 

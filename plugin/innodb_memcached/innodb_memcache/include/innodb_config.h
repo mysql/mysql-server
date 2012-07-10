@@ -26,7 +26,9 @@ Created 03/15/2011      Jimmy Yang
 #define innodb_config_h
 
 #include "api0api.h"
+#include "innodb_utility.h"
 
+typedef void*   hash_node_t;
 
 /* Database name and table name for our metadata "system" tables for
 InnoDB memcache. The table names are the same as those for the
@@ -52,7 +54,7 @@ There are 3 "system tables":
 /** structure describes each column's basic info (name, field_id etc.) */
 typedef struct meta_column {
 	char*		col_name;		/*!< column name */
-	int		col_name_len;		/*!< column name length */
+	size_t		col_name_len;		/*!< column name length */
 	int		field_id;		/*!< column field id in
 						the table */
 	ib_col_meta_t	col_meta;		/*!< column  meta info */
@@ -138,6 +140,66 @@ typedef enum meta_cache_opt {
 	META_CACHE_NUM_OPT		/*!< Number of options */
 } meta_cache_opt_t;
 
+/** The "names" in the "config_option" table to identify possible
+config options. Both are optional.
+"COLUMN_SEPARATOR" is the delimiter that separates multiple columns and
+"TABLE_MAP_SEPARATOR" is the delimiter that separates table map name
+and key value */
+#define COLUMN_SEPARATOR        "separator"
+#define TABLE_MAP_SEPARATOR     "table_map_delimiter"
+
+/* list of configure options we support */
+typedef enum option_id {
+	OPTION_ID_COL_SEP,		/*!< ID for character(s) separating
+					multiple column mapping */
+	OPTION_ID_TBL_MAP_SEP,		/*!< ID for character(s) separating
+					table map name and key */
+	OPTION_ID_NUM_OPTIONS		/*!< number of options */
+} option_id_t;
+
+/** Maximum delimiter length */
+#define MAX_DELIMITER_LEN	32
+
+typedef struct option_value {
+	char		value[MAX_DELIMITER_LEN + 1];
+					/* option value */
+	int		value_len;	/* value length */
+} option_value_t;
+
+/** structure to define some default "config_option" option settings */
+typedef struct option {
+	option_id_t	id;		/*!< option id as in enum option_id */
+	const char*	name;		/*!< option name for above option ID,
+					currently they can be "COLUMN_SEPARATOR"
+					and "TABLE_MAP_SEPARATOR" */
+	option_value_t	default_value;	/*!< default value */
+} option_t;
+
+/** Configure options enum IDs, their "names" and their default value */
+static option_t	config_option_names[] =
+{
+        {OPTION_ID_COL_SEP, COLUMN_SEPARATOR, {"|", 1}},
+        {OPTION_ID_TBL_MAP_SEP, TABLE_MAP_SEPARATOR, {".", 1}}
+};
+
+/** Get configure option value. If the value is not configured by
+user, obtain its default value from "config_option_names"
+@param meta_info	metadata structure contains configure options
+@param option		option whose value to get
+@param val		value to fetch
+@param val_len		value length */
+#define GET_OPTION(meta_info, option, val, val_len)			\
+do {									\
+	val_len = meta_info->options[option].value_len;			\
+									\
+	if (val_len == 0) {						\
+		val = config_option_names[option].default_value.value;	\
+		val_len = config_option_names[option].default_value.value_len;\
+	} else {							\
+		val = meta_info->options[option].value;			\
+	}								\
+} while (0)
+
 /** In memory structure contains most necessary metadata info
 to configure an InnoDB Memcached engine */
 typedef struct meta_cfg_info {
@@ -150,27 +212,34 @@ typedef struct meta_cfg_info {
 	bool		flag_enabled;		/*!< whether flag is enabled */
 	bool		cas_enabled;		/*!< whether cas is enabled */
 	bool		exp_enabled;		/*!< whether exp is enabled */
-	char*		separator;		/*!< separator that separates
-						incoming "value" string for
-						multiple columns */
-	int		sep_len;		/*!< separator length */
+	option_value_t	options[OPTION_ID_NUM_OPTIONS];
+						/*!< configure options, mostly
+						are configured delimiters */
 	meta_cache_opt_t set_option;		/*!< cache option for "set" */
 	meta_cache_opt_t get_option;		/*!< cache option for "get" */
 	meta_cache_opt_t del_option;		/*!< cache option for
 						"delete" */
 	meta_cache_opt_t flush_option;		/*!< cache option for
 						"delete" */
+	hash_node_t	name_hash;		/*!< name hash chain node */
 } meta_cfg_info_t;
+
 
 /**********************************************************************//**
 This function opens the default configuration table, and find the
 table and column info that used for InnoDB Memcached, and set up
-InnoDB Memcached's meta_cfg_info_t structure
-@return true if everything works out fine */
-bool
+InnoDB Memcached's meta_cfg_info_t structure. If the "name" parameter
+is not NULL, it will find the specified setting in the "container" table.
+If "name" field is NULL, it will then look for setting with the name of
+"default". Otherwise, it returns the setting corresponding to the
+first row of the configure table.
+@return meta_cfg_info_t* structure if configure option found, otherwise NULL */
+meta_cfg_info_t*
 innodb_config(
 /*==========*/
-	meta_cfg_info_t*	item);		/*!< out: meta info structure */
+	const char*		name,		/*!< in: config option name */
+	size_t			name_len,	/*!< in: option name length */
+	hash_table_t**		meta_hash);	/*!< in: engine hash table */
 
 /**********************************************************************//**
 This function verifies the table configuration information, and fills
@@ -189,4 +258,13 @@ innodb_config_free(
         meta_cfg_info_t*	item);		/*!< in/own: meta info
 						structure */
 
+/**********************************************************************//**
+This function opens the "containers" table, reads in all rows
+and instantiates the metadata hash table.
+@return the default configuration setting (whose mapping name is "default") */
+meta_cfg_info_t*
+innodb_config_meta_hash_init(
+/*=========================*/
+	hash_table_t*		meta_hash);	/*!< in/out: InnoDB Memcached
+						engine */
 #endif

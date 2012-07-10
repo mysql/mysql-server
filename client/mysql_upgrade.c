@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 */
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
 
@@ -143,10 +144,10 @@ static struct my_option my_long_options[]=
    &opt_verbose, &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
-   "All commands including mysqlcheck are binlogged. Enabled by default;"
-   "use --skip-write-binlog when commands should not be sent to replication slaves.",
+   "All commands including mysqlcheck are binlogged. Disabled by default; "
+   "use when commands should be sent to replication slaves.",
    &opt_write_binlog, &opt_write_binlog, 0, GET_BOOL, NO_ARG,
-   1, 0, 0, 0, 0, 0},
+   0, 0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -344,6 +345,9 @@ static int run_command(char* cmd,
       fprintf(stdout, "%s", buf);
     }
   }
+
+  if (! ds_res)
+    fflush(stdout);
 
   error= pclose(res_file);
   return WEXITSTATUS(error);
@@ -823,7 +827,8 @@ static int run_sql_fix_privilege_tables(void)
         found_real_errors++;
         print_line(line);
       }
-      else if (strncmp(line, "WARNING", 7) == 0)
+      else if ((strncmp(line, "WARNING", 7) == 0) ||
+               (strncmp(line, "Warning", 7) == 0))
       {
         print_line(line);
       }

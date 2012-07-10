@@ -703,10 +703,10 @@ heap_prepare_hp_create_info(TABLE *table_arg, bool internal_table,
         seg->charset= &my_charset_bin;
       else
         seg->charset= field->charset_for_protocol();
-      if (field->null_ptr)
+      if (field->real_maybe_null())
       {
 	seg->null_bit= field->null_bit;
-	seg->null_pos= (uint) (field->null_ptr - (uchar*) table_arg->record[0]);
+	seg->null_pos= field->null_offset();
       }
       else
       {

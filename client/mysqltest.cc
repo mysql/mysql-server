@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #define MTEST_VERSION "3.3"
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <mysql_version.h>
 #include <mysqld_error.h>
 #include <sql_common.h>
@@ -126,6 +127,7 @@ static my_bool is_windows= 0;
 static char **default_argv;
 static const char *load_default_groups[]= { "mysqltest", "client", 0 };
 static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
+static const char *opt_server_public_key= 0;
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -2565,6 +2567,84 @@ do_result_format_version(struct st_command *command)
   dynstr_free(&ds_version);
 }
 
+/* List of error names to error codes */
+typedef struct
+{
+  const char *name;
+  uint        code;
+  const char *text;
+} st_error;
+
+static st_error global_error_names[] =
+{
+  { "<No error>", -1U, "" },
+#include <mysqld_ername.h>
+  { 0, 0, 0 }
+};
+
+uint get_errcode_from_name(char *, char *);
+
+/*
+
+  This function is useful when one needs to convert between error numbers and  error strings
+
+  SYNOPSIS
+  var_set_convert_error(struct st_command *command,VAR *var)
+
+  DESCRIPTION
+  let $var=convert_error(ER_UNKNOWN_ERROR); 
+  let $var=convert_error(1234); 
+  
+  The variable var will be populated with error number if the argument is string.
+  The variable var will be populated with error string if the argument is number.
+
+*/
+void var_set_convert_error(struct st_command *command,VAR *var)
+{
+  char *last;
+  char *first=command->query;
+  const char *err_name;
+    
+  DBUG_ENTER("var_set_query_get_value");
+
+  DBUG_PRINT("info", ("query: %s", command->query));
+
+  /* the command->query contains the statement convert_error(1234) */ 
+  first=strchr(command->query,'(') + 1;
+  last=strchr(command->query,')');
+
+
+  if( last == first )  /* denoting an empty string */
+  {
+    eval_expr(var,"0",0);
+    DBUG_VOID_RETURN;
+  }
+  
+
+  /* if the string is an error string , it starts with 'E' as is the norm*/
+  if ( *first == 'E')    
+  {
+    char str[100];
+    uint num;
+    num=get_errcode_from_name(first, last);
+    sprintf(str,"%i",num);
+    eval_expr(var,str,0);
+  }
+  else  if (my_isdigit(charset_info, *first ))/* if the error is a number */
+  {
+    long int err;
+
+    err=strtol(first,&last,0);
+    err_name = get_errname_from_code(err);
+    eval_expr(var,err_name,0);
+  }
+  else
+  {
+    die("Invalid error in input");
+  }
+
+  DBUG_VOID_RETURN;
+}
 
 /*
   Set variable from the result of a field in a query
@@ -2768,6 +2848,20 @@ void eval_expr(VAR *v, const char *p, const char **p_end,
       command.first_argument= command.query + len;
       command.end= (char*)*p_end;
       var_set_query_get_value(&command, v);
+      DBUG_VOID_RETURN;
+    }
+    /* Check if this is a "let $var= convert_error()" */
+    const char* get_value_str1= "convert_error";
+    const size_t len1= strlen(get_value_str1);
+    if (strncmp(p, get_value_str1, len1)==0)
+    {
+      struct st_command command;
+      memset(&command, 0, sizeof(command));
+      command.query= (char*)p;
+      command.first_word_len= len;
+      command.first_argument= command.query + len;
+      command.end= (char*)*p_end;
+      var_set_convert_error(&command, v);
       DBUG_VOID_RETURN;
     }
   }
@@ -4762,20 +4856,6 @@ void do_shutdown_server(struct st_command *command)
 }
 
 
-/* List of error names to error codes */
-typedef struct
-{
-  const char *name;
-  uint        code;
-  const char *text;
-} st_error;
-
-static st_error global_error_names[] =
-{
-  { "<No error>", -1, "" },
-#include <mysqld_ername.h>
-  { 0, 0, 0 }
-};
 
 uint get_errcode_from_name(char *error_name, char *error_end)
 {
@@ -5224,6 +5304,10 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
   verbose_msg("Connecting to server %s:%d (socket %s) as '%s'"
               ", connection '%s', attempt %d ...", 
               host, port, sock, user, name, failed_attempts);
+
+  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysqltest");
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
                             CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
   {
@@ -5325,6 +5409,8 @@ int connect_n_handle_errors(struct st_command *command,
     dynstr_append_mem(ds, ";\n", 2);
   }
   
+  mysql_options(con, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
   while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
@@ -5595,6 +5681,11 @@ void do_connect(struct st_command *command)
   if (ds_default_auth.length)
     mysql_options(&con_slot->mysql, MYSQL_DEFAULT_AUTH, ds_default_auth.str);
 
+  /* Set server public_key */
+  if (opt_server_public_key && *opt_server_public_key)
+    mysql_options(&con_slot->mysql, MYSQL_SERVER_PUBLIC_KEY,
+                  opt_server_public_key);
+  
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
     dynstr_set(&ds_database, "");
@@ -6551,6 +6642,10 @@ static struct my_option my_long_options[] =
   {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
     &opt_plugin_dir, &opt_plugin_dir, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"server_public_key", OPT_SERVER_PUBLIC_KEY,
+   "File path to the server public RSA key in PEM format.",
+   &opt_server_public_key, &opt_server_public_key, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7269,6 +7364,8 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     */
     if ((counter==0) && do_read_query_result(cn))
     {
+      /* we've failed to collect the result set */
+      cn->pending= TRUE;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;

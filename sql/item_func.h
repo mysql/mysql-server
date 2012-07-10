@@ -1106,6 +1106,17 @@ public:
 };
 
 
+class Item_func_validate_password_strength :public Item_int_func
+{
+  String value;
+public:
+  Item_func_validate_password_strength(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "validate_password_strength"; }
+  void fix_length_and_dec() { max_length=10; }
+};
+
+
 class Item_func_field :public Item_int_func
 {
   String value,tmp;

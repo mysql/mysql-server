@@ -43,6 +43,8 @@
 #include <mysql_com_server.h>
 #include "sql_data_change.h"
 
+#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
+
 /**
   The meat of thd_proc_info(THD*, char*), a macro that packs the last
   three calling-info parameters.
@@ -293,14 +295,16 @@ public:
   enum fk_option { FK_OPTION_UNDEF, FK_OPTION_RESTRICT, FK_OPTION_CASCADE,
 		   FK_OPTION_SET_NULL, FK_OPTION_NO_ACTION, FK_OPTION_DEFAULT};
 
-  Table_ident *ref_table;
+  LEX_STRING ref_db;
+  LEX_STRING ref_table;
   List<Key_part_spec> ref_columns;
   uint delete_opt, update_opt, match_opt;
   Foreign_key(const LEX_STRING &name_arg, List<Key_part_spec> &cols,
-	      Table_ident *table,   List<Key_part_spec> &ref_cols,
+	      const LEX_STRING &ref_db_arg, const LEX_STRING &ref_table_arg,
+              List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
     :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
-    ref_table(table), ref_columns(ref_cols),
+    ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
   {}
@@ -497,7 +501,7 @@ typedef struct system_variables
   my_bool keep_files_on_create;
 
   my_bool old_alter_table;
-  my_bool old_passwords;
+  uint old_passwords;
   my_bool big_tables;
 
   plugin_ref table_plugin;
@@ -519,6 +523,14 @@ typedef struct system_variables
   MY_LOCALE *lc_time_names;
 
   Time_zone *time_zone;
+  /*
+    TIMESTAMP fields are by default created with DEFAULT clauses
+    implicitly without users request. This flag when set, disables
+    implicit default values and expect users to provide explicit
+    default clause. i.e., when set columns are defined as NULL,
+    instead of NOT NULL by default.
+  */
+  my_bool explicit_defaults_for_timestamp;
 
   my_bool sysdate_is_now;
   my_bool binlog_rows_query_log_events;
@@ -566,6 +578,9 @@ typedef struct system_status_var
   ulonglong ha_external_lock_count;
   ulonglong opened_tables;
   ulonglong opened_shares;
+  ulonglong table_open_cache_hits;
+  ulonglong table_open_cache_misses;
+  ulonglong table_open_cache_overflows;
   ulonglong select_full_join_count;
   ulonglong select_full_range_join_count;
   ulonglong select_range_count;
@@ -930,6 +945,7 @@ struct THD_TRANS
 {
   /* true is not all entries in the ht[] support 2pc */
   bool        no_2pc;
+  int         rw_ha_count;
   /* storage engines that registered in this transaction */
   Ha_trx_info *ha_list;
 
@@ -982,6 +998,17 @@ private:
   static unsigned int const DROPPED_TEMP_TABLE= 0x04;
 
 public:
+#ifndef DBUG_OFF
+  void dbug_unsafe_rollback_flags(const char* msg) const
+  {
+    DBUG_PRINT("debug", ("%s.unsafe_rollback_flags: %s%s%s",
+                         msg,
+                         FLAGSTR(m_unsafe_rollback_flags, MODIFIED_NON_TRANS_TABLE),
+                         FLAGSTR(m_unsafe_rollback_flags, CREATED_TEMP_TABLE),
+                         FLAGSTR(m_unsafe_rollback_flags, DROPPED_TEMP_TABLE)));
+  }
+#endif
+
   bool cannot_safely_rollback() const
   {
     return m_unsafe_rollback_flags > 0;
@@ -992,18 +1019,22 @@ public:
   }
   void set_unsafe_rollback_flags(unsigned int flags)
   {
+    DBUG_PRINT("debug", ("set_unsafe_rollback_flags: %d", flags));
     m_unsafe_rollback_flags= flags;
   }
   void add_unsafe_rollback_flags(unsigned int flags)
   {
+    DBUG_PRINT("debug", ("add_unsafe_rollback_flags: %d", flags));
     m_unsafe_rollback_flags|= flags;
   }
   void reset_unsafe_rollback_flags()
   {
+    DBUG_PRINT("debug", ("reset_unsafe_rollback_flags"));
     m_unsafe_rollback_flags= 0;
   }
   void mark_modified_non_trans_table()
   {
+    DBUG_PRINT("debug", ("mark_modified_non_trans_table"));
     m_unsafe_rollback_flags|= MODIFIED_NON_TRANS_TABLE;
   }
   bool has_modified_non_trans_table() const
@@ -1012,6 +1043,7 @@ public:
   }
   void mark_created_temp_table()
   {
+    DBUG_PRINT("debug", ("mark_created_temp_table"));
     m_unsafe_rollback_flags|= CREATED_TEMP_TABLE;
   }
   bool has_created_temp_table() const
@@ -1020,6 +1052,7 @@ public:
   }
   void mark_dropped_temp_table()
   {
+    DBUG_PRINT("debug", ("mark_dropped_temp_table"));
     m_unsafe_rollback_flags|= DROPPED_TEMP_TABLE;
   }
   bool has_dropped_temp_table() const
@@ -1027,7 +1060,12 @@ public:
     return m_unsafe_rollback_flags & DROPPED_TEMP_TABLE;
   }
 
-  void reset() { no_2pc= FALSE; reset_unsafe_rollback_flags(); }
+  void reset()
+  {
+    no_2pc= FALSE;
+    rw_ha_count= 0;
+    reset_unsafe_rollback_flags();
+  }
   bool is_empty() const { return ha_list == NULL; }
 };
 
@@ -1050,10 +1088,32 @@ public:
 
 class Ha_trx_info
 {
+#ifndef DBUG_OFF
+  friend const char *
+  ha_list_names(Ha_trx_info *ha_list, char *const buf_arg)
+  {
+    char *buf = buf_arg;
+    while (ha_list)
+    {
+      buf += sprintf(buf, "%s", ha_legacy_type_name(ha_list->m_ht->db_type));
+      ha_list = ha_list->m_next;
+      if (ha_list)
+        buf += sprintf(buf, ", ");
+    }
+    if (buf == buf_arg)
+      sprintf(buf, "<NONE>");
+    return buf_arg;
+  }
+#endif
+
 public:
   /** Register this storage engine in the given transaction context. */
   void register_ha(THD_TRANS *trans, handlerton *ht_arg)
   {
+    DBUG_ENTER("Ha_trx_info::register_ha");
+    DBUG_PRINT("enter", ("trans: 0x%llx, ht: 0x%llx (%s)",
+                         (ulonglong) trans, (ulonglong) ht_arg,
+                         ha_legacy_type_name(ht_arg->db_type)));
     DBUG_ASSERT(m_flags == 0);
     DBUG_ASSERT(m_ht == NULL);
     DBUG_ASSERT(m_next == NULL);
@@ -1063,14 +1123,17 @@ public:
 
     m_next= trans->ha_list;
     trans->ha_list= this;
+    DBUG_VOID_RETURN;
   }
 
   /** Clear, prepare for reuse. */
   void reset()
   {
+    DBUG_ENTER("Ha_trx_info::reset");
     m_next= NULL;
     m_ht= NULL;
     m_flags= 0;
+    DBUG_VOID_RETURN;
   }
 
   Ha_trx_info() { reset(); }
@@ -1182,6 +1245,7 @@ public:
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
   ulong db_access;                     /* Privileges for current db */
+  bool password_expired;               /* password expiration flag */
 
   void init();
   void destroy();
@@ -2111,14 +2175,12 @@ public:
 				      RowsEventT* hint,
                                       const uchar* extra_row_info);
   Rows_log_event* binlog_get_pending_rows_event(bool is_transactional) const;
-  void binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional);
   inline int binlog_flush_pending_rows_event(bool stmt_end)
   {
     return (binlog_flush_pending_rows_event(stmt_end, FALSE) || 
             binlog_flush_pending_rows_event(stmt_end, TRUE));
   }
   int binlog_flush_pending_rows_event(bool stmt_end, bool is_transactional);
-  int binlog_remove_pending_rows_event(bool clear_maps, bool is_transactional);
 
   /**
     Determine the binlog format of the current statement.
@@ -2170,6 +2232,24 @@ private:
   */
   List<char> *binlog_accessed_db_names;
 
+  /**
+    The binary log position of the transaction.
+
+    The file and position are zero if the current transaction has not
+    been written to the binary log.
+
+    @see set_trans_pos
+    @see get_trans_pos
+
+    @todo Similar information is kept in the patch for BUG#11762277
+    and by the master/slave heartbeat implementation.  We should merge
+    these positions instead of maintaining three different ones.
+   */
+  /**@{*/
+  const char *m_trans_log_file;
+  my_off_t m_trans_end_pos;
+  /**@}*/
+
 public:
   void issue_unsafe_warnings();
 
@@ -2205,7 +2285,6 @@ public:
     SAVEPOINT *savepoints;
     THD_TRANS all;			// Trans since BEGIN WORK
     THD_TRANS stmt;			// Trans for current statement
-    bool on;                            // see ha_enable_transaction()
     XID_STATE xid_state;
     Rows_log_event *m_pending_rows_event;
 
@@ -2216,10 +2295,25 @@ public:
     */
     CHANGED_TABLE_LIST* changed_tables;
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
+
+    /*
+      (Mostly) binlog-specific fields use while flushing the caches
+      and committing transactions.
+    */
+    struct {
+      bool enabled:1;                   // see ha_enable_transaction()
+      bool pending:1;                   // Is the transaction commit pending?
+      bool xid_written:1;               // The session wrote an XID
+      bool real_commit:1;               // Is this a "real" commit?
+      bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+    } flags;
+
     void cleanup()
     {
+      DBUG_ENTER("THD::st_transaction::cleanup");
       changed_tables= 0;
       savepoints= 0;
+
       /*
         If rm_error is raised, it means that this piece of a distributed
         transaction has failed and must be rolled back. But the user must
@@ -2229,6 +2323,7 @@ public:
       if (!xid_state.rm_error)
         xid_state.xid.null();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+      DBUG_VOID_RETURN;
     }
     my_bool is_active()
     {
@@ -2507,6 +2602,25 @@ private:
   */
   ha_rows m_examined_row_count;
 
+private:
+  USER_CONN *m_user_connect;
+
+public:
+  void set_user_connect(USER_CONN *uc);
+  const USER_CONN* get_user_connect()
+  { return m_user_connect; }
+
+  void increment_user_connections_counter();
+  void decrement_user_connections_counter();
+
+  void increment_con_per_hour_counter();
+
+  void increment_updates_counter();
+
+  void increment_questions_counter();
+
+  void time_out_user_resource_limits();
+
 public:
   ha_rows get_sent_row_count() const
   { return m_sent_row_count; }
@@ -2535,7 +2649,6 @@ public:
   void set_status_no_index_used();
   void set_status_no_good_index_used();
 
-  USER_CONN *user_connect;
   const CHARSET_INFO *db_charset;
 #if defined(ENABLED_PROFILING)
   PROFILING  profiling;
@@ -2611,6 +2724,64 @@ public:
   DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
+  /**
+    Used by MYSQL_BIN_LOG to maintain the commit queue for binary log
+    group commit.
+  */
+  THD *next_to_commit;
+
+  /**
+     Functions to set and get transaction position.
+
+     These functions are used to set the transaction position for the
+     transaction written when committing this transaction.
+   */
+  /**@{*/
+  void set_trans_pos(const char *file, my_off_t pos)
+  {
+    DBUG_ENTER("THD::set_trans_pos");
+    DBUG_ASSERT(((file == 0) && (pos == 0)) || ((file != 0) && (pos != 0)));
+    if (file)
+    {
+      DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
+      // Only the file name should be used, not the full path
+      m_trans_log_file= file + dirname_length(file);
+    }
+    else
+      m_trans_log_file= NULL;
+
+    m_trans_end_pos= pos;
+    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
+                          m_trans_log_file, m_trans_end_pos));
+    DBUG_VOID_RETURN;
+  }
+
+  void get_trans_pos(const char **file_var, my_off_t *pos_var) const
+  {
+    DBUG_ENTER("THD::get_trans_pos");
+    if (file_var)
+      *file_var = m_trans_log_file;
+    if (pos_var)
+      *pos_var= m_trans_end_pos;
+    DBUG_PRINT("return", ("file: %s, pos: %llu",
+                          file_var ? *file_var : "<none>",
+                          pos_var ? *pos_var : 0));
+    DBUG_VOID_RETURN;
+  }
+  /**@}*/
+
+
+  /*
+    Error code from committing or rolling back the transaction.
+  */
+  int commit_error;
+
+  /*
+    Define durability properties that engines may check to
+    improve performance.
+  */
+  enum durability_properties durability_property;
+
   /*
     If checking this in conjunction with a wait condition, please
     include a check after enter_cond() if you want to avoid a race
@@ -2672,8 +2843,8 @@ public:
     it returned an error on master, and this is OK on the slave.
   */
   bool       is_slave_error;
-  bool       bootstrap, cleanup_done;
-  
+  bool       bootstrap;
+
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
   /**  
@@ -2776,8 +2947,31 @@ public:
   bool m_enable_plugins;
 
   THD(bool enable_plugins= true);
+
+  /*
+    The THD dtor is effectively split in two:
+      THD::release_resources() and ~THD().
+
+    We want to minimize the time we hold LOCK_thread_count,
+    so when destroying a global thread, do:
+
+    thd->release_resources()
+    mysql_mutex_lock(&LOCK_thread_count);
+    remove_global_thread(thd);
+    mysql_mutex_unlock(&LOCK_thread_count);
+    delete thd;
+   */
   ~THD();
 
+  void release_resources();
+  bool release_resources_done() const { return m_release_resources_done; }
+
+private:
+  bool m_release_resources_done;
+  bool cleanup_done;
+  void cleanup(void);
+
+public:
   void init(void);
   /*
     Initialize memory roots necessary for query processing and (!)
@@ -2790,7 +2984,6 @@ public:
   */
   void init_for_queries(Relay_log_info *rli= NULL);
   void change_user(void);
-  void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
@@ -2839,28 +3032,41 @@ public:
              const char *src_function, const char *src_file,
              int src_line)
   {
+    DBUG_ENTER("THD::enter_cond");
     mysql_mutex_assert_owner(mutex);
+    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
+                         (ulonglong) this,
+                         (ulonglong) mysys_var,
+                         (ulonglong) mysys_var->current_mutex,
+                         (ulonglong) mutex));
     mysys_var->current_mutex = mutex;
     mysys_var->current_cond = cond;
     enter_stage(stage, old_stage, src_function, src_file, src_line);
+    DBUG_VOID_RETURN;
   }
   inline void exit_cond(const PSI_stage_info *stage,
                         const char *src_function, const char *src_file,
                         int src_line)
   {
+    DBUG_ENTER("THD::exit_cond");
     /*
       Putting the mutex unlock in thd->exit_cond() ensures that
       mysys_var->current_mutex is always unlocked _before_ mysys_var->mutex is
       locked (if that would not be the case, you'll get a deadlock if someone
       does a THD::awake() on you).
     */
+    DBUG_PRINT("debug", ("thd: 0x%llx, mysys_var: 0x%llx, current_mutex: 0x%llx -> 0x%llx",
+                         (ulonglong) this,
+                         (ulonglong) mysys_var,
+                         (ulonglong) mysys_var->current_mutex,
+                         0ULL));
     mysql_mutex_unlock(mysys_var->current_mutex);
     mysql_mutex_lock(&mysys_var->mutex);
     mysys_var->current_mutex = 0;
     mysys_var->current_cond = 0;
     enter_stage(stage, NULL, src_function, src_file, src_line);
     mysql_mutex_unlock(&mysys_var->mutex);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   virtual int is_killed() { return killed; }
@@ -3640,6 +3846,15 @@ public:
   LEX_STRING get_invoker_user() { return invoker_user; }
   LEX_STRING get_invoker_host() { return invoker_host; }
   bool has_invoker() { return invoker_user.length > 0; }
+
+#ifndef DBUG_OFF
+private:
+  int gis_debug; // Storage for "SELECT ST_GIS_DEBUG(param);"
+public:
+  int get_gis_debug() { return gis_debug; }
+  void set_gis_debug(int arg) { gis_debug= arg; }
+#endif
+
 private:
 
   /** The current internal error handler for this thread, or NULL. */
@@ -4067,7 +4282,7 @@ public:
   // Needed for access from local class MY_HOOKS in prepare(), since thd is proteted.
   const THD *get_thd(void) { return thd; }
   const HA_CREATE_INFO *get_create_info() { return create_info; };
-  int prepare2(void) { return 0; }
+  int prepare2(void);
 };
 
 #include <myisam.h>
@@ -4080,16 +4295,9 @@ public:
 
 class TMP_TABLE_PARAM :public Sql_alloc
 {
-private:
-  /* Prevent use of these (not safe because of lists and copy_field) */
-  TMP_TABLE_PARAM(const TMP_TABLE_PARAM &);
-  void operator=(TMP_TABLE_PARAM &);
-
 public:
   List<Item> copy_funcs;
-  List<Item> save_copy_funcs;
   Copy_field *copy_field, *copy_field_end;
-  Copy_field *save_copy_field, *save_copy_field_end;
   uchar	    *group_buff;
   Item	    **items_to_copy;			/* Fields in tmp table */
   MI_COLUMNDEF *recinfo,*start_recinfo;
@@ -4125,8 +4333,6 @@ public:
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
   bool  using_indirect_summary_function;
-  /* If >0 convert all blob fields to varchar(convert_blob_length) */
-  uint  convert_blob_length; 
   CHARSET_INFO *table_charset; 
   bool schema_table;
   /*
@@ -4152,8 +4358,9 @@ public:
   bool bit_fields_as_long;
 
   TMP_TABLE_PARAM()
-    :copy_field(0), group_parts(0),
-     group_length(0), group_null_parts(0), convert_blob_length(0),
+    :copy_field(0), copy_field_end(0), group_parts(0),
+     group_length(0), group_null_parts(0),
+     using_indirect_summary_function(0),
      schema_table(0), precomputed_group_by(0), force_copy_fields(0),
      skip_create_table(FALSE), bit_fields_as_long(0)
   {}
@@ -4167,8 +4374,8 @@ public:
     if (copy_field)				/* Fix for Intel compiler */
     {
       delete [] copy_field;
-      save_copy_field= copy_field= NULL;
-      save_copy_field_end= copy_field_end= NULL;
+      copy_field= NULL;
+      copy_field_end= NULL;
     }
   }
 };
@@ -4256,7 +4463,7 @@ public:
     :table_count(table_count), is_scan(is_scan),
     materialized(FALSE), table_param(), table_cols(),
     table(NULL), tab_ref(NULL), in_equality(NULL),
-    join_cond(NULL), copy_field(NULL)
+    join_cond(NULL), copy_field(NULL), copy_field_count(0)
   {}
 private:
   // Nobody deletes me apparently ...
@@ -4275,6 +4482,7 @@ public:
   Item *in_equality;            // See create_subquery_equalities()
   Item *join_cond;              // See comments in make_join_select()
   Copy_field *copy_field;       // Needed for materialization scan
+  uint copy_field_count;        // Number of columns to copy back
 };
 
 
@@ -4656,7 +4864,9 @@ public:
 /**
   Skip the increase of the global query id counter. Commonly set for
   commands that are stateless (won't cause any change on the server
-  internal states).
+  internal states). This is made obsolete as query id is incremented 
+  for ping and statistics commands as well because of race condition 
+  (Bug#58785).
 */
 #define CF_SKIP_QUERY_ID        (1U << 0)
 

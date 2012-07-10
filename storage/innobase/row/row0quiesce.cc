@@ -419,7 +419,7 @@ static	__attribute__((nonnull, warn_unused_result))
 dberr_t
 row_quiesce_write_cfg(
 /*==================*/
-	const dict_table_t*	table,	/*!< in: write the meta data for
+	dict_table_t*	table,	/*!< in: write the meta data for
 					this table */
 	THD*			thd)	/*!< in/out: session */
 {

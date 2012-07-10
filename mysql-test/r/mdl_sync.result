@@ -2715,7 +2715,7 @@ create table t1 (i int) engine=InnoDB;
 # Switching to connection 'con50913_1'.
 set debug_sync= 'alter_table_copy_after_lock_upgrade SIGNAL parked WAIT_FOR go';
 # Sending:
-alter table t1 add column j int;
+alter table t1 add column j int, ALGORITHM=COPY;
 # Switching to connection 'default'.
 # Wait until ALTER TABLE gets blocked on a sync point after
 # acquiring thr_lock.c lock.

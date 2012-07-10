@@ -17,7 +17,7 @@
 #ifndef _EVENT_PARSE_DATA_H_
 #define _EVENT_PARSE_DATA_H_
 
-#include "sql_list.h"                           /* Sql_alloc */
+#include "sql_alloc.h"
 
 class Item;
 class THD;

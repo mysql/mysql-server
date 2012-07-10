@@ -500,7 +500,7 @@ drop table t1;
 # Test of opening table twice and timestamps
 #
 set @a:=now();
-eval CREATE TABLE t1 (a int not null, b timestamp not null, primary key (a)) engine=$engine_type;
+eval CREATE TABLE t1 (a int not null, b timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, primary key (a)) engine=$engine_type;
 insert into t1 (a) values(1),(2),(3);
 select t1.a from t1 natural join t1 as t2 where t1.b >= @a order by t1.a;
 select a from t1 natural join t1 as t2 where b >= @a order by a;
@@ -727,9 +727,9 @@ eval CREATE TABLE t1 (
   cname char(15) NOT NULL default '',
   carrier_id smallint(6) NOT NULL default '0',
   privacy tinyint(4) NOT NULL default '0',
-  last_mod_date timestamp NOT NULL,
+  last_mod_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   last_mod_id smallint(6) NOT NULL default '0',
-  last_app_date timestamp NOT NULL,
+  last_app_date timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   last_app_id smallint(6) default '-1',
   version smallint(6) NOT NULL default '0',
   assigned_scps int(11) default '0',
@@ -746,9 +746,9 @@ eval CREATE TABLE t2 (
   cname char(15) NOT NULL default '',
   carrier_id smallint(6) NOT NULL default '0',
   privacy tinyint(4) NOT NULL default '0',
-  last_mod_date timestamp NOT NULL,
+  last_mod_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   last_mod_id smallint(6) NOT NULL default '0',
-  last_app_date timestamp NOT NULL,
+  last_app_date timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   last_app_id smallint(6) default '-1',
   version smallint(6) NOT NULL default '0',
   assigned_scps int(11) default '0',
@@ -1359,6 +1359,11 @@ drop table t1;
 
 eval create table t1 (a int not null, b int not null, c blob not null, d int not null, e int, primary key (a,b,c(255),d)) engine=$engine_type;
 insert into t1 values (2,2,"b",2,2),(1,1,"a",1,1),(3,3,"ab",3,3);
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 select * from t1 order by a,b,c,d;
 explain select * from t1 order by a,b,c,d;
 drop table t1;

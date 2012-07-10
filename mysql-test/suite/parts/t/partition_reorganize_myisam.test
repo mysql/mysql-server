@@ -1,0 +1,115 @@
+#
+# A series of tests to show the correct behavior when using
+# ALTER TABLE ... REORGANIZE PARTITION with InnoDB
+#
+--source include/have_partition.inc
+--source include/have_symlink.inc
+--source include/not_windows.inc
+
+SET default_storage_engine=MyISAM;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+
+--mkdir $MYSQL_TMP_DIR/alt_dir_northeast
+--mkdir $MYSQL_TMP_DIR/alt_dir_southwest
+
+--echo #
+--echo # CREATE a table with SUBPARTITIONS
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE emp (
+    id INT NOT NULL,
+    store_name VARCHAR(30),
+    parts VARCHAR(30),
+    store_id INT
+) engine MyISAM
+PARTITION BY RANGE(store_id) SUBPARTITION BY HASH(store_id)
+(
+  PARTITION northeast VALUES LESS THAN (50)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_northeast'
+    INDEX DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_northeast'
+    (SUBPARTITION ne0, SUBPARTITION ne1),
+  PARTITION southwest VALUES LESS THAN (100)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_southwest'
+    INDEX DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_southwest'
+    (SUBPARTITION sw2, SUBPARTITION sw3)
+);
+INSERT INTO emp values(1,'Oracle','NUT',10);
+INSERT INTO emp values(2,'SAP','BOLT',40);
+INSERT INTO emp values(3,'IBM','NAIL',60);
+INSERT INTO emp values(4,'SUN','SCREW',90);
+SELECT * FROM emp;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE emp;
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_northeast
+--list_files $MYSQL_TMP_DIR/alt_dir_northeast
+--echo ---- MYSQL_TMP_DIR/alt_dir_southwest
+--list_files $MYSQL_TMP_DIR/alt_dir_southwest
+
+
+--echo #
+--echo # REORGANIZE the PARTITIONS and SUBPARTITIONS
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--mkdir $MYSQL_TMP_DIR/alt_dir_east
+--mkdir $MYSQL_TMP_DIR/alt_dir_north
+eval ALTER TABLE emp REORGANIZE PARTITION northeast INTO
+(
+  PARTITION east VALUES LESS THAN (25)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_east'
+    INDEX DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_east'
+    (SUBPARTITION e0, SUBPARTITION e1),
+  PARTITION north VALUES LESS THAN (50)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_north'
+    INDEX DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_north'
+    (SUBPARTITION n0, SUBPARTITION n1)
+);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--mkdir $MYSQL_TMP_DIR/alt_dir_west
+--mkdir $MYSQL_TMP_DIR/alt_dir_south
+eval ALTER TABLE emp REORGANIZE PARTITION southwest INTO
+(
+  PARTITION west VALUES LESS THAN (75)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_west'
+    INDEX DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_west'
+    (SUBPARTITION w0, SUBPARTITION w1),
+  PARTITION south VALUES LESS THAN (100)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_south'
+    INDEX DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_south'
+    (SUBPARTITION s0, SUBPARTITION s1)
+);
+SELECT * FROM emp;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE emp;
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_northeast
+--list_files $MYSQL_TMP_DIR/alt_dir_northeast
+--echo ---- MYSQL_TMP_DIR/alt_dir_southwest
+--list_files $MYSQL_TMP_DIR/alt_dir_southwest
+--echo ---- MYSQL_TMP_DIR/alt_dir_east
+--list_files $MYSQL_TMP_DIR/alt_dir_east
+--echo ---- MYSQL_TMP_DIR/alt_dir_north
+--list_files $MYSQL_TMP_DIR/alt_dir_north
+--echo ---- MYSQL_TMP_DIR/alt_dir_west
+--list_files $MYSQL_TMP_DIR/alt_dir_west
+--echo ---- MYSQL_TMP_DIR/alt_dir_south
+--list_files $MYSQL_TMP_DIR/alt_dir_south
+
+DROP TABLE emp;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--rmdir $MYSQL_TMP_DIR/alt_dir_northeast
+--rmdir $MYSQL_TMP_DIR/alt_dir_southwest
+--rmdir $MYSQL_TMP_DIR/alt_dir_east
+--rmdir $MYSQL_TMP_DIR/alt_dir_north
+--rmdir $MYSQL_TMP_DIR/alt_dir_west
+--rmdir $MYSQL_TMP_DIR/alt_dir_south
+
+

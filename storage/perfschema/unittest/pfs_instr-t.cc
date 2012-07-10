@@ -60,6 +60,8 @@ void test_no_instruments()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -117,6 +119,8 @@ void test_no_instances()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);
@@ -255,6 +259,8 @@ void test_with_instances()
   param.m_statement_class_sizing= 0;
   param.m_events_statements_history_sizing= 0;
   param.m_events_statements_history_long_sizing= 0;
+  param.m_digest_sizing= 0;
+  param.m_session_connect_attrs_sizing= 0;
 
   init_event_name_sizing(& param);
   rc= init_instruments(& param);

@@ -31,11 +31,11 @@ Created 11/5/1995 Heikki Tuuri
 *******************************************************/
 
 #include "mtr0mtr.h"
+#ifndef UNIV_HOTBACKUP
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
 
-#ifndef UNIV_HOTBACKUP
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
 	ulint		mem_size;	/*!< allocated size of the chunk */
@@ -339,7 +339,7 @@ buf_page_belongs_to_unzip_LRU(
 Gets the mutex of a block.
 @return	pointer to mutex protecting bpage */
 UNIV_INLINE
-mutex_t*
+ib_mutex_t*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
@@ -942,7 +942,7 @@ buf_page_get_newest_modification(
 					page frame */
 {
 	lsn_t		lsn;
-	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
 	mutex_enter(block_mutex);
 

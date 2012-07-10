@@ -1,0 +1,142 @@
+############ mysql-test\t\innodb_adaptive_flushing_lwm_basic.test #############
+#                                                                             #
+# Variable Name: innodb_adaptive_flushing_lwm                                 #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 10                                                           #
+# Range: 0-70                                                                 #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+#Description:Test Cases of Dynamic System Variable innodb_adaptive_flushing_lwm #
+#             that checks the behavior of this variable in the following ways #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+--source include/load_sysvars.inc
+
+########################################################################
+#               START OF innodb_adaptive_flushing_lwm TESTS            #
+########################################################################
+
+
+###############################################################################
+#Saving initial value of innodb_adaptive_flushing_lwm in a temporary variable #
+###############################################################################
+
+SET @global_start_value = @@global.innodb_adaptive_flushing_lwm;
+SELECT @global_start_value;
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################
+#      Display the DEFAULT value of innodb_adaptive_flushing_lwm       #
+########################################################################
+
+SET @@global.innodb_adaptive_flushing_lwm = 1;
+SET @@global.innodb_adaptive_flushing_lwm = DEFAULT;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+###################################################################################
+#  Check if innodb_adaptive_flushing_lwm can be accessed with and without @@ sign #
+###################################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_adaptive_flushing_lwm = 1;
+SELECT @@innodb_adaptive_flushing_lwm;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_adaptive_flushing_lwm;
+
+SET global innodb_adaptive_flushing_lwm = 1;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+###############################################################################
+#     change the value of innodb_adaptive_flushing_lwm to a valid value       #
+###############################################################################
+
+SET @@global.innodb_adaptive_flushing_lwm = 1;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+SET @@global.innodb_adaptive_flushing_lwm = 60;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+SET @@global.innodb_adaptive_flushing_lwm = 70;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+###########################################################################
+#  Change the value of innodb_adaptive_flushing_lwm to invalid value      #
+###########################################################################
+
+SET @@global.innodb_adaptive_flushing_lwm = -1;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_adaptive_flushing_lwm = "T";
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_adaptive_flushing_lwm = "Y";
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+SET @@global.innodb_adaptive_flushing_lwm = 71;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+SELECT @@global.innodb_adaptive_flushing_lwm =
+ VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  WHERE VARIABLE_NAME='innodb_adaptive_flushing_lwm';
+SELECT @@global.innodb_adaptive_flushing_lwm;
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ WHERE VARIABLE_NAME='innodb_adaptive_flushing_lwm';
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_adaptive_flushing_lwm = OFF;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_adaptive_flushing_lwm = ON;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+--echo '#---------------------FN_DYNVARS_046_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable     #
+###################################################################
+
+
+SET @@global.innodb_adaptive_flushing_lwm = TRUE;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+SET @@global.innodb_adaptive_flushing_lwm = FALSE;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@global.innodb_adaptive_flushing_lwm = @global_start_value;
+SELECT @@global.innodb_adaptive_flushing_lwm;
+
+###############################################################
+#               END OF innodb_adaptive_flushing_lwm TESTS     #
+###############################################################

@@ -44,6 +44,8 @@ mutex_instances
 objects_summary_global_by_type
 performance_timers
 rwlock_instances
+session_account_connect_attrs
+session_connect_attrs
 setup_actors
 setup_consumers
 setup_instruments

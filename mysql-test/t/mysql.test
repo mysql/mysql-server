@@ -379,6 +379,8 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 # Bug #25146: Some warnings/errors not shown when using --show-warnings
 #
 
+SET @@global.sql_mode='';
+
 # This one should succeed with no warnings
 --exec $MYSQL --show-warnings test -e "create table t1 (id int)"
 
@@ -390,6 +392,8 @@ remove_file $MYSQLTEST_VARDIR/tmp/bug31060.sql;
 --exec $MYSQL --show-warnings test -e "create table t2 (id int) engine=nonexistent2"
 
 drop tables t1, t2;
+
+SET @@global.sql_mode=DEFAULT;
 
 #
 # mysql client with 'init-command' option

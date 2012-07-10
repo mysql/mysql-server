@@ -181,8 +181,8 @@ ERROR HY000: You are using safe update mode and you tried to update a table with
 set sql_safe_updates=0;
 drop table t1,t2;
 set timestamp=1038401397;
-create table t1 (n int(10) not null primary key, d int(10), t timestamp);
-create table t2 (n int(10) not null primary key, d int(10), t timestamp);
+create table t1 (n int(10) not null primary key, d int(10), t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+create table t2 (n int(10) not null primary key, d int(10), t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values(1,1,NULL);
 insert into t2 values(1,10,NULL),(2,20,NULL);
 set timestamp=1038000000;

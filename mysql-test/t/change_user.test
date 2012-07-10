@@ -4,6 +4,7 @@
 
 SET GLOBAL secure_auth = OFF;
 grant select on test.* to test_nopw;
+create user test_oldpw identified with 'mysql_old_password';
 # need to suppress the deprecation warnings because they're absent in embedded
 --disable_warnings
 grant select on test.* to test_oldpw identified by password "09301740536db389";

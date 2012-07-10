@@ -14,6 +14,9 @@ INSERT INTO t1 VALUES (13,0),(8,1),(9,2),(6,3),
 INSERT INTO t2 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 (11),(12),(13),(14);
 
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+
 connect (thread1, localhost, root,,);
 connect (thread2, localhost, root,,);
 

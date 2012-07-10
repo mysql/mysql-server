@@ -171,10 +171,10 @@ ibool
 row_fts_psort_info_init(
 /*====================*/
 	trx_t*			trx,	/*!< in: transaction */
-	struct TABLE*		table,	/*!< in: MySQL table object */
+	row_merge_dup_t*	dup,	/*!< in,own: descriptor of
+					FTS index being created */
 	const dict_table_t*	new_table,/*!< in: table on which indexes are
 					created */
-	dict_index_t*		index,	/*!< in: FTS index to be created */
 	ibool			opt_doc_id_size,
 					/*!< in: whether to use 4 bytes
 					instead of 8 bytes integer to
@@ -199,6 +199,7 @@ row_fts_psort_info_init(
 		 fts_sort_pll_degree * sizeof *psort_info));
 
 	if (!psort_info) {
+		ut_free(dup);
 		return FALSE;
 	}
 
@@ -208,15 +209,15 @@ row_fts_psort_info_init(
 	common_info = static_cast<fts_psort_common_t*>(
 		mem_alloc(sizeof *common_info));
 
-	common_info->table = table;
+	common_info->dup = dup;
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
-	common_info->sort_index = index;
 	common_info->all_info = psort_info;
 	common_info->sort_event = sort_event;
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	if (!common_info) {
+		ut_free(dup);
 		mem_free(psort_info);
 		return FALSE;
 	}
@@ -240,7 +241,7 @@ row_fts_psort_info_init(
 			}
 
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
-				index);
+				dup->index);
 
 			row_merge_file_create(psort_info[j].merge_file[i]);
 
@@ -312,6 +313,7 @@ row_fts_psort_info_destroy(
 			}
 		}
 
+		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
 	}
@@ -583,10 +585,10 @@ fts_parallel_tokenization(
 	memset(mycount, 0, FTS_NUM_AUX_INDEX * sizeof(int));
 
 	doc.charset = fts_index_get_charset(
-		psort_info->psort_common->sort_index);
+		psort_info->psort_common->dup->index);
 
 	idx_field = dict_index_get_nth_field(
-		psort_info->psort_common->sort_index, 0);
+		psort_info->psort_common->dup->index, 0);
 	word_dtype.prtype = idx_field->col->prtype;
 	word_dtype.mbminmaxlen = idx_field->col->mbminmaxlen;
 	word_dtype.mtype = (strcmp(doc.charset->name, "latin1_swedish_ci") == 0)
@@ -753,16 +755,51 @@ loop:
 	goto loop;
 
 exit:
+	/* Do a final sort of the last (or latest) batch of records
+	in block memory. Flush them to temp file if records cannot
+	be hold in one block memory */
 	for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
 		if (t_ctx.rows_added[i]) {
 			row_merge_buf_sort(buf[i], NULL);
 			row_merge_buf_write(
-				buf[i], (const merge_file_t*) merge_file[i],
-				block[i]);
-			row_merge_write(merge_file[i]->fd,
-					merge_file[i]->offset++, block[i]);
+				buf[i], merge_file[i], block[i]);
 
-			UNIV_MEM_INVALID(block[i][0], srv_sort_buf_size);
+			/* Write to temp file, only if records have
+			been flushed to temp file before (offset > 0):
+			The pseudo code for sort is following:
+
+				while (there are rows) {
+					tokenize rows, put result in block[]
+				  	if (block[] runs out) {
+						sort rows;
+				      		write to temp file with
+						row_merge_write();
+				      		offset++;
+				  	}
+				}
+
+				# write out the last batch 
+				if (offset > 0) {
+					row_merge_write();
+					offset++;
+				} else {
+					# no need to write anything
+					offset stay as 0
+				}
+
+			so if merge_file[i]->offset is 0 when we come to
+			here as the last batch, this means rows have
+			never flush to temp file, it can be held all in
+			memory */
+			if (merge_file[i]->offset != 0) {
+				row_merge_write(merge_file[i]->fd,
+						merge_file[i]->offset++,
+						block[i]);
+
+				UNIV_MEM_INVALID(block[i][0],
+						 srv_sort_buf_size);
+			}
+
 			buf[i] = row_merge_buf_empty(buf[i]);
 			t_ctx.rows_added[i] = 0;
 		}
@@ -780,10 +817,8 @@ exit:
 
 		tmpfd[i] = innobase_mysql_tmpfile();
 		row_merge_sort(psort_info->psort_common->trx,
-				       psort_info->psort_common->sort_index,
-				       merge_file[i],
-				       (row_merge_block_t*) block[i], &tmpfd[i],
-				       psort_info->psort_common->table);
+			       psort_info->psort_common->dup,
+			       merge_file[i], block[i], &tmpfd[i]);
 		total_rec += merge_file[i]->n_rec;
 		close(tmpfd[i]);
 	}
@@ -835,7 +870,7 @@ fts_parallel_merge(
 
 	id = psort_info->psort_id;
 
-	row_fts_merge_insert(psort_info->psort_common->sort_index,
+	row_fts_merge_insert(psort_info->psort_common->dup->index,
 			     psort_info->psort_common->new_table,
 			     psort_info->psort_common->all_info, id);
 
@@ -1087,7 +1122,7 @@ row_fts_sel_tree_propagate(
 	} else if (cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
 				      offsets[child_left],
 				      offsets[child_right],
-				      index, NULL) < 0) {
+				      index, NULL, NULL) < 0) {
 		selected = child_left;
 	} else {
 		selected = child_right;
@@ -1176,7 +1211,7 @@ row_fts_build_sel_tree_level(
 		int cmp = cmp_rec_rec_simple(
 			mrec[child_left], mrec[child_right],
 			offsets[child_left], offsets[child_right],
-			index, NULL);
+			index, NULL, NULL);
 
 		sel_tree[start + i] = cmp < 0 ? child_left : child_right;
 	}
@@ -1348,8 +1383,13 @@ row_fts_merge_insert(
 			/* No Rows to read */
 			mrec[i] = b[i] = NULL;
 		} else {
-			if (!row_merge_read(fd[i], foffs[i],
-			    (row_merge_block_t*) block[i])) {
+			/* Read from temp file only if it has been
+			written to. Otherwise, block memory holds
+			all the sorted records */
+			if (psort_info[i].merge_file[id]->offset > 0
+			    && (!row_merge_read(
+					fd[i], foffs[i],
+					(row_merge_block_t*) block[i]))) {
 				error = DB_CORRUPTION;
 				goto exit;
 			}
@@ -1392,7 +1432,7 @@ row_fts_merge_insert(
 				if (cmp_rec_rec_simple(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
-					    index, NULL) < 0) {
+					    index, NULL, NULL) < 0) {
 					min_rec = i;
 				}
 			}

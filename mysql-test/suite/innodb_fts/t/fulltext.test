@@ -12,6 +12,9 @@ INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
                           ('Only MyISAM tables','support collections'),
              ('Function MATCH ... AGAINST()','is used to do a search'),
         ('Full-text search in MySQL', 'implements vector space model');
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 SHOW INDEX FROM t1;
 
 # nl search
@@ -143,6 +146,10 @@ INSERT INTO t2 VALUES (1,'foo'),(2,'bar'),(3,'foobar');
 #WHERE ticket2.id = ticket2.ticket and match(ttxt.inhalt) against ('foobar');
 
 INSERT INTO t1 VALUES (3,3);
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
 select ticket2.id FROM t2 as ttxt,t2
 INNER JOIN t1 as ticket2 ON ticket2.id = t2.ticket
 WHERE ticket2.id = ticket2.ticket and
@@ -406,6 +413,9 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 (a TEXT, FULLTEXT KEY(a)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('test'),('test1'),('test');
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 PREPARE stmt from "SELECT a, FORMAT(MATCH(a) AGAINST('test1 test'),6) FROM t1 WHERE MATCH(a) AGAINST('test1 test')";
 
 EXECUTE stmt;
@@ -461,6 +471,9 @@ CREATE TABLE t1 (a VARCHAR(255), b INT, FULLTEXT(a), KEY(b)) ENGINE = InnoDB;
 INSERT INTO t1 VALUES('test', 1),('test', 1),('test', 1),('test', 1),
                      ('test', 1),('test', 2),('test', 3),('test', 4);
 
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 EXPLAIN SELECT * FROM t1
 WHERE MATCH(a) AGAINST('test' IN BOOLEAN MODE) AND b=1;
 

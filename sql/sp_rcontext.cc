@@ -48,7 +48,7 @@ sp_rcontext::~sp_rcontext()
   if (m_var_table)
     free_blobs(m_var_table);
 
-  // Leave m_handlers, m_handler_call_stack, m_var_items, m_cstack
+  // Leave m_visible_handlers, m_activated_handlers, m_var_items, m_cstack
   // and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
 }
@@ -189,16 +189,37 @@ bool sp_rcontext::push_handler(sp_handler *handler, uint first_ip)
   if (he == NULL)
     return true;
 
-  return m_handlers.append(he);
+  return m_visible_handlers.append(he);
 }
 
 
-void sp_rcontext::pop_handlers(int count)
+void sp_rcontext::pop_handlers(sp_pcontext *current_scope)
 {
-  DBUG_ASSERT(m_handlers.elements() >= count);
+  for (int i= m_visible_handlers.elements() - 1; i >= 0; --i)
+  {
+    int handler_level= m_visible_handlers.at(i)->handler->scope->get_level();
 
-  for (int i= 0; i < count; ++i)
-    m_handlers.pop();
+    if (handler_level >= current_scope->get_level())
+      m_visible_handlers.pop();
+  }
+}
+
+
+void sp_rcontext::exit_handler(sp_pcontext *target_scope)
+{
+  // Pop the current handler frame.
+
+  m_activated_handlers.pop();
+
+  // Pop frames below the target scope level.
+
+  for (int i= m_activated_handlers.elements() - 1; i >= 0; --i)
+  {
+    int handler_level= m_activated_handlers.at(i)->handler->scope->get_level();
+
+    if (handler_level > target_scope->get_level())
+      m_activated_handlers.pop();
+  }
 }
 
 
@@ -287,9 +308,9 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   DBUG_ASSERT(found_condition);
 
   sp_handler_entry *handler_entry= NULL;
-  for (int i= 0; i < m_handlers.elements(); ++i)
+  for (int i= 0; i < m_visible_handlers.elements(); ++i)
   {
-    sp_handler_entry *h= m_handlers.at(i);
+    sp_handler_entry *h= m_visible_handlers.at(i);
 
     if (h->handler == found_handler)
     {
@@ -337,31 +358,14 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
     new (callers_arena->mem_root) Sql_condition_info(found_condition,
                                                      callers_arena);
   Handler_call_frame *frame=
-    new (callers_arena->mem_root) Handler_call_frame(cond_info, continue_ip);
-  m_handler_call_stack.append(frame);
+    new (callers_arena->mem_root) Handler_call_frame(found_handler,
+                                                     cond_info,
+                                                     continue_ip);
+  m_activated_handlers.append(frame);
 
   *ip= handler_entry->first_ip;
 
   DBUG_RETURN(true);
-}
-
-
-uint sp_rcontext::exit_handler(Diagnostics_area *da)
-{
-  DBUG_ENTER("sp_rcontext::exit_handler");
-  DBUG_ASSERT(m_handler_call_stack.elements() > 0);
-
-  Handler_call_frame *f= m_handler_call_stack.pop();
-
-  /*
-    Remove the SQL conditions that were present in DA when the
-    handler was activated.
-  */
-  da->remove_marked_sql_conditions();
-
-  uint continue_ip= f->continue_ip;
-
-  DBUG_RETURN(continue_ip);
 }
 
 

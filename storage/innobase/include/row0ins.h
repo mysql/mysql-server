@@ -75,20 +75,51 @@ ins_node_set_new_row(
 	ins_node_t*	node,	/*!< in: insert node */
 	dtuple_t*	row);	/*!< in: new row (or first row) for the node */
 /***************************************************************//**
-Inserts an index entry to index. Tries first optimistic, then pessimistic
-descent down the tree. If the entry matches enough to a delete marked record,
-performs the insert by updating or delete unmarking the delete marked
-record.
-@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+Tries to insert an entry into a clustered index, ignoring foreign key
+constraints. If a record with the same unique key is found, the other
+record is necessarily marked deleted by a committed transaction, or a
+unique key violation error occurs. The delete marked record is then
+updated to an existing record, and we must write an undo log record on
+the delete marked record.
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
 UNIV_INTERN
 dberr_t
-row_ins_index_entry(
-/*================*/
-	dict_index_t*	index,	/*!< in: index */
+row_ins_clust_index_entry_low(
+/*==========================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree */
+	dict_index_t*	index,	/*!< in: clustered index */
+	ulint		n_uniq,	/*!< in: 0 or index->n_uniq */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	ibool		foreign,/*!< in: TRUE=check foreign key constraints
-				(foreign=FALSE only during CREATE INDEX) */
+	que_thr_t*	thr)	/*!< in: query thread or NULL */
+	__attribute__((nonnull, warn_unused_result));
+/***************************************************************//**
+Tries to insert an entry into a secondary index. If a record with exactly the
+same fields is found, the other record is necessarily marked deleted.
+It is then unmarked. Otherwise, the entry is just inserted to the index.
+@retval DB_SUCCESS on success
+@retval DB_LOCK_WAIT on lock wait when !(flags & BTR_NO_LOCKING_FLAG)
+@retval DB_FAIL if retry with BTR_MODIFY_TREE is needed
+@return error code */
+UNIV_INTERN
+dberr_t
+row_ins_sec_index_entry_low(
+/*========================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
+	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
+				depending on whether we wish optimistic or
+				pessimistic descent down the index tree */
+	dict_index_t*	index,	/*!< in: secondary index */
+	mem_heap_t*	offsets_heap,
+				/*!< in/out: memory heap that can be emptied */
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**
@@ -109,7 +140,7 @@ row_ins_index_entry_big_rec_func(
 	const void*		thd,	/*!< in: connection, or NULL */
 #endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
-	__attribute__((nonnull(1,2,4,5,6), warn_unused_result));
+	__attribute__((nonnull(1,2,3,4,5,6), warn_unused_result));
 #ifdef DBUG_OFF
 # define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,line)
@@ -117,6 +148,35 @@ row_ins_index_entry_big_rec_func(
 # define row_ins_index_entry_big_rec(e,big,ofs,heap,index,thd,file,line) \
 	row_ins_index_entry_big_rec_func(e,big,ofs,heap,index,file,thd,line)
 #endif /* DBUG_OFF */
+/***************************************************************//**
+Inserts an entry into a clustered index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+UNIV_INTERN
+dberr_t
+row_ins_clust_index_entry(
+/*======================*/
+	dict_index_t*	index,	/*!< in: clustered index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	que_thr_t*	thr,	/*!< in: query thread */
+	ulint		n_ext)	/*!< in: number of externally stored columns */
+	__attribute__((nonnull, warn_unused_result));
+/***************************************************************//**
+Inserts an entry into a secondary index. Tries first optimistic,
+then pessimistic descent down the tree. If the entry matches enough
+to a delete marked record, performs the insert by updating or delete
+unmarking the delete marked record.
+@return	DB_SUCCESS, DB_LOCK_WAIT, DB_DUPLICATE_KEY, or some other error code */
+UNIV_INTERN
+dberr_t
+row_ins_sec_index_entry(
+/*====================*/
+	dict_index_t*	index,	/*!< in: secondary index */
+	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	que_thr_t*	thr)	/*!< in: query thread */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.

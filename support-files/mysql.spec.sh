@@ -176,7 +176,7 @@
         %endif
       %else
         %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-          %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+          %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release | cut -d. -f1)
           %if "%susever" == "10"
             %define distro_description    SUSE Linux Enterprise Server 10
             %define distro_releasetag     sles10
@@ -1110,6 +1110,7 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/mysqlimport
 %attr(755, root, root) %{_bindir}/mysqlshow
 %attr(755, root, root) %{_bindir}/mysqlslap
+%attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %doc %attr(644, root, man) %{_mandir}/man1/msql2mysql.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*

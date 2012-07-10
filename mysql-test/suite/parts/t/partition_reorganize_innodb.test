@@ -1,0 +1,160 @@
+#
+# A series of tests to show the correct behavior when using
+# ALTER TABLE ... REORGANIZE PARTITION with InnoDB
+# See also; parts.partition_basic_symlink_innodb.test for
+# partition related tests with remote tablespaces.
+# See innodb.innodb-restart for tablespace migration tests.
+#
+--source include/have_innodb.inc
+--source include/have_partition.inc
+SET default_storage_engine=InnoDB;
+LET $MYSQLD_DATADIR = `select @@datadir`;
+
+# These values can change during the test
+LET $innodb_file_format_orig=`select @@innodb_file_format`;
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
+
+SET SESSION innodb_strict_mode = ON;
+SET GLOBAL innodb_file_per_table=ON;
+SET GLOBAL innodb_file_format=barracuda;
+
+# Unlike MyISAM, InnoDB creates the subdirectories given to it in the
+# DATA DIRECTORY clauses.  Another difference is that InnoDB uses an extra
+# directory under DATA DIRECTORY with the name of the database.
+--echo #
+--echo # CREATE a table with SUBPARTITIONS
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE emp (
+    id INT NOT NULL,
+    store_name VARCHAR(30),
+    parts VARCHAR(30),
+    store_id INT
+) engine InnoDB
+PARTITION BY RANGE(store_id) SUBPARTITION BY HASH(store_id)
+(
+  PARTITION northeast VALUES LESS THAN (50)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_northeast'
+    (SUBPARTITION ne0, SUBPARTITION ne1),
+  PARTITION southwest VALUES LESS THAN (100)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_southwest'
+    (SUBPARTITION sw2, SUBPARTITION sw3)
+);
+INSERT INTO emp values(1,'Oracle','NUT',10);
+INSERT INTO emp values(2,'SAP','BOLT',40);
+INSERT INTO emp values(3,'IBM','NAIL',60);
+INSERT INTO emp values(4,'SUN','SCREW',90);
+SELECT * FROM emp;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE emp;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables
+       WHERE name LIKE 'test%' ORDER BY name;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY name;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+--echo ---- MYSQLD_DATADIR/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_northeast/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_northeast/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_southwest/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_southwest/test
+
+
+--echo #
+--echo # REORGANIZE the PARTITIONS and SUBPARTITIONS
+--echo #
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE emp REORGANIZE PARTITION northeast INTO
+(
+  PARTITION east VALUES LESS THAN (25)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_east'
+    (SUBPARTITION e0, SUBPARTITION e1),
+  PARTITION north VALUES LESS THAN (50)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_north'
+    (SUBPARTITION n0, SUBPARTITION n1)
+);
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval ALTER TABLE emp REORGANIZE PARTITION southwest INTO
+(
+  PARTITION west VALUES LESS THAN (75)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_west'
+    (SUBPARTITION w0, SUBPARTITION w1),
+  PARTITION south VALUES LESS THAN (100)
+    DATA DIRECTORY = '$MYSQL_TMP_DIR/alt_dir_south'
+    (SUBPARTITION s0, SUBPARTITION s1)
+);
+SELECT * FROM emp;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE emp;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables
+       WHERE name LIKE 'test%' ORDER BY name;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces
+       WHERE name LIKE 'test%' ORDER BY name;
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+--echo ---- MYSQLD_DATADIR/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_northeast/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_northeast/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_southwest/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_southwest/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_east/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_east/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_north/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_north/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_west/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_west/test
+--echo ---- MYSQL_TMP_DIR/alt_dir_south/test
+--replace_regex  /#P#/#p#/  /#SP#/#sp#/
+--list_files $MYSQL_TMP_DIR/alt_dir_south/test
+
+DROP TABLE emp;
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--rmdir $MYSQL_TMP_DIR/alt_dir_northeast/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_northeast
+--rmdir $MYSQL_TMP_DIR/alt_dir_southwest/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_southwest
+--rmdir $MYSQL_TMP_DIR/alt_dir_east/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_east
+--rmdir $MYSQL_TMP_DIR/alt_dir_north/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_north
+--rmdir $MYSQL_TMP_DIR/alt_dir_west/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_west
+--rmdir $MYSQL_TMP_DIR/alt_dir_south/test
+--rmdir $MYSQL_TMP_DIR/alt_dir_south
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+--enable_query_log
+

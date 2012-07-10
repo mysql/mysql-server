@@ -22,6 +22,7 @@ binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
 create table t1 (text1 varchar(32) not NULL, KEY key1 (text1));
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
+analyze table t1;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
@@ -90,6 +91,7 @@ select concat('|', text1, '|') from t1 where text1='teststring ';
 concat('|', text1, '|')
 |teststring |
 alter table t1 modify text1 text not null, pack_keys=1;
+analyze table t1;
 select concat('|', text1, '|') from t1 where text1='teststring';
 concat('|', text1, '|')
 |teststring|
@@ -164,6 +166,7 @@ teststring
 drop table t1;
 create table t1 (text1 varchar(32) not NULL, KEY key1 (text1)) engine=innodb;
 insert into t1 values ('teststring'), ('nothing'), ('teststring\t');
+analyze table t1;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK

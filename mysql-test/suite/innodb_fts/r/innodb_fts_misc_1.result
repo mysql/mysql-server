@@ -475,6 +475,7 @@ INSERT INTO t1 (a,b) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
+ANALYZE TABLE t1;
 SELECT * FROM t1 WHERE MATCH (a,b)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
 id	a	b
@@ -629,7 +630,7 @@ id	a	b
 7	TEST QUERY EXPANSION	for database ...
 DROP TABLE t1;
 SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_per_table=0;
+SET GLOBAL innodb_file_per_table=1;
 SET GLOBAL innodb_file_format_max=Antelope;
 SET GLOBAL innodb_large_prefix=0;
 set names utf8;

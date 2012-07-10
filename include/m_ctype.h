@@ -78,6 +78,7 @@ extern MY_UNICASE_INFO my_unicase_unicode520;
 
 #define MY_UCA_MAX_CONTRACTION 6
 #define MY_UCA_MAX_WEIGHT_SIZE 8
+#define MY_UCA_WEIGHT_LEVELS   1
 
 typedef struct my_contraction_t
 {
@@ -96,13 +97,25 @@ typedef struct my_contraction_list_t
 } MY_CONTRACTIONS;
 
 
+my_bool my_uca_can_be_contraction_head(const MY_CONTRACTIONS *c, my_wc_t wc);
+my_bool my_uca_can_be_contraction_tail(const MY_CONTRACTIONS *c, my_wc_t wc);
+uint16 *my_uca_contraction2_weight(const MY_CONTRACTIONS *c,
+                                   my_wc_t wc1, my_wc_t wc2);
 
-typedef struct uca_info_st
+
+/* Collation weights on a single level (e.g. primary, secondary, tertiarty) */
+typedef struct my_uca_level_info_st
 {
   my_wc_t maxchar;
   uchar   *lengths;
   uint16  **weights;
   MY_CONTRACTIONS contractions;
+} MY_UCA_WEIGHT_LEVEL;
+
+
+typedef struct uca_info_st
+{
+  MY_UCA_WEIGHT_LEVEL level[MY_UCA_WEIGHT_LEVELS];
 
   /* Logical positions */
   my_wc_t first_non_ignorable;
@@ -120,12 +133,6 @@ typedef struct uca_info_st
 
 } MY_UCA_INFO;
 
-
-
-my_bool my_uca_have_contractions(MY_UCA_INFO *uca);
-my_bool my_uca_can_be_contraction_head(MY_UCA_INFO *uca, my_wc_t wc);
-my_bool my_uca_can_be_contraction_tail(MY_UCA_INFO *uca, my_wc_t wc);
-uint16 *my_uca_contraction2_weight(MY_UCA_INFO *uca, my_wc_t wc1, my_wc_t wc2);
 
 
 extern MY_UCA_INFO my_uca_v400;
@@ -701,6 +708,9 @@ size_t my_strxfrm_pad_desc_and_reverse(const CHARSET_INFO *cs,
                                        uint nweights, uint flags, uint level);
 
 my_bool my_charset_is_ascii_compatible(const CHARSET_INFO *cs);
+
+const MY_CONTRACTIONS *my_charset_get_contractions(const CHARSET_INFO *cs,
+                                                   int level);
 
 extern size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
                               const char* fmt, va_list ap);

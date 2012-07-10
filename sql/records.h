@@ -17,7 +17,7 @@
 
 #include <my_global.h>                /* for uint typedefs */
 
-struct st_join_table;
+typedef struct st_join_table JOIN_TAB;
 class handler;
 struct TABLE;
 class THD;
@@ -45,7 +45,7 @@ struct READ_RECORD
 {
   typedef int (*Read_func)(READ_RECORD*);
   typedef void (*Unlock_row_func)(st_join_table *);
-  typedef int (*Setup_func)(struct st_join_table*);
+  typedef int (*Setup_func)(JOIN_TAB*);
 
   TABLE *table;                                 /* Head-form */
   TABLE **forms;                                /* head and ref forms */

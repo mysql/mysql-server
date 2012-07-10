@@ -49,7 +49,7 @@ struct file_format_struct {
 	ulint		id;		/*!< id of the file format */
 	const char*	name;		/*!< text representation of the
 					file format */
-	mutex_t		mutex;		/*!< covers changes to the above
+	ib_mutex_t		mutex;		/*!< covers changes to the above
 					fields */
 };
 
@@ -121,12 +121,12 @@ UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	trx_sys_mutex_key;
 #endif /* UNIV_PFS_RWLOCK */
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 uint		trx_rseg_n_slots_debug = 0;
 #endif
 
-#ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_max = 'x' or when we open
 or create a table. */
@@ -999,7 +999,7 @@ trx_sys_read_file_format_id(
 	);
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -1018,7 +1018,7 @@ trx_sys_read_file_format_id(
 
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -1079,7 +1079,7 @@ trx_sys_read_pertable_file_format_id(
 	);
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 
@@ -1098,7 +1098,7 @@ trx_sys_read_pertable_file_format_id(
 
 	if (!success) {
 		/* The following call prints an error message */
-		os_file_get_last_error(TRUE);
+		os_file_get_last_error(true);
 
 		ut_print_timestamp(stderr);
 

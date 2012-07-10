@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "partition_element.h"
+#include "sql_class.h"                        // enum_duplicates
 
 class partition_info;
+class COPY_INFO;
 struct TABLE_LIST;
 
 /* Some function typedefs */
@@ -221,6 +223,15 @@ public:
   bool from_openfrm;
   bool has_null_value;
   bool column_list;                          // COLUMNS PARTITIONING, 5.5+
+  /**
+    True if pruning has been completed and can not be pruned any further,
+    even if there are subqueries or stored programs in the condition.
+
+    Some times it is needed to run prune_partitions() a second time to prune
+    read partitions after tables are locked, when subquery and
+    stored functions might have been evaluated.
+  */
+  bool is_pruning_completed;
 
   partition_info()
   : get_partition_id(NULL), get_part_partition_id(NULL),
@@ -253,7 +264,7 @@ public:
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
     is_auto_partitioned(FALSE), from_openfrm(FALSE),
-    has_null_value(FALSE), column_list(FALSE)
+    has_null_value(FALSE), column_list(FALSE), is_pruning_completed(false)
   {
     partitions.empty();
     temp_partitions.empty();
@@ -263,6 +274,7 @@ public:
   ~partition_info() {}
 
   partition_info *get_clone();
+  bool set_named_partition_bitmap(const char *part_name, uint length);
   bool set_partition_bitmaps(TABLE_LIST *table_list);
   /* Answers the question if subpartitioning is used for a certain table */
   bool is_sub_partitioned()
@@ -313,6 +325,30 @@ public:
                                    char *file_name,
                                    uint32 *part_id);
   void report_part_expr_error(bool use_subpart_expr);
+  bool set_used_partition(List<Item> &fields,
+                          List<Item> &values,
+                          COPY_INFO &info,
+                          bool copy_default_values,
+                          MY_BITMAP *used_partitions);
+  /**
+    PRUNE_NO - Unable to prune.
+    PRUNE_DEFAULTS - Partitioning field is only set to
+                     DEFAULT values, only need to check
+                     pruning for one row where the DEFAULTS
+                     values are set.
+    PRUNE_YES - Pruning is possible, calculate the used partition set
+                by evaluate the partition_id on row by row basis.
+  */
+  enum enum_can_prune {PRUNE_NO=0, PRUNE_DEFAULTS, PRUNE_YES};
+  bool can_prune_insert(THD *thd,
+                        enum_duplicates duplic,
+                        COPY_INFO &update,
+                        List<Item> &update_fields,
+                        List<Item> &fields,
+                        bool empty_values,
+                        enum_can_prune *can_prune_partitions,
+                        bool *prune_needs_default_values,
+                        MY_BITMAP *used_partitions);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,
@@ -323,6 +359,9 @@ private:
   char *create_default_subpartition_name(uint subpart_no,
                                          const char *part_name);
   bool prune_partition_bitmaps(TABLE_LIST *table_list);
+  bool add_named_partition(const char *part_name, uint length);
+  bool is_field_in_part_expr(List<Item> &fields);
+  bool is_full_part_expr_in_fields(List<Item> &fields);
 };
 
 uint32 get_next_partition_id_range(struct st_partition_iter* part_iter);

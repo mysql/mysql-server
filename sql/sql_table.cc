@@ -4785,7 +4785,12 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* We can abort create table for any table type */
   thd->abort_on_warning= thd->is_strict_mode();
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  /*
+    Promote first timestamp column, when explicit_defaults_for_timestamp
+    is not set
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   result= mysql_create_table_no_lock(thd, create_table->db,
                                      create_table->table_name, create_info,
@@ -5426,12 +5431,9 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
-#ifndef MCP_BUG14096759
-    /* Clear marker for field in new index we are going to set later. */
-    field->flags&= ~FIELD_IN_ADD_INDEX;
-#endif
-    /* Clear marker for renamed field which we are going to set later. */
-    field->flags&= ~FIELD_IS_RENAMED;
+    /* Clear marker for renamed or dropped field
+    which we are going to set later. */
+    field->flags&= ~(FIELD_IS_RENAMED | FIELD_IS_DROPPED);
 
     /* Use transformed info to evaluate flags for storage engine. */
     uint new_field_index= 0;
@@ -5529,6 +5531,7 @@ static bool fill_alter_inplace_info(THD *thd,
         Corresponding storage engine flag should be already set.
       */
       DBUG_ASSERT(ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN);
+      field->flags|= FIELD_IS_DROPPED;
     }
   }
 
@@ -5761,6 +5764,46 @@ static bool fill_alter_inplace_info(THD *thd,
   }
 
   DBUG_RETURN(false);
+}
+
+
+/**
+  Mark fields participating in newly added indexes in TABLE object which
+  corresponds to new version of altered table.
+
+  @param ha_alter_info  Alter_inplace_info describing in-place ALTER.
+  @param altered_table  TABLE object for new version of TABLE in which
+                        fields should be marked.
+*/
+
+static void update_altered_table(const Alter_inplace_info &ha_alter_info,
+                                 TABLE *altered_table)
+{
+  uint field_idx, add_key_idx;
+  KEY *key;
+  KEY_PART_INFO *end, *key_part;
+
+  /*
+    Clear marker for all fields, as we are going to set it only
+    for fields which participate in new indexes.
+  */
+  for (field_idx= 0; field_idx < altered_table->s->fields; ++field_idx)
+    altered_table->field[field_idx]->flags&= ~FIELD_IN_ADD_INDEX;
+
+  /*
+    Go through array of newly added indexes and mark fields
+    participating in them.
+  */
+  for (add_key_idx= 0; add_key_idx < ha_alter_info.index_add_count;
+       add_key_idx++)
+  {
+    key= ha_alter_info.key_info_buffer +
+         ha_alter_info.index_add_buffer[add_key_idx];
+
+    end= key->key_part + key->key_parts;
+    for (key_part= key->key_part; key_part < end; key_part++)
+      altered_table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
+  }
 }
 
 
@@ -6389,6 +6432,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   if (!(used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE))
     create_info->key_block_size= table->s->key_block_size;
 
+  if (!(used_fields & HA_CREATE_USED_STATS_SAMPLE_PAGES))
+    create_info->stats_sample_pages= table->s->stats_sample_pages;
+
+  if (!(used_fields & HA_CREATE_USED_STATS_AUTO_RECALC))
+    create_info->stats_auto_recalc= table->s->stats_auto_recalc;
+
   if (!create_info->tablespace)
     create_info->tablespace= table->s->tablespace;
 
@@ -6694,8 +6743,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     Key *key;
     while ((key=key_it++))			// Add new keys
     {
-      if (key->type != Key::FOREIGN_KEY)
-        new_key_list.push_back(key);
+      new_key_list.push_back(key);
       if (key->name.str &&
 	  !my_strcasecmp(system_charset_info, key->name.str, primary_key_name))
       {
@@ -6734,6 +6782,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     create_info->comment.str= table->s->comment.str;
     create_info->comment.length= table->s->comment.length;
   }
+
+  /* Do not pass the update_create_info through to each partition. */
+  if (table->file->ht->db_type == DB_TYPE_PARTITION_DB)
+	  create_info->data_file_name = (char*) -1;
 
   table->file->update_create_info(create_info);
   if ((create_info->table_options &
@@ -7338,7 +7390,12 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   /* We can abort alter table for any table type */
   thd->abort_on_warning= !ignore && thd->is_strict_mode();
 
-  promote_first_timestamp_column(&alter_info->create_list);
+  /*
+    Promote first timestamp column, when explicit_defaults_for_timestamp
+    is not set
+  */
+  if (!thd->variables.explicit_defaults_for_timestamp)
+    promote_first_timestamp_column(&alter_info->create_list);
 
   /*
     Create .FRM for new version of table with a temporary name.
@@ -7390,6 +7447,9 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                              alter_ctx.tmp_name,
                                              true, false)))
       goto err_new_table_cleanup;
+
+    /* Set markers for fields in TABLE object for altered table. */
+    update_altered_table(ha_alter_info, altered_table);
 
     if (ha_alter_info.handler_flags == 0)
     {
@@ -7762,10 +7822,7 @@ end_inplace:
                                  alter_ctx.new_db, alter_ctx.new_name,
                                  false, true);
     if (t_table)
-    {
       intern_close_table(t_table);
-      my_free(t_table);
-    }
     else
       sql_print_warning("Could not open table %s.%s after rename\n",
                         alter_ctx.new_db, alter_ctx.table_name);
@@ -7916,8 +7973,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   Copy_field *copy,*copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
-  uint length= 0;
-  SORT_FIELD *sortorder;
   READ_RECORD info;
   TABLE_LIST   tables;
   List<Item>   fields;
@@ -7999,10 +8054,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
       if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
           setup_order(thd, thd->lex->select_lex.ref_pointer_array,
-                      &tables, fields, all_fields, order) ||
-          !(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-          (from->sort.found_records= filesort(thd, from, sortorder, length,
-                                              NULL, HA_POS_ERROR,
+                      &tables, fields, all_fields, order))
+        goto err;
+      Filesort fsort(order, HA_POS_ERROR, NULL);
+      if ((from->sort.found_records= filesort(thd, from, &fsort,
                                               true,
                                               &examined_rows, &found_rows)) ==
           HA_POS_ERROR)
@@ -8080,7 +8135,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                   AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
              to->file->print_keydup_error(key_nr == MAX_KEY ? NULL :
-                                          &to->key_info[key_nr], err_msg);
+                                          &to->key_info[key_nr],
+                                          err_msg, MYF(0));
              break;
            }
          }

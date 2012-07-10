@@ -71,6 +71,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "buf0rea.h"
 # include "dict0boot.h"
 # include "dict0load.h"
+# include "dict0stats_background.h" /* dict_stats_thread*(), dict_stats_event */
 # include "que0que.h"
 # include "usr0sess.h"
 # include "lock0lock.h"
@@ -567,12 +568,12 @@ open_or_create_log_file(
 				  OS_FILE_CREATE, OS_FILE_NORMAL,
 				  OS_LOG_FILE, &ret);
 	if (ret == FALSE) {
-		if (os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
+		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 		    /* AIX 5.1 after security patch ML7 may have errno set
 		    to 0 here, which causes our function to return 100;
 		    work around that AIX problem */
-		    && os_file_get_last_error(FALSE) != 100
+		    && os_file_get_last_error(false) != 100
 #endif
 		    ) {
 			fprintf(stderr,
@@ -717,6 +718,7 @@ open_or_create_data_files(
 	ibool		one_created	= FALSE;
 	os_offset_t	size;
 	ulint		flags;
+	ulint		space;
 	ulint		rounded_size_pages;
 	char		name[10000];
 
@@ -759,13 +761,13 @@ open_or_create_data_files(
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 
-			if (ret == FALSE && os_file_get_last_error(FALSE)
+			if (ret == FALSE && os_file_get_last_error(false)
 			    != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 			    /* AIX 5.1 after security patch ML7 may have
 			    errno set to 0 here, which causes our function
 			    to return 100; work around that AIX problem */
-			    && os_file_get_last_error(FALSE) != 100
+			    && os_file_get_last_error(false) != 100
 #endif
 			    ) {
 				fprintf(stderr,
@@ -834,7 +836,7 @@ open_or_create_data_files(
 			if (!ret) {
 				fprintf(stderr,
 					"InnoDB: Error in opening %s\n", name);
-				os_file_get_last_error(TRUE);
+				os_file_get_last_error(true);
 
 				return(DB_ERROR);
 			}
@@ -898,12 +900,19 @@ open_or_create_data_files(
 			}
 skip_size_check:
 			fil_read_first_page(
-				files[i], one_opened, &flags,
+				files[i], one_opened, &flags, &space,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
 				min_flushed_lsn, max_flushed_lsn);
 
+			/* The first file of the system tablespace must
+			have space ID = 0.  The FSP_SPACE_ID field in files
+			greater than ibdata1 are unreliable. */
+			ut_a(one_opened || space == 0);
+
+			/* Check the flags for the first system tablespace
+			file only. */
 			if (!one_opened
 			    && UNIV_PAGE_SIZE
 			       != fsp_flags_get_page_size(flags)) {
@@ -1010,12 +1019,12 @@ srv_undo_tablespace_create(
 		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
 	if (ret == FALSE
-	    && os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
+	    && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 	    /* AIX 5.1 after security patch ML7 may have
 	    errno set to 0 here, which causes our function
 	    to return 100; work around that AIX problem */
-	    && os_file_get_last_error(FALSE) != 100
+	    && os_file_get_last_error(false) != 100
 #endif
 		) {
 
@@ -1129,14 +1138,19 @@ srv_undo_tablespaces_init(
 /*======================*/
 	ibool		create_new_db,		/*!< in: TRUE if new db being
 						created */
-	const ulint	n_conf_tablespaces)	/*!< in: configured undo
+	const ulint	n_conf_tablespaces,	/*!< in: configured undo
 						tablespaces */
+	ulint*		n_opened)		/*!< out: number of UNDO
+						tablespaces successfully
+						discovered and opened */
 {
 	ulint		i;
 	dberr_t		err = DB_SUCCESS;
 	ulint		prev_space_id = 0;
 	ulint		n_undo_tablespaces;
 	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+
+	*n_opened = 0;
 
 	ut_a(n_conf_tablespaces <= TRX_SYS_N_RSEGS);
 
@@ -1163,10 +1177,10 @@ srv_undo_tablespaces_init(
 			name, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Could not create "
-				"undo tablespace '%s'.\n", name);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Could not create undo tablespace '%s'.",
+				name);
 
 			return(err);
 		}
@@ -1216,15 +1230,16 @@ srv_undo_tablespaces_init(
 		err = srv_undo_tablespace_open(name, undo_tablespace_ids[i]);
 
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error opening undo "
-				"tablespace %s.\n", name);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to open undo tablespace '%s'.", name);
 
 			return(err);
 		}
 
 		prev_space_id = undo_tablespace_ids[i];
+
+		++*n_opened;
 	}
 
 	/* Open any extra unused undo tablespaces. These must be contiguous.
@@ -1247,6 +1262,8 @@ srv_undo_tablespaces_init(
 		}
 
 		++n_undo_tablespaces;
+
+		++*n_opened;
 	}
 
 	/* If the user says that there are fewer than what we find we
@@ -1274,13 +1291,17 @@ srv_undo_tablespaces_init(
 			"value is %lu\n", n_undo_tablespaces);
 
 		return(err != DB_SUCCESS ? err : DB_ERROR);
-	}
 
-	if (n_undo_tablespaces > 0) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Opened %lu undo tablespaces\n",
-			n_conf_tablespaces);
+	} else  if (n_undo_tablespaces > 0) {
+
+		ib_logf(IB_LOG_LEVEL_INFO, "Opened %lu undo tablespaces",
+			n_undo_tablespaces);
+
+		if (n_conf_tablespaces == 0) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Using the system tablespace for all UNDO "
+				"logging because innodb_undo_tablespaces=0");
+		}
 	}
 
 	if (create_new_db) {
@@ -1930,7 +1951,10 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_open_log_and_system_tablespace_files();
 
-	err = srv_undo_tablespaces_init(create_new_db, srv_undo_tablespaces);
+	err = srv_undo_tablespaces_init(
+		create_new_db,
+		srv_undo_tablespaces,
+		&srv_undo_tablespaces_open);
 
 	/* If the force recovery is set very high then we carry on regardless
 	of all errors. Basically this is fingers crossed mode. */
@@ -1940,6 +1964,10 @@ innobase_start_or_create_for_mysql(void)
 
 		return(err);
 	}
+
+	/* Initialize objects used by dict stats gathering thread, which
+	can also be used by recovery if it tries to drop some table */
+	dict_stats_thread_init();
 
 	if (log_created && !create_new_db
 #ifdef UNIV_LOG_ARCHIVE
@@ -2119,6 +2147,7 @@ innobase_start_or_create_for_mysql(void)
 		are initialized in trx_sys_init_at_db_start(). */
 
 		recv_recovery_from_checkpoint_finish();
+
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -2240,12 +2269,16 @@ innobase_start_or_create_for_mysql(void)
 		srv_monitor_thread,
 		NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
-	srv_is_being_started = FALSE;
-
 	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
 	err = dict_create_or_check_foreign_constraint_tables();
 	if (err != DB_SUCCESS) {
-		return(DB_ERROR);
+		return(err);
+	}
+
+	/* Create the SYS_TABLESPACES system table */
+	err = dict_create_or_check_sys_tablespace();
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	srv_is_being_started = FALSE;
@@ -2430,6 +2463,9 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the buffer pool dump/load thread */
 	os_thread_create(buf_dump_thread, NULL, NULL);
 
+	/* Create the dict stats gathering thread */
+	os_thread_create(dict_stats_thread, NULL, NULL);
+
 	srv_was_started = TRUE;
 
 	/* Create the thread that will optimize the FTS sub-system
@@ -2538,6 +2574,10 @@ innobase_shutdown_for_mysql(void)
 
 		os_aio_wake_all_threads_at_shutdown();
 
+		/* f. dict_stats_thread is signaled from
+		logs_empty_and_mark_files_at_shutdown() and should have
+		already quit or is quitting right now. */
+
 		os_mutex_enter(os_sync_mutex);
 
 		if (os_thread_count == 0) {
@@ -2585,6 +2625,8 @@ innobase_shutdown_for_mysql(void)
 		fclose(srv_misc_tmpfile);
 		srv_misc_tmpfile = 0;
 	}
+
+	dict_stats_thread_deinit();
 
 	/* This must be disabled before closing the buffer pool
 	and closing the data dictionary.  */
@@ -2744,27 +2786,41 @@ UNIV_INTERN
 void
 srv_get_meta_data_filename(
 /*=======================*/
-	const dict_table_t*	table,		/*!< in: table */
+	dict_table_t*	table,		/*!< in: table */
 	char*			filename,	/*!< out: filename */
 	ulint			max_len)	/*!< in: filename max length */
 {
 	ulint			len;
 	char*			path;
+	char*			suffix;
 	static const ulint	suffix_len = strlen(".cfg");
 
-	path = fil_make_ibd_name(table->name, FALSE);
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		dict_get_and_save_data_dir_path(table, false);
+		ut_a(table->data_dir_path);
+
+		path = os_file_make_remote_pathname(
+			table->data_dir_path, table->name, "cfg");
+	} else {
+		path = fil_make_ibd_name(table->name, false);
+	}
+
+	ut_a(path);
 	len = ut_strlen(path);
-
 	ut_a(max_len >= len);
-	ut_ad(strncmp(path + (len - suffix_len), ".ibd", suffix_len) == 0);
 
-	strncpy(filename, path, len - suffix_len);
+	suffix = path + (len - suffix_len);
+	if (strncmp(suffix, ".cfg", suffix_len) == 0) {
+		strcpy(filename, path);
+	} else {
+		ut_ad(strncmp(suffix, ".ibd", suffix_len) == 0);
+
+		strncpy(filename, path, len - suffix_len);
+		suffix = filename + (len - suffix_len);
+		strcpy(suffix, ".cfg");
+	}
 
 	mem_free(path);
-
-	filename += len - suffix_len;
-
-	strcpy(filename, ".cfg");
 
 	srv_normalize_path_for_win(filename);
 }

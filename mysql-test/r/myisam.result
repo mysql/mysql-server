@@ -1152,7 +1152,7 @@ concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
 *+*+*+         *
 drop table t1,t2,t3;
-create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)));
+create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10))) stats_persistent=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1162,7 +1162,7 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`),
   KEY `c` (`c`),
   KEY `t` (`t`(10))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 select count(*) from t1;
 count(*)
 270
@@ -1381,7 +1381,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1461,7 +1461,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`(30))
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1541,7 +1541,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 STATS_PERSISTENT=0
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1

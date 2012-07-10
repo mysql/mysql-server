@@ -484,7 +484,16 @@ while ($id <= $max_id)
     {
       --sync_slave_with_master
       --connection master
-
+      # Concurrent tests require two or more connections and at least one connection sends  
+      # the statements in async mode (via send/reap command). We need to make sure that
+      # SET GTID_NEXT is completed for all connections before getting values of 
+      # GTID variables and if COMMIT/ROLLBACK executed for any connection.
+      if (`SELECT '$stmt' REGEXP '^(COMMIT|ROLLBACK)\$'`)
+      {
+        --let $wait_condition= SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE State LIKE 'waiting for GTID %'
+        --source include/wait_condition.inc
+      }
+                                              
       --let $text_0= @@GLOBAL.GTID_DONE
       --let $after_0= [server_1_$connection:SELECT @@GLOBAL.GTID_DONE]
       --let $before_0= @global_gtid_done

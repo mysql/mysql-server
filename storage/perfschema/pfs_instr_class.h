@@ -170,11 +170,8 @@ struct PFS_mutex;
 /** Instrumentation metadata for a MUTEX. */
 struct PFS_ALIGNED PFS_mutex_class : public PFS_instr_class
 {
-  /**
-    Lock statistics.
-    This statistic is not exposed in user visible tables yet.
-  */
-  PFS_single_stat m_lock_stat;
+  /** Mutex usage statistics. */
+  PFS_mutex_stat m_mutex_stat;
   /** Singleton instance. */
   PFS_mutex *m_singleton;
 };
@@ -184,16 +181,8 @@ struct PFS_rwlock;
 /** Instrumentation metadata for a RWLOCK. */
 struct PFS_ALIGNED PFS_rwlock_class : public PFS_instr_class
 {
-  /**
-    Read lock statistics.
-    This statistic is not exposed in user visible tables yet.
-  */
-  PFS_single_stat m_read_lock_stat;
-  /**
-    Write lock statistics.
-    This statistic is not exposed in user visible tables yet.
-  */
-  PFS_single_stat m_write_lock_stat;
+  /** Rwlock usage statistics. */
+  PFS_rwlock_stat m_rwlock_stat;
   /** Singleton instance. */
   PFS_rwlock *m_singleton;
 };
@@ -325,6 +314,8 @@ private:
   int m_refcount;
 };
 
+/** Statistics for the IDLE instrument. */
+extern PFS_single_stat global_idle_stat;
 /** Statistics for dropped table io. */
 extern PFS_table_io_stat global_table_io_stat;
 /** Statistics for dropped table lock. */
@@ -499,6 +490,7 @@ extern PFS_cond_class *cond_class_array;
 extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
 
+void reset_events_waits_by_class();
 void reset_file_class_io();
 void reset_socket_class_io();
 

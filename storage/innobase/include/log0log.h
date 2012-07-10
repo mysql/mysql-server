@@ -154,6 +154,14 @@ UNIV_INLINE
 lsn_t
 log_get_capacity(void);
 /*==================*/
+/****************************************************************
+Get log_sys::max_modified_age_async. It is OK to read the value without
+holding log_sys::mutex because it is constant.
+@return	max_modified_age_async */
+UNIV_INLINE
+lsn_t
+log_get_max_modified_age_async(void);
+/*================================*/
 /******************************************************//**
 Initializes the log. */
 UNIV_INTERN
@@ -216,15 +224,6 @@ void
 log_buffer_sync_in_background(
 /*==========================*/
 	ibool	flush);	/*<! in: flush the logs to disk */
-/****************************************************************//**
-Checks if an asynchronous flushing of dirty pages is required in the
-background. This function is only called from the page cleaner thread.
-@return lsn to which the flushing should happen or LSN_MAX
-if flushing is not required */
-UNIV_INTERN
-lsn_t
-log_async_flush_lsn(void);
-/*=====================*/
 /******************************************************//**
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
@@ -765,9 +764,9 @@ struct log_struct{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	mutex_t		mutex;		/*!< mutex protecting the log */
+	ib_mutex_t		mutex;		/*!< mutex protecting the log */
 
-	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
 					behind this mutex is to be able

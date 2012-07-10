@@ -38,6 +38,7 @@
 #include "sql_select.h"
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
 #include "opt_trace.h"           // opt_trace_disable_if_no_security_...
+#include "table_cache.h"         // table_cache_manager
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -322,6 +323,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
   char *key_buff, *path_buff;
   char path[FN_REFLEN];
   uint path_length;
+  Table_cache_element **cache_element_array;
   DBUG_ENTER("alloc_table_share");
   DBUG_PRINT("enter", ("table: '%s'.'%s'",
                        table_list->db, table_list->table_name));
@@ -334,6 +336,8 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
                        &share, sizeof(*share),
                        &key_buff, key_length,
                        &path_buff, path_length + 1,
+                       &cache_element_array,
+                       table_cache_instances * sizeof(*cache_element_array),
                        NULL))
   {
     memset(share, 0, sizeof(*share));
@@ -358,9 +362,11 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
     share->table_map_id= ~0UL;
     share->cached_row_logging_check= -1;
 
-    share->used_tables.empty();
-    share->free_tables.empty();
     share->m_flush_tickets.empty();
+
+    memset(cache_element_array, 0,
+           table_cache_instances * sizeof(*cache_element_array));
+    share->cache_element= cache_element_array;
 
     memcpy((char*) &share->mem_root, (char*) &mem_root, sizeof(mem_root));
     mysql_mutex_init(key_TABLE_SHARE_LOCK_ha_data,
@@ -423,8 +429,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   */
   share->table_map_id= (ulong) thd->query_id;
 
-  share->used_tables.empty();
-  share->free_tables.empty();
   share->m_flush_tickets.empty();
 
   DBUG_VOID_RETURN;
@@ -785,7 +789,7 @@ void KEY_PART_INFO::init_from_field(Field *fld)
   field= fld;
   fieldnr= field->field_index + 1;
   null_bit= field->null_bit;
-  null_offset= (uint) (field->null_ptr - (uchar*) field->table->record[0]);
+  null_offset= field->null_offset();
   offset= field->offset(field->table->record[0]);
   length= (uint16) field->key_length();
   store_length= length;
@@ -897,6 +901,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     share->table_charset= get_charset((((uint) head[41]) << 8) + 
                                         (uint) head[38],MYF(0));
     share->null_field_first= 1;
+    share->stats_sample_pages= uint2korr(head+42);
+    share->stats_auto_recalc= static_cast<enum_stats_auto_recalc>(head[44]);
   }
   if (!share->table_charset)
   {
@@ -1616,7 +1622,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	{
 	  uint fieldnr= key_part[i].fieldnr;
 	  if (!fieldnr ||
-	      share->field[fieldnr-1]->null_ptr ||
+	      share->field[fieldnr-1]->real_maybe_null() ||
 	      share->field[fieldnr-1]->key_length() !=
 	      key_part[i].length)
 	  {
@@ -1641,10 +1647,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
         key_part->type= field->key_type();
-        if (field->null_ptr)
+        if (field->real_maybe_null())
         {
-          key_part->null_offset=(uint) ((uchar*) field->null_ptr -
-                                        share->default_values);
+          key_part->null_offset=field->null_offset(share->default_values);
           key_part->null_bit= field->null_bit;
           key_part->store_length+=HA_KEY_NULL_LENGTH;
           keyinfo->flags|=HA_NULL_PART_KEY;
@@ -2771,11 +2776,10 @@ File create_frm(THD *thd, const char *name, const char *db,
     */
     fileinfo[39]= 0;
     fileinfo[40]= (uchar) create_info->row_type;
-    /* Next few bytes where for RAID support */
+    /* Bytes 41-46 were for RAID support; now reused for other purposes */
     fileinfo[41]= (uchar) (csid >> 8);
-    fileinfo[42]= 0;
-    fileinfo[43]= 0;
-    fileinfo[44]= 0;
+    int2store(fileinfo+42, create_info->stats_sample_pages & 0xffff);
+    fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
     int4store(fileinfo+47, key_length);
@@ -3259,6 +3263,7 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
   TABLE *table;
   MDL_context *src_ctx= wait_for_flush->get_ctx();
   bool result= TRUE;
+  bool locked= FALSE;
 
   /*
     To protect used_tables list from being concurrently modified
@@ -3268,9 +3273,12 @@ bool TABLE_SHARE::visit_subgraph(Wait_for_flush *wait_for_flush,
     holding a write-lock on MDL_lock::m_rwlock.
   */
   if (gvisitor->m_lock_open_count++ == 0)
-    mysql_mutex_lock(&LOCK_open);
+  {
+    locked= TRUE;
+    table_cache_manager.lock_all_and_tdc();
+  }
 
-  TABLE_SHARE::TABLE_list::Iterator tables_it(used_tables);
+  Table_cache_iterator tables_it(this);
 
   /*
     In case of multiple searches running in parallel, avoid going
@@ -3309,8 +3317,12 @@ end_leave_node:
   gvisitor->leave_node(src_ctx);
 
 end:
-  if (gvisitor->m_lock_open_count-- == 1)
-    mysql_mutex_unlock(&LOCK_open);
+  gvisitor->m_lock_open_count--;
+  if (locked)
+  {
+    DBUG_ASSERT(gvisitor->m_lock_open_count == 0);
+    table_cache_manager.unlock_all_and_tdc();
+  }
 
   return result;
 }
@@ -3530,15 +3542,10 @@ void TABLE::reset_item_list(List<Item> *item_list) const
 
 void  TABLE_LIST::calc_md5(char *buffer)
 {
-  uchar digest[16];
+  uchar digest[MD5_HASH_SIZE];
   compute_md5_hash((char *) digest, (const char *) select_stmt.str,
                    select_stmt.length);
-  sprintf((char *) buffer,
-	    "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-	    digest[0], digest[1], digest[2], digest[3],
-	    digest[4], digest[5], digest[6], digest[7],
-	    digest[8], digest[9], digest[10], digest[11],
-	    digest[12], digest[13], digest[14], digest[15]);
+  array_to_hex((char *) buffer, digest, MD5_HASH_SIZE);
 }
 
 
@@ -3707,10 +3714,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
 
   if (where)
   {
-    if (!where->fixed && where->fix_fields(thd, &where))
-    {
+    if (!where->fixed && !where_processed && where->fix_fields(thd, &where))
       DBUG_RETURN(TRUE);
-    }
 
     /*
       check that it is not VIEW in which we insert with INSERT SELECT
@@ -4503,16 +4508,21 @@ Item *Field_iterator_table::create_item(THD *thd)
   SELECT_LEX *select= thd->lex->current_select;
 
   Item_field *item= new Item_field(thd, &select->context, *ptr);
-  if (item && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !thd->lex->in_sum_func &&
+  /*
+    This function creates Item-s which don't go through fix_fields(); see same
+    code in Item_field::fix_fields().
+    */
+  if (item && !thd->lex->in_sum_func &&
       select->cur_pos_in_all_fields != SELECT_LEX::ALL_FIELDS_UNDEF_POS)
   {
-    /*
-      This function creates Item-s which don't go through fix_fields(), so we
-      need to:
-    */
-    item->push_to_non_agg_fields(select);
-    select->set_non_agg_field_used(true);
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+    {
+      item->push_to_non_agg_fields(select);
+      select->set_non_agg_field_used(true);
+    }
+    if (thd->lex->current_select->with_sum_func &&
+        !thd->lex->current_select->group_list.elements)
+      item->maybe_null= true;
   }
   return item;
 }
@@ -5023,10 +5033,11 @@ void TABLE::mark_columns_needed_for_delete()
 }
 
 
-/*
+/**
+  @brief
   Mark columns needed for doing an update of a row
 
-  DESCRIPTON
+  @details
     Some engines needs to have all columns in an update (to be able to
     build a complete row). If this is the case, we mark all not
     updated columns to be read.
@@ -5039,6 +5050,10 @@ void TABLE::mark_columns_needed_for_delete()
     mark all USED key columns as 'to-be-read'. This allows the engine to
     loop over the given record to find all changed keys and doesn't have to
     retrieve the row again.
+    
+    Unlike other similar methods, it doesn't mark fields used by triggers,
+    that is the responsibility of the caller to do, by using
+    Table_triggers_list::mark_used_fields(TRG_EVENT_UPDATE)!
 */
 
 void TABLE::mark_columns_needed_for_update()
@@ -5046,8 +5061,6 @@ void TABLE::mark_columns_needed_for_update()
 
   DBUG_ENTER("mark_columns_needed_for_update");
   mark_columns_per_binlog_row_image();
-  if (triggers)
-    triggers->mark_fields_used(TRG_EVENT_UPDATE);
   if (file->ha_table_flags() & HA_REQUIRES_KEY_COLUMNS_FOR_DELETE)
   {
     /* Mark all used key columns for read */
@@ -6007,19 +6020,6 @@ bool TABLE::update_const_key_parts(Item *conds)
     }
   }
   return FALSE;
-}
-
-
-void TABLE::set_timestamp_field(Field *field_arg)
-{
-  DBUG_ASSERT(!field_arg || field_arg->is_temporal_with_date_and_time());
-  timestamp_field= (Field_temporal_with_date_and_time *) field_arg;
-}
-
-
-Field *TABLE::get_timestamp_field()
-{
-  return (Field *) timestamp_field;
 }
 
 

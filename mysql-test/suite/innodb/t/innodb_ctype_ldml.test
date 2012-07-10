@@ -7,6 +7,13 @@
 drop table if exists t1;
 --enable_warnings
 
+# Index.xml has some intentional errors in collation definitions.
+# They are reported to the server error log. Let's suppress them.
+--disable_query_log
+call mtr.add_suppression("Syntax error at '\\[strength tertiary\\]'");
+call mtr.add_suppression("Can't reset before a primary ignorable character U\\+A48C");
+--enable_query_log
+
 --echo In the following tests we change the order of letter "b"
 --echo making it equal to letter "a", and check that it works
 --echo with all Unicode character sets

@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /**************************************************//**
 @file include/row0log.h
-Modification log for online index creation
+Modification log for online index creation and online table rebuild
 
 Created 2011-05-26 Marko Makela
 *******************************************************/
@@ -28,9 +28,11 @@ Created 2011-05-26 Marko Makela
 
 #include "univ.i"
 #include "row0types.h"
+#include "rem0types.h"
 #include "data0types.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include "que0types.h"
 
 /******************************************************//**
 Allocate the row log for an index and flag the index
@@ -40,8 +42,17 @@ UNIV_INTERN
 bool
 row_log_allocate(
 /*=============*/
-	dict_index_t*	index)	/*!< in/out: index */
-	__attribute__((nonnull));
+	dict_index_t*	index,	/*!< in/out: index */
+	dict_table_t*	table,	/*!< in/out: new table being rebuilt,
+				or NULL when creating a secondary index */
+	bool		same_pk,/*!< in: whether the definition of the
+				PRIMARY KEY has remained the same */
+	const dtuple_t*	add_cols,
+				/*!< in: default values of
+				added columns, or NULL */
+	const ulint*	col_map)/*!< in: mapping of old column
+				numbers to new ones, or NULL if !table */
+	__attribute__((nonnull(1), warn_unused_result));
 /******************************************************//**
 Free the row log for an index on which online creation was aborted. */
 UNIV_INTERN
@@ -64,6 +75,117 @@ row_log_online_op(
 	UNIV_COLD __attribute__((nonnull));
 
 /******************************************************//**
+Gets the error status of the online index rebuild log.
+@return DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+row_log_table_get_error(
+/*====================*/
+	const dict_index_t*	index)	/*!< in: clustered index of a table
+					that is being rebuilt online */
+	__attribute__((nonnull, warn_unused_result));
+
+/******************************************************//**
+Logs a delete operation to a table that is being rebuilt.
+This will be merged in row_log_table_apply_delete(). */
+UNIV_INTERN
+void
+row_log_table_delete(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	trx_id_t	trx_id)	/*!< in: DB_TRX_ID of the record before
+				it was deleted */
+	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
+Logs an update operation to a table that is being rebuilt.
+This will be merged in row_log_table_apply_update(). */
+UNIV_INTERN
+void
+row_log_table_update(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	const dtuple_t*	old_pk)	/*!< in: row_log_table_get_pk()
+				before the update */
+	UNIV_COLD __attribute__((nonnull(1,2,3)));
+
+/******************************************************//**
+Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
+of a table that is being rebuilt.
+@return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
+or NULL if not being rebuilt online or the PRIMARY KEY definition
+does not change */
+UNIV_INTERN
+const dtuple_t*
+row_log_table_get_pk(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index),
+				or NULL */
+	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
+	UNIV_COLD __attribute__((nonnull(1,2,4), warn_unused_result));
+
+/******************************************************//**
+Logs an insert to a table that is being rebuilt.
+This will be merged in row_log_table_apply_insert(). */
+UNIV_INTERN
+void
+row_log_table_insert(
+/*=================*/
+	const rec_t*	rec,	/*!< in: clustered index leaf page record,
+				page X-latched */
+	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
+				or X-latched */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec,index) */
+	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
+Notes that a transaction is being rolled back. */
+UNIV_INTERN
+void
+row_log_table_rollback(
+/*===================*/
+	dict_index_t*	index,	/*!< in/out: clustered index */
+	trx_id_t	trx_id)	/*!< in: transaction being rolled back */
+	UNIV_COLD __attribute__((nonnull));
+
+/******************************************************//**
+Check if a transaction rollback has been initiated.
+@return true if inserts of this transaction were rolled back */
+UNIV_INTERN
+bool
+row_log_table_is_rollback(
+/*======================*/
+	const dict_index_t*	index,	/*!< in: clustered index */
+	trx_id_t		trx_id)	/*!< in: transaction id */
+	__attribute__((nonnull));
+
+/******************************************************//**
+Apply the row_log_table log to a table upon completing rebuild.
+@return DB_SUCCESS, or error code on failure */
+UNIV_INTERN
+dberr_t
+row_log_table_apply(
+/*================*/
+	que_thr_t*	thr,	/*!< in: query graph */
+	dict_table_t*	old_table,
+				/*!< in: old table */
+	struct TABLE*	table)	/*!< in/out: MySQL table
+				(for reporting duplicates) */
+	__attribute__((nonnull, warn_unused_result));
+
+/******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
@@ -83,7 +205,7 @@ row_log_apply(
 /*==========*/
 	trx_t*		trx,	/*!< in: transaction (for checking if
 				the operation was interrupted) */
-	dict_index_t*	index,	/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: secondary index */
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 	__attribute__((nonnull, warn_unused_result));

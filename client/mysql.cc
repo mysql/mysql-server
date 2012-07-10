@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
  **/
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_dir.h>
@@ -172,6 +173,7 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static char *opt_server_public_key= 0;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1423,6 +1425,9 @@ sig_handler handle_kill_signal(int sig)
   }
 
   kill_mysql= mysql_init(kill_mysql);
+  mysql_options(kill_mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(kill_mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysql");
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
   {
@@ -1704,6 +1709,10 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"server-public-key", OPT_SERVER_PUBLIC_KEY,
+   "File path to the server public RSA key in PEM format.",
+   &opt_server_public_key, &opt_server_public_key, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -4508,6 +4517,12 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+  if (opt_server_public_key && *opt_server_public_key)
+    mysql_options(&mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
+                 "program_name", "mysql");
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,
                           connect_flag | CLIENT_MULTI_STATEMENTS))

@@ -14,7 +14,7 @@ id	b
 1	initial value
 SET @before_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
-WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache'));
 SELECT * FROM t1;
 id	b
 1	initial value
@@ -27,12 +27,12 @@ id	b
 8	initial value
 SET @after_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
-WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache'));
 SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_fm1_timed;
 test_fm1_timed
 Success
 UPDATE performance_schema.setup_instruments SET enabled = 'NO'
-WHERE NAME = 'wait/synch/mutex/sql/LOCK_open';
+WHERE NAME = 'wait/synch/mutex/sql/LOCK_table_cache';
 TRUNCATE TABLE performance_schema.events_waits_history_long;
 TRUNCATE TABLE performance_schema.events_waits_history;
 TRUNCATE TABLE performance_schema.events_waits_current;
@@ -41,7 +41,7 @@ id	b
 1	initial value
 SET @before_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
-WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache'));
 SELECT * FROM t1;
 id	b
 1	initial value
@@ -54,7 +54,7 @@ id	b
 8	initial value
 SET @after_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
-WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_open'));
+WHERE (EVENT_NAME = 'wait/synch/mutex/sql/LOCK_table_cache'));
 SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_fm2_timed;
 test_fm2_timed
 Success

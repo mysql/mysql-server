@@ -2642,12 +2642,6 @@ page_delete_rec(
 	}
 
 	if (no_compress_needed) {
-		ulint		max_ins	= 0;
-
-		if (page_zip == 0) {
-			max_ins = page_get_max_insert_size_after_reorganize(
-				page, 1);
-		}
 #ifdef UNIV_ZIP_DEBUG
 		ut_a(page_zip == 0 || page_zip_validate(page_zip, page));
 #endif /* UNIV_ZIP_DEBUG */

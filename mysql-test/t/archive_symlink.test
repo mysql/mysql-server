@@ -13,7 +13,7 @@ let $index_directory = INDEX DIRECTORY = '$MYSQL_TMP_DIR/archive';
 --echo # Archive can only use an existing directory for DATA DIRECTORY.
 --echo # 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
---error ER_CANT_CREATE_TABLE
+--error ER_FILE_NOT_FOUND
 eval CREATE TABLE t1 (a int AUTO_INCREMENT KEY, b char(30))
      ENGINE archive $data_directory $index_directory;
 

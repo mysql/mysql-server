@@ -785,7 +785,7 @@ insert into t1 (`sid`, `wnid`) values
 ('25295','02071491000'),('25296','02071491000'),('25297','02071499000');
 explain select * from t1 where wnid like '0101%' order by wnid;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	wnid14,wnid	wnid	13	NULL	10	Using where
+1	SIMPLE	t1	range	wnid14,wnid	wnid	13	NULL	10	Using index condition
 select * from t1 where wnid like '0101%' order by wnid;
 sid	wnid
 10100	01019000000

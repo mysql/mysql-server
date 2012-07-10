@@ -66,9 +66,8 @@ connect (fail_con,localhost,test,zorro,);
 
 # check if old password version also works
 SET GLOBAL secure_auth = OFF;
-update mysql.user set password=old_password("gambling2") where user=_binary"test";
+update mysql.user set password=old_password("gambling2"), plugin="mysql_old_password" where user=_binary"test";
 flush privileges;
-
 connect (con10,localhost,test,gambling2,);
 connect (con5,localhost,test,gambling2,mysql);
 connection con5;
@@ -307,10 +306,11 @@ SET GLOBAL event_scheduler = OFF;
 --echo #Expect 1
 SELECT @@global.secure_auth;
 
-SET old_passwords=true;
+SET old_passwords=1;
 
 --echo #Expect deprecation warning
-CREATE USER old_pwd@localhost IDENTIFIED BY 'aha';
+CREATE USER old_pwd@localhost IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
 
 --echo #Expect deprecation warning
 SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');
@@ -324,6 +324,149 @@ FLUSH PRIVILEGES;
 
 DROP USER old_pwd@localhost, old_gpwd@localhost;  
 SET old_passwords=default;
+
+
+--echo #
+--echo # WL#2392: Change Password at next login
+--echo #
+
+CREATE USER must_change@localhost IDENTIFIED BY 'aha';
+SELECT password_expired FROM mysql.user 
+  WHERE user='must_change' and host = 'localhost';
+--connect(must_change_con, localhost, must_change, aha)
+SELECT USER();
+CREATE TABLE t1 (A INT);
+CREATE PROCEDURE TEST_t1(new_a INT) INSERT INTO t1 VALUES (new_a);
+CREATE FUNCTION last_t1() RETURNS INT RETURN (SELECT MAX(A) FROM t1);
+--echo # Initialize the table
+CALL test_t1(1);
+connection default;
+UPDATE mysql.user SET password_expired='Y'
+  WHERE user='must_change' and host = 'localhost';
+
+--echo # without FLUSH the field has no effect
+disconnect must_change_con;
+--connect(must_change_con, localhost, must_change, aha)
+--echo # must not throw an error
+SELECT USER();
+--echo # must not throw an error
+SELECT last_t1();
+--echo # must not throw an error
+CALL test_t1(last_t1() + 1);
+
+connection default;
+FLUSH PRIVILEGES;
+
+--echo # existing connections continue as before even after flush
+connection must_change_con;
+--echo # must not throw an error
+SELECT USER();
+--echo # must not throw an error
+SELECT last_t1();
+--echo # must not throw an error
+CALL test_t1(last_t1() + 1);
+
+--echo # new connections are blocked until a password reset
+connection default;
+disconnect must_change_con;
+--connect(must_change_con, localhost, must_change, aha)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+--error ER_MUST_CHANGE_PASSWORD
+SELECT last_t1();
+--error ER_MUST_CHANGE_PASSWORD
+CALL test_t1(last_t1() + 1);
+
+--echo # setting a password unlocks it
+SET PASSWORD = PASSWORD('aha2');
+--echo # must not throw an error
+SELECT USER();
+--echo # must not throw an error
+SELECT last_t1();
+--echo # must not throw an error
+CALL test_t1(last_t1() + 1);
+
+connection default;
+disconnect must_change_con;
+--echo # check if SET PASSWORD resets the column
+SELECT password_expired FROM mysql.user
+  WHERE user='must_change' and host = 'localhost';
+
+UPDATE mysql.user SET password_expired='Y'
+  WHERE user='must_change' and host = 'localhost';
+FLUSH PRIVILEGES;
+
+--connect(must_change_con, localhost, must_change, aha2)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+--error ER_MUST_CHANGE_PASSWORD
+SELECT last_t1();
+--error ER_MUST_CHANGE_PASSWORD
+CALL test_t1(last_t1() + 1);
+
+--echo # setting a password with a user name is no good
+--error ER_MUST_CHANGE_PASSWORD
+SET PASSWORD FOR must_change@localhost = PASSWORD('aha3');
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+--error ER_MUST_CHANGE_PASSWORD
+SELECT last_t1();
+--error ER_MUST_CHANGE_PASSWORD
+CALL test_t1(last_t1() + 1);
+
+--echo # setting a password for the current user works
+SET PASSWORD FOR CURRENT_USER() = PASSWORD('aha3');
+SELECT USER();
+SELECT last_t1();
+CALL test_t1(last_t1() + 1);
+
+--echo # testing the ALTER USER command
+connection default;
+disconnect must_change_con;
+
+--echo # try a single user
+ALTER USER must_change@localhost PASSWORD EXPIRE;
+
+SELECT password_expired FROM mysql.user
+  WHERE user='must_change' and host = 'localhost';
+
+--connect(must_change_con, localhost, must_change, aha3)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+SET PASSWORD = PASSWORD('aha4');
+
+connection default;
+disconnect must_change_con;
+
+--echo # try a valid+invalid user combo
+--error ER_CANNOT_USER
+ALTER USER
+  invalid_user@localhost PASSWORD EXPIRE,
+  must_change@localhost PASSWORD EXPIRE;
+
+SELECT password_expired FROM mysql.user
+  WHERE user='must_change' and host = 'localhost';
+
+--connect(must_change_con, localhost, must_change, aha4)
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+SET PASSWORD = PASSWORD('aha5');
+SELECT USER();
+
+connection default;
+disconnect must_change_con;
+
+--echo # Password change must be persistent when reconnecting
+--connect(must_change_con, localhost, must_change, aha5)
+SELECT USER();
+
+--echo # cleanup
+connection default;
+disconnect must_change_con;
+DROP PROCEDURE test_t1;
+DROP FUNCTION last_t1;
+DROP TABLE t1;
+DROP USER must_change@localhost;
 
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.6 tests

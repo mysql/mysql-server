@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,8 +32,9 @@
 */ 
 
 #include <my_global.h>
-
 #include "mysql.h"
+#include "hash.h"
+#include "mysql/client_authentication.h"
 
 /* Remove client convenience wrappers */
 #undef max_allowed_packet
@@ -57,6 +58,7 @@ my_bool	net_flush(NET *net);
 #endif /*EMBEDDED_LIBRARY*/
 
 #include <my_sys.h>
+#include "my_default.h"
 #include <mysys_err.h>
 #include <m_string.h>
 #include <m_ctype.h>
@@ -1056,14 +1058,22 @@ static int add_init_command(struct st_mysql_options *options, const char *cmd)
   return 0;
 }
 
+#define ALLOCATE_EXTENSIONS(OPTS)                                \
+      (OPTS)->extension= (struct st_mysql_options_extention *)   \
+        my_malloc(sizeof(struct st_mysql_options_extention),     \
+                  MYF(MY_WME | MY_ZEROFILL))                     \
+
+#define ENSURE_EXTENSIONS_PRESENT(OPTS)                          \
+    if (!(OPTS)->extension)                                      \
+      ALLOCATE_EXTENSIONS(OPTS)                                  \
+
+
 #define EXTENSION_SET_STRING(OPTS, X, STR)                       \
     if ((OPTS)->extension)                                       \
       my_free((OPTS)->extension->X);                             \
     else                                                         \
-      (OPTS)->extension= (struct st_mysql_options_extention *)   \
-        my_malloc(sizeof(struct st_mysql_options_extention),     \
-                  MYF(MY_WME | MY_ZEROFILL));                    \
-    (OPTS)->extension->X= ((STR) != NULL) ?  \
+      ALLOCATE_EXTENSIONS(OPTS);                                 \
+    (OPTS)->extension->X= ((STR) != NULL) ?                      \
       my_strdup((STR), MYF(MY_WME)) : NULL
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
@@ -1344,7 +1354,7 @@ static void cli_fetch_lengths(ulong *to, MYSQL_ROW column,
 ***************************************************************************/
 
 MYSQL_FIELD *
-unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
+unpack_fields(MYSQL *mysql, MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
 	      my_bool default_value, uint server_capabilities)
 {
   MYSQL_ROWS	*row;
@@ -1357,6 +1367,7 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
   if (!result)
   {
     free_rows(data);				/* Free old data */
+    set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
     DBUG_RETURN(0);
   }
   memset(field, 0, sizeof(MYSQL_FIELD)*fields);
@@ -1384,6 +1395,14 @@ unpack_fields(MYSQL_DATA *data,MEM_ROOT *alloc,uint fields,
       field->org_name_length=	lengths[5];
 
       /* Unpack fixed length parts */
+      if (lengths[6] != 12)
+      {
+        /* malformed packet. signal an error. */
+        free_rows(data);			/* Free old data */
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        DBUG_RETURN(0);
+      }
+
       pos= (uchar*) row->data[6];
       field->charsetnr= uint2korr(pos);
       field->length=	(uint) uint4korr(pos+2);
@@ -2242,6 +2261,23 @@ static auth_plugin_t clear_password_client_plugin=
   clear_password_auth_client
 };
 
+#if defined(HAVE_OPENSSL)
+static auth_plugin_t sha256_password_client_plugin=
+{
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+  "sha256_password",
+  "Oracle Inc",
+  "SHA256 based authentication with salt",
+  {1, 0, 0},
+  "GPL",
+  NULL,
+  sha256_password_init,
+  sha256_password_deinit,
+  NULL,
+  sha256_password_auth_client
+};
+#endif
 #ifdef AUTHENTICATION_WIN
 extern auth_plugin_t win_auth_client_plugin;
 #endif
@@ -2251,12 +2287,74 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
   (struct st_mysql_client_plugin *)&old_password_client_plugin,
   (struct st_mysql_client_plugin *)&clear_password_client_plugin,
+#if defined(HAVE_OPENSSL)
+  (struct st_mysql_client_plugin *) &sha256_password_client_plugin,
+#endif
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
 #endif
   0
 };
 
+
+static uchar *
+write_length_encoded_string3(uchar *buf, char *string, size_t length)
+{
+  buf= net_store_length(buf, length);
+  memcpy(buf, string, length);
+  buf+= length;
+  return buf;
+}
+
+
+uchar *
+send_client_connect_attrs(MYSQL *mysql, uchar *buf)
+{
+  /* check if the server supports connection attributes */
+  if (mysql->server_capabilities & CLIENT_CONNECT_ATTRS)
+  {
+
+    /* Always store the length if the client supports it */
+    buf= net_store_length(buf,
+                          mysql->options.extension ?
+                          mysql->options.extension->connection_attributes_length :
+                          0);
+
+    /* check if we have connection attributes */
+    if (mysql->options.extension &&
+        my_hash_inited(&mysql->options.extension->connection_attributes))
+    {
+      HASH *attrs= &mysql->options.extension->connection_attributes;
+      ulong idx;
+
+      /* loop over and dump the connection attributes */
+      for (idx= 0; idx < attrs->records; idx++)
+      {
+        LEX_STRING *attr= (LEX_STRING *) my_hash_element(attrs, idx);
+        LEX_STRING *key= attr, *value= attr + 1;
+
+        /* we can't have zero length keys */
+        DBUG_ASSERT(key->length);
+
+        buf= write_length_encoded_string3(buf, key->str, key->length);
+        buf= write_length_encoded_string3(buf, value->str, value->length);
+      }
+    }
+  }
+  return buf;
+}
+
+
+static size_t get_length_store_length(size_t length)
+{
+  /* as defined in net_store_length */
+  #define MAX_VARIABLE_STRING_LENGTH 9
+  uchar length_buffer[MAX_VARIABLE_STRING_LENGTH], *ptr;
+
+  ptr= net_store_length(length_buffer, length);
+
+  return ptr - &length_buffer[0];
+}
 
 
 /* this is a "superset" of MYSQL_PLUGIN_VIO, in C++ I use inheritance */
@@ -2276,6 +2374,30 @@ typedef struct {
   int mysql_change_user;            /**< if it's mysql_change_user() */
   int last_read_packet_len;         /**< the length of the last *read* packet */
 } MCPVIO_EXT;
+
+
+/*
+  Write 1-8 bytes of string length header infromation to dest depending on
+  value of src_len, then copy src_len bytes from src to dest.
+ 
+ @param dest Destination buffer of size src_len+8
+ @param dest_end One byte past the end of the dest buffer
+ @param src Source buff of size src_len
+ @param src_end One byte past the end of the src buffer
+ 
+ @return pointer dest+src_len+header size or NULL if 
+*/
+
+char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
+                                  char *src_end)
+{
+  size_t src_len= (size_t)(src_end - src);
+  uchar *to= net_store_length((uchar*) dest, src_len);
+  if ((char*)(to + src_len) >= dest_end)
+    return NULL;
+  memcpy(to, src, src_len);
+  return (char*)(to + src_len);
+}
 
 /**
   sends a COM_CHANGE_USER command with a caller provided payload
@@ -2302,8 +2424,13 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
   MYSQL *mysql= mpvio->mysql;
   char *buff, *end;
   int res= 1;
+  size_t connect_attrs_len=
+    (mysql->server_capabilities & CLIENT_CONNECT_ATTRS &&
+     mysql->options.extension) ?
+    mysql->options.extension->connection_attributes_length : 0;
 
-  buff= my_alloca(USERNAME_LENGTH + data_len + 1 + NAME_LEN + 2 + NAME_LEN);
+  buff= my_alloca(USERNAME_LENGTH + data_len + 1 + NAME_LEN + 2 + NAME_LEN +
+                  connect_attrs_len + 9 /* for the length of the attrs */);
 
   end= strmake(buff, mysql->user, USERNAME_LENGTH) + 1;
 
@@ -2340,6 +2467,8 @@ static int send_change_user_packet(MCPVIO_EXT *mpvio,
   if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH)
     end= strmake(end, mpvio->plugin->name, NAME_LEN) + 1;
 
+  end= (char *) send_client_connect_attrs(mysql, (uchar *) end);
+
   res= simple_command(mysql, COM_CHANGE_USER,
                       (uchar*)buff, (ulong)(end-buff), 1);
 
@@ -2347,6 +2476,9 @@ error:
   my_afree(buff);
   return res;
 }
+
+
+#define MAX_CONNECTION_ATTR_STORAGE_LENGTH 65536
 
 /**
   sends a client authentication packet (second packet in the 3-way handshake)
@@ -2369,7 +2501,7 @@ error:
     1           charset number
     23          reserved (always 0)
     n           user name, \0-terminated
-    n           plugin auth data (e.g. scramble), length (1 byte) coded
+    n           plugin auth data (e.g. scramble), length encoded
     n           database name, \0-terminated
                 (if CLIENT_CONNECT_WITH_DB is set in the capabilities)
     n           client auth plugin name - \0-terminated string,
@@ -2384,10 +2516,22 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   MYSQL *mysql= mpvio->mysql;
   NET *net= &mysql->net;
   char *buff, *end;
+  size_t buff_size;
+  size_t connect_attrs_len=
+    (mysql->server_capabilities & CLIENT_CONNECT_ATTRS &&
+     mysql->options.extension) ?
+    mysql->options.extension->connection_attributes_length : 0;
 
-  /* see end= buff+32 below, fixed size of the packet is 32 bytes */
-  buff= my_alloca(33 + USERNAME_LENGTH + data_len + NAME_LEN + NAME_LEN);
+  DBUG_ASSERT(connect_attrs_len < MAX_CONNECTION_ATTR_STORAGE_LENGTH);
+
   
+  /*
+    see end= buff+32 below, fixed size of the packet is 32 bytes.
+     +9 because data is a length encoded binary where meta data size is max 9.
+  */
+  buff_size= 33 + USERNAME_LENGTH + data_len + 9 + NAME_LEN + NAME_LEN + connect_attrs_len + 9;
+  buff= my_alloca(buff_size);
+
   mysql->client_flag|= mysql->options.client_flag;
   mysql->client_flag|= CLIENT_CAPABILITIES;
 
@@ -2517,9 +2661,11 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   {
     if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      *end++= data_len;
-      memcpy(end, data, data_len);
-      end+= data_len;
+      end= write_length_encoded_string4(end, (char *)(buff + buff_size),
+                                       (char *) data,
+                                       (char *)(data + data_len));
+      if (end == NULL)
+        goto error;
     }
     else
     {
@@ -2540,6 +2686,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 
   if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH)
     end= strmake(end, mpvio->plugin->name, NAME_LEN) + 1;
+
+  end= (char *) send_client_connect_attrs(mysql, (uchar *) end);
 
   /* Write authentication package */
   if (my_net_write(net, (uchar*) buff, (size_t) (end-buff)) || net_flush(net))
@@ -2877,6 +3025,55 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   DBUG_RETURN (mysql->net.read_pos[0] != 0);
 }
 
+
+/** set some default attributes */
+static int
+set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
+{
+  int rc= 0;
+
+  /*
+    Clean up any values set by the client code. We want these options as
+    consistent as possible
+  */
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_name");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_os");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_platform");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_command_line");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_pid");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_thread");
+  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_version");
+
+  /*
+   Now let's set up some values
+  */
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                     "_client_name", "libmysql");
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                      "_client_version", PACKAGE_VERSION);
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                      "_os", SYSTEM_TYPE);
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                      "_platform", MACHINE_TYPE);
+#ifdef __WIN__
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentProcessId());
+#else
+  snprintf(buff, buf_len, "%lu", (ulong) getpid());
+#endif
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
+
+#ifdef __WIN__
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                      "_command_line", GetCommandLine());
+
+  snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
+  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
+#endif
+
+  return rc > 0 ? 1 : 0;
+}
+
+
 MYSQL * STDCALL 
 CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       const char *passwd, const char *db,
@@ -2908,6 +3105,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     set_mysql_error(mysql, CR_ALREADY_CONNECTED, unknown_sqlstate);
     DBUG_RETURN(0);
   }
+
+  if (set_connect_attributes(mysql, buff, sizeof(buff)))
+    DBUG_RETURN(0);
 
   mysql->methods= &client_methods;
   net->vio = 0;				/* If something goes wrong */
@@ -3537,6 +3737,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
   {
+    memset(&tmp_mysql.options, 0, sizeof(tmp_mysql.options));
+    mysql_close(&tmp_mysql);
     mysql->net.last_errno= tmp_mysql.net.last_errno;
     strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
@@ -3633,6 +3835,7 @@ static void mysql_close_free_options(MYSQL *mysql)
   {
     my_free(mysql->options.extension->plugin_dir);
     my_free(mysql->options.extension->default_auth);
+    my_hash_free(&mysql->options.extension->connection_attributes);
     my_free(mysql->options.extension);
   }
   memset(&mysql->options, 0, sizeof(mysql->options));
@@ -3822,7 +4025,7 @@ get_info:
 
   if (!(fields=cli_read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 7:5)))
     DBUG_RETURN(1);
-  if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,
+  if (!(mysql->fields=unpack_fields(mysql, fields,&mysql->field_alloc,
 				    (uint) field_count,0,
 				    mysql->server_capabilities)))
     DBUG_RETURN(1);
@@ -4129,6 +4332,152 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
   case MYSQL_OPT_SSL_CRLPATH:  EXTENSION_SET_SSL_STRING(&mysql->options,
                                                         ssl_crlpath, arg);
                                break;
+  case MYSQL_SERVER_PUBLIC_KEY:
+    EXTENSION_SET_STRING(&mysql->options, server_public_key_path, arg);
+    break;
+
+  case MYSQL_OPT_CONNECT_ATTR_RESET:
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    if (my_hash_inited(&mysql->options.extension->connection_attributes))
+    {
+      my_hash_free(&mysql->options.extension->connection_attributes);
+      mysql->options.extension->connection_attributes_length= 0;
+    }
+    break;
+  case MYSQL_OPT_CONNECT_ATTR_DELETE:
+    ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+    if (my_hash_inited(&mysql->options.extension->connection_attributes))
+    {
+      size_t len;
+      uchar *elt;
+
+      len= arg ? strlen(arg) : 0;
+
+      if (len)
+      {
+        elt= my_hash_search(&mysql->options.extension->connection_attributes,
+                            arg, len);
+        if (elt)
+        {
+          LEX_STRING *attr= (LEX_STRING *) elt;
+          LEX_STRING *key= attr, *value= attr + 1;
+
+          mysql->options.extension->connection_attributes_length-=
+            get_length_store_length(key->length) + key->length +
+            get_length_store_length(value->length) + value->length;
+
+          my_hash_delete(&mysql->options.extension->connection_attributes,
+                         elt);
+
+        }
+      }
+    }
+    break;
+
+
+  default:
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/**
+  A function to return the key from a connection attribute
+*/
+uchar *
+get_attr_key(LEX_STRING *part, size_t *length,
+             my_bool not_used __attribute__((unused)))
+{
+  *length= part[0].length;
+  return (uchar *) part[0].str;
+}
+
+int STDCALL
+mysql_options4(MYSQL *mysql,enum mysql_option option,
+               const void *arg1, const void *arg2)
+{
+  DBUG_ENTER("mysql_option");
+  DBUG_PRINT("enter",("option: %d",(int) option));
+
+  switch (option)
+  {
+  case MYSQL_OPT_CONNECT_ATTR_ADD:
+    {
+      LEX_STRING *elt;
+      char *key, *value;
+      size_t key_len= arg1 ? strlen(arg1) : 0,
+             value_len= arg2 ? strlen(arg2) : 0;
+      size_t attr_storage_length= key_len + value_len;
+
+      /* we can't have a zero length key */
+      if (!key_len)
+      {
+        set_mysql_error(mysql, CR_INVALID_PARAMETER_NO, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
+
+      /* calculate the total storage length of the attribute */
+      attr_storage_length+= get_length_store_length(key_len);
+      attr_storage_length+= get_length_store_length(value_len);
+
+      ENSURE_EXTENSIONS_PRESENT(&mysql->options);
+
+      /*
+        Throw and error if the maximum combined length of the attribute value
+        will be greater than the maximum that we can safely transmit.
+      */
+      if (attr_storage_length +
+          mysql->options.extension->connection_attributes_length >
+          MAX_CONNECTION_ATTR_STORAGE_LENGTH)
+      {
+        set_mysql_error(mysql, CR_INVALID_PARAMETER_NO, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
+
+      if (!my_hash_inited(&mysql->options.extension->connection_attributes))
+      {
+        if (my_hash_init(&mysql->options.extension->connection_attributes,
+                     &my_charset_bin, 0, 0, 0, (my_hash_get_key) get_attr_key,
+                     my_free, HASH_UNIQUE))
+        {
+          set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+          DBUG_RETURN(1);
+        }
+      }
+      if (!my_multi_malloc(MY_WME,
+                           &elt, 2 * sizeof(LEX_STRING),
+                           &key, key_len + 1,
+                           &value, value_len + 1,
+                           NULL))
+      {
+        set_mysql_error(mysql, CR_OUT_OF_MEMORY, unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
+      elt[0].str= key; elt[0].length= key_len;
+      elt[1].str= value; elt[1].length= value_len;
+      if (key_len)
+        memcpy(key, arg1, key_len);
+      key[key_len]= 0;
+      if (value_len)
+        memcpy(value, arg2, value_len);
+      value[value_len]= 0;
+      if (my_hash_insert(&mysql->options.extension->connection_attributes,
+                     (uchar *) elt))
+      {
+        /* can't insert the value */
+        my_free(elt);
+        set_mysql_error(mysql, CR_DUPLICATE_CONNECTION_ATTR,
+                        unknown_sqlstate);
+        DBUG_RETURN(1);
+      }
+
+      mysql->options.extension->connection_attributes_length+=
+        attr_storage_length;
+
+      break;
+    }
+
   default:
     DBUG_RETURN(1);
   }

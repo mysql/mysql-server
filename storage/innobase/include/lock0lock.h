@@ -864,11 +864,11 @@ struct lock_op_struct{
 
 /** The lock system struct */
 struct lock_sys_struct{
-	mutex_t		mutex;			/*!< Mutex protecting the
+	ib_mutex_t		mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
-	mutex_t		wait_mutex;		/*!< Mutex protecting the
+	ib_mutex_t		wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for

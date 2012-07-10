@@ -9,7 +9,7 @@ drop table if exists t1,t2;
 # Set timezone to GMT-3, to make it possible to use "interval 3 hour"
 set time_zone="+03:00";
 
-CREATE TABLE t1 (a int, t timestamp);
+CREATE TABLE t1 (a int, t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
 insert into t1 values(1,NULL);
@@ -27,7 +27,7 @@ select * from t1;
 drop table t1,t2;
 
 SET TIMESTAMP=1234;
-CREATE TABLE t1 (value TEXT NOT NULL, id VARCHAR(32) NOT NULL, stamp timestamp, PRIMARY KEY (id));
+CREATE TABLE t1 (value TEXT NOT NULL, id VARCHAR(32) NOT NULL, stamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id));
 INSERT INTO t1 VALUES ("my value", "myKey","1999-04-02 00:00:00");
 SELECT stamp FROM t1 WHERE id="myKey";
 UPDATE t1 SET value="my value" WHERE id="myKey";
@@ -36,12 +36,12 @@ UPDATE t1 SET id="myKey" WHERE value="my value";
 SELECT stamp FROM t1 WHERE id="myKey";
 drop table t1;
 
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (now());
 select date_format(a,"%Y %y"),year(a),year(now()) from t1;
 drop table t1;
 
-create table t1 (ix timestamp);
+create table t1 (ix timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (19991101000000),(19990102030405),(19990630232922),(19990601000000),(19990930232922),(19990531232922),(19990501000000),(19991101000000),(19990501000000);
 select ix+0 from t1;
 truncate table t1;
@@ -49,7 +49,7 @@ insert into t1 values ("19991101000000"),("19990102030405"),("19990630232922"),(
 select ix+0 from t1;
 drop table t1;
 
-CREATE TABLE t1 (date date, date_time datetime, time_stamp timestamp);
+CREATE TABLE t1 (date date, date_time datetime, time_stamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES ("1998-12-31","1998-12-31 23:59:59",19981231235959);
 INSERT INTO t1 VALUES ("1999-01-01","1999-01-01 00:00:00",19990101000000);
 INSERT INTO t1 VALUES ("1999-09-09","1999-09-09 23:59:59",19990909235959);
@@ -71,7 +71,7 @@ drop table t1;
 # Let us check if we properly treat wrong datetimes and produce proper warnings
 # (for both strings and numbers)
 #
-create table t1 (ix timestamp);
+create table t1 (ix timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0),(20030101010160),(20030101016001),(20030101240101),(20030132010101),(20031301010101),(20031200000000),(20030000000000);
 select ix+0 from t1;
 truncate table t1;
@@ -85,7 +85,7 @@ drop table t1;
 # Let us test TIMESTAMP auto-update behaviour
 # Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
 # behaviour of DEFAULT literal for such fields
-create table t1 (t1 timestamp default '2003-01-01 00:00:00', t2 datetime, t3 timestamp);
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000000;
 insert into t1 values ();
 SET TIMESTAMP=1000000001;
@@ -97,7 +97,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp default now(), t2 datetime, t3 timestamp);
+create table t1 (t1 timestamp not null default now(), t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000002;
 insert into t1 values ();
 SET TIMESTAMP=1000000003;
@@ -109,7 +109,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp default '2003-01-01 00:00:00' on update now(), t2 datetime);
+create table t1 (t1 timestamp not null default '2003-01-01 00:00:00' on update now(), t2 datetime);
 SET TIMESTAMP=1000000004;
 insert into t1 values ();
 select * from t1;
@@ -122,7 +122,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp default now() on update now(), t2 datetime);
+create table t1 (t1 timestamp not null default now() on update now(), t2 datetime);
 SET TIMESTAMP=1000000006;
 insert into t1 values ();
 select * from t1;
@@ -135,7 +135,7 @@ show create table t1;
 show columns from t1;
 drop table t1;
 
-create table t1 (t1 timestamp, t2 datetime, t3 timestamp);
+create table t1 (t1 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
 SET TIMESTAMP=1000000007;
 insert into t1 values ();
 select * from t1;
@@ -151,7 +151,7 @@ drop table t1;
 # Let us test if CURRENT_TIMESTAMP also works well as default value
 # (Of course NOW and CURRENT_TIMESTAMP are same for parser but still just
 # for demonstartion.)
-create table t1 (t1 timestamp default current_timestamp on update current_timestamp, t2 datetime);
+create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp, t2 datetime);
 SET TIMESTAMP=1000000009;
 insert into t1 values ();
 select * from t1;
@@ -181,21 +181,21 @@ drop table t1;
 
 # Now let us test replace it should behave exactly like delete+insert
 # Case where optimization is possible DEFAULT = ON UPDATE
-create table t1 (pk int primary key, t1 timestamp default current_timestamp on update current_timestamp, bulk int);
+create table t1 (pk int primary key, t1 timestamp not null default current_timestamp on update current_timestamp, bulk int);
 insert into t1 values (1, '2004-04-01 00:00:00', 10);
 SET TIMESTAMP=1000000013;
 replace into t1 set pk = 1, bulk= 20; 
 select * from t1;
 drop table t1;
 # Case in which there should not be optimisation
-create table t1 (pk int primary key, t1 timestamp default '2003-01-01 00:00:00' on update current_timestamp, bulk int);
+create table t1 (pk int primary key, t1 timestamp not null default '2003-01-01 00:00:00' on update current_timestamp, bulk int);
 insert into t1 values (1, '2004-04-01 00:00:00', 10);
 SET TIMESTAMP=1000000014;
 replace into t1 set pk = 1, bulk= 20; 
 select * from t1;
 drop table t1;
 # Other similar case
-create table t1 (pk int primary key, t1 timestamp default current_timestamp, bulk int);
+create table t1 (pk int primary key, t1 timestamp not null default current_timestamp on update current_timestamp, bulk int);
 insert into t1 values (1, '2004-04-01 00:00:00', 10);
 SET TIMESTAMP=1000000015;
 replace into t1 set pk = 1, bulk= 20; 
@@ -203,7 +203,7 @@ select * from t1;
 drop table t1;
 
 # Let us test alter now
-create table t1 (t1 timestamp default current_timestamp on update current_timestamp);
+create table t1 (t1 timestamp not null default current_timestamp on update current_timestamp);
 insert into t1 values ('2004-04-01 00:00:00');
 SET TIMESTAMP=1000000016;
 alter table t1 add i int default 10;
@@ -251,7 +251,7 @@ drop table t1;
 create table t1 (a bigint, b bigint);
 insert into t1 values (NULL, NULL), (20030101000000, 20030102000000);
 set timestamp=1000000019;
-alter table t1 modify a timestamp, modify b timestamp;
+alter table t1 modify a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, modify b timestamp NOT NULL DEFAULT '0000-00-00 00:00:0';
 select * from t1;
 drop table t1;
 
@@ -259,7 +259,7 @@ drop table t1;
 # Test for bug #4131, TIMESTAMP columns missing minutes and seconds when
 # using GROUP BY in @@new=1 mode.
 #
-create table t1 (a char(2), t timestamp);
+create table t1 (a char(2), t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values ('a', '2004-01-01 00:00:00'), ('a', '2004-01-01 01:00:00'),
                       ('b', '2004-02-01 00:00:00');
 select max(t) from t1 group by a;
@@ -280,7 +280,7 @@ drop table t1;
 #
 # Bug#7806 - insert on duplicate key and auto-update of timestamp
 #
-create table t1 (a int auto_increment primary key, b int, c timestamp);
+create table t1 (a int auto_increment primary key, b int, c timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 (a, b, c) values (1, 0, '2001-01-01 01:01:01'),
   (2, 0, '2002-02-02 02:02:02'), (3, 0, '2003-03-03 03:03:03');
 select * from t1;
@@ -318,8 +318,8 @@ drop table t1;
 #
 
 CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                  f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                  f3 TIMESTAMP);
+                  f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                  f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
 INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
 INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
@@ -336,7 +336,7 @@ DROP TABLE t1;
 --echo #             Version "5.1.42 SUSE MySQL RPM"
 --echo #
 
-CREATE TABLE t1 (a TIMESTAMP, KEY (a));
+CREATE TABLE t1 (a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY (a));
 
 INSERT INTO t1 VALUES ('2000-01-01 00:00:00'), ('2000-01-01 00:00:00'),
                       ('2000-01-01 00:00:01'), ('2000-01-01 00:00:01');
@@ -400,7 +400,7 @@ DROP TABLE t1, t2;
 --echo
 
 SET TIMESTAMP=0;
-CREATE TABLE t1(a timestamp);
+CREATE TABLE t1(a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES ('2008-02-23 09:23:45'), ('2010-03-05 11:08:02');
 FLUSH TABLES t1;
 SELECT MAX(a) FROM t1;
@@ -508,6 +508,44 @@ DROP TABLE t1;
 
 SET @@sql_mode= @org_mode;
 --echo # END of Test for bug#11747847 - 34280
+
+--echo #
+--echo # WL6292 - Test cases to test new behavior with 
+--echo #          --explicit_defaults_for_timestamp
+--echo # Almost all the scenario's required to test this WL, is already tested
+--echo # by most of existing test case. Adding some basic tests here.
+--echo #
+CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
+ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
+ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
+ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
+ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+
+--echo # Following is expected out of SHOW CREATE TABLE
+--echo #  `f1` timestamp NULL DEFAULT NULL,
+--echo #  `f2` timestamp NULL DEFAULT NULL,
+--echo #  `f3` timestamp NOT NULL,
+--echo #  `f4` timestamp NULL DEFAULT NULL,
+--echo #  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
+--echo #  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+SHOW CREATE TABLE t1;
+
+--echo # The new behavior affects CREATE SELECT with column definitions
+--echo # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
+--echo # with the new behavior. Following is expected out of SHOW CREATE TABLE
+--echo #
+--echo # `f1` timestamp NULL DEFAULT NULL,
+--echo # `f2` timestamp NULL DEFAULT NULL,
+--echo # `f3` timestamp NOT NULL,
+--echo # `f4` timestamp NULL DEFAULT NULL,
+--echo # `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
+--echo # `f6` timestamp NULL DEFAULT NULL
+
+CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+SHOW CREATE TABLE t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
 
 --echo #
 --echo # End of 5.6 tests

@@ -44,7 +44,7 @@ trx_state_eq(
 #ifdef UNIV_DEBUG
 	switch (trx->state) {
 	case TRX_STATE_PREPARED:
-		assert_trx_in_rw_list(trx);
+		ut_ad(!trx_is_autocommit_non_locking(trx));
 		return(trx->state == state);
 
 	case TRX_STATE_ACTIVE:

@@ -987,7 +987,6 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   set_null= set_null && owner_arg;
   a= a1;
   b= a2;
-  thd= current_thd;
 
   if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
   {
@@ -2151,7 +2150,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
   DBUG_ASSERT(arg_count == 2);
 
   /* Transform the left IN operand. */
-  new_item= (*args)->transform(transformer, argument);
+  new_item= args[0]->transform(transformer, argument);
   if (!new_item)
     return 0;
   /*
@@ -2160,7 +2159,7 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
     Otherwise we'll be allocating a lot of unnecessary memory for
     change records at each execution.
   */
-  if ((*args) != new_item)
+  if (args[0] != new_item)
     current_thd->change_item_tree(args, new_item);
 
   /*
@@ -2179,7 +2178,9 @@ Item *Item_in_optimizer::transform(Item_transformer transformer, uchar *argument
                Item_subselect::ANY_SUBS));
 
   Item_in_subselect *in_arg= (Item_in_subselect*)args[1];
-  in_arg->left_expr= args[0];
+
+  if (in_arg->left_expr != args[0])
+    current_thd->change_item_tree(&in_arg->left_expr, args[0]);
 
   return (this->*transformer)(argument);
 }
@@ -4799,6 +4800,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       not_null_tables_cache&= item->not_null_tables();
     with_sum_func|=  item->with_sum_func;
     with_subselect|= item->has_subquery();
+    with_stored_program|= item->has_stored_program();
     if (item->maybe_null)
       maybe_null= true;
   }
@@ -5001,12 +5003,14 @@ void Item_cond::update_used_tables()
   used_tables_cache=0;
   const_item_cache=1;
   with_subselect= false;
+  with_stored_program= false;
   while ((item=li++))
   {
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
     with_subselect|= item->has_subquery();
+    with_stored_program|= item->has_stored_program();
   }
 }
 
@@ -5192,6 +5196,7 @@ void Item_is_not_null_test::update_used_tables()
   }
   args[0]->update_used_tables();
   with_subselect= args[0]->has_subquery();
+  with_stored_program= args[0]->has_stored_program();
   used_tables_cache|= args[0]->used_tables();
   if (used_tables_cache == initial_pseudo_tables && !with_subselect)
     /* Remember if the value is always NULL or never NULL */
@@ -6189,6 +6194,7 @@ void Item_equal::update_used_tables()
   if ((const_item_cache= cond_false))
     return;
   with_subselect= false;
+  with_stored_program= false;
   while ((item=li++))
   {
     item->update_used_tables();
@@ -6196,6 +6202,7 @@ void Item_equal::update_used_tables()
     /* see commentary at Item_equal::update_const() */
     const_item_cache&= item->const_item() && !item->is_outer_field();
     with_subselect|= item->has_subquery();
+    with_stored_program|= item->has_stored_program();
   }
 }
 
@@ -6291,13 +6298,13 @@ void Item_func_trig_cond::print(String *str, enum_query_type query_type)
 {
   /*
     Print:
-    trigcond_if(<property><(optional list of source tables)>, condition, TRUE)
+    <if>(<property><(optional list of source tables)>, condition, TRUE)
     which means: if a certain property (<property>) is true, then return
     the value of <condition>, else return TRUE. If source tables are
     present, they are the owner of the property.
   */
   str->append(func_name());
-  str->append("_if(");
+  str->append("(");
   switch(trig_type)
   {
   case IS_NOT_NULL_COMPL:
@@ -6357,7 +6364,13 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
 
   const JOIN_TAB *field_tab= field->field->table->reginfo.join_tab;
 
-  if (sj_is_materialize_strategy(field_tab->get_sj_strategy()))
+  /*
+    field_tab is NULL if this function was not called from
+    JOIN::optimize() but from e.g. mysql_delete() or mysql_update().
+    In these cases there is only one table and no semijoin
+  */
+  if (field_tab &&
+      sj_is_materialize_strategy(field_tab->get_sj_strategy()))
   {
     /*
       It's a field from a materialized semijoin. We can substitute it only

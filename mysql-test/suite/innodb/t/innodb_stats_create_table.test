@@ -28,7 +28,7 @@ DROP TABLE test_ps_create_table;
 CREATE TABLE test_ps_create_table (a INT, PRIMARY KEY (a))
 ENGINE=INNODB;
 
-# nothing should be present if the default of --innodb-stats-persistent is 0
+# 1 row should be present if the default of --innodb-stats-persistent is 1
 SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
 database_name = 'test' AND
 table_name = 'test_ps_create_table';
@@ -40,7 +40,7 @@ DROP TABLE test_ps_create_table;
 CREATE TABLE test_ps_create_table (a INT, PRIMARY KEY (a))
 ENGINE=INNODB STATS_PERSISTENT=default;
 
-# nothing should be present if the default of --innodb-stats-persistent is 0
+# 1 row should be present if the default of --innodb-stats-persistent is 1
 SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE
 database_name = 'test' AND
 table_name = 'test_ps_create_table';

@@ -159,19 +159,19 @@ at a time */
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
 /* Mutex for locking srv_monitor_file */
-extern mutex_t	srv_monitor_file_mutex;
+extern ib_mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
 /* Mutex for locking srv_dict_tmpfile.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
-extern mutex_t	srv_dict_tmpfile_mutex;
+extern ib_mutex_t	srv_dict_tmpfile_mutex;
 /* Temporary file for output from the data dictionary */
 extern FILE*	srv_dict_tmpfile;
 /* Mutex for locking srv_misc_tmpfile.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
-extern mutex_t	srv_misc_tmpfile_mutex;
+extern ib_mutex_t	srv_misc_tmpfile_mutex;
 /* Temporary file for miscellanous diagnostic output */
 extern FILE*	srv_misc_tmpfile;
 
@@ -224,6 +224,9 @@ extern char*	srv_undo_dir;
 /** Number of undo tablespaces to use. */
 extern ulong	srv_undo_tablespaces;
 
+/** The number of UNDO tablespaces that are open and ready to use. */
+extern ulint	srv_undo_tablespaces_open;
+
 /* The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
@@ -245,6 +248,7 @@ extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
+extern uint	srv_flush_log_at_timeout;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -281,6 +285,7 @@ extern ulint	srv_n_write_io_threads;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
+extern ulong    srv_max_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
 is 5% of the max where max is srv_io_capacity.  */
@@ -303,7 +308,11 @@ extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
-extern ulint	srv_max_dirty_pages_pct;
+extern ulong	srv_max_dirty_pages_pct;
+extern ulong	srv_max_dirty_pages_pct_lwm;
+
+extern ulong	srv_adaptive_flushing_lwm;
+extern ulong	srv_flushing_avg_loops;
 
 extern ulint	srv_force_recovery;
 
@@ -319,6 +328,7 @@ extern ibool	srv_innodb_status;
 extern unsigned long long	srv_stats_transient_sample_pages;
 extern my_bool			srv_stats_persistent;
 extern unsigned long long	srv_stats_persistent_sample_pages;
+extern my_bool			srv_stats_auto_recalc;
 
 extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
@@ -346,6 +356,9 @@ extern ibool	srv_error_monitor_active;
 
 /* TRUE during the lifetime of the buffer pool dump/load thread */
 extern ibool	srv_buf_dump_thread_active;
+
+/* TRUE during the lifetime of the stats thread */
+extern ibool	srv_dict_stats_thread_active;
 
 extern ulong	srv_n_spin_wait_rounds;
 extern ulong	srv_n_free_tickets_to_enter;
@@ -383,7 +396,7 @@ extern ulint	srv_dml_needed_delay;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 /** Mutex protecting some server global variables. */
-extern mutex_t	server_mutex;
+extern ib_mutex_t	server_mutex;
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 #define SRV_MAX_N_IO_THREADS	130

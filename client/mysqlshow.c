@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #define SHOW_VERSION "9.10"
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
@@ -143,6 +144,9 @@ int main(int argc, char **argv)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysqlshow");
   if (!(mysql_real_connect(&mysql,host,user,opt_password,
 			   (first_argument_uses_wildcards) ? "" :
                            argv[0],opt_mysql_port,opt_mysql_unix_port,

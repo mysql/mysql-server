@@ -272,10 +272,6 @@ extern my_bool  my_disable_locking, my_disable_async_io,
                 my_disable_flush_key_blocks, my_disable_symlinks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
-/* from default.c */
-extern const char *my_defaults_extra_file;
-extern const char *my_defaults_group_suffix;
-extern const char *my_defaults_file;
 
 extern my_bool timed_mutexes;
 
@@ -560,10 +556,6 @@ my_off_t my_b_safe_tell(IO_CACHE* info); /* picks the correct tell() */
 
 typedef uint32 ha_checksum;
 
-/* Define the type of function to be passed to process_default_option_files */
-typedef int (*Process_option_func)(void *ctx, const char *group_name,
-                                   const char *option);
-
 #include <my_alloc.h>
 
 
@@ -839,22 +831,6 @@ static inline char *safe_strdup_root(MEM_ROOT *root, const char *str)
 }
 extern char *strmake_root(MEM_ROOT *root,const char *str,size_t len);
 extern void *memdup_root(MEM_ROOT *root,const void *str, size_t len);
-extern int get_defaults_options(int argc, char **argv,
-                                char **defaults, char **extra_defaults,
-                                char **group_suffix);
-extern my_bool my_getopt_use_args_separator;
-extern my_bool my_getopt_is_args_separator(const char* arg);
-extern int my_load_defaults(const char *conf_file, const char **groups,
-                            int *argc, char ***argv, const char ***);
-extern int load_defaults(const char *conf_file, const char **groups,
-                         int *argc, char ***argv);
-extern int my_search_option_files(const char *conf_file, int *argc,
-                                  char ***argv, uint *args_used,
-                                  Process_option_func func, void *func_ctx,
-                                  const char **default_directories);
-extern void free_defaults(char **argv);
-extern void my_print_default_files(const char *conf_file);
-extern void print_defaults(const char *conf_file, const char **groups);
 extern my_bool my_compress(uchar *, size_t *, size_t *);
 extern my_bool my_uncompress(uchar *, size_t , size_t *);
 extern uchar *my_compress_alloc(const uchar *packet, size_t *len,
@@ -991,6 +967,18 @@ void my_init_mysys_psi_keys(void);
 
 struct st_mysql_file;
 extern struct st_mysql_file *mysql_stdin;
+
+enum durability_properties
+{
+  /*
+    Preserves the durability properties defined by the engine */
+  HA_REGULAR_DURABILITY= 0,
+  /* 
+     Ignore the durability properties defined by the engine and
+     write only in-memory entries.
+  */
+  HA_IGNORE_DURABILITY= 1
+};
 
 C_MODE_END
 #endif /* _my_sys_h */

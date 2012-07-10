@@ -73,6 +73,35 @@ extern struct my_plugin_log_service
 } *my_plugin_log_service;
 int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
                           const char *format, ...);
+#include <mysql/service_mysql_string.h>
+typedef void *mysql_string_iterator_handle;
+typedef void *mysql_string_handle;
+extern struct mysql_string_service_st {
+  int (*mysql_string_convert_to_char_ptr_type)
+       (mysql_string_handle, const char *, char *, int *);
+  mysql_string_iterator_handle (*mysql_string_get_iterator_type)
+                                (mysql_string_handle);
+  int (*mysql_string_iterator_next_type)(mysql_string_iterator_handle);
+  int (*mysql_string_iterator_isupper_type)(mysql_string_iterator_handle);
+  int (*mysql_string_iterator_islower_type)(mysql_string_iterator_handle);
+  int (*mysql_string_iterator_isdigit_type)(mysql_string_iterator_handle);
+  mysql_string_handle (*mysql_string_to_lowercase_type)(mysql_string_handle);
+  void (*mysql_string_free_type)(mysql_string_handle);
+  void (*mysql_string_iterator_free_type)(mysql_string_iterator_handle);
+} *mysql_string_service;
+int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
+                                     const char *charset_name, char *buffer,
+                                     int *error);
+mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
+                                                       string_handle);
+int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle);
+int mysql_string_iterator_isupper(mysql_string_iterator_handle iterator_handle);
+int mysql_string_iterator_islower(mysql_string_iterator_handle iterator_handle);
+int mysql_string_iterator_isdigit(mysql_string_iterator_handle iterator_handle);
+mysql_string_handle mysql_string_to_lowercase(mysql_string_handle
+                                              string_handle);
+void mysql_string_free(mysql_string_handle);
+void mysql_string_iterator_free(mysql_string_iterator_handle);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -159,6 +188,9 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
 void thd_inc_row_count(void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
+void thd_binlog_pos(const void* thd,
+                    const char **file_var,
+                    unsigned long long *pos_var);
 unsigned long thd_get_thread_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,

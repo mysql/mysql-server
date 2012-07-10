@@ -1,5 +1,5 @@
 # Test of ipv6 format
-# Options: --skip-name-resolve, --bind-address=:: (see corresponding opt file).
+# Options: --skip-name-resolve (see corresponding opt file).
 #
 --source include/check_ipv6.inc
 # Can't be tested with embedded server
@@ -10,6 +10,12 @@
 
 echo =============Test of '::1' ========================================;
 let $IPv6= ::1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+--source include/ipv6_func.inc
+
+echo =============Test of '127.0.0.1' (IPv4) ===========================;
+let $IPv6= 127.0.0.1;
 --source include/ipv6_clients.inc
 --source include/ipv6.inc
 --source include/ipv6_func.inc

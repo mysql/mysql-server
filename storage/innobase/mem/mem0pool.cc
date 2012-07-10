@@ -105,7 +105,7 @@ struct mem_pool_struct{
 	ulint		size;		/*!< memory common pool size */
 	ulint		reserved;	/*!< amount of currently allocated
 					memory */
-	mutex_t		mutex;		/*!< mutex protecting this struct */
+	ib_mutex_t		mutex;		/*!< mutex protecting this struct */
 	UT_LIST_BASE_NODE_T(mem_area_t)
 			free_list[64];	/*!< lists of free memory areas: an
 					area is put to the list whose number

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -170,8 +170,11 @@ page_cur_tuple_insert(
 	page_cur_t*	cursor,	/*!< in/out: a page cursor */
 	const dtuple_t*	tuple,	/*!< in: pointer to a data tuple */
 	dict_index_t*	index,	/*!< in: record descriptor */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	mtr_t*		mtr);	/*!< in: mini-transaction handle, or NULL */
+	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Inserts a record next to page cursor. Returns pointer to inserted record if

@@ -1,6 +1,13 @@
 #
 # DuplicateElimination strategy test
 #
+
+-- disable_query_log
+-- disable_result_log
+SET GLOBAL innodb_stats_persistent=0;
+-- enable_result_log
+-- enable_query_log
+
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
@@ -135,3 +142,9 @@ WHERE i IN (SELECT innr.i
    AND i = 2;
 
 DROP TABLE t1, t2;
+
+-- disable_query_log
+-- disable_result_log
+SET GLOBAL innodb_stats_persistent=default;
+-- enable_result_log
+-- enable_query_log

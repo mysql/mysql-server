@@ -45,25 +45,25 @@ int gtid_acquire_ownership_single(THD *thd)
   const Gtid gtid_next= thd->variables.gtid_next.gtid;
   while (true)
   {
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
     // acquire lock before checking conditions
-    gtid_state.lock_sidno(gtid_next.sidno);
+    gtid_state->lock_sidno(gtid_next.sidno);
 
     // GTID already logged
-    if (gtid_state.is_logged(gtid_next))
+    if (gtid_state->is_logged(gtid_next))
     {
       /*
         Don't skip the statement here, skip it in
         gtid_pre_statement_checks.
       */
-      DBUG_ASSERT(gtid_state.get_owner(gtid_next) == 0);
+      DBUG_ASSERT(gtid_state->get_owner(gtid_next) == 0);
       break;
     }
-    my_thread_id owner= gtid_state.get_owner(gtid_next);
+    my_thread_id owner= gtid_state->get_owner(gtid_next);
     // GTID not owned by anyone: acquire ownership
     if (owner == 0)
     {
-      if (gtid_state.acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
+      if (gtid_state->acquire_ownership(thd, gtid_next) != RETURN_STATUS_OK)
         ret= 1;
       thd->owned_gtid= gtid_next;
       break;
@@ -74,7 +74,7 @@ int gtid_acquire_ownership_single(THD *thd)
       DBUG_ASSERT(owner != thd->id);
       // The call below releases the read lock on global_sid_lock and
       // the mutex lock on SIDNO.
-      gtid_state.wait_for_gtid(thd, gtid_next);
+      gtid_state->wait_for_gtid(thd, gtid_next);
 
       // global_sid_lock and mutex are now released
 
@@ -96,8 +96,8 @@ int gtid_acquire_ownership_single(THD *thd)
 #endif // HAVE_REPLICATION
     }
   }
-  gtid_state.unlock_sidno(gtid_next.sidno);
-  global_sid_lock.unlock();
+  gtid_state->unlock_sidno(gtid_next.sidno);
+  global_sid_lock->unlock();
   DBUG_RETURN(ret);
 }
 
@@ -119,15 +119,15 @@ int gtid_acquire_ownership_multiple(THD *thd)
     Gtid g= git.get();
     my_thread_id owner= 0;
     rpl_sidno last_sidno= 0;
-    global_sid_lock.rdlock();
+    global_sid_lock->rdlock();
     while (g.sidno != 0)
     {
       // lock all SIDNOs in order
       if (g.sidno != last_sidno)
-        gtid_state.lock_sidno(g.sidno);
-      if (!gtid_state.is_logged(g))
+        gtid_state->lock_sidno(g.sidno);
+      if (!gtid_state->is_logged(g))
       {
-        owner= gtid_state.get_owner(g);
+        owner= gtid_state->get_owner(g);
         // break the do-loop and wait for the sid to be updated
         if (owner != 0)
         {
@@ -150,11 +150,11 @@ int gtid_acquire_ownership_multiple(THD *thd)
     // while waiting.  keep lock on g.sidno
     for (rpl_sidno sidno= 1; sidno < g.sidno; sidno++)
       if (gtid_next_list->contains_sidno(sidno))
-        gtid_state.unlock_sidno(sidno);
+        gtid_state->unlock_sidno(sidno);
 
     // wait. this call releases the read lock on global_sid_lock and
     // the mutex lock on SIDNO
-    gtid_state.wait_for_gtid(thd, g);
+    gtid_state->wait_for_gtid(thd, g);
 
     // global_sid_lock and mutex are now released
 
@@ -191,10 +191,10 @@ int gtid_acquire_ownership_multiple(THD *thd)
   Gtid g= git.get();
   do
   {
-    if (!gtid_state.is_logged(g))
+    if (!gtid_state->is_logged(g))
     {
-      DBUG_ASSERT(gtid_state.get_owner(g) == 0);
-      if (gtid_state.acquire_ownership(thd, g) != RETURN_STATUS_OK ||
+      DBUG_ASSERT(gtid_state->get_owner(g) == 0);
+      if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK ||
           thd->owned_gtid_set._add_gtid(g))
       {
         /// @todo release ownership on error
@@ -210,9 +210,9 @@ int gtid_acquire_ownership_multiple(THD *thd)
   rpl_sidno max_sidno= gtid_next_list->get_max_sidno();
   for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
     if (gtid_next_list->contains_sidno(sidno))
-      gtid_state.unlock_sidno(sidno);
+      gtid_state->unlock_sidno(sidno);
 
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
 
   DBUG_RETURN(ret);
 }
@@ -343,14 +343,14 @@ int gtid_rollback(THD *thd)
 {
   DBUG_ENTER("gtid_rollback");
 
-  global_sid_lock.rdlock();
-  // gtid_state.update(..., false) can't fail.
+  global_sid_lock->rdlock();
+  // gtid_state->update(..., false) can't fail.
 #ifndef DBUG_OFF
-  DBUG_ASSERT(gtid_state.update(thd, false) == RETURN_STATUS_OK);
+  DBUG_ASSERT(gtid_state->update(thd, false) == RETURN_STATUS_OK);
 #else
-  gtid_state.update(thd, false);
+  gtid_state->update(thd, false);
 #endif
-  global_sid_lock.unlock();
+  global_sid_lock->unlock();
 
   DBUG_RETURN(0);
 }

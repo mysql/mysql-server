@@ -24,6 +24,8 @@ struct TABLE_LIST;
 typedef class st_select_lex SELECT_LEX;
 typedef struct st_sort_field SORT_FIELD;
 
+extern const char *lock_descriptions[TL_WRITE_ONLY + 1];
+
 #ifndef DBUG_OFF
 void print_where(Item *cond,const char *info, enum_query_type query_type);
 void TEST_join(JOIN *join);

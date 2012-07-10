@@ -91,8 +91,7 @@ INSERT INTO t1 VALUES (1),(2);
 INSERT INTO t2 VALUES (1),(2);
 SET SESSION debug='d,bug11747970_simulate_error';
 INSERT IGNORE INTO t2 SELECT f1 FROM t1 a WHERE NOT EXISTS (SELECT 1 FROM t2 b WHERE a.f1 = b.f1);
-Warnings:
-Error	1105	Unknown error
+ERROR HY000: Unknown error
 SET SESSION debug = DEFAULT;
 DROP TABLE t1,t2;
 #

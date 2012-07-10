@@ -1,7 +1,7 @@
 #ifndef CLIENT_SQL_STRING_INCLUDED
 #define CLIENT_SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* This file is originally from the mysql distribution. Coded by monty */
+
+#include "m_ctype.h"
+#include "my_sys.h"
 
 class String;
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
@@ -192,8 +195,12 @@ public:
   }
   bool real_alloc(uint32 arg_length);			// Empties old string
   bool realloc(uint32 arg_length);
-  inline void shrink(uint32 arg_length)		// Shrink buffer
+
+  // Shrink the buffer, but only if it is allocated on the heap.
+  inline void shrink(uint32 arg_length)
   {
+    if (!is_alloced())
+      return;
     if (arg_length < Alloced_length)
     {
       char *new_ptr;
@@ -209,7 +216,7 @@ public:
       }
     }
   }
-  bool is_alloced() { return alloced; }
+  bool is_alloced() const { return alloced; }
   inline String& operator = (const String &s)
   {
     if (&s != this)

@@ -987,6 +987,51 @@ trx_finalize_for_fts(
 	trx->fts_trx = NULL;
 }
 
+/**********************************************************************//**
+If required, flushes the log to disk based on the value of
+innodb_flush_log_at_trx_commit. */
+static __attribute__((nonnull))
+void
+trx_flush_log_if_needed_low(
+/*========================*/
+	lsn_t	lsn)	/*!< in: lsn up to which logs are to be
+			flushed. */
+{
+	switch (srv_flush_log_at_trx_commit) {
+	case 0:
+		/* Do nothing */
+		break;
+	case 1:
+		/* Write the log and optionally flush it to disk */
+		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
+				srv_unix_file_flush_method != SRV_UNIX_NOSYNC);
+		break;
+	case 2:
+		/* Write the log but do not flush it to disk */
+		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
+
+		break;
+	default:
+		ut_error;
+	}
+}
+
+/**********************************************************************//**
+If required, flushes the log to disk based on the value of
+innodb_flush_log_at_trx_commit. */
+static __attribute__((nonnull))
+void
+trx_flush_log_if_needed(
+/*====================*/
+	lsn_t	lsn,	/*!< in: lsn up to which logs are to be
+			flushed. */
+	trx_t*	trx)	/*!< in/out: transaction */
+{
+	trx->op_info = "flushing log";
+	trx_flush_log_if_needed_low(lsn);
+	trx->op_info = "";
+}
+
 /****************************************************************//**
 Commits a transaction. */
 UNIV_INTERN
@@ -1147,27 +1192,12 @@ trx_commit(
 		if (trx->flush_log_later) {
 			/* Do nothing yet */
 			trx->must_flush_log_later = TRUE;
-		} else if (srv_flush_log_at_trx_commit == 0) {
+		} else if (srv_flush_log_at_trx_commit == 0
+			   || thd_requested_durability(trx->mysql_thd)
+			   == HA_IGNORE_DURABILITY) {
 			/* Do nothing */
-		} else if (srv_flush_log_at_trx_commit == 1) {
-			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
-				/* Write the log but do not flush it to disk */
-
-				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
-						FALSE);
-			} else {
-				/* Write the log to the log files AND flush
-				them to disk */
-
-				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
-			}
-		} else if (srv_flush_log_at_trx_commit == 2) {
-
-			/* Write the log but do not flush it to disk */
-
-			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
 		} else {
-			ut_error;
+			trx_flush_log_if_needed(lsn, trx);
 		}
 
 		trx->commit_lsn = lsn;
@@ -1193,6 +1223,8 @@ trx_commit(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
+
+	trx->dict_operation = TRX_DICT_OP_NONE;
 
 	trx->error_state = DB_SUCCESS;
 
@@ -1426,49 +1458,24 @@ trx_commit_for_mysql(
 
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
-with trx->flush_log_later == TRUE.
-@return	0 or error number */
+with trx->flush_log_later == TRUE. */
 UNIV_INTERN
-ulint
+void
 trx_commit_complete_for_mysql(
 /*==========================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
-	lsn_t	lsn	= trx->commit_lsn;
-
 	ut_a(trx);
 
-	trx->op_info = "flushing log";
-
-	if (!trx->must_flush_log_later) {
-		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 0) {
-		/* Do nothing */
-	} else if (srv_flush_log_at_trx_commit == 1) {
-		if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
-			/* Write the log but do not flush it to disk */
-
-			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
-		} else {
-			/* Write the log to the log files AND flush them to
-			disk */
-
-			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
-		}
-	} else if (srv_flush_log_at_trx_commit == 2) {
-
-		/* Write the log but do not flush it to disk */
-
-		log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
-	} else {
-		ut_error;
+	if (!trx->must_flush_log_later
+	    || thd_requested_durability(trx->mysql_thd)
+	       == HA_IGNORE_DURABILITY) {
+		return;
 	}
 
+	trx_flush_log_if_needed(trx->commit_lsn, trx);
+
 	trx->must_flush_log_later = FALSE;
-
-	trx->op_info = "";
-
-	return(0);
 }
 
 /**********************************************************************//**
@@ -1841,28 +1848,7 @@ trx_prepare(
 		TODO: find out if MySQL holds some mutex when calling this.
 		That would spoil our group prepare algorithm. */
 
-		if (srv_flush_log_at_trx_commit == 0) {
-			/* Do nothing */
-		} else if (srv_flush_log_at_trx_commit == 1) {
-			if (srv_unix_file_flush_method == SRV_UNIX_NOSYNC) {
-				/* Write the log but do not flush it to disk */
-
-				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP,
-						FALSE);
-			} else {
-				/* Write the log to the log files AND flush
-				them to disk */
-
-				log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, TRUE);
-			}
-		} else if (srv_flush_log_at_trx_commit == 2) {
-
-			/* Write the log but do not flush it to disk */
-
-			log_write_up_to(lsn, LOG_WAIT_ONE_GROUP, FALSE);
-		} else {
-			ut_error;
-		}
+		trx_flush_log_if_needed(lsn, trx);
 	}
 }
 
@@ -2089,3 +2075,24 @@ trx_start_if_not_started_low(
 
 	ut_error;
 }
+
+/*************************************************************//**
+Starts the transaction for a DDL operation. */
+UNIV_INTERN
+void
+trx_start_for_ddl_low(
+/*==================*/
+	trx_t*		trx,	/*!< in/out: transaction */
+	trx_dict_op_t	op)	/*!< in: dictionary operation type */
+{
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+
+	trx_set_dict_operation(trx, op);
+
+	/* Ensure it is not flagged as an auto-commit-non-locking transation. */
+	trx->will_lock = 1;
+
+	trx_start_low(trx);
+}
+

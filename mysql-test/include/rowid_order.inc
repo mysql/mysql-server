@@ -36,6 +36,11 @@ insert into t1 values (-5, 1, 1),
   (3, 1, 1),
   (0, 1, 1),
   (10, 1, 1);
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 explain select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 select * from t1 force index(key1, key2) where key1 < 3 or key2 < 3;
 drop table t1;

@@ -897,8 +897,8 @@ send_result_message:
       }
     }
     /* Error path, a admin command failed. */
-    trans_commit_stmt(thd);
-    trans_commit_implicit(thd);
+    if (trans_commit_stmt(thd) || trans_commit_implicit(thd))
+      goto err;
     close_thread_tables(thd);
     thd->mdl_context.release_transactional_locks();
 
@@ -1069,7 +1069,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd)
                          FALSE, UINT_MAX, FALSE))
     goto error; /* purecov: inspected */
   thd->enable_slow_log= opt_log_slow_admin_statements;
-  res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
+  res= (specialflag & SPECIAL_NO_NEW_FUNC) ?
     mysql_recreate_table(thd, first_table) :
     mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                       "optimize", TL_WRITE, 1, 0, 0, 0,

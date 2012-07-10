@@ -14,9 +14,7 @@ SET GLOBAL general_log=       'ON';
 
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
-
 SELECT plugin,authentication_string FROM mysql.user WHERE User='plug';
-
 --echo ## test plugin auth
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR : this should fail : no grant
@@ -37,6 +35,7 @@ select USER(),CURRENT_USER();
 
 --echo ## test SET PASSWORD
 #--error ER_SET_PASSWORD_AUTH_PLUGIN
+--echo Setting password is allowed but it won't affect the authentication mechanism.
 SET PASSWORD = PASSWORD('plug_dest');
 
 connection default;
@@ -68,7 +67,6 @@ SET @@sql_mode=no_auto_create_user;
 GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
 SET @@sql_mode=default;
 DROP USER grant_user;
-
 --echo ## test utf-8 user name
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 
@@ -88,8 +86,7 @@ CREATE DATABASE test_grant_db;
 
 --echo # create new user via GRANT WITH
 GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
-  IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 GRANT PROXY ON plug_dest TO new_grant_user;  
 
 connect(plug_con_grant,localhost,new_grant_user,plug_dest);
@@ -111,7 +108,6 @@ GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
 --error ER_ACCESS_DENIED_ERROR
 connect(plug_con_grant_deny,localhost,new_grant_user,unused_password);
 --enable_query_log
-
 --echo #make sure plugin auth still available
 connect(plug_con_grant,localhost,new_grant_user,plug_dest);
 connection plug_con_grant;
@@ -125,8 +121,8 @@ disconnect plug_con_grant;
 DROP USER new_grant_user;
 
 --echo # try re-create existing user via GRANT IDENTIFIED WITH
-
---error ER_GRANT_PLUGIN_USER_EXISTS
+#--error ER_GRANT_PLUGIN_USER_EXISTS
+--echo GRANTS which don't affect current plugin are allowed!
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
   IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 
@@ -350,7 +346,6 @@ DROP USER ''@'';
 DROP USER standard_user;
 DROP DATABASE shared;
 
-
 --echo #
 --echo # Bug #57551 : Live upgrade fails between 5.1.52 -> 5.5.7-rc
 --echo #
@@ -404,7 +399,6 @@ FLUSH PRIVILEGES;
 
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 --query_vertical SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv
-
 FLUSH PRIVILEGES;
 
 --echo #
@@ -523,7 +517,6 @@ SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
   WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
     COLUMN_NAME IN ('plugin', 'authentication_string')
   ORDER BY COLUMN_NAME;
-
 
 --echo #
 --echo # Bug #12610784: SET PASSWORD INCORRECTLY KEEP AN OLD EMPTY PASSWORD

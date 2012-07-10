@@ -127,6 +127,7 @@ user	CREATE TABLE `user` (
   `max_user_connections` int(11) unsigned NOT NULL DEFAULT '0',
   `plugin` char(64) COLLATE utf8_bin DEFAULT '',
   `authentication_string` text COLLATE utf8_bin,
+  `password_expired` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
   PRIMARY KEY (`Host`,`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Users and global privileges'
 show create table func;
