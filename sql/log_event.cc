@@ -6312,11 +6312,18 @@ void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info
   {
     Load_log_event::print(file, print_event_info,
 			  !check_fname_outside_temp_buf());
-    /* 
-       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
-       SHOW BINLOG EVENTS we don't.
-    */
-    my_b_printf(&cache, "#"); 
+    /**
+      reduce the size of io cache so that the write function is called
+      for every call to my_b_printf().
+     */
+    DBUG_EXECUTE_IF ("simulate_create_event_write_error",
+                     {(&cache)->write_pos= (&cache)->write_end;
+                     DBUG_SET("+d,simulate_file_write_error");});
+    /*
+      That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
+      SHOW BINLOG EVENTS we don't.
+     */
+    my_b_printf(&cache, "#");
   }
 
   my_b_printf(&cache, " file_id: %d  block_len: %d\n", file_id, block_len);
@@ -6992,6 +6999,13 @@ void Execute_load_query_log_event::print(FILE* file,
   Write_on_release_cache cache(&print_event_info->head_cache, file);
 
   print_query_header(&cache, print_event_info);
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_printf().
+   */
+  DBUG_EXECUTE_IF ("simulate_execute_event_write_error",
+                   {(&cache)->write_pos= (&cache)->write_end;
+                   DBUG_SET("+d,simulate_file_write_error");});
 
   if (local_fname)
   {
