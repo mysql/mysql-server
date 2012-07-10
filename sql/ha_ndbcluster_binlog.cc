@@ -252,8 +252,8 @@ static void dbug_print_table(const char *info, TABLE *table)
                 f->pack_length(),
                 (long) f->ptr, (int) (f->ptr - table->record[0]),
                 f->null_bit,
-                (long) f->null_ptr,
-                (int) ((uchar*) f->null_ptr - table->record[0])));
+                (long) f->null_offset(0),
+                (int) f->null_offset()));
     if (f->type() == MYSQL_TYPE_BIT)
     {
       Field_bit *g= (Field_bit*) f;
