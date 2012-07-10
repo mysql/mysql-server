@@ -170,8 +170,10 @@ bool
 Item_func::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0 || basic_const_item());
+
   Item **arg,**arg_end;
   uchar buff[STACK_BUFF_ALLOC];			// Max argument in function
+
   st_select_lex::Resolve_place save_resolve= st_select_lex::RESOLVE_NONE;
   if (thd->lex->current_select != NULL)
   {
@@ -225,6 +227,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
       not_null_tables_cache|= item->not_null_tables();
       const_item_cache&=      item->const_item();
       with_subselect|=        item->has_subquery();
+      with_stored_program|=   item->has_stored_program();
     }
   }
   fix_length_and_dec();
@@ -417,12 +420,14 @@ void Item_func::update_used_tables()
   used_tables_cache= get_initial_pseudo_tables();
   const_item_cache=1;
   with_subselect= false;
+  with_stored_program= false;
   for (uint i=0 ; i < arg_count ; i++)
   {
     args[i]->update_used_tables();
     used_tables_cache|=args[i]->used_tables();
     const_item_cache&=args[i]->const_item();
     with_subselect|= args[i]->has_subquery();
+    with_stored_program|= args[i]->has_stored_program();
   }
 }
 
@@ -3219,6 +3224,13 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 }
 
 
+longlong Item_func_validate_password_strength::val_int()
+{
+  String *field= args[0]->val_str(&value);
+  return (check_password_strength(field));
+}
+
+
 longlong Item_func_field::val_int()
 {
   DBUG_ASSERT(fixed == 1);
@@ -4775,9 +4787,14 @@ Item_func_set_user_var::update_hash(void *ptr, uint length,
     If we set a variable explicitely to NULL then keep the old
     result type of the variable
   */
-  if ((null_value= args[0]->null_value) && null_item)
+  // args[0]->null_value could be outdated
+  if (args[0]->type() == Item::FIELD_ITEM)
+    null_value= ((Item_field*)args[0])->field->is_null();
+  else
+    null_value= args[0]->null_value;
+  if (null_value && null_item)
     res_type= entry->type;                      // Don't change type of item
-  if (::update_hash(entry, (null_value= args[0]->null_value),
+  if (::update_hash(entry, null_value,
                     ptr, length, res_type, cs, dv, unsigned_arg))
   {
     null_value= 1;
@@ -6516,6 +6533,7 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg, sp_name *name)
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
+  with_stored_program= true;
 }
 
 
@@ -6527,6 +6545,7 @@ Item_func_sp::Item_func_sp(Name_resolution_context *context_arg,
   m_name->init_qname(current_thd);
   dummy_table= (TABLE*) sql_calloc(sizeof(TABLE)+ sizeof(TABLE_SHARE));
   dummy_table->s= (TABLE_SHARE*) (dummy_table+1);
+  with_stored_program= true;
 }
 
 
@@ -6541,6 +6560,8 @@ Item_func_sp::cleanup()
   m_sp= NULL;
   dummy_table->alias= NULL;
   Item_func::cleanup();
+  tables_locked_cache= false;
+  with_stored_program= true;
 }
 
 const char *
@@ -6650,8 +6671,7 @@ Item_func_sp::init_result_field(THD *thd)
   else
     sp_result_field->move_field(result_buf);
   
-  sp_result_field->null_ptr= (uchar *) &null_value;
-  sp_result_field->null_bit= 1;
+  sp_result_field->set_null_ptr((uchar *) &null_value, 1);
   DBUG_RETURN(FALSE);
 }
 
@@ -6923,6 +6943,11 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 
   res= Item_func::fix_fields(thd, ref);
 
+  /* These is reset/set by Item_func::fix_fields. */
+  with_stored_program= true;
+  if (!m_sp->m_chistics->detistic || !tables_locked_cache)
+    const_item_cache= false;
+
   if (res)
     DBUG_RETURN(res);
 
@@ -6951,9 +6976,6 @@ Item_func_sp::fix_fields(THD *thd, Item **ref)
 #endif /* ! NO_EMBEDDED_ACCESS_CHECKS */
   }
 
-  if (!m_sp->m_chistics->detistic)
-    const_item_cache= false;
-
   DBUG_RETURN(res);
 }
 
@@ -6964,6 +6986,9 @@ void Item_func_sp::update_used_tables()
 
   if (!m_sp->m_chistics->detistic)
     const_item_cache= false;
+
+  /* This is reset by Item_func::update_used_tables(). */
+  with_stored_program= true;
 }
 
 

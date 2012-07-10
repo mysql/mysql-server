@@ -183,7 +183,6 @@ UNIV_INLINE
 trx_id_t
 trx_sys_get_max_trx_id(void);
 /*========================*/
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
@@ -200,7 +199,6 @@ trx_write_trx_id(
 /*=============*/
 	byte*		ptr,	/*!< in: pointer to memory where written */
 	trx_id_t	id);	/*!< in: id */
-#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -604,7 +602,7 @@ identifier is added to this 64-bit constant. */
 /** The transaction system central memory data structure. */
 struct trx_sys_struct{
 
-	mutex_t		mutex;		/*!< mutex protecting most fields in
+	ib_mutex_t		mutex;		/*!< mutex protecting most fields in
 					this structure except when noted
 					otherwise */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently

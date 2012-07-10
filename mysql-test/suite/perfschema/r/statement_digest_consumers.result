@@ -9,6 +9,8 @@ CREATE TABLE t3(a int, b int);
 CREATE TABLE t4(a int, b int);
 CREATE TABLE t5(a int, b int, c int);
 CREATE TABLE t6(a int, b int, c int, d int);
+CREATE TABLE t11 (c CHAR(4));
+CREATE TABLE t12 (c CHAR(4));
 SELECT * FROM performance_schema.setup_consumers;
 NAME	ENABLED
 events_stages_current	YES
@@ -85,43 +87,81 @@ CREATE SCHEMA statements_digest_temp;
 DROP SCHEMA statements_digest_temp;
 CREATE DATABASE statements_digest_temp;
 DROP DATABASE statements_digest_temp;
-SELECT 1 from t11;
-ERROR 42S02: Table 'statements_digest.t11' doesn't exist
-create table t11 (c char(4));
-create table t11 (c char(4));
-ERROR 42S01: Table 't11' already exists
-insert into t11 values("MySQL");
+SELECT 1 FROM no_such_table;
+ERROR 42S02: Table 'statements_digest.no_such_table' doesn't exist
+CREATE TABLE dup_table (c char(4));
+CREATE TABLE dup_table (c char(4));
+ERROR 42S01: Table 'dup_table' already exists
+DROP TABLE dup_table;
+INSERT INTO t11 VALUES("MySQL");
 Warnings:
 Warning	1265	Data truncated for column 'c' at row 1
+PREPARE stmt FROM "SELECT * FROM t12";
+EXECUTE stmt;
+c
+EXECUTE stmt;
+c
+DEALLOCATE PREPARE stmt;
+CREATE PROCEDURE p1() BEGIN SELECT * FROM t12; END//
+CALL p1();
+c
+CALL p1();
+c
+DROP PROCEDURE p1;
+CREATE FUNCTION `func`(a INT, b INT) RETURNS int(11) RETURN a+b //
+select func(3,4);
+func(3,4)
+7
+select func(13,42);
+func(13,42)
+55
+DROP FUNCTION func;
+CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @a:=1;
+INSERT INTO t12 VALUES ("abc");
+INSERT INTO t12 VALUES ("def");
+DROP TRIGGER trg;
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
 SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
 digest	digest_text	count_star
-a0f76fb5497b790ad3f99b54d49d8ec9	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
-d425871ec5492bf1daccc95114f4c9b7	SELECT ? FROM t1  	1
-cceca2b52a7a3dfe9c3b5706d5053705	SELECT ? FROM `t1`  	1
-9227227f0ada285d3ee831527a90a43a	SELECT ?, ... FROM t1  	2
-ea7ed083cd7e4719d875947076c3e727	SELECT ? FROM t2  	1
-7fc63f7bb3ea7e0a3818cdff4d827120	SELECT ?, ... FROM t2  	2
-0d687c3ac9ac19a1123a83a6bd87d73f	INSERT INTO t1 VALUES (?)  	1
-76ab903f288d3e458d9877627c54f8f8	INSERT INTO t2 VALUES (?)  	1
-3d284b2f404a8263231348979a77419e	INSERT INTO t3 VALUES (...)  	4
-89ad7844bad413eff7fb47161309559b	INSERT INTO t4 VALUES (...)  	1
-c58e2fdd765b911528e3121395f94d04	INSERT INTO t5 VALUES (...)  	1
-c254e41c08a3cb37b3bea85673b85e35	INSERT INTO t1 VALUES (?) /* , ... */  	2
-8182f77f2801bbf2a523a592ef9fe1f5	INSERT INTO t3 VALUES (...) /* , ... */  	1
-d3d857b6abc10820ef95610b5585bd67	INSERT INTO t5 VALUES (...) /* , ... */  	1
-c1928d2f38d7b9b5dd452ba59546f854	INSERT INTO t1 VALUES ( NULL )  	1
-907803af3230e25f8926f1e6d94a0a6d	INSERT INTO t6 VALUES (...)  	5
-4d35579f2f74261177a3fd422a5e5366	SELECT ? + ?  	3
-2898f9160e275fb0182f7c25b487c50b	SELECT ?  	1
-2e70c2a610d36126887b63d6f173620b	CREATE SCHEMA statements_digest_temp  	2
-308179c535227a86ef6b6c19b71cc9fa	DROP SCHEMA statements_digest_temp  	2
-5f195653b09b1014efe3e08604a04aa6	SELECT ? FROM t11  	1
-56f0f8e8fc5179ba58ceff0fc1e73116	CREATE TABLE t11 ( c CHARACTER (?) )  	2
-8086eeea2b1c9eb0e7fdfe15a0853937	INSERT INTO t11 VALUES (?)  	1
-49ff7c040b8068a733f91d5a70fb0241	SHOW WARNINGS  	1
+43e9106b8e490764eecaf9d71627792a	TRUNCATE TABLE performance_schema . events_statements_summary_by_digest  	1
+8d4241d3c8553ed8e78b5d72df748b96	SELECT ? FROM t1  	1
+8edb0b45c62be1c709baaa0b7b71d746	SELECT ? FROM `t1`  	1
+741073c097b01dfba350caae853959df	SELECT ?, ... FROM t1  	2
+f7df600036e182e78f86d926278bcad1	SELECT ? FROM t2  	1
+eede5a4b2c708a426f10065c25d4a6cd	SELECT ?, ... FROM t2  	2
+a2ae9c8e7fa059a56c23fbf374f9bbf0	INSERT INTO t1 VALUES (?)  	1
+2bdc05cf41f1dcad1ad5fdd1c2fd7e0e	INSERT INTO t2 VALUES (?)  	1
+e1fa121e24d13c91ff24613842d16e32	INSERT INTO t3 VALUES (...)  	4
+5510ecc0e97b6d1aa9188088a547199a	INSERT INTO t4 VALUES (...)  	1
+3323719ba085be429d3a5234279b07c3	INSERT INTO t5 VALUES (...)  	1
+e6c0f8f0f8d04d44dda3794ab2061e1b	INSERT INTO t1 VALUES (?) /* , ... */  	2
+852534947d9cde40a6c3d48f2fc0d4d0	INSERT INTO t3 VALUES (...) /* , ... */  	1
+d14e5881e516a0473e5bf9b59b4187fa	INSERT INTO t5 VALUES (...) /* , ... */  	1
+f66f5cf36a847dec0b2802b93024e333	INSERT INTO t1 VALUES ( NULL )  	1
+bcf64101e855833ef8da11d228081d24	INSERT INTO t6 VALUES (...)  	5
+637581c6d6aecd1f6a15797db394562a	SELECT ? + ?  	3
+b9410adc8fa2e636645728777799ef08	SELECT ?  	1
+c971c8e991c110c98d36f618b0d4f080	CREATE SCHEMA statements_digest_temp  	2
+5aabfd327c59e12e5efff109687e59e5	DROP SCHEMA statements_digest_temp  	2
+d7743ff2a07606fd097c083a6aee349b	SELECT ? FROM no_such_table  	1
+66d4473e7af5bcba514b1332faa58a7c	CREATE TABLE dup_table ( c CHARACTER (?) )  	2
+40847a13faa359c0459ce381627213db	DROP TABLE dup_table  	1
+a72ca9739d93fec9590755dad143244c	INSERT INTO t11 VALUES (?)  	1
+7835f4b247c40b9d5a7f2ba9694113fd	SHOW WARNINGS  	1
+a71644386b1d46c0b958967af9ce7910	PREPARE stmt FROM ?  	1
+9bc31ccd137630c2c9e6b4062c4576a8	EXECUTE stmt  	2
+ef9b85e477b57de6271a4d75cbb33297	DEALLOCATE PREPARE stmt  	1
+1db811b4a131b1bec3e83f9997e2bbc6	CREATE PROCEDURE p1 ( ) BEGIN SELECT * FROM t12 ; END  	1
+b18d0fc42dadff72ad682bc959b25613	CALL p1 ( )  	2
+d62e3ed9596eb391e578fba07efc553e	DROP PROCEDURE p1  	1
+28ae6f9ec0791708aa61111ef93b75c4	CREATE FUNCTION `func` ( a INTEGER , b INTEGER ) RETURNS INTEGER (?) RETURN a + b  	1
+b8956d97a208621237e91bb40f5332cb	SELECT func (...)  	2
+1a877d7135862fc121e3a6ee1e1d82d4	DROP FUNCTION func  	1
+6f303dd3e5b757fdd3dd3f44427aec14	CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @ ? := ?  	1
+8ca3110e38ea79a373d18d6c3636db53	INSERT INTO t12 VALUES (?)  	2
+2b6cb73438721d25047a31ea7949038c	DROP TRIGGER trg  	1
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
 digest	digest_text
 ####################################
@@ -133,4 +173,6 @@ DROP TABLE IF EXISTS t3;
 DROP TABLE IF EXISTS t4;
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
+DROP TABLE IF EXISTS t11;
+DROP TABLE IF EXISTS t12;
 DROP DATABASE IF EXISTS statements_digest;

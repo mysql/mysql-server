@@ -41,7 +41,7 @@ class Rpl_info_factory;
   Master_info is initialized once from the master.info repository if such
   exists. Otherwise, data members corresponding to master.info fields
   are initialized with defaults specified by master-* options. The
-  initialization is done through init_info() call.
+  initialization is done through mi_init_info() call.
 
   Logically, the format of master.info repository is presented as follows:
 
@@ -282,7 +282,7 @@ public:
 
   ulong master_gtid_mode;
 
-  int init_info();
+  int mi_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   void set_relay_log_info(Relay_log_info *info);
@@ -322,6 +322,39 @@ public:
   void set_auto_position(bool auto_position_param)
   {
     auto_position= auto_position_param;
+  }
+
+private:
+  /**
+    Format_description_log_event for events received from the master
+    by the IO thread and written to the tail of the relay log.
+
+    Use patterns:
+     - Created when the IO thread starts and destroyed when the IO
+       thread stops.
+     - Updated when the IO thread receives a
+       Format_description_log_event.
+     - Accessed by the IO thread when it de-serializes events (e.g.,
+       rotate events, Gtid events).
+     - Written by the IO thread to the new relay log on every rotation.
+     - Written by a client that executes FLUSH LOGS to the new relay
+       log on every rotation.
+
+    Locks:
+    All access is protected by Master_info::data_lock.
+  */
+  Format_description_log_event *mi_description_event;
+public:
+  Format_description_log_event *get_mi_description_event()
+  {
+    mysql_mutex_assert_owner(&data_lock);
+    return mi_description_event;
+  }
+  void set_mi_description_event(Format_description_log_event *fdle)
+  {
+    mysql_mutex_assert_owner(&data_lock);
+    delete mi_description_event;
+    mi_description_event= fdle;
   }
 
 private:

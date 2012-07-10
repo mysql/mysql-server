@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -841,6 +841,7 @@ struct st_my_thread_var
 };
 
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
+extern int set_mysys_var(struct st_my_thread_var *mysys_var);
 extern void **my_thread_var_dbug();
 extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())

@@ -1,8 +1,8 @@
 set @save_binlog_checksum= @@global.binlog_checksum;
 set @@global.binlog_checksum = default;
-select @@global.binlog_checksum as 'must be NONE by default';
-must be NONE by default
-NONE
+select @@global.binlog_checksum as 'must be CRC32 by default';
+must be CRC32 by default
+CRC32
 select @@session.binlog_checksum as 'no session var';
 ERROR HY000: Variable 'binlog_checksum' is a GLOBAL variable
 set @@global.binlog_checksum = CRC32;

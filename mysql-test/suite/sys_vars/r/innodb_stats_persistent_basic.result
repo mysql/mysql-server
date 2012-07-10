@@ -1,6 +1,6 @@
 SELECT @@innodb_stats_persistent;
 @@innodb_stats_persistent
-0
+1
 SET GLOBAL innodb_stats_persistent=ON;
 SELECT @@innodb_stats_persistent;
 @@innodb_stats_persistent

@@ -1,0 +1,53 @@
+#
+# Test that the table option STATS_SAMPLE_PAGES=N|default is indeed
+# used by InnoDB
+#
+
+-- source include/have_innodb.inc
+# Page numbers printed by this test depend on the page size
+-- source include/have_innodb_16k.inc
+
+SET GLOBAL innodb_stats_persistent_sample_pages=17;
+
+CREATE TABLE test_ps_sample_pages_used (
+	a VARCHAR(512), PRIMARY KEY (a)
+) ENGINE=INNODB STATS_SAMPLE_PAGES=default;
+
+# Insert enough records into the table so that it has more than 2*17+1 pages
+# If we ask to scan more than the half of the leaf pages, then the sampling
+# will do full scan and we cannot check whether the sample_pages variable was
+# honored.
+BEGIN;
+-- disable_query_log
+let $i=999;
+while ($i) {
+	eval INSERT INTO test_ps_sample_pages_used VALUES (REPEAT(1000+$i, 128));
+	dec $i;
+}
+-- enable_query_log
+COMMIT;
+
+ANALYZE TABLE test_ps_sample_pages_used;
+
+# confirm the big number of leaf pages in the index
+SELECT stat_name, stat_value FROM mysql.innodb_index_stats
+WHERE table_name='test_ps_sample_pages_used' AND stat_name='n_leaf_pages';
+
+# confirm that 17 pages were sampled, that is - the global
+# innodb_stats_persistent_sample_pages is used when the table option
+# STATS_SAMPLE_PAGES is set to 'default'.
+SELECT sample_size FROM mysql.innodb_index_stats
+WHERE table_name='test_ps_sample_pages_used' AND stat_name='n_diff_pfx01';
+
+ALTER TABLE test_ps_sample_pages_used STATS_SAMPLE_PAGES=14;
+
+ANALYZE TABLE test_ps_sample_pages_used;
+
+# confirm that 14 pages were sampled, that is - the table option
+# STATS_SAMPLE_PAGES is used when it is set.
+SELECT sample_size FROM mysql.innodb_index_stats
+WHERE table_name='test_ps_sample_pages_used' AND stat_name='n_diff_pfx01';
+
+DROP TABLE test_ps_sample_pages_used;
+
+SET GLOBAL innodb_stats_persistent_sample_pages=default;

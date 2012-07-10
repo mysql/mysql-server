@@ -312,11 +312,11 @@ void injector::new_trans(THD *thd, injector::transaction *ptr)
 int injector::record_incident(THD *thd, Incident incident)
 {
   Incident_log_event ev(thd, incident);
-  return mysql_bin_log.write_incident(&ev, TRUE);
+  return mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/);
 }
 
 int injector::record_incident(THD *thd, Incident incident, LEX_STRING const message)
 {
   Incident_log_event ev(thd, incident, message);
-  return mysql_bin_log.write_incident(&ev, TRUE);
+  return mysql_bin_log.write_incident(&ev, true/*need_lock_log=true*/);
 }

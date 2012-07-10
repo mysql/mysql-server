@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -127,12 +127,14 @@ void Item_row::update_used_tables()
   used_tables_cache= 0;
   const_item_cache= 1;
   with_subselect= false;
+  with_stored_program= false;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
     with_subselect|= items[i]->has_subquery();
+    with_stored_program|= items[i]->has_stored_program();
   }
 }
 

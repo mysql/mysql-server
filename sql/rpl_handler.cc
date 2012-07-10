@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2010, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,8 +36,6 @@ typedef struct Trans_binlog_info {
   my_off_t log_pos;
   char log_file[FN_REFLEN];
 } Trans_binlog_info;
-
-static pthread_key(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
 
 int get_user_var_int(const char *name,
                      long long int *value, int *null_value)
@@ -142,13 +140,6 @@ int delegates_init()
   }
 #endif
 
-  if (pthread_key_create(&RPL_TRANS_BINLOG_INFO, NULL))
-  {
-    sql_print_error("Error while creating pthread specific data key for replication. "
-                    "Please report a bug.");
-    return 1;
-  }
-
   return 0;
 }
 
@@ -164,8 +155,6 @@ void delegates_destroy()
   if (binlog_relay_io_delegate)
     binlog_relay_io_delegate->~Binlog_relay_IO_delegate();
 #endif /* HAVE_REPLICATION */
-  if (RPL_TRANS_BINLOG_INFO)
-    pthread_key_delete(RPL_TRANS_BINLOG_INFO);
 }
 
 /*
@@ -229,57 +218,32 @@ void delegates_destroy()
 
 int Trans_delegate::after_commit(THD *thd, bool all)
 {
-  Trans_param param;
+  DBUG_ENTER("Trans_delegate::after_commit");
+  Trans_param param = { 0, 0, 0, 0 };
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
 
-  param.flags = is_real_trans ? TRANS_IS_REAL_TRANS : 0;
+  if (is_real_trans)
+    param.flags = true;
 
-  Trans_binlog_info *log_info=
-    my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
+  thd->get_trans_pos(&param.log_file, &param.log_pos);
 
-  param.log_file= log_info ? log_info->log_file : 0;
-  param.log_pos= log_info ? log_info->log_pos : 0;
+  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_commit, thd, (&param));
-
-  /*
-    This is the end of a real transaction or autocommit statement, we
-    can free the memory allocated for binlog file and position.
-  */
-  if (is_real_trans && log_info)
-  {
-    my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info);
-  }
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 int Trans_delegate::after_rollback(THD *thd, bool all)
 {
-  Trans_param param;
+  Trans_param param = { 0, 0, 0, 0 };
   bool is_real_trans= (all || thd->transaction.all.ha_list == 0);
 
-  param.flags = is_real_trans ? TRANS_IS_REAL_TRANS : 0;
-
-  Trans_binlog_info *log_info=
-    my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
-    
-  param.log_file= log_info ? log_info->log_file : 0;
-  param.log_pos= log_info ? log_info->log_pos : 0;
-
+  if (is_real_trans)
+    param.flags|= TRANS_IS_REAL_TRANS;
+  thd->get_trans_pos(&param.log_file, &param.log_pos);
   int ret= 0;
   FOREACH_OBSERVER(ret, after_rollback, thd, (&param));
-
-  /*
-    This is the end of a real transaction or autocommit statement, we
-    can free the memory allocated for binlog file and position.
-  */
-  if (is_real_trans && log_info)
-  {
-    my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, NULL);
-    my_free(log_info);
-  }
   return ret;
 }
 
@@ -288,29 +252,17 @@ int Binlog_storage_delegate::after_flush(THD *thd,
                                          my_off_t log_pos,
                                          bool synced)
 {
+  DBUG_ENTER("Binlog_storage_delegate::after_flush");
+  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu, synced: %s",
+                       log_file, (ulonglong) log_pos, YESNO(synced)));
   Binlog_storage_param param;
   uint32 flags=0;
   if (synced)
     flags |= BINLOG_STORAGE_IS_SYNCED;
 
-  Trans_binlog_info *log_info=
-    my_pthread_getspecific_ptr(Trans_binlog_info*, RPL_TRANS_BINLOG_INFO);
-    
-  if (!log_info)
-  {
-    if(!(log_info=
-         (Trans_binlog_info *)my_malloc(sizeof(Trans_binlog_info), MYF(0))))
-      return 1;
-    my_pthread_setspecific_ptr(RPL_TRANS_BINLOG_INFO, log_info);
-  }
-    
-  strcpy(log_info->log_file, log_file+dirname_length(log_file));
-  log_info->log_pos = log_pos;
-  
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_flush, thd,
-                   (&param, log_info->log_file, log_info->log_pos, flags));
-  return ret;
+  FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos, flags));
+  DBUG_RETURN(ret);
 }
 
 #ifdef HAVE_REPLICATION
@@ -528,7 +480,9 @@ int unregister_trans_observer(Trans_observer *observer, void *p)
 
 int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p)
 {
-  return binlog_storage_delegate->add_observer(observer, (st_plugin_int *)p);
+  DBUG_ENTER("register_binlog_storage_observer");
+  int result= binlog_storage_delegate->add_observer(observer, (st_plugin_int *)p);
+  DBUG_RETURN(result);
 }
 
 int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void *p)

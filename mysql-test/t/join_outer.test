@@ -1512,6 +1512,21 @@ eval EXPLAIN SELECT $rest_of_query;
 drop table t1,t2,t3,t4,t5,t6;
 
 --echo #
+--echo # Verify that the "not exists" optimization works.
+--echo #
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT NOT NULL);
+INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t2 VALUES(1),(2);
+let $query=SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.a IS NULL;
+eval EXPLAIN $query;
+FLUSH STATUS;
+eval $query;
+# Without the "not exists" optimization, there would be more read_rnd_next
+SHOW STATUS LIKE 'HANDLER_READ%';
+DROP TABLE t1,t2;
+
+--echo #
 --echo # Bug#13464334 SAME QUERY PRODUCES DIFFERENT RESULTS WHEN USED WITH AND
 --echo # WITHOUT UNION ALL
 --echo #
@@ -1526,3 +1541,18 @@ CREATE VIEW v2 AS SELECT * FROM t2;
 UNION (SELECT NULL LIMIT 0);
 DROP VIEW v1, v2;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#13980954 Missing data on left join + null value + where..in
+--echo #
+
+CREATE TABLE t1 (ik INT, vc varchar(1)) ENGINE=Innodb;
+
+let $query=
+SELECT straight_join t1.vc, t1.ik
+FROM t1 JOIN t1 AS t2 ON t1.vc=t2.vc LEFT JOIN t1 AS t3 ON t1.vc=t3.vc;
+
+eval explain format=json $query;
+eval $query;
+
+DROP TABLE t1;

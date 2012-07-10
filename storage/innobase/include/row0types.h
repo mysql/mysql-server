@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,7 +68,7 @@ enum row_op {
 };
 
 /** Buffer for logging modifications during online index creation */
-typedef struct row_log_struct row_log_t;
+struct row_log_t;
 
 /* MySQL data types */
 struct TABLE;

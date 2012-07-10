@@ -32,6 +32,7 @@ Created 04/12/2011 Jimmy Yang
 #include "innodb_api.h"
 #include "innodb_config.h"
 #include "innodb_cb_api.h"
+#include "innodb_utility.h"
 
 /**********************************************************************//**
 Makes a NUL-terminated copy of a nonterminated string.
@@ -83,11 +84,6 @@ innodb_config_free(
 
 		free(item->extra_col_info);
 		item->extra_col_info = NULL;
-	}
-
-	if (item->separator) {
-		free(item->separator);
-		item->separator = NULL;
 	}
 }
 
@@ -192,7 +188,7 @@ innodb_read_cache_policy(
 	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate entry in"
+		fprintf(stderr, " InnoDB_Memcached: failed to locate entry in"
 				" config table '%s' in database '%s' \n",
 			MCI_CFG_CACHE_POLICIES, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
@@ -263,7 +259,7 @@ func_exit:
 
 	innodb_cb_trx_commit(ib_trx);
 
-	return(err == DB_SUCCESS);
+	return(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 }
 
 /**********************************************************************//**
@@ -285,6 +281,7 @@ innodb_read_config_option(
 	int			i;
 	ib_ulint_t		data_len;
 	ib_col_meta_t		col_meta;
+	int			current_option = -1;
 
 	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
 	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
@@ -304,50 +301,81 @@ innodb_read_config_option(
 	err = innodb_cb_cursor_first(crsr);
 
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate entry in"
+		fprintf(stderr, " InnoDB_Memcached: failed to locate entry in"
 				" config table '%s' in database '%s' \n",
 			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
 		err = DB_ERROR;
 		goto func_exit;
 	}
 
-	err = innodb_cb_read_row(crsr, tpl);
 
-	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to read row from"
-				" config table '%s' in database '%s' \n",
-			MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
-		err = DB_ERROR;
-		goto func_exit;
-	}
+	do {
+		err = innodb_cb_read_row(crsr, tpl);
 
-	n_cols = innodb_cb_tuple_get_n_cols(tpl);
+		if (err != DB_SUCCESS) {
+			fprintf(stderr, " InnoDB_Memcached: failed to read"
+					" row from config table '%s' in"
+					" database '%s' \n",
+				MCI_CFG_CONFIG_OPTIONS, MCI_CFG_DB_NAME);
+			err = DB_ERROR;
+			goto func_exit;
+		}
 
-	assert(n_cols >= CONFIG_OPT_NUM_COLS);
+		n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
-	for (i = 0; i < CONFIG_OPT_NUM_COLS; ++i) {
-		char*	key;
+		assert(n_cols >= CONFIG_OPT_NUM_COLS);
 
-		data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
+		for (i = 0; i < CONFIG_OPT_NUM_COLS; ++i) {
+			char*	key;
 
-		assert(data_len != IB_SQL_NULL);
+			data_len = innodb_cb_col_get_meta(tpl, i, &col_meta);
 
-		if (i == CONFIG_OPT_KEY) {
-			key = (char*)innodb_cb_col_get_value(tpl, i);
+			assert(data_len != IB_SQL_NULL);
 
-			/* Currently, we only support one configure option,
-			that is the string "separator" */
-			if (strncmp(key, "separator", 9)) {
-				return(false);
+			if (i == CONFIG_OPT_KEY) {
+				int	j;
+				key = (char*)innodb_cb_col_get_value(tpl, i);
+				current_option = -1;
+
+				for (j = 0; j < OPTION_ID_NUM_OPTIONS; j++) {
+					/* Currently, we only support one
+					configure option, that is the string
+					"separator" */
+					if (strcmp(
+						key,
+						config_option_names[j].name)
+					    == 0) {
+						current_option =
+							config_option_names[j].id;
+						break;
+					}
+				}
+			}
+
+			if (i == CONFIG_OPT_VALUE && current_option >= 0) {
+				int	max_len;
+
+				/* The maximum length for delimiter is
+				MAX_DELIMITER_LEN */
+				max_len = (data_len > MAX_DELIMITER_LEN)
+					? MAX_DELIMITER_LEN
+					: data_len;
+
+				memcpy(item->options[current_option].value,
+				       innodb_cb_col_get_value(tpl, i),
+				       max_len);
+
+				item->options[current_option].value[max_len]
+					= 0;
+
+				item->options[current_option].value_len
+					= max_len;
 			}
 		}
 
-		if (i == CONFIG_OPT_VALUE) {
-			item->separator = my_strdupl(
-				(char*)innodb_cb_col_get_value(tpl, i), data_len);
-			item->sep_len = strlen(item->separator);
-		}
-	}
+		err = ib_cb_cursor_next(crsr);
+
+	} while (err == DB_SUCCESS);
 
 func_exit:
 
@@ -361,69 +389,31 @@ func_exit:
 
 	innodb_cb_trx_commit(ib_trx);
 
-	return(err == DB_SUCCESS);
+	return(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 }
 
 /**********************************************************************//**
 This function opens the "containers" configuration table, and find the
-table and column info that used for memcached data
-@return true if everything works out fine */
+table and column info that used for memcached data, and instantiates
+meta_cfg_info_t structure for such metadata.
+@return instantiated configure info item if everything works out fine,
+callers are responsible to free the memory returned by this function */
 static
-bool
-innodb_config_container(
-/*====================*/
-	meta_cfg_info_t*	item)	/*!< in: meta info structure */
+meta_cfg_info_t*
+innodb_config_add_item(
+/*===================*/
+	ib_tpl_t	tpl,		/*!< in: container row we are fetching
+					row from */
+	hash_table_t*	eng_meta_hash)	/*!< in/out: hash table to insert
+					the row */
 {
-	ib_trx_t		ib_trx;
-	ib_crsr_t		crsr = NULL;
-	ib_crsr_t		idx_crsr = NULL;
-	ib_tpl_t		tpl = NULL;
 	ib_err_t		err = DB_SUCCESS;
 	int			n_cols;
 	int			i;
 	ib_ulint_t		data_len;
+	meta_cfg_info_t*	item = NULL;
 	ib_col_meta_t		col_meta;
-
-	memset(item, 0, sizeof(*item));
-
-	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
-	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
-			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
-			       &crsr, &idx_crsr, IB_LOCK_S);
-
-	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: Please create config table"
-				"'%s' in database '%s' by running"
-				" 'scripts/innodb_config.sql. error %d'\n",
-			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
-			err);
-		err = DB_ERROR;
-		goto func_exit;
-	}
-
-	tpl = innodb_cb_read_tuple_create(crsr);
-
-	/* Currently, we support one table per memcached set up.
-	We could extend that later */
-	err = innodb_cb_cursor_first(crsr);
-
-	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate entry in"
-				" config table '%s' in database '%s' \n",
-			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
-		err = DB_ERROR;
-		goto func_exit;
-	}
-
-	err = innodb_cb_read_row(crsr, tpl);
-
-	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to read row from"
-				" config table '%s' in database '%s' \n",
-			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
-		err = DB_ERROR;
-		goto func_exit;
-	}
+	int			fold;
 
 	n_cols = innodb_cb_tuple_get_n_cols(tpl);
 
@@ -436,6 +426,10 @@ innodb_config_container(
 		err = DB_ERROR;
 		goto func_exit;
 	}
+
+	item = malloc(sizeof(*item));
+
+	memset(item, 0, sizeof(*item));
 
 	/* Get the column mappings (column for each memcached data */
 	for (i = 0; i < CONTAINER_NUM_COLS; ++i) {
@@ -451,8 +445,6 @@ innodb_config_container(
 
 			err = DB_ERROR;
 			goto func_exit;
-
-
 		}
 
 		item->col_info[i].col_name_len = data_len;
@@ -481,6 +473,100 @@ innodb_config_container(
 	item->index_info.idx_name = my_strdupl((char*)innodb_cb_col_get_value(
 						tpl, i), data_len);
 
+	if (!innodb_verify(item)) {
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	fold = ut_fold_string(item->col_info[0].col_name);
+	HASH_INSERT(meta_cfg_info_t, name_hash, eng_meta_hash, fold, item);
+
+func_exit:
+	if (err != DB_SUCCESS && item) {
+		free(item);
+		item = NULL;
+	}
+
+	return(item);
+}
+
+/**********************************************************************//**
+This function opens the "containers" table, reads in all rows and
+instantiates the metadata hash table.
+@return the default configuration setting (whose mapping name is "default") */
+meta_cfg_info_t*
+innodb_config_meta_hash_init(
+/*=========================*/
+	hash_table_t*	meta_hash)	/*!< in/out: InnoDB Memcached engine */
+{
+	ib_trx_t		ib_trx;
+	ib_crsr_t		crsr = NULL;
+	ib_crsr_t		idx_crsr = NULL;
+	ib_tpl_t		tpl = NULL;
+	ib_err_t		err = DB_SUCCESS;
+	meta_cfg_info_t*        default_item = NULL;
+
+	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
+			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
+			       &crsr, &idx_crsr, IB_LOCK_S);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: Please create config table"
+				"'%s' in database '%s' by running"
+				" 'scripts/innodb_config.sql. error %d'\n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
+			err);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	tpl = innodb_cb_read_tuple_create(crsr);
+
+	/* If name field is NULL, just read the first row */
+	err = innodb_cb_cursor_first(crsr);
+
+	while (err == DB_SUCCESS) {
+		meta_cfg_info_t*        item;
+
+		err = innodb_cb_read_row(crsr, tpl);
+
+		if (err != DB_SUCCESS) {
+			fprintf(stderr, " InnoDB_Memcached: failed to read row"
+					" from config table '%s' in database"
+					" '%s' \n",
+				MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
+			err = DB_ERROR;
+			goto func_exit;
+		}
+
+		item = innodb_config_add_item(tpl, meta_hash);
+
+		/* First initialize default setting to be the first row
+		of the table */
+		/* If there are any setting whose name is "default",
+		then set default_item to point to this setting, otherwise
+		point it to the first row of the table */
+		if (default_item == NULL
+		    || (item && strcmp(item->col_info[0].col_name,
+				       "default") == 0)) {
+			default_item = item;
+		}
+
+		err = ib_cb_cursor_next(crsr);
+	}
+
+	if (err == DB_END_OF_INDEX) {
+		err = DB_SUCCESS;
+	}
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: failed to locate entry in"
+				" config table '%s' in database '%s' \n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
+		err = DB_ERROR;
+	}
+
 func_exit:
 
 	if (crsr) {
@@ -493,7 +579,191 @@ func_exit:
 
 	innodb_cb_trx_commit(ib_trx);
 
-	return(err == DB_SUCCESS);
+	return(default_item);
+}
+
+/**********************************************************************//**
+This function opens the "containers" configuration table, and find the
+table and column info that used for memcached data
+@return true if everything works out fine */
+static
+meta_cfg_info_t*
+innodb_config_container(
+/*====================*/
+	const char*		name,	/*!< in: option name to look for */
+	size_t			name_len,/*!< in: option name length */
+	hash_table_t*		meta_hash) /*!< in: engine hash table */
+{
+	ib_trx_t		ib_trx;
+	ib_crsr_t		crsr = NULL;
+	ib_crsr_t		idx_crsr = NULL;
+	ib_tpl_t		tpl = NULL;
+	ib_err_t		err = DB_SUCCESS;
+	int			n_cols;
+	int			i;
+	ib_ulint_t		data_len;
+	ib_col_meta_t		col_meta;
+	ib_tpl_t		read_tpl = NULL;
+	meta_cfg_info_t*	item = NULL;
+
+	if (name != NULL) {
+		ib_ulint_t	fold;
+
+		assert(meta_hash);
+
+		fold = ut_fold_string(name);
+		HASH_SEARCH(name_hash, meta_hash, fold,
+			    meta_cfg_info_t*, item,
+			    (name_len == item->col_info[0].col_name_len
+			     && strcmp(name, item->col_info[0].col_name) == 0));
+
+		if (item) {
+			return(item);
+		}
+	}
+
+	ib_trx = innodb_cb_trx_begin(IB_TRX_READ_COMMITTED);
+	err = innodb_api_begin(NULL, MCI_CFG_DB_NAME,
+			       MCI_CFG_CONTAINER_TABLE, NULL, ib_trx,
+			       &crsr, &idx_crsr, IB_LOCK_S);
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: Please create config table"
+				"'%s' in database '%s' by running"
+				" 'scripts/innodb_config.sql. error %d'\n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
+			err);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	if (!name) {
+		tpl = innodb_cb_read_tuple_create(crsr);
+
+		/* If name field is NULL, just read the first row */
+		err = innodb_cb_cursor_first(crsr);
+	} else {
+		/* User supplied a config option name, find it */
+		tpl = ib_cb_search_tuple_create(crsr);
+
+		err = ib_cb_col_set_value(tpl, 0, name, name_len);
+
+		ib_cb_cursor_set_match_mode(crsr, IB_EXACT_MATCH);
+		err = ib_cb_moveto(crsr, tpl, IB_CUR_GE);
+	}
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: failed to locate entry in"
+				" config table '%s' in database '%s' \n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	if (!name) {
+		read_tpl = tpl;
+		err = innodb_cb_read_row(crsr, tpl);
+	} else {
+		read_tpl = ib_cb_read_tuple_create(crsr);
+
+		err = ib_cb_read_row(crsr, read_tpl);
+	}
+
+	if (err != DB_SUCCESS) {
+		fprintf(stderr, " InnoDB_Memcached: failed to read row from"
+				" config table '%s' in database '%s' \n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	n_cols = innodb_cb_tuple_get_n_cols(read_tpl);
+
+	if (n_cols < CONTAINER_NUM_COLS) {
+		fprintf(stderr, " InnoDB_Memcached: config table '%s' in"
+				" database '%s' has only %d column(s),"
+				" server is expecting %d columns\n",
+			MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME,
+			n_cols, CONTAINER_NUM_COLS);
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	item = malloc(sizeof(*item));
+	memset(item, 0, sizeof(*item));
+
+	/* Get the column mappings (column for each memcached data */
+	for (i = 0; i < CONTAINER_NUM_COLS; ++i) {
+
+		data_len = innodb_cb_col_get_meta(read_tpl, i, &col_meta);
+
+		if (data_len == IB_SQL_NULL) {
+			fprintf(stderr, " InnoDB_Memcached: column %d in"
+					" the entry for config table '%s' in"
+					" database '%s' has an invalid"
+					" NULL value\n",
+				i, MCI_CFG_CONTAINER_TABLE, MCI_CFG_DB_NAME);
+
+			err = DB_ERROR;
+			goto func_exit;
+
+
+		}
+
+		item->col_info[i].col_name_len = data_len;
+
+		item->col_info[i].col_name = my_strdupl(
+			(char*)innodb_cb_col_get_value(read_tpl, i), data_len);
+
+		item->col_info[i].field_id = -1;
+
+		if (i == CONTAINER_VALUE) {
+			innodb_config_parse_value_col(
+				item, item->col_info[i].col_name, data_len);
+		}
+	}
+
+	/* Last column is about the unique index name on key column */
+	data_len = innodb_cb_col_get_meta(read_tpl, i, &col_meta);
+
+	if (data_len == IB_SQL_NULL) {
+		fprintf(stderr, " InnoDB_Memcached: There must be a unique"
+				" index on memcached table's key column\n");
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
+	item->index_info.idx_name = my_strdupl((char*)innodb_cb_col_get_value(
+						read_tpl, i), data_len);
+
+	if (!innodb_verify(item)) {
+		err = DB_ERROR;
+	}
+
+func_exit:
+
+	if (crsr) {
+		innodb_cb_cursor_close(crsr);
+	}
+
+	if (tpl) {
+		innodb_cb_tuple_delete(tpl);
+	}
+
+	innodb_cb_trx_commit(ib_trx);
+
+	if (err != DB_SUCCESS) {
+		free(item);
+		item = NULL;
+	} else {
+		ib_ulint_t	fold;
+
+		fold = ut_fold_string(item->col_info[0].col_name);
+		HASH_INSERT(
+			meta_cfg_info_t, name_hash, meta_hash, fold, item);
+	}
+
+	return(item);
 }
 
 /**********************************************************************//**
@@ -667,7 +937,7 @@ innodb_verify_low(
 
 	/* Key column and Value column must present */
 	if (!is_key_col || !is_value_col) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate key"
+		fprintf(stderr, " InnoDB_Memcached: failed to locate key"
 				" column or value column in table"
 				" as specified by config table \n");
 
@@ -684,7 +954,7 @@ innodb_verify_low(
 
 		for (i = 0; i < info->n_extra_col; i++) {
 			if (col_check[i].field_id < 0) {
-				fprintf(stderr, " InnoDB_Memcached: fail to"
+				fprintf(stderr, " InnoDB_Memcached: failed to"
 						" locate value column %s"
 						" as specified by config"
 						" table \n",
@@ -696,19 +966,21 @@ innodb_verify_low(
 	}
 
 	if (info->flag_enabled && !is_flag_col) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate flag"
-				" column as specified by config table \n");
-		err = DB_ERROR;
-		goto func_exit;
-	}			
-	if (info->cas_enabled && !is_cas_col) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate cas"
+		fprintf(stderr, " InnoDB_Memcached: failed to locate flag"
 				" column as specified by config table \n");
 		err = DB_ERROR;
 		goto func_exit;
 	}
+
+	if (info->cas_enabled && !is_cas_col) {
+		fprintf(stderr, " InnoDB_Memcached: failed to locate cas"
+				" column as specified by config table \n");
+		err = DB_ERROR;
+		goto func_exit;
+	}
+
 	if (info->exp_enabled && !is_exp_col) {
-		fprintf(stderr, " InnoDB_Memcached: fail to locate exp"
+		fprintf(stderr, " InnoDB_Memcached: failed to locate exp"
 				" column as specified by config table \n");
 		err = DB_ERROR;
 		goto func_exit;
@@ -741,7 +1013,7 @@ innodb_verify_low(
 
 		n_cols = ib_cb_get_n_user_cols(idx_tpl);
 
-		name = innodb_cb_col_get_name(idx_crsr, 0);
+		name = ib_cb_get_idx_field_name(idx_crsr, 0);
 
 		if (strcmp(name, cinfo[CONTAINER_KEY].col_name)) {
 			fprintf(stderr, " InnoDB_Memcached: Index used"
@@ -802,7 +1074,7 @@ innodb_verify(
 
 	/* Mapped InnoDB table must be able to open */
 	if (err != DB_SUCCESS) {
-		fprintf(stderr, " InnoDB_Memcached: fail to open table"
+		fprintf(stderr, " InnoDB_Memcached: failed to open table"
 				" '%s' \n", table_name);
 		err = DB_ERROR;
 		goto func_exit;
@@ -818,28 +1090,53 @@ func_exit:
 }
 
 /**********************************************************************//**
-This function opens the default configuration table, and find the
-table and column info that used for InnoDB Memcached, and set up
-InnoDB Memcached's meta_cfg_info_t structure
-@return true if everything works out fine */
-bool
+If the hash table (meta_hash) is NULL, then initialise the hash table with
+data in the configure tables. And return the "default" item.  If there is
+no setting named "default" then use the first row in the table. This is
+currently only used at the engine initialization time.
+If the hash table (meta_hash) is created, then look for the meta-data based on
+specified configuration name parameter. If such metadata does not exist in
+the hash table, then add such metadata into hash table.
+@return meta_cfg_info_t* structure if configure option found, otherwise NULL */
+meta_cfg_info_t*
 innodb_config(
 /*==========*/
-	meta_cfg_info_t*	item)		/*!< out: meta info structure */
+	const char*		name,		/*!< in: config option name */
+	size_t			name_len,	/*!< in: name length */
+	hash_table_t**		meta_hash)	/*!< in/out: engine hash
+						table. If NULL, it will be
+						created and initialized */
 {
-	if (!innodb_config_container(item)) {
-		return(false);
+	meta_cfg_info_t*	item;
+	bool			success;
+
+	if (*meta_hash == NULL) {
+		*meta_hash = hash_create(100);
 	}
 
-	if (!innodb_verify(item)) {
-		return(false);
+	if (!name) {
+		item = innodb_config_meta_hash_init(*meta_hash);
+	} else {
+		item = innodb_config_container(name, name_len, *meta_hash);
+	}
+
+	if (!item) {
+		return(NULL);
 	}
 
 	/* Following two configure operations are optional, and can be
-        failed */
-        innodb_read_cache_policy(item);
+	failed */
+	success = innodb_read_cache_policy(item);
 
-        innodb_read_config_option(item);
+	if (!success) {
+		return(NULL);
+	}
 
-	return(true);
+	success = innodb_read_config_option(item);
+
+	if (!success) {
+		return(NULL);
+	}
+
+	return(item);
 }

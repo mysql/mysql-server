@@ -65,8 +65,6 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
 */
 #define TEMP_FILE_MAX_LEN UUID_LENGTH+38 
 
-#define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
-
 /**
    Either assert or return an error.
 
@@ -311,6 +309,13 @@ struct sql_ex_info
   EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN + /*write_post_header_for_derived */ \
   MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
   NAME_LEN + 1)
+
+/*
+  The new option is added to handle large packets that are sent from the master 
+  to the slave. It is used to increase the thd(max_allowed) for both the
+  DUMP thread on the master and the SQL/IO thread on the slave. 
+*/
+#define MAX_MAX_ALLOWED_PACKET 1024*1024*1024
 
 /* 
    Event header offsets; 
@@ -4076,8 +4081,6 @@ protected:
   List<uchar> m_distinct_key_list;
   List_iterator_fast<uchar> m_itr;
 
-  int find_row(const Relay_log_info *const);
-
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
                          MY_BITMAP const *cols)
@@ -4803,12 +4806,12 @@ public:
     if (spec.gtid.sidno < 0)
     {
       if (need_lock)
-        global_sid_lock.rdlock();
+        global_sid_lock->rdlock();
       else
-        global_sid_lock.assert_some_lock();
-      spec.gtid.sidno= global_sid_map.add_sid(sid);
+        global_sid_lock->assert_some_lock();
+      spec.gtid.sidno= global_sid_map->add_sid(sid);
       if (need_lock)
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
     }
     return spec.gtid.sidno;
   }
@@ -4939,6 +4942,28 @@ inline bool is_gtid_event(Log_event* evt)
 {
   return (evt->get_type_code() == GTID_LOG_EVENT ||
           evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
+}
+
+inline ulong version_product(const uchar* version_split)
+{
+  return ((version_split[0] * 256 + version_split[1]) * 256
+          + version_split[2]);
+}
+
+inline void do_server_version_split(char* version, uchar split_versions[3])
+{
+  char *p= version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    split_versions[i]= (uchar) number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
 }
 
 /**

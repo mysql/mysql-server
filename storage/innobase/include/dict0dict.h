@@ -63,6 +63,40 @@ dict_get_db_name_len(
 	const char*	name)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
+/*********************************************************************//**
+Open a table from its database and table name, this is currently used by
+foreign constraint parser to get the referenced table.
+@return complete table name with database and table name, allocated from
+heap memory passed in */
+UNIV_INTERN
+char*
+dict_get_referenced_table(
+/*======================*/
+	const char*	name,		/*!< in: foreign key table name */
+	const char*	database_name,	/*!< in: table db name */
+	ulint		database_name_len,/*!< in: db name length */
+	const char*	table_name,	/*!< in: table name */
+	ulint		table_name_len,	/*!< in: table name length */
+	dict_table_t**	table,		/*!< out: table object or NULL */
+	mem_heap_t*	heap);		/*!< in: heap memory */
+/*********************************************************************//**
+Frees a foreign key struct. */
+UNIV_INTERN
+void
+dict_foreign_free(
+/*==============*/
+	dict_foreign_t*	foreign);	/*!< in, own: foreign key struct */
+/*********************************************************************//**
+Finds the highest [number] for foreign key constraints of the table. Looks
+only at the >= 4.0.18-format id's, which are of the form
+databasename/tablename_ibfk_[number].
+@return highest number, 0 if table has no new format foreign key constraints */
+UNIV_INTERN
+ulint
+dict_table_get_highest_foreign_id(
+/*==============================*/
+	dict_table_t*	table);		/*!< in: table in the dictionary
+					memory cache */
 /********************************************************************//**
 Return the end of table name where we have removed dbname and '/'.
 @return	table name */
@@ -326,7 +360,7 @@ dict_table_remove_from_cache(
 Renames a table object.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+dberr_t
 dict_table_rename_in_cache(
 /*=======================*/
 	dict_table_t*	table,		/*!< in/out: table */
@@ -498,6 +532,7 @@ dict_table_open_on_name(
 			ignore_err)	/*!< in: error to be ignored when
 					loading the table */
 	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Tries to find an index whose first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
@@ -535,28 +570,12 @@ dict_table_get_col_name(
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
-Prints a table definition. */
+Prints a table data. */
 UNIV_INTERN
 void
 dict_table_print(
 /*=============*/
 	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Prints a table data. */
-UNIV_INTERN
-void
-dict_table_print_low(
-/*=================*/
-	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Prints a table data when we know the table name. */
-UNIV_INTERN
-void
-dict_table_print_by_name(
-/*=====================*/
-	const char*	name)	/*!< in: table name */
 	__attribute__((nonnull));
 /**********************************************************************//**
 Outputs info on foreign keys of a table. */
@@ -594,6 +613,32 @@ dict_index_name_print(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: index to print */
 	__attribute__((nonnull(1,3)));
+/*********************************************************************//**
+Tries to find an index whose first fields are the columns in the array,
+in the same order and is not marked for deletion and is not the same
+as types_idx.
+@return	matching index, NULL if not found */
+UNIV_INTERN
+bool
+dict_foreign_qualify_index(
+/*====================*/
+	const dict_table_t*	table,	/*!< in: table */
+	const char**		columns,/*!< in: array of column names */
+	ulint			n_cols,	/*!< in: number of columns */
+	const dict_index_t*	index,	/*!< in: index to check */
+	const dict_index_t*	types_idx,
+					/*!< in: NULL or an index
+					whose types the column types
+					must match */
+	ibool			check_charsets,
+					/*!< in: whether to check
+					charsets.  only has an effect
+					if types_idx != NULL */
+	ulint			check_null)
+					/*!< in: nonzero if none of
+					the columns must be declared
+					NOT NULL */
+	__attribute__((nonnull(1,2), warn_unused_result));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the first index on the table (the clustered index).
@@ -601,6 +646,15 @@ Gets the first index on the table (the clustered index).
 UNIV_INLINE
 dict_index_t*
 dict_table_get_first_index(
+/*=======================*/
+	const dict_table_t*	table)	/*!< in: table */
+	__attribute__((nonnull, warn_unused_result));
+/********************************************************************//**
+Gets the last index on the table.
+@return	index, NULL if none exists */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_last_index(
 /*=======================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, warn_unused_result));
@@ -615,6 +669,7 @@ dict_table_get_next_index(
 	__attribute__((nonnull, warn_unused_result));
 #else /* UNIV_DEBUG */
 # define dict_table_get_first_index(table) UT_LIST_GET_FIRST((table)->indexes)
+# define dict_table_get_last_index(table) UT_LIST_GET_LAST((table)->indexes)
 # define dict_table_get_next_index(index) UT_LIST_GET_NEXT(indexes, index)
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
@@ -821,7 +876,8 @@ dict_tf_set(
 /*========*/
 	ulint*		flags,		/*!< in/out: table */
 	rec_format_t	format,		/*!< in: file format */
-	ulint		zip_ssize)	/*!< in: zip shift size */
+	ulint		zip_ssize,	/*!< in: zip shift size */
+	bool		remote_path)	/*!< in: table uses DATA DIRECTORY */
 	__attribute__((nonnull));
 /********************************************************************//**
 Convert a 32 bit integer table flags to the 32 bit integer that is
@@ -1308,23 +1364,26 @@ enum online_index_status
 dict_index_get_online_status(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: secondary index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Sets the status of online index creation. */
 UNIV_INLINE
 void
 dict_index_set_online_status(
 /*=========================*/
-	dict_index_t*			index,	/*!< in/out: secondary index */
+	dict_index_t*			index,	/*!< in/out: index */
 	enum online_index_status	status)	/*!< in: status */
 	__attribute__((nonnull));
 /********************************************************************//**
 Determines if a secondary index is being or has been created online,
-allowing concurrent modifications to the table.
-@retval TRUE if the index is being or has been built online
-@retval FALSE if the index has been created completely */
+or if the table is being rebuilt online, allowing concurrent modifications
+to the table.
+@retval true if the index is being or has been built online, or
+if this is a clustered index and the table is being or has been rebuilt online
+@retval false if the index has been created or the table has been
+rebuilt completely */
 UNIV_INLINE
-ibool
+bool
 dict_index_is_online_ddl(
 /*=====================*/
 	const dict_index_t*	index)	/*!< in: index */
@@ -1472,10 +1531,16 @@ dict_move_to_mru(
 /*=============*/
 	dict_table_t*	table)	/*!< in: table to move to MRU */
 	__attribute__((nonnull));
+
+/** Maximum number of columns in a foreign key constraint. Please Note MySQL
+has a much lower limit on the number of columns allowed in a foreign key
+constraint */
+#define MAX_NUM_FK_COLUMNS		500
+
 /* Buffers for storing detailed information about the latest foreign key
 and unique key errors */
 extern FILE*	dict_foreign_err_file;
-extern mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
+extern ib_mutex_t	dict_foreign_err_mutex; /* mutex protecting the buffers */
 
 /** the dictionary system */
 extern dict_sys_t*	dict_sys;
@@ -1484,7 +1549,7 @@ extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
 struct dict_sys_struct{
-	mutex_t		mutex;		/*!< mutex protecting the data
+	ib_mutex_t		mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
 					this mutex serializes CREATE TABLE
@@ -1557,6 +1622,14 @@ struct dict_table_schema_struct {
 	dict_col_meta_t*	columns;	/* metadata for the columns;
 						this array has n_cols
 						elements */
+	ulint			n_foreign;	/* number of foreign keys this
+						table has, pointing to other
+						tables (where this table is
+						FK child) */
+	ulint			n_referenced;	/* number of foreign keys other
+						tables have, pointing to this
+						table (where this table is
+						parent) */
 };
 typedef struct dict_table_schema_struct dict_table_schema_t;
 /* @} */
@@ -1588,7 +1661,7 @@ UNIV_INTERN
 void
 dict_close(void);
 /*============*/
-
+#ifndef UNIV_HOTBACKUP
 /**********************************************************************//**
 Check whether the table is corrupted.
 @return	nonzero for corrupted table, zero for valid tables */
@@ -1597,7 +1670,7 @@ ulint
 dict_table_is_corrupted(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 /**********************************************************************//**
 Check whether the index is corrupted.
@@ -1607,8 +1680,9 @@ ulint
 dict_index_is_corrupted(
 /*====================*/
 	const dict_index_t*	index)	/*!< in: index */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
+#endif /* !UNIV_HOTBACKUP */
 /**********************************************************************//**
 Flags an index and table corrupted both in the data dictionary cache
 and in the system table SYS_INDEXES. */

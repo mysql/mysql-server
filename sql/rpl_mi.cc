@@ -117,6 +117,7 @@ Master_info::Master_info(
    received_heartbeats(0), last_heartbeat(0), master_id(0),
    checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
    retry_count(master_retry_count), master_gtid_mode(0),
+   mi_description_event(NULL),
    auto_position(false)
 {
   host[0] = 0; user[0] = 0; bind_addr[0] = 0;
@@ -133,6 +134,7 @@ Master_info::Master_info(
 Master_info::~Master_info()
 {
   delete ignore_server_ids;
+  delete mi_description_event;
 }
 
 /**
@@ -283,13 +285,14 @@ void Master_info::set_relay_log_info(Relay_log_info* info)
   rli= info;
 }
 
-int Master_info::init_info()
+
+/**
+  Creates or reads information from the repository, initializing the
+  Master_info.
+*/
+int Master_info::mi_init_info()
 {
-  /*
-    The init_info() is used to either create or read information
-    from the repository, in order to initialize the Master_info.
-  */
-  DBUG_ENTER("Master_info::init_info");
+  DBUG_ENTER("Master_info::mi_init_info");
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
 
   if (inited)

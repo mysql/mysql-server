@@ -17,6 +17,9 @@ SET @before_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
 WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
 AND (OBJECT_NAME LIKE '%t1.MYD'));
+SELECT (@before_count >= 0) as have_before_count;
+have_before_count
+1
 SELECT IF(@before_count > 0, 'Success', 'Failure') has_instrumentation;
 has_instrumentation
 Success
@@ -29,6 +32,9 @@ SET @after_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
 WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
 AND (OBJECT_NAME LIKE '%t1.MYD') AND (1 = 1));
+SELECT (@after_count >= 0) as have_after_count;
+have_after_count
+1
 SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_ff1_timed;
 test_ff1_timed
 Success
@@ -37,6 +43,9 @@ SET @before_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
 WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
 AND (OBJECT_NAME LIKE '%t1.MYD') AND (2 = 2));
+SELECT (@before_count >= 0) as have_before_count;
+have_before_count
+1
 SELECT * FROM t1 WHERE id < 6;
 id	b
 1	initial value
@@ -48,6 +57,9 @@ SET @after_count = (SELECT SUM(TIMER_WAIT)
 FROM performance_schema.events_waits_history_long
 WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
 AND (OBJECT_NAME LIKE '%t1.MYD') AND (3 = 3));
+SELECT (@after_count >= 0) as have_after_count;
+have_after_count
+1
 SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_ff2_timed;
 test_ff2_timed
 Success

@@ -551,7 +551,8 @@ Item::save_str_value_in_field(Field *field, String *result)
 Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false)
+  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false),
+  with_stored_program(false), tables_locked_cache(false)
 {
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
@@ -599,7 +600,9 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
-  with_subselect(item->with_subselect)
+  with_subselect(item->with_subselect),
+  with_stored_program(item->with_stored_program),
+  tables_locked_cache(item->tables_locked_cache)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -712,6 +715,7 @@ void Item::cleanup()
   DBUG_ENTER("Item::cleanup");
   fixed=0;
   marker= 0;
+  tables_locked_cache= false;
   if (orig_name.is_set())
     item_name= orig_name;
   DBUG_VOID_RETURN;
@@ -4143,16 +4147,18 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-
+    item_type= Item::STRING_ITEM;
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
+    item_type= Item::REAL_ITEM;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
+    item_type= Item::INT_ITEM;
     break;
 
   case DECIMAL_RESULT:
@@ -4164,6 +4170,7 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
+    item_type= Item::DECIMAL_ITEM;
     break;
   }
 
@@ -4173,11 +4180,11 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
     DBUG_ASSERT(TRUE);  // Abort in debug mode.
 
     set_null();         // Set to NULL in release mode.
+    item_type= Item::NULL_ITEM;
     return FALSE;
   }
 
   item_result_type= arg->result_type();
-  item_type= arg->type();
   return FALSE;
 }
 
@@ -5440,11 +5447,23 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   }
 #endif
   fixed= 1;
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !outer_fixed && !thd->lex->in_sum_func &&
+  if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select->cur_pos_in_all_fields !=
       SELECT_LEX::ALL_FIELDS_UNDEF_POS)
-    push_to_non_agg_fields(thd->lex->current_select);
+  {
+    // See same code in Field_iterator_table::create_item()
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      push_to_non_agg_fields(thd->lex->current_select);
+    /*
+      If (1) aggregation (2) without grouping, we may have to return a result
+      row even if the nested loop finds nothing; in this result row,
+      non-aggregated table columns present in the SELECT list will show a NULL
+      value even if the table column itself is not nullable.
+    */
+    if (thd->lex->current_select->with_sum_func && // (1)
+        !thd->lex->current_select->group_list.elements) // (2)
+      maybe_null= true;
+  }
 
 mark_non_agg_field:
   if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
@@ -5860,6 +5879,34 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
     item->collation.collation= save_item_cs;
   return res;
 }  
+
+
+/**
+  Check if it is OK to evaluate the item now.
+
+  @return true if the item can be evaluated in the current statement state.
+    @retval true  The item can be evaluated now.
+    @retval false The item can not be evaluated now,
+                  (i.e. depend on non locked table).
+
+  @note Help function to avoid optimize or exec call during prepare phase.
+*/
+
+bool Item::can_be_evaluated_now() const
+{
+  DBUG_ENTER("Item::can_be_evaluated_now");
+
+  if (tables_locked_cache)
+    DBUG_RETURN(true);
+
+  if (has_subquery() || has_stored_program())
+    const_cast<Item*>(this)->tables_locked_cache=
+                               current_thd->lex->is_query_tables_locked();
+  else
+    const_cast<Item*>(this)->tables_locked_cache= true;
+
+  DBUG_RETURN(tables_locked_cache);
+}
 
 
 /**
@@ -9452,4 +9499,3 @@ void view_error_processor(THD *thd, void *data)
 {
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
-

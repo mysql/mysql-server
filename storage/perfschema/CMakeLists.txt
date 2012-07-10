@@ -118,6 +118,10 @@ table_tiws_by_index_usage.h
 table_tiws_by_table.h
 table_tlws_by_table.h
 table_users.h
+cursor_by_thread_connect_attr.h
+table_session_connect.h
+table_session_connect_attrs.h
+table_session_account_connect_attrs.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -126,6 +130,7 @@ ha_perfschema.cc
 pfs.cc
 pfs_account.cc
 pfs_atomic.cc
+pfs_autosize.cc
 pfs_check.cc
 pfs_column_values.cc
 pfs_con_slice.cc
@@ -189,6 +194,10 @@ table_tiws_by_index_usage.cc
 table_tiws_by_table.cc
 table_tlws_by_table.cc
 table_users.cc
+cursor_by_thread_connect_attr.cc
+table_session_connect.cc
+table_session_connect_attrs.cc
+table_session_account_connect_attrs.cc
 )
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY)

@@ -221,7 +221,6 @@ if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
 if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
 {
   --disable_query_log
-  --connection slave
   SET SQL_LOG_BIN=0;
 
   # On server startup, the slave info tables are initialized,
@@ -243,12 +242,20 @@ if (`SELECT @@GLOBAL.relay_log_info_repository = 'TABLE'`)
   --eval UPDATE mysql.slave_relay_log_info SET Relay_log_name='$slave_datadir$path_separator$new_relay_log_name'
   SET SQL_LOG_BIN=1;
 
-  --let path_separator=
+  --let $path_separator=
   --let $relay_log_name=
   --let $new_relay_log_name=
   --let $relocate_fix_relay_log_info=
 
   --enable_query_log
+
+  # Due to changes on slave start procedure (relay log initialization
+  # error requires RESET SLAVE or server restart) we need to restart
+  # server to relay log file change be considered.
+  --let $include_silent= 1
+  --let $rpl_server_number= 2
+  --source include/rpl_restart_server.inc
+  --let $include_silent= 0
 }
 
 # The slave will restart if we have fixed the relay-log.info

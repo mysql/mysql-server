@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -245,33 +245,36 @@ page_cur_tuple_insert(
 	page_cur_t*	cursor,	/*!< in/out: a page cursor */
 	const dtuple_t*	tuple,	/*!< in: pointer to a data tuple */
 	dict_index_t*	index,	/*!< in: record descriptor */
+	ulint**		offsets,/*!< out: offsets on *rec */
+	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 {
-	mem_heap_t*	heap;
-	ulint*		offsets;
 	ulint		size
 		= rec_get_converted_size(index, tuple, n_ext);
 	rec_t*		rec;
 
-	heap = mem_heap_create(size
-			       + (4 + REC_OFFS_HEADER_SIZE
-				  + dtuple_get_n_fields(tuple))
-			       * sizeof *offsets);
-	rec = rec_convert_dtuple_to_rec((byte*) mem_heap_alloc(heap, size),
+	if (!*heap) {
+		*heap = mem_heap_create(size
+					+ (4 + REC_OFFS_HEADER_SIZE
+					   + dtuple_get_n_fields(tuple))
+					* sizeof **offsets);
+	}
+
+	rec = rec_convert_dtuple_to_rec((byte*) mem_heap_alloc(*heap, size),
 					index, tuple, n_ext);
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+	*offsets = rec_get_offsets(
+		rec, index, *offsets, ULINT_UNDEFINED, heap);
 
 	if (buf_block_get_page_zip(cursor->block)) {
 		rec = page_cur_insert_rec_zip(&cursor->rec, cursor->block,
-					      index, rec, offsets, mtr);
+					      index, rec, *offsets, mtr);
 	} else {
 		rec = page_cur_insert_rec_low(cursor->rec,
-					      index, rec, offsets, mtr);
+					      index, rec, *offsets, mtr);
 	}
 
-	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, offsets));
-	mem_heap_free(heap);
+	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, *offsets));
 	return(rec);
 }
 #endif /* !UNIV_HOTBACKUP */

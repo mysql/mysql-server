@@ -39,7 +39,7 @@ typedef struct st_slave_info
 void init_slave_list();
 void end_slave_list();
 int register_slave(THD* thd, uchar* packet, uint packet_length);
-void unregister_slave(THD* thd, bool only_mine, bool need_mutex);
+void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list);
 bool show_slave_hosts(THD* thd);
 bool com_binlog_dump_gtid(THD *thd, char *packet);
 bool com_binlog_dump(THD *thd, char *packet);

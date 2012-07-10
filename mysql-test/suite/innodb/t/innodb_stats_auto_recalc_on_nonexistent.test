@@ -1,0 +1,85 @@
+#
+# Test the persistent stats auto recalc when persistent stats do not exist
+#
+
+-- source include/have_innodb.inc
+
+-- vertical_results
+
+-- let $check_stats1 = SELECT COUNT(*) FROM mysql.innodb_table_stats WHERE table_name = 't'
+-- let $check_stats2 = SELECT COUNT(*) FROM mysql.innodb_index_stats WHERE table_name = 't'
+
+-- echo Test with default setting
+
+CREATE TABLE t (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+
+# the CREATE should have inserted zeroed stats
+-- eval $check_stats1
+-- eval $check_stats2
+
+# close the table
+FLUSH TABLE t;
+
+DELETE FROM mysql.innodb_index_stats WHERE table_name = 't';
+DELETE FROM mysql.innodb_table_stats WHERE table_name = 't';
+
+-- eval $check_stats1
+-- eval $check_stats2
+
+# open the table, causing stats recalc/save
+SELECT * FROM t;
+
+-- eval $check_stats1
+-- eval $check_stats2
+
+DROP TABLE t;
+
+-- echo Test with explicit enable
+
+CREATE TABLE t (a INT, PRIMARY KEY (a)) ENGINE=INNODB STATS_AUTO_RECALC=1;
+
+# the CREATE should have inserted zeroed stats
+-- eval $check_stats1
+-- eval $check_stats2
+
+# close the table
+FLUSH TABLE t;
+
+DELETE FROM mysql.innodb_index_stats WHERE table_name = 't';
+DELETE FROM mysql.innodb_table_stats WHERE table_name = 't';
+
+-- eval $check_stats1
+-- eval $check_stats2
+
+# open the table, causing stats recalc/save
+SELECT * FROM t;
+
+-- eval $check_stats1
+-- eval $check_stats2
+
+DROP TABLE t;
+
+-- echo Test with explicit disable
+
+CREATE TABLE t (a INT, PRIMARY KEY (a)) ENGINE=INNODB STATS_AUTO_RECALC=0;
+
+# the CREATE should have inserted zeroed stats
+-- eval $check_stats1
+-- eval $check_stats2
+
+# close the table
+FLUSH TABLE t;
+
+DELETE FROM mysql.innodb_index_stats WHERE table_name = 't';
+DELETE FROM mysql.innodb_table_stats WHERE table_name = 't';
+
+-- eval $check_stats1
+-- eval $check_stats2
+
+# open the table, stats should not be present, since autorecalc is disabled
+SELECT * FROM t;
+
+-- eval $check_stats1
+-- eval $check_stats2
+
+DROP TABLE t;

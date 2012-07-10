@@ -1682,21 +1682,17 @@ PageConverter::operator() (
 		page (ie. the block->frame). Therefore the caller should write
 		out the descriptor contents and not block->frame for compressed
 		pages. */
-		
-		buf_flush_init_for_writing(
-			page_type == FIL_PAGE_INDEX || !is_compressed_table()
-			? block->frame : block->page.zip.data,
-			page_type != FIL_PAGE_INDEX || !is_compressed_table()
-			? 0 : m_page_zip_ptr,
-			m_current_lsn);
 
-		/* Calculate and update the checksum of non-btree pages for
-		compressed tables explicitly here. It was not done in the 
-		function buf_flush_init_for_writing() because we deliberately
-		passed in a NULL Zip descriptor to avoid copying data around
-		unnecessarily. For large tables this is a HUGE cost. */
+		if (!is_compressed_table() || page_type == FIL_PAGE_INDEX) {
 
-		if (is_compressed_table() && page_type != FIL_PAGE_INDEX) {
+			buf_flush_init_for_writing(
+				!is_compressed_table()
+				? block->frame : block->page.zip.data,
+				!is_compressed_table() ? 0 : m_page_zip_ptr,
+				m_current_lsn);
+		} else {
+			/* Calculate and update the checksum of non-btree
+			pages for compressed tables explicitly here. */
 
 			buf_flush_update_zip_checksum(
 				get_frame(block), get_zip_size(),
@@ -2925,6 +2921,7 @@ row_import_for_mysql(
 	row_import	cfg;
 	ib_uint64_t	autoinc = 0;
 	char		table_name[MAX_FULL_NAME_LEN + 1];
+	char*		filepath = NULL;
 
 	innobase_format_name(
 		table_name, sizeof(table_name), table->name, FALSE);
@@ -3035,35 +3032,47 @@ row_import_for_mysql(
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
-	mutex_enter(&dict_sys->mutex);
+	row_mysql_lock_data_dictionary(trx);
+
+	/* If the table is stored in a remote tablespace, we need to
+	determine that filepath from the link file and system tables.
+	Find the space ID in SYS_TABLES since this is an ALTER TABLE. */
+	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		dict_get_and_save_data_dir_path(table, true);
+		ut_a(table->data_dir_path);
+
+		filepath = os_file_make_remote_pathname(
+			table->data_dir_path, table->name, "ibd");
+	} else {
+		filepath = fil_make_ibd_name(table->name, false);
+	}
+	ut_a(filepath);
 
 	/* Open the tablespace so that we can access via the buffer pool. */
 
 	err = fil_open_single_table_tablespace(
-		    table, table->space,
-		    dict_tf_to_fsp_flags(table->flags),
-		    table->name);
+		true, true, table->space,
+		dict_tf_to_fsp_flags(table->flags),
+		table->name, filepath);
 
 	DBUG_EXECUTE_IF("ib_import_open_tablespace_failure",
 			err = DB_TABLESPACE_NOT_FOUND;);
 
 	if (err != DB_SUCCESS) {
-		char*	ibd_filename;
-
-		mutex_exit(&dict_sys->mutex);
-
-		ibd_filename = fil_make_ibd_name(table->name, FALSE);
+		row_mysql_unlock_data_dictionary(trx);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_FILE_NOT_FOUND,
-			ibd_filename, err, ut_strerr(err));
+			filepath, err, ut_strerr(err));
 
-		mem_free(ibd_filename);
+		mem_free(filepath);
 
 		return(row_import_cleanup(prebuilt, trx, err));
 	}
 
-	mutex_exit(&dict_sys->mutex);
+	row_mysql_unlock_data_dictionary(trx);
+
+	mem_free(filepath);
 
 	err = ibuf_check_bitmap_on_import(trx, table->space);
 

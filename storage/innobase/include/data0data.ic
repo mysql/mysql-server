@@ -407,6 +407,8 @@ dtuple_create_from_mem(
 		}
 	}
 #endif
+	UNIV_MEM_ASSERT_W(tuple->fields, n_fields * sizeof *tuple->fields);
+	UNIV_MEM_INVALID(tuple->fields, n_fields * sizeof *tuple->fields);
 	return(tuple);
 }
 
@@ -433,10 +435,6 @@ dtuple_create(
 	buf = mem_heap_alloc(heap, buf_size);
 
 	tuple = dtuple_create_from_mem(buf, buf_size, n_fields);
-
-#ifdef UNIV_DEBUG
-	UNIV_MEM_INVALID(tuple->fields, n_fields * sizeof *tuple->fields);
-#endif
 
 	return(tuple);
 }

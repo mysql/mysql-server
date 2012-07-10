@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2000,7 +2000,7 @@ pars_create_table(
 		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
-	node = tab_create_graph_create(table, pars_sym_tab_global->heap);
+	node = tab_create_graph_create(table, pars_sym_tab_global->heap, true);
 
 	table_sym->resolved = TRUE;
 	table_sym->token_type = SYM_TABLE;
@@ -2054,7 +2054,7 @@ pars_create_index(
 		column = static_cast<sym_node_t*>(que_node_get_next(column));
 	}
 
-	node = ind_create_graph_create(index, pars_sym_tab_global->heap);
+	node = ind_create_graph_create(index, pars_sym_tab_global->heap, true);
 
 	table_sym->resolved = TRUE;
 	table_sym->token_type = SYM_TABLE;
@@ -2253,7 +2253,7 @@ que_thr_t*
 pars_complete_graph_for_exec(
 /*=========================*/
 	que_node_t*	node,	/*!< in: root node for an incomplete
-				query graph */
+				query graph, or NULL for dummy graph */
 	trx_t*		trx,	/*!< in: transaction handle */
 	mem_heap_t*	heap)	/*!< in: memory heap from which allocated */
 {
@@ -2267,7 +2267,9 @@ pars_complete_graph_for_exec(
 
 	thr->child = node;
 
-	que_node_set_parent(node, thr);
+	if (node) {
+		que_node_set_parent(node, thr);
+	}
 
 	trx->graph = NULL;
 

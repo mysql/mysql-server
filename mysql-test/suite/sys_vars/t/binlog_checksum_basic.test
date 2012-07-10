@@ -6,7 +6,7 @@
 set @save_binlog_checksum= @@global.binlog_checksum;
 set @@global.binlog_checksum = default;
 
-select @@global.binlog_checksum as 'must be NONE by default';
+select @@global.binlog_checksum as 'must be CRC32 by default';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.binlog_checksum as 'no session var';
 

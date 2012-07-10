@@ -135,6 +135,7 @@ static PFS_thread_class *thread_class_array= NULL;
 */
 PFS_table_share *table_share_array= NULL;
 
+PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
@@ -716,7 +717,7 @@ PFS_sync_key register_mutex_class(const char *name, uint name_length,
     */
     entry= &mutex_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_MUTEX);
-    entry->m_lock_stat.reset();
+    entry->m_mutex_stat.reset();
     entry->m_event_name_index= mutex_class_start + index;
     entry->m_singleton= NULL;
     entry->m_enabled= false; /* disabled by default */
@@ -782,8 +783,7 @@ PFS_sync_key register_rwlock_class(const char *name, uint name_length,
   {
     entry= &rwlock_class_array[index];
     init_instr_class(entry, name, name_length, flags, PFS_CLASS_RWLOCK);
-    entry->m_read_lock_stat.reset();
-    entry->m_write_lock_stat.reset();
+    entry->m_rwlock_stat.reset();
     entry->m_event_name_index= rwlock_class_start + index;
     entry->m_singleton= NULL;
     entry->m_enabled= false; /* disabled by default */
@@ -1427,6 +1427,16 @@ void drop_table_share(PFS_thread *thread,
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe)
 {
   SANITIZE_ARRAY_BODY(PFS_table_share, table_share_array, table_share_max, unsafe);
+}
+
+/** Reset the wait statistics per instrument class. */
+void reset_events_waits_by_class()
+{
+  reset_file_class_io();
+  reset_socket_class_io();
+  global_idle_stat.reset();
+  global_table_io_stat.reset();
+  global_table_lock_stat.reset();
 }
 
 /** Reset the io statistics per file class. */

@@ -44,6 +44,7 @@ SET @before_count = (SELECT SUM(TIMER_WAIT)
                      WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
                        AND (OBJECT_NAME LIKE '%t1.MYD'));
 
+SELECT (@before_count >= 0) as have_before_count;
 SELECT IF(@before_count > 0, 'Success', 'Failure') has_instrumentation;
 
 SELECT * FROM t1 WHERE id < 4;
@@ -53,6 +54,7 @@ SET @after_count = (SELECT SUM(TIMER_WAIT)
                     WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
                       AND (OBJECT_NAME LIKE '%t1.MYD') AND (1 = 1));
 
+SELECT (@after_count >= 0) as have_after_count;
 SELECT IF((@after_count - @before_count) > 0, 'Success', 'Failure') test_ff1_timed;
 
 UPDATE performance_schema.setup_instruments SET enabled='NO';
@@ -62,6 +64,7 @@ SET @before_count = (SELECT SUM(TIMER_WAIT)
                      WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
                        AND (OBJECT_NAME LIKE '%t1.MYD') AND (2 = 2));
 
+SELECT (@before_count >= 0) as have_before_count;
 SELECT * FROM t1 WHERE id < 6;
 
 SET @after_count = (SELECT SUM(TIMER_WAIT)
@@ -69,6 +72,7 @@ SET @after_count = (SELECT SUM(TIMER_WAIT)
                     WHERE (EVENT_NAME = 'wait/io/file/myisam/dfile')
                       AND (OBJECT_NAME LIKE '%t1.MYD') AND (3 = 3));
 
+SELECT (@after_count >= 0) as have_after_count;
 SELECT IF((COALESCE(@after_count, 0) - COALESCE(@before_count, 0)) = 0, 'Success', 'Failure') test_ff2_timed;
 
 #

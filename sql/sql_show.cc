@@ -1790,6 +1790,17 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=1"));
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
       packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=0"));
+    if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
+      packet->append(STRING_WITH_LEN(" STATS_AUTO_RECALC=1"));
+    else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
+      packet->append(STRING_WITH_LEN(" STATS_AUTO_RECALC=0"));
+    if (share->stats_sample_pages != 0)
+    {
+      char *end;
+      packet->append(STRING_WITH_LEN(" STATS_SAMPLE_PAGES="));
+      end= longlong10_to_str(share->stats_sample_pages, buff, 10);
+      packet->append(buff, (uint) (end - buff));
+    }
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
@@ -4320,6 +4331,17 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
       ptr=strmov(ptr," stats_persistent=0");
 
+    if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
+      ptr=strmov(ptr," stats_auto_recalc=1");
+    else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
+      ptr=strmov(ptr," stats_auto_recalc=0");
+
+    if (share->stats_sample_pages != 0)
+    {
+      ptr= strmov(ptr, " stats_sample_pages=");
+      ptr= longlong10_to_str(share->stats_sample_pages, ptr, 10);
+    }
+
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       ptr=strmov(ptr," checksum=1");
@@ -5231,7 +5253,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   TABLE *proc_table;
   TABLE_LIST proc_tables;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-  int res= 0;
+  int error, res= 0;
   TABLE *table= tables->table;
   bool full_access;
   char definer[USER_HOST_BUFF_SIZE];
@@ -5255,14 +5277,17 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
-  if (proc_table->file->ha_index_init(0, 1))
+  if ((error= proc_table->file->ha_index_init(0, 1)))
   {
+    proc_table->file->print_error(error, MYF(0));
     res= 1;
     goto err;
   }
-  if ((res= proc_table->file->ha_index_first(proc_table->record[0])))
+  if ((error= proc_table->file->ha_index_first(proc_table->record[0])))
   {
-    res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
+    res= (error == HA_ERR_END_OF_FILE) ? 0 : 1;
+    if (res)
+      proc_table->file->print_error(error, MYF(0));
     goto err;
   }
 
@@ -5490,7 +5515,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
         */
         while ((item= it++))
         {
-          if ((field= item->filed_for_view_update()) && field->field &&
+          if ((field= item->field_for_view_update()) && field->field &&
               !field->field->table->pos_in_table_list->schema_table)
           {
             updatable_view= 1;

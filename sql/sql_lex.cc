@@ -445,7 +445,7 @@ void lex_start(THD *thd)
   lex->sphead= NULL;
   lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
-  lex->proc_list.first= 0;
+  lex->proc_analyse= NULL;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);
@@ -1787,6 +1787,7 @@ void st_select_lex::init_query()
   select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
+  with_sum_func= false;
 }
 
 void st_select_lex::init_select()
@@ -2681,7 +2682,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   // having
   Item *cur_having= having;
   if (join)
-    cur_having= join->having;
+    cur_having= join->having_for_explain;
 
   if (cur_having || having_value != Item::COND_UNDEF)
   {
@@ -2793,6 +2794,8 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list_own_elements= 0;
   binlog_stmt_flags= 0;
   stmt_accessed_table_flag= 0;
+  lock_tables_state= LTS_NOT_LOCKED;
+  table_count= 0;
 }
 
 
@@ -2824,7 +2827,8 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_change_password(false),
+  is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -3345,6 +3349,9 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
       query_tables_last= &query_tables;
     first->next_global= 0;
 
+    if (query_tables_own_last == &first->next_global)
+      query_tables_own_last= &query_tables;
+
     /*
       and from local list if it is not empty
     */
@@ -3427,6 +3434,10 @@ void LEX::link_first_table_back(TABLE_LIST *first,
       query_tables->prev_global= &first->next_global;
     else
       query_tables_last= &first->next_global;
+
+    if (query_tables_own_last == &query_tables)
+      query_tables_own_last= &first->next_global;
+
     query_tables= first;
 
     if (link_to_local)

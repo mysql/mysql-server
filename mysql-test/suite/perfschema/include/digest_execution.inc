@@ -91,10 +91,40 @@ DROP DATABASE statements_digest_temp;
 # captured.
 # -----------------------------------------------------------------------
 --ERROR ER_NO_SUCH_TABLE
-SELECT 1 from t11;
-create table t11 (c char(4));
+SELECT 1 FROM no_such_table;
+CREATE TABLE dup_table (c char(4));
 --ERROR ER_TABLE_EXISTS_ERROR
-create table t11 (c char(4));
-insert into t11 values("MySQL");
+CREATE TABLE dup_table (c char(4));
+DROP TABLE dup_table;
+INSERT INTO t11 VALUES("MySQL");
 
+# -----------------------------------------------------------------------
+# Tests to show sub-statements for following statements are not
+# instrumented.
+#  - Prepared Statements
+#  - Stored Procedures/Functions.
+#  - Table Triggers
+# -----------------------------------------------------------------------
+PREPARE stmt FROM "SELECT * FROM t12";
+EXECUTE stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
 
+DELIMITER //;
+CREATE PROCEDURE p1() BEGIN SELECT * FROM t12; END//
+DELIMITER ;//
+CALL p1();
+CALL p1();
+DROP PROCEDURE p1;
+
+DELIMITER //;
+CREATE FUNCTION `func`(a INT, b INT) RETURNS int(11) RETURN a+b //
+DELIMITER ;//
+select func(3,4);
+select func(13,42);
+DROP FUNCTION func;
+
+CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @a:=1;
+INSERT INTO t12 VALUES ("abc");
+INSERT INTO t12 VALUES ("def");
+DROP TRIGGER trg;

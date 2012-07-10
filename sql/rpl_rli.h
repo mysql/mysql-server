@@ -245,8 +245,8 @@ public:
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
-    global_sid_lock.assert_some_lock();
-    DBUG_ASSERT(sidno <= global_sid_map.get_max_sidno());
+    global_sid_lock->assert_some_lock();
+    DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
     if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
       ret= 1;
@@ -408,7 +408,7 @@ public:
   }
 
   int inc_group_relay_log_pos(ulonglong log_pos,
-                              bool skip_lock);
+                              bool need_data_lock);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
@@ -737,7 +737,7 @@ public:
 
   int count_relay_log_space();
 
-  int init_info();
+  int rli_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   int flush_current_log();
@@ -881,7 +881,32 @@ public:
     return long_find_row_note_printed;
   }
 
+public:
+  /**
+    Delete the existing event and set a new one.  This class is
+    responsible for freeing the event, the caller should not do that.
+  */
+  virtual void set_rli_description_event(Format_description_log_event *fdle);
+
+  /**
+    Return the current Format_description_log_event.
+  */
+  Format_description_log_event *get_rli_description_event() const
+  {
+    return rli_description_event;
+  }
+
+  /**
+    adaptation for the slave applier to specific master versions.
+  */
+  void adapt_to_master_version(Format_description_log_event *fdle);
+  uchar slave_version_split[3]; // bytes of the slave server version
+
+protected:
+  Format_description_log_event *rli_description_event;
+
 private:
+
   /**
     Delay slave SQL thread by this amount, compared to master (in
     seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.

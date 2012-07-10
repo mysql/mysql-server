@@ -94,8 +94,8 @@ bool thd_is_connection_alive(THD *thd);
 void close_connection(THD *thd, uint errcode);
 /* End the connection before closing it */
 void end_connection(THD *thd);
-/* Cleanup the THD object */
-void thd_cleanup(THD *thd);
+/* Release resources of the THD object */
+void thd_release_resources(THD *thd);
 /* Decrement connection counter */
 void dec_connection_count();
 /* Destroy THD object */

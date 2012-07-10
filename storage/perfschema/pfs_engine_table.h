@@ -263,7 +263,7 @@ public:
   ~PFS_readonly_acl()
   {}
 
-  ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
+  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 };
 
 /** Singleton instance of PFS_readonly_acl. */

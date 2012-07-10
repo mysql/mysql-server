@@ -80,6 +80,7 @@ UPDATE t4 SET c1=c1 + 04 WHERE c2=04;
 SELECT c1 FROM t4;
 --sorted_result
 SELECT c2 FROM t3 WHERE c2=75;
+--replace_regex /(Out of range value for column 'c2' at row) [0-9]+/\1 XX/
 UPDATE t3 SET c2=c2 + 1902 WHERE c2='75';
 --sorted_result
 SELECT c2 FROM t3;
@@ -171,6 +172,7 @@ SELECT c1 FROM t4;
 UPDATE t1 SET c1=1971 WHERE c2=1995;
 
 #Multi table update
+--error ER_DUP_ENTRY
 UPDATE t1,t2,t3,t4 SET t3.c1=t4.c1+t4.c2 WHERE t3.c1=61 AND t4.c2=4;
 
 # Update using various access methods

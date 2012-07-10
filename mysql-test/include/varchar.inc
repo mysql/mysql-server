@@ -35,7 +35,7 @@ drop table t1,t2,t3;
 #
 # Testing of keys
 #
-create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10)));
+create table t1 (v varchar(10), c char(10), t text, key(v), key(c), key(t(10))) stats_persistent=0;
 show create table t1;
 disable_query_log;
 let $1=10;

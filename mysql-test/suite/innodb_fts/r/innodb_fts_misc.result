@@ -889,6 +889,7 @@ INSERT INTO articles (title,body) VALUES
 ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
+ANALYZE TABLE articles;
 SELECT *,  MATCH(title, body) AGAINST ('-database +MySQL' IN BOOLEAN MODE) AS score from articles;
 id	title	body	score
 1	MySQL Tutorial	DBMS stands for DataBase ...	0
@@ -1009,3 +1010,181 @@ id
 select id from t1 where MATCH a,b AGAINST ('"Now sUPPort"' IN BOOLEAN MODE);
 id
 DROP DATABASE `benu database`;
+USE test;
+CREATE TABLE `t21` (`a` text, `b` int not null,
+fulltext key (`a`), fulltext key (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
+ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
+DROP TABLE t21;
+CREATE TABLE `t21` (`a` text, `b` int not null,
+fulltext key (`a`)) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
+DROP TABLE t21;
+CREATE TABLE t1 (
+id INT NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+ALTER  TABLE t1 ADD UNIQUE INDEX (`id`);
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+select id, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+id	x
+1	0
+2	0
+3	0
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER  TABLE t1 ADD UNIQUE INDEX (`id`), ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id
+1
+3
+select id from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+id
+select id from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+id
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+ALTER  TABLE t1 ADD UNIQUE INDEX (`FTS_DOC_ID`);
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID
+1
+3
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+FTS_DOC_ID	x
+1	0
+2	0
+3	0
+DROP TABLE t1;
+CREATE TABLE t1 (
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 VALUES
+(1, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 'How To Use MySQL Well','After you went through a ...'),
+(3, 'Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b), ADD UNIQUE INDEX FTS_DOC_ID_INDEX (FTS_DOC_ID);
+SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+FTS_DOC_ID
+1
+3
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+support +collections" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search +(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID from t1 where MATCH(a,b) AGAINST("+search -(support vector)" IN BOOLEAN MODE);
+FTS_DOC_ID
+select FTS_DOC_ID, MATCH(a,b) AGAINST("support collections" IN BOOLEAN MODE) as x from t1;
+FTS_DOC_ID	x
+1	0
+2	0
+3	0
+DROP TABLE t1;
+CREATE TABLE t2 (`b` char(2),fulltext(`b`)) ENGINE=INNODB
+DEFAULT CHARSET=LATIN1;
+CREATE TABLE t3 LIKE t2;
+INSERT INTO `t2` VALUES();
+COMMIT WORK AND CHAIN;
+INSERT  INTO `t3` VALUES ();
+UPDATE  `t2` SET `b` = 'a';
+SAVEPOINT BATCH1;
+DROP TABLE t2;
+DROP TABLE t3;
+CREATE TABLE t1 (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+a VARCHAR(200),
+b TEXT
+) ENGINE = InnoDB;
+INSERT INTO t1 (a,b) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...');
+ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
+Warnings:
+Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+COMMIT WORK AND CHAIN;
+INSERT INTO t1 (a,b) VALUES
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+SAVEPOINT BATCH1;
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
+id
+1
+2
+3
+INSERT INTO t1 (a,b) VALUES
+('1002 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+ROLLBACK TO SAVEPOINT BATCH1;
+COMMIT;
+SELECT id FROM t1 WHERE MATCH (a,b)
+AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
+id
+6
+1
+2
+3
+4
+5
+DROP TABLE t1;

@@ -10,7 +10,7 @@
 
 SET @innodb_stats_on_metadata_orig = @@innodb_stats_on_metadata;
 
-CREATE TABLE bug57252 (a INT, KEY akey (a)) ENGINE=INNODB;
+CREATE TABLE bug57252 (a INT, KEY akey (a)) ENGINE=INNODB STATS_PERSISTENT=0;
 
 BEGIN;
 let $i = 10;

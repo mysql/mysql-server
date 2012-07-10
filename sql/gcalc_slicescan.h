@@ -148,6 +148,24 @@ private:
 };
 
 
+/**
+  A class to store a state of a geometry transformation of
+  Gcalc_shape_transformer::store_shapes()
+  and other related methods (e.g. start_line/complete_line etc).
+*/
+class Gcalc_shape_status
+{
+public:
+  int m_nshapes;
+  int m_last_shape_pos;
+  Gcalc_shape_status()
+  {
+    m_nshapes= 0;        // How many shapes have been collected
+    m_last_shape_pos= 0; // Last shape start position in function_buffer
+  }
+};
+
+
 /*
   the spatial object has to be represented as a set of
   simple polygones and polylines to be sent to the slicescan.
@@ -213,23 +231,39 @@ public:
   Gcalc_shape_transporter(Gcalc_heap *heap) :
     m_shape_started(0), m_heap(heap) {}
 
-  virtual int single_point(double x, double y)=0;
-  virtual int start_line()=0;
-  virtual int complete_line()=0;
-  virtual int start_poly()=0;
-  virtual int complete_poly()=0;
-  virtual int start_ring()=0;
-  virtual int complete_ring()=0;
-  virtual int add_point(double x, double y)=0;
-  virtual int start_collection(int n_objects) { return 0; }
-  int start_simple_poly()
+  /* Transformation event methods */
+  virtual int single_point(Gcalc_shape_status *st, double x, double y)=0;
+  virtual int start_line(Gcalc_shape_status *st)=0;
+  virtual int complete_line(Gcalc_shape_status *st)=0;
+  virtual int start_poly(Gcalc_shape_status *st)=0;
+  virtual int complete_poly(Gcalc_shape_status *st)=0;
+  virtual int start_ring(Gcalc_shape_status *st)=0;
+  virtual int complete_ring(Gcalc_shape_status *st)=0;
+  virtual int add_point(Gcalc_shape_status *st, double x, double y)=0;
+  virtual int start_collection(Gcalc_shape_status *st, int nshapes)= 0;
+  virtual int complete_collection(Gcalc_shape_status *st)= 0;
+  virtual int collection_add_item(Gcalc_shape_status *st_collection,
+                                  Gcalc_shape_status *st_item)= 0;
+  int start_simple_poly(Gcalc_shape_status *st)
   {
-    return start_poly() || start_ring();
+    return start_poly(st) || start_ring(st);
   }
-  int complete_simple_poly()
+  int complete_simple_poly(Gcalc_shape_status *st)
   {
-    return complete_ring() || complete_poly();
+    return complete_ring(st) || complete_poly(st);
   }
+
+  /*
+    Filter methods: in some cases we are not interested in certain
+    geometry types and can skip them during transformation instead
+    of inserting "no operation" actions.
+    For example, ST_Buffer() called  with a negative distance argument
+    does not need any Points and LineStrings.
+  */
+  virtual bool skip_point() const { return false; }
+  virtual bool skip_line_string() const { return false; }
+  virtual bool skip_poly() const { return false; }
+
   virtual ~Gcalc_shape_transporter() {}
 };
 

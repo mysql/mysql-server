@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -280,6 +280,41 @@ enum dict_fld_sys_foreign_cols_enum {
 	DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME	= 5,
 	DICT_NUM_FIELDS__SYS_FOREIGN_COLS		= 6
 };
+/* The columns in SYS_TABLESPACES */
+enum dict_col_sys_tablespaces_enum {
+	DICT_COL__SYS_TABLESPACES__SPACE		= 0,
+	DICT_COL__SYS_TABLESPACES__NAME			= 1,
+	DICT_COL__SYS_TABLESPACES__FLAGS		= 2,
+	DICT_NUM_COLS__SYS_TABLESPACES			= 3
+};
+/* The field numbers in the SYS_TABLESPACES clustered index */
+enum dict_fld_sys_tablespaces_enum {
+	DICT_FLD__SYS_TABLESPACES__SPACE		= 0,
+	DICT_FLD__SYS_TABLESPACES__DB_TRX_ID		= 1,
+	DICT_FLD__SYS_TABLESPACES__DB_ROLL_PTR		= 2,
+	DICT_FLD__SYS_TABLESPACES__NAME			= 3,
+	DICT_FLD__SYS_TABLESPACES__FLAGS		= 4,
+	DICT_NUM_FIELDS__SYS_TABLESPACES		= 5
+};
+/* The columns in SYS_DATAFILES */
+enum dict_col_sys_datafiles_enum {
+	DICT_COL__SYS_DATAFILES__SPACE			= 0,
+	DICT_COL__SYS_DATAFILES__PATH			= 1,
+	DICT_NUM_COLS__SYS_DATAFILES			= 2
+};
+/* The field numbers in the SYS_DATAFILES clustered index */
+enum dict_fld_sys_datafiles_enum {
+	DICT_FLD__SYS_DATAFILES__SPACE			= 0,
+	DICT_FLD__SYS_DATAFILES__DB_TRX_ID		= 1,
+	DICT_FLD__SYS_DATAFILES__DB_ROLL_PTR		= 2,
+	DICT_FLD__SYS_DATAFILES__PATH			= 3,
+	DICT_NUM_FIELDS__SYS_DATAFILES			= 4
+};
+
+/* A number of the columns above occur in multiple tables.  These are the
+length of thos fields. */
+#define	DICT_FLD_LEN_SPACE	4
+#define	DICT_FLD_LEN_FLAGS	4
 
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is

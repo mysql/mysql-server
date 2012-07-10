@@ -57,6 +57,7 @@ void sp_pcontext::init(uint var_offset,
 
 sp_pcontext::sp_pcontext()
   : Sql_alloc(),
+  m_level(0),
   m_max_var_index(0), m_max_cursor_index(0),
   m_parent(NULL), m_pboundary(0),
   m_scope(REGULAR_SCOPE)
@@ -67,6 +68,7 @@ sp_pcontext::sp_pcontext()
 
 sp_pcontext::sp_pcontext(sp_pcontext *prev, sp_pcontext::enum_scope scope)
   : Sql_alloc(),
+  m_level(prev->m_level + 1),
   m_max_var_index(0), m_max_cursor_index(0),
   m_parent(prev), m_pboundary(0),
   m_scope(scope)
@@ -274,7 +276,7 @@ sp_condition_value *sp_pcontext::find_condition(LEX_STRING name,
 sp_handler *sp_pcontext::add_handler(THD *thd,
                                      sp_handler::enum_type type)
 {
-  sp_handler *h= new (thd->mem_root) sp_handler(type);
+  sp_handler *h= new (thd->mem_root) sp_handler(type, this);
 
   if (!h)
     return NULL;

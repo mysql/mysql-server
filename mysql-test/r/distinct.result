@@ -191,13 +191,33 @@ explain select distinct t1.a from t1,t3 where t1.a=t3.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using index; Using temporary
 1	SIMPLE	t3	ref	a	a	5	test.t1.a	11	Using index; Distinct
+flush status;
 select distinct t1.a from t1,t3 where t1.a=t3.a;
 a
 1
 2
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	4
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	3
+flush status;
 select distinct 1 from t1,t3 where t1.a=t3.a;
 1
 1
+show status like 'Handler_read%';
+Variable_name	Value
+Handler_read_first	1
+Handler_read_key	4
+Handler_read_last	0
+Handler_read_next	208
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	1
 explain SELECT distinct t1.a from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index

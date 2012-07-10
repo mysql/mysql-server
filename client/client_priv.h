@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,7 +95,9 @@ enum options_client
   OPT_MYSQLBINLOG_SKIP_GTIDS,
   OPT_MYSQLBINLOG_INCLUDE_GTIDS,
   OPT_MYSQLBINLOG_EXCLUDE_GTIDS,
-  OPT_REMOTE_PROTO
+  OPT_REMOTE_PROTO,
+  OPT_CONFIG_ALL,
+  OPT_SERVER_PUBLIC_KEY
 };
 
 /**

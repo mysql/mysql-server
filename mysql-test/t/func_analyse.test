@@ -15,8 +15,9 @@ select * from t1 procedure analyse(2);
 create table t2 select * from t1 procedure analyse();
 drop table t1;
 
---error ER_WRONG_USAGE
+SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
 EXPLAIN SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE();
+EXPLAIN SELECT 1 FROM (SELECT 1) a;
 
 #
 # Bug#2813 - analyse does not quote string values in enums from string
@@ -67,6 +68,7 @@ insert into t1  values ( 'Computer', 2,2000, 1200),
     ;
 create table t2 (country_id int primary key, country char(20) not null); 
 insert into t2 values (1, 'USA'),(2,'India'), (3,'Finland');
+select product, sum(profit),avg(profit) from t1 group by product with rollup;
 select product, sum(profit),avg(profit) from t1 group by product with rollup procedure analyse();
 drop table t1,t2;
 
@@ -86,7 +88,6 @@ drop table t1;
 #
 CREATE TABLE t1(a INT,b INT,c INT,d INT,e INT,f INT,g INT,h INT,i INT,j INT,k INT);
 INSERT INTO t1 VALUES ();
---error ER_WRONG_USAGE
 SELECT * FROM (SELECT * FROM t1) d PROCEDURE ANALYSE();
 DROP TABLE t1;
 
@@ -101,23 +102,22 @@ CREATE TABLE t1(a INT, b INT, c INT, d INT, e INT,
                 f INT, g INT, h INT, i INT, j INT,k INT);
 INSERT INTO t1 VALUES (),();
 
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+
 CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
 --echo #should have a derived table
 EXPLAIN SELECT * FROM v1;
 --echo #should not crash
---error ER_WRONG_USAGE
 SELECT * FROM v1 PROCEDURE analyse();
 --echo #should not crash
---error ER_WRONG_USAGE
 SELECT * FROM t1 a, v1, t1 b PROCEDURE analyse();
 --echo #should not crash
---error ER_WRONG_USAGE
 SELECT * FROM (SELECT * FROM t1 having a > 1) x PROCEDURE analyse();
 --echo #should not crash
---error ER_WRONG_USAGE
 SELECT * FROM t1 a, (SELECT * FROM t1 having a > 1) x, t1 b PROCEDURE analyse();
 --echo #should not crash
---error ER_ORDER_WITH_PROC
 SELECT 1 FROM t1 group by a having a > 1 order by 1 PROCEDURE analyse();
 
 DROP VIEW v1;
@@ -190,3 +190,156 @@ CREATE TABLE t1 (i INT);
 EXPLAIN SELECT * FROM t1 PROCEDURE ANALYSE();
 --enable_result_log
 DROP TABLE t1;
+
+--echo #
+--echo # WL#6242: Move "PROCEDURE ANALYSE" implementation
+--echo #          to select_send-like class
+--echo #
+--echo # Coverage tests
+--echo #
+--echo
+
+CREATE TABLE t1 (a INT);
+
+--echo # Trivial query:
+
+SELECT * FROM t1 PROCEDURE ANALYSE();
+
+--echo # PROCEDURE ANALYSE in PS:
+
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+PREPARE stmt1 FROM "SELECT * FROM t1 PROCEDURE ANALYSE()";
+EXECUTE stmt1;
+EXECUTE stmt1;
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+
+--echo # PROCEDURE ANALYSE in SP:
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  SELECT * FROM t1 PROCEDURE ANALYSE();
+END;|
+delimiter ;|
+CALL p1();
+DROP PROCEDURE p1;
+
+--echo # PROCEDURE ANALYSE in SP cursor:
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE c1, c2, c3, c4, c5, c6, c7, c8, c9, c10 CHAR(20);
+  DECLARE done INT DEFAULT 0;
+  DECLARE cur1 CURSOR FOR SELECT * FROM t1 PROCEDURE ANALYSE();
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET done = 1;
+  OPEN cur1;
+  read_loop: LOOP
+    FETCH cur1 INTO c1, c2, c3, c4, c5, c6, c7, c8, c9, c10;
+    IF done THEN
+      LEAVE read_loop;
+    END IF;
+  END LOOP;
+  CLOSE cur1;
+END;|
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo # EXPLAIN with or wihtout PROCEDURE ANALYSE should be same:
+
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+
+let $query=SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a;
+eval EXPLAIN $query;
+eval EXPLAIN $query PROCEDURE ANALYSE();
+
+CREATE TABLE t2 (i INT, j INT);
+
+--echo # PROCEDURE ANALYSE ignores ROLLUP rows:
+
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3), (4, 4);
+SELECT i, AVG(j) FROM t2 GROUP BY i WITH ROLLUP;
+SELECT i, AVG(j) FROM t2 GROUP BY i WITH ROLLUP PROCEDURE ANALYSE();
+SELECT i, AVG(j) FROM t2 GROUP BY i PROCEDURE ANALYSE();
+
+--echo # LIMIT affects original SELECT output, not PROCEDURE ANALYSE output:
+
+SELECT * FROM t2 LIMIT 1 PROCEDURE ANALYSE();
+
+--echo # Wrong usage: CREATE TABLE/VIEW and INSERT from SELECT:
+
+--error ER_WRONG_USAGE
+CREATE TABLE t SELECT * FROM t1 PROCEDURE ANALYSE();
+--error ER_VIEW_SELECT_CLAUSE
+CREATE VIEW v AS SELECT * FROM t1 PROCEDURE ANALYSE();
+--error ER_WRONG_USAGE
+INSERT INTO t1 SELECT * FROM t1 PROCEDURE ANALYSE();
+
+--echo # Wrong usage: subquery with PROCEDURE ANALYSE():
+
+--error ER_WRONG_USAGE
+SELECT (SELECT * FROM t1 PROCEDURE ANALYSE());
+--error ER_WRONG_USAGE
+SELECT (SELECT * FROM t1 PROCEDURE ANALYSE()) PROCEDURE ANALYSE;
+--error ER_WRONG_USAGE
+SELECT * FROM (SELECT * FROM t1 PROCEDURE ANALYSE()) tt1;
+--error ER_WRONG_USAGE
+SELECT * FROM t1 WHERE a IN (SELECT * FROM t1 PROCEDURE ANALYSE());
+
+--echo # Wrong usage: SELECT ... INTO
+
+--error ER_WRONG_USAGE
+SELECT i INTO @a FROM t1 LIMIT 1 PROCEDURE ANALYSE();
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WRONG_USAGE
+eval SELECT * INTO OUTFILE "$MYSQLTEST_VARDIR/wl6242.outfile" FROM t1 PROCEDURE ANALYSE();
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_WRONG_USAGE
+eval SELECT * INTO DUMPFILE "$MYSQLTEST_VARDIR/wl6242.dumpfile" FROM t1 PROCEDURE ANALYSE();
+
+--echo # Wrong usage: UNION:
+
+--error ER_WRONG_USAGE
+SELECT * FROM t1 UNION SELECT * FROM t1 PROCEDURE ANALYSE();
+--error ER_WRONG_USAGE
+SELECT * FROM t1 PROCEDURE ANALYSE() UNION SELECT * FROM t1;
+
+--echo # Wrong 1st parameter:
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE((SELECT 1));
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE('test');
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(-100);
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(3.1415);
+
+--echo # Wrong 2nd parameter:
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(100, (SELECT 1));
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(100, 'test');
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(100, -100);
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(100, 3.1415);
+
+--echo # Wrong parameter count:
+
+--error ER_PARSE_ERROR
+SELECT * FROM t1 PROCEDURE ANALYSE(100, 200, 300);
+
+DROP TABLE t1, t2;
+
+--echo # End of 5.6 tests
+

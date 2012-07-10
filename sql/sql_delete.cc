@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,8 +69,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   THD::enum_binlog_query_type query_type= THD::ROW_QUERY_TYPE;
   DBUG_ENTER("mysql_delete");
 
-  if (open_and_lock_tables(thd, table_list, TRUE, 0))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(TRUE);
+
   if (!(table= table_list->table))
   {
     my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
@@ -98,11 +99,24 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 	  setup_order(thd, select_lex->ref_pointer_array, &tables,
                     fields, all_fields, order))
     {
-      delete select;
       free_underlaid_joins(thd, &thd->lex->select_lex);
       DBUG_RETURN(TRUE);
     }
   }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    Non delete tables are pruned in JOIN::prepare,
+    only the delete table needs this.
+  */
+  if (prune_partitions(thd, table, conds))
+    DBUG_RETURN(true);
+  if (table->all_partitions_pruned_away)
+    goto exit_all_parts_pruned_away;
+#endif
+
+  if (lock_tables(thd, table_list, thd->lex->table_count, 0))
+    DBUG_RETURN(true);
 
   const_cond= (!conds || conds->const_item());
   safe_update=test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
@@ -128,8 +142,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     handler::delete_all_rows() method.
 
     We can use delete_all_rows() if and only if:
-    - We allow new functions (not using option --skip-new), and are
-      not in safe mode (not using option --safe-mode)
+    - We allow new functions (not using option --skip-new)
     - There is no limit clause
     - The condition is constant
     - If there is a condition, then it it produces a non-zero value
@@ -138,7 +151,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
       - there should be no delete triggers associated with the table.
   */
   if (!using_limit && const_cond_result &&
-      !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
+      !(specialflag & SPECIAL_NO_NEW_FUNC) &&
        (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers())))
   {
@@ -172,10 +185,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     }
     /* Handler didn't support fast delete; Delete rows one by one */
   }
+
   if (conds)
   {
+    COND_EQUAL *cond_equal= NULL;
     Item::cond_result result;
-    conds= remove_eq_conds(thd, conds, &result);
+
+    conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list, 
+                         true, &result);
     if (result == Item::COND_FALSE)             // Impossible where
     {
       limit= 0;
@@ -186,28 +203,26 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
         goto exit_without_my_ok;
       }
     }
-  }
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prune_partitions(thd, table, conds))
-  {
-    /* No matching records */
-    if (thd->lex->describe)
+    if (conds)
     {
-      err= explain_no_table(thd, "No matching rows after partition pruning");
-      goto exit_without_my_ok;
+      conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      conds->update_used_tables();
     }
-
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd, 0);
-    DBUG_RETURN(0);
   }
-#endif
+
   /* Update the table->file->stats.records number */
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   table->covering_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /* Prune a second time to be able to prune on subqueries in WHERE clause. */
+  if (prune_partitions(thd, table, conds))
+    DBUG_RETURN(true);
+  if (table->all_partitions_pruned_away)
+    goto exit_all_parts_pruned_away;
+#endif
 
   select=make_select(table, 0, 0, conds, 0, &error);
   if (error)
@@ -219,6 +234,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
     if ((select && select->check_quick(thd, safe_update, limit)) || !limit)
     {
+      if (thd->lex->describe && !error && !thd->is_error())
+      {
+        error= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
       delete select;
       free_underlaid_joins(thd, select_lex);
       /*
@@ -269,26 +289,22 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
   if (need_sort)
   {
-    uint         length= 0;
-    SORT_FIELD  *sortorder;
     ha_rows examined_rows;
     ha_rows found_rows;
     
     {
+      Filesort fsort(order, HA_POS_ERROR, select);
       DBUG_ASSERT(usable_index == MAX_KEY);
       table->sort.io_cache= (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
                                                    MYF(MY_FAE | MY_ZEROFILL));
-    
-      if (!(sortorder= make_unireg_sortorder(order, &length, NULL)) ||
-	  (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, HA_POS_ERROR,
-                                               true,
+
+      if ((table->sort.found_records= filesort(thd, table, &fsort, true,
                                                &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
       {
         delete select;
         free_underlaid_joins(thd, &thd->lex->select_lex);
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
       thd->inc_examined_row_count(examined_rows);
       /*
@@ -397,8 +413,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 	break;
       }
     }
-    else
+    /*
+      Don't try unlocking the row if skip_record reported an error since in
+      this case the transaction might have been rolled back already.
+    */
+    else if (!thd->is_error())
       table->file->unlock_row();  // Row failed selection, release lock on it
+    else
+      break;
   }
   killed_status= thd->killed;
   if (killed_status != THD::NOT_KILLED || thd->is_error())
@@ -431,6 +453,7 @@ cleanup:
   }
 
   delete select;
+  select= NULL;
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
@@ -473,6 +496,17 @@ cleanup:
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(thd->is_error() || thd->killed);
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+exit_all_parts_pruned_away:
+  /* No matching records */
+  if (!thd->lex->describe)
+  {
+    my_ok(thd, 0);
+    DBUG_RETURN(0);
+  }
+  err= explain_no_table(thd, "No matching rows after partition pruning");
+#endif
 
 exit_without_my_ok:
   delete select;
@@ -545,19 +579,17 @@ extern "C" int refpos_order_cmp(const void* arg, const void *a,const void *b)
   return file->cmp_ref((const uchar*)a, (const uchar*)b);
 }
 
-/*
-  make delete specific preparation and checks after opening tables
+/**
+  Make delete specific preparation and checks after opening tables.
 
-  SYNOPSIS
-    mysql_multi_delete_prepare()
-    thd         thread handler
+  @param      thd          Thread context.
+  @param[out] table_count  Number of tables to be deleted from.
 
-  RETURN
-    FALSE OK
-    TRUE  Error
+  @retval false - success.
+  @retval true  - error.
 */
 
-int mysql_multi_delete_prepare(THD *thd)
+int mysql_multi_delete_prepare(THD *thd, uint *table_count)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *aux_tables= lex->auxiliary_table_list.first;
@@ -577,6 +609,7 @@ int mysql_multi_delete_prepare(THD *thd)
                                     DELETE_ACL, SELECT_ACL))
     DBUG_RETURN(TRUE);
 
+  *table_count= 0;
 
   /*
     Multi-delete can't be constructed over-union => we always have
@@ -588,6 +621,8 @@ int mysql_multi_delete_prepare(THD *thd)
        target_tbl;
        target_tbl= target_tbl->next_local)
   {
+    ++(*table_count);
+
     if (!(target_tbl->table= target_tbl->correspondent_table->table))
     {
       DBUG_ASSERT(target_tbl->correspondent_table->view &&

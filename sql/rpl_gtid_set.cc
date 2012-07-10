@@ -407,7 +407,6 @@ int format_gno(char *s, rpl_gno gno)
 
 enum_return_status Gtid_set::add_gtid_text(const char *text, bool *anonymous)
 {
-#define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Gtid_set::add_gtid_text(const char *, bool *)");
   DBUG_ASSERT(sid_map != NULL);
   if (sid_lock != NULL)

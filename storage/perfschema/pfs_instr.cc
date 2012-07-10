@@ -82,6 +82,10 @@ uint statement_stack_max;
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
 ulong statement_lost= 0;
+/** Size of connection attribute storage per thread */
+ulong session_connect_attrs_size_per_thread;
+/** Number of connection attributes lost */
+ulong session_connect_attrs_lost= 0;
 
 /**
   Mutex instrumentation instances array.
@@ -140,7 +144,6 @@ PFS_table *table_array= NULL;
 */
 PFS_socket *socket_array= NULL;
 
-PFS_single_stat *global_instr_class_waits_array= NULL;
 PFS_stage_stat *global_instr_class_stages_array= NULL;
 PFS_statement_stat *global_instr_class_statements_array= NULL;
 
@@ -157,6 +160,7 @@ static PFS_events_waits *thread_waits_history_array= NULL;
 static PFS_events_stages *thread_stages_history_array= NULL;
 static PFS_events_statements *thread_statements_history_array= NULL;
 static PFS_events_statements *thread_statements_stack_array= NULL;
+static char *thread_session_connect_attrs_array= NULL;
 
 /** Hash table for instrumented files. */
 LF_HASH filename_hash;
@@ -174,6 +178,7 @@ int init_instruments(const PFS_global_param *param)
   uint thread_stages_history_sizing;
   uint thread_statements_history_sizing;
   uint thread_statements_stack_sizing;
+  uint thread_session_connect_attrs_sizing;
   uint index;
 
   /* Make sure init_event_name_sizing is called */
@@ -219,6 +224,11 @@ int init_instruments(const PFS_global_param *param)
 
   thread_instr_class_statements_sizing= param->m_thread_sizing
     * param->m_statement_class_sizing;
+
+  session_connect_attrs_size_per_thread= param->m_session_connect_attrs_sizing;
+  thread_session_connect_attrs_sizing= param->m_thread_sizing
+    * session_connect_attrs_size_per_thread;
+  session_connect_attrs_lost= 0;
 
   mutex_array= NULL;
   rwlock_array= NULL;
@@ -365,6 +375,14 @@ int init_instruments(const PFS_global_param *param)
       thread_instr_class_statements_array[index].reset();
   }
 
+  if (thread_session_connect_attrs_sizing > 0)
+  {
+    thread_session_connect_attrs_array=
+      (char *)pfs_malloc(thread_session_connect_attrs_sizing, MYF(MY_ZEROFILL));
+    if (unlikely(thread_session_connect_attrs_array == NULL))
+      return 1;
+  }
+
   for (index= 0; index < thread_max; index++)
   {
     thread_array[index].m_waits_history=
@@ -381,18 +399,8 @@ int init_instruments(const PFS_global_param *param)
       &thread_statements_stack_array[index * statement_stack_max];
     thread_array[index].m_instr_class_statements_stats=
       &thread_instr_class_statements_array[index * statement_class_max];
-  }
-
-  if (wait_class_max > 0)
-  {
-    global_instr_class_waits_array=
-      PFS_MALLOC_ARRAY(wait_class_max,
-                       PFS_single_stat, MYF(MY_ZEROFILL));
-    if (unlikely(global_instr_class_waits_array == NULL))
-      return 1;
-
-    for (index= 0; index < wait_class_max; index++)
-      global_instr_class_waits_array[index].reset();
+    thread_array[index].m_session_connect_attrs=
+      &thread_session_connect_attrs_array[index * session_connect_attrs_size_per_thread];
   }
 
   if (stage_class_max > 0)
@@ -459,12 +467,12 @@ void cleanup_instruments(void)
   thread_statements_stack_array= NULL;
   pfs_free(thread_instr_class_waits_array);
   thread_instr_class_waits_array= NULL;
-  pfs_free(global_instr_class_waits_array);
-  global_instr_class_waits_array= NULL;
   pfs_free(global_instr_class_stages_array);
   global_instr_class_stages_array= NULL;
   pfs_free(global_instr_class_statements_array);
   global_instr_class_statements_array= NULL;
+  pfs_free(thread_session_connect_attrs_array);
+  thread_session_connect_attrs_array=NULL;
 }
 
 C_MODE_START
@@ -625,8 +633,7 @@ PFS_mutex* create_mutex(PFS_mutex_class *klass, const void *identity)
         pfs->m_class= klass;
         pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
         pfs->m_timed= klass->m_timed;
-        pfs->m_wait_stat.reset();
-        pfs->m_lock_stat.reset();
+        pfs->m_mutex_stat.reset();
         pfs->m_owner= NULL;
         pfs->m_last_locked= 0;
         pfs->m_lock.dirty_to_allocated();
@@ -649,10 +656,9 @@ void destroy_mutex(PFS_mutex *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
   PFS_mutex_class *klass= pfs->m_class;
-  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= klass->m_event_name_index;
-  global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
-  pfs->m_wait_stat.reset();
+  /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  klass->m_mutex_stat.aggregate(& pfs->m_mutex_stat);
+  pfs->m_mutex_stat.reset();
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
@@ -685,10 +691,8 @@ PFS_rwlock* create_rwlock(PFS_rwlock_class *klass, const void *identity)
         pfs->m_class= klass;
         pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
         pfs->m_timed= klass->m_timed;
-        pfs->m_wait_stat.reset();
+        pfs->m_rwlock_stat.reset();
         pfs->m_lock.dirty_to_allocated();
-        pfs->m_read_lock_stat.reset();
-        pfs->m_write_lock_stat.reset();
         pfs->m_writer= NULL;
         pfs->m_readers= 0;
         pfs->m_last_written= 0;
@@ -712,10 +716,9 @@ void destroy_rwlock(PFS_rwlock *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
   PFS_rwlock_class *klass= pfs->m_class;
-  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= klass->m_event_name_index;
-  global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
-  pfs->m_wait_stat.reset();
+  /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  klass->m_rwlock_stat.aggregate(& pfs->m_rwlock_stat);
+  pfs->m_rwlock_stat.reset();
   if (klass->is_singleton())
     klass->m_singleton= NULL;
   pfs->m_lock.allocated_to_free();
@@ -771,9 +774,8 @@ void destroy_cond(PFS_cond *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
   PFS_cond_class *klass= pfs->m_class;
-  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= klass->m_event_name_index;
-  global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
+  /* Aggregate to EVENTS_WAITS_SUMMARY_GLOBAL_BY_EVENT_NAME */
+  klass->m_cond_stat.aggregate(& pfs->m_cond_stat);
   pfs->m_wait_stat.reset();
   if (klass->is_singleton())
     klass->m_singleton= NULL;
@@ -1190,7 +1192,6 @@ search:
         strncpy(pfs->m_filename, normalized_filename, normalized_length);
         pfs->m_filename[normalized_length]= '\0';
         pfs->m_filename_length= normalized_length;
-        pfs->m_wait_stat.reset();
         pfs->m_file_stat.m_open_count= 1;
         pfs->m_file_stat.m_io_stat.reset();
         pfs->m_identity= (const void *)pfs;
@@ -1252,14 +1253,9 @@ void destroy_file(PFS_thread *thread, PFS_file *pfs)
   DBUG_ASSERT(pfs != NULL);
   PFS_file_class *klass= pfs->m_class;
 
-  /* Aggregate to EVENTS_WAITS_SUMMARY_BY_EVENT_NAME */
-  uint index= klass->m_event_name_index;
-  global_instr_class_waits_array[index].aggregate(& pfs->m_wait_stat);
-  pfs->m_wait_stat.reset();
-
   /* Aggregate to FILE_SUMMARY_BY_EVENT_NAME */
-  klass->m_file_stat.m_io_stat.aggregate(& pfs->m_file_stat.m_io_stat);
-  pfs->m_file_stat.m_io_stat.reset();
+  klass->m_file_stat.aggregate(& pfs->m_file_stat);
+  pfs->m_file_stat.reset();
 
   if (klass->is_singleton())
     klass->m_singleton= NULL;
@@ -1514,7 +1510,7 @@ static void reset_mutex_waits_by_instance(void)
   PFS_mutex *pfs_last= mutex_array + mutex_max;
 
   for ( ; pfs < pfs_last; pfs++)
-    pfs->m_wait_stat.reset();
+    pfs->m_mutex_stat.reset();
 }
 
 static void reset_rwlock_waits_by_instance(void)
@@ -1523,7 +1519,7 @@ static void reset_rwlock_waits_by_instance(void)
   PFS_rwlock *pfs_last= rwlock_array + rwlock_max;
 
   for ( ; pfs < pfs_last; pfs++)
-    pfs->m_wait_stat.reset();
+    pfs->m_rwlock_stat.reset();
 }
 
 static void reset_cond_waits_by_instance(void)
@@ -1532,7 +1528,7 @@ static void reset_cond_waits_by_instance(void)
   PFS_cond *pfs_last= cond_array + cond_max;
 
   for ( ; pfs < pfs_last; pfs++)
-    pfs->m_wait_stat.reset();
+    pfs->m_cond_stat.reset();
 }
 
 static void reset_file_waits_by_instance(void)
@@ -1581,15 +1577,6 @@ void reset_socket_instance_io(void)
 
   for ( ; pfs < pfs_last; pfs++)
     pfs->m_socket_stat.m_io_stat.reset();
-}
-
-void reset_global_wait_stat()
-{
-  PFS_single_stat *stat= global_instr_class_waits_array;
-  PFS_single_stat *stat_last= global_instr_class_waits_array + wait_class_max;
-
-  for ( ; stat < stat_last; stat++)
-    stat->reset();
 }
 
 void aggregate_all_event_names(PFS_single_stat *from_array,

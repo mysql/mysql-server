@@ -1840,7 +1840,7 @@ fts_create_one_index_table(
 	dict_mem_table_add_col(new_table, heap, "ilist", DATA_BLOB,
 			       4130048,	0);
 
-	error = row_create_table_for_mysql(new_table, trx);
+	error = row_create_table_for_mysql(new_table, trx, true);
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
@@ -3461,7 +3461,9 @@ fts_get_max_doc_id(
 
 	dfield = dict_index_get_nth_field(index, 0);
 
+#if 0 /* This can fail when renaming a column to FTS_DOC_ID_COL_NAME. */
 	ut_ad(innobase_strcasecmp(FTS_DOC_ID_COL_NAME, dfield->name) == 0);
+#endif
 
 	mtr_start(&mtr);
 
@@ -4853,13 +4855,13 @@ fts_get_doc_id_from_rec(
 
 	col_no = dict_col_get_clust_pos(
 		&table->cols[table->fts->doc_col], clust_index);
+	ut_ad(col_no != ULINT_UNDEFINED);
 
-	/* We have no choice but to cast rec here :-( */
-	data = rec_get_nth_field((rec_t*) rec, offsets, col_no, &len);
+	data = rec_get_nth_field(rec, offsets, col_no, &len);
 
 	ut_a(len == 8);
-	ut_a(len == sizeof(doc_id));
-	doc_id = (doc_id_t) mach_read_from_8(data);
+	ut_ad(8 == sizeof(doc_id));
+	doc_id = static_cast<doc_id_t>(mach_read_from_8(data));
 
 	return(doc_id);
 }
@@ -4952,7 +4954,7 @@ fts_cache_append_deleted_doc_ids(
 {
 	ulint			i;
 
-	mutex_enter((mutex_t*) &cache->deleted_lock);
+	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 
 	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		fts_update_t*	update;
@@ -4963,7 +4965,7 @@ fts_cache_append_deleted_doc_ids(
 		ib_vector_push(vector, &update->doc_id);
 	}
 
-	mutex_exit((mutex_t*) &cache->deleted_lock);
+	mutex_exit((ib_mutex_t*) &cache->deleted_lock);
 }
 
 /*********************************************************************//**
@@ -5228,7 +5230,7 @@ fts_savepoint_copy(
 
 		ftt_dst = fts_trx_table_clone(*ftt_src);
 
-		rbt_insert(dst->tables, &ftt_dst->table->id, &ftt_dst);
+		rbt_insert(dst->tables, &ftt_dst, &ftt_dst);
 	}
 }
 

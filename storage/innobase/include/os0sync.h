@@ -97,10 +97,10 @@ struct os_event_struct {
 /** Operating system mutex */
 typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
-typedef os_mutex_str_t*		os_mutex_t;
+typedef os_mutex_str_t*		os_ib_mutex_t;
 
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
-extern os_mutex_t	os_sync_mutex;
+extern os_ib_mutex_t	os_sync_mutex;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
@@ -207,10 +207,10 @@ os_event_wait_time_low(
 						os_event_reset(). */
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
-mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
+mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
 @return	the mutex handle */
 UNIV_INTERN
-os_mutex_t
+os_ib_mutex_t
 os_mutex_create(void);
 /*=================*/
 /**********************************************************//**
@@ -219,21 +219,21 @@ UNIV_INTERN
 void
 os_mutex_enter(
 /*===========*/
-	os_mutex_t	mutex);	/*!< in: mutex to acquire */
+	os_ib_mutex_t	mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Releases ownership of a mutex. */
 UNIV_INTERN
 void
 os_mutex_exit(
 /*==========*/
-	os_mutex_t	mutex);	/*!< in: mutex to release */
+	os_ib_mutex_t	mutex);	/*!< in: mutex to release */
 /**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN
 void
 os_mutex_free(
 /*==========*/
-	os_mutex_t	mutex);	/*!< in: mutex to free */
+	os_ib_mutex_t	mutex);	/*!< in: mutex to free */
 /**********************************************************//**
 Acquires ownership of a fast mutex. Currently in Windows this is the same
 as os_fast_mutex_lock!

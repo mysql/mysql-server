@@ -318,6 +318,31 @@ pk
 DROP TABLE t1;
 CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine;
+ERROR 42000: Unknown storage engine 'NonExistentEngine'
+CREATE TABLE t1 (a INT)
+ENGINE=NonExistentEngine
+PARTITION BY HASH (a);
+ERROR 42000: Unknown storage engine 'NonExistentEngine'
+CREATE TABLE t1 (a INT)
+ENGINE=Memory;
+ALTER TABLE t1 ENGINE=NonExistentEngine;
+ERROR 42000: Unknown storage engine 'NonExistentEngine'
+ALTER TABLE t1
+PARTITION BY HASH (a)
+(PARTITION p0 ENGINE=Memory,
+PARTITION p1 ENGINE=NonExistentEngine);
+ERROR 42000: Unknown storage engine 'NonExistentEngine'
+ALTER TABLE t1 ENGINE=NonExistentEngine;
+ERROR 42000: Unknown storage engine 'NonExistentEngine'
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SET sql_mode='';
+CREATE TABLE t1 (a INT)
+ENGINE=NonExistentEngine;
 Warnings:
 Warning	1286	Unknown storage engine 'NonExistentEngine'
 Warning	1266	Using storage engine MyISAM for table 't1'
@@ -352,6 +377,7 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
 DROP TABLE t1;
+SET sql_mode=DEFAULT;
 CREATE TABLE t1 (a INT NOT NULL, KEY(a))
 PARTITION BY RANGE(a)
 (PARTITION p1 VALUES LESS THAN (200), PARTITION pmax VALUES LESS THAN MAXVALUE);

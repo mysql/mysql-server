@@ -497,11 +497,10 @@ bool Sql_cmd_alter_table_exchange_partition::
   Alter_table_prelocking_strategy alter_prelocking_strategy;
   MDL_ticket *swap_table_mdl_ticket= NULL;
   MDL_ticket *part_table_mdl_ticket= NULL;
+  uint table_counter;
   bool error= TRUE;
   DBUG_ENTER("mysql_exchange_partition");
   DBUG_ASSERT(alter_info->flags & Alter_info::ALTER_EXCHANGE_PARTITION);
-
-  partition_name= alter_info->partition_names.head();
 
   /* Don't allow to exchange with log table */
   swap_table_list= table_list->next_local;
@@ -530,15 +529,25 @@ bool Sql_cmd_alter_table_exchange_partition::
     to be able to verify the structure/metadata.
   */
   table_list->mdl_request.set_type(MDL_SHARED_NO_WRITE);
-  if (open_and_lock_tables(thd, table_list, FALSE, 0,
-                           &alter_prelocking_strategy))
-    DBUG_RETURN(TRUE);
+  if (open_tables(thd, &table_list, &table_counter, 0,
+                  &alter_prelocking_strategy))
+    DBUG_RETURN(true);
 
   part_table= table_list->table;
   swap_table= swap_table_list->table;
 
   if (check_exchange_partition(swap_table, part_table))
     DBUG_RETURN(TRUE);
+
+  /* set lock pruning on first table */
+  partition_name= alter_info->partition_names.head();
+  if (table_list->table->part_info->
+        set_named_partition_bitmap(partition_name, strlen(partition_name)))
+    DBUG_RETURN(true);
+
+  if (lock_tables(thd, table_list, table_counter, 0))
+    DBUG_RETURN(true);
+
 
   table_hton= swap_table->file->ht;
 
@@ -731,6 +740,9 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ha_partition *partition;
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex.table_list.first;
+  Alter_info *alter_info= &thd->lex->alter_info;
+  uint table_counter, i;
+  List<String> partition_names_list;
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
 
@@ -755,8 +767,8 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   if (check_one_table_access(thd, DROP_ACL, first_table))
     DBUG_RETURN(TRUE);
 
-  if (open_and_lock_tables(thd, first_table, FALSE, 0))
-    DBUG_RETURN(TRUE);
+  if (open_tables(thd, &first_table, &table_counter, 0))
+    DBUG_RETURN(true);
 
   /*
     TODO: Add support for TRUNCATE PARTITION for NDB and other
@@ -767,6 +779,29 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
   }
+
+  
+  /*
+    Prune all, but named partitions,
+    to avoid excessive calls to external_lock().
+  */
+  List_iterator<char> partition_names_it(alter_info->partition_names);
+  uint num_names= alter_info->partition_names.elements;
+  for (i= 0; i < num_names; i++)
+  {
+    char *partition_name= partition_names_it++;
+    String *str_partition_name= new (thd->mem_root)
+                                  String(partition_name, system_charset_info);
+    if (!str_partition_name)
+      DBUG_RETURN(true);
+    partition_names_list.push_back(str_partition_name);
+  }
+  first_table->partition_names= &partition_names_list;
+  if (first_table->table->part_info->set_partition_bitmaps(first_table))
+    DBUG_RETURN(true);
+
+  if (lock_tables(thd, first_table, table_counter, 0))
+    DBUG_RETURN(true);
 
   /*
     Under locked table modes this might still not be an exclusive
@@ -780,12 +815,10 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN, first_table->db,
                    first_table->table_name, FALSE);
 
-  partition= (ha_partition *) first_table->table->file;
-
+  partition= (ha_partition*) first_table->table->file;
   /* Invoke the handler method responsible for truncating the partition. */
-  if ((error= partition->truncate_partition(&thd->lex->alter_info,
-                                            &binlog_stmt)))
-    first_table->table->file->print_error(error, MYF(0));
+  if ((error= partition->truncate_partition(alter_info, &binlog_stmt)))
+    partition->print_error(error, MYF(0));
 
   /*
     All effects of a truncate operation are committed even if the

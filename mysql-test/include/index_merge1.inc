@@ -322,6 +322,12 @@ alter table t2 drop index i1;
 alter table t2 drop index i2;
 alter table t2 add index i321(key3, key2, key1);
 
+-- disable_query_log
+-- disable_result_log
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
+
 #   index_merge vs 'index', index_merge is better.
 if ($index_merge_random_rows_in_EXPLAIN)
 {
@@ -359,6 +365,12 @@ create table t4 (
 
 insert into t4 select key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 from t0;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t4;
+-- enable_result_log
+-- enable_query_log
+
 #   the following will be handled by index_merge:
 select * from t4 where key1a = 3 or key1b = 4;
 explain select * from t4 where key1a = 3 or key1b = 4;
@@ -378,6 +390,12 @@ explain select * from t4 where key2_1 = 1 or key2_2 = 5;
 # 11. Multitable selects
 create table t1 like t0;
 insert into t1 select * from t0;
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 #  index_merge on first table in join
 explain select * from t0 left join t1 on (t0.key1=t1.key1)
@@ -431,6 +449,12 @@ alter table t3 add keyB int not null, add index iB(keyB);
 alter table t3 add keyC int not null, add index iC(keyC);
 update t3 set key9=key1,keyA=key1,keyB=key1,keyC=key1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t3;
+-- enable_result_log
+-- enable_query_log
+
 explain select * from t3 where
   key1=1 or key2=2 or key3=3 or key4=4 or
   key5=5 or key6=6 or key7=7 or key8=8 or
@@ -447,10 +471,23 @@ explain select * from t0 where key1 < 3 or key2 < 4;
 select * from t0 where key1 < 3 or key2 < 4;
 
 update t0 set key8=123 where key1 < 3 or key2 < 4;
+
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+-- enable_result_log
+-- enable_query_log
+
 # Bug#21277: InnoDB, wrong result set, index_merge strategy, second index not evaluated
 select * from t0 where key1 < 3 or key2 < 4;
 
 delete from t0 where key1 < 3 or key2 < 4;
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+-- enable_result_log
+-- enable_query_log
+
 select * from t0 where key1 < 3 or key2 < 4;
 select count(*) from t0;
 
@@ -458,6 +495,12 @@ select count(*) from t0;
 drop table t4;
 create table t4 (a int);
 insert into t4 values (1),(4),(3);
+-- disable_query_log
+-- disable_result_log
+analyze table t4;
+-- enable_result_log
+-- enable_query_log
+
 set @save_join_buffer_size=@@join_buffer_size;
 set join_buffer_size= 4096;
 
@@ -476,6 +519,12 @@ select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4
   and   (B.key1 < 500000 or B.key2 < 3);
 
 update t0 set key1=1;
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+-- enable_result_log
+-- enable_query_log
+
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 9 #
@@ -492,6 +541,12 @@ select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4
 
 alter table t0 add filler1 char(200), add filler2 char(200), add filler3 char(200);
 update t0 set key2=1, key3=1, key4=1, key5=1,key6=1,key7=1 where key7 < 500;
+
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+-- enable_result_log
+-- enable_query_log
 
 # The next query will not use index i7 in intersection if the OS doesn't
 # support file sizes > 2GB. (ha_myisam::ref_length depends on this and index
@@ -543,6 +598,12 @@ while ($1)
 OPTIMIZE TABLE t1;
 select count(*) from t1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 9 #
@@ -576,6 +637,15 @@ create table t3 (
   filler1 char(200), filler2 char(200),
   key(a),key(b)
 ) engine=merge union=(t1,t2);
+
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+analyze table t1;
+analyze table t2;
+analyze table t3;
+-- enable_result_log
+-- enable_query_log
 
 --replace_column 9 #
 explain select * from t1 where a=1 and b=1;
@@ -649,6 +719,13 @@ create table t2(
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 insert into t2 select * from t1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
+
 --echo must use sort-union rather than union:
 --replace_column 9 #
 explain select * from t1 where a=4 or b=4;
@@ -696,6 +773,15 @@ insert into t3 values (1,1,'data');
 insert into t3 values (1,1,'data');
 -- echo The plan should be ALL/ALL/ALL(Range checked for each record (index map: 0x3)
 
+-- disable_query_log
+-- disable_result_log
+analyze table t0;
+analyze table t1;
+analyze table t2;
+analyze table t3;
+-- enable_result_log
+-- enable_query_log
+
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 9 #
@@ -722,6 +808,12 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT * FROM t1;
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 SET SESSION sort_buffer_size=1;
 
 if ($index_merge_random_rows_in_EXPLAIN)

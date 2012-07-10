@@ -144,6 +144,8 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 drop table if exists tb3 ;
@@ -260,7 +262,7 @@ f217 float(53) unsigned zerofill,
 f218 date,
 f219 time,
 f220 datetime,
-f221 timestamp,
+f221 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f222 year,
 f223 year(3),
 f224 year(4),
@@ -283,6 +285,8 @@ f240 varchar(120),
 f241 char(100),
 f242 bit(30)
 ) engine = myisam;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb4.txt'
 into table tb4;
 USE test1;
@@ -348,6 +352,8 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 USE test;

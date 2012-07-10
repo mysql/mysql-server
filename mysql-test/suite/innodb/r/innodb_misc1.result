@@ -103,7 +103,7 @@ id INT NOT NULL PRIMARY KEY,
 b INT,
 FOREIGN KEY (b) REFERENCES test.t1(id)
 ) ENGINE=InnoDB;
-Got one of the listed errors
+ERROR HY000: Cannot add foreign key constraint
 DROP TABLE t1;
 create table t1 (col1 varchar(2000), index (col1(767)))
 character set = latin1 engine = innodb;
@@ -211,13 +211,13 @@ drop table t1;
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 set foreign_key_checks=1;
 drop table t2;
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
-ERROR HY000: Can't create table 'test.t2' (errno: 150)
+ERROR HY000: Cannot add foreign key constraint
 set foreign_key_checks=1;
 drop table t1;
 set foreign_key_checks=0;
@@ -651,7 +651,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 ALTER TABLE t2 MODIFY a INT NOT NULL;
-ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150 - Foreign key constraint is incorrectly formed)
+ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
@@ -760,6 +760,8 @@ update t1 set j = 2;
 affected rows: 1
 info: Rows matched: 2  Changed: 1  Warnings: 0
 drop table t1;
+set @save_innodb_file_per_table= @@global.innodb_file_per_table;
+set @@global.innodb_file_per_table=0;
 create table t1 (id int) comment='this is a comment' engine=innodb;
 select table_comment, data_free > 0 as data_free_is_set
 from information_schema.tables
@@ -767,6 +769,7 @@ where table_schema='test' and table_name = 't1';
 table_comment	data_free_is_set
 this is a comment	1
 drop table t1;
+set @@global.innodb_file_per_table= @save_innodb_file_per_table;
 CREATE TABLE t1 (
 c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 c2 VARCHAR(128) NOT NULL,

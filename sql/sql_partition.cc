@@ -210,21 +210,18 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
 }
 
 
-/*
-  A support function to check if a name is in a list of strings
+/**
+  A support function to check if a name is in a list of strings.
 
-  SYNOPSIS
-    is_name_in_list()
-    name               String searched for
-    list_names         A list of names searched in
+  @param name        String searched for
+  @param list_names  A list of names searched in
 
-  RETURN VALUES
-    TRUE               String found
-    FALSE              String not found
+  @return True if if the name is in the list.
+    @retval true   String found
+    @retval false  String not found
 */
 
-bool is_name_in_list(char *name,
-                          List<char> list_names)
+static bool is_name_in_list(char *name, List<char> list_names)
 {
   List_iterator<char> names_it(list_names);
   uint num_names= list_names.elements;
@@ -286,61 +283,6 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
   }
   part_info->set_up_defaults_for_partitioning(table->file,
                                               (ulonglong)0, (uint)0);
-  DBUG_RETURN(FALSE);
-}
-
-
-/*
-  Check that the reorganized table will not have duplicate partitions.
-
-  SYNOPSIS
-    check_reorganise_list()
-    new_part_info      New partition info
-    old_part_info      Old partition info
-    list_part_names    The list of partition names that will go away and
-                       can be reused in the new table.
-
-  RETURN VALUES
-    TRUE               Inacceptable name conflict detected.
-    FALSE              New names are OK.
-
-  DESCRIPTION
-    Can handle that the 'new_part_info' and 'old_part_info' the same
-    in which case it checks that the list of names in the partitions
-    doesn't contain any duplicated names.
-*/
-
-bool check_reorganise_list(partition_info *new_part_info,
-                           partition_info *old_part_info,
-                           List<char> list_part_names)
-{
-  uint new_count, old_count;
-  uint num_new_parts= new_part_info->partitions.elements;
-  uint num_old_parts= old_part_info->partitions.elements;
-  List_iterator<partition_element> new_parts_it(new_part_info->partitions);
-  bool same_part_info= (new_part_info == old_part_info);
-  DBUG_ENTER("check_reorganise_list");
-
-  new_count= 0;
-  do
-  {
-    List_iterator<partition_element> old_parts_it(old_part_info->partitions);
-    char *new_name= (new_parts_it++)->partition_name;
-    new_count++;
-    old_count= 0;
-    do
-    {
-      char *old_name= (old_parts_it++)->partition_name;
-      old_count++;
-      if (same_part_info && old_count == new_count)
-        break;
-      if (!(my_strcasecmp(system_charset_info, old_name, new_name)))
-      {
-        if (!is_name_in_list(old_name, list_part_names))
-          DBUG_RETURN(TRUE);
-      }
-    } while (old_count < num_old_parts);
-  } while (new_count < num_new_parts);
   DBUG_RETURN(FALSE);
 }
 
@@ -2070,8 +2012,85 @@ static int add_quoted_string(File fptr, const char *quotestr)
   return err + add_string(fptr, "'");
 }
 
+/**
+  @brief  Truncate the partition file name from a path it it exists.
+
+  @note  A partition file name will contian one or more '#' characters.
+One of the occurances of '#' will be either "#P#" or "#p#" depending
+on whether the storage engine has converted the filename to lower case.
+*/
+void truncate_partition_filename(char *path)
+{
+  if (path)
+  {
+    char* last_slash= strrchr(path, FN_LIBCHAR);
+
+    if (!last_slash)
+      last_slash= strrchr(path, FN_LIBCHAR2);
+
+    if (last_slash)
+    {
+      /* Look for a partition-type filename */
+      for (char* pound= strchr(last_slash, '#');
+           pound; pound = strchr(pound + 1, '#'))
+      {
+        if ((pound[1] == 'P' || pound[1] == 'p') && pound[2] == '#')
+        {
+          last_slash[0] = '\0';	/* truncate the file name */
+          break;
+        }
+      }
+    }
+  }
+}
+
+
+/**
+  @brief  Output a filepath.  Similar to add_keyword_string except it
+also converts \ to / on Windows and skips the partition file name at
+the end if found.
+
+  @note  When Mysql sends a DATA DIRECTORY from SQL for partitions it does
+not use a file name, but it does for DATA DIRECTORY on a non-partitioned
+table.  So when the storage engine is asked for the DATA DIRECTORY string
+after a restart through Handler::update_create_options(), the storage
+engine may include the filename.
+*/
+static int add_keyword_path(File fptr, const char *keyword,
+                            const char *path)
+{
+  int err= add_string(fptr, keyword);
+
+  err+= add_space(fptr);
+  err+= add_equal(fptr);
+  err+= add_space(fptr);
+
+  char temp_path[FN_REFLEN];
+  strcpy(temp_path, path);
+#ifdef __WIN__
+  /* Convert \ to / to be able to create table on unix */
+  char *pos, *end;
+  uint length= strlen(temp_path);
+  for (pos= temp_path, end= pos+length ; pos < end ; pos++)
+  {
+    if (*pos == '\\')
+      *pos = '/';
+  }
+#endif
+
+  /*
+  If the partition file name with its "#P#" identifier
+  is found after the last slash, truncate that filename.
+  */
+  truncate_partition_filename(temp_path);
+
+  err+= add_quoted_string(fptr, temp_path);
+
+  return err + add_space(fptr);
+}
+
 static int add_keyword_string(File fptr, const char *keyword,
-                              bool should_use_quotes, 
+                              bool should_use_quotes,
                               const char *keystr)
 {
   int err= add_string(fptr, keyword);
@@ -2122,11 +2141,9 @@ static int add_partition_options(File fptr, partition_element *p_elem)
   if (!(current_thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
     if (p_elem->data_file_name)
-      err+= add_keyword_string(fptr, "DATA DIRECTORY", TRUE, 
-                               p_elem->data_file_name);
+      err+= add_keyword_path(fptr, "DATA DIRECTORY", p_elem->data_file_name);
     if (p_elem->index_file_name)
-      err+= add_keyword_string(fptr, "INDEX DIRECTORY", TRUE, 
-                               p_elem->index_file_name);
+      err+= add_keyword_path(fptr, "INDEX DIRECTORY", p_elem->index_file_name);
   }
   if (p_elem->part_comment)
     err+= add_keyword_string(fptr, "COMMENT", TRUE, p_elem->part_comment);
@@ -4279,6 +4296,7 @@ bool mysql_unpack_partition(THD *thd,
     thd->variables.character_set_client;
   LEX *old_lex= thd->lex;
   LEX lex;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 
   thd->variables.character_set_client= system_charset_info;
@@ -4308,12 +4326,16 @@ bool mysql_unpack_partition(THD *thd,
   }
   part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
+
+  thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
   {
     thd->free_items();
+    thd->m_statement_psi= parent_locker;
     goto end;
   }
+  thd->m_statement_psi= parent_locker;
   /*
     The parsed syntax residing in the frm file can still contain defaults.
     The reason is that the frm file is sometimes saved outside of this
@@ -4741,9 +4763,6 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
                                                alter_ctx->table_name,
                                                MDL_INTENTION_EXCLUSIVE));
 
-    /* We change the part_info, so the table must be reopened. */
-    table->m_needs_reopen= true;
-
     tab_part_info= table->part_info;
 
     if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
@@ -4784,6 +4803,8 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 #else
         *fast_alter_table= true;
 #endif
+        /* Force table re-open for consistency with the main case. */
+        table->m_needs_reopen= true;
         thd->work_part_info= tab_part_info;
         DBUG_RETURN(FALSE);
       }
@@ -4812,7 +4833,28 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       goto err;
     }
     if ((flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE)) != 0)
+    {
+      /*
+        "Fast" change of partitioning is supported in this case.
+        We will change TABLE::part_info (as this is how we pass
+        information to storage engine in this case), so the table
+        must be reopened.
+      */
       *fast_alter_table= true;
+      table->m_needs_reopen= true;
+    }
+    else
+    {
+      /*
+        "Fast" changing of partitioning is not supported. Create
+        a copy of TABLE::part_info object, so we can modify it safely.
+        Modifying original TABLE::part_info will cause problems when
+        we read data from old version of table using this TABLE object
+        while copying them to new version of table.
+      */
+      if (!(tab_part_info= tab_part_info->get_clone()))
+        DBUG_RETURN(TRUE);
+    }
     DBUG_PRINT("info", ("*fast_alter_table flags: 0x%x", flags));
     if ((alter_info->flags & Alter_info::ALTER_ADD_PARTITION) ||
         (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION))
@@ -5574,7 +5616,9 @@ the generated partition syntax in a correct manner.
        There was no partitioning before and no partitioning defined.
        Obviously no work needed.
     */
-    if (table->part_info)
+    partition_info *tab_part_info= table->part_info;
+
+    if (tab_part_info)
     {
       if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
       {
@@ -5582,7 +5626,7 @@ the generated partition syntax in a correct manner.
         if (!(create_info->used_fields & HA_CREATE_USED_ENGINE))
         {
           DBUG_PRINT("info", ("No explicit engine used"));
-          create_info->db_type= table->part_info->default_engine_type;
+          create_info->db_type= tab_part_info->default_engine_type;
         }
         DBUG_PRINT("info", ("New engine type: %s",
                    ha_resolve_storage_engine_name(create_info->db_type)));
@@ -5594,16 +5638,20 @@ the generated partition syntax in a correct manner.
         /*
           Retain partitioning but possibly with a new storage engine
           beneath.
+
+          Create a copy of TABLE::part_info to be able to modify it freely.
         */
-        thd->work_part_info= table->part_info;
+        if (!(tab_part_info= tab_part_info->get_clone()))
+          DBUG_RETURN(TRUE);
+        thd->work_part_info= tab_part_info;
         if (create_info->used_fields & HA_CREATE_USED_ENGINE &&
-            create_info->db_type != table->part_info->default_engine_type)
+            create_info->db_type != tab_part_info->default_engine_type)
         {
           /*
             Make sure change of engine happens to all partitions.
           */
           DBUG_PRINT("info", ("partition changed"));
-          if (table->part_info->is_auto_partitioned)
+          if (tab_part_info->is_auto_partitioned)
           {
             /*
               If the user originally didn't specify partitioning to be
@@ -5631,7 +5679,7 @@ the generated partition syntax in a correct manner.
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->work_part_info != table->part_info)
+      if (thd->work_part_info != tab_part_info)
       {
         DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
@@ -5648,8 +5696,8 @@ the generated partition syntax in a correct manner.
         part_info->default_engine_type= create_info->db_type;
       else
       {
-        if (table->part_info)
-          part_info->default_engine_type= table->part_info->default_engine_type;
+        if (tab_part_info)
+          part_info->default_engine_type= tab_part_info->default_engine_type;
         else
           part_info->default_engine_type= create_info->db_type;
       }
@@ -6571,7 +6619,6 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       }
     }
     /* Ensure the share is destroyed and reopened. */
-    table->s->version= 0;
     part_info= lpt->part_info->get_clone();
     close_all_tables_for_name(thd, table->s, false);
   }

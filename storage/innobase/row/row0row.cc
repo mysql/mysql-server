@@ -217,21 +217,23 @@ row_build(
 					of an index, or NULL if
 					index->table should be
 					consulted instead */
+	const dtuple_t*		add_cols,
+					/*!< in: default values of
+					added columns, or NULL */
+	const ulint*		col_map,/*!< in: mapping of old column
+					numbers to new ones, or NULL */
 	row_ext_t**		ext,	/*!< out, own: cache of
 					externally stored column
 					prefixes, or NULL */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
 					the memory needed is allocated */
 {
+	const byte*		copy;
 	dtuple_t*		row;
-	const dict_table_t*	table;
-	ulint			n_fields;
 	ulint			n_ext_cols;
 	ulint*			ext_cols	= NULL; /* remove warning */
 	ulint			len;
-	ulint			row_len;
 	byte*			buf;
-	ulint			i;
 	ulint			j;
 	mem_heap_t*		tmp_heap	= NULL;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
@@ -240,6 +242,7 @@ row_build(
 	ut_ad(index && rec && heap);
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!col_map || col_table);
 
 	if (!offsets) {
 		offsets = rec_get_offsets(rec, index, offsets_,
@@ -266,55 +269,84 @@ row_build(
 		buf = static_cast<byte*>(
 			mem_heap_alloc(heap, rec_offs_size(offsets)));
 
-		rec = rec_copy(buf, rec, offsets);
-		/* Avoid a debug assertion in rec_offs_validate(). */
-		rec_offs_make_valid(rec, index, (ulint*) offsets);
+		copy = rec_copy(buf, rec, offsets);
+	} else {
+		copy = rec;
 	}
 
-	table = index->table;
-	row_len = dict_table_get_n_cols(table);
-
-	row = dtuple_create(heap, row_len);
-
-	dict_table_copy_types(row, table);
-
-	dtuple_set_info_bits(row, rec_get_info_bits(
-				     rec, dict_table_is_comp(table)));
-
-	n_fields = rec_offs_n_fields(offsets);
 	n_ext_cols = rec_offs_n_extern(offsets);
 	if (n_ext_cols) {
 		ext_cols = static_cast<ulint*>(
 			mem_heap_alloc(heap, n_ext_cols * sizeof *ext_cols));
 	}
 
-	for (i = j = 0; i < n_fields; i++) {
-		dict_field_t*		ind_field
+	/* Avoid a debug assertion in rec_offs_validate(). */
+	rec_offs_make_valid(copy, index, const_cast<ulint*>(offsets));
+
+	if (!col_table) {
+		ut_ad(!col_map);
+		ut_ad(!add_cols);
+		col_table = index->table;
+	}
+
+	if (add_cols) {
+		ut_ad(col_map);
+		row = dtuple_copy(add_cols, heap);
+		/* dict_table_copy_types() would set the fields to NULL */
+		for (ulint i = 0; i < dict_table_get_n_cols(col_table); i++) {
+			dict_col_copy_type(
+				dict_table_get_nth_col(col_table, i),
+				dfield_get_type(dtuple_get_nth_field(row, i)));
+		}
+	} else {
+		row = dtuple_create(heap, dict_table_get_n_cols(col_table));
+		dict_table_copy_types(row, col_table);
+	}
+
+	dtuple_set_info_bits(row, rec_get_info_bits(
+				     copy, rec_offs_comp(offsets)));
+
+	j = 0;
+
+	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
+		const dict_field_t*	ind_field
 			= dict_index_get_nth_field(index, i);
+
+		if (ind_field->prefix_len) {
+			/* Column prefixes can only occur in key
+			fields, which cannot be stored externally. For
+			a column prefix, there should also be the full
+			field in the clustered index tuple. The row
+			tuple comprises full fields, not prefixes. */
+			ut_ad(!rec_offs_nth_extern(offsets, i));
+			continue;
+		}
+
 		const dict_col_t*	col
 			= dict_field_get_col(ind_field);
 		ulint			col_no
 			= dict_col_get_no(col);
-		dfield_t*		dfield
-			= dtuple_get_nth_field(row, col_no);
 
-		if (ind_field->prefix_len == 0) {
+		if (col_map) {
+			col_no = col_map[col_no];
 
-			const byte*	field = rec_get_nth_field(
-				rec, offsets, i, &len);
-
-			dfield_set_data(dfield, field, len);
+			if (col_no == ULINT_UNDEFINED) {
+				/* dropped column */
+				continue;
+			}
 		}
+
+		dfield_t*	dfield = dtuple_get_nth_field(row, col_no);
+
+		const byte*	field = rec_get_nth_field(
+			copy, offsets, i, &len);
+
+		dfield_set_data(dfield, field, len);
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			dfield_set_ext(dfield);
 
-			if (UNIV_LIKELY_NULL(col_table)) {
-				ut_a(col_no
-				     < dict_table_get_n_cols(col_table));
-				col = dict_table_get_nth_col(
-					col_table, col_no);
-			}
+			col = dict_table_get_nth_col(col_table, col_no);
 
 			if (col->ord_part) {
 				/* We will have to fetch prefixes of
@@ -324,6 +356,8 @@ row_build(
 			}
 		}
 	}
+
+	rec_offs_make_valid(rec, index, const_cast<ulint*>(offsets));
 
 	ut_ad(dtuple_check_typed(row));
 
@@ -408,28 +442,14 @@ row_rec_to_index_entry_low(
 /*******************************************************************//**
 Converts an index record to a typed data tuple. NOTE that externally
 stored (often big) fields are NOT copied to heap.
-@return	own: index entry built; see the NOTE below! */
+@return	own: index entry built */
 UNIV_INTERN
 dtuple_t*
 row_rec_to_index_entry(
 /*===================*/
-	ulint			type,	/*!< in: ROW_COPY_DATA, or
-					ROW_COPY_POINTERS: the former
-					copies also the data fields to
-					heap as the latter only places
-					pointers to data fields on the
-					index page */
-	const rec_t*		rec,	/*!< in: record in the index;
-					NOTE: in the case
-					ROW_COPY_POINTERS the data
-					fields in the row will point
-					directly into this record,
-					therefore, the buffer page of
-					this record must be at least
-					s-latched and the latch held
-					as long as the dtuple is used! */
+	const rec_t*		rec,	/*!< in: record in the index */
 	const dict_index_t*	index,	/*!< in: index */
-	ulint*			offsets,/*!< in/out: rec_get_offsets(rec) */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec) */
 	ulint*			n_ext,	/*!< out: number of externally
 					stored columns */
 	mem_heap_t*		heap)	/*!< in: memory heap from which
@@ -437,25 +457,21 @@ row_rec_to_index_entry(
 {
 	dtuple_t*	entry;
 	byte*		buf;
+	const rec_t*	copy_rec;
 
 	ut_ad(rec && heap && index);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (type == ROW_COPY_DATA) {
-		/* Take a copy of rec to heap */
-		buf = static_cast<byte*>(
-			mem_heap_alloc(heap, rec_offs_size(offsets)));
+	/* Take a copy of rec to heap */
+	buf = static_cast<byte*>(
+		mem_heap_alloc(heap, rec_offs_size(offsets)));
 
-		rec = rec_copy(buf, rec, offsets);
-		/* Avoid a debug assertion in rec_offs_validate(). */
-		rec_offs_make_valid(rec, index, offsets);
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	} else {
-		ut_a(!rec_offs_any_null_extern(rec, offsets));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-	}
+	copy_rec = rec_copy(buf, rec, offsets);
 
-	entry = row_rec_to_index_entry_low(rec, index, offsets, n_ext, heap);
+	rec_offs_make_valid(copy_rec, index, const_cast<ulint*>(offsets));
+	entry = row_rec_to_index_entry_low(
+		copy_rec, index, offsets, n_ext, heap);
+	rec_offs_make_valid(rec, index, const_cast<ulint*>(offsets));
 
 	dtuple_set_info_bits(entry,
 			     rec_get_info_bits(rec, rec_offs_comp(offsets)));

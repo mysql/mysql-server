@@ -30,7 +30,7 @@ Created 6/9/1994 Heikki Tuuri
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
-UNIV_INTERN mutex_t		mem_hash_mutex;
+UNIV_INTERN ib_mutex_t		mem_hash_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mem_hash_mutex with performance schema */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,13 +33,41 @@
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)
 {
+  bool res;
   DBUG_ENTER("mysql_union");
-  bool res= unit->prepare(thd, result, SELECT_NO_UNLOCK |
-                           setup_tables_done_option) ||
-            unit->optimize() ||
-            unit->exec();
+
+  res= unit->prepare(thd, result,
+		     SELECT_NO_UNLOCK | setup_tables_done_option);
+  if (res)
+    goto err;
+
+
+  /*
+    Tables are not locked at this point, it means that we have delayed
+    this step until after prepare stage (i.e. this moment). This allows to
+    do better partition pruning and avoid locking unused partitions.
+    As a consequence, in such a case, prepare stage can rely only on
+    metadata about tables used and not data from them.
+    We need to lock tables now in order to proceed with the remaning
+    stages of query optimization and execution.
+  */
+  DBUG_ASSERT(! thd->lex->is_query_tables_locked());
+  if (lock_tables(thd, lex->query_tables, lex->table_count, 0))
+    goto err;
+
+  /*
+    Tables must be locked before storing the query in the query cache.
+    Transactional engines must been signalled that the statement started,
+    which external_lock signals.
+  */
+  query_cache_store_query(thd, thd->lex->query_tables);
+
+  res= unit->optimize() || unit->exec();
   res|= unit->cleanup();
   DBUG_RETURN(res);
+err:
+  (void) unit->cleanup();
+  DBUG_RETURN(true);
 }
 
 
@@ -62,7 +90,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1);
+  fill_record(thd, table->field, values, 1, NULL);
   if (thd->is_error())
     return 1;
 
@@ -261,8 +289,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
         sl->join->result= result;
         select_limit_cnt= HA_POS_ERROR;
         offset_limit_cnt= 0;
-        if (!sl->join->procedure &&
-            result->prepare(sl->join->fields_list, this))
+        if (result->prepare(sl->join->fields_list, this))
         {
           DBUG_RETURN(TRUE);
         }
@@ -326,12 +353,9 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                                NULL : sl->order_list.first,
                                sl->group_list.first,
                                sl->having,
-                               (is_union_select ? NULL :
-                                thd_arg->lex->proc_list.first),
                                sl, this);
     /* There are no * in the statement anymore (for PS) */
     sl->with_wild= 0;
-    last_procedure= join->procedure;
 
     if (saved_error || (saved_error= thd_arg->is_fatal_error))
       goto err;
@@ -474,7 +498,6 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
                   global_parameters->order_list.first,    // order
                   NULL,                                // group_init
                   NULL,                                // having_init
-                  NULL,                                // proc_param_init
                   fake_select_lex,                     // select_lex_arg
                   this);                               // unit_arg
 	fake_select_lex->table_list.empty();
@@ -611,9 +634,8 @@ void st_select_lex_unit::explain()
     saved_error= mysql_select(thd,
                           &result_table_list,
                           0, item_list, NULL,
-                          global_parameters->order_list.elements,
-                          global_parameters->order_list.first,
-                          NULL, NULL, NULL,
+                          &global_parameters->order_list,
+                          NULL, NULL,
                           fake_select_lex->options | SELECT_NO_UNLOCK,
                           result, this, fake_select_lex);
   }
@@ -750,11 +772,9 @@ bool st_select_lex_unit::exec()
                      0,                       // wild_num
                      item_list,               // fields
                      NULL,                    // conds
-                     global_parameters->order_list.elements, // og_num
-                     global_parameters->order_list.first,    // order
+                     &global_parameters->order_list,    // order
                      NULL,                    // group
                      NULL,                    // having
-                     NULL,                    // proc_param
                      fake_select_lex->options | SELECT_NO_UNLOCK,
                      result,                  // result
                      this,                    // unit
@@ -801,26 +821,11 @@ bool st_select_lex_unit::cleanup()
   }
   cleaned= true;
 
-  if (union_result)
-  {
-    delete union_result;
-    union_result=0; // Safety
-    if (table)
-      free_tmp_table(thd, table);
-    table= 0; // Safety
-  }
-
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
     error|= sl->cleanup();
 
   if (fake_select_lex)
   {
-    JOIN *join;
-    if ((join= fake_select_lex->join))
-    {
-      join->tables_list= 0;
-      join->tables= 0;
-    }
     error|= fake_select_lex->cleanup();
     /*
       There are two cases when we should clean order items:
@@ -840,6 +845,15 @@ bool st_select_lex_unit::cleanup()
       for (ord= global_parameters->order_list.first; ord; ord= ord->next)
         (*ord->item)->walk (&Item::cleanup_processor, 0, 0);
     }
+  }
+
+  if (union_result)
+  {
+    delete union_result;
+    union_result=0; // Safety
+    if (table)
+      free_tmp_table(thd, table);
+    table= 0; // Safety
   }
 
   explain_marker= CTX_NONE;
@@ -919,15 +933,6 @@ bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
   SELECT_LEX *sl= first_select();
-  bool is_procedure= test(sl->join->procedure);
-
-  if (is_procedure)
-  {
-    /* Types for "SELECT * FROM t1 procedure analyse()"
-       are generated during execute */
-    return &sl->join->procedure_fields_list;
-  }
-
 
   if (is_union())
   {

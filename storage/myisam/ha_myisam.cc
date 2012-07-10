@@ -285,11 +285,10 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       keydef[i].seg[j].bit_pos= 0;
       keydef[i].seg[j].language= field->charset_for_protocol()->number;
 
-      if (field->null_ptr)
+      if (field->real_maybe_null())
       {
         keydef[i].seg[j].null_bit= field->null_bit;
-        keydef[i].seg[j].null_pos= (uint) (field->null_ptr-
-                                           (uchar*) table_arg->record[0]);
+        keydef[i].seg[j].null_pos= field->null_offset();
       }
       else
       {
@@ -369,11 +368,10 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                                   found->type() == MYSQL_TYPE_VAR_STRING ?
                                   FIELD_SKIP_ENDSPACE :
                                   FIELD_SKIP_PRESPACE);
-    if (found->null_ptr)
+    if (found->real_maybe_null())
     {
       recinfo_pos->null_bit= found->null_bit;
-      recinfo_pos->null_pos= (uint) (found->null_ptr -
-                                     (uchar*) table_arg->record[0]);
+      recinfo_pos->null_pos= found->null_offset();
     }
     else
     {
@@ -1490,25 +1488,22 @@ void ha_myisam::start_bulk_insert(ha_rows rows)
   can_enable_indexes= mi_is_all_keys_active(file->s->state.key_map,
                                             file->s->base.keys);
 
-  if (!(specialflag & SPECIAL_SAFE_MODE))
-  {
-    /*
-      Only disable old index if the table was empty and we are inserting
-      a lot of rows.
-      Note that in end_bulk_insert() we may truncate the table if
-      enable_indexes() failed, thus it's essential that indexes are
-      disabled ONLY for an empty table.
-    */
-    if (file->state->records == 0 && can_enable_indexes &&
-        (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
-      mi_disable_non_unique_index(file,rows);
-    else
+  /*
+    Only disable old index if the table was empty and we are inserting
+    a lot of rows.
+    Note that in end_bulk_insert() we may truncate the table if
+    enable_indexes() failed, thus it's essential that indexes are
+    disabled ONLY for an empty table.
+  */
+  if (file->state->records == 0 && can_enable_indexes &&
+      (!rows || rows >= MI_MIN_ROWS_TO_DISABLE_INDEXES))
+    mi_disable_non_unique_index(file,rows);
+  else
     if (!file->bulk_insert &&
         (!rows || rows >= MI_MIN_ROWS_TO_USE_BULK_INSERT))
     {
       mi_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }
-  }
   DBUG_VOID_RETURN;
 }
 
@@ -1870,8 +1865,6 @@ int ha_myisam::info(uint flag)
 
 int ha_myisam::extra(enum ha_extra_function operation)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_KEYREAD)
-    return 0;
   if (operation == HA_EXTRA_MMAP && !opt_myisam_use_mmap)
     return 0;
   return mi_extra(file, operation, 0);
@@ -1891,8 +1884,6 @@ int ha_myisam::reset(void)
 
 int ha_myisam::extra_opt(enum ha_extra_function operation, ulong cache_size)
 {
-  if ((specialflag & SPECIAL_SAFE_MODE) && operation == HA_EXTRA_WRITE_CACHE)
-    return 0;
   return mi_extra(file, operation, (void*) &cache_size);
 }
 

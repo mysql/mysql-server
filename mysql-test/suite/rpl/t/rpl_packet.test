@@ -17,10 +17,8 @@ source include/have_binlog_format_row.inc;
 # In this case MTS can't stop immediately if there is a Worker that received a BEGIN but never COMMIT.
 -- source include/not_mts_slave_parallel_workers.inc
 
-
-call mtr.add_suppression("Slave I/O: Got a packet bigger than 'max_allowed_packet' bytes, Error_code: 1153");
-call mtr.add_suppression("Slave I/O: Got fatal error 1236 from master when reading data from binary log:");
-
+call mtr.add_suppression("Slave I/O: Got a packet bigger than 'slave_max_allowed_packet' bytes, Error_code: 1153");
+call mtr.add_suppression("Log entry on master is longer than slave_max_allowed_packet");
 let $db= DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________;
 disable_warnings;
 eval drop database if exists $db;
@@ -30,7 +28,8 @@ eval create database $db;
 connection master;
 let $old_max_allowed_packet= `SELECT @@global.max_allowed_packet`;
 let $old_net_buffer_length= `SELECT @@global.net_buffer_length`;
-SET @@global.max_allowed_packet=1024;
+let $old_slave_max_allowed_packet= `SELECT @@global.slave_max_allowed_packet`;
+SET @@global.max_allowed_packet=10240;
 SET @@global.net_buffer_length=1024;
 
 sync_slave_with_master;
@@ -82,7 +81,7 @@ connection master;
 # MAX_DBS_IN_QUERY_MTS * (1 + NAME_LEN) to make the master not fail to read
 # an event itself.
 
-SET @@global.max_allowed_packet=4096 + (floor(64 * 3 * 254 / 1024) + 1) * 1024;
+SET @@global.max_allowed_packet=4096 + 4096 + (floor(64 * 3 * 254 / 1024) + 1) * 1024;
 SET @@global.net_buffer_length=@@global.max_allowed_packet;
 
 # Restart slave for new setting to take effect
@@ -142,10 +141,9 @@ INSERT INTO t1(f1, f2, f3) VALUES(1, REPEAT('a', @@global.max_allowed_packet), R
 
 connection slave;
 # The slave I/O thread must stop after receiving
-# 1236=ER_MASTER_FATAL_ERROR_READING_BINLOG error message from master.
---let $slave_io_errno= 1236
-# Mask line numbers
---let $slave_io_error_replace= / at [0-9]*/ at XXX/
+# 1153 = ER_NET_PACKET_TOO_LARGE
+--let $slave_io_errno= 1153
+--let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 
 # Remove the bad binlog and clear error status on slave.
@@ -285,6 +283,7 @@ connection master;
 DROP TABLE t1;
 eval SET @@global.max_allowed_packet= $old_max_allowed_packet;
 eval SET @@global.net_buffer_length= $old_net_buffer_length;
+eval SET @@global.slave_max_allowed_packet= $old_slave_max_allowed_packet;
 # slave is stopped
 connection slave;
 eval SET @@global.max_allowed_packet= $old_slave_max_allowed_packet;

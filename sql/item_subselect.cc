@@ -338,6 +338,16 @@ bool Item_subselect::explain_subquery_checker(uchar **arg)
     return false;
   }
 
+  if (m->type == CTX_HAVING && unit->explain_marker == CTX_WHERE)
+  {
+    /*
+      This subquery was in SELECT list of outer subquery transformed
+      with IN->EXISTS, so is referenced by WHERE and HAVING;
+      see Item_in_subselect::single_value_in_to_exists_transformer()
+    */
+    return false;
+  }
+
   if (unit->explain_marker == CTX_NONE)
     goto overwrite;
 
@@ -446,7 +456,6 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
 {
   /* Clear usage information for this subquery predicate object */
   used_tables_cache= 0;
-  const_item_cache= 1;
 
   /*
     Go through all query specification objects of the subquery and re-resolve
@@ -570,7 +579,12 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return unit->thd->lex->context_analysis_only ? false : const_item_cache;
+  if (unit->thd->lex->context_analysis_only)
+    return false;
+  /* Not constant until tables are locked. */
+  if (!unit->thd->lex->is_query_tables_locked())
+    return false;
+  return const_item_cache;
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1635,6 +1649,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
       }
     }
   }
+  join->having_for_explain= join->having;
 
   DBUG_RETURN(RES_OK);
 }
@@ -1910,7 +1925,8 @@ Item_in_subselect::row_value_in_to_exists_transformer(JOIN * join)
   if (having_item)
   {
     bool res;
-    select_lex->having= join->having= and_items(join->having, having_item);
+    select_lex->having= join->having= join->having_for_explain=
+      and_items(join->having, having_item);
     if (having_item == select_lex->having)
       having_item->item_name.set(in_having_cond);
     select_lex->having->top_level_item();
@@ -1984,7 +2000,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     SELECT_LEX *sl= current->master_unit()->first_select();
     for (; sl; sl= sl->next_select())
       if (sl->join)
-        DBUG_ASSERT(!sl->join->order);
+        DBUG_ASSERT(!sl->join->order || sl->join->order.src == ESC_GROUP_BY);
   }
 #endif
 
@@ -2094,7 +2110,6 @@ void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
   left_expr->fix_after_pullout(parent_select, removed_select, &left_expr);
 
   used_tables_cache|= left_expr->used_tables();
-  const_item_cache&= left_expr->const_item();
 }
 
 
@@ -2365,7 +2380,7 @@ bool subselect_single_select_engine::prepare()
 		    select_lex->order_list.first,
 		    select_lex->group_list.first,
 		    select_lex->having,
-		    NULL, select_lex,
+		    select_lex,
 		    select_lex->master_unit()))
     return 1;
   thd->lex->current_select= save_select;
@@ -2477,11 +2492,6 @@ bool subselect_single_select_engine::exec()
     {
       optimize_error= true;
       rc= join->error ? join->error : 1;
-      goto exit;
-    }
-    if (save_join_if_explain())
-    {
-      rc= 1;
       goto exit;
     }
     if (item->engine_changed)
@@ -2977,56 +2987,6 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
   return map;
 }
 
-/**
-  Save the JOIN to join->tmp_join if it is needed by EXPLAIN to
-  display the query plan.
-
-  @retval
-    FALSE OK
-  @retval
-    TRUE  error
-*/
-bool 
-subselect_single_select_engine::save_join_if_explain()
-{
-  /*
-    Save this JOIN to join->tmp_join since the original layout will be
-    replaced when JOIN::exec() calls make_simple_join() if:
-     1) We are executing an EXPLAIN query
-     2) An uncacheable flag has not been set for the select_lex. If
-        set, JOIN::optimize() has already saved the JOIN
-     3) Call does not come from select_describe()). If it does,
-        JOIN::exec() will not call make_simple_join() and the JOIN we
-        plan to save will not be replaced anyway.
-     4) The Item_subselect is cacheable
-  */
-  if (item->unit->thd->lex->describe &&                  // 1
-      !select_lex->uncacheable &&                        // 2
-      !(join->select_options & SELECT_DESCRIBE))         // 3
-  {
-    item->update_used_tables();
-    if (item->const_item())                              // 4
-    {
-      /*
-        It's necessary to keep original JOIN table because
-        create_sort_index() function may overwrite original
-        JOIN_TAB::type and wrong optimization method can be
-        selected on re-execution.
-      */
-      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-      /*
-        Force join->join_tmp creation, because this subquery will be replaced
-        by a simple select from the materialization temp table by optimize()
-        called by EXPLAIN and we need to preserve the initial query structure
-        so we can display it.
-      */
-      if (join->need_tmp && join->init_save_join_tab())
-        return TRUE;
-    }
-  }
-  return FALSE;
-}
 
 table_map subselect_single_select_engine::upper_select_const_tables() const
 {
@@ -3299,9 +3259,9 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   THD * const thd= item->unit->thd;
   if (tmp_result_sink->create_result_table(
-                         thd, tmp_columns, TRUE,
+                         thd, tmp_columns, true,
                          thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,
-                         "materialized subselect", TRUE, TRUE))
+                         "materialized-subquery", true, true))
     DBUG_RETURN(TRUE);
 
   tmp_table= tmp_result_sink->table;
@@ -3362,7 +3322,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   uchar *cur_ref_buff= tmp_tab->ref.key_buff;
 
   /*
-    Create an artificial condition to post-filter those rows matched by index
+    Like semijoin-materialization-lookup (see create_subquery_equalities()),
+    create an artificial condition to post-filter those rows matched by index
     lookups that cannot be distinguished by the index lookup procedure, e.g.
     because of truncation (if the outer column type's length is bigger than
     the inner column type's, index lookup will use a truncated outer
@@ -3384,8 +3345,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
   if (!(tmp_table_ref= (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table("", 0, "materialized subselect", 22,
-                                "materialized subselect", TL_READ);
+  tmp_table_ref->init_one_table("", 0, "materialized-subquery", 21,
+                                "materialized-subquery", TL_READ);
   tmp_table_ref->table= tmp_table;
 
   /* Name resolution context for all tmp_table columns created below. */
@@ -3527,9 +3488,6 @@ bool subselect_hash_sj_engine::exec()
     thd->lex->current_select= materialize_engine->select_lex;
     if ((res= materialize_engine->join->optimize()))
       goto err; /* purecov: inspected */
-
-    if (materialize_engine->save_join_if_explain())
-      goto err;
 
     materialize_engine->join->exec();
     if ((res= test(materialize_engine->join->error || thd->is_fatal_error)))

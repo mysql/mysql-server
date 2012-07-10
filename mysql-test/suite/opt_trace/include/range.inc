@@ -257,6 +257,12 @@ CREATE TABLE t1 (
 INSERT INTO t1 VALUES (1, 1, 9,'a'), (2, 2, 8,'b'), (3, 3, 7,'c'),
                       (4, 4, 6,'d'), (5, 5, 5,'e');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 --echo
 --echo # Covering ROR intersect not chosen: only one scan used
 EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3;
@@ -265,6 +271,8 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 
 DROP INDEX i1_idx ON t1;
 CREATE INDEX i1_i2_idx ON t1 (i2,i1);
+
+ANALYZE TABLE t1;
 
 --echo
 --echo # Covering ROR intersect not chosen: cost
@@ -278,8 +286,14 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 DROP TABLE t1;
 
 # Optimizer first decides to use ref, then changes mind to use range instead
-CREATE TABLE t1 (a int, b int, PRIMARY KEY (a,b), KEY b (b)) ENGINE=InnoDB;
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (a,b), KEY b (b)) ENGINE=InnoDB STATS_PERSISTENT=0;
 INSERT INTO t1 VALUES (1,1),(1,2),(1,0),(1,3);
+
+# -- disable_query_log
+# -- disable_result_log
+# ANALYZE TABLE t1;
+# -- enable_result_log
+# -- enable_query_log
 
 --echo
 --echo # Test trace for "access_type_changed 'ref' to 'range'"

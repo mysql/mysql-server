@@ -22,6 +22,7 @@
 #include "gcalc_tools.h"
 #include "gstream.h"                            // Gis_read_stream
 #include "spatial.h"
+#include "sql_class.h"                          // THD
 
 #define float_to_coord(d) ((double) d)
 
@@ -64,6 +65,14 @@ void Gcalc_function::add_operands_to_op(uint32 operation_pos, uint32 n_operands)
 }
 
 
+void Gcalc_function::set_operands_to_op(uint32 operation_pos, uint32 n_operands)
+{
+  uint32 op_code= (uint4korr(function_buffer.ptr() + operation_pos) & op_any) +
+                  n_operands;
+  function_buffer.write_at_position(operation_pos, op_code);
+}
+
+
 /*
   Just like the add_operation() but the result will be the inverted
   value of an operation.
@@ -92,7 +101,7 @@ int Gcalc_function::single_shape_op(shape_type shape_kind, gcalc_shape_info *si)
 
 int Gcalc_function::reserve_shape_buffer(uint n_shapes)
 {
-  return shapes_buffer.reserve(n_shapes * 4, 512);
+  return shapes_buffer.reserve(n_shapes * shape_buffer_item_size, 512);
 }
 
 
@@ -102,7 +111,7 @@ int Gcalc_function::reserve_shape_buffer(uint n_shapes)
 
 int Gcalc_function::reserve_op_buffer(uint n_ops)
 {
-  return function_buffer.reserve(n_ops * 4, 512);
+  return function_buffer.reserve(n_ops * function_buffer_item_size, 512);
 }
 
 
@@ -115,6 +124,72 @@ int Gcalc_function::alloc_states()
 }
 
 
+
+#ifndef DBUG_OFF
+/**
+  Return spatial operation name from its numeric code.
+*/
+const char *Gcalc_function::op_name(int code)
+{
+  enum op_type type= (enum op_type) code;
+  switch (type)
+  {
+  case op_shape:          return "op_shape";
+  case op_not:            return "op_not";
+  case op_union:          return "op_union";
+  case op_intersection:   return "op_intersection";
+  case op_symdifference:  return "op_symdifference";
+  case op_difference:     return "op_difference";
+  case op_backdifference: return "op_backdifference";
+  case op_any:            return "op_any";
+  }
+  return "op_unknown";
+}
+
+
+const char *Gcalc_function::shape_name(int code)
+{
+  switch (code)
+  {
+  case shape_point: return   "shape_point";
+  case shape_line:  return   "shape_line";
+  case shape_polygon: return "shape_polygon";
+  case shape_hole:    return "shape_hole";
+  }
+  return "shape_unknown";
+}
+
+
+/**
+  Trace spatial operation buffer into debug log
+  and optionally into client side warnings.
+*/
+void Gcalc_function::debug_print_function_buffer()
+{
+  int i, nelements= function_buffer.length() / function_buffer_item_size;
+  THD *thd= current_thd;
+  DBUG_PRINT("info", ("nelements=%d", nelements));
+  for (i= 0; i < nelements; i++)
+  {
+    int c_op= uint4korr(function_buffer.ptr() + function_buffer_item_size * i);
+    int func=  (c_op & op_any);
+    int mask= (c_op & op_not) ? 1 : 0;
+    int n_ops= c_op & ~op_any;
+    const char *c_op_name= op_name(func);
+    const char *s_name= (func == op_shape) ?
+                         shape_name(uint4korr(shapes_buffer.ptr() +
+                         shape_buffer_item_size * n_ops)) : "";
+    DBUG_PRINT("info", ("[%d]=%d c_op=%d (%s) mask=%d n_ops=%d",
+                       i, c_op, func, c_op_name, mask, n_ops));
+    if (thd->get_gis_debug())
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_UNKNOWN_ERROR, "[%d] %s[%d]%s",
+                          i, c_op_name, n_ops, s_name);
+  }
+}
+#endif
+
+
 int Gcalc_function::count_internal()
 {
   int c_op= uint4korr(cur_func);
@@ -123,7 +198,7 @@ int Gcalc_function::count_internal()
   int n_ops= c_op & ~op_any;
   int result;
 
-  cur_func+= 4;
+  cur_func+= function_buffer_item_size;
   if (next_func == op_shape)
     return i_states[c_op & ~(op_any | op_not)] ^ mask;
 
@@ -207,67 +282,96 @@ int Gcalc_function::find_function(Gcalc_scan_iterator &scan_it)
 }
 
 
-int Gcalc_operation_transporter::single_point(double x, double y)
+int Gcalc_operation_transporter::single_point(Gcalc_shape_status *st,
+                                              double x, double y)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::single_point: %g %g", x, y));
   gcalc_shape_info si;
   return m_fn->single_shape_op(Gcalc_function::shape_point, &si) ||
          int_single_point(si, x, y);
 }
 
 
-int Gcalc_operation_transporter::start_line()
+int Gcalc_operation_transporter::start_line(Gcalc_shape_status *st)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::start_line"));
   int_start_line();
   return m_fn->single_shape_op(Gcalc_function::shape_line, &m_si);
 }
 
 
-int Gcalc_operation_transporter::complete_line()
+int Gcalc_operation_transporter::complete_line(Gcalc_shape_status *st)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::complete_line"));
   int_complete_line();
   return 0;
 }
 
 
-int Gcalc_operation_transporter::start_poly()
+int Gcalc_operation_transporter::start_poly(Gcalc_shape_status *st)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::start_poly"));
   int_start_poly();
   return m_fn->single_shape_op(Gcalc_function::shape_polygon, &m_si);
 }
 
 
-int Gcalc_operation_transporter::complete_poly()
+int Gcalc_operation_transporter::complete_poly(Gcalc_shape_status *st)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::complete_poly"));
   int_complete_poly();
   return 0;
 }
 
 
-int Gcalc_operation_transporter::start_ring()
+int Gcalc_operation_transporter::start_ring(Gcalc_shape_status *st)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::start_ring"));
   int_start_ring();
   return 0;
 }
 
 
-int Gcalc_operation_transporter::complete_ring()
+int Gcalc_operation_transporter::complete_ring(Gcalc_shape_status *st)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::complete_ring"));
   int_complete_ring();
   return 0;
 }
 
 
-int Gcalc_operation_transporter::add_point(double x, double y)
+int Gcalc_operation_transporter::add_point(Gcalc_shape_status *st,
+                                           double x, double y)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::add_point %g %g", x, y));
   return int_add_point(m_si, x, y);
 }
 
 
-int Gcalc_operation_transporter::start_collection(int n_objects)
+int Gcalc_operation_transporter::start_collection(Gcalc_shape_status *st,
+                                                  int n_objects)
 {
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::start_collection"));
   if (m_fn->reserve_shape_buffer(n_objects) || m_fn->reserve_op_buffer(1))
-        return 1;
+    return 1;
   m_fn->add_operation(Gcalc_function::op_union, n_objects);
+  return 0;
+}
+
+
+int Gcalc_operation_transporter::complete_collection(Gcalc_shape_status *st)
+{
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::complete_collection"));
+  return 0;
+}
+
+
+int Gcalc_operation_transporter::collection_add_item(Gcalc_shape_status
+                                                     *st_collection,
+                                                     Gcalc_shape_status
+                                                     *st_item)
+{
+  DBUG_PRINT("info", ("Gcalc_operation_transporter::collection_add_item"));
   return 0;
 }
 

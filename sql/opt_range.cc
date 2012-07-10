@@ -120,11 +120,6 @@
 using std::min;
 using std::max;
 
-#ifndef EXTRA_DEBUG
-#define test_rb_tree(A,B) {}
-#define test_use_count(A) {}
-#endif
-
 /*
   Convert double value to #rows. Currently this does floor(), and we
   might consider using round() instead.
@@ -622,10 +617,8 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
-#ifdef EXTRA_DEBUG
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
   void test_use_count(SEL_ARG *root);
-#endif
   SEL_ARG *first();
   SEL_ARG *last();
   void make_root();
@@ -638,7 +631,6 @@ public:
     if (next_key_part)
     {
       next_key_part->use_count+=count;
-      count*= (next_key_part->use_count-count);
       for (SEL_ARG *pos=next_key_part->first(); pos ; pos=pos->next)
 	if (pos->next_key_part)
 	  pos->increment_use_count(count);
@@ -3064,46 +3056,61 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num);
 #endif
 
 
-/*
+/**
   Perform partition pruning for a given table and condition.
 
-  SYNOPSIS
-    prune_partitions()
-      thd           Thread handle
-      table         Table to perform partition pruning for
-      pprune_cond   Condition to use for partition pruning
+  @param      thd            Thread handle
+  @param      table          Table to perform partition pruning for
+  @param      pprune_cond    Condition to use for partition pruning
   
-  DESCRIPTION
-    This function assumes that all partitions are marked as unused when it
-    is invoked. The function analyzes the condition, finds partitions that
-    need to be used to retrieve the records that match the condition, and 
-    marks them as used by setting appropriate bit in part_info->read_partitions
-    In the worst case all partitions are marked as used.
+  @note This function assumes that lock_partitions are setup when it
+  is invoked. The function analyzes the condition, finds partitions that
+  need to be used to retrieve the records that match the condition, and 
+  marks them as used by setting appropriate bit in part_info->read_partitions
+  In the worst case all partitions are marked as used. If the table is not
+  yet locked, it will also unset bits in part_info->lock_partitions that is
+  not set in read_partitions.
 
-  NOTE
-    This function returns promptly if called for non-partitioned table.
+  This function returns promptly if called for non-partitioned table.
 
-  RETURN
-    TRUE   We've inferred that no partitions need to be used (i.e. no table
-           records will satisfy pprune_cond)
-    FALSE  Otherwise
+  @return Operation status
+    @retval true  Failure
+    @retval false Success
 */
 
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 {
-  bool retval= FALSE;
   partition_info *part_info = table->part_info;
   DBUG_ENTER("prune_partitions");
+  table->all_partitions_pruned_away= false;
 
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
-  
+
   if (!pprune_cond)
   {
     mark_all_partitions_as_used(part_info);
     DBUG_RETURN(FALSE);
   }
   
+  /* No need to continue pruning if there is no more partitions to prune! */
+  if (bitmap_is_clear_all(&part_info->lock_partitions))
+    bitmap_clear_all(&part_info->read_partitions);
+  if (bitmap_is_clear_all(&part_info->read_partitions))
+  {
+    table->all_partitions_pruned_away= true;
+    DBUG_RETURN(false);
+  }
+
+  /*
+    If the prepare stage already have completed pruning successfully,
+    it is no use of running prune_partitions() again on the same condition.
+    Since it will not be able to prune anything more than the previous call
+    from the prepare step.
+  */
+  if (part_info->is_pruning_completed)
+    DBUG_RETURN(false);
+
   PART_PRUNE_PARAM prune_param;
   MEM_ROOT alloc;
   RANGE_OPT_PARAM  *range_par= &prune_param.range_param;
@@ -3150,7 +3157,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
   {
-    retval= TRUE;
+    /* Cannot improve the pruning any further. */
+    part_info->is_pruning_completed= true;
     goto end;
   }
 
@@ -3206,27 +3214,49 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   }
   
   /*
-    res == 0 => no used partitions => retval=TRUE
-    res == 1 => some used partitions => retval=FALSE
-    res == -1 - we jump over this line to all_used:
+    If the condition can be evaluated now, we are done with pruning.
+
+    During the prepare phase, before locking, subqueries and stored programs
+    are not evaluated. So we need to run prune_partitions() a second time in
+    the optimize phase to prune partitions for reading, when subqueries and
+    stored programs may be evaluated.
   */
-  retval= test(!res);
+  if (pprune_cond->can_be_evaluated_now())
+    part_info->is_pruning_completed= true;
   goto end;
 
 all_used:
-  retval= FALSE; // some partitions are used
   mark_all_partitions_as_used(prune_param.part_info);
 end:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
   thd->no_errors=0;
   thd->mem_root= range_par->old_root;
   free_root(&alloc,MYF(0));			// Return memory & allocator
-  /* Must be a subset of the locked partitions */
-  bitmap_intersect(&(prune_param.part_info->read_partitions),
-                   &(prune_param.part_info->lock_partitions));
+  /*
+    Must be a subset of the locked partitions.
+    lock_partitions contains the partitions marked by explicit partition
+    selection (... t PARTITION (pX) ...) and we must only use partitions
+    within that set.
+  */
+  bitmap_intersect(&prune_param.part_info->read_partitions,
+                   &prune_param.part_info->lock_partitions);
+  /*
+    If not yet locked, also prune partitions to lock if not UPDATEing
+    partition key fields. This will also prune lock_partitions if we are under
+    LOCK TABLES, so prune away calls to start_stmt().
+    TODO: enhance this prune locking to also allow pruning of
+    'UPDATE t SET part_key = const WHERE cond_is_prunable' so it adds
+    a lock for part_key partition.
+  */
+  if (!thd->lex->is_query_tables_locked() &&
+      !partition_key_modified(table, table->write_set))
+  {
+    bitmap_copy(&prune_param.part_info->lock_partitions,
+                &prune_param.part_info->read_partitions);
+  }
   if (bitmap_is_clear_all(&(prune_param.part_info->read_partitions)))
-    retval= TRUE;
-  DBUG_RETURN(retval);
+    table->all_partitions_pruned_away= true;
+  DBUG_RETURN(false);
 }
 
 
@@ -5526,7 +5556,6 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       if (found_records != HA_POS_ERROR &&
           param->thd->opt_trace.is_started())
       {
-        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics);
         Opt_trace_array trace_range(&param->thd->opt_trace, "ranges");
 
         const KEY &cur_key= param->table->key_info[keynr];
@@ -5535,21 +5564,23 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         String range_info;
         range_info.set_charset(system_charset_info);
         trace_range_all_keyparts(trace_range, &range_info, *key, key_part);
+        trace_range.end(); // NOTE: ends the tracing scope
+
+        trace_idx.add("index_dives_for_eq_ranges", !param->use_index_statistics).
+          add("rowid_ordered", param->is_ror_scan).
+          add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL)).
+          add("index_only", read_index_only).
+          add("rows", found_records).
+          add("cost", cost.total_cost());
       }
 #endif
 
-      trace_idx.add("index_only", read_index_only).
-        add("rows", found_records).
-        add("cost", cost.total_cost());
-
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
-        trace_idx.add("rowid_ordered", true);
         tree->n_ror_scans++;
         tree->ror_scans_map.set_bit(idx);
       }
-      else
-        trace_idx.add("rowid_ordered", false);
+
 
       if (found_records != HA_POS_ERROR &&
           read_time > (found_read_time= cost.total_cost()))
@@ -5562,7 +5593,9 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
         best_buf_size=  buf_size;
       }
       else
-        trace_idx.add("chosen", false).add_alnum("cause", "cost");
+        trace_idx.add("chosen", false).
+          add_alnum("cause",
+                    (found_records == HA_POS_ERROR) ? "unknown" : "cost");
 
     }
   }
@@ -6374,6 +6407,210 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
   DBUG_RETURN(tree);
 }
 
+/**
+  Saves 'value' in 'field' and handles potential type conversion
+  problems.
+
+  @param tree [out]                 The SEL_ARG leaf under construction. If 
+                                    an always false predicate is found it is 
+                                    modified to point to a SEL_ARG with
+                                    type == SEL_ARG::IMPOSSIBLE 
+  @param value                      The Item that contains a value that shall
+                                    be stored in 'field'.
+  @param comp_op                    Comparison operator: >, >=, <=> etc.
+  @param field                      The field that 'value' is stored into.
+  @param impossible_cond_cause[out] Set to a descriptive string if an
+                                    impossible condition is found.
+  @param memroot                    Memroot for creation of new SEL_ARG.
+
+  @retval false  if saving went fine and it makes sense to continue
+                 optimizing for this predicate.
+  @retval true   if always true/false predicate was found, in which
+                 case 'tree' has been modified to reflect this: NULL
+                 pointer if always true, SEL_ARG with type IMPOSSIBLE
+                 if always false.
+*/
+static bool save_value_and_handle_conversion(SEL_ARG **tree,
+                                             Item *value,
+                                             const Item_func::Functype comp_op,
+                                             Field *field,
+                                             const char **impossible_cond_cause,
+                                             MEM_ROOT *memroot)
+{
+  // A SEL_ARG should not have been created for this predicate yet.
+  DBUG_ASSERT(*tree == NULL);
+
+  if (!value->can_be_evaluated_now())
+  {
+    /*
+      We cannot evaluate the value yet (i.e. required tables are not yet
+      locked.)
+      This is the case of prune_partitions() called during JOIN::prepare().
+    */
+    return true;
+  }
+
+  // For comparison purposes allow invalid dates like 2000-01-32
+  const sql_mode_t orig_sql_mode= field->table->in_use->variables.sql_mode;
+  field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
+
+  /*
+    We want to change "field > value" to "field OP V"
+    where:
+    * V is what is in "field" after we stored "value" in it via
+    save_in_field_no_warning() (such store operation may have done
+    rounding...)
+    * OP is > or >=, depending on what's correct.
+    For example, if c is an INT column,
+    "c > 2.9" is changed to "c OP 3"
+    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
+    done with stored_field_cmp_to_item()). And
+    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
+  */
+
+  // Note that value may be a stored function call, executed here.
+  const type_conversion_status err= value->save_in_field_no_warnings(field, 1);
+  field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  switch (err) {
+  case TYPE_OK:
+  case TYPE_NOTE_TRUNCATED:
+    return false;
+  case TYPE_ERR_BAD_VALUE:
+    /*
+      In the case of incompatible values, MySQL's SQL dialect has some
+      strange interpretations. For example,
+
+          "int_col > 'foo'" is interpreted as "int_col > 0"
+
+      instead of always false. Because of this, we assume that the
+      range predicate is always true instead of always false and let
+      evaluate_join_record() decide the outcome.
+    */
+    return true;
+  case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
+    // Checking NULL value on a field that cannot contain NULL.
+    *impossible_cond_cause= "null_field_in_non_null_column";
+    goto impossible_cond;
+  case TYPE_WARN_OUT_OF_RANGE:
+    /*
+      value to store was either higher than field::max_value or lower
+      than field::min_value. The field's max/min value has been stored
+      instead.
+     */
+    if (comp_op == Item_func::EQUAL_FUNC || comp_op == Item_func::EQ_FUNC)
+    {
+      /*
+        Independent of data type, "out_of_range_value =/<=> field" is
+        always false.
+      */
+      *impossible_cond_cause= "value_out_of_range";
+      goto impossible_cond;
+    }
+
+    // If the field is numeric, we can interpret the out of range value.
+    if (field->result_type() == REAL_RESULT ||
+        field->result_type() == INT_RESULT ||
+        field->result_type() == DECIMAL_RESULT)
+    {
+      /*
+        value to store was higher than field::max_value if
+           a) field has a value greater than 0, or
+           b) if field is unsigned and has a negative value (which, when
+              cast to unsigned, means some value higher than LONGLONG_MAX).
+      */
+      if ((field->val_int() > 0) ||                              // a)
+          (static_cast<Field_num*>(field)->unsigned_flag &&
+           field->val_int() < 0))                                // b)
+      {
+        if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC)
+        {
+          /*
+            '<' or '<=' compared to a value higher than the field
+            can store is always true.
+          */
+          return true;
+        }
+        if (comp_op == Item_func::GT_FUNC || comp_op == Item_func::GE_FUNC)
+        {
+          /*
+            '>' or '>=' compared to a value higher than the field can
+            store is always false.
+          */
+          *impossible_cond_cause= "value_out_of_range";
+          goto impossible_cond;
+        }
+      }
+      else // value is lower than field::min_value
+      {
+        if (comp_op == Item_func::GT_FUNC || comp_op == Item_func::GE_FUNC)
+        {
+          /*
+            '>' or '>=' compared to a value lower than the field
+            can store is always true.
+          */
+          return true;
+        }
+        if (comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC)
+        {
+          /*
+            '<' or '=' compared to a value lower than the field can
+            store is always false.
+          */
+          *impossible_cond_cause= "value_out_of_range";
+          goto impossible_cond;
+        }
+      }
+    }
+    /*
+      Value is out of range on a datatype where it can't be decided if
+      it was underflow or overflow. It is therefore not possible to
+      determine whether or not the condition is impossible or always
+      true and we have to assume always true.
+    */
+    return true;
+  case TYPE_NOTE_TIME_TRUNCATED:
+    if (field->type() == FIELD_TYPE_DATE &&
+        (comp_op == Item_func::GT_FUNC || comp_op == Item_func::GE_FUNC ||
+         comp_op == Item_func::LT_FUNC || comp_op == Item_func::LE_FUNC))
+    {
+      /*
+        We were saving DATETIME into a DATE column, the conversion went ok
+        but a non-zero time part was cut off.
+
+        In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
+        values. Index over a DATE column uses DATE comparison. Changing
+        from one comparison to the other is possible:
+
+        datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
+        datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
+
+        datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
+        datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
+
+        but we'll need to convert '>' to '>=' and '<' to '<='. This will
+        be done together with other types at the end of get_mm_leaf()
+        (grep for stored_field_cmp_to_item)
+      */
+      return false;
+    }
+    if (comp_op == Item_func::EQ_FUNC || comp_op == Item_func::EQUAL_FUNC)
+    {
+      // Equality comparison is always false when time info has been truncated.
+      goto impossible_cond;
+    }
+    // Fall through
+  default:
+    return true;
+  }
+
+  DBUG_ASSERT(FALSE); // Should never get here.
+
+impossible_cond:
+  *tree= new (memroot) SEL_ARG(field, 0, 0);
+  (*tree)->type= SEL_ARG::IMPOSSIBLE;
+  return true;
+}
 
 static SEL_ARG *
 get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
@@ -6384,9 +6621,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   SEL_ARG *tree= 0;
   MEM_ROOT *alloc= param->mem_root;
   uchar *str;
-  sql_mode_t orig_sql_mode;
-  type_conversion_status err;
-  const char* impossible_cond_cause= NULL;
+  const char *impossible_cond_cause= NULL;
   DBUG_ENTER("get_mm_leaf");
 
   /*
@@ -6595,110 +6830,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     goto end;
   }
 
-  /* For comparison purposes allow invalid dates like 2000-01-32 */
-  orig_sql_mode= field->table->in_use->variables.sql_mode;
-  if (value->real_item()->type() == Item::STRING_ITEM &&
-      (field->type() == MYSQL_TYPE_DATE ||
-       field->type() == MYSQL_TYPE_DATETIME))
-    field->table->in_use->variables.sql_mode|= MODE_INVALID_DATES;
-
-  /*
-    We want to change "field > value" to "field OP V"
-    where:
-    * V is what is in "field" after we stored "value" in it via
-    save_in_field_no_warning() (such store operation may have done
-    rounding...)
-    * OP is > or >=, depending on what's correct.
-    For example, if c is an INT column,
-    "c > 2.9" is changed to "c OP 3"
-    where OP is ">=" (">" would not be correct, as 3 > 2.9, a comparison
-    done with stored_field_cmp_to_item()). And
-    "c > 3.1" is changed to "c OP 3" where OP is ">" (3 < 3.1...).
-  */
-
-  // Note that value may be a stored function call, executed here.
-  err= value->save_in_field_no_warnings(field, 1);
-
-  if (err != TYPE_OK && err != TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
-  {
-    if (field->cmp_type() != value->result_type())
-    {
-      if ((type == Item_func::EQ_FUNC || type == Item_func::EQUAL_FUNC) &&
-          value->result_type() == item_cmp_type(field->result_type(),
-                                                value->result_type()))
-      {
-        impossible_cond_cause= "incomparable_types";
-        tree= new (alloc) SEL_ARG(field, 0, 0);
-        tree->type= SEL_ARG::IMPOSSIBLE;
-        field->table->in_use->variables.sql_mode= orig_sql_mode;
-        goto end;
-      }
-      else
-      {
-        /*
-          TODO: We should return trees of the type SEL_ARG::IMPOSSIBLE
-          for the cases like int_field > 999999999999999999999999 as well.
-        */
-        tree= 0;
-        if (err == TYPE_NOTE_TIME_TRUNCATED &&
-            field->type() == FIELD_TYPE_DATE &&
-            (type == Item_func::GT_FUNC || type == Item_func::GE_FUNC ||
-             type == Item_func::LT_FUNC || type == Item_func::LE_FUNC) )
-        {
-          /*
-            We were saving DATETIME into a DATE column, the conversion went ok
-            but a non-zero time part was cut off.
-
-            In MySQL's SQL dialect, DATE and DATETIME are compared as datetime
-            values. Index over a DATE column uses DATE comparison. Changing 
-            from one comparison to the other is possible:
-
-            datetime(date_col)< '2007-12-10 12:34:55' -> date_col<='2007-12-10'
-            datetime(date_col)<='2007-12-10 12:34:55' -> date_col<='2007-12-10'
-
-            datetime(date_col)> '2007-12-10 12:34:55' -> date_col>='2007-12-10'
-            datetime(date_col)>='2007-12-10 12:34:55' -> date_col>='2007-12-10'
-
-            but we'll need to convert '>' to '>=' and '<' to '<='. This will
-            be done together with other types at the end of this function
-            (grep for stored_field_cmp_to_item)
-          */
-        }
-        else
-        {
-          field->table->in_use->variables.sql_mode= orig_sql_mode;
-          goto end;
-        }
-      }
-    }
-
-    /*
-      guaranteed at this point:  err > 0; field and const of same type
-      If an integer got bounded (e.g. to within 0..255 / -128..127)
-      for < or >, set flags as for <= or >= (no NEAR_MAX / NEAR_MIN)
-    */
-    else if (err == TYPE_WARN_OUT_OF_RANGE && 
-             field->result_type() == INT_RESULT)
-    {
-      if (type == Item_func::LT_FUNC && (value->val_int() > 0))
-        type = Item_func::LE_FUNC;
-      else if (type == Item_func::GT_FUNC &&
-               (field->type() != FIELD_TYPE_BIT) &&
-               !((Field_num*)field)->unsigned_flag &&
-               !((Item_int*)value)->unsigned_flag &&
-               (value->val_int() < 0))
-        type = Item_func::GE_FUNC;
-    }
-  }
-  else if (err == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
-  {
-    impossible_cond_cause= "null_field_in_non_null_column";
-    field->table->in_use->variables.sql_mode= orig_sql_mode;
-    /* This happens when we try to insert a NULL field in a not null column */
-    tree= &null_element;                        // cmp with NULL is never TRUE
+  if (save_value_and_handle_conversion(&tree, value, type, field,
+                                       &impossible_cond_cause, alloc))
     goto end;
-  }
-  field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   /*
     Any sargable predicate except "<=>" involving NULL as a constant is always
@@ -6823,7 +6957,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   }
 
 end:
-  if (impossible_cond_cause)
+  if (impossible_cond_cause != NULL)
   {
     Opt_trace_object wrapper (&param->thd->opt_trace);
     Opt_trace_object (&param->thd->opt_trace, "impossible_condition",
@@ -6931,7 +7065,7 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
         DBUG_RETURN(tree1);
       }
       result_keys.set_bit(key1 - tree1->keys);
-#ifdef EXTRA_DEBUG
+#ifndef DBUG_OFF
         if (*key1 && param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
 #endif
@@ -7089,7 +7223,7 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
       {
         result=tree1;				// Added to tree1
         result_keys.set_bit(key1 - tree1->keys);
-#ifdef EXTRA_DEBUG
+#ifndef DBUG_OFF
         if (param->alloced_sel_args < SEL_ARG::MAX_SEL_ARGS) 
           (*key1)->test_use_count(*key1);
 #endif
@@ -8382,7 +8516,6 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 
 	/* Test that the properties for a red-black tree hold */
 
-#ifdef EXTRA_DEBUG
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 {
   int count_l,count_r;
@@ -8498,6 +8631,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
   if (this == root && use_count != 1)
   {
     sql_print_information("Use_count: Wrong count %lu for root",use_count);
+    // DBUG_ASSERT(false); // Todo - enable and clean up mess
     return;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
@@ -8513,17 +8647,20 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
         sql_print_information("Use_count: Wrong count for key at 0x%lx, %lu "
                               "should be %lu", (long unsigned int)pos,
                               pos->next_key_part->use_count, count);
+        // DBUG_ASSERT(false); // Todo - enable and clean up mess
 	return;
       }
       pos->next_key_part->test_use_count(root);
     }
   }
   if (e_count != elements)
+  {
     sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
                       e_count, elements, (long unsigned int) this);
+    // DBUG_ASSERT(false); // Todo - enable and clean up mess
+  }
 }
 
-#endif
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks a SEL_ARG* tree.
@@ -9890,6 +10027,12 @@ int QUICK_RANGE_SELECT::reset()
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
 
+  /* set keyread to TRUE if index is covering */
+  if(!head->no_keyread && head->covering_keys.is_set(index))
+    head->set_keyread(true);
+  else
+    head->set_keyread(false);
+
   if (!file->inited)
   {
     if (in_ror_merged_scan)
@@ -10871,9 +11014,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   }
 
   /* Check (SA1,SA4) and store the only MIN/MAX argument - the C attribute.*/
-  if (join->make_sum_func_list(join->all_fields, join->fields_list, 1))
-    DBUG_RETURN(NULL);
-
   is_agg_distinct = is_indexed_agg_distinct(join, &agg_distinct_flds);
 
   if ((!join->group_list) && /* Neither GROUP BY nor a DISTINCT query. */

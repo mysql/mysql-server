@@ -72,6 +72,19 @@ INSERT into gis_geometry SELECT * FROM gis_multi_line;
 INSERT into gis_geometry SELECT * FROM gis_multi_polygon;
 INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE gis_point;
+ANALYZE TABLE gis_line;
+ANALYZE TABLE gis_polygon;
+ANALYZE TABLE gis_multi_point;
+ANALYZE TABLE gis_multi_line;
+ANALYZE TABLE gis_multi_polygon;
+ANALYZE TABLE gis_geometrycollection;
+ANALYZE TABLE gis_geometry;
+-- enable_result_log
+-- enable_query_log
+
 SELECT fid, AsText(g) FROM gis_point ORDER by fid;
 SELECT fid, AsText(g) FROM gis_line ORDER by fid;
 SELECT fid, AsText(g) FROM gis_polygon ORDER by fid;

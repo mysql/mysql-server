@@ -57,7 +57,7 @@ select * from t1;
 t
 0000-00-00 00:00:00
 drop table t1;
-CREATE TABLE t1 (a timestamp, b date, c time, d datetime);
+CREATE TABLE t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b date, c time, d datetime);
 insert into t1 (b,c,d) values(now(),curtime(),now());
 Warnings:
 Note	1265	Data truncated for column 'b' at row 1
@@ -229,7 +229,7 @@ ERROR 42000: Invalid default value for 'da'
 create table t1 (t time default '916:00:00 a');
 ERROR 42000: Invalid default value for 't'
 set @@sql_mode= @org_mode;
-create table t1 (f1 date, f2 datetime, f3 timestamp);
+create table t1 (f1 date, f2 datetime, f3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1(f1) values(curdate());
 select curdate() < now(), f1 < now(), cast(f1 as date) < now() from t1;
 curdate() < now()	f1 < now()	cast(f1 as date) < now()
@@ -266,7 +266,7 @@ f1	f2	f1 > f2	f1 = f2	f1 < f2
 2001-04-15	2001-04-15 00:00:00	0	1	0
 2001-05-20	2001-05-20 01:01:01	0	0	1
 drop table t1;
-create table t1 (f1 date, f2 datetime, f3 timestamp);
+create table t1 (f1 date, f2 datetime, f3 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values('2001-01-01','2001-01-01 01:01:01','2001-01-01 01:01:01');
 insert into t1 values('2001-02-05','2001-02-05 00:00:00','2001-02-05 01:01:01');
 insert into t1 values('2001-03-10','2001-03-09 01:01:01','2001-03-10 01:01:01');

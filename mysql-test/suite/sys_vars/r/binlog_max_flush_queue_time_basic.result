@@ -1,0 +1,19 @@
+# Default values
+SELECT @@GLOBAL.binlog_max_flush_queue_time;
+@@GLOBAL.binlog_max_flush_queue_time
+0
+SELECT @@SESSION.binlog_max_flush_queue_time;
+ERROR HY000: Variable 'binlog_max_flush_queue_time' is a GLOBAL variable
+SET @saved_value = @@global.binlog_max_flush_queue_time;
+# Valid values
+SET GLOBAL binlog_max_flush_queue_time = 0;
+SET GLOBAL binlog_max_flush_queue_time = 1;
+SET GLOBAL binlog_max_flush_queue_time = 100000;
+# Invalid values: there shall be warnings about truncation
+SET GLOBAL binlog_max_flush_queue_time = -1;
+Warnings:
+Warning	1292	Truncated incorrect binlog_max_flush_queue_time value: '-1'
+SET GLOBAL binlog_max_flush_queue_time = 100001;
+Warnings:
+Warning	1292	Truncated incorrect binlog_max_flush_queue_time value: '100001'
+SET GLOBAL binlog_max_flush_queue_time = @saved_value;

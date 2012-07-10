@@ -33,7 +33,7 @@ COUNT(*)
 984
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -409,7 +409,7 @@ Lünen	Germany	German
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 DROP DATABASE world;
 CREATE DATABASE world;
 use world;
@@ -440,7 +440,7 @@ INDEX (Percentage)
 );
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -475,7 +475,7 @@ CountryLanguage.Country=Country.Code AND
 City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	CountryLanguage	range	PRIMARY,Percentage	Percentage	4	NULL	#	Using index condition; Using MRR
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (Batched Key Access)
 SELECT City.Name, Country.Name, CountryLanguage.Language
@@ -782,7 +782,7 @@ CountryLanguage.Country=Country.Code AND
 City.Name LIKE 'L%' AND Country.Population > 3000000 AND
 CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
+1	SIMPLE	CountryLanguage	range	PRIMARY,Percentage	Percentage	4	NULL	#	Using index condition; Using MRR
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	City	ref	Country	Country	3	world.CountryLanguage.Country	18	Using where; Using join buffer (Batched Key Access)
 SELECT City.Name, Country.Name, CountryLanguage.Language
@@ -961,7 +961,7 @@ Vilnius
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
-join_buffer_size	131072
+join_buffer_size	262144
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 Name	Name
@@ -1420,7 +1420,7 @@ Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '32'
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	7	Using where
+1	SIMPLE	t1	range	idx	idx	5	NULL	4	Using index condition; Using where; Using MRR
 1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	2	Using join buffer (Batched Key Access)
 SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 a	b	a	b
@@ -2717,6 +2717,8 @@ KEY col_varchar_key (col_varchar_key)
 );
 INSERT INTO t2 VALUES (9, '2002-08-25 20:35:06', 'e'),
 (9, '2002-08-25 20:35:06', 'e');
+set @optimizer_switch_saved=@@session.optimizer_switch;
+set @@session.optimizer_switch='semijoin=off';
 EXPLAIN SELECT PARENT1.col_varchar_key
 FROM t2 AS PARENT1 LEFT JOIN t1 USING (col_int_nokey)
 WHERE PARENT1.col_varchar_key IN
@@ -2736,5 +2738,6 @@ WHERE PARENT1.col_datetime_nokey IS NULL
 AND t1.col_int_nokey IS NULL )
 ;
 col_varchar_key
+set @@session.optimizer_switch=@optimizer_switch_saved;
 DROP TABLE t1,t2;
 set optimizer_switch = default;

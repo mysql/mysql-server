@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -288,7 +288,7 @@ error2:
   return true;
 }
 
-bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
+bool test_set_next_bit(MY_BITMAP *map, uint bitsize)
 {
   uint i, j, test_bit;
   uint no_loops= bitsize > 128 ? 128 : bitsize;
@@ -303,7 +303,55 @@ bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
   }
   return false;
 error1:
-  ADD_FAILURE() << "get_next error  prefix_size=" << test_bit;
+  ADD_FAILURE() << "set_next error  prefix_size=" << test_bit;
+  return true;
+}
+
+bool test_get_next_bit(MY_BITMAP *map, uint bitsize)
+{
+  uint i, bit_count=0, test_bit, next_count=0;
+  uint no_loops= bitsize > 128 ? 128 : bitsize;
+  for (i=0; i < no_loops; i++)
+  {
+    test_bit=get_rand_bit(bitsize);
+    if (!bitmap_is_set(map, test_bit))
+    {
+      bitmap_set_bit(map, test_bit);
+      bit_count++;
+    }
+  }
+  if (bit_count==0 && bitsize > 0)
+    goto error1;
+  if (bitmap_bits_set(map) != bit_count)
+    goto error2;
+  
+  for (test_bit= bitmap_get_first_set(map);
+       test_bit != MY_BIT_NONE;
+       test_bit= bitmap_get_next_set(map, test_bit))
+  {
+    if (test_bit >= bitsize)
+      goto error3;
+    if (!bitmap_is_set(map, test_bit))
+      goto error4;
+    next_count++;
+  }
+  if (next_count != bit_count)
+    goto error5;
+  return false;
+error1:
+  ADD_FAILURE() << "No bits set";
+  return true;
+error2:
+  ADD_FAILURE() << "Wrong count of bits set";
+  return true;
+error3:
+  ADD_FAILURE() << "get_next_set out of range";
+  return true;
+error4:
+  ADD_FAILURE() << "get_next_set bit not set";
+  return true;
+error5:
+  ADD_FAILURE() << "Wrong count get_next_set";
   return true;
 }
 
@@ -517,6 +565,11 @@ TEST_P(BitMapTest, TestCountBitsSet)
 TEST_P(BitMapTest, TestGetFirstBit)
 {
   EXPECT_FALSE(test_get_first_bit(&map, bitsize)) << "bitsize=" << bitsize;
+}
+
+TEST_P(BitMapTest, TestSetNextBit)
+{
+  EXPECT_FALSE(test_set_next_bit(&map, bitsize)) << "bitsize=" << bitsize;
 }
 
 TEST_P(BitMapTest, TestGetNextBit)

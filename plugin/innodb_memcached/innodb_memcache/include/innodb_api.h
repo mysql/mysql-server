@@ -80,12 +80,13 @@ column values. And "extra_col_value" and "n_extra_col" is used to support
 multiple value columns */
 typedef struct mci_item {
 	mci_column_t	col_value[MCI_COL_TO_GET]; /*!< columns in a row */
-	mci_column_t*	extra_col_value;		/*!< whether there will be
+	mci_column_t*	extra_col_value;	/*!< whether there will be
 						additional/multiple "values"
 						to be stored */
 	int		n_extra_col;		/*!< number of additional
 						"value" columns */
 } mci_item_t;
+
 
 /*************************************************************//**
 Register InnoDB Callback functions */
@@ -116,7 +117,6 @@ Position a row accord to key, and fetch value if needed
 ib_err_t
 innodb_api_search(
 /*==============*/
-	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
 	innodb_conn_data_t*	cursor_data,/*!< in/out: cursor info */
 	ib_crsr_t*		crsr,	/*!< in/out: cursor used to seacrh */
 	const char*		key,	/*!< in: key to search */

@@ -1,0 +1,56 @@
+
+!include include/default_mysqld_autosize.cnf
+
+[mysqld.1]
+
+# WARNING about open_files_limit and ulimit -n
+#
+# mysqld checks how many files can be opened on the machine,
+# and this is by definition very:
+# - os dependent, see OS_FILE_LIMIT, HAVE_GETRLIMIT
+# - configuration dependent, for each machine (ulimit -n), see
+#   my_set_max_open_files() in mysys/my_file.c,
+#   see getrlimit(RLIMIT_NOFILE)
+#
+# Based on the this, the server tunes _down_ max_connections and
+# table_cache_size to match the open_files_limit found,
+# which significantly interfere with this test.
+#
+# Solution: use a big table definition cache,
+# but small values for max_connection and table_open_cache,
+# to stay within open_files_limit of 1024.
+#
+# This is the best test we can do that has a chance to pass on all
+# platforms, while still providing code coverage.
+
+table_definition_cache=5000
+table_open_cache=400
+max_connections=200
+open_files_limit=1024
+
+# 10+max_connections+table_cache_size*2 = 10 + 200 + 400*2 = 1010
+# max_connections*5 = 200*5 = 1000
+
+# Automated sizing for everything
+
+loose-performance-schema-accounts-size=-1
+loose-performance-schema-digests-size=-1
+loose-performance-schema-hosts-size=-1
+loose-performance-schema-users-size=-1
+
+loose-performance-schema-events-waits-history-size=-1
+loose-performance-schema-events-waits-history-long-size=-1
+loose-performance-schema-events-stages-history-size=-1
+loose-performance-schema-events-stages-history-long-size=-1
+loose-performance-schema-events-statements-history-size=-1
+loose-performance-schema-events-statements-history-long-size=-1
+
+loose-performance-schema-max-mutex-instances=-1
+loose-performance-schema-max-rwlock-instances=-1
+loose-performance-schema-max-cond-instances=-1
+loose-performance-schema-max-file-instances=-1
+loose-performance-schema-max-socket-instances=-1
+loose-performance-schema-max-thread-instances=-1
+loose-performance-schema-max-table-instances=-1
+loose-performance-schema-max-table-handles=-1
+

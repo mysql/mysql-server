@@ -79,7 +79,7 @@ SET SESSION innodb_strict_mode = ON;
 DROP TABLE IF EXISTS t1;
 --echo #         'FIXED' is sent to InnoDB since it is used by MyISAM.
 --echo #         But it is an invalid mode in InnoDB
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=FIXED;
 SHOW WARNINGS;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=0;
@@ -97,10 +97,8 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=0;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
 
@@ -109,13 +107,13 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 --echo # Test 2) StrictMode=ON, CREATE with each ROW_FORMAT & a valid non-zero KEY_BLOCK_SIZE
 --echo #         KEY_BLOCK_SIZE is incompatible with COMPACT, REDUNDANT, & DYNAMIC
 DROP TABLE IF EXISTS t1;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=2;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
@@ -136,25 +134,17 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 --echo # Test 3) StrictMode=ON, ALTER with each ROW_FORMAT & a valid non-zero KEY_BLOCK_SIZE
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 ( i INT );
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=FIXED KEY_BLOCK_SIZE=1;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=COMPACT KEY_BLOCK_SIZE=2;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=4;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT KEY_BLOCK_SIZE=2;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
@@ -168,26 +158,20 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPACT;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 KEY_BLOCK_SIZE=4;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
 SHOW WARNINGS;
 SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE TABLE_NAME = 't1';
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
@@ -208,20 +192,14 @@ CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=2;
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ADD COLUMN f1 INT;
 SHOW CREATE TABLE t1;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
@@ -235,7 +213,7 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 
 --echo # Test 6) StrictMode=ON, CREATE with an invalid KEY_BLOCK_SIZE.
 DROP TABLE IF EXISTS t1;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=9;
 SHOW WARNINGS;
 
@@ -244,13 +222,13 @@ SHOW WARNINGS;
 --echo #         and that they can be set to default values during strict mode.
 SET GLOBAL innodb_file_format=Antelope;
 DROP TABLE IF EXISTS t1;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
 SHOW WARNINGS;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
@@ -263,29 +241,21 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT;
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 KEY_BLOCK_SIZE=2;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 SET GLOBAL innodb_file_format=Barracuda;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 SET GLOBAL innodb_file_format=Antelope;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
 ALTER TABLE t1 ADD COLUMN f1 INT;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
+SHOW CREATE TABLE t1;
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;
@@ -299,13 +269,13 @@ SET GLOBAL innodb_file_format=Barracuda;
 --echo #         values during strict mode.
 SET GLOBAL innodb_file_per_table=OFF;
 DROP TABLE IF EXISTS t1;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) KEY_BLOCK_SIZE=1;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED;
 SHOW WARNINGS;
---error ER_CANT_CREATE_TABLE
+--error ER_GET_ERRNO
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DYNAMIC;
 SHOW WARNINGS;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=REDUNDANT;
@@ -318,20 +288,14 @@ SELECT TABLE_NAME,ROW_FORMAT,CREATE_OPTIONS FROM information_schema.tables WHERE
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=DEFAULT;
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 KEY_BLOCK_SIZE=1;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=COMPRESSED;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
+--error ER_ILLEGAL_HA_CREATE_OPTION
 ALTER TABLE t1 ROW_FORMAT=DYNAMIC;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=COMPACT;
 SHOW WARNINGS;
@@ -346,10 +310,7 @@ SET GLOBAL innodb_file_per_table=ON;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 SET GLOBAL innodb_file_per_table=OFF;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
---error ER_CANT_CREATE_TABLE
 ALTER TABLE t1 ADD COLUMN f1 INT;
---replace_regex /'[^']*test\.#sql-[0-9a-f_]*'/'#sql-temporary'/
 SHOW WARNINGS;
 ALTER TABLE t1 ROW_FORMAT=DEFAULT KEY_BLOCK_SIZE=0;
 SHOW WARNINGS;

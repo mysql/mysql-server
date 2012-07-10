@@ -59,6 +59,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
+#include "dict0stats_background.h" /* dict_stats_event */
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
@@ -82,6 +83,8 @@ UNIV_INTERN ibool	srv_error_monitor_active = FALSE;
 
 UNIV_INTERN ibool	srv_buf_dump_thread_active = FALSE;
 
+UNIV_INTERN ibool	srv_dict_stats_thread_active = FALSE;
+
 UNIV_INTERN const char*	srv_main_thread_op_info = "";
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -99,6 +102,9 @@ UNIV_INTERN char*	srv_undo_dir = NULL;
 
 /** The number of tablespaces to use for rollback segments. */
 UNIV_INTERN ulong	srv_undo_tablespaces = 8;
+
+/** The number of UNDO tablespaces that are open and ready to use. */
+UNIV_INTERN ulint	srv_undo_tablespaces_open = 8;
 
 /* The number of rollback segments to use */
 UNIV_INTERN ulong	srv_undo_logs = 1;
@@ -179,6 +185,7 @@ UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
+UNIV_INTERN uint	srv_flush_log_at_timeout = 1;
 UNIV_INTERN ulong	srv_page_size		= UNIV_PAGE_SIZE_DEF;
 UNIV_INTERN ulong	srv_page_size_shift	= UNIV_PAGE_SIZE_SHIFT_DEF;
 
@@ -256,7 +263,8 @@ UNIV_INTERN ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 UNIV_INTERN ulint	srv_max_n_open_files	  = 300;
 
 /* Number of IO operations per second the server can do */
-UNIV_INTERN ulong	srv_io_capacity         = 400;
+UNIV_INTERN ulong	srv_io_capacity         = 200;
+UNIV_INTERN ulong	srv_max_io_capacity     = 400;
 
 /* The InnoDB main thread tries to keep the ratio of modified pages
 in the buffer pool to all database pages in the buffer pool smaller than
@@ -264,6 +272,14 @@ the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
+UNIV_INTERN ulong	srv_max_dirty_pages_pct_lwm	= 50;
+
+/* This is the percentage of log capacity at which adaptive flushing,
+if enabled, will kick in. */
+UNIV_INTERN ulong	srv_adaptive_flushing_lwm	= 10;
+
+/* Number of iterations over which adaptive flushing is averaged. */
+UNIV_INTERN ulong	srv_flushing_avg_loops		= 30;
 
 /* The number of purge threads to use.*/
 UNIV_INTERN ulong	srv_n_purge_threads = 1;
@@ -306,8 +322,9 @@ this many index pages, there are 2 ways to calculate statistics:
 * quick transient stats, that are used if persistent stats for the given
   table/index are not found in the innodb database */
 UNIV_INTERN unsigned long long	srv_stats_transient_sample_pages = 8;
-UNIV_INTERN my_bool		srv_stats_persistent = FALSE;
+UNIV_INTERN my_bool		srv_stats_persistent = TRUE;
 UNIV_INTERN unsigned long long	srv_stats_persistent_sample_pages = 20;
+UNIV_INTERN my_bool		srv_stats_auto_recalc = TRUE;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 
@@ -356,10 +373,10 @@ UNIV_INTERN const char* srv_io_thread_function[SRV_MAX_N_IO_THREADS];
 
 UNIV_INTERN time_t	srv_last_monitor_time;
 
-UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
+UNIV_INTERN ib_mutex_t	srv_innodb_monitor_mutex;
 
 /* Mutex for locking srv_monitor_file */
-UNIV_INTERN mutex_t	srv_monitor_file_mutex;
+UNIV_INTERN ib_mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 # ifndef HAVE_ATOMIC_BUILTINS
@@ -385,13 +402,13 @@ UNIV_INTERN FILE*	srv_monitor_file;
 /** Mutex for locking srv_dict_tmpfile.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
-UNIV_INTERN mutex_t	srv_dict_tmpfile_mutex;
+UNIV_INTERN ib_mutex_t	srv_dict_tmpfile_mutex;
 /** Temporary file for output from the data dictionary */
 UNIV_INTERN FILE*	srv_dict_tmpfile;
 /** Mutex for locking srv_misc_tmpfile.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
-UNIV_INTERN mutex_t	srv_misc_tmpfile_mutex;
+UNIV_INTERN ib_mutex_t	srv_misc_tmpfile_mutex;
 /** Temporary file for miscellanous diagnostic output */
 UNIV_INTERN FILE*	srv_misc_tmpfile;
 
@@ -525,12 +542,12 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /** The server system struct */
 struct srv_sys_struct{
-	mutex_t		tasks_mutex;		/*!< variable protecting the
+	ib_mutex_t		tasks_mutex;		/*!< variable protecting the
 						tasks queue */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;			/*!< task queue */
 
-	mutex_t		mutex;			/*!< variable protecting the
+	ib_mutex_t		mutex;			/*!< variable protecting the
 
 						fields below. */
 	ulint		n_sys_threads;		/*!< size of the sys_threads
@@ -549,7 +566,7 @@ struct srv_sys_struct{
 
 #ifndef HAVE_ATOMIC_BUILTINS
 /** Mutex protecting some server global variables. */
-UNIV_INTERN mutex_t	server_mutex;
+UNIV_INTERN ib_mutex_t	server_mutex;
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 static srv_sys_t*	srv_sys	= NULL;
@@ -1624,9 +1641,6 @@ loop:
 	eviction policy. */
 	buf_LRU_stat_update();
 
-	/* Update the statistics collected for flush rate policy. */
-	buf_flush_stat_update();
-
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though
 	the semaphore is already released. Wake up those threads: */
@@ -1742,12 +1756,15 @@ srv_any_background_threads_are_active(void)
 		thread_active = "srv_monitor_thread";
 	} else if (srv_buf_dump_thread_active) {
 		thread_active = "buf_dump_thread";
+	} else if (srv_dict_stats_thread_active) {
+		thread_active = "dict_stats_thread";
 	}
 
 	os_event_set(srv_error_event);
 	os_event_set(srv_monitor_event);
 	os_event_set(srv_buf_dump_event);
 	os_event_set(lock_sys->timeout_event);
+	os_event_set(dict_stats_event);
 
 	return(thread_active);
 }
@@ -1864,7 +1881,8 @@ srv_sync_log_buffer_in_background(void)
 	time_t	current_time = time(NULL);
 
 	srv_main_thread_op_info = "flushing log";
-	if (difftime(current_time, srv_last_log_flush_time) >= 1) {
+	if (difftime(current_time, srv_last_log_flush_time)
+	    >= srv_flush_log_at_timeout) {
 		log_buffer_sync_in_background(TRUE);
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;

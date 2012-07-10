@@ -23,8 +23,9 @@
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <my_global.h>
-
-
+#ifdef MYSQL_SERVER
+#include <mysqld.h>
+#endif
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -47,6 +48,11 @@
 #include "lf.h"
 #include "my_atomic.h"
 
+/**
+  This macro is used to check that the given character, pointed to by the
+  character pointer, is a space or not.
+*/
+#define SKIP_WHITESPACE() while (my_isspace(&my_charset_utf8_general_ci, *s)) s++
 /*
   This macro must be used to filter out parts of the code that
   is not used now but may be useful in future. In other words,
@@ -320,7 +326,11 @@ public:
 #else
     is_write_lock= false;
 #endif
+#ifdef MYSQL_SERVER
+    mysql_rwlock_init(key_rwlock_global_sid_lock, &rwlock);
+#else
     mysql_rwlock_init(0, &rwlock);
+#endif
   }
   /// Destroy this Checkable_lock.
   ~Checkable_rwlock()
@@ -436,7 +446,7 @@ private:
 
 
 /// Protects Gtid_state.  See comment above gtid_state for details.
-extern Checkable_rwlock global_sid_lock;
+extern Checkable_rwlock *global_sid_lock;
 
 
 /**
@@ -600,7 +610,7 @@ private:
 };
 
 
-extern Sid_map global_sid_map;
+extern Sid_map *global_sid_map;
 
 
 /**
@@ -1782,10 +1792,10 @@ public:
   {
     char *p= out;
     rpl_sidno max_sidno= get_max_sidno();
-    rpl_sidno sid_map_max_sidno= global_sid_map.get_max_sidno();
+    rpl_sidno sid_map_max_sidno= global_sid_map->get_max_sidno();
     for (rpl_sidno sid_i= 0; sid_i < sid_map_max_sidno; sid_i++)
     {
-      rpl_sidno sidno= global_sid_map.get_sorted_sidno(sid_i);
+      rpl_sidno sidno= global_sid_map->get_sorted_sidno(sid_i);
       if (sidno > max_sidno)
         continue;
       HASH *hash= get_hash(sidno);
@@ -1796,7 +1806,7 @@ public:
         DBUG_ASSERT(node != NULL);
         if (!printed_sid)
         {
-          p+= global_sid_map.sidno_to_sid(sidno).to_string(p);
+          p+= global_sid_map->sidno_to_sid(sidno).to_string(p);
           printed_sid= true;
         }
         p+= sprintf(p, ":%lld#%lu", node->gno, node->owner);
@@ -2198,7 +2208,7 @@ private:
 
 
 /// Global state of GTIDs.
-extern Gtid_state gtid_state;
+extern Gtid_state *gtid_state;
 
 
 /**
@@ -2291,7 +2301,7 @@ struct Gtid_specification
   void print() const
   {
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(&global_sid_map, buf);
+    to_string(global_sid_map, buf);
     printf("%s\n", buf);
   }
 #endif
@@ -2303,7 +2313,7 @@ struct Gtid_specification
   {
 #ifndef DBUG_OFF
     char buf[MAX_TEXT_LENGTH + 1];
-    to_string(&global_sid_map, buf);
+    to_string(global_sid_map, buf);
     DBUG_PRINT("info", ("%s%s%s", text, *text ? ": " : "", buf));
 #endif
   }

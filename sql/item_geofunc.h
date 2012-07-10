@@ -263,7 +263,6 @@ public:
   Gcalc_function::op_type spatial_op;
   Gcalc_heap collector;
   Gcalc_function func;
-  Gcalc_scan_iterator scan_it;
 
   Gcalc_result_receiver res_receiver;
   Gcalc_operation_reducer operation;
@@ -289,28 +288,43 @@ protected:
   {
     int m_npoints;
     double m_d;
+    Gcalc_function::op_type m_buffer_op;
     double x1,y1,x2,y2;
     double x00,y00,x01,y01;
-    int add_edge_buffer(double x3, double y3, bool round_p1, bool round_p2);
-    int add_last_edge_buffer();
-    int add_point_buffer(double x, double y);
-    int complete();
+    int add_edge_buffer(Gcalc_shape_status *st,
+                        double x3, double y3, bool round_p1, bool round_p2);
+    int add_last_edge_buffer(Gcalc_shape_status *st);
+    int add_point_buffer(Gcalc_shape_status *st, double x, double y);
+    int complete(Gcalc_shape_status *st);
   public:
-    int m_nshapes;
     Transporter(Gcalc_function *fn, Gcalc_heap *heap, double d) :
-      Gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d), m_nshapes(0)
-    {}
-    int single_point(double x, double y);
-    int start_line();
-    int complete_line();
-    int start_poly();
-    int start_ring();
-    int complete_ring();
-    int add_point(double x, double y);
+      Gcalc_operation_transporter(fn, heap), m_npoints(0), m_d(d)
+    {
+      m_buffer_op= d > 0.0 ? Gcalc_function::op_union :
+                             Gcalc_function::op_difference;
+    }
+    int single_point(Gcalc_shape_status *st, double x, double y);
+    int start_line(Gcalc_shape_status *st);
+    int complete_line(Gcalc_shape_status *st);
+    int start_poly(Gcalc_shape_status *st);
+    int complete_poly(Gcalc_shape_status *st);
+    int start_ring(Gcalc_shape_status *st);
+    int complete_ring(Gcalc_shape_status *st);
+    int add_point(Gcalc_shape_status *st, double x, double y);
+    int start_collection(Gcalc_shape_status *st, int nshapes);
+    int complete_collection(Gcalc_shape_status *st);
+    int collection_add_item(Gcalc_shape_status *st_collection,
+                            Gcalc_shape_status *st_item);
+
+    bool skip_point() const
+    { return m_buffer_op == Gcalc_function::op_difference; }
+    bool skip_line_string() const
+    { return m_buffer_op == Gcalc_function::op_difference; }
+    bool skip_poly() const
+    { return false; }
   };
   Gcalc_heap collector;
   Gcalc_function func;
-  Gcalc_scan_iterator scan_it;
 
   Gcalc_result_receiver res_receiver;
   Gcalc_operation_reducer operation;
@@ -484,6 +498,18 @@ public:
   double val_real();
   const char *func_name() const { return "st_distance"; }
 };
+
+
+#ifndef DBUG_OFF
+class Item_func_gis_debug: public Item_int_func
+{
+public:
+  Item_func_gis_debug(Item *a) :Item_int_func(a) { null_value= false; }
+  const char *func_name() const  { return "st_gis_debug"; }
+  longlong val_int();
+};
+#endif
+
 
 #define GEOM_NEW(thd, obj_constructor) new (thd->mem_root) obj_constructor
 
