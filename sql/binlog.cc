@@ -53,8 +53,7 @@ using std::list;
 //number of limit unsafe warnings after which the suppression will be activated
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
 
-static struct timeval limit_unsafe_suppression_start_time;
-static struct timezone limit_unsafe_suppression_start_time_zone;
+static ulonglong limit_unsafe_suppression_start_time= 0;
 static bool unsafe_warning_suppression_is_activated= false;
 static int limit_unsafe_warning_count= 0;
 
@@ -7847,8 +7846,7 @@ static void reset_binlog_unsafe_suppression()
   DBUG_ENTER("reset_binlog_unsafe_suppression");
   unsafe_warning_suppression_is_activated= false;
   limit_unsafe_warning_count= 0;
-  gettimeofday(&limit_unsafe_suppression_start_time,
-               &limit_unsafe_suppression_start_time_zone);
+  limit_unsafe_suppression_start_time= my_getsystime()/10000000;
   DBUG_VOID_RETURN;
 }
 
@@ -7880,8 +7878,7 @@ static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
 */
 static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
 {
-  struct timeval now;
-  struct timezone tz_now;
+  ulonglong now;
   DBUG_ENTER("do_unsafe_limit_checkout");
   DBUG_ASSERT(unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT);
   limit_unsafe_warning_count++;
@@ -7890,10 +7887,9 @@ static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
     If this is the first time this function is called with log warning
     enabled, the monitoring the unsafe warnings should start.
   */
-  if (limit_unsafe_suppression_start_time.tv_sec == 0)
+  if (limit_unsafe_suppression_start_time == 0)
   {
-    gettimeofday(&limit_unsafe_suppression_start_time,
-                 &limit_unsafe_suppression_start_time_zone);
+    limit_unsafe_suppression_start_time= my_getsystime()/10000000;
     print_unsafe_warning_to_log(unsafe_type, buf, query);
   }
   else
@@ -7904,7 +7900,7 @@ static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
     if (limit_unsafe_warning_count >=
         LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT)
     {
-      gettimeofday (&now, &tz_now);
+      now= my_getsystime()/10000000;
       if (!unsafe_warning_suppression_is_activated)
       {
         /*
@@ -7913,7 +7909,7 @@ static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
           less than LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT we activate the
           suppression.
         */
-        if ((now.tv_sec-limit_unsafe_suppression_start_time.tv_sec) <=
+        if ((now-limit_unsafe_suppression_start_time) <=
                        LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT)
         {
           unsafe_warning_suppression_is_activated= true;
@@ -7925,8 +7921,7 @@ unsafety warning suppression has been activated."));
           /*
            there is no flooding till now, therefore we restart the monitoring
           */
-          gettimeofday(&limit_unsafe_suppression_start_time,
-                        &limit_unsafe_suppression_start_time_zone);
+          limit_unsafe_suppression_start_time= my_getsystime()/10000000;
           limit_unsafe_warning_count= 0;
         }
       }
@@ -7939,15 +7934,14 @@ unsafety warning suppression has been activated."));
 during the last %d seconds in the error log",
                               limit_unsafe_warning_count,
                               (int)
-                              (now.tv_sec -
-                               limit_unsafe_suppression_start_time.tv_sec));
+                              (now-limit_unsafe_suppression_start_time));
         print_unsafe_warning_to_log(unsafe_type, buf, query);
         /*
           DEACTIVATION: We got LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT
           warnings in more than  LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT, the
           suppression should be deactivated.
         */
-        if ((now.tv_sec - limit_unsafe_suppression_start_time.tv_sec) >
+        if ((now - limit_unsafe_suppression_start_time) >
             LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT)
         {
           reset_binlog_unsafe_suppression();
