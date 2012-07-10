@@ -3615,9 +3615,7 @@ oom:
 		given that we hold at most a shared lock on the table. */
 		goto ok_exit;
 	case DB_DUPLICATE_KEY:
-		if (ctx->indexed_table != prebuilt->table) {
-			dup_key = table->key_info;
-		} else if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
+		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
 			/* This should be the hidden index on FTS_DOC_ID. */
 			dup_key = NULL;
 		} else {

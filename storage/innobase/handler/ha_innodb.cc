@@ -12556,6 +12556,14 @@ ha_innobase::store_lock(
 
 		ut_a(err == DB_SUCCESS || err == DB_UNSUPPORTED);
 
+		if (trx->isolation_level == TRX_ISO_SERIALIZABLE) {
+			prebuilt->select_lock_type = LOCK_S;
+			prebuilt->stored_select_lock_type = LOCK_S;
+		} else {
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+		}
+
 	/* Check for DROP TABLE */
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
@@ -12589,18 +12597,18 @@ ha_innobase::store_lock(
 		unexpected if an obsolete consistent read view would be
 		used. */
 
-		ulint	isolation_level;
+		/* Use consistent read for checksum table */
 
-		isolation_level = trx->isolation_level;
-
-		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level <= TRX_ISO_READ_COMMITTED)
-		    && isolation_level != TRX_ISO_SERIALIZABLE
-		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
-		    && (sql_command == SQLCOM_INSERT_SELECT
-			|| sql_command == SQLCOM_REPLACE_SELECT
-			|| sql_command == SQLCOM_UPDATE
-			|| sql_command == SQLCOM_CREATE_TABLE)) {
+		if (sql_command == SQLCOM_CHECKSUM
+		    || ((srv_locks_unsafe_for_binlog
+			|| trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+			&& trx->isolation_level != TRX_ISO_SERIALIZABLE
+			&& (lock_type == TL_READ
+			    || lock_type == TL_READ_NO_INSERT)
+			&& (sql_command == SQLCOM_INSERT_SELECT
+			    || sql_command == SQLCOM_REPLACE_SELECT
+			    || sql_command == SQLCOM_UPDATE
+			    || sql_command == SQLCOM_CREATE_TABLE))) {
 
 			/* If we either have innobase_locks_unsafe_for_binlog
 			option set or this session is using READ COMMITTED
@@ -12611,11 +12619,6 @@ ha_innobase::store_lock(
 			SELECT... without FOR UPDATE or IN SHARE
 			MODE in select, then we use consistent read
 			for select. */
-
-			prebuilt->select_lock_type = LOCK_NONE;
-			prebuilt->stored_select_lock_type = LOCK_NONE;
-		} else if (sql_command == SQLCOM_CHECKSUM) {
-			/* Use consistent read for checksum table */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;

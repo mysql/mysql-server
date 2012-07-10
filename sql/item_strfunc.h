@@ -68,10 +68,14 @@ class Item_str_ascii_func :public Item_str_func
 {
   String ascii_buf;
 public:
-  Item_str_ascii_func() :Item_str_func() {}
-  Item_str_ascii_func(Item *a) :Item_str_func(a) {}
-  Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
-  Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  Item_str_ascii_func() :Item_str_func()
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+  Item_str_ascii_func(Item *a) :Item_str_func(a)
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+  Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b)
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
+  Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c)
+  { collation.set_repertoire(MY_REPERTOIRE_ASCII); }
   String *val_str(String *str)
   {
     return val_str_from_val_str_ascii(str, &ascii_buf);
