@@ -1997,6 +1997,7 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
+  "subquery_materialization_cost_based",
 #endif
   "default", NullS
 };
@@ -2007,8 +2008,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_merge_intersection, engine_condition_pushdown, "
        "index_condition_pushdown, mrr, mrr_cost_based"
 #ifdef OPTIMIZER_SWITCH_ALL
-       ", materialization, "
-       "semijoin, loosescan, firstmatch"
+       ", materialization, semijoin, loosescan, firstmatch,"
+       " subquery_materialization_cost_based"
 #endif
        ", block_nested_loop, batched_key_access"
        "} and val is one of {on, off, default}",

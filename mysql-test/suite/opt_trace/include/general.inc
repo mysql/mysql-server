@@ -88,7 +88,7 @@ select length(@trace);
 # and we trace only EXECUTE)
 # - So in normal mode, the lines below verify truncation,
 # whereas in ps-protocol mode they verify non-truncation.
-set @max_mem_size=14300;
+set @max_mem_size=13900;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
@@ -127,7 +127,7 @@ set @old_opt_switch=@@optimizer_switch;
 if (`select locate('semijoin', @@optimizer_switch) > 0`)
 {
 --disable_query_log
-  set optimizer_switch="semijoin=off";
+  set optimizer_switch="semijoin=off,subquery_materialization_cost_based=off";
 --enable_query_log
 }
 explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null);
