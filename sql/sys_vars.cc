@@ -4006,7 +4006,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&LOCK_error_messages);
     if (!locale->errmsgs->errmsgs &&
         read_texts(ERRMSG_FILE, locale->errmsgs->language,
-                   &locale->errmsgs->errmsgs,
+                   locale->errmsgs->errmsgs,
                    ER_ERROR_LAST - ER_ERROR_FIRST + 1))
     {
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,

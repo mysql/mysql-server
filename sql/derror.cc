@@ -68,7 +68,7 @@ bool init_errmessage(void)
 
   /* Read messages from file. */
   if (read_texts(ERRMSG_FILE, my_default_lc_messages->errmsgs->language,
-                 &errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
+                 errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
       !errmsgs)
   {
     if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
@@ -94,24 +94,36 @@ bool init_errmessage(void)
 /**
   Read text from packed textfile in language-directory.
 
-  If we can't read messagefile then it's panic- we can't continue.
+  @param  file_name      Name of packed text file.
+  @param  language       Language of error text file.
+  @param  errmsgs        Will contain all the error text messages.
+                         [This is a OUT argument]
+                         This buffer contains 2 sections.
+                         Section1: Offsets to error message text.
+                         Section2: Holds all error messages.
+
+  @param  error_messages Total number of error messages.
+
+  @retval false          On success
+  @retval true           On failure
+
+  @note If we can't read messagefile then it's panic- we can't continue.
 */
 
 bool read_texts(const char *file_name, const char *language,
-                const char ***point, uint error_messages)
+                const char **&errmsgs, uint error_messages)
 {
-  register uint i;
-  uint count,funktpos,textcount;
+  uint i;
+  uint no_of_errmsgs;
   size_t length;
   File file;
   char name[FN_REFLEN];
   char lang_path[FN_REFLEN];
-  uchar *buff;
-  uchar head[32],*pos;
+  uchar *start_of_errmsgs= NULL;
+  uchar *pos= NULL;
+  uchar head[32];
   DBUG_ENTER("read_texts");
 
-  LINT_INIT(buff);
-  funktpos=0;
   convert_dirname(lang_path, language, NullS);
   (void) my_load_path(lang_path, lang_path, lc_messages_dir);
   if ((file= mysql_file_open(key_file_ERRMSG,
@@ -122,74 +134,86 @@ bool read_texts(const char *file_name, const char *language,
     /*
       Trying pre-5.4 sematics of the --language parameter.
       It included the language-specific part, e.g.:
-      
+
       --language=/path/to/english/
     */
     if ((file= mysql_file_open(key_file_ERRMSG,
-                               fn_format(name, file_name, lc_messages_dir, "", 4),
+                               fn_format(name, file_name,
+                                         lc_messages_dir, "", 4),
                                O_RDONLY | O_SHARE | O_BINARY,
                                MYF(0))) < 0)
-      goto err;
-    sql_print_error("An old style --language value with language specific part detected: %s", lc_messages_dir);
-    sql_print_error("Use --lc-messages-dir without language specific part instead.");
+    {
+      sql_print_error("Can't find messagefile '%s'", name);
+      DBUG_RETURN(true);
+    }
+    sql_print_error("An old style --language value with language \
+                    specific part detected: %s", lc_messages_dir);
+    sql_print_error("Use --lc-messages-dir without language \
+                    specific part instead.");
   }
 
-  funktpos=1;
+  // Read the header from the file
   if (mysql_file_read(file, (uchar*) head, 32, MYF(MY_NABP)))
-    goto err;
+    goto read_err;
   if (head[0] != (uchar) 254 || head[1] != (uchar) 254 ||
-      head[2] != 3 || head[3] != 1)
-    goto err; /* purecov: inspected */
-  textcount=head[4];
+      head[2] != 3 || head[3] != 1 || head[4] != 1)
+    goto read_err;
 
   error_message_charset_info= system_charset_info;
-  length=uint4korr(head+6); count=uint4korr(head+10);
+  length= uint4korr(head+6);
+  no_of_errmsgs= uint4korr(head+10);
 
-  if (count < error_messages)
+  if (no_of_errmsgs < error_messages)
   {
-    sql_print_error("\
-Error message file '%s' had only %d error messages,\n\
-but it should contain at least %d error messages.\n\
-Check that the above file is the right version for this program!",
-		    name,count,error_messages);
+    sql_print_error("Error message file '%s' had only %d error messages,\n\
+                    but it should contain at least %d error messages.\n\
+                    Check that the above file is the right version for \
+                    this program!",
+		    name,no_of_errmsgs,error_messages);
     (void) mysql_file_close(file, MYF(MY_WME));
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
 
-  /* Free old language */
-  my_free(*point);
-  if (!(*point= (const char**)
-	my_malloc((size_t) (length+count*sizeof(char*)),MYF(0))))
+  // Free old language and allocate for the new one
+  my_free(errmsgs);
+  if (!(errmsgs= (const char**)
+	my_malloc((size_t) (length+no_of_errmsgs*sizeof(char*)), MYF(0))))
   {
-    funktpos=2;					/* purecov: inspected */
-    goto err;					/* purecov: inspected */
+    sql_print_error("Not enough memory for messagefile '%s'", name);
+    (void) mysql_file_close(file, MYF(MY_WME));
+    DBUG_RETURN(true);
   }
-  buff= (uchar*) (*point + count);
 
-  if (mysql_file_read(file, buff, (size_t) count*4, MYF(MY_NABP)))
-    goto err;
-  for (i=0, pos= buff ; i< count ; i++)
-  {
-    (*point)[i]= (char*) buff+uint4korr(pos);
-    pos+=4;
-  }
-  if (mysql_file_read(file, buff, length, MYF(MY_NABP)))
-    goto err;
+  // Get pointer to Section2.
+  start_of_errmsgs= (uchar*) (errmsgs + no_of_errmsgs);
 
-  for (i=1 ; i < textcount ; i++)
+  /*
+    Temporarily read message offsets into Section2.
+    We cannot read these 4 byte offsets directly into Section1,
+    as pointer size vary between processor architecture.
+  */
+  if (mysql_file_read(file, start_of_errmsgs, (size_t) no_of_errmsgs*4,
+                      MYF(MY_NABP)))
+    goto read_err;
+
+  // Copy the message offsets to Section1.
+  for (i= 0, pos= start_of_errmsgs; i< no_of_errmsgs; i++)
   {
-    point[i]= *point +uint2korr(head+10+i+i);
+    errmsgs[i]= (char*) start_of_errmsgs+uint4korr(pos);
+    pos+= 4;
   }
+
+  // Copy all the error text messages into Section2.
+  if (mysql_file_read(file, start_of_errmsgs, length, MYF(MY_NABP)))
+    goto read_err;
+
   (void) mysql_file_close(file, MYF(0));
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 
-err:
-  sql_print_error((funktpos == 2) ? "Not enough memory for messagefile '%s'" :
-                  ((funktpos == 1) ? "Can't read from messagefile '%s'" :
-                   "Can't find messagefile '%s'"), name);
-  if (file != FERR)
-    (void) mysql_file_close(file, MYF(MY_WME));
-  DBUG_RETURN(1);
+read_err:
+  sql_print_error("Can't read from messagefile '%s'", name);
+  (void) mysql_file_close(file, MYF(MY_WME));
+  DBUG_RETURN(true);
 } /* read_texts */
 
 
