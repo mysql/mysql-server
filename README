@@ -1,6 +1,6 @@
 This project contains the mynode definition and implementation.
 
-To build the native implementation for this project, cd to the Adapter/spi/
+To build the native implementation for this project, cd to the Adapter/impl/
 directory. The wscript file defines the build process. 
 In this directory, call the node-waf program, passing the location of an installed mysql.
 

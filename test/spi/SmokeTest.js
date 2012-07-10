@@ -29,7 +29,7 @@ var test = new harness.Test("SmokeTest");
 test.phase = 0;
 
 test.run = function() {
-  var module_path = path.join(global.adapter,"spi",
+  var module_path = path.join(global.adapter,"impl",
                               "build","Release","ndbapi.node");
   var ndbapi = require(module_path);
 };

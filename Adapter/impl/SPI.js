@@ -20,8 +20,8 @@
 
 var path = require("path");
 
-exports.getDBServiceProvider = function(name) {
-  var module = path.join(__dirname, name, name + "_service_provider.js");
+exports.getDBServiceProvider = function(impl_name) {
+  var module = path.join(__dirname, impl_name, impl_name + "_service_provider.js");
   var spi = require(module);
   return spi;
 };

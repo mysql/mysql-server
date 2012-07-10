@@ -34,7 +34,7 @@ global.adapter = path.join(parent, "Adapter");
 global.api_module = path.join(parent, "Adapter", "api", "mynode.js");
 global.mynode = require(global.api_module);
 
-global.spi_module = path.join(parent, "Adapter", "spi", "SPI.js");
+global.spi_module = path.join(parent, "Adapter", "impl", "SPI.js");
 
 global.suitesToRun = null;
 

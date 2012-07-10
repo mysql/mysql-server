@@ -170,7 +170,7 @@ Handle<Value> getColumnBinary(bool do_test, NdbDictionary::Column *col) {
       return scope.Close(Boolean::New(true));
   
     default:
-      return scope.Close(Boolean::New(true));
+      return scope.Close(Boolean::New(false));
   }
 }
 
