@@ -271,7 +271,7 @@ private:
 public:
   Deferred_log_events(Relay_log_info *rli);
   ~Deferred_log_events();
-  /* queue for exection at Query-log-event time prior the Query */;
+  /* queue for exection at Query-log-event time prior the Query */
   int add(Log_event *ev);
   bool is_empty();
   bool execute(Relay_log_info *rli);
