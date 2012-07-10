@@ -2264,32 +2264,22 @@ undo_size_ok:
 	if (!dict_index_is_univ(new_index)) {
 
 		new_index->stat_n_diff_key_vals =
-			static_cast<ib_uint64_t*>(mem_heap_alloc(
+			static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
-			(1 + dict_index_get_n_unique(new_index))
+			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_diff_key_vals)));
 
 		new_index->stat_n_sample_sizes =
-			static_cast<ib_uint64_t*>(mem_heap_alloc(
+			static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
-			(1 + dict_index_get_n_unique(new_index))
+			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_sample_sizes)));
 
 		new_index->stat_n_non_null_key_vals =
 			static_cast<ib_uint64_t*>(mem_heap_zalloc(
 			new_index->heap,
-			(1 + dict_index_get_n_unique(new_index))
+			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_non_null_key_vals)));
-
-		/* Give some sensible values to stat_n_... in case we do
-		not calculate statistics quickly enough */
-
-		for (i = 1; i <= dict_index_get_n_unique(new_index); i++) {
-
-			new_index->stat_n_diff_key_vals[i] = 0;
-			new_index->stat_n_sample_sizes[i] = 1;
-			new_index->stat_n_non_null_key_vals[i - 1] = 0;
-		}
 	}
 
 	dict_sys->size += mem_heap_get_size(new_index->heap);
@@ -5033,9 +5023,9 @@ dict_index_print_low(
 
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
-			index->n_user_defined_cols];
+			index->n_user_defined_cols - 1];
 	} else {
-		n_vals = index->stat_n_diff_key_vals[1];
+		n_vals = index->stat_n_diff_key_vals[0];
 	}
 
 	fprintf(stderr,
