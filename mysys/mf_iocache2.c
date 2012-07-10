@@ -433,7 +433,11 @@ process_flags:
           memset(buffz, '0', minimum_width - length2);
         else
           memset(buffz, ' ', minimum_width - length2);
-        my_b_write(info, buffz, minimum_width - length2);
+        if (my_b_write(info, buffz, minimum_width - length2))
+        {
+          my_afree(buffz);
+          goto err;
+        }
         my_afree(buffz);
       }
 

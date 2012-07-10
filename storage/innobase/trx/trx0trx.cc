@@ -1706,7 +1706,6 @@ trx_assert_started(
 
 	switch (trx->state) {
 	case TRX_STATE_PREPARED:
-		assert_trx_in_rw_list(trx);
 		return(TRUE);
 
 	case TRX_STATE_ACTIVE:
