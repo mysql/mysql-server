@@ -44,18 +44,6 @@ using std::list;
  */
 
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
-/*
-  Constants required for the limit unsafe warnings suppression
-*/
-//seconds after which the limit unsafe warnings suppression will be activated
-#define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
-//number of limit unsafe warnings after which the suppression will be activated
-#define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
-
-static struct timeval limit_unsafe_suppression_start_time;
-static struct timezone limit_unsafe_suppression_start_time_zone;
-static bool unsafe_warning_suppression_is_activated= false;
-static int limit_unsafe_warning_count= 0;
 
 /*
   Constants required for the limit unsafe warnings suppression
