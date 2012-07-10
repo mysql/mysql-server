@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-var spi = require("../spi/SPI.js");
+var spi = require("../impl/SPI.js");
 
 
 function Annotations() {

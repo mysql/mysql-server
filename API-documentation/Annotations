@@ -40,10 +40,10 @@
    * The annotations object is a javascript object that contains optional
    * properties and defaults:
    *
-   * "table"              : "" the name of the table in the base.
-   * "schema"                 : "" the name of the schema for the table
-   * "database"               : "" the name of the database for the table
-   * "autoIncrementBatchSize" : 1 the batch size of the autoincrement
+   * "table"                  : ""   the name of the table in the base.
+   * "schema"                 : ""   the name of the schema for the table
+   * "database"               : ""   the name of the database for the table
+   * "autoIncrementBatchSize" : 1    the batch size of the autoincrement
    * "mapAllColumns"          : true map all columns in this table
    *
    * Another property of the annotations object is named "field" or "fields".
