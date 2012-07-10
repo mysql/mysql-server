@@ -335,7 +335,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
   ulong nbytes= (ulong) no_bytes_in_map(&group_executed);
   uchar *buffer= (uchar*) group_executed.bitmap;
 
-  DBUG_ASSERT(nbytes <= c_rli->checkpoint_group / 8);
+  DBUG_ASSERT(nbytes <= (c_rli->checkpoint_group + 7) / 8);
 
   if (to->prepare_info_for_write(nidx) ||
       to->set_info(group_relay_log_name) ||
