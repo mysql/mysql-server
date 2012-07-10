@@ -14,6 +14,14 @@
 
 /* Annotations instance methods */
 {
+
+  /** Set strict mode. In strict mode, all property names must be valid and
+   * have valid values. If a property is misspelled, an error is returned.
+   *
+   * @param flag default true.
+   */
+  strict(boolean flag);
+
   /** mapAllTables(boolean flag)
    * IMMEDIATE 
    * Request that all tables be mapped. If this method is not called, the
@@ -59,7 +67,7 @@
    *                      The default is to use the converter based on the SQL type.
    * 
    * @param token_object prototype object to annotate
-   * @param annotations annotations object 
+   * @param annotations annotations object
    */
   mapClass(Object token_object, Object objectAnnotations);
 
