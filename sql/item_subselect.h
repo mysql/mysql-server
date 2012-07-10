@@ -66,6 +66,15 @@ public:
 public:
   /* unit of subquery */
   st_select_lex_unit *unit;
+  /**
+     If !=INT_MIN: this Item is in the condition attached to the JOIN_TAB
+     having this index in the parent JOIN.
+  */
+  int in_cond_of_tab;
+
+  /// EXPLAIN needs read-only access to the engine
+  const subselect_engine *get_engine_for_explain() const { return engine; }
+
 protected:
   /* engine that perform execution of subselect (single select or union) */
   subselect_engine *engine;
@@ -87,12 +96,6 @@ public:
   bool engine_changed;
   /* subquery is transformed */
   bool changed;
-
-  /**
-    TRUE <=> The underlying SELECT is correlated w.r.t some ancestor select.
-    Note that this field is not maintained in semijoin-transformed subqueries.
-   */
-  bool is_correlated; 
 
   enum trans_res {RES_OK, RES_REDUCE, RES_ERROR};
   enum subs_type {UNKNOWN_SUBS, SINGLEROW_SUBS,
@@ -146,6 +149,7 @@ public:
     engine_changed= 1;
     return eng == 0;
   }
+
   /*
     True if this subquery has been already evaluated. Implemented only for
     single select and union subqueries only.
@@ -162,12 +166,8 @@ public:
   bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
+  bool inform_item_in_cond_of_tab(uchar *join_tab_index);
 
-  /**
-    Get the SELECT_LEX structure associated with this Item.
-    @return the SELECT_LEX structure associated with this Item
-  */
-  st_select_lex* get_select_lex();
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
   friend class select_result_interceptor;
@@ -265,10 +265,19 @@ public:
     and EXISTS predicates.
   */
   enum enum_exec_method {
-    EXEC_UNSPECIFIED, /* No execution method specified yet. */
-    EXEC_SEMI_JOIN,   /* Predicate is converted to semi-join nest. */
-    EXEC_EXISTS,      /* IN was converted to correlated EXISTS. */
-    EXEC_MATERIALIZATION /* Predicate executed via subquery materialization. */
+    EXEC_UNSPECIFIED, ///< No execution method specified yet.
+    EXEC_SEMI_JOIN,   ///< Predicate is converted to semi-join nest.
+    /// IN was converted to correlated EXISTS, and this is a final decision.
+    EXEC_EXISTS,
+    /**
+       Decision between EXEC_EXISTS and EXEC_MATERIALIZATION is not yet taken.
+       IN was temporarily converted to correlated EXISTS.
+       All descendants of Item_in_subselect must go through this method
+       before they can reach EXEC_EXISTS.
+    */
+    EXEC_EXISTS_OR_MAT,
+    /// Predicate executed via materialization, and this is a final decision.
+    EXEC_MATERIALIZATION
   };
   enum_exec_method exec_method;
   /**
@@ -362,6 +371,28 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
+private:
+  /**
+     This bundles several pieces of information useful when doing the
+     IN->EXISTS transform. If this transform has not been done, pointer is
+     NULL.
+  */
+  struct In2exists_info: public Sql_alloc
+  {
+    /**
+       True: if IN->EXISTS has been done and has added a condition to the
+       subquery's WHERE clause.
+    */
+    bool added_to_where;
+    /**
+       True: if original subquery was dependent (correlated) before IN->EXISTS
+       was done.
+    */
+    bool originally_dependent;
+  } *in2exists_info;
+
+  Item *remove_in2exists_conds(Item* conds);
+
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
@@ -374,6 +405,13 @@ public:
      - (TABLE_LIST*)1 if the predicate is in the WHERE.
   */
   TABLE_LIST *expr_join_nest;
+
+  bool in2exists_added_to_where() const
+  { return in2exists_info && in2exists_info->added_to_where; }
+
+  /// Is reliable only if IN->EXISTS has been done.
+  bool originally_dependent() const
+  { return in2exists_info->originally_dependent; }
 
   bool *get_cond_guard(int i)
   {
@@ -391,7 +429,7 @@ public:
     :Item_exists_subselect(), left_expr(NULL), left_expr_cache(NULL),
     left_expr_cache_filled(false), need_expr_cache(TRUE), expr(NULL),
     optimizer(NULL), was_null(FALSE), abort_on_null(FALSE),
-    pushed_cond_guards(NULL), upper_item(NULL)
+    in2exists_info(NULL), pushed_cond_guards(NULL), upper_item(NULL)
   {}
   virtual void cleanup();
   subs_type substype() { return IN_SUBS; }
@@ -423,9 +461,18 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
                          st_select_lex *removed_select, Item **ref);
-  bool setup_engine();
   bool init_left_expr_cache();
-  bool is_expensive_processor(uchar *arg);
+
+  /**
+     Once the decision to use IN->EXISTS has been taken, performs some last
+     steps of this transformation.
+  */
+  bool finalize_exists_transform(SELECT_LEX *select_lex);
+  /**
+     Once the decision to use materialization has been taken, performs some
+     last steps of this transformation.
+  */
+  bool finalize_materialization_transform(JOIN *join);
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;

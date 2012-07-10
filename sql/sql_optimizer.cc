@@ -26,6 +26,7 @@
 
 #include "sql_select.h"
 #include "sql_optimizer.h"
+#include "sql_resolver.h"                  // subquery_allows_materialization
 #include "sql_executor.h"
 #include "sql_planner.h"
 #include "debug_sync.h"          // DEBUG_SYNC
@@ -47,6 +48,9 @@ static bool make_join_statistics(JOIN *join, TABLE_LIST *leaves, Item *conds,
                                  Key_use_array *keyuse,
                                  bool first_optimization);
 static bool optimize_semijoin_nests_for_materialization(JOIN *join);
+static void calculate_materialization_costs(JOIN *join, TABLE_LIST *sj_nest,
+                                            uint n_tables,
+                                            Semijoin_mat_optimize *sjm);
 static void make_outerjoin_info(JOIN *join);
 static bool make_join_select(JOIN *join, Item *item);
 static bool list_contains_unique_index(JOIN_TAB *tab,
@@ -95,8 +99,6 @@ static bool
 only_eq_ref_tables(JOIN *join, ORDER *order, table_map tables,
                    table_map *cached_eq_ref_tables, table_map
                    *eq_ref_tables);
-
-
 
 
 /**
@@ -728,9 +730,13 @@ JOIN::optimize()
     optimize_fts_query();
   }
 
-  /* Create all structures needed for materialized subquery execution. */
-  if (setup_subquery_materialization())
-    DBUG_RETURN(1);
+  /*
+    By setting child_subquery_can_materialize so late we gain the following:
+    JOIN::compare_costs_of_subquery_strategies() can test this variable to
+    know if we are have finished evaluating constant conditions, which itself
+    helps determining fanouts.
+  */
+  child_subquery_can_materialize= true;
 
   /*
     It's necessary to check const part of HAVING cond as
@@ -761,9 +767,7 @@ JOIN::optimize()
   if (cache_const_exprs())
     DBUG_RETURN(1);
 
-  /*
-    is this simple IN subquery?
-  */
+  // See if this subquery can be evaluated with subselect_indexsubquery_engine
   if (!group_list && !order &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
       tables == 1 && conds &&
@@ -771,7 +775,13 @@ JOIN::optimize()
   {
     bool changed= FALSE;
     subselect_engine *engine= 0;
-    if (!having)
+    Item_in_subselect * const in_subs=
+      static_cast<Item_in_subselect *>(unit->item);
+    if (in_subs->exec_method == Item_exists_subselect::EXEC_MATERIALIZATION)
+    {
+      // We cannot have two engines at the same time
+    }
+    else if (!having)
     {
       Item *where= conds;
       if (join_tab[0].type == JT_EQ_REF &&
@@ -817,7 +827,14 @@ JOIN::optimize()
       */
     }
     if (changed)
+    {
+      /*
+        We leave optimize() because the rest of it is only about order/group
+        which those subqueries don't have.
+        @todo: let execution flow down instead, to be future-proof.
+      */
       DBUG_RETURN(unit->item->change_engine(engine));
+    }
   }
   /*
     Need to tell handlers that to play it safe, it should fetch all
@@ -976,15 +993,14 @@ setup_subq_exit:
   /*
     Even with zero matching rows, subqueries in the HAVING clause may
     need to be evaluated if there are aggregate functions in the
-    query. If we have planned to materialize the subquery, we need to
-    set it up properly before prematurely leaving optimize().
+    query. If this JOIN is part of an outer query, subqueries in HAVING may
+    be evaluated several times in total; so subquery materialization makes
+    sense.
   */
-  if (setup_subquery_materialization())
-    DBUG_RETURN(1);
-
+  child_subquery_can_materialize= true;
   trace_steps.end();   // because all steps are done
-  Opt_trace_object trace_empty_result(trace, "empty_result");
-  trace_empty_result.add_alnum("cause", zero_result_cause);
+  Opt_trace_object(trace, "empty_result")
+    .add_alnum("cause", zero_result_cause);
 
   having_for_explain= having;
   error= 0;
@@ -1455,6 +1471,16 @@ static bool check_row_equality(THD *thd, Item *left_row, Item_row *right_row,
            if the predicate is not an equality,
            or, if the equality is neither a simple one nor a row equality,
            or, if the procedure fails by a fatal error.
+
+  @note If the equality was created by IN->EXISTS, it may be removed later by
+  subquery materialization. So we don't mix this possibly temporary equality
+  with others; if we let it go into a multiple-equality (Item_equal), then we
+  could not remove it later. There is however an exception: if the outer
+  expression is a constant, it is safe to leave the equality even in
+  materialization; all it can do is preventing NULL/FALSE distinction but if
+  such distinction mattered the equality would be in a triggered condition so
+  we would not come to this function. And injecting constants is good because
+  it makes the materialized table smaller.
 */
 
 static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
@@ -1465,6 +1491,9 @@ static bool check_equality(THD *thd, Item *item, COND_EQUAL *cond_equal,
   {
     Item *left_item= ((Item_func*) item)->arguments()[0];
     Item *right_item= ((Item_func*) item)->arguments()[1];
+
+    if (item->created_by_in2exists() && !left_item->const_item())
+      return false;                             // See note above
 
     if (left_item->type() == Item::ROW_ITEM &&
         right_item->type() == Item::ROW_ITEM)
@@ -1965,6 +1994,8 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
           level multiple equality, and the upper-level multiple equality
           refers to tables that are outside of the materialized semi-join nest,
           generate the equality predicate regardless.
+          As noted in Item_equal::get_subst_item(), subquery materialization
+          does not have this problem.
         */
         if (item != item_field &&
             item->field->table->reginfo.join_tab->emb_sj_nest !=
@@ -2862,10 +2893,13 @@ static void update_depend_map(JOIN *join, ORDER *order)
 void JOIN::set_prefix_tables()
 {
   /*
-    The const tables and outer references are available together with the
-    first non-const table in the join order:
+    The const tables are available together with the first non-const table in
+    the join order.
   */
-  table_map current_tables_map= const_table_map | OUTER_REF_TABLE_BIT;
+  table_map const initial_tables_map= const_table_map |
+    (allow_outer_refs ? OUTER_REF_TABLE_BIT : 0);
+
+  table_map current_tables_map= initial_tables_map;
   table_map prev_tables_map= (table_map) 0;
   table_map saved_tables_map= (table_map) 0;
 
@@ -2888,7 +2922,7 @@ void JOIN::set_prefix_tables()
       if (!(sjm_inner_tables & current_tables_map))
       {
         saved_tables_map= current_tables_map;
-        current_tables_map= const_table_map | OUTER_REF_TABLE_BIT;
+        current_tables_map= initial_tables_map;
         prev_tables_map= (table_map) 0;
       }
 
@@ -3332,7 +3366,6 @@ const_table_extraction_done:
               has a real row or a null-extended row in the optimizer phase.
               We have no possibility to evaluate its join condition at
               execution time, when it is marked as a system table.
-              DontEvaluateMaterializedSubqueryTooEarly
         */
 	if (table->file->stats.records <= 1L &&                            // 1
             (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) && // 1
@@ -3385,7 +3418,6 @@ const_table_extraction_done:
              2. are part of nested outer join, or
              3. are part of semi-join, or
              4. have an expensive outer join condition.
-                DontEvaluateMaterializedSubqueryTooEarly
              5. are blocked by handler for const table optimize.
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
@@ -3593,7 +3625,9 @@ const_table_extraction_done:
 
   if (join->const_tables != join->tables)
     optimize_keyuse(join, keyuse_array);
-   
+
+  join->allow_outer_refs= true;
+
   if (optimize_semijoin_nests_for_materialization(join))
     DBUG_RETURN(true);
 
@@ -3603,6 +3637,27 @@ const_table_extraction_done:
   DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
   if (thd->killed)
     DBUG_RETURN(true);
+
+  if (join->decide_subquery_strategy())
+    DBUG_RETURN(true);
+
+  join->refine_best_rowcount();
+
+  if (join->allocate_sj_mat_exec())
+    DBUG_RETURN(true);
+
+  // Only best_positions should be needed from now on.
+  join->positions= NULL;
+  join->best_ref= NULL;
+
+  /*
+    Store the cost of this query into a user variable
+    Don't update last_query_cost for statements that are not "flat joins" :
+    i.e. they have subqueries, unions or call stored procedures.
+    TODO: calculate a correct cost for a query with subqueries and UNIONs.
+  */
+  if (thd->lex->is_single_level_stmt())
+    thd->status_var.last_query_cost= join->best_read;
 
   /* Generate an execution plan from the found optimal join order. */
   if (join->get_best_combination())
@@ -4149,112 +4204,25 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
       */
       semijoin_types_allow_materialization(sj_nest);
 
-      if (sj_nest->nested_join->sjm.scan_allowed || 
-          sj_nest->nested_join->sjm.lookup_allowed)
-      {
-        if (Optimize_table_order(join->thd, join, sj_nest).choose_table_order())
-          DBUG_RETURN(true);
-        /*
-          The best plan to run the subquery is now in join->best_positions,
-          save it.
-        */
-        const uint n_tables= my_count_bits(sj_nest->sj_inner_tables);
+      if (!sj_nest->nested_join->sjm.scan_allowed &&
+          !sj_nest->nested_join->sjm.lookup_allowed)
+        continue;
 
-        double sjm_cost;          // Estimated cost of semi-join materialization
-        double sjm_rowcount;      // Estimated row count when executed as join
-        double distinct_rowcount; // Estimated rowcount after duplicate removal
-
-        get_partial_join_cost(join, n_tables,
-                              &sjm_cost, &sjm_rowcount);
-
-        List<Item> &inner_expr_list= sj_nest->nested_join->sj_inner_exprs;
-        /*
-          Adjust output cardinality estimates. If the subquery has form
-
-           ... oe IN (SELECT t1.colX, t2.colY, func(X,Y,Z) )
-
-           then the number of distinct output record combinations has an
-           upper bound of product of number of records matching the tables 
-           that are used by the SELECT clause.
-           TODO:
-             We can get a more precise estimate if we
-              - use rec_per_key cardinality estimates. For simple cases like 
-                "oe IN (SELECT t.key ...)" it is trivial. 
-              - Functional dependencies between the tables in the semi-join
-                nest (the payoff is probably less here?)
-        */
-        {
-          for (uint i=0 ; i < join->const_tables + n_tables ; i++)
-          {
-            JOIN_TAB *tab= join->best_positions[i].table;
-            join->map2table[tab->table->tablenr]= tab;
-          }
-          List_iterator<Item> it(inner_expr_list);
-          Item *item;
-          table_map map= 0;
-          while ((item= it++))
-            map |= item->used_tables();
-          map= map & ~PSEUDO_TABLE_BITS;
-          Table_map_iterator tm_it(map);
-          int tableno;
-          double rows= 1.0;
-          while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
-            rows *= join->map2table[tableno]->table->quick_condition_rows;
-          distinct_rowcount= min(sjm_rowcount, rows);
-        }
-        /*
-          Calculate temporary table parameters and usage costs
-        */
-        uint rowlen= get_tmp_table_rec_length(inner_expr_list);
-
-        double row_cost;    // The cost to write or lookup a row in temp. table 
-        double create_cost; // The cost to create a temporary table
-        if (rowlen * distinct_rowcount <
-            join->thd->variables.max_heap_table_size)
-        {
-          row_cost=    HEAP_TEMPTABLE_ROW_COST;
-          create_cost= HEAP_TEMPTABLE_CREATE_COST;
-        }
-        else
-        {
-          row_cost=    DISK_TEMPTABLE_ROW_COST;
-          create_cost= DISK_TEMPTABLE_CREATE_COST;
-        }
-        /*
-          Let materialization cost include the cost to create the temporary
-          table and write the rows into it:
-        */ 
-        sjm_cost+= create_cost + (sjm_rowcount * row_cost);
-        /*
-          Set the cost to do a full scan of the temptable (will need this to 
-          consider doing sjm-scan):
-        */ 
-        double scan_cost= distinct_rowcount * row_cost;
-
-        /*
-          Create the semi-join materialization object and populate it
-          with the selected plan and cost data:
-        */
-        if (!(sj_nest->nested_join->sjm.positions=
-              (st_position*)join->thd->alloc(sizeof(st_position)*n_tables)))
-          DBUG_RETURN(true);
-
-        memcpy(sj_nest->nested_join->sjm.positions,
-               join->best_positions + join->const_tables, 
-               sizeof(st_position) * n_tables);
-
-        sj_nest->nested_join->sjm.expected_rowcount= distinct_rowcount;
-        sj_nest->nested_join->sjm.materialization_cost.reset();
-        sj_nest->nested_join->sjm.materialization_cost
-          .add_io(sjm_cost);
-
-        sj_nest->nested_join->sjm.scan_cost.reset();
-        if (sj_nest->nested_join->sjm.expected_rowcount > 0.0)
-          sj_nest->nested_join->sjm.scan_cost.add_io(scan_cost);
-
-        sj_nest->nested_join->sjm.lookup_cost.reset();
-        sj_nest->nested_join->sjm.lookup_cost.add_io(row_cost);
-      }
+      if (Optimize_table_order(join->thd, join, sj_nest).choose_table_order())
+        DBUG_RETURN(true);
+      const uint n_tables= my_count_bits(sj_nest->sj_inner_tables);
+      calculate_materialization_costs(join, sj_nest, n_tables,
+                                      &sj_nest->nested_join->sjm);
+      /*
+        Cost data is in sj_nest->nested_join->sjm. We also need to save the
+        plan:
+      */
+      if (!(sj_nest->nested_join->sjm.positions=
+            (st_position*)join->thd->alloc(sizeof(st_position)*n_tables)))
+        DBUG_RETURN(true);
+      memcpy(sj_nest->nested_join->sjm.positions,
+             join->best_positions + join->const_tables,
+             sizeof(st_position) * n_tables);
     }
   }
   DBUG_RETURN(false);
@@ -6760,7 +6728,7 @@ bool JOIN::flatten_subqueries()
     */
     DBUG_ASSERT((*subq)->substype() == Item_subselect::IN_SUBS);
 
-    st_select_lex *child_select= (*subq)->get_select_lex();
+    st_select_lex *child_select= (*subq)->unit->first_select();
     JOIN *child_join= child_select->join;
     child_join->outer_tables = child_join->tables;
 
@@ -6774,8 +6742,10 @@ bool JOIN::flatten_subqueries()
 
     if (child_join->flatten_subqueries())
       DBUG_RETURN(TRUE);
+
     (*subq)->sj_convert_priority= 
-      (*subq)->is_correlated * MAX_TABLES + child_join->outer_tables;
+      (((*subq)->unit->uncacheable & UNCACHEABLE_DEPENDENT) ? MAX_TABLES : 0) +
+      child_join->outer_tables;
   }
 
   //dump_TABLE_LIST_struct(select_lex, select_lex->leaf_tables);
@@ -6809,7 +6779,7 @@ bool JOIN::flatten_subqueries()
        subq++)
   {
     OPT_TRACE_TRANSFORM(trace, oto0, oto1,
-                        (*subq)->get_select_lex()->select_number,
+                        (*subq)->unit->first_select()->select_number,
                         "IN (SELECT)", "semijoin");
     oto1.add("chosen", true);
     if (convert_subquery_to_semijoin(this, *subq))
@@ -6823,7 +6793,7 @@ bool JOIN::flatten_subqueries()
   {
     {
       OPT_TRACE_TRANSFORM(trace, oto0, oto1,
-                          (*subq)->get_select_lex()->select_number,
+                          (*subq)->unit->first_select()->select_number,
                           "IN (SELECT)", "semijoin");
       if (outer_join_objection)
         oto1.add_alnum("cause", "outer_join");
@@ -6885,52 +6855,6 @@ bool JOIN::flatten_subqueries()
 }
 
 
-/**
-  Setup for execution all subqueries of a query, for which the optimizer
-  chose hash semi-join.
-
-  @details Iterate over all subqueries of the query, and if they are under an
-  IN predicate, and the optimizer chose to compute it via hash semi-join:
-  - try to initialize all data structures needed for the materialized execution
-    of the IN predicate,
-  - if this fails, then perform the IN=>EXISTS transformation which was
-    previously blocked during JOIN::prepare.
-
-  This method is part of the "code generation" query processing phase.
-
-  This phase must be called after substitute_for_best_equal_field() because
-  that function may replace items with other items from a multiple equality,
-  and we need to reference the correct items in the index access method of the
-  IN predicate.
-
-  @return Operation status
-  @retval FALSE     success.
-  @retval TRUE      error occurred.
-*/
-
-bool JOIN::setup_subquery_materialization()
-{
-  for (SELECT_LEX_UNIT *un= select_lex->first_inner_unit(); un;
-       un= un->next_unit())
-  {
-    for (SELECT_LEX *sl= un->first_select(); sl; sl= sl->next_select())
-    {
-      Item_subselect *subquery_predicate= sl->master_unit()->item;
-      if (subquery_predicate &&
-          subquery_predicate->substype() == Item_subselect::IN_SUBS)
-      {
-        Item_in_subselect *in_subs= (Item_in_subselect*) subquery_predicate;
-        if (in_subs->exec_method ==
-              Item_exists_subselect::EXEC_MATERIALIZATION &&
-            in_subs->setup_engine())
-          return TRUE;
-      }
-    }
-  }
-  return FALSE;
-}
-
-
 /*
   Remove the predicates pushed down into the subquery
 
@@ -6954,13 +6878,22 @@ bool JOIN::setup_subquery_materialization()
     equalities corresponding to non-NULL parts of left tuple to filter out
     non-matching records.
 
+    If '*where' is a triggered condition, or contains 'OR x IS NULL', or
+    contains a condition coming from the original subquery's WHERE clause, or
+    if there are more than one outer expressions, then WHERE is not of the
+    simple form:
+      outer_expr = inner_expr
+    and thus this function does nothing.
+
+    If the index is on prefix (=> test_if_ref() is false), then the equality
+    is needed as post-filter, so this function does nothing.
+
     TODO: We can remove the equalities that will be guaranteed to be true by the
     fact that subquery engine will be using index lookup. This must be done only
     for cases where there are no conversion errors of significance, e.g. 257
     that is searched in a byte. But this requires homogenization of the return 
     codes of all Field*::store() methods.
 */
-
 void JOIN::remove_subq_pushed_predicates(Item **where)
 {
   if (conds->type() == Item::FUNC_ITEM &&
@@ -7219,12 +7152,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
       case 1:
         return new_cond->argument_list()->head();
       default:
-        /*
-          Item_cond_and do not need fix_fields for execution, its parameters
-          are fixed or do not need fix_fields, too
-        */
-        new_cond->quick_fix_field();
-        new_cond->set_used_tables(cond->used_tables() & tables);
+        if (new_cond->fix_fields(current_thd, NULL))
+          return NULL;
         return new_cond;
       }
     }
@@ -7861,17 +7790,37 @@ static bool make_join_select(JOIN *join, Item *cond)
       }
     }
     trace_attached_comp.end();
-    if (unlikely(trace->is_started()))
+
+    /*
+      In outer joins the loop above, in iteration for table #i, may push
+      conditions to a table before #i. Thus, the processing below has to be in
+      a separate loop:
+    */
+    Opt_trace_array trace_attached_summary(trace,
+                                           "attached_conditions_summary");
+    for (uint i= join->const_tables ; i < join->tables ; i++)
     {
-      Opt_trace_array trace_attached_summary(trace,
-                                             "attached_conditions_summary");
-      for (uint i= join->const_tables ; i < join->tables ; i++)
+      JOIN_TAB * const tab= &join->join_tab[i];
+      Item * const cond= tab->condition();
+      Opt_trace_object trace_one_table(trace);
+      trace_one_table.add_utf8_table(tab->table).
+        add("attached", cond);
+      if (cond &&
+          cond->has_subquery() /* traverse only if needed */ )
       {
-        const JOIN_TAB * const tab= &join->join_tab[i];
-        Opt_trace_object trace_one_table(trace);
-        trace_one_table.add_utf8_table(tab->table).
-          add("attached", tab->condition());
+        /*
+          Why we pass walk_subquery=false: imagine
+          WHERE t1.col IN (SELECT * FROM t2
+                             WHERE t2.col IN (SELECT * FROM t3)
+          and tab==t1. The grandchild subquery (SELECT * FROM t3) should not
+          be marked as "in condition of t1" but as "in condition of t2", for
+          correct calculation of the number of its executions.
+        */
+        int idx= tab - join->join_tab;
+        cond->walk(&Item::inform_item_in_cond_of_tab, false,
+                   reinterpret_cast<uchar * const>(&idx));
       }
+
     }
   }
   DBUG_RETURN(0);
@@ -8435,16 +8384,6 @@ internal_remove_eq_conds(THD *thd, Item *cond, Item::cond_result *cond_value)
     }
   }
   else if (cond->const_item() && !cond->is_expensive())
-  /*
-    DontEvaluateMaterializedSubqueryTooEarly:
-    TODO: 
-    Excluding all expensive functions is too restritive we should exclude only
-    materialized IN subquery predicates because they can't yet be evaluated
-    here (they need additional initialization that is done later on).
-
-    The proper way to exclude the subqueries would be to walk the cond tree
-    and check for materialized subqueries there.
-  */
   {
     *cond_value= eval_const_cond(cond) ? Item::COND_TRUE : Item::COND_FALSE;
     return (Item*) 0;
@@ -8905,10 +8844,13 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
   @return
     new conditions
+
+  @note that this function has Bug#13915291.
 */
 
 static Item *remove_additional_cond(Item* conds)
 {
+  // Because it uses in_additional_cond it applies only to the scalar case.
   if (conds->item_name.ptr() == in_additional_cond)
     return 0;
   if (conds->type() == Item::COND_ITEM)
@@ -8947,15 +8889,44 @@ static Item *remove_additional_cond(Item* conds)
       "Using Where" (TAB_INFO_USING_WHERE)
       "Full scan on NULL key" (TAB_INFO_FULL_SCAN_ON_NULL)
     and set appropriate flags in join_tab->packed_info.
+
+  TODO:
+    packed_info causes duplication in EXPLAIN code. For example, we print
+    "using where" in 2 places of EXPLAIN code: if tab->condition(), OR if
+    'packed_info & TAB_INFO_USING_WHERE'.
+    indexsubquery_engine is the only user of
+    save_index_subquery_explain_info().
+    packed_info is almost useless today, it would be good to get rid of it
+    (and thus of save_index_subquery_explain_info()).
 */
 
 static void save_index_subquery_explain_info(JOIN_TAB *join_tab, Item* where)
 {
   join_tab->packed_info= TAB_INFO_HAVE_VALUE;
+
+  /*
+    This is actually not needed, 'non-packed-info' branch of EXPLAIN naturally
+    reads covering_keys and produces the desired 'Using index'
+  */
   if (join_tab->table->covering_keys.is_set(join_tab->ref.key))
     join_tab->packed_info |= TAB_INFO_USING_INDEX;
+
+  /*
+    This is needed, because 'where' (==join->conds) may be NULL, or
+    shorter than select->cond/tab->condition(), due to
+    remove_subq_pushed_predicates() and remove_additional_cond(); the real
+    condition which will be checked for each row is
+    indexsubquery_engine::cond (==join->conds).
+    Still this should be solvable without TAB_INFO_USING_WHERE.
+  */
   if (where)
     join_tab->packed_info |= TAB_INFO_USING_WHERE;
+
+  /*
+    This is actually not needed, 'non-packed-info' branch of EXPLAIN naturally
+    reads has_guarded_conds() and produces the desired 'Full scan on NULL
+    key'.
+  */
   if (join_tab->has_guarded_conds())
     join_tab->packed_info|= TAB_INFO_FULL_SCAN_ON_NULL;
 }
@@ -9153,6 +9124,464 @@ JOIN::optimize_fts_limit_query()
       conds= item;
       min_ft_matches= m_select_limit;
     }
+  }
+}
+
+
+/**
+   For {semijoin,subquery} materialization: calculates various cost
+   information, based on a plan in join->best_positions covering the
+   to-be-materialized query block and only this.
+
+   @param join     JOIN where plan can be found
+   @param sj_nest  sj materialization nest (NULL if subquery materialization)
+   @param n_tables number of to-be-materialized tables
+   @param[out] sjm where computed costs will be stored
+
+   @note that this function modifies join->map2table, which has to be filled
+   correctly later.
+*/
+static void calculate_materialization_costs(JOIN *join,
+                                            TABLE_LIST *sj_nest,
+                                            uint n_tables,
+                                            Semijoin_mat_optimize *sjm)
+{
+  double mat_cost;             // Estimated cost of materialization
+  double mat_rowcount;         // Estimated row count before duplicate removal
+  double distinct_rowcount;    // Estimated rowcount after duplicate removal
+  List<Item> *inner_expr_list;
+
+  if (sj_nest)
+  {
+    /*
+      get_partial_join_cost() assumes a regular join, which is correct when
+      we optimize a sj-materialization nest (always executed as regular
+      join).
+      @todo consider using join->best_rowcount instead.
+    */
+    get_partial_join_cost(join, n_tables,
+                          &mat_cost, &mat_rowcount);
+    n_tables+= join->const_tables;
+    inner_expr_list= &sj_nest->nested_join->sj_inner_exprs;
+  }
+  else
+  {
+    mat_cost= join->best_read;
+    mat_rowcount= join->best_rowcount;
+    inner_expr_list= &join->select_lex->item_list;
+  }
+
+  /*
+    Adjust output cardinality estimates. If the subquery has form
+
+    ... oe IN (SELECT t1.colX, t2.colY, func(X,Y,Z) )
+
+    then the number of distinct output record combinations has an
+    upper bound of product of number of records matching the tables
+    that are used by the SELECT clause.
+    TODO:
+    We can get a more precise estimate if we
+     - use rec_per_key cardinality estimates. For simple cases like
+     "oe IN (SELECT t.key ...)" it is trivial.
+     - Functional dependencies between the tables in the semi-join
+     nest (the payoff is probably less here?)
+  */
+  {
+    for (uint i=0 ; i < n_tables ; i++)
+    {
+      JOIN_TAB * const tab= join->best_positions[i].table;
+      join->map2table[tab->table->tablenr]= tab;
+    }
+    List_iterator<Item> it(*inner_expr_list);
+    Item *item;
+    table_map map= 0;
+    while ((item= it++))
+      map|= item->used_tables();
+    map&= ~PSEUDO_TABLE_BITS;
+    Table_map_iterator tm_it(map);
+    int tableno;
+    double rows= 1.0;
+    while ((tableno = tm_it.next_bit()) != Table_map_iterator::BITMAP_END)
+      rows*= join->map2table[tableno]->table->quick_condition_rows;
+    distinct_rowcount= min(mat_rowcount, rows);
+  }
+  /*
+    Calculate temporary table parameters and usage costs
+  */
+  const uint rowlen= get_tmp_table_rec_length(*inner_expr_list);
+
+  double row_cost;    // The cost to write or lookup a row in temp. table
+  double create_cost; // The cost to create a temporary table
+  if (rowlen * distinct_rowcount <
+      join->thd->variables.max_heap_table_size)
+  {
+    row_cost=    HEAP_TEMPTABLE_ROW_COST;
+    create_cost= HEAP_TEMPTABLE_CREATE_COST;
+  }
+  else
+  {
+    row_cost=    DISK_TEMPTABLE_ROW_COST;
+    create_cost= DISK_TEMPTABLE_CREATE_COST;
+  }
+
+  /*
+    Let materialization cost include the cost to create the temporary
+    table and write the rows into it:
+  */
+  mat_cost+= create_cost + (mat_rowcount * row_cost);
+  sjm->materialization_cost.reset();
+  sjm->materialization_cost
+    .add_io(mat_cost);
+
+  sjm->expected_rowcount= distinct_rowcount;
+
+  /*
+    Set the cost to do a full scan of the temptable (will need this to
+    consider doing sjm-scan):
+  */
+  sjm->scan_cost.reset();
+  if (distinct_rowcount > 0.0)
+    sjm->scan_cost.add_io(distinct_rowcount * row_cost);
+
+  sjm->lookup_cost.reset();
+  sjm->lookup_cost.add_io(row_cost);
+}
+
+
+/**
+   Decides between EXISTS and materialization; performs last steps to set up
+   the chosen strategy.
+   @returns 'false' if no error
+
+   @note If UNION this is called on each contained JOIN.
+
+ */
+bool JOIN::decide_subquery_strategy()
+{
+  if (!unit->item)
+    return false;
+
+  switch (unit->item->substype())
+  {
+  case Item_subselect::IN_SUBS:
+  case Item_subselect::ALL_SUBS:
+  case Item_subselect::ANY_SUBS:
+    // All of those are children of Item_in_subselect and may use EXISTS
+    break;
+  default:
+    return false;
+  }
+
+  Item_in_subselect * const in_pred=
+    static_cast<Item_in_subselect *>(unit->item);
+
+  Item_exists_subselect::enum_exec_method chosen_method= in_pred->exec_method;
+  // Materialization does not allow UNION so this can't happen:
+  DBUG_ASSERT(chosen_method != Item_exists_subselect::EXEC_MATERIALIZATION);
+
+  if ((chosen_method == Item_exists_subselect::EXEC_EXISTS_OR_MAT) &&
+      compare_costs_of_subquery_strategies(&chosen_method))
+    return true;
+
+  switch (chosen_method)
+  {
+  case Item_exists_subselect::EXEC_EXISTS:
+    return in_pred->finalize_exists_transform(select_lex);
+  case Item_exists_subselect::EXEC_MATERIALIZATION:
+    return in_pred->finalize_materialization_transform(this);
+  default:
+    DBUG_ASSERT(false);
+    return true;
+  }
+}
+
+
+/**
+   Tells what is the cheapest between IN->EXISTS and subquery materialization,
+   in terms of cost, for the subquery's JOIN.
+   Input:
+   - join->{best_positions,best_read,best_rowcount} must contain the
+   execution plan of EXISTS (where 'join' is the subquery's JOIN)
+   - join2->{best_positions,best_read,best_rowcount} must be correctly set
+   (where 'join2' is the parent join, the grandparent join, etc).
+   Output:
+   join->{best_positions,best_read,best_rowcount} contain the cheapest
+   execution plan (where 'join' is the subquery's JOIN).
+
+   This plan choice has to happen before calling functions which set up
+   execution structures, like JOIN::get_best_combination() or
+   JOIN::set_access_methods().
+
+   @param[out] method  chosen method (EXISTS or materialization) will be put
+                       here.
+   @returns false if success
+*/
+bool
+JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_method
+                                           *method)
+{
+  *method= Item_exists_subselect::EXEC_EXISTS;
+
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
+    return false;
+
+  const JOIN *parent_join= unit->outer_select()->join;
+  if (!parent_join || !parent_join->child_subquery_can_materialize)
+    return false;
+
+  Item_in_subselect * const in_pred=
+    static_cast<Item_in_subselect *>(unit->item);
+
+  /*
+    Testing subquery_allows_etc() at each optimization is necessary as each
+    execution of a prepared statement may use a different type of parameter.
+  */
+  if (!subquery_allows_materialization(in_pred, thd, select_lex,
+                                       select_lex->outer_select()))
+    return false;
+
+  Opt_trace_context * const trace= &thd->opt_trace;
+  Opt_trace_object trace_wrapper(trace);
+  Opt_trace_object
+    trace_subqmat(trace, "execution_plan_for_potential_materialization");
+  const double saved_best_read= best_read;
+  const ha_rows saved_best_rowcount= best_rowcount;
+  POSITION * const saved_best_pos= best_positions;
+
+  if (in_pred->in2exists_added_to_where())
+  {
+    Opt_trace_array trace_subqmat_steps(trace, "steps");
+    if (!(best_positions= new (thd->mem_root) POSITION[tables + 1]))
+      return true;
+
+    // Compute plans which do not use outer references
+
+    DBUG_ASSERT(allow_outer_refs);
+    allow_outer_refs= false;
+
+    if (optimize_semijoin_nests_for_materialization(this))
+      return true;
+
+    if (Optimize_table_order(thd, this, NULL).choose_table_order())
+      return true;
+  }
+  else
+  {
+    /*
+      If IN->EXISTS didn't add any condition to WHERE (only to HAVING, which
+      can happen if subquery has aggregates) then the plan for materialization
+      will be the same as for EXISTS - don't compute it again.
+    */
+    trace_subqmat.add("surely_same_plan_as_EXISTS", true).
+      add_alnum("cause", "EXISTS_did_not_change_WHERE");
+  }
+
+  Semijoin_mat_optimize sjm;
+  calculate_materialization_costs(this, NULL, tables, &sjm);
+
+  /*
+    The number of evaluations of the subquery influences costs, we need to
+    compute it.
+  */
+  Opt_trace_object trace_subq_mat_decision(trace, "subq_mat_decision");
+  Opt_trace_array trace_parents(trace, "parent_fanouts");
+  const Item_subselect *subs= in_pred;
+  double subq_executions= 1.0;
+  for(;;)
+  {
+    Opt_trace_object trace_parent(trace);
+    trace_parent.add_select_number(parent_join->select_lex->select_number);
+    double parent_fanout;
+    if (// safety, not sure needed
+        parent_join->tables == parent_join->const_tables ||
+        // if subq is in condition on constant table:
+        !parent_join->child_subquery_can_materialize)
+    {
+      parent_fanout= 1.0;
+      trace_parent.add("subq_attached_to_const_table", true);
+    }
+    else
+    {
+      if (subs->in_cond_of_tab != INT_MIN)
+      {
+        /*
+          Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
+          is the number of times we'll start a loop accessing 'pos'; each such
+          loop will read pos->records_read records of 'pos', so subquery will
+          be evaluated pos[-1].prefix_record_count * pos->records_read times.
+          Exceptions:
+          - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
+          - if 'pos' is first of a sjerialization-mat nest, same.
+
+          If in a sj-materialization nest, pos->records_read and
+          pos[-1].prefix_record_count are of the "nest materialization" plan
+          (copied back in fix_semijoin_strategies()), which is
+          appropriate as it corresponds to evaluations of our subquery.
+        */
+        const uint idx= subs->in_cond_of_tab;
+        DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
+        trace_parent.add("subq_attached_to_table", true);
+        trace_parent.add_utf8_table(parent_join->join_tab[idx].table);
+        parent_fanout= parent_join->best_positions[idx].records_read;
+        if ((idx > parent_join->const_tables) &&
+            !sj_is_materialize_strategy(parent_join
+                                        ->best_positions[idx].sj_strategy))
+          parent_fanout*=
+            parent_join->best_positions[idx - 1].prefix_record_count;
+      }
+      else
+      {
+        /*
+          Subquery is SELECT list, GROUP BY, ORDER BY, HAVING: it is evaluated
+          at the end of the parent join's execution.
+          It can be evaluated once per row-before-grouping:
+          SELECT SUM(t1.col IN (subq)) FROM t1 GROUP BY expr;
+          or once per row-after-grouping:
+          SELECT SUM(t1.col) AS s FROM t1 GROUP BY expr HAVING s IN (subq),
+          SELECT SUM(t1.col) IN (subq) FROM t1 GROUP BY expr
+          It's hard to tell. We simply assume 'once per
+          row-before-grouping'.
+
+          Another approximation:
+          SELECT ... HAVING x IN (subq) LIMIT 1
+          best_rowcount=1 due to LIMIT, though HAVING (and thus the subquery)
+          may be evaluated many times before HAVING becomes true and the limit
+          is reached.
+        */
+        trace_parent.add("subq_attached_to_join_result", true);
+        parent_fanout= parent_join->best_rowcount;
+      }
+    }
+    subq_executions*= parent_fanout;
+    trace_parent.add("fanout", parent_fanout);
+    const bool cacheable= parent_join->select_lex->is_cacheable();
+    trace_parent.add("cacheable", cacheable);
+    if (cacheable)
+    {
+      // Parent executed only once
+      break;
+    }
+    /*
+      Parent query is executed once per outer row => go up to find number of
+      outer rows. Example:
+      SELECT ... IN(subq-with-in2exists WHERE ... IN (subq-with-mat))
+    */
+    if (!(subs= parent_join->unit->item))
+    {
+      // derived table, materialized only once
+      break;
+    }
+    parent_join= parent_join->unit->outer_select()->join;
+    if (!parent_join)
+    {
+      /*
+        May be single-table UPDATE/DELETE, has no join.
+        @todo  we should find how many rows it plans to UPDATE/DELETE, taking
+        inspiration in Explain_table::explain_rows_and_filtered().
+        This is not a priority as it applies only to
+        UPDATE - child(non-mat-subq) - grandchild(may-be-mat-subq).
+        And it will autosolve the day UPDATE gets a JOIN.
+      */
+      break;
+    }
+  }  // for(;;)
+  trace_parents.end();
+
+  const double cost_exists= subq_executions * saved_best_read;
+  const double cost_mat_table= sjm.materialization_cost.total_cost();
+  const double cost_mat= cost_mat_table + subq_executions *
+    sjm.lookup_cost.total_cost();
+  const bool mat_chosen=
+    thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED) ?
+    (cost_mat < cost_exists) : true;
+  trace_subq_mat_decision
+    .add("cost_to_create_and_fill_materialized_table",
+         cost_mat_table)
+    .add("cost_of_one_EXISTS", saved_best_read)
+    .add("number_of_subquery_evaluations", subq_executions)
+    .add("cost_of_materialization", cost_mat)
+    .add("cost_of_EXISTS", cost_exists)
+    .add("chosen", mat_chosen);
+  if (mat_chosen)
+    *method= Item_exists_subselect::EXEC_MATERIALIZATION;
+  else
+  {
+    best_read= saved_best_read;
+    best_rowcount= saved_best_rowcount;
+    best_positions= saved_best_pos;
+    /*
+      Don't restore JOIN::positions or best_ref, they're not used
+      afterwards. best_positions is (like: by get_sj_strategy()).
+    */
+  }
+  return false;
+}
+
+
+/**
+  This allocates execution structures so may be called only after we have the
+  very final plan. It must be called after
+  Optimize_table_order::fix_semijoin_strategies(), and before
+  make_join_select() which uses those structures.
+*/
+bool JOIN::allocate_sj_mat_exec()
+{
+  if (select_lex->sj_nests.is_empty())
+    return false;
+
+  for (uint tableno= const_tables; tableno < tables; )
+  {
+    POSITION *const pos= best_positions + tableno;
+    if (sj_is_materialize_strategy(pos->sj_strategy))
+    {
+      TABLE_LIST *emb_sj_nest= pos->table->emb_sj_nest;
+      const uint table_count= my_count_bits(emb_sj_nest->sj_inner_tables);
+      Semijoin_mat_exec *sjm_exec;
+      if (!(sjm_exec=
+            new (thd->mem_root)
+            Semijoin_mat_exec(table_count,
+                              (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN))))
+        return true;
+      emb_sj_nest->sj_mat_exec= sjm_exec;
+      tableno+= table_count;
+    }
+    else
+      tableno++;
+  }
+  return false;
+}
+
+
+/**
+  Refine the best_rowcount estimation based on what happens after tables
+  have been joined: LIMIT and type of result sink.
+ */
+void JOIN::refine_best_rowcount()
+{
+  if (const_tables == tables)
+    return;
+  /*
+    Calculate estimated number of rows for materialized derived
+    table/view.
+  */
+  if (unit->select_limit_cnt != HA_POS_ERROR)
+  {
+    /*
+      There will be no more rows than defined in the LIMIT clause. Use it
+      as an estimate.
+    */
+    set_if_smaller(best_rowcount, unit->select_limit_cnt);
+  }
+  else
+  {
+    /*
+      Since it's only an estimate it's inaccurate. Setting estimate to 1
+      row in some cases will make derived table a constant one.
+      Currently it's impossible to revert it to non-const. Thus we
+      adjust estimated # of rows to make derived table not a const one.
+    */
+    if (best_rowcount <= 1)
+      best_rowcount= 2;
   }
 }
 

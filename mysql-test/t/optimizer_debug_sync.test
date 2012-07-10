@@ -18,7 +18,7 @@ UPDATE t SET f=100 WHERE i=2;
 
 --connect (con1,localhost,root,,)
 
-set optimizer_switch='semijoin=off';
+set optimizer_switch='semijoin=off,subquery_materialization_cost_based=off';
 
 SET DEBUG_SYNC='before_index_end_in_subselect WAIT_FOR callit';
 --send SELECT f FROM t WHERE i IN ( SELECT i FROM t )

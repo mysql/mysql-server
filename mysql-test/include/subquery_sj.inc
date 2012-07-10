@@ -1,6 +1,13 @@
 #
 # Nested Loops semi-join subquery evaluation tests
 #
+
+# This portion of the file vas developed when subquery materialization
+# was rule-based; to preserve the intended test scenarios, we switch
+# off cost-based choice for them.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='subquery_materialization_cost_based=off';
+
 --disable_warnings
 drop table if exists t0, t1, t2, t10, t11, t12;
 --enable_warnings
@@ -6422,5 +6429,8 @@ eval $query;
 DROP TABLE t1, t2;
 
 --echo # End of test for bug#14064201.
+
+set @@optimizer_switch=@old_opt_switch;
+# New tests go here.
 
 --echo # End of 5.6 tests

@@ -2024,9 +2024,6 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
-    Item_subselect *subquery_predicate= s->master_unit()->item;
-    if (subquery_predicate)
-      subquery_predicate->is_correlated= TRUE;
   }
 }
 
@@ -2270,20 +2267,7 @@ void st_select_lex::print_limit(THD *thd,
     if (subs_type == Item_subselect::EXISTS_SUBS ||
         subs_type == Item_subselect::IN_SUBS ||
         subs_type == Item_subselect::ALL_SUBS)
-    {
-      DBUG_ASSERT(!item->fixed ||
-                  /*
-                    If not using materialization both:
-                    select_limit == 1, and there should be no offset_limit.
-                  */
-                  (((subs_type == Item_subselect::IN_SUBS) &&
-                    ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::EXEC_MATERIALIZATION) ?
-                   TRUE :
-                   (select_limit->val_int() == LL(1)) &&
-                   offset_limit == 0));
       return;
-    }
   }
   if (explicit_limit)
   {
