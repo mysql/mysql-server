@@ -784,8 +784,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           goto end;
       }
       else
+      {
         ce->print(result_file, print_event_info, TRUE);
-
+        if (head->error == -1)
+          goto err;
+      }
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
       {
@@ -836,6 +839,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	ce->print(result_file, print_event_info, TRUE);
 	my_free((char*)ce->fname,MYF(MY_WME));
 	delete ce;
+        if (head->error == -1)
+          goto err;
       }
       else
         warning("Ignoring Execute_load_log_event as there is no "
@@ -890,6 +895,12 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         {
           convert_path_to_forward_slashes(fname);
           exlq->print(result_file, print_event_info, fname);
+          if (head->error == -1)
+          {
+            if (fname)
+              my_free(fname, MYF(MY_WME));
+            goto err;
+          }
         }
         else
           warning("Ignoring Execute_load_query since there is no "
