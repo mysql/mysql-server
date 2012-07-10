@@ -7,6 +7,13 @@
 #       close the new connection and switch back to "default" as soon
 #       as possible.
 #
+
+# This portion of the file vas developed when subquery materialization
+# was rule-based; to preserve the intended test scenarios, we switch
+# off cost-based choice for them.
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='subquery_materialization_cost_based=off';
+
 # Initialise
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
@@ -6166,3 +6173,6 @@ SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 
 DROP TABLE t1, t2;
+
+set @@optimizer_switch=@old_opt_switch;
+# New tests go here.

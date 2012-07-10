@@ -1405,6 +1405,7 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) { return false; }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
@@ -1619,11 +1620,6 @@ public:
       cost Item::execution_cost(),
     where 'cost' is either 'double' or some structure of various cost
     parameters.
-
-    NOTE
-      This function is now used to prevent evaluation of materialized IN
-      subquery predicates before it is allowed. grep for 
-      DontEvaluateMaterializedSubqueryTooEarly to see the uses.
   */
   virtual bool is_expensive()
   {
@@ -1692,6 +1688,8 @@ public:
   */
   virtual bool has_subquery() const { return with_subselect; }
   virtual bool has_stored_program() const { return with_stored_program; }
+  /// Whether this Item was created by the IN->EXISTS subquery transformation
+  virtual bool created_by_in2exists() const { return false; }
 };
 
 
@@ -3248,7 +3246,6 @@ public:
     return (*ref)->has_subquery();
   }
 
-
   /**
     Checks if the item tree that ref points to contains a stored program.
   */
@@ -3256,6 +3253,11 @@ public:
   { 
     DBUG_ASSERT(ref);
     return (*ref)->has_stored_program();
+  }
+
+  virtual bool created_by_in2exists() const
+  {
+    return (*ref)->created_by_in2exists();
   }
 };
 

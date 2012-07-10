@@ -139,13 +139,24 @@ public:
 class Item_bool_func :public Item_int_func
 {
 public:
-  Item_bool_func() :Item_int_func() {}
-  Item_bool_func(Item *a) :Item_int_func(a) {}
-  Item_bool_func(Item *a,Item *b) :Item_int_func(a,b) {}
-  Item_bool_func(THD *thd, Item_bool_func *item) :Item_int_func(thd, item) {}
+  Item_bool_func() : Item_int_func(), m_created_by_in2exists(false) {}
+  Item_bool_func(Item *a) : Item_int_func(a),
+    m_created_by_in2exists(false)  {}
+  Item_bool_func(Item *a,Item *b) : Item_int_func(a,b),
+    m_created_by_in2exists(false)  {}
+  Item_bool_func(THD *thd, Item_bool_func *item) : Item_int_func(thd, item),
+    m_created_by_in2exists(item->m_created_by_in2exists) {}
   bool is_bool_func() { return 1; }
   void fix_length_and_dec() { decimals=0; max_length=1; }
   uint decimal_precision() const { return 1; }
+  virtual bool created_by_in2exists() const { return m_created_by_in2exists; }
+  void set_created_by_in2exists() { m_created_by_in2exists= true; }
+private:
+  /**
+    True <=> this item was added by IN->EXISTS subquery transformation, and
+    should thus be deleted if we switch to materialization.
+  */
+  bool m_created_by_in2exists;
 };
 
 
@@ -360,7 +371,7 @@ public:
   virtual bool l_op() const { return 1; }
 };
 
-class Item_bool_func2 :public Item_int_func
+class Item_bool_func2 :public Item_bool_func
 {						/* Bool with 2 string args */
 protected:
   Arg_comparator cmp;
@@ -368,7 +379,7 @@ protected:
 
 public:
   Item_bool_func2(Item *a,Item *b)
-    :Item_int_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
+    :Item_bool_func(a,b), cmp(tmp_arg, tmp_arg+1), abort_on_null(FALSE) {}
   void fix_length_and_dec();
   int set_cmp_func()
   {
@@ -384,14 +395,12 @@ public:
   }
 
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
-  bool is_bool_func() { return 1; }
   const CHARSET_INFO *compare_collation()
   { return cmp.cmp_collation.collation; }
-  uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
   void cleanup()
   {
-    Item_int_func::cleanup();
+    Item_bool_func::cleanup();
     cmp.cleanup();
   }
 

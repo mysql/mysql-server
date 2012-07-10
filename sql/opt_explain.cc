@@ -595,8 +595,16 @@ bool Explain::explain_subqueries(select_result *result)
     if (fmt->begin_context(context, unit))
       return true;
 
+    if (mysql_explain_unit(thd, unit, result))
+      return true;
+
+    /*
+      This must be after mysql_explain_unit() so that JOIN::optimize() has run
+      and had a chance to choose materialization.
+    */
     if (fmt->is_hierarchical() && context == CTX_WHERE &&
-        (unit->explain_subselect_engine->engine_type() ==
+        unit->item &&
+        (unit->item->get_engine_for_explain()->engine_type() ==
          subselect_engine::HASH_SJ_ENGINE))
     {
       fmt->entry()->using_temporary= true;
@@ -605,7 +613,7 @@ bool Explain::explain_subqueries(select_result *result)
 
       const subselect_hash_sj_engine * const engine=
         static_cast<const subselect_hash_sj_engine *>
-        (unit->explain_subselect_engine);
+        (unit->item->get_engine_for_explain());
       const JOIN_TAB * const tmp_tab= engine->get_join_tab();
 
       char buff_key_len[24];
@@ -628,9 +636,6 @@ bool Explain::explain_subqueries(select_result *result)
         fmt->entry()->col_attached_condition.set(c);
       }
     }
-
-    if (mysql_explain_unit(thd, unit, result))
-      return true;
 
     if (fmt->end_context(context))
       return true;

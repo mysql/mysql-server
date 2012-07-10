@@ -204,6 +204,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
     opt_trace_print_expanded_query(thd, select_lex, &trace_wrapper);
   }
 
+  /*
+    When normalizing a view (like when writing a view's body to the FRM),
+    subquery transformations don't apply (if they did, IN->EXISTS could not be
+    undone in favour of materialization, when optimizing a later statement
+    using the view)
+  */
   if (select_lex->master_unit()->item &&    // This is a subquery
                                             // Not normalizing a view
       !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW) &&
@@ -375,7 +381,6 @@ err:
   @return TRUE if subquery allows materialization, FALSE otherwise.
 */
 
-static
 bool subquery_allows_materialization(Item_in_subselect *predicate,
                                      THD *thd,
                                      SELECT_LEX *select_lex,
@@ -392,7 +397,12 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
                       "IN (SELECT)", "materialization");
 
   const char *cause= NULL;
-  if (select_lex->is_part_of_union())
+  if (predicate->substype() != Item_subselect::IN_SUBS)
+  {
+    // Subq-mat cannot handle 'outer_expr > {ANY|ALL}(subq)'...
+    cause= "not an IN predicate";
+  }
+  else if (select_lex->is_part_of_union())
   {
     // Subquery must be a single query specification clause (not a UNION)
     cause= "in UNION";
@@ -412,17 +422,16 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
   }
   else if (!outer->leaf_tables)
   {
-    /*
-      The upper query is SELECT ... FROM DUAL. We can't do materialization for
-      SELECT .. FROM DUAL because it does not call
-      setup_subquery_materialization(). We could fix it but it's not worth it.
-    */
+    // The upper query is SELECT ... FROM DUAL. No gain in materializing.
     cause= "no tables in outer query";
   }
-  else if (predicate->is_correlated)
+  else if (predicate->originally_dependent())
   {
     /*
-      Subquery should not be correlated.
+      Subquery should not be correlated; the correlation due to predicates
+      injected by IN->EXISTS does not count as we will remove them if we
+      choose materialization.
+
       TODO:
       This is an overly restrictive condition. It can be extended to:
          (Subquery is non-correlated ||
@@ -432,12 +441,6 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
            aggregate functions}) && subquery predicate is not under "NOT IN"))
     */
     cause= "correlated";
-  }
-  else if (predicate->exec_method !=
-           Item_exists_subselect::EXEC_UNSPECIFIED)
-  {
-    // An execution method was already chosen (by a prepared statement).
-    cause= "already have strategy";
   }
   else
   {
@@ -487,13 +490,13 @@ bool subquery_allows_materialization(Item_in_subselect *predicate,
         cause= "cannot_handle_partial_matches";
       else
       {
-        trace_mat.add("chosen", true);
+        trace_mat.add("possible", true);
         DBUG_RETURN(TRUE);
       }
     }
   }
   DBUG_ASSERT(cause != NULL);
-  trace_mat.add("chosen", false).add_alnum("cause", cause);
+  trace_mat.add("possible", false).add_alnum("cause", cause);
   DBUG_RETURN(false);
 }
 
@@ -537,8 +540,6 @@ static bool resolve_subquery(THD *thd, JOIN *join)
   */
   Item_subselect *subq_predicate= select_lex->master_unit()->item;
   DBUG_ASSERT(subq_predicate);
-  const Item_subselect::subs_type subq_predicate_substype=
-    subq_predicate->substype();
   /**
     @note
     In this case: IN (SELECT ... UNION SELECT ...), JOIN::prepare() is
@@ -546,16 +547,12 @@ static bool resolve_subquery(THD *thd, JOIN *join)
     subq_predicate is the same, not sure this is desired (double work?).
   */
 
-  /* in_exists_predicate is non-NULL for IN, =ANY and EXISTS predicates */
-  Item_exists_subselect *in_exists_predicate= 
-    (subq_predicate_substype == Item_subselect::IN_SUBS ||
-     subq_predicate_substype == Item_subselect::EXISTS_SUBS) ?
-        (Item_exists_subselect*)subq_predicate :
-        NULL;
+  Item_in_subselect * const in_predicate=
+    (subq_predicate->substype() == Item_subselect::IN_SUBS) ?
+    static_cast<Item_in_subselect *>(subq_predicate) : NULL;
 
-  if (subq_predicate_substype == Item_subselect::IN_SUBS)
+  if (in_predicate)
   {
-    Item_in_subselect *in_predicate= (Item_in_subselect *)subq_predicate;
     /*
       Check if the left and right expressions have the same # of
       columns, i.e. we don't have a case like 
@@ -600,14 +597,9 @@ static bool resolve_subquery(THD *thd, JOIN *join)
       8. No execution method was already chosen (by a prepared statement)
       9. Parent select is not a confluent table-less select
       10. Neither parent nor child select have STRAIGHT_JOIN option.
-
-      Please note that subq_predicate and in_exists_predicate points to the
-      same object here, but in_exists_predicate is NULL if the predicate
-      is not IN or EXISTS. Therefore both pointers are needed in the same
-      statement.
   */
   if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
-      subq_predicate_substype == Item_subselect::IN_SUBS &&             // 1
+      in_predicate &&                                                   // 1
       !select_lex->is_part_of_union() &&                                // 2
       !select_lex->group_list.elements &&                               // 3
       !join->having && !select_lex->with_sum_func &&                    // 4
@@ -615,7 +607,7 @@ static bool resolve_subquery(THD *thd, JOIN *join)
        outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
       outer->join &&                                                    // 6
       select_lex->master_unit()->first_select()->leaf_tables &&         // 7
-      in_exists_predicate->exec_method == 
+      in_predicate->exec_method ==
                            Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
       outer->leaf_tables &&                                             // 9
       !((join->select_options | outer->join->select_options)
@@ -624,38 +616,19 @@ static bool resolve_subquery(THD *thd, JOIN *join)
     DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
     /* Notify in the subquery predicate where it belongs in the query graph */
-    in_exists_predicate->embedding_join_nest= outer->resolve_nest;
+    in_predicate->embedding_join_nest= outer->resolve_nest;
 
     /* Register the subquery for further processing in flatten_subqueries() */
-    outer->join->sj_subselects.push_back(in_exists_predicate);
+    outer->join->sj_subselects.push_back(in_predicate);
     chose_semijoin= true;
   }
 
-  if (subq_predicate_substype == Item_subselect::IN_SUBS)
+  if (in_predicate)
   {
     Opt_trace_context * const trace= &join->thd->opt_trace;
     OPT_TRACE_TRANSFORM(trace, oto0, oto1,
                         select_lex->select_number, "IN (SELECT)", "semijoin");
     oto1.add("chosen", chose_semijoin);
-  }
-
-  if (!chose_semijoin &&
-      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION) &&
-      (subq_predicate_substype == Item_subselect::IN_SUBS))
-  {
-    /*
-      Check if the subquery predicate can be executed via materialization.
-
-      We have to determine whether we will perform subquery materialization
-      before calling the IN=>EXISTS transformation, so that we know whether to
-      perform the whole transformation or only that part of it which wraps
-      Item_in_subselect in an Item_in_optimizer.
-    */
-    Item_in_subselect *in_predicate= static_cast<Item_in_subselect *>
-      (subq_predicate);
-    if (subquery_allows_materialization(in_predicate, thd, select_lex, outer))
-      in_predicate->exec_method=
-        Item_exists_subselect::EXEC_MATERIALIZATION;
   }
 
   if (!chose_semijoin &&
