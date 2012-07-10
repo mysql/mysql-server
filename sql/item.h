@@ -123,6 +123,8 @@ public:
   }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
+  void set_repertoire(uint repertoire_arg)
+  { repertoire= repertoire_arg; }
   bool aggregate(DTCollation &dt, uint flags= 0);
   bool set(DTCollation &dt1, DTCollation &dt2, uint flags= 0)
   { set(dt1); return aggregate(dt2, flags); }
