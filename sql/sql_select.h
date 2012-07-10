@@ -927,8 +927,7 @@ public:
      maintain current state in join->positions[#tables_in_prefix]. See
      advance_sj_state() for details.
 
-  This class has to stay a POD, because it is memcpy'd in many places. It
-  however has a no-argument constructor which must be used.
+  This class has to stay a POD, because it is memcpy'd in many places.
 */
 
 typedef struct st_position : public Sql_alloc
@@ -1045,7 +1044,21 @@ typedef struct st_position : public Sql_alloc
   */
   table_map sjm_scan_need_tables;
 
-  st_position() : sj_strategy(SJ_OPT_NONE), dups_producing_tables(0) {}
+  /**
+     Even if the query has no semijoin, two sj-related members are read and
+     must thus have been set, by this function.
+  */
+  void no_semijoin()
+  {
+    sj_strategy= SJ_OPT_NONE;
+    dups_producing_tables= 0;
+  }
+  void set_prefix_costs(double read_time, double row_count)
+  {
+    prefix_cost.reset();
+    prefix_cost.add_io(read_time);
+    prefix_record_count= row_count;
+  }
 } POSITION;
 
 

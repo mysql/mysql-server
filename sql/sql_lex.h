@@ -556,7 +556,7 @@ public:
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
       fake_select_lex(NULL),
-      explain_marker(0), explain_subselect_engine(NULL)
+      explain_marker(0)
   {
   }
 
@@ -609,10 +609,6 @@ public:
          files are too interlinked to include "opt_format.h" there
   */
   int explain_marker;
-  /**
-    Associated subquery (if any) for EXPLAIN
-  */
-  const subselect_engine *explain_subselect_engine;
 
   void init_query();
   st_select_lex_unit* master_unit();

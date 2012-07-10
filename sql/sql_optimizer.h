@@ -345,7 +345,21 @@ public:
   
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
-  
+
+  /**
+     True if, at this stage of processing, subquery materialization is allowed
+     for children subqueries of this JOIN (those in the SELECT list, in WHERE,
+     etc). If false, and we have to evaluate a subquery at this stage, then we
+     must choose EXISTS.
+  */
+  bool child_subquery_can_materialize;
+  /**
+     True if plan search is allowed to use references to expressions outer to
+     this JOIN (for example may set up a 'ref' access looking up an outer
+     expression in the index, etc).
+  */
+  bool allow_outer_refs;
+
   // true: No need to run DTORs on pointers.
   Mem_root_array<Item_exists_subselect*, true> sj_subselects;
 
@@ -414,7 +428,7 @@ public:
     items2.reset();
     items3.reset();
     zero_result_cause= 0;
-    optimized= 0;
+    optimized= child_subquery_can_materialize= false;
     cond_equal= 0;
     group_optimized_away= 0;
 
@@ -448,7 +462,6 @@ public:
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
-  bool setup_subquery_materialization();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
                           bool before_group_by, bool recompute= FALSE);
@@ -538,6 +551,9 @@ public:
   void drop_unused_derived_keys();
   bool get_best_combination();
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
+  bool decide_subquery_strategy();
+  void refine_best_rowcount();
+  bool allocate_sj_mat_exec();
 
 private:
   /**
@@ -636,6 +652,8 @@ private:
   void set_semijoin_info();
   bool set_access_methods();
   bool make_tmp_tables_info();
+  bool compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_method
+                                            *method);
 };
 
 

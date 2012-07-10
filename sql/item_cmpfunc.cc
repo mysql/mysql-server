@@ -2061,14 +2061,15 @@ longlong Item_in_optimizer::val_int()
           all_left_cols_null= false;
       }
 
-      if (!item_subs->is_correlated && 
-          all_left_cols_null && result_for_null_param != UNKNOWN)
+      if (all_left_cols_null && result_for_null_param != UNKNOWN &&
+          !item_subs->originally_dependent())
       {
-        /* 
-           This is a non-correlated subquery, all values in the outer
-           value list are NULL, and we have already evaluated the
-           subquery for all NULL values: Return the same result we
-           did last time without evaluating the subquery.
+        /*
+           This subquery was originally not correlated. The IN->EXISTS
+           transformation may have made it correlated, but only to the left
+           expression. All values in the left expression are NULL, and we have
+           already evaluated the subquery for all NULL values: return the same
+           result we did last time without evaluating the subquery.
         */
         null_value= result_for_null_param;
       } 
@@ -6382,6 +6383,13 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
       If we're looking for best substitute for 'it2.col', we must pick it1.col
       and not ot2.col. it2.col is evaluated while performing materialization,
       when the outer tables are not available in the execution.
+
+      Note that subquery materialization does not have the same problem:
+      even though IN->EXISTS has injected equalities involving outer query's
+      expressions, it has wrapped those expressions in variants of Item_ref,
+      never Item_field, so they can be part of an Item_equal only if they are
+      constant (in which case there is no problem with choosing them below);
+      @see check_simple_equality().
     */
     List_iterator<Item_field> it(fields);
     Item_field *item;
