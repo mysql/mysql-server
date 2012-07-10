@@ -7285,6 +7285,9 @@ User_var_log_event::
 User_var_log_event(const char* buf,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
+#ifndef MYSQL_CLIENT
+  , deferred(false)
+#endif
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   const char *start= buf;
@@ -7532,7 +7535,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
 
   if (rli->deferred_events_collecting)
+  {
+    set_deferred();
     return rli->deferred_events->add(this);
+  }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
@@ -7581,7 +7587,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(Name_string(name, name_len, false), it);
+  Item_func_set_user_var *e= new Item_func_set_user_var(Name_string(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -7590,7 +7596,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     crash the server, so if fix fields fails, we just return with an
     error.
   */
-  if (e.fix_fields(thd, 0))
+  if (e->fix_fields(thd, 0))
     return 1;
 
   /*
@@ -7598,9 +7604,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
-                (flags & User_var_log_event::UNSIGNED_F));
-  free_root(thd->mem_root,0);
+  e->update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
+                 (flags & User_var_log_event::UNSIGNED_F));
+  if (!is_deferred())
+    free_root(thd->mem_root, 0);
 
   return 0;
 }
