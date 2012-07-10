@@ -3600,9 +3600,9 @@ btr_estimate_n_rows_in_range(
 
 /*******************************************************************//**
 Record the number of non_null key values in a given index for
-each n-column prefix of the index where n < dict_index_get_n_unique(index).
+each n-column prefix of the index where 1 <= n <= dict_index_get_n_unique(index).
 The estimates are eventually stored in the array:
-index->stat_n_non_null_key_vals. */
+index->stat_n_non_null_key_vals[], which is indexed from 0 to n-1. */
 static
 void
 btr_record_not_null_field_in_rec(
@@ -3613,7 +3613,7 @@ btr_record_not_null_field_in_rec(
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index),
 					its size could be for all fields or
 					that of "n_unique" */
-	ib_int64_t*	n_not_null)	/*!< in/out: array to record number of
+	ib_uint64_t*	n_not_null)	/*!< in/out: array to record number of
 					not null rows for n-column prefix */
 {
 	ulint	i;
@@ -3635,11 +3635,12 @@ btr_record_not_null_field_in_rec(
 
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
-each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals[] and
-the number of pages that were sampled is saved in index->stat_n_sample_sizes[].
-If innodb_stats_method is "nulls_ignored", we also record the number of
-non-null values for each prefix and store the estimates in
+each n-column prefix of the index where 1 <= n <= dict_index_get_n_unique(index).
+The estimates are stored in the array index->stat_n_diff_key_vals[] (indexed
+0..n_uniq-1) and the number of pages that were sampled is saved in
+index->stat_n_sample_sizes[].
+If innodb_stats_method is nulls_ignored, we also record the number of
+non-null values for each prefix and stored the estimates in
 array index->stat_n_non_null_key_vals. */
 UNIV_INTERN
 void
@@ -3653,8 +3654,8 @@ btr_estimate_number_of_different_key_vals(
 	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
-	ib_int64_t*	n_diff;
-	ib_int64_t*	n_not_null;
+	ib_uint64_t*	n_diff;
+	ib_uint64_t*	n_not_null;
 	ibool		stats_null_not_equal;
 	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
@@ -3670,13 +3671,13 @@ btr_estimate_number_of_different_key_vals(
 	n_cols = dict_index_get_n_unique(index);
 
 	heap = mem_heap_create((sizeof *n_diff + sizeof *n_not_null)
-			       * (n_cols + 1)
+			       * n_cols
 			       + dict_index_get_n_fields(index)
 			       * (sizeof *offsets_rec
 				  + sizeof *offsets_next_rec));
 
-	n_diff = (ib_int64_t*) mem_heap_zalloc(heap, (n_cols + 1)
-					       * sizeof(ib_int64_t));
+	n_diff = (ib_uint64_t*) mem_heap_zalloc(
+		heap, n_cols * sizeof(ib_int64_t));
 
 	n_not_null = NULL;
 
@@ -3685,8 +3686,8 @@ btr_estimate_number_of_different_key_vals(
 	considered equal (by setting stats_null_not_equal value) */
 	switch (srv_innodb_stats_method) {
 	case SRV_STATS_NULLS_IGNORED:
-		n_not_null = (ib_int64_t*) mem_heap_zalloc(heap, (n_cols + 1)
-					     * sizeof *n_not_null);
+		n_not_null = (ib_uint64_t*) mem_heap_zalloc(
+			heap, n_cols * sizeof *n_not_null);
 		/* fall through */
 
 	case SRV_STATS_NULLS_UNEQUAL:
@@ -3737,7 +3738,7 @@ btr_estimate_number_of_different_key_vals(
 			offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 						      ULINT_UNDEFINED, &heap);
 
-			if (n_not_null) {
+			if (n_not_null != NULL) {
 				btr_record_not_null_field_in_rec(
 					n_cols, offsets_rec, n_not_null);
 			}
@@ -3765,14 +3766,14 @@ btr_estimate_number_of_different_key_vals(
 					       &matched_fields,
 					       &matched_bytes);
 
-			for (j = matched_fields + 1; j <= n_cols; j++) {
+			for (j = matched_fields; j < n_cols; j++) {
 				/* We add one if this index record has
 				a different prefix from the previous */
 
 				n_diff[j]++;
 			}
 
-			if (n_not_null) {
+			if (n_not_null != NULL) {
 				btr_record_not_null_field_in_rec(
 					n_cols, offsets_next_rec, n_not_null);
 			}
@@ -3807,7 +3808,7 @@ btr_estimate_number_of_different_key_vals(
 			if (btr_page_get_prev(page, &mtr) != FIL_NULL
 			    || btr_page_get_next(page, &mtr) != FIL_NULL) {
 
-				n_diff[n_cols]++;
+				n_diff[n_cols - 1]++;
 			}
 		}
 
@@ -3822,7 +3823,7 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
-	for (j = 0; j <= n_cols; j++) {
+	for (j = 0; j < n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= BTR_TABLE_STATS_FROM_SAMPLE(
 				n_diff[j], index, n_sample_pages,
@@ -3852,7 +3853,7 @@ btr_estimate_number_of_different_key_vals(
 		sampled result. stat_n_non_null_key_vals[] is created
 		and initialized to zero in dict_index_add_to_cache(),
 		along with stat_n_diff_key_vals[] array */
-		if (n_not_null != NULL && (j < n_cols)) {
+		if (n_not_null != NULL) {
 			index->stat_n_non_null_key_vals[j] =
 				 BTR_TABLE_STATS_FROM_SAMPLE(
 					n_not_null[j], index, n_sample_pages,
