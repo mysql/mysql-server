@@ -1285,7 +1285,7 @@ void handle_command_error(struct st_command *command, uint error,
                     "errno: %d",
           command->first_word_len, command->query, error, my_errno,
           sys_errno);
-      return;
+      DBUG_VOID_RETURN;
     }
 
     i= match_expected_error(command, error, NULL);
