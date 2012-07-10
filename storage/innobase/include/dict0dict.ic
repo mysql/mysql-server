@@ -1418,7 +1418,19 @@ dict_table_is_discarded(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
 {
-	return(table->flags2 & DICT_TF2_DISCARDED);
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_DISCARDED));
+}
+
+/********************************************************************//**
+Check if it is a temporary table.
+@return	true if temporary table flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_temporary(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+{
+	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
 }
 
 #endif /* !UNIV_HOTBACKUP */

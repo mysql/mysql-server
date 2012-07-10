@@ -3342,8 +3342,9 @@ row_merge_is_index_usable(
 	}
 
 	return(!dict_index_is_corrupted(index)
-	       && (!trx->read_view
-	           || read_view_sees_trx_id(trx->read_view, index->trx_id)));
+	       && (dict_table_is_temporary(index->table)
+		   || !trx->read_view
+		   || read_view_sees_trx_id(trx->read_view, index->trx_id)));
 }
 
 /*********************************************************************//**

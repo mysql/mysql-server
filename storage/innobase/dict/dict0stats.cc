@@ -3150,6 +3150,12 @@ dict_stats_update(
 
 			dict_table_stats_lock(table, RW_X_LATCH);
 
+			/* Initialize all stats to dummy values before
+			copying because dict_stats_table_clone_create() does
+			skip corrupted indexes so our dummy object 't' may
+			have less indexes than the real object 'table'. */
+			dict_stats_empty_table(table);
+
 			dict_stats_copy(table, t);
 
 			dict_stats_assert_initialized(table);
