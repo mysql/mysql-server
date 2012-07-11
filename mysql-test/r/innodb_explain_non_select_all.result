@@ -314,16 +314,16 @@ INSERT INTO t2 VALUES (1), (2), (3);
 #
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT b FROM t2 WHERE t2.b < 3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -344,10 +344,11 @@ Handler_read_key	3
 Handler_read_rnd_next	12
 # Status of testing query execution:
 Variable_name	Value
-Handler_read_first	5
-Handler_read_key	5
-Handler_read_rnd_next	15
+Handler_read_first	4
+Handler_read_key	7
+Handler_read_rnd_next	16
 Handler_update	2
+Handler_write	2
 
 DROP TABLE t1, t2;
 #8
@@ -2832,16 +2833,16 @@ Sort_scan	1
 EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index; FirstMatch(t1)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	NULL
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	<derived3>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+2	SUBQUERY	<derived3>	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2869,8 +2870,8 @@ Sort_scan	1
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	5
-Handler_read_rnd_next	8
-Handler_write	1
+Handler_read_rnd_next	10
+Handler_write	2
 Sort_rows	3
 Sort_scan	1
 
@@ -2881,8 +2882,8 @@ Sort_scan	1
 EXPLAIN UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index; FirstMatch(t1)
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
+3	SUBQUERY	<derived4>	ALL	NULL	NULL	NULL	NULL	3	NULL
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
@@ -2890,8 +2891,8 @@ FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	PRIMARY	<derived4>	ref	auto_key0	auto_key0	5	test.t1.a	2	100.00	Using index; FirstMatch(t1)
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
+3	SUBQUERY	<derived4>	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -2921,8 +2922,8 @@ Sort_scan	1
 Variable_name	Value
 Handler_read_first	2
 Handler_read_key	5
-Handler_read_rnd_next	8
-Handler_write	1
+Handler_read_rnd_next	10
+Handler_write	2
 Sort_rows	3
 Sort_scan	1
 
