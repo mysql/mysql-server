@@ -589,13 +589,11 @@ static bool resolve_subquery(THD *thd, JOIN *join)
     Check if we're in subquery that is a candidate for flattening into a
     semi-join (which is done in flatten_subqueries()). The requirements are:
       1. Subquery predicate is an IN/=ANY subquery predicate
-      2. Subquery is a single SELECT (not a UNION)
+      2. Subquery is a single query block (not a UNION)
       3. Subquery does not have GROUP BY
       4. Subquery does not use aggregate functions or HAVING
       5. Subquery predicate is at the AND-top-level of ON/WHERE clause
-      6. We are not in a subquery of a single table UPDATE/DELETE that 
-           doesn't have a JOIN (TODO: We should handle this at some
-           point by switching to multi-table UPDATE/DELETE)
+      6. The outer context is a SELECT (not e.g. UPDATE or DELETE)
       7. We're not in a confluent table-less subquery, like "SELECT 1".
       8. No execution method was already chosen (by a prepared statement)
       9. Parent select is not a confluent table-less select
@@ -613,7 +611,9 @@ static bool resolve_subquery(THD *thd, JOIN *join)
       !join->having && !select_lex->with_sum_func &&                    // 4
       (outer->resolve_place == st_select_lex::RESOLVE_CONDITION ||      // 5
        outer->resolve_place == st_select_lex::RESOLVE_JOIN_NEST) &&     // 5
-      outer->join &&                                                    // 6
+      (thd->lex->sql_command == SQLCOM_SELECT ||                        // 6
+       thd->lex->sql_command == SQLCOM_INSERT_SELECT ||                 // 6
+       thd->lex->sql_command == SQLCOM_CREATE_TABLE) &&                 // 6
       select_lex->master_unit()->first_select()->leaf_tables &&         // 7
       in_exists_predicate->exec_method == 
                            Item_exists_subselect::EXEC_UNSPECIFIED &&   // 8
