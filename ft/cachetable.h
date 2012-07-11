@@ -74,9 +74,6 @@ int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 // Requires no locks be held that are taken by the checkpoint function
 void toku_cachetable_minicron_shutdown(CACHETABLE ct);
 
-// Wait for the cachefile's background work to finish.
-void toku_cachefile_wait_for_background_work_to_quiesce(CACHEFILE cf);
-
 // Close the cachetable.
 // Effects: All of the memory objects are flushed to disk, and the cachetable is destroyed.
 int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
@@ -477,8 +474,6 @@ typedef enum {
     CT_MISSTIME,               // how many usec spent waiting for disk read because of cache miss
     CT_PUTS,                   // how many times has a newly created node been put into the cachetable?
     CT_PREFETCHES,             // how many times has a block been prefetched into the cachetable?
-    CT_MAYBE_GET_AND_PINS,     // how many times has maybe_get_and_pin(_clean) been called?
-    CT_MAYBE_GET_AND_PIN_HITS, // how many times has maybe_get_and_pin(_clean) returned with a node?
     CT_SIZE_CURRENT,           // the sum of the sizes of the nodes represented in the cachetable
     CT_SIZE_LIMIT,             // the limit to the sum of the node sizes
     CT_SIZE_MAX,               // high water mark of size_current (max value size_current ever had)
@@ -506,12 +501,9 @@ char * toku_construct_full_name(int count, ...);
 char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
 
 void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra);
-// Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call remove_background_job()
+// Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call remove_background_job_from_cf()
 
-void add_background_job (CACHEFILE cf, bool already_locked);
-// Effect: When a kibbutz job or cleaner thread starts working, the
-// cachefile must be notified (so during a close it can wait);
-void remove_background_job (CACHEFILE cf, bool already_locked);
+void remove_background_job_from_cf (CACHEFILE cf);
 // Effect: When a kibbutz job or cleaner thread finishes in a cachefile,
 // the cachetable must be notified.
 

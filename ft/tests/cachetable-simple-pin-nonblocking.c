@@ -52,7 +52,7 @@ static void kibbutz_work(void *fe_v)
     foo = TRUE;
     int r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     assert(r==0);
-    remove_background_job(f1, false);    
+    remove_background_job_from_cf(f1);    
 }
 
 

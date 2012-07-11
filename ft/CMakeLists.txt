@@ -23,6 +23,7 @@ add_custom_target(
   )
 
 set(FT_SOURCES
+  background_job_manager.c
   block_allocator.c
   block_table.c
   cachetable.c
