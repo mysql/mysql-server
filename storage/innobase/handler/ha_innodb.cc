@@ -9796,6 +9796,7 @@ ha_innobase::delete_table(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
+	trx->ddl = true;
 
 	/* Drop the table in InnoDB */
 	err = row_drop_table_for_mysql(
