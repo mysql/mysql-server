@@ -63,7 +63,7 @@ xids_get_root_xids(void) {
 }
 
 
-inline int
+int
 xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
     // Postcondition:
     //  xids_p points to an xids that is an exact copy of parent_xids, but with room for one more xid.
@@ -75,7 +75,7 @@ xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
     if (num_child_xids == MAX_TRANSACTION_RECORDS) rval = EINVAL;
     else {
         size_t new_size = sizeof(*parent_xids) + num_child_xids*sizeof(parent_xids->ids[0]);
-        XIDS xids = toku_xmalloc(new_size);
+        XIDS xids = cast_to_typeof(xids) toku_xmalloc(new_size);
         // Clone everything (parent does not have the newest xid).
         memcpy(xids, parent_xids, new_size - sizeof(xids->ids[0]));
         *xids_p = xids;
@@ -113,7 +113,7 @@ xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
 		        XIDS * xids_p) {		// xids list created
     u_int8_t num_xids = rbuf_char(rb);
     invariant(num_xids < MAX_TRANSACTION_RECORDS);
-    XIDS xids = toku_xmalloc(sizeof(*xids) + num_xids*sizeof(xids->ids[0]));
+    XIDS xids = cast_to_typeof(xids) toku_xmalloc(sizeof(*xids) + num_xids*sizeof(xids->ids[0]));
     xids->num_xids = num_xids;
     u_int8_t index;
     for (index = 0; index < xids->num_xids; index++) {
@@ -253,7 +253,7 @@ xids_fprintf(FILE* fp, XIDS xids) {
     fprintf(fp, "[|%u| ", num_xids);
     for (index = 0; index < xids_get_num_xids(xids); index++) {
         if (index) fprintf(fp, ",");
-        fprintf(fp, "%"PRIx64, xids_get_xid(xids, index));
+        fprintf(fp, "%" PRIx64, xids_get_xid(xids, index));
     }
     fprintf(fp, "]");
 }

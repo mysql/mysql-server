@@ -35,8 +35,8 @@ typedef enum {
 typedef int (*toku_dbt_cmp)(DB *,const DBT*,const DBT*);
 
 /** Convert error codes into a human-readable error message */
-char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
-                       __attribute__((const,pure));
+const char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
+    __attribute__((const,pure));
 
 #if !defined(TOKU_LOCKTREE_DEFINE)
 #define TOKU_LOCKTREE_DEFINE

@@ -37,7 +37,7 @@ timespec_compare (toku_timespec_t *a, toku_timespec_t *b) {
 static void*
 minicron_do (void *pv)
 {
-    struct minicron *p = pv;
+    struct minicron *p = cast_to_typeof(p) pv;
     toku_mutex_lock(&p->mutex);
     while (1) {
 	if (p->do_shutdown) {

@@ -8,13 +8,13 @@
 #include <sys/stat.h>
 #include <errno.h>
 
-static void test_stat(char *dirname, int result, int ex_errno) {
+static void test_stat(const char *dirname, int result, int ex_errno) {
     int r;
     toku_struct_stat buf;
     r = toku_stat(dirname, &buf);
     //printf("stat %s %d %d\n", dirname, r, errno); fflush(stdout);
     assert(r==result);
-    if (r!=0) assert(errno == ex_errno);
+    if (r!=0) assert(get_maybe_error_errno() == ex_errno);
 }
 
 int main(void) {

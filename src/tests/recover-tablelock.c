@@ -7,7 +7,7 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
+const char *namea="a.db";
 
 static void
 do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
@@ -31,8 +31,9 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
 
     r = db->pre_acquire_table_lock(db, txn);                                            CKERR(r);
 
-    DBT a={.data="a", .size=2};
-    DBT b={.data="b", .size=2};
+    DBT a,b;
+    dbt_init(&a, "a", 2);
+    dbt_init(&b, "b", 2);
     r = db->put(db, txn, &a, &b, 0);                                                    CKERR(r);
 
     if (do_commit) {
@@ -65,7 +66,9 @@ do_x1_recover (BOOL UU(did_commit)) {
 
     DBC *ca;
     r = dba->cursor(dba, txn, &ca, 0);                                                      CKERR(r);
-    DBT aa={.size=0}, ab={.size=0};
+    DBT aa,ab;
+    dbt_init(&aa, NULL, 0);
+    dbt_init(&ab, NULL, 0);
     int ra = ca->c_get(ca, &aa, &ab, DB_FIRST);                                             CKERR(r);
     if (did_commit) {
 	assert(ra==0);

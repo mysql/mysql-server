@@ -13,7 +13,7 @@
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.
  */
-static volatile FT_FLUSHER_STATUS_S ft_flusher_status;
+static FT_FLUSHER_STATUS_S ft_flusher_status;
 
 #define STATUS_INIT(k,                                                           t,                                      l) {                                            \
         ft_flusher_status.status[k].keyname = #k;                      \
@@ -274,7 +274,7 @@ flt_update_status(FTNODE child,
                  int UU(dirtied),
                  void* extra)
 {
-    struct flush_status_update_extra *fste = extra;
+    struct flush_status_update_extra *fste = (struct flush_status_update_extra *) extra;
     update_flush_status(child, fste->cascades);
     // If `flush_some_child` decides to recurse after this, we'll need
     // cascades to increase.  If not it doesn't matter.
@@ -305,7 +305,7 @@ ctm_pick_child(FT h,
                FTNODE parent,
                void* extra)
 {
-    struct ctm_extra* ctme = extra;
+    struct ctm_extra* ctme = (struct ctm_extra *) extra;
     int childnum;
     if (parent->height == 1 && ctme->is_last_child) {
         childnum = parent->n_children - 1;
@@ -424,7 +424,7 @@ ct_update_status(FTNODE child,
                  int dirtied,
                  void* extra)
 {
-    struct flush_status_update_extra* fste = extra;
+    struct flush_status_update_extra* fste = (struct flush_status_update_extra *) extra;
     update_flush_status(child, fste->cascades);
     STATUS_VALUE(FT_FLUSHER_CLEANER_NODES_DIRTIED) += dirtied;
     // Incrementing this in case `flush_some_child` decides to recurse.
@@ -549,8 +549,8 @@ handle_split_of_child(
 static int
 verify_in_mempool(OMTVALUE lev, u_int32_t UU(idx), void *vmp)
 {
-    LEAFENTRY le = lev;
-    struct mempool *mp = vmp;
+    LEAFENTRY le = (LEAFENTRY) lev;
+    struct mempool *mp = (struct mempool *) vmp;
     lazy_assert(toku_mempool_inrange(mp, le, leafentry_memsize(le)));
     return 0;
 }
@@ -583,7 +583,7 @@ ftleaf_disk_size(FTNODE node)
             OMTVALUE v;
             LEAFENTRY curr_le = NULL;
             int r = toku_omt_fetch(curr_buffer, j, &v);
-            curr_le = v;
+            curr_le = (LEAFENTRY) v;
             assert_zero(r);
             retval += leafentry_disksize(curr_le);
         }
@@ -613,7 +613,7 @@ ftleaf_get_split_loc(
             LEAFENTRY curr_le = NULL;
             OMTVALUE v;
             int r = toku_omt_fetch(curr_buffer, j, &v);
-            curr_le = v;
+            curr_le = (LEAFENTRY) v;
             assert_zero(r);
             size_so_far += leafentry_disksize(curr_le);
             if (size_so_far >= sumlesizes/2) {
@@ -678,7 +678,7 @@ move_leafentries(
         curr_le = fetch_from_buf(src_bn->buffer, i);
         size_t le_size = leafentry_memsize(curr_le);
         *num_bytes_moved += leafentry_disksize(curr_le);
-        LEAFENTRY new_le = toku_mempool_malloc(dest_mp, le_size, 1);
+        LEAFENTRY new_le = (LEAFENTRY) toku_mempool_malloc(dest_mp, le_size, 1);
         memcpy(new_le, curr_le, le_size);
         newleafpointers[i-lbi] = new_le;
         toku_mempool_mfree(src_mp, curr_le, le_size);
@@ -887,7 +887,7 @@ ftleaf_split(
         OMTVALUE lev = 0;
         int r=toku_omt_fetch(BLB_BUFFER(node, last_bn_on_left), toku_omt_size(BLB_BUFFER(node, last_bn_on_left))-1, &lev);
         assert_zero(r); // that fetch should have worked.
-        LEAFENTRY le=lev;
+        LEAFENTRY le = (LEAFENTRY) lev;
         uint32_t keylen;
         void *key = le_key_and_len(le, &keylen);
         toku_fill_dbt(splitk, toku_xmemdup(key, keylen), keylen);
@@ -1314,7 +1314,7 @@ static void merge_remove_key_callback(
     BOOL for_checkpoint,
     void *extra)
 {
-    FT h = extra;
+    FT h = (FT) extra;
     toku_free_blocknum(h->blocktable, bp, h, for_checkpoint);
 }
 
@@ -1673,11 +1673,11 @@ toku_ftnode_cleaner_callback(
     u_int32_t fullhash,
     void *extraargs)
 {
-    FTNODE node = ftnode_pv;
+    FTNODE node = (FTNODE) ftnode_pv;
     invariant(node->thisnodename.b == blocknum.b);
     invariant(node->fullhash == fullhash);
     invariant(node->height > 0);   // we should never pick a leaf node (for now at least)
-    FT h = extraargs;
+    FT h = (FT) extraargs;
     bring_node_fully_into_memory(node, h);
     int childnum = find_heaviest_child(node);
     update_cleaner_status(node, childnum);
@@ -1708,7 +1708,7 @@ struct flusher_extra {
 static void flush_node_fun(void *fe_v)
 {
     int r;
-    struct flusher_extra* fe = fe_v;
+    struct flusher_extra* fe = (struct flusher_extra *) fe_v;
     // The node that has been placed on the background
     // thread may not be fully in memory. Some message
     // buffers may be compressed. Before performing
@@ -1768,9 +1768,7 @@ place_node_and_bnc_on_background_thread(
     FTNODE node,
     NONLEAF_CHILDINFO bnc)
 {
-    struct flusher_extra* fe = NULL;
-    fe = toku_xmalloc(sizeof(struct flusher_extra));
-    assert(fe);
+    struct flusher_extra *XMALLOC(fe);
     fe->h = h;
     fe->node = node;
     fe->bnc = bnc;
@@ -1821,7 +1819,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
         //
         // successfully locked child
         //
-        child = node_v;
+        child = (FTNODE) node_v;
         bool may_child_be_reactive = may_node_be_reactive(child);
         if (!may_child_be_reactive) {
             // We're going to unpin the parent, so before we do, we must
@@ -1862,7 +1860,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
 void __attribute__((__constructor__)) toku_ft_flusher_helgrind_ignore(void);
 void
 toku_ft_flusher_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&ft_flusher_status, sizeof ft_flusher_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ft_flusher_status, sizeof ft_flusher_status);
 }
 
 #undef STATUS_VALUE

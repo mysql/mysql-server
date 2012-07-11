@@ -28,8 +28,8 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
                                           void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
                                           BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL UU(is_clone)) {
     int r;
-    ROLLBACK_LOG_NODE  log = rollback_v;
-    FT h   = extraargs;
+    ROLLBACK_LOG_NODE  log = cast_to_typeof(log) rollback_v;
+    FT h = cast_to_typeof(h) extraargs;
 
     assert(log->blocknum.b==logname.b);
     if (write_me && !h->panic) {
@@ -58,7 +58,7 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
 int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
                                  void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
-    FT h = extraargs;
+    FT h = cast_to_typeof(h) extraargs;
     assert(h->cf == cachefile);
 
     ROLLBACK_LOG_NODE *result = (ROLLBACK_LOG_NODE*)rollback_pv;

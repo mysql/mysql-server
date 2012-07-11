@@ -19,7 +19,7 @@ static DB * const null_db = NULL;
 static int
 noop_getf(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *extra, bool UU(lock_only))
 {
-    int *calledp = extra;
+    int *calledp = cast_to_typeof(calledp) extra;
     (*calledp)++;
     return 0;
 }
@@ -46,7 +46,7 @@ get_one_value(FT_HANDLE t, CACHETABLE UU(ct), void *UU(extra))
 static int
 progress(void *extra, float fraction)
 {
-    float *stop_at = extra;
+    float *stop_at = cast_to_typeof(stop_at) extra;
     if (fraction > *stop_at) {
         return 1;
     } else {
@@ -57,7 +57,7 @@ progress(void *extra, float fraction)
 static int
 do_hot_optimize(FT_HANDLE t, CACHETABLE UU(ct), void *extra)
 {
-    float *fraction = extra;
+    float *fraction = cast_to_typeof(fraction) extra;
     int r = toku_ft_hot_optimize(t, progress, extra);
     if (*fraction < 1.0) {
         CKERR2(r, 1);

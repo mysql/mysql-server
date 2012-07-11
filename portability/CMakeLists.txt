@@ -22,9 +22,8 @@ if (CMAKE_C_COMPILER_ID STREQUAL Intel)
   add_space_separated_property(TARGET ${LIBTOKUPORTABILITY} LINK_FLAGS "-diag-disable 10237")
 endif ()
 
-foreach(src file.c memory.c os_malloc.c portability.c toku_assert.c toku_rwlock.c)
-  set_property(SOURCE ${src} APPEND PROPERTY COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
-endforeach(src)
+set_property(SOURCE file.c memory.c os_malloc.c portability.c toku_assert.c toku_rwlock.c APPEND PROPERTY
+  COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
 
 install(
   FILES toku_os_types.h toku_time.h

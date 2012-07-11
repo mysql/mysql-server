@@ -91,7 +91,7 @@ static void run_test(void)
     r = env->checkpointing_set_period(env, 0);                                   CKERR(r);
 
     DB    *src_db = NULL;
-    char *src_name="src.db";
+    const char *src_name="src.db";
     r = db_create(&src_db, env, 0);                                                             CKERR(r);
     r = src_db->open(src_db, NULL, src_name, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);   CKERR(r);
     DB_TXN *txn;

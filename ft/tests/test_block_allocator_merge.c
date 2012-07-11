@@ -18,8 +18,8 @@ print_array (u_int64_t n, const struct block_allocator_blockpair a[/*n*/]) {
 
 static int
 compare_blockpairs (const void *av, const void *bv) {
-    const struct block_allocator_blockpair *a = av;
-    const struct block_allocator_blockpair *b = bv;
+    const struct block_allocator_blockpair *a = cast_to_typeof(a) av;
+    const struct block_allocator_blockpair *b = cast_to_typeof(b) bv;
     if (a->offset < b->offset) return -1;
     if (a->offset > b->offset) return +1;
     return 0;
@@ -84,11 +84,11 @@ test_merge_n_m (u_int64_t n, u_int64_t m, int mode)
 	fprintf(stderr, "malloc failed, continuing\n");
 	goto malloc_failed;
     }
-    if (verbose) printf("Filling a[%"PRIu64"]\n", n);
+    if (verbose) printf("Filling a[%" PRIu64 "]\n", n);
     for (u_int64_t i=0; i<n; i++) {
 	na[i].offset = compute_a(i, mode);
     }
-    if (verbose) printf("Filling b[%"PRIu64"]\n", m);
+    if (verbose) printf("Filling b[%" PRIu64 "]\n", m);
     for (u_int64_t i=0; i<m; i++) {
 	if (verbose && i % (1+m/10) == 0) { printf("."); fflush(stdout); }
 	ma[i].offset = compute_b(i, mode);

@@ -422,16 +422,16 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
 }
 
 static const ULE_S ule_committed_delete = {
-    .num_cuxrs = 1,
     .num_puxrs = 0,
+    .num_cuxrs = 1,
     .keylen   = 0,
     .keyp     = NULL,
-    .uxrs_static[0]  = {
+    .uxrs_static = {{
         .type   = XR_DELETE,
         .vallen = 0,
-        .xid    = 0,
-        .valp   = NULL
-    },
+        .valp   = NULL,
+        .xid    = 0
+    }},
     .uxrs = (UXR_S *)ule_committed_delete.uxrs_static
 };
 

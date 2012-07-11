@@ -116,7 +116,7 @@ cleanup:
     }
     increment_counter(stats_extra, PUTS, i);
     gid_count++;
-    u_int32_t *hi_gid_count_p = (void *) hi_gid;  // make gcc --happy about -Wstrict-aliasing
+    u_int32_t *hi_gid_count_p = cast_to_typeof(hi_gid_count_p) hi_gid;  // make gcc --happy about -Wstrict-aliasing
     *hi_gid_count_p = gid_count;
     int rr = hi_txn->prepare(hi_txn, hi_gid);
     CKERR(rr);

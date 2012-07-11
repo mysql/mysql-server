@@ -184,8 +184,8 @@ int toku_loader_create_loader(DB_ENV *env,
                               DB *src_db, 
                               int N, 
                               DB *dbs[], 
-                              uint32_t db_flags[N], 
-                              uint32_t dbt_flags[N], 
+                              uint32_t db_flags[/*N*/], 
+                              uint32_t dbt_flags[/*N*/], 
                               uint32_t loader_flags)
 {
     int rval;
@@ -225,7 +225,8 @@ int toku_loader_create_loader(DB_ENV *env,
     loader->close                  = toku_loader_close;
     loader->abort                  = toku_loader_abort;
 
-    int r = 0;
+    int r;
+    r = 0;
     // lock tables and check empty
     for(int i=0;i<N;i++) {
         if (!(loader_flags&DB_PRELOCKED_WRITE)) {
@@ -449,7 +450,7 @@ int toku_loader_cleanup_temp_files(DB_ENV *env) {
     char * dir = env->i->real_tmp_dir;
     DIR *d = opendir(dir);
     if (d==0) {
-        result = errno; goto exit;
+        result = get_error_errno(); goto exit;
     }
 
     result = 0;
@@ -462,7 +463,7 @@ int toku_loader_cleanup_temp_files(DB_ENV *env) {
             assert(l+1 == fnamelen);
             r = unlink(fname);
             if (r!=0) {
-                result = errno;
+                result = get_error_errno();
                 perror("Trying to delete a rolltmp file");
             }
         }
@@ -470,7 +471,7 @@ int toku_loader_cleanup_temp_files(DB_ENV *env) {
     {
         int r = closedir(d);
         if (r == -1) 
-            result = errno;
+            result = get_error_errno();
     }
 
 exit:

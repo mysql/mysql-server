@@ -37,8 +37,8 @@ static void test_read_write(DB_ENV *env, DB *db, uint32_t iso_flags, int expect_
 int test_main(int argc, char * const argv[]) {
     int r;
 
-    char *env_dir = ENVDIR;
-    char *db_filename = "prelocktest";
+    const char *env_dir = ENVDIR;
+    const char *db_filename = "prelocktest";
 
     parse_args(argc, argv);
 

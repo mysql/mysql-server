@@ -17,7 +17,7 @@ DB *db;
 
 static void *
 start_a_thread (void *i_p) {
-    int *which_thread_p = i_p;
+    int *which_thread_p = cast_to_typeof(which_thread_p) i_p;
     int i,r;
     for (i=0; i<NITER; i++) {
 	DB_TXN *tid;
@@ -88,7 +88,7 @@ test_groupcommit (int nthreads) {
 static struct timeval prevtime;
 
 static void
-printtdiff (char *str) {
+printtdiff (const char *str) {
     struct timeval thistime;
     gettimeofday(&thistime, 0);
     if (verbose) printf("%10.6f %s\n", toku_tdiff(&thistime, &prevtime), str);

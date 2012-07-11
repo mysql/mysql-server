@@ -178,7 +178,7 @@ static char *
 full_name(const char *subdir) {
     char wd[256];
     assert(getcwd(wd, sizeof wd) != NULL);
-    char *path = toku_malloc(strlen(wd) + strlen(subdir) + 2);
+    char *XMALLOC_N(strlen(wd) + strlen(subdir) + 2, path);
     sprintf(path, "%s/%s", wd, subdir);
     return path;
 }

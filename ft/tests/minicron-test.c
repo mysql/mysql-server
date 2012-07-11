@@ -62,7 +62,7 @@ struct tenx {
 
 static int
 run_5x (void *v) {
-    struct tenx *tx=v;
+    struct tenx *tx = cast_to_typeof(tx) v;
     struct timeval now;
     gettimeofday(&now, 0);
     double diff = tdiff(&now, &tx->tv);
@@ -95,7 +95,7 @@ test3 (void* v)
 static int
 run_3sec (void *v) {
     if (verbose) printf("start3sec at %.6f\n", elapsed());
-    int *counter = v;
+    int *counter = cast_to_typeof(counter) v;
     (*counter)++;
     sleep(3);
     if (verbose) printf("end3sec at %.6f\n", elapsed());

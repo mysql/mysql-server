@@ -99,10 +99,10 @@ test_main (int argc, char * const argv[]) {
             printf("type=%d  val = ", mystat[i].type);
             switch(mystat[i].type) {
             case FS_STATE:
-                printf("fs_state not supported yet, code is %"PRIu64"\n", mystat[i].value.num);
+                printf("fs_state not supported yet, code is %" PRIu64 "\n", mystat[i].value.num);
                 break;
             case UINT64:
-                printf("%"PRIu64"\n", mystat[i].value.num);
+                printf("%" PRIu64 "\n", mystat[i].value.num);
                 break;
             case CHARSTR:
                 printf("%s\n", mystat[i].value.str);

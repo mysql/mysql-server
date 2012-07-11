@@ -39,7 +39,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
     MSN msn = next_dummymsn();
 
     // apply an insert to the leaf node
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u = {.id = { &thekey, &theval }} };
     toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, NULL, NULL);
 
     leafnode->max_msn_applied_to_node_on_disk = msn;
@@ -116,7 +116,10 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     // cleanup
     char fname[]= __SRCFILE__ ".ft_handle";
     r = unlink(fname);
-    assert(r == 0 || (r == -1 && errno == ENOENT));
+    if (r != 0) {
+        assert(r == -1);
+        assert(get_error_errno() == ENOENT);
+    }
 
     // create a cachetable
     CACHETABLE ct = NULL;

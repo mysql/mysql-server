@@ -49,8 +49,10 @@ toku_commit_fdelete (FILENUM    filenum,
     // the locktree from the environment's ltm, but that shouldn't
     // be necessary since that happens once this txn commits
     // (which is after this function ends, essentially)
-    FT ft = toku_cachefile_get_userdata(cf);
-    DICTIONARY_ID dict_id = ft->dict_id;
+    FT ft;
+    ft = cast_to_typeof(ft) toku_cachefile_get_userdata(cf);
+    DICTIONARY_ID dict_id;
+    dict_id = ft->dict_id;
     toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
 
     // bug fix for #4718
@@ -125,8 +127,10 @@ toku_rollback_fcreate (FILENUM    filenum,
     // the locktree from the environment's ltm, but that shouldn't
     // be necessary since that happens once this txn commits
     // (which is after this function ends, essentially)
-    FT ft = toku_cachefile_get_userdata(cf);
-    DICTIONARY_ID dict_id = ft->dict_id;
+    FT ft;
+    ft = cast_to_typeof(ft) toku_cachefile_get_userdata(cf);
+    DICTIONARY_ID dict_id;
+    dict_id = ft->dict_id;
     toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
 
     // Mark the cachefile as unlink on close. There are two ways for close
@@ -145,8 +149,8 @@ done:
 }
 
 static int find_ft_from_filenum (OMTVALUE v, void *filenumvp) {
-    FILENUM *filenump=filenumvp;
-    FT h = v;
+    FILENUM *filenump = cast_to_typeof(filenump) filenumvp;
+    FT h = cast_to_typeof(h) v;
     FILENUM thisfnum = toku_cachefile_filenum(h->cf);
     if (thisfnum.fileid<filenump->fileid) return -1;
     if (thisfnum.fileid>filenump->fileid) return +1;
@@ -171,10 +175,12 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     }
     assert(r==0);
 
-    OMTVALUE hv=NULL;
+    OMTVALUE hv;
+    hv=NULL;
     r = toku_omt_find_zero(txn->open_fts, find_ft_from_filenum, &filenum, &hv, NULL);
     assert(r==0);
-    FT h = hv;
+    FT h;
+    h = cast_to_typeof(h) hv;
 
     if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
         LSN treelsn = toku_ft_checkpoint_lsn(h);  
@@ -185,19 +191,22 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     }
 
     DBT key_dbt,data_dbt;
-    XIDS xids = toku_txn_get_xids(txn);
-    FT_MSG_S ftcmd = { type, ZERO_MSN, xids,
-                         .u.id={(key.len > 0)
-                                ? toku_fill_dbt(&key_dbt,  key.data,  key.len)
-                                : toku_init_dbt(&key_dbt),
-                                data
-                                ? toku_fill_dbt(&data_dbt, data->data, data->len)
-                                : toku_init_dbt(&data_dbt) }};
+    XIDS xids;
+    xids = toku_txn_get_xids(txn);
+    {
+        FT_MSG_S ftcmd = { type, ZERO_MSN, xids,
+                           .u = { .id = { (key.len > 0)
+                                          ? toku_fill_dbt(&key_dbt,  key.data,  key.len)
+                                          : toku_init_dbt(&key_dbt),
+                                          data
+                                          ? toku_fill_dbt(&data_dbt, data->data, data->len)
+                                          : toku_init_dbt(&data_dbt) } } };
 
-    r = toku_ft_root_put_cmd(h, &ftcmd);
-    if (r == 0 && reset_root_xid_that_created) {
-        TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
-        toku_reset_root_xid_that_created(h, new_root_xid_that_created);
+        r = toku_ft_root_put_cmd(h, &ftcmd);
+        if (r == 0 && reset_root_xid_that_created) {
+            TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
+            toku_reset_root_xid_that_created(h, new_root_xid_that_created);
+        }
     }
 done:
     return r;
@@ -446,7 +455,7 @@ toku_rollback_load (FILENUM    UU(old_filenum),
         // unlink it if it's there and ignore the error if it's not.
         char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(ct, fname_in_env);
         r = unlink(fname_in_cwd);
-        assert(r == 0 || errno == ENOENT);
+        assert(r == 0 || get_error_errno() == ENOENT);
         toku_free(fname_in_cwd);
         r = 0;
     } else {
@@ -500,12 +509,12 @@ toku_rollback_dictionary_redirect (FILENUM old_filenum,
         CACHEFILE new_cf = NULL;
         r = toku_cachefile_of_filenum(txn->logger->ct, new_filenum, &new_cf);
         assert(r == 0);
-        FT new_h = toku_cachefile_get_userdata(new_cf);
+        FT new_h = cast_to_typeof(new_h) toku_cachefile_get_userdata(new_cf);
 
         CACHEFILE old_cf = NULL;
         r = toku_cachefile_of_filenum(txn->logger->ct, old_filenum, &old_cf);
         assert(r == 0);
-        FT old_h = toku_cachefile_get_userdata(old_cf);
+        FT old_h = cast_to_typeof(old_h) toku_cachefile_get_userdata(old_cf);
 
         //Redirect back from new to old.
         r = toku_dictionary_redirect_abort(old_h, new_h, txn);
@@ -541,10 +550,12 @@ toku_rollback_change_fdescriptor(FILENUM    filenum,
     // noted it, 
     assert(r == 0);
 
-    OMTVALUE ftv = NULL;
+    OMTVALUE ftv;
+    ftv = NULL;
     r = toku_omt_find_zero(txn->open_fts, find_ft_from_filenum, &filenum, &ftv, NULL);
     assert(r == 0);
-    FT ft = ftv;
+    FT ft;
+    ft = cast_to_typeof(ft) ftv;
 
     DESCRIPTOR_S d;
     toku_fill_dbt(&d.dbt,  old_descriptor.data,  old_descriptor.len);

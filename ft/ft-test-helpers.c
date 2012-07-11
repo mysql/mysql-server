@@ -97,12 +97,13 @@ int toku_testsetup_get_sersize(FT_HANDLE brt, BLOCKNUM diskoff) // Return the si
         &bfe
         );
     assert(r==0);
-    int size = toku_serialize_ftnode_size(node_v);
-    toku_unpin_ftnode(brt->ft, node_v);
+    FTNODE node = cast_to_typeof(node) node_v;
+    int size = toku_serialize_ftnode_size(node);
+    toku_unpin_ftnode(brt->ft, node);
     return size;
 }
 
-int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, char *key, int keylen, char *val, int vallen) {
+int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char *key, int keylen, const char *val, int vallen) {
     void *node_v;
     int r;
 
@@ -124,15 +125,15 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, char *key, 
 	&bfe
 	);
     if (r!=0) return r;
-    FTNODE node=node_v;
+    FTNODE node = cast_to_typeof(node) node_v;
     toku_verify_or_set_counts(node);
     assert(node->height==0);
 
     DBT keydbt,valdbt;
     MSN msn = next_dummymsn();
-    FT_MSG_S cmd = {FT_INSERT, msn, xids_get_root_xids(),
-                     .u.id={toku_fill_dbt(&keydbt, key, keylen),
-                            toku_fill_dbt(&valdbt, val, vallen)}};
+    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(),
+                     .u = { .id = { toku_fill_dbt(&keydbt, key, keylen),
+                                    toku_fill_dbt(&valdbt, val, vallen) } } };
 
     toku_ft_node_put_cmd (
         brt->ft->compare_fun,
@@ -146,14 +147,14 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, char *key, 
 
     toku_verify_or_set_counts(node);
 
-    toku_unpin_ftnode(brt->ft, node_v);
+    toku_unpin_ftnode(brt->ft, node);
     return 0;
 }
 
 static int
 testhelper_string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 {
-    char *s = a->data, *t = b->data;
+    char *s = cast_to_typeof(s) a->data, *t = cast_to_typeof(t) b->data;
     return strcmp(s, t);
 }
 
@@ -175,7 +176,7 @@ toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t)
         );
 }
 
-int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_msg_type cmdtype, char *key, int keylen, char *val, int vallen) {
+int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_msg_type cmdtype, const char *key, int keylen, const char *val, int vallen) {
     void *node_v;
     int r;
 
@@ -197,7 +198,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
 	&bfe
         );
     if (r!=0) return r;
-    FTNODE node=node_v;
+    FTNODE node = cast_to_typeof(node) node_v;
     assert(node->height>0);
 
     DBT k;
@@ -215,6 +216,6 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
     node->max_msn_applied_to_node_on_disk = msn;
     node->dirty = 1;
 
-    toku_unpin_ftnode(brt->ft, node_v);
+    toku_unpin_ftnode(brt->ft, node);
     return 0;
 }

@@ -60,8 +60,8 @@ static void *run_locker_a(void *arg) {
     u_int32_t locker_a;
     r = db_env->lock_id(db_env, &locker_a); assert(r == 0);
 
-    DBT object_l = { .data = "L", .size = 1 };
-    DBT object_m = { .data = "M", .size = 1 };
+    DBT object_l = { .data = (char *) "L", .size = 1 };
+    DBT object_m = { .data = (char *) "M", .size = 1 };
 
     test_seq_sleep(test_seq, 0);
     DB_LOCK lock_a_l;
@@ -99,8 +99,8 @@ static void *run_locker_b(void *arg) {
     u_int32_t locker_b;
     r = db_env->lock_id(db_env, &locker_b); assert(r == 0);
 
-    DBT object_l = { .data = "L", .size = 1 };
-    DBT object_m = { .data = "M", .size = 1 };
+    DBT object_l = { .data = (char *) "L", .size = 1 };
+    DBT object_m = { .data = (char *) "M", .size = 1 };
 
     test_seq_sleep(test_seq, 1);
     DB_LOCK lock_b_m;
@@ -155,7 +155,7 @@ static void simple_deadlock(DB_ENV *db_env) {
 int test_main(int argc, char * const argv[]) {
     uint64_t cachesize = 0;
     int do_txn = 1;
-    char *db_env_dir = ENVDIR;
+    const char *db_env_dir = ENVDIR;
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

@@ -27,9 +27,9 @@
 
 
 typedef struct field {
-    char *type;
-    char *name;
-    char *format; // optional format string
+    const char *type;
+    const char *name;
+    const char *format; // optional format string
 } F;
 
 #define NULLFIELD {0,0,0}
@@ -38,11 +38,12 @@ typedef struct field {
 enum log_begin_action {
     IGNORE_LOG_BEGIN,
     SHOULD_LOG_BEGIN,
-    ASSERT_BEGIN_WAS_LOGGED
+    ASSERT_BEGIN_WAS_LOGGED,
+    LOG_BEGIN_ACTION_NA = IGNORE_LOG_BEGIN
 };
 
 struct logtype {
-    char *name;
+    const char *name;
     unsigned int command_and_flags;
     struct field *fields;
     enum log_begin_action log_begin_action;
@@ -53,46 +54,46 @@ struct logtype {
 const struct logtype rollbacks[] = {
     //TODO: #2037 Add dname
     {"fdelete", 'U', FA{{"FILENUM",    "filenum", 0},
-                        NULLFIELD}},
+                        NULLFIELD}, LOG_BEGIN_ACTION_NA},
     //TODO: #2037 Add dname
     {"fcreate", 'F', FA{{"FILENUM", "filenum", 0},
                         {"BYTESTRING", "iname", 0},
-                        NULLFIELD}},
+                        NULLFIELD}, LOG_BEGIN_ACTION_NA},
     // cmdinsert is used to insert a key-value pair into a NODUP DB.  For rollback we don't need the data.
     {"cmdinsert", 'i', FA{
                           {"FILENUM", "filenum", 0},
                           {"BYTESTRING", "key", 0},
-                          NULLFIELD}},
+                          NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"cmddelete", 'd', FA{
                           {"FILENUM", "filenum", 0},
                           {"BYTESTRING", "key", 0},
-                          NULLFIELD}},
+                          NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"rollinclude", 'r', FA{{"TXNID",     "xid", 0},
                             {"u_int64_t", "num_nodes", 0},
                             {"BLOCKNUM",  "spilled_head", 0},
                             {"u_int32_t", "spilled_head_hash", 0},
                             {"BLOCKNUM",  "spilled_tail", 0},
                             {"u_int32_t", "spilled_tail_hash", 0},
-                            NULLFIELD}},
+                            NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"load", 'l', FA{{"FILENUM",    "old_filenum", 0},
                      {"BYTESTRING", "new_iname", 0},
-                     NULLFIELD}},
+                     NULLFIELD}, LOG_BEGIN_ACTION_NA},
     // #2954
     {"hot_index", 'h', FA{{"FILENUMS",  "hot_index_filenums", 0},
-                          NULLFIELD}},
+                          NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"dictionary_redirect", 'R', FA{{"FILENUM", "old_filenum", 0},
                                     {"FILENUM", "new_filenum", 0},
-                                    NULLFIELD}},
+                                    NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"cmdupdate", 'u', FA{{"FILENUM", "filenum", 0},
                           {"BYTESTRING", "key", 0},
-                          NULLFIELD}},
+                          NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"cmdupdatebroadcast", 'B', FA{{"FILENUM", "filenum", 0},
                                    {"BOOL",    "is_resetting_op", 0},
-                                   NULLFIELD}},
+                                   NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"change_fdescriptor", 'D', FA{{"FILENUM",    "filenum", 0},
                             {"BYTESTRING", "old_descriptor", 0},
-                            NULLFIELD}},
-    {0,0,FA{NULLFIELD}}
+                            NULLFIELD}, LOG_BEGIN_ACTION_NA},
+    {0,0,FA{NULLFIELD}, LOG_BEGIN_ACTION_NA}
 };
 
 const struct logtype logtypes[] = {
@@ -275,7 +276,7 @@ static void __attribute__((format (printf, 3, 4))) fprintf2 (FILE *f1, FILE *f2,
 FILE *hf=0, *cf=0, *pf=0;
 
 static void
-generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype *lts) {
+generate_enum_internal (const char *enum_name, const char *enum_prefix, const struct logtype *lts) {
     char used_cmds[256];
     int count=0;
     memset(used_cmds, 0, 256);
@@ -448,10 +449,9 @@ generate_log_writer (void) {
                         fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
                         fprintf(cf, "  wbuf_nocrc_char(&wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
                         fprintf(cf, "  logger->lsn.lsn++;\n");
-                        fprintf(cf, "  LSN lsn =logger->lsn;\n");
-                        fprintf(cf, "  logger->inbuf.max_lsn_in_buf = lsn;\n");
-                        fprintf(cf, "  wbuf_nocrc_LSN(&wbuf, lsn);\n");
-                        fprintf(cf, "  if (lsnp) *lsnp=lsn;\n");
+                        fprintf(cf, "  logger->inbuf.max_lsn_in_buf = logger->lsn;\n");
+                        fprintf(cf, "  wbuf_nocrc_LSN(&wbuf, logger->lsn);\n");
+                        fprintf(cf, "  if (lsnp) *lsnp=logger->lsn;\n");
                         DO_FIELDS(field_type, lt,
                                   if (strcmp(field_type->name, "timestamp") == 0)
                                       fprintf(cf, "  if (timestamp == 0) timestamp = toku_get_timestamp();\n");
@@ -460,7 +460,7 @@ generate_log_writer (void) {
                         fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
                         fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
                         fprintf(cf, "  logger->inbuf.n_in_buf += buflen;\n");
-                        fprintf(cf, "  r = toku_logger_maybe_fsync(logger, lsn, do_fsync);\n");
+                        fprintf(cf, "  r = toku_logger_maybe_fsync(logger, logger->lsn, do_fsync);\n");
                         fprintf(cf, "  if (r!=0) goto panic;\n");
                         fprintf(cf, "  return 0;\n");
                         fprintf(cf, " panic:\n");
@@ -516,16 +516,16 @@ generate_log_reader (void) {
     fprintf(cf, "  memset(le, 0, sizeof(*le));\n");
     fprintf(cf, "  {\n    long pos = ftell(infile);\n    if (pos<=12) return -1;\n  }\n");
     fprintf(cf, "  int r = fseek(infile, -4, SEEK_CUR); \n");//              assert(r==0);\n");
-    fprintf(cf, "  if (r!=0) return errno;\n");
+    fprintf(cf, "  if (r!=0) return get_error_errno();\n");
     fprintf(cf, "  u_int32_t len;\n");
     fprintf(cf, "  r = toku_fread_u_int32_t_nocrclen(infile, &len); \n");//  assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return 1;\n");
     fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR) ;  \n");//         assert(r==0);\n");
-    fprintf(cf, "  if (r!=0) return errno;\n");
+    fprintf(cf, "  if (r!=0) return get_error_errno();\n");
     fprintf(cf, "  r = toku_log_fread(infile, le); \n");//                   assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return 1;\n");
     fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR); \n");//           assert(r==0);\n");
-    fprintf(cf, "  if (r!=0) return errno;\n");
+    fprintf(cf, "  if (r!=0) return get_error_errno();\n");
     fprintf(cf, "  return 0;\n");
     fprintf(cf, "}\n\n");
 
@@ -630,16 +630,16 @@ generate_rollbacks (void) {
                         if ( strcmp(field_type->type, "BYTESTRING") == 0 ) {
                             fprintf(cf, "  BYTESTRING %s   = {\n"
                                     "    .len  = %s_ptr->len,\n"
-                                    "    .data = toku_memdup_in_rollback(log, %s_ptr->data, %s_ptr->len)\n"
+                                    "    .data = cast_to_typeof(%s.data) toku_memdup_in_rollback(log, %s_ptr->data, %s_ptr->len)\n"
                                     "  };\n",
-                                    field_type->name, field_type->name, field_type->name, field_type->name);
+                                    field_type->name, field_type->name, field_type->name, field_type->name, field_type->name);
                         }
                         if ( strcmp(field_type->type, "FILENUMS") == 0 ) {
                             fprintf(cf, "  FILENUMS %s   = {\n"
                                     "    .num  = %s_ptr->num,\n"
-                                    "    .filenums = toku_memdup_in_rollback(log, %s_ptr->filenums, %s_ptr->num * (sizeof (FILENUM)))\n"
+                                    "    .filenums = cast_to_typeof(%s.filenums) toku_memdup_in_rollback(log, %s_ptr->filenums, %s_ptr->num * (sizeof (FILENUM)))\n"
                                     "  };\n",
-                                    field_type->name, field_type->name, field_type->name, field_type->name);
+                                    field_type->name, field_type->name, field_type->name, field_type->name, field_type->name);
                         }
                     });
                     {
@@ -650,7 +650,7 @@ generate_rollbacks (void) {
                     }
                     fprintf(cf, "  struct roll_entry *v;\n");
                     fprintf(cf, "  size_t mem_needed = sizeof(v->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
-                    fprintf(cf, "  v = toku_malloc_in_rollback(log, mem_needed);\n");
+                    fprintf(cf, "  v = cast_to_typeof(v) toku_malloc_in_rollback(log, mem_needed);\n");
                     fprintf(cf, "  assert(v);\n");
                     fprintf(cf, "  v->cmd = (enum rt_cmd)%u;\n", lt->command_and_flags&0xff);
                     DO_FIELDS(field_type, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, field_type->name, field_type->name));
@@ -728,7 +728,7 @@ generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
                 fprintf(cf, "  case RT_%s:\n", lt->name);
                 fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
-                fprintf(cf, "    item = malloc_in_memarena(ma, mem_needed);\n");
+                fprintf(cf, "    item = cast_to_typeof(item) malloc_in_memarena(ma, mem_needed);\n");
                 fprintf(cf, "    item->cmd = cmd;\n");
                 DO_FIELDS(field_type, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", field_type->type, lt->name, field_type->name));
                 fprintf(cf, "    *itemp = item;\n");
@@ -765,7 +765,7 @@ int main (int argc, const char *const argv[]) {
     unlink(codepath);
     unlink(headerpath);
     cf = fopen(codepath, "w");
-    if (cf==0) { int r = errno; printf("fopen of %s failed because of errno=%d (%s)\n", codepath, r, strerror(r)); } // sometimes this is failing, so let's make a better diagnostic
+    if (cf==0) { int r = get_error_errno(); printf("fopen of %s failed because of errno=%d (%s)\n", codepath, r, strerror(r)); } // sometimes this is failing, so let's make a better diagnostic
     assert(cf!=0);
     hf = fopen(headerpath, "w");     assert(hf!=0);
     pf = fopen(printpath, "w");   assert(pf!=0);

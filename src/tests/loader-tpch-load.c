@@ -15,7 +15,7 @@ enum {MAX_ROW_LEN=1024};
 static int NUM_DBS=10;
 static int USE_PUTS=0;
 static int USE_REGION=0;
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 
 static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused)); 
 static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused));
@@ -123,12 +123,12 @@ static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT 
         dest_val->ulen  = 0;
     }
     
-    struct tpch_key *key = toku_malloc(sizeof(struct tpch_key));
+    struct tpch_key *XMALLOC(key);
     key->orderkey   = atoi(regionkey);
     key->linenumber = atoi(regionkey);
     key->key        = atoi(regionkey);
 
-    char *val = toku_malloc(sizeof(row));
+    char *XMALLOC_N(sizeof(row), val);
     sprintf(val, "%s|%s", name, comment);
 
     dbt_init(dest_key, key, sizeof(struct tpch_key));
@@ -201,7 +201,7 @@ static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DB
         dest_val->ulen  = 0;
     }
     
-    struct tpch_key *key = toku_malloc(sizeof(struct tpch_key));
+    struct tpch_key *XMALLOC(key);
     key->orderkey   = atoi(linenumber);
     key->linenumber = atoi(orderkey);
     
@@ -209,12 +209,10 @@ static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DB
     uint32_t which = *(uint32_t*)dest_db->app_private;
 
     if ( which == 0 ) {
-        val = toku_malloc(strlen(row) + 1);
-        strcpy(val, row);
+        val = toku_xstrdup(row);
     }
     else {
-        val = toku_malloc(strlen(orderkey) + 1);
-        strcpy(val, orderkey);
+        val = toku_xstrdup(orderkey);
     }            
     
     switch(which) {

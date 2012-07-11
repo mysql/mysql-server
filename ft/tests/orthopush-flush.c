@@ -33,7 +33,7 @@ static void
 rand_bytes(void *dest, int size)
 {
     long *l;
-    for (l = dest; (unsigned int) size >= (sizeof *l); ++l, size -= (sizeof *l)) {
+    for (l = cast_to_typeof(l) dest; (unsigned int) size >= (sizeof *l); ++l, size -= (sizeof *l)) {
         *l = random();
     }
     for (char *c = (char *) l; size > 0; ++c, --size) {
@@ -47,7 +47,7 @@ static void
 rand_bytes_limited(void *dest, int size)
 {
     long *l;
-    for (l = dest; (size_t) size >= (sizeof *l); ++l, size -= (sizeof *l)) {
+    for (l = cast_to_typeof(l) dest; (size_t) size >= (sizeof *l); ++l, size -= (sizeof *l)) {
         char c = random() & 0xff;
         for (char *p = (char *) l; (size_t) (p - (char *) l) < (sizeof *l); ++p) {
             *p = c;
@@ -75,11 +75,11 @@ insert_random_message(NONLEAF_CHILDINFO bnc, FT_MSG_S **save, bool *is_fresh_out
     bool is_fresh = (random() & 0x100) == 0;
 
     DBT *keydbt, *valdbt;
-    keydbt = toku_xmalloc(sizeof *keydbt);
-    valdbt = toku_xmalloc(sizeof *valdbt);
+    XMALLOC(keydbt);
+    XMALLOC(valdbt);
     toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
     toku_fill_dbt(valdbt, val, vallen);
-    FT_MSG_S *result = toku_xmalloc(sizeof *result);
+    FT_MSG_S *XMALLOC(result);
     result->type = FT_INSERT;
     result->msn = msn;
     result->xids = xids;
@@ -185,7 +185,7 @@ struct orthopush_flush_update_fun_extra {
 static int
 orthopush_flush_update_fun(DB * UU(db), const DBT *UU(key), const DBT *UU(old_val), const DBT *extra,
                            void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra) {
-    struct orthopush_flush_update_fun_extra *e = extra->data;
+    struct orthopush_flush_update_fun_extra *e = cast_to_typeof(e) extra->data;
     (*e->num_applications)++;
     set_val(&e->new_val, set_extra);
     return 0;
@@ -203,8 +203,7 @@ insert_random_update_message(NONLEAF_CHILDINFO bnc, FT_MSG_S **save, bool is_fre
     int keylen = (random() % 16) + 16;
     int vallen = (random() % 16) + 16;
     void *key = toku_xmalloc(keylen + (sizeof pfx));
-    struct orthopush_flush_update_fun_extra *update_extra =
-        toku_xmalloc(sizeof *update_extra);
+    struct orthopush_flush_update_fun_extra *XMALLOC(update_extra);
     *(int *) key = pfx;
     rand_bytes_limited((char *) key + (sizeof pfx), keylen);
     toku_fill_dbt(&update_extra->new_val, toku_xmalloc(vallen), vallen);
@@ -213,11 +212,11 @@ insert_random_update_message(NONLEAF_CHILDINFO bnc, FT_MSG_S **save, bool is_fre
     MSN msn = next_dummymsn();
 
     DBT *keydbt, *valdbt;
-    keydbt = toku_xmalloc(sizeof *keydbt);
-    valdbt = toku_xmalloc(sizeof *valdbt);
+    XMALLOC(keydbt);
+    XMALLOC(valdbt);
     toku_fill_dbt(keydbt, key, keylen + (sizeof pfx));
     toku_fill_dbt(valdbt, update_extra, sizeof *update_extra);
-    FT_MSG_S *result = toku_xmalloc(sizeof *result);
+    FT_MSG_S *XMALLOC(result);
     result->type = FT_UPDATE;
     result->msn = msn;
     result->xids = xids;
@@ -547,7 +546,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
-            char *key = le_key_and_len(child_messages[i], &keylen);
+            char *key = cast_to_typeof(key) le_key_and_len(child_messages[i], &keylen);
             DBT keydbt;
             if (childkeys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) > 0) {
                 toku_fill_dbt(&childkeys[i%8], key, keylen);
@@ -558,7 +557,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
 
     for (i = 0; i < num_child_messages; ++i) {
         u_int32_t keylen;
-        char *key = le_key_and_len(child_messages[i], &keylen);
+        char *key = cast_to_typeof(key) le_key_and_len(child_messages[i], &keylen);
         DBT keydbt;
         if (i % 8 < 7) {
             assert(dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) <= 0);
@@ -654,7 +653,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
                 OMTVALUE v;
                 r = toku_omt_fetch(omt, idx, &v);
                 assert_zero(r);
-                le = v;
+                le = cast_to_typeof(le) v;
                 u_int32_t keylen, vallen;
                 void *keyp = le_key_and_len(le, &keylen);
                 void *valp = le_latest_val_and_len(le, &vallen);
@@ -665,7 +664,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
             for (i = num_parent_messages - 1; i >= 0; --i) {
                 if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0) {
                     if (found == 0) {
-                        struct orthopush_flush_update_fun_extra *e = parent_messages[i]->u.id.val->data;
+                        struct orthopush_flush_update_fun_extra *e = cast_to_typeof(e) parent_messages[i]->u.id.val->data;
                         assert(dummy_cmp(NULL, &valdbt, &e->new_val) == 0);
                         found++;
                     }
@@ -709,8 +708,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->u.id.key->data);
         toku_free((DBT *) parent_messages[i]->u.id.key);
-        struct orthopush_flush_update_fun_extra *extra =
-            parent_messages[i]->u.id.val->data;
+        struct orthopush_flush_update_fun_extra *extra = cast_to_typeof(extra) parent_messages[i]->u.id.val->data;
         toku_free(extra->new_val.data);
         toku_free(parent_messages[i]->u.id.val->data);
         toku_free((DBT *) parent_messages[i]->u.id.val);
@@ -773,7 +771,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         insert_random_message_to_bn(t, child_blbs[i%8], &child_messages[i], xids_123, i%8);
         total_size += child_blbs[i%8]->n_bytes_in_buffer;
         u_int32_t keylen;
-        char *key = le_key_and_len(child_messages[i], &keylen);
+        char *key = cast_to_typeof(key) le_key_and_len(child_messages[i], &keylen);
         DBT keydbt;
         if (childkeys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) > 0) {
             toku_fill_dbt(&childkeys[i%8], key, keylen);
@@ -783,7 +781,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
 
     for (i = 0; i < num_child_messages; ++i) {
         u_int32_t keylen;
-        char *key = le_key_and_len(child_messages[i], &keylen);
+        char *key = cast_to_typeof(key) le_key_and_len(child_messages[i], &keylen);
         DBT keydbt;
         assert(dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &childkeys[i%8]) <= 0);
     }
@@ -886,8 +884,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->u.id.key->data);
         toku_free((DBT *) parent_messages[i]->u.id.key);
-        struct orthopush_flush_update_fun_extra *extra =
-            parent_messages[i]->u.id.val->data;
+        struct orthopush_flush_update_fun_extra *extra = cast_to_typeof(extra) parent_messages[i]->u.id.val->data;
         toku_free(extra->new_val.data);
         toku_free(parent_messages[i]->u.id.val->data);
         toku_free((DBT *) parent_messages[i]->u.id.val);
@@ -961,7 +958,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
         total_size += child1_blbs[i%8]->n_bytes_in_buffer;
         if (i % 8 < 7) {
             u_int32_t keylen;
-            char *key = le_key_and_len(child_messages[i], &keylen);
+            char *key = cast_to_typeof(key) le_key_and_len(child_messages[i], &keylen);
             DBT keydbt;
             if (child1keys[i%8].size == 0 || dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &child1keys[i%8]) > 0) {
                 toku_fill_dbt(&child1keys[i%8], key, keylen);
@@ -973,7 +970,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
 
     for (i = 0; i < num_child_messages; ++i) {
         u_int32_t keylen;
-        char *key = le_key_and_len(child_messages[i], &keylen);
+        char *key = cast_to_typeof(key) le_key_and_len(child_messages[i], &keylen);
         DBT keydbt;
         if (i % 8 < 7) {
             assert(dummy_cmp(NULL, toku_fill_dbt(&keydbt, key, keylen), &child1keys[i%8]) <= 0);
@@ -1051,7 +1048,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
                 OMTVALUE v;
                 r = toku_omt_fetch(omt1, idx, &v);
                 assert_zero(r);
-                le1 = v;
+                le1 = cast_to_typeof(le1) v;
                 u_int32_t keylen, vallen;
                 void *keyp = le_key_and_len(le1, &keylen);
                 void *valp = le_latest_val_and_len(le1, &vallen);
@@ -1062,7 +1059,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
                 OMTVALUE v;
                 r = toku_omt_fetch(omt2, idx, &v);
                 assert_zero(r);
-                le2 = v;
+                le2 = cast_to_typeof(le2) v;
                 u_int32_t keylen, vallen;
                 void *keyp = le_key_and_len(le2, &keylen);
                 void *valp = le_latest_val_and_len(le2, &vallen);
@@ -1081,8 +1078,7 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->u.id.key->data);
         toku_free((DBT *) parent_messages[i]->u.id.key);
-        struct orthopush_flush_update_fun_extra *extra =
-            parent_messages[i]->u.id.val->data;
+        struct orthopush_flush_update_fun_extra *extra = cast_to_typeof(extra) parent_messages[i]->u.id.val->data;
         toku_free(extra->new_val.data);
         toku_free(parent_messages[i]->u.id.val->data);
         toku_free((DBT *) parent_messages[i]->u.id.val);

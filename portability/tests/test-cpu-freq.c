@@ -12,7 +12,7 @@ int main(void) {
     int r = toku_os_get_processor_frequency(&cpuhz);
     assert(r == 0);
     if (verbose) {
-	printf("%"PRIu64"\n", cpuhz);
+	printf("%" PRIu64 "\n", cpuhz);
     }
     assert(cpuhz>100000000);
     return 0;

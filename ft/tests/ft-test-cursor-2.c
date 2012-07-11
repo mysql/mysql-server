@@ -14,7 +14,7 @@ static int
 save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, void *v, bool lock_only) {
     if (lock_only) return 0;
     assert(key!=NULL);
-    void **vp = v;
+    void **vp = cast_to_typeof(vp) v;
     *vp = toku_memdup(val, vallen);
     return 0;
 }
@@ -73,7 +73,7 @@ static void test_multiple_ft_cursor_dbts(int n) {
     for (i=0; i<n; i++) {
 	int j;
 	for (j=i+1; j<n; j++) {
-	    assert(strcmp(ptrs[i],ptrs[j])!=0);
+	    assert(strcmp((char*)ptrs[i],(char*)ptrs[j])!=0);
 	}
     }
 

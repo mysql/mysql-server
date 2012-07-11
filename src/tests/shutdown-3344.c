@@ -62,7 +62,7 @@ populate(DB_ENV *env, DB_TXN *txn, DB *db, uint64_t nrows) {
             float last_time = tdiff(&tnow, &tlast);
             float total_time = tdiff(&tnow, &tstart);
             if (verbose) {
-                fprintf(stderr, "%"PRIu64" %.3f %.0f/s %.0f/s\n", rowi + 1, last_time, rows_per_report/last_time, rowi/total_time); fflush(stderr);
+                fprintf(stderr, "%" PRIu64 " %.3f %.0f/s %.0f/s\n", rowi + 1, last_time, rows_per_report/last_time, rowi/total_time); fflush(stderr);
             }
             tlast = tnow;
         }
@@ -128,7 +128,7 @@ run_test(DB_ENV *env, int ndbs, int do_txn, uint32_t pagesize, uint64_t nrows) {
 
 int 
 test_main(int argc, char * const argv[]) {
-    char *env_dir = "dir.shutdown.ca";
+    const char *env_dir = "dir.shutdown.ca";
     int ndbs = 500;
     int do_txn = 1;
     u_int32_t pagesize = 1024;

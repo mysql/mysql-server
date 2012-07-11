@@ -153,8 +153,8 @@ toku_indexer_create_indexer(DB_ENV *env,
                             DB_INDEXER **indexerp,
                             DB *src_db,
                             int N,
-                            DB *dest_dbs[N],
-                            uint32_t db_flags[N] UU(),
+                            DB *dest_dbs[/*N*/],
+                            uint32_t db_flags[/*N*/] UU(),
                             uint32_t indexer_flags) 
 {
     int rval = 0;
@@ -218,8 +218,10 @@ toku_indexer_create_indexer(DB_ENV *env,
     
     // 2954: add recovery and rollback entries
     LSN hot_index_lsn; // not used (yet)
-    TOKUTXN      ttxn = db_txn_struct_i(txn)->tokutxn;
-    FILENUMS filenums = indexer->i->filenums;
+    TOKUTXN      ttxn;
+    ttxn = db_txn_struct_i(txn)->tokutxn;
+    FILENUMS filenums;
+    filenums = indexer->i->filenums;
     toku_multi_operation_client_lock();
     rval = toku_ft_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
     toku_multi_operation_client_unlock();
@@ -374,12 +376,12 @@ le_cursor_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), byte
     if (lock_only || val == NULL) {
         ; // do nothing if only locking. do nothing if val==NULL, means DB_NOTFOUND
     } else {
-        struct le_cursor_extra *cursor_extra = extra;
+        struct le_cursor_extra *cursor_extra = cast_to_typeof(cursor_extra) extra;
         struct ule_prov_info *prov_info = cursor_extra->prov_info;
         // the val here is a leafentry. ule_create does not copy the entire
         // contents of the leafentry it is given into its own buffers, so we
         // must allocate space for a leafentry and keep it around with the ule.
-        LEAFENTRY le = toku_xmemdup(val, vallen);
+        LEAFENTRY le = cast_to_typeof(le) toku_xmemdup(val, vallen);
         ULEHANDLE ule = toku_ule_create(le);
         invariant(ule);
         // when we initialize prov info, we also pass in the leafentry and ule

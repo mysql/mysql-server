@@ -6,7 +6,7 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
+const char *namea="a.db";
 
 static void
 run_test (BOOL do_commit, BOOL do_abort) {
@@ -77,7 +77,9 @@ run_recover (BOOL UU(did_commit)) {
     for (i=0; ; i++) {
         if (i == 128)
             continue;
-        DBT k = {.size = 0}, v = { .size = 0};
+        DBT k,v;
+        dbt_init(&k, NULL, 0);
+        dbt_init(&v, NULL, 0);
         r = ca->c_get(ca, &k, &v, DB_NEXT);
         if (r != 0)
             break;

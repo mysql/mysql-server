@@ -33,10 +33,8 @@ static void make_db (void) {
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     {
 	DBT key,data;
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-	key.data  = "hello"; key.size=6;
-	data.data = "there"; data.size=6;
+        dbt_init(&key, "hello", sizeof "hello");
+        dbt_init(&data, "there", sizeof "there");
 	r=db->put(db, tid, &key, &data, 0);  assert(r==0);
     }
     r=tid->abort(tid);    assert(r==0);
@@ -44,9 +42,8 @@ static void make_db (void) {
     // Now see that the string isn't there.
     {
 	DBT key,data;
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-	key.data  = "hello"; key.size=6;
+        dbt_init(&key, "hello", sizeof "hello");
+        dbt_init(&data, NULL, 0);
 	r=db->get(db, 0, &key, &data, 0);
 	assert(r==DB_NOTFOUND);
     }

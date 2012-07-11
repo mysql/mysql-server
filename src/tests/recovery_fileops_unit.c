@@ -168,7 +168,8 @@ do_args(int argc, char * const argv[]) {
         case 'I':
             if (fileop == '\0')
                 usage();
-            int num = atoi(optarg);
+            int num;
+            num = atoi(optarg);
             if (num < 0 || num > 9)
                 usage();
             choices[c - 'A'] = num;

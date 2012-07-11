@@ -23,7 +23,7 @@ check_snprintf(int i) {
     int j;
     for (j = 0; j < i; j++) n *= 10;
 
-    int bytes = snprintf(target, sizeof target, "%"PRId64, n);
+    int bytes = snprintf(target, sizeof target, "%" PRId64, n);
     assert(bytes==i+1 ||
            (i+1>=(int)(sizeof target) && bytes>=(int)(sizeof target)));
     if (bytes>=(int)(sizeof target)) {

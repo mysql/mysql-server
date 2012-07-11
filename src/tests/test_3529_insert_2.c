@@ -23,7 +23,7 @@ static DB_TXN *txn_b = NULL;
 static DB *db = NULL;
 static u_int32_t db_page_size = 4096;
 // static u_int32_t db_basement_size = 4096;
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 
 static int 
 my_compare(DB *this_db UU(), const DBT *a UU(), const DBT *b UU()) {

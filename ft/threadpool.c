@@ -45,9 +45,9 @@ static void toku_thread_pool_unlock(struct toku_thread_pool *pool);
 static int 
 toku_thread_create(struct toku_thread_pool *pool, struct toku_thread **toku_thread_return) {
     int r;
-    struct toku_thread *thread = (struct toku_thread *) toku_malloc(sizeof *thread);
+    struct toku_thread *MALLOC(thread);
     if (thread == NULL) {
-        r = errno;
+        r = get_error_errno();
     } else {
         memset(thread, 0, sizeof *thread);
         thread->pool = pool;
@@ -115,9 +115,9 @@ toku_thread_run_internal(void *arg) {
 int 
 toku_thread_pool_create(struct toku_thread_pool **pool_return, int max_threads) {
     int r;
-    struct toku_thread_pool *pool = (struct toku_thread_pool *) toku_malloc(sizeof *pool);
+    struct toku_thread_pool *MALLOC(pool);
     if (pool == NULL) {
-        r = errno;
+        r = get_error_errno();
     } else {
         memset(pool, 0, sizeof *pool);
         toku_mutex_init(&pool->lock, NULL);

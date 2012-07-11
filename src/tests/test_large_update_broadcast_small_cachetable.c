@@ -27,7 +27,7 @@ static int update_fun(DB *UU(db),
                       void *set_extra) {
     unsigned int *e;
     assert(extra->size == sizeof(*e));
-    e = extra->data;
+    e = cast_to_typeof(e) extra->data;
     assert(*e == MAGIC_EXTRA);
     assert(old_val->size == sizeof(original_data));
     assert(memcmp(old_val->data, original_data, sizeof(original_data)) == 0);
@@ -44,9 +44,9 @@ static int
 int_cmp(DB *UU(db), const DBT *a, const DBT *b) {
     unsigned int *ap, *bp;
     assert(a->size == sizeof(*ap));
-    ap = a->data;
+    ap = cast_to_typeof(ap) a->data;
     assert(b->size == sizeof(*bp));
-    bp = b->data;
+    bp = cast_to_typeof(bp) b->data;
     return (*ap > *bp) - (*ap < *bp);
 }
 

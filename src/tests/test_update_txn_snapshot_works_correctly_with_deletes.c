@@ -84,7 +84,7 @@ static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsign
         } else {
             CKERR(r);
             assert(val.size == sizeof(*vp));
-            vp = val.data;
+            vp = cast_to_typeof(vp) val.data;
             check_val(i, *vp);
         }
     }

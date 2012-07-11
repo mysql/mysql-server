@@ -11,7 +11,7 @@ unsigned buflen;
 
 #include "run.h"
 
-static void *
+static toku_point *
 init_point (unsigned left) {
     assert(left < sizeof(nums) / sizeof(nums[0]));
     return ((toku_point*)&nums[left]);

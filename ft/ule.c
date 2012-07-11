@@ -78,7 +78,7 @@ toku_le_get_status(LE_STATUS statp) {
 
 ULEHANDLE 
 toku_ule_create(LEAFENTRY le) {
-    ULE ule_p = toku_xmalloc(sizeof(ULE_S));
+    ULE XMALLOC(ule_p);
     le_unpack(ule_p, le);
     return (ULEHANDLE) ule_p;
 }
@@ -106,8 +106,8 @@ void toku_ule_free(ULEHANDLE ule_p) {
 const UXR_S committed_delete = {
     .type   = XR_DELETE,
     .vallen = 0,
-    .xid    = 0,
-    .valp   = NULL
+    .valp   = NULL,
+    .xid    = 0
 };  // static allocation of uxr with type set to committed delete and xid = 0
 
 #define INSERT_LENGTH(len) ((1U << 31) | len)
@@ -215,13 +215,15 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT referenced_xids, OMT live_roo
     if (ule->num_cuxrs == 1) goto done;
     // will fail if too many num_cuxrs
     BOOL necessary_static[MAX_TRANSACTION_RECORDS];
-    BOOL *necessary = necessary_static;
+    BOOL *necessary;
+    necessary = necessary_static;
     if (ule->num_cuxrs >= MAX_TRANSACTION_RECORDS) {
         XMALLOC_N(ule->num_cuxrs, necessary);
     }
     memset(necessary, 0, sizeof(necessary[0])*ule->num_cuxrs);
 
-    uint32_t curr_committed_entry = ule->num_cuxrs - 1;
+    uint32_t curr_committed_entry;
+    curr_committed_entry = ule->num_cuxrs - 1;
     while (TRUE) {
         // mark the curr_committed_entry as necessary
         necessary[curr_committed_entry] = TRUE;
@@ -281,7 +283,8 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT referenced_xids, OMT live_roo
             curr_committed_entry--;
         }
     } 
-    uint32_t first_free = 0;
+    uint32_t first_free;
+    first_free = 0;
     uint32_t i;
     for (i = 0; i < ule->num_cuxrs; i++) {
         //Shift values to 'delete' garbage values.
@@ -290,7 +293,8 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT referenced_xids, OMT live_roo
             first_free++;
         }
     }
-    uint32_t saved = first_free;
+    uint32_t saved;
+    saved = first_free;
     invariant(saved <= ule->num_cuxrs);
     invariant(saved >= 1);
     ule->uxrs[0].xid = TXNID_NONE; //New 'bottom of stack' loses its TXNID
@@ -743,7 +747,8 @@ le_pack(ULE ule,                            // data to be packed into new leafen
     }
 found_insert:;
     memsize = le_memsize_from_ule(ule);
-    LEAFENTRY new_leafentry = le_malloc(omt, mp, memsize, maybe_free);
+    LEAFENTRY new_leafentry;
+    new_leafentry = cast_to_typeof(new_leafentry) le_malloc(omt, mp, memsize, maybe_free);
 
     //Universal data
     new_leafentry->keylen  = toku_htod32(ule->keylen);
@@ -839,7 +844,8 @@ found_insert:;
 
     //p points to first unused byte after packed leafentry
 
-    size_t bytes_written = (size_t)p - (size_t)new_leafentry;
+    size_t bytes_written;
+    bytes_written = (size_t)p - (size_t)new_leafentry;
     invariant(bytes_written == memsize);
          
 #if ULE_DEBUG
@@ -1005,7 +1011,7 @@ leafentry_memsize (LEAFENTRY le) {
     size_t slow_rval = le_memsize_from_ule(&ule);
     if (slow_rval!=rval) {
         int r = print_leafentry(stderr, le);
-        fprintf(stderr, "\nSlow: [%"PRIu64"] Fast: [%"PRIu64"]\n", slow_rval, rval);
+        fprintf(stderr, "\nSlow: [%" PRIu64 "] Fast: [%" PRIu64 "]\n", slow_rval, rval);
         invariant(r==0);
     }
     assert(slow_rval == rval);
@@ -1133,9 +1139,11 @@ le_latest_val_and_len (LEAFENTRY le, u_int32_t *len) {
             break;
         case LE_MVCC:;
             UXR_S uxr;
-            uint32_t num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
+            uint32_t num_cuxrs;
+            num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
             invariant(num_cuxrs);
-            uint32_t num_puxrs = le->u.mvcc.num_pxrs;
+            uint32_t num_puxrs;
+            num_puxrs = le->u.mvcc.num_pxrs;
 
             //Position p after the key.
             p = le->u.mvcc.key_xrs + keylen;
@@ -1210,9 +1218,11 @@ le_latest_vallen (LEAFENTRY le) {
             break;
         case LE_MVCC:;
             UXR_S uxr;
-            uint32_t num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
+            uint32_t num_cuxrs;
+            num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
             invariant(num_cuxrs);
-            uint32_t num_puxrs = le->u.mvcc.num_pxrs;
+            uint32_t num_puxrs;
+            num_puxrs = le->u.mvcc.num_pxrs;
 
             //Position p after the key.
             p = le->u.mvcc.key_xrs + keylen;
@@ -1369,7 +1379,7 @@ print_leafentry (FILE *outf, LEAFENTRY le) {
     UXR uxr;
     if (!le) { printf("NULL"); return 0; }
     fprintf(outf, "{key=");
-    toku_print_BYTESTRING(outf, ule.keylen, ule.keyp);
+    toku_print_BYTESTRING(outf, ule.keylen, (char *) ule.keyp);
     for (i = 0; i < ule.num_cuxrs+ule.num_puxrs; i++) {
         // fprintf(outf, "\n%*s", i+1, " "); //Nested indenting
         uxr = &ule.uxrs[i];
@@ -1382,7 +1392,7 @@ print_leafentry (FILE *outf, LEAFENTRY le) {
         else {
             assert(uxr_is_insert(uxr));
             fprintf(outf, "%cI: xid=%016" PRIx64 " val=", prov, uxr->xid);
-            toku_print_BYTESTRING(outf, uxr->vallen, uxr->valp);
+            toku_print_BYTESTRING(outf, uxr->vallen, (char *) uxr->valp);
         }
     }
     fprintf(outf, "}");
@@ -1928,14 +1938,20 @@ le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_delp, TOKUTXN co
             break;
         }
         case LE_MVCC:;
-            uint32_t keylen = toku_dtoh32(le->keylen);
-            uint32_t num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
-            uint32_t num_puxrs = le->u.mvcc.num_pxrs;
-            uint8_t *p = le->u.mvcc.key_xrs + keylen;
+            uint32_t keylen;
+            keylen = toku_dtoh32(le->keylen);
+            uint32_t num_cuxrs;
+            num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
+            uint32_t num_puxrs;
+            num_puxrs = le->u.mvcc.num_pxrs;
+            uint8_t *p;
+            p = le->u.mvcc.key_xrs + keylen;
 
             uint32_t index;
-            uint32_t num_interesting = num_cuxrs + (num_puxrs != 0);
-            TXNID *xids = (TXNID*)p;
+            uint32_t num_interesting;
+            num_interesting = num_cuxrs + (num_puxrs != 0);
+            TXNID *xids;
+            xids = (TXNID*)p;
 #if ULE_DEBUG
             ule_verify_xids(&ule, num_interesting, xids);
 #endif
@@ -1946,8 +1962,10 @@ le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, BOOL *is_delp, TOKUTXN co
             //Skip TXNIDs
             p += (num_interesting - 1)*sizeof(TXNID);
 
-            uint32_t *length_and_bits  = (uint32_t*)p;
-            uint32_t my_length_and_bit = toku_dtoh32(length_and_bits[index]);
+            uint32_t *length_and_bits;
+            length_and_bits  = (uint32_t*)p;
+            uint32_t my_length_and_bit;
+            my_length_and_bit = toku_dtoh32(length_and_bits[index]);
             is_del = !IS_INSERT(my_length_and_bit);
 #if ULE_DEBUG
             {
@@ -2012,13 +2030,18 @@ le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *val
             break;
         }
         case LE_MVCC:;
-            uint32_t num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
-            uint32_t num_puxrs = le->u.mvcc.num_pxrs;
-            uint8_t *p = le->u.mvcc.key_xrs + keylen;
+            uint32_t num_cuxrs;
+            num_cuxrs = toku_dtoh32(le->u.mvcc.num_cxrs);
+            uint32_t num_puxrs;
+            num_puxrs = le->u.mvcc.num_pxrs;
+            uint8_t *p;
+            p = le->u.mvcc.key_xrs + keylen;
 
             uint32_t index;
-            uint32_t num_interesting = num_cuxrs + (num_puxrs != 0);
-            TXNID *xids = (TXNID*)p;
+            uint32_t num_interesting;
+            num_interesting = num_cuxrs + (num_puxrs != 0);
+            TXNID *xids;
+            xids = (TXNID*)p;
 #if ULE_DEBUG
             ule_verify_xids(&ule, num_interesting, xids);
 #endif
@@ -2030,9 +2053,11 @@ le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, u_int32_t *val
             p += (num_interesting - 1)*sizeof(TXNID);
 
             UXR_S temp;
-            size_t offset = 0;
+            size_t offset;
+            offset = 0;
 
-            uint32_t *length_and_bits  = (uint32_t*)p;
+            uint32_t *length_and_bits;
+            length_and_bits  = (uint32_t*)p;
             uint32_t i;
             //evaluate the offset
             for (i=0; i < index; i++){
@@ -2091,10 +2116,8 @@ le_clean(uint8_t *key, uint32_t keylen,
          struct dbuf *d) {
     struct leafentry le = {
         .type = LE_CLEAN,
-        .keylen     = toku_htod32(keylen),
-        .u.clean = {
-            .vallen = toku_htod32(vallen)
-        }
+        .keylen = toku_htod32(keylen),
+        .u = { .clean = { .vallen = toku_htod32(vallen) } }
     };
     size_t header_size = __builtin_offsetof(struct leafentry, u.clean) + sizeof(le.u.clean);
     invariant(header_size==1+4+4);
@@ -2111,10 +2134,11 @@ le_committed_mvcc(uint8_t *key, uint32_t keylen,
                   struct dbuf *d) {
     struct leafentry le = {
         .type = LE_MVCC,
-        .keylen     = toku_htod32(keylen),
-        .u.mvcc = {
-            .num_cxrs = toku_htod32(2), //TXNID_NONE and xid each have committed xrs
-            .num_pxrs = 0               //No provisional
+        .keylen = toku_htod32(keylen),
+        .u = { .mvcc = {
+                .num_cxrs = toku_htod32(2), //TXNID_NONE and xid each have committed xrs
+                .num_pxrs = 0               //No provisional
+            }
         }
     };
     size_t header_size = __builtin_offsetof(struct leafentry, u.mvcc) + sizeof(le.u.mvcc);
@@ -2336,7 +2360,7 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
 void __attribute__((__constructor__)) toku_ule_helgrind_ignore(void);
 void
 toku_ule_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&le_status, sizeof le_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&le_status, sizeof le_status);
 }
 
 #undef STATUS_VALUE

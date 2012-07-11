@@ -50,8 +50,8 @@ int toku_indexer_create_indexer(DB_ENV *env,
                                 DB_INDEXER **indexer,
                                 DB *src_db,
                                 int N,
-                                DB *dest_dbs[N],
-                                uint32_t db_flags[N],
+                                DB *dest_dbs[/*N*/],
+                                uint32_t db_flags[/*N*/],
                                 uint32_t indexer_flags) __attribute__((__visibility__("default")));
 
 // Set the indexer poll function

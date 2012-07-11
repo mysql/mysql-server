@@ -386,14 +386,14 @@ ascending_key_string_checkf (ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), by
 {
     if (lock_only) return 0;
     if (key!=NULL) {
-	assert(keylen == 1+strlen(key));
-	char **prevkeyp = v;
+	assert(keylen == 1+strlen((char*)key));
+	char **prevkeyp = cast_to_typeof(prevkeyp) v;
 	char *prevkey = *prevkeyp;
 	if (prevkey!=0) {
-	    assert(strcmp(prevkey, key)<0);
+	    assert(strcmp(prevkey, (char*)key)<0);
 	    toku_free(prevkey);
 	}
-	*prevkeyp = toku_strdup(key);
+	*prevkeyp = toku_strdup((char*) key);
     }
     return 0;
 }

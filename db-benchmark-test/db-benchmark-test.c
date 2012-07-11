@@ -131,7 +131,7 @@ static void do_prelock(DB* db, DB_TXN* txn) {
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
 const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
-char *dbfilename = "bench.db";
+const char *dbfilename = "bench.db";
 char *dbname;
 
 DB_ENV *dbenv;
@@ -406,8 +406,8 @@ static void fill_array (unsigned char *data, int size) {
 
 static void insert (long long v) {
     int r;
-    unsigned char *kc = toku_malloc(keysize);
-    unsigned char *vc = toku_malloc(valsize);
+    unsigned char *XMALLOC_N(keysize, kc);
+    unsigned char *XMALLOC_N(valsize, vc);
     DBT  kt, vt;
     fill_array(kc, keysize);
     long_long_to_array(kc, keysize, v); // Fill in the array first, then write the long long in.
@@ -546,9 +546,9 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --1514                do a point query for something not there at end.  See #1514.  (Requires --norandom)\n");
     fprintf(stderr, "    --append              append to an existing file\n");
     fprintf(stderr, "    --userandom           use random()\n");
-    fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
-    fprintf(stderr, "    --cleaner-period %"PRIu32"          cleaner period\n", cleaner_period); 
-    fprintf(stderr, "    --cleaner-iterations %"PRIu32"      cleaner iterations\n", cleaner_iterations); 
+    fprintf(stderr, "    --checkpoint-period %" PRIu32 "       checkpoint period\n", checkpoint_period); 
+    fprintf(stderr, "    --cleaner-period %" PRIu32 "          cleaner period\n", cleaner_period); 
+    fprintf(stderr, "    --cleaner-iterations %" PRIu32 "      cleaner iterations\n", cleaner_iterations); 
     fprintf(stderr, "    --numdbs N            Insert same items into N dbs (1 to %d)\n", MAX_DBS); 
     fprintf(stderr, "    --insertmultiple      Use DB_ENV->put_multiple api.  Requires transactions.\n"); 
     fprintf(stderr, "    --redzone N           redzone in percent\n");

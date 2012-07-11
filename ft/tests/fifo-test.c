@@ -5,7 +5,6 @@
 
 
 #include "test.h"
-int verbose;
 
 static void
 test_fifo_create (void) {
@@ -36,13 +35,13 @@ test_fifo_enq (int n) {
     // this was a function but icc cant handle it    
 #define buildkey(len) { \
         thekeylen = len+1; \
-        thekey = toku_realloc(thekey, thekeylen); \
+        XREALLOC_N(thekeylen, thekey); \
         memset(thekey, len, thekeylen); \
     }
 
 #define buildval(len) { \
         thevallen = len+2; \
-        theval = toku_realloc(theval, thevallen); \
+        XREALLOC_N(thevallen, theval); \
         memset(theval, ~len, thevallen); \
     }
 
@@ -66,7 +65,7 @@ test_fifo_enq (int n) {
 
     int i = 0;
     FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, UU(is_fresh), {
-        if (verbose) printf("checkit %d %d %"PRIu64"\n", i, type, msn.msn);
+        if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
         assert(msn.msn == startmsn.msn + i);
         buildkey(i);
         buildval(i);

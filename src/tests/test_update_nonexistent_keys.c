@@ -27,15 +27,15 @@ static int update_fun(DB *UU(db),
                       void *set_extra) {
     unsigned int *k, *ov, *e, v;
     assert(key->size == sizeof(*k));
-    k = key->data;
+    k = cast_to_typeof(k) key->data;
     assert(extra->size == sizeof(*e));
-    e = extra->data;
+    e = cast_to_typeof(e) extra->data;
     if (!should_insert(*k)) {
         assert(old_val == NULL);
         v = _u(_v(*k), *e);
     } else {
         assert(old_val->size == sizeof(*ov));
-        ov = old_val->data;
+        ov = cast_to_typeof(ov) old_val->data;
         v = _u(*ov, *e);
     }
 

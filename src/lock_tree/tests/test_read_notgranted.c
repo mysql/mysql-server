@@ -11,13 +11,13 @@
 
 #include "test.h"
 
-static int read_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
+static int read_lock(toku_lock_tree *lt, TXNID txnid, const char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
     int r = toku_lt_acquire_read_lock(lt, txnid, &key);
     return r;
 }
 
-static int write_lock(toku_lock_tree *lt, TXNID txnid, char *k) {
+static int write_lock(toku_lock_tree *lt, TXNID txnid, const char *k) {
     DBT key; dbt_init(&key, k, strlen(k));
     int r = toku_lt_acquire_write_lock(lt, txnid, &key);
     return r;

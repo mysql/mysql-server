@@ -13,7 +13,7 @@ volatile int state = 0;
 int verbose = 0;
 
 static void *f(void *arg) {
-    toku_pthread_rwlock_t *mylock = arg;
+    toku_pthread_rwlock_t *mylock = (toku_pthread_rwlock_t *) arg;
     sleep(2);
     assert(state==42); state = 16; if (verbose) printf("%s:%d\n", __FUNCTION__, __LINE__);
     toku_pthread_rwlock_wrlock(mylock);

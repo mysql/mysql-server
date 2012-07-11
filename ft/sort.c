@@ -21,7 +21,7 @@ static int
 merge_c(void *vdest, void *va, int an, void *vb, int bn, int width,
         void *extra, int (*cmp)(void *, const void *, const void *))
 {
-    char *dest = vdest, *a = va, *b = vb;
+    char *dest = cast_to_typeof(dest) vdest, *a = cast_to_typeof(a) va, *b = cast_to_typeof(b) vb;
     while (an > 0 && bn > 0) {
         if (cmp(extra, a, b) < 0) {
             memcpy(dest, a, width);
@@ -47,7 +47,7 @@ binsearch(void *key, void *va, int n, int abefore, int width,
     if (n == 0) {
         return abefore;
     }
-    char *a = va;
+    char *a = cast_to_typeof(a) va;
     int mid = n / 2;
     void *akey = &a[mid * width];
     int c = cmp(extra, key, akey);
@@ -79,7 +79,7 @@ merge(void *vdest, void *va, int an, void *vb, int bn, int width,
         return merge_c(vdest, va, an, vb, bn, width, extra, cmp);
     }
 
-    char *dest = vdest, *a = va, *b = vb;
+    char *dest = cast_to_typeof(dest) vdest, *a = cast_to_typeof(a) va, *b = cast_to_typeof(b) vb;
     if (an < bn) {
         char *tmp1 = a; a = b; b = tmp1;
         int tmp2 = an; an = bn; bn = tmp2;
@@ -99,16 +99,16 @@ merge(void *vdest, void *va, int an, void *vb, int bn, int width,
 static inline void
 swap(void *va, void *vb, int width)
 {
-    u_int64_t *ia = va, *ib = vb, it;
-    while ((unsigned int) width >= sizeof(u_int64_t)) {
+    uint64_t *ia = cast_to_typeof(ia) va, *ib = cast_to_typeof(ib) vb, it;
+    while ((unsigned int) width >= sizeof(uint64_t)) {
         it = *ia;
         *ia = *ib;
         *ib = it;
-        width -= sizeof(u_int64_t);
+        width -= sizeof(uint64_t);
         ia++;
         ib++;
     }
-    unsigned char *ca = (void *) ia, *cb = (void *) ib, ct;
+    unsigned char *ca = cast_to_typeof(ca) ia, *cb = cast_to_typeof(ca) ib, ct;
     while (width > 0) {
         ct = *ca;
         *ca = *cb;
@@ -124,7 +124,7 @@ quicksort_r(void *va, int n, int width,
             void *extra, int (*cmp)(void *, const void *, const void *))
 {
     if (n <= 1) { return 0; }
-    unsigned char *a = va;
+    unsigned char *a = cast_to_typeof(a) va;
     unsigned char *lo = a;
     unsigned char *pivot = &a[(n / 2) * width];
     unsigned char *hi = &a[(n - 1) * width];
@@ -172,7 +172,7 @@ mergesort_r(void *va, int n, int width,
     if (n < 10000) {
         return quicksort_r(va, n, width, extra, cmp);
     }
-    unsigned char *a = va;
+    unsigned char *a = cast_to_typeof(a) va;
     int mid = n / 2;
     int r1 = cilk_spawn mergesort_r(a, mid, width, extra, cmp);
     int r2 = mergesort_r(&a[mid * width], n - mid, width, extra, cmp);

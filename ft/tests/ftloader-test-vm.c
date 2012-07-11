@@ -23,7 +23,7 @@ static void test_cachetable_reservation (long size) {
 	uint64_t r1_bound = r0_bound/2;
 	uint64_t r2 = toku_cachetable_reserve_memory(ct, 0.5);
 	uint64_t r2_bound = r1_bound/2;
-	if (verbose) printf("%10ld: r0=%10"PRIu64" r1=%10"PRIu64" r2=%10"PRIu64"\n", size, r0, r1, r2);
+	if (verbose) printf("%10ld: r0=%10" PRIu64 " r1=%10" PRIu64 " r2=%10" PRIu64 "\n", size, r0, r1, r2);
 	assert(r0 <= r0_bound);
 	assert(r1 <= r1_bound);
 	assert(r2 <= r2_bound);

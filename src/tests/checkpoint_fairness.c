@@ -19,7 +19,7 @@
 
 DB_ENV *env;
 DB     *db;
-char   *env_dir = ENVDIR;
+const char   *env_dir = ENVDIR;
 
 const int n_threads = 100;
 volatile int reader_start_count = 0;
@@ -28,10 +28,11 @@ const int W = 10;
 volatile int writer_done_count = 0;
 
 static void *start_txns (void *e) {
-    int *idp = e;
+    int *idp = cast_to_typeof(idp) e;
     int id = *idp;
     int j;
-    DBT k={.size=sizeof(id), .data=&id};
+    DBT k;
+    dbt_init(&k, &id, sizeof id);
     for (j=0; writer_done_count<W; j++) { // terminate the loop when the checkpoint thread has done it's W items.
 	DB_TXN *txn;
 	{ int chk_r = env->txn_begin(env, NULL, &txn, 0); CKERR(chk_r); }

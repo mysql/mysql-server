@@ -11,7 +11,6 @@
 #include <string.h>
 
 #include "sub_block.h"
-int verbose;
 
 static void
 test_sub_block_size(int total_size) {

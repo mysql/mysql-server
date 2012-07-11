@@ -63,8 +63,10 @@ static void populate_rowset(struct rowset *rowset, int seq, int nrows) {
     for (int i = 0; i < nrows; i++) {
         int k = seq * nrows + i;
         int v = seq * nrows + i;
-        DBT key = { .size = sizeof k, .data = &k };
-        DBT val = { .size = sizeof v, .data = &v };
+        DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
+        DBT val;
+        toku_fill_dbt(&val, &v, sizeof v);
         add_row(rowset, &key, &val);
     }
 }

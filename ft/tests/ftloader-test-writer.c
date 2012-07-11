@@ -90,17 +90,17 @@ static void verify_dbfile(int n, const char *name) {
     if (verbose) traceit("verify done");
 }
 
-static void test_write_dbfile (char *template, int n, char *output_name, TXNID xid) {
+static void test_write_dbfile (char *tf_template, int n, char *output_name, TXNID xid) {
     if (verbose) traceit("test start");
 
     DB *dest_db = NULL;
-    struct ft_loader_s bl = {
-        .temp_file_template = template,
-        .reserved_memory = 512*1024*1024,
-        .load_root_xid = xid,
-    };
+    struct ft_loader_s bl;
+    ZERO_STRUCT(bl);
+    bl.temp_file_template = tf_template;
+    bl.reserved_memory = 512*1024*1024;
+    bl.load_root_xid = xid;
     if (xid) {
-        bl.root_xids_that_created = toku_xcalloc(1, sizeof (TXNID));
+        XCALLOC_N(1, bl.root_xids_that_created);
         bl.root_xids_that_created[0] = 0;
     }
     int r = ft_loader_init_file_infos(&bl.file_infos); CKERR(r);
@@ -115,8 +115,10 @@ static void test_write_dbfile (char *template, int n, char *output_name, TXNID x
     uint64_t size_est = 0;
     init_rowset(&aset, toku_ft_loader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
-	DBT key = { .size = sizeof i, .data = &i};
-	DBT val = { .size = sizeof i, .data = &i};
+	DBT key;
+        toku_fill_dbt(&key, &i, sizeof i);
+	DBT val;
+        toku_fill_dbt(&val, &i, sizeof i);
 	add_row(&aset, &key, &val);
 	size_est += ft_loader_leafentry_size(key.size, val.size, xid);
      }
@@ -171,7 +173,8 @@ static void test_write_dbfile (char *template, int n, char *output_name, TXNID x
     r = queue_destroy(q);
     assert(r==0);
 
-    DESCRIPTOR_S desc = {.dbt = (DBT){.size = 4, .data="abcd"}};
+    DESCRIPTOR_S desc;
+    toku_fill_dbt(&desc.dbt, "abcd", 4);
 
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
@@ -199,7 +202,7 @@ static int nrows = 1;
 static TXNID xid = 0;
 
 static int usage(const char *progname) {
-    fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-x %"PRIu64"] [-s] directory\n", progname, nrows, xid);
+    fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-x %" PRIu64 "] [-s] directory\n", progname, nrows, xid);
     return 1;
 }
 
@@ -239,15 +242,15 @@ int test_main (int argc, const char *argv[]) {
     CKERR(r);
 
     int  templen = strlen(directory)+15;
-    char template[templen];
-    int tlen = snprintf(template, templen, "%s/tempXXXXXX", directory);
+    char tf_template[templen];
+    int tlen = snprintf(tf_template, templen, "%s/tempXXXXXX", directory);
     assert (tlen>0 && tlen<templen);
 
     char output_name[templen];
     int  olen = snprintf(output_name, templen, "%s/test.tokudb", directory);
     assert (olen>0 && olen<templen);
 
-    test_write_dbfile(template, nrows, output_name, xid);
+    test_write_dbfile(tf_template, nrows, output_name, xid);
 
 #if 0
     r = system(unlink_all);

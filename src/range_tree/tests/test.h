@@ -85,7 +85,7 @@ int failon    = -1;
 static inline void*
 fail_malloc (size_t size) {
     if (++mallocced == failon) {
-        errno = ENOMEM;
+        set_errno(ENOMEM);
         return NULL;
     }
     return toku_malloc(size);

@@ -77,7 +77,7 @@ report(int64_t blocks_done, int64_t blocks_failed, int64_t total_blocks)
     }
     if (blocks_done % blocks_per_report == 0) {
         double pct_actually_done = (100.0 * blocks_done) / total_blocks;
-        printf("% 3.3lf%% | %"PRId64" blocks checked, %"PRId64" bad block(s) detected\n",
+        printf("% 3.3lf%% | %" PRId64 " blocks checked, %" PRId64 " bad block(s) detected\n",
                pct_actually_done, blocks_done, blocks_failed);
         fflush(stdout);
     }
@@ -135,7 +135,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
         abort();
     }
     if (h0_acceptable) {
-        printf("Found dictionary header 1 with LSN %"PRIu64"\n", checkpoint_lsn_0.lsn);
+        printf("Found dictionary header 1 with LSN %" PRIu64 "\n", checkpoint_lsn_0.lsn);
         r = deserialize_ft_versioned(fd, &rb_0, h1p, version_0);
 
 	if (r != 0) {
@@ -146,7 +146,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
         *h1p = NULL;
     }
     if (h1_acceptable) {
-        printf("Found dictionary header 2 with LSN %"PRIu64"\n", checkpoint_lsn_1.lsn);
+        printf("Found dictionary header 2 with LSN %" PRIu64 "\n", checkpoint_lsn_1.lsn);
         r = deserialize_ft_versioned(fd, &rb_1, h2p, version_1);
 	if (r != 0) {
 	    printf("---Header Error----\n");
@@ -192,7 +192,7 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
 {
     int r = 0;
     int failure = 0;
-    struct check_block_table_extra *cbte = extra;
+    struct check_block_table_extra *cbte = cast_to_typeof(cbte) extra;
     int fd = cbte->fd;
     FT ft = cbte->h;
 
@@ -211,7 +211,7 @@ check_block(BLOCKNUM blocknum, int64_t UU(blocksize), int64_t UU(address), void 
     }
 
     // Allocate the node.
-    FTNODE node = toku_xmalloc(sizeof(*node));
+    FTNODE XMALLOC(node);
     
     initialize_ftnode(node, blocknum);
     
@@ -328,7 +328,7 @@ check_block_table(int fd, BLOCK_TABLE bt, struct ft *h)
 {
     int64_t num_blocks = toku_block_get_blocks_in_use_unlocked(bt);
     printf("Starting verification of checkpoint containing");
-    printf(" %"PRId64" blocks.\n", num_blocks);
+    printf(" %" PRId64 " blocks.\n", num_blocks);
     fflush(stdout);
 
     struct check_block_table_extra extra = { .fd = fd,
@@ -349,8 +349,8 @@ check_block_table(int fd, BLOCK_TABLE bt, struct ft *h)
 
     assert(extra.blocks_done == extra.total_blocks);
     printf("Finished verification. ");
-    printf(" %"PRId64" blocks checked,", extra.blocks_done);
-    printf(" %"PRId64" bad block(s) detected\n", extra.blocks_failed);
+    printf(" %" PRId64 " blocks checked,", extra.blocks_done);
+    printf(" %" PRId64 " bad block(s) detected\n", extra.blocks_failed);
     fflush(stdout);
 }
 
@@ -390,9 +390,9 @@ main(int argc, char *argv[])
     dictfname = argv[1];
     outfname = argv[2];
     if (argc == 4) {
-        errno = 0;
+        set_errno(0);
         pct = strtod(argv[3], NULL);
-        assert_zero(errno);
+        assert_zero(get_maybe_error_errno());
         assert(pct > 0.0 && pct <= 100.0);
     }
 

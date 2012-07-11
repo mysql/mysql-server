@@ -17,7 +17,7 @@ static int increment_update (DB *db __attribute__((__unused__)),
                              void *set_extra) {
     assert (extra->size==2);
     assert (old_val->size==4);
-    unsigned char *extra_data = extra->data;
+    unsigned char *extra_data = cast_to_typeof(extra_data) extra->data;
     switch ((enum cmd)(extra_data[0])) {
     case CNOP:
         return 0;

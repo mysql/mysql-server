@@ -16,7 +16,8 @@ const double USECS_PER_SEC = 1000000.0;
 static int
 long_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 {
-    const long *x = a->data, *y = b->data;
+    const long *x = cast_to_typeof(x) a->data;
+    const long *y = cast_to_typeof(y) b->data;
     return (*x > *y) - (*x < *y);
 }
 
@@ -28,10 +29,10 @@ run_test(unsigned long eltsize, unsigned long nodesize, unsigned long repeat)
     char *vals[1024];
     for (int i = 0; i < 1024; ++i) {
         keys[i] = rand();
-        vals[i] = toku_xmalloc(eltsize - (sizeof keys[i]));
+        XMALLOC_N(eltsize - (sizeof keys[i]), vals[i]);
         unsigned int j = 0;
         for (; j < eltsize - (sizeof keys[i]) - sizeof(int); j += sizeof(int)) {
-            int *p = (void *) &((char *) vals[i])[j];
+            int *p = cast_to_typeof(p) &((char *) vals[i])[j];
             *p = rand();
         }
         for (; j < eltsize - (sizeof keys[i]); ++j) {

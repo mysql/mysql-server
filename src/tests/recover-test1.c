@@ -7,7 +7,7 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
+const char *namea="a.db";
 
 DB_ENV *env;
 DB_TXN *tid;

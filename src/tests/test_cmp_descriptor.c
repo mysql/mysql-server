@@ -37,7 +37,7 @@ static void assert_cmp_desc_valid (DB* db) {
     else {
         assert(db->cmp_descriptor->dbt.size == sizeof(eight_byte_desc));
     }
-    unsigned char* cmp_desc_data = db->cmp_descriptor->dbt.data;
+    unsigned char* cmp_desc_data = cast_to_typeof(cmp_desc_data) db->cmp_descriptor->dbt.data;
     assert(cmp_desc_data[0] == 0xff);
     assert(cmp_desc_data[1] == 0xff);
     assert(cmp_desc_data[2] == 0xff);

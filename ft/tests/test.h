@@ -85,15 +85,12 @@ lookup_checkf (ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *p
 }
 
 static inline void
-ft_lookup_and_check_nodup (FT_HANDLE t, char *keystring, char *valstring)
+ft_lookup_and_check_nodup (FT_HANDLE t, const char *keystring, const char *valstring)
 {
-#if defined(__cplusplus)
-    DBT k; memset(&k, 0, sizeof k); k.size=1+strlen(keystring); k.data=keystring;
-#else
-    DBT k = {.size=1+strlen(keystring), .data=keystring};
-#endif
-    struct check_pair pair = {1+strlen(keystring), keystring,
-			      1+strlen(valstring), valstring,
+    DBT k;
+    toku_fill_dbt(&k, keystring, strlen(keystring) + 1);
+    struct check_pair pair = {(ITEMLEN) (1+strlen(keystring)), keystring,
+                              (ITEMLEN) (1+strlen(valstring)), valstring,
 			      0};
     int r = toku_ft_lookup(t, &k, lookup_checkf, &pair);
     assert(r==0);
@@ -103,12 +100,9 @@ ft_lookup_and_check_nodup (FT_HANDLE t, char *keystring, char *valstring)
 static inline void
 ft_lookup_and_fail_nodup (FT_HANDLE t, char *keystring)
 {
-#if defined(__cplusplus)
-    DBT k; memset(&k, 0, sizeof k); k.size=1+strlen(keystring); k.data=keystring;
-#else
-    DBT k = {.size=1+strlen(keystring), .data=keystring};
-#endif
-    struct check_pair pair = {1+strlen(keystring), keystring,
+    DBT k;
+    toku_fill_dbt(&k, keystring, strlen(keystring) + 1);
+    struct check_pair pair = {(ITEMLEN) (1+strlen(keystring)), keystring,
 			      0, 0,
 			      0};
     int r = toku_ft_lookup(t, &k, lookup_checkf, &pair);
@@ -245,5 +239,5 @@ main(int argc, const char *argv[]) {
 }
 
 #if defined(__cplusplus)
-extern "C" {
+};
 #endif

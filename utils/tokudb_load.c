@@ -429,7 +429,7 @@ int read_header()
       if (!strcmp(field, "VERSION")) {
          if (strtoint32(value, &g.version, 1, INT32_MAX, 10)) goto error;
          if (g.version != 3) {
-            PRINT_ERRORX("line %"PRIu64": VERSION %d is unsupported", g.linenumber, g.version);
+            PRINT_ERRORX("line %" PRIu64 ": VERSION %d is unsupported", g.linenumber, g.version);
             goto error;
          }
          continue;
@@ -454,7 +454,7 @@ int read_header()
             PRINT_ERRORX("db type %s not supported.\n", value);
             goto error;
          }
-         PRINT_ERRORX("line %"PRIu64": unknown type %s", g.linenumber, value);
+         PRINT_ERRORX("line %" PRIu64 ": unknown type %s", g.linenumber, value);
          goto error;
       }
       if (!strcmp(field, "database") || !strcmp(field, "subdatabase")) {
@@ -494,7 +494,7 @@ success:
    if (false) {
 formaterror:
       r = EXIT_FAILURE;
-      PRINT_ERRORX("line %"PRIu64": unexpected format", g.linenumber);
+      PRINT_ERRORX("line %" PRIu64 ": unexpected format", g.linenumber);
    }
    if (false) {
 error:
@@ -630,7 +630,7 @@ int doublechararray(char** pmem, u_int64_t* size)
    *size <<= 1;
    if (*size == 0) {
       /* Overflowed u_int64_t. */
-      PRINT_ERRORX("Line %"PRIu64": Line too long.\n", g.linenumber);
+      PRINT_ERRORX("Line %" PRIu64 ": Line too long.\n", g.linenumber);
       goto error;
    }
    if ((*pmem = (char*)toku_realloc(*pmem, *size)) == NULL) {
@@ -683,22 +683,22 @@ static int get_dbt(DBT* pdbt)
                }
                else if (highch == EOF) {
                   g.eof = true;
-                  PRINT_ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  PRINT_ERRORX("Line %" PRIu64 ": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(highch)) {
-                  PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+                  PRINT_ERRORX("Line %" PRIu64 ": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
                   goto error;
                }
 
                lowch = getchar();
                if (lowch == EOF) {
                   g.eof = true;
-                  PRINT_ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+                  PRINT_ERRORX("Line %" PRIu64 ": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
                   goto error;
                }
                else if (!isxdigit(lowch)) {
-                  PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+                  PRINT_ERRORX("Line %" PRIu64 ": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
                   goto error;
                }
 
@@ -710,7 +710,7 @@ static int get_dbt(DBT* pdbt)
                   nextch = firstch;
                   break;
                }
-               PRINT_ERRORX("Line %"PRIu64": Nonprintable character found.", g.linenumber);
+               PRINT_ERRORX("Line %" PRIu64 ": Nonprintable character found.", g.linenumber);
                goto error;
             }
          }
@@ -737,15 +737,15 @@ static int get_dbt(DBT* pdbt)
          lowch = getchar();
          if (lowch == EOF) {
             g.eof = true;
-            PRINT_ERRORX("Line %"PRIu64": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
+            PRINT_ERRORX("Line %" PRIu64 ": Unexpected end of file (2 hex digits per byte).\n", g.linenumber);
             goto error;
          }
          if (!isxdigit(highch)) {
-            PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
+            PRINT_ERRORX("Line %" PRIu64 ": Unexpected '%c' (non-hex) input.\n", g.linenumber, highch);
             goto error;
          }
          if (!isxdigit(lowch)) {
-            PRINT_ERRORX("Line %"PRIu64": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
+            PRINT_ERRORX("Line %" PRIu64 ": Unexpected '%c' (non-hex) input.\n", g.linenumber, lowch);
             goto error;
          }
          if (idx == datasize[which]) {
@@ -807,7 +807,7 @@ int read_keys()
                 //Last entry had no newline.  Done.
                 break;
             }
-            PRINT_ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
+            PRINT_ERRORX("Line %" PRIu64 ": Key exists but value missing.", g.linenumber);
             goto error;
          }
          g.linenumber++;
@@ -840,13 +840,13 @@ int read_keys()
          }
          default: {
 unexpectedinput:
-            PRINT_ERRORX("Line %"PRIu64": Unexpected input while reading key.\n", g.linenumber);
+            PRINT_ERRORX("Line %" PRIu64 ": Unexpected input while reading key.\n", g.linenumber);
             goto error;
          }
       }
 
       if (g.eof) {
-         PRINT_ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
+         PRINT_ERRORX("Line %" PRIu64 ": Key exists but value missing.", g.linenumber);
          goto error;
       }
       g.linenumber++;
@@ -854,7 +854,7 @@ unexpectedinput:
       switch (spacech) {
          case (EOF): {
             g.eof = true;
-            PRINT_ERRORX("Line %"PRIu64": Unexpected end of file while reading value.\n", g.linenumber);
+            PRINT_ERRORX("Line %" PRIu64 ": Unexpected end of file while reading value.\n", g.linenumber);
             goto error;
          }
          case (' '): {
@@ -863,7 +863,7 @@ unexpectedinput:
             break;
          }
          default: {
-            PRINT_ERRORX("Line %"PRIu64": Unexpected input while reading value.\n", g.linenumber);
+            PRINT_ERRORX("Line %" PRIu64 ": Unexpected input while reading value.\n", g.linenumber);
             goto error;
          }
       }

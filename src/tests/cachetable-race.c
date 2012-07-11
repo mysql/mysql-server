@@ -31,7 +31,7 @@ DB_ENV *env;
 enum {NUM_DBS=5};
 
 char *free_me = NULL;
-char *env_dir = ENVDIR; // the default env_dir.
+const char *env_dir = ENVDIR; // the default env_dir.
 
 static void run_cachetable_race_test(void) 
 {
@@ -121,7 +121,8 @@ static void do_args(int argc, char * const argv[]) {
 	    char full_env_dir[len];
 	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
 	    assert(r<len);
-	    free_me = env_dir = toku_strdup(full_env_dir);
+	    env_dir = toku_strdup(full_env_dir);
+            free_me = (char *) env_dir;
         } else if (strcmp(argv[0], "-s")==0) {
 	    printf("\nTesting loader with size_factor=1\n");
 	    db_env_set_loader_size_factor(1);            

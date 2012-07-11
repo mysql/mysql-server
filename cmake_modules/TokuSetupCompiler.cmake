@@ -53,7 +53,7 @@ set_cflags_if_supported(
   )
 
 ## set extra debugging flags and preprocessor definitions
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -ggdb -O0")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g3 -ggdb -O1")
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG FORTIFY_SOURCE=2)
 
 ## set extra release flags, we overwrite this because the default passes -DNDEBUG and we don't want that
@@ -101,6 +101,8 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
 else()
   ## set gcc warnings
   set(CMAKE_C_FLAGS "-Wextra ${CMAKE_C_FLAGS}")
+  ## -Wc++-compat doesn't work with cmake's variable names so we do it individually here
+  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -Wc++-compat")
   set(WARN_CFLAGS
     -Wbad-function-cast
     -Wno-missing-noreturn
@@ -110,6 +112,18 @@ else()
     -Wpointer-arith
     -Wmissing-format-attribute
     )
+  if (WARN_ABOUT_PACKED)
+    list(APPEND WARN_CFLAGS -Wpacked -Wno-error=packed)
+  endif ()
+  ## other flags to try:
+  ##  -Wunsafe-loop-optimizations
+  ##  -Wpointer-arith
+  ##  -Wc++-compat
+  ##  -Wc++11-compat
+  ##  -Wwrite-strings
+  ##  -Wzero-as-null-pointer-constant
+  ##  -Wlogical-op
+  ##  -Wvector-optimization-performance
   if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
     message(WARNING "Disabling -Wcast-align and -Wshadow on osx.  TODO: fix casting and shadowed declarations and re-enable them.")
   elseif (CMAKE_C_COMPILER_ID STREQUAL Clang)

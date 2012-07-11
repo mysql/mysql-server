@@ -23,7 +23,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        ) {
     assert(flush_may_occur);
     if (!keep) {
-        int* foo = v;
+        int* foo = cast_to_typeof(foo) v;
         assert(*foo == 3);
         toku_free(v);
     }
@@ -41,7 +41,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
        void *extraargs    __attribute__((__unused__))
        ) {
     *dirtyp = 0;
-    int* foo = toku_malloc(sizeof(int));
+    int* XMALLOC(foo);
     *value = foo;
     *sizep = make_pair_attr(4);
     *foo = 4;
@@ -74,7 +74,7 @@ pe_callback (
 {
     *bytes_freed = make_pair_attr(bytes_to_free.size-1);
     expected_bytes_to_free--;
-    int* foo = ftnode_pv;
+    int* foo = cast_to_typeof(foo) ftnode_pv;
     int blah = *foo;
     *foo = blah-1;
     return 0;

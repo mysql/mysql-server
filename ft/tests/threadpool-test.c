@@ -20,8 +20,6 @@
 #include <toku_pthread.h>
 #include "threadpool.h"
 
-int verbose;
-
 struct my_threadpool {
     THREADPOOL threadpool;
     toku_mutex_t mutex;
@@ -57,7 +55,7 @@ my_threadpool_destroy (struct my_threadpool *my_threadpool, int max_threads) {
 
 static void *
 my_thread_f (void *arg) {
-    struct my_threadpool *my_threadpool = arg;
+    struct my_threadpool *my_threadpool = cast_to_typeof(my_threadpool) arg;
     toku_mutex_lock(&my_threadpool->mutex);
     my_threadpool->counter++;
     while (!my_threadpool->closed) {

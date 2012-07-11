@@ -48,7 +48,7 @@ static int poll_print(void *extra, float progress) {
     return 0;
 }
 
-char *src_name="src.db";
+const char *src_name="src.db";
 
 static void run_test(void) 
 {

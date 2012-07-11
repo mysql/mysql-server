@@ -59,8 +59,7 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree UU(), toku_rang
             temp_len = 1;
         while (temp_len < num) 
             temp_len *= 2;
-        toku_range* temp_buf = toku_xrealloc(*buf, temp_len * sizeof(toku_range));
-        *buf = temp_buf;
+        XREALLOC_N(temp_len, *buf);
         *buflen = temp_len;
     }
     return 0;

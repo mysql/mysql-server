@@ -7,7 +7,7 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
+const char *namea="a.db";
 
 DB_ENV *env;
 DB_TXN *tid;
@@ -68,7 +68,7 @@ do_x1_recover (BOOL UU(did_commit)) {
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, 0, S_IRWXU+S_IRWXG+S_IRWXO);                       CKERR(r);
     for (i=0; i<N; i++) {
 	r=db->get(db, tid, dbt_init(&key, keys[i], 1+strlen(keys[i])), dbt_init_malloc(&data), 0);     assert(r==0);
-	assert(strcmp(data.data, vals[i])==0);
+	assert(strcmp((char*)data.data, vals[i])==0);
 	toku_free(data.data);
 	data.data=0;
 	if (i%500==499) {

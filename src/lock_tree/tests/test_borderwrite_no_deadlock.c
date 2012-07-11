@@ -75,8 +75,10 @@ int main(int argc, const char *argv[]) {
     do_request_and_succeed(lt, &b_w_7);
     do_request_and_succeed(lt, &c_r_5);
 
-    do_request_that_blocks(lt, &a_w_5, 1, (TXNID[]){ txn_c });
-    do_request_that_blocks(lt, &b_w_1, 1, (TXNID[]){ txn_a });
+    TXNID ta1[] = { txn_c };
+    TXNID ta2[] = { txn_a };
+    do_request_that_blocks(lt, &a_w_5, 1, ta1);
+    do_request_that_blocks(lt, &b_w_1, 1, ta2);
 
     r = toku_lt_unlock_txn(lt, txn_c);
     CKERR(r);

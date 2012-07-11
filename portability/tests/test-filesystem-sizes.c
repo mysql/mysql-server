@@ -42,9 +42,9 @@ int test_main(int argc, char *const argv[]) {
         assert(avail_size <= free_size && free_size <= total_size);
     }
     if (verbose) {
-        printf("avail=%"PRIu64"\n", avail_size);
-        printf("free=%"PRIu64"\n", free_size);
-        printf("total=%"PRIu64"\n", total_size);
+        printf("avail=%" PRIu64 "\n", avail_size);
+        printf("free=%" PRIu64 "\n", free_size);
+        printf("total=%" PRIu64 "\n", total_size);
     }
 
     return 0;

@@ -27,9 +27,9 @@ struct le_cursor {
 int 
 toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE ft_handle, TOKUTXN txn) {
     int result = 0;
-    LE_CURSOR le_cursor = (LE_CURSOR) toku_malloc(sizeof (struct le_cursor));
+    LE_CURSOR MALLOC(le_cursor);
     if (le_cursor == NULL) {
-        result = errno;
+        result = get_error_errno();
     }
     else {
         result = toku_ft_cursor(ft_handle, &le_cursor->ft_cursor, txn, false, false);

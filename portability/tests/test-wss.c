@@ -38,11 +38,11 @@ int main(int argc, char *argv[]) {
 
     int64_t rss;
     toku_os_get_max_rss(&rss);
-    if (verbose) printf("%"PRId64"\n", rss);
+    if (verbose) printf("%" PRId64 "\n", rss);
     assert(rss < nbuffers*buffersize);
     do_mallocs();
     toku_os_get_max_rss(&rss);
-    if (verbose) printf("%"PRId64"\n", rss);
+    if (verbose) printf("%" PRId64 "\n", rss);
     assert(rss > nbuffers*buffersize);
 
     return 0;

@@ -51,8 +51,8 @@ int main(int argc, const char *argv[]) {
     const TXNID txn_a = 1;
     const TXNID txn_b = 2;
 
-    DBT key_l = { .data = "L", .size = 1 };
-    DBT key_m = { .data = "M", .size = 1 };
+    DBT key_l = { .data = (char *) "L", .size = 1 };
+    DBT key_m = { .data = (char *) "M", .size = 1 };
 
     // txn_a gets W(L)
     toku_lock_request a_w_l; toku_lock_request_init(&a_w_l, txn_a, &key_l, &key_l, LOCK_REQUEST_WRITE);

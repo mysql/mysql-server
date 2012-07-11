@@ -171,10 +171,10 @@ int create_logfiles() {
     u_int32_t num_fassociate = 0;
     u_int32_t num_xstillopen = 0;
     
-    bs_aname.len = 4; bs_aname.data="a.db";
-    bs_bname.len = 4; bs_bname.data="b.db";
-    bs_a.len = 2; bs_a.data="a";
-    bs_b.len = 2; bs_b.data="b";
+    bs_aname.len = 4; bs_aname.data=(char *)"a.db";
+    bs_bname.len = 4; bs_bname.data=(char *)"b.db";
+    bs_a.len = 2; bs_a.data=(char *)"a";
+    bs_b.len = 2; bs_b.data=(char *)"b";
     bs_empty.len = 0; bs_empty.data = NULL;
 
 

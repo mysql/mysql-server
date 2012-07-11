@@ -25,10 +25,8 @@ test_main (int UU(argc), char UU(*const argv[])) {
     r = system("rm -rf " ENVDIR);
     CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);         assert(r==0);
-    memset(&key, 0, sizeof(key));
-    memset(&data, 0, sizeof(data));
-    key.size = sizeof("name");
-    key.data = "name";
+    dbt_init(&key, "name", sizeof "name");
+    dbt_init(&data, NULL, 0);
     
     r=db_env_create(&env, 0);   assert(r==0);
     // Note: without DB_INIT_MPOOL the BDB library will fail on db->open().
@@ -40,8 +38,7 @@ test_main (int UU(argc), char UU(*const argv[])) {
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "first", DB_BTREE, DB_CREATE, 0666); CKERR(r);
-    data.size = sizeof("first.db");
-    data.data = "first.db";
+    dbt_init(&data, "first.db", sizeof "first.db");
     db->put(db, NULL, &key, &data, 0);
     r=db->close(db, 0);         assert(r==0);
 
@@ -49,19 +46,15 @@ test_main (int UU(argc), char UU(*const argv[])) {
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "second", DB_BTREE, DB_CREATE, 0666); assert(r==0);
-    key.size = sizeof("name");
-    key.data = "name";
-    data.size = sizeof("second.db");
-    data.data = "second.db";
+    dbt_init(&key, "name", sizeof "name");
+    dbt_init(&data, "second.db", sizeof "second.db");
     db->put(db, NULL, &key, &data, 0);
     r=db->close(db, 0);         assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "third", DB_BTREE, DB_CREATE, 0666); assert(r==0);
-    key.size = sizeof("name");
-    key.data = "name";
-    data.size = sizeof("third.db");
-    data.data = "third.db";
+    dbt_init(&key, "name", sizeof "name");
+    dbt_init(&data, "third.db", sizeof "third.db");
     db->put(db, NULL, &key, &data, 0);
     r=db->close(db, 0);         assert(r==0);
 
@@ -69,22 +62,20 @@ test_main (int UU(argc), char UU(*const argv[])) {
 
     r=env->dbremove(env, NULL, "master.db", "second", 0); assert(r==ENOENT);
 
-    memset(&key, 0, sizeof(key));
-    memset(&data, 0, sizeof(data));
-    key.size = sizeof("name");
-    key.data = "name";
+    dbt_init(&key, "name", sizeof "name");
+    dbt_init(&data, NULL, 0);
 
     //Verify data still exists in first/third
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "first", DB_BTREE, 0, 0666); assert(r==0);
     r=db->get(db, NULL, &key, &data, 0);    assert(r==0);
-    assert(!strcmp(data.data, "first.db"));
+    assert(!strcmp((char*)data.data, "first.db"));
     r=db->close(db, 0);         assert(r==0);
     
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", "third", DB_BTREE, 0, 0666); assert(r==0);
     r=db->get(db, NULL, &key, &data, 0);    assert(r==0);
-    assert(!strcmp(data.data, "third.db"));
+    assert(!strcmp((char*)data.data, "third.db"));
     r=db->close(db, 0);         assert(r==0);
     
     //Verify second is gone.

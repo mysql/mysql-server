@@ -115,7 +115,7 @@ test_main(int argc, char *const argv[]) {
             
             if (r == DB_BUFFER_SMALL) {
                 //The entire 'waste' is full of 0xFFs
-                DATA* entry = data.data;
+                DATA* entry = cast_to_typeof(entry) data.data;
                 was_truncated = entry->waste[0] != 0;
                 small_buffer = 1;
             }

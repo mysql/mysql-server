@@ -150,7 +150,7 @@ print_xids(XIDS xids) {
         printf("0");
     else {
         for (int i = 0; i < xids->num_xids; i++) {
-            printf("%"PRIu64, xids->ids[i]);
+            printf("%" PRIu64, xids->ids[i]);
             if (i+1 < xids->num_xids)
                 printf(",");
         }
@@ -239,7 +239,7 @@ test_lock_key(DB_INDEXER *indexer, TXNID xid, DB *hotdb, DBT *key) {
     invariant(hotdb == test_hotdb);
     TOKUTXN_STATE txn_state = test_xid_state(indexer, xid);
     invariant(txn_state == TOKUTXN_LIVE || txn_state == TOKUTXN_PREPARING);
-    printf("lock [%"PRIu64"] ", xid);
+    printf("lock [%" PRIu64 "] ", xid);
     print_dbt(key);
     printf("\n");
     return 0;
@@ -330,13 +330,13 @@ read_line(char **line_ptr, size_t *len_ptr, FILE *f) {
             if (c == '#')
                 in_comment = true;
             if (!in_comment) {
-                line = toku_realloc(line, len+1);
+                XREALLOC_N(len+1, line);
                 line[len++] = c;
             }
         }
     }
     if (len > 0) {
-        line = toku_realloc(line, len+1);
+        XREALLOC_N(len+1, line);
         line[len] = '\0';
     }
     *line_ptr = line;

@@ -1,11 +1,11 @@
 /* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: expandtab:ts=8:sw=4:softtabstop=4:
 #include <stdio.h>
-#include <assert.h>
 #include <string.h>
 #include <stdbool.h>
 #include <db.h>
 #include "tokudb_common_funcs.h"
+#include <assert.h>
 
 static int verbose = 0;
 static int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
@@ -13,8 +13,8 @@ static int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 
 int test_main(int argc, char * const argv[]) {
     int r;
-    char *envdir = "bench.tokudb";
-    char *dbfilename = "bench.db";
+    const char *envdir = "bench.tokudb";
+    const char *dbfilename = "bench.db";
     bool do_txns = false;
 
     for (int i = 1; i < argc; i++) {
@@ -50,7 +50,7 @@ int test_main(int argc, char * const argv[]) {
     if (verbose) {
         DB_BTREE_STAT64 s;
         r = db->stat64(db, NULL, &s); assert(r == 0);
-        printf("nkeys=%" PRIu64" dsize=%" PRIu64 "\n", s.bt_nkeys, s.bt_dsize);
+        printf("nkeys=%" PRIu64 " dsize=%" PRIu64 "\n", s.bt_nkeys, s.bt_dsize);
     }
 
     r = db->verify_with_progress(db, NULL, NULL, verbose > 0, false);

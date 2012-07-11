@@ -30,9 +30,6 @@
 #if defined(__cilkplusplus)
 #error DISABLING CILK ARTS CILK
 #endif
-#if defined(__cplusplus)
-#error DISABLING cplusplus
-#endif
 
 #if defined(HAVE_CILK)
 #include <cilk/cilk.h>
@@ -119,14 +116,14 @@ static int add_big_buffer(struct file_info *file) {
     if (file->buffer == NULL) {
         file->buffer = toku_malloc(file->buffer_size);
         if (file->buffer == NULL)
-            result = errno;
+            result = get_error_errno();
         else
             newbuffer = TRUE;
     }
     if (result == 0) {
         int r = setvbuf(file->file, (char *) file->buffer, _IOFBF, file->buffer_size);
         if (r != 0) {
-            result = errno;
+            result = get_error_errno();
             if (newbuffer) {
                 toku_free(file->buffer);
                 file->buffer = NULL;
@@ -152,7 +149,7 @@ int ft_loader_init_file_infos (struct file_infos *fi) {
     fi->n_files_extant = 0;
     MALLOC_N(fi->n_files_limit, fi->file_infos);
     if (fi->file_infos == NULL)
-        result = errno;
+        result = get_error_errno();
     return result;
 }
 
@@ -228,7 +225,7 @@ int ft_loader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
     invariant(fi->file_infos[i].is_extant);
     fi->file_infos[i].file = toku_os_fopen(fi->file_infos[i].fname, mode);
     if (fi->file_infos[i].file == NULL) { 
-        result = errno;
+        result = get_error_errno();
     } else {
         fi->file_infos[i].is_open = TRUE;
         // No longer need the big buffer for reopened files.  Don't allocate the space, we need it elsewhere.
@@ -250,7 +247,7 @@ int ft_loader_fi_close (struct file_infos *fi, FIDX idx, BOOL require_open)
         fi->file_infos[idx.idx].is_open = FALSE;
         int r = toku_os_fclose(fi->file_infos[idx.idx].file);
         if (r)
-            result = errno;
+            result = get_error_errno();
         cleanup_big_buffer(&fi->file_infos[idx.idx]);
     } else if (require_open)
         result = EINVAL;
@@ -270,7 +267,7 @@ int ft_loader_fi_unlink (struct file_infos *fi, FIDX idx) {
         fi->file_infos[id].is_extant = FALSE;
         int r = unlink(fi->file_infos[id].fname);  
         if (r != 0) 
-            result = errno;
+            result = get_error_errno();
         toku_free(fi->file_infos[id].fname);
         fi->file_infos[id].fname = NULL;
     } else
@@ -304,15 +301,15 @@ int ft_loader_open_temp_file (FTLOADER bl, FIDX *file_idx)
     int fd = -1;
     char *fname = toku_strdup(bl->temp_file_template);    
     if (fname == NULL)
-        result = errno;
+        result = get_error_errno();
     else {
         fd = mkstemp(fname);
         if (fd < 0) { 
-            result = errno;
+            result = get_error_errno();
         } else {
             f = toku_os_fdopen(fd, "r+");
             if (f == NULL)
-                result = errno;
+                result = get_error_errno();
             else
                 result = open_file_add(&bl->file_infos, f, fname, file_idx);
         }
@@ -489,7 +486,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 // Effect: Allocate and initialize a FTLOADER, but do not create the extractor thread.
 {
     FTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
-    if (!bl) return errno;
+    if (!bl) return get_error_errno();
 
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
@@ -516,8 +513,8 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     ft_loader_init_error_callback(&bl->error_callback);
     ft_loader_init_poll_callback(&bl->poll_callback);
 
-#define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = errno; toku_ft_loader_internal_destroy(bl, TRUE); return r; }
-#define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = errno; toku_ft_loader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
+#define MY_CALLOC_N(n,v) CALLOC_N(n,v); if (!v) { int r = get_error_errno(); toku_ft_loader_internal_destroy(bl, TRUE); return r; }
+#define SET_TO_MY_STRDUP(lval, s) do { char *v = toku_strdup(s); if (!v) { int r = get_error_errno(); toku_ft_loader_internal_destroy(bl, TRUE); return r; } lval = v; } while (0)
 
     MY_CALLOC_N(N, bl->root_xids_that_created);
     for (int i=0; i<N; i++) if (brts[i]) bl->root_xids_that_created[i]=brts[i]->ft->h->root_xid_that_created;
@@ -656,7 +653,7 @@ static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, FTLOADE
     if (r!=nmemb) {
         int e;
         if (os_fwrite_fun)    // if using hook to induce artificial errors (for testing) ...
-            e = errno;        // ... then there is no error in the stream, but there is one in errno
+            e = get_maybe_error_errno();        // ... then there is no error in the stream, but there is one in errno
         else
             e = ferror(stream);
         invariant(e!=0);
@@ -736,7 +733,7 @@ static int bl_read_dbt_from_dbufio (/*in*/DBT *dbt, DBUFIO_FILESET bfs, int file
         if (dbt->ulen<len) {
             void * data = toku_realloc(dbt->data, len);
             if (data==NULL) {
-                result = errno;
+                result = get_error_errno();
             } else {
                 dbt->ulen=len;
                 dbt->data=data;
@@ -837,14 +834,14 @@ int init_rowset (struct rowset *rows, uint64_t memory_budget)
     rows->n_rows_limit = 100;
     MALLOC_N(rows->n_rows_limit, rows->rows);
     if (rows->rows == NULL)
-        result = errno;
+        result = get_error_errno();
     rows->n_bytes = 0;
     rows->n_bytes_limit = (size_factor==1) ? 1024*size_factor*16 : memory_budget;
     //printf("%s:%d n_bytes_limit=%ld (size_factor based limit=%d)\n", __FILE__, __LINE__, rows->n_bytes_limit, 1024*size_factor*16);
     rows->data = (char *) toku_malloc(rows->n_bytes_limit);
     if (rows->rows==NULL || rows->data==NULL) {
         if (result == 0)
-            result = errno;
+            result = get_error_errno();
         toku_free(rows->rows);
         toku_free(rows->data);
         rows->rows = NULL;
@@ -884,7 +881,7 @@ int add_row (struct rowset *rows, DBT *key, DBT *val)
         rows->n_rows_limit *= 2;
         REALLOC_N(rows->n_rows_limit, rows->rows);
         if (rows->rows == NULL) {
-            result = errno;
+            result = get_error_errno();
             rows->rows = old_rows;
             rows->n_rows_limit = old_n_rows_limit;
             return result;
@@ -906,7 +903,7 @@ int add_row (struct rowset *rows, DBT *key, DBT *val)
         char *old_data = rows->data;
         REALLOC_N(rows->n_bytes_limit, rows->data);
         if (rows->data == NULL) {
-            result = errno;
+            result = get_error_errno();
             rows->data = old_data;
             rows->n_bytes_limit = old_n_bytes_limit;
             return result;
@@ -925,7 +922,7 @@ static int finish_primary_rows_internal (FTLOADER bl)
 // Be sure to destroy the rowsets.
 {
     int *MALLOC_N(bl->N, ra);
-    if (ra==NULL) return errno;
+    if (ra==NULL) return get_error_errno();
 
 #if defined(HAVE_CILK)
     #pragma cilk grainsize = 1
@@ -1378,7 +1375,7 @@ int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_d
     if (r2!=0) return r2;
 
     struct row *MALLOC_N(n, tmp); 
-    if (tmp == NULL) return errno;
+    if (tmp == NULL) return get_error_errno();
     {
         int r = merge_row_arrays(tmp, rows, mid, rows+mid, n-mid, which_db, dest_db, compare, bl, rowset);
         if (r!=0) {
@@ -1609,8 +1606,8 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     }
 
     pqueue_t      *pq = NULL;
-    pqueue_node_t *pq_nodes = (pqueue_node_t *)toku_malloc(n_sources * sizeof(pqueue_node_t)); // freed in cleanup
-    if (pq_nodes == NULL) { result = errno; }
+    pqueue_node_t *MALLOC_N(n_sources, pq_nodes); // freed in cleanup
+    if (pq_nodes == NULL) { result = get_error_errno(); }
 
     if (result==0) {
         int r = pqueue_init(&pq, n_sources, which_db, dest_db, compare, &bl->error_callback);
@@ -1711,7 +1708,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
                     toku_free(keys[mini].data);  keys[mini].data = NULL;
                     toku_free(vals[mini].data);  vals[mini].data = NULL;
                 } else {
-                    fprintf(stderr, "%s:%d r=%d errno=%d bfs=%p mini=%d\n", __FILE__, __LINE__, r, errno, bfs, mini);
+                    fprintf(stderr, "%s:%d r=%d errno=%d bfs=%p mini=%d\n", __FILE__, __LINE__, r, get_maybe_error_errno(), bfs, mini);
                     dbufio_print(bfs);
                     result = r;
                     break;
@@ -1774,12 +1771,12 @@ static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sou
     int result = 0;
     DBUFIO_FILESET bfs = NULL;
     int *MALLOC_N(n_sources, fds);
-    if (fds==NULL) result=errno;
+    if (fds==NULL) result=get_error_errno();
     if (result==0) {
         for (int i=0; i<n_sources; i++) {
             int r = fileno(toku_bl_fidx2file(bl, srcs_fidxs[i])); // we rely on the fact that when the files are closed, the fd is also closed.
             if (r==-1) {
-                result=errno;
+                result=get_error_errno();
                 break;
             }
             fds[i] = r;
@@ -2074,7 +2071,8 @@ static int allocate_block (struct dbout *out, int64_t *ret_block_number)
         }
         REALLOC_N(out->n_translations_limit, out->translation);
         if (out->translation == NULL) {
-            result = errno;
+            result = get_error_errno();
+            invariant(result);
             out->n_translations_limit = old_n_translations_limit;
             out->translation = old_translation;
             goto cleanup;
@@ -2095,7 +2093,7 @@ static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
         dbuf->buflen *= 2;
         REALLOC_N(dbuf->buflen, dbuf->buf);
         if (dbuf->buf == NULL) {
-            dbuf->error = errno;
+            dbuf->error = get_error_errno();
             dbuf->buf = oldbuf;
             dbuf->buflen = oldbuflen;
         }
@@ -2230,7 +2228,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     out.n_translations_limit = 4;
     MALLOC_N(out.n_translations_limit, out.translation);
     if (out.translation == NULL) {
-        result = errno;
+        result = get_error_errno();
         dbout_destroy(&out);
         drain_writer_q(q);
         toku_free(ft.h);
@@ -2245,7 +2243,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     sts.n_subtrees_limit = 1;
     MALLOC_N(sts.n_subtrees_limit, sts.subtrees);
     if (sts.subtrees == NULL) {
-        result = errno;
+        result = get_error_errno();
         subtrees_info_destroy(&sts);
         dbout_destroy(&out);
         drain_writer_q(q);
@@ -2436,7 +2434,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
 
     r = fsync(out.fd);
     if (r) {
-        result = errno; goto error;
+        result = get_error_errno(); goto error;
     }
 
     // Do we need to pay attention to user_said_stop?  Or should the guy at the other end of the queue pay attention and send in an EOF.
@@ -2445,7 +2443,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     {
         int rr = toku_os_close(fd);
         if (rr)
-            result = errno;
+            result = get_error_errno();
     }
     out.fd = -1;
 
@@ -2510,7 +2508,7 @@ static int loader_do_i (FTLOADER bl,
         mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
         int fd = toku_os_open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode); // #2621
         if (fd < 0) {
-            r = errno; goto error;
+            r = get_error_errno(); goto error;
         }
 
         uint32_t target_nodesize, target_basementnodesize;
@@ -2699,9 +2697,12 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
     // #3588 TODO can do the rebalancing here and avoid a lot of work later
     FTNODE leafnode = lbuf->node;
     uint32_t idx = toku_omt_size(BLB_BUFFER(leafnode, 0));
-    DBT thekey = { .data = key, .size = keylen }; 
-    DBT theval = { .data = val, .size = vallen };
-    FT_MSG_S cmd = { FT_INSERT, ZERO_MSN, lbuf->xids, .u.id = { &thekey, &theval } };
+    DBT thekey = { .data = key, .size = (uint32_t) keylen }; 
+    DBT theval = { .data = val, .size = (uint32_t) vallen };
+    FT_MSG_S cmd = { .type = FT_INSERT,
+                     .msn = ZERO_MSN,
+                     .xids = lbuf->xids,
+                     .u = { .id = { &thekey, &theval } } };
     uint64_t workdone=0;
     toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &workdone, stats_to_update);
 }
@@ -2786,7 +2787,7 @@ write_header (struct dbout *out, long long translation_location_on_disk, long lo
     struct wbuf wbuf;
     char *MALLOC_N(size, buf);
     if (buf == NULL) {
-        result = errno;
+        result = get_error_errno();
     } else {
         wbuf_init(&wbuf, buf, size);
         out->h->h->on_disk_stats = out->h->in_memory_stats;
@@ -2848,8 +2849,9 @@ static int setup_nonleaf_block (int n_children,
     int result = 0;
     
     DBT *MALLOC_N(n_children, pivots);
-    if (pivots == NULL)
-        result = errno;
+    if (pivots == NULL) {
+        result = get_error_errno();
+    }
 
     if (result == 0) {
         int r = read_some_pivots(pivots_file, n_children, bl, pivots);
@@ -2978,7 +2980,7 @@ static int write_nonleaves (FTLOADER bl, FIDX pivots_fidx, struct dbout *out, st
         //  3) We put the 16th pivot into the next pivots file.
         {
             int r = fseek(toku_bl_fidx2file(bl, pivots_fidx), 0, SEEK_SET);
-            if (r!=0) { invariant(errno!=0); return errno; }
+            if (r!=0) { return get_error_errno(); }
         }
 
         FIDX next_pivots_file;

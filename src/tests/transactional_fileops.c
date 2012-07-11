@@ -239,7 +239,7 @@ test_fileops_1(void) {
 
 
 static void
-verify_locked_open(char * name) {
+verify_locked_open(const char * name) {
     int r;
     DB_TXN * txn;
     DB * db;
@@ -253,7 +253,7 @@ verify_locked_open(char * name) {
 }
 
 static void
-verify_locked_remove(char * name) {
+verify_locked_remove(const char * name) {
     int r;
     DB_TXN * txn;
 
@@ -264,7 +264,7 @@ verify_locked_remove(char * name) {
 }
 
 static void
-verify_locked_rename(char * oldname, char * newname) {
+verify_locked_rename(const char * oldname, const char * newname) {
     int r;
     DB_TXN * txn;
 

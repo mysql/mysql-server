@@ -22,7 +22,7 @@ u_int64_t num_buffers_fetched;
 u_int64_t num_pivots_fetched;
 
 static void checkpoint_callback_1(void * extra) {
-    DB_ENV* env = extra;
+    DB_ENV* env = cast_to_typeof(env) extra;
     u_int64_t old_num_basements_decompressed = num_basements_decompressed;
     u_int64_t old_num_buffers_decompressed = num_buffers_decompressed;
     u_int64_t old_num_basements_fetched = num_basements_fetched;
@@ -58,16 +58,16 @@ static void checkpoint_callback_1(void * extra) {
         get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_PREFETCH") +
         get_engine_status_val(env, "FT_NUM_PIVOTS_FETCHED_WRITE");
         
-    printf("basements decompressed %"PRIu64" \n", num_basements_decompressed - old_num_basements_decompressed);
-    printf("buffers   decompressed %"PRIu64" \n", num_buffers_decompressed- old_num_buffers_decompressed);
-    printf("basements fetched      %"PRIu64" \n", num_basements_fetched - old_num_basements_fetched);
-    printf("buffers fetched        %"PRIu64" \n", num_buffers_fetched - old_num_buffers_fetched);
-    printf("pivots fetched         %"PRIu64" \n", num_pivots_fetched - old_num_pivots_fetched);
+    printf("basements decompressed %" PRIu64 " \n", num_basements_decompressed - old_num_basements_decompressed);
+    printf("buffers   decompressed %" PRIu64 " \n", num_buffers_decompressed- old_num_buffers_decompressed);
+    printf("basements fetched      %" PRIu64 " \n", num_basements_fetched - old_num_basements_fetched);
+    printf("buffers fetched        %" PRIu64 " \n", num_buffers_fetched - old_num_buffers_fetched);
+    printf("pivots fetched         %" PRIu64 " \n", num_pivots_fetched - old_num_pivots_fetched);
     printf("************************************************************\n");
 }
 
 static void checkpoint_callback_2(void * extra) {
-    DB_ENV* env = extra;
+    DB_ENV* env = cast_to_typeof(env) extra;
     num_basements_decompressed = 
         get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL") +
         get_engine_status_val(env, "FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE") +

@@ -42,9 +42,9 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, LSN lsn) {
 
 static int
 note_ft_used_in_txns_parent(OMTVALUE ftv, u_int32_t UU(index), void *txnv) {
-    TOKUTXN child = txnv;
+    TOKUTXN child = cast_to_typeof(child) txnv;
     TOKUTXN parent = child->parent;
-    FT ft = ftv;
+    FT ft = cast_to_typeof(ft) ftv;
     toku_txn_maybe_note_ft(parent, ft);
     if (ft->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
         //Pass magic "no rollback needed" flag to parent.

@@ -376,7 +376,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --periter N           how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
     fprintf(stderr, "    --env DIR\n");
     fprintf(stderr, "    --append              append to an existing file\n");
-    fprintf(stderr, "    --checkpoint-period %"PRIu32"       checkpoint period\n", checkpoint_period); 
+    fprintf(stderr, "    --checkpoint-period %" PRIu32 "       checkpoint period\n", checkpoint_period); 
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;

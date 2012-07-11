@@ -58,10 +58,10 @@ insert(int i, DB_TXN *txn)
     }
 }
 
-static void delete (int i, DB_TXN *x) {
+static void op_delete (int i, DB_TXN *x) {
     char hello[30];
     DBT key;
-    if (verbose>1) printf("delete %d\n", i);
+    if (verbose>1) printf("op_delete %d\n", i);
     snprintf(hello, sizeof(hello), "hello%04d", i);
     int r = db->del(db, x,
 		    dbt_init(&key,  hello, strlen(hello)+1),
@@ -106,7 +106,7 @@ setup (void) {
     r = env->txn_begin(env, 0, &XX, DB_TXN_SNAPSHOT);                                     CKERR(r);
     r = env->txn_begin(env, 0, &YY, DB_TXN_SNAPSHOT);                                     CKERR(r);
 
-    // Force XX to preceed YY by making XX read something.  (YY will delete everything in a moment).
+    // Force XX to preceed YY by making XX read something.  (YY will op_delete everything in a moment).
     {
 	DBC *cursor;
 	r = db->cursor(db, XX, &cursor, 0);                                               CKERR(r);
@@ -132,7 +132,7 @@ static void finish (void) {
 static void run_del_next (void) {
     DBC *cursor;
     int r;
-    for (int i=0; i<N; i++) delete(i+1, YY);
+    for (int i=0; i<N; i++) op_delete(i+1, YY);
 
     r = db->cursor(db, YY, &cursor, 0);                                               CKERR(r);
     if (verbose) printf("read_next\n");
@@ -149,7 +149,7 @@ static void run_del_next (void) {
 static void run_del_prev (void) {
     DBC *cursor;
     int r;
-    for (int i=0; i<N; i++) delete(i+1, YY);
+    for (int i=0; i<N; i++) op_delete(i+1, YY);
 
     r = db->cursor(db, YY, &cursor, 0);                                               CKERR(r);
     if (verbose) printf("read_prev\n");

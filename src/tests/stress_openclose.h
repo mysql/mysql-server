@@ -124,7 +124,7 @@ static int
 scan_some_dbs(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     int r = 0;
     verbose_printf("scanning some dbs\n");
-    struct scan_op_extra* extra = operation_extra;
+    struct scan_op_extra* extra = cast_to_typeof(extra) operation_extra;
     // scan every db, one by one, and verify that the contents are correct
     for (int i = 0; r == 0 && run_test && i < arg->cli->num_DBs; i++) {
         struct db_bucket *bucket = lock_and_maybe_open_some_db(arg);
@@ -206,12 +206,12 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     open_buckets = num_buckets;
     // each thread gets access to this array of db buckets, from 
     // which they can choose a random db to either touch or query
-    buckets = toku_malloc(sizeof(struct db_bucket) * num_buckets);
+    XMALLOC_N(num_buckets, buckets);
     for (int i = 0; i < num_buckets; i++) {
         struct db_bucket bucket = {
-            .is_open = true,
-            .db = dbp[i], 
             .env = env,
+            .db = dbp[i], 
+            .is_open = true
         };
         buckets[i] = bucket;
         toku_mutex_init(&buckets[i].mutex, NULL);

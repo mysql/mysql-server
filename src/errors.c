@@ -29,7 +29,7 @@ int toku_env_is_panicked(DB_ENV *dbenv /**< The environment to check */) {
 static void toku__ydb_error_file(const DB_ENV *env, BOOL use_stderr, 
                                   char errmsg[]) {
     /* Determine the error file to use */
-    FILE *efile=env->i->errfile;
+    FILE *efile = cast_to_typeof(efile) env->i->errfile;
     if (efile==NULL && env->i->errcall==0 && use_stderr) efile = stderr;
 
     /* Print out on a file */

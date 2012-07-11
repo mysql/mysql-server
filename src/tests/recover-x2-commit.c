@@ -22,13 +22,14 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
-char *nameb="b.db";
+const char *namea="a.db";
+const char *nameb="b.db";
 
 static void
-put (DB_TXN *txn, DB *db, char *key, char *data) {
-    DBT k = {.data = key,  .size=1+strlen(key) };
-    DBT d = {.data = data, .size=1+strlen(data)};
+put (DB_TXN *txn, DB *db, const char *key, const char *data) {
+    DBT k,d;
+    dbt_init(&k, key, 1+strlen(key));
+    dbt_init(&d, data, 1+strlen(data));
     int r = db->put(db, txn, &k, &d, 0);
     CKERR(r);
 }
@@ -63,14 +64,16 @@ do_x2_shutdown (BOOL do_commit) {
 }
 
 static void
-checkcurs (DBC *curs, int cursflags, char *key, char *val, BOOL expect_it) {
-    DBT k={.size=0}, v={.size=0};
+checkcurs (DBC *curs, int cursflags, const char *key, const char *val, BOOL expect_it) {
+    DBT k,v;
+    dbt_init(&k, NULL, 0);
+    dbt_init(&v, NULL, 0);
     int r = curs->c_get(curs, &k, &v, cursflags);
     if (expect_it) {
 	assert(r==0);
 	printf("Got %s expected %s\n", (char*)k.data, key);
-	assert(strcmp(k.data, key)==0);
-	assert(strcmp(v.data, val)==0);
+	assert(strcmp((char*)k.data, key)==0);
+	assert(strcmp((char*)v.data, val)==0);
     } else {
 	printf("Expected nothing, got r=%d\n", r);
 	assert(r!=0);

@@ -25,7 +25,7 @@ int main(int argc, char *const argv[]) {
     uint64_t maxdata;
     int r = toku_os_get_max_process_data_size(&maxdata);
     assert(r == 0);
-    if (verbose) printf("maxdata=%"PRIu64" 0x%"PRIx64"\n", maxdata, maxdata);
+    if (verbose) printf("maxdata=%" PRIu64 " 0x%" PRIx64 "\n", maxdata, maxdata);
 
     // check the data size
 #if __x86_64__

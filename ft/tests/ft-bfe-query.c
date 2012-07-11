@@ -20,7 +20,7 @@ static void
 test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     int r;
     brt_h->compare_fun = int64_key_cmp;    
-    FT_CURSOR cursor = toku_malloc(sizeof *cursor);
+    FT_CURSOR XMALLOC(cursor);
     FTNODE dn = NULL;
     PAIR_ATTR attr;
     
@@ -167,7 +167,7 @@ static void
 test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     int r;
     brt_h->compare_fun = int64_key_cmp;    
-    FT_CURSOR cursor = toku_malloc(sizeof *cursor);
+    FT_CURSOR XMALLOC(cursor);
     FTNODE dn = NULL;
     FTNODE_DISK_DATA ndd = NULL;
     PAIR_ATTR attr;

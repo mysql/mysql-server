@@ -282,7 +282,7 @@ decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompre
         result = EINVAL;
     } else {
         // decompress
-	toku_decompress(uncompress_ptr, uncompress_size, compress_ptr, compress_size);
+	toku_decompress((Bytef *) uncompress_ptr, uncompress_size, (Bytef *) compress_ptr, compress_size);
     }
     return result;
 }

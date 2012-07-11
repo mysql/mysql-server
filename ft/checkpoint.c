@@ -306,9 +306,9 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 void __attribute__((__constructor__)) toku_checkpoint_helgrind_ignore(void);
 void
 toku_checkpoint_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&cp_status, sizeof cp_status);
-    VALGRIND_HG_DISABLE_CHECKING(&locked_mo, sizeof locked_mo);
-    VALGRIND_HG_DISABLE_CHECKING(&locked_cs, sizeof locked_cs);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&cp_status, sizeof cp_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&locked_mo, sizeof locked_mo);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&locked_cs, sizeof locked_cs);
 }
 
 #undef SET_CHECKPOINT_FOOTPRINT

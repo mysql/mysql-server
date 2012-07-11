@@ -40,15 +40,15 @@ static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *
     abort();
 }
 
-static int write_dbfile (char *template, int n, char *output_name, BOOL expect_error, int testno) {
+static int write_dbfile (char *tf_template, int n, char *output_name, BOOL expect_error, int testno) {
     if (verbose) printf("test start %d %d testno=%d\n", n, expect_error, testno);
 
     int result = 0;
     DB *dest_db = NULL;
-    struct ft_loader_s bl = {
-        .temp_file_template = template,
-        .reserved_memory = 512*1024*1024,
-    };
+    struct ft_loader_s bl;
+    ZERO_STRUCT(bl);
+    bl.temp_file_template = tf_template;
+    bl.reserved_memory = 512*1024*1024;
     int r = ft_loader_init_file_infos(&bl.file_infos); CKERR(r);
     ft_loader_lock_init(&bl);
     ft_loader_set_fractal_workers_count_from_c(&bl);
@@ -61,10 +61,10 @@ static int write_dbfile (char *template, int n, char *output_name, BOOL expect_e
     uint64_t size_est = 0;
     init_rowset(&aset, toku_ft_loader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
-	DBT key = {.size=sizeof i,
-		   .data=&i};
-	DBT val = {.size=sizeof i,
-		   .data=&i};
+	DBT key;
+        toku_fill_dbt(&key, &i, sizeof i);
+	DBT val;
+        toku_fill_dbt(&val, &i, sizeof i);
 	add_row(&aset, &key, &val);
 	size_est += ft_loader_leafentry_size(key.size, val.size, TXNID_NONE);
     }
@@ -119,7 +119,8 @@ static int write_dbfile (char *template, int n, char *output_name, BOOL expect_e
     r = queue_destroy(q);
     assert(r==0);
 
-    DESCRIPTOR_S desc = {.dbt = (DBT){.size = 4, .data="abcd"}};
+    DESCRIPTOR_S desc;
+    toku_fill_dbt(&desc.dbt, "abcd", 4);
 
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
@@ -209,8 +210,8 @@ int test_main (int argc, const char *argv[]) {
     snprintf(unlink_all, strlen(directory)+20, "rm -rf %s", directory);
 
     int  templen = strlen(directory)+15;
-    char template[templen];
-    int tlen = snprintf(template, templen, "%s/tempXXXXXX", directory);
+    char tf_template[templen];
+    int tlen = snprintf(tf_template, templen, "%s/tempXXXXXX", directory);
     assert (tlen>0 && tlen<templen);
 
     char output_name[templen];
@@ -221,7 +222,7 @@ int test_main (int argc, const char *argv[]) {
     int r;
     r = system(unlink_all); CKERR(r);
     r = toku_os_mkdir(directory, 0755); CKERR(r);
-    r = write_dbfile(template, n, output_name, FALSE, 0); CKERR(r);
+    r = write_dbfile(tf_template, n, output_name, FALSE, 0); CKERR(r);
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
     if (verbose) printf("my_realloc_count=%d big_count=%d\n", my_realloc_count, my_big_realloc_count);
@@ -238,7 +239,7 @@ int test_main (int argc, const char *argv[]) {
         event_count_trigger = i;
         r = system(unlink_all); CKERR(r);
         r = toku_os_mkdir(directory, 0755); CKERR(r);
-        r = write_dbfile(template, n, output_name, TRUE, i);
+        r = write_dbfile(tf_template, n, output_name, TRUE, i);
         if (verbose) printf("event_count=%d\n", event_count);
         if (r == 0)
             break;

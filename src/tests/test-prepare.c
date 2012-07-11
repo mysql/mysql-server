@@ -31,7 +31,8 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
     CKERR(db_create(&db, *envp, 0));
     CKERR(db->open(db, NULL, "foo.db", 0, DB_BTREE, DB_CREATE | DB_AUTO_COMMIT, S_IRWXU+S_IRWXG+S_IRWXO));
     CKERR((*envp)->txn_begin(*envp, 0, &txn, 0));
-    DBT key={.size=4, .data="foo"};
+    DBT key;
+    dbt_init(&key, "foo", 4);
     CKERR(db->put(db, txn, &key, &key, 0));
     { int chk_r = db->close(db, 0); CKERR(chk_r); }
     u_int8_t gid[DB_GID_SIZE];

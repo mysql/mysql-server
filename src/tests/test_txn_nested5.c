@@ -284,7 +284,8 @@ futz_with_stack:
                 break;
             case 2:;
                 //do more work with this guy
-                int type = randomize_no_placeholder_type();
+                int type;
+                type = randomize_no_placeholder_type();
                 maybe_insert_or_delete(nest_level, type);
                 index_of_expected_value = nest_level;
                 continue; //transaction is still alive

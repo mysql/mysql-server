@@ -7,8 +7,8 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
-char *nameb="b.db";
+const char *namea="a.db";
+const char *nameb="b.db";
 
 static void run_test (BOOL do_commit, BOOL do_abort) {
     int r;
@@ -32,8 +32,9 @@ static void run_test (BOOL do_commit, BOOL do_abort) {
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
-	DBT a={.data="a", .size=2};
-	DBT b={.data="b", .size=2};
+        DBT a,b;
+        dbt_init(&a, "a", 2);
+        dbt_init(&b, "b", 2);
 	r = dba->put(dba, txn, &a, &b, 0);                                CKERR(r);
 	r = dbb->put(dbb, txn, &b, &a, 0);                                CKERR(r);
     }
@@ -72,8 +73,12 @@ static void run_recover (BOOL did_commit) {
     r = dbb->get_flags(dbb, &dbflags);                                                        CKERR(r);
     assert(dbflags == 0);
 
-    DBT aa={.size=0}, ab={.size=0};
-    DBT ba={.size=0}, bb={.size=0};
+    DBT aa, ab;
+    dbt_init(&aa, NULL, 0);
+    dbt_init(&ab, NULL, 0);
+    DBT ba, bb;
+    dbt_init(&ba, NULL, 0);
+    dbt_init(&bb, NULL, 0);
     DB_TXN *txn;
     DBC *ca,*cb;
     r = env->txn_begin(env, NULL, &txn, 0);                                                 CKERR(r);

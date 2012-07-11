@@ -33,13 +33,9 @@ test_main (int UU(argc), char UU(*const argv[])) {
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     {
-	DBT key,data;
-	memset(&key, 0, sizeof(key));
-	memset(&data, 0, sizeof(data));
-	key.data="hello";
-	key.size=6;
-	data.data="there";
-	data.size=6;
+        DBT key,data;
+        dbt_init(&key, "hello", sizeof "hello");
+        dbt_init(&data, "there", sizeof "there");
 	r=db->put(db, tid, &key, &data, 0);
 	CKERR(r);
     }

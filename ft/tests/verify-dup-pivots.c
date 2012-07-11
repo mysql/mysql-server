@@ -30,7 +30,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
 
     // apply an insert to the leaf node
     MSN msn = next_dummymsn();
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
     toku_ft_bn_apply_cmd_once(BLB(leafnode, 0), &cmd, idx, NULL, NULL, NULL);
 
     // dont forget to dirty the node
@@ -92,7 +92,10 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     // cleanup
     char fname[]= __SRCFILE__ ".ft_handle";
     r = unlink(fname);
-    assert(r == 0 || (r == -1 && errno == ENOENT));
+    if (r != 0) {
+        assert(r == -1);
+        assert(get_error_errno() == ENOENT);
+    }
 
     // create a cachetable
     CACHETABLE ct = NULL;

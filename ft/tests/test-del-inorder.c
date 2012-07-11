@@ -24,8 +24,7 @@ doit (void) {
     int r;
     
     fnamelen = strlen(__SRCFILE__) + 20;
-    fname = toku_malloc(fnamelen);
-    assert(fname!=0);
+    XMALLOC_N(fnamelen, fname);
 
     snprintf(fname, fnamelen, "%s.ft_handle", __SRCFILE__);
     r = toku_create_cachetable(&ct, 16*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);

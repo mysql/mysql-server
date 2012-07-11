@@ -339,8 +339,8 @@ static void test_cursor_next (void) {
 
 static int wrong_compare_fun(DB* UU(desc), const DBT *a, const DBT *b) {
     unsigned int i;
-    unsigned char *ad=a->data;
-    unsigned char *bd=b->data;
+    unsigned char *ad = cast_to_typeof(ad) a->data;
+    unsigned char *bd = cast_to_typeof(bd) b->data;
     unsigned int siz=a->size;
     assert(a->size==b->size);
     //assert(db==&nonce_db); // make sure the db was passed  down correctly
@@ -380,8 +380,10 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	b[2] = a[1] = (unsigned char)((i>>8)&255);
 	b[1] = a[2] = (unsigned char)((i>>16)&255);
 	b[0] = a[3] = (unsigned char)((i>>24)&255);
-	DBT kbt = {.size=sizeof(a), .data=a};
-	DBT vbt = {.size=sizeof(b), .data=b};
+	DBT kbt;
+        toku_fill_dbt(&kbt, a, sizeof a);
+	DBT vbt;
+        toku_fill_dbt(&vbt, b, sizeof b);
 	if (verbose)
 	    printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __SRCFILE__, __LINE__,
 		   ((char*)kbt.data)[0], ((char*)kbt.data)[1], ((char*)kbt.data)[2], ((char*)kbt.data)[3],
@@ -421,8 +423,10 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	    b[2] = a[1] = (unsigned char)((i>>8)&255);
 	    b[1] = a[2] = (unsigned char)((i>>16)&255);
 	    b[0] = a[3] = (unsigned char)((i>>24)&255);
-	    DBT kbt = {.size=sizeof(a), .data=a};
-	    DBT vbt = {.size=sizeof(b), .data=b};
+	    DBT kbt;
+            toku_fill_dbt(&kbt, a, sizeof a);
+	    DBT vbt;
+            toku_fill_dbt(&vbt, b, sizeof b);
 	    if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __SRCFILE__, __LINE__,
 			  ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
 			  ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
@@ -473,8 +477,8 @@ static void test_large_kv(int bsize, int ksize, int vsize) {
 
     DBT key, val;
     char *k, *v;
-    k = toku_malloc(ksize); assert(k); memset(k, 0, ksize);
-    v = toku_malloc(vsize); assert(v); memset(v, 0, vsize);
+    XCALLOC_N(ksize, k);
+    XCALLOC_N(vsize, v);
     toku_fill_dbt(&key, k, ksize);
     toku_fill_dbt(&val, v, vsize);
 
@@ -549,8 +553,10 @@ static void test_ft_delete_present(int n) {
     for (i=0; i<n; i++) {
         int k = toku_htonl(i);
 	int v = i;
-	DBT key = {.size=sizeof k, .data=&k};
-	DBT val = {.size=sizeof v, .data=&v};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
+	DBT val;
+        toku_fill_dbt(&val, &v, sizeof v);
         r = toku_ft_insert(t, &key, &val, 0);
         assert(r == 0);
     }
@@ -558,7 +564,8 @@ static void test_ft_delete_present(int n) {
     /* delete 0 .. n-1 */
     for (i=0; i<n; i++) {
         int k = toku_htonl(i);
-	DBT key = {.size=sizeof k, .data=&k};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
         r = toku_ft_delete(t, &key, null_txn);
         assert(r == 0);
     }
@@ -566,7 +573,8 @@ static void test_ft_delete_present(int n) {
     /* lookups should all fail */
     for (i=0; i<n; i++) {
         int k = toku_htonl(i);
-	DBT key = {.size=sizeof k, .data=&k};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
 	struct check_pair pair = {0, 0, 0, 0, 0};
         r = toku_ft_lookup(t, &key, lookup_checkf, &pair);
         assert(r == DB_NOTFOUND);
@@ -657,8 +665,10 @@ static void test_ft_delete_cursor_first(int n) {
     for (i=0; i<n; i++) {
         int k = toku_htonl(i);
 	int v = i;
-	DBT key = {.size=sizeof k, .data=&k};
-	DBT val = {.size=sizeof v, .data=&v};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
+	DBT val;
+        toku_fill_dbt(&val, &v, sizeof v);
         r = toku_ft_insert(t, &key, &val, 0);
         assert(r == 0);
     }
@@ -666,7 +676,8 @@ static void test_ft_delete_cursor_first(int n) {
     /* lookups 0 .. n-1 should succeed */
     for (i=0; i<n; i++) {
         int k = toku_htonl(i);
-	DBT key = {.size=sizeof k, .data=&k};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
 	int k2 = k;
 	int v = i;
 	struct check_pair pair = {sizeof k, &k2, sizeof v, &v, 0};
@@ -679,14 +690,16 @@ static void test_ft_delete_cursor_first(int n) {
     for (i=0; i<n-1; i++) {
 	{
 	    int k = toku_htonl(i);
-	    DBT key = {.size=sizeof k, .data=&k};
+	    DBT key;
+            toku_fill_dbt(&key, &k, sizeof k);
 	    r = toku_ft_delete(t, &key, null_txn);
 	    assert(r == 0);
 	}
 
 	{
 	    int k = toku_htonl(i);
-	    DBT key = {.size=sizeof k, .data=&k};
+	    DBT key;
+            toku_fill_dbt(&key, &k, sizeof k);
 	    struct check_pair pair = {0,0,0,0,0};
 	    r = toku_ft_lookup(t, &key, lookup_checkf, &pair);
 	    assert(r == DB_NOTFOUND);
@@ -697,7 +710,8 @@ static void test_ft_delete_cursor_first(int n) {
     /* lookup of 0 .. n-2 should all fail */
     for (i=0; i<n-1; i++) {
         int k = toku_htonl(i);
-	DBT key = {.size=sizeof k, .data=&k};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
 	struct check_pair pair = {0,0,0,0,0};
         r = toku_ft_lookup(t, &key, lookup_checkf, &pair);
         assert(r == DB_NOTFOUND);
@@ -750,8 +764,10 @@ static void test_insert_delete_lookup(int n) {
     for (i=0; i<n; i++) {
         int k = toku_htonl(i);
 	int v = i;
-	DBT key = {.size=sizeof k, .data=&k};
-	DBT val = {.size=sizeof v, .data=&v};
+	DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
+	DBT val;
+        toku_fill_dbt(&val, &v, sizeof v);
         r = toku_ft_insert(t, &key, &val, 0);
         assert(r == 0);
     }
@@ -759,13 +775,15 @@ static void test_insert_delete_lookup(int n) {
     if (n > 0) {
 	{
 	    int k = toku_htonl(n-1);
-	    DBT key = {.size=sizeof k, .data=&k};
+	    DBT key;
+            toku_fill_dbt(&key, &k, sizeof k);
 	    r = toku_ft_delete(t, &key, null_txn);
 	    assert(r == 0);
 	}
 	{
 	    int k = toku_htonl(n-1);
-	    DBT key = {.size=sizeof k, .data=&k};
+	    DBT key;
+            toku_fill_dbt(&key, &k, sizeof k);
 	    struct check_pair pair = {0,0,0,0,0};
 	    r = toku_ft_lookup(t, &key, lookup_checkf, &pair);
 	    assert(r == DB_NOTFOUND);
@@ -1124,7 +1142,8 @@ static void test_new_ft_cursor_set_range(int n) {
 
         int v = random() % (10*n);
         int k = toku_htonl(v);
-        DBT key = {.size=sizeof k, .data=&k};
+        DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
 
 	int vv = (((v+9)/10)*10); // This is the value we should actually find.
 
@@ -1180,7 +1199,8 @@ static void test_new_ft_cursor_set(int n, int cursor_op, DB *db) {
 
         int v = 10*(random() % n);
         int k = toku_htonl(v);
-        DBT key = {.size=sizeof k, .data=&k};
+        DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
 	struct check_pair pair = {sizeof k, &k, sizeof v, &v, 0};
         r = toku_ft_cursor_get(cursor, &key, lookup_checkf, &pair, cursor_op);
         assert(r == 0);
@@ -1193,7 +1213,8 @@ static void test_new_ft_cursor_set(int n, int cursor_op, DB *db) {
         if (i % 10 == 0)
             continue;
         int k = toku_htonl(i);
-        DBT key = {.size=sizeof k, .data=&k};
+        DBT key;
+        toku_fill_dbt(&key, &k, sizeof k);
 	struct check_pair pair = {0,0,0,0,0};
         r = toku_ft_cursor_get(cursor, &key, lookup_checkf, &pair, DB_SET);
         assert(r == DB_NOTFOUND);

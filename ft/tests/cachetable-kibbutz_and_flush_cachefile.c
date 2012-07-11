@@ -12,7 +12,7 @@ BOOL foo;
 //
 static void kibbutz_work(void *fe_v)
 {
-    CACHEFILE f1 = fe_v;
+    CACHEFILE f1 = cast_to_typeof(f1) fe_v;
     sleep(2);
     foo = TRUE;
     // note that we make the size 16 to induce an eviction

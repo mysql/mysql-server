@@ -10,8 +10,8 @@
 
 static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
-static char *namea="a.db"; uint32_t nodesizea = 0;
-static char *nameb="b.db"; uint32_t nodesizeb = 32*1024;
+static const char *namea="a.db"; uint32_t nodesizea = 0;
+static const char *nameb="b.db"; uint32_t nodesizeb = 32*1024;
 
 static void do_remove(DB_ENV *env, const char *filename) {
     int r;
@@ -23,7 +23,7 @@ static void do_remove(DB_ENV *env, const char *filename) {
     iname.flags |= DB_DBT_MALLOC;
     r = env->get_iname(env, &dname, &iname); CKERR(r);
     if (verbose) printf("%s -> %s\n", filename, (char *) iname.data);
-    char rmcmd[32 + strlen(ENVDIR) + strlen(iname.data)];
+    char rmcmd[32 + strlen(ENVDIR) + strlen((char*)iname.data)];
     sprintf(rmcmd, "rm %s/%s", ENVDIR, (char *) iname.data);
     r = system(rmcmd); CKERR(r);
     toku_free(iname.data);

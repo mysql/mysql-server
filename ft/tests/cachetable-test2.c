@@ -109,7 +109,7 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
         BOOL UU(is_clone)
                             ) {
     if (keep_me) return;
-    int *v = value;
+    int *v = cast_to_typeof(v) value;
     //toku_cachetable_print_state(ct);
     //printf("Flush %lld %d\n", key, (int)value);
     assert((long)v==(long)key.b);

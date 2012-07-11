@@ -48,7 +48,7 @@ static void
 hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
     u_int64_t n = size / 32;
     for (u_int64_t i = 0; i < n; i++) {
-	printf("%"PRIu64": ", offset);
+	printf("%" PRIu64 ": ", offset);
 	for (u_int64_t j = 0; j < 32; j++) {
 	    unsigned char c = vp[j];
 	    printf("%2.2X", c);
@@ -66,7 +66,7 @@ hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
     size = size % 32;
     for (u_int64_t i=0; i<size; i++) {
 	if ((i % 32) == 0)
-	    printf("%"PRIu64": ", offset+i);
+	    printf("%" PRIu64 ": ", offset+i);
 	printf("%2.2X", vp[i]);
 	if (((i+1) % 4) == 0)
 	    printf(" ");
@@ -79,13 +79,13 @@ hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
 static void
 dump_descriptor(DESCRIPTOR d) {
     printf(" descriptor size %u ", d->dbt.size);
-    simple_hex_dump(d->dbt.data, d->dbt.size);
+    simple_hex_dump((unsigned char*) d->dbt.data, d->dbt.size);
     printf("\n");
 }
 
 static void
 dump_header (int f, FT *header, CACHEFILE cf) {
-    FT ft;
+    FT ft = NULL;
     int r;
     char timestr[26];
     r = toku_deserialize_ft_from (f, MAX_LSN, &ft);
@@ -98,9 +98,9 @@ dump_header (int f, FT *header, CACHEFILE cf) {
     printf(" build_id=%d\n", ft->h->build_id);
     printf(" build_id_original=%d\n", ft->h->build_id_original);
     format_time(ft->h->time_of_creation, timestr);
-    printf(" time_of_creation=         %"PRIu64"    %s\n", ft->h->time_of_creation, timestr);
+    printf(" time_of_creation=         %" PRIu64 "    %s\n", ft->h->time_of_creation, timestr);
     format_time(ft->h->time_of_last_modification, timestr);
-    printf(" time_of_last_modification=%"PRIu64"    %s\n", ft->h->time_of_last_modification, timestr);
+    printf(" time_of_last_modification=%" PRIu64 "    %s\n", ft->h->time_of_last_modification, timestr);
     printf(" dirty=%d\n", ft->h->dirty);
     printf(" checkpoint_count=%" PRId64 "\n", ft->h->checkpoint_count);
     printf(" checkpoint_lsn=%" PRId64 "\n", ft->h->checkpoint_lsn.lsn);
@@ -117,7 +117,7 @@ dump_header (int f, FT *header, CACHEFILE cf) {
 
 static int
 print_le (OMTVALUE lev, u_int32_t UU(idx), void *UU(v)) {
-    LEAFENTRY le=lev;
+    LEAFENTRY le = cast_to_typeof(le) lev;
     print_leafentry(stdout, le);
     printf("\n");
     return 0;
@@ -147,7 +147,7 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
     printf(" layout_version_original=%d\n", n->layout_version_original);
     printf(" layout_version_read_from_disk=%d\n", n->layout_version_read_from_disk);
     printf(" build_id=%d\n", n->build_id);
-    printf(" max_msn_applied_to_node_on_disk=%"PRId64" (0x%"PRIx64")\n", n->max_msn_applied_to_node_on_disk.msn, n->max_msn_applied_to_node_on_disk.msn);
+    printf(" max_msn_applied_to_node_on_disk=%" PRId64 " (0x%" PRIx64 ")\n", n->max_msn_applied_to_node_on_disk.msn, n->max_msn_applied_to_node_on_disk.msn);
 
     printf(" n_children=%d\n", n->n_children);
     printf(" total_childkeylens=%u\n", n->totalchildkeylens);
@@ -173,7 +173,7 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
             if (dump_data) {
                 FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, typ, msn, xids, UU(is_fresh),
                              {
-                                 printf("    msn=%"PRIu64" (0x%"PRIx64") ", msn.msn, msn.msn);
+                                 printf("    msn=%" PRIu64 " (0x%" PRIx64 ") ", msn.msn, msn.msn);
                                  printf("    TYPE=");
                                  switch ((enum ft_msg_type)typ) {
                                  case FT_NONE: printf("NONE"); goto ok;
@@ -229,7 +229,7 @@ typedef struct {
 
 static int
 fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
-    frag_help_extra *info = extra;
+    frag_help_extra *info = cast_to_typeof(info) extra;
     FTNODE n;
     FTNODE_DISK_DATA ndd = NULL;
     struct ftnode_fetch_extra bfe;
@@ -278,8 +278,8 @@ typedef struct {
 
 static int
 garbage_leafentry_helper(OMTVALUE v, u_int32_t UU(idx), void *extra) {
-    garbage_help_extra *info = extra;
-    LEAFENTRY le = v;
+    garbage_help_extra *info = cast_to_typeof(info) extra;
+    LEAFENTRY le = cast_to_typeof(le) v;
     info->total_space += leafentry_disksize(le);
     info->used_space += LE_CLEAN_MEMSIZE(le_latest_keylen(le), le_latest_vallen(le));
     return 0;
@@ -287,7 +287,7 @@ garbage_leafentry_helper(OMTVALUE v, u_int32_t UU(idx), void *extra) {
 
 static int
 garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
-    garbage_help_extra *info = extra;
+    garbage_help_extra *info = cast_to_typeof(info) extra;
     FTNODE n;
     FTNODE_DISK_DATA ndd = NULL;
     struct ftnode_fetch_extra bfe;
@@ -380,21 +380,21 @@ verify_block(unsigned char *cp, u_int64_t file_offset, u_int64_t size) {
         u_int32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
-            printf(" fail %u offset %"PRIu64, xsum, file_offset + offset);
+            printf(" fail %u offset %" PRIu64, xsum, file_offset + offset);
         printf("\n");
         offset += sub_block[i].compressed_size;
     }
     if (offset != size)
-        printf("offset %u expected %"PRIu64"\n", offset, size);
+        printf("offset %u expected %" PRIu64 "\n", offset, size);
 }
 
 static void
 dump_block(int f, BLOCKNUM blocknum, FT h) {
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
-    printf("%"PRId64" at %"PRId64" size %"PRId64"\n", blocknum.b, offset, size);
+    printf("%" PRId64 " at %" PRId64 " size %" PRId64 "\n", blocknum.b, offset, size);
 
-    unsigned char *vp = toku_malloc(size);
+    unsigned char *vp = cast_to_typeof(vp) toku_malloc(size);
     u_int64_t r = pread(f, vp, size, offset);
     if (r == (u_int64_t)size) {
         verify_block(vp, offset, size);
@@ -404,7 +404,7 @@ dump_block(int f, BLOCKNUM blocknum, FT h) {
 
 static void
 dump_file(int f, u_int64_t offset, u_int64_t size, FILE *outfp) {
-    unsigned char *vp = toku_malloc(size);
+    unsigned char *XMALLOC_N(size, vp);
     u_int64_t r = pread(f, vp, size, offset);
     if (r == size) {
         if (outfp == stdout)
@@ -436,7 +436,12 @@ split_fields (char *line, char *fields[], int maxfields) {
     int i;
     for (i=0; i<maxfields; i++, line=NULL) {
         fields[i] = strtok(line, " ");
-        if (fields[i] == NULL) break;
+        if (fields[i] == NULL) {
+            for (; i < maxfields; ++i) {
+                fields[i] = NULL;
+            }
+            break;
+        }
     }
     return i;
 }
@@ -454,7 +459,7 @@ typedef struct __dump_node_extra {
 
 static int
 dump_node_wrapper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
-    dump_node_extra *info = extra;
+    dump_node_extra *info = cast_to_typeof(info) extra;
     dump_node(info->f, b, info->h);
     return 0;
 }
@@ -510,7 +515,7 @@ main (int argc, const char *const argv[]) {
     // create a cachefile for the header
     int r = toku_create_cachetable(&ct, 1<<25, (LSN){0}, 0);
     assert(r == 0);
-    CACHEFILE cf;
+    CACHEFILE cf = NULL;
     r = toku_cachetable_openfd (&cf, ct, f, n);
     assert(r==0);
     dump_header(f, &ft, cf);

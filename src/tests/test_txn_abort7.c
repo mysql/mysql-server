@@ -43,7 +43,7 @@ test_abort_create (void) {
             iname.flags |= DB_DBT_MALLOC;
             r = env->get_iname(env, &dname, &iname);
             CKERR(r);
-            filename = iname.data;
+            filename = cast_to_typeof(filename) iname.data;
             assert(filename);
         }
 #else

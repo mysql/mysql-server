@@ -70,6 +70,8 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
 #define XCALLOC(v) XCALLOC_N(1,(v))
 #define XREALLOC_N(n,v) v = cast_to_typeof(v) toku_xrealloc(v, (n)*sizeof(*v))
 
+#define XMEMDUP(dst, src) dst = cast_to_typeof(dst) toku_xmemdup(src, sizeof(*src))
+
 // ZERO_ARRAY writes zeroes to a stack-allocated array
 #define ZERO_ARRAY(o) do { memset((o), 0, sizeof (o)); } while (0)
 // ZERO_STRUCT writes zeroes to a stack-allocated struct
@@ -114,13 +116,21 @@ typedef struct memory_status {
     uint64_t used;            // number of bytes used (requested + overhead), obtained from malloc_usable_size()
     uint64_t freed;           // number of bytes freed;
     volatile uint64_t max_in_use;      // maximum memory footprint (used - freed), approximate (not worth threadsafety overhead for exact)
-    char *mallocator_version;
+    const char *mallocator_version;
     uint64_t mmap_threshold;
 } LOCAL_MEMORY_STATUS_S, *LOCAL_MEMORY_STATUS;
 
 void toku_memory_get_status(LOCAL_MEMORY_STATUS s);
 
 size_t toku_memory_footprint(void * p, size_t touched);
+
+#ifndef NVALGRIND
+# define HELGRIND_ANNOTATE_NEW_MEMORY(p, size) ANNOTATE_NEW_MEMORY(p, size)
+# define HELGRIND_VALGRIND_HG_DISABLE_CHECKING(p, size) VALGRIND_HG_DISABLE_CHECKING(p, size)
+#else
+# define HELGRIND_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
+# define HELGRIND_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)
+#endif
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 }

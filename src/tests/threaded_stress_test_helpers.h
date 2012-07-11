@@ -110,7 +110,7 @@ struct env_args {
     int cleaner_period;
     int cleaner_iterations;
     u_int64_t cachetable_size;
-    char *envdir;
+    const char *envdir;
     test_update_callback_f update_function; // update callback function
     test_generate_row_for_put_callback generate_put_callback;
     test_generate_row_for_del_callback generate_del_callback;    
@@ -207,7 +207,7 @@ static void increment_counter(void *extra, enum operation_type type, uint64_t in
     int t = (int) type;
     invariant(extra);
     invariant(t >= 0 && t < (int) NUM_OPERATION_TYPES);
-    uint64_t *counters = extra;
+    uint64_t *counters = cast_to_typeof(counters) extra;
     counters[t] += inc;
 }
 
@@ -240,16 +240,16 @@ human_print_perf_iteration(const struct cli_args *cli_args, const int current_ti
         for (int t = 0; t < num_threads; ++t) {
             const uint64_t last = last_counters[t][op];
             const uint64_t current = counters[t][op];
-            const uint64_t this = current - last;
+            const uint64_t this_iter = current - last;
             if (cli_args->print_thread_performance) {
-                const double persecond = (double) this / secondsthisiter;
-                printf("\t%'12"PRIu64" (%'12.1lf/s)", this, persecond);
+                const double persecond = (double) this_iter / secondsthisiter;
+                printf("\t%'12" PRIu64 " (%'12.1lf/s)", this_iter, persecond);
             }
-            period_total += this;
+            period_total += this_iter;
             last_counters[t][op] = current;
         }
         const double totalpersecond = (double) period_total / secondsthisiter;
-        printf("\tTotal %'12"PRIu64" (%'12.1lf/s)\n", period_total, totalpersecond);
+        printf("\tTotal %'12" PRIu64 " (%'12.1lf/s)\n", period_total, totalpersecond);
     }
 }
 
@@ -270,7 +270,7 @@ human_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], c
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
                 const double persecond = (double) current / cli_args->time_of_test;
-                printf("\t%s\t%'12"PRIu64" (%'12.1lf/s)", operation_names[op], current, persecond);
+                printf("\t%s\t%'12" PRIu64 " (%'12.1lf/s)", operation_names[op], current, persecond);
             }
             overall_totals[op] += current;
         }
@@ -281,7 +281,7 @@ human_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], c
     printf("All threads: ");
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
         const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
-        printf("\t%s\t%'12"PRIu64" (%'12.1lf/s)", operation_names[op], overall_totals[op], totalpersecond);
+        printf("\t%s\t%'12" PRIu64 " (%'12.1lf/s)", operation_names[op], overall_totals[op], totalpersecond);
     }
     printf("\n");
 }
@@ -314,18 +314,18 @@ csv_print_perf_iteration(const struct cli_args *cli_args, const int current_time
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
             const uint64_t last = last_counters[t][op];
             const uint64_t current = counters[t][op];
-            const uint64_t this = current - last;
+            const uint64_t this_iter = current - last;
             if (cli_args->print_thread_performance) {
-                const double persecond = (double) this / secondsthisiter;
-                printf(",%"PRIu64",%.1lf", this, persecond);
+                const double persecond = (double) this_iter / secondsthisiter;
+                printf(",%" PRIu64 ",%.1lf", this_iter, persecond);
             }
-            period_totals[op] += this;
+            period_totals[op] += this_iter;
             last_counters[t][op] = current;
         }
     }
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
         const double totalpersecond = (double) period_totals[op] / secondsthisiter;
-        printf(",%"PRIu64",%.1lf", period_totals[op], totalpersecond);
+        printf(",%" PRIu64 ",%.1lf", period_totals[op], totalpersecond);
     }
     printf("\n");
 }
@@ -340,14 +340,14 @@ csv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], con
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
                 const double persecond = (double) current / cli_args->time_of_test;
-                printf(",%"PRIu64",%.1lf", current, persecond);
+                printf(",%" PRIu64 ",%.1lf", current, persecond);
             }
             overall_totals[op] += current;
         }
     }
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
         const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
-        printf(",%"PRIu64",%.1lf", overall_totals[op], totalpersecond);
+        printf(",%" PRIu64 ",%.1lf", overall_totals[op], totalpersecond);
     }
     printf("\n");
 }
@@ -380,18 +380,18 @@ tsv_print_perf_iteration(const struct cli_args *cli_args, const int current_time
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
             const uint64_t last = last_counters[t][op];
             const uint64_t current = counters[t][op];
-            const uint64_t this = current - last;
+            const uint64_t this_iter = current - last;
             if (cli_args->print_thread_performance) {
-                const double persecond = (double) this / secondsthisiter;
-                printf("\t%"PRIu64"\t%.1lf", this, persecond);
+                const double persecond = (double) this_iter / secondsthisiter;
+                printf("\t%" PRIu64 "\t%.1lf", this_iter, persecond);
             }
-            period_totals[op] += this;
+            period_totals[op] += this_iter;
             last_counters[t][op] = current;
         }
     }
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
         const double totalpersecond = (double) period_totals[op] / secondsthisiter;
-        printf("\t%"PRIu64"\t%.1lf", period_totals[op], totalpersecond);
+        printf("\t%" PRIu64 "\t%.1lf", period_totals[op], totalpersecond);
     }
     printf("\n");
 }
@@ -406,14 +406,14 @@ tsv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], con
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
                 const double persecond = (double) current / cli_args->time_of_test;
-                printf("\t%"PRIu64"\t%.1lf", current, persecond);
+                printf("\t%" PRIu64 "\t%.1lf", current, persecond);
             }
             overall_totals[op] += current;
         }
     }
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
         const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
-        printf("\t%"PRIu64"\t%.1lf", overall_totals[op], totalpersecond);
+        printf("\t%" PRIu64 "\t%.1lf", overall_totals[op], totalpersecond);
     }
     printf("\n");
 }
@@ -522,7 +522,7 @@ static void unlock_worker_op(struct worker_extra* we) {
 
 static void *worker(void *arg_v) {
     int r;
-    struct worker_extra* we = arg_v;
+    struct worker_extra* we = cast_to_typeof(we) arg_v;
     ARG arg = we->thread_arg;
     struct random_data random_data;
     ZERO_STRUCT(random_data);
@@ -550,7 +550,7 @@ static void *worker(void *arg_v) {
             u_int8_t gid[DB_GID_SIZE];
             memset(gid, 0, DB_GID_SIZE);
             u_int64_t gid_val = txn->id64(txn);
-            u_int64_t *gid_count_p = (void *)gid;  // make gcc --happy about -Wstrict-aliasing
+            u_int64_t *gid_count_p = cast_to_typeof(gid_count_p) gid;  // make gcc --happy about -Wstrict-aliasing
             *gid_count_p = gid_val;
             int rr = txn->prepare(txn, gid);
             assert_zero(rr);
@@ -601,7 +601,7 @@ struct scan_op_extra {
 
 static int
 scan_cb(const DBT *a, const DBT *b, void *arg_v) {
-    SCAN_CB_EXTRA cb_extra = arg_v;
+    SCAN_CB_EXTRA cb_extra = cast_to_typeof(cb_extra) arg_v;
     assert(a);
     assert(b);
     assert(cb_extra);
@@ -651,7 +651,7 @@ static int scan_op_and_maybe_check_sum(
         r = 0;
     }
     if (check_sum && e.curr_sum) {
-        printf("e.curr_sum: %"PRId64" e.num_elements: %"PRId64" \n", e.curr_sum, e.num_elements);
+        printf("e.curr_sum: %" PRId64 " e.num_elements: %" PRId64 " \n", e.curr_sum, e.num_elements);
         assert(false);
     }
     return r;
@@ -726,8 +726,8 @@ size_t_max(size_t a, size_t b) {
 static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     int r = 0;
     uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
-    uint64_t *rand_key_key = (void *) rand_key_b;
-    uint16_t *rand_key_i = (void *) rand_key_b;
+    uint64_t *rand_key_key = cast_to_typeof(rand_key_key) rand_key_b;
+    uint16_t *rand_key_i = cast_to_typeof(rand_key_i) rand_key_b;
     ZERO_ARRAY(rand_key_b);
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
@@ -772,8 +772,8 @@ static int UU() random_put_multiple_op(DB_TXN *txn, ARG arg, void *UU(operation_
 
     int r = 0;
     uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
-    uint64_t *rand_key_key = (void *) rand_key_b;
-    uint16_t *rand_key_i = (void *) rand_key_b;
+    uint64_t *rand_key_key = cast_to_typeof(rand_key_key) rand_key_b;
+    uint16_t *rand_key_i = cast_to_typeof(rand_key_i) rand_key_b;
     ZERO_ARRAY(rand_key_b);
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
@@ -832,15 +832,15 @@ struct serial_put_extra {
 };
 
 static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra) {
-    struct serial_put_extra *extra = operation_extra;
+    struct serial_put_extra *extra = cast_to_typeof(extra) operation_extra;
 
     int db_index = arg->thread_idx % arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
 
     int r = 0;
     uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
-    uint64_t *rand_key_key = (void *) rand_key_b;
-    uint16_t *rand_key_i = (void *) rand_key_b;
+    uint64_t *rand_key_key = cast_to_typeof(rand_key_key) rand_key_b;
+    uint16_t *rand_key_i = cast_to_typeof(rand_key_i) rand_key_b;
     ZERO_ARRAY(rand_key_b);
     uint8_t valbuf[arg->cli->val_size];
     ZERO_ARRAY(valbuf);
@@ -935,7 +935,7 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
 }
 
 static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {
-    struct scan_op_extra* extra = operation_extra;
+    struct scan_op_extra* extra = cast_to_typeof(extra) operation_extra;
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, true);
         assert_zero(r);
@@ -944,7 +944,7 @@ static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *U
 }
 
 static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
-    struct scan_op_extra* extra = operation_extra;
+    struct scan_op_extra* extra = cast_to_typeof(extra) operation_extra;
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, false);
         assert_zero(r);
@@ -1013,7 +1013,7 @@ struct update_op_extra {
         } d;
         struct {
             int expected;
-            int new;
+            int new_val;
         } h;
     } u;
 };
@@ -1044,7 +1044,7 @@ static int update_op_callback(DB *UU(db), const DBT *UU(key),
         old_int_val = *(int*)old_val->data;
     }
     assert(extra->size == sizeof(struct update_op_extra));
-    struct update_op_extra *e = extra->data;
+    struct update_op_extra *e = cast_to_typeof(e) extra->data;
 
     int new_int_val;
     switch (e->type) {
@@ -1056,7 +1056,7 @@ static int update_op_callback(DB *UU(db), const DBT *UU(key),
         break;
     case UPDATE_WITH_HISTORY:
         assert(old_int_val == e->u.h.expected);
-        new_int_val = e->u.h.new;
+        new_int_val = e->u.h.new_val;
         break;
     default:
         assert(FALSE);
@@ -1126,7 +1126,7 @@ UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
     DBT key, val;
     int rand_key;
     update_count++;
-    struct update_op_args* op_args = operation_extra;
+    struct update_op_args* op_args = cast_to_typeof(op_args) operation_extra;
     struct update_op_extra extra;
     ZERO_STRUCT(extra);
     extra.type = UPDATE_ADD_DIFF;
@@ -1189,7 +1189,7 @@ UU() update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
 }
 
 static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
-    struct update_op_args* op_args = operation_extra;
+    struct update_op_args* op_args = cast_to_typeof(op_args) operation_extra;
     assert(arg->bounded_element_range);
     assert(op_args->update_history_buffer);
     int r;
@@ -1210,14 +1210,14 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     }
     for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
         rand_key = myrandom_r(arg->random_data) % arg->cli->num_elements;
-        extra.u.h.new = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
+        extra.u.h.new_val = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
         // just make every other value random
         if (i%2 == 0) {
-            extra.u.h.new = -extra.u.h.new;
+            extra.u.h.new_val = -extra.u.h.new_val;
         }
-        curr_val_sum += extra.u.h.new;
+        curr_val_sum += extra.u.h.new_val;
         extra.u.h.expected = op_args->update_history_buffer[rand_key];
-        op_args->update_history_buffer[rand_key] = extra.u.h.new;
+        op_args->update_history_buffer[rand_key] = extra.u.h.new_val;
         r = db->update(
             db,
             txn,
@@ -1232,13 +1232,13 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
     //
     // now put in one more to ensure that the sum stays 0
     //
-    extra.u.h.new = -curr_val_sum;
+    extra.u.h.new_val = -curr_val_sum;
     rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
         rand_key = rand_key % arg->cli->num_elements;
     }
     extra.u.h.expected = op_args->update_history_buffer[rand_key];
-    op_args->update_history_buffer[rand_key] = extra.u.h.new;
+    op_args->update_history_buffer[rand_key] = extra.u.h.new_val;
     r = db->update(
         db,
         txn,
@@ -1325,7 +1325,7 @@ struct test_time_extra {
 };
 
 static void *test_time(void *arg) {
-    struct test_time_extra* tte = arg;
+    struct test_time_extra* tte = cast_to_typeof(tte) arg;
     int num_seconds = tte->num_seconds;
     const struct perf_formatter *perf_formatter = &perf_formatters[tte->cli_args->perf_output_format];
 
@@ -1527,7 +1527,8 @@ static int fill_table_from_fun(DB *db, int num_elements, int key_bufsz, int val_
 }
 
 static void zero_element_callback(int idx, void *UU(extra), void *keyv, int *keysz, void *valv, int *valsz) {
-    int *key = keyv, *val = valv;
+    int *key = cast_to_typeof(key) keyv;
+    int *val = cast_to_typeof(val) valv;
     *key = idx;
     *val = 0;
     *keysz = sizeof(int);
@@ -1559,7 +1560,7 @@ static void do_xa_recovery(DB_ENV* env) {
     while(r==0 && num_recovered > 0) {
         DB_TXN* recovered_txn = preplist[0].txn;
         if (verbose) {
-            printf("recovering transaction with id %"PRIu64" \n", recovered_txn->id64(recovered_txn));
+            printf("recovering transaction with id %" PRIu64 " \n", recovered_txn->id64(recovered_txn));
         }
         if (random() % 2 == 0) {
             int rr = recovered_txn->commit(recovered_txn, 0);
@@ -1678,6 +1679,7 @@ static struct cli_args UU() get_default_args(void) {
         .print_performance = false,
         .print_thread_performance = true,
         .print_iteration_performance = true,
+        .perf_output_format = HUMAN,
         .performance_period = 1,
         .txn_size = 1000,
         .key_size = MIN_KEY_SIZE,
@@ -1699,13 +1701,13 @@ static struct cli_args UU() get_default_args_for_perf(void) {
 }
 
 union val_type {
-    int32_t  i32;
-    int64_t  i64;
-    uint32_t u32;
-    uint64_t u64;
-    bool     b;
-    double   d;
-    char    *s;
+    int32_t     i32;
+    int64_t     i64;
+    uint32_t    u32;
+    uint64_t    u64;
+    bool        b;
+    double      d;
+    const char *s;
 };
 
 struct arg_type;
@@ -1723,11 +1725,11 @@ struct type_description {
 };
 
 struct arg_type {
-    char                    *name;
+    const char              *name;
     struct type_description *description;
     union val_type           default_val;
     void                    *target;
-    char                    *help_suffix;
+    const char              *help_suffix;
     union val_type           min;
     union val_type           max;
 };
@@ -1755,7 +1757,7 @@ DEFINE_NUMERIC_HELP(double, ".2lf",  d, -HUGE_VAL, HUGE_VAL)
 static inline void
 help_bool(struct arg_type *type, int width_name, int width_type) {
     invariant(strncmp("--", type->name, strlen("--")));
-    char *default_value = type->default_val.b ? "yes" : "no";
+    const char *default_value = type->default_val.b ? "yes" : "no";
     fprintf(stderr, "\t--[no-]%-*s  %-*s  (default %s)\n",
             width_name - (int)strlen("--[no-]"), type->name,
             width_type, type->description->type_name,
@@ -1765,7 +1767,7 @@ help_bool(struct arg_type *type, int width_name, int width_type) {
 static inline void
 help_string(struct arg_type *type, int width_name, int width_type) {
     invariant(!strncmp("--", type->name, strlen("--")));
-    char *default_value = type->default_val.s ? type->default_val.s : "";
+    const char *default_value = type->default_val.s ? type->default_val.s : "";
     fprintf(stderr, "\t%-*s  %-*s  (default '%s')\n",
             width_name, type->name,
             width_type, type->description->type_name,
@@ -1781,7 +1783,7 @@ match_name(struct arg_type *type, char *const argv[]) {
 static inline bool
 match_bool(struct arg_type *type, char *const argv[]) {
     invariant(strncmp("--", type->name, strlen("--")));
-    char *string = argv[1];
+    const char *string = argv[1];
     if (strncmp(string, "--", strlen("--"))) {
         return false;
     }
@@ -1794,7 +1796,7 @@ match_bool(struct arg_type *type, char *const argv[]) {
 
 static inline int
 parse_bool(struct arg_type *type, int *extra_args_consumed, int UU(argc), char *const argv[]) {
-    char *string = argv[1];
+    const char *string = argv[1];
     if (!strncmp(string, "--no-", strlen("--no-"))) {
         *((bool *)type->target) = false;
     }
@@ -1810,7 +1812,7 @@ parse_string(struct arg_type *type, int *extra_args_consumed, int argc, char *co
     if (argc < 2) {
         return EINVAL;
     }
-    *((char **)type->target) = argv[2];
+    *((const char **)type->target) = argv[2];
     *extra_args_consumed = 1;
     return 0;
 }
@@ -1963,7 +1965,7 @@ struct type_description type_bool = {
 #define ARG_HELP(type, rest...) type->description->help(type, rest)
 
 static inline void
-do_usage(const char *argv0, int n, struct arg_type types[n]) {
+do_usage(const char *argv0, int n, struct arg_type types[/*n*/]) {
 //    fprintf(stderr, "\t--compressibility               DOUBLE (default %.2f, minimum %.2f, maximum %.2f)\n",
 //            default_args.compressibility, MIN_COMPRESSIBILITY, MAX_COMPRESSIBILITY);
     fprintf(stderr, "Usage:\n");
@@ -2007,6 +2009,10 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         MAKE_ARG(name_string, type_uint32, u32, variable, suffix, min, max)
 #define UINT64_ARG(name_string, variable, suffix) \
         MAKE_ARG(name_string, type_uint64, u64, variable, suffix, 0, UINT64_MAX)
+#define INT32_ARG_NONNEG(name_string, variable, suffix) \
+        MAKE_ARG(name_string, type_int32, i32, variable, suffix, 0, INT32_MAX)
+#define INT32_ARG_R(name_string, variable, suffix, min, max) \
+        MAKE_ARG(name_string, type_int32, i32, variable, suffix, min, max)
 #define DOUBLE_ARG_R(name_string, variable, suffix, min, max) \
         MAKE_ARG(name_string, type_double, d, variable, suffix, min, max)
 #define BOOL_ARG(name_string, variable) \
@@ -2018,20 +2024,20 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
 
     const char *perf_format_s = NULL;
     struct arg_type arg_types[] = {
-        UINT32_ARG("--num_elements",            num_elements,                  ""),
-        UINT32_ARG("--num_DBs",                 num_DBs,                       ""),
-        UINT32_ARG("--num_seconds",             time_of_test,                  "s"),
-        UINT32_ARG("--node_size",               env_args.node_size,            " bytes"),
-        UINT32_ARG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
-        UINT32_ARG("--checkpointing_period",    env_args.checkpointing_period, "s"),
-        UINT32_ARG("--cleaner_period",          env_args.cleaner_period,       "s"),
-        UINT32_ARG("--cleaner_iterations",      env_args.cleaner_iterations,   ""),
-        UINT32_ARG("--update_broadcast_period", update_broadcast_period_ms,    "ms"),
-        UINT32_ARG("--num_ptquery_threads",     num_ptquery_threads,           " threads"),
-        UINT32_ARG("--num_put_threads",         num_put_threads,               " threads"),
-        UINT32_ARG("--num_update_threads",      num_update_threads,            " threads"),
+        INT32_ARG_NONNEG("--num_elements",            num_elements,                  ""),
+        INT32_ARG_NONNEG("--num_DBs",                 num_DBs,                       ""),
+        INT32_ARG_NONNEG("--num_seconds",             time_of_test,                  "s"),
+        INT32_ARG_NONNEG("--node_size",               env_args.node_size,            " bytes"),
+        INT32_ARG_NONNEG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
+        INT32_ARG_NONNEG("--checkpointing_period",    env_args.checkpointing_period, "s"),
+        INT32_ARG_NONNEG("--cleaner_period",          env_args.cleaner_period,       "s"),
+        INT32_ARG_NONNEG("--cleaner_iterations",      env_args.cleaner_iterations,   ""),
+        INT32_ARG_NONNEG("--update_broadcast_period", update_broadcast_period_ms,    "ms"),
+        INT32_ARG_NONNEG("--num_ptquery_threads",     num_ptquery_threads,           " threads"),
+        INT32_ARG_NONNEG("--num_put_threads",         num_put_threads,               " threads"),
+        INT32_ARG_NONNEG("--num_update_threads",      num_update_threads,            " threads"),
         UINT32_ARG("--txn_size",                txn_size,                      " rows"),
-        UINT32_ARG_R("--performance_period",      performance_period,          "s", 1, UINT32_MAX),
+        INT32_ARG_R("--performance_period",      performance_period,          "s", 1, INT32_MAX),
 
         UINT64_ARG("--cachetable_size",         env_args.cachetable_size,      " bytes"),
 

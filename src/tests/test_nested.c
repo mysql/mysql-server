@@ -23,10 +23,10 @@ static void insert (int i, DB_TXN *x) {
     CKERR(r);
 }
 
-static void delete (int i, DB_TXN *x) {
+static void op_delete (int i, DB_TXN *x) {
     char hello[30];
     DBT key;
-    if (verbose) printf("delete %d\n", i);
+    if (verbose) printf("op_delete %d\n", i);
     snprintf(hello, sizeof(hello), "hello%d", i);
     int r = db->del(db, x,
 		    dbt_init(&key,  hello, strlen(hello)+1),
@@ -49,7 +49,7 @@ static void lookup (int i, DB_TXN *x, int expect) {
 	CKERR(r);
 	snprintf(there, sizeof(there), "there%d", i);
 	assert(data.size==strlen(there)+1);
-	assert(strcmp(data.data, there)==0);
+	assert(strcmp((char*)data.data, there)==0);
     }
 }
 
@@ -81,10 +81,10 @@ test_nested (void) {
     r=txn->commit(txn, 0);    assert(r==0);
 
     r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
-    delete(0, txn);
-    delete(3, txn);
+    op_delete(0, txn);
+    op_delete(3, txn);
     r=env->txn_begin(env, txn, &txn2, 0); CKERR(r);
-    delete(1, txn2);                     CKERR(r);
+    op_delete(1, txn2);                     CKERR(r);
     lookup(3, txn2, DB_NOTFOUND);
     insert(3, txn2);
     lookup(3, txn2, 0);
@@ -106,7 +106,7 @@ test_nested (void) {
     r=txn->commit(txn, 0); CKERR(r);
     r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
     r=env->txn_begin(env, txn, &txn2, 0); CKERR(r);
-    delete(4, txn2);
+    op_delete(4, txn2);
     r=txn->commit(txn2, 0); CKERR(r);
     lookup(4, txn, DB_NOTFOUND);
     insert(4, txn);
@@ -123,7 +123,7 @@ test_nested (void) {
     lookup(5, txn, 0);
     r=env->txn_begin(env, txn, &txn2, 0); CKERR(r);
     lookup(5, txn2, 0);
-    delete(5, txn2);
+    op_delete(5, txn2);
     r=txn->commit(txn2, 0); CKERR(r);
     lookup(5, txn, DB_NOTFOUND);
     r=txn->commit(txn, 0); CKERR(r);
@@ -135,7 +135,7 @@ test_nested (void) {
     r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
     insert(6, txn);
     r=env->txn_begin(env, txn, &txn2, 0); CKERR(r);
-    delete(6, txn2);
+    op_delete(6, txn2);
     r=txn->commit(txn2, 0); CKERR(r);
     r=txn->commit(txn, 0); CKERR(r);
 

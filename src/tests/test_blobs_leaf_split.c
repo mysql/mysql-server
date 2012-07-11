@@ -14,11 +14,10 @@ static void insert(DB *db, DB_TXN *txn, int k, int val_size) {
     memcpy(key_buffer, &newa, sizeof newa);
 
     // generate the value
-    char *val_buffer = toku_malloc(val_size); assert(val_buffer);
-    memset(val_buffer, 0, val_size);
+    char *XCALLOC_N(val_size, val_buffer);
     
     DBT key = { .data = key_buffer, .size = sizeof key_buffer };
-    DBT value = { .data = val_buffer, .size = val_size };
+    DBT value = { .data = val_buffer, .size = (uint32_t) val_size };
     r = db->put(db, txn, &key, &value, 0); assert_zero(r);
 
     toku_free(val_buffer);
@@ -26,12 +25,12 @@ static void insert(DB *db, DB_TXN *txn, int k, int val_size) {
 
 int test_main(int argc, char * const argv[]) {
 #if defined(TOKUDB)
-    char *db_env_dir = "dir.blobs.leafsplit.env.tdb";
+    const char *db_env_dir = "dir.blobs.leafsplit.env.tdb";
 #else
-    char *db_env_dir = "dir.blobs.leafsplit.env.bdb";
+    const char *db_env_dir = "dir.blobs.leafsplit.env.bdb";
 #endif
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG;
-    char *db_filename = "blobs.db";
+    const char *db_filename = "blobs.db";
     int do_txn = 1;
     u_int64_t cachesize = 0;
     u_int32_t pagesize = 0;

@@ -11,7 +11,7 @@ static int my_compare (DB *db, const DBT *a, const DBT *b) {
     assert(db);
     assert(db->cmp_descriptor);
     assert(db->cmp_descriptor->dbt.size >= 3);
-    char *data = db->cmp_descriptor->dbt.data;
+    char *data = cast_to_typeof(data) db->cmp_descriptor->dbt.data;
     assert(data[0]=='f');
     assert(data[1]=='o');
     assert(data[2]=='o');
@@ -22,7 +22,7 @@ static int my_compare (DB *db, const DBT *a, const DBT *b) {
 
 DB_ENV *env;
 DB     *db;
-char   *env_dir = ENVDIR;
+const char   *env_dir = ENVDIR;
 volatile int done = 0;
 
 static void *startA (void *ignore __attribute__((__unused__))) {

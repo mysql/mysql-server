@@ -12,8 +12,8 @@
 int test_main(int argc, char * const argv[]) {
     int r;
 
-    char *env_dir = ENVDIR;
-    char *db_filename = "replacetest";
+    const char *env_dir = ENVDIR;
+    const char *db_filename = "replacetest";
 
     parse_args(argc, argv);
 

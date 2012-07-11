@@ -137,7 +137,7 @@ int toku_ydb_check_avail_fs_space(DB_ENV *env);
     RAISE_COND_EXCEPTION((env) && ((flags_to_function) & ~(allowed_flags)), \
 			 toku_ydb_do_error((env),			\
 					   EINVAL,			\
-					   "Unknown flags (%"PRIu32") in "__FILE__ ":%s(): %d\n", (flags_to_function) & ~(allowed_flags), __FUNCTION__, __LINE__))
+					   "Unknown flags (%" PRIu32 ") in " __FILE__ ":%s(): %d\n", (flags_to_function) & ~(allowed_flags), __FUNCTION__, __LINE__))
 
 
 /* */
@@ -210,7 +210,7 @@ static inline int
 env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
-void env_panic(DB_ENV * env, int cause, char * msg);
+void env_panic(DB_ENV * env, int cause, const char * msg);
 void env_note_db_opened(DB_ENV *env, DB *db);
 void env_note_db_closed(DB_ENV *env, DB *db);
 int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags);

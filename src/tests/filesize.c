@@ -38,14 +38,14 @@ check_fragmentation(void) {
 static void
 print_fragmentation(void) {
     printf("Fragmentation:\n");
-    printf("\tTotal file size in bytes (file_size_bytes): %"PRIu64"\n", report.file_size_bytes);
-    printf("\tCompressed User Data in bytes (data_bytes): %"PRIu64"\n", report.data_bytes);
-    printf("\tNumber of blocks of compressed User Data (data_blocks): %"PRIu64"\n", report.data_blocks);
-    printf("\tAdditional bytes used for checkpoint system (checkpoint_bytes_additional): %"PRIu64"\n", report.checkpoint_bytes_additional);
-    printf("\tAdditional blocks used for checkpoint system  (checkpoint_blocks_additional): %"PRIu64"\n", report.checkpoint_blocks_additional);
-    printf("\tUnused space in file (unused_bytes): %"PRIu64"\n", report.unused_bytes);
-    printf("\tNumber of contiguous regions of unused space (unused_blocks): %"PRIu64"\n", report.unused_blocks);
-    printf("\tSize of largest contiguous unused space (largest_unused_block): %"PRIu64"\n", report.largest_unused_block);
+    printf("\tTotal file size in bytes (file_size_bytes): %" PRIu64 "\n", report.file_size_bytes);
+    printf("\tCompressed User Data in bytes (data_bytes): %" PRIu64 "\n", report.data_bytes);
+    printf("\tNumber of blocks of compressed User Data (data_blocks): %" PRIu64 "\n", report.data_blocks);
+    printf("\tAdditional bytes used for checkpoint system (checkpoint_bytes_additional): %" PRIu64 "\n", report.checkpoint_bytes_additional);
+    printf("\tAdditional blocks used for checkpoint system  (checkpoint_blocks_additional): %" PRIu64 "\n", report.checkpoint_blocks_additional);
+    printf("\tUnused space in file (unused_bytes): %" PRIu64 "\n", report.unused_bytes);
+    printf("\tNumber of contiguous regions of unused space (unused_blocks): %" PRIu64 "\n", report.unused_blocks);
+    printf("\tSize of largest contiguous unused space (largest_unused_block): %" PRIu64 "\n", report.largest_unused_block);
 }
 
 static void
@@ -86,8 +86,10 @@ insert_n (u_int32_t ah, int datasize) {
     fill_rand(datasize, vdata);
     u_int32_t an = htonl(ah);
     //    if (verbose) printf("insert an = %0X (ah = %0X)\n", an, ah);
-    DBT key = {.size = 4,             .data=&an };
-    DBT val = {.size = sizeof(vdata), .data=vdata};
+    DBT key;
+    dbt_init(&key, &an, 4);
+    DBT val;
+    dbt_init(&val, vdata, sizeof vdata);
     int r = db->put(db, NULL, &key, &val, 0);
     CKERR(r);
     ninsert++;
@@ -98,7 +100,8 @@ delete_n (u_int32_t ah)
 {
     u_int32_t an = htonl(ah);
     //    if (verbose) printf("delete an = %0X (ah = %0X)\n", an, ah);
-    DBT key = {.size = 4,             .data=&an };
+    DBT key;
+    dbt_init(&key, &an, 4);
     int r = db->del(db, NULL, &key, DB_DELETE_ANY);
     if (r == 0)
 	ndelete++;

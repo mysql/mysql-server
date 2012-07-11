@@ -42,8 +42,7 @@ toku__rt_decrease_capacity(toku_range_tree* tree, u_int32_t _num) {
             temp_len /= 2;
         assert(temp_len >= _num);   //Sanity check.
         size_t start_size = toku_rt_memory_size(tree);
-        toku_range* temp_ranges = toku_xrealloc(tree->i.ranges, temp_len * sizeof(toku_range));
-        tree->i.ranges     = temp_ranges;
+        XREALLOC_N(temp_len, tree->i.ranges);
         tree->i.ranges_len = temp_len;
         size_t end_size = toku_rt_memory_size(tree);
         assert(start_size >= end_size);
@@ -62,8 +61,7 @@ toku__rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
         while (temp_len < num) 
             temp_len *= 2;
         size_t start_size = toku_rt_memory_size(tree);
-        toku_range* temp_ranges = toku_xrealloc(tree->i.ranges, temp_len * sizeof(toku_range));
-        tree->i.ranges     = temp_ranges;
+        XREALLOC_N(temp_len, tree->i.ranges);
         tree->i.ranges_len = temp_len;
         size_t end_size = toku_rt_memory_size(tree);
         assert(end_size >= start_size);

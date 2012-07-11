@@ -25,7 +25,7 @@ run_test(void) {
     r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0, 0); assert(r == 0);
     r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn, 0, 0, 0); assert(r == 0);
 
-    BYTESTRING iname  = { strlen("missing_tokudb_file"), "missing_tokudb_file" };
+    BYTESTRING iname  = { (uint32_t) strlen("missing_tokudb_file"), (char *) "missing_tokudb_file" };
     FILENUM filenum = {42};
     uint32_t treeflags = 0;
     r = toku_log_fopen(logger, NULL, TRUE, iname, filenum, treeflags);

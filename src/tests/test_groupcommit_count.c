@@ -18,7 +18,7 @@ int do_sync=1;
 #define NITER 100
 
 static void *start_a_thread (void *i_p) {
-    int *which_thread_p = i_p;
+    int *which_thread_p = cast_to_typeof(which_thread_p) i_p;
     int i,r;
     for (i=0; i<NITER; i++) {
 	DB_TXN *tid;

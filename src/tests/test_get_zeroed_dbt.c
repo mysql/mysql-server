@@ -29,7 +29,7 @@ test_get (void) {
     r = db->put(db, null_txn, &key, dbt_init(&data, "b", 2), 0); assert(r==0);
     memset(&data, 0, sizeof(data));
     r = db->get(db, null_txn, &key, &data, 0);                               assert(r == 0);
-    assert(strcmp(data.data, "b")==0);
+    assert(strcmp((char*)data.data, "b")==0);
     r = db->close(db, 0); assert(r == 0);
     r = env->close(env, 0); assert(r == 0);
 }

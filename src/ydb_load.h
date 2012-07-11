@@ -23,8 +23,8 @@
 int locked_load_inames(DB_ENV * env,
                        DB_TXN * txn,
                        int N,
-                       DB * dbs[N],
-                       char * new_inames_in_env[N], /* out */
+                       DB * dbs[/*N*/],
+                       char * new_inames_in_env[/*N*/], /* out */
                        LSN *load_lsn,
                        BOOL mark_as_loader);
 

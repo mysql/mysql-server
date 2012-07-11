@@ -73,7 +73,7 @@ static int inserter(struct keygen *keygen, DB_ENV *env, DB *db) {
         if (r != 0)
             break;
         
-        if (verbose) printf("%d: %"PRIu64"\n", (int) pthread_self(), k);
+        if (verbose) printf("%d: %" PRIu64 "\n", (int) pthread_self(), k);
 
         DB_TXN *txn;
         r = env->txn_begin(env, NULL, &txn, 0);

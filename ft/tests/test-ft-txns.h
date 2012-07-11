@@ -44,7 +44,7 @@ test_setup(TOKULOGGER *loggerp, CACHETABLE *ctp) {
 
 static inline void
 xid_lsn_keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable) {
-    CACHETABLE *ctp = (void*)env;
+    CACHETABLE *ctp = cast_to_typeof(ctp) env;
     *ctp = cachetable;
 }
 
@@ -55,7 +55,7 @@ static inline void test_setup_and_recover(TOKULOGGER *loggerp, CACHETABLE *ctp) 
     r = toku_logger_create(&logger);
     CKERR(r);
 
-    void *ctv = &ct;  // Use intermediate void* to avoid compiler warning.
+    DB_ENV *ctv = cast_to_typeof(ctv) (void *) &ct;  // Use intermediate to avoid compiler warning.
     r = tokudb_recover(ctv,
                        NULL_prepared_txn_callback,
                        xid_lsn_keep_cachetable_callback,

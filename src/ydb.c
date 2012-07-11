@@ -53,7 +53,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #else
  #define DB_ENV_CREATE_FUN db_env_create
  #define DB_CREATE_FUN db_create
- int toku_set_trace_file (char *fname __attribute__((__unused__))) { return 0; }
+ int toku_set_trace_file (const char *fname __attribute__((__unused__))) { return 0; }
  int toku_close_trace_file (void) { return 0; } 
 #endif
 
@@ -62,7 +62,7 @@ static int env_is_panicked = 0;
 
 
 void
-env_panic(DB_ENV * env, int cause, char * msg) {
+env_panic(DB_ENV * env, int cause, const char * msg) {
     if (cause == 0)
         cause = -1;  // if unknown cause, at least guarantee panic
     if (msg == NULL)
@@ -148,7 +148,7 @@ const char * fileopsdirectory = "tokudb.directory";
 
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 static int toku_maybe_get_engine_status_text (char* buff, int buffsize);  // for use by toku_assert
-static void toku_maybe_set_env_panic(int code, char * msg);               // for use by toku_assert
+static void toku_maybe_set_env_panic(int code, const char * msg);               // for use by toku_assert
 
 
 static const char single_process_lock_file[] = "/__tokudb_lock_dont_delete_me_";
@@ -164,7 +164,7 @@ single_process_lock(const char *lock_dir, const char *which, int *lockfd) {
     assert(l+1 == (signed)(sizeof(lockfname)));
     *lockfd = toku_os_lock_file(lockfname);
     if (*lockfd < 0) {
-        int e = errno;
+        int e = get_error_errno();
         fprintf(stderr, "Couldn't start tokudb because some other tokudb process is using the same directory [%s] for [%s]\n", lock_dir, which);
         return e;
     }
@@ -178,7 +178,7 @@ single_process_unlock(int *lockfd) {
     if (fd>=0) {
         int r = toku_os_unlock_file(fd);
         if (r != 0)
-            return errno;
+            return get_error_errno();
     }
     return 0;
 }
@@ -620,41 +620,45 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
     path = toku_construct_full_name(2, env->i->dir, environmentdictionary);
     assert(path);
     r = toku_stat(path, &buf);
-    int stat_errno = errno;
-    toku_free(path);
     if (r == 0) {
         expect_newenv = FALSE;  // persistent info exists
     }
-    else if (stat_errno == ENOENT) {
-        expect_newenv = TRUE;
-        r = 0;
-    }
     else {
-        r = toku_ydb_do_error(env, errno, "Unable to access persistent environment\n");
-        assert(r);
+        int stat_errno = get_error_errno();
+        if (stat_errno == ENOENT) {
+            expect_newenv = TRUE;
+            r = 0;
+        }
+        else {
+            r = toku_ydb_do_error(env, stat_errno, "Unable to access persistent environment\n");
+            assert(r);
+        }
     }
+    toku_free(path);
 
     // Test for existence of rollback cachefile if it is expected to exist
     if (r == 0 && need_rollback_cachefile) {
         path = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
         assert(path);
         r = toku_stat(path, &buf);
-        stat_errno = errno;
-        toku_free(path);
         if (r == 0) {  
             if (expect_newenv)  // rollback cachefile exists, but persistent env is missing
                 r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
         }
-        else if (stat_errno == ENOENT) {
-            if (!expect_newenv)  // rollback cachefile is missing but persistent env exists
-                r = toku_ydb_do_error(env, ENOENT, "rollback cachefile directory is missing\n");
-            else 
-                r = 0;           // both rollback cachefile and persistent env are missing
-        }
         else {
-            r = toku_ydb_do_error(env, stat_errno, "Unable to access rollback cachefile\n");
-            assert(r);
+            int stat_errno = get_error_errno();
+            if (stat_errno == ENOENT) {
+                if (!expect_newenv)  // rollback cachefile is missing but persistent env exists
+                    r = toku_ydb_do_error(env, ENOENT, "rollback cachefile directory is missing\n");
+                else 
+                    r = 0;           // both rollback cachefile and persistent env are missing
+            }
+            else {
+                r = toku_ydb_do_error(env, stat_errno, "Unable to access rollback cachefile\n");
+                assert(r);
+            }
         }
+        toku_free(path);
     }
 
     // Test for fileops directory
@@ -662,22 +666,24 @@ validate_env(DB_ENV * env, BOOL * valid_newenv, BOOL need_rollback_cachefile) {
         path = toku_construct_full_name(2, env->i->dir, fileopsdirectory);
         assert(path);
         r = toku_stat(path, &buf);
-        stat_errno = errno;
-        toku_free(path);
         if (r == 0) {  
             if (expect_newenv)  // fileops directory exists, but persistent env is missing
                 r = toku_ydb_do_error(env, ENOENT, "Persistent environment is missing\n");
         }
-        else if (stat_errno == ENOENT) {
-            if (!expect_newenv)  // fileops directory is missing but persistent env exists
-                r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
-            else 
-                r = 0;           // both fileops directory and persistent env are missing
-        }
         else {
-            r = toku_ydb_do_error(env, stat_errno, "Unable to access fileops directory\n");
-            assert(r);
+            int stat_errno = get_error_errno();
+            if (stat_errno == ENOENT) {
+                if (!expect_newenv)  // fileops directory is missing but persistent env exists
+                    r = toku_ydb_do_error(env, ENOENT, "Fileops directory is missing\n");
+                else 
+                    r = 0;           // both fileops directory and persistent env are missing
+            }
+            else {
+                r = toku_ydb_do_error(env, stat_errno, "Unable to access fileops directory\n");
+                assert(r);
+            }
         }
+        toku_free(path);
     }
 
     // Test for recovery log
@@ -778,18 +784,25 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         char* new_home = NULL;
         toku_struct_stat buf;
         if (strlen(home) > 1 && home[strlen(home)-1] == '\\') {
-            new_home = toku_malloc(strlen(home));
+            // This chops the last character ('\') off of home.  The
+            // fencepost error is (seems?) intentional.
+            XMALLOC_N(strlen(home), new_home);
             memcpy(new_home, home, strlen(home));
             new_home[strlen(home) - 1] = 0;
             made_new_home = TRUE;
         }
         r = toku_stat(made_new_home? new_home : home, &buf);
+        int er;
+        if (r!=0) {
+            er = get_error_errno();
+            r = toku_ydb_do_error(env, er, "Error from toku_stat(\"%s\",...)\n", home);
+            if (made_new_home) {
+                toku_free(new_home);
+            }
+            goto cleanup;
+        }
         if (made_new_home) {
             toku_free(new_home);
-        }
-        if (r!=0) {
-            r = toku_ydb_do_error(env, errno, "Error from toku_stat(\"%s\",...)\n", home);
-            goto cleanup;
         }
     }
     unused_flags &= ~DB_PRIVATE;
@@ -824,15 +837,18 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     if (r!=0) goto cleanup;
 
 
-    BOOL need_rollback_cachefile = FALSE;
+    BOOL need_rollback_cachefile;
+    need_rollback_cachefile = FALSE;
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         need_rollback_cachefile = TRUE;
     }
 
     ydb_layer_status_init();  // do this before possibly upgrading, so upgrade work is counted in status counters
 
-    LSN last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
-    BOOL upgrade_in_progress = FALSE;
+    LSN last_lsn_of_clean_shutdown_read_from_log;
+    last_lsn_of_clean_shutdown_read_from_log = ZERO_LSN;
+    BOOL upgrade_in_progress;
+    upgrade_in_progress = FALSE;
     r = ydb_maybe_upgrade_env(env, &last_lsn_of_clean_shutdown_read_from_log, &upgrade_in_progress);
     if (r!=0) goto cleanup;
 
@@ -842,8 +858,10 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         char* rollback_filename = toku_construct_full_name(2, env->i->dir, ROLLBACK_CACHEFILE_NAME);
         assert(rollback_filename);
         r = unlink(rollback_filename);
+        if (r != 0) {
+            assert(get_error_errno() == ENOENT);
+        }
         toku_free(rollback_filename);
-        assert(r==0 || errno==ENOENT);        
         need_rollback_cachefile = FALSE;  // we're not expecting it to exist now
     }
     
@@ -915,7 +933,8 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
 
-    int using_txns = env->i->open_flags & DB_INIT_TXN;
+    int using_txns;
+    using_txns = env->i->open_flags & DB_INIT_TXN;
     if (env->i->logger) {
         // if this is a newborn env or if this is an upgrade, then create a brand new rollback file
         assert (using_txns);
@@ -928,7 +947,8 @@ env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
         }
     }
 
-    DB_TXN *txn=NULL;
+    DB_TXN *txn;
+    txn=NULL;
     if (using_txns) {
         r = toku_txn_begin(env, 0, &txn, 0);
         assert_zero(r);
@@ -992,7 +1012,7 @@ cleanup:
         }
     }
     if (r == 0) {
-        errno = 0; // tabula rasa.   If there's a crash after env was successfully opened, no misleading errno will have been left around by this code.
+        set_errno(0); // tabula rasa.   If there's a crash after env was successfully opened, no misleading errno will have been left around by this code.
         most_recent_env = env;
         uint64_t num_rows;
         env_get_engine_status_num_rows(env, &num_rows);
@@ -1005,7 +1025,7 @@ cleanup:
 static int 
 env_close(DB_ENV * env, u_int32_t flags) {
     int r = 0;
-    char * err_msg = NULL;
+    const char * err_msg = NULL;
 
     most_recent_env = NULL; // Set most_recent_env to NULL so that we don't have a dangling pointer (and if there's an error, the toku assert code would try to look at the env.)
 
@@ -1250,7 +1270,7 @@ env_set_data_dir(DB_ENV * env, const char *dir) {
     else {
         env->i->data_dir = toku_strdup(dir);
         if (env->i->data_dir==NULL) {
-            assert(errno == ENOMEM);
+            assert(get_error_errno() == ENOMEM);
             r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
         }
         else r = 0;
@@ -1497,14 +1517,14 @@ env_cleaner_set_iterations(DB_ENV * env, u_int32_t iterations) {
 
 static int
 env_create_loader(DB_ENV *env,
-                         DB_TXN *txn, 
-                         DB_LOADER **blp, 
-                         DB *src_db, 
-                         int N, 
-                         DB *dbs[], 
-                         uint32_t db_flags[N], 
-                         uint32_t dbt_flags[N], 
-                         uint32_t loader_flags) {
+                  DB_TXN *txn,
+                  DB_LOADER **blp,
+                  DB *src_db,
+                  int N,
+                  DB *dbs[],
+                  uint32_t db_flags[/*N*/],
+                  uint32_t dbt_flags[/*N*/],
+                  uint32_t loader_flags) {
     int r = toku_loader_create_loader(env, txn, blp, src_db, N, dbs, db_flags, dbt_flags, loader_flags);
     return r;
 }
@@ -2018,7 +2038,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     }
     else {
         if (panic) {
-            n += snprintf(buff + n, bufsiz - n, "Env panic code: %"PRIu64"\n", panic);
+            n += snprintf(buff + n, bufsiz - n, "Env panic code: %" PRIu64 "\n", panic);
             if (strlen(panicstring)) {
                 invariant(strlen(panicstring) <= stringsize);
                 n += snprintf(buff + n, bufsiz - n, "Env panic string: %s\n", panicstring);
@@ -2029,10 +2049,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
             n += snprintf(buff + n, bufsiz - n, "%s: ", mystat[row].legend);
             switch (mystat[row].type) {
             case FS_STATE:
-                n += snprintf(buff + n, bufsiz - n, "%"PRIu64"\n", mystat[row].value.num);
+                n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", mystat[row].value.num);
                 break;
             case UINT64:
-                n += snprintf(buff + n, bufsiz - n, "%"PRIu64"\n", mystat[row].value.num);
+                n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", mystat[row].value.num);
                 break;
             case CHARSTR:
                 n += snprintf(buff + n, bufsiz - n, "%s\n", mystat[row].value.str);
@@ -2058,7 +2078,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     }
         
     if (n > bufsiz) {
-        char * errmsg = "BUFFER TOO SMALL\n";
+        const char * errmsg = "BUFFER TOO SMALL\n";
         int len = strlen(errmsg) + 1;
         (void) snprintf(buff + (bufsiz - 1) - len, len, "%s", errmsg);
     }
@@ -2084,7 +2104,7 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
 // Set panic code and panic string if not already panicked,
 // intended for use by toku_assert when about to abort().
 static void 
-toku_maybe_set_env_panic(int code, char * msg) {
+toku_maybe_set_env_panic(int code, const char * msg) {
     if (code == 0) 
         code = -1;
     if (msg == NULL)
@@ -2110,7 +2130,7 @@ toku_db_lt_panic(DB* db, int r) {
     assert(r!=0);
     assert(db && db->i && db->dbenv && db->dbenv->i);
     DB_ENV* env = db->dbenv;
-    char * panic_string;
+    const char * panic_string;
 
     if (r < 0) panic_string = toku_lt_strerror((TOKU_LT_ERROR)r);
     else       panic_string = "Error in locktree.\n";
@@ -2273,8 +2293,8 @@ log_compare(const DB_LSN * a, const DB_LSN * b) {
 // return >0 if v is later in omt than dbv
 static int
 find_db_by_db (OMTVALUE v, void *dbv) {
-    DB *db = v;            // DB* that is stored in the omt
-    DB *dbfind = dbv;      // extra, to be compared to v
+    DB *db = (DB *) v;            // DB* that is stored in the omt
+    DB *dbfind = (DB *) dbv;      // extra, to be compared to v
     int cmp;
     const char *dname     = db->i->dname;
     const char *dnamefind = dbfind->i->dname;
@@ -2325,10 +2345,10 @@ env_note_db_closed(DB_ENV *env, DB *db) {
 
 static int
 find_open_db_by_dname (OMTVALUE v, void *dnamev) {
-    DB *db = v;            // DB* that is stored in the omt
+    DB *db = (DB *) v;            // DB* that is stored in the omt
     int cmp;
     const char *dname     = db->i->dname;
-    const char *dnamefind = dnamev;
+    const char *dnamefind = (char *) dnamev;
     cmp = strcmp(dname, dnamefind);
     return cmp;
 }
@@ -2343,7 +2363,7 @@ env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
     toku_mutex_lock(&env->i->open_dbs_lock);
     r = toku_omt_find_zero(env->i->open_dbs, find_open_db_by_dname, (void*)dname, &dbv, &idx);
     if (r==0) {
-        DB *db = dbv;
+        DB *db = (DB *) dbv;
         assert(strcmp(dname, db->i->dname) == 0);
         rval = TRUE;
     }
@@ -2437,7 +2457,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
 
     // get iname
     r = toku_db_get(env->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
-    char *iname = iname_dbt.data;
+    char *iname = (char *) iname_dbt.data;
     DB *db = NULL;
     if (r != 0) {
         if (r == DB_NOTFOUND) {
@@ -2550,7 +2570,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
 
     // get iname
     r = toku_db_get(env->i->directory, txn, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
-    char *iname = iname_dbt.data;
+    char *iname = (char *) iname_dbt.data;
     if (r == DB_NOTFOUND) {
         r = ENOENT;
     } else if (r == 0) {
@@ -2609,7 +2629,7 @@ DB_CREATE_FUN (DB ** db, DB_ENV * env, u_int32_t flags) {
 
 /* need db_strerror_r for multiple threads */
 
-char *
+const char *
 db_strerror(int error) {
     char *errorstr;
     if (error >= 0) {
@@ -2683,7 +2703,7 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 //             we don't need to test the low-level redirect anymore.
 // for use by test programs only, just a wrapper around brt call:
 int
-toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) {
+toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN *dbtxn) {
     int r;
     DBT dname_dbt;
     DBT iname_dbt;
@@ -2696,7 +2716,7 @@ toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtx
     init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
     r = toku_db_get(db->dbenv->i->directory, dbtxn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     assert_zero(r);
-    new_iname_in_env = iname_dbt.data;
+    new_iname_in_env = (char *) iname_dbt.data;
 
     toku_multi_operation_client_lock(); //Must hold MO lock for dictionary_redirect.
     r = toku_dictionary_redirect(new_iname_in_env, brt, tokutxn);
@@ -2728,5 +2748,5 @@ toku_test_get_checkpointing_user_data_status (void) {
 void __attribute__((constructor)) toku_ydb_helgrind_ignore(void);
 void
 toku_ydb_helgrind_ignore(void) {
-    VALGRIND_HG_DISABLE_CHECKING(&ydb_layer_status, sizeof ydb_layer_status);
+    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ydb_layer_status, sizeof ydb_layer_status);
 }

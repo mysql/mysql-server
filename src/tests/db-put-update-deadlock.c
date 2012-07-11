@@ -87,8 +87,8 @@ static void update_deadlock(DB_ENV *db_env, DB *db, int do_txn, int nrows, int n
     // get write locks
     toku_pthread_t tids[ntxns];
     for (int i = 0 ; i < ntxns; i++) {
-        struct write_one_arg *arg = toku_malloc(sizeof (struct write_one_arg));
-        *arg = (struct write_one_arg) { txns[i], db, htonl(0), 0};
+        struct write_one_arg *XMALLOC(arg);
+        *arg = (struct write_one_arg) { txns[i], db, (int) htonl(0), 0};
         r = toku_pthread_create(&tids[i], NULL, write_one_f, arg);
     }
 
@@ -118,8 +118,8 @@ int test_main(int argc, char * const argv[]) {
     int nrows = 1000;
     int ntxns = 2;
     int poll_deadlock = 0;
-    char *db_env_dir = ENVDIR;
-    char *db_filename = "simple_deadlock";
+    const char *db_env_dir = ENVDIR;
+    const char *db_filename = "simple_deadlock";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

@@ -42,7 +42,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
     MSN msn = next_dummymsn();
 
     // apply an insert to the leaf node
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u.id = { &thekey, &theval } };
+    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
     toku_ft_bn_apply_cmd_once(BLB(leafnode, 0), &cmd, idx, NULL, NULL, NULL);
 
     // Create bad tree (don't do following):

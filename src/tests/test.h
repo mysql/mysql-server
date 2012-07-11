@@ -102,7 +102,7 @@ print_engine_status(DB_ENV * UU(env)) {
 
 #ifdef USE_TDB
 static __attribute__((__unused__)) uint64_t
-get_engine_status_val(DB_ENV * UU(env), char * keyname) {
+get_engine_status_val(DB_ENV * UU(env), const char * keyname) {
     uint64_t rval = 0;
     uint64_t nrows;
     env->get_engine_status_num_rows(env, &nrows);

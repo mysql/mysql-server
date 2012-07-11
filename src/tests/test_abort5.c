@@ -104,7 +104,7 @@ put(u_int32_t k, u_int32_t v) {
 
 static void
 test_insert_and_abort(u_int32_t num_to_insert, int abort_type) {
-    if (verbose>1) printf("\t"__FILE__": insert+abort(%u,%d)\n", num_to_insert, abort_type);
+    if (verbose>1) printf("\t" __FILE__ ": insert+abort(%u,%d)\n", num_to_insert, abort_type);
     find_num = 0;
     
     u_int32_t k;
@@ -121,7 +121,7 @@ test_insert_and_abort(u_int32_t num_to_insert, int abort_type) {
 
 static void
 test_insert_and_abort_and_insert(u_int32_t num_to_insert, int abort_type) {
-    if (verbose>1) printf("\t"__FILE__": insert+abort+insert(%u,%d)\n", num_to_insert, abort_type);
+    if (verbose>1) printf("\t" __FILE__ ": insert+abort+insert(%u,%d)\n", num_to_insert, abort_type);
     test_insert_and_abort(num_to_insert, abort_type); 
     find_num = num_to_insert / 2;
     u_int32_t k, v;
@@ -155,7 +155,7 @@ verify_and_tear_down(int close_first) {
             iname.flags |= DB_DBT_MALLOC;
             r = env->get_iname(env, &dname, &iname);
             CKERR(r);
-            filename = iname.data;
+            filename = cast_to_typeof(filename) iname.data;
             assert(filename);
         }
 #else
@@ -191,7 +191,7 @@ verify_and_tear_down(int close_first) {
 
 static void
 runtests(int abort_type) {
-    if (verbose) printf("\t"__FILE__": runtests(%d)\n", abort_type);
+    if (verbose) printf("\t" __FILE__ ": runtests(%d)\n", abort_type);
     int close_first;
     for (close_first = 0; close_first < 2; close_first++) {
         init();

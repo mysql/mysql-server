@@ -56,8 +56,9 @@ static inline int
 sdbt_realloc(struct simple_dbt *sdbt) {
     void *new_data = toku_realloc(sdbt->data, sdbt->len);
     int r;
-    if (new_data == NULL) r = errno;
-    else {
+    if (new_data == NULL) {
+        r = get_error_errno();
+    } else {
         sdbt->data = new_data;
         r = 0;
     }
@@ -68,8 +69,9 @@ static inline int
 dbt_realloc(DBT *dbt) {
     void *new_data = toku_realloc(dbt->data, dbt->ulen);
     int r;
-    if (new_data == NULL) r = errno;
-    else {
+    if (new_data == NULL) {
+        r = get_error_errno();
+    } else {
         dbt->data = new_data;
         r = 0;
     }

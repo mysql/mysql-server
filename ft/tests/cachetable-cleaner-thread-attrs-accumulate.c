@@ -41,7 +41,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        BOOL c      __attribute__((__unused__)),
         BOOL UU(is_clone)
        ) {
-    PAIR_ATTR *expect = e;
+    PAIR_ATTR *expect = cast_to_typeof(expect) e;
     if (!keep) {
         toku_mutex_lock(&attr_mutex);   // purpose is to make this function single-threaded
         expect->size -= s.size;

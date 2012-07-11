@@ -66,7 +66,8 @@ static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
     struct ft_loader_s bl;
     ft_loader_init_error_callback(&bl.error_callback);
     ft_loader_set_error_function(&bl.error_callback, dups ? expect_dups_cb : err_cb, NULL);
-    struct rowset rs = {.data=(char*)ab};
+    struct rowset rs = { .memory_budget = 0, .n_rows = 0, .n_rows_limit = 0, .rows = NULL, .n_bytes = 0, .n_bytes_limit = 0,
+                         .data=(char*)ab};
     merge_row_arrays_base(cr, ar, na, br, nb, 0, dest_db, compare_ints, &bl, &rs);
     ft_loader_call_error_function(&bl.error_callback);
     if (dups) {
@@ -127,7 +128,8 @@ static void test_internal_mergesort_row_array (int a[], int n) {
 	ar[i].klen = sizeof(a[i]);
 	ar[i].vlen = 0;
     }
-    struct rowset rs = {.data=(char*)a};
+    struct rowset rs = { .memory_budget = 0, .n_rows = 0, .n_rows_limit = 0, .rows = NULL, .n_bytes = 0, .n_bytes_limit = 0,
+                         .data=(char*)a};
     ft_loader_mergesort_row_array (ar, n, 0, NULL, compare_ints, NULL, &rs);
     int *MALLOC_N(n, tmp);
     for (int i=0; i<n; i++) {
@@ -168,8 +170,9 @@ static void test_mergesort_row_array (void) {
     }
 }
 
-static void test_read_write_rows (char *template) {
-    struct ft_loader_s bl = { .temp_file_template = template};
+static void test_read_write_rows (char *tf_template) {
+    struct ft_loader_s bl;
+    bl.temp_file_template = tf_template;
     int r = ft_loader_init_file_infos(&bl.file_infos);
     CKERR(r);
     FIDX file;
@@ -178,17 +181,19 @@ static void test_read_write_rows (char *template) {
 
     u_int64_t dataoff=0;
 
-    char *keystrings[] = {"abc", "b", "cefgh"};
-    char *valstrings[] = {"defg", "", "xyz"};
+    const char *keystrings[] = {"abc", "b", "cefgh"};
+    const char *valstrings[] = {"defg", "", "xyz"};
     u_int64_t actual_size=0;
     for (int i=0; i<3; i++) {
-	DBT key = {.size=strlen(keystrings[i]), .data=keystrings[i]};
-	DBT val = {.size=strlen(valstrings[i]), .data=valstrings[i]};
+	DBT key;
+        toku_fill_dbt(&key, keystrings[i], strlen(keystrings[i]));
+	DBT val;
+        toku_fill_dbt(&val, valstrings[i], strlen(valstrings[i]));
 	r = loader_write_row(&key, &val, file, toku_bl_fidx2file(&bl, file), &dataoff, &bl);
 	CKERR(r);
 	actual_size+=key.size + val.size + 8;
     }
-    if (actual_size != dataoff) fprintf(stderr, "actual_size=%"PRIu64", dataoff=%"PRIu64"\n", actual_size, dataoff);
+    if (actual_size != dataoff) fprintf(stderr, "actual_size=%" PRIu64 ", dataoff=%" PRIu64 "\n", actual_size, dataoff);
     assert(actual_size == dataoff);
 
     r = ft_loader_fi_close(&bl.file_infos, file, TRUE);
@@ -199,7 +204,9 @@ static void test_read_write_rows (char *template) {
 
     {
 	int n_read=0;
-	DBT key={.size=0}, val={.size=0};
+	DBT key, val;
+        toku_init_dbt(&key);
+        toku_init_dbt(&val);
 	while (0==loader_read_row(toku_bl_fidx2file(&bl, file), &key, &val)) {
 	    assert(strlen(keystrings[n_read])==key.size);
 	    assert(strlen(valstrings[n_read])==val.size);
@@ -232,8 +239,10 @@ static void fill_rowset (struct rowset *rows,
 			 uint64_t *size_est) {
     init_rowset(rows, toku_ft_loader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
-	DBT key = {.size=sizeof(keys[i]), .data=&keys[i]};
-	DBT val = {.size=strlen(vals[i]), .data=(void *)vals[i]};
+	DBT key;
+        toku_fill_dbt(&key, &keys[i], sizeof keys[i]);
+	DBT val;
+        toku_fill_dbt(&val, vals[i], strlen(vals[i]));
 	add_row(rows, &key, &val);
 	*size_est += ft_loader_leafentry_size(key.size, val.size, TXNID_NONE);
     }
@@ -257,7 +266,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     size_t userdata = 0;
     int i;
     for (i=0; i<n; i++) {
-	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], strlen(sorted_vals[i]), sorted_vals[i], 0};
+	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], (ITEMLEN) strlen(sorted_vals[i]), sorted_vals[i], 0};
         r = toku_ft_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count ==0);
@@ -281,12 +290,12 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-static void test_merge_files (const char *template, const char *output_name) {
+static void test_merge_files (const char *tf_template, const char *output_name) {
     DB *dest_db = NULL;
-    struct ft_loader_s bl = {
-        .temp_file_template = template,
-        .reserved_memory = 512*1024*1024,
-    };
+    struct ft_loader_s bl;
+    ZERO_STRUCT(bl);
+    bl.temp_file_template = tf_template;
+    bl.reserved_memory = 512*1024*1024;
     int r = ft_loader_init_file_infos(&bl.file_infos); CKERR(r);
     ft_loader_lock_init(&bl);
     ft_loader_init_error_callback(&bl.error_callback);
@@ -326,7 +335,8 @@ static void test_merge_files (const char *template, const char *output_name) {
 
     assert(fs.n_temp_files==0);
 
-    DESCRIPTOR_S desc = {.dbt = (DBT){.size = 4, .data="abcd"}};
+    DESCRIPTOR_S desc;
+    toku_fill_dbt(&desc.dbt, "abcd", 4);
 
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
@@ -370,9 +380,9 @@ int test_main (int argc, const char *argv[]) {
     if (r!=0) CKERR2(errno, EEXIST);
 
     int  templen = strlen(directory)+15;
-    char template[templen];
+    char tf_template[templen];
     {
-	int n = snprintf(template, templen, "%s/tempXXXXXX", directory);
+	int n = snprintf(tf_template, templen, "%s/tempXXXXXX", directory);
 	assert (n>0 && n<templen);
     }
     char output_name[templen];
@@ -380,10 +390,10 @@ int test_main (int argc, const char *argv[]) {
 	int n = snprintf(output_name, templen, "%s/data.tokudb", directory);
 	assert (n>0 && n<templen);
     }
-    test_read_write_rows(template);
+    test_read_write_rows(tf_template);
     test_merge();
     test_mergesort_row_array();
-    test_merge_files(template, output_name);
+    test_merge_files(tf_template, output_name);
     
     {
 	char deletecmd[templen];

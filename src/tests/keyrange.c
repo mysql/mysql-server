@@ -18,7 +18,7 @@ static DB_TXN *txn = NULL;
 static DB *db = NULL;
 static u_int32_t db_page_size = 4096;
 static u_int32_t db_basement_size = 4096;
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 static u_int64_t nrows = 30000;
 static bool get_all = true;
 static bool use_loader = false;
@@ -76,8 +76,7 @@ run_test(void) {
     r = db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = txn->commit(txn, 0);    CKERR(r);
 
-    u_int64_t *keys = toku_malloc(nrows * sizeof (u_int64_t));
-    assert(keys);
+    uint64_t *XMALLOC_N(nrows, keys);
     for (u_int64_t i = 0; i < nrows; i++)
         keys[i] = 2*i + 1;
 

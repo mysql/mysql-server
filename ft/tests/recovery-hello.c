@@ -21,13 +21,13 @@ run_test(void) {
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
-    BYTESTRING hello  = { strlen("hello"), "hello" };
+    BYTESTRING hello  = { (uint32_t) strlen("hello"), (char *) "hello" };
     r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
     LSN beginlsn;
     r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0, 0); assert(r == 0);
     r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn, 0, 0, 0); assert(r == 0);
     r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
-    BYTESTRING there  = { strlen("there"), "there" };
+    BYTESTRING there  = { (uint32_t) strlen("there"), (char *) "there" };
     r = toku_log_comment(logger, NULL, TRUE, 0, there); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 

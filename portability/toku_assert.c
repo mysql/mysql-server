@@ -39,10 +39,10 @@ toku_assert_init(void)
 
 // Function pointers are zero by default so asserts can be used by brt-layer tests without an environment.
 static int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = 0;
-static void (*toku_maybe_set_env_panic_p)(int code, char* msg) = 0;
+static void (*toku_maybe_set_env_panic_p)(int code, const char* msg) = 0;
 
 void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
-			       void (*toku_maybe_set_env_panic_pointer)(int, char*),
+			       void (*toku_maybe_set_env_panic_pointer)(int, const char*),
                                uint64_t num_rows) {
     toku_maybe_get_engine_status_text_p = toku_maybe_get_engine_status_text_pointer;
     toku_maybe_set_env_panic_p = toku_maybe_set_env_panic_pointer;
@@ -126,7 +126,7 @@ toku_do_assert_fail (const char *expr_as_string, const char *function, const cha
 void 
 toku_do_assert_zero_fail (uintptr_t expr, const char *expr_as_string, const char *function, const char *file, int line, int caller_errno) {
     char msg[MSGLEN];
-    snprintf(msg, MSGLEN, "%s:%d %s: Assertion `%s == 0' failed (errno=%d) (%s=%"PRIuPTR")\n", file, line, function, expr_as_string, caller_errno, expr_as_string, expr);
+    snprintf(msg, MSGLEN, "%s:%d %s: Assertion `%s == 0' failed (errno=%d) (%s=%" PRIuPTR ")\n", file, line, function, expr_as_string, caller_errno, expr_as_string, expr);
     perror(msg);
     set_panic_if_not_panicked(caller_errno, msg);
     toku_do_backtrace_abort();

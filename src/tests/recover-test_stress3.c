@@ -56,7 +56,7 @@ static void checkpoint_callback2(void* UU(extra)) {
 }
 
 static int manual_checkpoint(DB_TXN *UU(txn), ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {
-    DB_ENV* env = operation_extra;
+    DB_ENV* env = cast_to_typeof(env) operation_extra;
     int r = env->txn_checkpoint(env,0,0,0);
     assert_zero(r);
     return 0;

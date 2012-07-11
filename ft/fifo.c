@@ -65,7 +65,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     int need_space_total = fifo->memory_used+need_space_here;
     if (fifo->memory == NULL) {
         fifo->memory_size = next_power_of_two(need_space_total);
-        fifo->memory = toku_xmalloc(fifo->memory_size);
+        XMALLOC_N(fifo->memory_size, fifo->memory);
     }
     if (need_space_total > fifo->memory_size) {
         // Out of memory at the end.
@@ -73,7 +73,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
         if ((2*next_2 > fifo->memory_size)
             || (8*next_2 < fifo->memory_size)) {
             // resize the fifo
-            char *newmem = toku_xmalloc(next_2);
+            char *XMALLOC_N(next_2, newmem);
             char *oldmem = fifo->memory;
             if (newmem==0) return ENOMEM;
             memcpy(newmem, oldmem, fifo->memory_used);
@@ -144,7 +144,7 @@ void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo) {
     new_fifo->n_items_in_fifo = orig_fifo->n_items_in_fifo;
     new_fifo->memory_used = orig_fifo->memory_used;
     new_fifo->memory_size = new_fifo->memory_used;
-    new_fifo->memory = toku_xmalloc(new_fifo->memory_size);
+    XMALLOC_N(new_fifo->memory_size, new_fifo->memory);
     memcpy(
         new_fifo->memory, 
         orig_fifo->memory, 
@@ -159,4 +159,3 @@ BOOL toku_are_fifos_same(FIFO fifo1, FIFO fifo2) {
         memcmp(fifo1->memory, fifo2->memory, fifo1->memory_used) == 0
         );
 }
-

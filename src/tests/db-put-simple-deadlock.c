@@ -61,8 +61,8 @@ int test_main(int argc, char * const argv[]) {
     uint32_t pagesize = 0;
     int do_txn = 1;
     int nrows = 1000; // for BDB, insert enough rows to create a tree with more than one page in it.  this avoids a page locking conflict.
-    char *db_env_dir = ENVDIR;
-    char *db_filename = "simple_deadlock";
+    const char *db_env_dir = ENVDIR;
+    const char *db_filename = "simple_deadlock";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

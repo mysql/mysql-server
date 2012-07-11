@@ -166,7 +166,7 @@ int toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids) __attribute__ ((
 
 int toku_close_ft_handle_nolsn (FT_HANDLE, char **error_string)  __attribute__ ((warn_unused_result));
 
-int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, char *panic_string)  __attribute__ ((warn_unused_result));
+int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, const char *panic_string)  __attribute__ ((warn_unused_result));
 
 int toku_dump_ft (FILE *,FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 

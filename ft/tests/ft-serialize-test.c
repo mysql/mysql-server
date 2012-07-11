@@ -11,7 +11,8 @@
 
 static int omt_int_cmp(OMTVALUE p, void *q)
 {
-    LEAFENTRY a = p, b = q;
+    LEAFENTRY a = cast_to_typeof(a) p;
+    LEAFENTRY b = cast_to_typeof(b) q;
     void *ak, *bk;
     u_int32_t al, bl;
     ak = le_key_and_len(a, &al);
@@ -28,7 +29,8 @@ static int omt_int_cmp(OMTVALUE p, void *q)
 
 static int omt_cmp(OMTVALUE p, void *q)
 {
-    LEAFENTRY a = p, b = q;
+    LEAFENTRY a = cast_to_typeof(a) p;
+    LEAFENTRY b = cast_to_typeof(b) q;
     void *ak, *bk;
     u_int32_t al, bl;
     ak = le_key_and_len(a, &al);
@@ -52,11 +54,11 @@ calc_le_size(int keylen, int vallen) {
 }
 
 static LEAFENTRY
-le_fastmalloc(struct mempool * mp, char *key, int keylen, char *val, int vallen)
+le_fastmalloc(struct mempool * mp, const char *key, int keylen, const char *val, int vallen)
 {
     LEAFENTRY le;
     size_t le_size = calc_le_size(keylen, vallen);
-    le = toku_mempool_malloc(mp, le_size, 1);
+    le = cast_to_typeof(le) toku_mempool_malloc(mp, le_size, 1);
     resource_assert(le);
     le->type = LE_CLEAN;
     le->keylen = keylen;
@@ -67,7 +69,7 @@ le_fastmalloc(struct mempool * mp, char *key, int keylen, char *val, int vallen)
 }
 
 static LEAFENTRY
-le_malloc(struct mempool * mp, char *key, char *val)
+le_malloc(struct mempool * mp, const char *key, const char *val)
 {
     int keylen = strlen(key) + 1;
     int vallen = strlen(val) + 1;
@@ -82,7 +84,7 @@ struct check_leafentries_struct {
 };
 
 static int check_leafentries(OMTVALUE v, u_int32_t UU(i), void *extra) {
-    struct check_leafentries_struct *e = extra;
+    struct check_leafentries_struct *e = cast_to_typeof(e) extra;
     assert(e->i < e->nelts);
     assert(e->cmp(v, e->elts[e->i]) == 0);
     e->i++;
@@ -98,7 +100,8 @@ enum ftnode_verify_type {
 static int
 string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 {
-    char *s = a->data, *t = b->data;
+    char *s = cast_to_typeof(s) a->data;
+    char *t = cast_to_typeof(t) b->data;
     return strcmp(s, t);
 }
 
@@ -187,7 +190,7 @@ static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA*
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
         toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, FALSE, brt->ft);
-        FTNODE cloned_node = cloned_node_v;
+        FTNODE cloned_node = cast_to_typeof(cloned_node) cloned_node_v;
         r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->ft, 1, 1, FALSE);
         assert(r==0);        
         toku_ftnode_free(&cloned_node);
@@ -317,7 +320,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
             if (i < npartitions-1) {
-                assert(strcmp(dn->childkeys[i].data, le_key_and_len(elts[extra.i-1], &keylen))==0);
+                assert(strcmp((char*)dn->childkeys[i].data, (char*)le_key_and_len(elts[extra.i-1], &keylen))==0);
             }
             // don't check soft_copy_is_up_to_date or seqinsert
             assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
@@ -392,7 +395,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
         BLB_NBYTESINBUF(&sn, i) = leafentry_disksize(le);
         if (i < nrows-1) {
             u_int32_t keylen;
-            char *keyp = le_key_and_len(le, &keylen);
+            char *keyp = cast_to_typeof(keyp) le_key_and_len(le, &keylen);
             toku_fill_dbt(&sn.childkeys[i], toku_xmemdup(keyp, keylen), keylen);
         }
     }
@@ -1187,7 +1190,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
             u_int32_t keylen;
             if (i < npartitions-1) {
-                assert(strcmp(dn->childkeys[i].data, le_key_and_len(elts[extra.i-1], &keylen))==0);
+                assert(strcmp((char*)dn->childkeys[i].data, (char*)le_key_and_len(elts[extra.i-1], &keylen))==0);
             }
             // don't check soft_copy_is_up_to_date or seqinsert
             assert(BLB_NBYTESINBUF(dn, i) == (extra.i-last_i)*(KEY_VALUE_OVERHEAD+2+5) + toku_omt_size(BLB_BUFFER(dn, i)));
@@ -1315,7 +1318,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, BOOL do_clone) {
     assert(dn->layout_version_read_from_disk ==FT_LAYOUT_VERSION);
     assert(dn->height == 1);
     assert(dn->n_children==2);
-    assert(strcmp(dn->childkeys[0].data, "hello")==0);
+    assert(strcmp((char*)dn->childkeys[0].data, "hello")==0);
     assert(dn->childkeys[0].size==6);
     assert(dn->totalchildkeylens==6);
     assert(BP_BLOCKNUM(dn,0).b==30);

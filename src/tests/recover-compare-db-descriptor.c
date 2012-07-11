@@ -9,8 +9,8 @@
 char descriptor_contents[] = "Spoon full of sugar";
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
-char *nameb="b.db";
+const char *namea="a.db";
+const char *nameb="b.db";
 
 #if USE_TDB
 
@@ -60,8 +60,9 @@ do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     change_descriptor(env, dbb);
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
     {
-	DBT a={.data="a", .size=2};
-	DBT b={.data="b", .size=2};
+        DBT a,b;
+        dbt_init(&a, "a", 2);
+        dbt_init(&b, "b", 2);
 	r = dba->put(dba, txn, &a, &b, 0);                                              CKERR(r);
 	r = dba->put(dba, txn, &b, &a, 0);                                              CKERR(r);
 	r = dbb->put(dbb, txn, &b, &a, 0);                                              CKERR(r);
@@ -97,8 +98,12 @@ do_x1_recover (BOOL did_commit) {
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
     r = db_create(&dbb, env, 0);                                                            CKERR(r);
     r = dba->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
-    DBT aa={.size=0}, ab={.size=0};
-    DBT ba={.size=0}, bb={.size=0};
+    DBT aa, ab;
+    dbt_init(&aa, NULL, 0);
+    dbt_init(&ab, NULL, 0);
+    DBT ba, bb;
+    dbt_init(&ba, NULL, 0);
+    dbt_init(&bb, NULL, 0);
     DB_TXN *txn;
     DBC *ca,*cb;
     r = env->txn_begin(env, NULL, &txn, 0);                                                 CKERR(r);

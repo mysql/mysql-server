@@ -46,7 +46,7 @@ static void lookup (int i, int expect, int expectj) {
 	CKERR(r);
 	snprintf(there, sizeof(there), "there%d", expectj);
 	assert(data.size==strlen(there)+1);
-	assert(strcmp(data.data, there)==0);
+	assert(strcmp((char*)data.data, there)==0);
     }
 }
 

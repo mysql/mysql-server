@@ -37,7 +37,7 @@ clone_callback(
     )
 {
     new_attr->is_valid = FALSE;
-    int64_t* data_val = toku_xmalloc(sizeof(int64_t));
+    int64_t* XMALLOC(data_val);
     *data_val = *(int64_t *)value_data;
     *cloned_value_data = data_val;
     *new_attr = make_pair_attr(8);
@@ -88,7 +88,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     // the block is not supposed to be in the cachetable
     assert(data[data_index] != INT64_MAX);
     
-    int64_t* data_val = toku_malloc(sizeof(int64_t));
+    int64_t* XMALLOC(data_val);
     usleep(10);
     *data_val = data[data_index];
     *value = data_val;
@@ -214,7 +214,7 @@ static void remove_data(CACHEKEY* cachekey, BOOL for_checkpoint, void* UU(extra)
 
 
 static void get_data(CACHEKEY* cachekey, u_int32_t* fullhash, void* extra) {
-    int* key = extra;
+    int* key = cast_to_typeof(key) extra;
     cachekey->b = *key;
     *fullhash = toku_cachetable_hash(f1, *cachekey);
     data[*key] = INT64_MAX - 1;
@@ -313,7 +313,7 @@ static void merge_and_split_child(
     // now do a split
     CACHEKEY new_key;
     u_int32_t new_fullhash;
-    int64_t* data_val = toku_malloc(sizeof(int64_t));
+    int64_t* XMALLOC(data_val);
     r = toku_cachetable_put_with_dep_pairs(
           f1,
           get_data,
@@ -435,21 +435,21 @@ dummy_int_checkpoint_userdata(CACHEFILE UU(cf), int UU(n), void* UU(extra)) {
 static void sum_vals(void) {
     int64_t sum = 0;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
-        //printf("actual: i %d val %"PRId64" \n", i, data[i]);
+        //printf("actual: i %d val %" PRId64 " \n", i, data[i]);
         if (data[i] != INT64_MAX) {
             sum += data[i];
         }
     }
-    if (verbose) printf("actual sum %"PRId64" \n", sum);
+    if (verbose) printf("actual sum %" PRId64 " \n", sum);
     assert(sum == 0);
     sum = 0;
     for (int i = 0; i < NUM_ELEMENTS; i++) {
-        //printf("checkpointed: i %d val %"PRId64" \n", i, checkpointed_data[i]);
+        //printf("checkpointed: i %d val %" PRId64 " \n", i, checkpointed_data[i]);
         if (checkpointed_data[i] != INT64_MAX) {
             sum += checkpointed_data[i];
         }
     }
-    if (verbose) printf("checkpointed sum %"PRId64" \n", sum);
+    if (verbose) printf("checkpointed sum %" PRId64 " \n", sum);
     assert(sum == 0);
 }
 

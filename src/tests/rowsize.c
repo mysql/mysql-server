@@ -7,7 +7,7 @@
 
 static DB_ENV *env = NULL;
 static DB *db = NULL;
-static char *envdir = ENVDIR;
+static const char *envdir = ENVDIR;
 
 static void setup_env (void) {
     const int len = strlen(envdir)+100;
@@ -31,11 +31,9 @@ static void shutdown_env (void) {
 }
 
 static void put (const char *keystring, int size, bool should_work) {
-    DBT k = {.size = 1+strlen(keystring),
-	     .data = (void*)keystring};
-    DBT v = {.size = size,
-	     .data = toku_xmalloc(size)};
-    memset(v.data, 0, size);
+    DBT k, v;
+    dbt_init(&k, keystring, 1+strlen(keystring));
+    dbt_init(&v, toku_xcalloc(size, 1), size);
 #ifdef USE_BDB
 #define DB_YES_OVERWRITE 0
 #endif

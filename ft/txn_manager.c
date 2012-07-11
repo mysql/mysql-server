@@ -62,19 +62,19 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
         OMTVALUE v;
         r = toku_omt_fetch(txn_manager->snapshot_txnids, i, &v);
         assert_zero(r);
-        snapshot_txnids[i] = (TXNID) v;
+        snapshot_txnids[i] = cast_to_typeof(snapshot_txnids[i]) v;
     }
     for (i = 0; i < num_live_txns; i++) {
         OMTVALUE v;
         r = toku_omt_fetch(txn_manager->live_txns, i, &v);
         assert_zero(r);
-        live_txns[i] = v;
+        live_txns[i] = cast_to_typeof(live_txns[i]) v;
     }
     for (i = 0; i < num_referenced_xid_tuples; i++) {
         OMTVALUE v;
         r = toku_omt_fetch(txn_manager->referenced_xids, i, &v);
         assert_zero(r);
-        referenced_xid_tuples[i] = v;
+        referenced_xid_tuples[i] = cast_to_typeof(referenced_xid_tuples[i]) v;
     }
 
     {
@@ -270,7 +270,7 @@ setup_live_root_txn_list(TXN_MANAGER txn_manager, TOKUTXN txn) {
 //Heaviside function to search through an OMT by a TXNID
 static int
 find_by_xid (OMTVALUE v, void *txnidv) {
-    TOKUTXN txn = v;
+    TOKUTXN txn = cast_to_typeof(txn) v;
     TXNID   txnidfind = (TXNID)txnidv;
     if (txn->txnid64<txnidfind) return -1;
     if (txn->txnid64>txnidfind) return +1;
@@ -414,7 +414,7 @@ int toku_txn_manager_start_txn(
 
 static int
 find_tuple_by_xid (OMTVALUE v, void *xidv) {
-    struct referenced_xid_tuple *tuple = v;
+    struct referenced_xid_tuple *tuple = cast_to_typeof(tuple) v;
     TXNID xidfind = (TXNID)xidv;
     if (tuple->begin_id < xidfind) return -1;
     if (tuple->begin_id > xidfind) return +1;
@@ -432,8 +432,9 @@ toku_get_youngest_live_list_txnid_for(TXNID xc, OMT snapshot_txnids, OMT referen
     if (r == DB_NOTFOUND) {
         goto done;
     }
-    tuple = tuplev;
-    TXNID endid = tuple->end_id;
+    tuple = cast_to_typeof(tuple) tuplev;
+    TXNID endid;
+    endid = tuple->end_id;
     TXNID live;
     OMTVALUE livev;
 
@@ -452,7 +453,7 @@ done:
 
 static int
 referenced_xids_note_snapshot_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(index), void *referenced_xidsv) {
-    OMT referenced_xids = referenced_xidsv;
+    OMT referenced_xids = cast_to_typeof(referenced_xids) referenced_xidsv;
     TXNID live_xid = (TXNID)live_xidv;  // xid on closing txn's live list
     int r;
     uint32_t idx;
@@ -470,7 +471,7 @@ referenced_xids_note_snapshot_txn_end_iter(OMTVALUE live_xidv, u_int32_t UU(inde
     }
     invariant_zero(r);
     invariant(tuplev != NULL);
-    tuple = tuplev;
+    tuple = cast_to_typeof(tuple) tuplev;
     invariant(tuple->references > 0);
     if (--tuple->references == 0) {
         r = toku_omt_delete_at(referenced_xids, idx);
@@ -497,8 +498,8 @@ referenced_xids_note_snapshot_txn_end(TXN_MANAGER mgr, OMT live_root_txn_list) {
 
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
 static int find_xid (OMTVALUE v, void *txnv) {
-    TOKUTXN txn = v;
-    TOKUTXN txnfind = txnv;
+    TOKUTXN txn = cast_to_typeof(txn) v;
+    TOKUTXN txnfind = cast_to_typeof(txnfind) txnv;
     if (txn->txnid64<txnfind->txnid64) return -1;
     if (txn->txnid64>txnfind->txnid64) return +1;
     return 0;
@@ -615,7 +616,7 @@ void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID txnid, TOKU
     OMTVALUE txnfound;
     int r = toku_omt_find_zero(txn_manager->live_txns, find_by_xid, (OMTVALUE)txnid, &txnfound, NULL);
     if (r==0) {
-        TOKUTXN txn = txnfound;
+        TOKUTXN txn = cast_to_typeof(txn) txnfound;
         assert(txn->txnid64==txnid);
         *result = txn;
     }
@@ -642,7 +643,7 @@ int toku_txn_manager_get_txn_from_xid (TXN_MANAGER txn_manager, TOKU_XA_XID *xid
             int r = toku_omt_fetch(txn_manager->live_txns, i, &v);
             assert_zero(r);
         }
-        TOKUTXN txn = v;
+        TOKUTXN txn = cast_to_typeof(txn) v;
         if (txn->xa_xid.formatID     == xid->formatID
             && txn->xa_xid.gtrid_length == xid->gtrid_length
             && txn->xa_xid.bqual_length == xid->bqual_length
@@ -688,7 +689,7 @@ void toku_txn_manager_add_prepared_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
 }
 
 static void invalidate_xa_xid (TOKU_XA_XID *xid) {
-    ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
+    HELGRIND_ANNOTATE_NEW_MEMORY(xid, sizeof(*xid)); // consider it to be all invalid for valgrind
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 

@@ -44,7 +44,7 @@ int toku_os_get_unique_file_id(int fildes, struct fileid *id);
 
 //Locks a file (should not be open to begin with).
 //Returns: file descriptor (or -1 on error)
-int toku_os_lock_file(char *name);
+int toku_os_lock_file(const char *name);
 
 //Unlocks and closes a file locked by toku_os_lock_on_file
 int toku_os_unlock_file(int fildes);

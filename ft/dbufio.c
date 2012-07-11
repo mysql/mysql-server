@@ -124,7 +124,7 @@ static void* io_thread (void *v)
 		//printf("%s:%d readcode=%ld\n", __FILE__, __LINE__, readcode);
 		if (readcode==-1) {
 		    // a real error.  Save the real error.
-                    int the_errno = errno;
+                    int the_errno = get_error_errno();
                     fprintf(stderr, "%s:%d dbf=%p fd=%d errno=%d\n", __FILE__, __LINE__, dbf, dbf->fd, the_errno);
 		    dbf->error_code[1] = the_errno;
 		    dbf->n_in_buf[1] = 0;
@@ -164,12 +164,12 @@ static void* io_thread (void *v)
 int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t bufsize) {
     //printf("%s:%d here\n", __FILE__, __LINE__);
     int result = 0;
-    DBUFIO_FILESET bfs=MALLOC(bfs);
-    if (bfs==0) { result = errno; }
+    DBUFIO_FILESET MALLOC(bfs);
+    if (bfs==0) { result = get_error_errno(); }
     BOOL mutex_inited = FALSE, cond_inited = FALSE;
     if (result==0) {
 	MALLOC_N(N, bfs->files);
-	if (bfs->files==NULL) { result = errno; }
+	if (bfs->files==NULL) { result = get_error_errno(); }
 	else {
 	    for (int i=0; i<N; i++) {
 		bfs->files[i].buf[0] = bfs->files[i].buf[1] = NULL;
@@ -198,7 +198,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	    for (int j=0; j<2; j++) {
 		if (result==0) {
 		    MALLOC_N(bufsize, bfs->files[i].buf[j]);
-		    if (bfs->files[i].buf[j]==NULL) { result=errno; }
+		    if (bfs->files[i].buf[j]==NULL) { result=get_error_errno(); }
 		}
 		bfs->files[i].n_in_buf[j] = 0;
 		bfs->files[i].error_code[j] = 0;
@@ -207,7 +207,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	    {
 		ssize_t r = toku_os_read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
 		if (r<0) {
-		    result=errno;
+		    result=get_error_errno();
 		    break;
 		} else if (r==0) {
 		    // it's EOF
@@ -360,7 +360,7 @@ dbufio_print(DBUFIO_FILESET bfs) {
     fprintf(stderr, "%s:%d bfs=%p", __FILE__, __LINE__, bfs);
     if (bfs->panic)
         fprintf(stderr, " panic=%d", bfs->panic_errno);
-    fprintf(stderr, " N=%d %d %"PRIuMAX, bfs->N, bfs->n_not_done, bfs->bufsize);
+    fprintf(stderr, " N=%d %d %" PRIuMAX, bfs->N, bfs->n_not_done, bfs->bufsize);
     for (int i = 0; i < bfs->N; i++) {
         struct dbufio_file *dbf = &bfs->files[i];
         if (dbf->error_code[0] || dbf->error_code[1])
