@@ -956,6 +956,8 @@ struct trx_struct{
 	ulint		will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
+	bool		ddl;		/*!< true if it is a transaction that
+					is being started for a DDL operation */
 	/*------------------------------*/
 	fts_trx_t*	fts_trx;	/*!< FTS information, or NULL if
 					transaction hasn't modified tables

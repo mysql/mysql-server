@@ -702,7 +702,9 @@ trx_start_low(
 	/* Check whether it is an AUTOCOMMIT SELECT */
 	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
 
-	trx->read_only = thd_trx_is_read_only(trx->mysql_thd);
+	trx->read_only =
+		!trx->ddl
+		&& thd_trx_is_read_only(trx->mysql_thd);
 
 	if (!trx->auto_commit) {
 		++trx->will_lock;
@@ -1211,6 +1213,7 @@ trx_commit(
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
+	trx->ddl = false;
 	trx->will_lock = 0;
 	trx->read_only = FALSE;
 	trx->auto_commit = FALSE;
@@ -2091,6 +2094,8 @@ trx_start_for_ddl_low(
 
 	/* Ensure it is not flagged as an auto-commit-non-locking transation. */
 	trx->will_lock = 1;
+
+	trx->ddl = true;
 
 	trx_start_low(trx);
 }
