@@ -10495,45 +10495,49 @@ innodb_rec_per_key(
 	ha_rows		records)	/*!< in: estimated total records */
 {
 	ha_rows		rec_per_key;
+	ib_uint64_t	n_diff;
 
 	ut_a(index->table->stat_initialized);
 
 	ut_ad(i < dict_index_get_n_unique(index));
 
-	if (index->stat_n_diff_key_vals[i] == 0) {
+	n_diff = index->stat_n_diff_key_vals[i];
+
+	if (n_diff == 0) {
 
 		rec_per_key = records;
 	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
-		ib_uint64_t	num_null;
+		ib_uint64_t	n_null;
+		ib_uint64_t	n_non_null;
+
+		n_non_null = index->stat_n_non_null_key_vals[i];
 
 		/* In theory, index->stat_n_non_null_key_vals[i]
 		should always be less than the number of records.
 		Since this is statistics value, the value could
 		have slight discrepancy. But we will make sure
 		the number of null values is not a negative number. */
-		if (records < index->stat_n_non_null_key_vals[i]) {
-			num_null = 0;
+		if (records < n_non_null) {
+			n_null = 0;
 		} else {
-			num_null = records - index->stat_n_non_null_key_vals[i];
+			n_null = records - n_non_null;
 		}
 
 		/* If the number of NULL values is the same as or
 		large than that of the distinct values, we could
 		consider that the table consists mostly of NULL value.
 		Set rec_per_key to 1. */
-		if (index->stat_n_diff_key_vals[i] <= num_null) {
+		if (n_diff <= n_null) {
 			rec_per_key = 1;
 		} else {
 			/* Need to exclude rows with NULL values from
 			rec_per_key calculation */
-			rec_per_key = (ha_rows)(
-				(records - num_null)
-				/ (index->stat_n_diff_key_vals[i]
-				   - num_null));
+			rec_per_key = (ha_rows)
+				((records - n_null) / (n_diff - n_null));
 		}
 	} else {
-		rec_per_key = (ha_rows)
-			 (records / index->stat_n_diff_key_vals[i]);
+		DEBUG_SYNC_C("after_checking_for_0");
+		rec_per_key = (ha_rows) (records / n_diff);
 	}
 
 	return(rec_per_key);
