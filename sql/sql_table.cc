@@ -5570,7 +5570,13 @@ static bool fill_alter_inplace_info(THD *thd,
 
       new_field= get_field_by_index(alter_info, new_part->fieldnr);
 
-      if (! new_field->field || new_field->field != key_part->field)
+      /*
+        For prefix keys KEY_PART_INFO::field points to cloned Field
+        object with adjusted length. So below we have to check field
+        indexes instead of simply comparing pointers to Field objects.
+      */
+      if (! new_field->field ||
+          new_field->field->field_index != key_part->fieldnr - 1)
         goto index_changed;
     }
     continue;
