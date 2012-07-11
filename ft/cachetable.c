@@ -95,7 +95,6 @@ struct ctpair {
 
     enum cachetable_dirty dirty;
 
-    char     verify_flag;        // Used in verify_cachetable()
     u_int32_t fullhash;
 
     CACHETABLE_FLUSH_CALLBACK flush_callback;
@@ -2415,6 +2414,7 @@ void toku_cachefile_verify (CACHEFILE cf) {
 
 void toku_cachetable_verify (CACHETABLE ct) {
     cachetable_lock(ct);
+    u_int32_t num_found = 0;
 
     // First clear all the verify flags by going through the hash chains
     {
@@ -2422,43 +2422,33 @@ void toku_cachetable_verify (CACHETABLE ct) {
         for (i=0; i<ct->table_size; i++) {
             PAIR p;
             for (p=ct->table[i]; p; p=p->hash_chain) {
-                p->verify_flag=0;
+                num_found++;
             }
         }
     }
-    // Now go through the clock chain, make sure everything in the LRU chain is hashed, and set the verify flag.
+    assert(num_found == ct->n_in_table);
+    num_found = 0;
+    // Now go through the clock chain, make sure everything in the LRU chain is hashed.
     {
         PAIR p;
         BOOL is_first = TRUE;
         for (p=ct->clock_head; ct->clock_head!=NULL && (p!=ct->clock_head || is_first); p=p->clock_next) {
             is_first=FALSE;
-            assert(p->verify_flag==0);
             PAIR p2;
             u_int32_t fullhash = p->fullhash;
             //assert(fullhash==toku_cachetable_hash(p->cachefile, p->key));
             for (p2=ct->table[fullhash&(ct->table_size-1)]; p2; p2=p2->hash_chain) {
                 if (p2==p) {
                     /* found it */
-                    goto next;
+                    num_found++;
+                    continue;
                 }
             }
             fprintf(stderr, "Something in the clock chain is not hashed\n");
             assert(0);
-        next:
-            p->verify_flag = 1;
         }
+        assert (num_found == ct->n_in_table);
     }
-    // Now make sure everything in the hash chains has the verify_flag set to 1.
-    {
-        u_int32_t i;
-        for (i=0; i<ct->table_size; i++) {
-            PAIR p;
-            for (p=ct->table[i]; p; p=p->hash_chain) {
-                assert(p->verify_flag);
-            }
-        }
-    }
-
     cachetable_unlock(ct);
 }
 
