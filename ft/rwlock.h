@@ -107,12 +107,10 @@ static inline void rwlock_write_unlock(RWLOCK rwlock) {
     assert(rwlock->reader == 0);
     assert(rwlock->writer == 1);
     rwlock->writer--;
-    if (rwlock->writer == 0) {
-        if (rwlock->want_write) {
-            toku_cond_signal(&rwlock->wait_write);
-        } else if (rwlock->want_read) {
-            toku_cond_broadcast(&rwlock->wait_read);
-        }
+    if (rwlock->want_write) {
+        toku_cond_signal(&rwlock->wait_write);
+    } else if (rwlock->want_read) {
+        toku_cond_broadcast(&rwlock->wait_read);
     }
 }
 
