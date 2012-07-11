@@ -3724,8 +3724,6 @@ row_drop_table_for_mysql(
 		fil_delete_link_file(name);
 	}
 
-	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
-
 	dict_stats_remove_table_from_auto_recalc(table);
 
 	/* Remove stats for this table and all of its indexes from the
