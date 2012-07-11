@@ -74,48 +74,6 @@ static inline void rwlock_read_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
     rwlock->reader++;
 }
 
-static inline void rwlock_read_lock_and_unlock (RWLOCK rwlock, toku_mutex_t *mutex)
-// Effect: Has the effect of obtaining a read lock and then unlocking it.
-// Implementation note: This can be done faster than actually doing the lock/unlock
-// Usage note:  This is useful when we are waiting on someone who has the write lock, but then we are just going to try again from the top.  (E.g., when releasing the ydb lock).
-{
-    if (rwlock->writer || rwlock->want_write) {
-	rwlock->want_read++;
-        while (rwlock->writer || rwlock->want_write) {
-            toku_cond_wait(&rwlock->wait_read, mutex);
-        }
-        rwlock->want_read--;
-    }
-    // Don't increment reader.
-}
-
-// preferentially obtain a read lock (ignore request for write lock)
-// expects: mutex is locked
-
-static inline void rwlock_prefer_read_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
-    if (rwlock->reader)
-	rwlock->reader++;
-    else
-	rwlock_read_lock(rwlock, mutex);
-}
-
-// try to acquire a read lock preferentially (ignore request for write lock).
-// If a stall would happen (write lock is held), instead return EBUSY immediately.
-// expects: mutex is locked
-
-//Bug in ICL compiler prevents the UU definition from propogating to this header. Redefine UU here.
-#define UU(x) x __attribute__((__unused__))
-static inline int rwlock_try_prefer_read_lock(RWLOCK rwlock, toku_mutex_t *UU(mutex)) {
-    int r = EBUSY;
-    if (!rwlock->writer) {
-	rwlock->reader++;
-        r = 0;
-    }
-    return r;
-}
-
-
-
 // release a read lock
 // expects: mutex is locked
 
