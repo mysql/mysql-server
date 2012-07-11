@@ -25,7 +25,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
         BOOL UU(is_clone)
        ) {
     if (w) {
-        int curr_size = __sync_fetch_and_add(&total_size, -1);
+        int curr_size = __sync_fetch_and_sub(&total_size, 1);
         assert(curr_size <= 200);
         usleep(500*1000);
     }

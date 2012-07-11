@@ -130,7 +130,7 @@ toku_txn_id(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     toku_ydb_barf();
     abort();
-    return -1;
+    return (u_int32_t) -1;
 }
 
 static u_int64_t 

@@ -621,7 +621,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     OMTVALUE v;
     int r;
     if (index>=omt_size(omt)) return EINVAL;
-    if ((r=maybe_resize_or_convert(omt, -1+omt_size(omt)))) return r;
+    if ((r=maybe_resize_or_convert(omt, omt_size(omt)-1))) return r;
     if (omt->is_array && index!=0 && index!=omt->i.a.num_values-1) {
         if ((r=omt_convert_to_tree(omt))) return r;
     }

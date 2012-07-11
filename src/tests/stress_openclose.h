@@ -113,7 +113,8 @@ unlock_and_maybe_close_db(struct db_bucket *bucket, ARG arg) {
         int r = db->close(db, 0);
         CKERR(r);
         bucket->is_open = false;
-        assert(__sync_fetch_and_add(&open_buckets, -1) > 0);
+        int old_open_buckets = __sync_fetch_and_sub(&open_buckets, 1);
+        assert(old_open_buckets > 0);
         verbose_printf("decided to close a bucket's db before unlocking\n");
     }
     toku_mutex_unlock(&bucket->mutex);

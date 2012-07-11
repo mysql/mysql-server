@@ -72,7 +72,7 @@ insert_something(FT_HANDLE t, CACHETABLE UU(ct), void *UU(extra))
 {
     assert(t);
     int r = 0;
-    unsigned int dummy_value = 1 << 31;
+    unsigned int dummy_value = 1U << 31;
     DBT key;
     DBT val;
     toku_fill_dbt(&key, &dummy_value, sizeof(unsigned int));
