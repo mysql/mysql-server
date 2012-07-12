@@ -9,9 +9,9 @@ mt = 2
 
 [mysqld]
 skip-innodb
-loose-skip-bdb
 skip-grant-tables
 socket=mysql.sock
+default-storage-engine=myisam
 
 [client]
 protocol=tcp
