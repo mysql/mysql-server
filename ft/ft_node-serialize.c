@@ -861,7 +861,7 @@ toku_serialize_ftnode_to_memory (FTNODE node,
 }
 
 int
-toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, BOOL do_rebalancing, FT h, int UU(n_workitems), int UU(n_threads), BOOL for_checkpoint) {
+toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, BOOL do_rebalancing, FT h, BOOL for_checkpoint) {
 
     size_t n_to_write;
     char *compressed_buf = NULL;
@@ -2604,7 +2604,6 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 
 static int
 toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
-                                       int UU(n_workitems), int UU(n_threads),
                                        enum toku_compression_method method,
                                /*out*/ size_t *n_bytes_to_write,
                                /*out*/ char  **bytes_to_write) {
@@ -2638,12 +2637,12 @@ toku_serialize_rollback_log_to_memory (ROLLBACK_LOG_NODE log,
 
 int
 toku_serialize_rollback_log_to (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE log,
-                                FT h, int n_workitems, int n_threads,
+                                FT h, 
                                 BOOL for_checkpoint) {
     size_t n_to_write;
     char *compressed_buf;
     {
-        int r = toku_serialize_rollback_log_to_memory(log, n_workitems, n_threads, h->h->compression_method, &n_to_write, &compressed_buf);
+        int r = toku_serialize_rollback_log_to_memory(log, h->h->compression_method, &n_to_write, &compressed_buf);
         if (r!=0) return r;
     }
 
