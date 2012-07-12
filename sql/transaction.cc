@@ -565,7 +565,7 @@ bool trans_rollback_to_savepoint(THD *thd, LEX_STRING name)
   }
 
   enum xa_states xa_state= thd->transaction.xid_state.xa_state;
-  if (xa_state != XA_NOTR)
+  if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
   {
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(TRUE);
@@ -615,6 +615,13 @@ bool trans_release_savepoint(THD *thd, LEX_STRING name)
   if (sv == NULL)
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SAVEPOINT", name.str);
+    DBUG_RETURN(TRUE);
+  }
+
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (xa_state != XA_NOTR && xa_state != XA_ACTIVE)
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(TRUE);
   }
 
