@@ -247,7 +247,7 @@ static char *init_bootstrap_command_line(char *cmdline, size_t size)
     "\"\"%s\" --no-defaults --bootstrap"
     " \"--language=%s\\share\\english\""
     " --basedir=. --datadir=. --default-storage-engine=myisam"
-    " --max_allowed_packet=9M --loose-skip-innodb --loose-skip-pbxt"
+    " --max_allowed_packet=9M --loose-skip-innodb"
     " --net-buffer-length=16k\"", mysqld_path, basedir);
   return cmdline;
 }
