@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "opt_range.h"              // SQL_SELECT
 #include "opt_trace.h"              // Opt_trace_object
 #include "records.h"          // init_read_record, end_read_record
+#include "debug_sync.h"
 
 struct st_find_field
 {
@@ -749,6 +750,8 @@ bool mysqld_help(THD *thd, const char *mask)
                                   &error)))
       goto error;
 
+    DEBUG_SYNC(thd, "before_help_record_read");
+
     count_categories= search_categories(thd, tables[1].table, used_fields,
 					select,
 					&categories_list,&category_id);
@@ -816,6 +819,10 @@ bool mysqld_help(THD *thd, const char *mask)
     if (send_variant_2_list(mem_root,protocol, &categories_list, "Y", 0))
       goto error;
   }
+
+  if (thd->killed)
+    goto error;
+
   my_eof(thd);
 
   close_system_tables(thd, &open_tables_state_backup);
