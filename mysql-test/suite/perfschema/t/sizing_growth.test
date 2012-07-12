@@ -371,8 +371,15 @@ show status like "performance_schema%";
 # For innodb:
 # - wait/synch/mutex/innodb/autoinc_mutex
 # - wait/synch/mutex/innodb/os_mutex
+# Note that depending on the platform,
+# and the version of the compiler used,
+# code in the server may use either native platform atomics
+# or a mutex.
+# Note also that in DEBUG builds, code uses more mutexes.
+# Because of all these parameters,
+# this test is disabled, as predicting an exact number is difficult.
 # 
-select @mutex_per_share <= 5;
+# commented: select @mutex_per_share <= 5;
 
 #
 # Expecting 1:
@@ -449,9 +456,12 @@ select @file_per_handle;
 # sizing, and imply to update the results for sizing_*.
 #
 
+# commented: (@mutex_per_share <= 5)
+# Mutexes are not instrumented by default,
+# not enforcing mutex estimates
+
 select if(
-      (@mutex_per_share <= 5)
-  AND (@rwlock_per_share <= 3)
+      (@rwlock_per_share <= 3)
   AND (@cond_per_share = 0)
   AND (@file_per_share <= 3)
   AND (@mutex_per_con = 3)
