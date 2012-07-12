@@ -2724,56 +2724,25 @@ int toku_cachetable_unpin_and_remove (
             // we don't want any NEW threads to try to grab the PAIR
             // lock.
             //
-            // Because we call cachetable_remove_pair and setup a completion queue,
+            // Because we call cachetable_remove_pair and wait,
             // the threads that may be waiting
-            // on this PAIR lock must be careful to do NOTHING with the PAIR because
-            // it notices a completion queue. As per our analysis above, we only need
+            // on this PAIR lock must be careful to do NOTHING with the PAIR 
+            // As per our analysis above, we only need
             // to make sure the checkpoint thread and get_and_pin_nonblocking do
             // nothing, and looking at those functions, it is clear they do nothing.
             // 
             cachetable_remove_pair(ct, p);
             if (nb_mutex_blocked_writers(&p->value_nb_mutex)>0) {
-                struct workqueue cq;
-                workqueue_init(&cq);
-                while (nb_mutex_blocked_writers(&p->value_nb_mutex)>0) {
-                    //Someone (one or more checkpoint threads) is waiting for a write lock
-                    //on this pair.
-                    //They are still blocked because we have not released the
-                    //cachetable lock.
-                    //If we freed the memory for the pair we would have dangling
-                    //pointers.  We need to let the other threads finish up with
-                    //this pair.
-
-                    p->cq = &cq;
-
-                    //  If anyone is waiting on write lock, let them finish.
-                    cachetable_unlock(ct);
-
-                    WORKITEM wi = NULL;
-                    r = workqueue_deq(&cq, &wi, 1);
-                    //Writer is now done.
-                    assert(r == 0);
-                    PAIR pp = (PAIR) workitem_arg(wi);
-                    assert(pp == p);
-
-                    //We are holding the write lock on the pair
-                    cachetable_lock(ct);
-                    assert(nb_mutex_writers(&p->value_nb_mutex) == 1);
-                    // let's also assert that this PAIR was not somehow marked 
-                    // as pending a checkpoint. Above, when calling
-                    // remove_key(), we cleared the dirty bit so that
-                    // this PAIR cannot be marked for checkpoint, so let's
-                    // make sure that our assumption is valid.
-                    assert(!p->checkpoint_pending);
-                    assert(p->attr.cache_pressure_size == 0);
-                    nb_mutex_unlock(&p->value_nb_mutex);
-                    // Because we assume it is just the checkpoint thread
-                    // that may have been blocked (as argued above),
-                    // it is safe to simply remove the PAIR from the 
-                    // cachetable. We don't need to write anything out.
-                }
-                p->cq = NULL;
-                workqueue_destroy(&cq);
+                toku_cond_t cond;
+                toku_cond_init(&cond, NULL);
+                nb_mutex_wait_for_users(
+                    &p->value_nb_mutex,
+                    ct->mutex,
+                    &cond
+                    );
+                toku_cond_destroy(&cond);
+                assert(!p->checkpoint_pending);
+                assert(p->attr.cache_pressure_size == 0);
             }
             // just a sanity check
             assert(nb_mutex_users(&p->disk_nb_mutex) == 0);

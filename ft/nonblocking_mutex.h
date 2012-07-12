@@ -56,6 +56,15 @@ static inline void nb_mutex_unlock(NB_MUTEX nb_mutex) {
     rwlock_write_unlock(&nb_mutex->lock);
 }
 
+static inline void nb_mutex_wait_for_users(
+    NB_MUTEX nb_mutex, 
+    toku_mutex_t *mutex, 
+    toku_cond_t* cond
+    ) 
+{
+    rwlock_wait_for_users(&nb_mutex->lock, mutex, cond);
+}
+
 // returns: the number of writers who are waiting for the lock
 
 static inline int nb_mutex_blocked_writers(NB_MUTEX nb_mutex) {
