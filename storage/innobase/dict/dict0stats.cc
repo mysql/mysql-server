@@ -1870,6 +1870,7 @@ dict_stats_analyze_index(
 
 	switch (size) {
 	case ULINT_UNDEFINED:
+		dict_stats_assert_initialized_index(index);
 		return;
 	case 0:
 		/* The root node of the tree is a leaf */
@@ -1923,6 +1924,7 @@ dict_stats_analyze_index(
 
 		mtr_commit(&mtr);
 
+		dict_stats_assert_initialized_index(index);
 		return;
 	}
 
@@ -2093,6 +2095,8 @@ found_level:
 	mem_free(n_diff_boundaries);
 
 	mem_free(n_diff_on_level);
+
+	dict_stats_assert_initialized_index(index);
 }
 
 /*********************************************************************//**
@@ -2173,6 +2177,8 @@ dict_stats_update_persistent(
 	table->stat_modified_counter = 0;
 
 	table->stat_initialized = TRUE;
+
+	dict_stats_assert_initialized(table);
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
 
