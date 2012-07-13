@@ -29,8 +29,9 @@
 struct TriggerType {
   enum Value {
     //CONSTRAINT            = 0,
-    SECONDARY_INDEX       = DictTabInfo::HashIndexTrigger,
-    //FOREIGN_KEY           = 2,
+    SECONDARY_INDEX         = DictTabInfo::HashIndexTrigger,
+    FK_PARENT               = DictTabInfo::FKParentTrigger,
+    FK_CHILD                = DictTabInfo::FKChildTrigger,
     //SCHEMA_UPGRADE        = 3,
     //API_TRIGGER           = 4,
     //SQL_TRIGGER           = 5,
@@ -199,7 +200,8 @@ struct TriggerInfo {
 struct NoOfFiredTriggers
 {
   STATIC_CONST( DeferredUKBit = (Uint32(1) << 31) );
-  STATIC_CONST( DeferredBits = (DeferredUKBit));
+  STATIC_CONST( DeferredFKBit = (Uint32(1) << 30) );
+  STATIC_CONST( DeferredBits = (DeferredUKBit | DeferredFKBit));
 
   static Uint32 getFiredCount(Uint32 v) {
     return v & ~(Uint32(DeferredBits));
@@ -207,9 +209,40 @@ struct NoOfFiredTriggers
   static Uint32 getDeferredUKBit(Uint32 v) {
     return (v & Uint32(DeferredUKBit)) != 0;
   }
-  static void setDeferredBit(Uint32 & v) {
+  static void setDeferredUKBit(Uint32 & v) {
     v |= Uint32(DeferredUKBit);
   }
+  static Uint32 getDeferredFKBit(Uint32 v) {
+    return (v & Uint32(DeferredFKBit)) != 0;
+  }
+  static void setDeferredFKBit(Uint32 & v) {
+    v |= Uint32(DeferredFKBit);
+  }
+
+  static bool getDeferredAllSet(Uint32 v) {
+    return (v & Uint32(DeferredBits)) == DeferredBits;
+  }
+};
+
+struct TriggerPreCommitPass
+{
+  /**
+   * When using deferred triggers...
+   * - UK are split into 2 passes...
+   * - FK needs to be evaluated *after* UK has been processed
+   *   as it (can) use UK
+   *
+   * When having cascadeing FK's they can provoke UK updates
+   *   in such cases...the passes are
+   *   N * (PASS_MAX + 1) + PASS
+   */
+  enum
+  {
+    UK_PASS_0 = 0,
+    UK_PASS_1 = 1,
+    FK_PASS_0 = 7, // leave some room...(unsure if it's needed)
+    TPCP_PASS_MAX = 15
+  };
 };
 
 #endif

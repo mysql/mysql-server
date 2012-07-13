@@ -358,3 +358,73 @@ DictHashMapInfo::HashMap::init()
 {
   bzero(this, sizeof(* this));
 }
+
+/**
+ * ForeignKey
+ */
+const
+SimpleProperties::SP2StructMapping
+DictForeignKeyInfo::Mapping[] = {
+  DFKIMAPS(ForeignKey, ForeignKeyName, Name, 0, MAX_TAB_NAME_SIZE),
+  DFKIMAPS(ForeignKey, ForeignKeyParentTableName, ParentTableName,
+           0, MAX_TAB_NAME_SIZE),
+  DFKIMAPS(ForeignKey, ForeignKeyParentIndexName, ParentIndexName,
+           0, MAX_TAB_NAME_SIZE),
+  DFKIMAPS(ForeignKey, ForeignKeyChildTableName, ChildTableName,
+           0, MAX_TAB_NAME_SIZE),
+  DFKIMAPS(ForeignKey, ForeignKeyChildIndexName, ChildIndexName,
+           0, MAX_TAB_NAME_SIZE),
+  DFKIMAP(ForeignKey, ForeignKeyId, ForeignKeyId),
+  DFKIMAP(ForeignKey, ForeignKeyVersion, ForeignKeyVersion),
+  DFKIMAP(ForeignKey, ForeignKeyParentTableId, ParentTableId),
+  DFKIMAP(ForeignKey, ForeignKeyParentTableVersion, ParentTableVersion),
+  DFKIMAP(ForeignKey, ForeignKeyChildTableId, ChildTableId),
+  DFKIMAP(ForeignKey, ForeignKeyChildTableVersion, ChildTableVersion),
+  DFKIMAP(ForeignKey, ForeignKeyParentIndexId, ParentIndexId),
+  DFKIMAP(ForeignKey, ForeignKeyParentIndexVersion, ParentIndexVersion),
+  DFKIMAP(ForeignKey, ForeignKeyChildIndexId, ChildIndexId),
+  DFKIMAP(ForeignKey, ForeignKeyChildIndexVersion, ChildIndexVersion),
+  DFKIMAP(ForeignKey, ForeignKeyOnUpdateAction, OnUpdateAction),
+  DFKIMAP(ForeignKey, ForeignKeyOnDeleteAction, OnDeleteAction),
+
+  DFKIMAP2(ForeignKey, ForeignKeyParentColumnsLength, ParentColumnsLength, 0,
+           MAX_ATTRIBUTES_IN_INDEX),
+  DFKIMAPB(ForeignKey, ForeignKeyParentColumns, ParentColumns, 0,
+           4*MAX_ATTRIBUTES_IN_INDEX,
+           ParentColumnsLength),
+
+  DFKIMAP2(ForeignKey, ForeignKeyChildColumnsLength, ChildColumnsLength, 0,
+           MAX_ATTRIBUTES_IN_INDEX),
+  DFKIMAPB(ForeignKey, ForeignKeyChildColumns, ChildColumns, 0,
+           4*MAX_ATTRIBUTES_IN_INDEX,
+           ChildColumnsLength)
+};
+
+//static
+const Uint32 DictForeignKeyInfo::MappingSize =
+  sizeof(DictForeignKeyInfo::Mapping) / sizeof(SimpleProperties::SP2StructMapping);
+
+
+void
+DictForeignKeyInfo::ForeignKey::init()
+{
+  bzero(Name, sizeof(Name));
+  bzero(ParentTableName, sizeof(ParentTableName));
+  bzero(ParentIndexName, sizeof(ParentIndexName));
+  bzero(ChildTableName, sizeof(ChildTableName));
+  bzero(ChildIndexName, sizeof(ChildIndexName));
+  ForeignKeyId = RNIL;
+  ForeignKeyVersion = RNIL;
+  ParentTableId = RNIL;
+  ParentTableVersion = RNIL;
+  ChildTableId = RNIL;
+  ChildTableVersion = RNIL;
+  ParentIndexId = RNIL;
+  ParentIndexVersion = RNIL;
+  ChildIndexId = RNIL;
+  ChildIndexVersion = RNIL;
+  OnUpdateAction = NDB_FK_NO_ACTION;
+  OnDeleteAction = NDB_FK_NO_ACTION;
+  ParentColumnsLength = 0;
+  ChildColumnsLength = 0;
+}

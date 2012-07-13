@@ -225,6 +225,7 @@ public:
     Uint32    noOfKeyAttr;     // Number of key attributes
     Uint32    noOfAttr;        // Number of attributes
     bool      releaseFlag;     // flag if operation release after completion
+    UtilPrepareReq::OperationTypeValue operationType;
 
     /**
      * Attribute Mapping
