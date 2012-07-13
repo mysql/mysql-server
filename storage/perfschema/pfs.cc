@@ -3885,9 +3885,28 @@ static PSI_file* start_file_open_wait_v1(PSI_file_locker *locker,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_open_wait.
 */
-static void end_file_open_wait_v1(PSI_file_locker *locker)
+static void end_file_open_wait_v1(PSI_file_locker *locker,
+                                  void *result)
 {
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
   end_file_wait_v1(locker, 0);
+
+  /* 
+     If its a stat operation and file doesn't exist,
+     destory all collected information.
+  */
+  if(state->m_operation == PSI_FILE_STAT &&
+     result == NULL)
+  {
+    PFS_file *file= reinterpret_cast<PFS_file *> (state->m_file);
+    DBUG_ASSERT(file != NULL);
+    PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
+
+    DBUG_ASSERT(thread != NULL);
+    destroy_file(thread, file);
+  }
 }
 
 /**
@@ -4054,7 +4073,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
       thread->m_events_waits_current--;
     }
   }
-
+  
   /* Release or destroy the file if necessary */
   switch(state->m_operation)
   {
