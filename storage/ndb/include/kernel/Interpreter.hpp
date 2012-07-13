@@ -87,6 +87,7 @@ public:
   static Uint32 Sub(Uint32 DstReg, Uint32 SrcReg1, Uint32 SrcReg2);
   static Uint32 Branch(Uint32 Inst, Uint32 Reg1, Uint32 Reg2);
   static Uint32 ExitOK();
+  static Uint32 ExitLastOK();
 
   /**
    * Branch OP_ARG
@@ -301,6 +302,12 @@ inline
 Uint32
 Interpreter::ExitOK(){
   return EXIT_OK;
+}
+
+inline
+Uint32
+Interpreter::ExitLastOK(){
+  return EXIT_OK_LAST;
 }
 
 inline
