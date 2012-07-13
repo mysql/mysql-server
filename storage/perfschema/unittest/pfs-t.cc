@@ -1299,7 +1299,7 @@ void test_locker_disabled()
   file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
   ok(file_locker != NULL, "locker");
   psi->start_file_open_wait(file_locker, __FILE__, __LINE__);
-  psi->end_file_open_wait(file_locker);
+  psi->end_file_open_wait(file_locker, NULL);
   file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);

@@ -408,7 +408,8 @@ static PSI_file* start_file_open_wait_noop(PSI_file_locker *locker NNN,
   return NULL;
 }
 
-static void end_file_open_wait_noop(PSI_file_locker *locker NNN)
+static void end_file_open_wait_noop(PSI_file_locker *locker NNN,
+                                    void *result NNN)
 {
   return;
 }
