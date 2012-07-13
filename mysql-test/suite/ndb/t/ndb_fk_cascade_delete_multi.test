@@ -1,5 +1,5 @@
 -- source include/have_ndb.inc
--- source have_ndb_fk.inc
+-- source find_ndb_fk_tools.inc
 
 create table emp (
   id int primary key auto_increment,

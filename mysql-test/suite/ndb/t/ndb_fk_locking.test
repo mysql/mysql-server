@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source have_ndb_fk.inc
 
 connect (con1,localhost,root,,test);
 connect (con2,localhost,root,,test);
