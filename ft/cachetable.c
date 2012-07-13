@@ -77,12 +77,6 @@ status_init(void) {
 
 #define STATUS_VALUE(x) ct_status.status[x].value.num
 
-/* The workqueue pointer cq is set in:
- *   cachetable_complete_write_pair()      cq is cleared, called from many paths, cachetable lock is held during this function
- *   cachetable_flush_cachefile()          called during close and truncate, cachetable lock is held during this function
- *   toku_cachetable_unpin_and_remove()    called during node merge, cachetable lock is held during this function
- *
- */
 typedef struct ctpair *PAIR;
 struct ctpair {
     CACHEFILE cachefile;
