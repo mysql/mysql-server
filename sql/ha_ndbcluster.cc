@@ -832,6 +832,7 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 
     /* Mapping missing, go with the ndb error code*/
   case -1:
+  case 0:
     error= ndberr->code;
     break;
     /* Mapping exists, go with the mapped code */
@@ -9233,6 +9234,7 @@ int ha_ndbcluster::create(const char *name,
   uchar *data= NULL, *pack_data= NULL;
   bool create_temporary= (create_info->options & HA_LEX_CREATE_TMP_TABLE);
   bool create_from_engine= (create_info->table_options & HA_OPTION_CREATE_FROM_ENGINE);
+  bool is_alter= (thd->lex->sql_command == SQLCOM_ALTER_TABLE);
   bool is_truncate= (thd->lex->sql_command == SQLCOM_TRUNCATE);
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
@@ -9700,6 +9702,21 @@ int ha_ndbcluster::create(const char *name,
   tab.assignObjId(objId);
   m_table= &tab;
   my_errno= create_indexes(thd, ndb, form);
+
+  if (!is_truncate && my_errno == 0)
+  {
+    my_errno= create_fks(thd, ndb, form);
+  }
+
+  if ((is_alter || is_truncate) && my_errno == 0)
+  {
+    /**
+     * mysql doesnt know/care about FK (buhhh)
+     *   so we need to copy the old ones ourselves
+     */
+    my_errno= copy_fk_for_offline_alter(thd, ndb, &tab);
+  }
+
   m_table= 0;
 
   if (!my_errno)
@@ -15516,7 +15533,10 @@ HA_ALTER_FLAGS supported_alter_operations()
     HA_ADD_PARTITION |
     HA_ALTER_TABLE_REORG |
     HA_CHANGE_AUTOINCREMENT_VALUE | 
-    HA_ALTER_MAX_ROWS
+    HA_ALTER_MAX_ROWS |
+    HA_ADD_FOREIGN_KEY |
+    HA_DROP_FOREIGN_KEY |
+    HA_ALTER_FOREIGN_KEY
 ;
 }
 
@@ -16071,6 +16091,19 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
     }
   }
 
+  if (alter_flags->is_set(HA_ALTER_FOREIGN_KEY) ||
+      alter_flags->is_set(HA_ADD_FOREIGN_KEY))
+  {
+    int res= create_fks(thd, ndb, 0);
+    if (res != 0)
+    {
+      /* dict error has been mapped already by create_fks */
+      my_errno= error= res;
+      my_error(error, MYF(0), 0);
+      goto abort;
+    }
+  }
+
   DBUG_RETURN(0);
 abort:
   if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
@@ -16167,6 +16200,18 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
   {
     /* Tell the handler to finally drop the indexes. */
     if ((error= final_drop_index(table)))
+    {
+      print_error(error, MYF(0));
+      goto abort;
+    }
+  }
+
+  if (alter_flags->is_set(HA_DROP_FOREIGN_KEY) ||
+      alter_flags->is_set(HA_ALTER_FOREIGN_KEY))
+  {
+    NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
+    const NDBTAB* tab= alter_data->old_table;
+    if ((error= drop_fk_for_online_alter(thd, dict, tab)) != 0)
     {
       print_error(error, MYF(0));
       goto abort;
@@ -17440,5 +17485,7 @@ ndbinfo_plugin, /* ndbinfo plugin */
 /* IS plugin table which maps between mysql connection id and ndb trans-id */
 i_s_ndb_transid_mysql_connection_map_plugin
 mysql_declare_plugin_end;
+
+#include "ha_ndb_ddl_fk.cc"
 
 #endif

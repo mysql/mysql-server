@@ -99,6 +99,7 @@ static const char* empty_string = "";
  * 4800 - API, QueryBuilder
  * 5000 - Management server
  * 20000 - SPJ
+ * 21000 - DICT FK
  */
 
 static
@@ -121,6 +122,8 @@ ErrorBundle ErrorCodes[] = {
   { 839,  DMEC, CV, "Illegal null attribute" },
   { 840,  DMEC, CV, "Trying to set a NOT NULL attribute to NULL" },
   { 893,  HA_ERR_FOUND_DUPP_KEY, CV, "Constraint violation e.g. duplicate value in unique index" },
+  { 255,  HA_ERR_NO_REFERENCED_ROW, CV, "Foreign key constaint violated: No parent row found" },
+  { 256,  HA_ERR_ROW_IS_REFERENCED, CV, "Foreign key constaint violated: Referenced row exists" },
 
   /**
    * Node recovery errors
@@ -165,6 +168,12 @@ ErrorBundle ErrorCodes[] = {
   { 20016, DMEC, NR, "Query aborted due to node failure" },
   { 20017, DMEC, IE, "Query aborted due to invalid node count" },
   { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
+
+  /**
+   * DICT FK kernel and ndbapi error codes
+   */
+  { 21001, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Foreign key create failed: parent key is primary key: on-update-cascade is currently not allowed" },
+
   
   /**
    * Node shutdown

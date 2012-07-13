@@ -1,0 +1,195 @@
+create table parent (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+create table child (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+alter table child add constraint fkname foreign key (a) references parent(a) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (b) references parent(a) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update child set b = 2 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (a) references parent(b) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update parent set b = 2 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (b) references parent(b) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+update child set b = 2 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update parent set b = 2 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (c) references parent(a) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+update child set c = 2 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+alter table child add constraint fkname foreign key (c) references parent(b) on delete restrict on update restrict;
+insert into parent values (1,1,1);
+insert into child values (1,1,1);
+update child set c = 2 where a = 1;
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+update parent set b = 2 where a = 1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+begin;
+delete from parent;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+begin;
+insert into child values (2,2,2);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+rollback;
+delete from child;
+delete from parent;
+insert into parent values (1,1,1);
+begin;
+insert into child values (1,1,1);
+begin;
+delete from parent;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+commit;
+commit;
+delete from child;
+delete from parent;
+alter table child drop foreign key fkname;
+drop table parent, child;
