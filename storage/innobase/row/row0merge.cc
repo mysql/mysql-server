@@ -1758,6 +1758,8 @@ wait_again:
 
 	mem_free(merge_buf);
 
+	btr_pcur_close(&pcur);
+
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
 	if (max_doc_id) {
