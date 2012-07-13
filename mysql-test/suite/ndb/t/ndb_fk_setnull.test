@@ -1,0 +1,123 @@
+-- source include/have_ndb.inc
+
+create table parent (
+  a int primary key auto_increment,
+  b int not null,
+  c int not null,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+create table child (
+  a int primary key auto_increment,
+  b int,
+  c int,
+  unique(b) using hash,
+  index(c)) engine = ndb;
+
+###
+### PK vs UK
+###
+alter table child add constraint fkname foreign key (b) references parent (a) on update restrict on delete set null;
+
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+
+--error 1452
+insert into child values (3,3,3);
+
+--error 1452
+update child set b = 3 where a = 1;
+
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### PK vs OI
+###
+alter table child add constraint fkname foreign key (c) references parent (a) on update restrict on delete set null;
+
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2),(3,3,1);
+
+--error 1452
+update child set c = 3 where a = 1;
+
+--error 1452
+insert into child values (4,4,4);
+
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### UK vs UK
+###
+alter table child add constraint fkname foreign key (b) references parent (b) on update set null on delete set null;
+
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2);
+
+--error 1452
+update child set b = 3 where a = 1;
+
+--error 1452
+insert into child values (3,3,3);
+
+begin;
+update parent set b = 3 where a = 1;
+select * from child order by 1,2,3;
+rollback;
+
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+###
+### UK vs OI
+###
+alter table child add constraint fkname foreign key (c) references parent (b) on update set null on delete set null;
+
+insert into parent values (1,1,1),(2,2,2);
+insert into child values (1,1,1),(2,2,2),(3,3,1);
+
+--error 1452
+update child set c = 3 where a = 1;
+
+--error 1452
+insert into child values (4,4,4);
+
+begin;
+update parent set b = 3 where a = 1;
+select * from child order by 1,2,3;
+rollback;
+
+begin;
+delete from parent where a = 1;
+select * from child order by 1,2,3;
+commit;
+
+delete from child;
+delete from parent;
+
+alter table child drop foreign key fkname;
+
+drop table parent, child;

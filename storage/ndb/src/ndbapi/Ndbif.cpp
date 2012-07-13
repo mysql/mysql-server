@@ -747,6 +747,10 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
   case GSN_WAIT_GCP_REF:
   case GSN_CREATE_HASH_MAP_REF:
   case GSN_CREATE_HASH_MAP_CONF:
+  case GSN_CREATE_FK_REF:
+  case GSN_CREATE_FK_CONF:
+  case GSN_DROP_FK_REF:
+  case GSN_DROP_FK_CONF:
     NdbDictInterface::execSignal(&theDictionary->m_receiver,
 				 aSignal, ptr);
     return;
