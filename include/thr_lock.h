@@ -53,6 +53,11 @@ enum thr_lock_type { TL_IGNORE=-1,
 			reading/writing to the table.
 		      */
 		     TL_WRITE_ALLOW_WRITE,
+                     /*
+                       parser only! Late bound low_priority_flag.
+                       At open_tables() becomes thd->insert_lock_default.
+                     */
+                     TL_WRITE_CONCURRENT_DEFAULT,
 		     /*
 		       WRITE lock used by concurrent insert. Will allow
 		       READ, if one could use concurrent insert on table.

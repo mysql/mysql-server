@@ -1557,8 +1557,12 @@ static Sys_var_double Sys_long_query_time(
 static bool fix_low_prio_updates(sys_var *self, THD *thd, enum_var_type type)
 {
   if (type == OPT_SESSION)
+  {
     thd->update_lock_default= (thd->variables.low_priority_updates ?
                                TL_WRITE_LOW_PRIORITY : TL_WRITE);
+    thd->insert_lock_default= (thd->variables.low_priority_updates ?
+                               TL_WRITE_LOW_PRIORITY : TL_WRITE_CONCURRENT_INSERT);
+  }
   else
     thr_upgraded_concurrent_insert_lock=
       (global_system_variables.low_priority_updates ?
