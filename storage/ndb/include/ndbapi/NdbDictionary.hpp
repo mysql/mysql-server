@@ -207,7 +207,6 @@ public:
   class Table; // forward declaration
   class Tablespace; // forward declaration
   class HashMap; // Forward
-//  class NdbEventOperation; // forward declaration
 
   /**
    * @class Column
@@ -2053,8 +2052,8 @@ public:
   };
 
   /**
-   * @class HashMap
-   * @brief Represents a HashMap in an NDB Cluster
+   * @class ForeignKey
+   * @brief Represents a foreign key in an NDB Cluster
    *
    */
   class ForeignKey : public Object {
@@ -2289,9 +2288,9 @@ public:
     int listIndexes(List & list, const Table &table) const;
 
     /**
-     * Fetch list object that table depend on
-     * @param list  Reference to list where to store the listed indexes
-     * @param table  Reference to table that object belongs to.
+     * Fetch list of objects that table depend on
+     * @param list  Reference to list where to store the listed objects
+     * @param table  Reference to table that objects belongs to.
      * @return  0 if successful, otherwise -1
      */
     int listDependentObjects(List & list, const Table &table) const;
