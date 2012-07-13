@@ -58,7 +58,6 @@ status_init(void) {
     STATUS_INIT(CT_PREFETCHES,             UINT64, "prefetches");
     STATUS_INIT(CT_SIZE_CURRENT,           UINT64, "size current");
     STATUS_INIT(CT_SIZE_LIMIT,             UINT64, "size limit");
-    STATUS_INIT(CT_SIZE_MAX,               UINT64, "size max");
     STATUS_INIT(CT_SIZE_WRITING,           UINT64, "size writing");
     STATUS_INIT(CT_SIZE_NONLEAF,           UINT64, "size nonleaf");
     STATUS_INIT(CT_SIZE_LEAF,              UINT64, "size leaf");
@@ -141,7 +140,6 @@ struct cachetable {
     int64_t size_current;            // the sum of the sizes of the pairs in the cachetable
     int64_t size_limit;              // the limit to the sum of the pair sizes
     int64_t size_evicting;            // the sum of the sizes of the pairs being written
-    int64_t size_max;                // high water mark of size_current (max value size_current ever had)
     TOKULOGGER logger;
     toku_mutex_t mutex;  // coarse lock that protects the cachetable, the cachefiles, and the pairs
 
@@ -194,7 +192,6 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
     STATUS_VALUE(CT_PREFETCHES)             = cachetable_prefetches;
     STATUS_VALUE(CT_SIZE_CURRENT)           = ct->size_current;
     STATUS_VALUE(CT_SIZE_LIMIT)             = ct->size_limit;
-    STATUS_VALUE(CT_SIZE_MAX)               = ct->size_max;
     STATUS_VALUE(CT_SIZE_WRITING)           = ct->size_evicting;
     STATUS_VALUE(CT_SIZE_NONLEAF)           = ct->size_nonleaf;
     STATUS_VALUE(CT_SIZE_LEAF)              = ct->size_leaf;
@@ -845,9 +842,6 @@ static void
 cachetable_add_pair_attr(CACHETABLE ct, PAIR_ATTR attr) {
     assert(attr.is_valid);
     ct->size_current += attr.size;
-    if (ct->size_current > ct->size_max) {
-        ct->size_max = ct->size_current;
-    }
     ct->size_nonleaf += attr.nonleaf_size;
     ct->size_leaf += attr.leaf_size;
     ct->size_rollback += attr.rollback_size;
@@ -3107,7 +3101,7 @@ void toku_cachetable_print_state (CACHETABLE ct) {
     cachetable_unlock(ct);
 }
 
-void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr, int64_t *size_max_ptr) {
+void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_size_ptr, long *size_current_ptr, long *size_limit_ptr) {
     cachetable_lock(ct);
     if (num_entries_ptr) 
         *num_entries_ptr = ct->n_in_table;
@@ -3117,8 +3111,6 @@ void toku_cachetable_get_state (CACHETABLE ct, int *num_entries_ptr, int *hash_s
         *size_current_ptr = ct->size_current;
     if (size_limit_ptr)
         *size_limit_ptr = ct->size_limit;
-    if (size_max_ptr)
-        *size_max_ptr = ct->size_max;
     cachetable_unlock(ct);
 }
 
