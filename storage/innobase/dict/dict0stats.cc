@@ -868,18 +868,24 @@ dict_stats_update_transient(
 		return;
 	}
 
-	do {
+	for (; index != NULL; index = dict_table_get_next_index(index)) {
+
 		ut_ad(!dict_index_is_univ(index));
 
-		if (!dict_stats_should_ignore_index(index)) {
-
-			dict_stats_update_transient_for_index(index);
-
-			sum_of_index_sizes += index->stat_index_size;
+		if (index->type & DICT_FTS) {
+			continue;
 		}
 
-		index = dict_table_get_next_index(index);
-	} while (index);
+		dict_stats_empty_index(index);
+
+		if (dict_stats_should_ignore_index(index)) {
+			continue;
+		}
+
+		dict_stats_update_transient_for_index(index);
+
+		sum_of_index_sizes += index->stat_index_size;
+	}
 
 	index = dict_table_get_first_index(table);
 
