@@ -2132,24 +2132,27 @@ dict_stats_update_persistent(
 	table->stat_sum_of_other_index_sizes = 0;
 
 	for (index = dict_table_get_next_index(index);
-	     index != NULL && !(table->stats_bg_flag & BG_STAT_SHOULD_QUIT);
+	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
+
+		ut_ad(!dict_index_is_univ(index));
 
 		if (index->type & DICT_FTS) {
 			continue;
 		}
 
+		dict_stats_empty_index(index);
+
 		if (dict_index_is_online_ddl(index)
 		    || dict_index_is_corrupted(index)
 		    || index->to_be_dropped) {
 
-			dict_stats_empty_index(index);
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
-
-		dict_stats_analyze_index(index);
+		if (!(table->stats_bg_flag & BG_STAT_SHOULD_QUIT)) {
+			dict_stats_analyze_index(index);
+		}
 
 		table->stat_sum_of_other_index_sizes
 			+= index->stat_index_size;
