@@ -11862,7 +11862,7 @@ replace:
         ;
 
 insert_lock_option:
-          /* empty */   { $$= TL_WRITE_CONCURRENT_INSERT; }
+          /* empty */   { $$= TL_WRITE_CONCURRENT_DEFAULT; }
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
