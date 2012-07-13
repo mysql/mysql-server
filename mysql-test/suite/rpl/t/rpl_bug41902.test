@@ -7,7 +7,7 @@ source include/master-slave.inc;
 
 -- disable_query_log
 CALL mtr.add_suppression("Failed to locate old binlog or relay log files");
-CALL mtr.add_suppression('MYSQL_BIN_LOG::purge_logs was called with file ./master-bin.000001 not listed in the index.');
+CALL mtr.add_suppression('MYSQL_BIN_LOG::purge_logs was called with file ..master-bin.000001 not listed in the index.');
 -- enable_query_log
 sync_slave_with_master;
 
