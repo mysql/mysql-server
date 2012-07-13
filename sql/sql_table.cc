@@ -5271,6 +5271,67 @@ static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
 }
 
 
+/**
+  Check if index has changed in a new version of table.
+
+  @param  alter_info  Alter_info describing the changes to table
+                      (is necessary to find correspondence between
+                      fields in old and new version of table).
+  @param  table_key   Description of key in old version of table.
+  @param  new_key     Description of key in new version of table.
+
+  @returns True - if index has changed, false -otherwise.
+*/
+
+static bool has_index_changed(Alter_info *alter_info,
+                              const KEY *table_key,
+                              const KEY *new_key)
+{
+  const KEY_PART_INFO *key_part, *new_part, *end;
+  const Create_field *new_field;
+
+  /* Check that the key types are compatible between old and new tables. */
+  if ((table_key->algorithm != new_key->algorithm) ||
+      ((table_key->flags & HA_KEYFLAG_MASK) !=
+       (new_key->flags & HA_KEYFLAG_MASK)) ||
+      (table_key->key_parts != new_key->key_parts))
+    return true;
+
+  /*
+    Check that the key parts remain compatible between the old and
+    new tables.
+  */
+  end= table_key->key_part + table_key->key_parts;
+  for (key_part= table_key->key_part, new_part= new_key->key_part;
+       key_part < end;
+       key_part++, new_part++)
+  {
+    /*
+      Key definition has changed if we are using a different field or
+      if the used key part length is different. It makes sense to
+      check lengths first as in case when fields differ it is likely
+      that lengths differ too and checking fields is more expensive
+      in general case.
+    */
+    if (key_part->length != new_part->length)
+      return true;
+
+    new_field= get_field_by_index(alter_info, new_part->fieldnr);
+
+    /*
+      For prefix keys KEY_PART_INFO::field points to cloned Field
+      object with adjusted length. So below we have to check field
+      indexes instead of simply comparing pointers to Field objects.
+    */
+    if (! new_field->field ||
+        new_field->field->field_index != key_part->fieldnr - 1)
+      return true;
+  }
+
+  return false;
+}
+
+
 static int compare_uint(const uint *s, const uint *t)
 {
   return (*s < *t) ? -1 : ((*s > *t) ? 1 : 0);
@@ -5327,8 +5388,6 @@ static bool fill_alter_inplace_info(THD *thd,
   Field **f_ptr, *field;
   List_iterator_fast<Create_field> new_field_it;
   Create_field *new_field;
-  KEY_PART_INFO *key_part, *new_part;
-  KEY_PART_INFO *end;
   uint candidate_key_count= 0;
   Alter_info *alter_info= ha_alter_info->alter_info;
   DBUG_ENTER("fill_alter_inplace_info");
@@ -5542,55 +5601,17 @@ static bool fill_alter_inplace_info(THD *thd,
       continue;
     }
 
-    /* Check that the key types are compatible between old and new tables. */
-    if ((table_key->algorithm != new_key->algorithm) ||
-        ((table_key->flags & HA_KEYFLAG_MASK) !=
-         (new_key->flags & HA_KEYFLAG_MASK)) ||
-        (table_key->key_parts != new_key->key_parts))
-      goto index_changed;
-
-    /*
-      Check that the key parts remain compatible between the old and
-      new tables.
-    */
-    end= table_key->key_part + table_key->key_parts;
-    for (key_part= table_key->key_part, new_part= new_key->key_part;
-         key_part < end;
-         key_part++, new_part++)
+    if (has_index_changed(alter_info, table_key, new_key))
     {
-      /*
-        Key definition has changed if we are using a different field or
-        if the used key part length is different. It makes sense to
-        check lengths first as in case when fields differ it is likely
-        that lengths differ too and checking fields is more expensive
-        in general case.
-      */
-      if (key_part->length != new_part->length)
-        goto index_changed;
-
-      new_field= get_field_by_index(alter_info, new_part->fieldnr);
-
-      /*
-        For prefix keys KEY_PART_INFO::field points to cloned Field
-        object with adjusted length. So below we have to check field
-        indexes instead of simply comparing pointers to Field objects.
-      */
-      if (! new_field->field ||
-          new_field->field->field_index != key_part->fieldnr - 1)
-        goto index_changed;
+      /* Key modified. Add the key / key offset to both buffers. */
+      ha_alter_info->index_drop_buffer
+        [ha_alter_info->index_drop_count++]=
+        table_key;
+      ha_alter_info->index_add_buffer
+        [ha_alter_info->index_add_count++]=
+        new_key - ha_alter_info->key_info_buffer;
+      DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
     }
-    continue;
-
-  index_changed:
-    /* Key modified. Add the key / key offset to both buffers. */
-    ha_alter_info->index_drop_buffer
-      [ha_alter_info->index_drop_count++]=
-      table_key;
-    ha_alter_info->index_add_buffer
-      [ha_alter_info->index_add_count++]=
-      new_key - ha_alter_info->key_info_buffer;
-    /* Mark all old fields which are used in newly created index. */
-    DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
   }
   /*end of for (; table_key < table_key_end;) */
 
