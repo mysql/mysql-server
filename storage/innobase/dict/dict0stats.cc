@@ -136,6 +136,27 @@ from that level */
 #define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
 
 /*********************************************************************//**
+Checks whether an index should be ignored in stats manipulations:
+* stats fetch
+* stats recalc
+* stats save
+dict_stats_should_ignore_index() @{
+@return true if exists and all tables are ok */
+UNIV_INLINE
+bool
+dict_stats_should_ignore_index(
+/*===========================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	return((index->type & DICT_FTS)
+	       || dict_index_is_corrupted(index)
+	       || index->to_be_dropped
+	       || (!dict_index_is_clust(index)
+		   && dict_index_is_online_ddl(index)));
+}
+/* @} */
+
+/*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
 dict_stats_persistent_storage_check() @{
@@ -335,11 +356,7 @@ dict_stats_table_clone_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
@@ -384,11 +401,7 @@ dict_stats_table_clone_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
@@ -604,15 +617,9 @@ dict_stats_assert_initialized(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
-			continue;
+		if (!dict_stats_should_ignore_index(index)) {
+			dict_stats_assert_initialized_index(index);
 		}
-
-		dict_stats_assert_initialized_index(index);
 	}
 }
 
@@ -649,12 +656,7 @@ dict_stats_copy(
 	     (src_idx != NULL
 	      && (src_idx = dict_table_get_next_index(src_idx)))) {
 
-		if ((dst_idx->type & DICT_FTS)
-		    || dict_index_is_corrupted(dst_idx)
-		    || dst_idx->to_be_dropped
-		    || (!dict_index_is_clust(dst_idx)
-			&& dict_index_is_online_ddl(dst_idx))) {
-
+		if (dict_stats_should_ignore_index(dst_idx)) {
 			continue;
 		}
 
@@ -869,10 +871,7 @@ dict_stats_update_transient(
 	do {
 		ut_ad(!dict_index_is_univ(index));
 
-		if (!((index->type & DICT_FTS)
-		      || dict_index_is_corrupted(index)
-		      || (!dict_index_is_clust(index)
-			  && dict_index_is_online_ddl(index)))) {
+		if (!dict_stats_should_ignore_index(index)) {
 
 			dict_stats_update_transient_for_index(index);
 
@@ -2157,10 +2156,7 @@ dict_stats_update_persistent(
 
 		dict_stats_empty_index(index);
 
-		if (dict_index_is_online_ddl(index)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped) {
-
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
@@ -2413,11 +2409,7 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
