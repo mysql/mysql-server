@@ -1,0 +1,153 @@
+SET SESSION STORAGE_ENGINE = myisam;
+drop table if exists t1;
+set @save_query_cache_size = @@global.query_cache_size;
+# Test that partitions works with query cache
+flush query cache;
+SET GLOBAL query_cache_size=1024*1024*512;
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL ,
+`created_at` datetime NOT NULL,
+`cool` tinyint default 0
+);
+ALTER TABLE t1 PARTITION BY RANGE (TO_DAYS(created_at)) (
+PARTITION month_2010_4 VALUES LESS THAN (734258),
+PARTITION month_2010_5 VALUES LESS THAN (734289),
+PARTITION month_max VALUES LESS THAN MAXVALUE
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `cool` tinyint(4) DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (TO_DAYS(created_at))
+(PARTITION month_2010_4 VALUES LESS THAN (734258) ENGINE = MyISAM,
+ PARTITION month_2010_5 VALUES LESS THAN (734289) ENGINE = MyISAM,
+ PARTITION month_max VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+INSERT INTO t1 VALUES (1, now(), 0);
+flush status;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+0
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+0
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+drop table t1;
+# Test that sub-partitions works with query cache
+flush query cache;
+SET GLOBAL query_cache_size=1024*1024*512;
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL ,
+`created_at` datetime NOT NULL,
+`cool` tinyint default 0
+)
+PARTITION BY RANGE (TO_DAYS(created_at))
+subpartition by hash(cool) subpartitions 3 (
+PARTITION month_2010_4 VALUES LESS THAN (734258),
+PARTITION month_2010_5 VALUES LESS THAN (734289),
+PARTITION month_max VALUES LESS THAN MAXVALUE
+);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) NOT NULL,
+  `created_at` datetime NOT NULL,
+  `cool` tinyint(4) DEFAULT '0'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (TO_DAYS(created_at))
+SUBPARTITION BY HASH (cool)
+SUBPARTITIONS 3
+(PARTITION month_2010_4 VALUES LESS THAN (734258) ENGINE = MyISAM,
+ PARTITION month_2010_5 VALUES LESS THAN (734289) ENGINE = MyISAM,
+ PARTITION month_max VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+INSERT INTO t1 VALUES (1, now(), 0);
+flush status;
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+0
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+0
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+0
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	1
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+drop table t1;
+#
+# MySQL bug#53775 Query on partitioned table returns cached result
+# from previous transaction
+#
+flush query cache;
+flush status;
+SET GLOBAL query_cache_size=1024*1024*512;
+CREATE TABLE `t1` (
+`id` int(11) NOT NULL ,
+`created_at` datetime NOT NULL,
+`cool` tinyint default 0
+);
+ALTER TABLE t1 PARTITION BY RANGE (TO_DAYS(created_at)) (
+PARTITION month_2010_4 VALUES LESS THAN (734258),
+PARTITION month_2010_5 VALUES LESS THAN (734289),
+PARTITION month_max VALUES LESS THAN MAXVALUE
+);
+INSERT INTO t1 VALUES (1, now(), 0);
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	0
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	0
+BEGIN;
+UPDATE `t1` SET `cool` = 1 WHERE `id` = 1;
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+1
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+1
+BEGIN;
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+1
+ROLLBACK;
+SELECT cool FROM `t1` WHERE (`t1`.id = 1) LIMIT 1;
+cool
+1
+show status like "Qcache_queries_in_cache";
+Variable_name	Value
+Qcache_queries_in_cache	2
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	2
+drop table t1;
+set @@global.query_cache_size = @save_query_cache_size;

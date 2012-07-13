@@ -27,7 +27,7 @@ a
 3
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 drop table t1;
 commit;
 create table t1 (a int not null) PARTITION BY KEY (a) PARTITIONS 3;
@@ -50,7 +50,7 @@ a
 2
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	3
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
@@ -69,7 +69,7 @@ a
 2
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	6
 show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	0
@@ -93,14 +93,14 @@ a
 2
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	2
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	0
+Qcache_hits	1
 commit;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	2
 drop table t3,t2,t1;
 CREATE TABLE t1 (id int(11) NOT NULL auto_increment, PRIMARY KEY (id)) PARTITION BY HASH (id) PARTITIONS 3;
 select count(*) from t1;
@@ -164,7 +164,7 @@ count(*)
 2
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 connection connection1
 SELECT sql_cache count(*) FROM t2 WHERE s2 = 'w';
 count(*)
@@ -197,9 +197,9 @@ count(*)
 2
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
-Qcache_queries_in_cache	0
+Qcache_queries_in_cache	1
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	0
+Qcache_hits	1
 set @@global.query_cache_size = @save_query_cache_size;
 drop table t2;

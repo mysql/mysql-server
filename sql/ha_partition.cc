@@ -2076,6 +2076,122 @@ partition_element *ha_partition::find_partition_element(uint part_id)
   return NULL;
 }
 
+uint ha_partition::count_query_cache_dependant_tables(uint8 *tables_type)
+{
+  DBUG_ENTER("ha_partition::count_query_cache_dependant_tables");
+  /* Here we rely on the fact that all tables are of the same type */
+  (*tables_type)|= m_file[0]->table_cache_type();
+  DBUG_PRINT("info", ("cnt: %u", (uint)m_tot_parts));
+  DBUG_RETURN(m_tot_parts);
+}
+
+my_bool ha_partition::reg_query_cache_dependant_table(THD *thd,
+                                          char *key, uint key_len,
+                                          uint8 type,
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block_table,
+                                          handler *file,
+                                          uint *n)
+{
+  DBUG_ENTER("ha_partition::reg_query_cache_dependant_table");
+  qc_engine_callback engine_callback;
+  ulonglong engine_data;
+  /* ask undelying engine */
+  if (!file->register_query_cache_table(thd, key,
+                                        key_len,
+                                        &engine_callback,
+                                        &engine_data))
+  {
+    DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
+                          key,
+                          key + table_share->db.length + 1));
+    /*
+      As this can change from call to call, don't reset set
+      thd->lex->safe_to_cache_query
+    */
+    thd->query_cache_is_applicable= 0;        // Query can't be cached
+    DBUG_RETURN(TRUE);
+  }
+  (++(*block_table))->n= ++(*n);
+  if (!cache->insert_table(key_len,
+                           key, (*block_table),
+                           table_share->db.length,
+                           type,
+                           engine_callback, engine_data,
+                           FALSE))
+    DBUG_RETURN(TRUE);
+  DBUG_RETURN(FALSE);
+}
+
+
+my_bool ha_partition::register_query_cache_dependant_tables(THD *thd,
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block_table,
+                                          uint *n)
+{
+  char *name;
+  uint prefix_length= table_share->table_cache_key.length + 3;
+  uint num_parts= m_part_info->num_parts;
+  uint num_subparts= m_part_info->num_subparts;
+  uint i= 0;
+  List_iterator<partition_element> part_it(m_part_info->partitions);
+  char key[FN_REFLEN];
+
+  DBUG_ENTER("ha_partition::register_query_cache_dependant_tables");
+
+  /* prepare static part of the key */
+  memmove(key, table_share->table_cache_key.str,
+          table_share->table_cache_key.length);
+
+  name= key + table_share->table_cache_key.length - 1;
+  name[0]= name[2]= '#';
+  name[1]= 'P';
+  name+= 3;
+
+  do
+  {
+    partition_element *part_elem= part_it++;
+    uint part_len= strmov(name, part_elem->partition_name) - name;
+    if (m_is_sub_partitioned)
+    {
+      List_iterator<partition_element> subpart_it(part_elem->subpartitions);
+      partition_element *sub_elem;
+      char *sname= name + part_len;
+      uint j= 0, part;
+      sname[0]= sname[3]= '#';
+      sname[1]= 'S';
+      sname[2]= 'P';
+      sname += 4;
+      do
+      {
+        sub_elem= subpart_it++;
+        part= i * num_subparts + j;
+        uint spart_len= strmov(sname, sub_elem->partition_name) - name + 1;
+        if (reg_query_cache_dependant_table(thd, key,
+                                            prefix_length + part_len + 4 +
+                                            spart_len,
+                                            m_file[part]->table_cache_type(),
+                                            cache,
+                                            block_table, m_file[part],
+                                            n))
+          DBUG_RETURN(TRUE);
+      } while (++j < num_subparts);
+    }
+    else
+    {
+      if (reg_query_cache_dependant_table(thd, key,
+                                          prefix_length + part_len + 1,
+                                          m_file[i]->table_cache_type(),
+                                          cache,
+                                          block_table, m_file[i],
+                                          n))
+        DBUG_RETURN(TRUE);
+    }
+  } while (++i < num_parts);
+  DBUG_PRINT("info", ("cnt: %u", (uint)m_tot_parts));
+  DBUG_RETURN(FALSE);
+}
+
 
 /*
    Set up table share object before calling create on underlying handler

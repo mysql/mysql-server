@@ -149,4 +149,10 @@ public:
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
   int check(THD* thd, HA_CHECK_OPT* check_opt);
   ha_rows records();
+  virtual uint count_query_cache_dependant_tables(uint8 *tables_type);
+  virtual my_bool
+    register_query_cache_dependant_tables(THD *thd,
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block,
+                                          uint *n);
 };

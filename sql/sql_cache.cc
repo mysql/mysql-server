@@ -1533,7 +1533,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
           unlock();
 	  goto end;
 	}
-	if (!register_all_tables(query_block, tables_used, local_tables))
+	if (!register_all_tables(thd, query_block, tables_used, local_tables))
 	{
 	  refused++;
 	  DBUG_PRINT("warning", ("tables list including failed"));
@@ -3203,6 +3203,7 @@ Query_cache::invalidate_query_block_list(THD *thd,
 
   SYNOPSIS
     Query_cache::register_tables_from_list
+    thd             thread handle
     tables_used     given table list
     counter         number current position in table of tables of block
     block_table     pointer to current position in tables table of block
@@ -3213,24 +3214,24 @@ Query_cache::invalidate_query_block_list(THD *thd,
 */
 
 TABLE_COUNTER_TYPE
-Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
+Query_cache::register_tables_from_list(THD *thd, TABLE_LIST *tables_used,
                                        TABLE_COUNTER_TYPE counter,
-                                       Query_cache_block_table *block_table)
+                                       Query_cache_block_table **block_table)
 {
   TABLE_COUNTER_TYPE n;
   DBUG_ENTER("Query_cache::register_tables_from_list");
   for (n= counter;
        tables_used;
-       tables_used= tables_used->next_global, n++, block_table++)
+       tables_used= tables_used->next_global, n++, (*block_table)++)
   {
     if (tables_used->is_anonymous_derived_table())
     {
       DBUG_PRINT("qcache", ("derived table skipped"));
       n--;
-      block_table--;
+      (*block_table)--;
       continue;
     }
-    block_table->n= n;
+    (*block_table)->n= n;
     if (tables_used->view)
     {
       char key[MAX_DBKEY_LENGTH];
@@ -3243,9 +3244,9 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
       /*
         There are not callback function for for VIEWs
       */
-      if (!insert_table(key_length, key, block_table,
+      if (!insert_table(key_length, key, (*block_table),
                         tables_used->view_db.length + 1,
-                        HA_CACHE_TBL_NONTRANSACT, 0, 0))
+                        HA_CACHE_TBL_NONTRANSACT, 0, 0, TRUE))
         DBUG_RETURN(0);
       /*
         We do not need to register view tables here because they are already
@@ -3264,42 +3265,17 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
 
       if (!insert_table(tables_used->table->s->table_cache_key.length,
                         tables_used->table->s->table_cache_key.str,
-                        block_table,
+                        (*block_table),
                         tables_used->db_length,
                         tables_used->table->file->table_cache_type(),
                         tables_used->callback_func,
-                        tables_used->engine_data))
+                        tables_used->engine_data,
+                        TRUE))
         DBUG_RETURN(0);
 
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
-      /*
-        XXX FIXME: Some generic mechanism is required here instead of this
-        MYISAMMRG-specific implementation.
-      */
-      if (tables_used->table->s->db_type()->db_type == DB_TYPE_MRG_MYISAM)
-      {
-        ha_myisammrg *handler = (ha_myisammrg *) tables_used->table->file;
-        MYRG_INFO *file = handler->myrg_info();
-        for (MYRG_TABLE *table = file->open_tables;
-             table != file->end_table ;
-             table++)
-        {
-          char key[MAX_DBKEY_LENGTH];
-          uint32 db_length;
-          uint key_length= filename_2_table_key(key, table->table->filename,
-                                                &db_length);
-          (++block_table)->n= ++n;
-          /*
-            There are not callback function for for MyISAM, and engine data
-          */
-          if (!insert_table(key_length, key, block_table,
-                            db_length,
-                            tables_used->table->file->table_cache_type(),
-                            0, 0))
-            DBUG_RETURN(0);
-        }
-      }
-#endif
+      if (tables_used->table->file->
+          register_query_cache_dependant_tables(thd, this, block_table, &n))
+        DBUG_RETURN(0);
     }
   }
   DBUG_RETURN(n - counter);
@@ -3310,12 +3286,14 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
 
   SYNOPSIS
     register_all_tables()
+    thd                 Thread handle
     block		Store tables in this block
     tables_used		List if used tables
     tables_arg		Not used ?
 */
 
-my_bool Query_cache::register_all_tables(Query_cache_block *block,
+my_bool Query_cache::register_all_tables(THD *thd,
+                                         Query_cache_block *block,
 					 TABLE_LIST *tables_used,
 					 TABLE_COUNTER_TYPE tables_arg)
 {
@@ -3326,7 +3304,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 
   Query_cache_block_table *block_table = block->table(0);
 
-  n= register_tables_from_list(tables_used, 0, block_table);
+  n= register_tables_from_list(thd, tables_used, 0, &block_table);
 
   if (n==0)
   {
@@ -3335,6 +3313,8 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	 tmp != block_table;
 	 tmp++)
       unlink_table(tmp);
+    if (block_table->parent)
+      unlink_table(block_table);
   }
   return test(n);
 }
@@ -3353,7 +3333,8 @@ Query_cache::insert_table(uint key_len, char *key,
 			  Query_cache_block_table *node,
 			  uint32 db_length, uint8 cache_type,
                           qc_engine_callback callback,
-                          ulonglong engine_data)
+                          ulonglong engine_data,
+                          my_bool hash)
 {
   DBUG_ENTER("Query_cache::insert_table");
   DBUG_PRINT("qcache", ("insert table node 0x%lx, len %d",
@@ -3361,8 +3342,10 @@ Query_cache::insert_table(uint key_len, char *key,
 
   THD *thd= current_thd;
 
-  Query_cache_block *table_block= 
-    (Query_cache_block *) my_hash_search(&tables, (uchar*) key, key_len);
+  Query_cache_block *table_block=
+    (hash ?
+     (Query_cache_block *) my_hash_search(&tables, (uchar*) key, key_len) :
+     NULL);
 
   if (table_block &&
       table_block->table()->engine_data() != engine_data)
@@ -3412,7 +3395,8 @@ Query_cache::insert_table(uint key_len, char *key,
     */
     list_root->next= list_root->prev= list_root;
 
-    if (my_hash_insert(&tables, (const uchar *) table_block))
+    if (hash &&
+        my_hash_insert(&tables, (const uchar *) table_block))
     {
       DBUG_PRINT("qcache", ("Can't insert table to hash"));
       // write_block_data return locked block
@@ -3425,6 +3409,7 @@ Query_cache::insert_table(uint key_len, char *key,
     header->type(cache_type);
     header->callback(callback);
     header->engine_data(engine_data);
+    header->set_hashed(hash);
 
     /*
       We insert this table without the assumption that it isn't refrenenced by
@@ -3478,7 +3463,9 @@ void Query_cache::unlink_table(Query_cache_block_table *node)
     Query_cache_block *table_block= neighbour->block();
     double_linked_list_exclude(table_block,
                                &tables_blocks);
-    my_hash_delete(&tables,(uchar *) table_block);
+    Query_cache_table *header= table_block->table();
+    if (header->is_hashed())
+      my_hash_delete(&tables,(uchar *) table_block);
     free_memory_block(table_block);
   }
   DBUG_VOID_RETURN;
@@ -3951,6 +3938,9 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
         table_alias_charset used here because it depends of
         lower_case_table_names variable
       */
+      table_count+= tables_used->table->file->
+        count_query_cache_dependant_tables(tables_type);
+
       if (tables_used->table->s->tmp_table != NO_TMP_TABLE ||
           (*tables_type & HA_CACHE_TBL_NOCACHE) ||
           (tables_used->db_length == 5 &&
@@ -3963,18 +3953,6 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
                     "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
-      /*
-        XXX FIXME: Some generic mechanism is required here instead of this
-        MYISAMMRG-specific implementation.
-      */
-      if (tables_used->table->s->db_type()->db_type == DB_TYPE_MRG_MYISAM)
-      {
-        ha_myisammrg *handler = (ha_myisammrg *)tables_used->table->file;
-        MYRG_INFO *file = handler->myrg_info();
-        table_count+= (file->end_table - file->open_tables);
-      }
-#endif
     }
   }
   DBUG_RETURN(table_count);

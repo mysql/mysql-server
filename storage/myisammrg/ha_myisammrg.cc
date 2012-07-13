@@ -1652,6 +1652,47 @@ ha_rows ha_myisammrg::records()
   return myrg_records(file);
 }
 
+uint ha_myisammrg::count_query_cache_dependant_tables(uint8 *tables_type)
+{
+  MYRG_INFO *file = myrg_info();
+  /*
+    Here should be following statement
+  (*tables_type)|= HA_CACHE_TBL_NONTRANSACT;
+    but it has no effect because HA_CACHE_TBL_NONTRANSACT is 0
+  */
+  return (file->end_table - file->open_tables);
+}
+
+
+my_bool ha_myisammrg::register_query_cache_dependant_tables(THD *thd
+                                          __attribute__((unused)),
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block_table,
+                                          uint *n)
+{
+  MYRG_INFO *file =myrg_info();
+  DBUG_ENTER("ha_myisammrg::register_query_cache_dependant_tables");
+
+  for (MYRG_TABLE *table =file->open_tables;
+       table != file->end_table ;
+       table++)
+  {
+    char key[MAX_DBKEY_LENGTH];
+    uint32 db_length;
+    uint key_length= cache->filename_2_table_key(key, table->table->filename,
+                                                 &db_length);
+    (++(*block_table))->n= ++(*n);
+    /*
+      There are not callback function for for MyISAM, and engine data
+    */
+    if (!cache->insert_table(key_length, key, (*block_table),
+                             db_length,
+                             table_cache_type(),
+                             0, 0, TRUE))
+      DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
 
 extern int myrg_panic(enum ha_panic_function flag);
 int myisammrg_panic(handlerton *hton, ha_panic_function flag)

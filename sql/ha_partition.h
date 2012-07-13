@@ -544,22 +544,20 @@ public:
   virtual int extra(enum ha_extra_function operation);
   virtual int extra_opt(enum ha_extra_function operation, ulong cachesize);
   virtual int reset(void);
-  /*
-    Do not allow caching of partitioned tables, since we cannot return
-    a callback or engine_data that would work for a generic engine.
-  */
-  virtual my_bool register_query_cache_table(THD *thd, char *table_key,
-                                             uint key_length,
-                                             qc_engine_callback
-                                               *engine_callback,
-                                             ulonglong *engine_data)
-  {
-    *engine_callback= NULL;
-    *engine_data= 0;
-    return FALSE;
-  }
+  virtual uint count_query_cache_dependant_tables(uint8 *tables_type);
+  virtual my_bool
+    register_query_cache_dependant_tables(THD *thd,
+                                          Query_cache *cache,
+                                          Query_cache_block_table **block,
+                                          uint *n);
 
 private:
+  my_bool reg_query_cache_dependant_table(THD *thd,
+                                          char *key, uint key_len, uint8 type,
+                                          Query_cache *cache,
+                                          Query_cache_block_table
+                                          **block_table,
+                                          handler *file, uint *n);
   static const uint NO_CURRENT_PART_ID;
   int loop_extra(enum ha_extra_function operation);
   void late_extra_cache(uint partition_id);

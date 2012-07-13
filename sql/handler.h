@@ -1689,6 +1689,8 @@ public:
   virtual ~handler_add_index() {}
 };
 
+class Query_cache;
+class Query_cache_block_table;
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
@@ -2522,6 +2524,46 @@ public:
     return TRUE;
   }
 
+  /*
+    Count tables invisible from all tables list on which current one built
+    (like myisammrg and partitioned tables)
+
+    tables_type          mask for the tables should be added herdde
+
+    returns number of such tables
+  */
+
+  virtual uint count_query_cache_dependant_tables(uint8 *tables_type
+                                                  __attribute__((unused)))
+  {
+    return 0;
+  }
+
+  /*
+    register tables invisible from all tables list on which current one built
+    (like myisammrg and partitioned tables).
+
+    @note they should be counted by method above
+
+    cache                Query cache pointer
+    block                Query cache block to write the table
+    n                    Number of the table
+
+    @retval FALSE - OK
+    @retval TRUE  - Error
+  */
+
+  virtual my_bool
+    register_query_cache_dependant_tables(THD *thd
+                                          __attribute__((unused)),
+                                          Query_cache *cache
+                                          __attribute__((unused)),
+                                          Query_cache_block_table **block
+                                          __attribute__((unused)),
+                                          uint *n __attribute__((unused)))
+  {
+    return FALSE;
+  }
 
  /*
    Check if the primary key (if there is one) is a clustered and a

@@ -200,6 +200,10 @@ struct Query_cache_table
     The number of queries depending of this table.
   */
   int32 m_cached_query_count;
+  /**
+    If table included in the table hash to be found by other queries
+  */
+  my_bool hashed;
 
   inline char *db()			     { return (char *) data(); }
   inline char *table()			     { return tbl; }
@@ -212,6 +216,8 @@ struct Query_cache_table
   inline void callback(qc_engine_callback fn){ callback_func= fn; }
   inline ulonglong engine_data()             { return engine_data_buff; }
   inline void engine_data(ulonglong data_arg){ engine_data_buff= data_arg; }
+  inline my_bool is_hashed()                 { return hashed; }
+  inline void set_hashed(my_bool hash)       { hashed= hash; }
   inline uchar* data()
   {
     return (uchar*)(((uchar*)this)+
@@ -343,10 +349,6 @@ protected:
   static void double_linked_list_join(Query_cache_block *head_tail,
 				      Query_cache_block *tail_head);
 
-  /* Table key generation */
-  static uint filename_2_table_key (char *key, const char *filename,
-				    uint32 *db_langth);
-
   /* The following functions require that structure_guard_mutex is locked */
   void flush_cache();
   my_bool free_old_query();
@@ -363,17 +365,12 @@ protected:
                                    Query_cache_block_table *list_root);
 
   TABLE_COUNTER_TYPE
-    register_tables_from_list(TABLE_LIST *tables_used,
+    register_tables_from_list(THD *thd, TABLE_LIST *tables_used,
                               TABLE_COUNTER_TYPE counter,
-                              Query_cache_block_table *block_table);
-  my_bool register_all_tables(Query_cache_block *block,
+                              Query_cache_block_table **block_table);
+  my_bool register_all_tables(THD *thd, Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
-  my_bool insert_table(uint key_len, char *key,
-		       Query_cache_block_table *node,
-		       uint32 db_length, uint8 cache_type,
-		       qc_engine_callback callback,
-		       ulonglong engine_data);
   void unlink_table(Query_cache_block_table *node);
   Query_cache_block *get_free_block (ulong len, my_bool not_less,
 				      ulong min);
@@ -491,6 +488,12 @@ protected:
               const char *packet,
               ulong length,
               unsigned pkt_nr);
+  my_bool insert_table(uint key_len, char *key,
+		       Query_cache_block_table *node,
+		       uint32 db_length, uint8 cache_type,
+		       qc_engine_callback callback,
+		       ulonglong engine_data,
+                       my_bool hash);
 
   void end_of_result(THD *thd);
   void abort(Query_cache_tls *query_cache_tls);
@@ -512,6 +515,10 @@ protected:
 			Query_cache_block_table * point,
 			const char *name);
   my_bool in_blocks(Query_cache_block * point);
+
+  /* Table key generation */
+  static uint filename_2_table_key (char *key, const char *filename,
+				    uint32 *db_langth);
 
   enum Cache_try_lock_mode {WAIT, TIMEOUT, TRY};
   bool try_lock(THD *thd, Cache_try_lock_mode mode= WAIT);
