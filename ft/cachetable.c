@@ -10,10 +10,7 @@
 #include <time.h>
 #include <stdarg.h>
 #include <valgrind/helgrind.h>
-
 #include "memory.h"
-#include "workqueue.h"
-#include "threadpool.h"
 #include "cachetable.h"
 #include "rwlock.h"
 #include "nonblocking_mutex.h"
