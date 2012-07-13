@@ -2116,7 +2116,19 @@ public:
   ulonglong  prior_thr_create_utime, thr_create_utime;
   ulonglong  start_utime, utime_after_lock;
 
+  /**
+    Type of lock to be used for all DML statements, except INSERT, in cases
+    when lock is not specified explicitly.  Set to TL_WRITE or
+    TL_WRITE_LOW_PRIORITY depending on whether low_priority_updates option is
+    off or on.
+  */
   thr_lock_type update_lock_default;
+  /**
+    Type of lock to be used for INSERT statement if lock is not specified
+    explicitly. Set to TL_WRITE_CONCURRENT_INSERT or TL_WRITE_LOW_PRIORITY
+    depending on whether low_priority_updates option is off or on.
+  */
+  thr_lock_type insert_lock_default;
   Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */

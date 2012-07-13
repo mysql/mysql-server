@@ -4603,6 +4603,8 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   {
     if (tables->lock_type == TL_WRITE_DEFAULT)
       tables->table->reginfo.lock_type= thd->update_lock_default;
+    else if (tables->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
+      tables->table->reginfo.lock_type= thd->insert_lock_default;
     else if (tables->lock_type == TL_READ_DEFAULT)
       tables->table->reginfo.lock_type=
         read_lock_type_for_table(thd, lex, tables);
@@ -5345,15 +5347,18 @@ static bool check_lock_and_start_stmt(THD *thd,
   DBUG_ENTER("check_lock_and_start_stmt");
 
   /*
-    TL_WRITE_DEFAULT and TL_READ_DEFAULT are supposed to be parser only
-    types of locks so they should be converted to appropriate other types
-    to be passed to storage engine. The exact lock type passed to the
-    engine is important as, for example, InnoDB uses it to determine
-    what kind of row locks should be acquired when executing statement
-    in prelocked mode or under LOCK TABLES with @@innodb_table_locks = 0.
+    TL_WRITE_DEFAULT, TL_READ_DEFAULT and TL_WRITE_CONCURRENT_DEFAULT
+    are supposed to be parser only types of locks so they should be
+    converted to appropriate other types to be passed to storage engine.
+    The exact lock type passed to the engine is important as, for example,
+    InnoDB uses it to determine what kind of row locks should be acquired
+    when executing statement in prelocked mode or under LOCK TABLES with
+    @@innodb_table_locks = 0.
   */
   if (table_list->lock_type == TL_WRITE_DEFAULT)
     lock_type= thd->update_lock_default;
+  else if (table_list->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
+    lock_type= thd->insert_lock_default;
   else if (table_list->lock_type == TL_READ_DEFAULT)
     lock_type= read_lock_type_for_table(thd, prelocking_ctx, table_list);
   else
