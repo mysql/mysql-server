@@ -2486,6 +2486,7 @@ static inline PFS_TL_LOCK_TYPE lock_flags_to_lock_type(uint flags)
     case TL_UNLOCK:
     case TL_READ_DEFAULT:
     case TL_WRITE_DEFAULT:
+    case TL_WRITE_CONCURRENT_DEFAULT:
     default:
       DBUG_ASSERT(false);
   }
