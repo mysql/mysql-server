@@ -4610,22 +4610,17 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 
 #ifndef MCP_WL6244
   /*
-    This is a (poor) attempt to say that ndb supports foreign keys
-  */
-  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
+    Circumvent hardcoded "Foreign keys not supported on partitioned tables"
+    for engines which uses auto partitioning and table is using HASH
+   */
+  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY) &&
+      table->part_info->part_type == HASH_PARTITION &&
+      table->part_info->use_default_num_partitions &&
+      table->s->db_type()->partition_flags &&
+      table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
   {
-    if (table->part_info->part_type == HASH_PARTITION &&
-#if MYSQL_VERSION_ID >= 50501
-        table->part_info->use_default_num_partitions &&
-#else
-        table->part_info->use_default_no_partitions &&
-#endif
-        (table->s->db_type()->partition_flags &&
-         (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)))
-    {
-      DBUG_RETURN(FALSE);
-    }
-  }
+    ; // Allow this ALTER to continue in the function
+  } else
 #endif
 
   /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
