@@ -77,7 +77,7 @@ LIMIT 1;
 # Bug#45088 Should not be able to create tables of engine PERFORMANCE_SCHEMA
 #
 
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_PERFSCHEMA_USAGE
 create table test.t1(a int) engine=performance_schema;
 
 # The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE
@@ -89,7 +89,7 @@ SELECT object_schema, object_name FROM performance_schema.objects_summary_global
 # Bug#44897 Performance Schema: can create a ghost table in another database
 #
 
---error ER_CANT_CREATE_TABLE
+--error ER_WRONG_PERFSCHEMA_USAGE
 create table test.t1 like performance_schema.events_waits_current;
 
 # The table should not appear in OBJECTS_SUMMARY_GLOBAL_BY_TYPE

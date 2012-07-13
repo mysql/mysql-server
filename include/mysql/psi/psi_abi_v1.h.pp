@@ -423,7 +423,8 @@ typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
 typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
 typedef struct PSI_file* (*start_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
-typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker);
+typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker,
+                                        void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
 typedef void (*start_file_wait_v1_t)
