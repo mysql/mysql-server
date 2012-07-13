@@ -1581,7 +1581,8 @@ typedef struct PSI_file* (*start_file_open_wait_v1_t)
   End a file instrumentation open operation, for file streams.
   @param locker the file locker.
 */
-typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker);
+typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker,
+                                        void *result);
 
 /**
   End a file instrumentation open operation, for non stream files.

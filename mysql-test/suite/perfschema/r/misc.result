@@ -42,12 +42,12 @@ AND EVENT_NAME IN
 WHERE NAME LIKE "wait/synch/%")
 LIMIT 1;
 create table test.t1(a int) engine=performance_schema;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
 object_schema	object_name
 create table test.t1 like performance_schema.events_waits_current;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 SELECT object_schema, object_name FROM performance_schema.objects_summary_global_by_type
 WHERE object_schema='test';
 object_schema	object_name
