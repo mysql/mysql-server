@@ -1319,6 +1319,9 @@ void THD::init(void)
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
+  insert_lock_default= (variables.low_priority_updates ?
+                        TL_WRITE_LOW_PRIORITY :
+                        TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
   update_charset();
