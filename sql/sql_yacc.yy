@@ -6807,11 +6807,8 @@ alter_list_item:
         | DROP FOREIGN KEY_SYM opt_ident
           {
 #ifndef MCP_WL6244
-#if MYSQL_VERSION_ID >= 50501
+            /* Maintain list of altered/dropped foregin keys */
             Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4.str);
-#else
-            Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4);
-#endif
             if (ad == NULL)
               MYSQL_YYABORT;
             Lex->alter_info.drop_list.push_back(ad);
