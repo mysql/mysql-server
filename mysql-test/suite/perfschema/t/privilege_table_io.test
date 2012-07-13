@@ -4,7 +4,7 @@
 --source include/have_perfschema.inc
 --source ../include/table_io_setup_helper.inc
 
-# Remove "deleted" records from mysql.db that may come from previous tests,
+# Remove "deleted" records from mysql.* that may come from previous tests,
 # to avoid displaying spurious fetch.
 # There are two possible server reactions which are both ok.
 # Table  Op      Msg_type        Msg_text
@@ -14,7 +14,13 @@
 # Therefore we suppress the query_log here.
 --echo # We are forced to suppress here the server response.
 --disable_result_log
+optimize table mysql.host;
+optimize table mysql.user;
 optimize table mysql.db;
+optimize table mysql.proxies_priv;
+optimize table mysql.tables_priv;
+optimize table mysql.procs_priv;
+optimize table mysql.servers;
 --enable_result_log
 
 # Start recording events
