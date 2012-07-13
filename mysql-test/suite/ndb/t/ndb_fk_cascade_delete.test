@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source have_ndb_fk.inc
 
 ###
 ### PK vs PK

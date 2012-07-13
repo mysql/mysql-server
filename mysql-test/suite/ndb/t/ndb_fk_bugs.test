@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source have_ndb_fk.inc
 
 -- disable_warnings
 drop table if exists t2, t1;
