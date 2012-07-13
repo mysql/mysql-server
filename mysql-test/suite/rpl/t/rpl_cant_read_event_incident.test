@@ -60,6 +60,11 @@ reset master;
 --connection slave
 stop slave;
 reset slave;
-drop table t; # table was created from binlog. it does not exist on master.
+# Table was created from binlog, it may not be created if SQL thread is running
+# slowly and IO thread reaches incident before SQL thread applies it.
+drop table if exists t;
+reset master;
 
 --echo End of the tests
+--let $rpl_only_running_threads= 1
+--source include/rpl_end.inc
