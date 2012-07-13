@@ -759,7 +759,7 @@ inline_mysql_file_stat(
   {
     PSI_FILE_CALL(start_file_open_wait)(locker, src_file, src_line);
     result= my_stat(path, stat_area, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
+    PSI_FILE_CALL(end_file_open_wait)(locker, result);
     return result;
   }
 #endif
@@ -816,7 +816,7 @@ inline_mysql_file_fopen(
       that->m_psi= PSI_FILE_CALL(start_file_open_wait)
         (locker, src_file, src_line);
       that->m_file= my_fopen(filename, flags, myFlags);
-      PSI_FILE_CALL(end_file_open_wait)(locker);
+      PSI_FILE_CALL(end_file_open_wait)(locker, NULL);
       if (unlikely(that->m_file == NULL))
       {
         my_free(that);
