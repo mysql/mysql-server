@@ -241,13 +241,6 @@ static inline void cachetable_wakeup_write(CACHETABLE ct) {
     }
 }
 
-enum cachefile_checkpoint_state {
-    CS_INVALID = 0,
-    CS_NOT_IN_PROGRESS,
-    CS_CALLED_BEGIN_CHECKPOINT,
-    CS_CALLED_CHECKPOINT
-};
-
 struct cachefile {
     CACHEFILE next;
     CACHEFILE next_in_checkpoint;
@@ -274,7 +267,6 @@ struct cachefile {
     int (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
     int (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
     int (*note_unpin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
-    enum cachefile_checkpoint_state checkpoint_state;
     BACKGROUND_JOB_MANAGER bjm;
 };
 
@@ -541,8 +533,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
         newcf->next = ct->cachefiles;
         ct->cachefiles = newcf;
-
-        newcf->checkpoint_state = CS_NOT_IN_PROGRESS;
 
         bjm_init(&newcf->bjm);
         toku_list_init(&newcf->pairs_for_cachefile);
@@ -2900,10 +2890,8 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
             CACHEFILE cf;
             for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
                 if (cf->begin_checkpoint_userdata) {
-                    assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
                     int r = cf->begin_checkpoint_userdata(ct->lsn_of_checkpoint_in_progress, cf->userdata);
                     assert(r==0);
-                    cf->checkpoint_state = CS_CALLED_BEGIN_CHECKPOINT;
                 }
             }
         }
@@ -2954,12 +2942,10 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->checkpoint_userdata) {
                 cachetable_unlock(ct);
-                assert(cf->checkpoint_state == CS_CALLED_BEGIN_CHECKPOINT);
                 toku_cachetable_set_checkpointing_user_data_status(1);
                 int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
                 toku_cachetable_set_checkpointing_user_data_status(0);
                 assert(r==0);
-                cf->checkpoint_state = CS_CALLED_CHECKPOINT;
                 cachetable_lock(ct);
             }
         }
@@ -2991,12 +2977,9 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         for (cf = ct->cachefiles_in_checkpoint; cf; cf=cf->next_in_checkpoint) {
             if (cf->end_checkpoint_userdata) {
                 cachetable_unlock(ct);
-                assert(cf->checkpoint_state == CS_CALLED_CHECKPOINT);
                 int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
                 assert(r==0);
-                cf->checkpoint_state = CS_NOT_IN_PROGRESS;
                 cachetable_lock(ct);
-                assert(cf->checkpoint_state == CS_NOT_IN_PROGRESS);
             }
         }
     }
