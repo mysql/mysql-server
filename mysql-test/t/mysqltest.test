@@ -2120,6 +2120,11 @@ insert into t1 values ("Abcd");
 --error $errno1,ER_PARSE_ERROR
 garbage;
 
+let $errno_multi = $errno1,ER_NO_SUCH_TABLE,$errno2,1062;
+
+--error $errno_multi
+SELECT * FROM non_existing_table;
+
 drop table t2;
 
 
