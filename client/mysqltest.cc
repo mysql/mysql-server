@@ -621,6 +621,8 @@ void free_all_replace(){
   free_replace_column();
 }
 
+void var_set_int(const char* name, int value);
+
 
 class LogFile {
   FILE* m_file;
@@ -1275,6 +1277,8 @@ void handle_command_error(struct st_command *command, uint error,
 {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
+  var_set_int("$sys_errno",sys_errno);
+  var_set_int("$errno",error);
   if (error != 0)
   {
     int i;
