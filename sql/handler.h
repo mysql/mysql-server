@@ -1169,6 +1169,30 @@ public:
   // Change the column format of column
   static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1L << 20;
 
+  // Add partition
+  static const HA_ALTER_FLAGS ADD_PARTITION              = 1L << 21;
+
+  // Drop partition
+  static const HA_ALTER_FLAGS DROP_PARTITION             = 1L << 22;
+
+  // Changing partition options
+  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1L << 23;
+
+  // Coalesce partition
+  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1L << 24;
+
+  // Reorganize partition ... into
+  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1L << 25;
+
+  // Reorganize partition
+  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1L << 26;
+
+  // Remove partitioning
+  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1L << 27;
+
+  // Partition operation with ALL keyword
+  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 
@@ -1244,12 +1268,21 @@ public:
   */
   HA_ALTER_FLAGS handler_flags;
 
+  /**
+     Partition_info taking into account the partition changes to be performed.
+     Contains all partitions which are present in the old version of the table
+     with partitions to be dropped or changed marked as such + all partitions
+     to be added in the new version of table marked as such.
+  */
+  partition_info *modified_part_info;
+
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
                      KEY *key_info_arg, uint key_count_arg,
+                     partition_info *modified_part_info_arg,
                      bool ignore_arg)
     : create_info(create_info_arg),
     alter_info(alter_info_arg),
@@ -1261,6 +1294,7 @@ public:
     index_add_buffer(NULL),
     handler_ctx(NULL),
     handler_flags(0),
+    modified_part_info(modified_part_info_arg),
     ignore(ignore_arg)
   {}
 

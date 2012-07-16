@@ -4768,8 +4768,16 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
     if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
+      /*
+        'ALTER TABLE t REORG PARTITION' only allowed with auto partition
+         if default partitioning is used.
+      */
+
       if (tab_part_info->part_type != HASH_PARTITION ||
-          tab_part_info->use_default_num_partitions)
+          ((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+           !tab_part_info->use_default_num_partitions) ||
+          ((!(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)) &&
+           tab_part_info->use_default_num_partitions))
       {
         my_error(ER_REORG_NO_PARAM_ERROR, MYF(0));
         goto err;
@@ -4783,9 +4791,23 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
           after the change as before. Thus we can reply ok immediately
           without any changes at all.
         */
-        *fast_alter_table= true;
-        /* Force table re-open for consistency with the main case. */
-        table->m_needs_reopen= true;
+        flags= table->file->alter_table_flags(alter_info->flags);
+        if (flags & (HA_FAST_CHANGE_PARTITION | HA_PARTITION_ONE_PHASE))
+        {
+          *fast_alter_table= true;
+          /* Force table re-open for consistency with the main case. */
+          table->m_needs_reopen= true;
+        }
+        else
+        {
+          /*
+            Create copy of partition_info to avoid modifying original
+            TABLE::part_info, to keep it safe for later use.
+          */
+          if (!(tab_part_info= tab_part_info->get_clone()))
+            DBUG_RETURN(TRUE);
+        }
+
         thd->work_part_info= tab_part_info;
         DBUG_RETURN(FALSE);
       }

@@ -5363,6 +5363,23 @@ static bool fill_alter_inplace_info(THD *thd,
     ha_alter_info->handler_flags|= Alter_inplace_info::CHANGE_CREATE_OPTION;
   if (alter_info->flags & Alter_info::ALTER_RENAME)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_RENAME;
+  /* Check partition changes */
+  if (alter_info->flags & Alter_info::ALTER_ADD_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ADD_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::DROP_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_COALESCE_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::COALESCE_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::REORGANIZE_PARTITION;
+  if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_TABLE_REORG;
+  if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REMOVE_PARTITIONING;
+  if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
+    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
 
   /*
     If we altering table with old VARCHAR fields we will be automatically
@@ -7208,14 +7225,18 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     - old_alter_table system variable is set without in-place requested using
       the ALGORITHM clause.
     - Or if in-place is impossible for given operation.
-    - A partition will be changed.
+    - Changes to partitioning which were not handled by fast_alter_part_table()
+      needs to be handled using table copying algorithm unless the engine
+      supports auto-partitioning as such engines can do some changes
+      using in-place API.
   */
   if ((thd->variables.old_alter_table &&
        alter_info->requested_algorithm !=
        Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
       || is_inplace_alter_impossible(table, create_info, alter_info)
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      || partition_changed
+      || (partition_changed &&
+          !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
 #endif
      )
   {
@@ -7341,7 +7362,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (alter_info->requested_algorithm != Alter_info::ALTER_TABLE_ALGORITHM_COPY)
   {
     Alter_inplace_info ha_alter_info(create_info, alter_info,
-                                     key_info, key_count, ignore);
+                                     key_info, key_count,
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+                                     thd->work_part_info,
+#else
+                                     NULL,
+#endif
+                                     ignore);
     TABLE *altered_table= NULL;
     bool use_inplace= true;
 
