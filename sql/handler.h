@@ -1690,7 +1690,7 @@ public:
 };
 
 class Query_cache;
-class Query_cache_block_table;
+struct Query_cache_block_table;
 /**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
