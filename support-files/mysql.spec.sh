@@ -1063,6 +1063,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlimport.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
+%doc %attr(644, root, man) %{_mandir}/man1/mysql_config_editor.1*
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{product_suffix} -f optional-files-devel
@@ -1116,6 +1117,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Jul 16 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Add the man page for the "mysql_config_editor".
+
 * Wed Feb 29 2012 Brajmohan Saxena <brajmohan.saxena@oracle.com>
 
 - Removal all traces of the readline library from mysql (BUG 13738013)
