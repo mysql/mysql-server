@@ -872,7 +872,13 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
                          (char *)thd->security_ctx->host_or_ip,
                          3);
 
+  thd->lex->set_sp_current_parsing_ctx(get_parsing_ctx());
+  thd->lex->sphead= thd->sp_runtime_ctx->sp;
+
   bool rc= mysql_execute_command(thd);
+
+  thd->lex->set_sp_current_parsing_ctx(NULL);
+  thd->lex->sphead= NULL;
 
   MYSQL_QUERY_EXEC_DONE(rc);
 
