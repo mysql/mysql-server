@@ -7585,6 +7585,7 @@ err:
     Alter_inplace_info drop_info(ha_alter_info->create_info,
                                  ha_alter_info->alter_info,
                                  NULL, 0,
+                                 ha_alter_info->modified_part_info,
                                  ha_alter_info->ignore);
 
     if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX)
