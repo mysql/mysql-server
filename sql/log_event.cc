@@ -4337,14 +4337,44 @@ void Query_log_event::detach_temp_tables_worker(THD *thd)
   for (TABLE *table= thd->temporary_tables; table;)
   {
     int i;
+    char *db_name= NULL;
 
     // find which entry to go
     for (i= 0; i < parts; i++)
-      if (strcmp(table->s->db.str, mts_accessed_db_names[i]) < 0)
-        continue;
-      else
+    {
+      db_name= mts_accessed_db_names[i];
+
+      if (!strlen(db_name))
         break;
 
+      // Only default database is rewritten.
+      if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
+      {
+        size_t dummy_len;
+        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+        // db_name != db_filtered means that db_name is rewritten.
+        if (strcmp(db_name, db_filtered))
+          db_name= (char*)db_filtered;
+      }
+
+      if (strcmp(table->s->db.str, db_name) < 0)
+        continue;
+      else
+      {
+        // When rewrite db rules are used we can not rely on
+        // mts_accessed_db_names elements order.
+        if (!rpl_filter->is_rewrite_empty() &&
+            strcmp(table->s->db.str, db_name))
+          continue;
+        else
+          break;
+      }
+    }
+
+    DBUG_ASSERT(db_name && (
+                !strcmp(table->s->db.str, db_name) ||
+                !strlen(db_name))
+                );
     DBUG_ASSERT(i < mts_accessed_dbs);
 
     // table pointer is shifted inside the function
