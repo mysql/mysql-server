@@ -84,6 +84,7 @@ if (CMAKE_C_COMPILER_ID MATCHES Intel)
   set(intel_warnings
     94     # allow arrays of length 0
     589    # do not complain about goto that skips initialization
+    1292   # icc lies (it says it is "__GNUC__", but it doesn't handle the resulting macroexpansions from glibc 2.15.37 (which is designed for gcc 4.7, and appears in Fedora 17)
     2259   # do not complain about "non-pointer conversion from int to u_int8_t (and other small types) may lose significant bits".  this produces too many false positives
     11000  # do not remark about multi-file optimizations, single-file optimizations, and object temp files
     11001
