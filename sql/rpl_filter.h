@@ -54,6 +54,8 @@ public:
 
   bool is_on();
 
+  bool is_rewrite_empty();
+
   /* Setters - add filtering rules */
   int build_do_table_hash();
   int build_ignore_table_hash();

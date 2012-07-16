@@ -271,6 +271,13 @@ Rpl_filter::is_on()
 }
 
 
+bool
+Rpl_filter::is_rewrite_empty()
+{
+  return rewrite_db.is_empty();
+}
+
+
 int
 Rpl_filter::add_do_table_array(const char* table_spec) 
 {

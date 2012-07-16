@@ -44,6 +44,7 @@
 #include "rpl_reporting.h"
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
+#include "rpl_filter.h"
 #endif
 
 /* Forward declarations */
@@ -2082,7 +2083,21 @@ public:
     else
     {
       for (uchar i= 0; i < mts_accessed_dbs; i++)
-        res->push_back(mts_accessed_db_names[i]);
+      {
+        char *db_name= mts_accessed_db_names[i];
+
+        // Only default database is rewritten.
+        if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
+        {
+          size_t dummy_len;
+          const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+          // db_name != db_filtered means that db_name is rewritten.
+          if (strcmp(db_name, db_filtered))
+            db_name= (char*)db_filtered;
+        }
+
+        res->push_back(db_name);
+      }
     }
     return res;
   }
@@ -3796,9 +3811,19 @@ public:
   virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
   {
     List<char> *res= new List<char>;
+    const char *db_name= get_db();
+
+    if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
+    {
+      size_t dummy_len;
+      const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+      // db_name != db_filtered means that db_name is rewritten.
+      if (strcmp(db_name, db_filtered))
+        db_name= db_filtered;
+    }
 
     res->push_back(strdup_root(mem_root,
-                               get_flags(TM_REFERRED_FK_DB_F) ? "" : get_db()));
+                               get_flags(TM_REFERRED_FK_DB_F) ? "" : db_name));
     return res;
   }
 
