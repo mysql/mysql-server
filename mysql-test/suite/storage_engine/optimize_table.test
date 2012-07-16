@@ -1,0 +1,14 @@
+# 
+# OPTIMIZE TABLE statements
+#
+# Note: the output is likely to be different for the engine under test,
+# in which case rdiff will be needed. Or, the output might say that
+# the storage engine does not support OPTIMIZE.
+#
+
+--source have_engine.inc
+
+--source optimize_table.inc
+
+--source cleanup_engine.inc
+

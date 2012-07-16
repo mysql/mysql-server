@@ -1,0 +1,10 @@
+--- suite/storage_engine/show_engine.result	2012-06-24 23:55:19.539380000 +0400
++++ suite/storage_engine/show_engine.reject	2012-07-15 16:21:54.401939228 +0400
+@@ -4,7 +4,6 @@
+ # volatile data (timestamps, memory info, etc.)
+ SHOW ENGINE <STORAGE_ENGINE> STATUS;
+ Type	Name	Status
+-<STORAGE_ENGINE>		### Engine status, can be long and changeable ###
+ # For SHOW MUTEX even the number of lines is volatile, so the result logging is disabled,
+ # the test only checks that the command does not produce any errors
+ SHOW ENGINE <STORAGE_ENGINE> MUTEX;

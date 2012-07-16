@@ -1,0 +1,79 @@
+INSERT INTO mysql.event (
+db,
+name,
+body,
+definer,
+interval_value,
+interval_field,
+originator,
+character_set_client,
+collation_connection,
+db_collation,
+body_utf8)
+values (
+database(),
+"ev1",
+"select 1",
+user(),
+100,
+"SECOND_MICROSECOND",
+1,
+'utf8',
+'utf8_general_ci',
+'utf8_general_ci',
+'select 1');
+SHOW EVENTS;
+ERROR 42000: This version of MariaDB doesn't yet support 'MICROSECOND'
+DROP EVENT ev1;
+SELECT TABLE_NAME, COLUMN_NAME, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ORDER BY TABLE_NAME;
+TABLE_NAME	COLUMN_NAME	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+columns_priv	Column_name	NULL	NULL
+columns_priv	Db	NULL	NULL
+columns_priv	Host	NULL	NULL
+columns_priv	Table_name	NULL	NULL
+columns_priv	User	NULL	NULL
+db	Db	NULL	NULL
+db	Host	NULL	NULL
+db	User	NULL	NULL
+event	db	NULL	NULL
+event	name	NULL	NULL
+func	name	NULL	NULL
+help_category	help_category_id	NULL	NULL
+help_category	name	NULL	NULL
+help_keyword	help_keyword_id	NULL	NULL
+help_keyword	name	NULL	NULL
+help_relation	help_keyword_id	NULL	NULL
+help_relation	help_topic_id	NULL	NULL
+help_topic	help_topic_id	NULL	NULL
+help_topic	name	NULL	NULL
+host	Db	NULL	NULL
+host	Host	NULL	NULL
+ndb_binlog_index	epoch	NULL	NULL
+plugin	name	NULL	NULL
+proc	db	NULL	NULL
+proc	name	NULL	NULL
+proc	type	NULL	NULL
+procs_priv	Db	NULL	NULL
+procs_priv	Host	NULL	NULL
+procs_priv	Routine_name	NULL	NULL
+procs_priv	Routine_type	NULL	NULL
+procs_priv	User	NULL	NULL
+proxies_priv	Host	NULL	NULL
+proxies_priv	Proxied_host	NULL	NULL
+proxies_priv	Proxied_user	NULL	NULL
+proxies_priv	User	NULL	NULL
+servers	Server_name	NULL	NULL
+tables_priv	Db	NULL	NULL
+tables_priv	Host	NULL	NULL
+tables_priv	Table_name	NULL	NULL
+tables_priv	User	NULL	NULL
+time_zone	Time_zone_id	NULL	NULL
+time_zone_leap_second	Transition_time	NULL	NULL
+time_zone_name	Name	NULL	NULL
+time_zone_transition	Time_zone_id	NULL	NULL
+time_zone_transition	Transition_time	NULL	NULL
+time_zone_transition_type	Time_zone_id	NULL	NULL
+time_zone_transition_type	Transition_type_id	NULL	NULL
+user	Host	NULL	NULL
+user	User	NULL	NULL

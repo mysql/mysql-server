@@ -1,0 +1,22 @@
+--- suite/storage_engine/parts/checksum_table.result	2012-07-12 21:41:00.754458011 +0400
++++ suite/storage_engine/parts/checksum_table.reject	2012-07-15 20:04:35.881962676 +0400
+@@ -24,15 +24,15 @@
+ CREATE TABLE t2 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS> CHECKSUM=1 PARTITION BY HASH(a) PARTITIONS 2;
+ CHECKSUM TABLE t1;
+ Table	Checksum
+-test.t1	0
++test.t1	4272806499
+ CHECKSUM TABLE t2, t1;
+ Table	Checksum
+ test.t2	0
+-test.t1	0
++test.t1	4272806499
+ CHECKSUM TABLE t1, t2 QUICK;
+ Table	Checksum
+-test.t1	0
+-test.t2	0
++test.t1	NULL
++test.t2	NULL
+ CHECKSUM TABLE t1, t2 EXTENDED;
+ Table	Checksum
+ test.t1	4272806499

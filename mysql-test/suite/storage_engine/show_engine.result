@@ -1,0 +1,11 @@
+# For most engines SHOW ENGINE .. STATUS produces an empty result,
+# so the default result file is empty; but returning a value here is not an error.
+# The Status column is masked, because it is likely to contain some
+# volatile data (timestamps, memory info, etc.)
+SHOW ENGINE <STORAGE_ENGINE> STATUS;
+Type	Name	Status
+<STORAGE_ENGINE>		### Engine status, can be long and changeable ###
+# For SHOW MUTEX even the number of lines is volatile, so the result logging is disabled,
+# the test only checks that the command does not produce any errors
+SHOW ENGINE <STORAGE_ENGINE> MUTEX;
+SHOW ENGINE ALL MUTEX;

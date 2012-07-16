@@ -1,0 +1,188 @@
+#
+# BLOB columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  b BLOB $col_indexed_opts,
+  t TINYBLOB $col_opts,
+  m MEDIUMBLOB $col_opts,
+  l LONGBLOB $col_opts,
+  $default_index b (b(32))
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BLOB types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,t,m,l) VALUES
+  ('','','',''),
+  ('a','b','c','d'),
+  ('b','d','c','b'),
+  ('test1','test2','test3','test4'),
+  (REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+  (HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+  ('abc','def','ghi','jkl'),
+  ('test2','test3','test4','test5'),
+  ('test3','test4','test5','test6'),
+  (REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+  (REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+
+  SELECT SUBSTRING(b,16) AS f FROM t1 WHERE b IN ('test1','test2') ORDER BY f;
+  SELECT SUBSTRING(b,16) AS f FROM t1 USE INDEX () WHERE b IN ('test1','test2') ORDER BY f;
+
+  DROP TABLE t1;
+}
+
+
+
+# PK, UNIQUE INDEX, INDEX
+
+let $create_definition =
+  b BLOB $col_indexed_opts,
+  t TINYBLOB $col_opts,
+  m MEDIUMBLOB $col_opts,
+  l LONGBLOB $col_opts,
+  PRIMARY KEY b (b(32))
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BLOB types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,t,m,l) VALUES
+  ('','','',''),
+  ('a','b','c','d'),
+  ('b','d','c','b'),
+  ('test1','test2','test3','test4'),
+  (REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+  (HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+  ('abc','def','ghi','jkl'),
+  ('test2','test3','test4','test5'),
+  ('test3','test4','test5','test6'),
+  (REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+  (REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(b,16) AS f FROM t1 WHERE b IN ('test1','test2') ORDER BY f;
+  SELECT SUBSTRING(b,16) AS f FROM t1 WHERE b IN ('test1','test2') ORDER BY f;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(b,16) AS f FROM t1 USE INDEX () WHERE b IN ('test1','test2') ORDER BY f;
+  SELECT SUBSTRING(b,16) AS f FROM t1 USE INDEX () WHERE b IN ('test1','test2') ORDER BY f;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  b BLOB $col_opts,
+  t TINYBLOB $col_indexed_opts,
+  m MEDIUMBLOB $col_opts,
+  l LONGBLOB $col_indexed_opts,
+  UNIQUE INDEX l_t (l(256),t(64))
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BLOB types or unique indexes or multi-part indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,t,m,l) VALUES
+  ('','','',''),
+  ('a','b','c','d'),
+  ('b','d','c','b'),
+  ('test1','test2','test3','test4'),
+  (REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+  (HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+  ('abc','def','ghi','jkl'),
+  ('test2','test3','test4','test5'),
+  ('test3','test4','test5','test6'),
+  (REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+  (REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+
+  # Here we are getting possible key l_t, but not the final key
+  --replace_column 1 # 2 # 3 # 4 # 6 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+  SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+
+  --replace_column 1 # 2 # 3 # 4 # 6 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 FORCE INDEX (l_t) WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+  SELECT SUBSTRING(t,64), SUBSTRING(l,256) FROM t1 FORCE INDEX (l_t) WHERE t!=l AND l NOT IN ('test1') ORDER BY t, l DESC;
+  DROP TABLE t1;
+
+}
+
+let $create_definition =
+  b BLOB $col_opts,
+  t TINYBLOB $col_opts,
+  m MEDIUMBLOB $col_indexed_opts,
+  l LONGBLOB $col_opts,
+  INDEX (m(128))
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BLOB types or non-unique indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (b,t,m,l) VALUES
+  ('','','',''),
+  ('a','b','c','d'),
+  ('b','d','c','b'),
+  ('test1','test2','test3','test4'),
+  (REPEAT('a',128),REPEAT('b',128),REPEAT('c',128),REPEAT('d',128)),
+  (HEX('abcd'),HEX('def'),HEX('a'),HEX('abc')),
+  ('abc','def','ghi','jkl'),
+  ('test2','test3','test4','test5'),
+  ('test3','test4','test5','test6'),
+  (REPEAT('b',128),REPEAT('f',128),REPEAT('e',128),REPEAT('d',128)),
+  (REPEAT('c',128),REPEAT('b',128),REPEAT('c',128),REPEAT('e',128));
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(m,128) AS f FROM t1 WHERE m = 'test1' ORDER BY f DESC;
+  SELECT SUBSTRING(m,128) AS f FROM t1 WHERE m = 'test1' ORDER BY f DESC;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT SUBSTRING(m,128) AS f FROM t1 IGNORE INDEX FOR ORDER BY (m) WHERE m = 'test1' ORDER BY f DESC;
+  SELECT SUBSTRING(m,128) AS f FROM t1 IGNORE INDEX FOR ORDER BY (m) WHERE m = 'test1' ORDER BY f DESC;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

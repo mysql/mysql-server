@@ -1,0 +1,146 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (f FLOAT <CUSTOM_COL_OPTIONS>,
+r REAL(20,3) <CUSTOM_COL_OPTIONS>,
+d DOUBLE <CUSTOM_COL_OPTIONS>,
+dp DOUBLE PRECISION (64,10) <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> f (f)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	f	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (f,r,d,dp) VALUES
+(1.2345,1422.22,1.2345,1234567.89),
+(0,0,0,0),
+(-1,-1,-1,-1),
+(17.5843,4953453454.44,29229114.0,1111111.23),
+(4644,1422.22,466664.999,0.5);
+SELECT f FROM t1 ORDER BY f;
+f
+-1
+0
+1.2345
+17.5843
+4644
+DROP TABLE t1;
+CREATE TABLE t1 (f FLOAT <CUSTOM_COL_OPTIONS> PRIMARY KEY,
+r REAL(20,3) <CUSTOM_COL_OPTIONS>,
+d DOUBLE <CUSTOM_COL_OPTIONS>,
+dp DOUBLE PRECISION (64,10) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	f	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (f,r,d,dp) VALUES
+(1.2345,1422.22,1.2345,1234567.89),
+(0,0,0,0),
+(-1,-1,-1,-1),
+(17.5843,4953453454.44,29229114.0,1111111.23),
+(4644,1422.22,466664.999,0.5);
+EXPLAIN SELECT f FROM t1 ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT f FROM t1 ORDER BY f;
+f
+-1
+0
+1.2345
+17.5843
+4644
+EXPLAIN SELECT f FROM t1 IGNORE INDEX (PRIMARY) ORDER BY f;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	NULL	#	#	#	#
+SELECT f FROM t1 IGNORE INDEX (PRIMARY) ORDER BY f;
+f
+-1
+0
+1.2345
+17.5843
+4644
+ALTER TABLE t1 DROP PRIMARY KEY;
+ALTER TABLE t1 ADD UNIQUE KEY(d);
+EXPLAIN SELECT d FROM t1 WHERE r > 0 and d > 0 ORDER BY d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	d	#	#	#	#
+SELECT d FROM t1 WHERE r > 0 and d > 0 ORDER BY d;
+d
+1.2345
+466664.999
+29229114
+DROP TABLE t1;
+CREATE TABLE t1 (f FLOAT <CUSTOM_COL_OPTIONS>,
+r REAL(20,3) <CUSTOM_COL_OPTIONS>,
+d DOUBLE <CUSTOM_COL_OPTIONS>,
+dp DOUBLE PRECISION (64,10) <CUSTOM_COL_OPTIONS>,
+UNIQUE KEY r_dp (r,dp)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	r_dp	1	r	#	#	NULL	NULL	#	#		
+t1	0	r_dp	2	dp	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (f,r,d,dp) VALUES
+(1.2345,1422.22,1.2345,1234567.89),
+(0,0,0,0),
+(-1,-1,-1,-1),
+(17.5843,4953453454.44,29229114.0,1111111.23),
+(4644,1422.22,466664.999,0.5);
+EXPLAIN SELECT r, dp FROM t1 WHERE r > 0 or dp > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	r_dp	#	#	#	#
+SELECT r, dp FROM t1 WHERE r > 0 or dp > 0;
+r	dp
+1422.220	0.5000000000
+1422.220	1234567.8900000000
+4953453454.440	1111111.2300000000
+DROP TABLE t1;
+CREATE TABLE t1 (f FLOAT <CUSTOM_COL_OPTIONS>,
+r REAL(20,3) <CUSTOM_COL_OPTIONS>,
+d DOUBLE <CUSTOM_COL_OPTIONS>,
+dp DOUBLE PRECISION (64,10) <CUSTOM_COL_OPTIONS>,
+UNIQUE KEY(d)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	d	1	d	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (f,r,d,dp) VALUES
+(1.2345,1422.22,1.2345,1234567.89),
+(0,0,0,0),
+(-1,-1,-1,-1),
+(17.5843,4953453454.44,29229114.0,1111111.23),
+(4644,1422.22,466664.999,0.5);
+EXPLAIN SELECT DISTINCT d FROM t1 ORDER BY d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	d	#	#	#	#
+SELECT DISTINCT d FROM t1 ORDER BY d;
+d
+-1
+0
+1.2345
+466664.999
+29229114
+DROP TABLE t1;
+CREATE TABLE t1 (f FLOAT <CUSTOM_COL_OPTIONS>,
+r REAL(20,3) <CUSTOM_COL_OPTIONS>,
+d DOUBLE <CUSTOM_COL_OPTIONS>,
+dp DOUBLE PRECISION (64,10) <CUSTOM_COL_OPTIONS>,
+KEY(d)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	d	1	d	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (f,r,d,dp) VALUES
+(1.2345,1422.22,1.2345,1234567.89),
+(0,0,0,0),
+(-1,-1,-1,-1),
+(17.5843,4953453454.44,29229114.0,1111111.23),
+(4644,1422.22,466664.999,0.5);
+EXPLAIN SELECT DISTINCT d FROM t1 ORDER BY d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	d	#	#	#	#
+SELECT DISTINCT d FROM t1 ORDER BY d;
+d
+-1
+0
+1.2345
+466664.999
+29229114
+DROP TABLE t1;

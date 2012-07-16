@@ -1,0 +1,11 @@
+#
+# Date and time column types
+# (DATE, DATETIME, TIMESTAMP, TIME, YEAR)
+#
+
+--source have_engine.inc
+
+--source type_date_time.inc
+
+--source cleanup_engine.inc
+

@@ -1,0 +1,53 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN> PRIMARY KEY,
+b <CHAR_COLUMN>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+INSERT INTO t1 (a,b) VALUES (1,'c');
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN> PRIMARY KEY,
+b <CHAR_COLUMN> PRIMARY KEY
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+ERROR 42000: Multiple primary key defined
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+PRIMARY KEY (a,b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	#	#	NULL	NULL	#	#		
+t1	0	PRIMARY	2	b	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b) VALUES (1,'a'),(1,'b'),(2,'a'),(2,'b');
+INSERT INTO t1 (a,b) VALUES (1,'b');
+ERROR 23000: Duplicate entry '1-b' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN> KEY,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> (b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	#	#	NULL	NULL	#	#		
+t1	1	b	1	b	#	#	NULL	NULL	#	#		
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN> PRIMARY KEY
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	b	#	#	NULL	NULL	#	#		
+ALTER TABLE t1 DROP INDEX `PRIMARY`;
+ALTER TABLE t1 ADD CONSTRAINT PRIMARY KEY pk (a);
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	#	#	NULL	NULL	#	#		
+ALTER TABLE t1 DROP PRIMARY KEY;
+DROP TABLE t1;

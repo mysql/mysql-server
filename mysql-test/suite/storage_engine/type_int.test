@@ -1,0 +1,10 @@
+#
+# INT column types
+#
+
+--source have_engine.inc
+
+--source type_int.inc
+
+--source cleanup_engine.inc
+

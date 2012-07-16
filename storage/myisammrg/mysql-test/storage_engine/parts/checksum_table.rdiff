@@ -1,0 +1,81 @@
+2a3,4
+> ERROR HY000: Engine cannot be used in partitioned tables
+> # ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+3a6
+> ERROR 42S02: Table 'test.t1' doesn't exist
+4a8,9
+> ERROR HY000: Engine cannot be used in partitioned tables
+> # ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+7c12,14
+< test.t1	4272806499
+---
+> test.t1	NULL
+> Warnings:
+> Error	1146	Table 'test.t1' doesn't exist
+10,11c17,21
+< test.t2	0
+< test.t1	4272806499
+---
+> test.t2	NULL
+> test.t1	NULL
+> Warnings:
+> Error	1146	Table 'test.t2' doesn't exist
+> Error	1146	Table 'test.t1' doesn't exist
+15a26,28
+> Warnings:
+> Error	1146	Table 'test.t1' doesn't exist
+> Error	1146	Table 'test.t2' doesn't exist
+18,19c31,35
+< test.t1	4272806499
+< test.t2	0
+---
+> test.t1	NULL
+> test.t2	NULL
+> Warnings:
+> Error	1146	Table 'test.t1' doesn't exist
+> Error	1146	Table 'test.t2' doesn't exist
+20a37
+> ERROR 42S02: Unknown table 't1,t2'
+22a40,41
+> ERROR HY000: Engine cannot be used in partitioned tables
+> # ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+23a43
+> ERROR 42S02: Table 'test.t1' doesn't exist
+24a45,46
+> ERROR HY000: Engine cannot be used in partitioned tables
+> # ERROR: Statement ended with errno 1572, errname ER_PARTITION_MERGE_ERROR (expected to succeed)
+27c49,51
+< test.t1	0
+---
+> test.t1	NULL
+> Warnings:
+> Error	1146	Table 'test.t1' doesn't exist
+30,31c54,58
+< test.t2	0
+< test.t1	0
+---
+> test.t2	NULL
+> test.t1	NULL
+> Warnings:
+> Error	1146	Table 'test.t2' doesn't exist
+> Error	1146	Table 'test.t1' doesn't exist
+34,35c61,65
+< test.t1	0
+< test.t2	0
+---
+> test.t1	NULL
+> test.t2	NULL
+> Warnings:
+> Error	1146	Table 'test.t1' doesn't exist
+> Error	1146	Table 'test.t2' doesn't exist
+38,39c68,72
+< test.t1	4272806499
+< test.t2	0
+---
+> test.t1	NULL
+> test.t2	NULL
+> Warnings:
+> Error	1146	Table 'test.t1' doesn't exist
+> Error	1146	Table 'test.t2' doesn't exist
+40a74
+> ERROR 42S02: Unknown table 't1,t2'

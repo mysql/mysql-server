@@ -1,0 +1,91 @@
+#
+# IMPORT / DISCARD TABLESPACE
+#
+# The test might require additional engine options,
+# e.g. for InnoDB it is --innodb-file-per-table
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+--let $create_definition = a $int_col
+--source create_table.inc
+
+--let $alter_definition = DISCARD TABLESPACE
+
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $alter_statement
+  --let $functionality = Tablespace operations
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  DROP TABLE t1;
+
+  --let $create_definition = a $int_col
+  --source create_table.inc
+  INSERT INTO t1 (a) VALUES (1),(2);
+  --sorted_result
+  SELECT * FROM t1;
+
+# http://dev.mysql.com/doc/mysql-enterprise-backup/3.5/en/partial.restoring.single.html 
+# To get a "clean" backup we need to either use innobackup, or to monitor show engine innodb status,
+# and the documented conditions do not look exactly feasible. So, we will go a simple way:
+# just restart the server, and take the backup while the server is down.
+# (And we need to have a really clean backup, see MySQL:65429 / LP:1004910)
+
+  --let $datadir = `SELECT @@datadir`
+
+  --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+wait
+EOF
+
+  --enable_reconnect
+  --shutdown_server 60
+
+  --source include/wait_until_disconnected.inc
+
+  --replace_result $datadir <DATADIR>
+  --copy_file $datadir/test/t1.ibd $datadir/test/t1.ibd.save
+
+  --remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+  --write_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+restart
+EOF
+
+  --source include/wait_until_connected_again.inc
+
+  --let $alter_definition = DISCARD TABLESPACE
+  --source alter_table.inc
+
+  --let $error_codes = ER_GET_ERRNO
+  SELECT * FROM t1;
+  --source check_errors.inc
+  if ($mysql_errname != ER_GET_ERRNO)
+  {
+    --let $functionality = Tablespace operations
+    --source unexpected_result.inc
+  }
+
+  --move_file $datadir/test/t1.ibd.save $datadir/test/t1.ibd
+  --let $alter_definition = IMPORT TABLESPACE
+  --source alter_table.inc
+  --sorted_result
+  SELECT * FROM t1;
+
+  # Adding a warning suppression based on what InnoDB currently does
+  # when it attempts to access a table without an *.ibd file
+  --disable_query_log
+  eval CALL mtr.add_suppression('$storage_engine: Error:.*');
+  --enable_query_log
+}
+
+DROP TABLE t1;
+
+--source cleanup_engine.inc
+

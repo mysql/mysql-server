@@ -1,0 +1,88 @@
+# 
+# ENABLE KEYS / DISABLE KEYS
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+--let $create_definition = a $int_indexed_col, $default_index(a)
+--source create_table.inc
+INSERT INTO t1 (a) VALUES (10);
+
+INSERT INTO t1 (a) VALUES 
+  (1),(2),(3),(4),(5),(6),(7),(8),(9),
+  (21),(22),(23),(24),(25),(26),(27),(28),(29);
+# Plan should use the index.
+# Masking the `rows` column as the value might vary a bit
+--replace_column 9 #
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+
+--replace_column 6 # 7 #
+SHOW INDEX IN t1;
+
+--let $alter_definition = DISABLE KEYS
+--source alter_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $alter_statement
+  --let $functionality = ALTER .. DISABLE KEYS
+  --source unexpected_result.inc
+}
+
+# Now comment should say 'disabled'
+--replace_column 6 # 7 #
+SHOW INDEX IN t1;
+
+# And the plan should not use the index
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+INSERT INTO t1 (a) VALUES
+  (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+# The index should be back active
+--let $alter_definition = ENABLE KEYS
+--source alter_table.inc
+--replace_column 6 # 7 #
+SHOW INDEX IN t1;
+--replace_column 9 #
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+
+DROP TABLE t1;
+
+--let $create_definition = a $int_indexed_col, UNIQUE INDEX(a)
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = Unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a) VALUES 
+    (1),(2),(3),(4),(5),(6),(7),(8),(9),
+    (21),(22),(23),(24),(25),(26),(27),(28),(29);
+
+  # For unique indexes DISABLE KEYS has no effect
+
+  --let $alter_definition = DISABLE KEYS
+  --source alter_table.inc
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a) VALUES (29);
+  --source check_errors.inc
+  --replace_column 6 # 7 #
+  SHOW INDEX IN t1;
+  --replace_column 9 #
+  EXPLAIN SELECT a FROM t1 ORDER BY a;
+
+  DROP TABLE t1;
+}
+
+# Cleanup 
+
+--source cleanup_engine.inc
+

@@ -1,0 +1,11 @@
+--- suite/storage_engine/tbl_opt_insert_method.result	2012-06-24 23:55:19.539380000 +0400
++++ suite/storage_engine/tbl_opt_insert_method.reject	2012-07-15 16:21:56.381914337 +0400
+@@ -5,7 +5,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 INSERT_METHOD=FIRST
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+ ALTER TABLE t1 INSERT_METHOD=NO;
+ SHOW CREATE TABLE t1;
+ Table	Create Table

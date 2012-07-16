@@ -1,0 +1,34 @@
+0a1,12
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MRG_MYISAM does not support transactions.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file, or add the test to disabled.def.
+> # If transactions should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MRG_MYISAM does not support savepoints.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file (recommended), or add the test to disabled.def.
+> # If savepoints should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------
+48a61,62
+> Warnings:
+> Warning	1196	Some non-transactional changed tables couldn't be rolled back
+51,64d64
+< 10000	foobar
+< 10000	foobar
+< 2	b
+< 2	b
+< 4	d
+< 4	d
+< 5	e
+< 5	e
+< 6	f
+< 6	f
+< 7	g
+< 7	g
+< 8	h
+< 8	h
+70a71,72
+> Warnings:
+> Warning	1196	Some non-transactional changed tables couldn't be rolled back

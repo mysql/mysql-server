@@ -1,0 +1,10 @@
+#
+# Spatial objects
+#
+
+--source have_engine.inc
+
+--source type_spatial.inc
+
+--source cleanup_engine.inc
+

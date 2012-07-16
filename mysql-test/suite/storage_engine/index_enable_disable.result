@@ -1,0 +1,45 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a <INT_COLUMN>, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a) VALUES (10);
+INSERT INTO t1 (a) VALUES 
+(1),(2),(3),(4),(5),(6),(7),(8),(9),
+(21),(22),(23),(24),(25),(26),(27),(28),(29);
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	5	NULL	#	Using index
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE	disabled	
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	19	Using filesort
+INSERT INTO t1 (a) VALUES
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+ALTER TABLE t1 ENABLE KEYS;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE		
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	5	NULL	#	Using index
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, UNIQUE INDEX(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a) VALUES 
+(1),(2),(3),(4),(5),(6),(7),(8),(9),
+(21),(22),(23),(24),(25),(26),(27),(28),(29);
+ALTER TABLE t1 DISABLE KEYS;
+INSERT INTO t1 (a) VALUES (29);
+ERROR 23000: Duplicate entry '29' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	a	1	a	#	#	NULL	NULL	YES	BTREE		
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	a	5	NULL	#	Using index
+DROP TABLE t1;

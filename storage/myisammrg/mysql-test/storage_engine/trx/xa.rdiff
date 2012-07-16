@@ -1,0 +1,34 @@
+0a1,6
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MRG_MYISAM does not support XA.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file, or add the test to disabled.def.
+> # If XA should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------
+11a18
+> 1
+17a25,26
+> 1
+> 2
+22a32,33
+> 1
+> 2
+40a52
+> 3
+48a61,62
+> 3
+> 4
+67a82
+> 5
+77a93,94
+> 5
+> 6
+86a104,105
+> 5
+> 6
+88a108,109
+> Warnings:
+> Warning	1196	Some non-transactional changed tables couldn't be rolled back
+95a117,118
+> 5
+> 6

@@ -1,0 +1,9 @@
+--source ../have_engine.inc
+--source support_transactions.inc
+
+let $trx_isolation = READ UNCOMMITTED;
+--source transaction_isolation.inc
+--source consistent_snapshot.inc
+
+--source ../cleanup_engine.inc
+
