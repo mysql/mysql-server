@@ -1178,7 +1178,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
-    statistic_increment(thd->status_var.questions, &LOCK_status);
+    statistic_increment_rwlock(thd->status_var.questions, &LOCK_status);
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1375,7 +1375,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /*
         Count each statement from the client.
       */
-      statistic_increment(thd->status_var.questions, &LOCK_status);
+      statistic_increment_rwlock(thd->status_var.questions, &LOCK_status);
       thd->set_time(); /* Reset the query start time. */
       parser_state.reset(beginning_of_next_stmt, length);
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
@@ -2515,11 +2515,11 @@ mysql_execute_command(THD *thd)
       restore status variables, as we don't want 'show status' to cause
       changes
     */
-    mysql_mutex_lock(&LOCK_status);
+    mysql_rwlock_wrlock(&LOCK_status);
     add_diff_to_status(&global_status_var, &thd->status_var,
                        &old_status_var);
     thd->status_var= old_status_var;
-    mysql_mutex_unlock(&LOCK_status);
+    mysql_rwlock_unlock(&LOCK_status);
     break;
   }
   case SQLCOM_SHOW_EVENTS:
