@@ -1390,9 +1390,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
 void THD::change_user(void)
 {
-  mysql_mutex_lock(&LOCK_status);
+  mysql_rwlock_wrlock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
+  mysql_rwlock_unlock(&LOCK_status);
 
   cleanup();
   killed= NOT_KILLED;
@@ -1492,9 +1492,9 @@ void THD::release_resources()
   mysql_mutex_lock(&LOCK_thd_data);
   mysql_mutex_unlock(&LOCK_thd_data);
 
-  mysql_mutex_lock(&LOCK_status);
+  mysql_rwlock_wrlock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
+  mysql_rwlock_unlock(&LOCK_status);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -4333,7 +4333,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
-  statistic_add(status_var.filesort_rows, count, &LOCK_status);
+  statistic_add_rwlock(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
