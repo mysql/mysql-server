@@ -136,6 +136,27 @@ from that level */
 #define N_DIFF_REQUIRED(index)	(N_SAMPLE_PAGES(index) * 10)
 
 /*********************************************************************//**
+Checks whether an index should be ignored in stats manipulations:
+* stats fetch
+* stats recalc
+* stats save
+dict_stats_should_ignore_index() @{
+@return true if exists and all tables are ok */
+UNIV_INLINE
+bool
+dict_stats_should_ignore_index(
+/*===========================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	return((index->type & DICT_FTS)
+	       || dict_index_is_corrupted(index)
+	       || index->to_be_dropped
+	       || (!dict_index_is_clust(index)
+		   && dict_index_is_online_ddl(index)));
+}
+/* @} */
+
+/*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
 dict_stats_persistent_storage_check() @{
@@ -335,11 +356,7 @@ dict_stats_table_clone_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
@@ -368,12 +385,12 @@ dict_stats_table_clone_create(
 
 	t = (dict_table_t*) mem_heap_alloc(heap, sizeof(*t));
 
-	UNIV_MEM_ASSERT_RW(&table->id, sizeof(table->id));
+	UNIV_MEM_ASSERT_RW_ABORT(&table->id, sizeof(table->id));
 	t->id = table->id;
 
 	t->heap = heap;
 
-	UNIV_MEM_ASSERT_RW(table->name, strlen(table->name) + 1);
+	UNIV_MEM_ASSERT_RW_ABORT(table->name, strlen(table->name) + 1);
 	t->name = (char*) mem_heap_strdup(heap, table->name);
 
 	t->corrupted = table->corrupted;
@@ -384,11 +401,7 @@ dict_stats_table_clone_create(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
@@ -398,10 +411,10 @@ dict_stats_table_clone_create(
 
 		idx = (dict_index_t*) mem_heap_alloc(heap, sizeof(*idx));
 
-		UNIV_MEM_ASSERT_RW(&index->id, sizeof(index->id));
+		UNIV_MEM_ASSERT_RW_ABORT(&index->id, sizeof(index->id));
 		idx->id = index->id;
 
-		UNIV_MEM_ASSERT_RW(index->name, strlen(index->name) + 1);
+		UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name) + 1);
 		idx->name = (char*) mem_heap_strdup(heap, index->name);
 
 		idx->table_name = t->name;
@@ -420,7 +433,7 @@ dict_stats_table_clone_create(
 			heap, idx->n_uniq * sizeof(idx->fields[0]));
 
 		for (ulint i = 0; i < idx->n_uniq; i++) {
-			UNIV_MEM_ASSERT_RW(index->fields[i].name, strlen(index->fields[i].name) + 1);
+			UNIV_MEM_ASSERT_RW_ABORT(index->fields[i].name, strlen(index->fields[i].name) + 1);
 			idx->fields[i].name = (char*) mem_heap_strdup(
 				heap, index->fields[i].name);
 		}
@@ -536,6 +549,34 @@ dict_stats_empty_table(
 /* @} */
 
 /*********************************************************************//**
+Check whether index's stats are initialized (assert if they are not). */
+static
+void
+dict_stats_assert_initialized_index(
+/*================================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	UNIV_MEM_ASSERT_RW_ABORT(
+		index->stat_n_diff_key_vals,
+		index->n_uniq * sizeof(index->stat_n_diff_key_vals[0]));
+
+	UNIV_MEM_ASSERT_RW_ABORT(
+		index->stat_n_sample_sizes,
+		index->n_uniq * sizeof(index->stat_n_sample_sizes[0]));
+
+	UNIV_MEM_ASSERT_RW_ABORT(
+		index->stat_n_non_null_key_vals,
+		index->n_uniq * sizeof(index->stat_n_non_null_key_vals[0]));
+
+	UNIV_MEM_ASSERT_RW_ABORT(
+		&index->stat_index_size,
+		sizeof(index->stat_index_size));
+
+	UNIV_MEM_ASSERT_RW_ABORT(
+		&index->stat_n_leaf_pages,
+		sizeof(index->stat_n_leaf_pages));
+}
+/*********************************************************************//**
 Check whether table's stats are initialized (assert if they are not). */
 static
 void
@@ -545,64 +586,40 @@ dict_stats_assert_initialized(
 {
 	ut_a(table->stat_initialized);
 
-	UNIV_MEM_ASSERT_RW(&table->stats_last_recalc,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stats_last_recalc,
 			   sizeof(table->stats_last_recalc));
 
-	UNIV_MEM_ASSERT_RW(&table->stat_persistent,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stat_persistent,
 			   sizeof(table->stat_persistent));
 
-	UNIV_MEM_ASSERT_RW(&table->stats_auto_recalc,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stats_auto_recalc,
 			   sizeof(table->stats_auto_recalc));
 
-	UNIV_MEM_ASSERT_RW(&table->stats_sample_pages,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stats_sample_pages,
 			   sizeof(table->stats_sample_pages));
 
-	UNIV_MEM_ASSERT_RW(&table->stat_n_rows,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stat_n_rows,
 			   sizeof(table->stat_n_rows));
 
-	UNIV_MEM_ASSERT_RW(&table->stat_clustered_index_size,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stat_clustered_index_size,
 			   sizeof(table->stat_clustered_index_size));
 
-	UNIV_MEM_ASSERT_RW(&table->stat_sum_of_other_index_sizes,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stat_sum_of_other_index_sizes,
 			   sizeof(table->stat_sum_of_other_index_sizes));
 
-	UNIV_MEM_ASSERT_RW(&table->stat_modified_counter,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stat_modified_counter,
 			   sizeof(table->stat_modified_counter));
 
-	UNIV_MEM_ASSERT_RW(&table->stats_bg_flag,
+	UNIV_MEM_ASSERT_RW_ABORT(&table->stats_bg_flag,
 			   sizeof(table->stats_bg_flag));
 
 	for (dict_index_t* index = dict_table_get_first_index(table);
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
-			continue;
+		if (!dict_stats_should_ignore_index(index)) {
+			dict_stats_assert_initialized_index(index);
 		}
-
-		UNIV_MEM_ASSERT_RW(
-			index->stat_n_diff_key_vals,
-			index->n_uniq * sizeof(index->stat_n_diff_key_vals[0]));
-
-		UNIV_MEM_ASSERT_RW(
-			index->stat_n_sample_sizes,
-			index->n_uniq * sizeof(index->stat_n_sample_sizes[0]));
-
-		UNIV_MEM_ASSERT_RW(
-			index->stat_n_non_null_key_vals,
-			index->n_uniq * sizeof(index->stat_n_non_null_key_vals[0]));
-
-		UNIV_MEM_ASSERT_RW(
-			&index->stat_index_size,
-			sizeof(index->stat_index_size));
-
-		UNIV_MEM_ASSERT_RW(
-			&index->stat_n_leaf_pages,
-			sizeof(index->stat_n_leaf_pages));
 	}
 }
 
@@ -639,12 +656,7 @@ dict_stats_copy(
 	     (src_idx != NULL
 	      && (src_idx = dict_table_get_next_index(src_idx)))) {
 
-		if ((dst_idx->type & DICT_FTS)
-		    || dict_index_is_corrupted(dst_idx)
-		    || dst_idx->to_be_dropped
-		    || (!dict_index_is_clust(dst_idx)
-			&& dict_index_is_online_ddl(dst_idx))) {
-
+		if (dict_stats_should_ignore_index(dst_idx)) {
 			continue;
 		}
 
@@ -856,21 +868,24 @@ dict_stats_update_transient(
 		return;
 	}
 
-	do {
+	for (; index != NULL; index = dict_table_get_next_index(index)) {
+
 		ut_ad(!dict_index_is_univ(index));
 
-		if (!((index->type & DICT_FTS)
-		      || dict_index_is_corrupted(index)
-		      || (!dict_index_is_clust(index)
-			  && dict_index_is_online_ddl(index)))) {
-
-			dict_stats_update_transient_for_index(index);
-
-			sum_of_index_sizes += index->stat_index_size;
+		if (index->type & DICT_FTS) {
+			continue;
 		}
 
-		index = dict_table_get_next_index(index);
-	} while (index);
+		dict_stats_empty_index(index);
+
+		if (dict_stats_should_ignore_index(index)) {
+			continue;
+		}
+
+		dict_stats_update_transient_for_index(index);
+
+		sum_of_index_sizes += index->stat_index_size;
+	}
 
 	index = dict_table_get_first_index(table);
 
@@ -1860,6 +1875,7 @@ dict_stats_analyze_index(
 
 	switch (size) {
 	case ULINT_UNDEFINED:
+		dict_stats_assert_initialized_index(index);
 		return;
 	case 0:
 		/* The root node of the tree is a leaf */
@@ -1913,6 +1929,7 @@ dict_stats_analyze_index(
 
 		mtr_commit(&mtr);
 
+		dict_stats_assert_initialized_index(index);
 		return;
 	}
 
@@ -2083,6 +2100,8 @@ found_level:
 	mem_free(n_diff_boundaries);
 
 	mem_free(n_diff_on_level);
+
+	dict_stats_assert_initialized_index(index);
 }
 
 /*********************************************************************//**
@@ -2132,24 +2151,24 @@ dict_stats_update_persistent(
 	table->stat_sum_of_other_index_sizes = 0;
 
 	for (index = dict_table_get_next_index(index);
-	     index != NULL && !(table->stats_bg_flag & BG_STAT_SHOULD_QUIT);
+	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
+
+		ut_ad(!dict_index_is_univ(index));
 
 		if (index->type & DICT_FTS) {
 			continue;
 		}
 
-		if (dict_index_is_online_ddl(index)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped) {
+		dict_stats_empty_index(index);
 
-			dict_stats_empty_index(index);
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
-		ut_ad(!dict_index_is_univ(index));
-
-		dict_stats_analyze_index(index);
+		if (!(table->stats_bg_flag & BG_STAT_SHOULD_QUIT)) {
+			dict_stats_analyze_index(index);
+		}
 
 		table->stat_sum_of_other_index_sizes
 			+= index->stat_index_size;
@@ -2160,6 +2179,8 @@ dict_stats_update_persistent(
 	table->stat_modified_counter = 0;
 
 	table->stat_initialized = TRUE;
+
+	dict_stats_assert_initialized(table);
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
 
@@ -2189,29 +2210,29 @@ dict_stats_save_index_stat(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
-	UNIV_MEM_ASSERT_RW(index->table->name, dict_get_db_name_len(index->table->name));
+	UNIV_MEM_ASSERT_RW_ABORT(index->table->name, dict_get_db_name_len(index->table->name));
 	pars_info_add_literal(pinfo, "database_name", index->table->name,
 		dict_get_db_name_len(index->table->name),
 		DATA_VARCHAR, 0);
-	UNIV_MEM_ASSERT_RW(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
+	UNIV_MEM_ASSERT_RW_ABORT(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
 	pars_info_add_str_literal(pinfo, "table_name",
 		dict_remove_db_name(index->table->name));
-	UNIV_MEM_ASSERT_RW(index->name, strlen(index->name));
+	UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name));
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
-	UNIV_MEM_ASSERT_RW(&last_update, 4);
+	UNIV_MEM_ASSERT_RW_ABORT(&last_update, 4);
 	pars_info_add_int4_literal(pinfo, "last_update", last_update);
-	UNIV_MEM_ASSERT_RW(stat_name, strlen(stat_name));
+	UNIV_MEM_ASSERT_RW_ABORT(stat_name, strlen(stat_name));
 	pars_info_add_str_literal(pinfo, "stat_name", stat_name);
-	UNIV_MEM_ASSERT_RW(&stat_value, 8);
+	UNIV_MEM_ASSERT_RW_ABORT(&stat_value, 8);
 	pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
 	if (sample_size != NULL) {
-		UNIV_MEM_ASSERT_RW(sample_size, 8);
+		UNIV_MEM_ASSERT_RW_ABORT(sample_size, 8);
 		pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
 	} else {
 		pars_info_add_literal(pinfo, "sample_size", NULL,
 				      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
 	}
-	UNIV_MEM_ASSERT_RW(stat_description, strlen(stat_description));
+	UNIV_MEM_ASSERT_RW_ABORT(stat_description, strlen(stat_description));
 	pars_info_add_str_literal(pinfo, "stat_description",
 				  stat_description);
 
@@ -2236,29 +2257,29 @@ dict_stats_save_index_stat(
 	if (ret == DB_DUPLICATE_KEY) {
 
 		pinfo = pars_info_create();
-		UNIV_MEM_ASSERT_RW(index->table->name, dict_get_db_name_len(index->table->name));
+		UNIV_MEM_ASSERT_RW_ABORT(index->table->name, dict_get_db_name_len(index->table->name));
 		pars_info_add_literal(pinfo, "database_name", index->table->name,
 			dict_get_db_name_len(index->table->name),
 			DATA_VARCHAR, 0);
-		UNIV_MEM_ASSERT_RW(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
+		UNIV_MEM_ASSERT_RW_ABORT(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
 		pars_info_add_str_literal(pinfo, "table_name",
 			dict_remove_db_name(index->table->name));
-		UNIV_MEM_ASSERT_RW(index->name, strlen(index->name));
+		UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name));
 		pars_info_add_str_literal(pinfo, "index_name", index->name);
-		UNIV_MEM_ASSERT_RW(&last_update, 4);
+		UNIV_MEM_ASSERT_RW_ABORT(&last_update, 4);
 		pars_info_add_int4_literal(pinfo, "last_update", last_update);
-		UNIV_MEM_ASSERT_RW(stat_name, strlen(stat_name));
+		UNIV_MEM_ASSERT_RW_ABORT(stat_name, strlen(stat_name));
 		pars_info_add_str_literal(pinfo, "stat_name", stat_name);
-		UNIV_MEM_ASSERT_RW(&stat_value, 8);
+		UNIV_MEM_ASSERT_RW_ABORT(&stat_value, 8);
 		pars_info_add_ull_literal(pinfo, "stat_value", stat_value);
 		if (sample_size != NULL) {
-			UNIV_MEM_ASSERT_RW(sample_size, 8);
+			UNIV_MEM_ASSERT_RW_ABORT(sample_size, 8);
 			pars_info_add_ull_literal(pinfo, "sample_size", *sample_size);
 		} else {
 			pars_info_add_literal(pinfo, "sample_size", NULL,
 					      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
 		}
-		UNIV_MEM_ASSERT_RW(stat_description, strlen(stat_description));
+		UNIV_MEM_ASSERT_RW_ABORT(stat_description, strlen(stat_description));
 		pars_info_add_str_literal(pinfo, "stat_description",
 					  stat_description);
 
@@ -2394,11 +2415,7 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		if ((index->type & DICT_FTS)
-		    || dict_index_is_corrupted(index)
-		    || index->to_be_dropped
-		    || (!dict_index_is_clust(index)
-			&& dict_index_is_online_ddl(index))) {
+		if (dict_stats_should_ignore_index(index)) {
 			continue;
 		}
 
