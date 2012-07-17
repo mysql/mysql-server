@@ -130,7 +130,7 @@ handler_open_table(
 				? MDL_SHARED_WRITE
 				: MDL_SHARED_READ, MDL_TRANSACTION);
 
-	if (!open_table(thd, &tables, thd->mem_root, &table_ctx)) {
+	if (!open_table(thd, &tables, &table_ctx)) {
 		TABLE*	table = tables.table;
 		table->use_all_columns();
 		return(table);

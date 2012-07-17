@@ -25,7 +25,6 @@
                          // mysql_lock_have_duplicate
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
-#include "parse_file.h"  // sql_parse_prepare, File_parser
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
 #include "sql_insert.h"  // kill_delayed_threads
@@ -2520,8 +2519,6 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
 
   @param thd            Thread context.
   @param table_list     Open first table in list.
-  @param mem_root       Temporary MEM_ROOT to be used for
-                        parsing .FRMs for views.
   @param ot_ctx         Context with flags which modify how open works
                         and which is used to recover from a failed
                         open_table() attempt.
@@ -2550,8 +2547,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
                 TABLE_LIST::view is set for views).
 */
 
-bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx)
+bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 {
   reg1	TABLE *table;
   const char *key;
@@ -2673,7 +2669,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
-                           mem_root, CHECK_METADATA_VERSION))
+                           CHECK_METADATA_VERSION))
         {
           DBUG_ASSERT(table_list->view != 0);
           DBUG_RETURN(FALSE); // VIEW
@@ -2940,12 +2936,7 @@ retry_share:
     }
 
     /* Open view */
-    if (open_new_frm(thd, share, alias,
-                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                             HA_GET_INDEX | HA_TRY_READ_ONLY),
-                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-                     thd->open_options,
-                     0, table_list, mem_root))
+    if (mysql_make_view(thd, share, table_list, false))
       goto err_unlock;
 
     /* TODO: Don't free this */
@@ -3484,7 +3475,7 @@ Locked_tables_list::reopen_tables(THD *thd)
       continue;
 
     /* Links into thd->open_tables upon success */
-    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+    if (open_table(thd, table_list, &ot_ctx))
     {
       unlink_all_closed_tables(thd, 0, reopen_count);
       return TRUE;
@@ -3729,7 +3720,6 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @param alias             Alias name
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
-   @param mem_root          Memory to be used for .frm parsing.
    @param flags             Flags which modify how we open the view
 
    @todo This function is needed for special handling of views under
@@ -3739,10 +3729,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 */
 
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   const char *cache_key, uint cache_key_length,
-                   MEM_ROOT *mem_root, uint flags)
+                   const char *cache_key, uint cache_key_length, uint flags)
 {
-  TABLE not_used;
   int error;
   my_hash_value_type hash_value;
   TABLE_SHARE *share;
@@ -3776,12 +3764,7 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
   }
 
   if (share->is_view &&
-      !open_new_frm(thd, share, alias,
-                    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                            HA_GET_INDEX | HA_TRY_READ_ONLY),
-                    READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                    flags, thd->open_options, &not_used, table_list,
-                    mem_root))
+      !mysql_make_view(thd, share, table_list, (flags & OPEN_VIEW_NO_PARSE)))
   {
     release_table_share(share);
     mysql_mutex_unlock(&LOCK_open);
@@ -4332,8 +4315,6 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                                       this statement has already been built.
   @param[in]     ot_ctx               Context used to recover from a failed
                                       open_table() attempt.
-  @param[in]     new_frm_mem          Temporary MEM_ROOT to be used for
-                                      parsing .FRMs for views.
 
   @retval  FALSE  Success.
   @retval  TRUE   Error, reported unless there is a chance to recover from it.
@@ -4344,8 +4325,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
                        uint *counter, uint flags,
                        Prelocking_strategy *prelocking_strategy,
                        bool has_prelocking_list,
-                       Open_table_context *ot_ctx,
-                       MEM_ROOT *new_frm_mem)
+                       Open_table_context *ot_ctx)
 {
   bool error= FALSE;
   bool safe_to_ignore_table= FALSE;
@@ -4473,7 +4453,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     error= open_temporary_table(thd, tables);
 
     if (!error && !tables->table)
-      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+      error= open_table(thd, tables, ot_ctx);
 
     thd->pop_internal_handler();
     safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
@@ -4491,7 +4471,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
 
     error= open_temporary_table(thd, tables);
     if (!error && !tables->table)
-      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+      error= open_table(thd, tables, ot_ctx);
 
     thd->pop_internal_handler();
     safe_to_ignore_table= repair_mrg_table_handler.safely_trapped_errors();
@@ -4509,10 +4489,8 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     }
 
     if (!error && !tables->table)
-      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+      error= open_table(thd, tables, ot_ctx);
   }
-
-  free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
 
   if (error)
   {
@@ -4862,7 +4840,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   TABLE_LIST *tables;
   Open_table_context ot_ctx(thd, flags);
   bool error= FALSE;
-  MEM_ROOT new_frm_mem;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
@@ -4873,13 +4850,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(true);
   }
-
-  /*
-    Initialize temporary MEM_ROOT for new .FRM parsing. Do not allocate
-    anything yet, to avoid penalty for statements which don't use views
-    and thus new .FRM format.
-  */
-  init_sql_alloc(&new_frm_mem, 8024, 0);
 
   thd->current_tablenr= 0;
 restart:
@@ -4967,8 +4937,7 @@ restart:
     {
       error= open_and_process_table(thd, thd->lex, tables, counter,
                                     flags, prelocking_strategy,
-                                    has_prelocking_list, &ot_ctx,
-                                    &new_frm_mem);
+                                    has_prelocking_list, &ot_ctx);
 
       if (error)
       {
@@ -5102,8 +5071,6 @@ restart:
   }
 
 err:
-  free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
-
   if (error && *table_to_open)
   {
     (*table_to_open)->table= NULL;
@@ -5485,7 +5452,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* This function can't properly handle requests for such metadata locks. */
   DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_UPGRADABLE);
 
-  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
+  while ((error= open_table(thd, table_list, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
   {
     /*
@@ -9232,69 +9199,6 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
       ifm->init_search(no_order);
   }
   return 0;
-}
-
-
-/*
-  open new .frm format table
-
-  SYNOPSIS
-    open_new_frm()
-    THD		  thread handler
-    path	  path to .frm file (without extension)
-    alias	  alias for table
-    db            database
-    table_name    name of table
-    db_stat	  open flags (for example ->OPEN_KEYFILE|HA_OPEN_RNDFILE..)
-		  can be 0 (example in ha_example_table)
-    prgflag	  READ_ALL etc..
-    ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..
-    outparam	  result table
-    table_desc	  TABLE_LIST descriptor
-    mem_root	  temporary MEM_ROOT for parsing
-*/
-
-bool
-open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
-             uint db_stat, uint prgflag,
-	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
-	     MEM_ROOT *mem_root)
-{
-  LEX_STRING pathstr;
-  File_parser *parser;
-  char path[FN_REFLEN];
-  DBUG_ENTER("open_new_frm");
-
-  /* Create path with extension */
-  pathstr.length= (uint) (strxmov(path, share->normalized_path.str, reg_ext,
-                                  NullS)- path);
-  pathstr.str=    path;
-
-  if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
-  {
-    if (is_equal(&view_type, parser->type()))
-    {
-      if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
-      {
-        my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
-                 "BASE TABLE");
-        goto err;
-      }
-      if (mysql_make_view(thd, parser, table_desc,
-                          (prgflag & OPEN_VIEW_NO_PARSE)))
-        goto err;
-    }
-    else
-    {
-      /* only VIEWs are supported now */
-      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path.str,  parser->type()->str);
-      goto err;
-    }
-    DBUG_RETURN(0);
-  }
- 
-err:
-  DBUG_RETURN(1);
 }
 
 

@@ -29,6 +29,7 @@
 #include "mysql_com.h"              /* enum_field_types */
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "filesort_utils.h"
+#include "parse_file.h"
 
 /* Structs that defines the TABLE */
 
@@ -741,6 +742,13 @@ struct TABLE_SHARE
     List of tickets representing threads waiting for the share to be flushed.
   */
   Wait_for_flush_list m_flush_tickets;
+
+  /**
+    For shares representing views File_parser object with view
+    definition read from .FRM file.
+  */ 
+  const File_parser *view_def;
+
 
   /*
     Set share's table cache key and update its db and table name appropriately.
