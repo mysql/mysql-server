@@ -39,6 +39,7 @@
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
 #include "opt_trace.h"           // opt_trace_disable_if_no_security_...
 #include "table_cache.h"         // table_cache_manager
+#include "sql_view.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -627,6 +628,8 @@ static inline bool has_disabled_path_chars(const char *str)
    4    Error (see open_table_error)
    5    Error (see open_table_error: charset unavailable)
    6    Unknown .frm version
+   8    Error while reading view definition from .FRM file.
+   9    Wrong type in view's .frm file.
 */
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
@@ -727,18 +730,20 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0)
   {
     error= 5;
-    if (memcmp(head+5,"VIEW",4) == 0)
+    if (memcmp(head+5, "VIEW", 4) == 0)
     {
       share->is_view= 1;
       if (db_flags & OPEN_VIEW)
-        error= 0;
+        table_type= 2;
+      else
+        goto err;
     }
-    goto err;
+    else
+      goto err;
   }
   else
     goto err;
 
-  /* No handling of text based files yet */
   if (table_type == 1)
   {
     root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
@@ -747,6 +752,22 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
     error_given= 1;
+  }
+  else if (table_type == 2)
+  {
+    LEX_STRING pathstr= { path, strlen(path) };
+
+    /*
+      Create view file parser and hold it in TABLE_SHARE member
+      view_def.
+      */ 
+    share->view_def= sql_parse_prepare(&pathstr, &share->mem_root, true);
+    if (!share->view_def)
+      error= 8;
+    else if (!is_equal(&view_type, share->view_def->type()))
+      error= 9;
+    else
+      error= 0;
   }
 
   share->table_category= get_table_category(& share->db, & share->table_name);
@@ -2506,6 +2527,11 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
                     MYF(0), buff);
     break;
   case 8:
+    break;
+  case 9:
+    /* Unknown FRM type read while preparing File_parser object for view*/
+    my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path.str,
+             share->view_def->type()->str);
     break;
   default:				/* Better wrong error than none */
   case 4:

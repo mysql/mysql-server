@@ -219,7 +219,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   key_length= get_table_def_key(view, &key);
 
   if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
-                    thd->mem_root, OPEN_VIEW_NO_PARSE))
+                    OPEN_VIEW_NO_PARSE))
     return TRUE;
 
   if (!lex->definer)
@@ -1082,22 +1082,19 @@ err:
 
 
 
-/*
+/**
   read VIEW .frm and create structures
 
-  SYNOPSIS
-    mysql_make_view()
-    thd			Thread handler
-    parser		parser object
-    table		TABLE_LIST structure for filling
-    flags               flags
-  RETURN
-    0 ok
-    1 error
-*/
+  @param[in]  thd                 Thread handler
+  @param[in]  share               Share object of view
+  @param[in]  table               TABLE_LIST structure for filling
+  @param[in]  open_view_no_parse  Flag to indicate open view but
+                                  do not parse.
 
-bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
-                     uint flags)
+  @return false-in case of success, true-in case of error.
+*/
+bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                     bool open_view_no_parse)
 {
   SELECT_LEX *end, *view_select= NULL;
   LEX *old_lex, *lex;
@@ -1109,6 +1106,13 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
+
+  if (table->required_type == FRMTYPE_TABLE)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
+             "BASE TABLE");
+    DBUG_RETURN(true); 
+  }
 
   if (table->view)
   {
@@ -1130,19 +1134,19 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     */
     if (!table->prelocking_placeholder && table->prepare_security(thd))
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     }
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
   if (table->index_hints && table->index_hints->elements)
   {
     my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
              table->index_hints->head()->key_name.str, table->table_name);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* check loop via view definition */
@@ -1159,7 +1163,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     {
       my_error(ER_VIEW_RECURSIVE, MYF(0),
                top_view->view_db.str, top_view->view_name.str);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
@@ -1193,8 +1197,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((uchar*)table, thd->mem_root, view_parameters,
-                    required_view_parameters, &file_parser_dummy_hook))
+  DBUG_ASSERT(share->view_def != NULL);
+  if (share->view_def->parse((uchar*)table, thd->mem_root, view_parameters,
+                             required_view_parameters,
+                             &file_parser_dummy_hook))
     goto err;
 
   /*
@@ -1218,11 +1224,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   */
   table->view_creation_ctx= View_creation_ctx::create(thd, table);
 
-  if (flags & OPEN_VIEW_NO_PARSE)
+  if (open_view_no_parse)
   {
     if (arena)
       thd->restore_active_arena(arena, &backup);
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   /*

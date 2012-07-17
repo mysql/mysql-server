@@ -33,8 +33,8 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
 bool mysql_create_view(THD *thd, TABLE_LIST *view,
                        enum_view_create_mode mode);
 
-bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
-                     uint flags);
+bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                     bool open_view_no_parse);
 
 bool mysql_drop_view(THD *thd, TABLE_LIST *view, enum_drop_mode drop_mode);
 
