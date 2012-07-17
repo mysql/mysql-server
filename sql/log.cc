@@ -2798,7 +2798,7 @@ int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
   if (p->free == p->size)               // the page is completely empty
-    statistic_decrement(tc_log_cur_pages_used, &LOCK_status);
+    statistic_decrement_rwlock(tc_log_cur_pages_used, &LOCK_status);
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);
