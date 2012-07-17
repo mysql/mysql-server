@@ -1639,7 +1639,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
     quick->record= head->record[0];
   }
 
-  if (need_to_fetch_row && (error= head->file->ha_rnd_init(1)))
+  /* Prepare for ha_rnd_pos calls if needed. */
+  if (need_to_fetch_row && (error= head->file->ha_rnd_init(false)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
     DBUG_RETURN(error);
@@ -1814,7 +1815,13 @@ int QUICK_ROR_UNION_SELECT::reset()
     queue_insert(&queue, (uchar*)quick);
   }
 
-  if ((error= head->file->ha_rnd_init(1)))
+  /* Prepare for ha_rnd_pos calls. */
+  if (head->file->inited && (error= head->file->ha_rnd_end()))
+  {
+    DBUG_PRINT("error", ("ROR index_merge rnd_end call failed"));
+    DBUG_RETURN(error);
+  }
+  if ((error= head->file->ha_rnd_init(false)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
     DBUG_RETURN(error);
