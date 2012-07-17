@@ -1,10 +1,4 @@
-#include "toku_mysql_priv.h"
-
-extern "C" {
-#include "stdint.h"
-}
 #include "hatoku_cmp.h"
-
 #include "hatoku_assert.h"
 
 #ifdef WORDS_BIGENDIAN
