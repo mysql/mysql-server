@@ -1388,8 +1388,6 @@ static void close_connections(void)
   }
   mysql_mutex_unlock(&LOCK_thread_count);
 
-  Events::deinit();
-
   sql_print_information("Shutting down slave threads");
   end_slave();
 
@@ -1424,7 +1422,13 @@ static void close_connections(void)
   mysql_mutex_unlock(&LOCK_thread_count);
 #endif // Bug in BSDI kernel
 
-  /* All threads has now been aborted */
+  /* 
+    All threads have now been aborted. Stop event scheduler thread 
+    after aborting all client connections, otherwise user may 
+    start/stop event scheduler after Events::deinit() deallocates
+    scheduler object(static member in Events class)
+  */
+  Events::deinit();
   DBUG_PRINT("quit",("Waiting for threads to die (count=%u)",
                      get_thread_count()));
   mysql_mutex_lock(&LOCK_thread_count);
