@@ -138,12 +138,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                             MYSQL_OPEN_GET_NEW_TABLE |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
 
-bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx);
-bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
-                  uint db_stat, uint prgflag,
-                  uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
-                  MEM_ROOT *mem_root);
+bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
 
 bool get_key_map_from_key_list(key_map *map, TABLE *table,
                                List<String> *index_list);
@@ -290,8 +285,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   const char *cache_key, uint cache_key_length,
-                   MEM_ROOT *mem_root, uint flags);
+                   const char *cache_key, uint cache_key_length, uint flags);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,

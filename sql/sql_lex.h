@@ -523,8 +523,8 @@ public:
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(LEX *lex, bool move_down);
-  friend bool mysql_make_view(THD *thd, File_parser *parser,
-                              TABLE_LIST *table, uint flags);
+  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                              bool open_view_no_parse);
 private:
   void fast_exclude();
 };
