@@ -3251,7 +3251,7 @@ int ha_end(void);
 int ha_initialize_handlerton(st_plugin_int *plugin);
 int ha_finalize_handlerton(st_plugin_int *plugin);
 
-TYPELIB *ha_known_exts(void);
+TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 bool ha_flush_logs(handlerton *db_type);
