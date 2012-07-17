@@ -6938,12 +6938,20 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_WITHIN_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_WITHIN;// NEAR_MIN;//512;
+    /*
+      Adjust the min_flag as MyISAM implements this function
+      in reverse order.
+    */
+    tree->min_flag=GEOM_FLAG | HA_READ_MBR_CONTAIN;// NEAR_MIN;//512;
     tree->max_flag=NO_MAX_RANGE;
     break;
 
   case Item_func::SP_CONTAINS_FUNC:
-    tree->min_flag=GEOM_FLAG | HA_READ_MBR_CONTAIN;// NEAR_MIN;//512;
+    /*
+      Adjust the min_flag as MyISAM implements this function
+      in reverse order.
+    */
+    tree->min_flag=GEOM_FLAG | HA_READ_MBR_WITHIN;// NEAR_MIN;//512;
     tree->max_flag=NO_MAX_RANGE;
     break;
   case Item_func::SP_OVERLAPS_FUNC:
