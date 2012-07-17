@@ -913,8 +913,11 @@ end:
   if (res)
   {
     delete db_repository;
+    db_repository= NULL;
     delete event_queue;
+    event_queue= NULL;
     delete scheduler;
+    scheduler= NULL;
   }
   delete thd;
   /* Remember that we don't have a THD */
@@ -1065,12 +1068,16 @@ Events::dump_internal_status()
 
 bool Events::start()
 {
-  return scheduler->start();
+  bool ret= false;
+  if (scheduler) ret= scheduler->start();
+  return ret;
 }
 
 bool Events::stop()
 {
-  return scheduler->stop();
+  bool ret= false;
+  if (scheduler) ret= scheduler->stop();
+  return ret;
 }
 
 /**
