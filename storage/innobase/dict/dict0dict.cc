@@ -2246,21 +2246,6 @@ undo_size_ok:
 		}
 	}
 
-	/* Add the new index as the last index for the table */
-
-	UT_LIST_ADD_LAST(indexes, table->indexes, new_index);
-	new_index->table = table;
-	new_index->table_name = table->name;
-	new_index->search_info = btr_search_info_create(new_index->heap);
-
-	new_index->stat_index_size = 1;
-	new_index->stat_n_leaf_pages = 1;
-
-	new_index->page = page_no;
-	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
-		       dict_index_is_ibuf(index)
-		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
-
 	if (!dict_index_is_univ(new_index)) {
 
 		new_index->stat_n_diff_key_vals =
@@ -2281,6 +2266,21 @@ undo_size_ok:
 			dict_index_get_n_unique(new_index)
 			* sizeof(*new_index->stat_n_non_null_key_vals)));
 	}
+
+	new_index->stat_index_size = 1;
+	new_index->stat_n_leaf_pages = 1;
+
+	/* Add the new index as the last index for the table */
+
+	UT_LIST_ADD_LAST(indexes, table->indexes, new_index);
+	new_index->table = table;
+	new_index->table_name = table->name;
+	new_index->search_info = btr_search_info_create(new_index->heap);
+
+	new_index->page = page_no;
+	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
+		       dict_index_is_ibuf(index)
+		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
 	dict_sys->size += mem_heap_get_size(new_index->heap);
 

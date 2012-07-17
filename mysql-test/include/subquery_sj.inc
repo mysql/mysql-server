@@ -5142,6 +5142,7 @@ INSERT INTO t2 VALUES
 
 -- disable_query_log
 -- disable_result_log
+ANALYZE TABLE t1;
 ANALYZE TABLE t2;
 -- enable_result_log
 -- enable_query_log
