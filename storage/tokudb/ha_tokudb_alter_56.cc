@@ -695,10 +695,27 @@ public:
     bool incremented_num_DBs, modified_DBs;
 };
 
+// workaround for fill_alter_inplace_info bug (#5193)
+// the function erroneously sets the ADD_INDEX and DROP_INDEX flags for a column addition that does not
+// change the keys.  the following code turns the ADD_INDEX and DROP_INDEX flags so that we can do hot
+// column addition later.
+static ulong
+fix_handler_flags(Alter_inplace_info *ha_alter_info, TABLE *table, TABLE *altered_table) {
+    ulong handler_flags = ha_alter_info->handler_flags;
+    if ((handler_flags & (Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::DROP_COLUMN)) != 0) {
+        if ((handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX)) != 0) {
+            if (tables_have_same_keys(table, altered_table, false, false)) {
+                handler_flags &= ~(Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX);
+            }
+        }
+    }
+    return handler_flags;
+}
+
 // true if some bit in mask is set and no bit in ~mask is set
 // otherwise false
 static bool
-only_flags(uint bits, uint mask) {
+only_flags(ulong bits, ulong mask) {
     return (bits & mask) != 0 && (bits & ~mask) == 0;
 }
 
@@ -714,20 +731,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     enum_alter_inplace_result result = HA_ALTER_INPLACE_NOT_SUPPORTED; // default is NOT inplace
     HA_CREATE_INFO *create_info = ha_alter_info->create_info;
 
-    // workaround for fill_alter_inplace_info bug (#5193)
-    // the function erroneously sets the ADD_INDEX and DROP_INDEX flags for a column addition that does not
-    // change the keys.  the following code turns the ADD_INDEX and DROP_INDEX flags so that we can do hot
-    // column addition later.
-    if ((ha_alter_info->handler_flags & (Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::DROP_COLUMN)) != 0) {
-        if ((ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX)) != 0) {
-            if (tables_have_same_keys(table, altered_table, false, false)) {
-                ha_alter_info->handler_flags &= ~(Alter_inplace_info::ADD_INDEX + Alter_inplace_info::DROP_INDEX);
-            }
-        }
-    }
+    ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
     // column rename
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::ALTER_COLUMN_NAME + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
+    if (only_flags(handler_flags, Alter_inplace_info::ALTER_COLUMN_NAME + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
         // we have identified a possible column rename, 
         // but let's do some more checks
 
@@ -742,17 +749,17 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             result = HA_ALTER_INPLACE_NO_LOCK;
     } else
     // alter auto_increment (and nothing else)
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION) && 
+    if (only_flags(handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION) && 
         create_info->used_fields == HA_CREATE_USED_AUTO) {
         result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
     } else    
     // alter row_format (and nothing else)
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION) && 
+    if (only_flags(handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION) && 
         create_info->used_fields == HA_CREATE_USED_ROW_FORMAT) {
         result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
     } else    
     // add index (and nothing else)
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
+    if (only_flags(handler_flags, Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
         assert(ha_alter_info->index_drop_count == 0);
         result = HA_ALTER_INPLACE_SHARED_LOCK;
         // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
@@ -761,12 +768,12 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             result = HA_ALTER_INPLACE_NO_LOCK;
     } else
     // drop index (and nothing else)
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
+    if (only_flags(handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
         assert(ha_alter_info->index_add_count == 0);
         result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;;
     } else
     // add column (and nothing else)
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
+    if (only_flags(handler_flags, Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
         u_int32_t added_columns[altered_table->s->fields];
         u_int32_t num_added_columns = 0;
         int r = find_changed_columns(added_columns, &num_added_columns, table, altered_table);
@@ -782,7 +789,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         }
     } else
     // drop column (and nothing else)
-    if (only_flags(ha_alter_info->handler_flags, Alter_inplace_info::DROP_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
+    if (only_flags(handler_flags, Alter_inplace_info::DROP_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
         u_int32_t dropped_columns[table->s->fields];
         u_int32_t num_dropped_columns = 0;
         int r = find_changed_columns(dropped_columns, &num_dropped_columns, altered_table, table);
@@ -806,13 +813,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     DBUG_RETURN(result);
 }
 
+// prepare not yet called by the mysql 5.5 patch
 bool 
 ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("prepare_inplace_alter_table");
-
-#if MYSQL_VERSION_ID < 50600
-    assert(0); // not supported
-#endif
 
     bool result = false; // success
     DBUG_RETURN(result);
@@ -824,25 +828,26 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
 
     int error = 0;
     HA_CREATE_INFO *create_info = ha_alter_info->create_info;
+    ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
-    if (ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
+    if (error == 0 && (handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX))) {
         error = alter_table_add_index(altered_table, ha_alter_info);
-    } else
-    if (ha_alter_info->handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
+    }
+    if (error == 0 && (handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX))) {
         error = alter_table_drop_index(altered_table, ha_alter_info);
-    } else
-    if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_COLUMN) { 
+    }
+    if (error == 0 && (handler_flags & Alter_inplace_info::ADD_COLUMN)) { 
         error = alter_table_add_or_drop_column(altered_table, ha_alter_info);
-    } else
-    if (ha_alter_info->handler_flags & Alter_inplace_info::DROP_COLUMN) {
+    }
+    if (error == 0 && (handler_flags & Alter_inplace_info::DROP_COLUMN)) {
         error = alter_table_add_or_drop_column(altered_table, ha_alter_info);
-    } else
-    if ((ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) &&
-        create_info->used_fields == HA_CREATE_USED_AUTO) {
+    }
+    if (error == 0 && (handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) &&
+        (create_info->used_fields & HA_CREATE_USED_AUTO)) {
         error = write_auto_inc_create(share->status_block, create_info->auto_increment_value, transaction);
-    } else
-    if ((ha_alter_info->handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) &&
-        create_info->used_fields == HA_CREATE_USED_ROW_FORMAT) {
+    }
+    if (error == 0 && (handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) &&
+        (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
 
         enum toku_compression_method method = TOKU_NO_COMPRESSION;
         method = row_type_to_compression_method(create_info->row_type);
@@ -1046,6 +1051,7 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
 
     bool result = false; // success
+    ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
     if (commit) {
         if (altered_table->part_info == NULL) {
@@ -1070,12 +1076,12 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     }
 
     if (!commit || result == true) {
-        if (ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
+        if (handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
             ha_tokudb_add_index_ctx *ctx = static_cast<ha_tokudb_add_index_ctx *>(ha_alter_info->handler_ctx);
             assert(ctx);
             restore_add_index(table, ha_alter_info->index_add_count, ctx->incremented_num_DBs, ctx->modified_DBs);
-        } else
-        if (ha_alter_info->handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
+        }
+        if (handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
             // translate KEY pointers to indexes into the key_info array
             uint index_drop_offsets[ha_alter_info->index_drop_count];
             for (uint i = 0; i < ha_alter_info->index_drop_count; i++)
@@ -1083,6 +1089,7 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
             
             restore_drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count);
         }
+        // TODO undo auto increment, row format change
     }
     
     DBUG_RETURN(result);
