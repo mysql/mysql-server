@@ -1008,6 +1008,7 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
   TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
   DBUG_ENTER("find_db_tables_and_rm_known_files");
   DBUG_PRINT("enter",("path: %s", path));
+  TYPELIB *known_extensions= ha_known_exts();
 
   tot_list_next_local= tot_list_next_global= &tot_list;
 
@@ -1049,8 +1050,8 @@ static bool find_db_tables_and_rm_known_files(THD *thd, MY_DIR *dirp,
       extension= strend(file->name);
     if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0)
     {
-      if (find_type(extension, ha_known_exts(), FIND_TYPE_NO_PREFIX) <= 0)
-	*found_other_files= true;
+      if (find_type(extension, known_extensions, FIND_TYPE_NO_PREFIX) <= 0)
+        *found_other_files= true;
       continue;
     }
     /* just for safety we use files_charset_info */
