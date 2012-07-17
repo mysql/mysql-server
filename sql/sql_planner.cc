@@ -53,13 +53,14 @@ static void trace_plan_prefix(JOIN *join, uint idx,
          opt.next_ref_key();
          for each keyuse 
            opt.add_keyuse();
-         opt.check_ref_access();
+         opt.check_ref_access_part1();
+         opt.check_ref_access_part2();
        }
 
        if (some criteria for range scans)
          opt.check_range_access();
        
-       opt.get_best_option();
+       opt.save_to_position();
     }
 */
 
@@ -194,8 +195,17 @@ public:
 
   bool have_a_case() { return test(handled_sj_equalities); }
 
+  /**
+    Check if an index can be used for LooseScan, part 1
+
+    @param s              The join_tab we are checking
+    @param key            The key being checked for the associated table
+    @param start_key      First applicable keyuse for this key.
+    @param bound_keyparts The key columns determined for this index, ie.
+                          found in earlier tables in plan.
+  */
   void check_ref_access_part1(JOIN_TAB *s, uint key, Key_use *start_key,
-                              table_map found_part)
+                              key_part_map bound_keyparts)
   {
     /*
       Check if we can use LooseScan semi-join strategy. We can if
@@ -204,20 +214,19 @@ public:
          - "bound", ie. the outer_expr part refers to the preceding tables
          - "handled", ie. covered by the index we're considering
       3. Index order allows to enumerate subquery's duplicate groups in
-         order. This happens when the index definition matches this
-         pattern:
-
+         order. This happens when the index columns are defined in an order
+         that matches this pattern:
            (handled_col|bound_col)* (other_col|bound_col)
+      4. No keys are defined over a partial column
 
     */
     if (try_loosescan &&                                                // (1)
         (handled_sj_equalities | bound_sj_equalities) ==                // (2)
         LOWER_BITS(ulonglong,
-                   s->emb_sj_nest->nested_join->sj_inner_exprs.elements)&& // (2)
-        (LOWER_BITS(key_part_map, max_loose_keypart+1) &                 // (3)
-         (found_part | loose_scan_keyparts)) ==                         // (3)
-         (found_part | loose_scan_keyparts) &&                          // (3)
-        !key_uses_partial_cols(s->table, key))
+               s->emb_sj_nest->nested_join->sj_inner_exprs.elements) && // (2)
+        (LOWER_BITS(key_part_map, max_loose_keypart+1) &                // (3)
+         ~(bound_keyparts | loose_scan_keyparts)) == 0 &&               // (3)
+        !key_uses_partial_cols(s->table, key))                          // (4)
     {
       /* Ok, can use the strategy */
       part1_conds_met= TRUE;
@@ -238,7 +247,7 @@ public:
         and outer_expr cannot be evaluated yet, so it's actually full
         index scan and not a ref access
       */
-      if (!(found_part & 1 ) && /* no usable ref access for 1st key part */
+      if (!(bound_keyparts & 1 ) && /* no usable ref access for 1st key part */
           s->table->covering_keys.is_set(key))
       {
         DBUG_PRINT("info", ("Can use full index scan for LooseScan"));
@@ -271,7 +280,18 @@ public:
       }
     }
   }
-  
+
+  /**
+    Check if an index can be used for LooseScan, part 2
+
+    Record this LooseScan index if it is cheaper than the currently
+    cheapest LooseScan index.
+
+    @param key            The key being checked for the associated table
+    @param start_key      First applicable keyuse for this key.
+    @param records        Row count estimate for this index access
+    @param read_time      Cost of access using this index
+  */
   void check_ref_access_part2(uint key, Key_use *start_key, double records,
                               double read_time)
   {
@@ -548,7 +568,7 @@ void Optimize_table_order::best_access_path(
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == LOWER_BITS(uint,keyinfo->key_parts) &&
+        if (found_part == LOWER_BITS(key_part_map, keyinfo->key_parts) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
@@ -638,7 +658,7 @@ void Optimize_table_order::best_access_path(
           */
           if ((found_part & 1) &&
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-               found_part == LOWER_BITS(uint,keyinfo->key_parts)))
+               found_part == LOWER_BITS(key_part_map, keyinfo->key_parts)))
           {
             max_key_part= max_part_bit(found_part);
             /*
