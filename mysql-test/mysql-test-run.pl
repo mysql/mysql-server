@@ -2792,9 +2792,13 @@ sub check_debug_support ($) {
     #mtr_report(" - binaries are not debug compiled");
     $debug_compiled_binaries= 0;
 
+    if ( $opt_debug )
+    {
+      mtr_error("Can't use --debug, binary does not support it");
+    }
     if ( $opt_debug_server )
     {
-      mtr_error("Can't use --debug[-server], binary does not support it");
+      mtr_warning("Ignoring --debug-server, binary does not support it");
     }
     return;
   }
