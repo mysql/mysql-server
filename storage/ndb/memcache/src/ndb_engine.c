@@ -131,6 +131,12 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
   ndb_eng->startup_options.debug_enable  = false;
   ndb_eng->startup_options.reconf_enable = true;
 
+  /* Now let NDB_CONNECTSRING environment variable override the default */
+  const char * env_connectstring = getenv("NDB_CONNECTSTRING");
+  if(env_connectstring)
+    ndb_eng->startup_options.connectstring = env_connectstring;
+
+  /* Set engine informational structure */
   ndb_eng->info.info.description = "NDB Memcache " VERSION;
   ndb_eng->info.info.num_features = 3;
   ndb_eng->info.info.features[0].feature = ENGINE_FEATURE_CAS;
