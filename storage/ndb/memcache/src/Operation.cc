@@ -21,6 +21,7 @@
 
 
 #include "Operation.h"
+#include "TabSeparatedValues.h"
 
 
 /* 
@@ -107,4 +108,54 @@ NdbIndexScanOperation * Operation::scanIndex(NdbTransaction *tx,
                        & opts,                            
                        sizeof(opts));
 }
+
+
+bool Operation::setKey(int nparts, const char *dbkey, size_t key_len ) {
+  
+  clearKeyNullBits();
+
+  if(nparts > 1) {
+    TabSeparatedValues tsv(dbkey, nparts, key_len);
+    int idx = 0;
+    do {
+      if(tsv.getLength()) {
+        DEBUG_PRINT("Set key part %d [%.*s]", idx, tsv.getLength(), tsv.getPointer());
+        if(! setKeyPart(COL_STORE_KEY+idx, tsv.getPointer(), tsv.getLength()))
+          return false;
+      }
+      else {
+        DEBUG_PRINT("Set key part NULL: %d ", idx);
+        setKeyPartNull(COL_STORE_KEY+idx);
+      }
+      idx++;
+    } while (tsv.advance());
+  }
+  else { 
+    return setKeyPart(COL_STORE_KEY, dbkey, key_len);
+  }
+}
+
+
+bool Operation::setKeyFieldsInRow(int nparts, const char *dbkey, size_t key_len ) {
+  if(nparts > 1) {
+    TabSeparatedValues tsv(dbkey, nparts, key_len);
+    int idx = 0;
+    do {
+      if(tsv.getLength()) {
+        DEBUG_PRINT("Set key part %d [%.*s]", idx, tsv.getLength(), tsv.getPointer());
+        if(! setColumn(COL_STORE_KEY+idx, tsv.getPointer(), tsv.getLength()))
+          return false;
+      }
+      else {
+        DEBUG_PRINT("Set key part NULL: %d ", idx);
+        setColumnNull(COL_STORE_KEY+idx);
+      }
+      idx++;
+    } while (tsv.advance());
+  }
+  else {
+    return setColumn(COL_STORE_KEY, dbkey, key_len);
+  }
+}
+
 

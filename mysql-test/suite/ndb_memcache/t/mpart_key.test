@@ -1,0 +1,69 @@
+# CHAR
+
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
+
+# 
+# Configuration change for this test
+#
+
+--disable_query_log
+--disable_result_log
+USE ndbmemcache;
+
+CREATE TABLE hashtags (
+  hashtag varchar(20),
+  tweet_id int,
+  author varchar(15),
+  primary key(hashtag, tweet_id))
+ENGINE=ndb;
+
+INSERT INTO containers (name, db_schema, db_table, key_columns, value_columns)
+  VALUES("test_mkey", "ndbmemcache", "hashtags", "hashtag,tweet_id", "author");
+
+INSERT INTO key_prefixes(server_role_id, key_prefix, policy, container) 
+  VALUES(0, "hashtag:", "ndb-only", "test_mkey");
+
+UPDATE memcache_server_roles set update_timestamp = NOW() where role_id = 0;
+--enable_query_log
+--enable_result_log
+
+# 
+#  Memcache operations for this test
+#
+
+--perl
+
+use strict;
+use Carp;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+# Use a binary protocol connection (so keys can contain spaces)
+my $mc = My::Memcache::Binary->new();  
+my $r = $mc->connect("localhost",$port);
+
+my $cf_gen = $mc->wait_for_reconf();
+
+if($cf_gen == 0) {
+  Carp::confess("FAILED WAIT_FOR_RECONF");
+}
+
+
+$mc->set("hashtag:oscon\t1","fred")      || Carp::confess("FAILED # 01 (SET)");
+$mc->add("hashtag:mysql\t1","frederick") || Carp::confess("FAILED # 02 (SET)");
+$mc->set("hashtag:oscon\t2","freddy")    || Carp::confess("FAILED # 03 (SET)");
+  
+($mc->get("hashtag:oscon\t1") == "fred")      || Carp::confess("FAILED # 04 (GET)");
+($mc->get("hashtag:mysql\t1") == "frederick") || Carp::confess("FAILED # 05 (GET)");
+($mc->get("hashtag:oscon\t2") == "freddy")    || Carp::confess("FAILED # 06 (GET)");
+
+
+EOF
+
+
+--sorted_result
+SELECT * FROM ndbmemcache.hashtags;
