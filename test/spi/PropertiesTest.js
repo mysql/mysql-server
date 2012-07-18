@@ -24,6 +24,7 @@ var harness = require(global.test_harness_module);
 var test1 = new harness.Test("Properties Constructor");
 test1.run = function() {
   var properties = new mynode.ConnectionProperties("ndb");
+  return true; // test is complete
 };
 
 
