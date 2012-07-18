@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1408,6 +1409,10 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
+		if (page_is_leaf(page)) {
+			dict_index_zip_failure(index);
+		}
+
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= ut_time_us(NULL) - usec;
 #endif /* !UNIV_HOTBACKUP */
@@ -1475,6 +1480,10 @@ err_exit:
 		zip_stat->compressed_ok++;
 		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
 	}
+
+	if (page_is_leaf(page)) {
+		dict_index_zip_success(index);
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
@@ -1518,6 +1527,7 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
+		os_fast_mutex_free(&index->zip_pad.mutex);
 		mem_heap_free(index->heap);
 		mutex_free(&(table->autoinc_mutex));
 		ut_free(table->name);
