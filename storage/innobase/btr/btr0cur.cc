@@ -2,6 +2,7 @@
 
 Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -1346,6 +1347,15 @@ fail_err:
 		goto fail;
 	}
 
+	/* If compression padding tells us that insertion will result in
+	too packed up page i.e.: which is likely to cause compression
+	failure then don't do an optimistic insertion. */
+	if (zip_size && leaf
+	    && (page_get_data_size(page) + rec_size
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		goto fail;
+	}
 	/* Check locks and write to the undo log, if specified */
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &inherit);
@@ -1808,6 +1818,8 @@ btr_cur_update_alloc_zip(
 				FALSE=update-in-place */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
+	page_t*	page;
+
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
 	ut_ad(!dict_index_is_ibuf(index));
@@ -1823,8 +1835,16 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	if (!page_zip_compress(page_zip, buf_block_get_frame(block),
-			       index, mtr)) {
+	page = buf_block_get_frame(block);
+
+	if (create && page_is_leaf(page)
+	    && (length + page_get_data_size(page)
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		return(FALSE);
+	}
+
+	if (!page_zip_compress(page_zip, page, index, mtr)) {
 		/* Unable to compress the page */
 		return(FALSE);
 	}
@@ -1842,8 +1862,7 @@ btr_cur_update_alloc_zip(
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
 				length, create)) {
 		/* Out of space: reset the free bits. */
-		if (!dict_index_is_clust(index)
-		    && page_is_leaf(buf_block_get_frame(block))) {
+		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 		return(FALSE);
