@@ -56,6 +56,7 @@ set(FT_SOURCES
   mempool.c
   minicron.c
   omt.c
+  partitioned_counter.c
   pqueue.c
   queue.c
   quicklz.c
