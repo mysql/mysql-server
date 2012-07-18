@@ -52,12 +52,15 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
 class tokudb_alter_ctx : public inplace_alter_handler_ctx {
 public:
     tokudb_alter_ctx() {
-        incremented_num_DBs = modified_DBs = false;
-    }
-    virtual ~tokudb_alter_ctx() {
+        add_index_changed = false;
+        drop_index_changed = false;
+        compression_changed = false;
     }
 public:
+    bool add_index_changed;
     bool incremented_num_DBs, modified_DBs;
+    bool drop_index_changed;
+    bool compression_changed;
     enum toku_compression_method orig_compression_method;
 };
 
@@ -248,6 +251,7 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
         DB *db = share->key_file[0];
         error = db->get_compression_method(db, &ctx->orig_compression_method);
         assert(error == 0);
+        ctx->compression_changed = true;
         // Set the new type.
         u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
         for (u_int32_t i = 0; i < curr_num_DBs; i++) {
@@ -279,9 +283,9 @@ ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_al
             key_part->field = table->field[key_part->fieldnr];
     }
 
-    bool incremented_num_DBs = false;
-    bool modified_DBs = false;
-    int error = tokudb_add_index(table, key_info, ha_alter_info->index_add_count, transaction, &incremented_num_DBs, &modified_DBs);
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+    ctx->add_index_changed = true;
+    int error = tokudb_add_index(table, key_info, ha_alter_info->index_add_count, transaction, &ctx->incremented_num_DBs, &ctx->modified_DBs);
     if (error == HA_ERR_FOUND_DUPP_KEY) {
         // hack for now, in case of duplicate key error, 
         // because at the moment we cannot display the right key
@@ -290,10 +294,6 @@ ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_al
         last_dup_key = MAX_KEY;
     }
 
-    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
-    ctx->incremented_num_DBs = incremented_num_DBs;
-    ctx->modified_DBs = modified_DBs;
-    
     my_free(key_info);
 
     return error;
@@ -307,6 +307,9 @@ ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_a
         index_drop_offsets[i] = ha_alter_info->index_drop_buffer[i] - table->key_info;
     
     // drop indexes
+    tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
+    ctx->drop_index_changed = true;
+
     int error = drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count, transaction);
 
     return error;
@@ -447,7 +450,6 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
 
     bool result = false; // success
-    ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
     if (commit) {
         if (altered_table->part_info == NULL) {
@@ -472,13 +474,12 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     }
 
     if (!commit || result == true) {
-        HA_CREATE_INFO *create_info = ha_alter_info->create_info;
         tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
-        if (handler_flags & (Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
+        if (ctx->add_index_changed) {
             restore_add_index(table, ha_alter_info->index_add_count, ctx->incremented_num_DBs, ctx->modified_DBs);
         }
-        if (handler_flags & (Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
+        if (ctx->drop_index_changed) {
             // translate KEY pointers to indexes into the key_info array
             uint index_drop_offsets[ha_alter_info->index_drop_count];
             for (uint i = 0; i < ha_alter_info->index_drop_count; i++)
@@ -486,7 +487,7 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
             
             restore_drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count);
         }
-        if ((handler_flags & Alter_inplace_info::CHANGE_CREATE_OPTION) && (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)) {
+        if (ctx->compression_changed) {
             u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
             for (u_int32_t i = 0; i < curr_num_DBs; i++) {
                 DB *db = share->key_file[i];
