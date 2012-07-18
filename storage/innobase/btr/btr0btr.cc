@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -3477,6 +3478,16 @@ err_exit:
 
 		mem_heap_free(heap);
 		return(FALSE);
+	}
+
+	/* If compression padding tells us that merging will result in
+	too packed up page i.e.: which is likely to cause compression
+	failure then don't merge the pages. */
+	if (zip_size && page_is_leaf(merge_page)
+	    && (page_get_data_size(merge_page) + data_size
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		goto err_exit;
 	}
 
 	ut_ad(page_validate(merge_page, index));
