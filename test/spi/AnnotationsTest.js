@@ -21,6 +21,7 @@
 var test1 = new harness.Test("AnnotationsConstructor");
 test1.run = function() {
   var annotations = new mynode.Annotations();
+  return true; // test is complete
 };
 
 var group = new harness.Test("annotations").makeTestGroup(test1);

@@ -31,7 +31,6 @@ test.run = function() {
       t.pass();
     }
   });
-  return true;
 };
 
 module.exports = test;

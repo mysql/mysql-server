@@ -64,29 +64,35 @@ function Test(name, phase) {
   this.errorMessages = '';
   this.index = 0;
   this.failed = false;
-  this.result;
-  this.group;
 };
 
 function SmokeTest(name) {
+  this.name = name;
+  this.phase = 0;
 };
 
-SmokeTest.prototype = new Test(this.name, 0);
+SmokeTest.prototype = new Test();
 
 function ConcurrentTest(name) {
+  this.name = name;
+  this.phase = 1;
 };
 
-ConcurrentTest.prototype = new Test(this.name, 1);
+ConcurrentTest.prototype = new Test();
 
 function SerialTest(name) {
+  this.name = name;
+  this.phase = 2;
 };
 
-SerialTest.prototype = new Test(this.name, 2);
+SerialTest.prototype = new Test();
 
 function ClearSmokeTest(name) {
+  this.name = name;
+  this.phase = 3;
 };
 
-ClearSmokeTest.prototype = new Test(this.name, 3);
+ClearSmokeTest.prototype = new Test();
 
 Test.prototype.test = function(result) {
   if (debug) console.log('test starting: ' + this.name);
@@ -101,7 +107,7 @@ Test.prototype.test = function(result) {
   else {
     try {
       if (debug) console.log('test.run: ' + this.name);
-      if (this.run()) {
+      if (!this.run()) {
         if (debug) console.log('test returning from async call without calling pass or fail for test ' + this.name);
         // async test must call Test.pass or Test.fail when done
         return;

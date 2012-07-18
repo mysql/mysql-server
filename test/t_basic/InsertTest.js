@@ -50,7 +50,6 @@ var testInsert = function() {
       }
     });
   });
-  return true;
 };
 
 /*** t_basic.ndb.testInsert ***/

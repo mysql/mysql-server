@@ -24,14 +24,13 @@ var path = require("path");
 
 var harness = require(global.test_harness_module);
 
-var test = new harness.Test("SmokeTest");
-
-test.phase = 0;
+var test = new harness.SmokeTest("SmokeTest");
 
 test.run = function() {
   var module_path = path.join(global.adapter,"impl",
                               "build","Release","ndbapi.node");
   var ndbapi = require(module_path);
+  return true; // test is complete
 };
 
 module.exports = test;

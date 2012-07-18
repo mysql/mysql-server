@@ -41,6 +41,8 @@ global.suitesToRun = null;
 global.debug = false;
 global.exit = false;
 
+global.NL = '\n';
+
 var Test = require(global.test_harness_module);
 
 var re_matching_test_case = /Test\.js$/;
@@ -73,24 +75,40 @@ global.dropSQL = function(suite, callback) {
   });
 };
 
+/** Open a session or fail the test case */
+global.fail_openSession = function(testCase, callback) {
+  console.log('Driver.global.openSession');
+  var properties = new mynode.ConnectionProperties("ndb");
+  var annotations = new mynode.Annotations();
+  mynode.openSession(properties, annotations, function(err, session) {
+    if (err) {
+      testCase.fail(err);
+    }
+    callback(session);
+  });
+};
+
+/** A Suite consists of all tests in all test programs in a directory */
 function Suite(name, path) {
-	this.name = name;
-	this.path = path;
-	this.tests = [];
-	this.testCases = [];
-	this.currentTest = 0;
-	this.smokeTest;
-	this.concurrentTests = [];
-	this.numberOfConcurrentTests = 0;
+  this.name = name;
+  this.path = path;
+  this.tests = [];
+  this.testCases = [];
+  this.currentTest = 0;
+  this.smokeTest;
+  this.concurrentTests = [];
+  this.numberOfConcurrentTests = 0;
+  this.numberOfConcurrentTestsCompleted = 0;
+  this.numberOfConcurrentTestsStarted = 0;
   this.firstConcurrentTestIndex = -1;
-	this.serialTests = [];
-	this.numberOfSerialTests = 0;
+  this.serialTests = [];
+  this.numberOfSerialTests = 0;
   this.firstSerialTestIndex = -1;
-	this.nextSerialTestIndex = -1;
-	this.clearSmokeTest;
-	this.numberOfRunningConcurrentTests = 0;
-	this.group = null;
-	if (debug) console.log('creating Suite for ' + name + ' ' + path);
+  this.nextSerialTestIndex = -1;
+  this.clearSmokeTest;
+  this.numberOfRunningConcurrentTests = 0;
+  this.group = null;
+  if (debug) console.log('creating Suite for ' + name + ' ' + path);
 }
 
 Suite.prototype.createTests = function() {
@@ -156,7 +174,9 @@ Suite.prototype.createTests = function() {
   if (debug) console.log('createTests sorted test case ' + ' ' + t.name + ' ' + t.phase + ' ' + t.index);
   });
   suite.numberOfConcurrentTests = suite.concurrentTests.length;
+  if (debug) console.log('numberOfConcurrentTests for ' + suite.fullName() + ' is ' + suite.numberOfConcurrentTests);
   suite.numberOfSerialTests = suite.serialTests.length;
+  if (debug) console.log('numberOfSerialTests for ' + suite.fullName() + ' is ' + suite.numberOfSerialTests);
 };
 
 Suite.prototype.runTests = function() {
@@ -192,6 +212,7 @@ Suite.prototype.startConcurrentTests = function() {
     this.concurrentTests.forEach(function(testCase) {
       if (debug) console.log('Suite.startConcurrentTests starting ' + testCase.name);
       testCase.test(result);
+      ++this.numberOfConcurrentTestsStarted;
     });
     return false;    
   } else {
@@ -242,12 +263,14 @@ Suite.prototype.testCompleted = function(testCase) {
     break;
   case 1:
     // one of the concurrent tests completed
-    if (debug) console.log('Suite.testCompleted; one concurrent test completed');
-    if (--this.numberOfRunningConcurrentTests == 0) {
+    if (debug) console.log('Suite.testCompleted with concurrent tests already completed: ' + 
+        this.numberOfConcurrentTestsCompleted + ' out of ' + this.numberOfConcurrentTests);
+    if (++this.numberOfConcurrentTestsCompleted == this.numberOfConcurrentTests) {
       // done with all concurrent tests; start the first serial test
-      if (debug) console.log('Suite.testCompleted; all concurrent tests completed');
+      if (debug) console.log('Suite.testCompleted; all ' + this.numberOfConcurrentTests + ' concurrent tests completed');
       return this.startSerialTests();
     }
+    break;
   case 2:
     // one of the serial tests completed
     var index = testCase.index + 1;
