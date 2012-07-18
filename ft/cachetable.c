@@ -281,7 +281,7 @@ void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra)
 // The function f must call remove_background_job_from_cf when it completes
 {
     int r = bjm_add_background_job(cf->bjm);
-    // if client should is adding a background job, then it must be done
+    // if client is adding a background job, then it must be done
     // at a time when the manager is accepting background jobs, otherwise
     // the client is screwing up
     assert_zero(r); 
@@ -3228,6 +3228,7 @@ toku_cleaner_thread (void *cachetable_v)
 // start).  At this point, we can safely unlock the cachetable, do the
 // work (callback), and unlock/release our claim to the cachefile.
 {
+    int r;
     CACHETABLE ct = (CACHETABLE) cachetable_v;
     assert(ct);
     u_int32_t num_iterations = toku_get_cleaner_iterations(ct);
@@ -3278,8 +3279,8 @@ toku_cleaner_thread (void *cachetable_v)
             // if we can't, that means the cachefile is flushing, so
             // we simply continue the for loop and this iteration
             // becomes a no-op
-            int abj_ret = bjm_add_background_job(cf->bjm);
-            if (abj_ret) {
+            r = bjm_add_background_job(cf->bjm);
+            if (r) {
                 cachetable_unlock(ct);
                 continue;
             }
@@ -3298,7 +3299,7 @@ toku_cleaner_thread (void *cachetable_v)
             if (cleaner_thread_rate_pair(best_pair) > 0) 
             {
                 cachetable_unlock(ct);
-                int r = best_pair->cleaner_callback(best_pair->value_data,
+                r = best_pair->cleaner_callback(best_pair->value_data,
                                                     best_pair->key,
                                                     best_pair->fullhash,
                                                     best_pair->write_extraargs);
