@@ -4657,11 +4657,15 @@ locks_ok:
 		delete marked record and the record following it.
 
 		For now this is applicable only to clustered indexes while
-		doing a unique search. There is scope for further optimization
+		doing a unique search except for HANDLER queries because
+		HANDLER allows NEXT and PREV even in unique search on
+		clustered index. There is scope for further optimization
 		applicable to unique secondary indexes. Current behaviour is
 		to widen the scope of a lock on an already delete marked record
 		if the same record is deleted twice by the same transaction */
-		if (index == clust_index && unique_search) {
+		if (index == clust_index && unique_search
+		    && !prebuilt->used_in_HANDLER) {
+
 			err = DB_RECORD_NOT_FOUND;
 
 			goto normal_return;
