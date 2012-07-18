@@ -35,8 +35,10 @@ void bjm_destroy(BACKGROUND_JOB_MANAGER bjm) {
 }
 
 void bjm_reset(BACKGROUND_JOB_MANAGER bjm) {
+    toku_mutex_lock(&bjm->jobs_lock);
     assert(bjm->num_jobs == 0);
     bjm->accepting_jobs = true;
+    toku_mutex_unlock(&bjm->jobs_lock);
 }
 
 int bjm_add_background_job(BACKGROUND_JOB_MANAGER bjm) {
