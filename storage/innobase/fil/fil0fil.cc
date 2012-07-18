@@ -3874,12 +3874,6 @@ fil_load_single_table_tablespace(
 
 	/* Build up the filepath of the .ibd tablespace in the datadir */
 	def.filepath = fil_make_ibd_name(tablename, false);
-	def.filepath = static_cast<char*>(
-		mem_alloc(strlen(fil_path_to_mysql_datadir)
-			  + tablename_len + sizeof "/.ibd"));
-	sprintf(def.filepath, "%s/%s.ibd",
-		fil_path_to_mysql_datadir, tablename);
-	srv_normalize_path_for_win(def.filepath);
 
 #ifdef __WIN__
 # ifndef UNIV_HOTBACKUP
