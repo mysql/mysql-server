@@ -64,12 +64,7 @@ public:
   const char **bas_ext() const;
   ulonglong table_flags() const
   { return int_table_flags; }
-  ulong index_flags(uint inx, uint part, bool all_parts) const
-  {
-    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
-  }
+  ulong index_flags(uint inx, uint part, bool all_parts) const;
   uint max_supported_keys() const
   { return MARIA_MAX_KEY; }
   uint max_supported_key_length() const;
