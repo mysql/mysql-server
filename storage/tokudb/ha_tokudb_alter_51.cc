@@ -625,13 +625,13 @@ ha_tokudb::alter_table_phase2(
 
         // Set the new type.
         u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
-	for (u_int32_t i = 0; i < curr_num_DBs; ++i) {
-	  DB *db = share->key_file[i];
-	  error = db->change_compression_method(db, method);
-	  if (error) {
-            goto cleanup;
-	  }
-	}
+        for (u_int32_t i = 0; i < curr_num_DBs; ++i) {
+            DB *db = share->key_file[i];
+            error = db->change_compression_method(db, method);
+            if (error) {
+                goto cleanup;
+            }
+        }
     }
 
     // update frm file    
