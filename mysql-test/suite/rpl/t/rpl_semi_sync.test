@@ -154,8 +154,16 @@ show status like 'Rpl_semi_sync_master_status';
 show status like 'Rpl_semi_sync_master_no_tx';
 show status like 'Rpl_semi_sync_master_yes_tx';
 
+--let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+
 replace_result $engine_type ENGINE_TYPE;
 eval create table t1(a int) engine = $engine_type;
+
+# wait for the ack to arrive
+--let $yes_tx_after= `SELECT $yes_tx_before + 2`
+--let $status_var= Rpl_semi_sync_master_yes_tx
+--let $status_var_value= $yes_tx_after
+--source include/wait_for_status_var.inc
 
 echo [ master state after CREATE TABLE statement ];
 show status like 'Rpl_semi_sync_master_status';
@@ -169,19 +177,25 @@ replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
 replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
 eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
+--let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+
 let $i=50;
+--let $acks_to_wait= 0
 echo [ insert records to table ];
 disable_query_log;
 while ($i)
 {
   eval insert into t1 values ($i);
   dec $i;
+  inc $acks_to_wait;
 }
 enable_query_log;
 
 # Wait for acks from slave to avoid test failures on slow platforms.
+--let $yes_tx_after= `SELECT $yes_tx_before + $acks_to_wait`
 let $status_var= Rpl_semi_sync_master_yes_tx;
-let $status_var_value= 52;
+let $status_var_value= $yes_tx_after;
+let $status_timeout= 1200;
 source include/wait_for_status_var.inc;
 
 echo [ master status after inserts ];
