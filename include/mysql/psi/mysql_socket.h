@@ -552,18 +552,15 @@ inline_mysql_socket_socket
 #endif
   int domain, int type, int protocol)
 {
-  MYSQL_SOCKET mysql_socket;
+  MYSQL_SOCKET mysql_socket= MYSQL_INVALID_SOCKET;
   mysql_socket.fd= socket(domain, type, protocol);
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  mysql_socket.m_psi= PSI_SOCKET_CALL(init_socket)
-    (key, (const my_socket*)&mysql_socket.fd);
-
-  if (likely(mysql_socket.fd != INVALID_SOCKET && mysql_socket.m_psi != NULL))
-    PSI_SOCKET_CALL(set_socket_info)
-      (mysql_socket.m_psi, &mysql_socket.fd, NULL, 0);
-#else
-  mysql_socket.m_psi= NULL;
+  if (likely(mysql_socket.fd != INVALID_SOCKET))
+  {
+    mysql_socket.m_psi= PSI_SOCKET_CALL(init_socket)
+      (key, (const my_socket*)&mysql_socket.fd, NULL, 0);
+  }
 #endif
   return mysql_socket;
 }
@@ -593,7 +590,8 @@ inline_mysql_socket_bind
     result= bind(mysql_socket.fd, addr, len);
 
     /* Instrumentation end */
-    PSI_SOCKET_CALL(set_socket_info)(mysql_socket.m_psi, NULL, addr, len);
+    if (result == 0)
+      PSI_SOCKET_CALL(set_socket_info)(mysql_socket.m_psi, NULL, addr, len);
 
     if (locker != NULL)
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
@@ -1042,14 +1040,12 @@ inline_mysql_socket_accept
   }
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  /* Initialize the instrument with the new socket descriptor and address */
-  socket_accept.m_psi= PSI_SOCKET_CALL(init_socket)
-    (key, (const my_socket*)&socket_accept.fd);
-
-  /* FIXME: simplify this with just 1 call to init_socket(). */
-  if (socket_accept.m_psi != NULL)
-    PSI_SOCKET_CALL(set_socket_info)
-      (socket_accept.m_psi, &socket_accept.fd, addr, addr_length);
+  if (likely(socket_accept.fd != INVALID_SOCKET))
+  {
+    /* Initialize the instrument with the new socket descriptor and address */
+    socket_accept.m_psi= PSI_SOCKET_CALL(init_socket)
+      (key, (const my_socket*)&socket_accept.fd, addr, addr_length);
+  }
 #endif
 
   return socket_accept;
