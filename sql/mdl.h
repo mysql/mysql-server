@@ -949,4 +949,10 @@ extern mysql_mutex_t LOCK_open;
 extern ulong mdl_locks_cache_size;
 static const ulong MDL_LOCKS_CACHE_SIZE_DEFAULT = 1024;
 
+/*
+  Metadata locking subsystem tries not to grant more than
+  max_write_lock_count high-prio, strong locks successively,
+  to avoid starving out weak, low-prio locks.
+*/
+extern "C" ulong max_write_lock_count;
 #endif
