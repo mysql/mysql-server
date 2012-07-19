@@ -56,10 +56,10 @@ struct omt {
      * 
      */
     __attribute__((nonnull(2)))
-    void create_steal_sorted_array(omtdata_t **const values, const uint32_t numvalues, const uint32_t capacity_)
+    void create_steal_sorted_array(omtdata_t **const values, const uint32_t numvalues, const uint32_t new_capacity)
     {
         invariant_notnull(values);
-        this->create_internal_no_array(capacity_);
+        this->create_internal_no_array(new_capacity);
         this->d.a.num_values = numvalues;
         this->d.a.values = *values;
         *values = nullptr;
@@ -426,16 +426,16 @@ private:
     } d;
 
 
-    void create_internal_no_array(const uint32_t capacity_) {
+    void create_internal_no_array(const uint32_t new_capacity) {
         this->is_array = true;
-        this->capacity = capacity_;
+        this->capacity = new_capacity;
         this->d.a.start_idx = 0;
         this->d.a.num_values = 0;
         this->d.a.values = nullptr;
     }
 
-    void create_internal(const uint32_t capacity_) {
-        this->create_internal_no_array(capacity_);
+    void create_internal(const uint32_t new_capacity) {
+        this->create_internal_no_array(new_capacity);
         XMALLOC_N(this->capacity, this->d.a.values);
     }
 
