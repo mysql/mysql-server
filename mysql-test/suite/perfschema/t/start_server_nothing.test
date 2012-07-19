@@ -11,7 +11,7 @@ show variables like "performance_schema%";
 select * from performance_schema.setup_instruments;
 select TIMER_NAME from performance_schema.performance_timers;
 select * from performance_schema.setup_consumers;
-select * from performance_schema.setup_timers;
+select NAME from performance_schema.setup_timers;
 
 # All empty
 select * from performance_schema.accounts;

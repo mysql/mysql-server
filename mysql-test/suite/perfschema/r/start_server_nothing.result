@@ -160,12 +160,12 @@ events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
 statements_digest	YES
-select * from performance_schema.setup_timers;
-NAME	TIMER_NAME
-idle	MICROSECOND
-wait	CYCLE
-stage	NANOSECOND
-statement	NANOSECOND
+select NAME from performance_schema.setup_timers;
+NAME
+idle
+wait
+stage
+statement
 select * from performance_schema.accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.cond_instances;
