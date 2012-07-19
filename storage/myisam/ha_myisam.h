@@ -64,12 +64,7 @@ class ha_myisam: public handler
   int index_end();
   int rnd_end();
 
-  ulong index_flags(uint inx, uint part, bool all_parts) const
-  {
-    return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
-            0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
-  }
+  ulong index_flags(uint inx, uint part, bool all_parts) const;
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_parts()     const { return HA_MAX_KEY_SEG; }
   uint max_supported_key_length()    const { return HA_MAX_KEY_LENGTH; }

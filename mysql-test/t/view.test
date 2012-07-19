@@ -4613,6 +4613,19 @@ DROP TRIGGER tr;
 DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 
+--echo #
+--echo # LP bug#1007622 Server crashes in handler::increment_statistics on
+--echo # inserting into a view over a view
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.* FROM t1 AS a1, t1 AS a2;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
+INSERT INTO v2 (a) VALUES (1) ;
+select * from t1;
+drop view v2,v1;
+drop table t1;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------
