@@ -514,7 +514,7 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, u_int32_t 
     // the lock tree uses a copy of the header's descriptor for comparisons.
     // if we need to update the cmp descriptor, we need to make sure the lock
     // tree can get a copy of the new descriptor.
-    if (update_cmp_descriptor) {
+    if (db->i->lt && update_cmp_descriptor) {
         toku_lt_update_descriptor(db->i->lt, db->cmp_descriptor);
     }
 cleanup:
