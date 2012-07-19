@@ -9,6 +9,6 @@ node-waf clean configure build --mysql=/usr/local/mysql-5.1.24-rc-osx10.5-x86_64
 
 Be sure to include the trailing "/".
 
-This will create the file Adapter/spi/build/Release/ndbapi.node which
+This will create the file Adapter/impl/build/Release/ndbapi.node which
 will be used to bind to the dynamic ndbclient library identified in the node-waf command.
 

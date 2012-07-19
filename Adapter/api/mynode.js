@@ -19,79 +19,13 @@
 */
 
 var spi = require("../impl/SPI.js");
+var annotations = require("./Annotations.js");
+var sessionfactory = require("./SessionFactory.js");
 
-
-function Annotations() {
-  this.strictValue = undefined;
-  this.mapAllTablesValue = true;
-  this.mappings = [];
-}
+var factories = {};
 
 exports.Annotations = function() {
-  return new Annotations();
-};
-
-/** A Mapping holds the mapping for a single class */
-Mapping = function(proto, mapping) {
-  this.proto = proto;
-  this.mapping = mapping;
-};
-
-/** In strict mode, all parameters of mapping functions must be valid */
-Annotations.prototype.strict = function(value) {
-  if (value == true || value == false) {
-    this.strictValue = value;
-  }
-};
-
-/** Map all tables */
-Annotations.prototype.mapAllTables = function(value) {
-  if (value == true || value == false) {
-    this.mapAllTablesValue = value;
-  }
-};
-
-/** Map tables */
-Annotations.prototype.mapClass = function(proto, mapping) {
-  if (this.strictValue != false) {
-    for (x in mapping) {
-      switch (x) {
-      case 'table':
-      case 'schema':
-      case 'database':
-      case 'autoIncrementBatchSize':
-      case 'mapAllColumns':
-        break;
-      case 'field':
-      case 'fields':
-        // look inside the fields
-        var fields = mapping[x];
-        if (typeof(fields) != 'array') {
-          fields = [fields];
-        }
-        fields.forEach(function(field, index, mapping) {
-          for (x in field) {
-            switch(x) {
-            case 'name':
-            case 'nullValue':
-            case 'column':
-            case 'notPersistent':
-            case 'converter':
-              break;
-            default:
-              var err = new Error('bad property ' + x);
-              throw err;
-            }
-          }
-        });
-        break;
-      default:
-        var err = new Error('bad property ' + x);
-        throw err;
-      }
-    }
-  }
-  this.mappings.push(new Mapping(proto, mapping));
+  return new annotations.Annotations();
 };
 
 function spi_connect_sync(properties) {
@@ -103,4 +37,51 @@ exports.ConnectionProperties = function(name) {
   var sp = spi.getDBServiceProvider(name);
   return sp.getDefaultConnectionProperties();
 };
+
+
+//connect(Properties, Annotations, Function(err, SessionFactory[, ...]) callback[, ...]);
+exports.connect = function(properties, annotations, user_callback) {
+  var mynode = this;
+  var sp = spi.getDBServiceProvider(properties.implementation);
+  var factoryKey = sp.getFactoryKey(properties);
+  
+  var factory = factories[factoryKey];
+
+  var mycallback = function(error, dbconnection) {
+    if(! error) {
+      factory = new sessionfactory.SessionFactory(factoryKey);
+      
+      factory.dbconnection = dbconnection;
+      factory.properties = properties;
+      factory.annotations = annotations;
+      factories[factoryKey] = factory;
+      console.dir(factories);
+    }
+    else {
+      console.log("Error is: " + error);
+    } 
+    user_callback(error, factory);
+  };
+
+  if(typeof(factory) == 'undefined') {
+    sp.connect(properties, mycallback);
+  }
+  else { 
+    user_callback(null, factory);   //todo: extra parameters
+  }
+};
+
+
+exports.openSession = function(properties, annotations, callback) {
+  exports.connect(properties, annotations, function(err, factory) {
+    if(! err) {
+      var session = factory.openSession();
+    } 
+    callback(err, session);   // todo: extra parameters
+  });
+};
+
+
+
+
 

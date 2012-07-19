@@ -49,3 +49,9 @@ exports.connect = function(properties, user_callback) {
   var dbconn = new ndbconnection.DBConnection(properties);
   dbconn.connect(user_callback);
 }
+
+
+exports.getFactoryKey = function(properties) {
+  var key = properties.implementation + "://" + properties.ndb_connectstring;
+  return key;
+}
