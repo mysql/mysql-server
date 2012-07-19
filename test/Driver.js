@@ -52,10 +52,12 @@ global.createSQL = function(suite, callback) {
   if (debug) console.log("createSQL path: " + sqlPath);
   var child = exec('mysql <' + sqlPath,
   function (error, stdout, stderr) {
-  if (debug) console.log('stdout: ' + stdout);
-  if (debug) console.log('stderr: ' + stderr);
+  if (debug) console.log('createSQL stdout: ' + stdout);
+  if (debug) console.log('createSQL stderr: ' + stderr);
   if (error !== null) {
-    console.log('exec error: ' + error);
+    console.log('createSQL exec error: ' + error);
+  } else {
+    if (debug) console.log('createSQL exec OK');
   }
   callback(error);
   });
@@ -66,10 +68,10 @@ global.dropSQL = function(suite, callback) {
   if (debug) console.log("dropSQL path: " + sqlPath);
   var child = exec('mysql <' + sqlPath,
   function (error, stdout, stderr) {
-  if (debug) console.log('stdout: ' + stdout);
-  if (debug) console.log('stderr: ' + stderr);
+  if (debug) console.log('dropSQL stdout: ' + stdout);
+  if (debug) console.log('dropSQL stderr: ' + stderr);
   if (error !== null) {
-    console.log('exec error: ' + error);
+    console.log('dropSQL exec error: ' + error);
   }
   callback(error);
   });
@@ -77,7 +79,6 @@ global.dropSQL = function(suite, callback) {
 
 /** Open a session or fail the test case */
 global.fail_openSession = function(testCase, callback) {
-  console.log('Driver.global.openSession');
   var properties = new mynode.ConnectionProperties("ndb");
   var annotations = new mynode.Annotations();
   mynode.openSession(properties, annotations, function(err, session) {
@@ -224,7 +225,6 @@ Suite.prototype.startSerialTests = function() {
   if (debug) console.log('Suite.startSerialTests');
   if (this.firstSerialTestIndex !== -1) {
     this.startNextSerialTest(this.firstSerialTestIndex);
-    if (debug) console.log('Suite.startSerialTests set phase to ' + this.phase);
     return false;
   } else {
     return this.startClearSmokeTest();
@@ -284,14 +284,17 @@ Suite.prototype.testCompleted = function(testCase) {
       } else if (tc.phase == 3) {
         // start the clear smoke test
         this.startClearSmokeTest();
+        if (debug) console.log('Suite.testCompleted started ClearSmokeTest.');
         return false;
       }
     } else {
       // no more tests
+      if (debug) console.log('Suite.testCompleted there is no ClearSmokeTest so we are done.');
       return true;
     }
   case 3:
     // the clear smoke test completed
+    if (debug) console.log('Suite.testCompleted completed ClearSmokeTest.');
     return true;
   }
 };
@@ -344,6 +347,12 @@ Driver.prototype.testCompleted = function(testCase) {
 };
 
 Driver.prototype.reportResultsAndExit = function() {
+  // close all session factories
+  sessionFactories = mynode.getOpenSessionFactories();
+  sessionFactories.forEach(function(sessionFactory) {
+    if (debug) console.log('Driver.reportResultsAndExit closing ' + sessionFactory.key);
+    sessionFactory.close();
+  });
   console.log("Passed: ", result.passed.length);
   console.log("Failed: ", result.failed.length);
   process.exit(result.failed.length > 0);  

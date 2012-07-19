@@ -67,12 +67,11 @@ test.run = function() {
     if (error) {
       t.fail('createSQL failed: ' + error);
     } 
-  });
-  props = new mynode.ConnectionProperties('ndb');
-  mynode.connect(props, null, function(err, factory) {
-    console.log("in smoketest connection callback");
-    if(err) t.fail(err);
-    else(t.pass());
+    props = new mynode.ConnectionProperties('ndb');
+    mynode.connect(props, null, function(err, factory) {
+      if(err) t.fail(err);
+      else(t.pass());
+    });
   });
 };
 
