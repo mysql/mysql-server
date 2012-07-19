@@ -17,9 +17,9 @@ set(tokudbonly_bins
 
 if(BDB_FOUND)
   foreach(bdb_bin ${both_bins})
-    add_executable(${bdb_bin}-bdb ${bdb_bin}.c)
+    add_executable(${bdb_bin}-bdb ${bdb_bin})
     set_property(TARGET ${bdb_bin}-bdb APPEND PROPERTY
-      COMPILE_DEFINITIONS "DIRSUF=bdb;TOKU_ALLOW_DEPRECATED;ENVDIR=\"${bdb_bin}.c.bdb\"")
+      COMPILE_DEFINITIONS "DIRSUF=bdb;TOKU_ALLOW_DEPRECATED;ENVDIR=\"${bdb_bin}.cc.bdb\"")
     set_target_properties(${bdb_bin}-bdb PROPERTIES
       INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../portability;${CMAKE_CURRENT_SOURCE_DIR}/..")
     target_link_libraries(${bdb_bin}-bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
@@ -28,9 +28,9 @@ if(BDB_FOUND)
 endif()
 
 foreach(tokudb_bin ${both_bins} ${tokudbonly_bins})
-  add_executable(${tokudb_bin}-tokudb ${tokudb_bin}.c)
+  add_executable(${tokudb_bin}-tokudb ${tokudb_bin})
   set_property(TARGET ${tokudb_bin}-tokudb APPEND PROPERTY
-    COMPILE_DEFINITIONS "TOKUDB;ENVDIR=\"${tokudb_bin}.c.tdb\"")
+    COMPILE_DEFINITIONS "TOKUDB;ENVDIR=\"${tokudb_bin}.cc.tdb\"")
   target_link_libraries(${tokudb_bin}-tokudb ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
   add_common_options_to_binary_targets(${tokudb_bin}-tokudb)
 endforeach(tokudb_bin)

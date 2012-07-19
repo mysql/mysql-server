@@ -1,0 +1,170 @@
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+/* We are going to test whether create and close properly check their input. */
+
+#include "test.h"
+
+static DBT _key;
+DBT* key;
+
+enum { MAX_LT_LOCKS = 1000 };
+uint32_t max_locks = MAX_LT_LOCKS;
+uint64_t max_lock_memory = MAX_LT_LOCKS*64;
+toku_ltm* ltm = NULL;
+
+static void do_range_test(int (*acquire)(toku_lock_tree*, TXNID,
+                                         const DBT*,
+                                         const DBT*)) {
+    int r;
+    toku_lock_tree* lt  = NULL;
+    TXNID           txn = (TXNID)1;  // Fake.
+    DBT _key_l  = _key;
+    DBT _key_r  = _key;
+    DBT* key_l  = &_key_l;
+    DBT* key_r  = &_key_r;
+    {
+        r = toku_lt_create(&lt, ltm, dbcmp);
+
+        CKERR(r);
+        assert(lt);
+
+        r = acquire(NULL,   txn,  key_l,  key_r);
+        CKERR2(r, EINVAL);
+        r = acquire(lt,     txn,  NULL,   key_r);
+        CKERR2(r, EINVAL);
+        r = acquire(lt,     txn,  key_l,  NULL);
+        CKERR2(r, EINVAL);
+
+        /* left > right tests. */
+        const DBT* inf       =              toku_lt_infinity;
+        const DBT* ninf      =              toku_lt_neg_infinity;
+        r = acquire(lt,     txn,  inf,    key_r);
+        CKERR2(r, EDOM);
+        r = acquire(lt,     txn,  key_l,  ninf);
+        CKERR2(r, EDOM);
+        r = acquire(lt,     txn,  inf,    ninf);
+        CKERR2(r, EDOM);
+
+        /* Cleanup. */
+        r = toku_lt_close(lt);
+        CKERR(r);
+
+        lt = NULL;
+    }
+}
+
+static void do_point_test(int (*acquire)(toku_lock_tree*, TXNID,
+                                         const DBT*)) {
+    int r;
+    toku_lock_tree* lt  = NULL;
+    TXNID           txn = (TXNID)1;  // Fake.
+
+    lt = NULL;
+
+    /* Point read tests. */
+    key  = &_key;
+    {
+        r = toku_lt_create(&lt, ltm, dbcmp);
+        CKERR(r);
+        assert(lt);
+
+        r = toku_lt_unlock_txn(NULL, (TXNID)1);
+        CKERR2(r, EINVAL);
+
+        r = acquire(NULL, txn,  key);
+        CKERR2(r, EINVAL);
+
+        r = acquire(lt,   txn,  NULL);
+        CKERR2(r, EINVAL);
+
+        /* Cleanup. */
+        r = toku_lt_close(lt);
+        CKERR(r);
+
+        lt = NULL;
+    }
+}
+
+int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
+
+    int r;
+    toku_lock_tree* lt  = NULL;
+
+    r = toku_ltm_create(NULL, max_locks, max_lock_memory, dbpanic);
+    CKERR2(r, EINVAL);
+    assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, 0,         max_lock_memory, dbpanic);
+    CKERR2(r, EINVAL);
+    assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, max_locks, 0,               dbpanic);
+    CKERR2(r, EINVAL);
+    assert(ltm == NULL);
+
+    /* Actually create it. */
+    r = toku_ltm_create(&ltm, max_locks, max_lock_memory, dbpanic);
+    CKERR(r);
+    assert(ltm);
+
+    r = toku_ltm_set_max_locks(NULL, max_locks);
+    CKERR2(r, EINVAL);
+    r = toku_ltm_set_max_locks(ltm,  0);
+    CKERR2(r, EINVAL);
+    r = toku_ltm_set_max_locks(ltm,  max_locks);
+    CKERR(r);
+
+    uint32_t get_max = 73; //Some random number that isn't 0.
+    r = toku_ltm_get_max_locks(NULL, &get_max);
+    CKERR2(r, EINVAL);
+    assert(get_max == 73);
+    r = toku_ltm_get_max_locks(ltm,  NULL);
+    CKERR2(r, EINVAL);
+    assert(get_max == 73);
+    r = toku_ltm_get_max_locks(ltm,  &get_max);
+    CKERR(r);
+    assert(get_max == max_locks);
+
+    r = toku_ltm_set_max_lock_memory(NULL, max_lock_memory);
+    CKERR2(r, EINVAL);
+    r = toku_ltm_set_max_lock_memory(ltm,  0);
+    CKERR2(r, EINVAL);
+    r = toku_ltm_set_max_lock_memory(ltm,  max_lock_memory);
+    CKERR(r);
+
+    uint64_t get_max_memory = 73; //Some random number that isn't 0.
+    r = toku_ltm_get_max_lock_memory(NULL, &get_max_memory);
+    CKERR2(r, EINVAL);
+    assert(get_max_memory == 73);
+    r = toku_ltm_get_max_lock_memory(ltm,  NULL);
+    CKERR2(r, EINVAL);
+    assert(get_max_memory == 73);
+    r = toku_ltm_get_max_lock_memory(ltm,  &get_max_memory);
+    CKERR(r);
+    assert(get_max_memory == max_lock_memory);
+
+    /* create tests. */
+    {
+        r = toku_lt_create(NULL, ltm, dbcmp);
+        CKERR2(r, EINVAL);
+
+        r = toku_lt_create(&lt, NULL, dbcmp);
+        CKERR2(r, EINVAL);
+
+    }
+
+    /* Close tests. */
+    r = toku_lt_close(NULL);
+    CKERR2(r, EINVAL);
+
+    do_point_test(toku_lt_acquire_read_lock);
+    do_point_test(toku_lt_acquire_write_lock);
+
+    do_range_test(toku_lt_acquire_range_read_lock);
+    do_range_test(toku_lt_acquire_range_write_lock);
+
+    toku_ltm_close(ltm);
+    return 0;
+}

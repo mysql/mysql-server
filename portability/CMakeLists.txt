@@ -1,13 +1,13 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 set(tokuportability_srcs
-  file.c
-  memory.c
-  os_malloc.c
-  portability.c
-  toku_assert.c
-  toku_pthread.c
-  toku_fair_rwlock.c
+  file
+  memory
+  os_malloc
+  portability
+  toku_assert
+  toku_pthread
+  toku_fair_rwlock
   )
 
 add_library(${LIBTOKUPORTABILITY} SHARED ${tokuportability_srcs})
@@ -17,12 +17,12 @@ set_property(TARGET ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static APPEND PR
 add_space_separated_property(TARGET ${LIBTOKUPORTABILITY}_static COMPILE_FLAGS -fPIC)
 target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} dl)
 
-if (CMAKE_C_COMPILER_ID STREQUAL Intel)
+if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
   ## ignore warning about cilkrts linking dynamically
   add_space_separated_property(TARGET ${LIBTOKUPORTABILITY} LINK_FLAGS "-diag-disable 10237")
 endif ()
 
-set_property(SOURCE file.c memory.c os_malloc.c portability.c toku_assert.c toku_rwlock.c APPEND PROPERTY
+set_property(SOURCE file memory os_malloc portability toku_assert toku_rwlock APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
 
 install(

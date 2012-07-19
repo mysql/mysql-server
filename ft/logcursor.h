@@ -1,17 +1,14 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TOKULOGCURSOR_H
 #define TOKULOGCURSOR_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <ft/log_header.h>
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 struct toku_logcursor;
 typedef struct toku_logcursor *TOKULOGCURSOR;
@@ -46,8 +43,5 @@ int toku_logcursor_log_exists(const TOKULOGCURSOR lc);
 
 void toku_logcursor_print(TOKULOGCURSOR lc);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif // TOKULOGCURSOR_H

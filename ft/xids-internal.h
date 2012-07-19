@@ -1,16 +1,13 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 #ifndef XIDS_INTERNAL_H
 #define XIDS_INTERNAL_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 // Variable size list of transaction ids (known in design doc as xids<>).
 // ids[0] is the outermost transaction.
@@ -32,8 +29,5 @@ typedef struct __attribute__((__packed__)) xids_t {
 #pragma pack(pop)
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif

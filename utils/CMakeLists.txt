@@ -2,12 +2,12 @@ set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPR
 
 set(utils tokudb_gen tokudb_load tokudb_dump)
 foreach(util ${utils})
-  add_executable(${util} ${util}.c)
+  add_executable(${util} ${util})
   set_target_properties(${util} PROPERTIES
     COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=0")
   target_link_libraries(${util} ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
 
-  add_executable(${util}_static ${util}.c)
+  add_executable(${util}_static ${util})
   set_target_properties(${util}_static PROPERTIES
     COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=1")
   target_link_libraries(${util}_static ${LIBTOKUDB}_static lock_tree_static range_tree_static ft_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
@@ -16,7 +16,7 @@ foreach(util ${utils})
   add_common_options_to_binary_targets(${util} ${util}_static)
 
   if(BDB_FOUND)
-    add_executable(${util}.bdb ${util}.c)
+    add_executable(${util}.bdb ${util})
     set_property(TARGET ${util}.bdb APPEND PROPERTY
       COMPILE_DEFINITIONS "IS_TDB=0;USE_BDB=1;TOKU_ALLOW_DEPRECATED")
     set_target_properties(${util}.bdb PROPERTIES

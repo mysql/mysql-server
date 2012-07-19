@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef _TOKUDB_LIST_H
 #define _TOKUDB_LIST_H
 
@@ -10,9 +10,6 @@
 //TODO: #1378  This is not threadsafe.  Make sure when splitting locks
 //that we protect these calls.
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 // This toku_list is intended to be embedded in other data structures.
 struct toku_list {
@@ -96,9 +93,6 @@ static inline void toku_list_move(struct toku_list *newhead, struct toku_list *o
 #define toku_list_struct(p, t, f) ((t*)((char*)(p) - ((char*)&((t*)0)->f)))
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 
 #endif

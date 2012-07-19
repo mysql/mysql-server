@@ -1,10 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TOKU_LOGGGER_H
 #define TOKU_LOGGGER_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
@@ -14,10 +14,6 @@
 #include "fttypes.h"
 #include "memory.h"
 #include "x1764.h"
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 struct roll_entry;
 
@@ -49,9 +45,5 @@ static inline void toku_free_FILENUMS(FILENUMS val) { toku_free(val.filenums); }
 int toku_maybe_upgrade_log (const char *env_dir, const char *log_dir, LSN * lsn_of_clean_shutdown, BOOL * upgrade_in_progress);
 uint64_t toku_log_upgrade_get_footprint(void);
 
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif

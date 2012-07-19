@@ -1,13 +1,13 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 // This file defines the public interface to the ydb library
 
 #if !defined(TOKU_YDB_CURSOR_H)
 #define TOKU_YDB_CURSOR_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 typedef enum {
     YDB_C_LAYER_STATUS_NUM_ROWS = 0             /* number of rows in this status array */
@@ -27,8 +27,5 @@ int toku_db_cursor_internal(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int 
 int toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags);
 
 
-#if defined(__cplusplus)
-}
-#endif
 
 #endif

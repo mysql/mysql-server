@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 /* Fair readers writer lock implemented using condition variables.
  * This is maintained so that we can measure the performance of a relatively simple implementation (this one) 
  * compared to a fast one that uses compare-and-swap (the one in ../toku_rwlock.c)

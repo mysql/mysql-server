@@ -1,13 +1,11 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 #ifndef TOKU_LOADER_H
 #define TOKU_LOADER_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
-/* Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved.
+/* Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved.
  *
  * The technology is licensed by the Massachusetts Institute of Technology, 
  * Rutgers State University of New Jersey, and the Research Foundation of 
@@ -132,10 +130,5 @@ typedef struct {
 
 void toku_loader_get_status(LOADER_STATUS s);
 
-
-#if defined(__cplusplus)
-}
-
-#endif
 
 #endif

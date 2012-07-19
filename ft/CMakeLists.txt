@@ -1,83 +1,82 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-## generate log_code.c, log_print.c, log_header.c
+## generate log_code.cc, log_print.cc, log_header.cc
 set_source_files_properties(
-  "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
-  "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
+  "${CMAKE_CURRENT_BINARY_DIR}/log_code"
+  "${CMAKE_CURRENT_BINARY_DIR}/log_print"
   "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   PROPERTIES GENERATED TRUE)
 
-add_executable(logformat logformat.c)
+add_executable(logformat logformat.cc)
 target_link_libraries(logformat ${LIBTOKUPORTABILITY})
 
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
-  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.cc"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_print.cc"
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   COMMAND $<TARGET_FILE:logformat> .
   DEPENDS logformat
   )
 add_custom_target(
   generate_log_code
-  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/log_code.c" "${CMAKE_CURRENT_BINARY_DIR}/log_print.c" "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/log_code.cc" "${CMAKE_CURRENT_BINARY_DIR}/log_print.cc" "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
   )
 
 set(FT_SOURCES
-  background_job_manager.c
-  block_allocator.c
-  block_table.c
-  cachetable.c
-  checkpoint.c
-  compress.c
-  dbufio.c
-  fifo.c
-  ft.c
-  ft-cachetable-wrappers.c
-  ft-flusher.c
-  ft-hot-flusher.c
-  ftloader.c
-  ftloader-callback.c
-  ft_msg.c
-  ft_node-serialize.c
-  ft-node-deserialize.c
-  ft-ops.c
-  ft-serialize.c
-  ft-test-helpers.c
-  ft-verify.c
-  key.c
-  kibbutz.c
-  leafentry.c
-  le-cursor.c
-  logcursor.c
-  logfilemgr.c
-  logger.c
-  log_upgrade.c
-  memarena.c
-  mempool.c
-  minicron.c
-  omt.c
-  partitioned_counter.c
-  pqueue.c
-  queue.c
-  quicklz.c
-  recover.c
-  rollback.c
-  rollback-apply.c
-  rollback-ct-callbacks.c
-  roll.c
-  sort.c
-  sub_block.c
-  threadpool.c
-  txn.c
-  txn_manager.c
-  ule.c
-  workqueue.c
-  x1764.c
-  xids.c
-  ybt.c
-  "${CMAKE_CURRENT_BINARY_DIR}/log_code.c"
-  "${CMAKE_CURRENT_BINARY_DIR}/log_header.h"
-  "${CMAKE_CURRENT_BINARY_DIR}/log_print.c"
+  background_job_manager
+  block_allocator
+  block_table
+  cachetable
+  checkpoint
+  compress
+  dbufio
+  fifo
+  ft
+  ft-cachetable-wrappers
+  ft-flusher
+  ft-hot-flusher
+  ftloader
+  ftloader-callback
+  ft_msg
+  ft_node-serialize
+  ft-node-deserialize
+  ft-ops
+  ft-serialize
+  ft-test-helpers
+  ft-verify
+  key
+  kibbutz
+  leafentry
+  le-cursor
+  logcursor
+  logfilemgr
+  logger
+  log_upgrade
+  memarena
+  mempool
+  minicron
+  omt
+  partitioned_counter
+  pqueue
+  queue
+  quicklz
+  recover
+  rollback
+  rollback-apply
+  rollback-ct-callbacks
+  roll
+  sort
+  sub_block
+  threadpool
+  txn
+  txn_manager
+  ule
+  workqueue
+  x1764
+  xids
+  ybt
+  "${CMAKE_CURRENT_BINARY_DIR}/log_code"
+  "${CMAKE_CURRENT_BINARY_DIR}/log_print"
   )
 
 add_library(ft SHARED ${FT_SOURCES})
@@ -87,8 +86,8 @@ add_space_separated_property(TARGET ft_static COMPILE_FLAGS -fPIC)
 maybe_add_gcov_to_libraries(ft ft_static)
 
 ## depend on other generated targets
-add_dependencies(ft install_tdb_h build_lzma)
-add_dependencies(ft_static install_tdb_h build_lzma)
+add_dependencies(ft install_tdb_h generate_log_code build_lzma)
+add_dependencies(ft_static install_tdb_h generate_log_code build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE lzma ${LIBTOKUPORTABILITY})
@@ -115,11 +114,11 @@ set(bins
   ftverify
   )
 foreach(bin ${bins})
-  add_executable(${bin} ${bin}.c)
+  add_executable(${bin} ${bin})
   add_dependencies(${bin} install_tdb_h)
   target_link_libraries(${bin} ft ${LIBTOKUPORTABILITY})
 
-  add_executable(${bin}_static ${bin}.c)
+  add_executable(${bin}_static ${bin})
   add_dependencies(${bin}_static install_tdb_h)
   target_link_libraries(${bin}_static ft_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
 

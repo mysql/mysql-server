@@ -1,9 +1,9 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TEST_FT_TXNS_H
 #define TEST_FT_TXNS_H
 
-#ident "$Id: xid_lsn_independent.c 44752 2012-06-20 21:59:39Z yfogel $"
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -44,7 +44,7 @@ test_setup(TOKULOGGER *loggerp, CACHETABLE *ctp) {
 
 static inline void
 xid_lsn_keep_cachetable_callback (DB_ENV *env, CACHETABLE cachetable) {
-    CACHETABLE *ctp = cast_to_typeof(ctp) env;
+    CACHETABLE *CAST_FROM_VOIDP(ctp, (void *) env);
     *ctp = cachetable;
 }
 
@@ -55,7 +55,7 @@ static inline void test_setup_and_recover(TOKULOGGER *loggerp, CACHETABLE *ctp) 
     r = toku_logger_create(&logger);
     CKERR(r);
 
-    DB_ENV *ctv = cast_to_typeof(ctv) (void *) &ct;  // Use intermediate to avoid compiler warning.
+    DB_ENV *CAST_FROM_VOIDP(ctv, (void *) &ct);  // Use intermediate to avoid compiler warning.
     r = tokudb_recover(ctv,
                        NULL_prepared_txn_callback,
                        xid_lsn_keep_cachetable_callback,

@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -7,12 +7,6 @@
 #ifndef FTLOADER_ERROR_INJECTOR_H
 #define FTLOADER_ERROR_INJECTOR_H
 
-#if defined(__cplusplus)
-extern "C" {
-#if 0 
-}
-#endif
-#endif
 
 static toku_mutex_t event_mutex = { PTHREAD_MUTEX_INITIALIZER };
 static void lock_events(void) {
@@ -144,9 +138,5 @@ static void *my_realloc(void *p, size_t n) {
     }
     return realloc(p, n);
 }
-
-#if defined(__cplusplus)
-}
-#endif
 
 #endif

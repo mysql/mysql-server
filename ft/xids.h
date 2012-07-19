@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 /* Purpose of this file is to provide the world with everything necessary
  * to use the xids and nothing else.  
@@ -16,7 +16,7 @@
 #define XIDS_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "x1764.h"
@@ -24,9 +24,6 @@
 #include "wbuf.h"
 #include "tokuconst.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 //Retrieve an XIDS representing the root transaction.
 XIDS xids_get_root_xids(void);
@@ -69,9 +66,6 @@ void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids);
 
 void xids_fprintf(FILE* fp, XIDS xids);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 
 #endif 

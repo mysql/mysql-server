@@ -10,6 +10,6 @@ if (INTEL_CC)
       CMAKE_CXX_COMPILER MATCHES CMAKE_CXX_COMPILER-NOTFOUND OR
       CMAKE_AR MATCHES CMAKE_AR-NOTFOUND OR
       CMAKE_LINKER MATCHES CMAKE_LINKER-NOTFOUND)
-    message(FATAL_ERROR "Cannot find Intel compiler.  You may need to run `. /opt/intel/bin/compilervars.sh intel64'")
+    message(FATAL_ERROR "Cannot find Intel compiler.  You may need to run `source /opt/intel/bin/compilervars.sh intel64'")
   endif ()
 endif (INTEL_CC)

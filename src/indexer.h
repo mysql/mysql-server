@@ -1,9 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 #ifndef TOKU_INDEXER_H
 #define TOKU_INDEXER_H
 
-/* Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved.
+/* Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved.
  *
  * The technology is licensed by the Massachusetts Institute of Technology, 
  * Rutgers State University of New Jersey, and the Research Foundation of 
@@ -11,9 +12,6 @@
  * Serial No. 11/760379 and to the patents and/or patent applications resulting from it.
  */
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 
 // locking and unlocking functions to synchronize cursor position with
@@ -76,7 +74,7 @@ bool toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key)
 DB *toku_indexer_get_src_db(DB_INDEXER *indexer);
 
 // TEST set the indexer's test flags
-void toku_indexer_set_test_only_flags(DB_INDEXER *indexer, int flags) __attribute__((__visibility__("default")));
+extern "C" void toku_indexer_set_test_only_flags(DB_INDEXER *indexer, int flags) __attribute__((__visibility__("default")));
 
 #define INDEXER_TEST_ONLY_ERROR_CALLBACK 1
 
@@ -100,8 +98,5 @@ typedef struct {
 
 void toku_indexer_get_status(INDEXER_STATUS s);
 
-#if defined(__cplusplus)
-}
-#endif
 
 #endif // TOKU_INDEXER_H

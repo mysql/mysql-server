@@ -1,5 +1,8 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ifndef TOKU_ASSERT_H
 #define TOKU_ASSERT_H
 /* The problem with assert.h:  If NDEBUG is set then it doesn't execute the function, if NDEBUG isn't set then we get a branch that isn't taken. */
@@ -9,9 +12,6 @@
 #include <stdint.h>
 #include "errno.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 #ifdef NDEBUG
 #error NDEBUG should not be set
@@ -80,8 +80,5 @@ get_error_errno(void)
     return errno;
 }
 
-#if defined(__cplusplus)
-};
-#endif
 
 #endif

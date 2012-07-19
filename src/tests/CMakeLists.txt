@@ -1,309 +1,310 @@
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPRECATE_ERRNO)
 
 if(BUILD_TESTING)
-  file(GLOB transparent_upgrade_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" upgrade*.c)
+  file(GLOB transparent_upgrade_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" upgrade*.cc)
 
-  file(GLOB tdb_dontrun_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" bdb-simple-deadlock*.c)
-  string(REGEX REPLACE "\\.c(;|$)" "\\1" tdb_dontrun_tests "${tdb_dontrun_srcs}")
+  file(GLOB tdb_dontrun_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" bdb-simple-deadlock*.cc)
+  string(REGEX REPLACE "\\.cc?(;|$)" "\\1" tdb_dontrun_tests "${tdb_dontrun_srcs}")
 
-  file(GLOB srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.c)
+  file(GLOB srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" *.cc)
   list(REMOVE_ITEM srcs ${transparent_upgrade_srcs})
 
-  set(recover_srcs test_log2.c test_log3.c test_log4.c test_log5.c test_log6.c test_log7.c test_log8.c test_log9.c test_log10.c)
-  file(GLOB abortrecover_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" recover-*.c)
-  file(GLOB loader_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" loader-*.c)
-  file(GLOB stress_test_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" test_stress*.c)
-  string(REGEX REPLACE "\\.c(;|$)" ".recover\\1" recover_tests "${recover_srcs}")
-  string(REGEX REPLACE "\\.c(;|$)" ".abortrecover\\1" abortrecover_tests "${abortrecover_srcs}")
-  string(REGEX REPLACE "\\.c(;|$)" ".loader\\1" loader_tests "${loader_srcs}")
-  string(REGEX REPLACE "\\.c(;|$)" ".tdb\\1" stress_tests "${stress_test_srcs}")
+  set(recover_srcs test_log2.cc test_log3.cc test_log4.cc test_log5.cc test_log6.cc test_log7.cc test_log8.cc test_log9.cc test_log10.cc)
+  file(GLOB abortrecover_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" recover-*.cc)
+  file(GLOB loader_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" loader-*.cc)
+  file(GLOB stress_test_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" test_stress*.cc)
+  string(REGEX REPLACE "\\.cc?(;|$)" ".recover\\1" recover_tests "${recover_srcs}")
+  string(REGEX REPLACE "\\.cc?(;|$)" ".abortrecover\\1" abortrecover_tests "${abortrecover_srcs}")
+  string(REGEX REPLACE "\\.cc?(;|$)" ".loader\\1" loader_tests "${loader_srcs}")
+  string(REGEX REPLACE "\\.cc?(;|$)" ".tdb\\1" stress_tests "${stress_test_srcs}")
 
   set(tdb_srcs ${srcs})
   list(REMOVE_ITEM tdb_srcs ${tdb_dontrun_srcs})
-  string(REGEX REPLACE "\\.c(;|$)" ".tdb\\1" tdb_bins "${tdb_srcs}")
+  string(REGEX REPLACE "\\.cc?(;|$)" ".tdb\\1" tdb_bins "${tdb_srcs}")
   list(REMOVE_ITEM tdb_srcs ${abortrecover_srcs} ${loader_srcs})
-  string(REGEX REPLACE "\\.c(;|$)" ".tdb\\1" tdb_tests "${tdb_srcs}")
+  string(REGEX REPLACE "\\.cc?(;|$)" ".tdb\\1" tdb_tests "${tdb_srcs}")
 
   if(BDB_FOUND)
     set(bdb_dontrun_srcs
-      backwards_10_each_le_and_msg.c
-      blocking-prelock-range.c
-      blocking-set-range-reverse-0.c
-      blocking-table-lock.c
-      bug1381.c
-      bug627.c
-      cachetable-race.c
-      checkpoint_1.c
-      checkpoint_callback.c
-      checkpoint_stress.c
-      cursor-isolation.c
-      cursor-set-del-rmw.c
-      cursor-set-range-rmw.c
-      db-put-simple-deadlock.c
-      del-simple.c
-      del-multiple.c
-      del-multiple-huge-primary-row.c
-      del-multiple-srcdb.c
-      directory_lock.c
-      diskfull.c
-      env-put-multiple.c
-      env_startup.c
-      execute-updates.c
-      filesize.c
-      helgrind1.c
-      helgrind2.c
-      helgrind3.c
-      hotindexer-bw.c
-      hotindexer-error-callback.c
-      hotindexer-insert-committed-optimized.c
-      hotindexer-insert-committed.c
-      hotindexer-insert-provisional.c
-      hotindexer-lock-test.c
-      hotindexer-multiclient.c
-      hotindexer-nested-insert-committed.c
-      hotindexer-put-abort.c
-      hotindexer-put-commit.c
-      hotindexer-put-multiple.c
-      hotindexer-simple-abort.c
-      hotindexer-simple-abort-put.c
-      hotindexer-undo-do-test.c
-      hotindexer-with-queries.c
-      hot-optimize-table-tests.c
-      insert-dup-prelock.c
-      isolation.c
-      isolation-read-committed.c
-      keyrange.c
-      keyrange-merge.c
-      last-verify-time.c
-      loader-cleanup-test.c
-      loader-create-abort.c
-      loader-create-close.c
-      loader-dup-test.c
-      loader-no-puts.c
-      loader-reference-test.c
-      loader-stress-del.c
-      loader-stress-test.c
-      loader-tpch-load.c
-      lock-pressure.c
-      manyfiles.c
-      maxsize-for-loader.c
-      multiprocess.c
-      mvcc-create-table.c
-      mvcc-many-committed.c
-      perf_checkpoint_var.c
-      perf_cursor_nop.c
-      perf_insert.c
-      perf_insert_multiple.c
-      perf_malloc_free.c
-      perf_nop.c
-      perf_ptquery.c
-      perf_ptquery2.c
-      perf_xmalloc_free.c
-      prelock-read-read.c
-      prelock-read-write.c
-      prelock-write-read.c
-      prelock-write-write.c
-      print_engine_status.c
-      powerfail.c
-      preload-db.c
-      preload-db-nested.c
-      progress.c
-      put-multiple.c
-      queries_with_deletes.c
-      recover-2483.c
-      recover-3113.c
-      recover-5146.c
-      recover-compare-db.c
-      recover-compare-db-descriptor.c
-      recover-del-multiple.c
-      recover-del-multiple-abort.c
-      recover-del-multiple-srcdb-fdelete-all.c
-      recover-delboth-after-checkpoint.c
-      recover-delboth-checkpoint.c
-      recover-descriptor.c
-      recover-descriptor2.c
-      recover-descriptor3.c
-      recover-descriptor4.c
-      recover-descriptor5.c
-      recover-descriptor6.c
-      recover-descriptor7.c
-      recover-descriptor8.c
-      recover-descriptor9.c
-      recover-descriptor10.c
-      recover-descriptor11.c
-      recover-descriptor12.c
-      recover-fclose-in-checkpoint.c
-      recover-fcreate-basementnodesize.c
-      recover-flt1.c
-      recover-flt2.c
-      recover-flt3.c
-      recover-flt4.c
-      recover-flt5.c
-      recover-flt6.c
-      recover-flt7.c
-      recover-flt8.c
-      recover-flt9.c
-      recover-flt10.c
-      recover-hotindexer-simple-abort-put.c
-      recover-loader-test.c
-      recover-lsn-filter-multiple.c
-      recover-put-multiple.c
-      recover-put-multiple-abort.c
-      recover-put-multiple-fdelete-all.c
-      recover-put-multiple-fdelete-some.c
-      recover-put-multiple-srcdb-fdelete-all.c
-      recover-split-checkpoint.c
-      recover-tablelock.c
-      recover-test-logsuppress.c
-      recover-test-logsuppress-put.c
-      recover-test_stress1.c
-      recover-test_stress2.c
-      recover-test_stress3.c
-      recover-test_stress_openclose.c
-      recover-upgrade-db-descriptor-multihandle.c
-      recover-upgrade-db-descriptor.c
-      recover-update-multiple.c
-      recover-update-multiple-abort.c
-      recover-update_aborts.c
-      recover-update_aborts_before_checkpoint.c
-      recover-update_aborts_before_close.c
-      recover-update_changes_values.c
-      recover-update_changes_values_before_checkpoint.c
-      recover-update_changes_values_before_close.c
-      recover-update_broadcast_aborts.c
-      recover-update_broadcast_aborts2.c
-      recover-update_broadcast_aborts3.c
-      recover-update_broadcast_aborts_before_checkpoint.c
-      recover-update_broadcast_aborts_before_close.c
-      recover-update_broadcast_changes_values.c
-      recover-update_broadcast_changes_values2.c
-      recover-update_broadcast_changes_values3.c
-      recover-update_broadcast_changes_values_before_checkpoint.c
-      recover-update_broadcast_changes_values_before_close.c
-      recover-update_changes_values_before_close.c
-      recovery_fileops_stress.c
-      recovery_fileops_unit.c
-      recovery_stress.c
-      redirect.c
-      replace-into-write-lock.c
-      root_fifo_2.c
-      root_fifo_32.c
-      root_fifo_41.c
-      shutdown-3344.c
-      stat64.c
-      stat64-create-modify-times.c
-      stat64_flatten.c
-      stat64-null-txn.c
-      stat64-root-changes.c
-      stress-gc.c
-      stress-gc2.c
-      test-xa-prepare.c
-      test1324.c
-      test1572.c
-      test3219.c
-      test3522.c
-      test3522b.c
-      test3529.c
-      test_3645.c
-      test_3529_insert_2.c
-      test_3529_table_lock.c
-      test_3755.c
-      test_4015.c
-      test_4368.c
-      test_4657.c
-      test_5015.c
-      test-5138.c
-      test938c.c
-      test_abort1.c
-      test_abort4.c
-      test_abort5.c
-      test_blobs_leaf_split.c
-      test_bulk_fetch.c
-      test_compression_methods.c
-      test_cmp_descriptor.c
-      test_db_change_xxx.c
-      test_cursor_delete_2119.c
-      test_db_descriptor.c
-      test_db_descriptor_named_db.c
-      test_db_txn_locks_read_uncommitted.c
-      test_dupsort_get_both_range_reverse.c
-      test_dupsort_set_range_reverse.c
-      test_get_max_row_size.c
-      test_large_update_broadcast_small_cachetable.c
-      test_locktree_close.c
-      test_logflush.c
-      test_multiple_checkpoints_block_commit.c
-      test_query.c
-      test_rand_insert_mult_db.c
-      test_redirect_func.c
-      test_row_size_supported.c
-      test_stress1.c
-      test_stress2.c
-      test_stress3.c
-      test_stress4.c
-      test_stress5.c
-      test_stress6.c
-      test_stress7.c
-      test_stress_openclose.c
-      test_stress_with_verify.c
-      test_stress_hot_indexing.c
-      test_transactional_descriptor.c
-      test_trans_desc_during_chkpt.c
-      test_trans_desc_during_chkpt2.c
-      test_trans_desc_during_chkpt3.c
-      test_trans_desc_during_chkpt4.c
-      test_txn_abort6.c
-      test_txn_abort8.c
-      test_txn_abort9.c
-      test_txn_close_open_commit.c
-      test_txn_commit8.c
-      test_txn_nested1.c
-      test_txn_nested2.c
-      test_txn_nested3.c
-      test_txn_nested4.c
-      test_txn_nested5.c
-      test_update_abort_works.c
-      test_update_calls_back.c
-      test_update_can_delete_elements.c
-      test_update_changes_values.c
-      test_update_nonexistent_keys.c
-      test_update_previously_deleted.c
-      test_update_stress.c
-      test_update_txn_snapshot_works_concurrently.c
-      test_update_txn_snapshot_works_correctly_with_deletes.c
-      test_update_broadcast_abort_works.c
-      test_update_broadcast_calls_back.c
-      test_update_broadcast_can_delete_elements.c
-      test_update_broadcast_changes_values.c
-      test_update_broadcast_previously_deleted.c
-      test_update_broadcast_stress.c
-      test_update_broadcast_update_fun_has_choices.c
-      test_update_broadcast_with_empty_table.c
-      test_update_broadcast_indexer.c
-      test_update_broadcast_loader.c
-      test_update_broadcast_nested_updates.c
-      test_update_nested_updates.c
-      test_update_with_empty_table.c
-      txn-ignore.c
-      transactional_fileops.c
-      update-multiple-data-diagonal.c
-      update-multiple-key0.c
-      update-multiple-nochange.c
-      update-multiple-with-indexer.c
-      update.c
-      upgrade_simple.c
-      upgrade-test-1.c
-      upgrade-test-2.c
-      upgrade-test-3.c
-      upgrade-test-4.c
-      upgrade-test-5.c
-      upgrade-test-6.c
-      upgrade-test-7.c
-      zombie_db.c
+      backwards_10_each_le_and_msg
+      blocking-prelock-range
+      blocking-set-range-reverse-0
+      blocking-table-lock
+      bug1381
+      bug627
+      cachetable-race
+      checkpoint_1
+      checkpoint_callback
+      checkpoint_stress
+      cursor-isolation
+      cursor-set-del-rmw
+      cursor-set-range-rmw
+      db-put-simple-deadlock
+      del-simple
+      del-multiple
+      del-multiple-huge-primary-row
+      del-multiple-srcdb
+      directory_lock
+      diskfull
+      env-put-multiple
+      env_startup
+      execute-updates
+      filesize
+      helgrind1
+      helgrind2
+      helgrind3
+      hotindexer-bw
+      hotindexer-error-callback
+      hotindexer-insert-committed-optimized
+      hotindexer-insert-committed
+      hotindexer-insert-provisional
+      hotindexer-lock-test
+      hotindexer-multiclient
+      hotindexer-nested-insert-committed
+      hotindexer-put-abort
+      hotindexer-put-commit
+      hotindexer-put-multiple
+      hotindexer-simple-abort
+      hotindexer-simple-abort-put
+      hotindexer-undo-do-test
+      hotindexer-with-queries
+      hot-optimize-table-tests
+      insert-dup-prelock
+      isolation
+      isolation-read-committed
+      keyrange
+      keyrange-merge
+      last-verify-time
+      loader-cleanup-test
+      loader-create-abort
+      loader-create-close
+      loader-dup-test
+      loader-no-puts
+      loader-reference-test
+      loader-stress-del
+      loader-stress-test
+      loader-tpch-load
+      lock-pressure
+      manyfiles
+      maxsize-for-loader
+      multiprocess
+      mvcc-create-table
+      mvcc-many-committed
+      perf_checkpoint_var
+      perf_cursor_nop
+      perf_insert
+      perf_insert_multiple
+      perf_malloc_free
+      perf_nop
+      perf_ptquery
+      perf_ptquery2
+      perf_xmalloc_free
+      prelock-read-read
+      prelock-read-write
+      prelock-write-read
+      prelock-write-write
+      print_engine_status
+      powerfail
+      preload-db
+      preload-db-nested
+      progress
+      put-multiple
+      queries_with_deletes
+      recover-2483
+      recover-3113
+      recover-5146
+      recover-compare-db
+      recover-compare-db-descriptor
+      recover-del-multiple
+      recover-del-multiple-abort
+      recover-del-multiple-srcdb-fdelete-all
+      recover-delboth-after-checkpoint
+      recover-delboth-checkpoint
+      recover-descriptor
+      recover-descriptor2
+      recover-descriptor3
+      recover-descriptor4
+      recover-descriptor5
+      recover-descriptor6
+      recover-descriptor7
+      recover-descriptor8
+      recover-descriptor9
+      recover-descriptor10
+      recover-descriptor11
+      recover-descriptor12
+      recover-fclose-in-checkpoint
+      recover-fcreate-basementnodesize
+      recover-flt1
+      recover-flt2
+      recover-flt3
+      recover-flt4
+      recover-flt5
+      recover-flt6
+      recover-flt7
+      recover-flt8
+      recover-flt9
+      recover-flt10
+      recover-hotindexer-simple-abort-put
+      recover-loader-test
+      recover-lsn-filter-multiple
+      recover-put-multiple
+      recover-put-multiple-abort
+      recover-put-multiple-fdelete-all
+      recover-put-multiple-fdelete-some
+      recover-put-multiple-srcdb-fdelete-all
+      recover-split-checkpoint
+      recover-tablelock
+      recover-test-logsuppress
+      recover-test-logsuppress-put
+      recover-test_stress1
+      recover-test_stress2
+      recover-test_stress3
+      recover-test_stress_openclose
+      recover-upgrade-db-descriptor-multihandle
+      recover-upgrade-db-descriptor
+      recover-update-multiple
+      recover-update-multiple-abort
+      recover-update_aborts
+      recover-update_aborts_before_checkpoint
+      recover-update_aborts_before_close
+      recover-update_changes_values
+      recover-update_changes_values_before_checkpoint
+      recover-update_changes_values_before_close
+      recover-update_broadcast_aborts
+      recover-update_broadcast_aborts2
+      recover-update_broadcast_aborts3
+      recover-update_broadcast_aborts_before_checkpoint
+      recover-update_broadcast_aborts_before_close
+      recover-update_broadcast_changes_values
+      recover-update_broadcast_changes_values2
+      recover-update_broadcast_changes_values3
+      recover-update_broadcast_changes_values_before_checkpoint
+      recover-update_broadcast_changes_values_before_close
+      recover-update_changes_values_before_close
+      recovery_fileops_stress
+      recovery_fileops_unit
+      recovery_stress
+      redirect
+      replace-into-write-lock
+      root_fifo_2
+      root_fifo_32
+      root_fifo_41
+      shutdown-3344
+      stat64
+      stat64-create-modify-times
+      stat64_flatten
+      stat64-null-txn
+      stat64-root-changes
+      stress-gc
+      stress-gc2
+      test-xa-prepare
+      test1324
+      test1572
+      test3219
+      test3522
+      test3522b
+      test3529
+      test_3645
+      test_3529_insert_2
+      test_3529_table_lock
+      test_3755
+      test_4015
+      test_4368
+      test_4657
+      test_5015
+      test-5138
+      test938c
+      test_abort1
+      test_abort4
+      test_abort5
+      test_blobs_leaf_split
+      test_bulk_fetch
+      test_compression_methods
+      test_cmp_descriptor
+      test_db_change_xxx
+      test_cursor_delete_2119
+      test_db_descriptor
+      test_db_descriptor_named_db
+      test_db_txn_locks_read_uncommitted
+      test_dupsort_get_both_range_reverse
+      test_dupsort_set_range_reverse
+      test_get_max_row_size
+      test_large_update_broadcast_small_cachetable
+      test_locktree_close
+      test_logflush
+      test_multiple_checkpoints_block_commit
+      test_query
+      test_rand_insert_mult_db
+      test_redirect_func
+      test_row_size_supported
+      test_stress1
+      test_stress2
+      test_stress3
+      test_stress4
+      test_stress5
+      test_stress6
+      test_stress7
+      test_stress_openclose
+      test_stress_with_verify
+      test_stress_hot_indexing
+      test_transactional_descriptor
+      test_trans_desc_during_chkpt
+      test_trans_desc_during_chkpt2
+      test_trans_desc_during_chkpt3
+      test_trans_desc_during_chkpt4
+      test_txn_abort6
+      test_txn_abort8
+      test_txn_abort9
+      test_txn_close_open_commit
+      test_txn_commit8
+      test_txn_nested1
+      test_txn_nested2
+      test_txn_nested3
+      test_txn_nested4
+      test_txn_nested5
+      test_update_abort_works
+      test_update_calls_back
+      test_update_can_delete_elements
+      test_update_changes_values
+      test_update_nonexistent_keys
+      test_update_previously_deleted
+      test_update_stress
+      test_update_txn_snapshot_works_concurrently
+      test_update_txn_snapshot_works_correctly_with_deletes
+      test_update_broadcast_abort_works
+      test_update_broadcast_calls_back
+      test_update_broadcast_can_delete_elements
+      test_update_broadcast_changes_values
+      test_update_broadcast_previously_deleted
+      test_update_broadcast_stress
+      test_update_broadcast_update_fun_has_choices
+      test_update_broadcast_with_empty_table
+      test_update_broadcast_indexer
+      test_update_broadcast_loader
+      test_update_broadcast_nested_updates
+      test_update_nested_updates
+      test_update_with_empty_table
+      txn-ignore
+      transactional_fileops
+      update-multiple-data-diagonal
+      update-multiple-key0
+      update-multiple-nochange
+      update-multiple-with-indexer
+      update
+      upgrade_simple
+      upgrade-test-1
+      upgrade-test-2
+      upgrade-test-3
+      upgrade-test-4
+      upgrade-test-5
+      upgrade-test-6
+      upgrade-test-7
+      zombie_db
       )
     set(bdb_srcs ${srcs})
-    list(REMOVE_ITEM bdb_srcs ${bdb_dontrun_srcs})
-    string(REGEX REPLACE "\\.c(;|$)" ".bdb\\1" bdb_tests "${bdb_srcs}")
+    string(REGEX REPLACE "\\.cc(;|$)" "\\1" bdb_testbases "${bdb_srcs}")
+    list(REMOVE_ITEM bdb_testbases ${bdb_dontrun_srcs})
+    string(REGEX REPLACE "(;|$)" ".bdb\\1" bdb_tests "${bdb_testbases}")
     set(bdb_bins ${bdb_tests})
   endif()
 
@@ -320,7 +321,7 @@ if(BUILD_TESTING)
 
   ## #5138 only reproduces when using the static library.
   list(REMOVE_ITEM tdb_bins test-5138.tdb)
-  add_executable(test-5138.tdb test-5138.c)
+  add_executable(test-5138.tdb test-5138)
   target_link_libraries(test-5138.tdb ${LIBTOKUDB}_static ${LIBTOKUPORTABILITY}_static)
   set_property(TARGET test-5138.tdb APPEND PROPERTY
     COMPILE_DEFINITIONS "ENVDIR=\"dir.test-5138.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
@@ -330,28 +331,26 @@ if(BUILD_TESTING)
 
   foreach(bin ${tdb_bins})
     get_filename_component(base ${bin} NAME_WE)
-    set(src ${base}.c)
 
-    add_executable(${base}.tdb ${src})
+    add_executable(${base}.tdb ${base})
     target_link_libraries(${base}.tdb ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${src}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${src}.tdb")
+      COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
     add_common_options_to_binary_targets(${base}.tdb)
   endforeach(bin)
 
   if(BDB_FOUND)
     foreach(bin ${bdb_bins})
       get_filename_component(base ${bin} NAME_WE)
-      set(src ${base}.c)
 
-      add_executable(${base}.bdb ${src})
+      add_executable(${base}.bdb ${base})
       set_property(TARGET ${base}.bdb APPEND PROPERTY
-        COMPILE_DEFINITIONS "ENVDIR=\"dir.${src}.bdb\";USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED")
+        COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED")
       set_target_properties(${base}.bdb PROPERTIES
         INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../portability;${CMAKE_CURRENT_SOURCE_DIR}/../..")
       target_link_libraries(${base}.bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
-      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${src}.bdb")
+      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
       add_common_options_to_binary_targets(${base}.bdb)
     endforeach(bin)
   endif()
@@ -393,7 +392,7 @@ if(BUILD_TESTING)
     add_dependencies(test1426.tdb tokudb_dump)
   endif()
 
-  string(REGEX REPLACE "\\.c(;|$)" ".tdb\\1" recover_would_be_tdb_tests "${recover_srcs}")
+  string(REGEX REPLACE "\\.cc?(;|$)" ".tdb\\1" recover_would_be_tdb_tests "${recover_srcs}")
   declare_custom_tests(${recover_would_be_tdb_tests})
 
   declare_custom_tests(powerfail.tdb)
@@ -405,7 +404,7 @@ if(BUILD_TESTING)
     COMMAND run_checkpoint_stress_test.sh $<TARGET_FILE:checkpoint_stress.tdb> 5 5001 137)
 
   declare_custom_tests(recover_stress.tdb)
-  add_custom_executable(recover stress.tdb checkpoint_stress.c)
+  add_custom_executable(recover stress.tdb checkpoint_stress)
   configure_file(run_recover_stress_test.sh . COPYONLY)
   add_test(NAME ydb/recover_stress.tdb
     COMMAND run_recover_stress_test.sh $<TARGET_FILE:recover_stress.tdb> 5 5001 137)
@@ -419,10 +418,10 @@ if(BUILD_TESTING)
   configure_file(run_recovery_fileops_unit_test.sh . COPYONLY)
   add_test(NAME ydb/recovery_fileops_unit.tdb
     COMMAND run_recovery_fileops_unit_test.sh $<TARGET_FILE:recovery_fileops_unit.tdb> 137)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.recovery_fileops_unit.c.errors")
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.recovery_fileops_unit.cc.errors")
 
   if (NOT (CMAKE_SYSTEM_NAME MATCHES Darwin OR
-           (CMAKE_C_COMPILER_ID STREQUAL Intel AND
+           (CMAKE_CXX_COMPILER_ID STREQUAL Intel AND
             CMAKE_BUILD_TYPE STREQUAL Release)
            OR USE_GCOV))
     declare_custom_tests(helgrind1.tdb)
@@ -438,27 +437,28 @@ if(BUILD_TESTING)
   declare_custom_tests(test_groupcommit_count.tdb)
   add_test(ydb/test_groupcommit_count.tdb test_groupcommit_count.tdb -n 1 -p vgrind)
 
-  add_custom_executable(helgrind test_groupcommit_count.tdb test_groupcommit_count.c)
+  add_custom_executable(helgrind test_groupcommit_count.tdb test_groupcommit_count)
   add_helgrind_test(ydb/helgrind_test_groupcommit_count.tdb $<TARGET_FILE:helgrind_test_groupcommit_count.tdb> -n 1 -p hgrind)
 
-  add_custom_executable(drd test_groupcommit_count.tdb test_groupcommit_count.c)
+  add_custom_executable(drd test_groupcommit_count.tdb test_groupcommit_count)
   add_drd_test(ydb/drd_test_groupcommit_count.tdb $<TARGET_FILE:drd_test_groupcommit_count.tdb> -n 1 -p drd)
 
-  add_custom_executable(drd test_4015.tdb test_4015.c)
+  add_custom_executable(drd test_4015.tdb test_4015)
   add_drd_test(ydb/drd_test_4015.tdb $<TARGET_FILE:drd_test_4015.tdb>)
 
   configure_file(run_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
     if(NOT ${src} MATCHES hot_index)
-      string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
+      get_filename_component(base ${src} NAME_WE)
+      set(test ${base}.tdb)
 
       add_test(ydb/${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000)
 
-      add_custom_executable(tiny ${test} ${src})
+      add_custom_executable(tiny ${test} ${base})
       add_drd_test(ydb/drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150)
-      add_custom_executable(mid ${test} ${src})
+      add_custom_executable(mid ${test} ${base})
       add_drd_test(ydb/drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100)
-      add_custom_executable(large ${test} ${src})
+      add_custom_executable(large ${test} ${base})
       add_drd_test(ydb/drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000)
       set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 12000)
     endif()
@@ -467,16 +467,17 @@ if(BUILD_TESTING)
   configure_file(run_upgrade_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
     if (NOT ${src} MATCHES test_stress_openclose)
-      string(REGEX REPLACE "\\.c$" ".tdb" test "${src}")
+      get_filename_component(base ${src} NAME_WE)
+      set(test ${base}.tdb)
 
       foreach(oldver 4.2.0 5.0.8 5.2.7 6.0.0)
         foreach(p_or_s pristine stressed)
-          if (NOT (${src} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
+          if (NOT (${base} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
             foreach(size 2000)
-              add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${src})
+              add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${base})
               add_test(
                 NAME ydb/${test}/upgrade/${oldver}/${p_or_s}/${size}
-                COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${src}.tdb ${size} 600)
+                COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${base}.tdb ${size} 600)
               set_tests_properties(ydb/${test}/upgrade/${oldver}/${p_or_s}/${size} PROPERTIES TIMEOUT 3600)
             endforeach(size)
           endif ()
@@ -516,8 +517,8 @@ if(BUILD_TESTING)
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES dir.test_abort4_${num}_0.tdb dir.test_abort4_${num}_1.tdb)
   endforeach(num)
 
-  set_property(SOURCE loader-stress-test.c APPEND PROPERTY COMPILE_DEFINITIONS
-    "OLDDATADIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../../../../tokudb.data/\"")
+  set_property(SOURCE loader-stress-test APPEND PROPERTY COMPILE_DEFINITIONS
+    "OLDDATADIR=\"${TOKU_SVNROOT}/tokudb.data/\"")
   list(REMOVE_ITEM loader_tests loader-stress-test.loader)
   add_test(ydb/loader-stress-test0.tdb loader-stress-test.tdb -c -e dir.loader-stress-test0.tdb)
   add_test(ydb/loader-stress-test1.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1.tdb)
@@ -605,8 +606,8 @@ if(BUILD_TESTING)
   foreach(recover_test ${recover_tests})
     get_filename_component(base ${recover_test} NAME_WE)
     add_test(NAME ydb/${recover_test}
-      COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "dir.${base}.c.tdb" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump_static>)
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.c.tdb" "dir.${base}.c.tdb.recover")
+      COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "dir.${base}.tdb" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump_static>)
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.tdb" "dir.${base}.tdb.recover")
   endforeach(recover_test)
 
   configure_file(run_abortrecover_test.sh . COPYONLY)

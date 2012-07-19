@@ -1,10 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef LOG_INTERNAL_H
 #define LOG_INTERNAL_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "ft-internal.h"
@@ -20,10 +20,6 @@
 #include <string.h>
 #include <dirent.h>
 #include "txn_manager.h"
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 // Locking for the logger
 //  For most purposes we use the big ydb lock.
@@ -149,7 +145,7 @@ struct tokutxn {
     // These don't either but they're created in a way that's hard to make
     // strictly const.
     DB_TXN *container_db_txn; // reference to DB_TXN that contains this tokutxn
-    OMT live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
+    xid_omt_t *live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
     XIDS xids; // Represents the xid list
 
     bool begin_was_logged;
@@ -260,10 +256,5 @@ static inline char *fixup_fname(BYTESTRING *f) {
     fname[f->len]=0;
     return fname;
 }
-
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif

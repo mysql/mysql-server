@@ -1,7 +1,7 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: test_stress1.c 35324 2011-10-04 01:48:45Z zardosht $"
+#ident "$Id$"
 #include "test.h"
 
 #include <stdio.h>
@@ -23,7 +23,7 @@ int state_to_crash = 0;
 
 static void *do_checkpoint_and_crash(void *arg) {
     // first verify that checkpointed_data is correct;
-    DB_ENV* env = cast_to_typeof(env) arg;
+    DB_ENV* CAST_FROM_VOIDP(env, arg);
     if (verbose) printf("starting a checkpoint\n");
     int r = env->txn_checkpoint(env, 0, 0, 0); assert(r==0);
     if (verbose) printf("completed a checkpoint, about to crash\n");

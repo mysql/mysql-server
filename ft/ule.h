@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 /* Purpose of this file is to provide the world with everything necessary
  * to use the nested transaction logic and nothing else.  No internal
@@ -10,13 +10,10 @@
 #define TOKU_ULE_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
-
+#include "txn_manager.h"
 #include "mempool.h"
 
 // opaque handles used by outside world (i.e. indexer)
@@ -69,13 +66,8 @@ int garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
                               OMT omt,
                               struct mempool *mp,
                               void **maybe_free,
-                              OMT snapshot_xids,
-                              OMT referenced_xids,
-                              OMT live_root_txns);
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
+                              const xid_omt_t &snapshot_xids,
+                              const rx_omt_t &referenced_xids,
+                              const xid_omt_t &live_root_txns);
 
 #endif  // TOKU_ULE_H
-

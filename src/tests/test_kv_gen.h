@@ -1,12 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 
 #ifndef __TEST_KV_GEN_H
 #define __TEST_KV_GEN_H
 
-#if defined(__cilkplusplus) || defined(__cplusplus)
-extern "C" {
-#endif
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
@@ -196,8 +194,5 @@ put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, con
     return 0;
 }
 
-#if defined(__cilkplusplus) || defined(__cplusplus)
-}
-#endif
 
 #endif // __TEST_KV_GEN_H

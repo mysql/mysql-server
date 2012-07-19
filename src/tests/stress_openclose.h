@@ -1,7 +1,7 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id: ft-refcount-stress.c 44373 2012-06-08 20:33:40Z esmet $"
+#ident "$Id$"
 
 #include <toku_pthread.h>
 #include "test.h"
@@ -125,7 +125,7 @@ static int
 scan_some_dbs(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
     int r = 0;
     verbose_printf("scanning some dbs\n");
-    struct scan_op_extra* extra = cast_to_typeof(extra) operation_extra;
+    struct scan_op_extra* CAST_FROM_VOIDP(extra, operation_extra);
     // scan every db, one by one, and verify that the contents are correct
     for (int i = 0; r == 0 && run_test && i < arg->cli->num_DBs; i++) {
         struct db_bucket *bucket = lock_and_maybe_open_some_db(arg);
