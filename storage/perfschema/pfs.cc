@@ -1725,9 +1725,18 @@ static void close_table_v1(PSI_table *table)
 }
 
 static PSI_socket*
-init_socket_v1(PSI_socket_key key, const my_socket *fd)
+init_socket_v1(PSI_socket_key key, const my_socket *fd,
+               const struct sockaddr *addr, socklen_t addr_len)
 {
-  INIT_BODY_V1(socket, key, fd);
+  PFS_socket_class *klass;
+  PFS_socket *pfs;
+  klass= find_socket_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  if (! klass->m_enabled)
+    return NULL;
+  pfs= create_socket(klass, fd, addr, addr_len);
+  return reinterpret_cast<PSI_socket *> (pfs);
 }
 
 static void destroy_socket_v1(PSI_socket *socket)

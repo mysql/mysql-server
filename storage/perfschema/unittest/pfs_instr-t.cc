@@ -188,10 +188,10 @@ void test_no_instances()
   ok(table == NULL, "no table");
   ok(table_lost == 2, "lost 2");
 
-  socket= create_socket(& dummy_socket_class, NULL);
+  socket= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket == NULL, "no socket");
   ok(socket_lost == 1, "lost 1");
-  socket= create_socket(& dummy_socket_class, NULL);
+  socket= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket == NULL, "no socket");
   ok(socket_lost == 2, "lost 2");
 
@@ -364,17 +364,17 @@ void test_with_instances()
   ok(file_2 == NULL, "no file");
   ok(file_lost == 2, "lost");
 
-  socket_1= create_socket(& dummy_socket_class, NULL);
+  socket_1= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_1 != NULL, "socket");
   ok(socket_lost == 0, "not lost");
-  socket_2= create_socket(& dummy_socket_class, NULL);
+  socket_2= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_2 != NULL, "socket");
   ok(socket_lost == 0, "not lost");
-  socket_2= create_socket(& dummy_socket_class, NULL);
+  socket_2= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_2 == NULL, "no socket");
   ok(socket_lost == 1, "lost 1");
   destroy_socket(socket_1);
-  socket_2= create_socket(& dummy_socket_class, NULL);
+  socket_2= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_2 != NULL, "socket");
   ok(socket_lost == 1, "no new loss");
 

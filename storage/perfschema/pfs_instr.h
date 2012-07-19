@@ -538,7 +538,10 @@ PFS_table* create_table(PFS_table_share *share, PFS_thread *opening_thread,
                         const void *identity);
 void destroy_table(PFS_table *pfs);
 
-PFS_socket* create_socket(PFS_socket_class *socket_class, const void *identity);
+PFS_socket* create_socket(PFS_socket_class *socket_class,
+                          const my_socket *fd,
+                          const struct sockaddr *addr,
+                          socklen_t addr_len);
 void destroy_socket(PFS_socket *pfs);
 
 /* For iterators and show status. */
