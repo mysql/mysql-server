@@ -1189,10 +1189,13 @@ typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
   Socket instrumentation initialisation API.
   @param key the registered mutex key
   @param socket descriptor
+  @param addr the socket ip address
+  @param addr_len length of socket ip address
   @return an instrumented socket
 */
 typedef struct PSI_socket* (*init_socket_v1_t)
-  (PSI_socket_key key, const my_socket *fd);
+  (PSI_socket_key key, const my_socket *fd,
+  const struct sockaddr *addr, socklen_t addr_len);
 
 /**
   socket instrumentation destruction API.

@@ -119,7 +119,8 @@ static void destroy_cond_noop(PSI_cond* cond NNN)
 }
 
 static PSI_socket*
-init_socket_noop(PSI_socket_key key NNN, const my_socket *fd NNN)
+init_socket_noop(PSI_socket_key key NNN, const my_socket *fd NNN,
+                 const struct sockaddr *addr NNN, socklen_t addr_len NNN)
 {
   return NULL;
 }

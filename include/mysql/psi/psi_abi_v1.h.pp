@@ -319,7 +319,8 @@ typedef struct PSI_cond* (*init_cond_v1_t)
   (PSI_cond_key key, const void *identity);
 typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 typedef struct PSI_socket* (*init_socket_v1_t)
-  (PSI_socket_key key, const my_socket *fd);
+  (PSI_socket_key key, const my_socket *fd,
+  const struct sockaddr *addr, socklen_t addr_len);
 typedef void (*destroy_socket_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_table_share* (*get_table_share_v1_t)
   (my_bool temporary, struct TABLE_SHARE *share);
