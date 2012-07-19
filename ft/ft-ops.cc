@@ -3775,16 +3775,16 @@ struct copy_to_stale_extra {
 };
 
 // template-only function, but must be extern
-int copy_to_stale(const long &offset, const uint32_t UU(idx), struct copy_to_stale_extra &extra);
-int
-copy_to_stale(const long &offset, const uint32_t UU(idx), struct copy_to_stale_extra &extra)
+int copy_to_stale(const long &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
+    __attribute__((nonnull(3)));
+int copy_to_stale(const long &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
 {
-    struct fifo_entry *entry = (struct fifo_entry *) toku_fifo_get_entry(extra.bnc->buffer, offset);
+    struct fifo_entry *entry = (struct fifo_entry *) toku_fifo_get_entry(extra->bnc->buffer, offset);
     entry->is_fresh = false;
     DBT keydbt;
     DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
-    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra.ft_handle->ft->cmp_descriptor, .cmp = extra.ft_handle->ft->compare_fun, .fifo = extra.bnc->buffer, .key = key, .msn = entry->msn };
-    int r = extra.bnc->stale_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, heaviside_extra, nullptr);
+    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft_handle->ft->cmp_descriptor, .cmp = extra->ft_handle->ft->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
+    int r = extra->bnc->stale_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, heaviside_extra, nullptr);
     assert_zero(r);
     return r;
 }
@@ -3795,12 +3795,12 @@ struct store_fifo_offset_extra {
 };
 
 // template-only function, but must be extern
-int store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_fifo_offset_extra &extra);
-int
-store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_fifo_offset_extra &extra)
+int store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
+    __attribute__((nonnull(3)));
+int store_fifo_offset(const long &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
 {
-    extra.offsets[extra.i] = offset;
-    extra.i++;
+    extra->offsets[extra->i] = offset;
+    extra->i++;
     return 0;
 }
 
@@ -3873,13 +3873,13 @@ struct iterate_do_bn_apply_cmd_extra {
 };
 
 // template-only function, but must be extern
-int iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra &e);
-int
-iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra &e)
+int iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
+    __attribute__((nonnull(3)));
+int iterate_do_bn_apply_cmd(const long &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
 {
-    NONLEAF_CHILDINFO bnc = BNC(e.ancestor, e.childnum);
+    NONLEAF_CHILDINFO bnc = BNC(e->ancestor, e->childnum);
     const struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offset);
-    do_bn_apply_cmd(e.t, e.bn, e.ancestor, e.childnum, entry, e.stats_to_update);
+    do_bn_apply_cmd(e->t, e->bn, e->ancestor, e->childnum, entry, e->stats_to_update);
     return 0;
 }
 
@@ -4032,15 +4032,15 @@ bnc_apply_messages_to_basement_node(
         struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
 
         // Populate offsets array with offsets to stale messages
-        r = bnc->stale_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(stale_lbi, stale_ube, sfo_extra);
+        r = bnc->stale_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(stale_lbi, stale_ube, &sfo_extra);
         assert_zero(r);
 
         // Then store fresh offsets
-        r = bnc->fresh_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(fresh_lbi, fresh_ube, sfo_extra);
+        r = bnc->fresh_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(fresh_lbi, fresh_ube, &sfo_extra);
         assert_zero(r);
 
         // Store offsets of all broadcast messages.
-        r = bnc->broadcast_list.iterate<struct store_fifo_offset_extra, store_fifo_offset>(sfo_extra);
+        r = bnc->broadcast_list.iterate<struct store_fifo_offset_extra, store_fifo_offset>(&sfo_extra);
         assert_zero(r);
         invariant(sfo_extra.i == buffer_size);
 
@@ -4060,7 +4060,7 @@ bnc_apply_messages_to_basement_node(
         // No stale messages to apply, we just apply fresh messages.
         struct iterate_do_bn_apply_cmd_extra iter_extra = { .t = t, .bn = bn, .ancestor = ancestor, .childnum = childnum, .stats_to_update = &stats_delta};
         if (fresh_ube - fresh_lbi > 0) *msgs_applied = TRUE;
-        r = bnc->fresh_message_tree.iterate_on_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(fresh_lbi, fresh_ube, iter_extra);
+        r = bnc->fresh_message_tree.iterate_on_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(fresh_lbi, fresh_ube, &iter_extra);
         assert_zero(r);
     } else if (fresh_lbi == fresh_ube) {
         // No fresh messages to apply, we just apply stale messages.
@@ -4068,7 +4068,7 @@ bnc_apply_messages_to_basement_node(
         if (stale_ube - stale_lbi > 0) *msgs_applied = TRUE;
         struct iterate_do_bn_apply_cmd_extra iter_extra = { .t = t, .bn = bn, .ancestor = ancestor, .childnum = childnum , .stats_to_update = &stats_delta};
 
-        r = bnc->stale_message_tree.iterate_on_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(stale_lbi, stale_ube, iter_extra);
+        r = bnc->stale_message_tree.iterate_on_range<struct iterate_do_bn_apply_cmd_extra, iterate_do_bn_apply_cmd>(stale_lbi, stale_ube, &iter_extra);
         assert_zero(r);
     } else {
         // We have stale and fresh messages but no broadcasts.  We can
@@ -4157,7 +4157,7 @@ bnc_apply_messages_to_basement_node(
     // procedures because we're still looking at the fresh tree.  Instead
     // we have to move messages after we're done looking at it.
     struct copy_to_stale_extra cts_extra = { .ft_handle = t, .bnc = bnc };
-    r = bnc->fresh_message_tree.iterate_on_range<struct copy_to_stale_extra, copy_to_stale>(fresh_lbi, fresh_ube, cts_extra);
+    r = bnc->fresh_message_tree.iterate_on_range<struct copy_to_stale_extra, copy_to_stale>(fresh_lbi, fresh_ube, &cts_extra);
     assert_zero(r);
     for (uint32_t ube = fresh_ube; fresh_lbi < ube; --ube) {
         // When we delete the message at the fresh_lbi index, everything

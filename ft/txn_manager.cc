@@ -417,22 +417,22 @@ done:
 }
 
 // template-only function, but must be extern
-int referenced_xids_note_snapshot_txn_end_iter(const TXNID &live_xid, const uint32_t UU(index), rx_omt_t &referenced_xids);
-int
-referenced_xids_note_snapshot_txn_end_iter(const TXNID &live_xid, const uint32_t UU(index), rx_omt_t &referenced_xids)
+int referenced_xids_note_snapshot_txn_end_iter(const TXNID &live_xid, const uint32_t UU(index), rx_omt_t *const referenced_xids)
+    __attribute__((nonnull(3)));
+int referenced_xids_note_snapshot_txn_end_iter(const TXNID &live_xid, const uint32_t UU(index), rx_omt_t *const referenced_xids)
 {
     int r;
     uint32_t idx;
     struct referenced_xid_tuple *tuple;
 
-    r = referenced_xids.find_zero<TXNID, find_tuple_by_xid>(live_xid, &tuple, &idx);
+    r = referenced_xids->find_zero<TXNID, find_tuple_by_xid>(live_xid, &tuple, &idx);
     if (r == DB_NOTFOUND) {
         goto done;
     }
     invariant_zero(r);
     invariant(tuple->references > 0);
     if (--tuple->references == 0) {
-        r = referenced_xids.delete_at(idx);
+        r = referenced_xids->delete_at(idx);
         lazy_assert_zero(r);
     }
 done:
@@ -443,7 +443,7 @@ done:
 static int
 referenced_xids_note_snapshot_txn_end(TXN_MANAGER mgr, const xid_omt_t &live_root_txn_list) {
     int r;
-    r = live_root_txn_list.iterate<rx_omt_t, referenced_xids_note_snapshot_txn_end_iter>(mgr->referenced_xids);
+    r = live_root_txn_list.iterate<rx_omt_t, referenced_xids_note_snapshot_txn_end_iter>(&mgr->referenced_xids);
     invariant_zero(r);
     return r;
 }

@@ -1243,11 +1243,11 @@ static uint32_t recover_get_num_live_txns(RECOVER_ENV renv) {
 }
 
 // template-only function, but must be extern
-int is_txn_unprepared (const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN &extra);
-int
-is_txn_unprepared (const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN &extra) {
+int is_txn_unprepared(const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN *const extra)
+    __attribute__((nonnull(3)));
+int is_txn_unprepared(const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN *const extra) {
     if (txn->state != TOKUTXN_PREPARING) {
-        extra = txn;
+        *extra = txn;
         return -1; // return -1 to get iterator to return
     }
     return 0;
@@ -1255,13 +1255,13 @@ is_txn_unprepared (const TOKUTXN &txn, const uint32_t UU(index), TOKUTXN &extra)
 
 
 static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
-    TOKUTXN txn = NULL;
+    TOKUTXN txn = nullptr;
     int r = toku_txn_manager_iter_over_live_txns<TOKUTXN, is_txn_unprepared>(
         renv->logger->txn_manager,
-        txn
+        &txn
         );
     assert(r == 0 || r == -1);
-    if (txn != NULL) {
+    if (txn != nullptr) {
         *txnp = txn;
         return 0;
     }
@@ -1269,10 +1269,10 @@ static int find_an_unprepared_txn (RECOVER_ENV renv, TOKUTXN *txnp) {
 }
 
 // template-only function, but must be extern
-int call_prepare_txn_callback_iter (const TOKUTXN &txn, const uint32_t UU(index), RECOVER_ENV &renv);
-int
-call_prepare_txn_callback_iter (const TOKUTXN &txn, const uint32_t UU(index), RECOVER_ENV &renv) {
-    renv->prepared_txn_callback(renv->env, txn);
+int call_prepare_txn_callback_iter(const TOKUTXN &txn, const uint32_t UU(index), RECOVER_ENV *const renv)
+    __attribute__((nonnull(3)));
+int call_prepare_txn_callback_iter(const TOKUTXN &txn, const uint32_t UU(index), RECOVER_ENV *const renv) {
+    (*renv)->prepared_txn_callback((*renv)->env, txn);
     return 0;
 }
 
@@ -1285,7 +1285,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
             // abort the transaction
             r = toku_txn_abort_txn(txn, NULL, NULL);
             assert(r == 0);
-            
+
             // close the transaction
             toku_txn_close_txn(txn);
         } else if (r==DB_NOTFOUND) {
@@ -1298,7 +1298,7 @@ static void recover_abort_live_txns(RECOVER_ENV renv) {
     // Now we have only prepared txns.  These prepared txns don't have full DB_TXNs in them, so we need to make some.
     int r = toku_txn_manager_iter_over_live_txns<RECOVER_ENV, call_prepare_txn_callback_iter>(
         renv->logger->txn_manager,
-        renv
+        &renv
         );
     assert_zero(r);
 }
