@@ -148,9 +148,6 @@ struct cachetable {
     KIBBUTZ checkpointing_kibbutz; // small pool for checkpointing cloned pairs
 
     LSN lsn_of_checkpoint_in_progress;
-    // Variables used to detect threadsafety bugs are declared volatile to prevent compiler from using thread-local cache.
-    volatile BOOL checkpoint_is_beginning;    // TRUE during begin_checkpoint(), used for detecting threadsafety bugs
-    volatile uint64_t checkpoint_prohibited;  // nonzero when checkpoints are prohibited,  used for detecting threadsafety bugs
     u_int32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
     u_int32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
@@ -204,16 +201,6 @@ toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS statp) {
     *statp = ct_status;
 }
 
-
-// Code bracketed with {BEGIN_CRITICAL_REGION; ... END_CRITICAL_REGION;} macros
-// are critical regions in which a checkpoint is not permitted to begin.
-// Must increment checkpoint_prohibited before testing checkpoint_is_beginning
-// on entry to critical region.
-#define BEGIN_CRITICAL_REGION {__sync_fetch_and_add(&ct->checkpoint_prohibited, 1); invariant(!ct->checkpoint_is_beginning);}
-
-// Testing checkpoint_prohibited at end of critical region is just belt-and-suspenders redundancy,
-// verifying that we just incremented it with the matching BEGIN macro.
-#define END_CRITICAL_REGION {invariant(ct->checkpoint_prohibited > 0); __sync_fetch_and_sub(&ct->checkpoint_prohibited, 1);}
 
 // Lock the cachetable. Used for a variety of purposes. 
 static inline void cachetable_lock(CACHETABLE ct __attribute__((unused))) {
@@ -1579,8 +1566,6 @@ int toku_cachetable_put_with_dep_pairs(
     maybe_flush_some(ct, attr.size);
     int rval;
     {
-        BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
-
         get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
         rval = cachetable_put_internal(
                                        cachefile,
@@ -1603,8 +1588,6 @@ int toku_cachetable_put_with_dep_pairs(
                                    dependent_fullhash,
                                    dependent_dirty
                                    );
-
-        END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
     }
     cachetable_unlock(ct);
     return rval;
@@ -1796,7 +1779,6 @@ static void checkpoint_pair_and_dependent_pairs(
     enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
     )
 {
-    //BEGIN_CRITICAL_REGION;   // checkpoint may not begin inside critical region, detect and crash if one begins
     
     //
     // A checkpoint must not begin while we are checking dependent pairs or pending bits. 
@@ -1832,8 +1814,6 @@ static void checkpoint_pair_and_dependent_pairs(
         dependent_fullhash,
         dependent_dirty
         );
-    
-    //END_CRITICAL_REGION;    // checkpoint after this point would no longer cause a threadsafety bug
 }
 
 int toku_cachetable_get_and_pin_with_dep_pairs (
@@ -2846,8 +2826,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
         // state of this PAIR.
         //
         rwlock_write_lock(&ct->pending_lock, &ct->mutex);
-        ct->checkpoint_is_beginning = TRUE;         // detect threadsafety bugs, must set checkpoint_is_beginning ...
-        invariant(ct->checkpoint_prohibited == 0);  // ... before testing checkpoint_prohibited
         bjm_reset(ct->checkpoint_clones_bjm);
         for (i=0; i < ct->table_size; i++) {
             PAIR p;
@@ -2891,7 +2869,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 }
             }
         }
-        ct->checkpoint_is_beginning = FALSE;  // clear before releasing cachetable lock
         cachetable_unlock(ct);
     }
     return 0;
