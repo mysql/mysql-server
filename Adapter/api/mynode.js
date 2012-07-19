@@ -39,7 +39,6 @@ exports.ConnectionProperties = function(name) {
 };
 
 
-//connect(Properties, Annotations, Function(err, SessionFactory[, ...]) callback[, ...]);
 exports.connect = function(properties, annotations, user_callback) {
   var mynode = this;
   var sp = spi.getDBServiceProvider(properties.implementation);
@@ -60,7 +59,7 @@ exports.connect = function(properties, annotations, user_callback) {
     else {
       console.log("Error is: " + error);
     } 
-    user_callback(error, factory);
+    user_callback(error, factory); //todo: extra parameters
   };
 
   if(typeof(factory) == 'undefined') {
@@ -72,12 +71,12 @@ exports.connect = function(properties, annotations, user_callback) {
 };
 
 
-exports.openSession = function(properties, annotations, callback) {
+exports.openSession = function(properties, annotations, user_callback) {
   exports.connect(properties, annotations, function(err, factory) {
     if(! err) {
-      var session = factory.openSession();
+      var session = factory.openSession(annotations, user_callback);
     } 
-    callback(err, session);   // todo: extra parameters
+    user_callback(err, session);   // todo: extra parameters
   });
 };
 
