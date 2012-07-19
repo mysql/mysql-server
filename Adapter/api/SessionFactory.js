@@ -25,18 +25,26 @@ var SessionFactory = function(key) {
   this.dbconnection = {};
   this.annotations = {};
   this.properties = {};
-}
+};
 
 
 //openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool
 SessionFactory.prototype.openSession = function(annotations, user_callback) {
-  this.session = new session.Session();
-  session.connection = this.dbconnection;
-  
-  user_callback(null, this.session);  // todo: extras
-}
+  var newSession = new session.Session();
+  newSession.connection = this.dbconnection;
+  user_callback(null, newSession);  // todo: extras
+};
 
+SessionFactory.prototype.close = function() {
+  // TODO: close all sessions first
+  if (this.dbconnection != null) {
+    this.dbconnection.closeSync();
+    this.dbconnection = null;
+  }
+  if (debug) console.log('SessionFactory.close ' + this.key);
+  this.delete_callback(this.key);
+};
 
 
 exports.SessionFactory = SessionFactory;

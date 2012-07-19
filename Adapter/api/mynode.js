@@ -53,12 +53,9 @@ exports.connect = function(properties, annotations, user_callback) {
       factory.dbconnection = dbconnection;
       factory.properties = properties;
       factory.annotations = annotations;
+      factory.delete_callback = deleteFactory;
       factories[factoryKey] = factory;
-      console.dir(factories);
     }
-    else {
-      console.log("Error is: " + error);
-    } 
     user_callback(error, factory); //todo: extra parameters
   };
 
@@ -81,6 +78,15 @@ exports.openSession = function(properties, annotations, user_callback) {
 };
 
 
+exports.getOpenSessionFactories = function() {
+  var result = [];
+  for (x in factories) {
+    result.push(factories[x]);
+  }
+  return result;
+};
 
-
-
+deleteFactory = function(key) {
+  if (debug) console.log('mynode.deleteFactory for ' + key);
+  delete factories[key];
+};
