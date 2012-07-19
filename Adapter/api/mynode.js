@@ -22,7 +22,15 @@ var spi = require("../impl/SPI.js");
 var annotations = require("./Annotations.js");
 var sessionfactory = require("./SessionFactory.js");
 
-var factories = {};
+/** connections is a hash of connectionKey to Connection */
+var connections = {};
+
+/** Connection contains a hash of database to SessionFactory */
+var Connection = function(dbconnection) {
+  this.dbconnection = dbconnection;
+  this.factories = {};
+  this.count = 0;
+};
 
 exports.Annotations = function() {
   return new annotations.Annotations();
@@ -42,27 +50,47 @@ exports.ConnectionProperties = function(name) {
 exports.connect = function(properties, annotations, user_callback) {
   var mynode = this;
   var sp = spi.getDBServiceProvider(properties.implementation);
-  var factoryKey = sp.getFactoryKey(properties);
+  var connectionKey = sp.getFactoryKey(properties);
+  var database = properties.database;
+  var connection = connections[connectionKey];
   
-  var factory = factories[factoryKey];
-
-  var mycallback = function(error, dbconnection) {
+  var createFactory = function(dbconnection) {
+    if (debug) console.log('mynode.connect createFactory creating factory for ' + connectionKey + ' database ' + database);
+    newFactory = new sessionfactory.SessionFactory(connectionKey);
+    newFactory.dbconnection = dbconnection;
+    newFactory.properties = properties;
+    newFactory.annotations = annotations;
+    newFactory.delete_callback = deleteFactory;
+    return newFactory;
+  };
+  
+  var dbconnectionCreated = function(error, dbconnection) {
     if(! error) {
-      factory = new sessionfactory.SessionFactory(factoryKey);
+      if (debug) console.log('mynode.connect dbconnectionCreated creating factory for ' + connectionKey + ' database ' + database);
+      var connection = new Connection(dbconnection);
+      connections[connectionKey] = connection;
       
-      factory.dbconnection = dbconnection;
-      factory.properties = properties;
-      factory.annotations = annotations;
-      factory.delete_callback = deleteFactory;
-      factories[factoryKey] = factory;
+      factory = createFactory(dbconnection);
+      connection.factories[database] = factory;
+      connection.count++;
     }
     user_callback(error, factory); //todo: extra parameters
   };
 
-  if(typeof(factory) == 'undefined') {
-    sp.connect(properties, mycallback);
-  }
-  else { 
+  if(typeof(connection) == 'undefined') {
+    // there is no connection yet using this connection key    
+    if (debug) console.log('mynode.connect connection does not exist; creating factory for ' + connectionKey + ' database ' + database);
+    sp.connect(properties, dbconnectionCreated);
+  } else {
+    // there is a connection, but is there a SessionFactory for this database?
+    factory = connection.factories[database];
+    if (typeof(factory) == 'undefined') {
+      // create a SessionFactory for the existing dbconnection
+      if (debug) console.log('mynode.connect creating factory with existing ' + connectionKey + ' database ' + database);
+      factory = createFactory();
+      connection.factories[database] = factory;
+      connection.count++;
+    } 
     user_callback(null, factory);   //todo: extra parameters
   }
 };
@@ -80,13 +108,31 @@ exports.openSession = function(properties, annotations, user_callback) {
 
 exports.getOpenSessionFactories = function() {
   var result = [];
-  for (x in factories) {
-    result.push(factories[x]);
+  for (x in connections) {
+    for (y in connections[x].factories) {
+      var factory = connections[x].factories[y];
+      result.push(factory);
+    }
   }
   return result;
 };
 
-deleteFactory = function(key) {
-  if (debug) console.log('mynode.deleteFactory for ' + key);
-  delete factories[key];
+/** deleteFactory is called only from SessionFactory.close() */
+deleteFactory = function(key, database) {
+  if (debug) console.log('mynode.deleteFactory for key ' + key + ' database ' + database);
+  var connection = connections[key];
+  var factory = connection.factories[database];
+  var dbconnection = factory.dbconnection;
+  
+  delete connection.factories[database];
+  if (--connection.count == 0) {
+    // no more factories in this connection
+    if (debug) console.log('mynode.deleteFactory closing dbconnection for key ' + key + ' database ' + database);
+    if (dbconnection != null) {
+      dbconnection.closeSync();
+      dbconnection = null;
+      delete connections[key];
+    }
+  };
+  
 };
