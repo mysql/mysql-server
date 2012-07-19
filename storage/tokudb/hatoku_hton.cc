@@ -3,7 +3,6 @@
 #include "hatoku_defines.h"
 #include <db.h>
 
-extern "C" {
 #include "stdint.h"
 #if defined(_WIN32)
 #include "misc.h"
@@ -12,7 +11,6 @@ extern "C" {
 #include <inttypes.h>
 #include "toku_os.h"
 #include "toku_time.h"
-}
 
 /* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
 #ifdef HAVE_DTRACE

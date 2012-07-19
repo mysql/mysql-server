@@ -1,10 +1,7 @@
 #ifndef _HATOKU_CMP
 #define _HATOKU_CMP
 
-extern "C" {
 #include "stdint.h"
-}
-
 
 #include <db.h>
 
