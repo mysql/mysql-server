@@ -2849,6 +2849,10 @@ if test -d "$srcdir/cmd-line-utils/readline" ; then
   AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
 fi
 
+if test -d "$srcdir/internal" ; then
+  AC_CONFIG_FILES(internal/Makefile)
+fi
+
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/strings/Makefile dnl
