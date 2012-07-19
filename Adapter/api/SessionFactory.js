@@ -18,11 +18,25 @@
  02110-1301  USA
  */
 
+var session = require("./Session.js");
 
-var SessionFactory = function (key) {
-  console.log("SessionFactory constructor");
+var SessionFactory = function(key) {
+  this.key = key;
+  this.dbconnection = {};
+  this.annotations = {};
+  this.properties = {};
+}
+
+
+//openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
+// Open new session or get one from a pool
+SessionFactory.prototype.openSession = function(annotations, user_callback) {
+  this.session = new session.Session();
+  session.connection = this.dbconnection;
+  
+  user_callback(null, this.session);  // todo: extras
 }
 
 
 
-exports.sessionFactory = SessionFactory;
+exports.SessionFactory = SessionFactory;
