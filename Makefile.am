@@ -24,7 +24,7 @@ EXTRA_DIST =		INSTALL-SOURCE INSTALL-WIN-SOURCE \
 SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 			@readline_topdir@ sql-common scripts \
 			@sql_union_dirs@ unittest \
-			@sql_server@ @man_dirs@ tests internal \
+			@sql_server@ @man_dirs@ tests \
 			netware @libmysqld_dirs@ \
 			mysql-test support-files sql-bench @tools_dirs@ \
 			win
