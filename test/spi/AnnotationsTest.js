@@ -18,12 +18,53 @@
  02110-1301  USA
  */
 
-var test1 = new harness.Test("AnnotationsConstructor");
-test1.run = function() {
+domainClass = function(id, name, age, magic) {
+  this.id = id;
+  this.name = name;
+  this.age = age;
+  this.magic = magic;
+};
+
+var t1 = new harness.ConcurrentTest("AnnotationsConstructor");
+t1.run = function() {
   var annotations = new mynode.Annotations();
+  return true;
+};
+
+var t2 = new harness.ConcurrentTest("strict");
+t2.run = function() {
+  var annotations = new mynode.Annotations();
+  annotations.strict(true);
+  return true;
+};
+
+var t3 = new harness.ConcurrentTest("mapAllTables");
+t3.run = function() {
+  var annotations = new mynode.Annotations();
+  annotations.mapAllTables(true);
+  return true;
+};
+
+var t4 = new harness.ConcurrentTest("mapClass");
+t4.run = function() {
+  var annotations = new mynode.Annotations();
+  annotations.strict(true);
+  annotations.mapClass(domainClass.prototype, {
+    "table" : "t_basic",
+    "schema" : "def",
+    "database" : "test",
+    "autoIncrementBatchSize" : 1,
+    "mapAllColumns" : false,
+    "fields" : {
+      "name" : "id",
+      "nullValue" : "NONE",
+      "column" : "id",
+      "notPersistent" : false
+    }
+  });
   return true; // test is complete
 };
 
-var group = new harness.Test("annotations").makeTestGroup(test1);
+var group = new harness.Test("annotations").makeTestGroup(t1, t2, t3, t4);
 
 module.exports = group;

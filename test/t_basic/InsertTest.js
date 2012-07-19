@@ -34,7 +34,7 @@ var testInsert = function() {
   annotations.mapClass(Employee.prototype,
       {'table' : 't_basic'});
   var session;
-  mynode.getSession(properties, annotations, function(err, session) {
+  mynode.openSession(properties, annotations, function(err, session) {
     // use the session to insert an instance
     var employee = new Employee();
     employee.id = 999;

@@ -53,6 +53,8 @@
    * The field mapping object is a javascript object that contains
    * properties and defaults:
    *
+   * "name"          : no default
+   *
    * "nullValue"     : "NONE" Behavior when this field contains a null value when
    *                      persisting the object.
    *                      One of "NONE", "EXCEPTION", or "DEFAULT"
