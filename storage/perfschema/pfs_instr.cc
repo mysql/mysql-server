@@ -1434,8 +1434,8 @@ PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
   if (fd != NULL)
     fd_used= *fd;
 
-  if (addr_len > sizeof(sockaddr_storage))
-    addr_len= sizeof(sockaddr_storage);
+  if (addr_len_used > sizeof(sockaddr_storage))
+    addr_len_used= sizeof(sockaddr_storage);
 
   while (++attempts <= socket_max)
   {
