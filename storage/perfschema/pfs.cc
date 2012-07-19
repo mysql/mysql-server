@@ -4356,10 +4356,11 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
   if (flag_statements_digest)
   {
+    const CHARSET_INFO *cs= static_cast <const CHARSET_INFO*> (charset);
     flags|= STATE_FLAG_DIGEST;
     state->m_digest_state.m_last_id_index= 0;
     digest_reset(& state->m_digest_state.m_digest_storage);
-    state->m_digest_state.m_digest_storage.m_charset= charset;
+    state->m_digest_state.m_digest_storage.m_charset_number= cs->number;
   }
 
   state->m_discarded= false;
