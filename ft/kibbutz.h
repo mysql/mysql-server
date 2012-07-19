@@ -8,12 +8,6 @@
 
 //
 // The kibbutz is another threadpool meant to do arbitrary work.
-// It is introduced in Dr. No, and as of Dr. No, the only work kibbutzim
-// do is flusher thread work. In Dr. No, we already have a threadpool for 
-// the writer threads and a threadpool for serializing ftnodes. A natural
-// question is why did we introduce another threadpool in Dr. No. The short
-// answer is that this was the simplest way to get the flusher threads work 
-// done.
 //
 
 typedef struct kibbutz *KIBBUTZ;

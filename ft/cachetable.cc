@@ -2518,6 +2518,7 @@ toku_cachetable_close (CACHETABLE *ctp) {
     toku_kibbutz_destroy(ct->checkpointing_kibbutz);
     bjm_destroy(ct->checkpoint_clones_bjm);
     toku_cond_destroy(&ct->flow_control_cond);
+    toku_mutex_destroy(&ct->mutex);
     toku_free(ct->table);
     toku_free(ct->env_dir);
     toku_free(ct);
@@ -2632,14 +2633,10 @@ int toku_cachetable_unpin_and_remove (
             // 
             cachetable_remove_pair(ct, p);
             if (nb_mutex_blocked_writers(&p->value_nb_mutex)>0) {
-                toku_cond_t cond;
-                toku_cond_init(&cond, NULL);
                 nb_mutex_wait_for_users(
                     &p->value_nb_mutex,
-                    &ct->mutex,
-                    &cond
+                    &ct->mutex
                     );
-                toku_cond_destroy(&cond);
                 assert(!p->checkpoint_pending);
                 assert(p->attr.cache_pressure_size == 0);
             }
