@@ -9748,6 +9748,11 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   cur_quick= cur_quick_it++;
   DBUG_ASSERT(cur_quick != 0);
   
+  DBUG_EXECUTE_IF("simulate_bug13919180",
+                  {
+                    my_error(ER_UNKNOWN_ERROR, MYF(0));
+                    DBUG_RETURN(1);
+                  });
   /*
     We reuse the same instance of handler so we need to call both init and 
     reset here.
