@@ -45,7 +45,7 @@ struct omt {
     /**
      * 
      */
-    void create_from_sorted_array(const omtdata_t *values, const uint32_t numvalues)
+    void create_from_sorted_array(const omtdata_t *const values, const uint32_t numvalues)
     {
         this->create_internal(numvalues);
         memcpy(this->d.a.values, values, numvalues * (sizeof values[0]));
@@ -196,7 +196,7 @@ struct omt {
      */
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int insert(const omtdata_t &value, const omtcmp_t &v, uint32_t *idx)
+    int insert(const omtdata_t &value, const omtcmp_t &v, uint32_t *const idx)
     {
         int r;
         uint32_t insert_idx;
@@ -327,7 +327,7 @@ struct omt {
     /**
      * 
      */
-    int fetch(const uint32_t idx, omtdataout_t *value) const
+    int fetch(const uint32_t idx, omtdataout_t *const value) const
     {
         if (idx >= this->size()) { return EINVAL; }
         if (this->is_array) {
@@ -343,7 +343,7 @@ struct omt {
      */
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_zero(const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const
+    int find_zero(const omtcmp_t &extra, omtdataout_t *const value, uint32_t *const idxp) const
     {
         uint32_t tmp_index;
         uint32_t *const child_idxp = (idxp != nullptr) ? idxp : &tmp_index;
