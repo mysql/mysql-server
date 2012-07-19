@@ -52,9 +52,12 @@ var connectAsyncTest = function() {
   var testCase = this;
   var provider = spi.getDBServiceProvider(this.impl);
   var properties = provider.getDefaultConnectionProperties();
-  provider.connect(properties, function(err, connection) {
+  var connection = provider.connect(properties, function(err, connection) {
     if(err) testCase.fail(err);
-    else testCase.pass();
+    else {
+      connection.closeSync();
+      testCase.pass();
+    }
   });
 };
 

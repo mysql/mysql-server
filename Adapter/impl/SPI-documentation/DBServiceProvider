@@ -21,3 +21,10 @@ DBConnection connectSync(Object properties);
    ASYNC.
 */
 connect(Object properties, Function(err, DBConnection) callback);
+
+
+/* Create a SessionFactory key based on connection properties.
+   IMMEDIATE
+*/
+String getFactoryKey(Object properties);
+

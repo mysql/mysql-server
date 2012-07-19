@@ -37,7 +37,7 @@ using namespace v8;
  isBinary: ""   ,     //  TRUE for BLOB/BINARY/VARBINARY
  charset: ""    ,     //  name of charset
  name: ""       ,     //  column name
- columnNo: ""   ,     //  position of column in table
+ columnNumber: "",     //  position of column in table
  isPrimaryKey: "",    //  TRUE if column is part of PK
  userData : ""        //  Data stored in the DBColumn by the ORM layer
  };
@@ -187,7 +187,11 @@ Handle<Value> getColumnCharset(bool do_test, NdbDictionary::Column *col) {
 }
 
 
-
+Handle<Value> getColumnCharset(bool do_test, NdbDictionary::Column *col) {
+  HandleScope scope;
+  if(! do_test) return Null();
+  return scope.Close(Integer::New(col->getColumnNo()));
+}
 
 /****
  DBColumn = {

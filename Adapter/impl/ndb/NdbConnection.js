@@ -87,3 +87,7 @@ exports.DBConnection.prototype.isConnected = function() {
   return is_connected;
 };
 
+
+exports.DBConnection.prototype.closeSync = function() {
+  ndbconn.delete();
+}
