@@ -2263,9 +2263,9 @@ toku_bnc_flush_to_child(
         ft_leaf_gc_all_les(child, h, snapshot_txnids, referenced_xids, live_root_txns);
 
         // Free the OMT's we used for garbage collecting.
-        snapshot_txnids.deinit();
-        live_root_txns.deinit();
-        referenced_xids.deinit();
+        snapshot_txnids.destroy();
+        live_root_txns.destroy();
+        referenced_xids.destroy();
     }
 
     return 0;

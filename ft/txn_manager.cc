@@ -171,10 +171,10 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
 void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
     TXN_MANAGER XCALLOC(txn_manager);
     toku_mutex_init(&txn_manager->txn_manager_lock, NULL);
-    txn_manager->live_txns.init();
-    txn_manager->live_root_txns.init();
-    txn_manager->snapshot_txnids.init();
-    txn_manager->referenced_xids.init();
+    txn_manager->live_txns.create();
+    txn_manager->live_root_txns.create();
+    txn_manager->snapshot_txnids.create();
+    txn_manager->referenced_xids.create();
     txn_manager->last_xid = 0;
     toku_list_init(&txn_manager->prepared_txns);
     toku_list_init(&txn_manager->prepared_and_returned_txns);
@@ -185,10 +185,10 @@ void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
 
 void toku_txn_manager_destroy(TXN_MANAGER txn_manager) {
     toku_mutex_destroy(&txn_manager->txn_manager_lock);
-    txn_manager->live_txns.deinit();
-    txn_manager->live_root_txns.deinit();
-    txn_manager->snapshot_txnids.deinit();
-    txn_manager->referenced_xids.deinit();
+    txn_manager->live_txns.destroy();
+    txn_manager->live_root_txns.destroy();
+    txn_manager->snapshot_txnids.destroy();
+    txn_manager->referenced_xids.destroy();
     toku_cond_destroy(&txn_manager->wait_for_unpin_of_txn);
     toku_free(txn_manager);
 }
@@ -212,7 +212,9 @@ toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager) {
 static void
 setup_live_root_txn_list(TXN_MANAGER txn_manager, TOKUTXN txn) {
     invariant(txn_manager->live_root_txns.size() > 0);
-    xid_omt_t::clone_create(txn->live_root_txn_list, txn_manager->live_root_txns);
+    invariant(txn->live_root_txn_list == nullptr);
+    XMALLOC(txn->live_root_txn_list);
+    txn->live_root_txn_list->clone(txn_manager->live_root_txns);
 }
 
 //Heaviside function to search through an OMT by a TXNID
@@ -532,7 +534,8 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     //Cleanup that does not require the txn_manager lock
     if (is_snapshot) {
         invariant(txn->live_root_txn_list != nullptr);
-        xid_omt_t::destroy(txn->live_root_txn_list);
+        txn->live_root_txn_list->destroy();
+        toku_free(txn->live_root_txn_list);
     }
 }
 
@@ -544,9 +547,9 @@ void toku_txn_manager_clone_state_for_gc(
     )
 {
     toku_mutex_lock(&txn_manager->txn_manager_lock);
-    snapshot_xids.clone_init(txn_manager->snapshot_txnids);
-    referenced_xids.clone_init(txn_manager->referenced_xids);
-    live_root_txns.clone_init(txn_manager->live_root_txns);
+    snapshot_xids.clone(txn_manager->snapshot_txnids);
+    referenced_xids.clone(txn_manager->referenced_xids);
+    live_root_txns.clone(txn_manager->live_root_txns);
     toku_mutex_unlock(&txn_manager->txn_manager_lock);
 }
 

@@ -970,14 +970,14 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer };
         r = toku::sort<long, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
         assert_zero(r);
-        bnc->fresh_message_tree.deinit();
-        bnc->fresh_message_tree.init_steal_sorted_array(fresh_offsets, nfresh, n_in_this_buffer);
+        bnc->fresh_message_tree.destroy();
+        bnc->fresh_message_tree.create_steal_sorted_array(fresh_offsets, nfresh, n_in_this_buffer);
         r = toku::sort<long, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
         assert_zero(r);
-        bnc->stale_message_tree.deinit();
-        bnc->stale_message_tree.init_steal_sorted_array(stale_offsets, nstale, n_in_this_buffer);
-        bnc->broadcast_list.deinit();
-        bnc->broadcast_list.init_steal_sorted_array(broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
+        bnc->stale_message_tree.destroy();
+        bnc->stale_message_tree.create_steal_sorted_array(stale_offsets, nstale, n_in_this_buffer);
+        bnc->broadcast_list.destroy();
+        bnc->broadcast_list.create_steal_sorted_array(broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
     }
 }
 
@@ -1074,9 +1074,9 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
 NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     int r = toku_fifo_create(&cn->buffer); assert_zero(r);
-    cn->fresh_message_tree.init();
-    cn->stale_message_tree.init();
-    cn->broadcast_list.init();
+    cn->fresh_message_tree.create();
+    cn->stale_message_tree.create();
+    cn->broadcast_list.create();
     return cn;
 }
 
@@ -1084,9 +1084,9 @@ NONLEAF_CHILDINFO toku_create_empty_nl(void) {
 NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo) {
     NONLEAF_CHILDINFO XMALLOC(cn);
     toku_fifo_clone(orig_childinfo->buffer, &cn->buffer);
-    cn->fresh_message_tree.init_no_array();
-    cn->stale_message_tree.init_no_array();
-    cn->broadcast_list.init_no_array();
+    cn->fresh_message_tree.create_no_array();
+    cn->stale_message_tree.create_no_array();
+    cn->broadcast_list.create_no_array();
     return cn;
 }
 
@@ -1102,9 +1102,9 @@ void destroy_basement_node (BASEMENTNODE bn)
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
 {
     toku_fifo_free(&nl->buffer);
-    nl->fresh_message_tree.deinit();
-    nl->stale_message_tree.deinit();
-    nl->broadcast_list.deinit();
+    nl->fresh_message_tree.destroy();
+    nl->stale_message_tree.destroy();
+    nl->broadcast_list.destroy();
     toku_free(nl);
 }
 
@@ -1861,10 +1861,10 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             typedef toku::sort<long, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp> key_msn_sort;
             r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
             assert_zero(r);
-            bnc->fresh_message_tree.deinit();
-            bnc->fresh_message_tree.init_steal_sorted_array(fresh_offsets, nfresh, n_in_this_buffer);
-            bnc->broadcast_list.deinit();
-            bnc->broadcast_list.init_steal_sorted_array(broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
+            bnc->fresh_message_tree.destroy();
+            bnc->fresh_message_tree.create_steal_sorted_array(fresh_offsets, nfresh, n_in_this_buffer);
+            bnc->broadcast_list.destroy();
+            bnc->broadcast_list.create_steal_sorted_array(broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
         }
     }
 
