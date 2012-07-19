@@ -360,9 +360,19 @@ void get_digest_text(char* digest_text, PSI_digest_storage* digest_storage)
   int bytes_available= COL_DIGEST_TEXT_SIZE - 4;
   
   /* Convert text to utf8 */
-  const CHARSET_INFO *from_cs= (CHARSET_INFO *)digest_storage->m_charset;
+  const CHARSET_INFO *from_cs= get_charset(digest_storage->m_charset_number, MYF(0));
   const CHARSET_INFO *to_cs= &my_charset_utf8_bin;
-  DBUG_ASSERT(from_cs != NULL && to_cs != NULL);
+
+  if (from_cs == NULL)
+  {
+    /*
+      Can happen, as we do dirty reads on digest_storage,
+      which can be written to in another thread.
+    */
+    *digest_text= '\0';
+    return;
+  }
+
   /*
      Max converted size is number of characters * max multibyte length of the
      target charset, which is 4 for UTF8.
