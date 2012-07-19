@@ -1,0 +1,17 @@
+13a14,15
+> Warnings:
+> Note	1031	Table storage engine for 't1' doesn't have this option
+16c18
+< t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE	disabled	
+---
+> t1	1	a	1	a	#	#	NULL	NULL	YES	BTREE		
+19c21
+< 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	19	Using filesort
+---
+> 1	SIMPLE	t1	index	NULL	a	5	NULL	19	Using index
+22a25,26
+> Warnings:
+> Note	1031	Table storage engine for 't1' doesn't have this option
+34a39,40
+> Warnings:
+> Note	1031	Table storage engine for 't1' doesn't have this option

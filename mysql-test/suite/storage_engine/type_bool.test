@@ -1,0 +1,10 @@
+#
+# BOOLEAN column type
+#
+
+--source have_engine.inc
+
+--source type_bool.inc
+
+--source cleanup_engine.inc
+

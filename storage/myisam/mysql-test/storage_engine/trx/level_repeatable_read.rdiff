@@ -1,0 +1,53 @@
+0a1,6
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MyISAM does not support transactions.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file, or add the test to disabled.def.
+> # If transactions should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------
+18a25
+> 1
+25a33,34
+> 1
+> 2
+27,28c36
+< ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+< # WARNING: Statement ended with errno 1205, errname 'ER_LOCK_WAIT_TIMEOUT'. 
+---
+> # WARNING: Statement ended with errno 0, errname ''. 
+31a40,43
+> 1
+> 101
+> 102
+> 2
+35a48,49
+> 101
+> 102
+40a55,56
+> 101
+> 102
+44a61,64
+> 1
+> 101
+> 102
+> 2
+49a70,73
+> 1
+> 101
+> 102
+> 2
+51a76,77
+> 301
+> 302
+55a82,83
+> 101
+> 102
+58a87,88
+> 301
+> 302
+62a93,94
+> 101
+> 102
+65a98,99
+> 301
+> 302

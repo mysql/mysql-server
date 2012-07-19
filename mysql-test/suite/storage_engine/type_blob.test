@@ -1,0 +1,10 @@
+#
+# BLOB column types
+#
+
+--source have_engine.inc
+
+--source type_blob.inc
+
+--source cleanup_engine.inc
+

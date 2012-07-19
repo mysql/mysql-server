@@ -1,0 +1,6 @@
+14,15c14,15
+< test.t1	4272806499
+< test.t2	0
+---
+> test.t1	NULL
+> test.t2	NULL

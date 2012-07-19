@@ -1,0 +1,167 @@
+#
+# SET columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+# Default index as configured in define_engine.inc
+
+let $create_definition =
+  a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') $col_opts,
+  b SET('test1','test2','test3','test4','test5') $col_opts,
+  c SET('01','22','23','33','34','39','40','44','50','63','64') $col_indexed_opts,
+  $default_index c (c)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = SET types or indexes on them
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c) VALUES 
+  ('','test2,test3','01,34,44,23'),
+  ('',5,2),
+  ('N.America,Asia','test4,test2',''),
+  ('Africa,Europe,Asia','test2,test3','01'),
+  ('Antarctica','test3','34,44'),
+  ('Asia','test5','50'),
+  ('Europe,S.America','test1,','39');
+
+  SELECT c FROM t1 ORDER BY c;
+
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE INDEX, INDEX
+
+
+let $create_definition =
+  a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') $col_opts,
+  b SET('test1','test2','test3','test4','test5') $col_opts,
+  c SET('01','22','23','33','34','39','40','44','50','63','64') $col_indexed_opts PRIMARY KEY
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = SET types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c) VALUES 
+  ('','test2,test3','01,34,44,23'),
+  ('',5,2),
+  ('N.America,Asia','test4,test2',''),
+  ('Africa,Europe,Asia','test2,test3','01'),
+  ('Antarctica','test3','34,44'),
+  ('Asia','test5','50'),
+  ('Europe,S.America','test1,','39');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c FROM t1 ORDER BY c;
+  SELECT c FROM t1 ORDER BY c;
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT c FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY) ORDER BY c;
+  SELECT c FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY) ORDER BY c;
+
+
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b,c) VALUES ('Antarctica','test3','02');
+  --source check_errors.inc
+
+  --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
+  INSERT INTO t1 (a,b,c) VALUES ('','test1','34,44');
+  --source check_errors.inc
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') $col_indexed_opts,
+  b SET('test1','test2','test3','test4','test5') $col_opts,
+  c SET('01','22','23','33','34','39','40','44','50','63','64') $col_opts,
+  INDEX(a)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = SET types or non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c) VALUES
+  ('','test2,test3','01,34,44,23'),
+  ('',5,2),
+  ('N.America,Asia','test4,test2',''),
+  ('Africa,Europe,Asia','test2,test3','01'),
+  ('Antarctica','test3','34,44'),
+  ('Asia','test5','50'),
+  ('Europe,S.America','test1,','39');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT a FROM t1 WHERE FIND_IN_SET('Europe',a) > 0;
+  --sorted_result
+  SELECT a FROM t1 WHERE FIND_IN_SET('Europe',a) > 0;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') $col_indexed_opts,
+  b SET('test1','test2','test3','test4','test5') $col_indexed_opts,
+  c SET('01','22','23','33','34','39','40','44','50','63','64') $col_opts,
+  UNIQUE INDEX b_a (b,a)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = SET types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c) VALUES
+  ('','test2,test3','01,34,44,23'),
+  ('',5,2),
+  ('N.America,Asia','test4,test2',''),
+  ('Africa,Europe,Asia','test2,test3','01'),
+  ('Antarctica','test3','34,44'),
+  ('Asia','test5','50'),
+  ('Europe,S.America','test1,','39');
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT DISTINCT a, b FROM t1 ORDER BY b DESC, a;
+  --sorted_result
+  SELECT DISTINCT a, b FROM t1 ORDER BY b DESC, a;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

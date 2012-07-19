@@ -1,0 +1,20 @@
+--- suite/storage_engine/parts/create_table.result	2012-07-12 21:56:38.618667460 +0400
++++ suite/storage_engine/parts/create_table.reject	2012-07-15 20:06:43.496358345 +0400
+@@ -65,7 +65,7 @@
+ 1	SIMPLE	t1	abc,def	#	#	#	#	#	#	#
+ EXPLAIN PARTITIONS SELECT a FROM t1 WHERE a = 100;
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	NULL	NULL	#	#	#	#	#	#	#
++1	SIMPLE	t1	def	#	#	#	#	#	#	#
+ INSERT INTO t1 (a) VALUES (50);
+ ERROR HY000: Table has no partition for value 50
+ DROP TABLE t1;
+@@ -81,7 +81,7 @@
+ 1	SIMPLE	t1	abc_abcsp0,def_defsp0	#	#	#	#	#	#	#
+ EXPLAIN PARTITIONS SELECT a FROM t1 WHERE a = 100;
+ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	NULL	NULL	#	#	#	#	#	#	#
++1	SIMPLE	t1	def_defsp0	#	#	#	#	#	#	#
+ SELECT TABLE_SCHEMA, TABLE_NAME, PARTITION_NAME, SUBPARTITION_NAME, PARTITION_METHOD, SUBPARTITION_METHOD 
+ FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 't1';
+ TABLE_SCHEMA	TABLE_NAME	PARTITION_NAME	SUBPARTITION_NAME	PARTITION_METHOD	SUBPARTITION_METHOD

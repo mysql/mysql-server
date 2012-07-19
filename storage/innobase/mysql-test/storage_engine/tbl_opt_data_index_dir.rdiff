@@ -1,0 +1,18 @@
+--- suite/storage_engine/tbl_opt_data_index_dir.result	2012-06-24 23:55:19.539380000 +0400
++++ suite/storage_engine/tbl_opt_data_index_dir.reject	2012-07-15 17:51:04.070684784 +0400
+@@ -4,7 +4,7 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 DATA DIRECTORY='<DATA_DIR>' INDEX DIRECTORY='<INDEX_DIR>'
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+ Warnings:
+ Warning	1618	<INDEX DIRECTORY> option ignored
+ SHOW CREATE TABLE t1;
+@@ -12,5 +12,5 @@
+ t1	CREATE TABLE `t1` (
+   `a` int(11) DEFAULT NULL,
+   `b` char(8) DEFAULT NULL
+-) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 DATA DIRECTORY='<DATA_DIR>' INDEX DIRECTORY='<INDEX_DIR>'
++) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+ DROP TABLE t1;

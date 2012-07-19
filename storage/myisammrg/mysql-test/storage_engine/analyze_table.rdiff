@@ -1,0 +1,22 @@
+8c8
+< test.t1	analyze	status	OK
+---
+> test.t1	analyze	note	The storage engine for the table doesn't support analyze
+12c12
+< test.t2	analyze	status	OK
+---
+> test.t2	analyze	note	The storage engine for the table doesn't support analyze
+17,18c17,18
+< test.t1	analyze	status	OK
+< test.t2	analyze	status	OK
+---
+> test.t1	analyze	note	The storage engine for the table doesn't support analyze
+> test.t2	analyze	note	The storage engine for the table doesn't support analyze
+24c24
+< test.t1	analyze	status	OK
+---
+> test.t1	analyze	note	The storage engine for the table doesn't support analyze
+28c28
+< test.t1	analyze	status	OK
+---
+> test.t1	analyze	note	The storage engine for the table doesn't support analyze

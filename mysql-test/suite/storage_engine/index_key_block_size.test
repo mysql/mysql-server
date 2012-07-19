@@ -1,0 +1,125 @@
+# 
+# KEY_BLOCK_SIZE index option.
+#
+# The results are likely to be different 
+# depending on the engine
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+let $create_definition =
+  a $int_indexed_col,
+  b $char_col,
+  $default_index (a) KEY_BLOCK_SIZE=8
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  # Cardinality is not the exact science, so here and further
+  # we'll be masking it
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW KEYS IN t1;
+
+  DROP TABLE t1;
+}
+
+
+let $create_definition =
+  a $int_col,
+  b $char_indexed_col,
+  $default_index ind1(b ASC) KEY_BLOCK_SIZE=0
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --let $functionality = Indexes on CHAR columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a $int_col,
+  b $char_indexed_col,
+  UNIQUE INDEX ind2(b(1) DESC) KEY_BLOCK_SIZE=32768 COMMENT 'big key_block_size value'
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --let $functionality = Unique keys on char columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 # 
+  SHOW INDEX IN t1;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a $int_indexed_col,
+  b $char_indexed_col,
+  $default_index a_b(a,b) KEY_BLOCK_SIZE=8192
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --let $functionality = Multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+--replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+  
+  DROP TABLE t1;
+}
+
+#
+# ALTER TABLE
+#
+
+let $create_definition =
+  a $int_indexed_col,
+  b $char_col
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt =  $create_statement
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  INSERT INTO t1 (a,b) VALUES (100,'z');
+
+  --let $alter_definition = ADD $default_index(a) KEY_BLOCK_SIZE 8192
+  --source alter_table.inc
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX FROM t1;
+
+  DROP TABLE t1;
+}
+
+
+--source cleanup_engine.inc
+

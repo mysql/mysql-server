@@ -1,0 +1,7 @@
+0a1,6
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MyISAM does not support transactions.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file, or add the test to disabled.def.
+> # If transactions should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------

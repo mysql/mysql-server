@@ -1,0 +1,137 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') <CUSTOM_COL_OPTIONS>,
+b SET('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c SET('01','22','23','33','34','39','40','44','50','63','64') <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> c (c)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	c	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c) VALUES 
+('','test2,test3','01,34,44,23'),
+('',5,2),
+('N.America,Asia','test4,test2',''),
+('Africa,Europe,Asia','test2,test3','01'),
+('Antarctica','test3','34,44'),
+('Asia','test5','50'),
+('Europe,S.America','test1,','39');
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+SELECT c FROM t1 ORDER BY c;
+c
+
+01
+22
+39
+34,44
+01,23,34,44
+50
+DROP TABLE t1;
+CREATE TABLE t1 (a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') <CUSTOM_COL_OPTIONS>,
+b SET('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c SET('01','22','23','33','34','39','40','44','50','63','64') <CUSTOM_COL_OPTIONS> PRIMARY KEY
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	c	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c) VALUES 
+('','test2,test3','01,34,44,23'),
+('',5,2),
+('N.America,Asia','test4,test2',''),
+('Africa,Europe,Asia','test2,test3','01'),
+('Antarctica','test3','34,44'),
+('Asia','test5','50'),
+('Europe,S.America','test1,','39');
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+EXPLAIN SELECT c FROM t1 ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT c FROM t1 ORDER BY c;
+c
+
+01
+22
+39
+34,44
+01,23,34,44
+50
+EXPLAIN SELECT c FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY) ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT c FROM t1 IGNORE INDEX FOR ORDER BY (PRIMARY) ORDER BY c;
+c
+
+01
+22
+39
+34,44
+01,23,34,44
+50
+INSERT INTO t1 (a,b,c) VALUES ('Antarctica','test3','02');
+ERROR 23000: Duplicate entry '22' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+INSERT INTO t1 (a,b,c) VALUES ('','test1','34,44');
+ERROR 23000: Duplicate entry '34,44' for key 'PRIMARY'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') <CUSTOM_COL_OPTIONS>,
+b SET('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c SET('01','22','23','33','34','39','40','44','50','63','64') <CUSTOM_COL_OPTIONS>,
+INDEX(a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c) VALUES
+('','test2,test3','01,34,44,23'),
+('',5,2),
+('N.America,Asia','test4,test2',''),
+('Africa,Europe,Asia','test2,test3','01'),
+('Antarctica','test3','34,44'),
+('Asia','test5','50'),
+('Europe,S.America','test1,','39');
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+EXPLAIN SELECT a FROM t1 WHERE FIND_IN_SET('Europe',a) > 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	a	#	#	#	#
+SELECT a FROM t1 WHERE FIND_IN_SET('Europe',a) > 0;
+a
+Africa,Europe,Asia
+S.America,Europe
+DROP TABLE t1;
+CREATE TABLE t1 (a SET('N.America','S.America','Africa','Antarctica','Australia','Europe','Asia') <CUSTOM_COL_OPTIONS>,
+b SET('test1','test2','test3','test4','test5') <CUSTOM_COL_OPTIONS>,
+c SET('01','22','23','33','34','39','40','44','50','63','64') <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX b_a (b,a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	b_a	1	b	#	#	NULL	NULL	#	#		
+t1	0	b_a	2	a	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c) VALUES
+('','test2,test3','01,34,44,23'),
+('',5,2),
+('N.America,Asia','test4,test2',''),
+('Africa,Europe,Asia','test2,test3','01'),
+('Antarctica','test3','34,44'),
+('Asia','test5','50'),
+('Europe,S.America','test1,','39');
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+EXPLAIN SELECT DISTINCT a, b FROM t1 ORDER BY b DESC, a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	b_a	#	#	#	#
+SELECT DISTINCT a, b FROM t1 ORDER BY b DESC, a;
+a	b
+	test1,test3
+	test2,test3
+Africa,Europe,Asia	test2,test3
+Antarctica	test3
+Asia	test5
+N.America,Asia	test2,test4
+S.America,Europe	test1
+DROP TABLE t1;

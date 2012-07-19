@@ -1,0 +1,132 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a BIT <CUSTOM_COL_OPTIONS>,
+b BIT(20) <CUSTOM_COL_OPTIONS>,
+c BIT(32) <CUSTOM_COL_OPTIONS>,
+d BIT(64) <CUSTOM_COL_OPTIONS>,
+<CUSTOM_INDEX> b (b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	#	1	b	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c,d) VALUES 
+(0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+(1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+(1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+SELECT b+0 FROM t1 ORDER BY b;
+b+0
+11
+12
+13
+16
+100
+101
+256
+1000
+65535
+1048575
+DROP TABLE t1;
+CREATE TABLE t1 (a BIT <CUSTOM_COL_OPTIONS>,
+b BIT(20) <CUSTOM_COL_OPTIONS> PRIMARY KEY,
+c BIT(32) <CUSTOM_COL_OPTIONS>,
+d BIT(64) <CUSTOM_COL_OPTIONS>
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	b	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c,d) VALUES 
+(0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+(1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+(1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+EXPLAIN SELECT b+0 FROM t1 ORDER BY b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	PRIMARY	#	#	#	#
+SELECT b+0 FROM t1 ORDER BY b;
+b+0
+11
+12
+13
+16
+100
+101
+256
+1000
+65535
+1048575
+DROP TABLE t1;
+CREATE TABLE t1 (a BIT <CUSTOM_COL_OPTIONS>,
+b BIT(20) <CUSTOM_COL_OPTIONS>,
+c BIT(32) <CUSTOM_COL_OPTIONS>,
+d BIT(64) <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX b_c (b,c)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	b_c	1	b	#	#	NULL	NULL	#	#		
+t1	0	b_c	2	c	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c,d) VALUES
+(0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+(1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+(1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+EXPLAIN SELECT HEX(b+c) FROM t1 WHERE c > 1 OR HEX(b) < 0xFFFFFF;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	b_c	#	#	#	#
+SELECT HEX(b+c) FROM t1 WHERE c > 1 OR HEX(b) < 0xFFFFFF;
+HEX(b+c)
+10
+10000FFFE
+12E
+17
+19
+1B
+7D1
+BAA
+C9
+FFFFF
+DROP TABLE t1;
+CREATE TABLE t1 (a BIT <CUSTOM_COL_OPTIONS>,
+b BIT(20) <CUSTOM_COL_OPTIONS>,
+c BIT(32) <CUSTOM_COL_OPTIONS>,
+d BIT(64) <CUSTOM_COL_OPTIONS>,
+INDEX(a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c,d) VALUES
+(0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+(1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+(1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+EXPLAIN SELECT DISTINCT a+0 FROM t1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	a	#	#	#	#
+SELECT DISTINCT a+0 FROM t1 ORDER BY a;
+a+0
+0
+1
+DROP TABLE t1;
+CREATE TABLE t1 (a BIT <CUSTOM_COL_OPTIONS>,
+b BIT(20) <CUSTOM_COL_OPTIONS>,
+c BIT(32) <CUSTOM_COL_OPTIONS>,
+d BIT(64) <CUSTOM_COL_OPTIONS>,
+UNIQUE INDEX (d)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW INDEX IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	d	1	d	#	#	NULL	NULL	#	#		
+INSERT INTO t1 (a,b,c,d) VALUES
+(0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+(1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+(1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+EXPLAIN SELECT d FROM t1 WHERE d BETWEEN 1 AND 10000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+#	#	#	#	#	d	#	#	#	#
+SELECT d+0 FROM t1 WHERE d BETWEEN 1 AND 10000;
+d+0
+1
+1002
+102
+13
+14
+15
+202
+DROP TABLE t1;

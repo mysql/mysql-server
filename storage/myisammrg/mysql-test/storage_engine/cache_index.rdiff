@@ -1,0 +1,46 @@
+15,16c15,16
+< test.t1	assign_to_keycache	status	OK
+< test.t2	assign_to_keycache	status	OK
+---
+> test.t1	assign_to_keycache	note	The storage engine for the table doesn't support assign_to_keycache
+> test.t2	assign_to_keycache	note	The storage engine for the table doesn't support assign_to_keycache
+19,20c19,20
+< test.t1	preload_keys	status	OK
+< test.t2	preload_keys	status	OK
+---
+> test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+> test.t2	preload_keys	note	The storage engine for the table doesn't support preload_keys
+25,26c25,26
+< test.t1	preload_keys	status	OK
+< test.t2	preload_keys	status	OK
+---
+> test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+> test.t2	preload_keys	note	The storage engine for the table doesn't support preload_keys
+31c31
+< test.t1	preload_keys	status	OK
+---
+> test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+35c35
+< test.t1	assign_to_keycache	status	OK
+---
+> test.t1	assign_to_keycache	note	The storage engine for the table doesn't support assign_to_keycache
+39c39
+< test.t1	preload_keys	status	OK
+---
+> test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+50c50
+< test.t1	assign_to_keycache	status	OK
+---
+> test.t1	assign_to_keycache	note	The storage engine for the table doesn't support assign_to_keycache
+54c54
+< test.t1	preload_keys	status	OK
+---
+> test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys
+62c62
+< test.t1	assign_to_keycache	status	OK
+---
+> test.t1	assign_to_keycache	note	The storage engine for the table doesn't support assign_to_keycache
+66c66
+< test.t1	preload_keys	status	OK
+---
+> test.t1	preload_keys	note	The storage engine for the table doesn't support preload_keys

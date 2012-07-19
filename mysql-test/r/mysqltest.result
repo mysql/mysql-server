@@ -690,6 +690,7 @@ Got one of the listed errors
 insert into t1 values ("Abcd");
 Got one of the listed errors
 garbage;
+SELECT * FROM non_existing_table;
 drop table t2;
 create table t1 ( f1 char(10));
 insert into t1 values ("Abcd");

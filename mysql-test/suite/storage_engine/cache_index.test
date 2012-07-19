@@ -1,0 +1,142 @@
+# 
+# CACHE INDEX and LOAD INDEX INTO CACHE
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+
+# Due to ancient MySQL bug#16111 we need to generate a unique cache name
+--let $cache_name = `SELECT CONNECTION_ID()`
+--let $cache_name = my_cache_$cache_name
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+let $create_definition = 
+  a $int_indexed_col,
+  b $char_col,
+  $default_index (a)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Indexes on INT columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  let $create_definition =
+    a $int_col,
+    b $char_indexed_col,
+    $default_index (b)
+  ;
+  let $table_name = t2;
+  --source create_table.inc
+  if ($mysql_errname)
+  {
+    --let $functionality = Indexes on CHAR columns
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --replace_result $cache_name <CACHE_NAME>
+    --let $error_codes = ER_UNKNOWN_KEY_CACHE
+    eval CACHE INDEX t1 INDEX (a), t2 IN $cache_name;
+    --source check_errors.inc
+    if ($mysql_errname != ER_UNKNOWN_KEY_CACHE)
+    {
+      --let $functionality = Key cache or indexes
+      --source unexpected_result.inc
+    }
+
+    --replace_result $cache_name <CACHE_NAME>
+    eval SET GLOBAL $cache_name.key_buffer_size=128*1024;
+    --replace_result $cache_name <CACHE_NAME>
+    eval CACHE INDEX t1 INDEX (a), t2 IN $cache_name;
+    if ($mysql_errname)
+    {
+      --let $functionality = Indexes
+      --source unexpected_result.inc
+    }
+
+    LOAD INDEX INTO CACHE t1, t2;
+    if ($mysql_errname)
+    {
+      --let $functionality = Indexes
+      --source unexpected_result.inc
+    }
+
+    INSERT INTO t1 (a,b) VALUES (3,'c'),(4,'d');
+    --replace_result $cache_name <CACHE_NAME>
+    eval SET GLOBAL $cache_name.key_buffer_size=8*1024;
+    LOAD INDEX INTO CACHE t1, t2 IGNORE LEAVES;
+
+    --replace_result $cache_name <CACHE_NAME>
+    eval SET GLOBAL $cache_name.key_cache_age_threshold = 100, $cache_name.key_cache_block_size = 512, $cache_name.key_cache_division_limit = 1, $cache_name.key_cache_segments=2;
+    INSERT INTO t1 (a,b) VALUES (5,'e'),(6,'f');
+    LOAD INDEX INTO CACHE t1;
+
+    --replace_result $cache_name <CACHE_NAME>
+    eval SET GLOBAL new_$cache_name.key_buffer_size=128*1024;
+    --replace_result $cache_name <CACHE_NAME>
+    eval CACHE INDEX t1  IN new_$cache_name;
+    INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+    LOAD INDEX INTO CACHE t1 IGNORE LEAVES;
+    INSERT INTO t1 (a,b) VALUES (9,'i');
+    DROP TABLE t2;
+  }
+  DROP TABLE t1;
+}
+
+let $create_definition = 
+    a $int_indexed_col,
+    b $char_indexed_col,
+    $default_index (a),
+    $default_index (b)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = Multiple keys or indexes on INT or CHAR columns
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_result $cache_name <CACHE_NAME>
+  eval CACHE INDEX t1 IN $cache_name;
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+  LOAD INDEX INTO CACHE t1;
+
+  DROP TABLE t1;
+  let $create_definition =
+      a $int_indexed_col,
+      b $char_indexed_col,
+      $default_index a_b (a,b)
+  ;
+  --source create_table.inc
+  if ($mysql_errname)
+  {
+    --let $functionality = Multi-part keys
+    --source unexpected_result.inc
+  }
+
+  --replace_result $cache_name <CACHE_NAME>
+  eval CACHE INDEX t1 IN $cache_name;
+  INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+  LOAD INDEX INTO CACHE t1;
+
+  DROP TABLE t1;
+}
+
+# Cleanup
+
+--replace_result $cache_name <CACHE_NAME>
+eval SET GLOBAL $cache_name.key_buffer_size=0;
+--replace_result $cache_name <CACHE_NAME>
+eval SET GLOBAL new_$cache_name.key_buffer_size=0;
+
+
+--source cleanup_engine.inc
+

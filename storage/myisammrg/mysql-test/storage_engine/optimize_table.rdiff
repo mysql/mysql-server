@@ -1,0 +1,24 @@
+8c8
+< test.t1	optimize	status	OK
+---
+> test.t1	optimize	note	The storage engine for the table doesn't support optimize
+12c12
+< test.t2	optimize	status	OK
+---
+> test.t2	optimize	note	The storage engine for the table doesn't support optimize
+17,18c17,18
+< test.t1	optimize	status	OK
+< test.t2	optimize	status	OK
+---
+> test.t1	optimize	note	The storage engine for the table doesn't support optimize
+> test.t2	optimize	note	The storage engine for the table doesn't support optimize
+21,22c21,22
+< test.t1	optimize	status	Table is already up to date
+< test.t2	optimize	status	Table is already up to date
+---
+> test.t1	optimize	note	The storage engine for the table doesn't support optimize
+> test.t2	optimize	note	The storage engine for the table doesn't support optimize
+28c28
+< test.t1	optimize	status	OK
+---
+> test.t1	optimize	note	The storage engine for the table doesn't support optimize

@@ -1,0 +1,175 @@
+#
+# BIT columns with indexes
+#
+
+--source have_engine.inc
+--source have_default_index.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+
+# Default index as set in define_engine.inc
+
+let $create_definition =
+  a BIT $col_opts,
+  b BIT(20) $col_indexed_opts,
+  c BIT(32) $col_opts,
+  d BIT(64) $col_opts,
+  $default_index b (b)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BIT types or indexes
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 3 # 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c,d) VALUES 
+  (0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+  (1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+  (1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+
+  SELECT b+0 FROM t1 ORDER BY b;
+
+  DROP TABLE t1;
+}
+
+
+# PK, UNIQUE KEY, KEY
+
+
+let $create_definition =
+  a BIT $col_opts,
+  b BIT(20) $col_indexed_opts PRIMARY KEY,
+  c BIT(32) $col_opts,
+  d BIT(64) $col_opts
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BIT types or PK
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c,d) VALUES 
+  (0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+  (1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+  (1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT b+0 FROM t1 ORDER BY b;
+  SELECT b+0 FROM t1 ORDER BY b;
+
+  DROP TABLE t1;
+}
+
+
+let $create_definition =
+  a BIT $col_opts,
+  b BIT(20) $col_indexed_opts,
+  c BIT(32) $col_indexed_opts,
+  d BIT(64) $col_opts,
+UNIQUE INDEX b_c (b,c)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BIT types or unique keys or multi-part keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c,d) VALUES
+  (0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+  (1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+  (1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT HEX(b+c) FROM t1 WHERE c > 1 OR HEX(b) < 0xFFFFFF;
+  --sorted_result
+  SELECT HEX(b+c) FROM t1 WHERE c > 1 OR HEX(b) < 0xFFFFFF;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a BIT $col_indexed_opts,
+  b BIT(20) $col_opts,
+  c BIT(32) $col_opts,
+  d BIT(64) $col_opts,
+INDEX(a)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BIT types or non-unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c,d) VALUES
+  (0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+  (1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+  (1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT DISTINCT a+0 FROM t1 ORDER BY a;
+  SELECT DISTINCT a+0 FROM t1 ORDER BY a;
+
+  DROP TABLE t1;
+}
+
+let $create_definition =
+  a BIT $col_opts,
+  b BIT(20) $col_opts,
+  c BIT(32) $col_opts,
+  d BIT(64) $col_indexed_opts,
+UNIQUE INDEX (d)
+;
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --let $functionality = BIT types or unique keys
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --replace_column 6 # 7 # 10 # 11 #
+  SHOW INDEX IN t1;
+
+  INSERT INTO t1 (a,b,c,d) VALUES
+  (0,0xFFFFF,0,1),(0,256,0xAAA,0x12345),(1,16,0,0xFFFFFFF),(0,11,12,13),
+  (1,100,101,102),(0,12,13,14),(1,13,14,15),(0,101,201,202),(1,1000,1001,1002),
+  (1,0xFFFF,0xFFFFFFFF,0xFFFFFFFFFFFFFFFF);
+
+  --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
+  EXPLAIN SELECT d FROM t1 WHERE d BETWEEN 1 AND 10000;
+  --sorted_result
+  SELECT d+0 FROM t1 WHERE d BETWEEN 1 AND 10000;
+
+  DROP TABLE t1;
+}
+
+--source cleanup_engine.inc
+

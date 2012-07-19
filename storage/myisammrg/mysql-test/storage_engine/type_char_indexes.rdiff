@@ -1,0 +1,8 @@
+101c101
+< #	#	#	range	c_v	c_v	#	#	#	Using index condition
+---
+> #	#	#	ALL	c_v	NULL	#	#	#	Using where
+138c138
+< #	#	#	range	#	v16	#	#	#	#
+---
+> #	#	#	ALL	#	NULL	#	#	#	#

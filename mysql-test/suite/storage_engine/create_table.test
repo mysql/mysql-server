@@ -1,0 +1,107 @@
+# 
+# Basic CREATE TABLE statements
+#
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+# Simple create table with minimal table options
+# which are defined in have_engine.inc
+# (default empty) plus ENGINE=
+
+--let $create_definition = a $int_col
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = CREATE TABLE
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+
+  # IF NOT EXISTS
+  --let $if_not_exists = 1
+  --let $create_definition = a $int_col
+  --source create_table.inc
+}
+
+# CREATE .. LIKE
+
+CREATE TABLE t2 LIKE t1;
+if ($mysql_errname)
+{
+  --let $functionality = CREATE TABLE .. LIKE
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t2;
+
+  eval
+  CREATE TEMPORARY TABLE t2 LIKE t1;
+  if ($mysql_errname)
+  {
+    --let $functionality = Temporary tables
+    --source unexpected_result.inc
+  }
+  if (!$mysql_errname)
+  {
+    --source mask_engine.inc
+    SHOW CREATE TABLE t2;
+
+    DROP TEMPORARY TABLE t2;
+  }
+  DROP TABLE t2;
+}
+DROP TABLE IF EXISTS t1;
+
+# CREATE .. AS SELECT
+
+--let $as_select = SELECT 1 UNION SELECT 2
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = CREATE TABLE .. AS SELECT
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+  --sorted_result
+  SELECT * FROM t1;
+  DROP TABLE t1;
+}
+
+# Use the engine as default
+
+--source mask_engine.inc
+eval SET storage_engine = $storage_engine;
+
+--let $tbl_opts = $default_tbl_opts
+--let $create_definition = a $int_col
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $functionality = CREATE TABLE or using the engine as default
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+}
+
+# Just to add FLUSH LOGS into the mix while we are in the most common test
+FLUSH LOGS;
+
+DROP TABLE IF EXISTS t1;
+
+--source cleanup_engine.inc
+

@@ -1,0 +1,44 @@
+0a1,6
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MRG_MYISAM does not support transactions.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file, or add the test to disabled.def.
+> # If transactions should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------
+18a25
+> 1
+25a33,34
+> 1
+> 2
+30a40,43
+> 1
+> 101
+> 102
+> 2
+34a48,49
+> 101
+> 102
+39a55,56
+> 101
+> 102
+44a62,63
+> 101
+> 102
+51a71,72
+> 101
+> 102
+54a76,77
+> 301
+> 302
+58a82,83
+> 101
+> 102
+61a87,88
+> 301
+> 302
+65a93,94
+> 101
+> 102
+68a98,99
+> 301
+> 302

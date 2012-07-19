@@ -1,0 +1,69 @@
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> (a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+CREATE TABLE t2 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> (b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+CACHE INDEX t1 INDEX (a), t2 IN <CACHE_NAME>;
+ERROR HY000: Unknown key cache '<CACHE_NAME>'
+SET GLOBAL <CACHE_NAME>.key_buffer_size=128*1024;
+CACHE INDEX t1 INDEX (a), t2 IN <CACHE_NAME>;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+test.t2	assign_to_keycache	status	OK
+LOAD INDEX INTO CACHE t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+test.t2	preload_keys	status	OK
+INSERT INTO t1 (a,b) VALUES (3,'c'),(4,'d');
+SET GLOBAL <CACHE_NAME>.key_buffer_size=8*1024;
+LOAD INDEX INTO CACHE t1, t2 IGNORE LEAVES;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+test.t2	preload_keys	status	OK
+SET GLOBAL <CACHE_NAME>.key_cache_age_threshold = 100, <CACHE_NAME>.key_cache_block_size = 512, <CACHE_NAME>.key_cache_division_limit = 1, <CACHE_NAME>.key_cache_segments=2;
+INSERT INTO t1 (a,b) VALUES (5,'e'),(6,'f');
+LOAD INDEX INTO CACHE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+SET GLOBAL new_<CACHE_NAME>.key_buffer_size=128*1024;
+CACHE INDEX t1  IN new_<CACHE_NAME>;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
+LOAD INDEX INTO CACHE t1 IGNORE LEAVES;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+INSERT INTO t1 (a,b) VALUES (9,'i');
+DROP TABLE t2;
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> (a),
+<CUSTOM_INDEX> (b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+CACHE INDEX t1 IN <CACHE_NAME>;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+LOAD INDEX INTO CACHE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> a_b (a,b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+CACHE INDEX t1 IN <CACHE_NAME>;
+Table	Op	Msg_type	Msg_text
+test.t1	assign_to_keycache	status	OK
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+LOAD INDEX INTO CACHE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	preload_keys	status	OK
+DROP TABLE t1;
+SET GLOBAL <CACHE_NAME>.key_buffer_size=0;
+SET GLOBAL new_<CACHE_NAME>.key_buffer_size=0;

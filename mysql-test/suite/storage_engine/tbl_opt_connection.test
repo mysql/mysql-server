@@ -1,0 +1,52 @@
+# 
+# Check whether CONNECTION option is supported
+# is supported in CREATE and ALTER TABLE
+#
+# Note: the test does not check whether the option
+#       has any real effect on the table, only 
+#       that it's accepted
+# 
+
+--source have_engine.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE DATABASE test_remote;
+CREATE SERVER test_connection FOREIGN DATA WRAPPER mysql
+OPTIONS (USER 'root', HOST 'localhost', DATABASE 'test_remote');
+CREATE SERVER test_connection2 FOREIGN DATA WRAPPER mysql
+OPTIONS (USER 'root', HOST 'localhost', DATABASE 'test_remote');
+
+--let $table_options = CONNECTION='test_connection'
+--source create_table.inc
+if ($mysql_errname)
+{
+  --let $my_last_stmt = $create_statement
+  --source unexpected_result.inc
+}
+if (!$mysql_errname)
+{
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+  --let $alter_definition = CONNECTION='test_connection2'
+  --source alter_table.inc
+  if ($mysql_errname)
+  {
+    --let $my_last_stmt = $alter_statement
+    --let $functionality = ALTER TABLE
+    --source unexpected_result.inc
+  }
+  --source mask_engine.inc
+  SHOW CREATE TABLE t1;
+
+  DROP TABLE t1;
+}
+
+DROP SERVER test_connection;
+DROP SERVER test_connection2;
+DROP DATABASE test_remote;
+
+--source cleanup_engine.inc
+

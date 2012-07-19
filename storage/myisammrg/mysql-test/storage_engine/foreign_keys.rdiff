@@ -1,0 +1,138 @@
+15,17c15,16
+<   KEY `a` (`a`),
+<   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+< ) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+---
+>   KEY `a` (`a`)
+> ) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`mrg`.`t2`)
+19c18,25
+< ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+---
+> # ERROR: Statement succeeded (expected results: ER_NO_REFERENCED_ROW_2)
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command succeeded unexpectedly.
+> # Foreign keys or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+23c29,36
+< ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+---
+> # ERROR: Statement succeeded (expected results: ER_NO_REFERENCED_ROW_2)
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command succeeded unexpectedly.
+> # Foreign keys or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+25c38
+< ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+---
+> # ERROR: Statement succeeded (expected results: ER_ROW_IS_REFERENCED_2)
+27c40,47
+< ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+---
+> # ERROR: Statement succeeded (expected results: ER_ROW_IS_REFERENCED_2)
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command succeeded unexpectedly.
+> # Foreign keys or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+32c52
+< 2	d
+---
+> 3	d
+35c55,56
+< 1	a
+---
+> 3	b
+> 3	b
+37c58,65
+< ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+---
+> # ERROR: Statement succeeded (expected results: ER_ROW_IS_REFERENCED)
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command succeeded unexpectedly.
+> # Foreign keys or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+49,51c77,78
+<   KEY `a` (`a`),
+<   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE
+< ) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1
+---
+>   KEY `a` (`a`)
+> ) ENGINE=<STORAGE_ENGINE> DEFAULT CHARSET=latin1 INSERT_METHOD=LAST UNION=(`mrg`.`t2`)
+53c80
+< ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE CASCADE ON UPDATE CASCADE)
+---
+> # ERROR: Statement succeeded (expected results: ER_NO_REFERENCED_ROW_2)
+54a82
+> ERROR 42S02: Table 'test.t1' doesn't exist
+56a85,92
+> ERROR 42S02: Table 'test.t1' doesn't exist
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command finished with ER_NO_SUCH_TABLE.
+> # UPDATE or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+59,64c95,104
+< 5	a
+< 5	a
+< 5	b
+< 5	c
+< 5	d
+< 5	e
+---
+> 1	a
+> 1	a
+> 2	b
+> 2	b
+> 3	a
+> 3	c
+> 3	c
+> 4	d
+> 4	d
+> 4	e
+65a106,113
+> ERROR 42S02: Table 'test.t1' doesn't exist
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command finished with ER_NO_SUCH_TABLE.
+> # DELETE or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+67a116,125
+> 1	a
+> 1	a
+> 2	b
+> 2	b
+> 3	a
+> 3	c
+> 3	c
+> 4	d
+> 4	d
+> 4	e
+69c127,135
+< ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
+---
+> ERROR 42S02: Table 'test.t1' doesn't exist
+> # ERROR: Statement ended with errno 1146, errname ER_NO_SUCH_TABLE (expected results: ER_TRUNCATE_ILLEGAL_FK)
+> # ------------ UNEXPECTED RESULT ------------
+> # The statement|command finished with ER_NO_SUCH_TABLE.
+> # Foreign keys or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
+> # You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
+> # Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
+> # Also, this problem may cause a chain effect (more errors of different kinds in the test).
+> # -------------------------------------------
+71a138
+> ERROR 42S02: Unknown table 't1'

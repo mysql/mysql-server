@@ -1,0 +1,22 @@
+0a1,6
+> # -- WARNING ----------------------------------------------------------------
+> # According to I_S.ENGINES, MRG_MYISAM does not support XA.
+> # If it is true, the test will most likely fail; you can 
+> # either create an rdiff file, or add the test to disabled.def.
+> # If XA should be supported, check the data in Information Schema.
+> # ---------------------------------------------------------------------------
+21,22d26
+< 1	3	0	xa1
+< 1	3	0	xa2
+23a28
+> ERROR XAE04: XAER_NOTA: Unknown XID
+24a30
+> ERROR XAE04: XAER_NOTA: Unknown XID
+26a33,34
+> 1
+> 2
+28a37,40
+> Warnings:
+> Error	145	Table './mrg/t1' is marked as crashed and should be repaired
+> Error	1194	Table 't1' is marked as crashed and should be repaired
+> Error	1034	1 client is using or hasn't closed the table properly

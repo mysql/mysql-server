@@ -621,6 +621,8 @@ void free_all_replace(){
   free_replace_column();
 }
 
+void var_set_int(const char* name, int value);
+
 
 class LogFile {
   FILE* m_file;
@@ -1275,6 +1277,8 @@ void handle_command_error(struct st_command *command, uint error,
 {
   DBUG_ENTER("handle_command_error");
   DBUG_PRINT("enter", ("error: %d", error));
+  var_set_int("$sys_errno",sys_errno);
+  var_set_int("$errno",error);
   if (error != 0)
   {
     int i;
@@ -5201,14 +5205,31 @@ const char *get_errname_from_code (uint error_code)
 void do_get_errcodes(struct st_command *command)
 {
   struct st_match_err *to= saved_expected_errors.err;
-  char *p= command->first_argument;
-  uint count= 0;
-  char *next;
-
   DBUG_ENTER("do_get_errcodes");
 
-  if (!*p)
+  if (!*command->first_argument)
     die("Missing argument(s) to 'error'");
+
+  /* TODO: Potentially, there is a possibility of variables 
+     being expanded twice, e.g.
+
+     let $errcodes = 1,\$a;
+     let $a = 1051;
+     error $errcodes;
+     DROP TABLE unknown_table;
+     ...
+     Got one of the listed errors
+
+     But since it requires manual escaping, it does not seem 
+     particularly dangerous or error-prone. 
+  */
+  DYNAMIC_STRING ds;
+  init_dynamic_string(&ds, 0, command->query_len + 64, 256);
+  do_eval(&ds, command->first_argument, command->end, !is_windows);
+  char *p= ds.str;
+
+  uint count= 0;
+  char *next;
 
   do
   {
@@ -5319,11 +5340,15 @@ void do_get_errcodes(struct st_command *command)
 
   } while (*p);
 
-  command->last_argument= p;
+  command->last_argument= command->first_argument;
+  while (*command->last_argument)
+    command->last_argument++;
+  
   to->type= ERR_EMPTY;                        /* End of data */
 
   DBUG_PRINT("info", ("Expected errors: %d", count));
   saved_expected_errors.count= count;
+  dynstr_free(&ds);
   DBUG_VOID_RETURN;
 }
 

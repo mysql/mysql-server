@@ -1,0 +1,67 @@
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> USING HASH (a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	HASH		
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> a_b USING HASH (a,b) COMMENT 'a_b index'
+ ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a_b	1	a	#	#	NULL	NULL	#	HASH		a_b index
+t1	1	a_b	2	b	#	#	NULL	NULL	#	HASH		a_b index
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+<CUSTOM_INDEX> USING HASH (a),
+<CUSTOM_INDEX> USING HASH (b)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	HASH		
+t1	1	b	1	b	#	#	NULL	NULL	#	HASH		
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+UNIQUE INDEX USING HASH (a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	a	1	a	#	#	NULL	NULL	#	HASH		
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+INSERT INTO t1 (a,b) VALUES (1,'c');
+ERROR 23000: Duplicate entry '1' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+INSERT INTO t1 (a,b) VALUES (100,'z');
+ALTER TABLE t1 ADD <CUSTOM_INDEX> (a) USING HASH COMMENT 'simple index on a';
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	a	1	a	#	#	NULL	NULL	#	HASH		simple index on a
+ALTER TABLE t1 DROP KEY a;
+DROP TABLE t1;
+CREATE TABLE t1 (a <INT_COLUMN>,
+b <CHAR_COLUMN>,
+UNIQUE INDEX USING HASH (a)
+) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+SHOW KEYS IN t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	a	1	a	#	#	NULL	NULL	#	HASH		
+INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
+INSERT INTO t1 (a,b) VALUES (1,'c');
+ERROR 23000: Duplicate entry '1' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+ALTER TABLE t1 DROP INDEX a;
+INSERT INTO t1 (a,b) VALUES (1,'c');
+ALTER TABLE t1 ADD UNIQUE INDEX a(a) USING HASH;
+ERROR 23000: Duplicate entry '1' for key 'a'
+# Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
+# If you got a difference in error message, just add it to rdiff file
+DROP TABLE t1;

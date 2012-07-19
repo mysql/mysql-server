@@ -1,0 +1,22 @@
+--- suite/storage_engine/lock_concurrent.result	2012-06-24 23:55:19.539380000 +0400
++++ suite/storage_engine/lock_concurrent.reject	2012-07-15 17:50:21.279222746 +0400
+@@ -3,10 +3,19 @@
+ LOCK TABLES t1 WRITE CONCURRENT, t1 AS t2 READ;
+ SET lock_wait_timeout = 1;
+ LOCK TABLES t1 READ LOCAL;
++ERROR HY000: Lock wait timeout exceeded; try restarting transaction
++# ------------ UNEXPECTED RESULT ------------
++# The statement|command finished with ER_LOCK_WAIT_TIMEOUT.
++# LOCK .. WRITE CONCURRENT or the mix could be unsupported|malfunctioning, or the problem was caused by previous errors. 
++# You can change the engine code, or create an rdiff, or disable the test by adding it to disabled.def.
++# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
++# Also, this problem may cause a chain effect (more errors of different kinds in the test).
++# -------------------------------------------
+ UNLOCK TABLES;
+ UNLOCK TABLES;
+ LOCK TABLES t1 READ LOCAL;
+ LOCK TABLES t1 WRITE CONCURRENT, t1 AS t2 READ;
++ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ UNLOCK TABLES;
+ UNLOCK TABLES;
+ DROP TABLE t1;
