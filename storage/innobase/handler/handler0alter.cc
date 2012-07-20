@@ -2875,7 +2875,7 @@ error_handled:
 
 			if (clust_index->online_log) {
 				ut_ad(!locked);
-				row_log_free(clust_index);
+				row_log_abort_sec(clust_index);
 				clust_index->online_status
 					= ONLINE_INDEX_COMPLETE;
 			}
@@ -3554,6 +3554,8 @@ ha_innobase::inplace_alter_table(
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
+	DEBUG_SYNC(user_thd, "innodb_inplace_alter_table_enter");
+
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
 ok_exit:
 		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
@@ -3671,8 +3673,8 @@ innobase_online_rebuild_log_free(
 		ut_ad(dict_index_get_online_status(clust_index)
 		      == ONLINE_INDEX_CREATION);
 		clust_index->online_status = ONLINE_INDEX_COMPLETE;
-		row_log_free(clust_index);
-		clust_index->online_status = ONLINE_INDEX_COMPLETE;
+		row_log_free(clust_index->online_log);
+		DEBUG_SYNC_C("innodb_online_rebuild_log_free_aborted");
 	}
 
 	DBUG_ASSERT(dict_index_get_online_status(clust_index)
@@ -4119,6 +4121,8 @@ ha_innobase::commit_inplace_alter_table(
 	bool				new_clustered;
 
 	DBUG_ENTER("commit_inplace_alter_table");
+
+	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_enter");
 
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
