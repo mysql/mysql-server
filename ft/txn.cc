@@ -166,7 +166,7 @@ toku_txn_create_txn (
         .xa_xid = {0},
         .progress_poll_fun = NULL,
         .progress_poll_fun_extra = NULL,
-        .txn_lock = {{{0}}},
+        .txn_lock = ZERO_MUTEX_INITIALIZER,
         .open_fts = open_fts,
         .roll_info = roll_info,
         .state = TOKUTXN_LIVE,
