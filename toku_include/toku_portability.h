@@ -75,6 +75,7 @@ typedef int64_t toku_off_t;
 #include <sys/time.h>
 #include <stdio.h>
 
+#define static_assert(foo, bar)
 #endif 
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
@@ -98,6 +99,9 @@ typedef int64_t toku_off_t;
 #include <stdarg.h>
 #endif
 #include <alloca.h>
+#if defined(__cplusplus) || defined(__cilkplusplus)
+# include <type_traits>
+#endif
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 # define cast_to_typeof(v) (decltype(v))
