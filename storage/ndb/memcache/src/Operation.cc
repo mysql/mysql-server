@@ -111,9 +111,9 @@ NdbIndexScanOperation * Operation::scanIndex(NdbTransaction *tx,
 
 
 bool Operation::setKey(int nparts, const char *dbkey, size_t key_len ) {
+  bool r = true;
   
   clearKeyNullBits();
-
   if(nparts > 1) {
     TabSeparatedValues tsv(dbkey, nparts, key_len);
     int idx = 0;
@@ -131,12 +131,15 @@ bool Operation::setKey(int nparts, const char *dbkey, size_t key_len ) {
     } while (tsv.advance());
   }
   else { 
-    return setKeyPart(COL_STORE_KEY, dbkey, key_len);
+    r = setKeyPart(COL_STORE_KEY, dbkey, key_len);
   }
+  return r;
 }
 
 
 bool Operation::setKeyFieldsInRow(int nparts, const char *dbkey, size_t key_len ) {
+  bool r = true;
+  
   if(nparts > 1) {
     TabSeparatedValues tsv(dbkey, nparts, key_len);
     int idx = 0;
@@ -154,8 +157,9 @@ bool Operation::setKeyFieldsInRow(int nparts, const char *dbkey, size_t key_len 
     } while (tsv.advance());
   }
   else {
-    return setColumn(COL_STORE_KEY, dbkey, key_len);
+    r = setColumn(COL_STORE_KEY, dbkey, key_len);
   }
+  return r;
 }
 
 
