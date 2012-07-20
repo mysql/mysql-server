@@ -1446,6 +1446,10 @@ bool sp_head::restore_lex(THD *thd)
   if (sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines))
     return true;
 
+  /* If this substatement is a update query, then mark MODIFIES_DATA */
+  if (is_update_query(sublex->sql_command))
+    m_flags|= MODIFIES_DATA;
+
   /*
     Merge tables used by this statement (but not by its functions or
     procedures) to multiset of tables used by this routine.
