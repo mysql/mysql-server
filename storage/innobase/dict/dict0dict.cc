@@ -2319,15 +2319,13 @@ dict_index_remove_from_cache_low(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	rw_lock_x_lock(dict_index_get_lock(index));
+	/* No need to acquire the dict_index_t::lock here because
+	there can't be any active operations on this index (or table). */
 
 	if (index->online_log) {
-		ut_ad(dict_index_get_online_status(index)
-		      == ONLINE_INDEX_CREATION);
-		row_log_free(index);
+		ut_ad(index->online_status == ONLINE_INDEX_CREATION);
+		row_log_free(index->online_log);
 	}
-
-	rw_lock_x_unlock(dict_index_get_lock(index));
 
 	/* We always create search info whether or not adaptive
 	hash index is enabled or not. */

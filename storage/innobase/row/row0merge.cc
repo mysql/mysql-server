@@ -2725,7 +2725,7 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(dict_index_get_lock(index));
 				ut_ad(*index->name == TEMP_INDEX_PREFIX);
-				row_log_free(index);
+				row_log_abort_sec(index);
 			drop_aborted:
 				rw_lock_x_unlock(dict_index_get_lock(index));
 				/* covered by dict_sys->mutex */
@@ -2776,7 +2776,7 @@ row_merge_drop_indexes(
 				In inplace_alter_table(),
 				row_merge_build_indexes()
 				should never leave the index in this state.
-				It would invoke row_log_free() on failure. */
+				It would invoke row_log_abort_sec() on failure. */
 			case ONLINE_INDEX_COMPLETE:
 				/* In these cases, we are able to drop
 				the index straight. The DROP INDEX was
@@ -3619,7 +3619,7 @@ func_exit:
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(
 					dict_index_get_lock(indexes[i]));
-				row_log_free(indexes[i]);
+				row_log_abort_sec(indexes[i]);
 				indexes[i]->type |= DICT_CORRUPT;
 				rw_lock_x_unlock(
 					dict_index_get_lock(indexes[i]));

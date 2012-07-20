@@ -23,8 +23,6 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C_IF_THD */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -53,7 +51,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "fts0types.h"
 #include "m_string.h"
-#include "my_sys.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
