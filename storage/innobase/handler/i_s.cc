@@ -1726,10 +1726,11 @@ i_s_cmp_per_index_fill_low(
 	mutex_enter(&dict_sys->mutex);
 
 	map<index_id_t, page_zip_stat_t>::iterator	iter;
+	ulint						i;
 
-	for (iter = page_zip_stat_per_index.begin();
+	for (iter = page_zip_stat_per_index.begin(), i = 0;
 	     iter != page_zip_stat_per_index.end();
-	     iter++) {
+	     iter++, i++) {
 
 		char		name[192];
 		dict_index_t*	index = dict_index_find_on_id_low(iter->first);
@@ -1775,14 +1776,21 @@ i_s_cmp_per_index_fill_low(
 			status = 1;
 			break;
 		}
+
+		/* Release and reacquire the dict mutex to allow other
+		threads to proceed. This could eventually result in the
+		contents of INFORMATION_SCHEMA.innodb_cmp_per_index being
+		inconsistent, but it is an acceptable compromise. */
+		if (i % 1000 == 0) {
+			mutex_exit(&dict_sys->mutex);
+			mutex_enter(&dict_sys->mutex);
+		}
 	}
 
 	mutex_exit(&dict_sys->mutex);
 
 	if (reset) {
-		page_zip_stat_per_index.erase(
-			page_zip_stat_per_index.begin(),
-			page_zip_stat_per_index.end());
+		page_zip_reset_stat_per_index();
 	}
 
 
