@@ -14104,6 +14104,28 @@ innodb_adaptive_hash_index_update(
 }
 
 /****************************************************************//**
+Update the system variable innodb_cmp_per_index using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_cmp_per_index_update(
+/*========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* Reset the stats whenever we enable the table
+	INFORMATION_SCHEMA.innodb_cmp_per_index. */
+	if (*(my_bool*) save) {
+		page_zip_reset_stat_per_index();
+	}
+}
+
+/****************************************************************//**
 Update the system variable innodb_old_blocks_pct using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
@@ -15909,7 +15931,7 @@ static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable INFORMATION_SCHEMA.innodb_cmp_per_index, "
   "may have negative impact on performance (off by default)",
-  NULL, NULL, FALSE);
+  NULL, innodb_cmp_per_index_update, FALSE);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
