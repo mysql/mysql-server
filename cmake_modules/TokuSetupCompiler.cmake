@@ -85,7 +85,7 @@ set_cflags_if_supported(
   -Wno-error=missing-format-attribute
   -Wpacked
   )
-set_cflags_if_supported_named("-Weffc++" -Weffcpp)
+## set_cflags_if_supported_named("-Weffc++" -Weffcpp)
 set_ldflags_if_supported(
   -Wno-error=strict-overflow
   )
