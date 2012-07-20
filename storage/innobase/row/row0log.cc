@@ -2405,7 +2405,7 @@ row_log_allocate(
 	index->online_log = log;
 
 	/* While we might be holding an exclusive data dictionary lock
-	here, in row_log_free() we will not always be holding it. Use
+	here, in row_log_abort_sec() we will not always be holding it. Use
 	atomic operations in both cases. */
 	MONITOR_ATOMIC_INC(MONITOR_ONLINE_CREATE_INDEX);
 
@@ -2414,11 +2414,11 @@ row_log_allocate(
 
 /******************************************************//**
 Free the row log for an index that was being created online. */
-static
+UNIV_INTERN
 void
-row_log_free_low(
-/*=============*/
-	row_log_t*	log)	/*!< in,own: row log */
+row_log_free(
+/*=========*/
+	row_log_t*&	log)	/*!< in,own: row log */
 {
 	MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
@@ -2426,22 +2426,24 @@ row_log_free_low(
 	row_merge_file_destroy_low(log->fd);
 	mutex_free(&log->mutex);
 	os_mem_free_large(log->head.block, log->size);
+	log = 0;
 }
 
 /******************************************************//**
 Free the row log for an index on which online creation was aborted. */
 UNIV_INTERN
 void
-row_log_free(
-/*=========*/
+row_log_abort_sec(
+/*===============*/
 	dict_index_t*	index)	/*!< in/out: index (x-latched) */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(!dict_index_is_clust(index));
 	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
-	row_log_free_low(index->online_log);
-	index->online_log = NULL;
+	row_log_free(index->online_log);
 }
 
 /******************************************************//**
@@ -3249,7 +3251,7 @@ row_log_apply(
 	will be dropped. */
 	rw_lock_x_unlock(dict_index_get_lock(index));
 
-	row_log_free_low(log);
+	row_log_free(log);
 
 	return(error);
 }
