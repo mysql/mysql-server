@@ -3085,34 +3085,34 @@ toku_ft_change_descriptor(
 {
     int r = 0;
     DESCRIPTOR_S new_d;
-    BYTESTRING old_desc_bs = { old_descriptor->size, (char *) old_descriptor->data };
-    BYTESTRING new_desc_bs = { new_descriptor->size, (char *) new_descriptor->data };
-    if (!txn) {
-        r = EINVAL;
-        goto cleanup;
-    }
-    // put information into rollback file
-    r = toku_logger_save_rollback_change_fdescriptor(
-        txn,
-        toku_cachefile_filenum(ft_h->ft->cf),
-        &old_desc_bs
-        );
-    if (r != 0) { goto cleanup; }
-    toku_txn_maybe_note_ft(txn, ft_h->ft);
 
-    if (do_log) {
-        TOKULOGGER logger = toku_txn_logger(txn);
-        TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_change_fdescriptor(
-            logger, NULL, 0,
+    // if running with txns, save to rollback + write to recovery log
+    if (txn) {
+        // put information into rollback file
+        BYTESTRING old_desc_bs = { old_descriptor->size, (char *) old_descriptor->data };
+        BYTESTRING new_desc_bs = { new_descriptor->size, (char *) new_descriptor->data };
+        r = toku_logger_save_rollback_change_fdescriptor(
             txn,
             toku_cachefile_filenum(ft_h->ft->cf),
-            xid,
-            old_desc_bs,
-            new_desc_bs,
-            update_cmp_descriptor
+            &old_desc_bs
             );
         if (r != 0) { goto cleanup; }
+        toku_txn_maybe_note_ft(txn, ft_h->ft);
+
+        if (do_log) {
+            TOKULOGGER logger = toku_txn_logger(txn);
+            TXNID xid = toku_txn_get_txnid(txn);
+            r = toku_log_change_fdescriptor(
+                logger, NULL, 0,
+                txn,
+                toku_cachefile_filenum(ft_h->ft->cf),
+                xid,
+                old_desc_bs,
+                new_desc_bs,
+                update_cmp_descriptor
+                );
+            if (r != 0) { goto cleanup; }
+        }
     }
 
     // write new_descriptor to header
