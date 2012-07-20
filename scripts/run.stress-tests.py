@@ -484,6 +484,9 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
     info('Building tokudb.')
     if not os.path.exists(builddir):
         os.mkdir(builddir)
+    newenv = os.environ
+    newenv['CC'] = 'gcc47'
+    newenv['CXX'] = 'g++47'
     r = call(['cmake',
               '-DCMAKE_BUILD_TYPE=Debug',
               '-DINTEL_CC=%s' % iccstr,
@@ -494,6 +497,7 @@ def rebuild(tokudb, builddir, installdir, cc, tests):
               '-DUSE_ETAGS=OFF',
               '-DUSE_CSCOPE=OFF',
               tokudb],
+             env=newenv,
              cwd=builddir)
     if r != 0:
         error('Building the tests failed.')
