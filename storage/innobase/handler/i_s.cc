@@ -1793,7 +1793,6 @@ i_s_cmp_per_index_fill_low(
 		page_zip_reset_stat_per_index();
 	}
 
-
 	DBUG_RETURN(status);
 }
 
