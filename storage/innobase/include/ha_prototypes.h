@@ -32,6 +32,7 @@ Created 5/11/2006 Osku Salerma
 #include "my_compare.h"
 #include "my_sys.h"
 #include "m_string.h"
+#include "debug_sync.h"
 
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
