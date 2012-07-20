@@ -1427,6 +1427,10 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
+		if (page_is_leaf(page)) {
+			dict_index_zip_failure(index);
+		}
+
 		ullint	time_diff = ut_time_us(NULL) - usec;
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= time_diff;
@@ -1499,6 +1503,10 @@ err_exit:
 	if (srv_cmp_per_index_enabled) {
 		page_zip_stat_per_index[index->id].compressed_ok++;
 		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+	}
+
+	if (page_is_leaf(page)) {
+		dict_index_zip_success(index);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3098,6 +3106,8 @@ err_exit:
 	ut_a(page_is_comp(page));
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
+	page_zip_fields_free(index);
+	mem_heap_free(heap);
 #ifndef UNIV_HOTBACKUP
 	ullint	time_diff = ut_time_us(NULL) - usec;
 	page_zip_stat[page_zip->ssize - 1].decompressed++;
@@ -3110,9 +3120,6 @@ err_exit:
 		page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
 	}
 #endif /* !UNIV_HOTBACKUP */
-
-	page_zip_fields_free(index);
-	mem_heap_free(heap);
 
 	/* Update the stat counter for LRU policy. */
 	buf_LRU_stat_inc_unzip();
