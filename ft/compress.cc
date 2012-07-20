@@ -3,6 +3,7 @@
 #ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
+#include <toku_portability.h>
 #include <zlib.h>
 #include <lzma.h>
 
