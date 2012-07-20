@@ -405,11 +405,8 @@ buf_flush_try_yield(
 	ensures that the block stays in its position in the
 	flush_list. */
 
-	if (bpage == NULL) {
-		return(false);
-	}
-
-	if (processed >= BUF_LRU_DROP_SEARCH_SIZE
+	if (bpage != NULL
+	    && processed >= BUF_LRU_DROP_SEARCH_SIZE
 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
 
 		buf_flush_list_mutex_exit(buf_pool);
