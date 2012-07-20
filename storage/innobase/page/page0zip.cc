@@ -1219,6 +1219,10 @@ page_zip_compress(
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*		logfile = NULL;
 #endif
+	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
+	variable multiple times in this function since it can be changed at
+	anytime. */
+	my_bool		cmp_per_index_enabled = srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -1281,7 +1285,7 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
-	if (srv_cmp_per_index_enabled) {
+	if (cmp_per_index_enabled) {
 		page_zip_stat_per_index[index->id].compressed++;
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -1434,7 +1438,7 @@ err_exit:
 		ullint	time_diff = ut_time_us(NULL) - usec;
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= time_diff;
-		if (srv_cmp_per_index_enabled) {
+		if (cmp_per_index_enabled) {
 			page_zip_stat_per_index[index->id].compressed_usec
 				+= time_diff;
 		}
@@ -1500,7 +1504,7 @@ err_exit:
 	ullint	time_diff = ut_time_us(NULL) - usec;
 	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
 	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
-	if (srv_cmp_per_index_enabled) {
+	if (cmp_per_index_enabled) {
 		page_zip_stat_per_index[index->id].compressed_ok++;
 		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
 	}
