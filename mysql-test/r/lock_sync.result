@@ -27,6 +27,7 @@ drop table if exists t0, t1, t2, t3, t4, t5;
 drop view if exists v1, v2;
 drop procedure if exists p1;
 drop procedure if exists p2;
+drop procedure if exists p3;
 drop function if exists f1;
 drop function if exists f2;
 drop function if exists f3;
@@ -42,6 +43,8 @@ drop function if exists f12;
 drop function if exists f13;
 drop function if exists f14;
 drop function if exists f15;
+drop function if exists f16;
+drop function if exists f17;
 create table t1 (i int primary key);
 insert into t1 values (1), (2), (3), (4), (5);
 create table t2 (j int primary key);
@@ -146,6 +149,26 @@ declare k int;
 call p2(k);
 return k;
 end|
+create function f16() returns int
+begin
+create temporary table if not exists temp1 (a int);
+insert into temp1 select * from t1;
+drop temporary table temp1;
+return 1;
+end|
+create function f17() returns int
+begin
+declare j int;
+select i from t1 where i = 1 into j;
+call p3;
+return 1;
+end|
+create procedure p3()
+begin
+create temporary table if not exists temp1 (a int);
+insert into temp1 select * from t1;
+drop temporary table temp1;
+end|
 create trigger t4_bi before insert on t4 for each row
 begin
 declare k int;
@@ -185,6 +208,7 @@ end|
 # once during its execution.
 show create procedure p1;
 show create procedure p2;
+show create procedure p3;
 show create function f1;
 show create function f2;
 show create function f3;
@@ -200,6 +224,8 @@ show create function f12;
 show create function f13;
 show create function f14;
 show create function f15;
+show create function f16;
+show create function f17;
 # Switch back to connection 'default'.
 #
 # 1. Statements that read tables and do not use subqueries.
@@ -359,14 +385,11 @@ Success: 'update v2 set j= j-10 where j = 3' doesn't allow concurrent inserts in
 # 4.1 SELECT/SET with a stored function which does not 
 #     modify data and uses SELECT in its turn.
 #
-# In theory there is no need to take strong locks on the table
+# There is no need to take strong locks on the table
 # being selected from in SF as the call to such function
-# won't get into the binary log. In practice, however, we
-# discover that fact too late in the process to be able to
-# affect the decision what locks should be taken.
-# Hence, strong locks are taken in this case.
-Success: 'select f1()' doesn't allow concurrent inserts into 't1'.
-Success: 'set @a:= f1()' doesn't allow concurrent inserts into 't1'.
+# won't get into the binary log.
+Success: 'select f1()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f1()' allows concurrent inserts into 't1'.
 #
 # 4.2 INSERT (or other statement which modifies data) with
 #     a stored function which does not modify data and uses
@@ -392,14 +415,12 @@ Success: 'set @a:= f2()' doesn't allow concurrent inserts into 't1'.
 #      modify data and reads a table through subselect
 #      in a control construct.
 #
-# Again, in theory a call to this function won't get to the
-# binary log and thus no strong lock is needed. But in practice
-# we don't detect this fact early enough (get_lock_type_for_table())
-# to avoid taking a strong lock.
-Success: 'select f3()' doesn't allow concurrent inserts into 't1'.
-Success: 'set @a:= f3()' doesn't allow concurrent inserts into 't1'.
-Success: 'select f4()' doesn't allow concurrent inserts into 't1'.
-Success: 'set @a:= f4()' doesn't allow concurrent inserts into 't1'.
+# Call to this function won't get to the
+# binary log and thus no strong lock is needed.
+Success: 'select f3()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f3()' allows concurrent inserts into 't1'.
+Success: 'select f4()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f4()' allows concurrent inserts into 't1'.
 #
 # 4.5. INSERT (or other statement which modifies data) with
 #      a stored function which does not modify data and reads
@@ -426,14 +447,13 @@ Success: 'set @a:= f5()' doesn't allow concurrent inserts into 't1'.
 #     doesn't modify data and reads tables through
 #     a view.
 #
-# Once again, in theory, calls to such functions won't
-# get into the binary log and thus don't need strong
-# locks. But in practice this fact is discovered
-# too late to have any effect.
-Success: 'select f6()' doesn't allow concurrent inserts into 't1'.
-Success: 'set @a:= f6()' doesn't allow concurrent inserts into 't1'.
-Success: 'select f7()' doesn't allow concurrent inserts into 't1'.
-Success: 'set @a:= f7()' doesn't allow concurrent inserts into 't1'.
+# Calls to such functions won't get into
+# the binary log and thus don't need strong
+# locks.
+Success: 'select f6()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f6()' allows concurrent inserts into 't1'.
+Success: 'select f7()' allows concurrent inserts into 't1'.
+Success: 'set @a:= f7()' allows concurrent inserts into 't1'.
 #
 # 4.8 INSERT which uses stored function which
 #     doesn't modify data and reads a table
@@ -459,10 +479,9 @@ Success: 'select f9()' doesn't allow concurrent inserts into 't1'.
 #      data and reads a table indirectly, by calling another
 #      function.
 #
-# In theory, calls to such functions won't get into the binary
-# log and thus don't need to acquire strong locks. But in practice
-# this fact is discovered too late to have any effect.
-Success: 'select f10()' doesn't allow concurrent inserts into 't1'.
+# Calls to such functions won't get into the binary
+# log and thus don't need to acquire strong locks.
+Success: 'select f10()' allows concurrent inserts into 't1'.
 #
 # 4.11 INSERT which uses a stored function which doesn't modify
 #      data and reads a table indirectly, by calling another
@@ -501,6 +520,26 @@ Success: 'select f12((select i+10 from t1 where i=1))' allows concurrent inserts
 # uses. Therefore it should take strong locks on the data it reads.
 Success: 'insert into t2 values (f13((select i+10 from t1 where i=1)))' doesn't allow concurrent inserts into 't1'.
 #
+# 4.15 SELECT/SET with a stored function which 
+#      inserts data into a temporary table using
+#      SELECT on t1.
+#
+# Since this statement is written to the binary log it should
+# be serialized with concurrent statements affecting the data it
+# uses. Therefore it should take strong locks on the data it reads.
+Success: 'select f16()' doesn't allow concurrent inserts into 't1'.
+Success: 'set @a:= f16()' doesn't allow concurrent inserts into 't1'.
+#
+# 4.16 SELECT/SET with a stored function which call procedure
+#      which inserts data into a temporary table using
+#      SELECT on t1.
+#
+# Since this statement is written to the binary log it should
+# be serialized with concurrent statements affecting the data it
+# uses. Therefore it should take strong locks on the data it reads.
+Success: 'select f17()' doesn't allow concurrent inserts into 't1'.
+Success: 'set @a:= f17()' doesn't allow concurrent inserts into 't1'.
+#
 # 5. Statements that read tables through stored procedures.
 #
 #
@@ -522,10 +561,9 @@ Success: 'select f14()' doesn't allow concurrent inserts into 't1'.
 # 5.3 SELECT that calls a function that doesn't modify data and
 #     uses a CALL statement that reads a table via SELECT.
 #
-# In theory, calls to such functions won't get into the binary
-# log and thus don't need to acquire strong locks. But in practice
-# this fact is discovered too late to have any effect.
-Success: 'select f15()' doesn't allow concurrent inserts into 't1'.
+# Calls to such functions won't get into the binary
+# log and thus don't need to acquire strong locks.
+Success: 'select f15()' allows concurrent inserts into 't1'.
 #
 # 5.4 INSERT which calls function which doesn't modify data and
 #     uses CALL statement which reads table through SELECT.
@@ -585,9 +623,12 @@ drop function f12;
 drop function f13;
 drop function f14;
 drop function f15;
+drop function f16;
+drop function f17;
 drop view v1, v2;
 drop procedure p1;
 drop procedure p2;
+drop procedure p3;
 drop table t1, t2, t3, t4, t5;
 set @@global.concurrent_insert= @old_concurrent_insert;
 #
