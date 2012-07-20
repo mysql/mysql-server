@@ -331,13 +331,14 @@ Success: 'update v2 set j= j-10 where j = 3' takes shared row locks on 't1'.
 # 4.1 SELECT/SET with a stored function which does not 
 #     modify data and uses SELECT in its turn.
 #
-# In theory there is no need to take row locks on the table
+# There is no need to take row locks on the table
 # being selected from in SF as the call to such function
-# won't get into the binary log. In practice, however, we
-# discover that fact too late in the process to be able to
-# affect the decision what locks should be taken.
-# Hence, strong locks are taken in this case.
-Success: 'select f1()' takes shared row locks on 't1'.
+# won't get into the binary log.
+#
+# However in practice innodb takes strong lock on tables
+# being selected from within SF, when SF is called from
+# non SELECT statements like 'set' statement below.
+Success: 'select f1()' doesn't take row locks on 't1'.
 Success: 'set @a:= f1()' takes shared row locks on 't1'.
 #
 # 4.2 INSERT (or other statement which modifies data) with
@@ -364,13 +365,15 @@ Success: 'set @a:= f2()' takes shared row locks on 't1'.
 #      modify data and reads a table through subselect
 #      in a control construct.
 #
-# Again, in theory a call to this function won't get to the
-# binary log and thus no locking is needed. But in practice
-# we don't detect this fact early enough (get_lock_type_for_table())
-# to avoid taking row locks.
-Success: 'select f3()' takes shared row locks on 't1'.
+# Call to this function won't get to the
+# binary log and thus no locking is needed.
+#
+# However in practice innodb takes strong lock on tables
+# being selected from within SF, when SF is called from
+# non SELECT statements like 'set' statement below.
+Success: 'select f3()' doesn't take row locks on 't1'.
 Success: 'set @a:= f3()' takes shared row locks on 't1'.
-Success: 'select f4()' takes shared row locks on 't1'.
+Success: 'select f4()' doesn't take row locks on 't1'.
 Success: 'set @a:= f4()' takes shared row locks on 't1'.
 #
 # 4.5. INSERT (or other statement which modifies data) with
@@ -398,13 +401,15 @@ Success: 'set @a:= f5()' takes shared row locks on 't1'.
 #     doesn't modify data and reads tables through
 #     a view.
 #
-# Once again, in theory, calls to such functions won't
-# get into the binary log and thus don't need row
-# locks. But in practice this fact is discovered
-# too late to have any effect.
-Success: 'select f6()' takes shared row locks on 't1'.
+# Calls to such functions won't get into
+# the binary log and thus don't need row locks.
+#
+# However in practice innodb takes strong lock on tables
+# being selected from within SF, when SF is called from
+# non SELECT statements like 'set' statement below.
+Success: 'select f6()' doesn't take row locks on 't1'.
 Success: 'set @a:= f6()' takes shared row locks on 't1'.
-Success: 'select f7()' takes shared row locks on 't1'.
+Success: 'select f7()' doesn't take row locks on 't1'.
 Success: 'set @a:= f7()' takes shared row locks on 't1'.
 #
 # 4.8 INSERT which uses stored function which
@@ -431,10 +436,9 @@ Success: 'select f9()' takes shared row locks on 't1'.
 #      data and reads a table indirectly, by calling another
 #      function.
 #
-# In theory, calls to such functions won't get into the binary
-# log and thus don't need to acquire row locks. But in practice
-# this fact is discovered too late to have any effect.
-Success: 'select f10()' takes shared row locks on 't1'.
+# Calls to such functions won't get into the binary
+# log and thus don't need to acquire row locks.
+Success: 'select f10()' doesn't take row locks on 't1'.
 #
 # 4.11 INSERT which uses a stored function which doesn't modify
 #      data and reads a table indirectly, by calling another
@@ -494,10 +498,9 @@ Success: 'select f14()' takes shared row locks on 't1'.
 # 5.3 SELECT that calls a function that doesn't modify data and
 #     uses a CALL statement that reads a table via SELECT.
 #
-# In theory, calls to such functions won't get into the binary
-# log and thus don't need to acquire row locks. But in practice
-# this fact is discovered too late to have any effect.
-Success: 'select f15()' takes shared row locks on 't1'.
+# Calls to such functions won't get into the binary
+# log and thus don't need to acquire row locks.
+Success: 'select f15()' doesn't take row locks on 't1'.
 #
 # 5.4 INSERT which calls function which doesn't modify data and
 #     uses CALL statement which reads table through SELECT.
