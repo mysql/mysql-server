@@ -15,12 +15,6 @@
 #include <errno.h>
 #include <db.h>
 
-#if defined(__ICL) || defined(__ICC) || defined(__clang__)
-# define static_assert(foo, bar) // nothing
-#else
-# include <type_traits>
-#endif
-
 namespace toku {
 
 /**
@@ -69,10 +63,20 @@ namespace toku {
  * Performance:
  *  Insertion and deletion should run with $O(\log |V|)$ time and $O(\log |V|)$ calls to the Heaviside function.
  *  The memory required is O(|V|).
+ *
+ * Usage:
+ *  The omt is templated by two parameters:
+ *   - omtdata_t is what will be stored within the omt.  These could be pointers or real data types (ints, structs).
+ *   - omtdataout_t is what will be returned by find and related functions.  By default, it is the same as omtdata_t, but you can set it to (omtdata_t *).
+ *  To create an omt which will store "TXNID"s, for example, it is a good idea to typedef the template:
+ *   typedef omt<TXNID> txnid_omt_t;
+ *  If you are storing structs, you may want to be able to get a pointer to the data actually stored in the omt (see find_zero).  To do this, use the second template parameter:
+ *   typedef omt<struct foo, struct foo *> foo_omt_t;
  */
 template<typename omtdata_t,
          typename omtdataout_t=omtdata_t>
-struct omt {
+class omt {
+public:
     /**
      * Effect: Create an empty OMT.
      * Performance: constant time.
@@ -1240,7 +1244,9 @@ private:
 
     __attribute__((nonnull))
     static inline int deep_clone_iter(const omtdata_t &value, const uint32_t idx, omt *const dest) {
+#ifndef __ICC
         static_assert(std::is_pointer<omtdata_t>::value, "omtdata_t isn't a pointer, can't do deep clone");
+#endif
         invariant_notnull(dest);
         invariant(idx == dest->d.a.num_values);
         invariant(idx < dest->capacity);
@@ -1249,7 +1255,9 @@ private:
     }
 
     static inline int free_items_iter(omtdata_t *value, const uint32_t UU(idx), void *const UU(unused)) {
+#ifndef __ICC
         static_assert(std::is_pointer<omtdata_t>::value, "omtdata_t isn't a pointer, can't do free items");
+#endif
         invariant_notnull(*value);
         toku_free(*value);
         return 0;
