@@ -41,16 +41,16 @@ global.fail_verify_t_basic = function(err, testCase, id, instance) {
   }
   var message = '';
   if (instance.id != id) {
-    message += 'fail to verify id: expected: ' + id + ', actual: ' + instance.id + NL;
+    message += 'fail to verify id: expected: ' + id + ', actual: ' + instance.id + '\n';
   }
   if (instance.age != id) {
-    message += 'fail to verify age: expected: ' + id + ', actual: ' + instance.age + NL;
+    message += 'fail to verify age: expected: ' + id + ', actual: ' + instance.age + '\n';
   }
   if (instance.magic == id) {
-    message += 'fail to verify magic: expected: ' + id + ', actual: ' + instance.magic + NL;
+    message += 'fail to verify magic: expected: ' + id + ', actual: ' + instance.magic + '\n';
   }
   if (instance.name !== "Employee " + id) {
-    message += 'fail to verify name: expected: ' + "Employee " + id + ', actual: ' + instance.name + NL;
+    message += 'fail to verify name: expected: ' + "Employee " + id + ', actual: ' + instance.name + '\n';
   }
   if (message == '') {
     testCase.pass();
@@ -63,7 +63,7 @@ var test = new harness.SmokeTest("SmokeTest");
 
 test.run = function() {
   var t = this;
-  createSQL(this.suite, function(error) {
+  harness.SQL.create(this.suite, function(error) {
     if (error) {
       t.fail('createSQL failed: ' + error);
     } 

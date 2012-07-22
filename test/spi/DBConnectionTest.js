@@ -18,23 +18,10 @@
  02110-1301  USA
  */
 
-var assert = require("assert");
-var spi = require(global.spi_module);
-var harness = require(global.test_harness_module);
+var spi = require(spi_module);
 
-/***** getDBServiceProvider ***/
-var getSPItest = function() { 
-  var prov = spi.getDBServiceProvider(this.impl);
-  assert(typeof prov.connectSync == 'function', "has no connectSync() method");
-  return true; // test is complete
-};
 
-/**** getDBServiceProvider and getDefaultConnectionProperties ***/
-var getPropertiesTest = function() {
-  var provider = spi.getDBServiceProvider(this.impl);
-  provider.getDefaultConnectionProperties();
-  return true; // test is complete
-};
+
 
 /**** Actually connect using the default properties.  
       Requires something to connect to. 
@@ -45,6 +32,7 @@ var connectSyncTest = function() {
   var conn = provider.connectSync(properties);
   assert(conn.isConnected(), "failed to connect");
   return true; // test is complete
+  conn.closeSync();
 };
 
 
@@ -62,50 +50,21 @@ var connectAsyncTest = function() {
 };
 
 
-/*** spi.ndb.getSPI ***/
-var t1 = new harness.Test("getSPI");
-t1.impl= "ndb";
-t1.run = getSPItest;
-
-/*** spi.ndb.getProperties ***/
-var t2 = new harness.Test("getProperties");
-t2.impl= "ndb";
-t2.run = getPropertiesTest;
-
 /*** spi.ndb.connectSync ***/
-var t3 = new harness.Test("connectSync");
+var t3 = new harness.SerialTest("connectSync");
 t3.impl = "ndb";
 t3.run = connectSyncTest;
 
-/*** spi.mysql.getSPI ***/
-var t4 =  new harness.Test("getSPI");
-t4.impl= "mysql";
-t4.run = getSPItest;
-
-/*** spi.mysql.getProperties ***/
-var t5 = new harness.Test("getProperties");
-t5.impl = "mysql";
-t5.run = getPropertiesTest;
-
-/*** spi.mysql.connectSync ***/
-var t6 = new harness.Test("connectSync");
-t6.impl = "mysql";
-t6.run = connectSyncTest;
 
 /** spi.ndb.connect ***/
-var t7 = new harness.Test("connect");
+var t7 = new harness.SerialTest("connect");
 t7.impl = "ndb";
 t7.run = connectAsyncTest;
 
 
 /******************* TEST GROUPS ********/
 
-var ndb_group = new harness.Test("ndb").makeTestGroup(t1, t2, t3, t7);
-
-var mysql_group = new harness.Test("mysql").makeTestGroup(t4, t5, t6);
-
-var group = new harness.Test("spi").makeTestGroup(ndb_group, mysql_group);
-
+var ndb_group = new harness.SerialTest("ndb").makeTestGroup(t3, t7);
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports = group;
+module.exports = ndb_group;

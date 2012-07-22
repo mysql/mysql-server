@@ -18,16 +18,20 @@
  02110-1301  USA
  */
 
-var mynode = require(global.api_module);
-var harness = require(global.test_harness_module);
+/** This is the smoke test for the spi suite.
+    We go just as far as getDBServiceProvider().
+    This tests the loading of required compiled code in shared library files.
+ */
 
-var test1 = new harness.Test("Properties Constructor");
-test1.run = function() {
-  var properties = new mynode.ConnectionProperties("ndb");
+var impl = "ndb";
+
+var test = new harness.SmokeTest("LoadModuleSmokeTest");
+
+test.run = function() {
+  var spi = require(spi_module);
+  var service = spi.getDBServiceProvider(impl);
+
   return true; // test is complete
 };
 
-
-var group = new harness.Test("properties").makeTestGroup(test1);
-
-module.exports = group;
+module.exports = test;
