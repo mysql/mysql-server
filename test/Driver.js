@@ -18,297 +18,18 @@
  02110-1301  USA
  */
 
-var fs = require("fs");
-var path = require("path");
-var parent = path.dirname(__dirname);
+require("./test_config.js");
 
-/* Set global.testharnessmodule 
-   and global.adapter
-   for the use of test cases
+var fs = require("fs"),
+    util = require('util'),
+    exec = require('child_process').exec;
+
+
+/** Driver 
 */
-global.test_harness_module = path.join(__dirname, "harness.js");
-global.harness = require(global.test_harness_module);
-
-global.adapter = path.join(parent, "Adapter");
-
-global.api_module = path.join(parent, "Adapter", "api", "mynode.js");
-global.mynode = require(global.api_module);
-
-global.spi_module = path.join(parent, "Adapter", "impl", "SPI.js");
-
-global.suitesToRun = null;
-
-global.debug = false;
-global.exit = false;
-
-global.NL = '\n';
-
-var Test = require(global.test_harness_module);
-
-var re_matching_test_case = /Test\.js$/;
-
-global.createSQL = function(suite, callback) {
-  var sqlPath = path.join(suite.path, 'create.sql');
-  if (debug) console.log("createSQL path: " + sqlPath);
-  var child = exec('mysql <' + sqlPath,
-  function (error, stdout, stderr) {
-  if (debug) console.log('createSQL stdout: ' + stdout);
-  if (debug) console.log('createSQL stderr: ' + stderr);
-  if (error !== null) {
-    console.log('createSQL exec error: ' + error);
-  } else {
-    if (debug) console.log('createSQL exec OK');
-  }
-  callback(error);
-  });
-};
-
-global.dropSQL = function(suite, callback) {
-  var sqlPath = path.join(suite.path, 'drop.sql');
-  if (debug) console.log("dropSQL path: " + sqlPath);
-  var child = exec('mysql <' + sqlPath,
-  function (error, stdout, stderr) {
-  if (debug) console.log('dropSQL stdout: ' + stdout);
-  if (debug) console.log('dropSQL stderr: ' + stderr);
-  if (error !== null) {
-    console.log('dropSQL exec error: ' + error);
-  }
-  callback(error);
-  });
-};
-
-/** Open a session or fail the test case */
-global.fail_openSession = function(testCase, callback) {
-  var properties = new mynode.ConnectionProperties("ndb");
-  var annotations = new mynode.Annotations();
-  mynode.openSession(properties, annotations, function(err, session) {
-    if (err) {
-      testCase.fail(err);
-    }
-    callback(session);
-  });
-};
-
-/** A Suite consists of all tests in all test programs in a directory */
-function Suite(name, path) {
-  this.name = name;
-  this.path = path;
-  this.tests = [];
-  this.testCases = [];
-  this.currentTest = 0;
-  this.smokeTest;
-  this.concurrentTests = [];
-  this.numberOfConcurrentTests = 0;
-  this.numberOfConcurrentTestsCompleted = 0;
-  this.numberOfConcurrentTestsStarted = 0;
-  this.firstConcurrentTestIndex = -1;
-  this.serialTests = [];
-  this.numberOfSerialTests = 0;
-  this.firstSerialTestIndex = -1;
-  this.nextSerialTestIndex = -1;
-  this.clearSmokeTest;
-  this.numberOfRunningConcurrentTests = 0;
-  this.group = null;
-  if (debug) console.log('creating Suite for ' + name + ' ' + path);
-}
-
-Suite.prototype.createTests = function() {
-
-  var files = fs.readdirSync(path.join(parent, 'test', this.name));
-  for(var i = 0; i < files.length ; i++) {
-    var f = files[i];
-    var st = fs.statSync(path.join(parent, 'test', this.name, f));
-    if(st.isFile() && re_matching_test_case.test(f)) {
-      var t = require(path.join(parent, 'test', this.name, f));
-      if(! t.isTest()) {
-        throw { name : "NotATest" ,
-          message : "Module " + f + " does not export a Test."
-        };
-      }
-      if (debug) console.log('Suite ' + this.name + ' found test ' + f);
-      t.name = f; // the name of this group is the test program name
-      t.group = this;
-      this.tests.push(t);
-    }
-  }
-  if (debug) console.log('Suite ' + this.name + ' found ' + this.tests.length +  ' tests.');
-  
-  for (var i = 0; i < this.tests.length; ++i) {
-    var t = this.tests[i].getTestCases();
-    for (var j = 0; j < t.length; ++j) {
-        this.testCases.push(t[j]);
-    }
-  }
-
-  this.testCases.sort(function(a,b) {
-    if(a.phase < b.phase) return -1;
-    if(a.phase == b.phase) return 0;
-    return 1;
- });
-
-  suite = this;
-  this.testCases.forEach(function(t, index) {
-    t.index = index;
-    t.suite = suite;
-    switch(t.phase) {
-    case 0:
-      suite.smokeTest = t;
-      break;
-    case 1:
-      suite.concurrentTests.push(t);
-      if (suite.firstConcurrentTestIndex == -1) {
-        suite.firstConcurrentTestIndex = t.index;
-        if (debug) console.log('Suite.createTests firstConcurrentTestIndex: ' + suite.firstConcurrentTestIndex);
-      }
-      break;
-    case 2:
-      suite.serialTests.push(t);
-      if (suite.firstSerialTestIndex == -1) {
-        suite.firstSerialTestIndex = t.index;
-        if (debug) console.log('Suite.createTests firstSerialTestIndex: ' + suite.firstSerialTestIndex);
-      }
-      break;
-    case 3:
-      suite.clearSmokeTest = t;
-      break;
-  }
-  if (debug) console.log('createTests sorted test case ' + ' ' + t.name + ' ' + t.phase + ' ' + t.index);
-  });
-  suite.numberOfConcurrentTests = suite.concurrentTests.length;
-  if (debug) console.log('numberOfConcurrentTests for ' + suite.fullName() + ' is ' + suite.numberOfConcurrentTests);
-  suite.numberOfSerialTests = suite.serialTests.length;
-  if (debug) console.log('numberOfSerialTests for ' + suite.fullName() + ' is ' + suite.numberOfSerialTests);
-};
-
-Suite.prototype.runTests = function() {
-  this.currentTest = 0;
-  if (this.testCases.length == 0) return false;
-  tc = this.testCases[this.currentTest];
-  switch (tc.phase) {
-  case 0:
-    // smoke test
-    // start the smoke test
-    tc.test(result);
-    break;
-  case 1:
-    // concurrent test is the first test
-    // start all concurrent tests
-    this.startConcurrentTests();
-    break;
-  case 2:
-    // serial test is the first test
-    this.startSerialTests();
-    break;
-  case 3:
-    // clear smoke test is the first test
-    tc.test(result);
-    break;
-  }
-  return true;
-};
-
-Suite.prototype.startConcurrentTests = function() {
-  if (debug) console.log('Suite.startConcurrentTests');
-  if (this.firstConcurrentTestIndex !== -1) {
-    this.concurrentTests.forEach(function(testCase) {
-      if (debug) console.log('Suite.startConcurrentTests starting ' + testCase.name);
-      testCase.test(result);
-      ++this.numberOfConcurrentTestsStarted;
-    });
-    return false;    
-  } else {
-    return this.startSerialTests();
-  }
-};
-
-Suite.prototype.startSerialTests = function() {
-  if (debug) console.log('Suite.startSerialTests');
-  if (this.firstSerialTestIndex !== -1) {
-    this.startNextSerialTest(this.firstSerialTestIndex);
-    return false;
-  } else {
-    return this.startClearSmokeTest();
-  }
-};
-
-Suite.prototype.startClearSmokeTest = function() {
-  if (debug) console.log('Suite.startClearSmokeTest');
-  if (this.clearSmokeTest) {
-    this.clearSmokeTest.test(result);
-    return false;
-  } else {
-    return true;
-  }
-};
-
-Suite.prototype.startNextSerialTest = function(index) {
-  var testCase = this.testCases[index];
-  testCase.test(result);
-};
-
-/* Notify the suite that a test has completed.
- */
-Suite.prototype.testCompleted = function(testCase) {
-  if (debug) console.log('Suite.testCompleted for testCase ' + testCase.name + ' phase ' + testCase.phase);
-  switch (testCase.phase) {
-  case 0:
-    // the smoke test completed
-    if (testCase.failed) {
-      // if the smoke test failed, we are done
-      return true;
-    } else {
-      if (debug) console.log('Suite.testCompleted; starting concurrent tests');
-      return this.startConcurrentTests();
-    }
-    break;
-  case 1:
-    // one of the concurrent tests completed
-    if (debug) console.log('Suite.testCompleted with concurrent tests already completed: ' + 
-        this.numberOfConcurrentTestsCompleted + ' out of ' + this.numberOfConcurrentTests);
-    if (++this.numberOfConcurrentTestsCompleted == this.numberOfConcurrentTests) {
-      // done with all concurrent tests; start the first serial test
-      if (debug) console.log('Suite.testCompleted; all ' + this.numberOfConcurrentTests + ' concurrent tests completed');
-      return this.startSerialTests();
-    }
-    break;
-  case 2:
-    // one of the serial tests completed
-    var index = testCase.index + 1;
-    if (index < this.testCases.length) {
-      // more tests to run; either another serial test or the clear smoke test
-      tc = this.testCases[index];
-      if (tc.phase == 2) {
-        // start another serial test
-        tc.test(result);
-        return false;
-      } else if (tc.phase == 3) {
-        // start the clear smoke test
-        this.startClearSmokeTest();
-        if (debug) console.log('Suite.testCompleted started ClearSmokeTest.');
-        return false;
-      }
-    } else {
-      // no more tests
-      if (debug) console.log('Suite.testCompleted there is no ClearSmokeTest so we are done.');
-      return true;
-    }
-  case 3:
-    // the clear smoke test completed
-    if (debug) console.log('Suite.testCompleted completed ClearSmokeTest.');
-    return true;
-  }
-};
-
-Suite.prototype.fullName = function() {
-  var result = '';
-  if (this.group) {
-    result = this.group.fullName();
-  }
-  return result + ' ' + this.name;
-};
-
 function Driver() {
   this.suites = [];
+  this.suitesToRun = "";
 };
 
 Driver.prototype.findSuites = function(directory) {
@@ -319,13 +40,14 @@ Driver.prototype.findSuites = function(directory) {
     var st = fs.statSync(path.join(directory, f));
     if (st.isDirectory() && this.isSuiteToRun(f)) {
       if (debug) console.log('Driver.findSuites found directory ' + f);
-      this.suites.push(new Suite(f, path.join(directory, f)));
+      this.suites.push(new harness.Suite(f, path.join(directory, f)));
     }
   }
 };
 
 Driver.prototype.isSuiteToRun = function(directoryName) {
-  if (suitesToRun != null && suitesToRun.indexOf(directoryName) == -1) {
+  if (debug) console.log("SuitesToRun: " + this.suitesToRun);
+  if (this.suitesToRun && this.suitesToRun.indexOf(directoryName) == -1) {
     if (debug) console.log('Driver.isSuiteToRun for ' + directoryName + ' returns false.');
     return false;
   }
@@ -358,14 +80,14 @@ Driver.prototype.reportResultsAndExit = function() {
   process.exit(result.failed.length > 0);  
 };
 
-var util = require('util');
-var exec = require('child_process').exec;
 
 /*****************************************************************************
  ********************** main process *****************************************
  *****************************************************************************/
 
 driver = new Driver();
+var result = new harness.Result(driver);
+result.listener = new harness.Listener();
 
 var usageMessage = 
   "Usage: node driver [options]\n" +
@@ -400,7 +122,7 @@ process.argv.forEach(function (val, index, array) {
           break;
         case '--suite':
         case '--suites':
-          global.suitesToRun = values[1].split(',');
+          driver.suitesToRun = values[1];
           break;
         default:
           console.log('Invalid option ' + val);
@@ -419,8 +141,6 @@ if (exit) {
   process.exit(0);
 }
 
-var result = new Test.Result(driver);
-result.listener = new Test.Listener();
 
 driver.findSuites(__dirname);
 if (debug) console.log('suites found ' + driver.suites.length);
@@ -434,7 +154,7 @@ driver.suites.forEach(function(suite) {
 driver.numberOfRunningSuites = 0;
 driver.suites.forEach(function(suite) {
   if (debug) console.log('main running tests for ' + suite.name);
-  if (suite.runTests()) {
+  if (suite.runTests(result)) {
     driver.numberOfRunningSuites++;
   }
 });

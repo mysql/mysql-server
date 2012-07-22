@@ -18,7 +18,6 @@
  02110-1301  USA
  */
 
-var harness = require(global.test_harness_module);
 
 /***** Insert ***/
 var testInsert = function() {
@@ -54,23 +53,10 @@ var testInsert = function() {
 
 /*** t_basic.ndb.testInsert ***/
 var t1 = new harness.SerialTest("testInsert");
-t1.impl= "ndb";
 t1.run = testInsert;
 
-/*** t_basic.mysql.testInsert ***/
-var t2 = new harness.SerialTest("testInsert");
-t2.impl= "mysql";
-t2.run = testInsert;
-
-
-/******************* TEST GROUPS ********/
 
 var ndb_group = new harness.Test("ndb").makeTestGroup(t1);
 
-var mysql_group = new harness.Test("mysql").makeTestGroup(t2);
-
-var group = new harness.Test("spi").makeTestGroup(ndb_group, mysql_group);
-
-
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports = group;
+module.exports = ndb_group;
