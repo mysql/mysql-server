@@ -31,8 +31,8 @@ var connectSyncTest = function() {
   var properties = provider.getDefaultConnectionProperties();
   var conn = provider.connectSync(properties);
   assert(conn.isConnected(), "failed to connect");
-  return true; // test is complete
   conn.closeSync();
+  return true; // test is complete
 };
 
 
@@ -62,9 +62,5 @@ t7.impl = "ndb";
 t7.run = connectAsyncTest;
 
 
-/******************* TEST GROUPS ********/
-
-var ndb_group = new harness.SerialTest("ndb").makeTestGroup(t3, t7);
-
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports = ndb_group;
+module.exports.tests = [t3, t7];

@@ -19,40 +19,19 @@
  */
 
 /* Using this test harness
-
-  var harness = require("harness.js");
   
   var result = new harness.Result();            // create a Result
   result.listener = new harness.Listener();     // ... with a Listener
 
   var test1 = new harness.Test("test1");  
-  
-  // Cause the whole suite to fail immediately if test1 fails.
-  test1.setFatal();
-  
+   
   // Here is the test body:
   test1.run = function() {
     ...
   }
-  
-  // Now you can run test1 by itself
-  test1.test(result)
-  
-
-  // Or create another test, and put two tests together into a suite:
-  var test2 = new harness.Test("test2");
-  test2.run = function() {
-    ...
-  }
-  
-  var suite = new harness.Test("my_suite").makeTestSuite();
-  suite.addTest(test1);
-  suite.addTest(test2);
-  
-  // Run the test cases 
-  
-  suite.test(result);
 */
+
+var exec = require("child_process").exec;
 
 var re_matching_test_case = /Test\.js$/;
 
@@ -60,6 +39,7 @@ var re_matching_test_case = /Test\.js$/;
 /* Test  
 */
 function Test(name, phase) {
+  this.filename = "";
   this.name = name;
   this.phase = (typeof(phase) == 'number') ? phase : 2;
   this.errorMessages = '';
@@ -71,28 +51,24 @@ function SmokeTest(name) {
   this.name = name;
   this.phase = 0;
 };
-
 SmokeTest.prototype = new Test();
 
 function ConcurrentTest(name) {
   this.name = name;
   this.phase = 1;
 };
-
 ConcurrentTest.prototype = new Test();
 
 function SerialTest(name) {
   this.name = name;
   this.phase = 2;
 };
-
 SerialTest.prototype = new Test();
 
 function ClearSmokeTest(name) {
   this.name = name;
   this.phase = 3;
 };
-
 ClearSmokeTest.prototype = new Test();
 
 Test.prototype.test = function(result) {
@@ -101,34 +77,29 @@ Test.prototype.test = function(result) {
   result.listener.startTest(this);
   this.setup();
 
-  if(this.isFatal()) {  // Let suite fail with uncaught exception
-    this.run();
-    result.pass(this);
-  }
-  else {
-    try {
-      if (debug) console.log('test.run: ' + this.name);
-      if (!this.run()) {
-        if (debug) console.log('test returning from async call without calling pass or fail for test ' + this.name);
-        // async test must call Test.pass or Test.fail when done
-        return;
-      }
-      // fail if any error messages have been reported
-      if (this.errorMessages == '') {
-        if (debug) console.log(this.name + ' result.pass');
-        result.pass(this);
-      } else {
-        this.failed = true;
-        if (debug) console.log(this.name + 'result.fail');
-    	  result.fail(this);
-      }
+  try {
+    if (debug) console.log('test.run: ' + this.name);
+    if (!this.run()) {
+      if (debug) console.log('test returning from async call without calling pass or fail for test ' + this.name);
+      // async test must call Test.pass or Test.fail when done
+      return;
     }
-    catch(e) {
-      if (debug) console.log('result.fail');
+    // fail if any error messages have been reported
+    if (this.errorMessages == '') {
+      if (debug) console.log(this.name + ' result.pass');
+      result.pass(this);
+    } else {
       this.failed = true;
-      result.fail(this, e);
+      if (debug) console.log(this.name + ' result.fail');
+      result.fail(this);
     }
   }
+  catch(e) {
+    if (debug) console.log('result.fail');
+    this.failed = true;
+    result.fail(this, e);
+  }
+
   this.teardown(); 
   result.listener.endTest(this);
 };
@@ -158,60 +129,24 @@ Test.prototype.failOnError = function() {
     this.pass();
   }
 }
-Test.prototype.getTestCases = function() { return [this];};
+
 Test.prototype.isTest = function() { return true; };
-Test.prototype.isFatal = function() { return false; };
-Test.prototype.setFatal = function() { 
-  this.isFatal = function() { return true; };
-};
 Test.prototype.setup = function() {};
 Test.prototype.teardown = function() {};
 
 Test.prototype.fullName = function() {
-  var result = '';
-  if (this.group) {
-    result = this.group.fullName();
-  }
-  return result + ' ' + this.name;};
+  var n = "";
+  if(this.suite)    n = n + this.suite.name + " ";
+  if(this.filename) n = n + this.filename + " ";
+  return n + this.name;
+}
+
 
 Test.prototype.run = function() {
   throw {
     "name" : "unimplementedTest",
     "message" : "this test does not have a run() method"
   };
-};
-
-Test.prototype.makeTestGroup = function() {
-  var tests = [];  // private!
-  for (var i = 0; i < arguments.length; ++i) {
-    var testCase = arguments[i];
-    testCase.group = this;
-    tests.push(testCase);
-	}
-  this.getTestCases = function() {
-    var result = [];
-    if (debug) console.log('harness.makeTestGroup.getTestCases for ' + this.name + ' has ' + tests.length + ' tests.');
-    for (var i = 0; i < tests.length; ++i) {
-      var testCases = tests[i].getTestCases();
-      if (debug) console.log('harness.makeTestGroup.getTestCases has ' + testCases.length + ' test cases.');
-      for (var j = 0; j < testCases.length; ++j) {
-        result.push(testCases[j]);
-      }
-    }
-    if (debug) console.log('harness.makeTestGroup function getTestCases returns ' + result.length);
-    return result;
-  };
-  this.addTest = function(t) { 
-    tests.push(t);
-    t.name = this.name + "." + t.name;
-  };
-  this.test = function(result) {
-  	if (debug) console.log("Running group " + this.name);
-    for(var i = 0; i < tests.length ; i++) {
-      tests[i].test(result);
-    }
-  };
-  return this;
 };
 
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
@@ -222,13 +157,14 @@ Test.prototype.errorIfNotEqual = function(message, o1, o2) {
 };
 
 
-/** A Suite consists of all tests in all test programs in a directory 
-*/
+/** Suite
+  *  A suite consists of all tests in all test programs in a directory 
+  *
+  */
 function Suite(name, path) {
   this.name = name;
   this.path = path;
   this.tests = [];
-  this.testCases = [];
   this.currentTest = 0;
   this.smokeTest;
   this.concurrentTests = [];
@@ -241,11 +177,20 @@ function Suite(name, path) {
   this.firstSerialTestIndex = -1;
   this.nextSerialTestIndex = -1;
   this.clearSmokeTest;
+  this.suite = {};
   this.numberOfRunningConcurrentTests = 0;
-  this.group = null;
   if (debug) console.log('creating Suite for ' + name + ' ' + path);
 }
 
+
+Suite.prototype.addTest = function(filename, test) {
+  if (debug) console.log('Suite ' + this.name + ' adding test ' + test.name +
+                         ' from file ' + filename);
+  test.filename = filename;
+  test.suite = this;
+  this.tests.push(test);
+  return test;
+}
 
 Suite.prototype.createTests = function() {  
   var files = fs.readdirSync(path.join(driver_dir, this.name));
@@ -254,28 +199,28 @@ Suite.prototype.createTests = function() {
     var st = fs.statSync(path.join(driver_dir, this.name, f));
     if(st.isFile() && re_matching_test_case.test(f)) {
       var t = require(path.join(driver_dir, this.name, f));
-      if(! t.isTest()) {
-        throw { name : "NotATest" ,
-          message : "Module " + f + " does not export a Test."
-        };
+      if(t.tests && typeof(t.tests === 'array')) {
+        for(j = 0 ; j < t.tests.length ; j++) {
+          this.addTest(f, t.tests[j]);
+        }
+      }      
+      else if(typeof(t.isTest === 'function' && t.isTest())) {
+        this.addTest(f, t);
       }
-      if (debug) console.log('Suite ' + this.name + ' found test ' + f);
-      t.name = f; // the name of this group is the test program name
-      t.group = this;
-      this.tests.push(t);
+      else throw "Module " + f + " does not export a Test.";
     }
   }
-  if (debug) console.log('Suite ' + this.name + ' found ' + this.tests.length +  ' tests.');
-  
-  for (var i = 0; i < this.tests.length; ++i) {
-    var t = this.tests[i].getTestCases();
-    for (var j = 0; j < t.length; ++j) {
-      this.testCases.push(t[j]);
-    }
-  }
-  
+
+  if (debug) console.log('Suite ' + this.name + ' found ' + this.tests.length + ' tests.');
+
+  this.tests.sort(function(a,b) {
+    if(a.phase < b.phase) return -1;
+    if(a.phase == b.phase) return 0;
+    return 1;
+  });
+    
   suite = this;
-  this.testCases.forEach(function(t, index) {
+  this.tests.forEach(function(t, index) {
     t.index = index;
     t.suite = suite;
     switch(t.phase) {
@@ -303,16 +248,16 @@ Suite.prototype.createTests = function() {
     if (debug) console.log('createTests sorted test case ' + ' ' + t.name + ' ' + t.phase + ' ' + t.index);
     });
   suite.numberOfConcurrentTests = suite.concurrentTests.length;
-  if (debug) console.log('numberOfConcurrentTests for ' + suite.fullName() + ' is ' + suite.numberOfConcurrentTests);
+  if (debug) console.log('numberOfConcurrentTests for ' + suite.name + ' is ' + suite.numberOfConcurrentTests);
   suite.numberOfSerialTests = suite.serialTests.length;
-  if (debug) console.log('numberOfSerialTests for ' + suite.fullName() + ' is ' + suite.numberOfSerialTests);
+  if (debug) console.log('numberOfSerialTests for ' + suite.name + ' is ' + suite.numberOfSerialTests);
 };
 
 
 Suite.prototype.runTests = function(result) {
   this.currentTest = 0;
-  if (this.testCases.length == 0) return false;
-  tc = this.testCases[this.currentTest];
+  if (this.tests.length == 0) return false;
+  tc = this.tests[this.currentTest];
   switch (tc.phase) {
     case 0:
       // smoke test
@@ -347,12 +292,13 @@ Suite.prototype.startConcurrentTests = function(result) {
     });
     return false;    
   } else {
-    return this.startSerialTests();
+    return this.startSerialTests(result);
   }
 };
 
 
 Suite.prototype.startSerialTests = function(result) {
+  assert(result);
   if (debug) console.log('Suite.startSerialTests');
   if (this.firstSerialTestIndex !== -1) {
     this.startNextSerialTest(this.firstSerialTestIndex, result);
@@ -364,6 +310,7 @@ Suite.prototype.startSerialTests = function(result) {
 
 
 Suite.prototype.startClearSmokeTest = function(result) {
+  assert(result);
   if (debug) console.log('Suite.startClearSmokeTest');
   if (this.clearSmokeTest) {
     this.clearSmokeTest.test(result);
@@ -375,7 +322,8 @@ Suite.prototype.startClearSmokeTest = function(result) {
 
 
 Suite.prototype.startNextSerialTest = function(index, result) {
-  var testCase = this.testCases[index];
+  assert(result);
+  var testCase = this.tests[index];
   testCase.test(result);
 };
 
@@ -393,7 +341,7 @@ Suite.prototype.testCompleted = function(testCase) {
         return true;
       } else {
         if (debug) console.log('Suite.testCompleted; starting concurrent tests');
-        return this.startConcurrentTests();
+        return this.startConcurrentTests(result);
       }
       break;
     case 1:
@@ -409,9 +357,9 @@ Suite.prototype.testCompleted = function(testCase) {
     case 2:
       // one of the serial tests completed
       var index = testCase.index + 1;
-      if (index < this.testCases.length) {
+      if (index < this.tests.length) {
         // more tests to run; either another serial test or the clear smoke test
-        tc = this.testCases[index];
+        tc = this.tests[index];
         if (tc.phase == 2) {
           // start another serial test
           tc.test(result);
@@ -434,33 +382,30 @@ Suite.prototype.testCompleted = function(testCase) {
   }
 };
 
-Suite.prototype.fullName = function() {
-  var result = '';
-  if (this.group) {
-    result = this.group.fullName();
-  }
-  return result + ' ' + this.name;
-};
-
 
 /* Listener
 */
 function Listener() {
+  this.started = 0;
+  this.ended   = 0;
 }
 
-Listener.prototype.startTest = function(t) {};
-Listener.prototype.endTest = function(t) {};
+Listener.prototype.startTest = function(t) { 
+  this.started++;
+};
+Listener.prototype.endTest = function(t) { 
+  this.ended++;
+};
 Listener.prototype.pass = function(t) {
-  console.log("[pass]", t.group.fullName() + ' ' + t.name );
+  console.log("[pass]", t.fullName() );
 };
 Listener.prototype.fail = function(t, e) {
   var message = e.toString();
-  if (typeof(e.stack) !== 'undefined') {
-    message = e.stack;
-  } else if (typeof(e.message) !== 'undefined') {
+if (typeof(e.message) !== 'undefined') {
     message = e.message;
+  } else if (typeof(e.stack) !== 'undefined') {
+    message = e.stack;
   }
-//  console.log("[FAIL]", t.group.fullName() + ' ' + t.name, "\t", message);
   console.log("[FAIL]", t.fullName(), "\t", message);
 };
 

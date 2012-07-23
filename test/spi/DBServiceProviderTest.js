@@ -24,7 +24,6 @@ var impl = "ndb";
 var spi = require(spi_module);
 var service = spi.getDBServiceProvider(impl);
 
-
 var t1 = new harness.SerialTest("getDefaultConnectionProperties");
 t1.run = function() {
   var properties = service.getDefaultConnectionProperties();
@@ -48,7 +47,4 @@ t3.run = function() {
   return true; // test is complete
 }
 
-
-var group = new harness.SerialTest("DBServiceProvider").makeTestGroup(t1, t2, t3);
-
-module.exports = group;
+exports.tests = [t1, t2, t3];

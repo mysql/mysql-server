@@ -21,8 +21,7 @@
 require("./test_config.js");
 
 var fs = require("fs"),
-    util = require('util'),
-    exec = require('child_process').exec;
+    util = require('util');
 
 
 /** Driver 
@@ -46,6 +45,7 @@ Driver.prototype.findSuites = function(directory) {
 };
 
 Driver.prototype.isSuiteToRun = function(directoryName) {
+  if(directoryName == 'lib') return false;
   if (debug) console.log("SuitesToRun: " + this.suitesToRun);
   if (this.suitesToRun && this.suitesToRun.indexOf(directoryName) == -1) {
     if (debug) console.log('Driver.isSuiteToRun for ' + directoryName + ' returns false.');
@@ -168,5 +168,7 @@ var timeoutMillis = 10000;
 // set a timeout to prevent process from waiting forever
 if (debug) console.log('Setting timeout of ' + timeoutMillis);
   setTimeout(function() {
-    console.log('TIMEOUT');
+    var nwait = result.listener.started - result.listener.ended;
+    var tests = (nwait == 1 ? " test." : " tests.");
+    console.log('TIMEOUT: still waiting for ' + nwait + tests);
   }, timeoutMillis);

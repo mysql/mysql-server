@@ -25,7 +25,7 @@
 
 var impl = "ndb";
 
-var test = new harness.SmokeTest("LoadModuleSmokeTest");
+var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
   var spi = require(spi_module);
