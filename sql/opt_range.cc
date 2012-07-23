@@ -11280,6 +11280,14 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       min_max_arg_part= cur_index_info->key_part + key_part_nr - 1;
     }
 
+    /* Check (SA6) if clustered key is used. */
+    if (is_agg_distinct && cur_index == table->s->primary_key &&
+        table->file->primary_key_is_clustered())
+    {
+      cause= "primary_key_is_clustered";
+      goto next_index;
+    }
+
     /*
       Check (NGA1, NGA2) and extract a sequence of constants to be used as part
       of all search keys.
@@ -11462,13 +11470,6 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       add_alnum("cause", "unsupported_predicate_on_agg_attribute");
     DBUG_RETURN(NULL);
   }
-
-  /*
-    Check (SA6) if clustered key is used
-  */
-  if (is_agg_distinct && index == table->s->primary_key &&
-      table->file->primary_key_is_clustered())
-    DBUG_RETURN(NULL);
 
   /* The query passes all tests, so construct a new TRP object. */
   read_plan= new (param->mem_root)
