@@ -271,6 +271,11 @@ public:
     res_point *rp;
     int result_range;
     res_point *thread_start;
+    void init()
+    {
+      rp= thread_start= NULL;
+      result_range= 0;
+    }
     active_thread *get_next() { return (active_thread *)next; }
   };
 
@@ -292,7 +297,13 @@ protected:
     return result;
   }
 
-  active_thread *new_active_thread() { return (active_thread *)new_item(); }
+  active_thread *new_active_thread()
+  {
+    active_thread *tmp= (active_thread *) new_item();
+    if (tmp)
+      tmp->init();
+    return tmp;
+  }
 
 private:
   int continue_range(active_thread *t, const Gcalc_heap::Info *p);
