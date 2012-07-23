@@ -47,4 +47,4 @@ t3.run = function() {
   return true; // test is complete
 }
 
-exports.tests = [t1, t2, t3];
+module.exports.tests = [t1, t2, t3];
