@@ -65,4 +65,4 @@ t4.run = function() {
   return true; // test is complete
 };
 
-module.exports = [t1,t2,t3,t4];
+module.exports.tests = [t1,t2,t3,t4];
