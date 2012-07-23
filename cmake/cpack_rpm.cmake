@@ -65,6 +65,7 @@ SET(CPACK_RPM_SPEC_MORE_DEFINE "${CPACK_RPM_SPEC_MORE_DEFINE}
 SET(CPACK_RPM_PACKAGE_REQUIRES "MariaDB-common")
 
 SET(CPACK_RPM_server_USER_FILELIST "%ignore /etc" "%ignore /etc/init.d")
+SET(CPACK_RPM_common_USER_FILELIST "%config(noreplace) /etc/my.cnf")
 
 SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MySQL-client MySQL-OurDelta-client")
 SET(CPACK_RPM_client_PACKAGE_PROVIDES "MariaDB-client MySQL-client mysql-client")
