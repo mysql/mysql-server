@@ -56,7 +56,5 @@ var t1 = new harness.SerialTest("testInsert");
 t1.run = testInsert;
 
 
-var ndb_group = new harness.Test("ndb").makeTestGroup(t1);
-
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports = ndb_group;
+module.exports.tests = [t1];

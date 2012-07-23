@@ -9,13 +9,11 @@ global.fs              = fs;
 global.assert          = require("assert");
 
 global.driver_dir      = __dirname;
-global.test_lib_dir    = path.join(__dirname, "lib");
 global.adapter_dir     = path.join(parent, "Adapter");
 global.spi_module      = path.join(adapter_dir, "impl", "SPI.js");
 global.api_module      = path.join(adapter_dir, "api", "mynode.js");
 
-global.harness         = require(path.join(test_lib_dir, "harness"));
-global.test_utils      = require(path.join(test_lib_dir, "test_utils"));
+global.harness         = require(path.join(__dirname, "harness"));
 global.mynode          = require(api_module);
 
 global.debug           = false;

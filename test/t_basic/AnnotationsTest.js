@@ -65,6 +65,4 @@ t4.run = function() {
   return true; // test is complete
 };
 
-var group = new harness.Test("annotations").makeTestGroup(t1, t2, t3, t4);
-
-module.exports = group;
+module.exports = [t1,t2,t3,t4];

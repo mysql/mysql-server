@@ -22,7 +22,7 @@
 t1 = new harness.ConcurrentTest("testFindDomainObjectPrimitive");
 t1.run = function() {
   var testCase = this;
-  test_utils.fail_openSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // use the domain object and primitive to find an instance
     session.find(t_basic.prototype, 0, function(err, instance) {
       fail_verify_t_basic(err, testCase, 0, instance);
@@ -34,7 +34,7 @@ t1.run = function() {
 t2 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
 t2.run = function() {
   var testCase = this;
-  test_utils.fail_openSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // use the domain object and literal to find an instance
     var key = {'id' : 0};
     session.find(t_basic.prototype, key, function(err, instance) {
@@ -47,7 +47,7 @@ t2.run = function() {
 t3 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
 t3.run = function() {
   var testCase = this;
-  test_utils.fail_openSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // use the domain object and literal to find an instance
     var key = new t_basic_key(0);
     session.find(t_basic.prototype, key, function(err, instance) {
@@ -60,7 +60,7 @@ t3.run = function() {
 t4 = new harness.ConcurrentTest("testFindTableNamePrimitive");
 t4.run = function() {
   var testCase = this;
-  test_utils.fail_openSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // use the table name and primitive to find an instance
     session.find('t_basic', 0, function(err, instance) {
       fail_verify_t_basic(err, testCase, 0, instance);
@@ -72,7 +72,7 @@ t4.run = function() {
 t5 = new harness.ConcurrentTest("testFindTableNameLiteral");
 t5.run = function() {
   var testCase = this;
-  test_utils.fail_openSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // use the table name and literal to find an instance
     var key = {'id' : 0};
     session.find('t_basic', key, function(err, instance) {
@@ -85,7 +85,7 @@ t5.run = function() {
 t6 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
 t6.run = function() {
   var testCase = this;
-  test_utils.fail_openSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // use the domain object and literal to find an instance
     var key = new t_basic_key(0);
     session.find('t_basic', key, function(err, instance) {
@@ -94,8 +94,4 @@ t6.run = function() {
   });
 };
 
-var ndb_group = new harness.Test("ndb").makeTestGroup(t1, t2, t3, t4, t5, t6);
-
-var group = new harness.Test("t_basic").makeTestGroup(ndb_group);
-
-module.exports = group;
+module.exports.tests = [t1, t2, t3, t4, t5, t6];
