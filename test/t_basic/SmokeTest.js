@@ -39,4 +39,4 @@ test.run = function() {
   });
 };
 
-module.exports = test;
+module.exports.tests = [test];
