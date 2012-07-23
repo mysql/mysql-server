@@ -195,7 +195,7 @@ enable_query_log;
 --let $yes_tx_after= `SELECT $yes_tx_before + $acks_to_wait`
 let $status_var= Rpl_semi_sync_master_yes_tx;
 let $status_var_value= $yes_tx_after;
-let $status_timeout= 1200;
+let $status_timeout= 2400;
 source include/wait_for_status_var.inc;
 
 echo [ master status after inserts ];
