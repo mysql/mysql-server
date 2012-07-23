@@ -18,49 +18,49 @@
  02110-1301  USA
  */
 
-#include <v8.h>
+#include <mysql.h>
 
-#include <ndb_init.h>
-
+#include <node.h>
 #include "js_wrapper_macros.h"
 #include "NativeCFunctionCall.h"
 
 using namespace v8;
 
-/* int ndb_init(void) 
-*/
-Handle<Value> Ndb_init_wrapper(const Arguments &args) {
+Handle<Value> mysql_init_wrapper(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);
-
-  NativeCFunctionCall_0_<int> ncall(args);
-  ncall.function = & ndb_init;
+  
+  NativeCFunctionCall_1_<MYSQL *, MYSQL *> ncall(args);
+  ncall.arg0 = 0;  // override 
+  ncall.function = & mysql_init;
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
 }
 
 
-/* void ndb_end(int) 
-*/
-Handle<Value> Ndb_end_wrapper(const Arguments &args) {
+Handle<Value> mysql_close_wrapper(const Arguments &args) {
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(1);  
+  REQUIRE_ARGS_LENGTH(0);
   
-  NativeCVoidFunctionCall_1_<int> ncall(args);
-  ncall.function = & ndb_end;
+  NativeCVoidFunctionCall_1_<MYSQL *> ncall(args);
+  ncall.function = & mysql_close;
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
 }
 
 
-void Ndb_init_initOnLoad(Handle<Object> target) {
-  DEFINE_JS_FUNCTION(target, "ndb_init", Ndb_init_wrapper);
-  DEFINE_JS_FUNCTION(target, "ndb_end", Ndb_end_wrapper);
+void mysqlclient_initOnLoad(Handle<Object> target) {
+  DEFINE_JS_FUNCTION(target, "mysql_init", mysql_init_wrapper);
+  DEFINE_JS_FUNCTION(target, "mysql_close", mysql_close_wrapper);
 }
 
+NODE_MODULE(mysqlclient, mysqlclient_initOnLoad)
 
 
+
+  
+  

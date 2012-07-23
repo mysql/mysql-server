@@ -1,0 +1,12 @@
+def build(bld):
+  libimpl = bld(
+    features = 'cxx node_addon cstaticlib',
+    source = "src/async_common.cpp src/JsConverter.cpp",
+    target = 'libimpl_common'
+  )
+  
+  client = bld.new_task_gen("cxx", "shlib", "node_addon")
+  client.target = "mysqlclient"
+  client.use = "libimpl_common"
+  client.source = "src/mysqlclient_wrapper.cpp"
+
