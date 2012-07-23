@@ -25,9 +25,24 @@
 #include "node.h"
 
 #include "JsConverter.h"
+#include "async_common.h"
 
 using namespace v8;
 
+
+/** These classes wrap various sorts of C and C++ functions for use as either
+  * synchronous or asynchronous JavaScript methods.
+  *
+  * The base class AsyncMethodCall wraps the worker-thread run() routine
+  * and the main thread (post-run) doAsyncCallback() needed for async execution.
+  * 
+  * The templated class NativeMethodCall<R> inherits from AsyncMethodCall and
+  * adds a return type, which is initialized at 0.
+  *
+  * Finally several sets of templated classes inherit from NativeMethodCall<> 
+  * adding arguments.  In this file, the set NativeMethodCall_0_ etc. wrap 
+  * method calls on C++ objects.  
+  */
 
 /** Base class
 **/
@@ -37,8 +52,8 @@ class AsyncMethodCall {
     Persistent<Function> callback;
     
     /* Constructor */
-    AsyncMethodCall() : callback() {};
-    
+    AsyncMethodCall() : callback() {}
+
     /* Methods (Pure virtual) */
     virtual void run(void) = 0;
     virtual void doAsyncCallback(Local<Object>) = 0;
@@ -46,6 +61,12 @@ class AsyncMethodCall {
     /* Base Class Methods */
     void setCallback(Local<Value> f) {
       callback = Persistent<Function>::New(Local<Function>::Cast(f));
+    }
+    
+    void runAsync() {
+      uv_work_t * req = new uv_work_t;
+      req->data = (void *) this;
+      uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
     }
 };  
 

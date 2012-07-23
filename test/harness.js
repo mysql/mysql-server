@@ -199,15 +199,19 @@ Suite.prototype.createTests = function() {
     var st = fs.statSync(path.join(driver_dir, this.name, f));
     if(st.isFile() && re_matching_test_case.test(f)) {
       var t = require(path.join(driver_dir, this.name, f));
-      if(t.tests && typeof(t.tests === 'array')) {
+      if(typeof t.tests == 'object') {
         for(j = 0 ; j < t.tests.length ; j++) {
           this.addTest(f, t.tests[j]);
         }
-      }      
-      else if(typeof(t.isTest === 'function' && t.isTest())) {
+      }
+      else if(typeof t.isTest == 'function' && t.isTest()) {
         this.addTest(f, t);
       }
-      else throw "Module " + f + " does not export a Test.";
+      else { 
+        console.log("type : " + typeof(t.tests.length));
+        console.dir(t);
+        throw "Module " + f + " does not export a Test.";
+      }
     }
   }
 

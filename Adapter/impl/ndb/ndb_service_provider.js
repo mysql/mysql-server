@@ -18,7 +18,6 @@
  02110-1301  USA
 */
 
-var ndbapi = require("../build/Release/ndbapi.node");
 var ndbconnection = require("./NdbConnection.js");
 
 var NdbDefaultConnectionProperties = {  
