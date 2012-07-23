@@ -34,4 +34,4 @@ test.run = function() {
   return true; // test is complete
 };
 
-module.exports = test;
+module.exports.tests = [test];

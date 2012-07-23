@@ -44,7 +44,7 @@ t2.run = function() {
 };
 
 /***** Find with domain object and javascript object ***/
-t3 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
+t3 = new harness.ConcurrentTest("testFindDomainObjectObject");
 t3.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -82,7 +82,7 @@ t5.run = function() {
 };
 
 /***** Find with table name and javascript object ***/
-t6 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
+t6 = new harness.ConcurrentTest("testFindTableNameObject");
 t6.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {

@@ -199,12 +199,12 @@ Suite.prototype.createTests = function() {
     var st = fs.statSync(path.join(driver_dir, this.name, f));
     if(st.isFile() && re_matching_test_case.test(f)) {
       var t = require(path.join(driver_dir, this.name, f));
-      if(typeof t.tests == 'object') {
+      if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
         for(j = 0 ; j < t.tests.length ; j++) {
           this.addTest(f, t.tests[j]);
         }
-      }
-      else if(typeof t.isTest == 'function' && t.isTest()) {
+      }      
+      else if(typeof(t.isTest) === 'function' && t.isTest()) {
         this.addTest(f, t);
       }
       else { 
@@ -355,7 +355,7 @@ Suite.prototype.testCompleted = function(testCase) {
       if (++this.numberOfConcurrentTestsCompleted == this.numberOfConcurrentTests) {
         // done with all concurrent tests; start the first serial test
         if (debug) console.log('Suite.testCompleted; all ' + this.numberOfConcurrentTests + ' concurrent tests completed');
-        return this.startSerialTests();
+        return this.startSerialTests(result);
       }
       break;
     case 2:
@@ -370,7 +370,7 @@ Suite.prototype.testCompleted = function(testCase) {
           return false;
         } else if (tc.phase == 3) {
           // start the clear smoke test
-          this.startClearSmokeTest();
+          this.startClearSmokeTest(result);
           if (debug) console.log('Suite.testCompleted started ClearSmokeTest.');
           return false;
         }

@@ -38,7 +38,6 @@ SessionFactory.prototype.openSession = function(annotations, user_callback) {
 
 SessionFactory.prototype.close = function() {
   // TODO: close all sessions first
-  if (debug) console.log('SessionFactory.close ' + this.key);
   this.delete_callback(this.key, this.properties.database);
 };
 
