@@ -223,7 +223,7 @@ class binlog_cache_data
 public:
 
   binlog_cache_data(bool trx_cache_arg,
-                    ulong max_binlog_cache_size_arg,
+                    my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
                     ulong *ptr_binlog_cache_disk_use_arg)
   : m_pending(0), saved_max_binlog_cache_size(max_binlog_cache_size_arg),
@@ -452,7 +452,7 @@ private:
     is configured. This corresponds to either
       . max_binlog_cache_size or max_binlog_stmt_cache_size.
   */
-  ulong saved_max_binlog_cache_size;
+  my_off_t saved_max_binlog_cache_size;
 
   /*
     Stores a pointer to the status variable that keeps track of the in-memory 
@@ -478,7 +478,7 @@ class binlog_stmt_cache_data
 {
 public:
   binlog_stmt_cache_data(bool trx_cache_arg,
-                        ulong max_binlog_cache_size_arg,
+                        my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
                         ulong *ptr_binlog_cache_disk_use_arg)
     : binlog_cache_data(trx_cache_arg,
@@ -517,7 +517,7 @@ class binlog_trx_cache_data : public binlog_cache_data
 {
 public:
   binlog_trx_cache_data(bool trx_cache_arg,
-                        ulong max_binlog_cache_size_arg,
+                        my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
                         ulong *ptr_binlog_cache_disk_use_arg)
   : binlog_cache_data(trx_cache_arg,
@@ -605,10 +605,10 @@ private:
 
 class binlog_cache_mngr {
 public:
-  binlog_cache_mngr(ulong max_binlog_stmt_cache_size_arg,
+  binlog_cache_mngr(my_off_t max_binlog_stmt_cache_size_arg,
                     ulong *ptr_binlog_stmt_cache_use_arg,
                     ulong *ptr_binlog_stmt_cache_disk_use_arg,
-                    ulong max_binlog_cache_size_arg,
+                    my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
                     ulong *ptr_binlog_cache_disk_use_arg)
   : stmt_cache(FALSE, max_binlog_stmt_cache_size_arg,
