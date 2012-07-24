@@ -15,7 +15,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 
 /* yaSSL buffer header implements input/output buffers to simulate streaming
@@ -23,10 +23,10 @@
  */
 
 
+#include <string.h>             // memcpy
 #include "runtime.hpp"
 #include "buffer.hpp"
 #include "yassl_types.hpp"
-#include <string.h>             // memcpy
 
 namespace yaSSL {
 
