@@ -3975,7 +3975,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
           Here we open the destination table, on which we already have
           an exclusive metadata lock.
         */
-        if (open_table(thd, create_table, thd->mem_root, &ot_ctx))
+        if (open_table(thd, create_table, &ot_ctx))
         {
           quick_rm_table(thd, create_info->db_type, create_table->db,
                          table_case_name(create_info, create_table->table_name),
