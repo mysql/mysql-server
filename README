@@ -1,14 +1,13 @@
 This project contains the mynode definition and implementation.
 
-To build the native implementation for this project, cd to the Adapter/impl/
-directory. The wscript file defines the build process. 
-In this directory, call the node-waf program, passing the location of an installed mysql.
+The wscript file is a waf script defining the build process.
 
-For example,
-node-waf clean configure build --mysql=/usr/local/mysql-5.1.24-rc-osx10.5-x86_64/
+In this directory, call the node-waf program, passing the location of an 
+installed mysql tree. For example:
 
-Be sure to include the trailing "/".
+% node-waf configure --mysql=/usr/local/mysql-5.1.24-rc-osx10.5-x86_64/
+% node-waf build
 
-This will create the file Adapter/impl/build/Release/ndbapi.node which
-will be used to bind to the dynamic ndbclient library identified in the node-waf command.
+Be sure to include the trailing "/" in the configure command.
 
+This will create the binary artifacts under Adapter/impl/build/Release/

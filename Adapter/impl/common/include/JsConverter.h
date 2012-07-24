@@ -93,6 +93,67 @@ private:
 
 /* Some JsValueConverter specializations are in common/src/JsConverter.cpp */
 
+template <>
+class JsValueConverter <int> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  int toC() { return jsval->Int32Value(); };
+};
+
+
+template <>
+class JsValueConverter <uint32_t> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  int toC() { return jsval->Uint32Value(); };
+};
+
+
+template <>
+class JsValueConverter <double> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  double toC() { return jsval->NumberValue(); };
+};
+
+
+template <>
+class JsValueConverter <int64_t> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  int64_t toC() { return jsval->IntegerValue(); };
+};
+
+
+template <>
+class JsValueConverter <bool> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  bool toC()  { return jsval->BooleanValue(); };
+};
+
+
+template <>
+class JsValueConverter <const char *> {
+private:
+  v8::String::AsciiValue av;
+
+public: 
+  JsValueConverter(jsvalue v) : av(v)   {};
+  const char * toC()  { return *av;  };
+};
+
+
 
 
 /*****************************************************************

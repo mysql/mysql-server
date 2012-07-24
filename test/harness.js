@@ -192,26 +192,34 @@ Suite.prototype.addTest = function(filename, test) {
   return test;
 }
 
+Suite.prototype.addTestsFromFile = function(f) {
+  if(re_matching_test_case.test(f)) {
+    var t = require(f);
+    if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
+      for(j = 0 ; j < t.tests.length ; j++) {
+        this.addTest(f, t.tests[j]);
+      }
+    }      
+    else if(typeof(t.isTest) === 'function' && t.isTest()) {
+      this.addTest(f, t);
+    }
+    else { 
+      console.log("type : " + typeof(t.tests.length));
+      console.dir(t);
+      throw "Module " + f + " does not export a Test.";
+    }
+  }
+}
+
 Suite.prototype.createTests = function() {  
-  var files = fs.readdirSync(path.join(driver_dir, this.name));
-  for(var i = 0; i < files.length ; i++) {
-    var f = files[i];
-    var st = fs.statSync(path.join(driver_dir, this.name, f));
-    if(st.isFile() && re_matching_test_case.test(f)) {
-      var t = require(path.join(driver_dir, this.name, f));
-      if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
-        for(j = 0 ; j < t.tests.length ; j++) {
-          this.addTest(f, t.tests[j]);
-        }
-      }      
-      else if(typeof(t.isTest) === 'function' && t.isTest()) {
-        this.addTest(f, t);
-      }
-      else { 
-        console.log("type : " + typeof(t.tests.length));
-        console.dir(t);
-        throw "Module " + f + " does not export a Test.";
-      }
+  var stat = fs.statSync(this.path);
+  if(stat.isFile()) {
+    this.addTestsFromFile(this.path);
+  }
+  else if(stat.isDirectory()) {
+    var files = fs.readdirSync(this.path);
+    for(var i = 0; i < files.length ; i++) {
+      this.addTestsFromFile(path.join(this.path, files[i]));
     }
   }
 

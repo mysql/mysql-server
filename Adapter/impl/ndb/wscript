@@ -1,11 +1,18 @@
-def build(ctx):
+def configure(conf):
+  ndbapi_inc = "-I" + conf.env.ndb_inc + "/ndbapi"
+  conf.env.append_unique('CXXFLAGS', "-I%s" % conf.env.my_inc)
+  conf.env.append_unique('CXXFLAGS', "-I%s" %conf.env.ndb_inc)
+  conf.env.append_unique('CXXFLAGS', ndbapi_inc)
+  conf.env.append_unique("LIBPATH", conf.env.my_lib)
+
+
+def build(ctx):  
   obj = ctx.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "ndbapi"
   obj.uselib_local = "libimpl_common"
   obj.rpath = ctx.env.rpath
+  obj.lib = "ndbclient"
   
   obj.source = "tie/node_module.cpp " + \
   "tie/Ndb_init_wrapper.cpp " + \
   "tie/Ndb_cluster_connection_wrapper.cpp "
-
-
