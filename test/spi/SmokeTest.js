@@ -41,20 +41,8 @@ test.run = function() {
     this.fail();
   }
   
+  // Then use debug_dlopen() to load the ndbapi module
   var ndb_module_path = path.join(build_dir, "ndb", "ndbapi.node");
-
-  // If we have dlopen_preflight, preflight the ndbapi module
-  if(debug && db.dlopen_preflight) {
-    if(debug) console.log("Preflight testing: " + ndb_module_path);
-    response = db.dlopen_preflight(ndb_module_path);
-    if(debug) console.log("Preflight result: " + response);
-    if(response != "OK") {
-      this.appendErrorMessage(response);
-      this.fail();
-    }
-  }
-
-  // Now use debug_dlopen() to load the ndbapi module
   if(debug) console.log("Loading: " + ndb_module_path);
   response = db.debug_dlopen(ndb_module_path);
 
