@@ -252,6 +252,9 @@ Vendor:         %{mysql_vendor}
 Provides:       msqlormysql MySQL-server mysql
 BuildRequires:  %{distro_buildreq}
 
+# Regression tests may take a long time, override the default to skip them 
+%{!?runselftest:%global runselftest 1}
+
 # Think about what you use here since the first step is to
 # run a rm -rf
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
@@ -403,6 +406,16 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 ##############################################################################
 %build
 
+# Fail quickly and obviously if user tries to build as root
+%if %runselftest
+    if [ x"`id -u`" = x0 ]; then
+        echo "The MySQL regression tests may fail if run as root."
+        echo "If you really need to build the RPM as root, use"
+        echo "--define='runselftest 0' to skip the regression tests."
+        exit 1
+    fi
+%endif
+
 # Be strict about variables, bail at earliest opportunity, etc.
 set -eu
 
@@ -479,6 +492,13 @@ mkdir release
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make ${MAKE_JFLAG} VERBOSE=1
 )
+
+%if %runselftest
+  MTR_BUILD_THREAD=auto
+  export MTR_BUILD_THREAD
+
+  (cd release && make test-bt-fast || true)
+%endif
 
 ##############################################################################
 %install
@@ -1146,6 +1166,14 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Jul 24 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Add a macro "runselftest":
+  if set to 1 (default), the test suite will be run during the RPM build;
+  this can be oveeridden via the command line by adding
+      --define "runselftest 0"
+  Failures of the test suite will NOT make the RPM build fail!
+  
 * Wed Sep 28 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Fix duplicate mentioning of "mysql_plugin" and its manual page,
