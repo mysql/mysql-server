@@ -30,7 +30,7 @@ if (USE_GCOV)
   if (NOT CMAKE_CXX_COMPILER_ID MATCHES GNU)
     message(FATAL_ERROR "Must use the GNU compiler to compile for test coverage.")
   endif ()
-  find_path(COVERAGE_COMMAND NAMES gcov47 gcov)
+  find_program(COVERAGE_COMMAND NAMES gcov47 gcov)
 endif (USE_GCOV)
 
 include(CheckCCompilerFlag)
