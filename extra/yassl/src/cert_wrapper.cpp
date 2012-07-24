@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 
 /*  The certificate wrapper source implements certificate management functions
@@ -256,8 +256,7 @@ int CertManager::Validate()
         TaoCrypt::Source source((*last)->get_buffer(), (*last)->get_length());
         TaoCrypt::CertDecoder cert(source, true, &signers_, verifyNone_);
 
-        int err = cert.GetError().What();
-        if ( err )
+        if (int err = cert.GetError().What())
             return err;
 
         const TaoCrypt::PublicKey& key = cert.GetPublicKey();

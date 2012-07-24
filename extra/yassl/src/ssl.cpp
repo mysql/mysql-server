@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /*  SSL source implements all openssl compatibility API functions
  *
@@ -1012,7 +1012,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(errNumber, buffer);
+        SetErrorString(YasslError(errNumber), buffer);
         return buffer;
     }
 

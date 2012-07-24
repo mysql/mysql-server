@@ -2582,11 +2582,14 @@ void Integer::Decode(Source& source)
     }
 
     word32 length = GetLength(source);
+    if (length == 0 || source.GetError().What()) return;
 
     if ( (b = source.next()) == 0x00)
         length--;
     else
         source.prev();
+
+    if (source.IsLeft(length) == false) return;
  
     unsigned int words = (length + WORD_SIZE - 1) / WORD_SIZE;
     words = RoundupSize(words);
@@ -3881,5 +3884,18 @@ Integer CRT(const Integer &xp, const Integer &p, const Integer &xq,
     // isn't operator overloading great?
     return p * (u * (xq-xp) % q) + xp;
 }
+
+
+#ifdef HAVE_EXPLICIT_TEMPLATE_INSTANTIATION
+#ifndef TAOCRYPT_NATIVE_DWORD_AVAILABLE
+template hword DivideThreeWordsByTwo<hword, Word>(hword*, hword, hword, Word*);
+#endif
+template word DivideThreeWordsByTwo<word, DWord>(word*, word, word, DWord*);
+#ifdef SSE2_INTRINSICS_AVAILABLE
+template class AlignedAllocator<word>;
+#endif
+#endif
+
+
 } // namespace
 

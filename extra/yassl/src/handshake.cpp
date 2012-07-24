@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 
 /* The handshake source implements functions for creating and reading
@@ -527,11 +527,6 @@ void ProcessOldClientHello(input_buffer& input, SSL& ssl)
     input.read(len, sizeof(len));
     uint16 randomLen;
     ato16(len, randomLen);
-    if (ch.suite_len_ > MAX_SUITE_SZ || sessionLen > ID_LEN ||
-        randomLen > RAN_LEN) {
-        ssl.SetError(bad_input);
-        return;
-    }
 
     if (ch.suite_len_ > MAX_SUITE_SZ || sessionLen > ID_LEN ||
                                         randomLen > RAN_LEN) {
