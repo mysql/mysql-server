@@ -28,18 +28,25 @@ var fs = require("fs"),
 */
 function Driver() {
   this.suites = [];
+  this.fileToRun = "";
   this.suitesToRun = "";
 };
 
 Driver.prototype.findSuites = function(directory) {
-  /* Read the test directory, building list of suites */
-  var files = fs.readdirSync(directory);
-  for(var i = 0; i < files.length ; i++) {
-    var f = files[i];
-    var st = fs.statSync(path.join(directory, f));
-    if (st.isDirectory() && this.isSuiteToRun(f)) {
-      if (debug) console.log('Driver.findSuites found directory ' + f);
-      this.suites.push(new harness.Suite(f, path.join(directory, f)));
+  if(this.fileToRun) {
+    var pathname = path.join(directory, this.fileToRun);
+    this.suites.push(new harness.Suite("file", pathname));
+  }
+  else { 
+    /* Read the test directory, building list of suites */
+    var files = fs.readdirSync(directory);
+    for(var i = 0; i < files.length ; i++) {
+      var f = files[i];
+      var st = fs.statSync(path.join(directory, f));
+      if (st.isDirectory() && this.isSuiteToRun(f)) {
+        if (debug) console.log('Driver.findSuites found directory ' + f);
+        this.suites.push(new harness.Suite(f, path.join(directory, f)));
+      }
     }
   }
 };
@@ -123,6 +130,9 @@ process.argv.forEach(function (val, index, array) {
         case '--suite':
         case '--suites':
           driver.suitesToRun = values[1];
+          break;
+        case '--file':
+          driver.fileToRun = values[1];
           break;
         default:
           console.log('Invalid option ' + val);

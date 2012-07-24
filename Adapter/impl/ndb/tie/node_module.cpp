@@ -19,7 +19,7 @@
  */
 
 #include <v8.h>
-
+#include <node.h>
 #include "js_wrapper_macros.h"
 #include "JsConverter.h"
 

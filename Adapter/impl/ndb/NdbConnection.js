@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-var ndbapi = require("../build/Release/ndbapi.node");
+var ndbapi = require("../build/Release/ndb/ndbapi.node");
 var util = require("./util.js");
 
 var properties;

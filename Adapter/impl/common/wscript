@@ -1,0 +1,13 @@
+def configure(conf):
+  pass
+  
+def build(bld):
+  libimpl = bld(
+    features = 'cxx node_addon cstaticlib',
+    source = "src/async_common.cpp src/JsConverter.cpp",
+    target = 'libimpl_common'
+  )
+  
+  ddlo = bld.new_task_gen("cxx", "shlib", "node_addon")
+  ddlo.target = "debug_dlopen"
+  ddlo.source = "src/debug_dlopen.cpp"
