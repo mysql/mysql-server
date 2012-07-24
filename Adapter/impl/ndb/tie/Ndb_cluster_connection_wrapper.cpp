@@ -23,7 +23,6 @@
 
 #include "js_wrapper_macros.h"
 #include "NativeMethodCall.h"
-#include "async_common.h"
 
 using namespace v8;
 
@@ -84,10 +83,7 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
 
   mcallptr->method = & Ndb_cluster_connection::connect;
   mcallptr->setCallback(args[3]);
-
-  uv_work_t *req = new uv_work_t;
-  req->data = (void *) mcallptr;
-  uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
+  mcallptr->runAsync();
 
   return scope.Close(JS_VOID_RETURN);
 }
@@ -108,11 +104,8 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
 
   mcallptr->method = & Ndb_cluster_connection::wait_until_ready;
   mcallptr->setCallback(args[3]);
-
-  uv_work_t *req = new uv_work_t;
-  req->data = (void *) mcallptr;
-  uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
-  
+  mcallptr->runAsync();
+    
   return scope.Close(JS_VOID_RETURN);
 }
 

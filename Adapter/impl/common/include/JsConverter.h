@@ -23,17 +23,16 @@
 
 #include "Wrapper.h"
 
-typedef v8::Local<v8::Value> jsvalue;
-typedef v8::Handle<v8::Object> jsobject;
+using namespace v8;
+typedef Local<Value> jsvalue;
+typedef Handle<Object> jsobject;
 
-/* toJS Template: 
-  convert a C value to Javascript 
-*/
-template <typename T>
-jsvalue toJS(T cValue) { 
-  return v8::Number::New(cValue);
-};
 
+
+/*****************************************************************
+ JsMethodThis and JsConstructorThis
+ Wrap C++ "this" in a Javascript object
+******************************************************************/
 
 /* JsConstructorThis template; use as return value from constructor 
 */
@@ -54,18 +53,45 @@ T * JsMethodThis(const v8::Arguments &args) {
 }
 
 
-/* JsValueConverter Template (stub) 
-*/
+/*****************************************************************
+ JsValueConverter 
+ Value conversion from JavaScript to C
+******************************************************************/
 template <typename T> class JsValueConverter {
-public:
+public: 
   JsValueConverter(jsvalue v);
-  ~JsValueConverter();
   T toC();
 };
 
 
-/* JsValueConverter Specializations */
+/* JsPointerConverter<T> Template 
+ *
+ * To convert pointers, define, in a source file, a class JsValueConverter<P> 
+ * that inherits from JsPointerConverter<P>.  This class will be used by the
+ * NativeMethodCall_x_ and NativeCFunctionCall_x_ classes.
+ * 
+ * When the source code asks for a JsValueConverter class that does not exist, 
+ * we want the compiler to fail, rather than use the generic (pointer) class.  
+ * This is why we require you to create JsValueConverter classes explicitly. * 
+ */
+template <typename T> class JsPointerConverter {
+public:  
+  JsPointerConverter(jsvalue v) {  
+    assert(v->IsObject());
+    Local<Object> obj = v->ToObject();
+    assert(obj->InternalFieldCount() > 0);
+    native_object = static_cast<T>(obj->GetPointerFromInternalField(0));
+  }
+  T toC() { 
+    return native_object;
+  }
 
+private:
+  T native_object;  
+};
+
+
+/* Some JsValueConverter specializations are in common/src/JsConverter.cpp */
 
 template <>
 class JsValueConverter <int> {
@@ -103,7 +129,7 @@ public:
   jsvalue jsval;
   
   JsValueConverter(jsvalue v) : jsval(v) {};
-  double toC() { return jsval->IntegerValue(); };
+  int64_t toC() { return jsval->IntegerValue(); };
 };
 
 
@@ -128,12 +154,26 @@ public:
 };
 
 
-template <typename P> 
-class JsValueConverter <P *> {
-public:
-  Wrapper<P> * wrapper;
-  
-  JsValueConverter(jsvalue v) {  wrapper = Wrapper<P>::Unwrap(v->ToObject()); };  
-  P * toC() { return wrapper->object; };
-};
 
+
+/*****************************************************************
+ toJs functions
+ Value Conversion from C to JavaScript
+******************************************************************/
+
+template <typename T> Local<Value> toJS(T);
+
+
+/*** Generic converter for pointers only.  To convert ptr of type P,
+ * in a source file, define a toJS specialization for P 
+ * that returns pointerToJS<P>(ptr)
+ */
+template <typename T> Local<Value> pointerToJS(T cptr) {
+  Local<Object> obj = Object::New();
+  assert(obj->InternalFieldCount() > 0);
+  obj->SetPointerInInternalField(0, static_cast<void *>(cptr));
+  return obj;
+}
+
+
+/* Some toJS specializations are in JsConverter.cpp */

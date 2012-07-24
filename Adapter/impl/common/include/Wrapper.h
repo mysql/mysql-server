@@ -21,16 +21,19 @@
 
 #include "node.h"
 
+using namespace v8;
+
 template <class T> class Wrapper : public node::ObjectWrap {
 public:
-  typedef v8::Handle<v8::Object> JsHandle;
-
   T *object;
   
   Wrapper<T>(T * obj) : node::ObjectWrap() , object(obj)                    {};
-  JsHandle  Wrap(JsHandle h)         {  node::ObjectWrap::Wrap(h); return h; };
+   Handle<Object> Wrap( Handle<Object> h)  {
+    node::ObjectWrap::Wrap(h); 
+    return h; 
+  }
   
-  static Wrapper <T> * Unwrap(JsHandle h) {
+  static Wrapper <T> * Unwrap( Handle<Object> h) {
     return node::ObjectWrap::Unwrap<Wrapper <T> >(h);
   }
 };
