@@ -2080,9 +2080,16 @@ uint ha_partition::count_query_cache_dependant_tables(uint8 *tables_type)
 {
   DBUG_ENTER("ha_partition::count_query_cache_dependant_tables");
   /* Here we rely on the fact that all tables are of the same type */
-  (*tables_type)|= m_file[0]->table_cache_type();
+  uint8 type= m_file[0]->table_cache_type();
+  (*tables_type)|= type;
   DBUG_PRINT("info", ("cnt: %u", (uint)m_tot_parts));
-  DBUG_RETURN(m_tot_parts);
+  /*
+    We need save underlying tables only for HA_CACHE_TBL_ASKTRANSACT:
+    HA_CACHE_TBL_NONTRANSACT - because all changes goes through partition table
+    HA_CACHE_TBL_NOCACHE - because will not be cached
+    HA_CACHE_TBL_TRANSACT - QC need to know that such type present
+  */
+  DBUG_RETURN(type == HA_CACHE_TBL_ASKTRANSACT ? m_tot_parts : 0);
 }
 
 my_bool ha_partition::reg_query_cache_dependant_table(THD *thd,
@@ -2138,6 +2145,10 @@ my_bool ha_partition::register_query_cache_dependant_tables(THD *thd,
   char key[FN_REFLEN];
 
   DBUG_ENTER("ha_partition::register_query_cache_dependant_tables");
+
+  /* see ha_partition::count_query_cache_dependant_tables */
+  if (m_file[0]->table_cache_type() != HA_CACHE_TBL_ASKTRANSACT)
+    DBUG_RETURN(FALSE); // nothing to register
 
   /* prepare static part of the key */
   memmove(key, table_share->table_cache_key.str,
