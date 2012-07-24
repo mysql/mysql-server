@@ -26,67 +26,14 @@
  Value Conversion from JavaScript to C
 ******************************************************************/
 
+// Instantiations:
 
-template <>
-class JsValueConverter <int> {
-public:
-  jsvalue jsval;
-  
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  int toC() { return jsval->Int32Value(); };
-};
-
-
-template <>
-class JsValueConverter <uint32_t> {
-public:
-  jsvalue jsval;
-  
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  int toC() { return jsval->Uint32Value(); };
-};
-
-
-template <>
-class JsValueConverter <double> {
-public:
-  jsvalue jsval;
-  
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  double toC() { return jsval->NumberValue(); };
-};
-
-
-template <>
-class JsValueConverter <int64_t> {
-public:
-  jsvalue jsval;
-  
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  double toC() { return jsval->IntegerValue(); };
-};
-
-
-template <>
-class JsValueConverter <bool> {
-public:
-  jsvalue jsval;
-  
-  JsValueConverter(jsvalue v) : jsval(v) {};
-  bool toC()  { return jsval->BooleanValue(); };
-};
-
-
-template <>
-class JsValueConverter <const char *> {
-private:
-  v8::String::AsciiValue av;
-
-public: 
-  JsValueConverter(jsvalue v) : av(v)   {};
-  const char * toC()  { return *av;  };
-};
-
+template class JsValueConverter <int>;
+template class JsValueConverter <uint32_t>;
+template class JsValueConverter <double>;
+template class JsValueConverter <int64_t>;
+template class JsValueConverter <bool>;
+template class JsValueConverter <const char *>;
 
 
 /*****************************************************************
