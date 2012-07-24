@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /*  yaSSL source implements all SSL.v3 secification structures.
  */
@@ -1087,19 +1087,37 @@ void Certificate::Process(input_buffer& input, SSL& ssl)
     uint32 list_sz;
     byte   tmp[3];
 
+    if (input.get_remaining() < sizeof(tmp)) {
+        ssl.SetError(YasslError(bad_input));
+        return;
+    }
     tmp[0] = input[AUTO];
     tmp[1] = input[AUTO];
     tmp[2] = input[AUTO];
     c24to32(tmp, list_sz);
+
+    if (list_sz > (uint)MAX_RECORD_SIZE) { // sanity check
+        ssl.SetError(YasslError(bad_input));
+        return;
+    }
     
     while (list_sz) {
         // cert size
         uint32 cert_sz;
+
+        if (input.get_remaining() < sizeof(tmp)) {
+            ssl.SetError(YasslError(bad_input));
+            return;
+        }
         tmp[0] = input[AUTO];
         tmp[1] = input[AUTO];
         tmp[2] = input[AUTO];
         c24to32(tmp, cert_sz);
         
+        if (cert_sz > (uint)MAX_RECORD_SIZE || input.get_remaining() < cert_sz){
+            ssl.SetError(YasslError(bad_input));
+            return;
+        }
         x509* myCert;
         cm.AddPeerCert(myCert = NEW_YS x509(cert_sz));
         input.read(myCert->use_buffer(), myCert->get_length());
