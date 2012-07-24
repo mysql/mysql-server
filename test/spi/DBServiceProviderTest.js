@@ -20,9 +20,8 @@
 
 // TODO:  DBServiceProviderTest needs to run before DBConnectionTest.
 
-var impl = "ndb";
 var spi = require(spi_module);
-var service = spi.getDBServiceProvider(impl);
+var service = spi.getDBServiceProvider(global.adapter);
 
 var t1 = new harness.SerialTest("getDefaultConnectionProperties");
 t1.run = function() {

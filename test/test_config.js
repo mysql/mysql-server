@@ -21,7 +21,7 @@ global.harness         = require(path.join(__dirname, "harness"));
 global.mynode          = require(api_module);
 
 global.debug           = false;
-global.exit            = false;
+global.adapter         = "ndb";
 
 /* Connection properties for use in running the test suite 
 */

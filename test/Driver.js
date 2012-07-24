@@ -20,9 +20,6 @@
 
 require("./test_config.js");
 
-var fs = require("fs"),
-    util = require('util');
-
 
 /** Driver 
 */
@@ -95,6 +92,7 @@ Driver.prototype.reportResultsAndExit = function() {
 driver = new Driver();
 var result = new harness.Result(driver);
 result.listener = new harness.Listener();
+var exit = false;
 
 var usageMessage = 
   "Usage: node driver [options]\n" +
@@ -104,47 +102,56 @@ var usageMessage =
   "            --debug: set the debug flag\n" +
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
-  "--adapter=<adapter>: set the mynode adapter (ndb or mysql)\n"
+  "      --file=<file>: only run the named test file\n" +
+  "--set <var>=<value>: set a global variable, overriding test_config.js\n"
   ;
 
 // handle command line arguments
-process.argv.forEach(function (val, index, array) {
-  if (index >= 2) { // ignore first two values (node driver)
-    switch (val) {
-    case '--debug':
-    case '-d':
-      console.log('Setting debug to true');
-      debug = true;
-      break;
-    case '--help':
-    case '-h':
+for(var i = 2; i < process.argv.length ; i++) {
+  val = process.argv[i];
+  switch (val) {
+  case '--debug':
+  case '-d':
+    console.log('Setting debug to true');
+    debug = true;
+    break;
+  case '--help':
+  case '-h':
+    exit = true;
+    break;
+  case '--set':
+    i++;  // next argument
+    pair = process.argv[i].split('=');
+    if(pair.length == 2) {
+      if(debug) console.log("Setting global: " + pair[0] + "=" + pair[1]);
+      global[pair[0]] = pair[1];
+    }
+    else {
+      console.log("Invalid --set option " + process.argv[i]);
       exit = true;
-      break;
-    default:
-      values = val.split('=');
-      if (values.length == 2) {
-        switch (values[0]) {
-        case '--adapter':
-          global.adapter = values[1];
-          break;
-        case '--suite':
-        case '--suites':
-          driver.suitesToRun = values[1];
-          break;
-        case '--file':
-          driver.fileToRun = values[1];
-          break;
-        default:
-          console.log('Invalid option ' + val);
-          exit = true;
-        }
-      } else {
+    }
+    break;    
+  default:
+    values = val.split('=');
+    if (values.length == 2) {
+      switch (values[0]) {
+      case '--suite':
+      case '--suites':
+        driver.suitesToRun = values[1];
+        break;
+      case '--file':
+        driver.fileToRun = values[1];
+        break;
+      default:
         console.log('Invalid option ' + val);
         exit = true;
-     }
-    }
+      }
+    } else {
+      console.log('Invalid option ' + val);
+      exit = true;
+   }
   }
-});
+}
 
 if (exit) {
   console.log(usageMessage);

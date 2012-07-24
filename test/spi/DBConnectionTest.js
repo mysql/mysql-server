@@ -27,7 +27,7 @@ var spi = require(spi_module);
       Requires something to connect to. 
 ***/
 var connectSyncTest = function() {
-  var provider = spi.getDBServiceProvider(this.impl);
+  var provider = spi.getDBServiceProvider(global.adapter);
   var properties = provider.getDefaultConnectionProperties();
   var conn = provider.connectSync(properties);
   assert(conn.isConnected(), "failed to connect");
@@ -38,7 +38,7 @@ var connectSyncTest = function() {
 
 var connectAsyncTest = function() {
   var testCase = this;
-  var provider = spi.getDBServiceProvider(this.impl);
+  var provider = spi.getDBServiceProvider(global.adapter);
   var properties = provider.getDefaultConnectionProperties();
   var connection = provider.connect(properties, function(err, connection) {
     if(err) testCase.fail(err);
@@ -52,13 +52,11 @@ var connectAsyncTest = function() {
 
 /*** spi.ndb.connectSync ***/
 var t3 = new harness.SerialTest("connectSync");
-t3.impl = "ndb";
 t3.run = connectSyncTest;
 
 
 /** spi.ndb.connect ***/
 var t7 = new harness.SerialTest("connect");
-t7.impl = "ndb";
 t7.run = connectAsyncTest;
 
 
