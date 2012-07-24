@@ -48,9 +48,11 @@ word32 PBKDF2_HMAC<T>::DeriveKey(byte* derived, word32 dLen, const byte* pwd,
                                  word32 pLen, const byte* salt, word32 sLen,
                                  word32 iterations) const
 {
-	if (dLen > MaxDerivedKeyLength())
+    if (dLen > MaxDerivedKeyLength())
         return 0;
 
+    if (iterations < 0)
+        return 0;
 
     ByteBlock buffer(T::DIGEST_SIZE);
 	HMAC<T>   hmac;
