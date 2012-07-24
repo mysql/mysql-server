@@ -105,7 +105,7 @@ public:
   /* Methods */
   void run() {
     assert(function);
-    NativeMethodCall<R>::return_val = (function)(arg0);
+    NativeMethodCall<R>::return_val = (function)(arg0, arg1);
   }
 };
 

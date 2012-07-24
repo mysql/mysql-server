@@ -1,13 +1,44 @@
-This project contains the mynode definition and implementation.
+This project contains the Mynode definition and implementation.
 
+
+BUILDING
+--------
 The wscript file is a waf script defining the build process.
 
-In this directory, call the node-waf program, passing the location of an 
-installed mysql tree. For example:
+In this directory, run node-waf (the build tool distributed with node.js 0.6), 
+passing the location of an installed mysql tree. For example:
 
 % node-waf configure --mysql=/usr/local/mysql-5.1.24-rc-osx10.5-x86_64/
 % node-waf build
 
+This will create the binary artifacts under Adapter/impl/build/Release/
+
 Be sure to include the trailing "/" in the configure command.
 
-This will create the binary artifacts under Adapter/impl/build/Release/
+If you have built a previous version of the project, "node-waf clean"
+and "node-waf distclean" might be needed for cleaning up.
+
+
+DIRECTORY STRUCTURE
+-------------------
+ test/                          Test driver and test suite
+ Adapter/                       The node.js adapter
+ Adapter/API-documentation      Documentation of the main API
+ Adapter/api                    Implementation of the top-level API
+ Adapter/impl                   Low-level implementations
+ Adapter/impl/ndb               Low-level MySQL Cluster native connector
+ Adapter/impl/mysql             Low-level connector using mysql client
+
+
+TESTING
+-------
+Testing currently requires a running MySQL Cluster with both a management 
+server and a MySQL server on the local machine.  To run the test suite:
+
+cd test
+node Driver 
+
+
+
+
+ 

@@ -29,10 +29,10 @@ using namespace v8;
 Handle<Value> mysql_init_wrapper(const Arguments &args) {
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(0);
+  REQUIRE_ARGS_LENGTH(0);  // there is one arg but we supply it here
   
   NativeCFunctionCall_1_<MYSQL *, MYSQL *> ncall(args);
-  ncall.arg0 = 0;  // override 
+  ncall.arg0 = 0; 
   ncall.function = & mysql_init;
   ncall.run();
   
@@ -53,9 +53,53 @@ Handle<Value> mysql_close_wrapper(const Arguments &args) {
 }
 
 
+Handle<Value> mysql_real_connect_wrapper(const Arguments &args) {
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(8);
+  
+  NativeCFunctionCall_8_<MYSQL *, MYSQL *, const char *, const char *, const char *,
+                         const char *, unsigned int, const char *, unsigned long> 
+                         ncall(args);
+  ncall.function = & mysql_real_connect;
+  ncall.run();
+  
+  return scope.Close(ncall.jsReturnVal());
+}
+
+
+Handle<Value> mysql_error_wrapper(const Arguments &args) {
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(1);
+  
+  NativeCFunctionCall_1_<const char *, MYSQL *> ncall(args);
+  ncall.function = & mysql_error;
+  ncall.run();
+  
+  return scope.Close(ncall.jsReturnVal());
+}
+
+
+Handle<Value> mysql_query_wrapper(const Arguments &args) {
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(2);
+  
+  NativeCFunctionCall_2_<int, MYSQL *, const char *> ncall(args);
+  ncall.function = & mysql_query;
+  ncall.run();
+  
+  return scope.Close(ncall.jsReturnVal());
+}
+
+
 void mysqlclient_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "mysql_init", mysql_init_wrapper);
   DEFINE_JS_FUNCTION(target, "mysql_close", mysql_close_wrapper);
+  DEFINE_JS_FUNCTION(target, "mysql_real_connect", mysql_real_connect_wrapper);
+  DEFINE_JS_FUNCTION(target, "mysql_error", mysql_error_wrapper);
+  DEFINE_JS_FUNCTION(target, "myqsl_query", mysql_query_wrapper);  
 }
 
 NODE_MODULE(mysqlclient, mysqlclient_initOnLoad)
