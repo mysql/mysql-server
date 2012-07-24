@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /* type_traits defines fundamental types
  * see discussion in C++ Templates, $19.1
