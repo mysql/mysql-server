@@ -1001,6 +1001,9 @@ sub collect_one_test_case {
       "innodb_cmp=$plugin_filename$sep" .
       "innodb_cmp_reset=$plugin_filename$sep" .
       "innodb_cmpmem=$plugin_filename$sep" .
+      "innodb_buffer_page=$plugin_filename$sep" .
+      "innodb_buffer_page_lru=$plugin_filename$sep" .
+      "innodb_buffer_pool_stats=$plugin_filename$sep" .
       "innodb_cmpmem_reset=$plugin_filename";
 
     foreach my $k ('master_opt', 'slave_opt') 
