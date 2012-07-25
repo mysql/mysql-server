@@ -91,3 +91,16 @@ exports.DBConnection.prototype.isConnected = function() {
 exports.DBConnection.prototype.closeSync = function() {
   ndbconn.delete();
 }
+
+
+/* openSessionHandler().
+   ASYNC.
+   Creates and opens a new DBSessionHandler.
+   Users's callback receives (error, DBSessionHandler)
+*/
+exports.DBConnection.prototype.openSessionHandler = function(user_callback) {
+   var 
+
+
+
+}

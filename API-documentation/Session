@@ -12,11 +12,11 @@ Session extends Context
      *
      * The batch is used to collect multiple operations to be executed together. 
      */ 
-     Batch createBatch();
+    Batch createBatch();
 
     /** List all current batches.
      */
-     Array listBatches();
+    Array listBatches();
 
     /** Get the current Transaction. 
      * @return the transaction
