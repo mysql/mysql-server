@@ -9463,9 +9463,10 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         have_min= TRUE;
       else if (min_max_item->sum_func() == Item_sum::MAX_FUNC)
         have_max= TRUE;
-      else if (min_max_item->sum_func() == Item_sum::COUNT_DISTINCT_FUNC ||
-               min_max_item->sum_func() == Item_sum::SUM_DISTINCT_FUNC ||
-               min_max_item->sum_func() == Item_sum::AVG_DISTINCT_FUNC)
+      else if (is_agg_distinct &&
+               (min_max_item->sum_func() == Item_sum::COUNT_DISTINCT_FUNC ||
+                min_max_item->sum_func() == Item_sum::SUM_DISTINCT_FUNC ||
+                min_max_item->sum_func() == Item_sum::AVG_DISTINCT_FUNC))
         continue;
       else
         DBUG_RETURN(NULL);
