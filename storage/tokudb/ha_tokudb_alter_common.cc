@@ -19,7 +19,7 @@ tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool
         retval = false;
         goto cleanup;
     }
-    for (u_int32_t i=0; i < table->s->keys; i++) {
+    for (uint32_t i=0; i < table->s->keys; i++) {
         KEY* curr_orig_key = &table->key_info[i];
         KEY* curr_altered_key = &altered_table->key_info[i];
         if (strcmp(curr_orig_key->name, curr_altered_key->name)) {
@@ -70,7 +70,7 @@ tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool
         //
         // now verify that each field in the key is the same
         //
-        for (u_int32_t j = 0; j < curr_orig_key->key_parts; j++) {
+        for (uint32_t j = 0; j < curr_orig_key->key_parts; j++) {
             KEY_PART_INFO* curr_orig_part = &curr_orig_key->key_part[j];
             KEY_PART_INFO* curr_altered_part = &curr_altered_key->key_part[j];
             Field* curr_orig_field = curr_orig_part->field;
@@ -115,9 +115,9 @@ cleanup:
 // to evaluate whether a field is NULL or not. This value is a power of 2, from
 // 2^0 to 2^7. We return the position of the bit within the byte, which is
 // lg null_bit
-static inline u_int32_t 
-get_null_bit_position(u_int32_t null_bit) {
-    u_int32_t retval = 0;
+static inline uint32_t 
+get_null_bit_position(uint32_t null_bit) {
+    uint32_t retval = 0;
     switch(null_bit) {
     case (1):
         retval = 0;
@@ -150,24 +150,24 @@ get_null_bit_position(u_int32_t null_bit) {
 }
 
 // returns the index of the null bit of field. 
-static inline u_int32_t 
+static inline uint32_t 
 get_overall_null_bit_position(TABLE* table, Field* field) {
-    u_int32_t offset = get_null_offset(table, field);
-    u_int32_t null_bit = field->null_bit;
+    uint32_t offset = get_null_offset(table, field);
+    uint32_t null_bit = field->null_bit;
     return offset*8 + get_null_bit_position(null_bit);
 }
 
 // not static since 51 uses this and 56 does not
 bool 
 are_null_bits_in_order(TABLE* table) {
-    u_int32_t curr_null_pos = 0;
+    uint32_t curr_null_pos = 0;
     bool first = true;
     bool retval = true;
     for (uint i = 0; i < table->s->fields; i++) {
         Field* curr_field = table->field[i];
         bool nullable = (curr_field->null_bit != 0);
         if (nullable) {
-            u_int32_t pos = get_overall_null_bit_position(
+            uint32_t pos = get_overall_null_bit_position(
                 table,
                 curr_field
                 );
@@ -182,9 +182,9 @@ are_null_bits_in_order(TABLE* table) {
     return retval;
 }
 
-static u_int32_t 
+static uint32_t 
 get_first_null_bit_pos(TABLE* table) {
-    u_int32_t table_pos = 0;
+    uint32_t table_pos = 0;
     for (uint i = 0; i < table->s->fields; i++) {
         Field* curr_field = table->field[i];
         bool nullable = (curr_field->null_bit != 0);
@@ -201,12 +201,12 @@ get_first_null_bit_pos(TABLE* table) {
 
 #if 0
 static bool 
-is_column_default_null(TABLE* src_table, u_int32_t field_index) {
+is_column_default_null(TABLE* src_table, uint32_t field_index) {
     Field* curr_field = src_table->field[field_index];
     bool is_null_default = false;
     bool nullable = curr_field->null_bit != 0;
     if (nullable) {
-        u_int32_t null_bit_position = get_overall_null_bit_position(src_table, curr_field);
+        uint32_t null_bit_position = get_overall_null_bit_position(src_table, curr_field);
         is_null_default = is_overall_null_position_set(
             src_table->s->default_values,
             null_bit_position
@@ -216,14 +216,14 @@ is_column_default_null(TABLE* src_table, u_int32_t field_index) {
 }
 #endif
 
-static u_int32_t 
+static uint32_t 
 fill_static_row_mutator(
     uchar* buf, 
     TABLE* orig_table,
     TABLE* altered_table,
     KEY_AND_COL_INFO* orig_kc_info,
     KEY_AND_COL_INFO* altered_kc_info,
-    u_int32_t keynr
+    uint32_t keynr
     ) 
 {
     //
@@ -255,7 +255,7 @@ fill_static_row_mutator(
     //
     // size of fixed fields
     //
-    u_int32_t fixed_field_size = orig_kc_info->mcp_info[keynr].fixed_field_size;
+    uint32_t fixed_field_size = orig_kc_info->mcp_info[keynr].fixed_field_size;
     memcpy(pos, &fixed_field_size, sizeof(fixed_field_size));
     pos += sizeof(fixed_field_size);
     fixed_field_size = altered_kc_info->mcp_info[keynr].fixed_field_size;
@@ -265,17 +265,17 @@ fill_static_row_mutator(
     //
     // length of offsets
     //
-    u_int32_t len_of_offsets = orig_kc_info->mcp_info[keynr].len_of_offsets;
+    uint32_t len_of_offsets = orig_kc_info->mcp_info[keynr].len_of_offsets;
     memcpy(pos, &len_of_offsets, sizeof(len_of_offsets));
     pos += sizeof(len_of_offsets);
     len_of_offsets = altered_kc_info->mcp_info[keynr].len_of_offsets;
     memcpy(pos, &len_of_offsets, sizeof(len_of_offsets));
     pos += sizeof(len_of_offsets);
 
-    u_int32_t orig_start_null_pos = get_first_null_bit_pos(orig_table);
+    uint32_t orig_start_null_pos = get_first_null_bit_pos(orig_table);
     memcpy(pos, &orig_start_null_pos, sizeof(orig_start_null_pos));
     pos += sizeof(orig_start_null_pos);
-    u_int32_t altered_start_null_pos = get_first_null_bit_pos(altered_table);
+    uint32_t altered_start_null_pos = get_first_null_bit_pos(altered_table);
     memcpy(pos, &altered_start_null_pos, sizeof(altered_start_null_pos));
     pos += sizeof(altered_start_null_pos);
 
@@ -283,25 +283,25 @@ fill_static_row_mutator(
     return pos - buf;
 }
 
-static u_int32_t 
+static uint32_t 
 fill_dynamic_row_mutator(
     uchar* buf,
-    u_int32_t* columns, 
-    u_int32_t num_columns,
+    uint32_t* columns, 
+    uint32_t num_columns,
     TABLE* src_table,
     KEY_AND_COL_INFO* src_kc_info,
-    u_int32_t keynr,
+    uint32_t keynr,
     bool is_add,
     bool* out_has_blobs
     ) 
 {
     uchar* pos = buf;
     bool has_blobs = false;
-    u_int32_t cols = num_columns;
+    uint32_t cols = num_columns;
     memcpy(pos, &cols, sizeof(cols));
     pos += sizeof(cols);
-    for (u_int32_t i = 0; i < num_columns; i++) {
-        u_int32_t curr_index = columns[i];
+    for (uint32_t i = 0; i < num_columns; i++) {
+        uint32_t curr_index = columns[i];
         Field* curr_field = src_table->field[curr_index];
     
         pos[0] = is_add ? COL_ADD : COL_DROP;
@@ -319,7 +319,7 @@ fill_dynamic_row_mutator(
             pos[0] = 1;
             pos++;
             // write position of null byte that is to be removed
-            u_int32_t null_bit_position = get_overall_null_bit_position(src_table, curr_field);
+            uint32_t null_bit_position = get_overall_null_bit_position(src_table, curr_field);
             memcpy(pos, &null_bit_position, sizeof(null_bit_position));
             pos += sizeof(null_bit_position);
             //
@@ -340,11 +340,11 @@ fill_dynamic_row_mutator(
             pos[0] = COL_FIXED;
             pos++;
             //store the offset
-            u_int32_t fixed_field_offset = src_kc_info->cp_info[keynr][curr_index].col_pack_val;
+            uint32_t fixed_field_offset = src_kc_info->cp_info[keynr][curr_index].col_pack_val;
             memcpy(pos, &fixed_field_offset, sizeof(fixed_field_offset));
             pos += sizeof(fixed_field_offset);
             //store the number of bytes
-            u_int32_t num_bytes = src_kc_info->field_lengths[curr_index];
+            uint32_t num_bytes = src_kc_info->field_lengths[curr_index];
             memcpy(pos, &num_bytes, sizeof(num_bytes));
             pos += sizeof(num_bytes);
             if (is_add && !is_null_default) {
@@ -361,13 +361,13 @@ fill_dynamic_row_mutator(
             pos[0] = COL_VAR;
             pos++;
             //store the index of the variable column
-            u_int32_t var_field_index = src_kc_info->cp_info[keynr][curr_index].col_pack_val;
+            uint32_t var_field_index = src_kc_info->cp_info[keynr][curr_index].col_pack_val;
             memcpy(pos, &var_field_index, sizeof(var_field_index));
             pos += sizeof(var_field_index);
             if (is_add && !is_null_default) {
                 uint curr_field_offset = field_offset(curr_field, src_table);
-                u_int32_t len_bytes = src_kc_info->length_bytes[curr_index];
-                u_int32_t data_length = get_var_data_length(
+                uint32_t len_bytes = src_kc_info->length_bytes[curr_index];
+                uint32_t data_length = get_var_data_length(
                     src_table->s->default_values + curr_field_offset,
                     len_bytes
                     );
@@ -391,7 +391,7 @@ fill_dynamic_row_mutator(
     return pos-buf;
 }
 
-static u_int32_t 
+static uint32_t 
 fill_static_blob_row_mutator(
     uchar* buf,
     TABLE* src_table,
@@ -403,10 +403,10 @@ fill_static_blob_row_mutator(
     memcpy(pos, &src_kc_info->num_blobs, sizeof(src_kc_info->num_blobs));
     pos += sizeof(src_kc_info->num_blobs);
     // copy length bytes for each blob
-    for (u_int32_t i = 0; i < src_kc_info->num_blobs; i++) {
-        u_int32_t curr_field_index = src_kc_info->blob_fields[i]; 
+    for (uint32_t i = 0; i < src_kc_info->num_blobs; i++) {
+        uint32_t curr_field_index = src_kc_info->blob_fields[i]; 
         Field* field = src_table->field[curr_field_index];
-        u_int32_t len_bytes = field->row_pack_length();
+        uint32_t len_bytes = field->row_pack_length();
         assert(len_bytes <= 4);
         pos[0] = len_bytes;
         pos++;
@@ -415,27 +415,27 @@ fill_static_blob_row_mutator(
     return pos-buf;
 }
 
-static u_int32_t 
+static uint32_t 
 fill_dynamic_blob_row_mutator(
     uchar* buf,
-    u_int32_t* columns, 
-    u_int32_t num_columns,
+    uint32_t* columns, 
+    uint32_t num_columns,
     TABLE* src_table,
     KEY_AND_COL_INFO* src_kc_info,
     bool is_add
     ) 
 {
     uchar* pos = buf;
-    for (u_int32_t i = 0; i < num_columns; i++) {
-        u_int32_t curr_field_index = columns[i];
+    for (uint32_t i = 0; i < num_columns; i++) {
+        uint32_t curr_field_index = columns[i];
         Field* curr_field = src_table->field[curr_field_index];
         if (src_kc_info->field_lengths[curr_field_index] == 0 && 
             src_kc_info->length_bytes[curr_field_index]== 0
             ) 
         {
             // find out which blob it is
-            u_int32_t blob_index = src_kc_info->num_blobs;
-            for (u_int32_t j = 0; j < src_kc_info->num_blobs; j++) {
+            uint32_t blob_index = src_kc_info->num_blobs;
+            for (uint32_t j = 0; j < src_kc_info->num_blobs; j++) {
                 if (curr_field_index  == src_kc_info->blob_fields[j]) {
                     blob_index = j;
                     break;
@@ -448,7 +448,7 @@ fill_dynamic_blob_row_mutator(
             memcpy(pos, &blob_index, sizeof(blob_index));
             pos += sizeof(blob_index);
             if (is_add) {
-                u_int32_t len_bytes = curr_field->row_pack_length();
+                uint32_t len_bytes = curr_field->row_pack_length();
                 assert(len_bytes <= 4);
                 pos[0] = len_bytes;
                 pos++;
@@ -471,14 +471,14 @@ fill_dynamic_blob_row_mutator(
 // TODO: carefully review to make sure that the right information is used
 // TODO: namely, when do we get stuff from share->kc_info and when we get
 // TODO: it from altered_kc_info, and when is keynr associated with the right thing
-u_int32_t 
+uint32_t 
 ha_tokudb::fill_row_mutator(
     uchar* buf, 
-    u_int32_t* columns, 
-    u_int32_t num_columns,
+    uint32_t* columns, 
+    uint32_t num_columns,
     TABLE* altered_table,
     KEY_AND_COL_INFO* altered_kc_info,
-    u_int32_t keynr,
+    uint32_t keynr,
     bool is_add
     ) 
 {
@@ -626,15 +626,15 @@ cleanup:
 
 static int 
 find_changed_columns(
-    u_int32_t* changed_columns,
-    u_int32_t* num_changed_columns,
+    uint32_t* changed_columns,
+    uint32_t* num_changed_columns,
     TABLE* smaller_table, 
     TABLE* bigger_table
     ) 
 {
     int retval;
     uint curr_new_col_index = 0;
-    u_int32_t curr_num_changed_columns=0;
+    uint32_t curr_num_changed_columns=0;
     assert(bigger_table->s->fields > smaller_table->s->fields);
     for (uint i = 0; i < smaller_table->s->fields; i++, curr_new_col_index++) {
         if (curr_new_col_index >= bigger_table->s->fields) {

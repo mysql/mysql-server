@@ -81,7 +81,7 @@ typedef struct st_tokudb_share {
     bool has_unique_keys;
     bool replace_into_fast;
     rw_lock_t num_DBs_lock;
-    u_int32_t num_DBs;
+    uint32_t num_DBs;
 } TOKUDB_SHARE;
 
 #define HA_TOKU_ORIG_VERSION 4
@@ -149,12 +149,12 @@ private:
     //
     uchar *rec_update_buff;
     ulong alloced_update_rec_buff_length;
-    u_int32_t max_key_length;
+    uint32_t max_key_length;
 
     uchar* range_query_buff; // range query buffer
-    u_int32_t size_range_query_buff; // size of the allocated range query buffer
-    u_int32_t bytes_used_in_range_query_buff; // number of bytes used in the range query buffer
-    u_int32_t curr_range_query_buff_offset; // current offset into the range query buffer for queries to read
+    uint32_t size_range_query_buff; // size of the allocated range query buffer
+    uint32_t bytes_used_in_range_query_buff; // number of bytes used in the range query buffer
+    uint32_t curr_range_query_buff_offset; // current offset into the range query buffer for queries to read
     uint64_t bulk_fetch_iteration;
     uint64_t rows_fetched_using_bulk_fetch;
     bool doing_bulk_fetch;
@@ -185,9 +185,9 @@ private:
     // ranges of prelocked area, used to know how much to bulk fetch
     //
     uchar *prelocked_left_range; 
-    u_int32_t prelocked_left_range_size;
+    uint32_t prelocked_left_range_size;
     uchar *prelocked_right_range; 
-    u_int32_t prelocked_right_range_size;
+    uint32_t prelocked_right_range_size;
 
 
     //
@@ -195,9 +195,9 @@ private:
     //
     DBT mult_key_dbt[2*(MAX_KEY + 1)];
     DBT mult_rec_dbt[MAX_KEY + 1];
-    u_int32_t mult_put_flags[MAX_KEY + 1];
-    u_int32_t mult_del_flags[MAX_KEY + 1];
-    u_int32_t mult_dbt_flags[MAX_KEY + 1];
+    uint32_t mult_put_flags[MAX_KEY + 1];
+    uint32_t mult_del_flags[MAX_KEY + 1];
+    uint32_t mult_dbt_flags[MAX_KEY + 1];
     
 
     //
@@ -207,7 +207,7 @@ private:
     // query
     //
     uchar* blob_buff;
-    u_int32_t num_blob_bytes;
+    uint32_t num_blob_bytes;
 
     bool unpack_entire_row;
 
@@ -215,10 +215,10 @@ private:
     // buffers (and their sizes) that will hold the indexes
     // of fields that need to be read for a query
     //
-    u_int32_t* fixed_cols_for_query;
-    u_int32_t num_fixed_cols_for_query;
-    u_int32_t* var_cols_for_query;
-    u_int32_t num_var_cols_for_query;
+    uint32_t* fixed_cols_for_query;
+    uint32_t num_fixed_cols_for_query;
+    uint32_t* var_cols_for_query;
+    uint32_t num_var_cols_for_query;
     bool read_blobs;
     bool read_key;
 
@@ -235,7 +235,7 @@ private:
     // instance of cursor being used for init_xxx and rnd_xxx functions
     //
     DBC *cursor;
-    u_int32_t cursor_flags; // flags for cursor
+    uint32_t cursor_flags; // flags for cursor
     //
     // flags that are returned in table_flags()
     //
@@ -265,7 +265,7 @@ private:
 
     //
     // For instances where we successfully prelock a range or a table,
-    // we set this to TRUE so that successive cursor calls can know
+    // we set this to true so that successive cursor calls can know
     // know to limit the locking overhead in a call to the fractal tree
     //
     bool range_lock_grabbed;
@@ -291,7 +291,7 @@ private:
     int loader_error;
 
     bool num_DBs_locked_in_bulk;
-    u_int32_t lock_count;
+    uint32_t lock_count;
     
     bool fix_rec_buff_for_blob(ulong length);
     bool fix_rec_update_buff_for_blob(ulong length);
@@ -314,9 +314,9 @@ private:
         const uchar* record,
         uint index
         );
-    u_int32_t place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data);
+    uint32_t place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data);
     void unpack_key(uchar * record, DBT const *key, uint index);
-    u_int32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
+    uint32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
     DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, bool dont_pack_pk, int key_length = MAX_KEY_LENGTH);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT* create_dbt_key_for_lookup(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
@@ -328,7 +328,7 @@ private:
     int open_main_dictionary(const char* name, bool is_read_only, DB_TXN* txn);
     int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, bool is_read_only, DB_TXN* txn);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
-    int estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn);
+    int estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn);
     bool has_auto_increment_flag(uint* index);
 
     int write_frm_data(DB* db, DB_TXN* txn, const char* frm_name);
@@ -365,7 +365,7 @@ private:
         KEY* key_info, 
         DB_TXN* txn, 
         KEY_AND_COL_INFO* kc_info, 
-        u_int32_t keynr, 
+        uint32_t keynr, 
         bool is_hot_index,
         enum row_type row_type
         );
@@ -374,17 +374,17 @@ private:
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
-    void set_main_dict_put_flags(THD* thd, bool opt_eligible, u_int32_t* put_flags);
+    void set_main_dict_put_flags(THD* thd, bool opt_eligible, uint32_t* put_flags);
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
     int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     void test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
-    u_int32_t fill_row_mutator(
+    uint32_t fill_row_mutator(
         uchar* buf, 
-        u_int32_t* dropped_columns, 
-        u_int32_t num_dropped_columns,
+        uint32_t* dropped_columns, 
+        uint32_t num_dropped_columns,
         TABLE* altered_table,
         KEY_AND_COL_INFO* altered_kc_info,
-        u_int32_t keynr,
+        uint32_t keynr,
         bool is_add
         );
 
@@ -490,7 +490,7 @@ public:
 
     ha_rows records_in_range(uint inx, key_range * min_key, key_range * max_key);
 
-    u_int32_t get_cursor_isolation_flags(enum thr_lock_type lock_type, THD* thd);
+    uint32_t get_cursor_isolation_flags(enum thr_lock_type lock_type, THD* thd);
     THR_LOCK_DATA **store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type);
 
     int get_status(DB_TXN* trans);
@@ -609,7 +609,7 @@ public:
     int unpack_blobs(
         uchar* record,
         const uchar* from_tokudb_blob,
-        u_int32_t num_blob_bytes,
+        uint32_t num_blob_bytes,
         bool check_bitmap
         );
     int unpack_row(

@@ -54,8 +54,8 @@ So, upperbound is num_blobs(1+4+1+4) = num_columns*10
 // checks whether the bit at index pos in data is set or not
 //
 static inline bool 
-is_overall_null_position_set(uchar* data, u_int32_t pos) {
-    u_int32_t offset = pos/8;
+is_overall_null_position_set(uchar* data, uint32_t pos) {
+    uint32_t offset = pos/8;
     uchar remainder = pos%8; 
     uchar null_bit = 1<<remainder;
     return ((data[offset] & null_bit) != 0);
@@ -65,8 +65,8 @@ is_overall_null_position_set(uchar* data, u_int32_t pos) {
 // sets the bit at index pos in data to 1 if is_null, 0 otherwise
 // 
 static inline void 
-set_overall_null_position(uchar* data, u_int32_t pos, bool is_null) {
-    u_int32_t offset = pos/8;
+set_overall_null_position(uchar* data, uint32_t pos, bool is_null) {
+    uint32_t offset = pos/8;
     uchar remainder = pos%8;
     uchar null_bit = 1<<remainder;
     if (is_null) {
@@ -79,16 +79,16 @@ set_overall_null_position(uchar* data, u_int32_t pos, bool is_null) {
 
 static inline void 
 copy_null_bits(
-    u_int32_t start_old_pos,
-    u_int32_t start_new_pos,
-    u_int32_t num_bits,
+    uint32_t start_old_pos,
+    uint32_t start_new_pos,
+    uint32_t num_bits,
     uchar* old_null_bytes,
     uchar* new_null_bytes
     ) 
 {
-    for (u_int32_t i = 0; i < num_bits; i++) {
-        u_int32_t curr_old_pos = i + start_old_pos;
-        u_int32_t curr_new_pos = i + start_new_pos;
+    for (uint32_t i = 0; i < num_bits; i++) {
+        uint32_t curr_old_pos = i + start_old_pos;
+        uint32_t curr_new_pos = i + start_new_pos;
         // copy over old null bytes
         if (is_overall_null_position_set(old_null_bytes,curr_old_pos)) {
             set_overall_null_position(new_null_bytes,curr_new_pos,true);
@@ -101,25 +101,25 @@ copy_null_bits(
 
 static inline void 
 copy_var_fields(
-    u_int32_t start_old_num_var_field, //index of var fields that we should start writing
-    u_int32_t num_var_fields, // number of var fields to copy
+    uint32_t start_old_num_var_field, //index of var fields that we should start writing
+    uint32_t num_var_fields, // number of var fields to copy
     uchar* old_var_field_offset_ptr, //static ptr to where offset bytes begin in old row
     uchar old_num_offset_bytes, //number of offset bytes used in old row
     uchar* start_new_var_field_data_ptr, // where the new var data should be written
     uchar* start_new_var_field_offset_ptr, // where the new var offsets should be written
     uchar* new_var_field_data_ptr, // pointer to beginning of var fields in new row
     uchar* old_var_field_data_ptr, // pointer to beginning of var fields in old row
-    u_int32_t new_num_offset_bytes, // number of offset bytes used in new row
-    u_int32_t* num_data_bytes_written,
-    u_int32_t* num_offset_bytes_written
+    uint32_t new_num_offset_bytes, // number of offset bytes used in new row
+    uint32_t* num_data_bytes_written,
+    uint32_t* num_offset_bytes_written
     ) 
 {
     uchar* curr_new_var_field_data_ptr = start_new_var_field_data_ptr;
     uchar* curr_new_var_field_offset_ptr = start_new_var_field_offset_ptr;
-    for (u_int32_t i = 0; i < num_var_fields; i++) {
-        u_int32_t field_len;
-        u_int32_t start_read_offset;
-        u_int32_t curr_old = i + start_old_num_var_field;
+    for (uint32_t i = 0; i < num_var_fields; i++) {
+        uint32_t field_len;
+        uint32_t start_read_offset;
+        uint32_t curr_old = i + start_old_num_var_field;
         uchar* data_to_copy = NULL;
         // get the length and pointer to data that needs to be copied
         get_var_field_info(
@@ -141,13 +141,13 @@ copy_var_fields(
             );
         curr_new_var_field_offset_ptr += new_num_offset_bytes;
     }
-    *num_data_bytes_written = (u_int32_t)(curr_new_var_field_data_ptr - start_new_var_field_data_ptr);
-    *num_offset_bytes_written = (u_int32_t)(curr_new_var_field_offset_ptr - start_new_var_field_offset_ptr);
+    *num_data_bytes_written = (uint32_t)(curr_new_var_field_data_ptr - start_new_var_field_data_ptr);
+    *num_offset_bytes_written = (uint32_t)(curr_new_var_field_offset_ptr - start_new_var_field_offset_ptr);
 }
 
-static inline u_int32_t 
-copy_toku_blob(uchar* to_ptr, uchar* from_ptr, u_int32_t len_bytes, bool skip) {
-    u_int32_t length = 0;
+static inline uint32_t 
+copy_toku_blob(uchar* to_ptr, uchar* from_ptr, uint32_t len_bytes, bool skip) {
+    uint32_t length = 0;
     if (!skip) {
         memcpy(to_ptr, from_ptr, len_bytes);
     }
@@ -168,13 +168,13 @@ tokudb_update_fun(
     void *set_extra
     ) 
 {
-    u_int32_t max_num_bytes;
-    u_int32_t num_columns;
+    uint32_t max_num_bytes;
+    uint32_t num_columns;
     DBT new_val;
-    u_int32_t num_bytes_left;
-    u_int32_t num_var_fields_to_copy;
-    u_int32_t num_data_bytes_written = 0;
-    u_int32_t num_offset_bytes_written = 0;
+    uint32_t num_bytes_left;
+    uint32_t num_var_fields_to_copy;
+    uint32_t num_data_bytes_written = 0;
+    uint32_t num_offset_bytes_written = 0;
     int error;
     memset(&new_val, 0, sizeof(DBT));
     uchar operation;
@@ -184,32 +184,32 @@ tokudb_update_fun(
     //
     // info for pointers into rows
     //
-    u_int32_t old_num_null_bytes;
-    u_int32_t new_num_null_bytes;
+    uint32_t old_num_null_bytes;
+    uint32_t new_num_null_bytes;
     uchar old_num_offset_bytes;
     uchar new_num_offset_bytes;
-    u_int32_t old_fixed_field_size;
-    u_int32_t new_fixed_field_size;
-    u_int32_t old_len_of_offsets;
-    u_int32_t new_len_of_offsets;
+    uint32_t old_fixed_field_size;
+    uint32_t new_fixed_field_size;
+    uint32_t old_len_of_offsets;
+    uint32_t new_len_of_offsets;
 
     uchar* old_fixed_field_ptr = NULL;
     uchar* new_fixed_field_ptr = NULL;
-    u_int32_t curr_old_fixed_offset;
-    u_int32_t curr_new_fixed_offset;
+    uint32_t curr_old_fixed_offset;
+    uint32_t curr_new_fixed_offset;
 
     uchar* old_null_bytes = NULL;
     uchar* new_null_bytes = NULL;
-    u_int32_t curr_old_null_pos;
-    u_int32_t curr_new_null_pos;    
-    u_int32_t old_null_bits_left;
-    u_int32_t new_null_bits_left;
-    u_int32_t overall_null_bits_left;
+    uint32_t curr_old_null_pos;
+    uint32_t curr_new_null_pos;    
+    uint32_t old_null_bits_left;
+    uint32_t new_null_bits_left;
+    uint32_t overall_null_bits_left;
 
-    u_int32_t old_num_var_fields;
-    u_int32_t new_num_var_fields;
-    u_int32_t curr_old_num_var_field;
-    u_int32_t curr_new_num_var_field;
+    uint32_t old_num_var_fields;
+    uint32_t new_num_var_fields;
+    uint32_t curr_old_num_var_field;
+    uint32_t curr_new_num_var_field;
     uchar* old_var_field_offset_ptr = NULL;
     uchar* new_var_field_offset_ptr = NULL;
     uchar* curr_new_var_field_offset_ptr = NULL;
@@ -217,9 +217,9 @@ tokudb_update_fun(
     uchar* new_var_field_data_ptr = NULL;
     uchar* curr_new_var_field_data_ptr = NULL;
 
-    u_int32_t start_blob_offset;
+    uint32_t start_blob_offset;
     uchar* start_blob_ptr;
-    u_int32_t num_blob_bytes;
+    uint32_t num_blob_bytes;
 
     // came across a delete, nothing to update
     if (old_val == NULL) {
@@ -234,25 +234,25 @@ tokudb_update_fun(
     extra_pos++;
     assert(operation == UP_COL_ADD_OR_DROP);
 
-    memcpy(&old_num_null_bytes, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
-    memcpy(&new_num_null_bytes, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
+    memcpy(&old_num_null_bytes, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
+    memcpy(&new_num_null_bytes, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
 
     old_num_offset_bytes = extra_pos[0];
     extra_pos++;
     new_num_offset_bytes = extra_pos[0];
     extra_pos++;
 
-    memcpy(&old_fixed_field_size, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
-    memcpy(&new_fixed_field_size, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
+    memcpy(&old_fixed_field_size, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
+    memcpy(&new_fixed_field_size, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
 
-    memcpy(&old_len_of_offsets, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
-    memcpy(&new_len_of_offsets, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
+    memcpy(&old_len_of_offsets, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
+    memcpy(&new_len_of_offsets, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
 
     max_num_bytes = old_val->size + extra->size + new_len_of_offsets + new_fixed_field_size;
     new_val_data = (uchar *)my_malloc(
@@ -283,10 +283,10 @@ tokudb_update_fun(
     new_null_bytes = new_val_data;
 
     
-    memcpy(&curr_old_null_pos, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
-    memcpy(&curr_new_null_pos, extra_pos, sizeof(u_int32_t));
-    extra_pos += sizeof(u_int32_t);
+    memcpy(&curr_old_null_pos, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
+    memcpy(&curr_new_null_pos, extra_pos, sizeof(uint32_t));
+    extra_pos += sizeof(uint32_t);
 
     memcpy(&num_columns, extra_pos, sizeof(num_columns));
     extra_pos += sizeof(num_columns);
@@ -294,7 +294,7 @@ tokudb_update_fun(
     //
     // now go through and apply the change into new_val_data
     //
-    for (u_int32_t i = 0; i < num_columns; i++) {
+    for (uint32_t i = 0; i < num_columns; i++) {
         uchar op_type = extra_pos[0];
         bool is_null_default = false;
         extra_pos++;
@@ -303,10 +303,10 @@ tokudb_update_fun(
         bool nullable = (extra_pos[0] != 0);
         extra_pos++;
         if (nullable) {
-            u_int32_t null_bit_position;
-            memcpy(&null_bit_position, extra_pos, sizeof(u_int32_t));
-            extra_pos += sizeof(u_int32_t);
-            u_int32_t num_bits;
+            uint32_t null_bit_position;
+            memcpy(&null_bit_position, extra_pos, sizeof(uint32_t));
+            extra_pos += sizeof(uint32_t);
+            uint32_t num_bits;
             if (op_type == COL_DROP) {
                 assert(curr_old_null_pos <= null_bit_position);
                 num_bits = null_bit_position - curr_old_null_pos;
@@ -342,13 +342,13 @@ tokudb_update_fun(
         uchar col_type = extra_pos[0];
         extra_pos++;
         if (col_type == COL_FIXED) {
-            u_int32_t col_offset;
-            u_int32_t col_size;
-            u_int32_t num_bytes_to_copy;
-            memcpy(&col_offset, extra_pos, sizeof(u_int32_t));
-            extra_pos += sizeof(u_int32_t);
-            memcpy(&col_size, extra_pos, sizeof(u_int32_t));
-            extra_pos += sizeof(u_int32_t);
+            uint32_t col_offset;
+            uint32_t col_size;
+            uint32_t num_bytes_to_copy;
+            memcpy(&col_offset, extra_pos, sizeof(uint32_t));
+            extra_pos += sizeof(uint32_t);
+            memcpy(&col_size, extra_pos, sizeof(uint32_t));
+            extra_pos += sizeof(uint32_t);
 
             if (op_type == COL_DROP) {
                 num_bytes_to_copy = col_offset - curr_old_fixed_offset;
@@ -386,9 +386,9 @@ tokudb_update_fun(
             
         }
         else if (col_type == COL_VAR) {
-            u_int32_t var_col_index;
-            memcpy(&var_col_index, extra_pos, sizeof(u_int32_t));
-            extra_pos += sizeof(u_int32_t);
+            uint32_t var_col_index;
+            memcpy(&var_col_index, extra_pos, sizeof(uint32_t));
+            extra_pos += sizeof(uint32_t);
             if (op_type == COL_DROP) {
                 num_var_fields_to_copy = var_col_index - curr_old_num_var_field;
             }
@@ -428,7 +428,7 @@ tokudb_update_fun(
                     curr_new_var_field_offset_ptr += new_num_offset_bytes;
                 }
                 else {
-                    u_int32_t data_length;
+                    uint32_t data_length;
                     memcpy(&data_length, extra_pos, sizeof(data_length));
                     extra_pos += sizeof(data_length);
                     curr_new_var_field_data_ptr = write_var_field(
@@ -514,9 +514,9 @@ tokudb_update_fun(
     // else, there is blob information to process
     else {
         uchar* len_bytes = NULL;
-        u_int32_t curr_old_blob = 0;
-        u_int32_t curr_new_blob = 0;
-        u_int32_t num_old_blobs = 0;
+        uint32_t curr_old_blob = 0;
+        uint32_t curr_new_blob = 0;
+        uint32_t num_old_blobs = 0;
         uchar* curr_old_blob_ptr = start_blob_ptr;
         memcpy(&num_old_blobs, extra_pos, sizeof(num_old_blobs));
         extra_pos += sizeof(num_old_blobs);
@@ -526,8 +526,8 @@ tokudb_update_fun(
         while ((extra_pos - extra_pos_start) < extra->size) {
             uchar op_type = extra_pos[0];
             extra_pos++;
-            u_int32_t num_blobs_to_copy = 0;
-            u_int32_t blob_index;
+            uint32_t num_blobs_to_copy = 0;
+            uint32_t blob_index;
             memcpy(&blob_index, extra_pos, sizeof(blob_index));
             extra_pos += sizeof(blob_index);
             assert (op_type == COL_DROP || op_type == COL_ADD);
@@ -537,8 +537,8 @@ tokudb_update_fun(
             else {
                 num_blobs_to_copy = blob_index - curr_new_blob;
             }
-            for (u_int32_t i = 0; i < num_blobs_to_copy; i++) {
-                u_int32_t num_bytes_written = copy_toku_blob(
+            for (uint32_t i = 0; i < num_blobs_to_copy; i++) {
+                uint32_t num_bytes_written = copy_toku_blob(
                     curr_new_var_field_data_ptr,
                     curr_old_blob_ptr,
                     len_bytes[curr_old_blob + i],
@@ -551,7 +551,7 @@ tokudb_update_fun(
             curr_new_blob += num_blobs_to_copy;
             if (op_type == COL_DROP) {
                 // skip over blob in row
-                u_int32_t num_bytes = copy_toku_blob(
+                uint32_t num_bytes = copy_toku_blob(
                     NULL,
                     curr_old_blob_ptr,
                     len_bytes[curr_old_blob],
@@ -562,9 +562,9 @@ tokudb_update_fun(
             }
             else {
                 // copy new data
-                u_int32_t new_len_bytes = extra_pos[0];
+                uint32_t new_len_bytes = extra_pos[0];
                 extra_pos++;
-                u_int32_t num_bytes = copy_toku_blob(
+                uint32_t num_bytes = copy_toku_blob(
                     curr_new_var_field_data_ptr,
                     extra_pos,
                     new_len_bytes,

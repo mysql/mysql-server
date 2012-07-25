@@ -5,15 +5,15 @@
 #endif
 
 void get_var_field_info(
-    u_int32_t* field_len, // output: length of field
-    u_int32_t* start_offset, // output, length of offset where data starts
-    u_int32_t var_field_index, //input, index of var field we want info on
+    uint32_t* field_len, // output: length of field
+    uint32_t* start_offset, // output, length of offset where data starts
+    uint32_t var_field_index, //input, index of var field we want info on
     const uchar* var_field_offset_ptr, //input, pointer to where offset information for all var fields begins
-    u_int32_t num_offset_bytes //input, number of bytes used to store offsets starting at var_field_offset_ptr
+    uint32_t num_offset_bytes //input, number of bytes used to store offsets starting at var_field_offset_ptr
     ) 
 {
-    u_int32_t data_start_offset = 0;
-    u_int32_t data_end_offset = 0;
+    uint32_t data_start_offset = 0;
+    uint32_t data_end_offset = 0;
     switch (num_offset_bytes) {
     case (1):
         data_end_offset = (var_field_offset_ptr + var_field_index)[0];
@@ -49,13 +49,13 @@ void get_var_field_info(
 }
 
 void get_blob_field_info(
-    u_int32_t* start_offset, 
-    u_int32_t len_of_offsets,
+    uint32_t* start_offset, 
+    uint32_t len_of_offsets,
     const uchar* var_field_data_ptr, 
-    u_int32_t num_offset_bytes
+    uint32_t num_offset_bytes
     ) 
 {
-    u_int32_t data_end_offset;
+    uint32_t data_end_offset;
     //
     // need to set var_field_data_ptr to point to beginning of blobs, which
     // is at the end of the var stuff (if they exist), if var stuff does not exist
@@ -157,7 +157,7 @@ exit:
 }
 
 
-static inline CHARSET_INFO* get_charset_from_num (u_int32_t charset_number) {
+static inline CHARSET_INFO* get_charset_from_num (uint32_t charset_number) {
     //
     // patternmatched off of InnoDB, due to MySQL bug 42649
     //
@@ -177,10 +177,10 @@ static inline CHARSET_INFO* get_charset_from_num (u_int32_t charset_number) {
 //
 // used to read the length of a variable sized field in a tokudb key (buf).
 //
-static inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t length_bytes) {
-    u_int32_t length = (u_int32_t)(buf[0]);
+static inline uint32_t get_length_from_var_tokudata (uchar* buf, uint32_t length_bytes) {
+    uint32_t length = (uint32_t)(buf[0]);
     if (length_bytes == 2) {
-        u_int32_t rest_of_length = (u_int32_t)buf[1];
+        uint32_t rest_of_length = (uint32_t)buf[1];
         length += rest_of_length<<8;
     }
     return length;
@@ -190,7 +190,7 @@ static inline u_int32_t get_length_from_var_tokudata (uchar* buf, u_int32_t leng
 // used to deduce the number of bytes used to store the length of a varstring/varbinary
 // in a key field stored in tokudb
 //
-static inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
+static inline uint32_t get_length_bytes_from_max(uint32_t max_num_bytes) {
     return (max_num_bytes > 255) ? 2 : 1;
 }
 
@@ -199,7 +199,7 @@ static inline u_int32_t get_length_bytes_from_max(u_int32_t max_num_bytes) {
 //
 // assuming MySQL in little endian, and we are storing in little endian
 //
-static inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
+static inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, uint32_t num_bytes) {
     switch (num_bytes) {
     case (1):
         memcpy(to_tokudb, from_mysql, 1);
@@ -225,7 +225,7 @@ static inline uchar* pack_toku_int (uchar* to_tokudb, uchar* from_mysql, u_int32
 //
 // assuming MySQL in little endian, and we are unpacking to little endian
 //
-static inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
+static inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, uint32_t num_bytes) {
     switch (num_bytes) {
     case (1):
         memcpy(to_mysql, from_tokudb, 1);
@@ -248,14 +248,14 @@ static inline uchar* unpack_toku_int(uchar* to_mysql, uchar* from_tokudb, u_int3
     return from_tokudb+num_bytes;
 }
 
-static inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, u_int32_t num_bytes) {
+static inline int cmp_toku_int (uchar* a_buf, uchar* b_buf, bool is_unsigned, uint32_t num_bytes) {
     int ret_val = 0;
     //
     // case for unsigned integers
     //
     if (is_unsigned) {
-        u_int32_t a_num, b_num = 0;
-        u_int64_t a_big_num, b_big_num = 0;
+        uint32_t a_num, b_num = 0;
+        uint64_t a_big_num, b_big_num = 0;
         switch (num_bytes) {
         case (1):
             a_num = *a_buf;
@@ -419,12 +419,12 @@ exit:
 }
 
 
-static inline uchar* pack_toku_binary(uchar* to_tokudb, uchar* from_mysql, u_int32_t num_bytes) {
+static inline uchar* pack_toku_binary(uchar* to_tokudb, uchar* from_mysql, uint32_t num_bytes) {
     memcpy(to_tokudb, from_mysql, num_bytes);
     return to_tokudb + num_bytes;
 }
 
-static inline uchar* unpack_toku_binary(uchar* to_mysql, uchar* from_tokudb, u_int32_t num_bytes) {
+static inline uchar* unpack_toku_binary(uchar* to_mysql, uchar* from_tokudb, uint32_t num_bytes) {
     memcpy(to_mysql, from_tokudb, num_bytes);
     return from_tokudb + num_bytes;
 }
@@ -432,13 +432,13 @@ static inline uchar* unpack_toku_binary(uchar* to_mysql, uchar* from_tokudb, u_i
 
 static inline int cmp_toku_binary(
     uchar* a_buf, 
-    u_int32_t a_num_bytes, 
+    uint32_t a_num_bytes, 
     uchar* b_buf, 
-    u_int32_t b_num_bytes
+    uint32_t b_num_bytes
     ) 
 {
     int ret_val = 0;
-    u_int32_t num_bytes_to_cmp = (a_num_bytes < b_num_bytes) ? a_num_bytes : b_num_bytes;
+    uint32_t num_bytes_to_cmp = (a_num_bytes < b_num_bytes) ? a_num_bytes : b_num_bytes;
     ret_val = memcmp(a_buf, b_buf, num_bytes_to_cmp);
     if ((ret_val != 0) || (a_num_bytes == b_num_bytes)) {
         goto exit;
@@ -461,12 +461,12 @@ exit:
 uchar* pack_toku_varbinary_from_desc(
     uchar* to_tokudb, 
     const uchar* from_desc, 
-    u_int32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
-    u_int32_t field_length //length of field
+    uint32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
+    uint32_t field_length //length of field
     )
 {
-    u_int32_t length_bytes_in_tokudb = get_length_bytes_from_max(key_part_length);
-    u_int32_t length = field_length;
+    uint32_t length_bytes_in_tokudb = get_length_bytes_from_max(key_part_length);
+    uint32_t length = field_length;
     set_if_smaller(length, key_part_length);
     
     //
@@ -486,18 +486,18 @@ uchar* pack_toku_varbinary_from_desc(
 static inline uchar* pack_toku_varbinary(
     uchar* to_tokudb, 
     uchar* from_mysql, 
-    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
-    u_int32_t max_num_bytes
+    uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    uint32_t max_num_bytes
     ) 
 {
-    u_int32_t length = 0;
-    u_int32_t length_bytes_in_tokudb;
+    uint32_t length = 0;
+    uint32_t length_bytes_in_tokudb;
     switch (length_bytes_in_mysql) {
     case (0):
         length = max_num_bytes;
         break;
     case (1):
-        length = (u_int32_t)(*from_mysql);
+        length = (uint32_t)(*from_mysql);
         break;
     case (2):
         length = uint2korr(from_mysql);
@@ -533,11 +533,11 @@ static inline uchar* pack_toku_varbinary(
 static inline uchar* unpack_toku_varbinary(
     uchar* to_mysql, 
     uchar* from_tokudb, 
-    u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
-    u_int32_t length_bytes_in_mysql // number of bytes used to encode length in to_mysql
+    uint32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
+    uint32_t length_bytes_in_mysql // number of bytes used to encode length in to_mysql
     ) 
 {
-    u_int32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
+    uint32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
 
     //
     // copy the length into the mysql buffer
@@ -570,14 +570,14 @@ static inline uchar* unpack_toku_varbinary(
 static inline int cmp_toku_varbinary(
     uchar* a_buf, 
     uchar* b_buf, 
-    u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
-    u_int32_t* a_bytes_read, 
-    u_int32_t* b_bytes_read
+    uint32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
+    uint32_t* a_bytes_read, 
+    uint32_t* b_bytes_read
     ) 
 {
     int ret_val = 0;
-    u_int32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
-    u_int32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
+    uint32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
+    uint32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
     ret_val = cmp_toku_binary(
         a_buf + length_bytes,
         a_len,
@@ -592,9 +592,9 @@ static inline int cmp_toku_varbinary(
 static inline uchar* pack_toku_blob(
     uchar* to_tokudb, 
     uchar* from_mysql, 
-    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
-    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
-    u_int32_t max_num_bytes,
+    uint32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
+    uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    uint32_t max_num_bytes,
 #if MYSQL_VERSION_ID >= 50600
     const CHARSET_INFO* charset
 #else
@@ -602,8 +602,8 @@ static inline uchar* pack_toku_blob(
 #endif
     ) 
 {
-    u_int32_t length = 0;
-    u_int32_t local_char_length = 0;
+    uint32_t length = 0;
+    uint32_t local_char_length = 0;
     uchar* blob_buf = NULL;
 
     switch (length_bytes_in_mysql) {
@@ -611,7 +611,7 @@ static inline uchar* pack_toku_blob(
         length = max_num_bytes;
         break;
     case (1):
-        length = (u_int32_t)(*from_mysql);
+        length = (uint32_t)(*from_mysql);
         break;
     case (2):
         length = uint2korr(from_mysql);
@@ -659,11 +659,11 @@ static inline uchar* pack_toku_blob(
 static inline uchar* unpack_toku_blob(
     uchar* to_mysql, 
     uchar* from_tokudb, 
-    u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
-    u_int32_t length_bytes_in_mysql // number of bytes used to encode length in to_mysql
+    uint32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
+    uint32_t length_bytes_in_mysql // number of bytes used to encode length in to_mysql
     ) 
 {
-    u_int32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
+    uint32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
     uchar* blob_pos = NULL;
     //
     // copy the length into the mysql buffer
@@ -701,15 +701,15 @@ static inline uchar* unpack_toku_blob(
 uchar* pack_toku_varstring_from_desc(
     uchar* to_tokudb, 
     const uchar* from_desc, 
-    u_int32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
-    u_int32_t field_length,
-    u_int32_t charset_num//length of field
+    uint32_t key_part_length, //number of bytes to use to encode the length in to_tokudb
+    uint32_t field_length,
+    uint32_t charset_num//length of field
     )
 {
     CHARSET_INFO* charset = NULL;
-    u_int32_t length_bytes_in_tokudb = get_length_bytes_from_max(key_part_length);
-    u_int32_t length = field_length;
-    u_int32_t local_char_length = 0;
+    uint32_t length_bytes_in_tokudb = get_length_bytes_from_max(key_part_length);
+    uint32_t length = field_length;
+    uint32_t local_char_length = 0;
     set_if_smaller(length, key_part_length);
 
     charset = get_charset_from_num(charset_num);
@@ -748,9 +748,9 @@ uchar* pack_toku_varstring_from_desc(
 static inline uchar* pack_toku_varstring(
     uchar* to_tokudb, 
     uchar* from_mysql, 
-    u_int32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
-    u_int32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
-    u_int32_t max_num_bytes,
+    uint32_t length_bytes_in_tokudb, //number of bytes to use to encode the length in to_tokudb
+    uint32_t length_bytes_in_mysql, //number of bytes used to encode the length in from_mysql
+    uint32_t max_num_bytes,
 #if MYSQL_VERSION_ID >= 50600
     const CHARSET_INFO *charset
 #else
@@ -758,15 +758,15 @@ static inline uchar* pack_toku_varstring(
 #endif
     ) 
 {
-    u_int32_t length = 0;
-    u_int32_t local_char_length = 0;
+    uint32_t length = 0;
+    uint32_t local_char_length = 0;
 
     switch (length_bytes_in_mysql) {
     case (0):
         length = max_num_bytes;
         break;
     case (1):
-        length = (u_int32_t)(*from_mysql);
+        length = (uint32_t)(*from_mysql);
         break;
     case (2):
         length = uint2korr(from_mysql);
@@ -810,10 +810,10 @@ static inline uchar* pack_toku_varstring(
 
 static inline int cmp_toku_string(
     uchar* a_buf,
-    u_int32_t a_num_bytes,
+    uint32_t a_num_bytes,
     uchar* b_buf, 
-    u_int32_t b_num_bytes,
-    u_int32_t charset_number
+    uint32_t b_num_bytes,
+    uint32_t charset_number
     ) 
 {
     int ret_val = 0;
@@ -835,15 +835,15 @@ static inline int cmp_toku_string(
 static inline int cmp_toku_varstring(
     uchar* a_buf, 
     uchar* b_buf, 
-    u_int32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
-    u_int32_t charset_num,
-    u_int32_t* a_bytes_read, 
-    u_int32_t* b_bytes_read
+    uint32_t length_bytes, //number of bytes used to encode length in a_buf and b_buf
+    uint32_t charset_num,
+    uint32_t* a_bytes_read, 
+    uint32_t* b_bytes_read
     ) 
 {
     int ret_val = 0;
-    u_int32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
-    u_int32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
+    uint32_t a_len = get_length_from_var_tokudata(a_buf, length_bytes);
+    uint32_t b_len = get_length_from_var_tokudata(b_buf, length_bytes);
     ret_val = cmp_toku_string(
         a_buf + length_bytes,
         a_len,
@@ -858,9 +858,9 @@ static inline int cmp_toku_varstring(
 
 static inline int tokudb_compare_two_hidden_keys(
     const void* new_key_data, 
-    const u_int32_t new_key_size, 
+    const uint32_t new_key_size, 
     const void*  saved_key_data,
-    const u_int32_t saved_key_size
+    const uint32_t saved_key_size
     ) {
     assert( (new_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) && (saved_key_size >= TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH) );
     ulonglong a = hpk_char_to_num((uchar *) new_key_data);
@@ -878,7 +878,7 @@ static inline int tokudb_compare_two_hidden_keys(
 //              created in create_toku_key_descriptor_for_key. The first
 //              byte points to the TOKU_TYPE.
 //
-u_int32_t skip_field_in_descriptor(uchar* row_desc) {
+uint32_t skip_field_in_descriptor(uchar* row_desc) {
     uchar* row_desc_pos = row_desc;
     TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
     row_desc_pos++;
@@ -899,13 +899,13 @@ u_int32_t skip_field_in_descriptor(uchar* row_desc) {
     case (toku_type_varstring):
     case (toku_type_blob):
         row_desc_pos++;
-        row_desc_pos += sizeof(u_int32_t);
+        row_desc_pos += sizeof(uint32_t);
         break;
     default:
         assert(false);
         break;
     }
-    return (u_int32_t)(row_desc_pos - row_desc);
+    return (uint32_t)(row_desc_pos - row_desc);
 }
 
 //
@@ -915,8 +915,8 @@ u_int32_t skip_field_in_descriptor(uchar* row_desc) {
 //
 int create_toku_key_descriptor_for_key(KEY* key, uchar* buf) {
     uchar* pos = buf;
-    u_int32_t num_bytes_in_field = 0;
-    u_int32_t charset_num = 0;
+    uint32_t num_bytes_in_field = 0;
+    uint32_t charset_num = 0;
     for (uint i = 0; i < key->key_parts; i++){
         Field* field = key->key_part[i].field;
         //
@@ -1031,8 +1031,8 @@ int create_toku_key_descriptor(
     // ends. 
     //
     uchar* pos = buf + 4;
-    u_int32_t num_bytes = 0;
-    u_int32_t offset = 0;
+    uint32_t num_bytes = 0;
+    uint32_t offset = 0;
 
 
     if (is_first_hpk) {
@@ -1093,16 +1093,16 @@ static inline int compare_toku_field(
     uchar* a_buf, 
     uchar* b_buf, 
     uchar* row_desc,
-    u_int32_t* a_bytes_read, 
-    u_int32_t* b_bytes_read,
-    u_int32_t* row_desc_bytes_read
+    uint32_t* a_bytes_read, 
+    uint32_t* b_bytes_read,
+    uint32_t* row_desc_bytes_read
     )
 {
     int ret_val = 0;
     uchar* row_desc_pos = row_desc;
-    u_int32_t num_bytes = 0;
-    u_int32_t length_bytes = 0;
-    u_int32_t charset_num = 0;
+    uint32_t num_bytes = 0;
+    uint32_t length_bytes = 0;
+    uint32_t charset_num = 0;
     bool is_unsigned = false;
 
     TOKU_TYPE toku_type = (TOKU_TYPE)row_desc_pos[0];
@@ -1168,8 +1168,8 @@ static inline int compare_toku_field(
         //
         // not sure we want to read charset_num like this
         //
-        charset_num = *(u_int32_t *)row_desc_pos;
-        row_desc_pos += sizeof(u_int32_t);
+        charset_num = *(uint32_t *)row_desc_pos;
+        row_desc_pos += sizeof(uint32_t);
         ret_val = cmp_toku_varstring(
             a_buf,
             b_buf,
@@ -1196,11 +1196,11 @@ uchar* pack_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
-    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
+    uint32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     )
 {
     uchar* new_pos = NULL;
-    u_int32_t num_bytes = 0;
+    uint32_t num_bytes = 0;
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
@@ -1289,7 +1289,7 @@ uchar* pack_key_toku_key_field(
     uchar* to_tokudb,
     uchar* from_mysql,
     Field* field,
-    u_int32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
+    uint32_t key_part_length //I really hope this is temporary as I phase out the pack_cmp stuff
     )
 {
     uchar* new_pos = NULL;
@@ -1335,12 +1335,12 @@ uchar* unpack_toku_key_field(
     uchar* to_mysql,
     uchar* from_tokudb,
     Field* field,
-    u_int32_t key_part_length
+    uint32_t key_part_length
     )
 {
     uchar* new_pos = NULL;
-    u_int32_t num_bytes = 0;
-    u_int32_t num_bytes_copied;
+    uint32_t num_bytes = 0;
+    uint32_t num_bytes_copied;
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
     switch(toku_type) {
     case (toku_type_int):
@@ -1410,11 +1410,11 @@ exit:
 
 int tokudb_compare_two_keys(
     const void* new_key_data, 
-    const u_int32_t new_key_size, 
+    const uint32_t new_key_size, 
     const void*  saved_key_data,
-    const u_int32_t saved_key_size,
+    const uint32_t saved_key_size,
     const void*  row_desc,
-    const u_int32_t row_desc_size,
+    const uint32_t row_desc_size,
     bool cmp_prefix
     )
 {
@@ -1426,8 +1426,8 @@ int tokudb_compare_two_keys(
     uchar *new_key_ptr = (uchar *)new_key_data;
     uchar *saved_key_ptr = (uchar *)saved_key_data;
 
-    u_int32_t new_key_bytes_left = new_key_size;
-    u_int32_t saved_key_bytes_left = saved_key_size;
+    uint32_t new_key_bytes_left = new_key_size;
+    uint32_t saved_key_bytes_left = saved_key_size;
 
     //
     // if the keys have an infinity byte, set it
@@ -1440,14 +1440,14 @@ int tokudb_compare_two_keys(
     }
     row_desc_ptr++;
 
-    while ( (u_int32_t)(new_key_ptr - (uchar *)new_key_data) < new_key_size &&
-            (u_int32_t)(saved_key_ptr - (uchar *)saved_key_data) < saved_key_size &&
-            (u_int32_t)(row_desc_ptr - (uchar *)row_desc) < row_desc_size
+    while ( (uint32_t)(new_key_ptr - (uchar *)new_key_data) < new_key_size &&
+            (uint32_t)(saved_key_ptr - (uchar *)saved_key_data) < saved_key_size &&
+            (uint32_t)(row_desc_ptr - (uchar *)row_desc) < row_desc_size
             )
     {
-        u_int32_t new_key_field_length;
-        u_int32_t saved_key_field_length;
-        u_int32_t row_desc_field_length;
+        uint32_t new_key_field_length;
+        uint32_t saved_key_field_length;
+        uint32_t row_desc_field_length;
         //
         // if there is a null byte at this point in the key
         //
@@ -1493,12 +1493,12 @@ int tokudb_compare_two_keys(
             goto exit;
         }
 
-        assert((u_int32_t)(new_key_ptr - (uchar *)new_key_data) <= new_key_size);
-        assert((u_int32_t)(saved_key_ptr - (uchar *)saved_key_data) <= saved_key_size);
-        assert((u_int32_t)(row_desc_ptr - (uchar *)row_desc) <= row_desc_size);
+        assert((uint32_t)(new_key_ptr - (uchar *)new_key_data) <= new_key_size);
+        assert((uint32_t)(saved_key_ptr - (uchar *)saved_key_data) <= saved_key_size);
+        assert((uint32_t)(row_desc_ptr - (uchar *)row_desc) <= row_desc_size);
     }
-    new_key_bytes_left = new_key_size - ((u_int32_t)(new_key_ptr - (uchar *)new_key_data));
-    saved_key_bytes_left = saved_key_size - ((u_int32_t)(saved_key_ptr - (uchar *)saved_key_data));
+    new_key_bytes_left = new_key_size - ((uint32_t)(new_key_ptr - (uchar *)new_key_data));
+    saved_key_bytes_left = saved_key_size - ((uint32_t)(saved_key_ptr - (uchar *)saved_key_data));
     if (cmp_prefix) {
         ret_val = 0;
     }
@@ -1545,7 +1545,7 @@ int tokudb_cmp_dbt_key(DB* file, const DBT *keya, const DBT *keyb) {
             keyb->data,
             keyb->size,
             (uchar *)file->cmp_descriptor->dbt.data + 4,
-            (*(u_int32_t *)file->cmp_descriptor->dbt.data) - 4,
+            (*(uint32_t *)file->cmp_descriptor->dbt.data) - 4,
             false
             );
     }
@@ -1560,14 +1560,14 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
         keyb->data,
         keyb->size,
         (uchar *)file->cmp_descriptor->dbt.data + 4,
-        *(u_int32_t *)file->cmp_descriptor->dbt.data - 4,
+        *(uint32_t *)file->cmp_descriptor->dbt.data - 4,
         true
         );
     return cmp;
 }
 
 
-u_int32_t create_toku_main_key_pack_descriptor (
+uint32_t create_toku_main_key_pack_descriptor (
     uchar* buf
     ) 
 {
@@ -1576,7 +1576,7 @@ u_int32_t create_toku_main_key_pack_descriptor (
     // ends. 
     //
     uchar* pos = buf + 4;
-    u_int32_t offset = 0;
+    uint32_t offset = 0;
     //
     // one byte states if this is the main dictionary
     //
@@ -1611,18 +1611,18 @@ exit:
 #define COPY_OFFSET_TO_BUF  memcpy ( \
     pos, \
     &kc_info->cp_info[pk_index][field_index].col_pack_val, \
-    sizeof(u_int32_t) \
+    sizeof(uint32_t) \
     ); \
-    pos += sizeof(u_int32_t);
+    pos += sizeof(uint32_t);
 
 
-u_int32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+uint32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
-    u_int32_t key_part_length = key_part->length;
-    u_int32_t field_length;
+    uint32_t key_part_length = key_part->length;
+    uint32_t field_length;
     uchar len_bytes = 0;
 
     switch(toku_type) {
@@ -1661,7 +1661,7 @@ u_int32_t pack_desc_pk_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* 
     return pos - buf;
 }
 
-u_int32_t pack_desc_pk_offset_info(
+uint32_t pack_desc_pk_offset_info(
     uchar* buf, 
     KEY_AND_COL_INFO* kc_info, 
     TABLE_SHARE* table_share, 
@@ -1673,10 +1673,10 @@ u_int32_t pack_desc_pk_offset_info(
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     bool found_col_in_pk = false;
-    u_int32_t index_in_pk;
+    uint32_t index_in_pk;
 
     bool is_constant_offset = true;
-    u_int32_t offset = 0;
+    uint32_t offset = 0;
     for (uint i = 0; i < prim_key->key_parts; i++) {
         KEY_PART_INFO curr = prim_key->key_part[i];
         uint16 curr_field_index = curr.field->field_index;
@@ -1710,7 +1710,7 @@ u_int32_t pack_desc_pk_offset_info(
     return pos - buf;
 }
 
-u_int32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_index, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+uint32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_index, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
@@ -1740,12 +1740,12 @@ u_int32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_i
     case (toku_type_blob):
         pos[0] = COL_BLOB_FIELD;
         pos++;
-        for (u_int32_t i = 0; i < kc_info->num_blobs; i++) {
-            u_int32_t blob_index = kc_info->blob_fields[i];
+        for (uint32_t i = 0; i < kc_info->num_blobs; i++) {
+            uint32_t blob_index = kc_info->blob_fields[i];
             if (blob_index == field_index) {
-                u_int32_t val = i;
-                memcpy(pos, &val, sizeof(u_int32_t));
-                pos += sizeof(u_int32_t);
+                uint32_t val = i;
+                memcpy(pos, &val, sizeof(uint32_t));
+                pos += sizeof(uint32_t);
                 found_index = true;
                 break;
             }
@@ -1759,13 +1759,13 @@ u_int32_t pack_desc_offset_info(uchar* buf, KEY_AND_COL_INFO* kc_info, uint pk_i
     return pos - buf;
 }
 
-u_int32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+uint32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
-    u_int32_t key_part_length = key_part->length;
-    u_int32_t field_length;
+    uint32_t key_part_length = key_part->length;
+    uint32_t field_length;
 
     switch(toku_type) {
     case (toku_type_int):
@@ -1794,12 +1794,12 @@ u_int32_t pack_desc_key_length_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE
     return pos - buf;
 }
 
-u_int32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
+uint32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE* table_share, KEY_PART_INFO* key_part) {
     uchar* pos = buf;
     uint16 field_index = key_part->field->field_index;
     Field* field = table_share->field[field_index];
     TOKU_TYPE toku_type = mysql_to_toku_type(field);
-    u_int32_t charset_num = 0;
+    uint32_t charset_num = 0;
 
     switch(toku_type) {
     case (toku_type_int):
@@ -1831,7 +1831,7 @@ u_int32_t pack_desc_char_info(uchar* buf, KEY_AND_COL_INFO* kc_info, TABLE_SHARE
     return pos - buf;
 }
 
-u_int32_t pack_some_row_info (
+uint32_t pack_some_row_info (
     uchar* buf,
     uint pk_index,
     TABLE_SHARE* table_share,
@@ -1839,7 +1839,7 @@ u_int32_t pack_some_row_info (
     ) 
 {
     uchar* pos = buf;
-    u_int32_t num_null_bytes = 0;
+    uint32_t num_null_bytes = 0;
     //
     // four bytes stating number of null bytes
     //
@@ -1860,17 +1860,17 @@ u_int32_t pack_some_row_info (
     return pos - buf;
 }
 
-u_int32_t get_max_clustering_val_pack_desc_size(
+uint32_t get_max_clustering_val_pack_desc_size(
     TABLE_SHARE* table_share
     ) 
 {
-    u_int32_t ret_val = 0;
+    uint32_t ret_val = 0;
     //
     // the fixed stuff:
     //  first the things in pack_some_row_info
     //  second another mcp_info
     //  third a byte that states if blobs exist
-    ret_val += sizeof(u_int32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
+    ret_val += sizeof(uint32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
     ret_val += sizeof(MULTI_COL_PACK_INFO);
     ret_val++;
     //
@@ -1878,7 +1878,7 @@ u_int32_t get_max_clustering_val_pack_desc_size(
     //  an upper bound is, for each field, byte stating if it is fixed or var, followed
     // by 8 bytes for endpoints
     //
-    ret_val += (table_share->fields)*(1 + 2*sizeof(u_int32_t));
+    ret_val += (table_share->fields)*(1 + 2*sizeof(uint32_t));
     //
     // four bytes storing the length of this portion
     //
@@ -1887,19 +1887,19 @@ u_int32_t get_max_clustering_val_pack_desc_size(
     return ret_val;
 }
 
-u_int32_t create_toku_clustering_val_pack_descriptor (
+uint32_t create_toku_clustering_val_pack_descriptor (
     uchar* buf,
     uint pk_index,
     TABLE_SHARE* table_share,
     KEY_AND_COL_INFO* kc_info,
-    u_int32_t keynr,
+    uint32_t keynr,
     bool is_clustering
     ) 
 {
     uchar* pos = buf + 4;
-    u_int32_t offset = 0;
+    uint32_t offset = 0;
     bool start_range_set = false;
-    u_int32_t last_col = 0;
+    uint32_t last_col = 0;
     //
     // do not need to write anything if the key is not clustering
     //
@@ -1957,7 +1957,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
             // need to set the end range
             //
             start_range_set = false;
-            u_int32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val + kc_info->field_lengths[last_col];
+            uint32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val + kc_info->field_lengths[last_col];
             memcpy(pos, &end_offset, sizeof(end_offset));
             pos += sizeof(end_offset);
         }
@@ -1966,7 +1966,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
                 pos[0] = CK_FIX_RANGE;
                 pos++;
                 start_range_set = true;
-                u_int32_t start_offset = kc_info->cp_info[pk_index][i].col_pack_val;
+                uint32_t start_offset = kc_info->cp_info[pk_index][i].col_pack_val;
                 memcpy(pos, &start_offset , sizeof(start_offset));
                 pos += sizeof(start_offset);
             }
@@ -1981,7 +1981,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
         // need to set the end range
         //
         start_range_set = false;
-        u_int32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val+ kc_info->field_lengths[last_col];
+        uint32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val+ kc_info->field_lengths[last_col];
         memcpy(pos, &end_offset, sizeof(end_offset));
         pos += sizeof(end_offset);
     }
@@ -2004,7 +2004,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
             // need to set the end range
             //
             start_range_set = false;
-            u_int32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val;
+            uint32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val;
             memcpy(pos, &end_offset, sizeof(end_offset));
             pos += sizeof(end_offset);
         }
@@ -2014,7 +2014,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
                 pos++;
 
                 start_range_set = true;
-                u_int32_t start_offset = kc_info->cp_info[pk_index][i].col_pack_val;
+                uint32_t start_offset = kc_info->cp_info[pk_index][i].col_pack_val;
                 memcpy(pos, &start_offset , sizeof(start_offset));
                 pos += sizeof(start_offset);
             }
@@ -2026,7 +2026,7 @@ u_int32_t create_toku_clustering_val_pack_descriptor (
     }
     if (start_range_set) {
         start_range_set = false;
-        u_int32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val;
+        uint32_t end_offset = kc_info->cp_info[pk_index][last_col].col_pack_val;
         memcpy(pos, &end_offset, sizeof(end_offset));
         pos += sizeof(end_offset);
     }
@@ -2041,10 +2041,10 @@ exit:
     return pos - buf;
 }
 
-u_int32_t pack_clustering_val_from_desc(
+uint32_t pack_clustering_val_from_desc(
     uchar* buf,
     void* row_desc,
-    u_int32_t row_desc_size,
+    uint32_t row_desc_size,
     const DBT* pk_val
     ) 
 {
@@ -2057,8 +2057,8 @@ u_int32_t pack_clustering_val_from_desc(
     uchar* var_dest_data_ptr = NULL;
     uchar* orig_var_dest_data_ptr = NULL;
     uchar* desc_pos = (uchar *)row_desc;
-    u_int32_t num_null_bytes = 0;
-    u_int32_t num_offset_bytes;
+    uint32_t num_null_bytes = 0;
+    uint32_t num_offset_bytes;
     MULTI_COL_PACK_INFO src_mcp_info, dest_mcp_info;
     uchar has_blobs;
 
@@ -2094,8 +2094,8 @@ u_int32_t pack_clustering_val_from_desc(
     // copy the null bytes
     //
     memcpy(buf, null_bytes_src_ptr, num_null_bytes);
-    while ( (u_int32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
-        u_int32_t start, end, length;
+    while ( (uint32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
+        uint32_t start, end, length;
         uchar curr = desc_pos[0];
         desc_pos++;
         
@@ -2114,11 +2114,11 @@ u_int32_t pack_clustering_val_from_desc(
             fixed_dest_ptr += length;
         }
         else if (curr == CK_VAR_RANGE) {
-            u_int32_t start_data_size;
-            u_int32_t start_data_offset;
-            u_int32_t end_data_size;
-            u_int32_t end_data_offset;
-            u_int32_t offset_diffs;
+            uint32_t start_data_size;
+            uint32_t start_data_offset;
+            uint32_t end_data_size;
+            uint32_t end_data_offset;
+            uint32_t offset_diffs;
 
             get_var_field_info(
                 &start_data_size, 
@@ -2148,16 +2148,16 @@ u_int32_t pack_clustering_val_from_desc(
             //
             // put in offset info
             //
-            offset_diffs = (end_data_offset + end_data_size) - (u_int32_t)(var_dest_data_ptr - orig_var_dest_data_ptr);
-            for (u_int32_t i = start; i <= end; i++) {
+            offset_diffs = (end_data_offset + end_data_size) - (uint32_t)(var_dest_data_ptr - orig_var_dest_data_ptr);
+            for (uint32_t i = start; i <= end; i++) {
                 if ( num_offset_bytes == 1 ) {
                     assert(offset_diffs < 256);
                     var_dest_offset_ptr[0] = var_src_offset_ptr[i] - (uchar)offset_diffs;
                     var_dest_offset_ptr++;
                 }
                 else if ( num_offset_bytes == 2 ) {
-                    u_int32_t tmp = uint2korr(var_src_offset_ptr + 2*i);
-                    u_int32_t new_offset = tmp - offset_diffs;
+                    uint32_t tmp = uint2korr(var_src_offset_ptr + 2*i);
+                    uint32_t new_offset = tmp - offset_diffs;
                     assert(new_offset < 1<<16);
                     int2store(var_dest_offset_ptr,new_offset);
                     var_dest_offset_ptr += 2;
@@ -2177,8 +2177,8 @@ u_int32_t pack_clustering_val_from_desc(
     // so, we put the blobs at var_dest_data_ptr
     //
     if (has_blobs) {
-        u_int32_t num_blob_bytes;
-        u_int32_t start_offset;
+        uint32_t num_blob_bytes;
+        uint32_t start_offset;
         uchar* src_blob_ptr = NULL;
         get_blob_field_info(
             &start_offset, 
@@ -2195,11 +2195,11 @@ u_int32_t pack_clustering_val_from_desc(
 }
 
 
-u_int32_t get_max_secondary_key_pack_desc_size(
+uint32_t get_max_secondary_key_pack_desc_size(
     KEY_AND_COL_INFO* kc_info
     ) 
 {
-    u_int32_t ret_val = 0;
+    uint32_t ret_val = 0;
     //
     // the fixed stuff:
     //  byte that states if main dictionary
@@ -2207,7 +2207,7 @@ u_int32_t get_max_secondary_key_pack_desc_size(
     //  the things in pack_some_row_info
     ret_val++;
     ret_val++;
-    ret_val += sizeof(u_int32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
+    ret_val += sizeof(uint32_t) + sizeof(MULTI_COL_PACK_INFO) + 1;
     //
     // now variable sized stuff
     //
@@ -2226,7 +2226,7 @@ u_int32_t get_max_secondary_key_pack_desc_size(
     // null bit, then null byte, 
     // then 1 byte stating what it is, then 4 for offset, 4 for key length, 
     //      1 for if charset exists, and 4 for charset
-    ret_val += MAX_REF_PARTS*(1 + sizeof(u_int32_t) + 1 + 3*sizeof(u_int32_t) + 1);    
+    ret_val += MAX_REF_PARTS*(1 + sizeof(uint32_t) + 1 + 3*sizeof(uint32_t) + 1);    
     //
     // four bytes storing the length of this portion
     //
@@ -2234,7 +2234,7 @@ u_int32_t get_max_secondary_key_pack_desc_size(
     return ret_val;
 }
 
-u_int32_t create_toku_secondary_key_pack_descriptor (
+uint32_t create_toku_secondary_key_pack_descriptor (
     uchar* buf,
     bool has_hpk,
     uint pk_index,
@@ -2251,7 +2251,7 @@ u_int32_t create_toku_secondary_key_pack_descriptor (
     //
     uchar* pk_info = NULL;
     uchar* pos = buf + 4;
-    u_int32_t offset = 0;
+    uint32_t offset = 0;
 
     //
     // first byte states that it is NOT main dictionary
@@ -2281,8 +2281,8 @@ u_int32_t create_toku_secondary_key_pack_descriptor (
     // store blob information
     //
     memcpy(pos, &kc_info->num_blobs, sizeof(kc_info->num_blobs));
-    pos += sizeof(u_int32_t);
-    for (u_int32_t i = 0; i < kc_info->num_blobs; i++) {
+    pos += sizeof(uint32_t);
+    for (uint32_t i = 0; i < kc_info->num_blobs; i++) {
         //
         // store length bytes for each blob
         //
@@ -2354,9 +2354,9 @@ u_int32_t create_toku_secondary_key_pack_descriptor (
         }
 
         if (field->null_bit) {
-            u_int32_t null_offset = get_null_offset(table,table->field[field_index]);
-            memcpy(pos, &null_offset, sizeof(u_int32_t));
-            pos += sizeof(u_int32_t);
+            uint32_t null_offset = get_null_offset(table,table->field[field_index]);
+            memcpy(pos, &null_offset, sizeof(uint32_t));
+            pos += sizeof(uint32_t);
         }
         if (is_col_in_pk) {
             pos += pack_desc_pk_offset_info(
@@ -2400,7 +2400,7 @@ u_int32_t create_toku_secondary_key_pack_descriptor (
     return pos - buf;
 }
 
-u_int32_t skip_key_in_desc(
+uint32_t skip_key_in_desc(
     uchar* row_desc
     ) 
 {
@@ -2414,12 +2414,12 @@ u_int32_t skip_key_in_desc(
     //
     // skip the offset information
     //
-    pos += sizeof(u_int32_t);
+    pos += sizeof(uint32_t);
 
     //
     // skip the key_part_length info
     //
-    pos += sizeof(u_int32_t);
+    pos += sizeof(uint32_t);
     col_bin_or_char = pos[0];
     pos++;
     if (col_bin_or_char == COL_HAS_NO_CHARSET) {
@@ -2432,22 +2432,22 @@ u_int32_t skip_key_in_desc(
     
 
 exit:
-    return (u_int32_t)(pos-row_desc);
+    return (uint32_t)(pos-row_desc);
 }
 
 
-u_int32_t max_key_size_from_desc(
+uint32_t max_key_size_from_desc(
     void* row_desc,
-    u_int32_t row_desc_size
+    uint32_t row_desc_size
     ) 
 {
     uchar* desc_pos = (uchar *)row_desc;
-    u_int32_t num_blobs;
-    u_int32_t num_pk_columns;
+    uint32_t num_blobs;
+    uint32_t num_pk_columns;
     //
     // start at 1 for the infinity byte
     //
-    u_int32_t max_size = 1;
+    uint32_t max_size = 1;
 
     // skip byte that states if main dictionary
     bool is_main_dictionary = desc_pos[0];
@@ -2458,7 +2458,7 @@ u_int32_t max_key_size_from_desc(
     desc_pos++;
 
     // skip num_null_bytes
-    desc_pos += sizeof(u_int32_t);
+    desc_pos += sizeof(uint32_t);
 
     // skip mcp_info
     desc_pos += sizeof(MULTI_COL_PACK_INFO);
@@ -2476,9 +2476,9 @@ u_int32_t max_key_size_from_desc(
     desc_pos++;
     desc_pos += 2*num_pk_columns;
 
-    while ( (u_int32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
+    while ( (uint32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
         uchar has_charset;
-        u_int32_t key_length = 0;
+        uint32_t key_length = 0;
 
         uchar null_bit = desc_pos[0];
         desc_pos++;
@@ -2488,7 +2488,7 @@ u_int32_t max_key_size_from_desc(
             // column is NULLable, skip null_offset, and add a null byte
             //
             max_size++;
-            desc_pos += sizeof(u_int32_t);
+            desc_pos += sizeof(uint32_t);
         }
         //
         // skip over byte that states if fix or var
@@ -2496,7 +2496,7 @@ u_int32_t max_key_size_from_desc(
         desc_pos++;
 
         // skip over offset
-        desc_pos += sizeof(u_int32_t);
+        desc_pos += sizeof(uint32_t);
 
         //
         // get the key length and add it to return value
@@ -2509,7 +2509,7 @@ u_int32_t max_key_size_from_desc(
         has_charset = desc_pos[0];
         desc_pos++;
 
-        u_int32_t charset_num;
+        uint32_t charset_num;
         if (has_charset == COL_HAS_CHARSET) {
             // skip over charsent num
             desc_pos += sizeof(charset_num);
@@ -2521,18 +2521,18 @@ u_int32_t max_key_size_from_desc(
     return max_size;
 }
 
-u_int32_t pack_key_from_desc(
+uint32_t pack_key_from_desc(
     uchar* buf,
     void* row_desc,
-    u_int32_t row_desc_size,
+    uint32_t row_desc_size,
     const DBT* pk_key,
     const DBT* pk_val
     ) 
 {
     MULTI_COL_PACK_INFO mcp_info;
-    u_int32_t num_null_bytes;
-    u_int32_t num_blobs;
-    u_int32_t num_pk_columns;
+    uint32_t num_null_bytes;
+    uint32_t num_blobs;
+    uint32_t num_pk_columns;
     uchar* blob_lengths = NULL;
     uchar* pk_info = NULL;
     uchar* pk_data_ptr = NULL;
@@ -2540,7 +2540,7 @@ u_int32_t pack_key_from_desc(
     uchar* fixed_field_ptr = NULL;
     uchar* var_field_offset_ptr = NULL;
     const uchar* var_field_data_ptr = NULL;
-    u_int32_t num_offset_bytes;
+    uint32_t num_offset_bytes;
     uchar* packed_key_pos = buf;
     uchar* desc_pos = (uchar *)row_desc;
 
@@ -2594,11 +2594,11 @@ u_int32_t pack_key_from_desc(
     fixed_field_ptr = null_bytes_ptr + num_null_bytes;
     var_field_offset_ptr = fixed_field_ptr + mcp_info.fixed_field_size;
     var_field_data_ptr = var_field_offset_ptr + mcp_info.len_of_offsets;
-    while ( (u_int32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
+    while ( (uint32_t)(desc_pos - (uchar *)row_desc) < row_desc_size) {
         uchar col_fix_val;
         uchar has_charset;
-        u_int32_t col_pack_val = 0;
-        u_int32_t key_length = 0;
+        uint32_t col_pack_val = 0;
+        uint32_t key_length = 0;
 
         uchar null_bit = desc_pos[0];
         desc_pos++;
@@ -2607,7 +2607,7 @@ u_int32_t pack_key_from_desc(
             //
             // column is NULLable, need to check the null bytes to see if it is NULL
             //
-            u_int32_t null_offset = 0;
+            uint32_t null_offset = 0;
             bool is_field_null;
             memcpy(&null_offset, desc_pos, sizeof(null_offset));
             desc_pos += sizeof(null_offset);
@@ -2639,7 +2639,7 @@ u_int32_t pack_key_from_desc(
         has_charset = desc_pos[0];
         desc_pos++;
 
-        u_int32_t charset_num = 0;
+        uint32_t charset_num = 0;
         if (has_charset == COL_HAS_CHARSET) {
             memcpy(&charset_num, desc_pos, sizeof(charset_num));
             desc_pos += sizeof(charset_num);
@@ -2656,9 +2656,9 @@ u_int32_t pack_key_from_desc(
                 packed_key_pos += key_length;
             }
             else if (col_fix_val == COL_VAR_FIELD && has_charset == COL_HAS_NO_CHARSET) {
-                u_int32_t data_start_offset = 0;
+                uint32_t data_start_offset = 0;
 
-                u_int32_t data_size = 0;
+                uint32_t data_size = 0;
                 get_var_field_info(
                     &data_size, 
                     &data_start_offset, 
@@ -2680,8 +2680,8 @@ u_int32_t pack_key_from_desc(
             }
             else {
                 const uchar* data_start = NULL;
-                u_int32_t data_start_offset = 0;
-                u_int32_t data_size = 0;
+                uint32_t data_start_offset = 0;
+                uint32_t data_size = 0;
 
                 if (col_fix_val == COL_FIX_FIELD) {
                     data_start_offset = col_pack_val;
@@ -2699,11 +2699,11 @@ u_int32_t pack_key_from_desc(
                     data_start = var_field_data_ptr + data_start_offset;
                 }
                 else if (col_fix_val == COL_BLOB_FIELD) {
-                    u_int32_t blob_index = col_pack_val;
-                    u_int32_t blob_offset;
+                    uint32_t blob_index = col_pack_val;
+                    uint32_t blob_offset;
                     const uchar* blob_ptr = NULL;
-                    u_int32_t field_len;
-                    u_int32_t field_len_bytes = blob_lengths[blob_index];
+                    uint32_t field_len;
+                    uint32_t field_len_bytes = blob_lengths[blob_index];
                     get_blob_field_info(
                         &blob_offset, 
                         mcp_info.len_of_offsets,
@@ -2715,7 +2715,7 @@ u_int32_t pack_key_from_desc(
                     //
                     // skip over other blobs to get to the one we want to make a key out of
                     //
-                    for (u_int32_t i = 0; i < blob_index; i++) {
+                    for (uint32_t i = 0; i < blob_index; i++) {
                         blob_ptr = unpack_toku_field_blob(
                             NULL,
                             blob_ptr,
@@ -2758,17 +2758,17 @@ u_int32_t pack_key_from_desc(
             }
             else if (col_fix_val == COL_VAR_PK_OFFSET) {
                 uchar* tmp_pk_data_ptr = pk_data_ptr;
-                u_int32_t index_in_pk = col_pack_val;
+                uint32_t index_in_pk = col_pack_val;
                 //
                 // skip along in pk to the right column
                 //
-                for (u_int32_t i = 0; i < index_in_pk; i++) {
+                for (uint32_t i = 0; i < index_in_pk; i++) {
                     if (pk_info[2*i] == COL_FIX_FIELD) {
                         tmp_pk_data_ptr += pk_info[2*i + 1];
                     }
                     else if (pk_info[2*i] == COL_VAR_FIELD) {
-                        u_int32_t len_bytes = pk_info[2*i + 1];
-                        u_int32_t len;
+                        uint32_t len_bytes = pk_info[2*i + 1];
+                        uint32_t len;
                         if (len_bytes == 1) {
                             len = tmp_pk_data_ptr[0];
                             tmp_pk_data_ptr++;
@@ -2789,15 +2789,15 @@ u_int32_t pack_key_from_desc(
                 //
                 // at this point, tmp_pk_data_ptr is pointing at the column
                 //
-                u_int32_t is_fix_field = pk_info[2*index_in_pk];
+                uint32_t is_fix_field = pk_info[2*index_in_pk];
                 if (is_fix_field == COL_FIX_FIELD) {
                     memcpy(packed_key_pos, tmp_pk_data_ptr, key_length);
                     packed_key_pos += key_length;
                 }
                 else if (is_fix_field == COL_VAR_FIELD) {
                     const uchar* data_start = NULL;
-                    u_int32_t data_size = 0;
-                    u_int32_t len_bytes = pk_info[2*index_in_pk + 1];
+                    uint32_t data_size = 0;
+                    uint32_t len_bytes = pk_info[2*index_in_pk + 1];
                     if (len_bytes == 1) {
                         data_size = tmp_pk_data_ptr[0];
                         tmp_pk_data_ptr++;
@@ -2842,7 +2842,7 @@ u_int32_t pack_key_from_desc(
         }
         
     }
-    assert( (u_int32_t)(desc_pos - (uchar *)row_desc) == row_desc_size);
+    assert( (uint32_t)(desc_pos - (uchar *)row_desc) == row_desc_size);
 
     //
     // now append the primary key to the end of the key
@@ -2856,7 +2856,7 @@ u_int32_t pack_key_from_desc(
         packed_key_pos += (pk_key->size - 1);
     }
 
-    return (u_int32_t)(packed_key_pos - buf); // 
+    return (uint32_t)(packed_key_pos - buf); // 
 }
 
 bool fields_have_same_name(

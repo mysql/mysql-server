@@ -158,13 +158,13 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else    
     // add column
     if (only_flags(handler_flags, Alter_inplace_info::ADD_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
-        u_int32_t added_columns[altered_table->s->fields];
-        u_int32_t num_added_columns = 0;
+        uint32_t added_columns[altered_table->s->fields];
+        uint32_t num_added_columns = 0;
         int r = find_changed_columns(added_columns, &num_added_columns, table, altered_table);
         if (r == 0) {
             if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
-                for (u_int32_t i = 0; i < num_added_columns; i++) {
-                    u_int32_t curr_added_index = added_columns[i];
+                for (uint32_t i = 0; i < num_added_columns; i++) {
+                    uint32_t curr_added_index = added_columns[i];
                     Field* curr_added_field = altered_table->field[curr_added_index];
                     printf("Added column: index %d, name %s\n", curr_added_index, curr_added_field->field_name);
                 }
@@ -174,13 +174,13 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else
     // drop column
     if (only_flags(handler_flags, Alter_inplace_info::DROP_COLUMN + Alter_inplace_info::ALTER_COLUMN_ORDER)) {
-        u_int32_t dropped_columns[table->s->fields];
-        u_int32_t num_dropped_columns = 0;
+        uint32_t dropped_columns[table->s->fields];
+        uint32_t num_dropped_columns = 0;
         int r = find_changed_columns(dropped_columns, &num_dropped_columns, altered_table, table);
         if (r == 0) {
             if (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE_INFO) {
-                for (u_int32_t i = 0; i < num_dropped_columns; i++) {
-                    u_int32_t curr_dropped_index = dropped_columns[i];
+                for (uint32_t i = 0; i < num_dropped_columns; i++) {
+                    uint32_t curr_dropped_index = dropped_columns[i];
                     Field* curr_dropped_field = table->field[curr_dropped_index];
                     printf("Dropped column: index %d, name %s\n", curr_dropped_index, curr_dropped_field->field_name);
                 }
@@ -248,8 +248,8 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
         assert(error == 0);
         ctx->compression_changed = true;
         // Set the new type.
-        u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
-        for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+        uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+        for (uint32_t i = 0; i < curr_num_DBs; i++) {
             db = share->key_file[i];
             error = db->change_compression_method(db, method);
             if (error)
@@ -315,13 +315,13 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
     int error;
     uchar *column_extra = NULL;
     uchar *row_desc_buff = NULL;
-    u_int32_t max_new_desc_size = 0;
-    u_int32_t max_column_extra_size;
-    u_int32_t num_column_extra;
-    u_int32_t num_columns = 0;
-    u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    uint32_t max_new_desc_size = 0;
+    uint32_t max_column_extra_size;
+    uint32_t num_column_extra;
+    uint32_t num_columns = 0;
+    uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
 
-    u_int32_t columns[table->s->fields + altered_table->s->fields]; // set size such that we know it is big enough for both cases
+    uint32_t columns[table->s->fields + altered_table->s->fields]; // set size such that we know it is big enough for both cases
     memset(columns, 0, sizeof(columns));
 
     KEY_AND_COL_INFO altered_kc_info;
@@ -369,7 +369,7 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
     column_extra = (uchar *)my_malloc(max_column_extra_size, MYF(MY_WME));
     if (column_extra == NULL) { error = ENOMEM; goto cleanup; }
     
-    for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+    for (uint32_t i = 0; i < curr_num_DBs; i++) {
         DBT row_descriptor;
         memset(&row_descriptor, 0, sizeof(row_descriptor));
         KEY* prim_key = (hidden_primary_key) ? NULL : &altered_table->s->key_info[primary_key];
@@ -495,8 +495,8 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
             restore_drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count);
         }
         if (ctx->compression_changed) {
-            u_int32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
-            for (u_int32_t i = 0; i < curr_num_DBs; i++) {
+            uint32_t curr_num_DBs = table->s->keys + test(hidden_primary_key);
+            for (uint32_t i = 0; i < curr_num_DBs; i++) {
                 DB *db = share->key_file[i];
                 int error = db->change_compression_method(db, ctx->orig_compression_method);
                 assert(error == 0);
