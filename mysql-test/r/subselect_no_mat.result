@@ -6766,6 +6766,44 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT * FROM t1 WHERE 4 IN (SELECT MAX(b) FROM t2 WHERE EXISTS (SELECT * FROM t1));
 a
 drop table t1,t2;
+#
+# MDEV-410: EXPLAIN shows type=range, while SHOW EXPLAIN and userstat show full table scan is used
+#
+CREATE TABLE t1 (a VARCHAR(3) PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('USA');
+CREATE TABLE t2 (b INT, c VARCHAR(52), KEY(b)) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3813,'United States'),(3940,'Russia');
+CREATE TABLE t3 (d INT, KEY(d)) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (12),(22),(9),(45);
+create table t4 like t3;
+insert into t4 select * from t3;
+# This should not show range access for table t2
+explain
+SELECT MIN(b) FROM ( SELECT * FROM t1, t2, t3 WHERE d = b ) AS alias1 
+WHERE SLEEP(0.1) OR c < 'p' OR b = ( SELECT MIN(b) FROM t2 );
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	b	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t3	ref	d	d	5	test.t2.b	2	Using where; Using index
+3	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+set @tmp_mdev410=@@global.userstat;
+set global userstat=on;
+flush table_statistics;
+flush index_statistics;
+SELECT MIN(b) FROM ( SELECT * FROM t1, t2, t3 WHERE d = b ) AS alias1 
+WHERE SLEEP(0.1) OR c < 'p' OR b = ( SELECT MIN(b) FROM t2 );
+MIN(b)
+NULL
+# The following shows that t2 was indeed scanned with a full scan.
+show table_statistics;
+Table_schema	Table_name	Rows_read	Rows_changed	Rows_changed_x_#indexes
+test	t1	2	0	0
+test	t2	3	0	0
+show index_statistics;
+Table_schema	Table_name	Index_name	Rows_read
+test	t2	b	1
+set global userstat=@tmp_mdev410;
+DROP TABLE t1,t2,t3,t4;
 # return optimizer switch changed in the beginning of this test
 set optimizer_switch=@subselect_tmp;
 set optimizer_switch=default;

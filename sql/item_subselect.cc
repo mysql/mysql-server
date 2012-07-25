@@ -287,7 +287,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   else
     goto end;
   
-  if ((uncacheable= engine->uncacheable()))
+  if ((uncacheable= engine->uncacheable() & ~UNCACHEABLE_EXPLAIN))
   {
     const_item_cache= 0;
     if (uncacheable & UNCACHEABLE_RAND)

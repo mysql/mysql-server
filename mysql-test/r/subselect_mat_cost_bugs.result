@@ -162,7 +162,7 @@ EXPLAIN
 SELECT * FROM (SELECT * FROM t2) AS a2
 WHERE (SELECT distinct SUM(distinct f3 ) FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	0	const row not found
 3	SUBQUERY	t1	index	NULL	f3	5	NULL	2	Using index
 2	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 insert into t2 values (1),(2);
