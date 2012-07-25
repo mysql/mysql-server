@@ -1,4 +1,12 @@
-
+    /** get data dictionary.
+     *  IMMEDIATE
+     *  Immediately returns a DBDictionary object.  The underlying 
+     *  local data dictionary may be empty, or may contain cached entries from
+     *  earlier calls.
+     * 
+     *  @return DBDictionary
+     */
+     DBDictionary getDataDictionary(); 
 
 
     /** Implement Sesion::load()

@@ -26,14 +26,16 @@ DBConnection(Properties connectionProperties);
    SYNC.
    Blocking connect.  
    This is a convenience method for code startup.
-   Returns true on success and false on error.
+
+   @return true on success and false on error.
 */
    connectSync();
 
 
 /* DBConnection.isConnected() method.
    IMMEDIATE.
-   Returns bool true/false
+
+   @return bool true/false
 */
    isConnected();
 
@@ -66,28 +68,17 @@ DBConnection(Properties connectionProperties);
    destroy();
 
 
-/* DBConnection.openDatabase() method.
+/* openSessionHandler().
    ASYNC.
-   Open the named database.
-   Returns null.
+   Creates and opens a new DBSessionHandler.
 */
-   openDatabase(String name, function(error, DBDatabase) callback);
+   openSessionHandler(function(error, DBSessionHandler) callback);
 
 
-/* DBConnection.getDatabase() method.
-   IMMEDIATE.
-   This method allows for continued logical program flow in the case where 
-   it is programatically known that the database has already been opened.
-   Returns a previously-opened DBDatabase on success.
-   Returns null if the database must be opened with an openDatabase() call.
+/* DBConnection.getDataDictionary() method.
+   ASYNC.
+   Opens a new DBDictionary object.  
+   May implicitly fetch or open a SessionHandler
 */
-   getDatabase(String name);
-   
-
-/* DBConnection.closeDatabase() method.
-   IMMEDIATE.
-   Close the named database.
-   Returns true if the named database had been opened; false otherwise.
-*/
-   closeDatabase(String name);
+   getDataDictionary(function(error, DBDictionary) callback);
 
