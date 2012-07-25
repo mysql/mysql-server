@@ -255,6 +255,18 @@ PSI_thread *thd_get_psi(THD *thd)
 }
 
 /**
+  Get net_wait_timeout for THD object
+
+  @param thd            THD object
+
+  @retval               net_wait_timeout value for thread on THD
+*/
+ulong thd_get_net_wait_timeout(THD* thd)
+{
+  return thd->variables.net_wait_timeout;
+}
+
+/**
   Set reference to Performance Schema object for THD object
 
   @param thd            THD object
@@ -420,6 +432,17 @@ int thd_connection_has_data(THD *thd)
 void thd_set_net_read_write(THD *thd, uint val)
 {
   thd->net.reading_or_writing= val;
+}
+
+/**
+  Get reading/writing on socket from THD object
+  @param thd                       THD object
+
+  @retval               net.reading_or_writing value for thread on THD.
+*/
+uint thd_get_net_read_write(THD *thd)
+{
+  return thd->net.reading_or_writing;
 }
 
 /**
