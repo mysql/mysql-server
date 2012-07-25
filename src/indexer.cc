@@ -200,9 +200,9 @@ toku_indexer_create_indexer(DB_ENV *env,
     // underlying FT, then those transactions can do dummy operations on the FT
     // while the DB gets redirected back to an empty dictionary
     //
-    for (int i = 0; i < N; i++) {
+    {
         DB_LOADER* loader = NULL;
-        rval = env->create_loader(env, txn, &loader, dest_dbs[i], 1, &dest_dbs[i], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_USE_PUTS);
+        rval = env->create_loader(env, txn, &loader, NULL, N, &dest_dbs[0], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_USE_PUTS);
         if (rval) {
             goto create_exit;
         }
