@@ -5352,7 +5352,6 @@ static bool check_lock_and_start_stmt(THD *thd,
     Last argument routine_modifies_data for read_lock_type_for_table()
     is ignored, as prelocking placeholder will never be set here.
   */
-  DBUG_ASSERT(table_list->prelocking_placeholder == false);
   if (table_list->lock_type == TL_WRITE_DEFAULT)
     lock_type= thd->update_lock_default;
   else if (table_list->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
