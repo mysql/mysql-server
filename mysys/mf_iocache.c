@@ -1532,7 +1532,7 @@ int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
 
   DBUG_EXECUTE_IF("simulate_huge_load_data_file",
                   {
-                    pos_in_file=5000000000;
+                    pos_in_file=(my_off_t)(5000000000ULL);
                   });
   if (pos_in_file+info->buffer_length > info->end_of_file)
   {
