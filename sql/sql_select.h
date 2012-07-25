@@ -1053,11 +1053,11 @@ typedef struct st_position : public Sql_alloc
     sj_strategy= SJ_OPT_NONE;
     dups_producing_tables= 0;
   }
-  void set_prefix_costs(double read_time, double row_count)
+  void set_prefix_costs(double read_time_arg, double row_count_arg)
   {
     prefix_cost.reset();
-    prefix_cost.add_io(read_time);
-    prefix_record_count= row_count;
+    prefix_cost.add_io(read_time_arg);
+    prefix_record_count= row_count_arg;
   }
 } POSITION;
 
