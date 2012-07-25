@@ -445,14 +445,14 @@ Result.prototype.fail = function(t, e) {
 
 /* SQL DDL Utilities
 */
-var runSQL = function(sqlPath, callback) {
+var runSQL = function(sqlPath, source, callback) {
   var child = exec('mysql <' + sqlPath, function (error, stdout, stderr) {
-    if (debug) console.log('createSQL stdout: ' + stdout);
-    if (debug) console.log('createSQL stderr: ' + stderr);
+    if (debug) console.log(source + ' stdout: ' + stdout);
+    if (debug) console.log(source + ' stderr: ' + stderr);
     if (error !== null) {
-      console.log('createSQL exec error: ' + error);
+      console.log(source + 'exec error: ' + error);
     } else {
-      if (debug) console.log('createSQL exec OK');
+      if (debug) console.log(source + ' exec OK');
     }
     callback(error);
   });
@@ -462,13 +462,13 @@ var SQL = {};
 SQL.create =  function(suite, callback) {
   var sqlPath = path.join(suite.path, 'create.sql');
   if (debug) console.log("createSQL path: " + sqlPath);
-  runSQL(sqlPath, callback);
+  runSQL(sqlPath, 'createSQL', callback);
 };
 
 SQL.drop = function(suite, callback) {
   var sqlPath = path.join(suite.path, 'drop.sql');
   if (debug) console.log("dropSQL path: " + sqlPath);
-  runSQL(sqlPath, callback);
+  runSQL(sqlPath, 'dropSQL', callback);
 };
 
 
