@@ -137,6 +137,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             }
         }
     } else
+    // column default
+    if (only_flags(handler_flags, Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
+        result = HA_ALTER_INPLACE_NO_LOCK;
+    } else
     // column rename
     if (only_flags(handler_flags, Alter_inplace_info::ALTER_COLUMN_NAME + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
         // we have identified a possible column rename, 
