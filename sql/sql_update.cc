@@ -450,6 +450,15 @@ int mysql_update(THD *thd,
   { // Check if we are modifying a key that we are used to search with:
     used_key_is_modified= is_key_used(table, used_index, table->write_set);
   }
+  else if (select && select->quick)
+  {
+    /*
+      select->quick != NULL and used_index == MAX_KEY happens for index
+      merge and should be handled in a different way.
+    */
+    used_key_is_modified= (!select->quick->unique_key_range() &&
+                           select->quick->is_keys_used(table->write_set));
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (used_key_is_modified || order ||
