@@ -6313,11 +6313,23 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       the primary key is not added and dropped in the same statement.
       Otherwise we have to recreate the table.
       need_copy_table is no-zero at this place.
+
+      Also, in-place is not possible if we add a primary key
+      and drop another key in the same statement. If the drop fails,
+      we will not be able to revert adding of primary key.
     */
     if ( pk_changed < 2 )
     {
-      if ((alter_flags & needed_inplace_with_read_flags) ==
-          needed_inplace_with_read_flags)
+      if ((needed_inplace_with_read_flags & HA_INPLACE_ADD_PK_INDEX_NO_WRITE) &&
+          index_drop_count > 0)
+      {
+        /*
+          Do copy, not in-place ALTER.
+          Avoid setting ALTER_TABLE_METADATA_ONLY.
+        */
+      }
+      else if ((alter_flags & needed_inplace_with_read_flags) ==
+               needed_inplace_with_read_flags)
       {
         /* All required in-place flags to allow concurrent reads are present. */
         need_copy_table= ALTER_TABLE_METADATA_ONLY;
@@ -6579,17 +6591,38 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Tell the handler to prepare for drop indexes.
         This re-numbers the indexes to get rid of gaps.
       */
-      if ((error= table->file->prepare_drop_index(table, key_numbers,
-                                                  index_drop_count)))
+      error= table->file->prepare_drop_index(table, key_numbers,
+                                             index_drop_count);
+      if (!error)
       {
-        table->file->print_error(error, MYF(0));
-        goto err_new_table_cleanup;
+        /* Tell the handler to finally drop the indexes. */
+        error= table->file->final_drop_index(table);
       }
 
-      /* Tell the handler to finally drop the indexes. */
-      if ((error= table->file->final_drop_index(table)))
+      if (error)
       {
         table->file->print_error(error, MYF(0));
+        if (index_add_count) // Drop any new indexes added.
+        {
+          /*
+            Temporarily set table-key_info to include information about the
+            indexes added above that we now need to drop.
+          */
+          KEY *save_key_info= table->key_info;
+          table->key_info= key_info_buffer;
+          if ((error= table->file->prepare_drop_index(table, index_add_buffer,
+                                                      index_add_count)))
+            table->file->print_error(error, MYF(0));
+          else if ((error= table->file->final_drop_index(table)))
+            table->file->print_error(error, MYF(0));
+          table->key_info= save_key_info;
+        }
+
+        /*
+          Mark this TABLE instance as stale to avoid
+          out-of-sync index information.
+        */
+        table->m_needs_reopen= true;
         goto err_new_table_cleanup;
       }
     }

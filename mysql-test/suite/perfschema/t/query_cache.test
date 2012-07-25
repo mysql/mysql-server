@@ -6,7 +6,6 @@
 --source include/have_query_cache.inc
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
---source include/have_archive.inc
 
 --disable_warnings
 drop table if exists t1;
@@ -35,7 +34,7 @@ show status like "Qcache_hits";
 
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 
-select name from performance_schema.setup_instruments order by name limit 1;
+select * from performance_schema.setup_timers where name='wait';
 
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
@@ -43,7 +42,7 @@ show status like "Qcache_hits";
 
 select spins from performance_schema.events_waits_current order by event_name limit 1;
 
-select name from performance_schema.setup_instruments order by name limit 1;
+select * from performance_schema.setup_timers where name='wait';
 
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
