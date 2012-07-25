@@ -449,10 +449,10 @@ BEGIN {
 fi
 
 ################################################################################
-## run valgrind on icc debug build
-resultsdir=$tracefilepfx-Debug
+## run valgrind on gcc optimized build
+resultsdir=$tracefilepfx-gccopt
 mkdir $resultsdir
-tracefile=$tracefilepfx-Debug/trace
+tracefile=$tracefilepfx-gccopt/trace
 
 getsysinfo $tracefile
 
