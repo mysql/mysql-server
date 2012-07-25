@@ -22,11 +22,12 @@
 t1 = new harness.ConcurrentTest("testFindDomainObjectPrimitive");
 t1.run = function() {
   var testCase = this;
+  // use the domain object and primitive to find an instance
+  var from = t_basic.prototype
+  var key = 0;
   fail_openSession(testCase, function(session) {
-    // use the domain object and primitive to find an instance
-    session.find(t_basic.prototype, 0, function(err, instance) {
-      fail_verify_t_basic(err, testCase, 0, instance);
-    });
+    // key and testCase are passed to fail_verify_t_basic as extra parameters
+    session.find(from, key, fail_verify_t_basic, key, testCase);
   });
 };
 
@@ -34,12 +35,12 @@ t1.run = function() {
 t2 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
 t2.run = function() {
   var testCase = this;
+  // use the domain object and literal to find an instance
+  var from = t_basic.prototype
+  var key = {'id' : 0};
   fail_openSession(testCase, function(session) {
-    // use the domain object and literal to find an instance
-    var key = {'id' : 0};
-    session.find(t_basic.prototype, key, function(err, instance) {
-      fail_verify_t_basic(err, testCase, 0, instance);
-    });
+    // key and testCase are passed to fail_verify_t_basic as extra parameters
+    session.find(from, key, fail_verify_t_basic, key, testCase);
   });
 };
 
@@ -47,12 +48,12 @@ t2.run = function() {
 t3 = new harness.ConcurrentTest("testFindDomainObjectObject");
 t3.run = function() {
   var testCase = this;
+  // use the domain object and key object to find an instance
+  var from = t_basic.prototype
+  var key = new t_basic_key(0);
   fail_openSession(testCase, function(session) {
-    // use the domain object and literal to find an instance
-    var key = new t_basic_key(0);
-    session.find(t_basic.prototype, key, function(err, instance) {
-      fail_verify_t_basic(err, testCase, 0, instance);
-    });
+    // key and testCase are passed to fail_verify_t_basic as extra parameters
+    session.find(from, key, fail_verify_t_basic, key, testCase);
   });
 };
 
@@ -60,11 +61,11 @@ t3.run = function() {
 t4 = new harness.ConcurrentTest("testFindTableNamePrimitive");
 t4.run = function() {
   var testCase = this;
+  var from = 't_basic';
+  var key = 0;
   fail_openSession(testCase, function(session) {
-    // use the table name and primitive to find an instance
-    session.find('t_basic', 0, function(err, instance) {
-      fail_verify_t_basic(err, testCase, 0, instance);
-    });
+    // key and testCase are passed to fail_verify_t_basic as extra parameters
+    session.find(from, key, fail_verify_t_basic, key, testCase);
   });
 };
 
@@ -72,12 +73,12 @@ t4.run = function() {
 t5 = new harness.ConcurrentTest("testFindTableNameLiteral");
 t5.run = function() {
   var testCase = this;
+  // use table name and literal to find an instance
+  var from = 't_basic';
+  var key = {'id' : 0};
   fail_openSession(testCase, function(session) {
-    // use the table name and literal to find an instance
-    var key = {'id' : 0};
-    session.find('t_basic', key, function(err, instance) {
-      fail_verify_t_basic(err, testCase, 0, instance);
-    });
+    // key and testCase are passed to fail_verify_t_basic as extra parameters
+    session.find(from, key, fail_verify_t_basic, key, testCase);
   });
 };
 
@@ -85,12 +86,11 @@ t5.run = function() {
 t6 = new harness.ConcurrentTest("testFindTableNameObject");
 t6.run = function() {
   var testCase = this;
+  var from = 't_basic';
+  var key = new t_basic_key(0);
   fail_openSession(testCase, function(session) {
-    // use the domain object and literal to find an instance
-    var key = new t_basic_key(0);
-    session.find('t_basic', key, function(err, instance) {
-      fail_verify_t_basic(err, testCase, 0, instance);
-    });
+    // key and testCase are passed to fail_verify_t_basic as extra parameters
+    session.find(from, key, fail_verify_t_basic, key, testCase);
   });
 };
 
