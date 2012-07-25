@@ -20,7 +20,7 @@ cachetable_count_pinned_test (int n) {
 
     int i;
     for (i=1; i<=n; i++) {
-        u_int32_t hi;
+        uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc);
@@ -37,7 +37,7 @@ cachetable_count_pinned_test (int n) {
         assert(toku_cachefile_count_pinned(f1, 0) == i);
     }
     for (i=n; i>0; i--) {
-        u_int32_t hi;
+        uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
@@ -48,7 +48,7 @@ cachetable_count_pinned_test (int n) {
     assert(toku_cachefile_count_pinned(f1, 1) == 0);
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

@@ -7,28 +7,28 @@
 #include "test.h"
 #include "includes.h"
 
-static void ba_alloc_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset) {
+static void ba_alloc_at (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t offset) {
     block_allocator_validate(ba);
     block_allocator_alloc_block_at(ba, size, offset);
     block_allocator_validate(ba);
 }
 
-static void ba_alloc (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *answer) {
+static void ba_alloc (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t *answer) {
     block_allocator_validate(ba);
     block_allocator_alloc_block(ba, size, answer);
     block_allocator_validate(ba);
 }
 
-static void ba_free (BLOCK_ALLOCATOR ba, u_int64_t offset) {
+static void ba_free (BLOCK_ALLOCATOR ba, uint64_t offset) {
     block_allocator_validate(ba);
     block_allocator_free_block(ba, offset);
     block_allocator_validate(ba);
 }
 
 static void
-ba_check_l (BLOCK_ALLOCATOR ba, u_int64_t blocknum_in_layout_order, u_int64_t expected_offset, u_int64_t expected_size)
+ba_check_l (BLOCK_ALLOCATOR ba, uint64_t blocknum_in_layout_order, uint64_t expected_offset, uint64_t expected_size)
 {
-    u_int64_t actual_offset, actual_size;
+    uint64_t actual_offset, actual_size;
     int r = block_allocator_get_nth_block_in_layout_order(ba, blocknum_in_layout_order, &actual_offset, &actual_size);
     assert(r==0);
     assert(expected_offset == actual_offset);
@@ -36,9 +36,9 @@ ba_check_l (BLOCK_ALLOCATOR ba, u_int64_t blocknum_in_layout_order, u_int64_t ex
 }
 
 static void
-ba_check_none (BLOCK_ALLOCATOR ba, u_int64_t blocknum_in_layout_order)
+ba_check_none (BLOCK_ALLOCATOR ba, uint64_t blocknum_in_layout_order)
 {
-    u_int64_t actual_offset, actual_size;
+    uint64_t actual_offset, actual_size;
     int r = block_allocator_get_nth_block_in_layout_order(ba, blocknum_in_layout_order, &actual_offset, &actual_size);
     assert(r==-1);
 }
@@ -48,7 +48,7 @@ ba_check_none (BLOCK_ALLOCATOR ba, u_int64_t blocknum_in_layout_order)
 static void
 test_ba0 (void) {
     BLOCK_ALLOCATOR ba;
-    u_int64_t b0, b1;
+    uint64_t b0, b1;
     create_block_allocator(&ba, 100, 1);
     assert(block_allocator_allocated_limit(ba)==100);
     ba_alloc_at(ba, 50, 100);
@@ -71,7 +71,7 @@ test_ba0 (void) {
     assert(10==block_allocator_block_size(ba, b0));
     assert(50==block_allocator_block_size(ba, 100));
 
-    u_int64_t b2, b3, b4, b5, b6, b7;
+    uint64_t b2, b3, b4, b5, b6, b7;
     ba_alloc(ba, 100, &b2);     
     ba_alloc(ba, 100, &b3);     
     ba_alloc(ba, 100, &b4);     
@@ -82,7 +82,7 @@ test_ba0 (void) {
     ba_alloc(ba, 100, &b2);  
     ba_free(ba, b4);         
     ba_free(ba, b6);         
-    u_int64_t b8, b9;
+    uint64_t b8, b9;
     ba_alloc(ba, 100, &b4);    
     ba_free(ba, b2);           
     ba_alloc(ba, 100, &b6);    
@@ -107,7 +107,7 @@ test_ba1 (int n_initial) {
     create_block_allocator(&ba, 0, 1);
     int i;
     int n_blocks=0;
-    u_int64_t blocks[1000];
+    uint64_t blocks[1000];
     for (i=0; i<1000; i++) {
 	if (i<n_initial || random()%2 == 0) {
 	    if (n_blocks<1000) {
@@ -135,7 +135,7 @@ static void
 test_ba2 (void)
 {
     BLOCK_ALLOCATOR ba;
-    u_int64_t b[6];
+    uint64_t b[6];
     enum { BSIZE = 1024 };
     create_block_allocator(&ba, 100, BSIZE);
     assert(block_allocator_allocated_limit(ba)==100);
@@ -181,7 +181,7 @@ test_ba2 (void)
     ba_check_l    (ba, 5, 7*BSIZE,       100);
     ba_check_none (ba, 6);
 
-    u_int64_t b2;
+    uint64_t b2;
     ba_alloc(ba, 100, &b2);
     assert(b2==4*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
@@ -203,13 +203,13 @@ test_ba2 (void)
     ba_check_none (ba, 5);
 
     // This alloc will allocate the first block after the reserve space in the case of first fit.
-    u_int64_t b3;
+    uint64_t b3;
     ba_alloc(ba, 100, &b3);
     assert(b3==  BSIZE);      // First fit.
     // if (b3==5*BSIZE) then it is next fit.
 
     // Now 5*BSIZE is free
-    u_int64_t b5;
+    uint64_t b5;
     ba_alloc(ba, 100, &b5);
     assert(b5==5*BSIZE);
     ba_check_l    (ba, 0, 0, 100);
@@ -222,7 +222,7 @@ test_ba2 (void)
     ba_check_none (ba, 7);
 
     // Now all blocks are busy
-    u_int64_t b6, b7, b8;
+    uint64_t b6, b7, b8;
     ba_alloc(ba, 100, &b6);
     ba_alloc(ba, 100, &b7);
     ba_alloc(ba, 100, &b8);
@@ -243,13 +243,13 @@ test_ba2 (void)
     
     ba_free(ba, 9*BSIZE);
     ba_free(ba, 7*BSIZE);
-    u_int64_t b9;
+    uint64_t b9;
     ba_alloc(ba, 100, &b9);
     assert(b9==7*BSIZE);
 
     ba_free(ba, 5*BSIZE);
     ba_free(ba, 2*BSIZE);
-    u_int64_t b10, b11;
+    uint64_t b10, b11;
     ba_alloc(ba, 100, &b10);
     assert(b10==2*BSIZE);
     ba_alloc(ba, 100, &b11);

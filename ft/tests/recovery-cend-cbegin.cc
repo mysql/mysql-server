@@ -24,10 +24,10 @@ run_test(void) {
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
     LSN firstbegin = ZERO_LSN;
-    r = toku_log_begin_checkpoint(logger, &firstbegin, TRUE, 0, 0); assert(r == 0);
+    r = toku_log_begin_checkpoint(logger, &firstbegin, true, 0, 0); assert(r == 0);
     assert(firstbegin.lsn != ZERO_LSN.lsn);
-    r = toku_log_end_checkpoint(logger, NULL, FALSE, firstbegin, 0, 0, 0); assert(r == 0);
-    r = toku_log_begin_checkpoint(logger, NULL, TRUE, 0, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, false, firstbegin, 0, 0, 0); assert(r == 0);
+    r = toku_log_begin_checkpoint(logger, NULL, true, 0, 0); assert(r == 0);
     r = toku_logger_close(&logger); assert(r == 0);
 
     if (!verbose) {

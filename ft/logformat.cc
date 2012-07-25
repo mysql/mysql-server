@@ -17,7 +17,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -69,11 +68,11 @@ const struct logtype rollbacks[] = {
                           {"BYTESTRING", "key", 0},
                           NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"rollinclude", 'r', FA{{"TXNID",     "xid", 0},
-                            {"u_int64_t", "num_nodes", 0},
+                            {"uint64_t", "num_nodes", 0},
                             {"BLOCKNUM",  "spilled_head", 0},
-                            {"u_int32_t", "spilled_head_hash", 0},
+                            {"uint32_t", "spilled_head_hash", 0},
                             {"BLOCKNUM",  "spilled_tail", 0},
-                            {"u_int32_t", "spilled_tail_hash", 0},
+                            {"uint32_t", "spilled_tail_hash", 0},
                             NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"load", 'l', FA{{"FILENUM",    "old_filenum", 0},
                      {"BYTESTRING", "new_iname", 0},
@@ -88,7 +87,7 @@ const struct logtype rollbacks[] = {
                           {"BYTESTRING", "key", 0},
                           NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"cmdupdatebroadcast", 'B', FA{{"FILENUM", "filenum", 0},
-                                   {"BOOL",    "is_resetting_op", 0},
+                                   {"bool",    "is_resetting_op", 0},
                                    NULLFIELD}, LOG_BEGIN_ACTION_NA},
     {"change_fdescriptor", 'D', FA{{"FILENUM",    "filenum", 0},
                             {"BYTESTRING", "old_descriptor", 0},
@@ -101,27 +100,27 @@ const struct logtype logtypes[] = {
 #if 0 // no longer used, but reserve the type
     {"local_txn_checkpoint", 'c', FA{{"TXNID",      "xid", 0}, NULLFIELD}},
 #endif
-    {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, {"TXNID", "last_xid", 0}, NULLFIELD}, IGNORE_LOG_BEGIN},
+    {"begin_checkpoint", 'x', FA{{"uint64_t", "timestamp", 0}, {"TXNID", "last_xid", 0}, NULLFIELD}, IGNORE_LOG_BEGIN},
     {"end_checkpoint",   'X', FA{{"LSN", "lsn_begin_checkpoint", 0},
-                                 {"u_int64_t", "timestamp", 0},
-                                 {"u_int32_t", "num_fassociate_entries", 0}, // how many files were checkpointed
-                                 {"u_int32_t", "num_xstillopen_entries", 0},  // how many txns  were checkpointed
+                                 {"uint64_t", "timestamp", 0},
+                                 {"uint32_t", "num_fassociate_entries", 0}, // how many files were checkpointed
+                                 {"uint32_t", "num_xstillopen_entries", 0},  // how many txns  were checkpointed
                                  NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fassociate",  'f', FA{{"FILENUM", "filenum", 0},
-                            {"u_int32_t",  "treeflags", 0},
+                            {"uint32_t",  "treeflags", 0},
                             {"BYTESTRING", "iname", 0},   // pathname of file
-                            {"u_int8_t", "unlink_on_close", 0},
+                            {"uint8_t", "unlink_on_close", 0},
                             NULLFIELD}, IGNORE_LOG_BEGIN},
     //We do not use a TXNINFO struct since recovery log has
     //FILENUMS and TOKUTXN has FTs (for open_fts)
     {"xstillopen", 's', FA{{"TXNID", "xid", 0}, 
                            {"TXNID", "parentxid", 0}, 
-                           {"u_int64_t", "rollentry_raw_count", 0}, 
+                           {"uint64_t", "rollentry_raw_count", 0}, 
                            {"FILENUMS",  "open_filenums", 0},
-                           {"u_int8_t",  "force_fsync_on_commit", 0}, 
-                           {"u_int64_t", "num_rollback_nodes", 0}, 
-                           {"u_int64_t", "num_rollentries", 0}, 
+                           {"uint8_t",  "force_fsync_on_commit", 0}, 
+                           {"uint64_t", "num_rollback_nodes", 0}, 
+                           {"uint64_t", "num_rollentries", 0}, 
                            {"BLOCKNUM",  "spilled_rollback_head", 0}, 
                            {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
                            {"BLOCKNUM",  "current_rollback", 0}, 
@@ -129,11 +128,11 @@ const struct logtype logtypes[] = {
     // prepared txns need a gid
     {"xstillopenprepared", 'p', FA{{"TXNID", "xid", 0},
                                    {"XIDP",  "xa_xid", 0}, // prepared transactions need a gid, and have no parentxid.
-                                   {"u_int64_t", "rollentry_raw_count", 0}, 
+                                   {"uint64_t", "rollentry_raw_count", 0}, 
                                    {"FILENUMS",  "open_filenums", 0},
-                                   {"u_int8_t",  "force_fsync_on_commit", 0}, 
-                                   {"u_int64_t", "num_rollback_nodes", 0}, 
-                                   {"u_int64_t", "num_rollentries", 0}, 
+                                   {"uint8_t",  "force_fsync_on_commit", 0}, 
+                                   {"uint64_t", "num_rollback_nodes", 0}, 
+                                   {"uint64_t", "num_rollentries", 0}, 
                                    {"BLOCKNUM",  "spilled_rollback_head", 0}, 
                                    {"BLOCKNUM",  "spilled_rollback_tail", 0}, 
                                    {"BLOCKNUM",  "current_rollback", 0}, 
@@ -150,16 +149,16 @@ const struct logtype logtypes[] = {
     {"fcreate", 'F', FA{{"TXNID",      "xid", 0},
                         {"FILENUM",    "filenum", 0},
                         {"BYTESTRING", "iname", 0},
-                        {"u_int32_t",  "mode",  "0%o"},
-                        {"u_int32_t",  "treeflags", 0},
-                        {"u_int32_t", "nodesize", 0},
-                        {"u_int32_t", "basementnodesize", 0},
-                        {"u_int32_t", "compression_method", 0},
+                        {"uint32_t",  "mode",  "0%o"},
+                        {"uint32_t",  "treeflags", 0},
+                        {"uint32_t", "nodesize", 0},
+                        {"uint32_t", "basementnodesize", 0},
+                        {"uint32_t", "compression_method", 0},
                         NULLFIELD}, SHOULD_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fopen",   'O', FA{{"BYTESTRING", "iname", 0},
                         {"FILENUM",    "filenum", 0},
-                        {"u_int32_t",  "treeflags", 0},
+                        {"uint32_t",  "treeflags", 0},
                         NULLFIELD}, IGNORE_LOG_BEGIN},
     //TODO: #2037 Add dname
     {"fclose",   'e', FA{{"BYTESTRING", "iname", 0},
@@ -195,14 +194,14 @@ const struct logtype logtypes[] = {
                                     {"BYTESTRING", "src_key", 0},
                                     {"BYTESTRING", "src_val", 0},
                                     NULLFIELD}, SHOULD_LOG_BEGIN},
-    {"comment", 'T', FA{{"u_int64_t", "timestamp", 0},
+    {"comment", 'T', FA{{"uint64_t", "timestamp", 0},
                         {"BYTESTRING", "comment", 0},
                         NULLFIELD}, IGNORE_LOG_BEGIN},
     // Note: shutdown_up_to_19 log entry is NOT ALLOWED TO BE CHANGED.
     // Do not change the letter ('Q'), do not add fields,
     // do not remove fields.
     // TODO: Kill this logentry entirely once we no longer support version 19.
-    {"shutdown_up_to_19", 'Q', FA{{"u_int64_t", "timestamp", 0},
+    {"shutdown_up_to_19", 'Q', FA{{"uint64_t", "timestamp", 0},
                          NULLFIELD}, IGNORE_LOG_BEGIN},
     // Note: Shutdown log entry is NOT ALLOWED TO BE CHANGED.
     // Do not change the letter ('0'), do not add fields,
@@ -212,7 +211,7 @@ const struct logtype logtypes[] = {
     // This is how we detect clean shutdowns from OLDER VERSIONS.
     // This log entry must always be readable for future versions.
     // If you DO change it, you need to write a separate log upgrade mechanism.
-    {"shutdown", '0', FA{{"u_int64_t", "timestamp", 0},
+    {"shutdown", '0', FA{{"uint64_t", "timestamp", 0},
                          {"TXNID", "last_xid", 0},
                          NULLFIELD}, IGNORE_LOG_BEGIN},
     {"load", 'l', FA{{"TXNID",      "xid", 0},
@@ -231,13 +230,13 @@ const struct logtype logtypes[] = {
     {"enq_updatebroadcast", 'B', FA{{"FILENUM",    "filenum", 0},
                                     {"TXNID",      "xid", 0},
                                     {"BYTESTRING", "extra", 0},
-                                    {"BOOL",       "is_resetting_op", 0},
+                                    {"bool",       "is_resetting_op", 0},
                                     NULLFIELD}, SHOULD_LOG_BEGIN},
     {"change_fdescriptor", 'D', FA{{"FILENUM",    "filenum", 0},
                             {"TXNID",      "xid", 0},
                             {"BYTESTRING", "old_descriptor", 0},
                             {"BYTESTRING", "new_descriptor", 0},
-                            {"BOOL",       "update_cmp_descriptor", 0},
+                            {"bool",       "update_cmp_descriptor", 0},
                             NULLFIELD}, SHOULD_LOG_BEGIN},
     {0,0,FA{NULLFIELD}, (enum log_begin_action) 0}
 };
@@ -308,8 +307,8 @@ generate_log_struct (void) {
                     fprintf(hf, "  %-16s lsn;\n", "LSN");
                     DO_FIELDS(field_type, lt,
                               fprintf(hf, "  %-16s %s;\n", field_type->type, field_type->name));
-                    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
-                    fprintf(hf, "  %-16s len;\n", "u_int32_t");
+                    fprintf(hf, "  %-16s crc;\n", "uint32_t");
+                    fprintf(hf, "  %-16s len;\n", "uint32_t");
                     fprintf(hf, "};\n");
                     //fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
                     //DO_FIELDS(field_type, lt, fprintf(hf, ", %s %s", field_type->type, field_type->name));
@@ -380,7 +379,7 @@ generate_dispatch (void) {
 
 static void
 generate_get_timestamp(void) {
-    fprintf(cf, "static u_int64_t toku_get_timestamp(void) {\n");
+    fprintf(cf, "static uint64_t toku_get_timestamp(void) {\n");
     fprintf(cf, "  struct timeval tv; int r = gettimeofday(&tv, NULL);\n");
     fprintf(cf, "  assert(r==0);\n");
     fprintf(cf, "  return tv.tv_sec * 1000000ULL + tv.tv_usec;\n");
@@ -473,16 +472,16 @@ generate_log_writer (void) {
 static void
 generate_log_reader (void) {
     DO_LOGTYPES(lt, {
-                        fprintf(cf, "static int toku_log_fread_%s (FILE *infile, u_int32_t len1, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
+                        fprintf(cf, "static int toku_log_fread_%s (FILE *infile, uint32_t len1, struct logtype_%s *data, struct x1764 *checksum)", lt->name, lt->name);
                         fprintf(cf, " {\n");
                         fprintf(cf, "  int r=0;\n");
-                        fprintf(cf, "  u_int32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
+                        fprintf(cf, "  uint32_t actual_len=5; // 1 for the command, 4 for the first len.\n");
                         fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, checksum, &actual_len); if (r!=0) return r;\n", "LSN", "lsn");
                         DO_FIELDS(field_type, lt,
                                   fprintf(cf, "  r=toku_fread_%-16s(infile, &data->%-16s, checksum, &actual_len); if (r!=0) return r;\n", field_type->type, field_type->name));
-                        fprintf(cf, "  u_int32_t checksum_in_file, len_in_file;\n");
-                        fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &checksum_in_file); actual_len+=4;   if (r!=0) return r;\n");
-                        fprintf(cf, "  r=toku_fread_u_int32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
+                        fprintf(cf, "  uint32_t checksum_in_file, len_in_file;\n");
+                        fprintf(cf, "  r=toku_fread_uint32_t_nocrclen(infile, &checksum_in_file); actual_len+=4;   if (r!=0) return r;\n");
+                        fprintf(cf, "  r=toku_fread_uint32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
                         fprintf(cf, "  if (checksum_in_file!=x1764_finish(checksum) || len_in_file!=actual_len || len1 != len_in_file) return DB_BADFORMAT;\n");
                         fprintf(cf, "  return 0;\n");
                         fprintf(cf, "}\n\n");
@@ -490,11 +489,11 @@ generate_log_reader (void) {
     fprintf2(cf, hf, "int toku_log_fread (FILE *infile, struct log_entry *le)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n");
-    fprintf(cf, "  u_int32_t len1; int r;\n");
-    fprintf(cf, "  u_int32_t ignorelen=0;\n");
+    fprintf(cf, "  uint32_t len1; int r;\n");
+    fprintf(cf, "  uint32_t ignorelen=0;\n");
     fprintf(cf, "  struct x1764 checksum;\n");
     fprintf(cf, "  x1764_init(&checksum);\n");
-    fprintf(cf, "  r = toku_fread_u_int32_t(infile, &len1, &checksum, &ignorelen); if (r!=0) return r;\n");
+    fprintf(cf, "  r = toku_fread_uint32_t(infile, &len1, &checksum, &ignorelen); if (r!=0) return r;\n");
     fprintf(cf, "  int cmd=fgetc(infile);\n");
     fprintf(cf, "  if (cmd==EOF) return EOF;\n");
     fprintf(cf, "  char cmdchar = (char)cmd;\n");
@@ -517,8 +516,8 @@ generate_log_reader (void) {
     fprintf(cf, "  {\n    long pos = ftell(infile);\n    if (pos<=12) return -1;\n  }\n");
     fprintf(cf, "  int r = fseek(infile, -4, SEEK_CUR); \n");//              assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return get_error_errno();\n");
-    fprintf(cf, "  u_int32_t len;\n");
-    fprintf(cf, "  r = toku_fread_u_int32_t_nocrclen(infile, &len); \n");//  assert(r==0);\n");
+    fprintf(cf, "  uint32_t len;\n");
+    fprintf(cf, "  r = toku_fread_uint32_t_nocrclen(infile, &len); \n");//  assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return 1;\n");
     fprintf(cf, "  r = fseek(infile, -(int)len, SEEK_CUR) ;  \n");//         assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return get_error_errno();\n");
@@ -558,15 +557,15 @@ generate_logprint (void) {
     fprintf(hf, ";\n");
     fprintf(pf, " {\n");
     fprintf(pf, "    int cmd, r;\n");
-    fprintf(pf, "    u_int32_t len1, crc_in_file;\n");
-    fprintf(pf, "    u_int32_t ignorelen=0;\n");
+    fprintf(pf, "    uint32_t len1, crc_in_file;\n");
+    fprintf(pf, "    uint32_t ignorelen=0;\n");
     fprintf(pf, "    struct x1764 checksum;\n");
     fprintf(pf, "    x1764_init(&checksum);\n");
-    fprintf(pf, "    r=toku_fread_u_int32_t(f, &len1, &checksum, &ignorelen);\n");
+    fprintf(pf, "    r=toku_fread_uint32_t(f, &len1, &checksum, &ignorelen);\n");
     fprintf(pf, "    if (r==EOF) return EOF;\n");
     fprintf(pf, "    cmd=fgetc(f);\n");
     fprintf(pf, "    if (cmd==EOF) return DB_BADFORMAT;\n");
-    fprintf(pf, "    u_int32_t len_in_file, len=1+4; // cmd + len1\n");
+    fprintf(pf, "    uint32_t len_in_file, len=1+4; // cmd + len1\n");
     fprintf(pf, "    char charcmd = (char)cmd;\n");
     fprintf(pf, "    x1764_add(&checksum, &charcmd, 1);\n");
     fprintf(pf, "    switch ((enum lt_cmd)cmd) {\n");
@@ -586,11 +585,11 @@ generate_logprint (void) {
                             fprintf(pf, "); if (r!=0) return r;\n");
                         });
                 fprintf(pf, "        {\n");
-                fprintf(pf, "          u_int32_t actual_murmur = x1764_finish(&checksum);\n");
-                fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
+                fprintf(pf, "          uint32_t actual_murmur = x1764_finish(&checksum);\n");
+                fprintf(pf, "          r = toku_fread_uint32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
                 fprintf(pf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
                 fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" checksum=%%08x\", actual_murmur);\n");
-                fprintf(pf, "          r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
+                fprintf(pf, "          r = toku_fread_uint32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
                 fprintf(pf, "          fprintf(outf, \" len=%%u\", len_in_file);\n");
                 fprintf(pf, "          if (len_in_file!=len) fprintf(outf, \" actual_len=%%u\", len);\n");
                 fprintf(pf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
@@ -644,7 +643,7 @@ generate_rollbacks (void) {
                     });
                     {
                         int count=0;
-                        fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
+                        fprintf(cf, "  uint32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
                         DO_FIELDS(field_type, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", field_type->name));
                         fprintf(cf, ");\n");
                     }
@@ -660,7 +659,7 @@ generate_rollbacks (void) {
                     fprintf(cf, "  log->rollentry_resident_bytecount += rollback_fsize;\n");
                     fprintf(cf, "  txn->roll_info.rollentry_raw_count          += rollback_fsize;\n");
                     fprintf(cf, "  txn->roll_info.num_rollentries++;\n");
-                    fprintf(cf, "  log->dirty = TRUE;\n");
+                    fprintf(cf, "  log->dirty = true;\n");
                     fprintf(cf, "  // spill and unpin assert success internally\n");
                     fprintf(cf, "  toku_maybe_spill_rollbacks(txn, log);\n");
                     fprintf(cf, "  toku_rollback_log_unpin(txn, log);\n");
@@ -677,7 +676,7 @@ generate_rollbacks (void) {
 
                 {
                     int count=0;
-                    fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
+                    fprintf(cf, "  uint32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
                     DO_FIELDS(field_type, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", field_type->name));
                     fprintf(cf, ");\n");
                     fprintf(cf, "  wbuf_nocrc_int(wbuf, rollback_fsize);\n");
@@ -697,7 +696,7 @@ generate_rollbacks (void) {
     fprintf(cf, "  }\n  assert(0);\n");
     fprintf(cf, "}\n");
     DO_ROLLBACKS(lt, {
-                fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize_%s (", lt->name);
+                fprintf2(cf, hf, "uint32_t toku_logger_rollback_fsize_%s (", lt->name);
                 int count=0;
                 DO_FIELDS(field_type, lt, fprintf2(cf, hf, "%s%s %s", (count++>0)?", ":"", field_type->type, field_type->name));
                 fprintf(hf, ");\n");
@@ -708,7 +707,7 @@ generate_rollbacks (void) {
                           fprintf(cf, "\n         + toku_logsizeof_%s(%s)", field_type->type, field_type->name));
                 fprintf(cf, ";\n}\n");
             });
-    fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize(struct roll_entry *item)");
+    fprintf2(cf, hf, "uint32_t toku_logger_rollback_fsize(struct roll_entry *item)");
     fprintf(hf, ";\n");
     fprintf(cf, "{\n  switch(item->cmd) {\n");
     DO_ROLLBACKS(lt, {
@@ -720,7 +719,7 @@ generate_rollbacks (void) {
     fprintf(cf, "  }\n  assert(0);\n  return 0;\n");
     fprintf(cf, "}\n");
 
-    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, u_int32_t n_bytes, struct roll_entry **itemp, MEMARENA ma)");
+    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, uint32_t n_bytes, struct roll_entry **itemp, MEMARENA ma)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item;\n  enum rt_cmd cmd = (enum rt_cmd)(buf[0]);\n  size_t mem_needed;\n");
     fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");

@@ -410,7 +410,7 @@ create_and_maybe_checkpoint_and_or_close_after_create(void) {
             make_txn();
             break;
         default:
-            assert(FALSE);
+            assert(false);
             break;
     }
 }
@@ -509,7 +509,7 @@ did_create_commit_early(void) {
             r = 1;
             break;
         default:
-            assert(FALSE);
+            assert(false);
     }
     return r;
 }

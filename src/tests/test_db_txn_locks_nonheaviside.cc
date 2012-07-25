@@ -21,7 +21,7 @@ static DB_ENV* dbenv;
 static DBC*    cursors[(int)256];
 
 static void
-put(BOOL success, char txn, int _key, int _data) {
+put(bool success, char txn, int _key, int _data) {
     assert(txns[(int)txn]);
 
     int r;
@@ -38,8 +38,8 @@ put(BOOL success, char txn, int _key, int _data) {
 }
 
 static void
-cget(BOOL success, BOOL find, char txn, int _key, int _data, 
-     int _key_expect, int _data_expect, u_int32_t flags) {
+cget(bool success, bool find, char txn, int _key, int _data, 
+     int _key_expect, int _data_expect, uint32_t flags) {
     assert(txns[(int)txn] && cursors[(int)txn]);
 
     int r;
@@ -62,7 +62,7 @@ cget(BOOL success, BOOL find, char txn, int _key, int _data,
 }
 
 static void
-dbdel (BOOL success, BOOL find, char txn, int _key) {
+dbdel (bool success, bool find, char txn, int _key) {
     int r;
     DBT key;
 
@@ -156,8 +156,8 @@ setup_dbs (void) {
     r = dbenv->set_default_bt_compare(dbenv, int_dbt_cmp);
         CKERR(r);
 #endif
-    u_int32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
-    u_int32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
+    uint32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
+    uint32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
 	r = dbenv->open(dbenv, ENVDIR, env_open_flags | env_txn_flags, 0600);
         CKERR(r);
     
@@ -200,64 +200,64 @@ void
 test_abort (void) {
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
+    put(true, 'a', 1, 1);
     early_abort('a');
-    cget(TRUE, FALSE, 'b', 1, 1, 0, 0, DB_SET);
+    cget(true, false, 'b', 1, 1, 0, 0, DB_SET);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, DB_SET);
-    cget(TRUE, FALSE, 'b', 1, 1, 0, 0, DB_SET);
-    put(FALSE, 'a', 1, 1);
+    cget(true, false, 'a', 1, 1, 0, 0, DB_SET);
+    cget(true, false, 'b', 1, 1, 0, 0, DB_SET);
+    put(false, 'a', 1, 1);
     early_commit('b');
-    put(TRUE, 'a', 1, 1);
-    cget(TRUE, TRUE, 'a', 1, 1, 1, 1, DB_SET);
-    cget(TRUE, FALSE, 'a', 2, 1, 1, 1, DB_SET);
-    cget(FALSE, TRUE, 'c', 1, 1, 0, 0, DB_SET);
+    put(true, 'a', 1, 1);
+    cget(true, true, 'a', 1, 1, 1, 1, DB_SET);
+    cget(true, false, 'a', 2, 1, 1, 1, DB_SET);
+    cget(false, true, 'c', 1, 1, 0, 0, DB_SET);
     early_abort('a');
-    cget(TRUE, FALSE, 'c', 1, 1, 0, 0, DB_SET);
+    cget(true, false, 'c', 1, 1, 0, 0, DB_SET);
     close_dbs();
     /* ********************************************************************** */
 }
 
 static void
-test_both (u_int32_t db_flags) {
+test_both (uint32_t db_flags) {
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
-    cget(TRUE, FALSE, 'a', 2, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 2, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
-    cget(TRUE, FALSE, 'b', 2, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'b', 2, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
-    cget(TRUE, FALSE, 'b', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'b', 1, 1, 0, 0, db_flags);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 1, 1, 0, 0, db_flags);
-    cget(TRUE, FALSE, 'b', 1, 1, 0, 0, db_flags);
-    put(FALSE, 'a', 1, 1);
+    cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+    cget(true, false, 'b', 1, 1, 0, 0, db_flags);
+    put(false, 'a', 1, 1);
     early_commit('b');
-    put(TRUE, 'a', 1, 1);
-    cget(TRUE, TRUE, 'a', 1, 1, 1, 1, db_flags);
-    cget(TRUE, FALSE, 'a', 2, 1, 0, 0, db_flags);
-    cget(FALSE, TRUE, 'c', 1, 1, 0, 0, db_flags);
+    put(true, 'a', 1, 1);
+    cget(true, true, 'a', 1, 1, 1, 1, db_flags);
+    cget(true, false, 'a', 2, 1, 0, 0, db_flags);
+    cget(false, true, 'c', 1, 1, 0, 0, db_flags);
     early_commit('a');
-    cget(TRUE, TRUE, 'c', 1, 1, 1, 1, db_flags);
+    cget(true, true, 'c', 1, 1, 1, 1, db_flags);
     close_dbs();
 }
 
@@ -266,37 +266,37 @@ static void
 test_last (void) {
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 0, 0, 0, 0, DB_LAST);
-    put(FALSE, 'b', 2, 1);
-    put(TRUE, 'a', 2, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 2, 1, DB_LAST);
+    cget(true, false, 'a', 0, 0, 0, 0, DB_LAST);
+    put(false, 'b', 2, 1);
+    put(true, 'a', 2, 1);
+    cget(true, true, 'a', 0, 0, 2, 1, DB_LAST);
     early_commit('a');
-    put(TRUE, 'b', 2, 1);
+    put(true, 'b', 2, 1);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
-    put(FALSE, 'b', 2, 1);
-    put(TRUE, 'b', -1, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
+    put(true, 'a', 1, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_LAST);
+    put(false, 'b', 2, 1);
+    put(true, 'b', -1, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_LAST);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    put(TRUE, 'a', 3, 1);
-    put(TRUE, 'a', 6, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 6, 1, DB_LAST);
-    put(TRUE, 'b', 2, 1);
-    put(TRUE, 'b', 4, 1);
-    put(FALSE, 'b', 7, 1);
-    put(TRUE, 'b', -1, 1);
+    put(true, 'a', 1, 1);
+    put(true, 'a', 3, 1);
+    put(true, 'a', 6, 1);
+    cget(true, true, 'a', 0, 0, 6, 1, DB_LAST);
+    put(true, 'b', 2, 1);
+    put(true, 'b', 4, 1);
+    put(false, 'b', 7, 1);
+    put(true, 'b', -1, 1);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_LAST);
-    put(FALSE, 'b', 1, 0);
+    put(true, 'a', 1, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_LAST);
+    put(false, 'b', 1, 0);
     close_dbs();
 }
 
@@ -304,146 +304,146 @@ static void
 test_first (void) {
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', 0, 0, 0, 0, DB_FIRST);
-    put(FALSE, 'b', 2, 1);
-    put(TRUE, 'a', 2, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 2, 1, DB_FIRST);
+    cget(true, false, 'a', 0, 0, 0, 0, DB_FIRST);
+    put(false, 'b', 2, 1);
+    put(true, 'a', 2, 1);
+    cget(true, true, 'a', 0, 0, 2, 1, DB_FIRST);
     early_commit('a');
-    put(TRUE, 'b', 2, 1);
+    put(true, 'b', 2, 1);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
-    put(TRUE, 'b', 2, 1);
-    put(FALSE, 'b', -1, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
+    put(true, 'a', 1, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_FIRST);
+    put(true, 'b', 2, 1);
+    put(false, 'b', -1, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_FIRST);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    put(TRUE, 'a', 3, 1);
-    put(TRUE, 'a', 6, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
-    put(TRUE, 'b', 2, 1);
-    put(TRUE, 'b', 4, 1);
-    put(TRUE, 'b', 7, 1);
-    put(FALSE, 'b', -1, 1);
+    put(true, 'a', 1, 1);
+    put(true, 'a', 3, 1);
+    put(true, 'a', 6, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_FIRST);
+    put(true, 'b', 2, 1);
+    put(true, 'b', 4, 1);
+    put(true, 'b', 7, 1);
+    put(false, 'b', -1, 1);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, DB_FIRST);
-    put(FALSE, 'b', 1, 2);
+    put(true, 'a', 1, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, DB_FIRST);
+    put(false, 'b', 1, 2);
     close_dbs();
 }
 
 static void
-test_set_range (u_int32_t flag, int i) {
+test_set_range (uint32_t flag, int i) {
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'a', i*2, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'b', i*2, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'b', i*2, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'b', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'b', i*1, i*1, 0, 0, flag);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    cget(TRUE, FALSE, 'a', i*1, i*1, 0, 0, flag);
-    cget(TRUE, FALSE, 'b', i*5, i*5, 0, 0, flag);
-    put(FALSE, 'a', i*7, i*6);
-    put(FALSE, 'a', i*5, i*5);
-    put(TRUE,  'a', i*4, i*4);
-    put(TRUE,  'b', -i*1, i*4);
-    put(FALSE,  'b', i*2, i*4);
-    put(FALSE, 'a', i*5, i*4);
+    cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+    cget(true, false, 'b', i*5, i*5, 0, 0, flag);
+    put(false, 'a', i*7, i*6);
+    put(false, 'a', i*5, i*5);
+    put(true,  'a', i*4, i*4);
+    put(true,  'b', -i*1, i*4);
+    put(false,  'b', i*2, i*4);
+    put(false, 'a', i*5, i*4);
     early_commit('b');
-    put(TRUE, 'a', i*7, i*6);
-    put(TRUE, 'a', i*5, i*5);
-    put(TRUE,  'a', i*4, i*4);
-    put(TRUE, 'a', i*5, i*4);
-    cget(TRUE, TRUE, 'a', i*1, i*1, i*4, i*4, flag);
-    cget(TRUE, TRUE, 'a', i*2, i*1, i*4, i*4, flag);
-    cget(FALSE, TRUE, 'c', i*6, i*6, i*7, i*6, flag);
+    put(true, 'a', i*7, i*6);
+    put(true, 'a', i*5, i*5);
+    put(true,  'a', i*4, i*4);
+    put(true, 'a', i*5, i*4);
+    cget(true, true, 'a', i*1, i*1, i*4, i*4, flag);
+    cget(true, true, 'a', i*2, i*1, i*4, i*4, flag);
+    cget(false, true, 'c', i*6, i*6, i*7, i*6, flag);
     early_commit('a');
-    cget(TRUE, TRUE, 'c', i*6, i*6, i*7, i*6, flag);
+    cget(true, true, 'c', i*6, i*6, i*7, i*6, flag);
     close_dbs();
 }
 
 static void
-test_next (u_int32_t next_type) {
+test_next (uint32_t next_type) {
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE,  'a', 2, 1);
-    put(TRUE,  'a', 5, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 2, 1, next_type);
-    put(FALSE, 'b', 2, 1);
-    put(TRUE,  'b', 4, 1);
-    put(FALSE, 'b', -1, 1);
-    cget(FALSE, TRUE, 'a', 0, 0, 4, 1, next_type);
+    put(true,  'a', 2, 1);
+    put(true,  'a', 5, 1);
+    cget(true, true, 'a', 0, 0, 2, 1, next_type);
+    put(false, 'b', 2, 1);
+    put(true,  'b', 4, 1);
+    put(false, 'b', -1, 1);
+    cget(false, true, 'a', 0, 0, 4, 1, next_type);
     early_commit('b');
-    cget(TRUE,  TRUE, 'a', 2, 1, 2, 1, DB_SET);
-    cget(TRUE,  TRUE, 'a', 0, 0, 4, 1, next_type);
-    cget(TRUE,  TRUE, 'a', 0, 0, 5, 1, next_type);
+    cget(true,  true, 'a', 2, 1, 2, 1, DB_SET);
+    cget(true,  true, 'a', 0, 0, 4, 1, next_type);
+    cget(true,  true, 'a', 0, 0, 5, 1, next_type);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
-    put(TRUE, 'a', 3, 1);
-    put(TRUE, 'a', 6, 1);
-    cget(TRUE, TRUE, 'a', 0, 0, 1, 1, next_type);
-    cget(TRUE, TRUE, 'a', 0, 0, 3, 1, next_type);
-    put(FALSE, 'b', 2, 1);
-    put(TRUE,  'b', 4, 1);
-    put(TRUE,  'b', 7, 1);
-    put(FALSE, 'b', -1, 1);
+    put(true, 'a', 1, 1);
+    put(true, 'a', 3, 1);
+    put(true, 'a', 6, 1);
+    cget(true, true, 'a', 0, 0, 1, 1, next_type);
+    cget(true, true, 'a', 0, 0, 3, 1, next_type);
+    put(false, 'b', 2, 1);
+    put(true,  'b', 4, 1);
+    put(true,  'b', 7, 1);
+    put(false, 'b', -1, 1);
     close_dbs();
 }
 
 static void
-test_prev (u_int32_t next_type) {
+test_prev (uint32_t next_type) {
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE,  'a', -2, -1);
-    put(TRUE,  'a', -5, -1);
-    cget(TRUE, TRUE, 'a', 0, 0, -2, -1, next_type);
-    put(FALSE, 'b', -2, -1);
-    put(TRUE,  'b', -4, -1);
-    put(FALSE, 'b', 1, -1);
-    cget(FALSE, TRUE, 'a', 0, 0, -4, -1, next_type);
+    put(true,  'a', -2, -1);
+    put(true,  'a', -5, -1);
+    cget(true, true, 'a', 0, 0, -2, -1, next_type);
+    put(false, 'b', -2, -1);
+    put(true,  'b', -4, -1);
+    put(false, 'b', 1, -1);
+    cget(false, true, 'a', 0, 0, -4, -1, next_type);
     early_commit('b');
-    cget(TRUE,  TRUE, 'a', -2, -1, -2, -1, DB_SET);
-    cget(TRUE,  TRUE, 'a', 0, 0, -4, -1, next_type);
-    cget(TRUE,  TRUE, 'a', 0, 0, -5, -1, next_type);
+    cget(true,  true, 'a', -2, -1, -2, -1, DB_SET);
+    cget(true,  true, 'a', 0, 0, -4, -1, next_type);
+    cget(true,  true, 'a', 0, 0, -5, -1, next_type);
     close_dbs();
     /* ****************************************** */
     setup_dbs();
-    put(TRUE, 'a', -1, -1);
-    put(TRUE, 'a', -3, -1);
-    put(TRUE, 'a', -6, -1);
-    cget(TRUE, TRUE, 'a', 0, 0, -1, -1, next_type);
-    cget(TRUE, TRUE, 'a', 0, 0, -3, -1, next_type);
-    put(FALSE, 'b', -2, -1);
-    put(TRUE,  'b', -4, -1);
-    put(TRUE,  'b', -7, -1);
-    put(FALSE, 'b', 1, -1);
+    put(true, 'a', -1, -1);
+    put(true, 'a', -3, -1);
+    put(true, 'a', -6, -1);
+    cget(true, true, 'a', 0, 0, -1, -1, next_type);
+    cget(true, true, 'a', 0, 0, -3, -1, next_type);
+    put(false, 'b', -2, -1);
+    put(true,  'b', -4, -1);
+    put(true,  'b', -7, -1);
+    put(false, 'b', 1, -1);
     close_dbs();
 }
 
@@ -453,32 +453,32 @@ test_dbdel (void) {
        has to be fixed in test_dbdel*/
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE, 'c', 1, 1);
+    put(true, 'c', 1, 1);
     early_commit('c');
-    dbdel(TRUE, TRUE, 'a', 1);
-    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_SET);
-    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_SET);
-    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_SET);
-    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_SET);
-    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_SET);
+    dbdel(true, true, 'a', 1);
+    cget(false, true, 'b', 1, 1, 1, 1, DB_SET);
+    cget(false, true, 'b', 1, 4, 1, 4, DB_SET);
+    cget(false, true, 'b', 1, 0, 1, 4, DB_SET);
+    cget(true, false, 'b', 0, 0, 0, 0, DB_SET);
+    cget(true, false, 'b', 2, 10, 2, 10, DB_SET);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    dbdel(TRUE, TRUE, 'a', 1);
-    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_SET);
-    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_SET);
-    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_SET);
-    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_SET);
-    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_SET);
+    dbdel(true, true, 'a', 1);
+    cget(false, true, 'b', 1, 1, 1, 1, DB_SET);
+    cget(false, true, 'b', 1, 4, 1, 4, DB_SET);
+    cget(false, true, 'b', 1, 0, 1, 4, DB_SET);
+    cget(true, false, 'b', 0, 0, 0, 0, DB_SET);
+    cget(true, false, 'b', 2, 10, 2, 10, DB_SET);
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE, 'c', 1, 1);
+    put(true, 'c', 1, 1);
     early_commit('c');
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
-    dbdel(FALSE, TRUE, 'a', 1);
-    dbdel(TRUE, TRUE, 'a', 2);
-    dbdel(TRUE, TRUE, 'a', 0);
+    cget(true,  true, 'b', 1, 1, 1, 1, DB_SET);
+    dbdel(false, true, 'a', 1);
+    dbdel(true, true, 'a', 2);
+    dbdel(true, true, 'a', 0);
     close_dbs();
 }
 
@@ -486,10 +486,10 @@ static void
 test_current (void) {
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
+    put(true, 'a', 1, 1);
     early_commit('a');
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_SET);
-    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_CURRENT);
+    cget(true,  true, 'b', 1, 1, 1, 1, DB_SET);
+    cget(true,  true, 'b', 1, 1, 1, 1, DB_CURRENT);
     close_dbs();
 }
 
@@ -526,7 +526,7 @@ test (void) {
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    put(TRUE, 'a', 1, 1);
+    put(true, 'a', 1, 1);
     close_dbs();
     /* ********************************************************************** */
     test_both( DB_SET);

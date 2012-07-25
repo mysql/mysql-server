@@ -13,9 +13,9 @@
 // internally to synchronize with begin checkpoint. callers
 // should not hold the multi operation lock.
 
-int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
+int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags);
 
-int locked_txn_commit(DB_TXN *txn, u_int32_t flags);
+int locked_txn_commit(DB_TXN *txn, uint32_t flags);
 
 int locked_txn_abort(DB_TXN *txn);
 

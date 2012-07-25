@@ -19,7 +19,7 @@ static DB_ENV* dbenv;
 static DBC*    cursors[(int)256];
 
 static void
-put(BOOL success, char txn, int _key, int _data) {
+put(bool success, char txn, int _key, int _data) {
     assert(txns[(int)txn]);
 
     int r;
@@ -36,7 +36,7 @@ put(BOOL success, char txn, int _key, int _data) {
 }
 
 static void
-init_txn (char name, u_int32_t flags) {
+init_txn (char name, uint32_t flags) {
     int r;
     assert(!txns[(int)name]);
     r = dbenv->txn_begin(dbenv, NULL, &txns[(int)name], DB_TXN_NOWAIT | flags);
@@ -98,8 +98,8 @@ setup_dbs (void) {
     r = dbenv->set_default_bt_compare(dbenv, int_dbt_cmp);
         CKERR(r);
 #endif
-    u_int32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
-    u_int32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
+    uint32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
+    uint32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
 	r = dbenv->open(dbenv, ENVDIR, env_open_flags | env_txn_flags, 0600);
         CKERR(r);
     
@@ -144,7 +144,7 @@ close_dbs(void) {
 
 
 static void
-table_scan(char txn, BOOL success) {
+table_scan(char txn, bool success) {
     int r;
     DBT key;
     DBT data;
@@ -165,7 +165,7 @@ table_scan(char txn, BOOL success) {
 }
 
 static void
-table_prelock(char txn, BOOL success) {
+table_prelock(char txn, bool success) {
     int r;
 #if defined USE_TDB && USE_TDB
     r = db->pre_acquire_table_lock(db,  txns[(int)txn]);
@@ -199,21 +199,21 @@ test (void) {
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
-    table_scan('0', TRUE);
-    table_prelock('a', TRUE);
-    put(TRUE, 'a', 0, 0);
+    table_scan('0', true);
+    table_prelock('a', true);
+    put(true, 'a', 0, 0);
     for (txn = 'b'; txn<'z'; txn++) {
-        table_scan(txn, FALSE);
+        table_scan(txn, false);
     }
     for (txn = '0'; txn<'9'; txn++) {
-        table_scan(txn, TRUE);
+        table_scan(txn, true);
     }
     early_commit('a');
     for (txn = 'b'; txn<'z'; txn++) {
-        table_scan(txn, TRUE);
+        table_scan(txn, true);
     }
     for (txn = '0'; txn<'9'; txn++) {
-        table_scan(txn, TRUE);
+        table_scan(txn, true);
     }
     close_dbs();
     /* ********************************************************************** */

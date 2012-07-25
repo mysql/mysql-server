@@ -5,11 +5,11 @@
 #include "includes.h"
 #include "test.h"
 
-u_int64_t clean_val = 0;
-u_int64_t dirty_val = 0;
+uint64_t clean_val = 0;
+uint64_t dirty_val = 0;
 
-BOOL check_me;
-BOOL flush_called;
+bool check_me;
+bool flush_called;
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -20,17 +20,17 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
         PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
   //usleep (5*1024*1024);
   // if the checkpoint is pending, assert that it is of what we made dirty
   if (check_me) {
-    flush_called = TRUE;
+    flush_called = true;
     assert(c);
     assert(e == &dirty_val);
     assert(v == &dirty_val);
@@ -43,7 +43,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
        void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
@@ -53,11 +53,11 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
   *dirtyp = 0;
   if (extraargs) {
       *value = &dirty_val;
-      *dirtyp = TRUE;
+      *dirtyp = true;
   }
   else {
       *value = &clean_val;
-      *dirtyp = FALSE;
+      *dirtyp = false;
   }
   *sizep = make_pair_attr(8);
   return 0;
@@ -74,12 +74,12 @@ cachetable_test (void) {
   CACHEFILE f1;
   r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-  BOOL doing_prefetch = FALSE;
+  bool doing_prefetch = false;
   CACHETABLE_WRITE_CALLBACK wc = def_write_callback(&dirty_val);
   wc.flush_callback = flush;
   r = toku_cachefile_prefetch(f1, make_blocknum(1), 1, wc, fetch, def_pf_req_callback, def_pf_callback, &dirty_val, &doing_prefetch);
   assert(doing_prefetch);
-  doing_prefetch = FALSE;
+  doing_prefetch = false;
   wc.write_extraargs = NULL;
   r = toku_cachefile_prefetch(f1, make_blocknum(2), 2, wc, fetch, def_pf_req_callback, def_pf_callback, NULL, &doing_prefetch);
   assert(doing_prefetch);
@@ -93,8 +93,8 @@ cachetable_test (void) {
   r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);
 
 
-  check_me = TRUE;
-  flush_called = FALSE;
+  check_me = true;
+  flush_called = false;
   r = toku_cachetable_end_checkpoint(
       ct, 
       NULL, 
@@ -103,12 +103,12 @@ cachetable_test (void) {
       );
   assert(r==0);
   assert(flush_called);
-  check_me = FALSE;
+  check_me = false;
   
 
 
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

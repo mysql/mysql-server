@@ -51,7 +51,7 @@ doit (void) {
     assert(r==0);
 
     // make a 1MB val
-    u_int32_t big_val_size = 1000000;
+    uint32_t big_val_size = 1000000;
     char* XCALLOC_N(big_val_size, big_val);
     DBT k,v;
     memset(&k, 0, sizeof(k));
@@ -77,7 +77,7 @@ doit (void) {
         node_internal,
         toku_cachetable_hash(t->ft->cf, node_internal),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node

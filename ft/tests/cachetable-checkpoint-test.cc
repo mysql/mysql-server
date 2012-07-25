@@ -22,10 +22,10 @@ static void flush(
     void *extraargs, 
     PAIR_ATTR size, 
     PAIR_ATTR* UU(new_size), 
-    BOOL write_me, 
-    BOOL keep_me, 
-    BOOL UU(for_checkpoint),
-        BOOL UU(is_clone)
+    bool write_me, 
+    bool keep_me, 
+    bool UU(for_checkpoint),
+        bool UU(is_clone)
     ) 
 {
     cf = cf; key = key; value = value; extraargs = extraargs; 
@@ -75,7 +75,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     int i;
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t hi = toku_cachetable_hash(f1, key);
+        uint32_t hi = toku_cachetable_hash(f1, key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
         r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc);
@@ -109,7 +109,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     // after the checkpoint, all of the items should be clean
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t hi = toku_cachetable_hash(f1, key);
+        uint32_t hi = toku_cachetable_hash(f1, key);
         void *v;
         r = toku_cachetable_maybe_get_and_pin(f1, key, hi, &v);
         if (r != 0) 
@@ -136,7 +136,7 @@ static void cachetable_checkpoint_test(int n, enum cachetable_dirty dirty) {
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0 );
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0 );
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

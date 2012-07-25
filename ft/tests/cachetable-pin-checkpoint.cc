@@ -21,19 +21,19 @@
 int64_t data[NUM_ELEMENTS];
 int64_t checkpointed_data[NUM_ELEMENTS];
 
-u_int32_t time_of_test;
-BOOL run_test;
+uint32_t time_of_test;
+bool run_test;
 
 static void 
 clone_callback(
     void* value_data, 
     void** cloned_value_data, 
     PAIR_ATTR* new_attr, 
-    BOOL UU(for_checkpoint), 
+    bool UU(for_checkpoint), 
     void* UU(write_extraargs)
     )
 {
-    new_attr->is_valid = FALSE;
+    new_attr->is_valid = false;
     int64_t* XMALLOC(data_val);
     *data_val = *(int64_t *)value_data;
     *cloned_value_data = data_val;   
@@ -49,10 +49,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL write_me,
-       BOOL keep_me,
-       BOOL checkpoint_me,
-        BOOL UU(is_clone)
+       bool write_me,
+       bool keep_me,
+       bool checkpoint_me,
+        bool UU(is_clone)
        ) {
     /* Do nothing */
     int64_t val_to_write = *(int64_t *)v;
@@ -72,7 +72,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k,
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value,
        void** UU(dd),
        PAIR_ATTR *sizep,
@@ -98,7 +98,7 @@ static void *test_time(void *arg) {
     if (time_of_test != 0) {
         usleep(time_of_test*1000*1000);
         if (verbose) printf("should now end test\n");
-        run_test = FALSE;
+        run_test = false;
     }
     if (verbose) printf("should be ending test now\n");
     return arg;
@@ -136,7 +136,7 @@ static void *move_numbers(void *arg) {
         long s1;
         CACHEKEY less_key;
         less_key.b = less;
-        u_int32_t less_fullhash = less;
+        uint32_t less_fullhash = less;
         enum cachetable_dirty less_dirty = CACHETABLE_DIRTY;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
@@ -148,7 +148,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
-            TRUE,
+            true,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -161,7 +161,7 @@ static void *move_numbers(void *arg) {
     
         CACHEKEY greater_key;
         greater_key.b = greater;
-        u_int32_t greater_fullhash = greater;
+        uint32_t greater_fullhash = greater;
         enum cachetable_dirty greater_dirty = CACHETABLE_DIRTY;
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
@@ -170,7 +170,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback, 
-            TRUE,
+            true,
             NULL,
             1, //num_dependent_pairs
             &f1,
@@ -195,7 +195,7 @@ static void *move_numbers(void *arg) {
             third = (random() % (num_possible_values)) + greater + 1;
             CACHEKEY third_key;
             third_key.b = third;
-            u_int32_t third_fullhash = third;
+            uint32_t third_fullhash = third;
             enum cachetable_dirty third_dirty = CACHETABLE_DIRTY;
             r = toku_cachetable_get_and_pin_with_dep_pairs(
                 f1,
@@ -204,7 +204,7 @@ static void *move_numbers(void *arg) {
                 &v1,
                 &s1,
                 wc, fetch, def_pf_req_callback, def_pf_callback,
-                TRUE,
+                true,
                 NULL,
                 1, //num_dependent_pairs
                 &f1,
@@ -242,7 +242,7 @@ static void *read_random_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback, 
-            FALSE,
+            false,
             NULL,
             NULL
             );
@@ -357,7 +357,7 @@ cachetable_test (void) {
     toku_pthread_t checkpoint_tid;
     toku_pthread_t move_tid[NUM_MOVER_THREADS];
     toku_pthread_t read_random_tid[NUM_MOVER_THREADS];
-    run_test = TRUE;
+    run_test = true;
 
     for (int i = 0; i < NUM_MOVER_THREADS; i++) {
         r = toku_pthread_create(&read_random_tid[i], NULL, read_random_numbers, NULL); 
@@ -388,7 +388,7 @@ cachetable_test (void) {
     }
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     
     sum_vals();

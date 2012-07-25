@@ -14,8 +14,8 @@
 // ENVDIR is defined in the Makefile
 
 typedef struct {
-    u_int32_t db_flags;
-    u_int32_t flags;
+    uint32_t db_flags;
+    uint32_t flags;
     int       r_expect;
     int       key;
     int       data;
@@ -23,7 +23,7 @@ typedef struct {
 
 typedef struct {
     PUT_TEST  put;
-    u_int32_t flags;
+    uint32_t flags;
     int       r_expect;
     int       key;
     int       data;
@@ -33,7 +33,7 @@ enum testtype {NONE=0, TGET=1, TPUT=2, SGET=3, SPUT=4, SPGET=5};
 
 typedef struct {
     enum testtype kind;
-    u_int32_t     flags;
+    uint32_t     flags;
     int           r_expect;
     int           key;
     int           data;
@@ -44,7 +44,7 @@ static DB_TXN *const null_txn = 0;
 static DB_ENV *dbenv;
 
 static void
-setup (u_int32_t flags) {
+setup (uint32_t flags) {
     int r;
 
     r = system("rm -rf " ENVDIR);
@@ -72,7 +72,7 @@ close_dbs (void) {
 }
 
 static void
-insert_bad_flags (DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
+insert_bad_flags (DB* db, uint32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;
@@ -84,7 +84,7 @@ insert_bad_flags (DB* db, u_int32_t flags, int r_expect, int keyint, int dataint
 }
 
 static void
-get_bad_flags (DB* db, u_int32_t flags, int r_expect, int keyint, int dataint) {
+get_bad_flags (DB* db, uint32_t flags, int r_expect, int keyint, int dataint) {
     DBT key;
     DBT data;
     int r;

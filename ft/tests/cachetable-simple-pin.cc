@@ -5,9 +5,9 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL foo;
-BOOL check_me;
-BOOL flush_called;
+bool foo;
+bool check_me;
+bool flush_called;
 
 //
 // This test verifies that get_and_pin takes a write lock on a PAIR.
@@ -22,16 +22,16 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
   //usleep (5*1024*1024);
   if (check_me) {
-    flush_called = TRUE;
+    flush_called = true;
     assert(c);
     assert(keep);
     assert(w);
@@ -42,7 +42,7 @@ static void kibbutz_work(void *fe_v)
 {
     CACHEFILE CAST_FROM_VOIDP(f1, fe_v);
     sleep(2);
-    foo = TRUE;
+    foo = true;
     int r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     assert(r==0);
     remove_background_job_from_cf(f1);    
@@ -65,16 +65,16 @@ run_test (void) {
     //long s2;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
-    foo = FALSE;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
+    foo = false;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert(foo);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 
     //now let's do a simple checkpoint test
     // first dirty the PAIR
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
 
     // now this should mark the pair for checkpoint
@@ -83,14 +83,14 @@ run_test (void) {
     //
     // now we pin the pair again, and verify in flush callback that the pair is being checkpointed
     //
-    check_me = TRUE;
-    flush_called = FALSE;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    check_me = true;
+    flush_called = false;
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert(flush_called);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 
     
-    check_me = FALSE;
+    check_me = false;
     r = toku_cachetable_end_checkpoint(
         ct, 
         NULL, 
@@ -101,7 +101,7 @@ run_test (void) {
     
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     
     

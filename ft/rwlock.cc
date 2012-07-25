@@ -74,7 +74,7 @@
  *        c) release mutex
  *        d) wait on the semaphore
  *        e) return success when the semaphore releases
- *     3) Otherwise set writer=TRUE, release mutex and return success.
+ *     3) Otherwise set writer=true, release mutex and return success.
  *
  * To unlock a read rwlock:
  *     1) Acquire mutex
@@ -90,7 +90,7 @@
  *            ii) return success
  *        b) Else if the first element is a writer
  *            i) pop the list
- *            ii) set writer to TRUE
+ *            ii) set writer to true
  *            iii) increment the semaphore
  *            iv) return success
  */

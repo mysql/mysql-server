@@ -9,7 +9,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #if defined(HAVE_MALLOC_H)
 # include <malloc.h>
 #elif defined(HAVE_SYS_MALLOC_H)

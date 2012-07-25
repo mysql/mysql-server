@@ -19,19 +19,19 @@ static const int max_basement_node_compressed_size = 64*1024;
 
 struct sub_block {
     void *uncompressed_ptr;
-    u_int32_t uncompressed_size;
+    uint32_t uncompressed_size;
 
     void *compressed_ptr;
-    u_int32_t compressed_size;         // real compressed size
-    u_int32_t compressed_size_bound;   // estimated compressed size
+    uint32_t compressed_size;         // real compressed size
+    uint32_t compressed_size_bound;   // estimated compressed size
 
-    u_int32_t xsum;                    // sub block checksum
+    uint32_t xsum;                    // sub block checksum
 };
 
 struct stored_sub_block {
-    u_int32_t uncompressed_size;
-    u_int32_t compressed_size;
-    u_int32_t xsum;
+    uint32_t uncompressed_size;
+    uint32_t compressed_size;
+    uint32_t xsum;
 };
 
 void sub_block_init(SUB_BLOCK);
@@ -79,11 +79,11 @@ struct compress_work {
 void
 compress_work_init(struct compress_work *w, enum toku_compression_method method, struct sub_block *sub_block);
 
-u_int32_t
+uint32_t
 compress_nocrc_sub_block(
     struct sub_block *sub_block,
     void* sb_compressed_ptr,
-    u_int32_t cs_bound,
+    uint32_t cs_bound,
     enum toku_compression_method method
     );
 
@@ -100,22 +100,22 @@ struct decompress_work {
     struct work base;
     void *compress_ptr;
     void *uncompress_ptr;
-    u_int32_t compress_size;
-    u_int32_t uncompress_size;
-    u_int32_t xsum;
+    uint32_t compress_size;
+    uint32_t uncompress_size;
+    uint32_t xsum;
     int error;
 };
 
 // initialize the decompression work
 void 
 decompress_work_init(struct decompress_work *dw,
-                     void *compress_ptr, u_int32_t compress_size,
-                     void *uncompress_ptr, u_int32_t uncompress_size,
-                     u_int32_t xsum);
+                     void *compress_ptr, uint32_t compress_size,
+                     void *uncompress_ptr, uint32_t uncompress_size,
+                     uint32_t xsum);
 
 // decompress one block
 int
-decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompress_ptr, u_int32_t uncompress_size, u_int32_t expected_xsum);
+decompress_sub_block(void *compress_ptr, uint32_t compress_size, void *uncompress_ptr, uint32_t uncompress_size, uint32_t expected_xsum);
 
 // decompress blocks until there is no more work to do
 void *

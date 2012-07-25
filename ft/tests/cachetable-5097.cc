@@ -8,10 +8,10 @@
 CACHEFILE f1;
 CACHEFILE f2;
 
-BOOL check_flush;
-BOOL dirty_flush_called;
-BOOL check_pe_callback;
-BOOL pe_callback_called;
+bool check_flush;
+bool dirty_flush_called;
+bool check_pe_callback;
+bool pe_callback_called;
 
 static int 
 pe_callback (
@@ -23,7 +23,7 @@ pe_callback (
 {
     *bytes_freed = make_pair_attr(1);
     if (check_pe_callback) {
-        pe_callback_called = TRUE;
+        pe_callback_called = true;
     }
     usleep(4*1024*1024);
     return 0;
@@ -38,13 +38,13 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-       BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+       bool UU(is_clone)
        ) {
     if (check_flush && w) {
-        dirty_flush_called = TRUE;
+        dirty_flush_called = true;
     }
 }
 
@@ -60,13 +60,13 @@ static void *f2_pin(void *arg) {
     // and we expect that to be enough so that the unpin does not invoke a partial eviction
     // This is just to ensure that the bug is being exercised
     //
-    check_pe_callback = TRUE;
-    r = toku_cachetable_get_and_pin(f2, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    check_pe_callback = true;
+    r = toku_cachetable_get_and_pin(f2, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert(r == 0);
     assert(pe_callback_called);
-    pe_callback_called = FALSE;
+    pe_callback_called = false;
     r = toku_cachetable_unpin(f2, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
-    check_pe_callback = FALSE;
+    check_pe_callback = false;
     assert(!pe_callback_called);
     assert(r == 0);
     
@@ -77,8 +77,8 @@ static void
 cachetable_test (void) {
     const int test_limit = 12;
     int r;
-    check_flush = FALSE;
-    dirty_flush_called = FALSE;
+    check_flush = false;
+    dirty_flush_called = false;
     
     CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
@@ -99,7 +99,7 @@ cachetable_test (void) {
     wc.flush_callback = flush;
     // pin and unpin a node 20 times, just to get clock count up
     for (int i = 0; i < 20; i++) {
-        r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+        r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
         assert(r == 0);
         r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
         assert(r == 0);
@@ -112,11 +112,11 @@ cachetable_test (void) {
     assert_zero(r);
 
     usleep(2*1024*1024);
-    check_flush = TRUE;
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); 
+    check_flush = true;
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); 
     assert(r == 0);
     assert(dirty_flush_called);
-    check_flush = FALSE;
+    check_flush = false;
 
     void *ret;
     r = toku_pthread_join(tid, &ret); 
@@ -124,7 +124,7 @@ cachetable_test (void) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f2, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f2, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 }
 

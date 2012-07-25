@@ -16,7 +16,7 @@ static int iter = 0;  // horrible technique, but quicker than putting in extra (
 
 
 static void
-checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
+checkpoint_test_1(uint32_t flags, uint32_t n, int snap_all) {
     if (verbose) { 
         printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
                __FILE__, __FUNCTION__, __LINE__, 
@@ -37,7 +37,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
     db_startup(&db_control, NULL);
     const int num_runs = 4;
     for (run = 0; run < num_runs; run++) {
-        u_int32_t i;
+        uint32_t i;
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, db_control.db, NULL);
         snapshot(&db_test, snap_all);
@@ -53,7 +53,7 @@ checkpoint_test_1(u_int32_t flags, u_int32_t n, int snap_all) {
 }
 
 static void
-checkpoint_test_2(u_int32_t flags, u_int32_t n) {
+checkpoint_test_2(uint32_t flags, uint32_t n) {
     if (verbose) { 
         printf("%s(%s):%d, n=0x%03x, checkpoint=%01x, flags=0x%05x\n", 
                __FILE__, __FUNCTION__, __LINE__, 
@@ -76,12 +76,12 @@ checkpoint_test_2(u_int32_t flags, u_int32_t n) {
     const int num_runs = 4;
     for (run = 0; run < num_runs; run++) {
 	iter = run;
-        u_int32_t i;
+        uint32_t i;
         for (i=0; i < n/2/num_runs; i++)
             insert_random(db_test.db, db_control.db, NULL);
 	r = compare_dbs(db_test.db, db_control.db);
 	assert(r==0);
-        snapshot(&db_test, TRUE);  // take checkpoint, insert into test db during checkpoint callback
+        snapshot(&db_test, true);  // take checkpoint, insert into test db during checkpoint callback
 	r = compare_dbs(db_test.db, db_control.db);
 	// test and control should be different 
 	assert(r!=0);
@@ -92,7 +92,7 @@ checkpoint_test_2(u_int32_t flags, u_int32_t n) {
     }
     // now close db_test via checkpoint callback (i.e. during checkpoint)
     iter = -1;  
-    snapshot(&db_test, TRUE);
+    snapshot(&db_test, true);
     db_shutdown(&db_control);
     env_shutdown();
 }
@@ -157,7 +157,7 @@ static void checkpoint_callback_2(void * extra) {
 int
 test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
-    u_int32_t n;
+    uint32_t n;
     int snap;
 
     n = 0;

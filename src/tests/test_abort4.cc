@@ -20,7 +20,7 @@ DB_ENV *env;
 DB *db;
 DB_TXN *null_txn = NULL;
 DB_TXN *txn;
-u_int32_t find_num;
+uint32_t find_num;
 
 long closemode = -1; // must be set to 0 or 1 on command line
 long logsize   = -2; // must be set to a number from -1 to 20 inclusive, on command line.
@@ -64,7 +64,7 @@ abort_txn(void) {
 }
 
 static void
-put(u_int32_t k, u_int32_t v) {
+put(uint32_t k, uint32_t v) {
     int r;
     DBT key,val;
 
@@ -74,13 +74,13 @@ put(u_int32_t k, u_int32_t v) {
 }
 
 static void
-test_insert_and_abort(u_int32_t num_to_insert) {
+test_insert_and_abort(uint32_t num_to_insert) {
     find_num = 0;
     
-    u_int32_t k;
-    u_int32_t v;
+    uint32_t k;
+    uint32_t v;
 
-    u_int32_t i;
+    uint32_t i;
     for (i=0; i < num_to_insert; i++) {
         k = htonl(i);
         v = htonl(i+num_to_insert);
@@ -90,11 +90,11 @@ test_insert_and_abort(u_int32_t num_to_insert) {
 }
 
 static void
-test_insert_and_abort_and_insert(u_int32_t num_to_insert) {
+test_insert_and_abort_and_insert(uint32_t num_to_insert) {
     test_insert_and_abort(num_to_insert); 
     find_num = num_to_insert / 2;
-    u_int32_t k, v;
-    u_int32_t i;
+    uint32_t k, v;
+    uint32_t i;
     int r;
     r=env->txn_begin(env, 0, &txn, 0); CKERR(r);
     r=db->pre_acquire_table_lock(db, txn); CKERR(r);
@@ -154,7 +154,7 @@ verify_and_tear_down(int close_first) {
     DBC *cursor;
     r=env->txn_begin(env, 0, &txn, 0); CKERR(r);
     r = db->cursor(db, txn, &cursor, 0); CKERR(r);
-    u_int32_t found = 0;
+    uint32_t found = 0;
     do {
         r = cursor->c_getf_next(cursor, 0, do_nothing, NULL);
         if (r==0) found++;
@@ -174,7 +174,7 @@ runtests(void) {
         abort_txn();
         verify_and_tear_down(close_first);
     } else {
-	u_int32_t n = 1<<logsize;
+	uint32_t n = 1<<logsize;
 	{
             if (verbose) {
                 printf("\t%s:%d-%s() close_first=%d n=%06x\n",

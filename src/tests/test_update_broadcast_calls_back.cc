@@ -43,9 +43,9 @@ static void cleanup (void) {
     { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
-static void run_test(BOOL is_resetting) {
+static void run_test(bool is_resetting) {
     DB *db;
-    u_int32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
+    uint32_t update_flags = is_resetting ? DB_IS_RESETTING_OP : 0;
     for (unsigned int i = 0;
          i < (sizeof(updates_called) / sizeof(updates_called[0])); ++i) {
         updates_called[i] = 0;
@@ -96,8 +96,8 @@ static void run_test(BOOL is_resetting) {
 int test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
     setup();
-    run_test(TRUE);
-    run_test(FALSE);
+    run_test(true);
+    run_test(false);
     cleanup();
     return 0;
 }

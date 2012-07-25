@@ -39,7 +39,7 @@ put (int _key, int _data) {
 }
 
 static void
-cget (u_int32_t flag, BOOL find, char txn, int _key, int _data) {
+cget (uint32_t flag, bool find, char txn, int _key, int _data) {
     assert(cursors[(int)txn]);
 
     int r;
@@ -63,7 +63,7 @@ cget (u_int32_t flag, BOOL find, char txn, int _key, int _data) {
         dbt_init(&data, &_data, sizeof(int));
         _data--;
     }
-    else assert(FALSE);
+    else assert(false);
     r = cursors[(int)txn]->c_get(cursors[(int)txn], &key, &data, flag);
     if (find) {
         CKERR(r);
@@ -119,8 +119,8 @@ setup_dbs (void) {
     /* Open/create primary */
     r = db_env_create(&dbenv, 0);
         CKERR(r);
-    u_int32_t env_txn_flags  = 0;
-    u_int32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
+    uint32_t env_txn_flags  = 0;
+    uint32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
 	r = dbenv->open(dbenv, ENVDIR, env_open_flags | env_txn_flags, 0600);
         CKERR(r);
     
@@ -162,8 +162,8 @@ test (void) {
         else         data = 1;
         setup_dbs();
         put(key, data);
-        cget(DB_SET,     TRUE, 'a', key, data);
-        cget(DB_CURRENT, TRUE, 'a', key, data);
+        cget(DB_SET,     true, 'a', key, data);
+        cget(DB_CURRENT, true, 'a', key, data);
         close_dbs();
     }
     /* ********************************************************************** */

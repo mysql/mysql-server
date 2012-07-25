@@ -28,7 +28,7 @@ static inline uint32_t toku__idlth_hash(toku_idlth* idlth, DICTIONARY_ID dict_id
 }
 
 static inline void toku__invalidate_scan(toku_idlth* idlth) {
-    idlth->iter_is_valid = FALSE;
+    idlth->iter_is_valid = false;
 }
 
 int toku_idlth_create(toku_idlth** pidlth) {
@@ -65,7 +65,7 @@ toku_lt_map* toku_idlth_find(toku_idlth* idlth, DICTIONARY_ID dict_id) {
 void toku_idlth_start_scan(toku_idlth* idlth) {
     assert(idlth);
     idlth->iter_curr = &idlth->iter_head;
-    idlth->iter_is_valid = TRUE;
+    idlth->iter_is_valid = true;
 }
 
 static inline toku_idlth_elt* toku__idlth_next(toku_idlth* idlth) {
@@ -161,13 +161,13 @@ static inline void toku__idlth_clear(toku_idlth* idlth, bool clean) {
 }
 
 void toku_idlth_clear(toku_idlth* idlth) {
-    toku__idlth_clear(idlth, TRUE);
+    toku__idlth_clear(idlth, true);
 }
 
 void toku_idlth_close(toku_idlth* idlth) {
     assert(idlth);
 
-    toku__idlth_clear(idlth, FALSE);
+    toku__idlth_clear(idlth, false);
     toku_free(idlth->buckets);
     toku_free(idlth);
 }

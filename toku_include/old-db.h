@@ -44,20 +44,20 @@ typedef struct yobi_dbt DBT;
 
 struct yobi_db {
   void *app_private;
-  int  (*close) (DB *, u_int32_t);
-  int  (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t);
-  int  (*del) (DB *, DB_TXN *, DBT *, u_int32_t);
-  int  (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t);
-  int  (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, u_int32_t);
+  int  (*close) (DB *, uint32_t);
+  int  (*cursor) (DB *, DB_TXN *, DBC **, uint32_t);
+  int  (*del) (DB *, DB_TXN *, DBT *, uint32_t);
+  int  (*get) (DB *, DB_TXN *, DBT *, DBT *, uint32_t);
+  int  (*key_range) (DB *, DB_TXN *, DBT *, DB_KEY_RANGE *, uint32_t);
   int  (*open) (DB *, DB_TXN *,
-		const char *, const char *, DBTYPE, u_int32_t, int);
-  int  (*put) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t);
-  int  (*remove) (DB *, const char *, const char *, u_int32_t);
-  int  (*rename) (DB *, const char *, const char *, const char *, u_int32_t);
+		const char *, const char *, DBTYPE, uint32_t, int);
+  int  (*put) (DB *, DB_TXN *, DBT *, DBT *, uint32_t);
+  int  (*remove) (DB *, const char *, const char *, uint32_t);
+  int  (*rename) (DB *, const char *, const char *, const char *, uint32_t);
   int  (*set_bt_compare) (DB *,
 			  int (*)(DB *, const DBT *, const DBT *));
-  int  (*set_flags)    (DB *, u_int32_t);
-  int  (*stat) (DB *, void *, u_int32_t);
+  int  (*set_flags)    (DB *, uint32_t);
+  int  (*stat) (DB *, void *, uint32_t);
 
   struct ydb_db_internal *i;
 };
@@ -70,48 +70,48 @@ enum {
 struct yobi_dbt {
   void	   *app_private;
   void     *data;
-  u_int32_t flags;
-  u_int32_t size;
-  u_int32_t ulen;
+  uint32_t flags;
+  uint32_t size;
+  uint32_t ulen;
 };
 struct yobi_db_txn {
-  int (*commit) (DB_TXN*, u_int32_t);
-  u_int32_t (*id) (DB_TXN *);
+  int (*commit) (DB_TXN*, uint32_t);
+  uint32_t (*id) (DB_TXN *);
   // internal stuff
   struct yobi_db_txn_internal *i;
 };
 struct yobi_dbc {
-  int (*c_get) (DBC *, DBT *, DBT *, u_int32_t);
+  int (*c_get) (DBC *, DBT *, DBT *, uint32_t);
   int (*c_close) (DBC *);
-  int (*c_del) (DBC *, u_int32_t);
+  int (*c_del) (DBC *, uint32_t);
   struct yobi_dbc_internal *i;
 };
 struct yobi_db_env {
   // Methods used by MYSQL
   void (*err) (const DB_ENV *, int, const char *, ...);
-  int  (*open) (DB_ENV *, const char *, u_int32_t, int);
-  int  (*close) (DB_ENV *, u_int32_t);
-  int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t);
+  int  (*open) (DB_ENV *, const char *, uint32_t, int);
+  int  (*close) (DB_ENV *, uint32_t);
+  int  (*txn_checkpoint) (DB_ENV *, uint32_t, uint32_t, uint32_t);
   int  (*log_flush) (DB_ENV *, const DB_LSN *);
   void (*set_errcall) (DB_ENV *, void (*)(const char *, char *));
   void (*set_errpfx) (DB_ENV *, const char *);
   void (*set_noticecall) (DB_ENV *, void (*)(DB_ENV *, db_notices));
-  int  (*set_flags) (DB_ENV *, u_int32_t, int);
+  int  (*set_flags) (DB_ENV *, uint32_t, int);
   int  (*set_data_dir) (DB_ENV *, const char *);
   int  (*set_tmp_dir) (DB_ENV *, const char *);
-  int  (*set_verbose) (DB_ENV *, u_int32_t, int);
-  int  (*set_lg_bsize) (DB_ENV *, u_int32_t);
+  int  (*set_verbose) (DB_ENV *, uint32_t, int);
+  int  (*set_lg_bsize) (DB_ENV *, uint32_t);
   int  (*set_lg_dir) (DB_ENV *, const char *);
-  int  (*set_lg_max) (DB_ENV *, u_int32_t);
-  int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int);
-  int  (*set_lk_detect) (DB_ENV *, u_int32_t);
-  int  (*set_lk_max) (DB_ENV *, u_int32_t);
-  int  (*log_archive) (DB_ENV *, char **[], u_int32_t);
-  int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, u_int32_t);
+  int  (*set_lg_max) (DB_ENV *, uint32_t);
+  int  (*set_cachesize) (DB_ENV *, uint32_t, uint32_t, int);
+  int  (*set_lk_detect) (DB_ENV *, uint32_t);
+  int  (*set_lk_max) (DB_ENV *, uint32_t);
+  int  (*log_archive) (DB_ENV *, char **[], uint32_t);
+  int  (*txn_stat) (DB_ENV *, DB_TXN_STAT **, uint32_t);
 #ifdef _YDB_WRAP_H
 #undef txn_begin
 #endif
-  int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t);
+  int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, uint32_t);
 #ifdef _YDB_WRAP_H
 #define txn_begin txn_begin_ydb
 #endif
@@ -122,11 +122,11 @@ struct yobi_db_key_range {
   double less,equal,greater;
 };
 struct yobi_db_btree_stat {
-  u_int32_t bt_ndata;
-  u_int32_t bt_nkeys;
+  uint32_t bt_ndata;
+  uint32_t bt_nkeys;
 };
 struct yobi_db_txn_stat {
-  u_int32_t st_nactive;
+  uint32_t st_nactive;
   DB_TXN_ACTIVE *st_txnarray;
 };
 struct yobi_db_lsn {
@@ -134,7 +134,7 @@ struct yobi_db_lsn {
 };
 struct yobi_db_txn_active {
   DB_LSN	lsn;
-  u_int32_t	txnid;
+  uint32_t	txnid;
 };
 
 #ifndef _YDB_WRAP_H
@@ -179,11 +179,11 @@ enum {
   DB_INIT_TXN   = 0x008000
 };
 
-int db_create (DB **, DB_ENV *, u_int32_t);
-int db_env_create (DB_ENV **, u_int32_t);
+int db_create (DB **, DB_ENV *, uint32_t);
+int db_env_create (DB_ENV **, uint32_t);
 
-int txn_begin (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t);
-int txn_commit (DB_TXN *, u_int32_t);
+int txn_begin (DB_ENV *, DB_TXN *, DB_TXN **, uint32_t);
+int txn_commit (DB_TXN *, uint32_t);
 int txn_abort (DB_TXN *);
 
 int log_compare (const DB_LSN *, const DB_LSN *);

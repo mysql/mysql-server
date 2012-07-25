@@ -9,7 +9,6 @@
 
 #include <toku_portability.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 namespace toku {
 

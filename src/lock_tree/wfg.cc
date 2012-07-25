@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 #include "toku_assert.h"
 #include <ft/fttypes.h>
 #include "memory.h"
@@ -93,7 +92,7 @@ static struct wfg_node *
 wfg_find_node(struct wfg *wfg, TXNID id) {
     int r;
     OMTVALUE v;
-    u_int32_t idx;
+    uint32_t idx;
     r = toku_omt_find_zero(wfg->nodes, wfg_compare_nodes, &id, &v, &idx);
     struct wfg_node *node;
     if (r == DB_NOTFOUND)
@@ -114,7 +113,7 @@ static struct wfg_node *
 wfg_find_create_node(struct wfg *wfg, TXNID id) {
     int r;
     OMTVALUE v;
-    u_int32_t idx;
+    uint32_t idx;
     r = toku_omt_find_zero(wfg->nodes, wfg_compare_nodes, &id, &v, &idx);
     struct wfg_node *node;
     if (r == DB_NOTFOUND) {

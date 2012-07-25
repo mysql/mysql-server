@@ -124,7 +124,7 @@ get_engine_status_val(DB_ENV * UU(env), const char * keyname) {
 #endif
 
 static __attribute__((__unused__)) DBT *
-dbt_init(DBT *dbt, const void *data, u_int32_t size) {
+dbt_init(DBT *dbt, const void *data, uint32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = (void*)data;
     dbt->size = size;
@@ -146,12 +146,12 @@ dbt_init_realloc (DBT *dbt) {
 }
 
 // Simple LCG random number generator.  Not high quality, but good enough.
-static u_int32_t rstate=1;
+static uint32_t rstate=1;
 static inline void mysrandom (int s) {
     rstate=s;
 }
-static inline u_int32_t myrandom (void) {
-    rstate = (279470275ull*(u_int64_t)rstate)%4294967291ull;
+static inline uint32_t myrandom (void) {
+    rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
     return rstate;
 }
 
@@ -201,14 +201,6 @@ uint_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
     return 0;
 }
 
-#include <stdbool.h>
-#ifndef TRUE
-// typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
-#define TRUE true
-#define FALSE false
-typedef bool BOOL;
-#endif
-
 #ifdef USE_TDB
 #define SET_TRACE_FILE(x) toku_set_trace_file(x)
 #define CLOSE_TRACE_FILE(x) toku_close_trace_file()
@@ -221,7 +213,7 @@ typedef bool BOOL;
 
 unsigned int seed = 0xFEEDFACE;
 
-static u_int64_t __attribute__((__unused__))
+static uint64_t __attribute__((__unused__))
 random64(void) {
     static int seeded = 0;
     if (!seeded) {
@@ -229,10 +221,10 @@ random64(void) {
         srandom(seed);
     }
     //random() generates 31 bits of randomness (low order)
-    u_int64_t low     = random();
-    u_int64_t high    = random();
-    u_int64_t twobits = random();
-    u_int64_t ret     = low | (high<<31) | (twobits<<62); 
+    uint64_t low     = random();
+    uint64_t high    = random();
+    uint64_t twobits = random();
+    uint64_t ret     = low | (high<<31) | (twobits<<62); 
     return ret;
 }
 
@@ -283,14 +275,14 @@ void print_time_now(void) {
 //  divide by 0
 //  null dereference
 //  abort()
-//  assert(FALSE) (from <assert.h>)
-//  assert(FALSE) (from <toku_assert.h>)
+//  assert(false) (from <assert.h>)
+//  assert(false) (from <toku_assert.h>)
 //
 //Linux:
-//  abort() and both assert(FALSE) cause FILE buffers to be flushed and written to disk: Unacceptable
+//  abort() and both assert(false) cause FILE buffers to be flushed and written to disk: Unacceptable
 //Windows:
 //  None of them cause file buffers to be flushed/written to disk, however
-//  abort(), assert(FALSE) <assert.h>, null dereference, and divide by 0 cause popups requiring user intervention during tests: Unacceptable
+//  abort(), assert(false) <assert.h>, null dereference, and divide by 0 cause popups requiring user intervention during tests: Unacceptable
 //
 //kill -SIGKILL $pid is annoying (and so far untested)
 //

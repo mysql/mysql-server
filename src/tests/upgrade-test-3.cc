@@ -61,7 +61,7 @@ static void upgrade_test_3(DB **dbs) {
 	CKERR(r);
 
 	// truncate the tree
-	u_int32_t row_count = 0;
+	uint32_t row_count = 0;
 	r = dbs[i]->truncate(dbs[i], 0, &row_count, 0); assert(r == 0);
 
 	// walk the tree - expect 0 rows

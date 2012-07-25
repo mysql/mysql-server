@@ -7,9 +7,9 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL check_flush;
-BOOL expect_full_flush;
-BOOL expect_pe;
+bool check_flush;
+bool expect_full_flush;
+bool expect_pe;
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -20,10 +20,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
     assert(expect_full_flush);
     sleep(2);
@@ -35,7 +35,7 @@ static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
-       u_int32_t fullhash __attribute__((__unused__)),
+       uint32_t fullhash __attribute__((__unused__)),
        void **value       __attribute__((__unused__)),
        void** UU(dd),
        PAIR_ATTR *sizep        __attribute__((__unused__)),
@@ -76,7 +76,7 @@ static void cachetable_eviction_full_test (void) {
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     CACHEKEY key = make_blocknum(0);
-    u_int32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
+    uint32_t fullhash = toku_cachetable_hash(f1, make_blocknum(0));
 
     void* value1;
     long size1;
@@ -100,14 +100,14 @@ static void cachetable_eviction_full_test (void) {
             fetch,
             def_pf_req_callback,
             def_pf_callback,
-            TRUE, 
+            true, 
             0
             );
         assert(r==0);
         r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(1));
         assert(r == 0);
     }
-    expect_full_flush = TRUE;
+    expect_full_flush = true;
     // now pin a different, causing an eviction
     wc.flush_callback = def_flush;
     wc.pe_est_callback = pe_est_callback;
@@ -121,7 +121,7 @@ static void cachetable_eviction_full_test (void) {
         fetch,
         def_pf_req_callback,
         def_pf_callback,
-        TRUE, 
+        true, 
         0
         );
     assert(r==0);
@@ -131,7 +131,7 @@ static void cachetable_eviction_full_test (void) {
 
     // close with the eviction in progress. the close should block until
     // all of the reads and writes are complete.
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

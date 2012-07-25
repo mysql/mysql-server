@@ -21,8 +21,8 @@ enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 CACHETABLE ct;
 FT_HANDLE t;
 
-BOOL checkpoint_called;
-BOOL checkpoint_callback_called;
+bool checkpoint_called;
+bool checkpoint_callback_called;
 toku_pthread_t checkpoint_tid;
 
 
@@ -39,11 +39,11 @@ static void merge_should_not_happen(struct flusher_advice* UU(fa),
                               FTNODE UU(child),
                               void* UU(extra))
 {
-    assert(FALSE);
+    assert(false);
 }
 
 static bool recursively_flush_should_not_happen(FTNODE UU(child), void* UU(extra)) {
-    assert(FALSE);
+    assert(false);
 }
 
 static int child_to_flush(FT UU(h), FTNODE parent, void* UU(extra)) {
@@ -58,7 +58,7 @@ static void dummy_update_status(FTNODE UU(child), int UU(dirtied), void* UU(extr
 
 static void checkpoint_callback(void* UU(extra)) {
     usleep(1*1024*1024);
-    checkpoint_callback_called = TRUE;
+    checkpoint_callback_called = true;
 }
 
 
@@ -73,13 +73,13 @@ static void *do_checkpoint(void *arg) {
 
 
 static void flusher_callback(int state, void* extra) {
-    BOOL after_split = *(BOOL *)extra;
+    bool after_split = *(bool *)extra;
     if (verbose) {
         printf("state %d\n", state);
     }
     if ((state == flt_flush_before_split && !after_split) ||
         (state == flt_flush_during_split && after_split)) {
-        checkpoint_called = TRUE;
+        checkpoint_called = true;
         int r = toku_pthread_create(&checkpoint_tid, NULL, do_checkpoint, NULL); 
         assert_zero(r);
         while (!checkpoint_callback_called) {
@@ -89,12 +89,12 @@ static void flusher_callback(int state, void* extra) {
 }
 
 static void
-doit (BOOL after_split) {
+doit (bool after_split) {
     BLOCKNUM node_leaf, node_root;
 
     int r;
-    checkpoint_called = FALSE;
-    checkpoint_callback_called = FALSE;
+    checkpoint_called = false;
+    checkpoint_callback_called = false;
 
     toku_flusher_thread_set_callback(flusher_callback, &after_split);
     
@@ -163,7 +163,7 @@ doit (BOOL after_split) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -181,7 +181,7 @@ doit (BOOL after_split) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -220,7 +220,7 @@ doit (BOOL after_split) {
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
-        TRUE, 
+        true, 
         0,
         NULL,
         &node
@@ -248,7 +248,7 @@ doit (BOOL after_split) {
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
-            TRUE, 
+            true, 
             0,
             NULL,
             &node
@@ -264,7 +264,7 @@ doit (BOOL after_split) {
             right_child,
             toku_cachetable_hash(c_ft->ft->cf, right_child),
             &bfe,
-            TRUE, 
+            true, 
             0,
             NULL,
             &node
@@ -281,7 +281,7 @@ doit (BOOL after_split) {
             left_child,
             toku_cachetable_hash(c_ft->ft->cf, left_child),
             &bfe,
-            TRUE, 
+            true, 
             0,
             NULL,
             &node
@@ -311,7 +311,7 @@ doit (BOOL after_split) {
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     default_parse_args(argc, argv);
-    doit(FALSE);
-    doit(TRUE);
+    doit(false);
+    doit(true);
     return 0;
 }

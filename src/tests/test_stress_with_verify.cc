@@ -36,9 +36,9 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     }
     // make the forward fast scanner
     struct scan_op_extra soe;
-    soe.fast = TRUE;
-    soe.fwd = TRUE;
-    soe.prefetch = FALSE;
+    soe.fast = true;
+    soe.fwd = true;
+    soe.prefetch = false;
     myargs[0].operation_extra = &soe;
     myargs[0].lock_type = STRESS_LOCK_SHARED;
     myargs[0].operation = scan_op;

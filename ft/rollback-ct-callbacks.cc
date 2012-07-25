@@ -26,7 +26,7 @@ rollback_log_destroy(ROLLBACK_LOG_NODE log) {
 // On success return nbytes.
 void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
                                           void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
-                                          BOOL write_me, BOOL keep_me, BOOL for_checkpoint, BOOL UU(is_clone)) {
+                                          bool write_me, bool keep_me, bool for_checkpoint, bool UU(is_clone)) {
     int r;
     ROLLBACK_LOG_NODE  CAST_FROM_VOIDP(log, rollback_v);
     FT CAST_FROM_VOIDP(h, extraargs);
@@ -53,7 +53,7 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
     }
 }
 
-int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
+int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, uint32_t fullhash,
                                  void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
     FT CAST_FROM_VOIDP(h, extraargs);
@@ -94,15 +94,15 @@ int toku_rollback_pe_callback (
 }
 
 // partial fetch is never required for a rollback log node
-BOOL toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
-    return FALSE;
+bool toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
+    return false;
 }
 
 // a rollback node should never be partial fetched, 
 // because we always say it is not required.
 // (pf req callback always returns false)
 int toku_rollback_pf_callback(void* UU(ftnode_pv),  void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep)) {
-    assert(FALSE);
+    assert(false);
     return 0;
 }
 
@@ -110,11 +110,11 @@ int toku_rollback_pf_callback(void* UU(ftnode_pv),  void* UU(disk_data), void* U
 int toku_rollback_cleaner_callback (
     void* UU(ftnode_pv),
     BLOCKNUM UU(blocknum),
-    u_int32_t UU(fullhash),
+    uint32_t UU(fullhash),
     void* UU(extraargs)
     )
 {
-    assert(FALSE);
+    assert(false);
     return 0;
 }
 

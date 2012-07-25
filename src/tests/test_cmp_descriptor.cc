@@ -11,9 +11,9 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 
 DB_ENV *env;
 
-BOOL cmp_desc_is_four;
-u_int32_t four_byte_desc = 0xffffffff;
-u_int64_t eight_byte_desc = 0x12345678ffffffff;
+bool cmp_desc_is_four;
+uint32_t four_byte_desc = 0xffffffff;
+uint64_t eight_byte_desc = 0x12345678ffffffff;
 
 
 static int generate_row_for_put(
@@ -49,11 +49,11 @@ static void assert_cmp_desc_valid (DB* db) {
 
 static void assert_desc_four (DB* db) {
     assert(db->descriptor->dbt.size == sizeof(four_byte_desc));
-    assert(*(u_int32_t *)(db->descriptor->dbt.data) == four_byte_desc);
+    assert(*(uint32_t *)(db->descriptor->dbt.data) == four_byte_desc);
 }
 static void assert_desc_eight (DB* db) {
     assert(db->descriptor->dbt.size == sizeof(eight_byte_desc));
-    assert(*(u_int64_t *)(db->descriptor->dbt.data) == eight_byte_desc);
+    assert(*(uint64_t *)(db->descriptor->dbt.data) == eight_byte_desc);
 }
 
 static int
@@ -95,8 +95,8 @@ static void do_inserts_and_queries(DB* db) {
     r = env->txn_begin(env, NULL, &write_txn, 0);
     CKERR(r);
     for (int i = 0; i < 2000; i++) {
-        u_int64_t key_data = random();
-        u_int64_t val_data = random();
+        uint64_t key_data = random();
+        uint64_t val_data = random();
         DBT key, val;
         dbt_init(&key, &key_data, sizeof(key_data));
         dbt_init(&val, &val_data, sizeof(val_data));
@@ -136,7 +136,7 @@ static void do_inserts_and_queries(DB* db) {
 static void run_test(void) {
     DB* db = NULL;
     int r;
-    cmp_desc_is_four = TRUE;
+    cmp_desc_is_four = true;
 
     DBT orig_desc;
     memset(&orig_desc, 0, sizeof(orig_desc));
@@ -150,8 +150,8 @@ static void run_test(void) {
 
     DB_LOADER *loader = NULL;    
     DBT key, val;
-    u_int64_t k = 0;
-    u_int64_t v = 0;
+    uint64_t k = 0;
+    uint64_t v = 0;
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
             { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
             assert(db->descriptor == NULL);
@@ -200,7 +200,7 @@ static void run_test(void) {
 
     // verify that after close and reopen, cmp_descriptor is now
     // latest descriptor
-    cmp_desc_is_four = FALSE;
+    cmp_desc_is_four = false;
     { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
     { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
     assert_desc_eight(db);
@@ -208,7 +208,7 @@ static void run_test(void) {
     do_inserts_and_queries(db);
     { int chk_r = db->close(db, 0); CKERR(chk_r); }
 
-    cmp_desc_is_four = TRUE;
+    cmp_desc_is_four = true;
     { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
     { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {

@@ -22,8 +22,8 @@ static DB_ENV *env = NULL;
 static DB_TXN *txn_a = NULL;
 static DB_TXN *txn_b = NULL;
 static DB *db = NULL;
-static u_int32_t db_page_size = 4096;
-// static u_int32_t db_basement_size = 4096;
+static uint32_t db_page_size = 4096;
+// static uint32_t db_basement_size = 4096;
 static const char *envdir = ENVDIR;
 
 static int 
@@ -82,8 +82,8 @@ run_test(void) {
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
     DB_LOADER *loader = NULL;
     r = env->create_loader(env, txn, &loader, db, 1, &db, NULL, NULL, 0); CKERR(r);
-    for (u_int64_t i = 0; i < 5; i++) {
-        u_int64_t key = i;
+    for (uint64_t i = 0; i < 5; i++) {
+        uint64_t key = i;
         char val[800]; memset(val, 0, sizeof val);
         DBT k,v;
         r = loader->put(loader, dbt_init(&k, &key, sizeof key), dbt_init(&v, val, sizeof val)); CKERR(r);
@@ -97,8 +97,8 @@ run_test(void) {
 
     // delete the keys in the first leaf node
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    for (u_int64_t i = 0; i < 3; i++) {
-        u_int64_t key = i;
+    for (uint64_t i = 0; i < 3; i++) {
+        uint64_t key = i;
         DBT k;
         r = db->del(db, txn, dbt_init(&k, &key, sizeof key), 0); CKERR(r);
     }

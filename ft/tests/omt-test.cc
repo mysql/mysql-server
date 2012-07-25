@@ -43,7 +43,7 @@ parse_args (int argc, const char *argv[]) {
 /* End ".h like" stuff. */
 
 struct value {
-    u_int32_t number;
+    uint32_t number;
 };
 #define V(x) ((struct value *)(x))
 
@@ -67,7 +67,7 @@ enum create_type {
 OMT omt;
 TESTVALUE*       values = NULL;
 struct value*   nums   = NULL;
-u_int32_t       length;
+uint32_t       length;
 
 static void
 cleanup_globals (void) {
@@ -82,7 +82,7 @@ cleanup_globals (void) {
 const unsigned int random_seed = 0xFEADACBA;
 
 static void
-init_init_values (unsigned int seed, u_int32_t num_elements) {
+init_init_values (unsigned int seed, uint32_t num_elements) {
     srandom(seed);
 
     cleanup_globals();
@@ -95,8 +95,8 @@ init_init_values (unsigned int seed, u_int32_t num_elements) {
 }
 
 static void
-init_identity_values (unsigned int seed, u_int32_t num_elements) {
-    u_int32_t   i;
+init_identity_values (unsigned int seed, uint32_t num_elements) {
+    uint32_t   i;
 
     init_init_values(seed, num_elements);
 
@@ -107,27 +107,27 @@ init_identity_values (unsigned int seed, u_int32_t num_elements) {
 }
 
 static void
-init_distinct_sorted_values (unsigned int seed, u_int32_t num_elements) {
-    u_int32_t   i;
+init_distinct_sorted_values (unsigned int seed, uint32_t num_elements) {
+    uint32_t   i;
 
     init_init_values(seed, num_elements);
 
-    u_int32_t number = 0;
+    uint32_t number = 0;
 
     for (i = 0; i < length; i++) {
-        number          += (u_int32_t)(random() % 32) + 1;
+        number          += (uint32_t)(random() % 32) + 1;
         nums[i].number   = number;
         values[i]        = (TESTVALUE)&nums[i];
     }
 }
 
 static void
-init_distinct_random_values (unsigned int seed, u_int32_t num_elements) {
+init_distinct_random_values (unsigned int seed, uint32_t num_elements) {
     init_distinct_sorted_values(seed, num_elements);
 
-    u_int32_t   i;
-    u_int32_t   choice;
-    u_int32_t   choices;
+    uint32_t   i;
+    uint32_t   choice;
+    uint32_t   choices;
     struct value temp;
     for (i = 0; i < length - 1; i++) {
         choices = length - i;
@@ -177,9 +177,9 @@ test_create_size (enum close_when_done do_close) {
 
 static void
 test_create_insert_at_almost_random (enum close_when_done do_close) {
-    u_int32_t i;
+    uint32_t i;
     int r;
-    u_int32_t size = 0;
+    uint32_t size = 0;
 
     test_create(KEEP_WHEN_DONE);
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+1);
@@ -205,9 +205,9 @@ test_create_insert_at_almost_random (enum close_when_done do_close) {
 
 static void
 test_create_insert_at_sequential (enum close_when_done do_close) {
-    u_int32_t i;
+    uint32_t i;
     int r;
-    u_int32_t size = 0;
+    uint32_t size = 0;
 
     test_create(KEEP_WHEN_DONE);
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+1);
@@ -250,7 +250,7 @@ test_create_from_sorted_array (enum create_type create_choice, enum close_when_d
     else if (create_choice == INSERT_AT_ALMOST_RANDOM) {
         test_create_insert_at_almost_random(KEEP_WHEN_DONE);
     }
-    else assert(FALSE);
+    else assert(false);
 
     assert(omt!=NULL);
     test_close(do_close);
@@ -264,8 +264,8 @@ test_create_from_sorted_array_size (enum create_type create_choice, enum close_w
 }    
 
 static void
-test_fetch_verify (OMT omtree, TESTVALUE* val, u_int32_t len ) {
-    u_int32_t i;
+test_fetch_verify (OMT omtree, TESTVALUE* val, uint32_t len ) {
+    uint32_t i;
     int r;
     TESTVALUE v = (TESTVALUE)&i;
     TESTVALUE oldv = v;
@@ -302,7 +302,7 @@ test_create_fetch_verify (enum create_type create_choice, enum close_when_done d
 static int iterate_helper_error_return = 1;
 
 static int
-iterate_helper (TESTVALUE v, u_int32_t idx, void* extra) {
+iterate_helper (TESTVALUE v, uint32_t idx, void* extra) {
     if (extra == NULL) return iterate_helper_error_return;
     TESTVALUE* vals = (TESTVALUE *)extra;
     assert(v != NULL);
@@ -312,7 +312,7 @@ iterate_helper (TESTVALUE v, u_int32_t idx, void* extra) {
 }
 
 static void
-test_iterate_verify (OMT omtree, TESTVALUE* vals, u_int32_t len) {
+test_iterate_verify (OMT omtree, TESTVALUE* vals, uint32_t len) {
     int r;
     iterate_helper_error_return = 0;
     r = toku_omt_iterate(omtree, iterate_helper, (void*)vals);
@@ -336,19 +336,19 @@ test_create_iterate_verify (enum create_type create_choice, enum close_when_done
 
 
 static void
-permute_array (u_int32_t* arr, u_int32_t len) {
+permute_array (uint32_t* arr, uint32_t len) {
     //
     // create a permutation of 0...size-1
     //
-    u_int32_t i = 0;
+    uint32_t i = 0;
     for (i = 0; i < len; i++) {
         arr[i] = i;
     }
     for (i = 0; i < len - 1; i++) {
-        u_int32_t choices = len - i;
-        u_int32_t choice  = random() % choices;
+        uint32_t choices = len - i;
+        uint32_t choice  = random() % choices;
         if (choice != i) {
-            u_int32_t temp = arr[i];
+            uint32_t temp = arr[i];
             arr[i]      = arr[choice];
             arr[choice] = temp;
         }
@@ -357,13 +357,13 @@ permute_array (u_int32_t* arr, u_int32_t len) {
 
 static void
 test_create_set_at (enum create_type create_choice, enum close_when_done do_close) {
-    u_int32_t i = 0;
+    uint32_t i = 0;
 
     struct value*   old_nums   = NULL;
     MALLOC_N(length, old_nums);
     assert(nums);
 
-    u_int32_t* perm = NULL;
+    uint32_t* perm = NULL;
     MALLOC_N(length, perm);
     assert(perm);
 
@@ -388,9 +388,9 @@ test_create_set_at (enum create_type create_choice, enum close_when_done do_clos
     r = toku_omt_set_at (omt, values[0], length+1);
     CKERR2(r,EINVAL);    
     for (i = 0; i < length; i++) {
-        u_int32_t choice = perm[i];
+        uint32_t choice = perm[i];
         values[choice] = &nums[choice];
-        nums[choice].number = (u_int32_t)random();
+        nums[choice].number = (uint32_t)random();
         r = toku_omt_set_at (omt, values[choice], choice);
         CKERR(r);
         test_iterate_verify(omt, values, length);
@@ -420,9 +420,9 @@ insert_helper (TESTVALUE value, void* extra_insert) {
 
 static void
 test_create_insert (enum close_when_done do_close) {
-    u_int32_t i = 0;
+    uint32_t i = 0;
 
-    u_int32_t* perm = NULL;
+    uint32_t* perm = NULL;
     MALLOC_N(length, perm);
     assert(perm);
 
@@ -430,12 +430,12 @@ test_create_insert (enum close_when_done do_close) {
 
     test_create(KEEP_WHEN_DONE);
     int r;
-    u_int32_t size = length;
+    uint32_t size = length;
     length = 0;
     while (length < size) {
-        u_int32_t choice = perm[length];
+        uint32_t choice = perm[length];
         TESTVALUE to_insert = &nums[choice];
-        u_int32_t idx = UINT32_MAX;
+        uint32_t idx = UINT32_MAX;
 
         assert(length==toku_omt_size(omt));
         r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
@@ -475,7 +475,7 @@ test_create_insert (enum close_when_done do_close) {
 
 static void
 test_create_delete_at (enum create_type create_choice, enum close_when_done do_close) {
-    u_int32_t i = 0;
+    uint32_t i = 0;
     int r = ENOSYS;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
@@ -487,7 +487,7 @@ test_create_delete_at (enum create_type create_choice, enum close_when_done do_c
     CKERR2(r,EINVAL);
     while (length > 0) {
         assert(length == toku_omt_size(omt));
-        u_int32_t index_to_delete = random()%length;
+        uint32_t index_to_delete = random()%length;
         r = toku_omt_delete_at(omt, index_to_delete);
         CKERR(r);
         for (i = index_to_delete+1; i < length; i++) {
@@ -510,7 +510,7 @@ test_create_delete_at (enum create_type create_choice, enum close_when_done do_c
 static void
 test_split_merge (enum create_type create_choice, enum close_when_done do_close) {
     int r = ENOSYS;
-    u_int32_t i = 0;
+    uint32_t i = 0;
     OMT left_split = NULL;
     OMT right_split = NULL;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
@@ -571,7 +571,7 @@ test_split_merge (enum create_type create_choice, enum close_when_done do_close)
 
 static void
 init_values (enum rand_type rand_choice) {
-    const u_int32_t test_size = 100;
+    const uint32_t test_size = 100;
     if (rand_choice == TEST_RANDOM) {
         init_distinct_random_values(random_seed, test_size);
     }
@@ -581,7 +581,7 @@ init_values (enum rand_type rand_choice) {
     else if (rand_choice == TEST_IDENTITY) {
         init_identity_values(       random_seed, test_size);
     }
-    else assert(FALSE);
+    else assert(false);
 }
 
 static void
@@ -611,8 +611,8 @@ test_create_array (enum create_type create_choice, enum rand_type rand_choice) {
 }
 
 typedef struct {
-    u_int32_t first_zero;
-    u_int32_t first_pos;
+    uint32_t first_zero;
+    uint32_t first_pos;
 } h_extra;
 
 
@@ -623,24 +623,24 @@ test_heaviside (OMTVALUE v_omt, void* x) {
     assert(v && x);
     assert(extra->first_zero <= extra->first_pos);
 
-    u_int32_t value = V(v)->number;
+    uint32_t value = V(v)->number;
     if (value < extra->first_zero) return -1;
     if (value < extra->first_pos) return 0;
     return 1;
 }
 
 static void
-heavy_extra (h_extra* extra, u_int32_t first_zero, u_int32_t first_pos) {
+heavy_extra (h_extra* extra, uint32_t first_zero, uint32_t first_pos) {
     extra->first_zero = first_zero;
     extra->first_pos  = first_pos;
 }
 
 static void
 test_find_dir (int dir, void* extra, int (*h)(OMTVALUE, void*),
-	       int r_expect, BOOL idx_will_change, u_int32_t idx_expect,
-	       u_int32_t number_expect, BOOL UU(cursor_valid)) {
-    u_int32_t idx     = UINT32_MAX;
-    u_int32_t old_idx = idx;
+	       int r_expect, bool idx_will_change, uint32_t idx_expect,
+	       uint32_t number_expect, bool UU(cursor_valid)) {
+    uint32_t idx     = UINT32_MAX;
+    uint32_t old_idx = idx;
     TESTVALUE omt_val;
     int r;
 
@@ -707,9 +707,9 @@ test_find (enum create_type create_choice, enum close_when_done do_close) {
         A
 */
     heavy_extra(&extra, length, length);
-    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE,  length-1, length-1, TRUE);
-    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,        0,        FALSE);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE,  length,   length,   FALSE);
+    test_find_dir(-1, &extra, test_heaviside, 0,           true,  length-1, length-1, true);
+    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, false, 0,        0,        false);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true,  length,   length,   false);
 
 
 /*
@@ -717,54 +717,54 @@ test_find (enum create_type create_choice, enum close_when_done do_close) {
     B
 */
     heavy_extra(&extra, 0, 0);
-    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0, FALSE);
-    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE,  0, 0, TRUE);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE,  0, 0, FALSE);
+    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, false, 0, 0, false);
+    test_find_dir(+1, &extra, test_heaviside, 0,           true,  0, 0, true);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true,  0, 0, false);
 
 /*
     0...0
     C
 */
     heavy_extra(&extra, 0, length);
-    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0, FALSE);
-    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0, 0, FALSE);
-    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  0, 0, TRUE);
+    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, false, 0, 0, false);
+    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, false, 0, 0, false);
+    test_find_dir(0,  &extra, test_heaviside, 0,           true,  0, 0, true);
 
 /*
     -...-0...0
         AC
 */
     heavy_extra(&extra, length/2, length);
-    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE,  length/2-1, length/2-1, TRUE);
-    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,          0,          FALSE);
-    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  length/2,   length/2,   TRUE);
+    test_find_dir(-1, &extra, test_heaviside, 0,           true,  length/2-1, length/2-1, true);
+    test_find_dir(+1, &extra, test_heaviside, DB_NOTFOUND, false, 0,          0,          false);
+    test_find_dir(0,  &extra, test_heaviside, 0,           true,  length/2,   length/2,   true);
 
 /*
     0...0+...+
     C    B
 */
     heavy_extra(&extra, 0, length/2);
-    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, FALSE, 0,        0,        FALSE);
-    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE,  length/2, length/2, TRUE);
-    test_find_dir(0,  &extra, test_heaviside, 0,           TRUE,  0,        0,        TRUE);
+    test_find_dir(-1, &extra, test_heaviside, DB_NOTFOUND, false, 0,        0,        false);
+    test_find_dir(+1, &extra, test_heaviside, 0,           true,  length/2, length/2, true);
+    test_find_dir(0,  &extra, test_heaviside, 0,           true,  0,        0,        true);
 
 /*
     -...-+...+
         AB
 */
     heavy_extra(&extra, length/2, length/2);
-    test_find_dir(-1, &extra, test_heaviside, 0,           TRUE, length/2-1, length/2-1, TRUE);
-    test_find_dir(+1, &extra, test_heaviside, 0,           TRUE, length/2,   length/2,   TRUE);
-    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, TRUE, length/2,   length/2,   FALSE);
+    test_find_dir(-1, &extra, test_heaviside, 0,           true, length/2-1, length/2-1, true);
+    test_find_dir(+1, &extra, test_heaviside, 0,           true, length/2,   length/2,   true);
+    test_find_dir(0,  &extra, test_heaviside, DB_NOTFOUND, true, length/2,   length/2,   false);
 
 /*
     -...-0...0+...+
         AC    B
 */    
     heavy_extra(&extra, length/3, 2*length/3);
-    test_find_dir(-1, &extra, test_heaviside, 0, TRUE,   length/3-1,   length/3-1, TRUE);
-    test_find_dir(+1, &extra, test_heaviside, 0, TRUE, 2*length/3,   2*length/3,   TRUE);
-    test_find_dir(0,  &extra, test_heaviside, 0, TRUE,   length/3,     length/3,   TRUE);
+    test_find_dir(-1, &extra, test_heaviside, 0, true,   length/3-1,   length/3-1, true);
+    test_find_dir(+1, &extra, test_heaviside, 0, true, 2*length/3,   2*length/3,   true);
+    test_find_dir(0,  &extra, test_heaviside, 0, true,   length/3,     length/3,   true);
 
     /* Cleanup */
     test_close(do_close);
@@ -779,7 +779,7 @@ runtests_create_choice (enum create_type create_choice) {
 }
 
 static void
-test_clone(u_int32_t nelts)
+test_clone(uint32_t nelts)
 // Test that each clone operation gives the right data back.  If nelts is
 // zero, also tests that you still get a valid OMT back and that the way
 // to deallocate it still works.

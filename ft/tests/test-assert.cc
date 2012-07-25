@@ -12,8 +12,8 @@ static __attribute__((__noreturn__)) void catch_abort (int sig __attribute__((__
     exit(1);
 }
 
-static BOOL foo (void) {
-    return TRUE;
+static bool foo (void) {
+    return true;
 }
     
 

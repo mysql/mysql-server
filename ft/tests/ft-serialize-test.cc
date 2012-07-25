@@ -14,7 +14,7 @@ static int omt_int_cmp(OMTVALUE p, void *q)
     LEAFENTRY CAST_FROM_VOIDP(a, p);
     LEAFENTRY CAST_FROM_VOIDP(b, q);
     void *ak, *bk;
-    u_int32_t al, bl;
+    uint32_t al, bl;
     ak = le_key_and_len(a, &al);
     bk = le_key_and_len(b, &bl);
     assert(al == 4 && bl == 4);
@@ -32,7 +32,7 @@ static int omt_cmp(OMTVALUE p, void *q)
     LEAFENTRY CAST_FROM_VOIDP(a, p);
     LEAFENTRY CAST_FROM_VOIDP(b, q);
     void *ak, *bk;
-    u_int32_t al, bl;
+    uint32_t al, bl;
     ak = le_key_and_len(a, &al);
     bk = le_key_and_len(b, &bl);
     int l = MIN(al, bl);
@@ -83,7 +83,7 @@ struct check_leafentries_struct {
     int (*cmp)(OMTVALUE, void *);
 };
 
-static int check_leafentries(OMTVALUE v, u_int32_t UU(i), void *extra) {
+static int check_leafentries(OMTVALUE v, uint32_t UU(i), void *extra) {
     struct check_leafentries_struct *CAST_FROM_VOIDP(e, extra);
     assert(e->i < e->nelts);
     assert(e->cmp(v, e->elts[e->i]) == 0);
@@ -180,29 +180,29 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
     }
     else {
         // if we get here, this is a test bug, NOT a bug in development code
-        assert(FALSE);
+        assert(false);
     }
 }
 
-static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA* src_ndd, BOOL do_clone) {
+static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA* src_ndd, bool do_clone) {
     int r;
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
-        toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, FALSE, brt->ft);
+        toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, false, brt->ft);
         FTNODE CAST_FROM_VOIDP(cloned_node, cloned_node_v);
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, FALSE, brt->ft, FALSE);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, false, brt->ft, false);
         assert(r==0);        
         toku_ftnode_free(&cloned_node);
     }
     else {
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, TRUE, brt->ft, FALSE);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, true, brt->ft, false);
         assert(r==0);
     }
 }
 
 static void
-test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
     const int nodesize = 1024;
     struct ftnode sn, *dn;
@@ -276,7 +276,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -306,11 +306,11 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
 	elts[0] = le_malloc(&dummy_mp, "a", "aval");
 	elts[1] = le_malloc(&dummy_mp, "b", "bval");
 	elts[2] = le_malloc(&dummy_mp, "x", "xval");
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(BLB_MAX_MSN_APPLIED(dn, i).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
@@ -318,7 +318,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
                 assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            u_int32_t keylen;
+            uint32_t keylen;
             if (i < npartitions-1) {
                 assert(strcmp((char*)dn->childkeys[i].data, (char*)le_key_and_len(elts[extra.i-1], &keylen))==0);
             }
@@ -356,7 +356,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, BOOL do_clone) {
 }
 
 static void
-test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone) {
     int r;
     struct ftnode sn, *dn;
     const int keylens = 256*1024, vallens = 0, nrows = 8;
@@ -394,7 +394,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
         r = toku_omt_insert(BLB_BUFFER(&sn, i), le, omt_cmp, le, NULL); assert(r==0);
         BLB_NBYTESINBUF(&sn, i) = leafentry_disksize(le);
         if (i < nrows-1) {
-            u_int32_t keylen;
+            uint32_t keylen;
             char *CAST_FROM_VOIDP(keyp, le_key_and_len(le, &keylen));
             toku_fill_dbt(&sn.childkeys[i], toku_xmemdup(keyp, keylen), keylen);
         }
@@ -424,7 +424,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -459,11 +459,11 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
 		les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
 	    }
 	}
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(keylens*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
@@ -505,7 +505,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, BOOL do_clone
 }
 
 static void
-test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     int r;
     struct ftnode sn, *dn;
     const int keylens = sizeof(int), vallens = sizeof(int), nrows = 196*1024;
@@ -569,7 +569,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -601,11 +601,11 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
 		les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
 	    }
 	}
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(sizeof(int)*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_int_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
@@ -649,7 +649,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, BOOL do_clone) {
 
 
 static void
-test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) {
     int r;
     struct ftnode sn, *dn;
     const uint32_t nrows = 7;
@@ -719,7 +719,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -756,12 +756,12 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) 
 		les[i] = le_fastmalloc(&dummy_mp, key, key_size, val, val_size);
 	    }
 	}
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(npartitions == nrows);
         assert(dn->totalchildkeylens==(key_size*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = nrows, .elts = les, .i = 0, .cmp = omt_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
@@ -804,7 +804,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, BOOL do_clone) 
 
 
 static void
-test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool do_clone) {
     const int nodesize = 1024;
     struct ftnode sn, *dn;
 
@@ -885,7 +885,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -913,11 +913,11 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL 
 	elts[0] = le_malloc(&dummy_mp, "a", "aval");
 	elts[1] = le_malloc(&dummy_mp, "b", "bval");
 	elts[2] = le_malloc(&dummy_mp, "x", "xval");
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
@@ -959,7 +959,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, BOOL 
 }
 
 static void
-test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type bft, bool do_clone) {
     const int nodesize = 1024;
     struct ftnode sn, *dn;
 
@@ -1015,7 +1015,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -1037,11 +1037,11 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     assert(dn->height == 0);
     assert(dn->n_children == 1);
     {
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 0, .elts = NULL, .i = 0, .cmp = omt_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
@@ -1080,7 +1080,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
 
 
 static void
-test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
     const int nodesize = 1024;
     struct ftnode sn, *dn;
@@ -1150,7 +1150,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -1177,18 +1177,18 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
 	elts[0] = le_malloc(&dummy_mp, "a", "aval");
 	elts[1] = le_malloc(&dummy_mp, "b", "bval");
 	elts[2] = le_malloc(&dummy_mp, "x", "xval");
-        const u_int32_t npartitions = dn->n_children;
+        const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         struct check_leafentries_struct extra = { .nelts = 3, .elts = elts, .i = 0, .cmp = omt_cmp };
-        u_int32_t last_i = 0;
-        for (u_int32_t i = 0; i < npartitions; ++i) {
+        uint32_t last_i = 0;
+        for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
             if (i > 0) {
                 assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
             toku_omt_iterate(BLB_BUFFER(dn, i), check_leafentries, &extra);
-            u_int32_t keylen;
+            uint32_t keylen;
             if (i < npartitions-1) {
                 assert(strcmp((char*)dn->childkeys[i].data, (char*)le_key_and_len(elts[extra.i-1], &keylen))==0);
             }
@@ -1226,7 +1226,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, BOOL do_clone) {
 }
 
 static void
-test_serialize_nonleaf(enum ftnode_verify_type bft, BOOL do_clone) {
+test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     //    struct ft_handle source_ft;
     const int nodesize = 1024;
     struct ftnode sn, *dn;
@@ -1298,7 +1298,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, BOOL do_clone) {
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, FALSE);
+        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
@@ -1356,61 +1356,61 @@ int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     initialize_dummymsn();
 
-    test_serialize_leaf(read_none, FALSE);
-    test_serialize_leaf(read_all, FALSE);
-    test_serialize_leaf(read_compressed, FALSE);
-    test_serialize_leaf(read_none, TRUE);
-    test_serialize_leaf(read_all, TRUE);
-    test_serialize_leaf(read_compressed, TRUE);
+    test_serialize_leaf(read_none, false);
+    test_serialize_leaf(read_all, false);
+    test_serialize_leaf(read_compressed, false);
+    test_serialize_leaf(read_none, true);
+    test_serialize_leaf(read_all, true);
+    test_serialize_leaf(read_compressed, true);
 
-    test_serialize_leaf_with_empty_basement_nodes(read_none, FALSE);
-    test_serialize_leaf_with_empty_basement_nodes(read_all, FALSE);
-    test_serialize_leaf_with_empty_basement_nodes(read_compressed, FALSE);
-    test_serialize_leaf_with_empty_basement_nodes(read_none, TRUE);
-    test_serialize_leaf_with_empty_basement_nodes(read_all, TRUE);
-    test_serialize_leaf_with_empty_basement_nodes(read_compressed, TRUE);
+    test_serialize_leaf_with_empty_basement_nodes(read_none, false);
+    test_serialize_leaf_with_empty_basement_nodes(read_all, false);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed, false);
+    test_serialize_leaf_with_empty_basement_nodes(read_none, true);
+    test_serialize_leaf_with_empty_basement_nodes(read_all, true);
+    test_serialize_leaf_with_empty_basement_nodes(read_compressed, true);
 
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, FALSE);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, FALSE);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, FALSE);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, TRUE);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, TRUE);
-    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, TRUE);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, false);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, false);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, false);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_none, true);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_all, true);
+    test_serialize_leaf_with_multiple_empty_basement_nodes(read_compressed, true);
 
-    test_serialize_leaf_with_large_rows(read_none, FALSE);
-    test_serialize_leaf_with_large_rows(read_all, FALSE);
-    test_serialize_leaf_with_large_rows(read_compressed, FALSE);
-    test_serialize_leaf_with_large_rows(read_none, TRUE);
-    test_serialize_leaf_with_large_rows(read_all, TRUE);
-    test_serialize_leaf_with_large_rows(read_compressed, TRUE);
+    test_serialize_leaf_with_large_rows(read_none, false);
+    test_serialize_leaf_with_large_rows(read_all, false);
+    test_serialize_leaf_with_large_rows(read_compressed, false);
+    test_serialize_leaf_with_large_rows(read_none, true);
+    test_serialize_leaf_with_large_rows(read_all, true);
+    test_serialize_leaf_with_large_rows(read_compressed, true);
 
-    test_serialize_leaf_with_many_rows(read_none, FALSE);
-    test_serialize_leaf_with_many_rows(read_all, FALSE);
-    test_serialize_leaf_with_many_rows(read_compressed, FALSE);
-    test_serialize_leaf_with_many_rows(read_none, TRUE);
-    test_serialize_leaf_with_many_rows(read_all, TRUE);
-    test_serialize_leaf_with_many_rows(read_compressed, TRUE);
+    test_serialize_leaf_with_many_rows(read_none, false);
+    test_serialize_leaf_with_many_rows(read_all, false);
+    test_serialize_leaf_with_many_rows(read_compressed, false);
+    test_serialize_leaf_with_many_rows(read_none, true);
+    test_serialize_leaf_with_many_rows(read_all, true);
+    test_serialize_leaf_with_many_rows(read_compressed, true);
 
-    test_serialize_leaf_with_large_pivots(read_none, FALSE);
-    test_serialize_leaf_with_large_pivots(read_all, FALSE);
-    test_serialize_leaf_with_large_pivots(read_compressed, FALSE);
-    test_serialize_leaf_with_large_pivots(read_none, TRUE);
-    test_serialize_leaf_with_large_pivots(read_all, TRUE);
-    test_serialize_leaf_with_large_pivots(read_compressed, TRUE);
+    test_serialize_leaf_with_large_pivots(read_none, false);
+    test_serialize_leaf_with_large_pivots(read_all, false);
+    test_serialize_leaf_with_large_pivots(read_compressed, false);
+    test_serialize_leaf_with_large_pivots(read_none, true);
+    test_serialize_leaf_with_large_pivots(read_all, true);
+    test_serialize_leaf_with_large_pivots(read_compressed, true);
 
-    test_serialize_leaf_check_msn(read_none, FALSE);
-    test_serialize_leaf_check_msn(read_all, FALSE);
-    test_serialize_leaf_check_msn(read_compressed, FALSE);
-    test_serialize_leaf_check_msn(read_none, TRUE);
-    test_serialize_leaf_check_msn(read_all, TRUE);
-    test_serialize_leaf_check_msn(read_compressed, TRUE);
+    test_serialize_leaf_check_msn(read_none, false);
+    test_serialize_leaf_check_msn(read_all, false);
+    test_serialize_leaf_check_msn(read_compressed, false);
+    test_serialize_leaf_check_msn(read_none, true);
+    test_serialize_leaf_check_msn(read_all, true);
+    test_serialize_leaf_check_msn(read_compressed, true);
 
-    test_serialize_nonleaf(read_none, FALSE);
-    test_serialize_nonleaf(read_all, FALSE);
-    test_serialize_nonleaf(read_compressed, FALSE);
-    test_serialize_nonleaf(read_none, TRUE);
-    test_serialize_nonleaf(read_all, TRUE);
-    test_serialize_nonleaf(read_compressed, TRUE);
+    test_serialize_nonleaf(read_none, false);
+    test_serialize_nonleaf(read_all, false);
+    test_serialize_nonleaf(read_compressed, false);
+    test_serialize_nonleaf(read_none, true);
+    test_serialize_nonleaf(read_all, true);
+    test_serialize_nonleaf(read_compressed, true);
 
     return 0;
 }

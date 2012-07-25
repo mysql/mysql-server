@@ -265,7 +265,7 @@ ft_end_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v) {
 // maps to cf->close_userdata
 // Has access to fd (it is protected).
 static int
-ft_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
+ft_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, bool oplsn_valid, LSN oplsn) {
     FT ft = (FT) header_v;
     assert(ft->h->type == FT_CURRENT);
     // We already have exclusive access to this field already, so skip the locking.
@@ -369,7 +369,7 @@ static int setup_initial_ft_root_node (FT ft, BLOCKNUM blocknum) {
     toku_initialize_empty_ftnode(node, blocknum, 0, 1, ft->h->layout_version, ft->h->nodesize, ft->h->flags);
     BP_STATE(node,0) = PT_AVAIL;
 
-    u_int32_t fullhash = toku_cachetable_hash(ft->cf, blocknum);
+    uint32_t fullhash = toku_cachetable_hash(ft->cf, blocknum);
     node->fullhash = fullhash;
     int r = toku_cachetable_put(ft->cf, blocknum, fullhash,
                                 node, make_ftnode_pair_attr(node),
@@ -493,7 +493,7 @@ exit:
 }
 
 // TODO: (Zardosht) get rid of brt parameter
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, BOOL* was_open)
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, bool* was_open)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
@@ -502,13 +502,13 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         FT h;
         if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
-            *was_open = TRUE;
+            *was_open = true;
             assert(brt->options.update_fun == h->update_fun);
             assert(brt->options.compare_fun == h->compare_fun);
             return 0;
         }
     }
-    *was_open = FALSE;
+    *was_open = false;
     FT h;
     int r;
     {
@@ -550,7 +550,7 @@ toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live) {
 // pinned by a checkpoint.
 static int
 ft_get_reference_count(FT ft) {
-    u_int32_t pinned_by_checkpoint = ft->pinned_by_checkpoint ? 1 : 0;
+    uint32_t pinned_by_checkpoint = ft->pinned_by_checkpoint ? 1 : 0;
     int num_handles = toku_list_num_elements_est(&ft->live_ft_handles);
     return pinned_by_checkpoint + ft->num_txns + num_handles;
 }
@@ -569,7 +569,7 @@ toku_ft_has_one_reference_unlocked(FT ft) {
 
 // evict a ft from memory by closing its cachefile. any future work
 // will have to read in the ft in a new cachefile and new FT object.
-int toku_ft_evict_from_memory(FT ft, char **error_string, BOOL oplsn_valid, LSN oplsn) {
+int toku_ft_evict_from_memory(FT ft, char **error_string, bool oplsn_valid, LSN oplsn) {
     int r = 0;
     assert(ft->cf);
     if (error_string) {
@@ -614,7 +614,7 @@ toku_ft_note_hot_begin(FT_HANDLE brt) {
 // Purpose: set fields in brt_header to capture accountability info for end of HOT optimize.
 // Note: See note for toku_ft_note_hot_begin().
 void
-toku_ft_note_hot_complete(FT_HANDLE brt, BOOL success, MSN msn_at_start_of_hot) {
+toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_hot) {
     FT ft = brt->ft;
     time_t now = time(NULL);
 
@@ -863,7 +863,7 @@ toku_ft_remove_txn_ref(FT ft) {
 void toku_calculate_root_offset_pointer (
     FT ft, 
     CACHEKEY* root_key, 
-    u_int32_t *roothash
+    uint32_t *roothash
     ) 
 {
     *roothash = toku_cachetable_hash(ft->cf, ft->h->root_blocknum);

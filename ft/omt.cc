@@ -21,12 +21,12 @@
 #include "omt.h"
 #include "fttypes.h"
 
-typedef u_int32_t node_idx;
+typedef uint32_t node_idx;
 static const node_idx NODE_NULL = UINT32_MAX;
 
 typedef struct omt_node *OMT_NODE;
 struct omt_node {
-    u_int32_t weight; /* Size of subtree rooted at this node (including this one). */
+    uint32_t weight; /* Size of subtree rooted at this node (including this one). */
     node_idx  left;   /* Index of left  subtree. */
     node_idx  right;  /* Index of right subtree. */
     OMTVALUE  value;  /* The value stored in the node. */
@@ -34,8 +34,8 @@ struct omt_node {
 
 
 struct omt_array {
-    u_int32_t  start_idx;
-    u_int32_t  num_values;
+    uint32_t  start_idx;
+    uint32_t  num_values;
     OMTVALUE  *values;
 };
 
@@ -47,8 +47,8 @@ struct omt_tree {
 };
 
 struct omt {
-    BOOL       is_array;
-    u_int32_t  capacity;
+    bool       is_array;
+    uint32_t  capacity;
     union {
         struct omt_array a;
         struct omt_tree t;
@@ -59,14 +59,14 @@ static inline int
 omt_create_no_array(OMT *omtp) {
     OMT XMALLOC(result);
     if (result==NULL) return ENOMEM;
-    result->is_array       = TRUE;
+    result->is_array       = true;
     result->i.a.num_values = 0;
     result->i.a.start_idx  = 0;
     *omtp = result;
     return 0;
 }
 
-static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
+static int omt_create_internal(OMT *omtp, uint32_t num_starting_nodes) {
     OMT result;
     int r = omt_create_no_array(&result);
     if (r) return r;
@@ -78,7 +78,7 @@ static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
 }
 
 int
-toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, u_int32_t numvalues, u_int32_t capacity) {
+toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, uint32_t numvalues, uint32_t capacity) {
     if (numvalues>capacity || !*valuesp) return EINVAL;
     int r = omt_create_no_array(omtp);
     if (r) return r;
@@ -90,12 +90,12 @@ toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, u_int32_t numv
     return 0;
 }
 
-static inline u_int32_t nweight(OMT omt, node_idx idx) {
+static inline uint32_t nweight(OMT omt, node_idx idx) {
     if (idx==NODE_NULL) return 0;
     else return (omt->i.t.nodes+idx)->weight;
 }
 
-static inline u_int32_t omt_size(OMT omt) {
+static inline uint32_t omt_size(OMT omt) {
     return omt->is_array ? omt->i.a.num_values : nweight(omt, omt->i.t.root);
 }
 
@@ -125,11 +125,11 @@ static inline void fill_array_with_subtree_values(OMT omt, OMTVALUE *array, node
 //           numvalues=1,  halfway=0,  left side is values of size 0
 //                                     right side is values of size 0.
 static inline void rebuild_from_sorted_array(OMT omt, node_idx *n_idxp,
-                                             OMTVALUE *values, u_int32_t numvalues) {
+                                             OMTVALUE *values, uint32_t numvalues) {
     if (numvalues==0) {
         *n_idxp = NODE_NULL;
     } else {
-        u_int32_t halfway = numvalues/2;
+        uint32_t halfway = numvalues/2;
         node_idx newidx   = omt_node_malloc(omt);
         OMT_NODE newnode  = omt->i.t.nodes+newidx;
         newnode->weight   = numvalues;
@@ -140,9 +140,9 @@ static inline void rebuild_from_sorted_array(OMT omt, node_idx *n_idxp,
     }
 }
 
-static inline int maybe_resize_array(OMT omt, u_int32_t n) {
-    u_int32_t new_size = n<=2 ? 4 : 2*n;
-    u_int32_t room = omt->capacity - omt->i.a.start_idx;
+static inline int maybe_resize_array(OMT omt, uint32_t n) {
+    uint32_t new_size = n<=2 ? 4 : 2*n;
+    uint32_t room = omt->capacity - omt->i.a.start_idx;
 
     if (room<n || omt->capacity/2>=new_size) {
         OMTVALUE *XMALLOC_N(new_size, tmp_values);
@@ -159,15 +159,15 @@ static inline int maybe_resize_array(OMT omt, u_int32_t n) {
 
 static int omt_convert_to_tree(OMT omt) {
     if (!omt->is_array) return 0;
-    u_int32_t num_nodes = omt_size(omt);
-    u_int32_t new_size  = num_nodes*2;
+    uint32_t num_nodes = omt_size(omt);
+    uint32_t new_size  = num_nodes*2;
     new_size = new_size < 4 ? 4 : new_size;
 
     OMT_NODE XMALLOC_N(new_size, new_nodes);
     if (new_nodes==NULL) return get_error_errno();
     OMTVALUE *values     = omt->i.a.values;
     OMTVALUE *tmp_values = values + omt->i.a.start_idx;
-    omt->is_array          = FALSE;
+    omt->is_array          = false;
     omt->i.t.nodes         = new_nodes;
     omt->capacity          = new_size;
     omt->i.t.free_idx      = 0;
@@ -179,15 +179,15 @@ static int omt_convert_to_tree(OMT omt) {
 
 static int omt_convert_to_array(OMT omt) {
     if (omt->is_array) return 0;
-    u_int32_t num_values = omt_size(omt);
-    u_int32_t new_size  = 2*num_values;
+    uint32_t num_values = omt_size(omt);
+    uint32_t new_size  = 2*num_values;
     new_size = new_size < 4 ? 4 : new_size;
 
     OMTVALUE *XMALLOC_N(new_size, tmp_values);
     if (tmp_values==NULL) return get_error_errno();
     fill_array_with_subtree_values(omt, tmp_values, omt->i.t.root);
     toku_free(omt->i.t.nodes);
-    omt->is_array       = TRUE;
+    omt->is_array       = true;
     omt->capacity       = new_size;
     omt->i.a.num_values = num_values;
     omt->i.a.values     = tmp_values;
@@ -195,10 +195,10 @@ static int omt_convert_to_array(OMT omt) {
     return 0;
 }
 
-static inline int maybe_resize_or_convert(OMT omt, u_int32_t n) {
+static inline int maybe_resize_or_convert(OMT omt, uint32_t n) {
     if (omt->is_array) return maybe_resize_array(omt, n);
 
-    u_int32_t new_size = n<=2 ? 4 : 2*n;
+    uint32_t new_size = n<=2 ? 4 : 2*n;
 
     /* Rebuild/realloc the nodes array iff any of the following:
      *  The array is smaller than the number of elements we want.
@@ -206,7 +206,7 @@ static inline int maybe_resize_or_convert(OMT omt, u_int32_t n) {
      *  The array is too large. */
     //Rebuilding means we first turn it to an array.
     //Lets pause at the array form.
-    u_int32_t num_nodes = nweight(omt, omt->i.t.root);
+    uint32_t num_nodes = nweight(omt, omt->i.t.root);
     if ((omt->capacity/2 >= new_size) ||
         (omt->i.t.free_idx>=omt->capacity && num_nodes<n) ||
         (omt->capacity<n)) {
@@ -225,11 +225,11 @@ static inline void fill_array_with_subtree_idxs(OMT omt, node_idx *array, node_i
 
 /* Reuses existing OMT_NODE structures (used for rebalancing). */
 static inline void rebuild_subtree_from_idxs(OMT omt, node_idx *n_idxp, node_idx *idxs,
-                                             u_int32_t numvalues) {
+                                             uint32_t numvalues) {
     if (numvalues==0) {
         *n_idxp=NODE_NULL;
     } else {
-        u_int32_t halfway = numvalues/2;
+        uint32_t halfway = numvalues/2;
         node_idx newidx   = idxs[halfway];
         OMT_NODE newnode  = omt->i.t.nodes+newidx;
         newnode->weight   = numvalues;
@@ -254,15 +254,15 @@ static inline void rebalance(OMT omt, node_idx *n_idxp) {
     node_idx *tmp_array;
     size_t mem_needed = n->weight*sizeof(*tmp_array);
     size_t mem_free   = (omt->capacity-omt->i.t.free_idx)*sizeof(*omt->i.t.nodes);
-    BOOL malloced;
+    bool malloced;
     if (mem_needed<=mem_free) {
         //There is sufficient free space at the end of the nodes array
         //to hold enough node indexes to rebalance.
-        malloced  = FALSE;
+        malloced  = false;
         tmp_array = (node_idx*)(omt->i.t.nodes+omt->i.t.free_idx);
     }
     else {
-        malloced  = TRUE;
+        malloced  = true;
         XMALLOC_N(n->weight, tmp_array);
         if (tmp_array==NULL) return;    //Don't rebalance.  Still a working tree.
     }
@@ -271,19 +271,19 @@ static inline void rebalance(OMT omt, node_idx *n_idxp) {
     if (malloced) toku_free(tmp_array);
 }
 
-static inline BOOL will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int rightmod) {
-    if (n_idx==NODE_NULL) return FALSE;
+static inline bool will_need_rebalance(OMT omt, node_idx n_idx, int leftmod, int rightmod) {
+    if (n_idx==NODE_NULL) return false;
     OMT_NODE n = omt->i.t.nodes+n_idx;
     // one of the 1's is for the root.
     // the other is to take ceil(n/2)
-    u_int32_t weight_left  = nweight(omt, n->left)  + leftmod;
-    u_int32_t weight_right = nweight(omt, n->right) + rightmod;
-    return (BOOL)((1+weight_left < (1+1+weight_right)/2)
+    uint32_t weight_left  = nweight(omt, n->left)  + leftmod;
+    uint32_t weight_right = nweight(omt, n->right) + rightmod;
+    return (bool)((1+weight_left < (1+1+weight_right)/2)
 		  ||
 		  (1+weight_right < (1+1+weight_left)/2));
 }
 
-static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_int32_t index, node_idx **rebalance_idx) {
+static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, uint32_t index, node_idx **rebalance_idx) {
     if (*n_idxp==NODE_NULL) {
         assert(index==0);
         node_idx newidx  = omt_node_malloc(omt);
@@ -306,17 +306,17 @@ static inline void insert_internal(OMT omt, node_idx *n_idxp, OMTVALUE value, u_
             if (*rebalance_idx==NULL && will_need_rebalance(omt, idx, 0, 1)) {
                 *rebalance_idx = n_idxp;
             }
-            u_int32_t sub_index = index-nweight(omt, n->left)-1;
+            uint32_t sub_index = index-nweight(omt, n->left)-1;
             insert_internal(omt, &n->right, value, sub_index, rebalance_idx);
         }
     }
 }
 
-static inline void set_at_internal_array(OMT omt, OMTVALUE v, u_int32_t index) {
+static inline void set_at_internal_array(OMT omt, OMTVALUE v, uint32_t index) {
     omt->i.a.values[omt->i.a.start_idx+index] = v;
 }
 
-static inline void set_at_internal(OMT omt, node_idx n_idx, OMTVALUE v, u_int32_t index) {
+static inline void set_at_internal(OMT omt, node_idx n_idx, OMTVALUE v, uint32_t index) {
     assert(n_idx!=NODE_NULL);
     OMT_NODE n = omt->i.t.nodes+n_idx;
     if (index<nweight(omt, n->left))
@@ -328,7 +328,7 @@ static inline void set_at_internal(OMT omt, node_idx n_idx, OMTVALUE v, u_int32_
     }
 }
 
-static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, OMTVALUE *vp, node_idx **rebalance_idx) {
+static inline void delete_internal(OMT omt, node_idx *n_idxp, uint32_t index, OMTVALUE *vp, node_idx **rebalance_idx) {
     assert(*n_idxp!=NODE_NULL);
     OMT_NODE n = omt->i.t.nodes+*n_idxp;
     if (index < nweight(omt, n->left)) {
@@ -339,12 +339,12 @@ static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, O
         delete_internal(omt, &n->left, index, vp, rebalance_idx);
     } else if (index == nweight(omt, n->left)) {
         if (n->left==NODE_NULL) {
-            u_int32_t idx = *n_idxp;
+            uint32_t idx = *n_idxp;
             *n_idxp = n->right;
             *vp     = n->value;
             omt_node_free(omt, idx);
         } else if (n->right==NODE_NULL) {
-            u_int32_t idx = *n_idxp;
+            uint32_t idx = *n_idxp;
             *n_idxp = n->left;
             *vp     = n->value;
             omt_node_free(omt, idx);
@@ -367,11 +367,11 @@ static inline void delete_internal(OMT omt, node_idx *n_idxp, u_int32_t index, O
     }
 }
 
-static inline void fetch_internal_array(OMT V, u_int32_t i, OMTVALUE *v) {
+static inline void fetch_internal_array(OMT V, uint32_t i, OMTVALUE *v) {
     *v = V->i.a.values[V->i.a.start_idx+i];
 }
 
-static inline void fetch_internal(OMT V, node_idx idx, u_int32_t i, OMTVALUE *v) {
+static inline void fetch_internal(OMT V, node_idx idx, uint32_t i, OMTVALUE *v) {
     OMT_NODE n = V->i.t.nodes+idx;
     if (i < nweight(V, n->left)) {
         fetch_internal(V, n->left,  i, v);
@@ -383,10 +383,10 @@ static inline void fetch_internal(OMT V, node_idx idx, u_int32_t i, OMTVALUE *v)
 }
 
 static inline int iterate_internal_array(OMT omt,
-                                  u_int32_t left, u_int32_t right,
-                                  int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
+                                  uint32_t left, uint32_t right,
+                                  int (*f)(OMTVALUE, uint32_t, void*), void*v) {
     int r;
-    u_int32_t i;
+    uint32_t i;
 
     for (i = left; i < right; i++) {
         r = f(omt->i.a.values[i+omt->i.a.start_idx], i, v);
@@ -395,27 +395,27 @@ static inline int iterate_internal_array(OMT omt,
     return 0;
 }
 
-static inline int iterate_internal(OMT omt, u_int32_t left, u_int32_t right,
-                                   node_idx n_idx, u_int32_t idx,
-                                   int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
+static inline int iterate_internal(OMT omt, uint32_t left, uint32_t right,
+                                   node_idx n_idx, uint32_t idx,
+                                   int (*f)(OMTVALUE, uint32_t, void*), void*v) {
     int r;
     if (n_idx==NODE_NULL) return 0;
     OMT_NODE n = omt->i.t.nodes+n_idx;
-    u_int32_t idx_root = idx+nweight(omt,n->left);
+    uint32_t idx_root = idx+nweight(omt,n->left);
     if (left< idx_root && (r=iterate_internal(omt, left, right, n->left, idx, f, v))) return r;
     if (left<=idx_root && idx_root<right && (r=f(n->value, idx_root, v))) return r;
     if (idx_root+1<right) return iterate_internal(omt, left, right, n->right, idx_root+1, f, v);
     return 0;
 }
 
-static inline int find_internal_zero_array(OMT omt, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index) {
-    u_int32_t min   = omt->i.a.start_idx;
-    u_int32_t limit = omt->i.a.start_idx + omt->i.a.num_values;
-    u_int32_t best_pos  = NODE_NULL;
-    u_int32_t best_zero = NODE_NULL;
+static inline int find_internal_zero_array(OMT omt, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index) {
+    uint32_t min   = omt->i.a.start_idx;
+    uint32_t limit = omt->i.a.start_idx + omt->i.a.num_values;
+    uint32_t best_pos  = NODE_NULL;
+    uint32_t best_zero = NODE_NULL;
 
     while (min!=limit) {
-        u_int32_t mid = (min + limit) / 2;
+        uint32_t mid = (min + limit) / 2;
         int hv = h(omt->i.a.values[mid], extra);
         if (hv<0) {
             min = mid+1;
@@ -440,7 +440,7 @@ static inline int find_internal_zero_array(OMT omt, int (*h)(OMTVALUE, void*extr
     return DB_NOTFOUND;
 }
 
-static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index)
+static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index)
 // requires: index!=NULL
 {
     if (n_idx==NODE_NULL) {
@@ -467,13 +467,13 @@ static inline int find_internal_zero(OMT omt, node_idx n_idx, int (*h)(OMTVALUE,
 }
 
 
-static inline int find_internal_plus_array(OMT omt, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index) {
-    u_int32_t min   = omt->i.a.start_idx;
-    u_int32_t limit = omt->i.a.start_idx + omt->i.a.num_values;
-    u_int32_t best  = NODE_NULL;
+static inline int find_internal_plus_array(OMT omt, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index) {
+    uint32_t min   = omt->i.a.start_idx;
+    uint32_t limit = omt->i.a.start_idx + omt->i.a.num_values;
+    uint32_t best  = NODE_NULL;
 
     while (min!=limit) {
-        u_int32_t mid = (min + limit) / 2;
+        uint32_t mid = (min + limit) / 2;
         int hv = h(omt->i.a.values[mid], extra);
         if (hv>0) {
             best  = mid;
@@ -489,13 +489,13 @@ static inline int find_internal_plus_array(OMT omt, int (*h)(OMTVALUE, void*extr
     return 0;
 }
 
-static inline int find_internal_minus_array(OMT omt, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index) {
-    u_int32_t min   = omt->i.a.start_idx;
-    u_int32_t limit = omt->i.a.start_idx + omt->i.a.num_values;
-    u_int32_t best  = NODE_NULL;
+static inline int find_internal_minus_array(OMT omt, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index) {
+    uint32_t min   = omt->i.a.start_idx;
+    uint32_t limit = omt->i.a.start_idx + omt->i.a.num_values;
+    uint32_t best  = NODE_NULL;
 
     while (min!=limit) {
-        u_int32_t mid = (min + limit) / 2;
+        uint32_t mid = (min + limit) / 2;
         int hv = h(omt->i.a.values[mid], extra);
         if (hv<0) {
             best = mid;
@@ -512,7 +512,7 @@ static inline int find_internal_minus_array(OMT omt, int (*h)(OMTVALUE, void*ext
 }
 
 //  If direction <0 then find the largest  i such that h(V_i,extra)<0.
-static inline int find_internal_minus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index)
+static inline int find_internal_minus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index)
 // requires: index!=NULL
 {
     if (n_idx==NODE_NULL) return DB_NOTFOUND;
@@ -533,7 +533,7 @@ static inline int find_internal_minus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE
 }
 
 //  If direction >0 then find the smallest i such that h(V_i,extra)>0.
-static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index)
+static inline int find_internal_plus(OMT omt, node_idx n_idx, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index)
 // requires: index!=NULL
 {
     if (n_idx==NODE_NULL) return DB_NOTFOUND;
@@ -567,11 +567,11 @@ void toku_omt_destroy(OMT *omtp) {
     *omtp=NULL;
 }
 
-u_int32_t toku_omt_size(OMT V) {
+uint32_t toku_omt_size(OMT V) {
     return omt_size(V);
 }
 
-int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, u_int32_t numvalues) {
+int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, uint32_t numvalues) {
     OMT omt = NULL;
     int r;
     if ((r = omt_create_internal(&omt, numvalues))) return r;
@@ -581,7 +581,7 @@ int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, u_int32_t num
     return 0;
 }
 
-int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
+int toku_omt_insert_at(OMT omt, OMTVALUE value, uint32_t index) {
     int r;
     if (index>omt_size(omt)) return EINVAL;
     if ((r=maybe_resize_or_convert(omt, 1+omt_size(omt)))) return r;
@@ -606,7 +606,7 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t index) {
     return 0;
 }
 
-int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
+int toku_omt_set_at (OMT omt, OMTVALUE value, uint32_t index) {
     if (index>=omt_size(omt)) return EINVAL;
     if (omt->is_array) {
         set_at_internal_array(omt, value, index);
@@ -617,7 +617,7 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
     return 0;
 }
 
-int toku_omt_delete_at(OMT omt, u_int32_t index) {
+int toku_omt_delete_at(OMT omt, uint32_t index) {
     OMTVALUE v;
     int r;
     if (index>=omt_size(omt)) return EINVAL;
@@ -639,7 +639,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t index) {
     return 0;
 }
 
-int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v) {
+int toku_omt_fetch(OMT V, uint32_t i, OMTVALUE *v) {
     if (i>=omt_size(V)) return EINVAL;
     if (V->is_array) {
         fetch_internal_array(V, i, v);
@@ -651,7 +651,7 @@ int toku_omt_fetch(OMT V, u_int32_t i, OMTVALUE *v) {
 }
 
 static int
-free_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
+free_item (OMTVALUE lev, uint32_t UU(idx), void *vsi) {
     assert(vsi == NULL);
     toku_free(lev);
     return 0;
@@ -663,14 +663,14 @@ void toku_omt_free_items(OMT omt) {
     lazy_assert_zero(r);
 }
 
-int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
+int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, uint32_t, void*), void*v) {
     if (omt->is_array) {
         return iterate_internal_array(omt, 0, omt_size(omt), f, v);
     }
     return iterate_internal(omt, 0, nweight(omt, omt->i.t.root), omt->i.t.root, 0, f, v);
 }
 
-int toku_omt_iterate_on_range(OMT omt, u_int32_t left, u_int32_t right, int (*f)(OMTVALUE, u_int32_t, void*), void*v) {
+int toku_omt_iterate_on_range(OMT omt, uint32_t left, uint32_t right, int (*f)(OMTVALUE, uint32_t, void*), void*v) {
     if (right>omt_size(omt)) return EINVAL;
     if (omt->is_array) {
         return iterate_internal_array(omt, left, right, f, v);
@@ -678,9 +678,9 @@ int toku_omt_iterate_on_range(OMT omt, u_int32_t left, u_int32_t right, int (*f)
     return iterate_internal(omt, left, right, omt->i.t.root, 0, f, v);
 }
 
-int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *index) {
+int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, uint32_t *index) {
     int r;
-    u_int32_t idx;
+    uint32_t idx;
 
     r = toku_omt_find_zero(omt, h, v, NULL, &idx);
     if (r==0) {
@@ -695,8 +695,8 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
     return 0;
 }
 
-int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *index) {
-    u_int32_t tmp_index;
+int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *index) {
+    uint32_t tmp_index;
     if (index==NULL) index=&tmp_index;
     int r;
     if (V->is_array) {
@@ -708,8 +708,8 @@ int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVAL
     return r;
 }
 
-int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *index) {
-    u_int32_t tmp_index;
+int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, uint32_t *index) {
+    uint32_t tmp_index;
     int r;
     if (index==NULL) index=&tmp_index;
     if (direction==0) {
@@ -732,13 +732,13 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
     return r;
 }
 
-int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
+int toku_omt_split_at(OMT omt, OMT *newomtp, uint32_t index) {
     int r;
     OMT newomt;
     if (index>omt_size(omt)) return EINVAL;
 
     if ((r=omt_convert_to_array(omt))) return r;
-    u_int32_t newsize = omt_size(omt)-index;
+    uint32_t newsize = omt_size(omt)-index;
     if ((r=toku_omt_create_from_sorted_array(&newomt,
                                    omt->i.a.values+omt->i.a.start_idx+index,
                                    newsize))) return r;
@@ -756,7 +756,7 @@ int toku_omt_split_at(OMT omt, OMT *newomtp, u_int32_t index) {
 int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     int r;
     OMT newomt = 0;
-    u_int32_t newsize = omt_size(leftomt)+omt_size(rightomt);
+    uint32_t newsize = omt_size(leftomt)+omt_size(rightomt);
     if ((r = omt_create_internal(&newomt, newsize))) return r;
 
     if (leftomt->is_array) {
@@ -784,16 +784,16 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
 
 struct copy_data_extra {
     OMTVALUE *a;
-    u_int32_t eltsize;
+    uint32_t eltsize;
 };
 
-static int copy_data_iter(OMTVALUE v, u_int32_t idx, void *ve) {
+static int copy_data_iter(OMTVALUE v, uint32_t idx, void *ve) {
     struct copy_data_extra *CAST_FROM_VOIDP(e, ve);
     memcpy(e->a[idx], v, e->eltsize);
     return 0;
 }
 
-static int omt_copy_data(OMTVALUE *a, OMT omt, u_int32_t eltsize) {
+static int omt_copy_data(OMTVALUE *a, OMT omt, uint32_t eltsize) {
     struct copy_data_extra extra = { .a = a, .eltsize = eltsize };
     if (omt->is_array) {
         return iterate_internal_array(omt, 0, omt_size(omt), copy_data_iter, &extra);
@@ -801,14 +801,14 @@ static int omt_copy_data(OMTVALUE *a, OMT omt, u_int32_t eltsize) {
     return iterate_internal(omt, 0, nweight(omt, omt->i.t.root), omt->i.t.root, 0, copy_data_iter, &extra);
 }
 
-int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize) {
-    u_int32_t size = omt_size(src);
+int toku_omt_clone(OMT *dest, OMT src, uint32_t eltsize) {
+    uint32_t size = omt_size(src);
     if (size == 0) {
         toku_omt_create(dest);
         return 0;
     }
     OMTVALUE *XMALLOC_N(size, a);
-    for (u_int32_t i = 0; i < size; ++i) {
+    for (uint32_t i = 0; i < size; ++i) {
         CAST_FROM_VOIDP(a[i], toku_xmalloc(eltsize));
     }
     int r = omt_copy_data(a, src, eltsize);
@@ -821,15 +821,15 @@ err:
     return r;
 }
 
-int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize) {
-    u_int32_t size = omt_size(src);
+int toku_omt_clone_pool(OMT *dest, OMT src, uint32_t eltsize) {
+    uint32_t size = omt_size(src);
     if (size == 0) {
         toku_omt_create(dest);
         return 0;
     }
     OMTVALUE *XMALLOC_N(size, a);
     unsigned char *XMALLOC_N(eltsize * size, data);
-    for (u_int32_t i = 0; i < size; ++i) {
+    for (uint32_t i = 0; i < size; ++i) {
         a[i] = &data[eltsize * i];
     }
     int r = omt_copy_data(a, src, eltsize);
@@ -855,7 +855,7 @@ void toku_omt_free_items_pool(OMT omt) {
 }
 
 int toku_omt_clone_noptr(OMT *dest, OMT src) {
-    u_int32_t size = omt_size(src);
+    uint32_t size = omt_size(src);
     if (size == 0) {
         toku_omt_create(dest);
         return 0;

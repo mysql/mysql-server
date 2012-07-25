@@ -272,8 +272,8 @@ usage(void) {
 
 int
 test_main (int argc, char * const argv[]) {
-    BOOL do_test = FALSE;
-    BOOL do_recover = FALSE;
+    bool do_test = false;
+    bool do_recover = false;
     int ndbs = 2;
     int nrows = 2;
 
@@ -290,11 +290,11 @@ test_main (int argc, char * const argv[]) {
             continue;
         }
         if (strcmp(arg, "--test") == 0) {
-            do_test = TRUE;
+            do_test = true;
             continue;
         }
         if (strcmp(arg, "--recover") == 0) {
-            do_recover = TRUE;
+            do_recover = true;
             continue;
         }
         if (strcmp(arg, "--ndbs") == 0 && i+1 < argc) {

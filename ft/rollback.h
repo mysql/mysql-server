@@ -47,7 +47,7 @@ void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len);
 void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 
 void toku_txn_maybe_note_ft (TOKUTXN txn, FT h);
-int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count);
+int toku_logger_txn_rollback_raw_count(TOKUTXN txn, uint64_t *raw_count);
 
 int toku_find_xid_by_xid (const TXNID &xid, const TXNID &xidfind);
 

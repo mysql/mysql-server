@@ -14,15 +14,15 @@
 static int verbose=1;
 
 static int count_0 = 0;
-static u_int64_t e_max_weight=0, d_max_weight = 0; // max weight seen by enqueue thread and dequeue thread respectively.
+static uint64_t e_max_weight=0, d_max_weight = 0; // max weight seen by enqueue thread and dequeue thread respectively.
 
 static void *start_0 (void *arg) {
     QUEUE q = (QUEUE)arg;
     void *item;
-    u_int64_t weight;
+    uint64_t weight;
     long count = 0;
     while (1) {
-	u_int64_t this_max_weight;
+	uint64_t this_max_weight;
 	int r=queue_deq(q, &item, &weight, &this_max_weight);
 	if (r==EOF) break;
 	assert(r==0);
@@ -36,15 +36,15 @@ static void *start_0 (void *arg) {
     return NULL;
 }
 
-static void enq (QUEUE q, long v, u_int64_t weight) {
-    u_int64_t this_max_weight;
+static void enq (QUEUE q, long v, uint64_t weight) {
+    uint64_t this_max_weight;
     int r = queue_enq(q, (void*)v, (weight==0)?0:1, &this_max_weight);
     assert(r==0);
     if (this_max_weight>e_max_weight) e_max_weight=this_max_weight;
     //printf("E(%ld)=%ld %ld\n", v, this_max_weight, e_max_weight);
 }
 
-static void queue_test_0 (u_int64_t weight)
+static void queue_test_0 (uint64_t weight)
 // Test a queue that can hold WEIGHT items.
 {
     //printf("\n");

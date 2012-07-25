@@ -53,7 +53,7 @@ static void test_multiple_ft_cursor_dbts(int n) {
     }
 
     for (i=0; i<n; i++) {
-        r = toku_ft_cursor(brt, &cursors[i], NULL, FALSE, FALSE);
+        r = toku_ft_cursor(brt, &cursors[i], NULL, false, false);
         assert(r == 0);
     }
 

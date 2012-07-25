@@ -69,7 +69,7 @@ xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
     //  xids_p points to an xids that is an exact copy of parent_xids, but with room for one more xid.
     int rval;
     invariant(parent_xids);
-    u_int32_t num_child_xids = parent_xids->num_xids + 1;
+    uint32_t num_child_xids = parent_xids->num_xids + 1;
     invariant(num_child_xids > 0);
     invariant(num_child_xids <= MAX_TRANSACTION_RECORDS);
     if (num_child_xids == MAX_TRANSACTION_RECORDS) rval = EINVAL;
@@ -91,7 +91,7 @@ xids_finalize_with_child(XIDS xids, TXNID this_xid) {
     //  - All error checking (except that this_xid is higher than its parent) is already complete
     invariant(this_xid > xids_get_innermost_xid(xids));
     TXNID this_xid_disk = toku_htod64(this_xid);
-    u_int32_t num_child_xids = ++xids->num_xids;
+    uint32_t num_child_xids = ++xids->num_xids;
     xids->ids[num_child_xids - 1] = this_xid_disk;
 }
 
@@ -111,11 +111,11 @@ xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
 void
 xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
 		        XIDS * xids_p) {		// xids list created
-    u_int8_t num_xids = rbuf_char(rb);
+    uint8_t num_xids = rbuf_char(rb);
     invariant(num_xids < MAX_TRANSACTION_RECORDS);
     XIDS CAST_FROM_VOIDP(xids, toku_xmalloc(sizeof(*xids) + num_xids*sizeof(xids->ids[0])));
     xids->num_xids = num_xids;
-    u_int8_t index;
+    uint8_t index;
     for (index = 0; index < xids->num_xids; index++) {
         rbuf_TXNID(rb, &xids->ids[index]);
         if (index > 0)
@@ -136,7 +136,7 @@ xids_destroy(XIDS *xids_p) {
 // If requesting an xid out of range (which will be the case if xids array is empty)
 // then return 0, the xid of the root transaction.
 TXNID 
-xids_get_xid(XIDS xids, u_int8_t index) {
+xids_get_xid(XIDS xids, uint8_t index) {
     invariant(index < xids_get_num_xids(xids));
     TXNID rval = xids->ids[index];
     rval = toku_dtoh64(rval);
@@ -145,9 +145,9 @@ xids_get_xid(XIDS xids, u_int8_t index) {
 
 // This function assumes that target_xid IS in the list
 // of xids.
-u_int8_t 
+uint8_t 
 xids_find_index_of_xid(XIDS xids, TXNID target_xid) {
-    u_int8_t index = 0;  // search outer to inner
+    uint8_t index = 0;  // search outer to inner
     TXNID current_xid = xids_get_xid(xids, index);
     while (current_xid != target_xid) {
         invariant(current_xid < target_xid);
@@ -157,9 +157,9 @@ xids_find_index_of_xid(XIDS xids, TXNID target_xid) {
     return index;
 }
 
-u_int8_t 
+uint8_t 
 xids_get_num_xids(XIDS xids) {
-    u_int8_t rval = xids->num_xids;
+    uint8_t rval = xids->num_xids;
     return rval;
 }
 
@@ -170,7 +170,7 @@ xids_get_innermost_xid(XIDS xids) {
     TXNID rval = TXNID_NONE;
     if (xids_get_num_xids(xids)) {
         // if clause above makes this cast ok
-        u_int8_t innermost_xid = (u_int8_t)(xids_get_num_xids(xids)-1);
+        uint8_t innermost_xid = (uint8_t)(xids_get_num_xids(xids)-1);
         rval = xids_get_xid(xids, innermost_xid);
     }
     return rval;
@@ -191,18 +191,18 @@ xids_cpy(XIDS target, XIDS source) {
 }
 
 // return size in bytes
-u_int32_t 
+uint32_t 
 xids_get_size(XIDS xids){
-    u_int32_t rval;
-    u_int8_t num_xids = xids->num_xids;
+    uint32_t rval;
+    uint8_t num_xids = xids->num_xids;
     rval = sizeof(*xids) + num_xids * sizeof(xids->ids[0]);
     return rval;
 }
 
-u_int32_t 
+uint32_t 
 xids_get_serialize_size(XIDS xids){
-    u_int32_t rval;
-    u_int8_t num_xids = xids->num_xids;
+    uint32_t rval;
+    uint8_t num_xids = xids->num_xids;
     rval = 1 + //num xids
            8 * num_xids;
     return rval;
@@ -216,8 +216,8 @@ toku_calc_more_murmur_xids (struct x1764 *mm, XIDS xids) {
     x1764_add(mm, &xids->num_xids, 1);
     TXNID zero = 0;
     x1764_add(mm, &zero, 8);
-    u_int8_t index;
-    u_int8_t num_xids = xids_get_num_xids(xids);
+    uint8_t index;
+    uint8_t num_xids = xids_get_num_xids(xids);
     for (index = 0; index < num_xids; index++) {
         TXNID current_xid = xids_get_xid(xids, index);
         x1764_add(mm, &current_xid, 8);
@@ -232,7 +232,7 @@ xids_get_end_of_array(XIDS xids) {
 
 void wbuf_xids(struct wbuf *wb, XIDS xids) {
     wbuf_char(wb, (unsigned char)xids->num_xids);
-    u_int8_t index;
+    uint8_t index;
     for (index = 0; index < xids->num_xids; index++) {
         wbuf_TXNID(wb, xids->ids[index]);
     }
@@ -240,7 +240,7 @@ void wbuf_xids(struct wbuf *wb, XIDS xids) {
 
 void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids) {
     wbuf_nocrc_char(wb, (unsigned char)xids->num_xids);
-    u_int8_t index;
+    uint8_t index;
     for (index = 0; index < xids->num_xids; index++) {
         wbuf_nocrc_TXNID(wb, xids->ids[index]);
     }
@@ -248,7 +248,7 @@ void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids) {
 
 void
 xids_fprintf(FILE* fp, XIDS xids) {
-    u_int8_t index;
+    uint8_t index;
     unsigned num_xids = xids_get_num_xids(xids);
     fprintf(fp, "[|%u| ", num_xids);
     for (index = 0; index < xids_get_num_xids(xids); index++) {

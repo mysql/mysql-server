@@ -39,8 +39,8 @@ int main(int argc, const char *argv[]) {
     int nums[nranges];
     for (int i = 0; i < nranges; i++) {
         assert(count_ranges(tree) == i);
-        u_int32_t treesize = toku_rt_get_size(tree);
-        assert(treesize == (u_int32_t) i);
+        uint32_t treesize = toku_rt_get_size(tree);
+        assert(treesize == (uint32_t) i);
         nums[i] = i;
         toku_range range; my_init_range(&range, &nums[i], &nums[i], 'a');
         r = toku_rt_insert(tree, &range); CKERR(r);

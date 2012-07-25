@@ -49,7 +49,7 @@ static const int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT
 
 #define NUM_DBS 5
 
-static BOOL do_test=FALSE, do_recover=FALSE;
+static bool do_test=false, do_recover=false;
 
 static DB_ENV *env;
 static int NUM_ROWS=50000000;
@@ -465,9 +465,9 @@ static void do_args(int argc, char * const argv[]) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
 	} else if (strcmp(argv[0], "--test")==0) {
-	    do_test=TRUE;
+	    do_test=true;
         } else if (strcmp(argv[0], "--recover") == 0) {
-            do_recover=TRUE;
+            do_recover=true;
 
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);

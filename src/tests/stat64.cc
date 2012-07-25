@@ -39,7 +39,7 @@ test_stat64 (unsigned int N) {
 
     // insert sequential keys into the databases
     unsigned int i;
-    u_int64_t dsize=0;
+    uint64_t dsize=0;
     for (i=0; i<N; i++) {
         if (verbose>1 && i % (1<<14) == 0) {
             printf("%s(total=%u) inserted %u so far\n", __FILE__, N, i);

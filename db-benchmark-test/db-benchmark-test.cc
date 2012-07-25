@@ -68,11 +68,11 @@ int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no 
 int do_abort = 0;
 int n_insertions_since_txn_began=0;
 int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-u_int32_t put_flags = 0;
+uint32_t put_flags = 0;
 double compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
 int do_append = 0;
 int do_checkpoint_period = 0;
-u_int32_t checkpoint_period = 0;
+uint32_t checkpoint_period = 0;
 static const char *log_dir = NULL;
 static int commitflags = 0;
 static int redzone = 0;
@@ -221,7 +221,7 @@ static void benchmark_setup (void) {
     if (do_checkpoint_period) {
         r = dbenv->checkpointing_set_period(dbenv, checkpoint_period);
         assert(r == 0);
-        u_int32_t period;
+        uint32_t period;
         r = dbenv->checkpointing_get_period(dbenv, &period);
         assert(r == 0 && period == checkpoint_period);
     }
@@ -231,16 +231,16 @@ static void benchmark_setup (void) {
     if (cleaner_period) {
         r = dbenv->cleaner_set_period(dbenv, cleaner_period);
         assert(r == 0);
-        u_int32_t period;
+        uint32_t period;
         r = dbenv->cleaner_get_period(dbenv, &period);
-        assert(r == 0 && period == (u_int32_t)cleaner_period);
+        assert(r == 0 && period == (uint32_t)cleaner_period);
     }
     if (cleaner_iterations) {
         r = dbenv->cleaner_set_iterations(dbenv, cleaner_iterations);
         assert(r == 0);
-        u_int32_t iterations;
+        uint32_t iterations;
         r = dbenv->cleaner_get_iterations(dbenv, &iterations);
-        assert(r == 0 && iterations == (u_int32_t)cleaner_iterations);
+        assert(r == 0 && iterations == (uint32_t)cleaner_iterations);
     }
 #endif
 
@@ -695,7 +695,7 @@ static int test_main (int argc, char *const argv[]) {
         } else if (strcmp(arg, "--checkpoint-period") == 0) {
             if (i+1 >= argc) return print_usage(argv[9]);
             do_checkpoint_period = 1;
-            checkpoint_period = (u_int32_t) atoi(argv[++i]);
+            checkpoint_period = (uint32_t) atoi(argv[++i]);
         } else if (strcmp(arg, "--nosync") == 0) {
             commitflags += DB_TXN_NOSYNC;
         } else if (strcmp(arg, "--userandom") == 0) {

@@ -42,20 +42,20 @@ ydb_c_layer_get_status(YDB_C_LAYER_STATUS statp) {
 
 
 /* lightweight cursor methods. */
-static int toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
+static int toku_c_getf_current_binding(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
 
 //Get the main portion of a cursor flag (excluding the bitwise or'd components).
 static int 
-get_main_cursor_flag(u_int32_t flags) {
+get_main_cursor_flag(uint32_t flags) {
     return flags & DB_OPFLAGS_MASK;
 }
 
 static int 
-get_nonmain_cursor_flags(u_int32_t flags) {
+get_nonmain_cursor_flags(uint32_t flags) {
     return flags & ~(DB_OPFLAGS_MASK);
 }
 
-static inline BOOL 
+static inline bool 
 toku_c_uninitialized(DBC* c) {
     return toku_ft_cursor_uninitialized(dbc_struct_i(c)->c);
 }            
@@ -85,7 +85,7 @@ c_get_wrapper_callback(DBT const *key, DBT const *val, void *extra) {
 }
 
 static int 
-toku_c_get_current_unconditional(DBC* c, u_int32_t flags, DBT* key, DBT* val) {
+toku_c_get_current_unconditional(DBC* c, uint32_t flags, DBT* key, DBT* val) {
     int r;
     QUERY_CONTEXT_WRAPPED_S context; 
     query_context_wrapped_init(&context, c, key, val);
@@ -93,9 +93,9 @@ toku_c_get_current_unconditional(DBC* c, u_int32_t flags, DBT* key, DBT* val) {
     return r;
 }
 
-static inline u_int32_t 
-get_cursor_prelocked_flags(u_int32_t flags, DBC* dbc) {
-    u_int32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
+static inline uint32_t 
+get_cursor_prelocked_flags(uint32_t flags, DBC* dbc) {
+    uint32_t lock_flags = flags & (DB_PRELOCKED | DB_PRELOCKED_WRITE);
 
     //DB_READ_UNCOMMITTED and DB_READ_COMMITTED transactions 'own' all read locks for user-data dictionaries.
     if (dbc_struct_i(dbc)->iso != TOKU_ISO_SERIALIZABLE) {
@@ -114,8 +114,8 @@ typedef struct query_context_base_t {
     YDB_CALLBACK_FUNCTION f;
     void       *f_extra;
     int         r_user_callback;
-    BOOL        do_locking;
-    BOOL        is_write_op;
+    bool        do_locking;
+    bool        is_write_op;
     toku_lock_request lock_request;
 } *QUERY_CONTEXT_BASE, QUERY_CONTEXT_BASE_S;
 
@@ -130,17 +130,17 @@ typedef struct query_context_with_input_t {
 } *QUERY_CONTEXT_WITH_INPUT, QUERY_CONTEXT_WITH_INPUT_S;
 
 static void
-query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, u_int32_t flag, BOOL is_write_op, YDB_CALLBACK_FUNCTION f, void *extra) {
+query_context_base_init(QUERY_CONTEXT_BASE context, DBC *c, uint32_t flag, bool is_write_op, YDB_CALLBACK_FUNCTION f, void *extra) {
     context->c       = dbc_struct_i(c)->c;
     context->txn     = dbc_struct_i(c)->txn;
     context->db      = c->dbp;
     context->f       = f;
     context->f_extra = extra;
     context->is_write_op = is_write_op;
-    u_int32_t lock_flags = get_cursor_prelocked_flags(flag, c);
+    uint32_t lock_flags = get_cursor_prelocked_flags(flag, c);
     if (context->is_write_op) 
         lock_flags &= DB_PRELOCKED_WRITE; // Only care about whether already locked for write
-    context->do_locking = (BOOL)(context->db->i->lt!=NULL && !(lock_flags & (DB_PRELOCKED|DB_PRELOCKED_WRITE)));
+    context->do_locking = (bool)(context->db->i->lt!=NULL && !(lock_flags & (DB_PRELOCKED|DB_PRELOCKED_WRITE)));
     context->r_user_callback = 0;
     toku_lock_request_default_init(&context->lock_request);
 }
@@ -151,21 +151,21 @@ query_context_base_destroy(QUERY_CONTEXT_BASE context) {
 }
 
 static void
-query_context_init_read(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
-    BOOL is_write = FALSE;
+query_context_init_read(QUERY_CONTEXT context, DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    bool is_write = false;
     query_context_base_init(&context->base, c, flag, is_write, f, extra);
 }
 
 static void
-query_context_init_write(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
-    BOOL is_write = TRUE;
+query_context_init_write(QUERY_CONTEXT context, DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    bool is_write = true;
     query_context_base_init(&context->base, c, flag, is_write, f, extra);
 }
 
 static void
-query_context_with_input_init(QUERY_CONTEXT_WITH_INPUT context, DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
+query_context_with_input_init(QUERY_CONTEXT_WITH_INPUT context, DBC *c, uint32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FUNCTION f, void *extra) {
     // grab write locks if the DB_RMW flag is set or the cursor was created with the DB_RMW flag
-    BOOL is_write = ((flag & DB_RMW) != 0) || dbc_struct_i(c)->rmw;
+    bool is_write = ((flag & DB_RMW) != 0) || dbc_struct_i(c)->rmw;
     query_context_base_init(&context->base, c, flag, is_write, f, extra);
     context->input_key = key;
     context->input_val = val;
@@ -174,11 +174,11 @@ query_context_with_input_init(QUERY_CONTEXT_WITH_INPUT context, DBC *c, u_int32_
 static int c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static void 
-c_query_context_init(QUERY_CONTEXT context, DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
-    BOOL is_write_op = FALSE;
+c_query_context_init(QUERY_CONTEXT context, DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+    bool is_write_op = false;
     // grab write locks if the DB_RMW flag is set or the cursor was created with the DB_RMW flag
     if ((flag & DB_RMW) || dbc_struct_i(c)->rmw)
-        is_write_op = TRUE;
+        is_write_op = true;
     if (is_write_op)
         query_context_init_write(context, c, flag, f, extra);
     else
@@ -191,7 +191,7 @@ c_query_context_destroy(QUERY_CONTEXT context) {
 }
 
 static int
-toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_first(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     int r = 0;
@@ -243,7 +243,7 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
 static int c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static int
-toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_last(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     int r = 0;
@@ -295,7 +295,7 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 static int c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static int
-toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_next(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
@@ -355,7 +355,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 static int c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static int
-toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_prev(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     int r;
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
@@ -414,7 +414,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
 static int c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static int
-toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_current(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
@@ -449,7 +449,7 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
 }
 
 static int
-toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_current_binding(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
@@ -465,7 +465,7 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
 static int c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 int
-toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_set(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
@@ -519,7 +519,7 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
 static int c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static int
-toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_set_range(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
@@ -576,7 +576,7 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
 static int c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 static int
-toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
+toku_c_getf_set_range_reverse(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
@@ -664,7 +664,7 @@ init_dbt_realloc(DBT *dbt) {
 // Return the number of entries whose key matches the key currently 
 // pointed to by the brt cursor.  
 static int 
-toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
+toku_c_count(DBC *cursor, db_recno_t *count, uint32_t flags) {
     HANDLE_PANICKED_DB(cursor->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(cursor);
     int r;
@@ -672,7 +672,7 @@ toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     DBT currentkey;
 
     init_dbt_realloc(&currentkey);
-    u_int32_t lock_flags = get_cursor_prelocked_flags(flags, cursor);
+    uint32_t lock_flags = get_cursor_prelocked_flags(flags, cursor);
     flags &= ~lock_flags;
     if (flags != 0) {
         r = EINVAL; goto finish;
@@ -725,13 +725,13 @@ toku_c_pre_acquire_range_lock(DBC *dbc, const DBT *key_left, const DBT *key_righ
 }
 
 int
-toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
+toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
     //This function exists for legacy (test compatibility) purposes/parity with bdb.
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
-    u_int32_t main_flag       = get_main_cursor_flag(flag);
-    u_int32_t remaining_flags = get_nonmain_cursor_flags(flag);
+    uint32_t main_flag       = get_main_cursor_flag(flag);
+    uint32_t remaining_flags = get_nonmain_cursor_flags(flag);
     int r;
     QUERY_CONTEXT_WRAPPED_S context;
     //Passing in NULL for a key or val means that it is NOT an output.
@@ -795,7 +795,7 @@ toku_c_get(DBC* c, DBT* key, DBT* val, u_int32_t flag) {
 }
 
 int 
-toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
+toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DB_ENV* env = db->dbenv;
@@ -853,7 +853,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is
         dbc_struct_i(result)->iso = txn ? db_txn_struct_i(txn)->iso : TOKU_ISO_SERIALIZABLE;
     }
     dbc_struct_i(result)->rmw = (flags & DB_RMW) != 0;
-    BOOL is_snapshot_read = FALSE;
+    bool is_snapshot_read = false;
     if (txn) {
         is_snapshot_read = (dbc_struct_i(result)->iso == TOKU_ISO_READ_COMMITTED || 
                             dbc_struct_i(result)->iso == TOKU_ISO_SNAPSHOT);
@@ -886,7 +886,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is
 }
 
 static inline int 
-autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
+autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags) {
     if (!txn && (db->dbenv->i->open_flags & DB_INIT_TXN)) {
         return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
@@ -897,7 +897,7 @@ autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
 // Create a cursor on a db.
 // Called without holding the ydb lock.
 int 
-toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
+toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags) {
     int r = autotxn_db_cursor(db, txn, c, flags);
     return r;
 }

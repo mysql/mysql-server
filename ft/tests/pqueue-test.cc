@@ -21,7 +21,7 @@ static int test_compare(DB * UU(db), const DBT *dbta, const DBT *dbtb)
     return 0;
 }
 
-static inline DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
+static inline DBT *dbt_init(DBT *dbt, void *data, uint32_t size) {
     memset(dbt, 0, sizeof *dbt);
     dbt->data = data;
     dbt->size = size;

@@ -193,7 +193,7 @@ static void run_test(uint32_t nr, uint32_t wdb, uint32_t wrow, enum how_to_fail 
 // ------------ infrastructure ----------
 static void do_args(int argc, char * const argv[]);
 
-int num_rows_set = FALSE;
+int num_rows_set = false;
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);

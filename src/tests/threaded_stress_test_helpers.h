@@ -109,7 +109,7 @@ struct env_args {
     int checkpointing_period;
     int cleaner_period;
     int cleaner_iterations;
-    u_int64_t cachetable_size;
+    uint64_t cachetable_size;
     const char *envdir;
     test_update_callback_f update_function; // update callback function
     test_generate_row_for_put_callback generate_put_callback;
@@ -147,9 +147,9 @@ struct cli_args {
     bool print_iteration_performance;
     enum perf_output_format perf_output_format;
     int performance_period;
-    u_int32_t txn_size; // specifies number of updates/puts/whatevers per txn
-    u_int32_t key_size; // number of bytes in vals. Must be at least 4
-    u_int32_t val_size; // number of bytes in vals. Must be at least 4
+    uint32_t txn_size; // specifies number of updates/puts/whatevers per txn
+    uint32_t key_size; // number of bytes in vals. Must be at least 4
+    uint32_t val_size; // number of bytes in vals. Must be at least 4
     double compressibility; // how much of each key/val (as a fraction in [0,1]) can be compressed away
                             // First 4-8 bytes of key may be ignored
     struct env_args env_args; // specifies environment variables
@@ -165,7 +165,7 @@ struct arg {
                                 // DB are in [0, num_elements)
                                 // false otherwise
     int sleep_ms; // number of milliseconds to sleep between operations
-    u_int32_t txn_type; // isolation level for txn running operation
+    uint32_t txn_type; // isolation level for txn running operation
     operation_t operation; // function that is the operation to be run
     void* operation_extra; // extra parameter passed to operation
     enum stress_lock_type lock_type; // states if operation must be exclusive, shared, or does not require locking
@@ -547,10 +547,10 @@ static void *worker(void *arg_v) {
         }
         r = arg->operation(txn, arg, arg->operation_extra, we->counters);
         if (r==0 && !arg->cli->single_txn && arg->do_prepare) {
-            u_int8_t gid[DB_GID_SIZE];
+            uint8_t gid[DB_GID_SIZE];
             memset(gid, 0, DB_GID_SIZE);
-            u_int64_t gid_val = txn->id64(txn);
-            u_int64_t *gid_count_p = cast_to_typeof(gid_count_p) gid;  // make gcc --happy about -Wstrict-aliasing
+            uint64_t gid_val = txn->id64(txn);
+            uint64_t *gid_count_p = cast_to_typeof(gid_count_p) gid;  // make gcc --happy about -Wstrict-aliasing
             *gid_count_p = gid_val;
             int rr = txn->prepare(txn, gid);
             assert_zero(rr);
@@ -884,7 +884,7 @@ static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra), v
         r = db_load->open(db_load, txn, "loader-db", NULL, DB_BTREE, DB_CREATE, 0666);
         assert(r == 0);
         DB_LOADER *loader;
-        u_int32_t loader_flags = (num == 0) ? 0 : LOADER_USE_PUTS;
+        uint32_t loader_flags = (num == 0) ? 0 : LOADER_USE_PUTS;
         r = env->create_loader(env, txn, &loader, db_load, 1, &db_load, &db_flags, &dbt_flags, loader_flags);
         CKERR(r);
 
@@ -917,7 +917,7 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
     }
     DBT key;
     dbt_init(&key, &rand_key, sizeof rand_key);
-    u_int64_t less,equal,greater;
+    uint64_t less,equal,greater;
     int is_exact;
     r = db->key_range64(db, txn, &key, &less, &equal, &greater, &is_exact);
     assert(r == 0);
@@ -952,7 +952,7 @@ static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, vo
     return 0;
 }
 
-static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL check) {
+static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, bool check) {
     int r;
     int rand_key = myrandom_r(arg->random_data);
     if (arg->bounded_element_range) {
@@ -970,7 +970,7 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, BOOL ch
 static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
-    int r = ptquery_and_maybe_check_op(db, txn, arg, TRUE);
+    int r = ptquery_and_maybe_check_op(db, txn, arg, true);
     if (!r) {
         increment_counter(stats_extra, PTQUERIES, 1);
     }
@@ -980,7 +980,7 @@ static int UU() ptquery_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), void
 static int UU() ptquery_op_no_check(DB_TXN *txn, ARG arg, void* UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
-    int r = ptquery_and_maybe_check_op(db, txn, arg, FALSE);
+    int r = ptquery_and_maybe_check_op(db, txn, arg, false);
     if (!r) {
         increment_counter(stats_extra, PTQUERIES, 1);
     }
@@ -1030,7 +1030,7 @@ static struct update_op_args UU() get_update_op_args(struct cli_args* cli_args, 
     return uoe;
 }
 
-static u_int64_t update_count = 0;
+static uint64_t update_count = 0;
 
 static int update_op_callback(DB *UU(db), const DBT *UU(key),
                               const DBT *old_val,
@@ -1059,11 +1059,11 @@ static int update_op_callback(DB *UU(db), const DBT *UU(key),
         new_int_val = e->u.h.new_val;
         break;
     default:
-        assert(FALSE);
+        assert(false);
     }
 
     DBT new_val;
-    u_int32_t data_size = sizeof(int) + e->pad_bytes;
+    uint32_t data_size = sizeof(int) + e->pad_bytes;
     char* data [data_size];
     ZERO_ARRAY(data);
     memcpy(data, &new_int_val, sizeof(new_int_val));
@@ -1084,7 +1084,7 @@ static int UU()update_op2(DB_TXN* txn, ARG arg, void* UU(operation_extra), void 
     ZERO_STRUCT(extra);
     extra.type = UPDATE_ADD_DIFF;
     extra.pad_bytes = 0;
-    for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
+    for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
         rand_key = myrandom_r(arg->random_data);
         if (arg->bounded_element_range) {
             rand_key = rand_key % (arg->cli->num_elements/2);
@@ -1136,7 +1136,7 @@ UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
             extra.pad_bytes = 100;
         }
     }
-    for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
+    for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
         rand_key = myrandom_r(arg->random_data);
         if (arg->bounded_element_range) {
             rand_key = rand_key % arg->cli->num_elements;
@@ -1208,7 +1208,7 @@ static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_ext
             extra.pad_bytes = 500;
         }
     }
-    for (u_int32_t i = 0; i < arg->cli->txn_size; i++) {
+    for (uint32_t i = 0; i < arg->cli->txn_size; i++) {
         rand_key = myrandom_r(arg->random_data) % arg->cli->num_elements;
         extra.u.h.new_val = myrandom_r(arg->random_data) % MAX_RANDOM_VAL;
         // just make every other value random
@@ -1369,7 +1369,7 @@ static void *test_time(void *arg) {
 static int run_workers(
     struct arg *thread_args, 
     int num_threads, 
-    u_int32_t num_seconds, 
+    uint32_t num_seconds, 
     bool crash_at_end,
     struct cli_args* cli_args
     ) 
@@ -1535,7 +1535,7 @@ static void zero_element_callback(int idx, void *UU(extra), void *keyv, int *key
     *valsz = sizeof(int);
 }
 
-static int fill_tables_with_zeroes(DB **dbs, int num_DBs, int num_elements, u_int32_t key_size, u_int32_t val_size) {
+static int fill_tables_with_zeroes(DB **dbs, int num_DBs, int num_elements, uint32_t key_size, uint32_t val_size) {
     for (int i = 0; i < num_DBs; i++) {
         assert(key_size >= sizeof(int));
         assert(val_size >= sizeof(int));
@@ -2252,9 +2252,9 @@ UU() stress_recover(struct cli_args *args) {
     int r = env->txn_begin(env, 0, &txn, recover_args.txn_type);
     CKERR(r);
     struct scan_op_extra soe;
-    soe.fast = TRUE;
-    soe.fwd = TRUE;
-    soe.prefetch = FALSE;
+    soe.fast = true;
+    soe.fwd = true;
+    soe.prefetch = false;
     // make sure the scan doesn't terminate early
     run_test = true;
     r = scan_op(txn, &recover_args, &soe, NULL);

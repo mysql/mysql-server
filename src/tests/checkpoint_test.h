@@ -16,7 +16,7 @@ enum {NUM_FIXED_ROWS=1025};   // 4K + 1
 
 typedef struct {
     DB*       db;
-    u_int32_t flags;
+    uint32_t flags;
     char      filename[MAX_NAME]; //Relative to ENVDIR/
     int       num;
 } DICTIONARY_S, *DICTIONARY;
@@ -185,7 +185,7 @@ null_dictionary(DICTIONARY d) {
 }
 
 static void UU()
-init_dictionary(DICTIONARY d, u_int32_t flags, const char *name) {
+init_dictionary(DICTIONARY d, uint32_t flags, const char *name) {
     null_dictionary(d);
     d->flags = flags;
     strcpy(d->filename, name);
@@ -298,7 +298,7 @@ insert_random(DB *db1, DB *db2, DB_TXN *txn) {
 }
 
 static void UU()
-delete_both_random(DB *db1, DB *db2, DB_TXN *txn, u_int32_t flags) {
+delete_both_random(DB *db1, DB *db2, DB_TXN *txn, uint32_t flags) {
     int64_t k = random64();
     int r;
     DBT key;
@@ -317,7 +317,7 @@ delete_both_random(DB *db1, DB *db2, DB_TXN *txn, u_int32_t flags) {
 
 
 static void UU()
-delete_fixed(DB *db1, DB *db2, DB_TXN *txn, int64_t k, u_int32_t flags) {
+delete_fixed(DB *db1, DB *db2, DB_TXN *txn, int64_t k, uint32_t flags) {
     int r;
     DBT key;
 
@@ -334,7 +334,7 @@ delete_fixed(DB *db1, DB *db2, DB_TXN *txn, int64_t k, u_int32_t flags) {
 }
 
 static void UU()
-delete_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, u_int32_t flags) {
+delete_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, uint32_t flags) {
     int i;
     for (i=0;i<n;i++) {
         delete_fixed(db1, db2, txn, firstkey+i, flags);

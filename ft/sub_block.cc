@@ -36,7 +36,7 @@ void sub_block_init(SUB_BLOCK sub_block) {
 // get the size of the compression header
 size_t 
 sub_block_header_size(int n_sub_blocks) {
-    return sizeof (u_int32_t) + n_sub_blocks * sizeof (struct stored_sub_block);
+    return sizeof (uint32_t) + n_sub_blocks * sizeof (struct stored_sub_block);
 }
 
 void
@@ -152,11 +152,11 @@ compress_work_init(struct compress_work *w, enum toku_compression_method method,
 // cs_bound is the compressed size bound
 // Returns the size of the compressed data
 //
-u_int32_t
+uint32_t
 compress_nocrc_sub_block(
     struct sub_block *sub_block,
     void* sb_compressed_ptr,
-    u_int32_t cs_bound,
+    uint32_t cs_bound,
     enum toku_compression_method method
     )
 {
@@ -257,9 +257,9 @@ compress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], char *un
 // initialize the decompression work
 void 
 decompress_work_init(struct decompress_work *dw,
-                     void *compress_ptr, u_int32_t compress_size,
-                     void *uncompress_ptr, u_int32_t uncompress_size,
-                     u_int32_t xsum) {
+                     void *compress_ptr, uint32_t compress_size,
+                     void *uncompress_ptr, uint32_t uncompress_size,
+                     uint32_t xsum) {
     dw->compress_ptr = compress_ptr; 
     dw->compress_size = compress_size;
     dw->uncompress_ptr = uncompress_ptr; 
@@ -272,11 +272,11 @@ int verbose_decompress_sub_block = 1;
 
 // decompress one block
 int
-decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompress_ptr, u_int32_t uncompress_size, u_int32_t expected_xsum) {
+decompress_sub_block(void *compress_ptr, uint32_t compress_size, void *uncompress_ptr, uint32_t uncompress_size, uint32_t expected_xsum) {
     int result = 0;
 
     // verify checksum
-    u_int32_t xsum = x1764_memory(compress_ptr, compress_size);
+    uint32_t xsum = x1764_memory(compress_ptr, compress_size);
     if (xsum != expected_xsum) {
         if (verbose_decompress_sub_block) fprintf(stderr, "%s:%d xsum %u expected %u\n", __FUNCTION__, __LINE__, xsum, expected_xsum);
         result = EINVAL;

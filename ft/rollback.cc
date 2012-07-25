@@ -7,7 +7,7 @@
 #include "includes.h"
 #include "rollback-ct-callbacks.h"
 
-static void rollback_unpin_remove_callback(CACHEKEY* cachekey, BOOL for_checkpoint, void* extra) {
+static void rollback_unpin_remove_callback(CACHEKEY* cachekey, bool for_checkpoint, void* extra) {
     FT CAST_FROM_VOIDP(h, extra);
     toku_free_blocknum(
         h->blocktable, 
@@ -50,7 +50,7 @@ static inline PAIR_ATTR make_rollback_pair_attr(long size) {
      .leaf_size = 0, 
      .rollback_size = size, 
      .cache_pressure_size = 0,
-     .is_valid = TRUE
+     .is_valid = true
     }; 
     return result; 
 }
@@ -76,7 +76,7 @@ static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previo
     log->layout_version                = FT_LAYOUT_VERSION;
     log->layout_version_original       = FT_LAYOUT_VERSION;
     log->layout_version_read_from_disk = FT_LAYOUT_VERSION;
-    log->dirty = TRUE;
+    log->dirty = true;
     log->txnid = txn->txnid64;
     log->sequence = txn->roll_info.num_rollback_nodes++;
     toku_allocate_blocknum(h->blocktable, &log->blocknum, h);
@@ -158,7 +158,7 @@ exit:
 }
 
 // Return the number of bytes that went into the rollback data structure (the uncompressed count if there is compression)
-int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count)
+int toku_logger_txn_rollback_raw_count(TOKUTXN txn, uint64_t *raw_count)
 {
     toku_txn_lock(txn);
     *raw_count = txn->roll_info.rollentry_raw_count;
@@ -175,7 +175,7 @@ void toku_maybe_prefetch_previous_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE lo
         uint32_t hash = log->previous_hash;
         CACHEFILE cf = txn->logger->rollback_cachefile;
         FT CAST_FROM_VOIDP(h, toku_cachefile_get_userdata(cf));
-        BOOL doing_prefetch = FALSE;
+        bool doing_prefetch = false;
         r = toku_cachefile_prefetch(cf, name, hash,
                                     get_write_callbacks_for_rollback_log(h),
                                     toku_rollback_fetch_callback,
@@ -204,7 +204,7 @@ void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash
                                         toku_rollback_fetch_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
-                                        TRUE, // may_modify_value
+                                        true, // may_modify_value
                                         h
                                         );
     assert(r == 0);

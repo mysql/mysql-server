@@ -9,9 +9,9 @@
 
 // Map objects to a sequence of sub block
 struct sub_block_map {
-    u_int32_t idx;
-    u_int32_t offset;
-    u_int32_t size;
+    uint32_t idx;
+    uint32_t offset;
+    uint32_t size;
 };
 
 enum {
@@ -19,7 +19,7 @@ enum {
 };
 
 static inline void
-sub_block_map_init(struct sub_block_map *sbmap, u_int32_t idx, u_int32_t offset, u_int32_t size) {
+sub_block_map_init(struct sub_block_map *sbmap, uint32_t idx, uint32_t offset, uint32_t size) {
     sbmap->idx = idx;
     sbmap->offset = offset;
     sbmap->size = size;

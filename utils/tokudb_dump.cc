@@ -312,7 +312,7 @@ error:
 
 int dump_header()
 {
-   u_int32_t flags;
+   uint32_t flags;
    int retval;
    DB* db = g.db;
    
@@ -393,7 +393,7 @@ error:
 static int dump_dbt(DBT* dbt)
 {
    char* str;
-   u_int32_t idx;
+   uint32_t idx;
    
    assert(dbt);
    str = (char*)dbt->data;

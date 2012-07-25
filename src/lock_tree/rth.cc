@@ -27,7 +27,7 @@ static inline uint32_t toku__rth_hash(toku_rth* rth, TXNID key) {
 }
 
 static inline void toku__invalidate_scan(toku_rth* rth) {
-    rth->iter_is_valid = FALSE;
+    rth->iter_is_valid = false;
 }
 
 int toku_rth_create(toku_rth** prth) {
@@ -64,7 +64,7 @@ rt_forest* toku_rth_find(toku_rth* rth, TXNID key) {
 void toku_rth_start_scan(toku_rth* rth) {
     assert(rth);
     rth->iter_curr = &rth->iter_head;
-    rth->iter_is_valid = TRUE;
+    rth->iter_is_valid = true;
 }
 
 static inline toku_rth_elt* toku__rth_next(toku_rth* rth) {
@@ -159,13 +159,13 @@ static inline void toku__rth_clear(toku_rth* rth, bool clean) {
 }
 
 void toku_rth_clear(toku_rth* rth) {
-    toku__rth_clear(rth, TRUE);
+    toku__rth_clear(rth, true);
 }
 
 void toku_rth_close(toku_rth* rth) {
     assert(rth);
 
-    toku__rth_clear(rth, FALSE);
+    toku__rth_clear(rth, false);
     toku_free(rth->buckets);
     toku_free(rth);
 }

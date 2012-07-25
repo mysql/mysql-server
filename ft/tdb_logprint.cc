@@ -9,8 +9,8 @@
 #include "includes.h"
 
 #if 0
-static u_int32_t crc=0;
-static u_int32_t actual_len=0;
+static uint32_t crc=0;
+static uint32_t actual_len=0;
 
 static int get_char(void) {
     int v = getchar();
@@ -21,17 +21,17 @@ static int get_char(void) {
     return v;
 }
 
-static u_int32_t get_uint32 (void) {
-    u_int32_t a = get_char();
-    u_int32_t b = get_char();
-    u_int32_t c = get_char();
-    u_int32_t d = get_char();
+static uint32_t get_uint32 (void) {
+    uint32_t a = get_char();
+    uint32_t b = get_char();
+    uint32_t c = get_char();
+    uint32_t d = get_char();
     return (a<<24)|(b<<16)|(c<<8)|d;
 }
 
-static u_int64_t get_uint64 (void) {
-    u_int32_t hi = get_uint32();
-    u_int32_t lo = get_uint32();
+static uint64_t get_uint64 (void) {
+    uint32_t hi = get_uint32();
+    uint32_t lo = get_uint32();
     return ((((long long)hi) << 32)
 	    |
 	    lo);
@@ -48,7 +48,7 @@ static void transcribe_txnid (void) {
 }
 
 static void transcribe_fileid (void) {
-    u_int32_t value = get_uint32();
+    uint32_t value = get_uint32();
     printf(" fileid=%d", value);
 }
 
@@ -59,30 +59,30 @@ static void transcribe_diskoff (void) {
 }
 
 static void transcribe_crc32 (void) {
-    u_int32_t oldcrc=crc;
-    u_int32_t l = get_uint32();
+    uint32_t oldcrc=crc;
+    uint32_t l = get_uint32();
     printf(" crc=%08x", l);
     assert(l==oldcrc);
 }
 
 static void transcribe_mode (void) {
-    u_int32_t value = get_uint32();
+    uint32_t value = get_uint32();
     printf(" mode=0%o", value);
 }
 
 static void transcribe_filenum(void) {
-    u_int32_t value = get_uint32();
+    uint32_t value = get_uint32();
     printf(" filenum=%d", value);
 }
 
-static u_int32_t len1;
+static uint32_t len1;
 static void transcribe_len1 (void) {
     len1 = get_uint32();
     //printf(" len=%d", len1);
 }
 
 static void transcribe_len (void) {
-    u_int32_t l = get_uint32();
+    uint32_t l = get_uint32();
     printf(" len=%d", l);
     if (l!=actual_len) printf(" actual_len=%d", actual_len);
     assert(l==actual_len);
@@ -90,11 +90,11 @@ static void transcribe_len (void) {
 }
 
 static void transcribe_key_or_data (char *what) {
-    u_int32_t l = get_uint32();
+    uint32_t l = get_uint32();
     unsigned int i;
     printf(" %s(%d):\"", what, l);
     for (i=0; i<l; i++) {
-	u_int32_t c = get_char();
+	uint32_t c = get_char();
 	if (c=='\\') printf("\\\\");
 	else if (c=='\n') printf("\\n");
 	else if (c==' ') printf("\\ ");
@@ -124,7 +124,7 @@ static void transcribe_header (void) {
 
 static void newmain (int count) {
     int i;
-    u_int32_t version;
+    uint32_t version;
     int r = toku_read_and_print_logmagic(stdin, &version);
     for (i=0; i!=count; i++) {
 	r = toku_logprint_one_record(stdout, stdin);

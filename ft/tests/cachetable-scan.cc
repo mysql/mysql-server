@@ -19,10 +19,10 @@ static void f_flush (CACHEFILE f,
 		     void *extra       __attribute__((__unused__)),
 		     PAIR_ATTR size,
         PAIR_ATTR* new_size      __attribute__((__unused__)),
-		     BOOL write_me,
-		     BOOL keep_me,
-		     BOOL for_checkpoint     __attribute__((__unused__)),
-        BOOL UU(is_clone)
+		     bool write_me,
+		     bool keep_me,
+		     bool for_checkpoint     __attribute__((__unused__)),
+        bool UU(is_clone)
 		     ) {
     assert(size.size==BLOCKSIZE);
     if (write_me) {
@@ -36,7 +36,7 @@ static void f_flush (CACHEFILE f,
 static int f_fetch (CACHEFILE f,
                     int UU(fd),
 		    CACHEKEY key,
-		    u_int32_t fullhash __attribute__((__unused__)),
+		    uint32_t fullhash __attribute__((__unused__)),
 		    void**value,
 		    void** UU(dd),
 		    PAIR_ATTR *sizep,
@@ -69,7 +69,7 @@ static void writeit (void) {
     for (i=0; i<N; i++) {
 	void *buf = toku_malloc(BLOCKSIZE);
 	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
-	u_int32_t fullhash = toku_cachetable_hash(f, key);
+	uint32_t fullhash = toku_cachetable_hash(f, key);
 	int j;
 	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(char)((i+j)%256);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
@@ -94,13 +94,13 @@ static void readit (void) {
     long  current_size;
     for (i=0; i<N; i++) {
 	CACHEKEY key = make_blocknum(i*BLOCKSIZE);
-	u_int32_t fullhash = toku_cachetable_hash(f, key);
+	uint32_t fullhash = toku_cachetable_hash(f, key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = f_flush;
-	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, wc, f_fetch, def_pf_req_callback, def_pf_callback, TRUE, 0); assert(r==0);
+	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, wc, f_fetch, def_pf_req_callback, def_pf_callback, true, 0); assert(r==0);
 	r=toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE));                                      assert(r==0);
     }
-    r = toku_cachefile_close(&f, 0, FALSE, ZERO_LSN);    assert(r == 0);
+    r = toku_cachefile_close(&f, 0, false, ZERO_LSN);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);
     gettimeofday(&end, 0);
     toku_os_get_process_times(&end_usertime, &end_systime);

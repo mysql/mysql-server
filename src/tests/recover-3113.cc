@@ -32,7 +32,7 @@ static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_I
 static const char *namea="a.db";
 static void checkpoint_callback_2(void * UU(extra));
 static DB_ENV *env;
-static BOOL do_test=FALSE, do_recover=FALSE;
+static bool do_test=false, do_recover=false;
 
 static void
 run_test(void) {
@@ -111,9 +111,9 @@ static void test_parse_args (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "--test")==0) {
-	    do_test=TRUE;
+	    do_test=true;
         } else if (strcmp(argv[0], "--recover") == 0) {
-            do_recover=TRUE;
+            do_recover=true;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:

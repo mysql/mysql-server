@@ -66,14 +66,14 @@ static int do_inserts(DB_TXN *txn, DB *db) {
     return r;
 }
 
-static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
+static int do_updates(DB_TXN *txn, DB *db, uint32_t flags) {
     DBT extra;
     DBT *extrap = dbt_init(&extra, NULL, 0);
     int r = db->update_broadcast(db, txn, extrap, flags);
     return r;
 }
 
-static int do_verify_results(DB_TXN *txn, DB *db, BOOL updated_twice) {
+static int do_verify_results(DB_TXN *txn, DB *db, bool updated_twice) {
     int r = 0;
     DBT key, val;
     unsigned int i, *vp;
@@ -107,21 +107,21 @@ int test_main (int argc, char * const argv[]) {
 
     IN_TXN_COMMIT(env, NULL, txn_2, 0, {
             { int chk_r = do_updates(txn_2, db, 0); CKERR(chk_r); }
-            { int chk_r = do_verify_results(txn_2, db, FALSE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_2, db, false); CKERR(chk_r); }
 
             IN_TXN_COMMIT(env, txn_2, txn_21, 0, {
                     { int chk_r = do_updates(txn_21, db, 0); CKERR(chk_r); }
-                    { int chk_r = do_verify_results(txn_21, db, TRUE); CKERR(chk_r); }
+                    { int chk_r = do_verify_results(txn_21, db, true); CKERR(chk_r); }
                 });
             IN_TXN_COMMIT(env, txn_2, txn_22, 0, {
                     { int chk_r = do_updates(txn_22, db, DB_IS_RESETTING_OP); CKERR2(chk_r, EINVAL); }
                 });
 
-            { int chk_r = do_verify_results(txn_2, db, TRUE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_2, db, true); CKERR(chk_r); }
         });
 
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            { int chk_r = do_verify_results(txn_3, db, TRUE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_3, db, true); CKERR(chk_r); }
         });
 
     { int chk_r = db->close(db, 0); CKERR(chk_r); }

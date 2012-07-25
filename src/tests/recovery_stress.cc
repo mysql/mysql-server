@@ -10,7 +10,7 @@
 #include "checkpoint_test.h"
 
 
-static const u_int64_t max_windows_cachesize = 256 << 20;
+static const uint64_t max_windows_cachesize = 256 << 20;
 static const int NUM_DICTIONARIES = 1;
 
 static const int OPER_STEPS = 6;
@@ -398,7 +398,7 @@ static void post_checkpoint_acts(ITER_SPEC spec) {
 
 static void run_test (int iter) {
 
-    u_int32_t flags = 0;
+    uint32_t flags = 0;
     int i, r;
 
     if (iter == 0)
@@ -407,7 +407,7 @@ static void run_test (int iter) {
     // Run with cachesize of 256 bytes per iteration
     // to force lots of disk I/O
     // (each iteration inserts about 4K rows/dictionary, 16 bytes/row, 4 dictionaries = 256K bytes inserted per iteration)
-    u_int64_t cachebytes = 0; // 0 => use default size
+    uint64_t cachebytes = 0; // 0 => use default size
     const int32_t K256 = 256 * 1024;
     cachebytes = K256 * (iter + 1) - (128 * 1024);
     if (cachebytes > max_windows_cachesize)
@@ -495,7 +495,7 @@ static void run_test (int iter) {
 	else
 	    thin_out(db, iter);
 #endif
-	u_int32_t delay = myrandom();
+	uint32_t delay = myrandom();
 	delay &= 0xFFF;       // select lower 12 bits, shifted up 8 for random number ...
 	delay = delay << 8;   // ... uniformly distributed between 0 and 1M ...
 	usleep(delay);        // ... to sleep up to one second (1M usec)

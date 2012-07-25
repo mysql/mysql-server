@@ -22,14 +22,14 @@ struct dbufio_file {
 
     // need the mutex to modify these
     struct dbufio_file *next;
-    BOOL   second_buf_ready; // if true, the i/o thread is not touching anything.
+    bool   second_buf_ready; // if true, the i/o thread is not touching anything.
 
     // consumers own [0], i/o thread owns [1], they are swapped by the consumer only when the condition mutex is held and second_buf_ready is true.
     char *buf[2];
     size_t n_in_buf[2];
     int    error_code[2]; // includes errno or eof. [0] is the error code associated with buf[0], [1] is the code for buf[1]
 
-    BOOL io_done;
+    bool io_done;
 };
 
 
@@ -48,7 +48,7 @@ struct dbufio_fileset {
     struct dbufio_file *head, *tail; // must have the mutex to fiddle with these.
     size_t bufsize; // the bufsize is the constant (the same for all buffers).
 
-    BOOL panic;
+    bool panic;
     int  panic_errno;
     toku_pthread_t iothread;
 };
@@ -68,11 +68,11 @@ static void panic (DBUFIO_FILESET bfs, int r) {
     if (bfs->panic) return;
     // may need a cilk fake mutex here to convince the race detector that it's OK.
     bfs->panic_errno = r; // Don't really care about a race on this variable...  Writes to it are atomic, so at least one good panic reason will be stored.
-    bfs->panic = TRUE;
+    bfs->panic = true;
     return;
 }
 
-static BOOL paniced (DBUFIO_FILESET bfs) {
+static bool paniced (DBUFIO_FILESET bfs) {
     // may need a cilk fake mutex here to convince the race detector that it's OK.
     return bfs->panic;
 }
@@ -110,7 +110,7 @@ static void* io_thread (void *v)
 	} else {
 	    // Some I/O needs to be done.
 	    //printf("%s:%d Need I/O\n", __FILE__, __LINE__);
-	    assert(dbf->second_buf_ready == FALSE);
+	    assert(dbf->second_buf_ready == false);
 	    assert(!dbf->io_done);
 	    bfs->head = dbf->next;
 	    if (bfs->head==NULL) bfs->tail=NULL;
@@ -132,7 +132,7 @@ static void* io_thread (void *v)
 		    // End of file.  Save it.
 		    dbf->error_code[1] = EOF;
 		    dbf->n_in_buf[1] = 0;
-		    dbf->io_done = TRUE;
+		    dbf->io_done = true;
 		    
 		} else {
 		    dbf->error_code[1] = 0;
@@ -152,7 +152,7 @@ static void* io_thread (void *v)
 		    bfs->n_not_done--;
 		}
 		//printf("%s:%d n_not_done=%d\n", __FILE__, __LINE__, bfs->n_not_done);
-		dbf->second_buf_ready = TRUE;
+		dbf->second_buf_ready = true;
                 toku_cond_broadcast(&bfs->cond);
 		//printf("%s:%d did broadcast=%d\n", __FILE__, __LINE__, bfs->n_not_done);
 		// Still have the lock so go around the loop
@@ -166,7 +166,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
     int result = 0;
     DBUFIO_FILESET MALLOC(bfs);
     if (bfs==0) { result = get_error_errno(); }
-    BOOL mutex_inited = FALSE, cond_inited = FALSE;
+    bool mutex_inited = false, cond_inited = false;
     if (result==0) {
 	MALLOC_N(N, bfs->files);
 	if (bfs->files==NULL) { result = get_error_errno(); }
@@ -179,11 +179,11 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
     //printf("%s:%d here\n", __FILE__, __LINE__);
     if (result==0) {
 	toku_mutex_init(&bfs->mutex, NULL);
-	mutex_inited = TRUE;
+	mutex_inited = true;
     }
     if (result==0) {
 	toku_cond_init(&bfs->cond, NULL);
-	cond_inited = TRUE;
+	cond_inited = true;
     }
     if (result==0) {
 	bfs->N = N;
@@ -194,7 +194,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	    bfs->files[i].offset_in_buf = 0;
 	    bfs->files[i].offset_in_file = 0;
 	    bfs->files[i].next = NULL;
-	    bfs->files[i].second_buf_ready = FALSE;
+	    bfs->files[i].second_buf_ready = false;
 	    for (int j=0; j<2; j++) {
 		if (result==0) {
 		    MALLOC_N(bufsize, bfs->files[i].buf[j]);
@@ -203,7 +203,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 		bfs->files[i].n_in_buf[j] = 0;
 		bfs->files[i].error_code[j] = 0;
 	    }
-	    bfs->files[i].io_done = FALSE;
+	    bfs->files[i].io_done = false;
 	    {
 		ssize_t r = toku_os_read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
 		if (r<0) {
@@ -211,7 +211,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 		    break;
 		} else if (r==0) {
 		    // it's EOF
-		    bfs->files[i].io_done = TRUE;
+		    bfs->files[i].io_done = true;
 		    bfs->n_not_done--;
 		    bfs->files[i].error_code[0] = EOF;
 		} else {
@@ -222,7 +222,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
 	    }
 	}
 	bfs->bufsize = bufsize;
-	bfs->panic = FALSE;
+	bfs->panic = false;
 	bfs->panic_errno = 0;
     }
     //printf("Creating IO thread\n");
@@ -331,7 +331,7 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 		    dbf->buf[1]      = tmp;
 		}
 		dbf->error_code[0] = dbf->error_code[1];
-		dbf->second_buf_ready = FALSE;
+		dbf->second_buf_ready = false;
 		dbf->offset_in_buf = 0;
 		if (!dbf->io_done) {
 		    // Don't enqueue it if the I/O is all done.

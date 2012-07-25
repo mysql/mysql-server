@@ -26,7 +26,7 @@ int toku_env_is_panicked(DB_ENV *dbenv /**< The environment to check */) {
 
 /* Prints an error message to a file specified by env (or stderr),
    preceded by the environment's error prefix. */
-static void toku__ydb_error_file(const DB_ENV *env, BOOL use_stderr, 
+static void toku__ydb_error_file(const DB_ENV *env, bool use_stderr, 
                                   char errmsg[]) {
     /* Determine the error file to use */
     FILE *CAST_FROM_VOIDP(efile, env->i->errfile);
@@ -66,8 +66,8 @@ static void toku__ydb_error_file(const DB_ENV *env, BOOL use_stderr,
 */
 void toku_ydb_error_all_cases(const DB_ENV * env, 
                               int error, 
-                              BOOL include_stderrstring, 
-                              BOOL use_stderr_if_nothing_else, 
+                              bool include_stderrstring, 
+                              bool use_stderr_if_nothing_else, 
                               const char *fmt, va_list ap) {
     /* Construct the error message */
     char buf [4000];
@@ -94,7 +94,7 @@ int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
     if (toku_logger_panicked(dbenv->i->logger)) dbenv->i->is_panicked=1;
     va_list ap;
     va_start(ap, fmt);
-    toku_ydb_error_all_cases(dbenv, error, FALSE, FALSE, fmt, ap);
+    toku_ydb_error_all_cases(dbenv, error, false, false, fmt, ap);
     va_end(ap);
     return error;
 }
@@ -107,7 +107,7 @@ int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
 void toku_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    toku_ydb_error_all_cases(env, error, FALSE, TRUE, fmt, ap);
+    toku_ydb_error_all_cases(env, error, false, true, fmt, ap);
     va_end(ap);
 }
 

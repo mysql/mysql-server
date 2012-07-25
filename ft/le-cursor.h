@@ -34,11 +34,11 @@ int toku_le_cursor_close(LE_CURSOR le_cursor);
 // Failure: returns a non-zero error number
 int toku_le_cursor_next(LE_CURSOR le_cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v);
 
-// Return TRUE if the key is to the right of the LE_CURSOR position. that is, current cursor key < given key
-// Otherwise returns FALSE when the key is at or to the left of the LE_CURSOR position. that is, current cursor key >= given key
-// The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns TRUE.
+// Return true if the key is to the right of the LE_CURSOR position. that is, current cursor key < given key
+// Otherwise returns false when the key is at or to the left of the LE_CURSOR position. that is, current cursor key >= given key
+// The LE_CURSOR position is intialized to -infinity. Any key comparision with -infinity returns true.
 // When the cursor runs off the right edge of the tree, the LE_CURSOR position is set to +infinity.  Any key comparision with +infinity
-// returns FALSE.
+// returns false.
 bool toku_le_cursor_is_key_greater(LE_CURSOR le_cursor, const DBT *key);
 
 #endif

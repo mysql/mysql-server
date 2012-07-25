@@ -91,7 +91,7 @@ int test_main(int argc, char * const argv[]) {
     DB_ENV *db_env = NULL;
     r = db_env_create(&db_env, 0); assert(r == 0);
     if (cachesize) {
-        const u_int64_t gig = 1 << 30;
+        const uint64_t gig = 1 << 30;
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);

@@ -75,17 +75,17 @@ run_recover(void) {
 
 int
 test_main(int argc, char * const argv[]) {
-    BOOL do_test = FALSE;
-    BOOL do_recover = FALSE;
+    bool do_test = false;
+    bool do_recover = false;
 
     for (int i = 1; i < argc; i++) {
         char * const arg = argv[i];
         if (strcmp(arg, "--test") == 0) {
-            do_test = TRUE;
+            do_test = true;
             continue;
         }
         if (strcmp(arg, "--recover") == 0) {
-            do_recover = TRUE;
+            do_recover = true;
             continue;
         }
     }

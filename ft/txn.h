@@ -12,7 +12,7 @@
 void toku_txn_lock(TOKUTXN txn);
 void toku_txn_unlock(TOKUTXN txn);
 
-u_int64_t toku_txn_get_id(TOKUTXN txn);
+uint64_t toku_txn_get_id(TOKUTXN txn);
 
 int toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
@@ -44,7 +44,7 @@ int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync,
                          TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
-BOOL toku_txn_requires_checkpoint(TOKUTXN txn);
+bool toku_txn_requires_checkpoint(TOKUTXN txn);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
@@ -59,9 +59,9 @@ int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid) __attribute__((warn_unu
 void toku_txn_get_prepared_xa_xid (TOKUTXN, TOKU_XA_XID *);
 // Effect: Fill in the XID information for a transaction.  The caller allocates the XID and the function fills in values.
 
-int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync);
+int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, bool do_fsync);
 
-void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn);
+void toku_txn_get_fsync_info(TOKUTXN ttxn, bool* do_fsync, LSN* do_fsync_lsn);
 
 // Complete and destroy a txn
 void toku_txn_close_txn(TOKUTXN txn);
@@ -91,7 +91,7 @@ typedef enum {
 } txn_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[TXN_STATUS_NUM_ROWS];
 } TXN_STATUS_S, *TXN_STATUS;
 
@@ -109,7 +109,7 @@ struct tokulogger_preplist {
     TOKU_XA_XID xid;
     DB_TXN *txn;
 };
-int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags);
+int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, uint32_t flags);
 
 void toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn);
 

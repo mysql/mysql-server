@@ -10,7 +10,6 @@
 #include <pthread.h>
 #include <time.h>
 #include <stdint.h>
-#include <stdbool.h>
 #include "toku_assert.h"
 
 

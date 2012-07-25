@@ -26,7 +26,7 @@ int toku_ft_loader_open (FTLOADER *bl,
 			  const char *temp_file_template,
                           LSN load_lsn,
                           TOKUTXN txn,
-                          BOOL reserve_memory);
+                          bool reserve_memory);
 
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val);
 
@@ -35,7 +35,7 @@ int toku_ft_loader_close (FTLOADER bl,
 			   ft_loader_poll_func  poll_callback,  void *poll_callback_extra);
 
 int toku_ft_loader_abort(FTLOADER bl, 
-                          BOOL is_error);
+                          bool is_error);
 
 // For test purposes only
 void toku_ft_loader_set_size_factor (uint32_t factor);

@@ -61,12 +61,12 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         FT_CURSOR c;
         char lkey[100],rkey[100];
         DBT lk, rk;
-        r = toku_ft_cursor(t, &c, null_txn, FALSE, FALSE); assert(r == 0);
+        r = toku_ft_cursor(t, &c, null_txn, false, false); assert(r == 0);
         snprintf(lkey, 100, "hello%d", i);
         snprintf(rkey, 100, "hello%d", i + 100);
         toku_ft_cursor_set_range_lock(c, toku_fill_dbt(&lk, lkey, 1+strlen(lkey)),
                                        toku_fill_dbt(&rk, rkey, 1+strlen(rkey)),
-                                       FALSE, FALSE);
+                                       false, false);
         r = toku_ft_cursor_set(c, &lk, found, NULL); assert(r == 0);
         for (int j = 0; j < 100; ++j) {
             r = toku_ft_cursor_next(c, found, NULL); assert(r == 0);

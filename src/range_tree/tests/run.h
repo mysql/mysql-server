@@ -25,7 +25,7 @@ init_range (toku_range* range, int left, int right, int data) {
 }
 
 static void
-setup_tree (bool allow_overlaps, BOOL insert, int left, int right, int data) {
+setup_tree (bool allow_overlaps, bool insert, int left, int right, int data) {
     int r;
     toku_range range;
     r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, test_incr_memory_size, test_decr_memory_size, NULL);

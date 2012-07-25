@@ -25,10 +25,10 @@
 
 typedef struct queue *QUEUE;
 
-int queue_create (QUEUE *q, u_int64_t weight_limit);
+int queue_create (QUEUE *q, uint64_t weight_limit);
 // Effect: Create a queue with a given weight limit.  The queue is initially empty.
 
-int queue_enq (QUEUE q, void *item, u_int64_t weight, u_int64_t *total_weight_after_enq);
+int queue_enq (QUEUE q, void *item, uint64_t weight, uint64_t *total_weight_after_enq);
 // Effect: Insert ITEM of weight WEIGHT into queue.  If the resulting contents weight too much then block (don't return) until the total weight is low enough.
 // If total_weight_after_enq!=NULL then return the current weight of the items in the queue (after finishing blocking on overweight, and after enqueueing the item).
 // If successful return 0.
@@ -39,7 +39,7 @@ int queue_eof (QUEUE q);
 // Effect: Inform the queue that no more values will be inserted.  After all the values that have been inserted are dequeued, further dequeue operations will return EOF.
 // Returns 0 on success.   On failure, things are pretty bad (likely to be some sort of mutex failure).
 
-int queue_deq (QUEUE q, void **item, u_int64_t *weight, u_int64_t *total_weight_after_deq);
+int queue_deq (QUEUE q, void **item, uint64_t *weight, uint64_t *total_weight_after_deq);
 // Effect: Wait until the queue becomes nonempty.  Then dequeue and return the oldest item.  The item and its weight are returned in *ITEM.
 // If weight!=NULL then return the item's weight in *weight.
 // If total_weight_after_deq!=NULL then return the current weight of the items in the queue (after dequeuing the item).

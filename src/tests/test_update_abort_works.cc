@@ -109,7 +109,7 @@ static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsign
 }
 
 
-static void run_test(BOOL do_close) {
+static void run_test(bool do_close) {
     setup();
 
     DB *db;
@@ -151,8 +151,8 @@ static void run_test(BOOL do_close) {
 
 int test_main(int argc, char * const argv[]) {
     parse_args(argc, argv);
-    run_test(FALSE);
-    run_test(TRUE);
+    run_test(false);
+    run_test(true);
 
     return 0;
 }

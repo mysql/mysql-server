@@ -63,7 +63,7 @@ toku_clock_gettime(clockid_t clk_id, struct timespec *ts)
 // We get property 2 with RDTSC (as long as there's not any skew).
 // We don't even try to get propety 1, since we don't need it.
 // The decision here is that these times are really accurate only on modern machines with modern OSs.
-typedef u_int64_t tokutime_t;             // Time type used in by tokutek timers.
+typedef uint64_t tokutime_t;             // Time type used in by tokutek timers.
 
 // The value of tokutime_t is not specified here. 
 // It might be microseconds since 1/1/1970 (if gettimeofday() is
@@ -84,7 +84,7 @@ double tokutime_to_seconds(tokutime_t)  __attribute__((__visibility__("default")
 
 // Get tokutime.  We want this to be fast, so we expose the implementation as RDTSC.
 static inline tokutime_t get_tokutime (void) {
-    u_int32_t lo, hi;
+    uint32_t lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
     return (uint64_t)hi << 32 | lo;
 }

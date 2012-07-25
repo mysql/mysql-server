@@ -8,16 +8,16 @@
 // verify recovery of an update log entry which changes values at keys
 
 static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-u_int32_t four_byte_desc = 101;
-u_int64_t eight_byte_desc = 10101;
+uint32_t four_byte_desc = 101;
+uint64_t eight_byte_desc = 10101;
 
 static void assert_desc_four (DB* db) {
     assert(db->descriptor->dbt.size == sizeof(four_byte_desc));
-    assert(*(u_int32_t *)(db->descriptor->dbt.data) == four_byte_desc);
+    assert(*(uint32_t *)(db->descriptor->dbt.data) == four_byte_desc);
 }
 static void assert_desc_eight (DB* db) {
     assert(db->descriptor->dbt.size == sizeof(eight_byte_desc));
-    assert(*(u_int32_t *)(db->descriptor->dbt.data) == eight_byte_desc);
+    assert(*(uint32_t *)(db->descriptor->dbt.data) == eight_byte_desc);
 }
 
 DB_ENV *env;
@@ -119,8 +119,8 @@ static int usage(void)
 
 int test_main(int argc, char * const argv[])
 {
-    BOOL do_test = FALSE;
-    BOOL do_recover = FALSE;
+    bool do_test = false;
+    bool do_recover = false;
 
     for (int i = 1; i < argc; i++) {
         char * const arg = argv[i];
@@ -135,11 +135,11 @@ int test_main(int argc, char * const argv[])
             continue;
         }
         if (strcmp(arg, "--test") == 0) {
-            do_test = TRUE;
+            do_test = true;
             continue;
         }
         if (strcmp(arg, "--recover") == 0) {
-            do_recover = TRUE;
+            do_recover = true;
             continue;
         }
         if (strcmp(arg, "--help") == 0) {

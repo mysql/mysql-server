@@ -25,10 +25,10 @@ static void flush(
     void *extraargs, 
     PAIR_ATTR size, 
     PAIR_ATTR* UU(new_size), 
-    BOOL write_me, 
-    BOOL keep_me, 
-    BOOL UU(for_checkpoint),
-        BOOL UU(is_clone)
+    bool write_me, 
+    bool keep_me, 
+    bool UU(for_checkpoint),
+        bool UU(is_clone)
     ) 
 {
     cf = cf; key = key; value = value; extraargs = extraargs; 
@@ -43,7 +43,7 @@ static int fetch(
     CACHEFILE cf, 
     int UU(fd), 
     CACHEKEY key, 
-    u_int32_t fullhash, 
+    uint32_t fullhash, 
     void **value, 
     void** UU(dd),
     PAIR_ATTR *sizep, 
@@ -83,7 +83,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // prefetch block n+1. this will take 10 seconds.
     {
         CACHEKEY key = make_blocknum(n+1);
-        u_int32_t fullhash = toku_cachetable_hash(f1, key);
+        uint32_t fullhash = toku_cachetable_hash(f1, key);
         r = toku_cachefile_prefetch(f1, key, fullhash, wc, fetch, def_pf_req_callback, def_pf_callback, 0, NULL);
         toku_cachetable_verify(ct);
     }
@@ -92,7 +92,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     int i;
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t hi = toku_cachetable_hash(f1, key);
+        uint32_t hi = toku_cachetable_hash(f1, key);
         r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc);
         assert(r == 0);
 
@@ -122,7 +122,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // after the checkpoint, all of the items should be clean
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
-        u_int32_t hi = toku_cachetable_hash(f1, key);
+        uint32_t hi = toku_cachetable_hash(f1, key);
         void *v;
         r = toku_cachetable_maybe_get_and_pin(f1, key, hi, &v);
         if (r != 0) 
@@ -148,7 +148,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
 }
 

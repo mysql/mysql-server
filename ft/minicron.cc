@@ -84,14 +84,14 @@ minicron_do (void *pv)
 }
 
 int
-toku_minicron_setup(struct minicron *p, u_int32_t period_in_seconds, int(*f)(void *), void *arg)
+toku_minicron_setup(struct minicron *p, uint32_t period_in_seconds, int(*f)(void *), void *arg)
 {
     p->f = f;
     p->arg = arg;
     toku_gettime(&p->time_of_last_call_to_f);
     //printf("now=%.6f", p->time_of_last_call_to_f.tv_sec + p->time_of_last_call_to_f.tv_nsec*1e-9);
     p->period_in_seconds = period_in_seconds; 
-    p->do_shutdown = FALSE;
+    p->do_shutdown = false;
     toku_mutex_init(&p->mutex, 0);
     toku_cond_init (&p->condvar, 0);
     //printf("%s:%d setup period=%d\n", __FILE__, __LINE__, period_in_seconds);
@@ -99,7 +99,7 @@ toku_minicron_setup(struct minicron *p, u_int32_t period_in_seconds, int(*f)(voi
 }
     
 int
-toku_minicron_change_period(struct minicron *p, u_int32_t new_period)
+toku_minicron_change_period(struct minicron *p, uint32_t new_period)
 {
     toku_mutex_lock(&p->mutex);
     p->period_in_seconds = new_period;
@@ -108,20 +108,20 @@ toku_minicron_change_period(struct minicron *p, u_int32_t new_period)
     return 0;
 }
 
-u_int32_t
+uint32_t
 toku_minicron_get_period(struct minicron *p)
 {
     toku_mutex_lock(&p->mutex);
-    u_int32_t retval = toku_minicron_get_period_unlocked(p);
+    uint32_t retval = toku_minicron_get_period_unlocked(p);
     toku_mutex_unlock(&p->mutex);
     return retval;
 }
 
 /* unlocked function for use by engine status which takes no locks */
-u_int32_t
+uint32_t
 toku_minicron_get_period_unlocked(struct minicron *p)
 {
-    u_int32_t retval = p->period_in_seconds;
+    uint32_t retval = p->period_in_seconds;
     return retval;
 }
 
@@ -129,7 +129,7 @@ int
 toku_minicron_shutdown(struct minicron *p) {
     toku_mutex_lock(&p->mutex);
     assert(!p->do_shutdown);
-    p->do_shutdown = TRUE;
+    p->do_shutdown = true;
     //printf("%s:%d signalling\n", __FILE__, __LINE__);
     toku_cond_signal(&p->condvar);
     toku_mutex_unlock(&p->mutex);
@@ -144,7 +144,7 @@ toku_minicron_shutdown(struct minicron *p) {
     return 0;
 }
 
-BOOL
+bool
 toku_minicron_has_been_shutdown(struct minicron *p) {
     return p->do_shutdown;
 }

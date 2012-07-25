@@ -18,13 +18,13 @@
 static DB_ENV *env = NULL;
 static DB_TXN *txn = NULL;
 static DB *db = NULL;
-static u_int32_t db_page_size = 4096;
-static u_int32_t db_basement_size = 4096;
+static uint32_t db_page_size = 4096;
+static uint32_t db_basement_size = 4096;
 static const char *envdir = ENVDIR;
-static u_int64_t nrows = 0;
+static uint64_t nrows = 0;
 
-static u_int64_t 
-max64(u_int64_t a, u_int64_t b) {
+static uint64_t 
+max64(uint64_t a, uint64_t b) {
     return a < b ? b : a;
 }
 
@@ -55,7 +55,7 @@ run_test(void) {
 
     // insert keys 1, 3, 5, ... 2*(nrows-1) + 1
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    for (u_int64_t i=0; i<nrows; i++) {
+    for (uint64_t i=0; i<nrows; i++) {
         char key[100];
         snprintf(key, sizeof key, "%08llu", (unsigned long long)2*i+1);
         char val[val_size];
@@ -87,7 +87,7 @@ run_test(void) {
     for (t = 0; t<100; t++) {
         r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
         // replace in reverse order to disable the sequential insertion code
-        for (u_int64_t i=nrows; i>0; i--) {
+        for (uint64_t i=nrows; i>0; i--) {
             char key[100];
             snprintf(key, sizeof key, "%08llu", (unsigned long long)2*(i-1)+1);
             assert(1+strlen(key) == key_size);
@@ -109,11 +109,11 @@ run_test(void) {
 
     // verify key_range for keys that exist in the tree
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    for (u_int64_t i=0; i<nrows; i++) {
+    for (uint64_t i=0; i<nrows; i++) {
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	DBT k;
-	u_int64_t less,equal,greater;
+	uint64_t less,equal,greater;
 	int is_exact;
 	r = db->key_range64(db, txn, dbt_init(&k, key, 1+strlen(key)), &less, &equal, &greater, &is_exact); CKERR(r);
 	if (verbose)
@@ -123,7 +123,7 @@ run_test(void) {
         assert(0 < less + equal + greater);
         assert(less + equal + greater < 2*nrows);
         assert(equal == 1);
-        u_int64_t est_i = max64(i, i + rows_per_basement/2);
+        uint64_t est_i = max64(i, i + rows_per_basement/2);
         assert(less <= est_i + est_i / 1);
         assert(greater <= nrows - i + rows_per_basement/2);
     }
@@ -131,11 +131,11 @@ run_test(void) {
 
     // verify key range for keys that do not exist in the tree
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-    for (u_int64_t i=0; i<1+nrows; i++) {
+    for (uint64_t i=0; i<1+nrows; i++) {
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i);
 	DBT k;
-	u_int64_t less,equal,greater;
+	uint64_t less,equal,greater;
 	int is_exact;
 	r = db->key_range64(db, txn, dbt_init(&k, key, 1+strlen(key)), &less, &equal, &greater, &is_exact); CKERR(r);
 	if (verbose) 
@@ -145,7 +145,7 @@ run_test(void) {
         assert(0 < less + equal + greater);
         assert(less + equal + greater < 2*nrows);
         assert(equal == 0);
-        u_int64_t est_i = max64(i, i + rows_per_basement/2);
+        uint64_t est_i = max64(i, i + rows_per_basement/2);
         assert(less <= est_i + est_i / 1);
         assert(greater <= nrows - i + rows_per_basement/2);
     }

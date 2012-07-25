@@ -24,13 +24,13 @@ run_test(void) {
     r = toku_logger_create(&logger); assert(r == 0);
     r = toku_logger_open(TESTDIR, logger); assert(r == 0);
     LSN beginlsn;
-    r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0, 0); assert(r == 0);
-    r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn, 0, 0, 0); assert(r == 0);
+    r = toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0); assert(r == 0);
+    r = toku_log_end_checkpoint(logger, NULL, true, beginlsn, 0, 0, 0); assert(r == 0);
 
     BYTESTRING iname  = { (uint32_t) strlen("missing_tokudb_file"), (char *) "missing_tokudb_file" };
     FILENUM filenum = {42};
     uint32_t treeflags = 0;
-    r = toku_log_fopen(logger, NULL, TRUE, iname, filenum, treeflags);
+    r = toku_log_fopen(logger, NULL, true, iname, filenum, treeflags);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // redirect stderr

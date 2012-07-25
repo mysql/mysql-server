@@ -1,4 +1,3 @@
-/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 /* Fair readers writer lock implemented using condition variables.
  * This is maintained so that we can measure the performance of a relatively simple implementation (this one) 
@@ -7,8 +6,6 @@
 
 #ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-
-#include <stdbool.h>
 
 // Fair readers/writer locks.  These are fair (meaning first-come first-served.  No reader starvation, and no writer starvation).  And they are
 // probably faster than the linux readers/writer locks (pthread_rwlock_t).

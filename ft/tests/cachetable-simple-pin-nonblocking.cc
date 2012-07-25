@@ -5,7 +5,7 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL foo;
+bool foo;
 
 //
 // This test verifies that get_and_pin_nonblocking works and returns DB_TRYAGAIN when the PAIR is being used.
@@ -20,10 +20,10 @@ flush (CACHEFILE f __attribute__((__unused__)),
        void *e     __attribute__((__unused__)),
        PAIR_ATTR s      __attribute__((__unused__)),
        PAIR_ATTR* new_size      __attribute__((__unused__)),
-       BOOL w      __attribute__((__unused__)),
-       BOOL keep   __attribute__((__unused__)),
-       BOOL c      __attribute__((__unused__)),
-        BOOL UU(is_clone)
+       bool w      __attribute__((__unused__)),
+       bool keep   __attribute__((__unused__)),
+       bool c      __attribute__((__unused__)),
+        bool UU(is_clone)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -36,8 +36,8 @@ flush (CACHEFILE f __attribute__((__unused__)),
   //usleep (5*1024*1024);
 }
 
-static BOOL true_def_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
-  return TRUE;
+static bool true_def_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) {
+  return true;
 }
 static int true_def_pf_callback(void* UU(ftnode_pv), void* UU(dd), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* sizep) {
     *sizep = make_pair_attr(8);
@@ -49,7 +49,7 @@ static void kibbutz_work(void *fe_v)
 {
     CACHEFILE CAST_FROM_VOIDP(f1, fe_v);
     sleep(2);
-    foo = TRUE;
+    foo = true;
     int r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     assert(r==0);
     remove_background_job_from_cf(f1);    
@@ -76,39 +76,39 @@ run_test (void) {
     // test that if we are getting a PAIR for the first time that TOKUDB_TRY_AGAIN is returned
     // because the PAIR was not in the cachetable.
     //
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
     // now it should succeed
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     assert(r==0);
-    foo = FALSE;
+    foo = false;
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
     // because node is in use, should return TOKUDB_TRY_AGAIN
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert(foo);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
 
     // now make sure we get TOKUDB_TRY_AGAIN when a partial fetch is involved
     // first make sure value is there
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8)); assert(r==0);
     // now make sure that we get TOKUDB_TRY_AGAIN for the partial fetch
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, true_def_pf_req_callback, true_def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, true_def_pf_req_callback, true_def_pf_callback, true, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
 
     //
     // now test that if there is a checkpoint pending, 
     // first pin and unpin with dirty
     //
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     assert(r==0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8)); assert(r==0);
     // this should mark the PAIR as pending
     r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
     r = toku_cachetable_end_checkpoint(
         ct, 
@@ -121,7 +121,7 @@ run_test (void) {
     
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); 
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); 
     assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
     

@@ -5,17 +5,17 @@
 #include "includes.h"
 #include "test.h"
 
-BOOL clone_called;
-BOOL check_flush;
-BOOL flush_expected;
-BOOL flush_called;
+bool clone_called;
+bool check_flush;
+bool flush_expected;
+bool flush_called;
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, BOOL UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
-    new_attr->is_valid = FALSE;
-    clone_called = TRUE;
+    new_attr->is_valid = false;
+    clone_called = true;
 }
 
 static void
@@ -28,10 +28,10 @@ flush (
     void *e     __attribute__((__unused__)),
     PAIR_ATTR s      __attribute__((__unused__)),
     PAIR_ATTR* new_size      __attribute__((__unused__)),
-    BOOL w      __attribute__((__unused__)),
-    BOOL keep   __attribute__((__unused__)),
-    BOOL c      __attribute__((__unused__)),
-    BOOL UU(is_clone)
+    bool w      __attribute__((__unused__)),
+    bool keep   __attribute__((__unused__)),
+    bool c      __attribute__((__unused__)),
+    bool UU(is_clone)
     ) 
 {  
     if (w) usleep(5*1024*1024);
@@ -39,7 +39,7 @@ flush (
         assert(flush_expected);
         if (clone_called) assert(is_clone);
     }
-    flush_called = TRUE;
+    flush_called = true;
     if (is_clone) assert(!keep);
 }
 
@@ -59,7 +59,7 @@ static uint64_t tdelta_usec(struct timeval *tend, struct timeval *tstart) {
 //     blocks until the pair is written out
 //
 static void
-test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
+test_clean (enum cachetable_dirty dirty, bool cloneable) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
@@ -74,13 +74,13 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.clone_callback = cloneable ? clone_callback : NULL;
     wc.flush_callback = flush;
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
     
-    check_flush = TRUE;
-    clone_called = FALSE;
-    flush_expected = (dirty == CACHETABLE_DIRTY) ? TRUE : FALSE;
-    flush_called = FALSE;
+    check_flush = true;
+    clone_called = false;
+    flush_expected = (dirty == CACHETABLE_DIRTY) ? true : false;
+    flush_called = false;
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
     r = toku_cachetable_begin_checkpoint(ct, NULL);
@@ -89,14 +89,14 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
     struct timeval tend; 
     gettimeofday(&tstart, NULL);
 
-    // test that having a pin that passes FALSE for may_modify_value does not stall behind checkpoint
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, FALSE, NULL);
+    // test that having a pin that passes false for may_modify_value does not stall behind checkpoint
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, false, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     gettimeofday(&tend, NULL);
     assert(tdelta_usec(&tend, &tstart) <= 2000000); 
     assert(!clone_called);
     
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     gettimeofday(&tend, NULL);
     
     // we take 5 seconds for a write
@@ -135,19 +135,19 @@ test_clean (enum cachetable_dirty dirty, BOOL cloneable) {
         );
     assert_zero(r);
     
-    check_flush = FALSE;
+    check_flush = false;
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 }
 
 int
 test_main(int argc, const char *argv[]) {
   default_parse_args(argc, argv);
-  test_clean(CACHETABLE_CLEAN, TRUE);
-  test_clean(CACHETABLE_DIRTY, TRUE);
-  test_clean(CACHETABLE_CLEAN, FALSE);
-  test_clean(CACHETABLE_DIRTY, FALSE);
+  test_clean(CACHETABLE_CLEAN, true);
+  test_clean(CACHETABLE_DIRTY, true);
+  test_clean(CACHETABLE_CLEAN, false);
+  test_clean(CACHETABLE_DIRTY, false);
   return 0;
 }

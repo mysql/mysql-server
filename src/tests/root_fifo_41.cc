@@ -82,7 +82,7 @@ static void root_fifo_verify(DB_ENV *env, int n, int expectn) {
     r = db->close(db, 0); assert(r == 0); db = null_db;
 }
 
-static void root_fifo_41(int n, int ntxn, BOOL do_populate, char const* dirname) {
+static void root_fifo_41(int n, int ntxn, bool do_populate, char const* dirname) {
     if (verbose) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n);
     int r;
 
@@ -169,7 +169,7 @@ int test_main(int argc, char *const argv[]) {
     int i;
     int n = -1;
     int ntxn = -1;
-    BOOL do_populate = FALSE;
+    bool do_populate = false;
 
     // parse_args(argc, argv);
     for (i = 1; i < argc; i++) {
@@ -182,7 +182,7 @@ int test_main(int argc, char *const argv[]) {
 	    assert(i+1 < argc);
 	    ntxn = parseint(argv[++i]);
         } else if (strcmp(argv[i], "-populate") == 0) {
-            do_populate = TRUE;
+            do_populate = true;
         } else if (strcmp(argv[i], "-h")==0) {
 	    assert(i+1<argc);
 	    dirname = argv[++i];
@@ -197,8 +197,8 @@ int test_main(int argc, char *const argv[]) {
     else {
         for (i=0; i<100; i++) {
             for (ntxn=1; ntxn<=4; ntxn++) {
-                root_fifo_41(i, ntxn, FALSE, dirname);
-                root_fifo_41(i, ntxn, TRUE, dirname);
+                root_fifo_41(i, ntxn, false, dirname);
+                root_fifo_41(i, ntxn, true, dirname);
             }
         }
     }

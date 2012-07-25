@@ -7,7 +7,7 @@
 
 #include "includes.h"
 
-static u_int64_t now(void) {
+static uint64_t now(void) {
     struct timeval tv;
     int r = gettimeofday(&tv, NULL);
     assert(r == 0);
@@ -62,7 +62,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_logcursor_next(lc, &le);
     assert(r == 0 && le->cmd == LT_comment);
     assert(le->u.comment.comment.len == 5 && memcmp(le->u.comment.comment.data, "hello", 5) == 0);
-    u_int64_t t = le->u.comment.timestamp;
+    uint64_t t = le->u.comment.timestamp;
     
     r = toku_logcursor_next(lc, &le);
     assert(r == 0 && le->cmd == LT_comment);

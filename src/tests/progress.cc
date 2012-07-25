@@ -130,7 +130,7 @@ start_txn_prevent_dname_lock(void) {
 }
 
 static void nopoll(TOKU_TXN_PROGRESS UU(progress), void *UU(extra)) {
-    assert(FALSE);
+    assert(false);
 }
 
 static void
@@ -180,14 +180,14 @@ static void
 abort_txn(int expect_number_polls) {
     assert(env!=NULL);
     DB_TXN *txn;
-    BOOL child;
+    bool child;
     if (txn_child) {
         txn = txn_child;
-        child = TRUE;
+        child = true;
     }
     else {
         txn = txn_parent;
-        child = FALSE;
+        child = false;
     }
     assert(txn);
     
@@ -213,14 +213,14 @@ static void
 commit_txn(int expect_number_polls) {
     assert(env!=NULL);
     DB_TXN *txn;
-    BOOL child;
+    bool child;
     if (txn_child) {
         txn = txn_child;
-        child = TRUE;
+        child = true;
     }
     else {
         txn = txn_parent;
-        child = FALSE;
+        child = false;
     }
     assert(txn);
     if (child)

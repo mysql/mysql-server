@@ -44,9 +44,9 @@ static int generate_row_for_put(
     const DBT *UU(src_val)
     ) 
 {
-    u_int8_t src_val_data;
+    uint8_t src_val_data;
     assert(src_val->size == 1);
-    src_val_data = *(u_int8_t *)src_val->data;
+    src_val_data = *(uint8_t *)src_val->data;
     assert(src_val_data == 100);
     dest_key->size=0;
     dest_val->size=0;
@@ -72,10 +72,10 @@ static void run_test(void) {
     DB* db = NULL;
     DB_LOADER* loader = NULL;
     DBT key, val;
-    u_int32_t mult_db_flags = 0;
-    u_int32_t mult_dbt_flags = DB_DBT_REALLOC;
-    u_int8_t key_data = 0;
-    u_int8_t val_data = 0;
+    uint32_t mult_db_flags = 0;
+    uint32_t mult_dbt_flags = DB_DBT_REALLOC;
+    uint8_t key_data = 0;
+    uint8_t val_data = 0;
     
 
     IN_TXN_COMMIT(env, NULL, txn_create, 0, {
@@ -84,8 +84,8 @@ static void run_test(void) {
         });
 
 
-    dbt_init(&key,&key_data,sizeof(u_int8_t));
-    dbt_init(&val,&val_data,sizeof(u_int8_t));
+    dbt_init(&key,&key_data,sizeof(uint8_t));
+    dbt_init(&val,&val_data,sizeof(uint8_t));
 
     val_data = 1;
 

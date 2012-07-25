@@ -15,7 +15,7 @@
 
 /* verify that the dup flags are written and read from the database file correctly */ 
 static void
-test_dup_flags (u_int32_t dup_flags) {
+test_dup_flags (uint32_t dup_flags) {
     if (verbose) printf("test_dup_flags:%u\n", dup_flags);
 
     DB_TXN * const null_txn = 0;
@@ -35,7 +35,7 @@ test_dup_flags (u_int32_t dup_flags) {
     if (IS_TDB) assert(dup_flags==0);
     r = db->set_flags(db, dup_flags);
     assert(r == 0);
-    u_int32_t flags; r = db->get_flags(db, &flags); assert(r == 0); assert(flags == dup_flags);
+    uint32_t flags; r = db->get_flags(db, &flags); assert(r == 0); assert(flags == dup_flags);
     if (IS_TDB) assert(dup_flags==0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); 
     assert(r == 0);

@@ -87,7 +87,7 @@ toku_do_backtrace_abort(void) {
     //They could be unacceptable for other reasons as well (popups,
     //flush buffers before quitting, etc)
     //  abort()
-    //  assert(FALSE) (assert.h assert)
+    //  assert(false) (assert.h assert)
     //  raise(SIGABRT)
     //  divide by 0
     //  null dereference

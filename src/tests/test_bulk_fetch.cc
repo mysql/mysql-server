@@ -15,17 +15,17 @@
 
 static void 
 verify_val(DBT const *a, DBT  const *b, void *c) {
-    assert(a->size == sizeof(u_int64_t));
-    assert(b->size == sizeof(u_int64_t));
-    u_int64_t* expected = (u_int64_t *)c;
-    assert(*expected == *(u_int64_t *)a->data);
-    assert(*expected == *(u_int64_t *)b->data);
+    assert(a->size == sizeof(uint64_t));
+    assert(b->size == sizeof(uint64_t));
+    uint64_t* expected = (uint64_t *)c;
+    assert(*expected == *(uint64_t *)a->data);
+    assert(*expected == *(uint64_t *)b->data);
 }
 
 static int
 verify_fwd_fast(DBT const *a, DBT  const *b, void *c) {
     verify_val(a,b,c);
-    u_int64_t* expected = (u_int64_t *)c;
+    uint64_t* expected = (uint64_t *)c;
     *expected = *expected + 1;
     return TOKUDB_CURSOR_CONTINUE;
 }
@@ -33,7 +33,7 @@ verify_fwd_fast(DBT const *a, DBT  const *b, void *c) {
 static int
 verify_fwd_slow(DBT const *a, DBT  const *b, void *c) {
     verify_val(a,b,c);
-    u_int64_t* expected = (u_int64_t *)c;
+    uint64_t* expected = (uint64_t *)c;
     *expected = *expected + 1;
     return 0;
 }
@@ -41,7 +41,7 @@ verify_fwd_slow(DBT const *a, DBT  const *b, void *c) {
 static int
 verify_bwd_fast(DBT const *a, DBT  const *b, void *c) {
     verify_val(a,b,c);
-    u_int64_t* expected = (u_int64_t *)c;
+    uint64_t* expected = (uint64_t *)c;
     *expected = *expected - 1;
     return TOKUDB_CURSOR_CONTINUE;
 }
@@ -49,16 +49,16 @@ verify_bwd_fast(DBT const *a, DBT  const *b, void *c) {
 static int
 verify_bwd_slow(DBT const *a, DBT  const *b, void *c) {
     verify_val(a,b,c);
-    u_int64_t* expected = (u_int64_t *)c;
+    uint64_t* expected = (uint64_t *)c;
     *expected = *expected - 1;
     return 0;
 }
 
-u_int64_t num_pivots_fetched_prefetch;
-u_int64_t num_basements_decompressed_aggressive;
-u_int64_t num_basements_decompressed_prefetch;
-u_int64_t num_basements_fetched_aggressive;
-u_int64_t num_basements_fetched_prefetch;
+uint64_t num_pivots_fetched_prefetch;
+uint64_t num_basements_decompressed_aggressive;
+uint64_t num_basements_decompressed_prefetch;
+uint64_t num_basements_fetched_aggressive;
+uint64_t num_basements_fetched_prefetch;
 
 static void
 init_eng_stat_vars(DB_ENV* env) {
@@ -88,7 +88,7 @@ print_relevant_eng_stat_vars(DB_ENV* env) {
 }
 
 static void
-test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
+test_bulk_fetch (uint64_t n, bool prelock, bool disable_prefetching) {
     if (verbose) printf("test_rand_insert:%" PRId64 " \n", n);
 
     DB_TXN * const null_txn = 0;
@@ -107,7 +107,7 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
     // arbitrarily have cachetable size be 4*n
     // goal is to make it small enough such that all of data 
     // does not fit in cachetable, but not so small that we get thrashing
-    r = env->set_cachesize(env, 0, (u_int32_t)4*n, 1); assert(r == 0);
+    r = env->set_cachesize(env, 0, (uint32_t)4*n, 1); assert(r == 0);
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
@@ -122,8 +122,8 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
 
-    u_int64_t keys[n];
-    u_int64_t i;
+    uint64_t keys[n];
+    uint64_t i;
     for (i=0; i<n; i++) {
         keys[i] = i;
     }
@@ -140,7 +140,7 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
     DBC* cursor;
 
     // verify fast
-    u_int32_t flags = disable_prefetching ? DBC_DISABLE_PREFETCHING : 0;
+    uint32_t flags = disable_prefetching ? DBC_DISABLE_PREFETCHING : 0;
     if (disable_prefetching) {
         init_eng_stat_vars(env);
     }
@@ -154,7 +154,7 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
             );
         CKERR(r);
     }
-    u_int64_t expected = 0;
+    uint64_t expected = 0;
     while (r != DB_NOTFOUND) {
         r = cursor->c_getf_next(cursor, 0, verify_fwd_fast, &expected);
         assert(r==0 || r==DB_NOTFOUND);
@@ -256,9 +256,9 @@ test_bulk_fetch (u_int64_t n, BOOL prelock, BOOL disable_prefetching) {
 int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
-    test_bulk_fetch(10000, FALSE, TRUE);
-    test_bulk_fetch(10000, TRUE, TRUE);
-    test_bulk_fetch(10000, FALSE, FALSE);
-    test_bulk_fetch(10000, TRUE, FALSE);
+    test_bulk_fetch(10000, false, true);
+    test_bulk_fetch(10000, true, true);
+    test_bulk_fetch(10000, false, false);
+    test_bulk_fetch(10000, true, false);
     return 0;
 }

@@ -37,8 +37,8 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int node
 // - can only update cmp descriptor immidiately after opening the FIRST ft handle for this ft and before 
 //   ANY operations. to update the cmp descriptor after any operations have already happened, all handles 
 //   and transactions must close and reopen before the change, then you can update the cmp descriptor
-int toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT* new_descriptor, BOOL do_log, TOKUTXN txn, BOOL update_cmp_descriptor);
-u_int32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
+int toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT* new_descriptor, bool do_log, TOKUTXN txn, bool update_cmp_descriptor);
+uint32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 
 int toku_ft_handle_create(FT_HANDLE *)  __attribute__ ((warn_unused_result));
 int toku_ft_set_flags(FT_HANDLE, unsigned int flags)  __attribute__ ((warn_unused_result));
@@ -129,17 +129,17 @@ int toku_ft_optimize (FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
-int toku_ft_maybe_insert (FT_HANDLE brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum ft_msg_type type)  __attribute__ ((warn_unused_result));
+int toku_ft_maybe_insert (FT_HANDLE brt, DBT *k, DBT *v, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, enum ft_msg_type type)  __attribute__ ((warn_unused_result));
 
 // Effect: Send an update message into a brt.  This function is called
 // during recovery.
 // Returns 0 if successful
-int toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_function_extra, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging) __attribute__ ((warn_unused_result));
+int toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_function_extra, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging) __attribute__ ((warn_unused_result));
 
 // Effect: Send a broadcasting update message into a brt.  This function
 // is called during recovery.
 // Returns 0 if successful
-int toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, BOOL is_resetting_op) __attribute__ ((warn_unused_result));
+int toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, bool is_resetting_op) __attribute__ ((warn_unused_result));
 
 int toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
 int toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn)  __attribute__ ((warn_unused_result));
@@ -158,7 +158,7 @@ int toku_ft_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn)  __attribute__ ((warn_un
 
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
-int toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging)  __attribute__ ((warn_unused_result));
+int toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging)  __attribute__ ((warn_unused_result));
 
 int toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type) __attribute__ ((warn_unused_result));
 int toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
@@ -175,13 +175,13 @@ int toku_verify_ft (FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 int toku_verify_ft_with_progress (FT_HANDLE brt, int (*progress_callback)(void *extra, float progress), void *extra, int verbose, int keep_going)  __attribute__ ((warn_unused_result));
 
 typedef struct ft_cursor *FT_CURSOR;
-int toku_ft_cursor (FT_HANDLE, FT_CURSOR*, TOKUTXN, BOOL, BOOL)  __attribute__ ((warn_unused_result));
+int toku_ft_cursor (FT_HANDLE, FT_CURSOR*, TOKUTXN, bool, bool)  __attribute__ ((warn_unused_result));
 void toku_ft_cursor_set_leaf_mode(FT_CURSOR);
 // Sets a boolean on the brt cursor that prevents uncessary copying of
 // the cursor duing a one query.
 void toku_ft_cursor_set_temporary(FT_CURSOR);
 int toku_ft_cursor_is_leaf_mode(FT_CURSOR);
-void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, BOOL, BOOL);
+void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, bool, bool);
 
 // get is deprecated in favor of the individual functions below
 int toku_ft_cursor_get (FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)  __attribute__ ((warn_unused_result));
@@ -201,7 +201,7 @@ int toku_ft_cursor_get_both_range_reverse(FT_CURSOR cursor, DBT *key, DBT *val, 
 
 int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN)  __attribute__ ((warn_unused_result));
 int toku_ft_cursor_close (FT_CURSOR curs)  __attribute__ ((warn_unused_result));
-BOOL toku_ft_cursor_uninitialized(FT_CURSOR c)  __attribute__ ((warn_unused_result));
+bool toku_ft_cursor_uninitialized(FT_CURSOR c)  __attribute__ ((warn_unused_result));
 
 void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
 
@@ -215,17 +215,17 @@ enum ft_flags {
 };
 
 int 
-toku_ft_keyrange (FT_HANDLE brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u_int64_t *greater) __attribute__ ((warn_unused_result));
+toku_ft_keyrange (FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater) __attribute__ ((warn_unused_result));
 
 struct ftstat64_s {
-    u_int64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */
-    u_int64_t ndata; /* estimate the number of pairs (exact when flattened and committed)               */
-    u_int64_t dsize; /* estimate the sum of the sizes of the pairs (exact when flattened and committed) */
-    u_int64_t fsize;  /* the size of the underlying file                                                */
-    u_int64_t ffree; /* Number of free bytes in the underlying file                                    */
-    u_int64_t create_time_sec; /* creation time in seconds. */
-    u_int64_t modify_time_sec; /* time of last serialization, in seconds. */ 
-    u_int64_t verify_time_sec; /* time of last verification, in seconds */
+    uint64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */
+    uint64_t ndata; /* estimate the number of pairs (exact when flattened and committed)               */
+    uint64_t dsize; /* estimate the sum of the sizes of the pairs (exact when flattened and committed) */
+    uint64_t fsize;  /* the size of the underlying file                                                */
+    uint64_t ffree; /* Number of free bytes in the underlying file                                    */
+    uint64_t create_time_sec; /* creation time in seconds. */
+    uint64_t modify_time_sec; /* time of last serialization, in seconds. */ 
+    uint64_t verify_time_sec; /* time of last verification, in seconds */
 };
 
 int 
@@ -253,8 +253,8 @@ void toku_ft_suppress_recovery_logs (FT_HANDLE brt, TOKUTXN txn);
 
 int toku_ft_get_fragmentation(FT_HANDLE brt, TOKU_DB_FRAGMENTATION report) __attribute__ ((warn_unused_result));
 
-BOOL toku_ft_is_empty_fast (FT_HANDLE brt) __attribute__ ((warn_unused_result));
-// Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
+bool toku_ft_is_empty_fast (FT_HANDLE brt) __attribute__ ((warn_unused_result));
+// Effect: Return true if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
 // even though if we were to optimize the tree it might turn out that they are empty.
 
 int toku_ft_strerror_r(int error, char *buf, size_t buflen);
@@ -262,6 +262,6 @@ int toku_ft_strerror_r(int error, char *buf, size_t buflen);
 // If error>=0 then the result is to do strerror_r(error, buf, buflen), that is fill buf with a descriptive error message.
 // If error<0 then return a TokuDB-specific error code.  For unknown cases, we return -1 and set errno=EINVAL, even for cases that *should* be known.  (Not all DB errors are known by this function which is a bug.)
 
-extern BOOL garbage_collection_debug;
+extern bool garbage_collection_debug;
 
 #endif

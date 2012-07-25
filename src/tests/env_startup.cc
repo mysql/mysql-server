@@ -32,7 +32,7 @@ static int mode = S_IRWXU+S_IRWXG+S_IRWXO;
 static void test_shutdown(void);
 
 static void
-setup (u_int32_t flags) {
+setup (uint32_t flags) {
     int r;
     if (env)
         test_shutdown();
@@ -58,7 +58,7 @@ test_shutdown(void) {
 
 
 static void
-reopen_env(u_int32_t flags, int expected_r) {
+reopen_env(uint32_t flags, int expected_r) {
     int r;
     if (env)
         test_shutdown();
@@ -96,7 +96,7 @@ delete_log(void) {
 
 
 static void
-create_env(u_int32_t flags) {
+create_env(uint32_t flags) {
     setup(flags);                     // create new environment
     test_shutdown();
     reopen_env(flags, 0);             // reopen existing environment, should have log now
@@ -106,7 +106,7 @@ create_env(u_int32_t flags) {
 
 static void
 test_env_startup(int logging) {
-    u_int32_t flags;
+    uint32_t flags;
     
     if (logging)
 	flags = FLAGS_LOG;

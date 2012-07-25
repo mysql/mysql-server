@@ -34,10 +34,10 @@ static void cleanup (void) {
     { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
-static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
+static int do_updates(DB_TXN *txn, DB *db, uint32_t flags) {
   DBT key, val;
-  u_int32_t k = 101;
-  u_int32_t v = 10101;
+  uint32_t k = 101;
+  uint32_t v = 10101;
   dbt_init(&key, &k, sizeof(k));
   dbt_init(&val, &v, sizeof(v));
 
@@ -45,9 +45,9 @@ static int do_updates(DB_TXN *txn, DB *db, u_int32_t flags) {
     return r;
 }
 
-static void run_test(BOOL prelock, BOOL commit) {
+static void run_test(bool prelock, bool commit) {
     DB *db;
-    u_int32_t update_flags = 0;
+    uint32_t update_flags = 0;
     setup();
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
@@ -72,10 +72,10 @@ static void run_test(BOOL prelock, BOOL commit) {
         IN_TXN_COMMIT(env, NULL, txn_3, 0, {
                 { int chk_r = db->cursor(db, txn_3, &cursor, 0); CKERR(chk_r); }
                 { int chk_r = cursor->c_get(cursor, &key, &val, DB_NEXT); CKERR(chk_r); }
-            assert(key.size == sizeof(u_int32_t));
-            assert(val.size == sizeof(u_int32_t));
-            assert(*(u_int32_t *)(key.data) == 101);
-            assert(*(u_int32_t *)(val.data) == 10101);
+            assert(key.size == sizeof(uint32_t));
+            assert(val.size == sizeof(uint32_t));
+            assert(*(uint32_t *)(key.data) == 101);
+            assert(*(uint32_t *)(val.data) == 10101);
             { int chk_r = cursor->c_close(cursor); CKERR(chk_r); }
         });
     }
@@ -100,10 +100,10 @@ static void run_test(BOOL prelock, BOOL commit) {
 
 int test_main(int argc, char * const argv[]) {
     parse_args(argc, argv);
-    run_test(TRUE,TRUE);
-    run_test(FALSE,TRUE);
-    run_test(TRUE,FALSE);
-    run_test(FALSE,FALSE);
+    run_test(true,true);
+    run_test(false,true);
+    run_test(true,false);
+    run_test(false,false);
 
     return 0;
 }

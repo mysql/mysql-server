@@ -28,7 +28,7 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
     r = toku_logger_set_lg_max(logger, LSIZE);
     {
-	u_int32_t n;
+	uint32_t n;
 	r = toku_logger_get_lg_max(logger, &n);
 	assert(n==LSIZE);
     }

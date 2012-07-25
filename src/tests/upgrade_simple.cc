@@ -40,7 +40,7 @@ static char * dir_v42_dirty_multilogfile = OLDDATADIR "env_preload.4.2.0.multilo
 
 
 static void
-setup (u_int32_t flags, BOOL clean, BOOL too_old, char * src_db_dir) {
+setup (uint32_t flags, bool clean, bool too_old, char * src_db_dir) {
     int r;
     int len = 256;
     char syscmd[len];
@@ -84,33 +84,33 @@ test_shutdown(void) {
 
 static void
 test_env_startup(void) {
-    u_int32_t flags;
+    uint32_t flags;
     
     flags = FLAGS_LOG;
 
-    setup(flags, TRUE, FALSE, dir_v42_clean);
+    setup(flags, true, false, dir_v42_clean);
     print_engine_status(env);
     test_shutdown();
 
-    setup(flags, FALSE, TRUE, dir_v41_clean);
+    setup(flags, false, true, dir_v41_clean);
     print_engine_status(env);
     test_shutdown();
 
-    setup(flags, FALSE, FALSE, dir_v42_dirty);
+    setup(flags, false, false, dir_v42_dirty);
     if (verbose) {
 	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
     }
     print_engine_status(env);
     test_shutdown();
 
-    setup(flags, FALSE, TRUE, dir_v41_dirty_multilogfile);
+    setup(flags, false, true, dir_v41_dirty_multilogfile);
     if (verbose) {
 	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
     }
     print_engine_status(env);
     test_shutdown();
 
-    setup(flags, FALSE, FALSE, dir_v42_dirty_multilogfile);
+    setup(flags, false, false, dir_v42_dirty_multilogfile);
     if (verbose) {
 	printf("\n\nEngine status after aborted env->open() will have some garbage values:\n");
     }

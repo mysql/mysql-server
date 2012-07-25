@@ -63,7 +63,7 @@ toku_txn_unlock(TOKUTXN txn)
     toku_mutex_unlock(&txn->txn_lock);
 }
 
-u_int64_t
+uint64_t
 toku_txn_get_id(TOKUTXN txn)
 {
     return txn->txnid64;
@@ -159,9 +159,9 @@ toku_txn_create_txn (
         .live_root_txn_list = nullptr,
         .xids = xids,
         .begin_was_logged = false,
-        .checkpoint_needed_before_commit = FALSE,
-        .do_fsync = FALSE,
-        .force_fsync_on_commit = FALSE,
+        .checkpoint_needed_before_commit = false,
+        .do_fsync = false,
+        .force_fsync_on_commit = false,
         .do_fsync_lsn = ZERO_LSN,
         .xa_xid = {0},
         .progress_poll_fun = NULL,
@@ -258,7 +258,7 @@ int toku_txn_commit_txn(TOKUTXN txn, int nosync,
 
 void
 toku_txn_require_checkpoint_on_commit(TOKUTXN txn) {
-    txn->checkpoint_needed_before_commit = TRUE;
+    txn->checkpoint_needed_before_commit = true;
 }
 
 struct xcommit_info {
@@ -266,7 +266,7 @@ struct xcommit_info {
     TOKUTXN txn;
 };
 
-BOOL toku_txn_requires_checkpoint(TOKUTXN txn) {
+bool toku_txn_requires_checkpoint(TOKUTXN txn) {
     return (!txn->parent && txn->checkpoint_needed_before_commit);
 }
 
@@ -324,7 +324,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
     int r;
-    txn->do_fsync = FALSE;
+    txn->do_fsync = false;
 
     if (!toku_txn_is_read_only(txn)) {
         r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
@@ -373,7 +373,7 @@ void toku_txn_get_prepared_xa_xid (TOKUTXN txn, TOKU_XA_XID *xid) {
     copy_xid(xid, &txn->xa_xid);
 }
 
-int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, u_int32_t flags) {
+int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist preplist[/*count*/], long count, /*out*/ long *retp, uint32_t flags) {
     return toku_txn_manager_recover_txn(
         logger->txn_manager,
         preplist,
@@ -383,7 +383,7 @@ int toku_logger_recover_txn (TOKULOGGER logger, struct tokulogger_preplist prepl
         );
 }
 
-int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync) {
+int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, bool do_fsync) {
     int r = 0;
     if (logger && do_fsync) {
         r = toku_logger_fsync_if_lsn_not_fsynced(logger, do_fsync_lsn);
@@ -391,7 +391,7 @@ int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, BOOL do_fsync)
     return r;
 }
 
-void toku_txn_get_fsync_info(TOKUTXN ttxn, BOOL* do_fsync, LSN* do_fsync_lsn) {
+void toku_txn_get_fsync_info(TOKUTXN ttxn, bool* do_fsync, LSN* do_fsync_lsn) {
     *do_fsync = ttxn->do_fsync;
     *do_fsync_lsn = ttxn->do_fsync_lsn;
 }
@@ -401,7 +401,7 @@ void toku_txn_close_txn(TOKUTXN txn) {
     toku_txn_destroy_txn(txn);
 }
 
-static int remove_txn (OMTVALUE hv, u_int32_t UU(idx), void *txnv)
+static int remove_txn (OMTVALUE hv, uint32_t UU(idx), void *txnv)
 // Effect:  This function is called on every open FT that a transaction used.
 //  This function removes the transaction from that FT.
 {
@@ -454,7 +454,7 @@ XIDS toku_txn_get_xids (TOKUTXN txn) {
 }
 
 void toku_txn_force_fsync_on_commit(TOKUTXN txn) {
-    txn->force_fsync_on_commit = TRUE;
+    txn->force_fsync_on_commit = true;
 }
 
 TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
@@ -471,7 +471,7 @@ bool toku_is_txn_in_live_root_txn_list(const xid_omt_t &live_root_txn_list, TXNI
     int r = live_root_txn_list.find_zero<TXNID, toku_find_xid_by_xid>(xid, &txnid, nullptr);
     if (r==0) {
         invariant(txnid == xid);
-        retval = TRUE;
+        retval = true;
     }
     else {
         invariant(r==DB_NOTFOUND);

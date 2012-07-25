@@ -34,7 +34,7 @@ static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *
     abort();
 }
 
-static int write_dbfile (char *tf_template, int n, char *output_name, BOOL expect_error, int testno) {
+static int write_dbfile (char *tf_template, int n, char *output_name, bool expect_error, int testno) {
     if (verbose) printf("test start %d %d testno=%d\n", n, expect_error, testno);
 
     int result = 0;
@@ -216,7 +216,7 @@ int test_main (int argc, const char *argv[]) {
     int r;
     r = system(unlink_all); CKERR(r);
     r = toku_os_mkdir(directory, 0755); CKERR(r);
-    r = write_dbfile(tf_template, n, output_name, FALSE, 0); CKERR(r);
+    r = write_dbfile(tf_template, n, output_name, false, 0); CKERR(r);
 
     if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
     if (verbose) printf("my_realloc_count=%d big_count=%d\n", my_realloc_count, my_big_realloc_count);
@@ -233,7 +233,7 @@ int test_main (int argc, const char *argv[]) {
         event_count_trigger = i;
         r = system(unlink_all); CKERR(r);
         r = toku_os_mkdir(directory, 0755); CKERR(r);
-        r = write_dbfile(tf_template, n, output_name, TRUE, i);
+        r = write_dbfile(tf_template, n, output_name, true, i);
         if (verbose) printf("event_count=%d\n", event_count);
         if (r == 0)
             break;

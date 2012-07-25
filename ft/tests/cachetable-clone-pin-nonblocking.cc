@@ -6,10 +6,10 @@
 #include "test.h"
 
 static void 
-clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, BOOL UU(for_checkpoint), void* UU(write_extraargs))
+clone_callback(void* UU(value_data), void** cloned_value_data, PAIR_ATTR* new_attr, bool UU(for_checkpoint), void* UU(write_extraargs))
 {
     *cloned_value_data = (void *)1;
-    new_attr->is_valid = FALSE;
+    new_attr->is_valid = false;
 }
 
 static void
@@ -22,10 +22,10 @@ flush (
     void *e     __attribute__((__unused__)),
     PAIR_ATTR s      __attribute__((__unused__)),
     PAIR_ATTR* new_size      __attribute__((__unused__)),
-    BOOL w      __attribute__((__unused__)),
-    BOOL keep   __attribute__((__unused__)),
-    BOOL c      __attribute__((__unused__)),
-    BOOL UU(is_clone)
+    bool w      __attribute__((__unused__)),
+    bool keep   __attribute__((__unused__)),
+    bool c      __attribute__((__unused__)),
+    bool UU(is_clone)
     ) 
 {  
 }
@@ -34,7 +34,7 @@ flush (
 // this test verifies that a partial fetch will wait for a cloned pair to complete
 // writing to disk
 static void
-cachetable_test (enum cachetable_dirty dirty, BOOL cloneable) {
+cachetable_test (enum cachetable_dirty dirty, bool cloneable) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
@@ -50,17 +50,17 @@ cachetable_test (enum cachetable_dirty dirty, BOOL cloneable) {
     wc.clone_callback = cloneable ? clone_callback : NULL;
     wc.flush_callback = flush;
     
-    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL);
+    r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
 
-    // test that having a pin that passes FALSE for may_modify_value does not stall behind checkpoint
+    // test that having a pin that passes false for may_modify_value does not stall behind checkpoint
     r = toku_cachetable_begin_checkpoint(ct, NULL); assert_zero(r);
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, FALSE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, false, NULL, NULL);
     assert(r == 0);
     r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     assert(r == 0);
 
-    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, TRUE, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
     if (dirty == CACHETABLE_DIRTY && !cloneable) {
         assert(r == TOKUDB_TRY_AGAIN);
     }
@@ -79,7 +79,7 @@ cachetable_test (enum cachetable_dirty dirty, BOOL cloneable) {
 
 
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
     r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 
@@ -88,9 +88,9 @@ cachetable_test (enum cachetable_dirty dirty, BOOL cloneable) {
 int
 test_main(int argc, const char *argv[]) {
   default_parse_args(argc, argv);
-  cachetable_test(CACHETABLE_DIRTY, TRUE);
-  cachetable_test(CACHETABLE_DIRTY, FALSE);
-  cachetable_test(CACHETABLE_CLEAN, TRUE);
-  cachetable_test(CACHETABLE_CLEAN, FALSE);
+  cachetable_test(CACHETABLE_DIRTY, true);
+  cachetable_test(CACHETABLE_DIRTY, false);
+  cachetable_test(CACHETABLE_CLEAN, true);
+  cachetable_test(CACHETABLE_CLEAN, false);
   return 0;
 }

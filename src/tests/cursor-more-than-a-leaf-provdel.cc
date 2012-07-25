@@ -48,7 +48,7 @@ test_shutdown (void) {
 }
 
 static void
-doit (BOOL committed_provdels) {
+doit (bool committed_provdels) {
     DBT key,data;
     DBC *dbc;
     int r;
@@ -109,10 +109,10 @@ test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
 
     setup();
-    doit(TRUE);
+    doit(true);
     test_shutdown();
     setup();
-    doit(FALSE);
+    doit(false);
     test_shutdown();
 
     return 0;

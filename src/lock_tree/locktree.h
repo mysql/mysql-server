@@ -8,7 +8,6 @@
 #if !defined(TOKU_LOCKTREE_H)
 #define TOKU_LOCKTREE_H
 
-#include <stdbool.h>
 #include <db.h>
 #include <ft/fttypes.h>
 
@@ -427,7 +426,7 @@ typedef enum {
 } ltm_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[LTM_STATUS_NUM_ROWS];
 } LTM_STATUS_S, *LTM_STATUS;
 

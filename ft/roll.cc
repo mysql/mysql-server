@@ -157,12 +157,12 @@ static int find_ft_from_filenum (OMTVALUE v, void *filenumvp) {
     return 0;
 }
 
-// Input arg reset_root_xid_that_created TRUE means that this operation has changed the definition of this dictionary.
+// Input arg reset_root_xid_that_created true means that this operation has changed the definition of this dictionary.
 // (Example use is for schema change committed with txn that inserted cmdupdatebroadcast message.)
 // The oplsn argument is ZERO_LSN for normal operation.  When this function is called for recovery, it has the LSN of
 // the operation (insert, delete, update, etc).
 static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key, BYTESTRING *data, TOKUTXN txn, LSN oplsn,
-                         BOOL reset_root_xid_that_created) {
+                         bool reset_root_xid_that_created) {
     CACHEFILE cf;
     // 2954 - ignore messages for aborted hot-index
     int r = 0;
@@ -220,7 +220,7 @@ static int do_nothing_with_filenum(TOKUTXN UU(txn), FILENUM UU(filenum)) {
 
 int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING UU(key), TOKUTXN txn, LSN UU(oplsn)) {
 #if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+    return do_insertion (FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, false);
 #else
     return do_nothing_with_filenum(txn, filenum);
 #endif
@@ -232,7 +232,7 @@ toku_rollback_cmdinsert (FILENUM    filenum,
                          TOKUTXN    txn,
                          LSN        oplsn)
 {
-    return do_insertion (FT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+    return do_insertion (FT_ABORT_ANY, filenum, key, 0, txn, oplsn, false);
 }
 
 int
@@ -241,7 +241,7 @@ toku_commit_cmdupdate(FILENUM    filenum,
                       TOKUTXN    txn,
                       LSN        oplsn)
 {
-    return do_insertion(FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+    return do_insertion(FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, false);
 }
 
 int
@@ -250,18 +250,18 @@ toku_rollback_cmdupdate(FILENUM    filenum,
                         TOKUTXN    txn,
                         LSN        oplsn)
 {
-    return do_insertion(FT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+    return do_insertion(FT_ABORT_ANY, filenum, key, 0, txn, oplsn, false);
 }
 
 int
 toku_commit_cmdupdatebroadcast(FILENUM    filenum,
-                               BOOL       is_resetting_op,
+                               bool       is_resetting_op,
                                TOKUTXN    txn,
                                LSN        oplsn)
 {
     // if is_resetting_op, reset root_xid_that_created in
     // relevant ft.
-    BOOL reset_root_xid_that_created = (is_resetting_op ? TRUE : FALSE);
+    bool reset_root_xid_that_created = (is_resetting_op ? true : false);
     const enum ft_msg_type msg_type = (is_resetting_op
                                         ? FT_COMMIT_BROADCAST_ALL
                                         : FT_COMMIT_BROADCAST_TXN);
@@ -271,12 +271,12 @@ toku_commit_cmdupdatebroadcast(FILENUM    filenum,
 
 int
 toku_rollback_cmdupdatebroadcast(FILENUM    filenum,
-                                 BOOL       UU(is_resetting_op),
+                                 bool       UU(is_resetting_op),
                                  TOKUTXN    txn,
                                  LSN        oplsn)
 {
     BYTESTRING nullkey = { 0, NULL };
-    return do_insertion(FT_ABORT_BROADCAST_TXN, filenum, nullkey, 0, txn, oplsn, FALSE);
+    return do_insertion(FT_ABORT_BROADCAST_TXN, filenum, nullkey, 0, txn, oplsn, false);
 }
 
 int
@@ -286,7 +286,7 @@ toku_commit_cmddelete (FILENUM    filenum,
                        LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE
-    return do_insertion (FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+    return do_insertion (FT_COMMIT_ANY, filenum, key, 0, txn, oplsn, false);
 #else
     key = key; oplsn = oplsn;
     return do_nothing_with_filenum(txn, filenum);
@@ -299,7 +299,7 @@ toku_rollback_cmddelete (FILENUM    filenum,
                          TOKUTXN    txn,
                          LSN        oplsn)
 {
-    return do_insertion (FT_ABORT_ANY, filenum, key, 0, txn, oplsn, FALSE);
+    return do_insertion (FT_ABORT_ANY, filenum, key, 0, txn, oplsn, false);
 }
 
 static int
@@ -319,7 +319,7 @@ toku_apply_rollinclude (TXNID      xid,
     uint32_t next_log_hash = spilled_tail_hash;
     uint64_t last_sequence = num_nodes;
 
-    BOOL found_head = FALSE;
+    bool found_head = false;
     assert(next_log.b != ROLLBACK_NONE.b);
     while (next_log.b != ROLLBACK_NONE.b) {
         //pin log
@@ -337,7 +337,7 @@ toku_apply_rollinclude (TXNID      xid,
         }
         if (next_log.b == spilled_head.b) {
             assert(!found_head);
-            found_head = TRUE;
+            found_head = true;
             assert(log->sequence == 0);
         }
         next_log      = log->previous;

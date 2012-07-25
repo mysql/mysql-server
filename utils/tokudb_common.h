@@ -13,7 +13,6 @@
 #include <inttypes.h>
 #include <signal.h>
 #include <memory.h>
-#include <stdbool.h>
 
 #define SET_BITS(bitvector, bits)      ((bitvector) |= (bits))
 #define REMOVE_BITS(bitvector, bits)   ((bitvector) &= ~(bits))

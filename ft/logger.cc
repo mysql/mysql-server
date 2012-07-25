@@ -15,9 +15,9 @@ static int delete_logfile(TOKULOGGER logger, long long index, uint32_t version);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
 
-static void toku_print_bytes (FILE *outf, u_int32_t len, char *data) {
+static void toku_print_bytes (FILE *outf, uint32_t len, char *data) {
     fprintf(outf, "\"");
-    u_int32_t i;
+    uint32_t i;
     for (i=0; i<len; i++) {
         switch (data[i]) {
         case '"':  fprintf(outf, "\\\""); break;
@@ -31,8 +31,8 @@ static void toku_print_bytes (FILE *outf, u_int32_t len, char *data) {
     fprintf(outf, "\"");
 }
 
-static BOOL is_a_logfile_any_version (const char *name, uint64_t *number_result, uint32_t *version_of_log) {
-    BOOL rval = TRUE;
+static bool is_a_logfile_any_version (const char *name, uint64_t *number_result, uint32_t *version_of_log) {
+    bool rval = true;
     uint64_t result;
     int n;
     int r;
@@ -43,7 +43,7 @@ static BOOL is_a_logfile_any_version (const char *name, uint64_t *number_result,
         version = TOKU_LOG_VERSION_1;
         r = sscanf(name, "log%" SCNu64 ".tokulog%n", &result, &n);
         if (r!=1 || name[n]!='\0') {
-            rval = FALSE;
+            rval = false;
         }
     }
     if (rval) {
@@ -55,13 +55,13 @@ static BOOL is_a_logfile_any_version (const char *name, uint64_t *number_result,
 }
 
 // added for #2424, improved for #2521
-static BOOL is_a_logfile (const char *name, long long *number_result) {
-    BOOL rval;
+static bool is_a_logfile (const char *name, long long *number_result) {
+    bool rval;
     uint64_t result;
     uint32_t version;
     rval = is_a_logfile_any_version(name, &result, &version);
     if (rval && version != TOKU_LOG_VERSION)
-        rval = FALSE;
+        rval = false;
     if (rval)
         *number_result = result;
     return rval;
@@ -71,11 +71,11 @@ static BOOL is_a_logfile (const char *name, long long *number_result) {
 int toku_logger_create (TOKULOGGER *resultp) {
     TOKULOGGER MALLOC(result);
     if (result==0) return get_error_errno();
-    result->is_open=FALSE;
-    result->is_panicked=FALSE;
+    result->is_open=false;
+    result->is_panicked=false;
     result->panic_errno = 0;
-    result->write_log_files = TRUE;
-    result->trim_log_files = TRUE;
+    result->write_log_files = true;
+    result->trim_log_files = true;
     result->directory=0;
     result->remove_finalize_callback = NULL;
     // fd is uninitialized on purpose
@@ -99,7 +99,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->output_condition_lock_ctr = 0;
     result->swap_ctr = 0;
     result->rollback_cachefile = NULL;
-    result->output_is_available = TRUE;
+    result->output_is_available = true;
     toku_txn_manager_init(&result->txn_manager);
     return 0;
 }
@@ -166,7 +166,7 @@ toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID l
     }
     toku_txn_manager_set_last_xid_from_logger(logger->txn_manager, last_xid);
 
-    logger->is_open = TRUE;
+    logger->is_open = true;
     return 0;
 }
 
@@ -179,7 +179,7 @@ bool toku_logger_rollback_is_open (TOKULOGGER logger) {
 }
 
 int
-toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create) {
+toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create) {
     assert(logger->is_open);
     assert(!logger->is_panicked);
     assert(!logger->rollback_cachefile);
@@ -196,7 +196,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
     assert(!t->ft->panic);
     //Must have no data blocks (rollback logs or otherwise).
     toku_block_verify_no_data_blocks_except_root_unlocked(t->ft->blocktable, t->ft->h->root_blocknum);
-    BOOL is_empty;
+    bool is_empty;
     is_empty = toku_ft_is_empty_fast(t);
     assert(is_empty);
     return r;
@@ -208,7 +208,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create)
 //            Rollback log can only be closed when there are no open transactions,
 //            so it will always be empty (no data blocks) when about to be closed.
 int
-toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
+toku_logger_close_rollback(TOKULOGGER logger, bool recovery_failed) {
     int r = 0;
     CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
     if (!logger->is_panicked && cf) {
@@ -228,7 +228,7 @@ toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
             assert(!ft->h->dirty);
             ft_to_close = toku_ft_get_only_existing_ft_handle(ft);
             {
-                BOOL is_empty;
+                bool is_empty;
                 is_empty = toku_ft_is_empty_fast(ft_to_close);
                 assert(is_empty);
             }
@@ -272,7 +272,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     ml_destroy(&logger->input_lock);
     toku_mutex_destroy(&logger->output_condition_lock);
     toku_cond_destroy(&logger->output_condition);
-    logger->is_panicked=TRUE; // Just in case this might help.
+    logger->is_panicked=true; // Just in case this might help.
     toku_txn_manager_destroy(logger->txn_manager);
     if (logger->directory) toku_free(logger->directory);
     toku_logfilemgr_destroy(&logger->logfilemgr);
@@ -290,7 +290,7 @@ int toku_logger_shutdown(TOKULOGGER logger) {
         TXN_MANAGER mgr = logger->txn_manager;
         if (toku_txn_manager_num_live_txns(mgr) == 0) {
             TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
-            r = toku_log_shutdown(logger, NULL, TRUE, 0, last_xid);
+            r = toku_log_shutdown(logger, NULL, true, 0, last_xid);
         }
     }
     return r;
@@ -344,7 +344,7 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
     toku_mutex_lock(&logger->output_condition_lock);
     logger->output_condition_lock_ctr++;
     wait_till_output_available(logger);
-    logger->output_is_available = FALSE;
+    logger->output_is_available = false;
     if (fsynced_lsn) {
         *fsynced_lsn = logger->fsynced_lsn;
     }
@@ -352,7 +352,7 @@ grab_output(TOKULOGGER logger, LSN *fsynced_lsn)
     toku_mutex_unlock(&logger->output_condition_lock);
 }
 
-static BOOL
+static bool
 wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, LSN lsn, LSN *fsynced_lsn)
 // Effect: Wait until either the output is available or the lsn has been written.
 //  Return true iff the lsn has been written.
@@ -361,17 +361,17 @@ wait_till_output_already_written_or_output_buffer_available (TOKULOGGER logger, 
 // Entry: Hold no locks.
 // Exit: Hold the output permission if returns false.
 {
-    BOOL result;
+    bool result;
     toku_mutex_lock(&logger->output_condition_lock);
     logger->output_condition_lock_ctr++;
     while (1) {
         if (logger->fsynced_lsn.lsn >= lsn.lsn) { // we can look at the fsynced lsn since we have the lock.
-            result = TRUE;
+            result = true;
             break;
         }
         if (logger->output_is_available) {
-            logger->output_is_available = FALSE;
-            result = FALSE;
+            logger->output_is_available = false;
+            result = false;
             break;
         }
         // otherwise wait for a good time to look again.
@@ -391,7 +391,7 @@ release_output (TOKULOGGER logger, LSN fsynced_lsn)
 {
     toku_mutex_lock(&logger->output_condition_lock);
     logger->output_condition_lock_ctr++;
-    logger->output_is_available = TRUE;
+    logger->output_is_available = true;
     if (logger->fsynced_lsn.lsn < fsynced_lsn.lsn) {
         logger->fsynced_lsn = fsynced_lsn;
     }
@@ -488,7 +488,7 @@ int toku_logger_fsync (TOKULOGGER logger)
     if (logger->is_panicked) return EINVAL;
     ml_lock(&logger->input_lock);
     logger->input_lock_ctr++;
-    r = toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, TRUE);
+    r = toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, true);
     if (r!=0) {
         toku_logger_panic(logger, r);
     }
@@ -502,7 +502,7 @@ toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
     else if (logger->write_log_files) {
         ml_lock(&logger->input_lock);
         logger->input_lock_ctr++;
-        r = toku_logger_maybe_fsync(logger, lsn, TRUE);
+        r = toku_logger_maybe_fsync(logger, lsn, true);
         if (r!=0) {
             toku_logger_panic(logger, r);
         }
@@ -512,7 +512,7 @@ toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
 
 void toku_logger_panic (TOKULOGGER logger, int err) {
     logger->panic_errno=err;
-    logger->is_panicked=TRUE;
+    logger->is_panicked=true;
 }
 int toku_logger_panicked(TOKULOGGER logger) {
     if (logger==0) return 0;
@@ -527,7 +527,7 @@ void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct) {
     logger->ct = ct;
 }
 
-int toku_logger_set_lg_max(TOKULOGGER logger, u_int32_t lg_max) {
+int toku_logger_set_lg_max(TOKULOGGER logger, uint32_t lg_max) {
     if (logger==0) return EINVAL; // no logger
     if (logger->is_panicked) return EINVAL;
     if (logger->is_open) return EINVAL;
@@ -535,14 +535,14 @@ int toku_logger_set_lg_max(TOKULOGGER logger, u_int32_t lg_max) {
     logger->lg_max = lg_max;
     return 0;
 }
-int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp) {
+int toku_logger_get_lg_max(TOKULOGGER logger, uint32_t *lg_maxp) {
     if (logger==0) return EINVAL; // no logger
     if (logger->is_panicked) return EINVAL;
     *lg_maxp = logger->lg_max;
     return 0;
 }
 
-int toku_logger_set_lg_bsize(TOKULOGGER logger, u_int32_t bsize) {
+int toku_logger_set_lg_bsize(TOKULOGGER logger, uint32_t bsize) {
     if (logger==0) return EINVAL; // no logger
     if (logger->is_panicked) return EINVAL;
     if (logger->is_open) return EINVAL;
@@ -589,7 +589,7 @@ static int logfilenamecompare (const void *ap, const void *bp) {
     char *b=*(char**)bp;
     char * b_leafname = fileleafname(b);
     int rval;
-    BOOL valid;
+    bool valid;
     uint64_t num_a = 0;  // placate compiler
     uint64_t num_b = 0;
     uint32_t ver_a = 0;
@@ -727,13 +727,13 @@ int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN trim_lsn)
     return r;
 }
 
-void toku_logger_write_log_files (TOKULOGGER logger, BOOL write_log_files)
+void toku_logger_write_log_files (TOKULOGGER logger, bool write_log_files)
 // Called only during initialization (or just after recovery), so no locks are needed.
 {
     logger->write_log_files = write_log_files;
 }
 
-void toku_logger_trim_log_files (TOKULOGGER logger, BOOL trim_log_files)
+void toku_logger_trim_log_files (TOKULOGGER logger, bool trim_log_files)
 // Called only during initialization, so no locks are needed.
 {
     logger->trim_log_files = trim_log_files;
@@ -751,7 +751,7 @@ int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
         logger->input_lock_ctr++;
         ml_unlock(&logger->input_lock);
         LSN  fsynced_lsn;
-        BOOL already_done = wait_till_output_already_written_or_output_buffer_available(logger, lsn, &fsynced_lsn);
+        bool already_done = wait_till_output_already_written_or_output_buffer_available(logger, lsn, &fsynced_lsn);
         if (already_done) return 0;
 
         // otherwise we now own the output permission, and our lsn isn't outputed.
@@ -833,8 +833,8 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
 
     // reset the LSN's to the lastlsn when the logger was opened
     logger->lsn = logger->written_lsn = logger->fsynced_lsn = lastlsn;
-    logger->write_log_files = TRUE;
-    logger->trim_log_files = TRUE;
+    logger->write_log_files = true;
+    logger->trim_log_files = true;
 
     // open a new log file
     r = open_logfile(logger);
@@ -843,7 +843,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn)
 }
 
 // fname is the iname
-int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, u_int32_t mode, u_int32_t treeflags, u_int32_t nodesize, u_int32_t basementnodesize, enum toku_compression_method compression_method) {
+int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode, uint32_t treeflags, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs_fname = { .len = (uint32_t) strlen(fname), .data = (char *) fname };
@@ -874,106 +874,106 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum, uin
     return toku_log_fopen (txn->logger, (LSN*)0, 0, bs, filenum, treeflags);
 }
 
-static int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
+static int toku_fread_uint8_t_nocrclen (FILE *f, uint8_t *v) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
-    u_int8_t vc=(u_int8_t)vi;
+    uint8_t vc=(uint8_t)vi;
     *v = vc;
     return 0;
 }
 
-int toku_fread_u_int8_t (FILE *f, u_int8_t *v, struct x1764 *mm, u_int32_t *len) {
+int toku_fread_uint8_t (FILE *f, uint8_t *v, struct x1764 *mm, uint32_t *len) {
     int vi=fgetc(f);
     if (vi==EOF) return -1;
-    u_int8_t vc=(u_int8_t)vi;
+    uint8_t vc=(uint8_t)vi;
     x1764_add(mm, &vc, 1);
     (*len)++;
     *v = vc;
     return 0;
 }
 
-int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v) {
-    u_int32_t result;
-    u_int8_t *cp = (u_int8_t*)&result;
+int toku_fread_uint32_t_nocrclen (FILE *f, uint32_t *v) {
+    uint32_t result;
+    uint8_t *cp = (uint8_t*)&result;
     int r;
-    r = toku_fread_u_int8_t_nocrclen (f, cp+0); if (r!=0) return r;
-    r = toku_fread_u_int8_t_nocrclen (f, cp+1); if (r!=0) return r;
-    r = toku_fread_u_int8_t_nocrclen (f, cp+2); if (r!=0) return r;
-    r = toku_fread_u_int8_t_nocrclen (f, cp+3); if (r!=0) return r;
+    r = toku_fread_uint8_t_nocrclen (f, cp+0); if (r!=0) return r;
+    r = toku_fread_uint8_t_nocrclen (f, cp+1); if (r!=0) return r;
+    r = toku_fread_uint8_t_nocrclen (f, cp+2); if (r!=0) return r;
+    r = toku_fread_uint8_t_nocrclen (f, cp+3); if (r!=0) return r;
     *v = toku_dtoh32(result);
 
     return 0;
 }
-int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct x1764 *checksum, u_int32_t *len) {
-    u_int32_t result;
-    u_int8_t *cp = (u_int8_t*)&result;
+int toku_fread_uint32_t (FILE *f, uint32_t *v, struct x1764 *checksum, uint32_t *len) {
+    uint32_t result;
+    uint8_t *cp = (uint8_t*)&result;
     int r;
-    r = toku_fread_u_int8_t (f, cp+0, checksum, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, cp+1, checksum, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, cp+2, checksum, len); if(r!=0) return r;
-    r = toku_fread_u_int8_t (f, cp+3, checksum, len); if(r!=0) return r;
+    r = toku_fread_uint8_t (f, cp+0, checksum, len); if(r!=0) return r;
+    r = toku_fread_uint8_t (f, cp+1, checksum, len); if(r!=0) return r;
+    r = toku_fread_uint8_t (f, cp+2, checksum, len); if(r!=0) return r;
+    r = toku_fread_uint8_t (f, cp+3, checksum, len); if(r!=0) return r;
     *v = toku_dtoh32(result);
     return 0;
 }
 
-int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32_t *len) {
-    u_int32_t v1,v2;
+int toku_fread_uint64_t (FILE *f, uint64_t *v, struct x1764 *checksum, uint32_t *len) {
+    uint32_t v1,v2;
     int r;
-    r=toku_fread_u_int32_t(f, &v1, checksum, len);    if (r!=0) return r;
-    r=toku_fread_u_int32_t(f, &v2, checksum, len);    if (r!=0) return r;
-    *v = (((u_int64_t)v1)<<32 ) | ((u_int64_t)v2);
+    r=toku_fread_uint32_t(f, &v1, checksum, len);    if (r!=0) return r;
+    r=toku_fread_uint32_t(f, &v2, checksum, len);    if (r!=0) return r;
+    *v = (((uint64_t)v1)<<32 ) | ((uint64_t)v2);
     return 0;
 }
 
-int toku_fread_BOOL (FILE *f, BOOL *v, struct x1764 *mm, u_int32_t *len) {
-    u_int8_t iv;
-    int r = toku_fread_u_int8_t(f, &iv, mm, len);
+int toku_fread_bool (FILE *f, bool *v, struct x1764 *mm, uint32_t *len) {
+    uint8_t iv;
+    int r = toku_fread_uint8_t(f, &iv, mm, len);
     if (r == 0) {
         *v = (iv!=0);
     }
     return r;
 }
 
-int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, u_int32_t *len) {
-    return toku_fread_u_int64_t (f, &lsn->lsn, checksum, len);
+int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, uint32_t *len) {
+    return toku_fread_uint64_t (f, &lsn->lsn, checksum, len);
 }
 
-int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *b, struct x1764 *checksum, u_int32_t *len) {
-    return toku_fread_u_int64_t (f, (u_int64_t*)&b->b, checksum, len);
+int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *b, struct x1764 *checksum, uint32_t *len) {
+    return toku_fread_uint64_t (f, (uint64_t*)&b->b, checksum, len);
 }
 
-int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, u_int32_t *len) {
-    return toku_fread_u_int32_t (f, &filenum->fileid, checksum, len);
+int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, uint32_t *len) {
+    return toku_fread_uint32_t (f, &filenum->fileid, checksum, len);
 }
 
-int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t *len) {
-    return toku_fread_u_int64_t (f, txnid, checksum, len);
+int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, uint32_t *len) {
+    return toku_fread_uint64_t (f, txnid, checksum, len);
 }
 
-int toku_fread_XIDP    (FILE *f, XIDP *xidp, struct x1764 *checksum, u_int32_t *len) {
+int toku_fread_XIDP    (FILE *f, XIDP *xidp, struct x1764 *checksum, uint32_t *len) {
     // These reads are verbose because XA defined the fields as "long", but we use 4 bytes, 1 byte and 1 byte respectively.
     TOKU_XA_XID *XMALLOC(xid);
     {
-        u_int32_t formatID;
-        int r = toku_fread_u_int32_t(f, &formatID,     checksum, len);
+        uint32_t formatID;
+        int r = toku_fread_uint32_t(f, &formatID,     checksum, len);
         if (r!=0) return r;
         xid->formatID = formatID;
     }
     {
-        u_int8_t gtrid_length;
-        int r = toku_fread_u_int8_t (f, &gtrid_length, checksum, len);
+        uint8_t gtrid_length;
+        int r = toku_fread_uint8_t (f, &gtrid_length, checksum, len);
         if (r!=0) return r;
         xid->gtrid_length = gtrid_length;
     }
     {
-        u_int8_t bqual_length;
-        int r = toku_fread_u_int8_t (f, &bqual_length, checksum, len);
+        uint8_t bqual_length;
+        int r = toku_fread_uint8_t (f, &bqual_length, checksum, len);
         if (r!=0) return r;
         xid->bqual_length = bqual_length;
     }
     for (int i=0; i< xid->gtrid_length + xid->bqual_length; i++) {
-        u_int8_t byte;
-        int r = toku_fread_u_int8_t(f, &byte, checksum, len);
+        uint8_t byte;
+        int r = toku_fread_uint8_t(f, &byte, checksum, len);
         if (r!=0) return r;
         xid->data[i] = byte;
     }
@@ -982,13 +982,13 @@ int toku_fread_XIDP    (FILE *f, XIDP *xidp, struct x1764 *checksum, u_int32_t *
 }
 
 // fills in the bs with malloced data.
-int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_int32_t *len) {
-    int r=toku_fread_u_int32_t(f, (u_int32_t*)&bs->len, checksum, len);
+int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, uint32_t *len) {
+    int r=toku_fread_uint32_t(f, (uint32_t*)&bs->len, checksum, len);
     if (r!=0) return r;
     XMALLOC_N(bs->len, bs->data);
-    u_int32_t i;
+    uint32_t i;
     for (i=0; i<bs->len; i++) {
-        r=toku_fread_u_int8_t(f, (u_int8_t*)&bs->data[i], checksum, len);
+        r=toku_fread_uint8_t(f, (uint8_t*)&bs->data[i], checksum, len);
         if (r!=0) {
             toku_free(bs->data);
             bs->data=0;
@@ -999,11 +999,11 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_in
 }
 
 // fills in the fs with malloced data.
-int toku_fread_FILENUMS (FILE *f, FILENUMS *fs, struct x1764 *checksum, u_int32_t *len) {
-    int r=toku_fread_u_int32_t(f, (u_int32_t*)&fs->num, checksum, len);
+int toku_fread_FILENUMS (FILE *f, FILENUMS *fs, struct x1764 *checksum, uint32_t *len) {
+    int r=toku_fread_uint32_t(f, (uint32_t*)&fs->num, checksum, len);
     if (r!=0) return r;
     XMALLOC_N(fs->num, fs->filenums);
-    u_int32_t i;
+    uint32_t i;
     for (i=0; i<fs->num; i++) {
         r=toku_fread_FILENUM (f, &fs->filenums[i], checksum, len);
         if (r!=0) {
@@ -1015,7 +1015,7 @@ int toku_fread_FILENUMS (FILE *f, FILENUMS *fs, struct x1764 *checksum, u_int32_
     return 0;
 }
 
-int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
     LSN v;
     int r = toku_fread_LSN(inf, &v, checksum, len);
     if (r!=0) return r;
@@ -1023,7 +1023,7 @@ int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x176
     return 0;
 }
 
-int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
     TXNID v;
     int r = toku_fread_TXNID(inf, &v, checksum, len);
     if (r!=0) return r;
@@ -1031,7 +1031,7 @@ int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1
     return 0;
 }
 
-int toku_logprint_XIDP (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_XIDP (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
     XIDP vp;
     int r = toku_fread_XIDP(inf, &vp, checksum, len);
     if (r!=0) return r;
@@ -1042,9 +1042,9 @@ int toku_logprint_XIDP (FILE *outf, FILE *inf, const char *fieldname, struct x17
     return 0;
 }
 
-int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
-    u_int8_t v;
-    int r = toku_fread_u_int8_t(inf, &v, checksum, len);
+int toku_logprint_uint8_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format) {
+    uint8_t v;
+    int r = toku_fread_uint8_t(inf, &v, checksum, len);
     if (r!=0) return r;
     fprintf(outf, " %s=%d", fieldname, v);
     if (format) fprintf(outf, format, v);
@@ -1054,41 +1054,41 @@ int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct
     return 0;
 }
 
-int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
-    u_int32_t v;
-    int r = toku_fread_u_int32_t(inf, &v, checksum, len);
+int toku_logprint_uint32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format) {
+    uint32_t v;
+    int r = toku_fread_uint32_t(inf, &v, checksum, len);
     if (r!=0) return r;
     fprintf(outf, " %s=", fieldname);
     fprintf(outf, format ? format : "%d", v);
     return 0;
 }
 
-int toku_logprint_u_int64_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
-    u_int64_t v;
-    int r = toku_fread_u_int64_t(inf, &v, checksum, len);
+int toku_logprint_uint64_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format) {
+    uint64_t v;
+    int r = toku_fread_uint64_t(inf, &v, checksum, len);
     if (r!=0) return r;
     fprintf(outf, " %s=", fieldname);
     fprintf(outf, format ? format : "%" PRId64, v);
     return 0;
 }
 
-int toku_logprint_BOOL (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    BOOL v;
-    int r = toku_fread_BOOL(inf, &v, checksum, len);
+int toku_logprint_bool (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
+    bool v;
+    int r = toku_fread_bool(inf, &v, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, " %s=%s", fieldname, v ? "TRUE" : "FALSE");
+    fprintf(outf, " %s=%s", fieldname, v ? "true" : "false");
     return 0;
 
 }
 
-void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
+void toku_print_BYTESTRING (FILE *outf, uint32_t len, char *data) {
     fprintf(outf, "{len=%u data=", len);
     toku_print_bytes(outf, len, data);
     fprintf(outf, "}");
 
 }
 
-int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
     BYTESTRING bs;
     int r = toku_fread_BYTESTRING(inf, &bs, checksum, len);
     if (r!=0) return r;
@@ -1098,20 +1098,20 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, stru
     return 0;
 }
 
-int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
-    return toku_logprint_u_int64_t(outf, inf, fieldname, checksum, len, format);
+int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format) {
+    return toku_logprint_uint64_t(outf, inf, fieldname, checksum, len, format);
 
 }
 
-int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
-    return toku_logprint_u_int32_t(outf, inf, fieldname, checksum, len, format);
+int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format) {
+    return toku_logprint_uint32_t(outf, inf, fieldname, checksum, len, format);
 
 }
 
 static void
-toku_print_FILENUMS (FILE *outf, u_int32_t num, FILENUM *filenums) {
+toku_print_FILENUMS (FILE *outf, uint32_t num, FILENUM *filenums) {
     fprintf(outf, "{num=%u filenums=\"", num);
-    u_int32_t i;
+    uint32_t i;
     for (i=0; i<num; i++) {
         if (i>0)
             fprintf(outf, ",");
@@ -1121,7 +1121,7 @@ toku_print_FILENUMS (FILE *outf, u_int32_t num, FILENUM *filenums) {
 
 }
 
-int toku_logprint_FILENUMS (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__))) {
+int toku_logprint_FILENUMS (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, uint32_t *len, const char *format __attribute__((__unused__))) {
     FILENUMS bs;
     int r = toku_fread_FILENUMS(inf, &bs, checksum, len);
     if (r!=0) return r;
@@ -1131,7 +1131,7 @@ int toku_logprint_FILENUMS (FILE *outf, FILE *inf, const char *fieldname, struct
     return 0;
 }
 
-int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
+int toku_read_and_print_logmagic (FILE *f, uint32_t *versionp) {
     {
         char magic[8];
         int r=fread(magic, 1, 8, f);
@@ -1155,7 +1155,7 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
     return 0;
 }
 
-int toku_read_logmagic (FILE *f, u_int32_t *versionp) {
+int toku_read_logmagic (FILE *f, uint32_t *versionp) {
     {
         char magic[8];
         int r=fread(magic, 1, 8, f);
@@ -1218,7 +1218,7 @@ static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
     int r = read(fd, header, SKIP+8);
     if (r!=SKIP+8) return 0; // cannot determine that it's archivable, so we'll assume no.  If a later-log is archivable is then this one will be too.
 
-    u_int64_t lsn;
+    uint64_t lsn;
     {
         struct rbuf rb;
         rb.buf   = header+SKIP;
@@ -1386,10 +1386,10 @@ toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS statp) {
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 // Used for upgrade: 
 // if any valid log files exist in log_dir, then
-//   set *found_any_logs to TRUE and set *version_found to version number of latest log
+//   set *found_any_logs to true and set *version_found to version number of latest log
 int
-toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint32_t *version_found) {
-    BOOL found = FALSE;
+toku_get_version_of_logs_on_disk(const char *log_dir, bool *found_any_logs, uint32_t *version_found) {
+    bool found = false;
     uint32_t highest_version = 0;
     int r = 0;
 
@@ -1403,10 +1403,10 @@ toku_get_version_of_logs_on_disk(const char *log_dir, BOOL *found_any_logs, uint
         while ((de=readdir(d))) {
             uint32_t this_log_version;
             uint64_t this_log_number;
-            BOOL is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
+            bool is_log = is_a_logfile_any_version(de->d_name, &this_log_number, &this_log_version);
             if (is_log) {
                 if (!found) {  // first log file found
-                    found = TRUE;
+                    found = true;
                     highest_version = this_log_version;
                 }
                 else

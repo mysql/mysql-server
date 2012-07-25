@@ -77,7 +77,7 @@ static void chk_original(const unsigned int k, const unsigned int v) {
     assert(v == _v(k));
 }
 
-static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsigned int k, const unsigned int v), BOOL already_deleted) {
+static int do_verify_results(DB_TXN *txn, DB *db, void (*check_val)(const unsigned int k, const unsigned int v), bool already_deleted) {
     int r = 0;
     DBT key, val;
     unsigned int i, *vp;
@@ -111,7 +111,7 @@ int test_main(int argc, char * const argv[]) {
             { int chk_r = do_inserts(txn_1, db); CKERR(chk_r); }
 
             IN_TXN_COMMIT(env, txn_1, txn_11, 0, {
-                    { int chk_r = do_verify_results(txn_11, db, chk_original, FALSE); CKERR(chk_r); }
+                    { int chk_r = do_verify_results(txn_11, db, chk_original, false); CKERR(chk_r); }
                 });
         });
 
@@ -119,12 +119,12 @@ int test_main(int argc, char * const argv[]) {
             { int chk_r = do_updates(txn_2, db); CKERR(chk_r); }
 
             IN_TXN_COMMIT(env, txn_2, txn_21, 0, {
-                    { int chk_r = do_verify_results(txn_21, db, chk_original, TRUE); CKERR(chk_r); }
+                    { int chk_r = do_verify_results(txn_21, db, chk_original, true); CKERR(chk_r); }
                 });
         });
 
     IN_TXN_COMMIT(env, NULL, txn_3, 0, {
-            { int chk_r = do_verify_results(txn_3, db, chk_original, FALSE); CKERR(chk_r); }
+            { int chk_r = do_verify_results(txn_3, db, chk_original, false); CKERR(chk_r); }
         });
 
     { int chk_r = db->close(db, 0); CKERR(chk_r); }

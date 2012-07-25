@@ -201,13 +201,13 @@ upgrade_log(const char *env_dir, const char *log_dir, LSN last_lsn, TXNID last_x
 // If log on disk is old (environment is old) and clean shutdown, then create log of current version,
 // which will make the environment of the current version (and delete the old logs).
 int
-toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_clean_shutdown, BOOL * upgrade_in_progress) {
+toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_clean_shutdown, bool * upgrade_in_progress) {
     int r;
     int lockfd = -1;
     FOOTPRINTSETUP(100000);
 
     footprint = 0;
-    *upgrade_in_progress = FALSE;  // set TRUE only if all criteria are met and we're actually doing an upgrade
+    *upgrade_in_progress = false;  // set true only if all criteria are met and we're actually doing an upgrade
 
     FOOTPRINT(1);
     r = toku_recover_lock(log_dir, &lockfd);
@@ -219,7 +219,7 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
     assert(env_dir);
 
     uint32_t version_of_logs_on_disk;
-    BOOL found_any_logs;
+    bool found_any_logs;
     r = toku_get_version_of_logs_on_disk(log_dir, &found_any_logs, &version_of_logs_on_disk);
     if (r != 0) {
         goto cleanup;
@@ -243,7 +243,7 @@ toku_maybe_upgrade_log(const char *env_dir, const char *log_dir, LSN * lsn_of_cl
         }
         FOOTPRINT(5);
         *lsn_of_clean_shutdown = last_lsn;
-        *upgrade_in_progress = TRUE;
+        *upgrade_in_progress = true;
         r = upgrade_log(env_dir, log_dir, last_lsn, last_xid);
     }
 cleanup:

@@ -110,9 +110,9 @@ static LSN last_completed_checkpoint_lsn;
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
 
-static BOOL initialized = FALSE;     // sanity check
-static volatile BOOL locked_mo = FALSE;       // true when the multi_operation write lock is held (by checkpoint)
-static volatile BOOL locked_cs = FALSE;       // true when the checkpoint_safe write lock is held (by checkpoint)
+static bool initialized = false;     // sanity check
+static volatile bool locked_mo = false;       // true when the multi_operation write lock is held (by checkpoint)
+static volatile bool locked_cs = false;       // true when the checkpoint_safe write lock is held (by checkpoint)
 
 
 // Note following static functions are called from checkpoint internal logic only,
@@ -131,7 +131,7 @@ multi_operation_lock_init(void) {
 #endif
     toku_pthread_rwlock_init(&multi_operation_lock, &attr); 
     pthread_rwlockattr_destroy(&attr);
-    locked_mo = FALSE;
+    locked_mo = false;
 }
 
 static void
@@ -142,19 +142,19 @@ multi_operation_lock_destroy(void) {
 static void 
 multi_operation_checkpoint_lock(void) {
     toku_pthread_rwlock_wrlock(&multi_operation_lock);   
-    locked_mo = TRUE;
+    locked_mo = true;
 }
 
 static void 
 multi_operation_checkpoint_unlock(void) {
-    locked_mo = FALSE;
+    locked_mo = false;
     toku_pthread_rwlock_wrunlock(&multi_operation_lock); 
 }
 
 static void
 checkpoint_safe_lock_init(void) {
     toku_pthread_rwlock_init(&checkpoint_safe_lock, NULL); 
-    locked_cs = FALSE;
+    locked_cs = false;
 }
 
 static void
@@ -165,12 +165,12 @@ checkpoint_safe_lock_destroy(void) {
 static void 
 checkpoint_safe_checkpoint_lock(void) {
     toku_pthread_rwlock_wrlock(&checkpoint_safe_lock);   
-    locked_cs = TRUE;
+    locked_cs = true;
 }
 
 static void 
 checkpoint_safe_checkpoint_unlock(void) {
-    locked_cs = FALSE;
+    locked_cs = false;
     toku_pthread_rwlock_wrunlock(&checkpoint_safe_lock); 
 }
 
@@ -211,14 +211,14 @@ void
 toku_checkpoint_init(void) {
     multi_operation_lock_init();
     checkpoint_safe_lock_init();
-    initialized = TRUE;
+    initialized = true;
 }
 
 void
 toku_checkpoint_destroy(void) {
     multi_operation_lock_destroy();
     checkpoint_safe_lock_destroy();
-    initialized = FALSE;
+    initialized = false;
 }
 
 #define SET_CHECKPOINT_FOOTPRINT(x) STATUS_VALUE(CP_FOOTPRINT) = footprint_offset + x

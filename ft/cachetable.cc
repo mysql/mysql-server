@@ -30,12 +30,12 @@
 // These should be in the cachetable object, but we make them file-wide so that gdb can get them easily.
 // They were left here after engine status cleanup (#2949, rather than moved into the status struct)
 // so they are still easily available to the debugger and to save lots of typing.
-static u_int64_t cachetable_miss;
-static u_int64_t cachetable_misstime;     // time spent waiting for disk read
-static u_int64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
-static u_int64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
-static u_int64_t cachetable_evictions;
-static u_int64_t cleaner_executions; // number of times the cleaner thread's loop has executed
+static uint64_t cachetable_miss;
+static uint64_t cachetable_misstime;     // time spent waiting for disk read
+static uint64_t cachetable_puts;          // how many times has a newly created node been put into the cachetable?
+static uint64_t cachetable_prefetches;    // how many times has a block been prefetched into the cachetable?
+static uint64_t cachetable_evictions;
+static uint64_t cleaner_executions; // number of times the cleaner thread's loop has executed
 
 static CACHETABLE_STATUS_S ct_status;
 
@@ -85,7 +85,7 @@ struct ctpair {
 
     enum cachetable_dirty dirty;
 
-    u_int32_t fullhash;
+    uint32_t fullhash;
 
     CACHETABLE_FLUSH_CALLBACK flush_callback;
     CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback;
@@ -97,9 +97,9 @@ struct ctpair {
 
     PAIR     clock_next,clock_prev; // In clock.
     PAIR     hash_chain;
-    u_int32_t count;        // clock count
+    uint32_t count;        // clock count
 
-    BOOL     checkpoint_pending; // If this is on, then we have got to write the pair out to disk before modifying it.
+    bool     checkpoint_pending; // If this is on, then we have got to write the pair out to disk before modifying it.
     PAIR     pending_next;
     PAIR     pending_prev;
 
@@ -115,7 +115,7 @@ static PAIR_ATTR const zero_attr = {
     .leaf_size = 0, 
     .rollback_size = 0, 
     .cache_pressure_size = 0,
-    .is_valid = TRUE
+    .is_valid = true
 };
 
 static void maybe_flush_some (CACHETABLE ct, long size);
@@ -129,8 +129,8 @@ static inline void ctpair_destroy(PAIR p) {
 // The cachetable is as close to an ENV as we get.
 //      cachetable_mutex
 struct cachetable {
-    u_int32_t n_in_table;         // number of pairs in the hash table
-    u_int32_t table_size;         // number of buckets in the hash table
+    uint32_t n_in_table;         // number of pairs in the hash table
+    uint32_t table_size;         // number of buckets in the hash table
     PAIR *table;                  // hash table
     PAIR  clock_head;              // of clock . head is the next thing to be up for decrement. 
     PAIR  cleaner_head;              // for cleaner thread. head is the next thing to look at for possible cleaning. 
@@ -148,15 +148,15 @@ struct cachetable {
     KIBBUTZ checkpointing_kibbutz; // small pool for checkpointing cloned pairs
 
     LSN lsn_of_checkpoint_in_progress;
-    u_int32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
-    u_int32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
+    uint32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
+    uint32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
     struct rwlock pending_lock;  // multiple writer threads, single checkpoint thread,
                                  // see comments in toku_cachetable_begin_checkpoint to understand
                                  // purpose of the pending_lock
     struct minicron checkpointer; // the periodic checkpointing thread
     struct minicron cleaner; // the periodic cleaner thread
-    u_int32_t cleaner_iterations; // how many times to run the cleaner per
+    uint32_t cleaner_iterations; // how many times to run the cleaner per
                                   // cleaner period (minicron has a
                                   // minimum period of 1s so if you want
                                   // more frequent cleaner runs you must
@@ -232,7 +232,7 @@ struct cachefile {
     CACHEFILE next;
     CACHEFILE next_in_checkpoint;
     struct toku_list pairs_for_cachefile; // list of pairs for this cachefile
-    BOOL for_checkpoint; //True if part of the in-progress checkpoint
+    bool for_checkpoint; //True if part of the in-progress checkpoint
 
     // If set and the cachefile closes, the file will be removed.
     // Clients must not operate on the cachefile after setting this,
@@ -248,7 +248,7 @@ struct cachefile {
     void *userdata;
     int (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
     int (*log_suppress_rollback_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log which files need rollbacks suppressed
-    int (*close_userdata)(CACHEFILE cf, int fd, void *userdata, char **error_string, BOOL lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
+    int (*close_userdata)(CACHEFILE cf, int fd, void *userdata, char **error_string, bool lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
     int (*begin_checkpoint_userdata)(LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // when checkpointing a cachefile, call this function.
     int (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
@@ -291,45 +291,45 @@ checkpoint_thread (void *cachetable_v)
     return r;
 }
 
-int toku_set_checkpoint_period (CACHETABLE ct, u_int32_t new_period) {
+int toku_set_checkpoint_period (CACHETABLE ct, uint32_t new_period) {
     return toku_minicron_change_period(&ct->checkpointer, new_period);
 }
 
-u_int32_t toku_get_checkpoint_period (CACHETABLE ct) {
+uint32_t toku_get_checkpoint_period (CACHETABLE ct) {
     return toku_minicron_get_period(&ct->checkpointer);
 }
 
-u_int32_t toku_get_checkpoint_period_unlocked (CACHETABLE ct) {
+uint32_t toku_get_checkpoint_period_unlocked (CACHETABLE ct) {
     return toku_minicron_get_period_unlocked(&ct->checkpointer);
 }
 
-int toku_set_cleaner_period (CACHETABLE ct, u_int32_t new_period) {
+int toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period) {
     return toku_minicron_change_period(&ct->cleaner, new_period);
 }
 
-u_int32_t toku_get_cleaner_period (CACHETABLE ct) {
+uint32_t toku_get_cleaner_period (CACHETABLE ct) {
     return toku_minicron_get_period(&ct->cleaner);
 }
 
-u_int32_t toku_get_cleaner_period_unlocked (CACHETABLE ct) {
+uint32_t toku_get_cleaner_period_unlocked (CACHETABLE ct) {
     return toku_minicron_get_period_unlocked(&ct->cleaner);
 }
 
-int toku_set_cleaner_iterations (CACHETABLE ct, u_int32_t new_iterations) {
+int toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations) {
     cachetable_lock(ct);
     ct->cleaner_iterations = new_iterations;
     cachetable_unlock(ct);
     return 0;
 }
 
-u_int32_t toku_get_cleaner_iterations (CACHETABLE ct) {
+uint32_t toku_get_cleaner_iterations (CACHETABLE ct) {
     cachetable_lock(ct);
-    u_int32_t retval =  toku_get_cleaner_iterations_unlocked(ct);
+    uint32_t retval =  toku_get_cleaner_iterations_unlocked(ct);
     cachetable_unlock(ct);
     return retval;
 }
 
-u_int32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct) {
+uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct) {
     return ct->cleaner_iterations;
 }
 
@@ -373,7 +373,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     return 0;
 }
 
-u_int64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
+uint64_t toku_cachetable_reserve_memory(CACHETABLE ct, double fraction) {
     cachetable_lock(ct);
     cachetable_wait_write(ct);
     uint64_t reserved_memory = fraction*(ct->size_limit-ct->size_reserved);
@@ -552,7 +552,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     if (r != 0) { 
         r=get_error_errno(); close(fd); goto cleanup; // no change for t:2444
     }
-    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->fd, cf->userdata, 0, FALSE, ZERO_LSN))) {
+    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->fd, cf->userdata, 0, false, ZERO_LSN))) {
         goto cleanup;
     }
     cf->close_userdata = NULL;
@@ -601,7 +601,7 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
 }
 
 int 
-toku_cachefile_close(CACHEFILE *cfp, char **error_string, BOOL oplsn_valid, LSN oplsn) {
+toku_cachefile_close(CACHEFILE *cfp, char **error_string, bool oplsn_valid, LSN oplsn) {
     int r, close_error = 0;
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
@@ -677,10 +677,10 @@ int toku_cachefile_flush (CACHEFILE cf) {
 // The idea here is to mix the bits thoroughly so that we don't have to do modulo by a prime number.
 // Instead we can use a bitmask on a table of size power of two.
 // This hash function does yield improved performance on ./db-benchmark-test-tokudb and ./scanscan
-static inline u_int32_t rot(u_int32_t x, u_int32_t k) {
+static inline uint32_t rot(uint32_t x, uint32_t k) {
     return (x<<k) | (x>>(32-k));
 }
-static inline u_int32_t final (u_int32_t a, u_int32_t b, u_int32_t c) {
+static inline uint32_t final (uint32_t a, uint32_t b, uint32_t c) {
     c ^= b; c -= rot(b,14);
     a ^= c; a -= rot(c,11);
     b ^= a; b -= rot(a,25);
@@ -691,24 +691,24 @@ static inline u_int32_t final (u_int32_t a, u_int32_t b, u_int32_t c) {
     return c;
 }
 
-u_int32_t toku_cachetable_hash (CACHEFILE cachefile, BLOCKNUM key)
+uint32_t toku_cachetable_hash (CACHEFILE cachefile, BLOCKNUM key)
 // Effect: Return a 32-bit hash key.  The hash key shall be suitable for using with bitmasking for a table of size power-of-two.
 {
-    return final(cachefile->filenum.fileid, (u_int32_t)(key.b>>32), (u_int32_t)key.b);
+    return final(cachefile->filenum.fileid, (uint32_t)(key.b>>32), (uint32_t)key.b);
 }
 
 // has ct locked on entry
 // This function MUST NOT release and reacquire the cachetable lock
 // Its callers (toku_cachetable_put_with_dep_pairs) depend on this behavior.
-static void cachetable_rehash (CACHETABLE ct, u_int32_t newtable_size) {
+static void cachetable_rehash (CACHETABLE ct, uint32_t newtable_size) {
     // printf("rehash %p %d %d %d\n", t, primeindexdelta, ct->n_in_table, ct->table_size);
 
     assert(newtable_size>=4 && ((newtable_size & (newtable_size-1))==0));
     PAIR *XCALLOC_N(newtable_size, newtable);
-    u_int32_t i;
+    uint32_t i;
     //printf("%s:%d newtable_size=%d\n", __FILE__, __LINE__, newtable_size);
     assert(newtable!=0);
-    u_int32_t oldtable_size = ct->table_size;
+    uint32_t oldtable_size = ct->table_size;
     ct->table_size=newtable_size;
     for (i=0; i<newtable_size; i++) newtable[i]=0;
     for (i=0; i<oldtable_size; i++) {
@@ -860,13 +860,13 @@ static void cachetable_free_pair(CACHETABLE ct, PAIR p) {
     cachetable_evictions++;
     cachetable_unlock(ct);
     PAIR_ATTR new_attr = p->attr;
-    // Note that flush_callback is called with write_me FALSE, so the only purpose of this 
-    // call is to tell the brt layer to evict the node (keep_me is FALSE).
+    // Note that flush_callback is called with write_me false, so the only purpose of this 
+    // call is to tell the brt layer to evict the node (keep_me is false).
     // Also, because we have already removed the PAIR from the cachetable in 
     // cachetable_remove_pair, we cannot pass in p->cachefile and p->cachefile->fd
     // for the first two parameters, as these may be invalid (#5171), so, we
     // pass in NULL and -1, dummy values
-    flush_callback(NULL, -1, key, value, &disk_data, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE, FALSE);
+    flush_callback(NULL, -1, key, value, &disk_data, write_extraargs, old_attr, &new_attr, false, false, true, false);
     
     cachetable_lock(ct);
     
@@ -899,9 +899,9 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p) {
 static void cachetable_only_write_locked_data(
     CACHETABLE ct, 
     PAIR p, 
-    BOOL for_checkpoint,
+    bool for_checkpoint,
     PAIR_ATTR* new_attr,
-    BOOL is_clone
+    bool is_clone
     ) 
 {    
     CACHETABLE_FLUSH_CALLBACK flush_callback = p->flush_callback;
@@ -911,7 +911,7 @@ static void cachetable_only_write_locked_data(
     void *disk_data = p->disk_data;
     void *write_extraargs = p->write_extraargs;
     PAIR_ATTR old_attr = p->attr;
-    BOOL dowrite = TRUE;
+    bool dowrite = true;
     
     cachetable_unlock(ct);
     
@@ -926,7 +926,7 @@ static void cachetable_only_write_locked_data(
         old_attr, 
         new_attr, 
         dowrite, 
-        is_clone ? FALSE : TRUE, // keep_me (only keep if this is not cloned pointer)
+        is_clone ? false : true, // keep_me (only keep if this is not cloned pointer)
         for_checkpoint, 
         is_clone //is_clone
         );
@@ -950,8 +950,8 @@ static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr = p->attr;
     rwlock_read_lock(&ct->pending_lock, &ct->mutex);
-    BOOL for_checkpoint = p->checkpoint_pending;
-    p->checkpoint_pending = FALSE;
+    bool for_checkpoint = p->checkpoint_pending;
+    p->checkpoint_pending = false;
     // grabbing the disk_nb_mutex here ensures that
     // after this point, no one is writing out a cloned value
     // if we grab the disk_nb_mutex inside the if clause,
@@ -963,7 +963,7 @@ static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
     // there should be no cloned value data
     assert(p->cloned_value_data == NULL);
     if (p->dirty) {
-        cachetable_only_write_locked_data(ct, p, for_checkpoint, &new_attr, FALSE);
+        cachetable_only_write_locked_data(ct, p, for_checkpoint, &new_attr, false);
         //
         // now let's update variables
         //
@@ -1127,7 +1127,7 @@ static bool run_eviction_on_pair(PAIR curr_in_clock, CACHETABLE ct) {
             }
         }
         else {
-            assert(FALSE);
+            assert(false);
         }        
     }
     else {
@@ -1149,7 +1149,7 @@ static void maybe_flush_some (CACHETABLE ct, long size) {
     curr_cachekey.b = INT64_MAX; // create initial value so compiler does not complain
     FILENUM curr_filenum;
     curr_filenum.fileid = UINT32_MAX; // create initial value so compiler does not complain
-    BOOL set_val = FALSE;
+    bool set_val = false;
     
     while ((ct->clock_head) && (size + ct->size_current > ct->size_limit + ct->size_evicting)) {
         PAIR curr_in_clock = ct->clock_head;
@@ -1164,7 +1164,7 @@ static void maybe_flush_some (CACHETABLE ct, long size) {
         }
         if (nb_mutex_users(&curr_in_clock->value_nb_mutex) || nb_mutex_users(&curr_in_clock->disk_nb_mutex)) {
             if (!set_val) {
-                set_val = TRUE;
+                set_val = true;
                 curr_cachekey = ct->clock_head->key;
                 curr_filenum = ct->clock_head->cachefile->filenum;
             }
@@ -1172,10 +1172,10 @@ static void maybe_flush_some (CACHETABLE ct, long size) {
         else {
             bool eviction_run = run_eviction_on_pair(curr_in_clock, ct);
             if (eviction_run) {
-                set_val = FALSE;
+                set_val = false;
             }
             else if (!set_val) {
-                set_val = TRUE;
+                set_val = true;
                 curr_cachekey = ct->clock_head->key;
                 curr_filenum = ct->clock_head->cachefile->filenum;
             }
@@ -1207,7 +1207,7 @@ void toku_cachetable_maybe_flush_some(CACHETABLE ct) {
 // Its callers (toku_cachetable_put_with_dep_pairs) depend on this behavior.
 static PAIR cachetable_insert_at(CACHETABLE ct, 
                                  CACHEFILE cachefile, CACHEKEY key, void *value, 
-                                 u_int32_t fullhash, 
+                                 uint32_t fullhash, 
                                  PAIR_ATTR attr,
                                  CACHETABLE_WRITE_CALLBACK write_callback,
                                  enum cachetable_dirty dirty) {
@@ -1235,7 +1235,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     nb_mutex_init(&p->disk_nb_mutex);
     pair_add_to_clock(ct, p);
     toku_list_push(&cachefile->pairs_for_cachefile, &p->next_for_cachefile);
-    u_int32_t h = fullhash & (ct->table_size-1);
+    uint32_t h = fullhash & (ct->table_size-1);
     p->hash_chain = ct->table[h];
     ct->table[h] = p;
     ct->n_in_table++;
@@ -1252,7 +1252,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
 static int cachetable_put_internal(
     CACHEFILE cachefile, 
     CACHEKEY key, 
-    u_int32_t fullhash, 
+    uint32_t fullhash, 
     void*value, 
     PAIR_ATTR attr,
     CACHETABLE_WRITE_CALLBACK write_callback
@@ -1263,10 +1263,10 @@ static int cachetable_put_internal(
         PAIR p;
         for (p=ct->table[fullhash&(cachefile->cachetable->table_size-1)]; p; p=p->hash_chain) {
             if (p->key.b==key.b && p->cachefile==cachefile) {
-                // Ideally, we would like to just assert(FALSE) here
+                // Ideally, we would like to just assert(false) here
                 // and not return an error, but as of Dr. Noga,
                 // cachetable-test2 depends on this behavior.
-                // To replace the following with an assert(FALSE)
+                // To replace the following with an assert(false)
                 // we need to change the behavior of cachetable-test2
                 //
                 // Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
@@ -1298,7 +1298,7 @@ static int cachetable_put_internal(
 
 // ct is locked on entry
 // gets pair if exists, and that is all.
-static int cachetable_get_pair (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, PAIR* pv) {
+static int cachetable_get_pair (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, PAIR* pv) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int r = -1;
@@ -1327,7 +1327,7 @@ clone_pair(CACHETABLE ct, PAIR p) {
         p->value_data,
         &p->cloned_value_data,
         &new_attr,
-        TRUE,
+        true,
         p->write_extraargs
         );
     cachetable_lock(ct);
@@ -1339,7 +1339,7 @@ clone_pair(CACHETABLE ct, PAIR p) {
     // it doesn't matter whether we clear 
     // the pending bit before the clone
     // or after the clone
-    p->checkpoint_pending = FALSE;
+    p->checkpoint_pending = false;
     p->dirty = CACHETABLE_CLEAN;
     if (new_attr.is_valid) {
         p->attr = new_attr;
@@ -1360,9 +1360,9 @@ static void checkpoint_cloned_pair(void* extra) {
     cachetable_only_write_locked_data(
         ct,
         p,
-        TRUE, //for_checkpoint
+        true, //for_checkpoint
         &new_attr,
-        TRUE //is_clone
+        true //is_clone
         );
     nb_mutex_unlock(&p->disk_nb_mutex);
     bjm_remove_background_job(ct->checkpoint_clones_bjm);
@@ -1419,7 +1419,7 @@ write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p)
         // is that to clear the bit, we must have both the PAIR lock
         // and the pending lock
         //
-        p->checkpoint_pending = FALSE;
+        p->checkpoint_pending = false;
     }
 }
 
@@ -1457,9 +1457,9 @@ write_pair_for_checkpoint_thread (CACHETABLE ct, PAIR p)
             cachetable_only_write_locked_data(
                 ct,
                 p,
-                TRUE, //for_checkpoint
+                true, //for_checkpoint
                 &attr,
-                TRUE //is_clone
+                true //is_clone
                 );
             nb_mutex_unlock(&p->disk_nb_mutex);
         }
@@ -1472,7 +1472,7 @@ write_pair_for_checkpoint_thread (CACHETABLE ct, PAIR p)
         // is that to clear the bit, we must have both the PAIR lock
         // and the pending lock
         //
-        p->checkpoint_pending = FALSE;
+        p->checkpoint_pending = false;
         nb_mutex_unlock(&p->value_nb_mutex);
     }
 }
@@ -1486,14 +1486,14 @@ write_pair_for_checkpoint_thread (CACHETABLE ct, PAIR p)
 //
 static void checkpoint_dependent_pairs(
     CACHETABLE ct,
-    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
-    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    uint32_t* dependent_fullhash, //array of fullhashes of dependent pairs
     enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
     )
 {
-     for (u_int32_t i =0; i < num_dependent_pairs; i++) {
+     for (uint32_t i =0; i < num_dependent_pairs; i++) {
          PAIR curr_dep_pair = NULL;
          int r = cachetable_get_pair(
              dependent_cfs[i],
@@ -1525,13 +1525,13 @@ int toku_cachetable_put_with_dep_pairs(
     PAIR_ATTR attr,
     CACHETABLE_WRITE_CALLBACK write_callback,
     void *get_key_and_fullhash_extra,
-    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
-    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    uint32_t* dependent_fullhash, //array of fullhashes of dependent pairs
     enum cachetable_dirty* dependent_dirty, // array stating dirty/cleanness of dependent pairs
     CACHEKEY* key,
-    u_int32_t* fullhash
+    uint32_t* fullhash
     )
 {
     //
@@ -1594,7 +1594,7 @@ int toku_cachetable_put_with_dep_pairs(
 }
 
 
-int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void*value, PAIR_ATTR attr,
+int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void*value, PAIR_ATTR attr,
                         CACHETABLE_WRITE_CALLBACK write_callback
                         ) {
     CACHETABLE ct = cachefile->cachetable;
@@ -1631,7 +1631,7 @@ do_partial_fetch(
     PAIR p, 
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback, 
     void *read_extraargs,
-    BOOL keep_pair_locked
+    bool keep_pair_locked
     )
 {
     PAIR_ATTR old_attr = p->attr;
@@ -1659,7 +1659,7 @@ void toku_cachetable_pf_pinned_pair(
     void* read_extraargs,
     CACHEFILE cf,
     CACHEKEY key,
-    u_int32_t fullhash
+    uint32_t fullhash
     ) 
 {
     PAIR_ATTR attr;
@@ -1683,14 +1683,14 @@ void toku_cachetable_pf_pinned_pair(
 int toku_cachetable_get_and_pin (
     CACHEFILE cachefile, 
     CACHEKEY key, 
-    u_int32_t fullhash, 
+    uint32_t fullhash, 
     void**value, 
     long *sizep,
     CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    BOOL may_modify_value,
+    bool may_modify_value,
     void* read_extraargs // parameter for fetch_callback, pf_req_callback, and pf_callback
     ) 
 {
@@ -1727,12 +1727,12 @@ static void cachetable_fetch_pair(
     PAIR p, 
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     void* read_extraargs,
-    BOOL keep_pair_locked
+    bool keep_pair_locked
     ) 
 {
     // helgrind
     CACHEKEY key = p->key;
-    u_int32_t fullhash = p->fullhash;
+    uint32_t fullhash = p->fullhash;
 
     void *toku_value = NULL;
     void *disk_data = NULL;
@@ -1766,16 +1766,16 @@ static void cachetable_fetch_pair(
     if (0) printf("%s:%d %" PRId64 " complete\n", __FUNCTION__, __LINE__, key.b);
 }
 
-static BOOL resolve_checkpointing_fast(PAIR p) {
+static bool resolve_checkpointing_fast(PAIR p) {
     return !(p->checkpoint_pending && (p->dirty == CACHETABLE_DIRTY) && !p->clone_callback);
 }
 static void checkpoint_pair_and_dependent_pairs(
     CACHETABLE ct,
     PAIR p,
-    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
-    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    uint32_t* dependent_fullhash, //array of fullhashes of dependent pairs
     enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
     )
 {
@@ -1819,19 +1819,19 @@ static void checkpoint_pair_and_dependent_pairs(
 int toku_cachetable_get_and_pin_with_dep_pairs (
     CACHEFILE cachefile, 
     CACHEKEY key, 
-    u_int32_t fullhash, 
+    uint32_t fullhash, 
     void**value, 
     long *sizep,
     CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    BOOL may_modify_value,
+    bool may_modify_value,
     void* read_extraargs, // parameter for fetch_callback, pf_req_callback, and pf_callback
-    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    uint32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
     CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
     CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
-    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    uint32_t* dependent_fullhash, //array of fullhashes of dependent pairs
     enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
     ) 
 {
@@ -1858,7 +1858,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
             }
             cachetable_unlock(ct);
             
-            BOOL partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
+            bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
             // shortcutting a path to getting the user the data
             // helps scalability for in-memory workloads
             if (!partial_fetch_required) {
@@ -1878,7 +1878,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
                 // so we do a sanity check here.
                 assert(!p->dirty);
 
-                do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, TRUE);
+                do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, true);
             }
             goto got_value;
         }
@@ -1915,7 +1915,7 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         // Retrieve the value of the PAIR from disk.
         // The pair being fetched will be marked as pending if a checkpoint happens during the
         // fetch because begin_checkpoint will mark as pending any pair that is locked even if it is clean.        
-        cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs, TRUE);
+        cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs, true);
         cachetable_miss++;
         cachetable_misstime += get_tnow() - t0;
         goto got_value;
@@ -1938,7 +1938,7 @@ got_value:
 //  For example, imagine that we can modify a bit in a dirty parent, or modify a bit in a clean child, then we should modify
 //  the dirty parent (which will have to do I/O eventually anyway) rather than incur a full block write to modify one bit.
 //  Similarly, if the checkpoint is actually pending, we don't want to block on it.
-int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
+int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void**value) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int r = -1;
@@ -1965,7 +1965,7 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, u_int3
 //Used by flusher threads to possibly pin child on client thread if pinning is cheap
 //Same as toku_cachetable_maybe_get_and_pin except that we don't care if the node is clean or dirty (return the node regardless).
 //All other conditions remain the same.
-int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, void**value) {
+int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void**value) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     int r = -1;
@@ -1988,7 +1988,7 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
 }
 
 static int
-cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr, BOOL have_ct_lock, BOOL flush)
+cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr, bool have_ct_lock, bool flush)
 // size==0 means that the size didn't change.
 {
     CACHETABLE ct = cachefile->cachetable;
@@ -2018,20 +2018,20 @@ cachetable_unpin_internal(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash,
     return r;
 }
 
-int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr) {
+int toku_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr) {
     // By default we don't have the lock
-    return cachetable_unpin_internal(cachefile, key, fullhash, dirty, attr, FALSE, TRUE);
+    return cachetable_unpin_internal(cachefile, key, fullhash, dirty, attr, false, true);
 }
-int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr) {
+int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr) {
     // We hold the cachetable mutex.
-    return cachetable_unpin_internal(cachefile, key, fullhash, dirty, attr, TRUE, FALSE);
+    return cachetable_unpin_internal(cachefile, key, fullhash, dirty, attr, true, false);
 }
 
 static void
 run_unlockers (UNLOCKERS unlockers) {
     while (unlockers) {
         assert(unlockers->locked);
-        unlockers->locked = FALSE;
+        unlockers->locked = false;
         unlockers->f(unlockers->extra);
         unlockers=unlockers->next;
     }
@@ -2040,14 +2040,14 @@ run_unlockers (UNLOCKERS unlockers) {
 int toku_cachetable_get_and_pin_nonblocking (
     CACHEFILE cf, 
     CACHEKEY key, 
-    u_int32_t fullhash, 
+    uint32_t fullhash, 
     void**value, 
     long* UU(sizep),
     CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback, 
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
     CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
-    BOOL may_modify_value,
+    bool may_modify_value,
     void *read_extraargs,
     UNLOCKERS unlockers
     )
@@ -2091,7 +2091,7 @@ int toku_cachetable_get_and_pin_nonblocking (
                 // when calling pf_req_callback, and if possible, returns the PAIR to the user without
                 // reacquiring the cachetable lock
                 cachetable_unlock(ct);
-                BOOL partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
+                bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
                 //
                 // Just because the PAIR exists does necessarily mean the all the data the caller requires
                 // is in memory. A partial fetch may be required, which is evaluated above
@@ -2102,7 +2102,7 @@ int toku_cachetable_get_and_pin_nonblocking (
                     cachetable_lock(ct);
                     run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
                     // Now wait for the I/O to occur.    
-                    do_partial_fetch(ct, cf, p, pf_callback, read_extraargs, FALSE);
+                    do_partial_fetch(ct, cf, p, pf_callback, read_extraargs, false);
                     cachetable_unlock(ct);
                     return TOKUDB_TRY_AGAIN;
                 }
@@ -2140,8 +2140,8 @@ int toku_cachetable_get_and_pin_nonblocking (
     assert(p);
     nb_mutex_lock(&p->value_nb_mutex, &ct->mutex);
     run_unlockers(unlockers); // we hold the ct mutex.
-    u_int64_t t0 = get_tnow();
-    cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs, FALSE);
+    uint64_t t0 = get_tnow();
+    cachetable_fetch_pair(ct, cf, p, fetch_callback, read_extraargs, false);
     cachetable_miss++;
     cachetable_misstime += get_tnow() - t0;
     cachetable_unlock(ct);
@@ -2172,7 +2172,7 @@ static void cachetable_reader(void* extra) {
         cpargs->p,
         cpargs->fetch_callback,
         cpargs->read_extraargs,
-        FALSE
+        false
         );
     cachetable_unlock(ct);
     bjm_remove_background_job(cf->bjm);
@@ -2184,24 +2184,24 @@ static void cachetable_partial_reader(void* extra) {
     CACHEFILE cf = cpargs->p->cachefile;
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
-    do_partial_fetch(ct, cpargs->p->cachefile, cpargs->p, cpargs->pf_callback, cpargs->read_extraargs, FALSE);
+    do_partial_fetch(ct, cpargs->p->cachefile, cpargs->p, cpargs->pf_callback, cpargs->read_extraargs, false);
     cachetable_unlock(ct);
     bjm_remove_background_job(cf->bjm);
     toku_free(cpargs);
 }
 
-int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
+int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, uint32_t fullhash,
                             CACHETABLE_WRITE_CALLBACK write_callback,
                             CACHETABLE_FETCH_CALLBACK fetch_callback,
                             CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
                             CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
                             void *read_extraargs,
-                            BOOL *doing_prefetch)
+                            bool *doing_prefetch)
 // Effect: See the documentation for this function in cachetable.h
 {
     int r = 0;
     if (doing_prefetch) {
-        *doing_prefetch = FALSE;
+        *doing_prefetch = false;
     }
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
@@ -2237,13 +2237,13 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
         cpargs->read_extraargs = read_extraargs;
         toku_kibbutz_enq(ct->ct_kibbutz, cachetable_reader, cpargs);
         if (doing_prefetch) {
-            *doing_prefetch = TRUE;
+            *doing_prefetch = true;
         }
     }
     else if (nb_mutex_users(&p->value_nb_mutex)==0) {        
         // nobody else is using the node, so we should go ahead and prefetch
         nb_mutex_lock(&p->value_nb_mutex, &ct->mutex);
-        BOOL partial_fetch_required = pf_req_callback(p->value_data, read_extraargs);
+        bool partial_fetch_required = pf_req_callback(p->value_data, read_extraargs);
 
         if (partial_fetch_required) {
             r = bjm_add_background_job(cf->bjm);
@@ -2254,7 +2254,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
             cpargs->read_extraargs = read_extraargs;
             toku_kibbutz_enq(ct->ct_kibbutz, cachetable_partial_reader, cpargs);
             if (doing_prefetch) {
-                *doing_prefetch = TRUE;
+                *doing_prefetch = true;
             }
         }
         else {
@@ -2270,7 +2270,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
 int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newkey) {
     CACHETABLE ct = cachefile->cachetable;
     PAIR *ptr_to_p,p;
-    u_int32_t fullhash = toku_cachetable_hash(cachefile, oldkey);
+    uint32_t fullhash = toku_cachetable_hash(cachefile, oldkey);
     cachetable_lock(ct);
     for (ptr_to_p = &ct->table[fullhash&(ct->table_size-1)],  p = *ptr_to_p;
          p;
@@ -2278,8 +2278,8 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
         if (p->key.b==oldkey.b && p->cachefile==cachefile) {
             *ptr_to_p = p->hash_chain;
             p->key = newkey;
-            u_int32_t new_fullhash = toku_cachetable_hash(cachefile, newkey);
-            u_int32_t nh = new_fullhash&(ct->table_size-1);
+            uint32_t new_fullhash = toku_cachetable_hash(cachefile, newkey);
+            uint32_t nh = new_fullhash&(ct->table_size-1);
             p->fullhash = new_fullhash;
             p->hash_chain = ct->table[nh];
             ct->table[nh] = p;
@@ -2297,11 +2297,11 @@ void toku_cachefile_verify (CACHEFILE cf) {
 
 void toku_cachetable_verify (CACHETABLE ct) {
     cachetable_lock(ct);
-    u_int32_t num_found = 0;
+    uint32_t num_found = 0;
 
     // First clear all the verify flags by going through the hash chains
     {
-        u_int32_t i;
+        uint32_t i;
         for (i=0; i<ct->table_size; i++) {
             PAIR p;
             for (p=ct->table[i]; p; p=p->hash_chain) {
@@ -2314,11 +2314,11 @@ void toku_cachetable_verify (CACHETABLE ct) {
     // Now go through the clock chain, make sure everything in the LRU chain is hashed.
     {
         PAIR p;
-        BOOL is_first = TRUE;
+        bool is_first = true;
         for (p=ct->clock_head; ct->clock_head!=NULL && (p!=ct->clock_head || is_first); p=p->clock_next) {
-            is_first=FALSE;
+            is_first=false;
             PAIR p2;
-            u_int32_t fullhash = p->fullhash;
+            uint32_t fullhash = p->fullhash;
             //assert(fullhash==toku_cachetable_hash(p->cachefile, p->key));
             for (p2=ct->table[fullhash&(ct->table_size-1)]; p2; p2=p2->hash_chain) {
                 if (p2==p) {
@@ -2351,9 +2351,9 @@ static void cachetable_flush_pair_for_close(void* extra) {
     cachetable_only_write_locked_data(
         ct,
         p,
-        FALSE, // not for a checkpoint, as we assert above
+        false, // not for a checkpoint, as we assert above
         &attr,
-        FALSE // not a clone
+        false // not a clone
         );            
     p->dirty = CACHETABLE_CLEAN;
     cachetable_unlock(ct);
@@ -2486,7 +2486,7 @@ toku_cachetable_close (CACHETABLE *ctp) {
     }
     cachetable_lock(ct);
     cachetable_flush_cachefile(ct, NULL);
-    u_int32_t i;
+    uint32_t i;
     for (i=0; i<ct->table_size; i++) {
         if (ct->table[i]) return -1;
     }
@@ -2518,7 +2518,7 @@ int toku_cachetable_unpin_and_remove (
     CACHETABLE ct = cachefile->cachetable;
     PAIR p;
     cachetable_lock(ct);
-    u_int32_t fullhash = toku_cachetable_hash(cachefile, key);
+    uint32_t fullhash = toku_cachetable_hash(cachefile, key);
     for (p=ct->table[fullhash&(ct->table_size-1)]; p; p=p->hash_chain) {
         if (p->key.b==key.b && p->cachefile==cachefile) {
             p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
@@ -2531,10 +2531,10 @@ int toku_cachetable_unpin_and_remove (
             //
             // take care of key removal
             //
-            BOOL for_checkpoint = p->checkpoint_pending;
+            bool for_checkpoint = p->checkpoint_pending;
             // now let's wipe out the pending bit, because we are
             // removing the PAIR
-            p->checkpoint_pending = FALSE;
+            p->checkpoint_pending = false;
             //
             // Here is a tricky thing.
             // Later on in this function, we may release the
@@ -2635,7 +2635,7 @@ int toku_cachetable_unpin_and_remove (
 }
 
 static int
-set_filenum_in_array(OMTVALUE hv, u_int32_t index, void*arrayv) {
+set_filenum_in_array(OMTVALUE hv, uint32_t index, void*arrayv) {
     FILENUM *array = (FILENUM *) arrayv;
     FT h = (FT) hv;
     array[index] = toku_cachefile_filenum(h->cf);
@@ -2739,7 +2739,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 }
                 cf->next_in_checkpoint       = ct->cachefiles_in_checkpoint;
                 ct->cachefiles_in_checkpoint = cf;
-                cf->for_checkpoint           = TRUE;
+                cf->for_checkpoint           = true;
             }
         }
 
@@ -2816,7 +2816,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
         // belongs in the checkpoint.
         // Now let's go back to the writer thread:
         //  - because the checkpoint pending bit was not set for the PAIR, the for_checkpoint parameter
-        //     passed into the flush callback is FALSE.
+        //     passed into the flush callback is false.
         //  - as a result, the PAIR is written to disk, the current translation table is updated, but the
         //     inprogress translation table is NOT updated.
         //  - the PAIR is marked as clean because it was just written to disk
@@ -2846,7 +2846,7 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
                 //     we may end up clearing the pending bit before the
                 //     current lock is ever released.
                 if (p->dirty || nb_mutex_writers(&p->value_nb_mutex)) {
-                    p->checkpoint_pending = TRUE;
+                    p->checkpoint_pending = true;
                     if (ct->pending_head) {
                         ct->pending_head->pending_prev = p;
                     }
@@ -2968,7 +2968,7 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
         while ((cf = ct->cachefiles_in_checkpoint)) {
             ct->cachefiles_in_checkpoint = cf->next_in_checkpoint; 
             cf->next_in_checkpoint       = NULL;
-            cf->for_checkpoint           = FALSE;
+            cf->for_checkpoint           = false;
             // checking for function existing so that this function
             // can be called from cachetable tests
             if (cf->note_unpin_by_checkpoint) {
@@ -2996,7 +2996,7 @@ FILENUM toku_cachefile_filenum (CACHEFILE cf) {
 // debug functions
 
 int toku_cachetable_assert_all_unpinned (CACHETABLE ct) {
-    u_int32_t i;
+    uint32_t i;
     int some_pinned=0;
     cachetable_lock(ct);
     for (i=0; i<ct->table_size; i++) {
@@ -3031,7 +3031,7 @@ int toku_cachefile_count_pinned (CACHEFILE cf, int print_them) {
 }
 
 void toku_cachetable_print_state (CACHETABLE ct) {
-    u_int32_t i;
+    uint32_t i;
     cachetable_lock(ct);
     for (i=0; i<ct->table_size; i++) {
         PAIR p = ct->table[i];
@@ -3063,7 +3063,7 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
                                    int *dirty_ptr, long long *pin_ptr, long *size_ptr) {
     PAIR p;
     int r = -1;
-    u_int32_t fullhash = toku_cachetable_hash(cf, key);
+    uint32_t fullhash = toku_cachetable_hash(cf, key);
     cachetable_lock(ct);
     for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
         if (p->key.b == key.b && p->cachefile == cf) {
@@ -3088,7 +3088,7 @@ toku_cachefile_set_userdata (CACHEFILE cf,
                              void *userdata,
                              int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
                              int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
-                             int (*close_userdata)(CACHEFILE, int, void*, char**, BOOL, LSN),
+                             int (*close_userdata)(CACHEFILE, int, void*, char**, bool, LSN),
                              int (*checkpoint_userdata)(CACHEFILE, int, void*),
                              int (*begin_checkpoint_userdata)(LSN, void*),
                              int (*end_checkpoint_userdata)(CACHEFILE, int, void*),
@@ -3136,7 +3136,7 @@ toku_cachefile_is_unlink_on_close(CACHEFILE cf) {
     return cf->unlink_on_close;
 }
 
-u_int64_t toku_cachefile_size(CACHEFILE cf) {
+uint64_t toku_cachefile_size(CACHEFILE cf) {
     int64_t file_size;
     int fd = toku_cachefile_get_fd(cf);
     int r = toku_os_get_file_size(fd, &file_size);
@@ -3205,8 +3205,8 @@ toku_cleaner_thread (void *cachetable_v)
     int r;
     CACHETABLE ct = (CACHETABLE) cachetable_v;
     assert(ct);
-    u_int32_t num_iterations = toku_get_cleaner_iterations(ct);
-    for (u_int32_t i = 0; i < num_iterations; ++i) {
+    uint32_t num_iterations = toku_get_cleaner_iterations(ct);
+    for (uint32_t i = 0; i < num_iterations; ++i) {
         cleaner_executions++;
         cachetable_lock(ct);
         PAIR best_pair = NULL;
@@ -3265,7 +3265,7 @@ toku_cleaner_thread (void *cachetable_v)
                 write_locked_pair_for_checkpoint(ct, best_pair);
             }
 
-            BOOL cleaner_callback_called = FALSE;
+            bool cleaner_callback_called = false;
             
             // it's theoretically possible that after writing a PAIR for checkpoint, the
             // PAIR's heuristic tells us nothing needs to be done. It is not possible
@@ -3278,7 +3278,7 @@ toku_cleaner_thread (void *cachetable_v)
                                                     best_pair->fullhash,
                                                     best_pair->write_extraargs);
                 assert_zero(r);
-                cleaner_callback_called = TRUE;
+                cleaner_callback_called = true;
                 cachetable_lock(ct);
             }
 

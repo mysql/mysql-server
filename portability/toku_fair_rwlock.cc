@@ -12,7 +12,6 @@
 #include "toku_fair_rwlock.h"
 
 #include <stdio.h>
-#include <stdbool.h>
 #include <memory.h>
 
 struct toku_fair_rwlock_waiter_state {

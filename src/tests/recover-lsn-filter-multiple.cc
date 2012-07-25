@@ -17,7 +17,7 @@ enum {num_dbs = 2};
 static DBT dest_keys[num_dbs];
 static DBT dest_vals[num_dbs];
 
-BOOL do_test=FALSE, do_recover=FALSE;
+bool do_test=false, do_recover=false;
 
 static int
 put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
@@ -183,9 +183,9 @@ static void test_parse_args (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "--test")==0) {
-	    do_test=TRUE;
+	    do_test=true;
         } else if (strcmp(argv[0], "--recover") == 0) {
-            do_recover=TRUE;
+            do_recover=true;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:

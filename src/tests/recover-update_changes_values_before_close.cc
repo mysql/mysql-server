@@ -10,7 +10,7 @@
 static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 static const unsigned int NUM_KEYS = 100;
 
-static inline BOOL should_update(const unsigned int k) { return k % 3 == 0; }
+static inline bool should_update(const unsigned int k) { return k % 3 == 0; }
 
 static inline unsigned int _v(const unsigned int k) { return 10 - k; }
 static inline unsigned int _e(const unsigned int k) { return k + 4; }
@@ -144,8 +144,8 @@ static int usage(void)
 
 int test_main(int argc, char * const argv[])
 {
-    BOOL do_test = FALSE;
-    BOOL do_recover = FALSE;
+    bool do_test = false;
+    bool do_recover = false;
 
     for (int i = 1; i < argc; i++) {
         char * const arg = argv[i];
@@ -160,11 +160,11 @@ int test_main(int argc, char * const argv[])
             continue;
         }
         if (strcmp(arg, "--test") == 0) {
-            do_test = TRUE;
+            do_test = true;
             continue;
         }
         if (strcmp(arg, "--recover") == 0) {
-            do_recover = TRUE;
+            do_recover = true;
             continue;
         }
         if (strcmp(arg, "--help") == 0) {

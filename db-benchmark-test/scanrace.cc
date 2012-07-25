@@ -21,7 +21,7 @@
 
 static const char *pname;
 static long limitcount=-1;
-static u_int32_t cachesize = 16*1024*1024;
+static uint32_t cachesize = 16*1024*1024;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -41,7 +41,7 @@ static void parse_args (int argc, char *const argv[]) {
         } else if (strcmp(*argv, "--cachesize")==0 && argc>0) {
             char *end;
             argv++; argc--;
-            cachesize=(u_int32_t)strtol(*argv, &end, 10);
+            cachesize=(uint32_t)strtol(*argv, &end, 10);
 	} else if (strcmp(*argv, "--env") == 0) {
 	    argv++; argc--;
 	    if (argc <= 0) goto print_usage;

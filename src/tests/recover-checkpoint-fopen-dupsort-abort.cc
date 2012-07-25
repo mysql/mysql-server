@@ -13,7 +13,7 @@ const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG
 const char *namea="a.db";
 const char *nameb="b.db";
 
-static void run_test (BOOL do_commit, BOOL do_abort) {
+static void run_test (bool do_commit, bool do_abort) {
     int r;
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -55,7 +55,7 @@ static void run_test (BOOL do_commit, BOOL do_abort) {
     toku_hard_crash_on_purpose();
 }
 
-static void run_recover (BOOL did_commit) {
+static void run_recover (bool did_commit) {
     DB_ENV *env;
     DB *dba, *dbb;
     int r;
@@ -64,7 +64,7 @@ static void run_recover (BOOL did_commit) {
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);        CKERR(r);
 
-    u_int32_t dbflags;
+    uint32_t dbflags;
     dbflags = 0;
     r = dba->get_flags(dba, &dbflags);                                                        CKERR(r);
     assert(dbflags == 0);
@@ -143,7 +143,7 @@ static void run_no_recover (void) {
 const char *cmd;
 
 
-BOOL do_commit=FALSE, do_abort=FALSE, do_explicit_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE, do_recover_only=FALSE, do_no_recover = FALSE;
+bool do_commit=false, do_abort=false, do_explicit_abort=false, do_recover_committed=false,  do_recover_aborted=false, do_recover_only=false, do_no_recover = false;
 
 static void test_parse_args (int argc, char * const argv[]) {
     int resultcode;
@@ -156,19 +156,19 @@ static void test_parse_args (int argc, char * const argv[]) {
 	    verbose--;
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "--commit")==0) {
-	    do_commit=TRUE;
+	    do_commit=true;
 	} else if (strcmp(argv[0], "--abort")==0 || strcmp(argv[0], "--test") == 0) {
-	    do_abort=TRUE;
+	    do_abort=true;
 	} else if (strcmp(argv[0], "--explicit-abort")==0) {
-	    do_explicit_abort=TRUE;
+	    do_explicit_abort=true;
 	} else if (strcmp(argv[0], "--recover-committed")==0) {
-	    do_recover_committed=TRUE;
+	    do_recover_committed=true;
 	} else if (strcmp(argv[0], "--recover-aborted")==0 || strcmp(argv[0], "--recover") == 0) {
-	    do_recover_aborted=TRUE;
+	    do_recover_aborted=true;
         } else if (strcmp(argv[0], "--recover-only") == 0) {
-            do_recover_only=TRUE;
+            do_recover_only=true;
         } else if (strcmp(argv[0], "--no-recover") == 0) {
-            do_no_recover=TRUE;
+            do_no_recover=true;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
@@ -202,13 +202,13 @@ static void test_parse_args (int argc, char * const argv[]) {
 int test_main (int argc, char * const argv[]) {
     test_parse_args(argc, argv);
     if (do_commit) {
-	run_test(TRUE, FALSE);
+	run_test(true, false);
     } else if (do_abort) {
-        run_test(FALSE, TRUE);
+        run_test(false, true);
     } else if (do_recover_committed) {
-        run_recover(TRUE);
+        run_recover(true);
     } else if (do_recover_aborted) {
-        run_recover(FALSE);
+        run_recover(false);
     } else if (do_recover_only) {
         run_recover_only();
     } else if (do_no_recover) {

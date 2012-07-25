@@ -168,8 +168,8 @@ int create_logfiles() {
     TXNID txnid = 0;
     TXNID cp_txnid = 0;
 
-    u_int32_t num_fassociate = 0;
-    u_int32_t num_xstillopen = 0;
+    uint32_t num_fassociate = 0;
+    uint32_t num_xstillopen = 0;
     
     bs_aname.len = 4; bs_aname.data=(char *)"a.db";
     bs_bname.len = 4; bs_bname.data=(char *)"b.db";

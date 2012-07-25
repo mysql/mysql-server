@@ -39,7 +39,7 @@
 
 typedef struct block_allocator *BLOCK_ALLOCATOR;
 
-void create_block_allocator (BLOCK_ALLOCATOR * ba, u_int64_t reserve_at_beginning, u_int64_t alignment);
+void create_block_allocator (BLOCK_ALLOCATOR * ba, uint64_t reserve_at_beginning, uint64_t alignment);
 // Effect: Create a block allocator, in which the first RESERVE_AT_BEGINNING bytes are not put into a block.
 //  All blocks be start on a multiple of ALIGNMENT.
 //  Aborts if we run out of memory.
@@ -56,7 +56,7 @@ void destroy_block_allocator (BLOCK_ALLOCATOR *ba);
 //  ba (IN/OUT):
 
 
-void block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t offset);
+void block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t offset);
 // Effect: Allocate a block of the specified size at a particular offset.
 //  Aborts if anything goes wrong.
 //  The performance of this function may be as bad as Theta(N), where N is the number of blocks currently in use.
@@ -70,15 +70,15 @@ void block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64
 
 
 struct block_allocator_blockpair {
-    u_int64_t offset;
-    u_int64_t size;
+    uint64_t offset;
+    uint64_t size;
 };
-void block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, u_int64_t n_blocks, struct block_allocator_blockpair *pairs);
+void block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, uint64_t n_blocks, struct block_allocator_blockpair *pairs);
 // Effect: Take pairs in any order, and add them all, as if we did block_allocator_alloc_block() on each pair.
 //  This should run in time O(N + M log M) where N is the number of blocks in ba, and M is the number of new blocks.
 // Modifies: pairs (sorts them).
 
-void block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t *offset);
+void block_allocator_alloc_block (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t *offset);
 // Effect: Allocate a block of the specified size at an address chosen by the allocator.
 //  Aborts if anything goes wrong.
 //  The block address will be a multiple of the alignment.
@@ -87,7 +87,7 @@ void block_allocator_alloc_block (BLOCK_ALLOCATOR ba, u_int64_t size, u_int64_t 
 //  size (IN):    The size of the block.  (The size does not have to be aligned.)
 //  offset (OUT): The location of the block.
 
-void block_allocator_free_block (BLOCK_ALLOCATOR ba, u_int64_t offset);
+void block_allocator_free_block (BLOCK_ALLOCATOR ba, uint64_t offset);
 // Effect: Free the block at offset.
 // Requires: There must be a block currently allocated at that offset.
 // Parameters:
@@ -95,7 +95,7 @@ void block_allocator_free_block (BLOCK_ALLOCATOR ba, u_int64_t offset);
 //  offset (IN): The offset of the block.
 
 
-u_int64_t block_allocator_block_size (BLOCK_ALLOCATOR ba, u_int64_t offset);
+uint64_t block_allocator_block_size (BLOCK_ALLOCATOR ba, uint64_t offset);
 // Effect: Return the size of the block that starts at offset.
 // Requires: There must be a block currently allocated at that offset.
 // Parameters:
@@ -110,14 +110,14 @@ void block_allocator_print (BLOCK_ALLOCATOR ba);
 // Effect: Print information about the block allocator.
 // Rationale: This is probably useful only for debugging.
 
-u_int64_t block_allocator_allocated_limit (BLOCK_ALLOCATOR ba);
+uint64_t block_allocator_allocated_limit (BLOCK_ALLOCATOR ba);
 // Effect: Return the unallocated block address of "infinite" size.
 //  That is, return the smallest address that is above all the allocated blocks.
 // Rationale: When writing the root FIFO we don't know how big the block is.
 //  So we start at the "infinite" block, write the fifo, and then
 //  allocate_block_at of the correct size and offset to account for the root FIFO.
 
-int block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, u_int64_t b, u_int64_t *offset, u_int64_t *size);
+int block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, uint64_t b, uint64_t *offset, uint64_t *size);
 // Effect: Consider the blocks in sorted order.  The reserved block at the beginning is number 0.  The next one is number 1 and so forth.
 //  Return the offset and size of the block with that number.
 //  Return 0 if there is a block that big, return nonzero if b is too big.
@@ -130,8 +130,8 @@ void block_allocator_get_unused_statistics(BLOCK_ALLOCATOR ba, TOKU_DB_FRAGMENTA
 //  report->data_bytes is filled in
 //  report->checkpoint_bytes_additional is filled in
 
-void block_allocator_merge_blockpairs_into (u_int64_t d,       struct block_allocator_blockpair dst[/*d*/],
-				       u_int64_t s, const struct block_allocator_blockpair src[/*s*/]);
+void block_allocator_merge_blockpairs_into (uint64_t d,       struct block_allocator_blockpair dst[/*d*/],
+				       uint64_t s, const struct block_allocator_blockpair src[/*s*/]);
 // Effect: Merge dst[d] and src[s] into dst[d+s], merging in place.
 //   Initially dst and src hold sorted arrays (sorted by increasing offset).
 //   Finally dst contains all d+s elements sorted in order.

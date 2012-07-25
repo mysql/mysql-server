@@ -51,7 +51,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);
     assert(error == 0);
     toku_logger_set_cachetable(logger, ct);
-    error = toku_logger_open_rollback(logger, ct, TRUE);
+    error = toku_logger_open_rollback(logger, ct, true);
     assert(error == 0);
 
     TOKUTXN txn = NULL;
@@ -62,7 +62,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, test_keycompare);
     assert(error == 0);
 
-    error = toku_txn_commit_txn(txn, TRUE, NULL, NULL);
+    error = toku_txn_commit_txn(txn, true, NULL, NULL);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
@@ -82,7 +82,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
         assert(error == 0);
     }
 
-    error = toku_txn_commit_txn(txn, TRUE, NULL, NULL);
+    error = toku_txn_commit_txn(txn, true, NULL, NULL);
     assert(error == 0);
     toku_txn_close_txn(txn);
 
@@ -91,7 +91,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
 
     error = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
-    error = toku_logger_close_rollback(logger, FALSE);
+    error = toku_logger_close_rollback(logger, false);
     assert(error == 0);
 
     error = toku_checkpoint(ct, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
@@ -131,7 +131,7 @@ test_neg_infinity(const char *fname, int n) {
         DBT key;
         toku_fill_dbt(&key, &k, sizeof k);
         int right = toku_le_cursor_is_key_greater(cursor, &key);
-        assert(right == TRUE);
+        assert(right == true);
     }
         
     error = toku_le_cursor_close(cursor);
@@ -192,7 +192,7 @@ test_pos_infinity(const char *fname, int n) {
         DBT key2;
         toku_fill_dbt(&key2, &k, sizeof k);
         int right = toku_le_cursor_is_key_greater(cursor, &key2);
-        assert(right == FALSE);
+        assert(right == false);
     }
 
     error = toku_le_cursor_close(cursor);
@@ -249,7 +249,7 @@ test_between(const char *fname, int n) {
             DBT key2;
             toku_fill_dbt(&key2, &k, sizeof k);
             int right = toku_le_cursor_is_key_greater(cursor, &key2);
-            assert(right == FALSE);
+            assert(right == false);
         }
 
         // test that i+1 .. n is left of the cursor
@@ -258,7 +258,7 @@ test_between(const char *fname, int n) {
             DBT key2;
             toku_fill_dbt(&key2, &k, sizeof k);
             int right = toku_le_cursor_is_key_greater(cursor, &key2);
-            assert(right == TRUE);
+            assert(right == true);
         }
 
     }

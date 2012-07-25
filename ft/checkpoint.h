@@ -8,12 +8,12 @@
 #ident "$Id$"
 
 
-int toku_set_checkpoint_period(CACHETABLE ct, u_int32_t new_period);
+int toku_set_checkpoint_period(CACHETABLE ct, uint32_t new_period);
 //Effect: Change [end checkpoint (n) - begin checkpoint (n+1)] delay to
 //        new_period seconds.  0 means disable.
 
-u_int32_t toku_get_checkpoint_period(CACHETABLE ct);
-u_int32_t toku_get_checkpoint_period_unlocked(CACHETABLE ct);
+uint32_t toku_get_checkpoint_period(CACHETABLE ct);
+uint32_t toku_get_checkpoint_period_unlocked(CACHETABLE ct);
 
 
 /******
@@ -109,7 +109,7 @@ typedef enum {
 } cp_status_entry;
 
 typedef struct {
-    BOOL initialized;
+    bool initialized;
     TOKU_ENGINE_STATUS_ROW_S status[CP_STATUS_NUM_ROWS];
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 

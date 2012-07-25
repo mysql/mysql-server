@@ -20,13 +20,13 @@ struct __toku_lock_tree;
 
 struct __toku_db_internal {
     int opened;
-    u_int32_t open_flags;
+    uint32_t open_flags;
     int open_mode;
     FT_HANDLE ft_handle;
     DICTIONARY_ID dict_id;        // unique identifier used by locktree logic
     struct __toku_lock_tree* lt;
     struct simple_dbt skey, sval; // static key and value
-    BOOL key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function).  
+    bool key_compare_was_set;     // true if a comparison function was provided before call to db->open()  (if false, use environment's comparison function).  
     char *dname;                  // dname is constant for this handle (handle must be closed before file is renamed)
     DB_INDEXER *indexer;
 };
@@ -45,7 +45,7 @@ typedef void (*toku_env_errcall_t)(const DB_ENV *, const char *, const char *);
 struct __toku_db_env_internal {
     int is_panicked; // if nonzero, then its an error number
     char *panic_string;
-    u_int32_t open_flags;
+    uint32_t open_flags;
     int open_mode;
     toku_env_errcall_t errcall;
     void *errfile;
@@ -83,7 +83,7 @@ struct __toku_db_env_internal {
     int enospc_redzone_ctr;                             // number of operations rejected by enospc prevention  (red zone)
     int fs_poll_time;                                   // Time in seconds between statfs calls
     struct minicron fs_poller;                          // Poll the file systems
-    BOOL fs_poller_is_init;
+    bool fs_poller_is_init;
     int envdir_lockfd;
     int datadir_lockfd;
     int logdir_lockfd;
@@ -140,8 +140,8 @@ int toku_ydb_check_avail_fs_space(DB_ENV *env);
 /* */
 void toku_ydb_error_all_cases(const DB_ENV * env, 
                               int error, 
-                              BOOL include_stderrstring, 
-                              BOOL use_stderr_if_nothing_else, 
+                              bool include_stderrstring, 
+                              bool use_stderr_if_nothing_else, 
                               const char *fmt, va_list ap)
     __attribute__((format (printf, 5, 0)))
     __attribute__((__visibility__("default"))); // this is needed by the C++ interface. 
@@ -169,7 +169,7 @@ struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     struct tokutxn *tokutxn;
     struct __toku_lth *lth;  //Hash table holding list of dictionaries this txn has touched, only initialized if txn touches a dictionary
-    u_int32_t flags;
+    uint32_t flags;
     TOKU_ISOLATION iso;
     DB_TXN *child;
     toku_mutex_t txn_mutex;
@@ -189,7 +189,7 @@ struct __toku_dbc_internal {
 
     // if the rmw flag is asserted, cursor operations (like set) grab write locks instead of read locks
     // the rmw flag is set when the cursor is created with the DB_RMW flag set
-    BOOL rmw;
+    bool rmw;
 };
 
 struct __toku_dbc_external {
@@ -210,8 +210,8 @@ env_opened(DB_ENV *env) {
 void env_panic(DB_ENV * env, int cause, const char * msg);
 void env_note_db_opened(DB_ENV *env, DB *db);
 void env_note_db_closed(DB_ENV *env, DB *db);
-int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags);
-int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags);
+int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags);
+int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags);
 
 
 #endif

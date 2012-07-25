@@ -22,7 +22,7 @@ int test_main (int argc, char * const argv[]) {
   r = db_env_create(&env, 0);                                                         CKERR(r);
   env->set_errfile(env, stderr);
   // set a cachetable size of 10K
-  u_int32_t cachesize = 10*1024;
+  uint32_t cachesize = 10*1024;
   // as part of #4503, arbitrarily increasing sizze of cachetable
   // the idea is to make it small enough such that all data 
   // cannot fit in the cachetable, but big enough such that 
@@ -53,10 +53,10 @@ int test_main (int argc, char * const argv[]) {
   DB_TXN* txn;
   r = env->txn_begin(env, NULL, &txn, 0);
   CKERR(r);
-  for (u_int32_t i = 0; i < cachesize; i++) {
+  for (uint32_t i = 0; i < cachesize; i++) {
       DBT key,val;
-      u_int64_t key_data = 2*i;
-      u_int64_t val_data = 4*i;
+      uint64_t key_data = 2*i;
+      uint64_t val_data = 4*i;
       r = db->put(
           db,
           txn,
@@ -77,13 +77,13 @@ int test_main (int argc, char * const argv[]) {
   if (verbose) printf("starting insertion of odd elements and deletion of even elements\n");
   r = env->txn_begin(env, NULL, &txn, 0);
   CKERR(r);
-  for (u_int32_t i = 0; i < cachesize; i++) {
+  for (uint32_t i = 0; i < cachesize; i++) {
       //
       // insert odd values, and delete even values
       //
       DBT key,val;
-      u_int64_t key_data = 2*i+1;
-      u_int64_t val_data = 4*i+2;
+      uint64_t key_data = 2*i+1;
+      uint64_t val_data = 4*i+2;
       dbt_init(&key, &key_data, sizeof(key_data));
       dbt_init(&val, &val_data, sizeof(val_data));
       r = db->put(
@@ -119,7 +119,7 @@ int test_main (int argc, char * const argv[]) {
   memset(&val, 0, sizeof(val));
   if (verbose) printf("starting cursor first query\n");
   // now let's do the cursor reads and verify that all the data is read properly
-  for (u_int32_t i = 0; i < cachesize; i++) {
+  for (uint32_t i = 0; i < cachesize; i++) {
       r = cursor_first->c_get(cursor_first, &key, &val, DB_NEXT);
       CKERR(r);
       assert(key.size == 8);
@@ -132,7 +132,7 @@ int test_main (int argc, char * const argv[]) {
   
   if (verbose) printf("starting cursor second query\n");
   // now let's do the cursor reads and verify that all the data is read properly
-  for (u_int32_t i = 0; i < cachesize; i++) {
+  for (uint32_t i = 0; i < cachesize; i++) {
       r = cursor_second->c_get(cursor_second, &key, &val, DB_NEXT);
       CKERR(r);
       assert(key.size == 8);

@@ -67,7 +67,7 @@ do_test_abort2 (void) {
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 #ifndef TOKUDB
     {
-	u_int32_t ps;
+	uint32_t ps;
 	r=db->get_pagesize(db, &ps); CKERR(r);
 	assert(ps==4096);
     }

@@ -24,11 +24,11 @@ static const char *pname;
 static enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_RANGE} run_mode = RUN_HWC;
 static int do_txns=1, prelock=0, prelockflag=0;
 static int cleaner_period=0, cleaner_iterations=0;
-static u_int32_t lock_flag = 0;
+static uint32_t lock_flag = 0;
 static long limitcount=-1;
-static u_int32_t cachesize = 127*1024*1024;
+static uint32_t cachesize = 127*1024*1024;
 static int do_mysql = 0;
-static u_int64_t start_range = 0, end_range = 0;
+static uint64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
 static int bulk_fetch = 1;
 
@@ -110,15 +110,15 @@ static void parse_args (int argc, char *const argv[]) {
         } else if (strcmp(*argv, "--cachesize")==0 && argc>0) {
             char *end;
             argc--; argv++; 
-            cachesize=(u_int32_t)strtol(*argv, &end, 10);
+            cachesize=(uint32_t)strtol(*argv, &end, 10);
         } else if (strcmp(*argv, "--cleaner-period")==0 && argc>0) {
             char *end;
             argc--; argv++; 
-            cleaner_period=(u_int32_t)strtol(*argv, &end, 10);
+            cleaner_period=(uint32_t)strtol(*argv, &end, 10);
         } else if (strcmp(*argv, "--cleaner-iterations")==0 && argc>0) {
             char *end;
             argc--; argv++; 
-            cleaner_iterations=(u_int32_t)strtol(*argv, &end, 10);
+            cleaner_iterations=(uint32_t)strtol(*argv, &end, 10);
 	} else if (strcmp(*argv, "--env") == 0) {
             argc--; argv++;
 	    if (argc==0) exit(print_usage(pname));
@@ -264,7 +264,7 @@ static void scanscan_hwc (void) {
 	r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
 	memset(&k, 0, sizeof(k));
 	memset(&v, 0, sizeof(v));
-        u_int32_t c_get_flags = DB_NEXT;
+        uint32_t c_get_flags = DB_NEXT;
         if (prelockflag && (counter || prelock)) {
             c_get_flags |= lock_flag;
         }
@@ -313,7 +313,7 @@ static void scanscan_lwc (void) {
 	if(prelock) {
             r = dbc->c_pre_acquire_range_lock(dbc, db->dbt_neg_infty(), db->dbt_pos_infty()); assert(r==0);
 	}
-        u_int32_t f_flags = 0;
+        uint32_t f_flags = 0;
         if (prelockflag && (counter || prelock)) {
             f_flags |= lock_flag;
         }
@@ -336,7 +336,7 @@ static void scanscan_range (void) {
     int r;
 
     double texperiments[n_experiments];
-    u_int64_t k = 0;
+    uint64_t k = 0;
     char kv[8];
     DBT key, val;
   
@@ -432,8 +432,8 @@ static void scanscan_verify (void) {
 	r = db->cursor(db, tid, &dbc2, 0);                           assert(r==0);
 	memset(&v.k, 0, sizeof(v.k));
 	memset(&v.v, 0, sizeof(v.v));
-        u_int32_t f_flags = 0;
-        u_int32_t c_get_flags = DB_NEXT;
+        uint32_t f_flags = 0;
+        uint32_t c_get_flags = DB_NEXT;
         if (prelockflag && (counter || prelock)) {
             f_flags     |= lock_flag;
             c_get_flags |= lock_flag;

@@ -17,15 +17,15 @@ struct qitem;
 struct qitem {
     void *item;
     struct qitem *next;
-    u_int64_t weight;
+    uint64_t weight;
 };
 
 struct queue {
-    u_int64_t contents_weight; // how much stuff is in there?
-    u_int64_t weight_limit;    // Block enqueueing when the contents gets to be bigger than the weight.
+    uint64_t contents_weight; // how much stuff is in there?
+    uint64_t weight_limit;    // Block enqueueing when the contents gets to be bigger than the weight.
     struct qitem *head, *tail;
 
-    BOOL eof;
+    bool eof;
 
     toku_mutex_t mutex;
     toku_cond_t  cond;
@@ -43,7 +43,7 @@ struct queue {
 //   q->mutex and q->cond are used as condition variables.
 
 
-int queue_create (QUEUE *q, u_int64_t weight_limit)
+int queue_create (QUEUE *q, uint64_t weight_limit)
 {
     QUEUE MALLOC(result);
     if (result==NULL) return get_error_errno();
@@ -51,7 +51,7 @@ int queue_create (QUEUE *q, u_int64_t weight_limit)
     result->weight_limit    = weight_limit;
     result->head            = NULL;
     result->tail            = NULL;
-    result->eof             = FALSE;
+    result->eof             = false;
     toku_mutex_init(&result->mutex, NULL);
     toku_cond_init(&result->cond, NULL);
     *q = result;
@@ -68,7 +68,7 @@ int queue_destroy (QUEUE q)
     return 0;
 }
 
-int queue_enq (QUEUE q, void *item, u_int64_t weight, u_int64_t *total_weight_after_enq)
+int queue_enq (QUEUE q, void *item, uint64_t weight, uint64_t *total_weight_after_enq)
 {
     toku_mutex_lock(&q->mutex);
     assert(!q->eof);
@@ -108,13 +108,13 @@ int queue_eof (QUEUE q)
 {
     toku_mutex_lock(&q->mutex);
     assert(!q->eof);
-    q->eof = TRUE;
+    q->eof = true;
     toku_cond_signal(&q->cond);
     toku_mutex_unlock(&q->mutex);
     return 0;
 }
 
-int queue_deq (QUEUE q, void **item, u_int64_t *weight, u_int64_t *total_weight_after_deq)
+int queue_deq (QUEUE q, void **item, uint64_t *weight, uint64_t *total_weight_after_deq)
 {
     toku_mutex_lock(&q->mutex);
     int result;

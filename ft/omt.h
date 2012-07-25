@@ -69,7 +69,7 @@ int toku_omt_create (OMT *omtp);
 //   ENOMEM   out of memory (and doesn't modify *omtp)
 // Performance: constant time.
 
-int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, u_int32_t numvalues);
+int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, uint32_t numvalues);
 // Effect: Create a OMT containing values.  The number of values is in numvalues.
 //  Stores the new OMT in *omtp.
 // Requires: omtp != NULL
@@ -83,7 +83,7 @@ int toku_omt_create_from_sorted_array(OMT *omtp, OMTVALUE *values, u_int32_t num
 //               If the N values are known in advance, are sorted, and
 //               the structure is empty, we can batch insert them much faster.
 
-int toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, u_int32_t numvalues, u_int32_t steal_capacity);
+int toku_omt_create_steal_sorted_array(OMT *omtp, OMTVALUE **valuesp, uint32_t numvalues, uint32_t steal_capacity);
 // Effect: Create an OMT containing values.  The number of values is in numvalues.
 //         On success the OMT takes ownership of *valuesp array, and sets valuesp=NULL.
 // Requires: omtp != NULL
@@ -115,12 +115,12 @@ void toku_omt_destroy(OMT *omtp);
 // Rationale: Does not free the OMTVALUEs to reduce complexity.
 // Performance:  time=O(toku_omt_size(*omtp))
 
-u_int32_t toku_omt_size(OMT V);
+uint32_t toku_omt_size(OMT V);
 // Effect: return |V|.
 // Requires: V != NULL
 // Performance:  time=O(1)
 
-int toku_omt_iterate_on_range(OMT omt, u_int32_t left, u_int32_t right, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
+int toku_omt_iterate_on_range(OMT omt, uint32_t left, uint32_t right, int (*f)(OMTVALUE, uint32_t, void*), void*v);
 // Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
 //  The second argument passed to f is the index of the value.
 //  The third argument passed to f is v.
@@ -144,7 +144,7 @@ void toku_omt_free_items(OMT omt);
 //   destroy the OMT. However, destroying the OMT requires invalidating cursors. This cannot be done if the values of the OMT
 //   have been already freed. So, this function is written to invalidate cursors and free items.
 
-int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
+int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, uint32_t, void*), void*v);
 // Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
 //  The second argument passed to f is the index of the value.
 //  The third argument passed to f is v.
@@ -158,7 +158,7 @@ int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
 // Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in omt.
 // Rational: Although the functional iterator requires defining another function (as opposed to C++ style iterator), it is much easier to read.
 
-int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t idx);
+int toku_omt_insert_at(OMT omt, OMTVALUE value, uint32_t idx);
 // Effect: Increases indexes of all items at slot >= index by 1.
 //         Insert value into the position at index.
 //
@@ -170,7 +170,7 @@ int toku_omt_insert_at(OMT omt, OMTVALUE value, u_int32_t idx);
 // Performance: time=O(\log N) amortized time.
 // Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t idx);
+int toku_omt_set_at (OMT omt, OMTVALUE value, uint32_t idx);
 // Effect:  Replaces the item at index with value.
 // Returns:
 //   0       success
@@ -179,7 +179,7 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t idx);
 // Performance: time=O(\log N)
 // Rationale: The BRT needs to be able to replace a value with another copy of the same value (allocated in a different location)
 
-int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *idx);
+int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, uint32_t *idx);
 // Effect:  Insert value into the OMT.
 //   If there is some i such that $h(V_i, v)=0$ then returns DB_KEYEXIST.
 //   Otherwise, let i be the minimum value such that $h(V_i, v)>0$.
@@ -197,7 +197,7 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
 // Performance: time=O(\log N) amortized.
 // Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-int toku_omt_delete_at(OMT omt, u_int32_t idx);
+int toku_omt_delete_at(OMT omt, uint32_t idx);
 // Effect: Delete the item in slot index.
 //         Decreases indexes of all items at slot >= index by 1.
 // Returns
@@ -207,7 +207,7 @@ int toku_omt_delete_at(OMT omt, u_int32_t idx);
 // Rationale: To delete an item, first find its index using toku_omt_find, then delete it.
 // Performance: time=O(\log N) amortized.
 
-int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v);
+int toku_omt_fetch (OMT V, uint32_t i, OMTVALUE *v);
 // Effect: Set *v=V_i
 //   If c!=NULL then set c's abstract offset to i.
 // Requires: v   != NULL
@@ -222,14 +222,14 @@ int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v);
 //   function, the function must remove c's association with the old
 //   OMT, and associate it with the new OMT.
 
-int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, u_int32_t *idx);
+int toku_omt_find_zero(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, OMTVALUE *value, uint32_t *idx);
 // Effect:  Find the smallest i such that h(V_i, extra)>=0
 //  If there is such an i and h(V_i,extra)==0 then set *index=i and return 0.
 //  If there is such an i and h(V_i,extra)>0  then set *index=i and return DB_NOTFOUND.
 //  If there is no such i then set *index=toku_omt_size(V) and return DB_NOTFOUND.
 // Requires: index!=NULL
 
-int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, u_int32_t *idx);
+int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int direction, OMTVALUE *value, uint32_t *idx);
 //   Effect:
 //    If direction >0 then find the smallest i such that h(V_i,extra)>0.
 //    If direction <0 then find the largest  i such that h(V_i,extra)<0.
@@ -290,7 +290,7 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 //    -...-0...0+...+
 //        AC    B
 
-int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t idx);
+int toku_omt_split_at(OMT omt, OMT *newomt, uint32_t idx);
 // Effect: Create a new OMT, storing it in *newomt.
 //  The values to the right of index (starting at index) are moved to *newomt.
 // Requires: omt != NULL
@@ -313,7 +313,7 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
 
-int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize);
+int toku_omt_clone(OMT *dest, OMT src, uint32_t eltsize);
 // Effect: Creates a copy of an omt.
 //  Sets *dest to the clone
 //  Each element is allocated separately with toku_xmalloc and is assumed to be eltsize big.
@@ -323,7 +323,7 @@ int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize);
 // Performance: time between O(n) and O(n log n), depending how long it
 //  takes to traverse src.
 
-int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize);
+int toku_omt_clone_pool(OMT *dest, OMT src, uint32_t eltsize);
 // Effect: Creates a copy of an omt.
 //  Sets *dest to the clone
 //  Each element is copied to a contiguous buffer allocated with toku_xmalloc and each element is assumed to be eltsize big.

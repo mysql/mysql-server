@@ -25,7 +25,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 
     r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                               assert(r==0);
     r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);   assert(r==0);
-    r = toku_ft_cursor(brt, &cursor, NULL, FALSE, FALSE);               assert(r==0);
+    r = toku_ft_cursor(brt, &cursor, NULL, false, false);               assert(r==0);
 
     int i;
     for (i=0; i<1000; i++) {

@@ -9,19 +9,19 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
-u_int64_t x1764_simple (const u_int64_t *buf, size_t len)
+uint64_t x1764_simple (const uint64_t *buf, size_t len)
 {
-    u_int64_t sum=0;
+    uint64_t sum=0;
     for (size_t i=0; i<len ;i++) {
 	sum = sum*17 + buf[i];
     }
     return sum;
 }
 
-u_int64_t x1764_2x (const u_int64_t *buf, size_t len)
+uint64_t x1764_2x (const uint64_t *buf, size_t len)
 {
     assert(len%2==0);
-    u_int64_t suma=0, sumb=0;
+    uint64_t suma=0, sumb=0;
     for (size_t i=0; i<len ;i+=2) {
 	suma = suma*(17L*17L) + buf[i];
 	sumb = sumb*(17L*17L) + buf[i+1];
@@ -29,23 +29,23 @@ u_int64_t x1764_2x (const u_int64_t *buf, size_t len)
     return suma*17+sumb;
 }
 
-u_int64_t x1764_3x (const u_int64_t *buf, size_t len)
+uint64_t x1764_3x (const uint64_t *buf, size_t len)
 {
     assert(len%3==0);
-    u_int64_t suma=0, sumb=0, sumc=0;
+    uint64_t suma=0, sumb=0, sumc=0;
     for (size_t i=0; i<len ;i+=3) {
 	suma = suma*(17LL*17LL*17LL) + buf[i];
 	sumb = sumb*(17LL*17LL*17LL) + buf[i+1];
 	sumc = sumc*(17LL*17LL*17LL) + buf[i+2];
     }
-    u_int64_t r = suma*17L*17L + sumb*17L + sumc;
+    uint64_t r = suma*17L*17L + sumb*17L + sumc;
     return r;
 }
 
-u_int64_t x1764_4x (const u_int64_t *buf, size_t len)
+uint64_t x1764_4x (const uint64_t *buf, size_t len)
 {
     assert(len%4==0);
-    u_int64_t suma=0, sumb=0, sumc=0, sumd=0;
+    uint64_t suma=0, sumb=0, sumc=0, sumd=0;
     for (size_t i=0; i<len ;i+=4) {
 	suma = suma*(17LL*17LL*17LL*17LL) + buf[i];
 	sumb = sumb*(17LL*17LL*17LL*17LL) + buf[i+1];
@@ -67,13 +67,13 @@ int main (int argc, char *argv[]) {
 	struct timeval start,end,end2,end3,end4;
 	for (int i=0; i<size; i++) data[i]=i*i+j;
 	gettimeofday(&start, 0);
-	u_int64_t s = x1764_simple((u_int64_t*)data, size/sizeof(u_int64_t));
+	uint64_t s = x1764_simple((uint64_t*)data, size/sizeof(uint64_t));
 	gettimeofday(&end,   0);
-	u_int64_t s2 = x1764_2x((u_int64_t*)data, size/sizeof(u_int64_t));
+	uint64_t s2 = x1764_2x((uint64_t*)data, size/sizeof(uint64_t));
 	gettimeofday(&end2,   0);
-	u_int64_t s3 = x1764_3x((u_int64_t*)data, size/sizeof(u_int64_t));
+	uint64_t s3 = x1764_3x((uint64_t*)data, size/sizeof(uint64_t));
 	gettimeofday(&end3,   0);
-	u_int64_t s4 = x1764_4x((u_int64_t*)data, size/sizeof(u_int64_t));
+	uint64_t s4 = x1764_4x((uint64_t*)data, size/sizeof(uint64_t));
 	gettimeofday(&end4,   0);
 	assert(s==s2);
 	assert(s==s3);

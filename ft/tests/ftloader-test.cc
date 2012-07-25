@@ -33,12 +33,12 @@ static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *
     abort();
 }
 
-BOOL founddup;
+bool founddup;
 static void expect_dups_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *val UU(), void *extra UU()) {
-    founddup=TRUE;
+    founddup=true;
 }
 
-static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
+static void test_merge_internal (int a[], int na, int b[], int nb, bool dups) {
     int *MALLOC_N(na+nb, ab); // the combined array a and b
     for (int i=0; i<na; i++) {
 	ab[i]=a[i];
@@ -101,20 +101,20 @@ static void test_merge (void) {
     {
 	int avals[]={1,2,3,4,5};
 	int *bvals = NULL; //icc won't let us use a zero-sized array explicitly or by [] = {} construction.
-	test_merge_internal(avals, 5, bvals, 0, FALSE);
-	test_merge_internal(bvals, 0, avals, 5, FALSE);
+	test_merge_internal(avals, 5, bvals, 0, false);
+	test_merge_internal(bvals, 0, avals, 5, false);
     }
     {
 	int avals[]={1,3,5,7};
 	int bvals[]={2,4};
-	test_merge_internal(avals, 4, bvals, 2, FALSE);
-	test_merge_internal(bvals, 2, avals, 4, FALSE);
+	test_merge_internal(avals, 4, bvals, 2, false);
+	test_merge_internal(bvals, 2, avals, 4, false);
     }
     {
 	int avals[]={1,2,3,5,6,7};
 	int bvals[]={2,4,5,6,8};
-	test_merge_internal(avals, 6, bvals, 5, TRUE);
-	test_merge_internal(bvals, 5, avals, 6, TRUE);
+	test_merge_internal(avals, 6, bvals, 5, true);
+	test_merge_internal(bvals, 5, avals, 6, true);
     }
 }
 
@@ -151,8 +151,8 @@ static void test_mergesort_row_array (void) {
     const int MAX_LEN = 100;
     enum { MAX_VAL = 1000 };
     for (int i=0; i<MAX_LEN; i++) {
-	BOOL used[MAX_VAL];
-	for (int j=0; j<MAX_VAL; j++) used[j]=FALSE; 
+	bool used[MAX_VAL];
+	for (int j=0; j<MAX_VAL; j++) used[j]=false; 
 	int len=1+random()%MAX_LEN;
 	int avals[len];
 	for (int j=0; j<len; j++) {
@@ -161,7 +161,7 @@ static void test_mergesort_row_array (void) {
 		v = random()%MAX_VAL;
 	    } while (used[v]); 
 	    avals[j] = v;
-	    used[v] = TRUE;
+	    used[v] = true;
 	}
 	test_internal_mergesort_row_array(avals, len);
     }
@@ -176,11 +176,11 @@ static void test_read_write_rows (char *tf_template) {
     r = ft_loader_open_temp_file(&bl, &file);
     CKERR(r);
 
-    u_int64_t dataoff=0;
+    uint64_t dataoff=0;
 
     const char *keystrings[] = {"abc", "b", "cefgh"};
     const char *valstrings[] = {"defg", "", "xyz"};
-    u_int64_t actual_size=0;
+    uint64_t actual_size=0;
     for (int i=0; i<3; i++) {
 	DBT key;
         toku_fill_dbt(&key, keystrings[i], strlen(keystrings[i]));
@@ -193,7 +193,7 @@ static void test_read_write_rows (char *tf_template) {
     if (actual_size != dataoff) fprintf(stderr, "actual_size=%" PRIu64 ", dataoff=%" PRIu64 "\n", actual_size, dataoff);
     assert(actual_size == dataoff);
 
-    r = ft_loader_fi_close(&bl.file_infos, file, TRUE);
+    r = ft_loader_fi_close(&bl.file_infos, file, true);
     CKERR(r);
 
     r = ft_loader_fi_reopen(&bl.file_infos, file, "r");
@@ -217,7 +217,7 @@ static void test_read_write_rows (char *tf_template) {
 	toku_free(key.data);
 	toku_free(val.data);
     }
-    r = ft_loader_fi_close(&bl.file_infos, file, TRUE);
+    r = ft_loader_fi_close(&bl.file_infos, file, true);
     CKERR(r);
 
     r = ft_loader_fi_unlink(&bl.file_infos, file);
@@ -226,7 +226,7 @@ static void test_read_write_rows (char *tf_template) {
     assert(bl.file_infos.n_files_open==0);
     assert(bl.file_infos.n_files_extant==0);
 
-    ft_loader_fi_destroy(&bl.file_infos, FALSE);
+    ft_loader_fi_destroy(&bl.file_infos, false);
 }
 
 static void fill_rowset (struct rowset *rows,
@@ -258,7 +258,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     r = toku_ft_handle_open(t, name, 0, 0, ct, null_txn); assert(r==0);
 
     FT_CURSOR cursor = NULL;
-    r = toku_ft_cursor(t, &cursor, NULL, FALSE, FALSE); assert(r == 0);
+    r = toku_ft_cursor(t, &cursor, NULL, false, false); assert(r == 0);
 
     size_t userdata = 0;
     int i;
@@ -281,7 +281,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
 
     struct ftstat64_s s;
     r = toku_ft_handle_stat64(t, NULL, &s); assert(r == 0);
-    assert(s.nkeys == (u_int64_t) n && s.ndata == (u_int64_t) n && s.dsize == userdata);
+    assert(s.nkeys == (uint64_t) n && s.ndata == (uint64_t) n && s.dsize == userdata);
     
     r = toku_close_ft_handle_nolsn(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct);assert(r==0);
@@ -342,7 +342,7 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
     assert(r==0);
 
     destroy_merge_fileset(&fs);
-    ft_loader_fi_destroy(&bl.file_infos, FALSE);
+    ft_loader_fi_destroy(&bl.file_infos, false);
     ft_loader_destroy_error_callback(&bl.error_callback);
     ft_loader_lock_destroy(&bl);
 

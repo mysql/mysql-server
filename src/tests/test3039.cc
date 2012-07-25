@@ -32,7 +32,7 @@ static DB *db;
 #define N_PER_XACTION 1000
 #endif
 
-static void create_db (u_int64_t N) {
+static void create_db (uint64_t N) {
     n_rows = N;
     { int r = system("rm -rf " ENVDIR);                                        CKERR(r); }
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
@@ -51,7 +51,7 @@ static void create_db (u_int64_t N) {
     { int r = txn->commit(txn, DB_TXN_NOSYNC);                                 CKERR(r); }
 
     { int r = env->txn_begin(env, NULL, &txn, 0);                              CKERR(r); }
-    u_int64_t n_since_commit = 0;
+    uint64_t n_since_commit = 0;
     for (unsigned long long i=0; i<N; i++) {
 	if (n_since_commit++ > N_PER_XACTION) {
 	    { int r = txn->commit(txn, DB_TXN_NOSYNC);                         CKERR(r); }
@@ -116,7 +116,7 @@ void* reader_thread (void *arg)
 	}
     }
     
-    u_int64_t n_since_commit = 0;
+    uint64_t n_since_commit = 0;
     long long n_read_so_far = 0;
     while ((!rs->finish) && ((rs->n_to_read < 0) || (n_read_so_far < rs->n_to_read))) {
 

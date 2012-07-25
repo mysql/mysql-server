@@ -57,7 +57,7 @@ static void verify_dbfile(int n, const char *name) {
     if (verbose) traceit("Verified brt internals");
 
     FT_CURSOR cursor = NULL;
-    r = toku_ft_cursor(t, &cursor, NULL, FALSE, FALSE); assert(r == 0);
+    r = toku_ft_cursor(t, &cursor, NULL, false, false); assert(r == 0);
 
     size_t userdata = 0;
     int i;
@@ -80,7 +80,7 @@ static void verify_dbfile(int n, const char *name) {
 
     struct ftstat64_s s;
     r = toku_ft_handle_stat64(t, NULL, &s); assert(r == 0);
-    assert(s.nkeys == (u_int64_t)n && s.ndata == (u_int64_t)n && s.dsize == userdata);
+    assert(s.nkeys == (uint64_t)n && s.ndata == (uint64_t)n && s.dsize == userdata);
 
     r = toku_close_ft_handle_nolsn(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct);assert(r==0);
@@ -184,7 +184,7 @@ static void test_write_dbfile (char *tf_template, int n, char *output_name, TXNI
     assert_zero(r);
    
     destroy_merge_fileset(&fs);
-    ft_loader_fi_destroy(&bl.file_infos, FALSE);
+    ft_loader_fi_destroy(&bl.file_infos, false);
 
     // walk a cursor through the dbfile and verify the rows
     verify_dbfile(n, output_name);

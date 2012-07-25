@@ -24,13 +24,13 @@ int main(int argc, const char *argv[]) {
 
     size_t last_memory_size = toku_rt_memory_size(tree); 
     
-    u_int32_t last_size;
+    uint32_t last_size;
 
     const int nranges = 10;
     int nums[nranges];
     for (int i = 0; i < nranges; i++) {
         last_size = toku_rt_get_size(tree);
-        assert(last_size == (u_int32_t) i);
+        assert(last_size == (uint32_t) i);
 
         nums[i] = i;
         toku_range range; my_init_range(&range, &nums[i], &nums[i], 'a');

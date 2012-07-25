@@ -17,7 +17,7 @@ static void *pin_nonblocking(void *arg) {
         &v1, 
         &s1, 
         def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, 
-        TRUE,
+        true,
         NULL, 
         NULL
         );
@@ -41,7 +41,7 @@ static void *put_same_key(void *arg) {
 
 toku_pthread_t put_tid;
 
-static void test_remove_key(CACHEKEY* UU(cachekey), BOOL UU(for_checkpoint), void* UU(extra)) {
+static void test_remove_key(CACHEKEY* UU(cachekey), bool UU(for_checkpoint), void* UU(extra)) {
     int r = toku_pthread_create(&put_tid, NULL, put_same_key, NULL); 
     assert_zero(r);    
 }
@@ -66,7 +66,7 @@ cachetable_test (void) {
       &v1, 
       &s1, 
       def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, 
-      TRUE, 
+      true, 
       NULL
       );
   toku_pthread_t pin_nonblocking_tid;
@@ -86,7 +86,7 @@ cachetable_test (void) {
   r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(2));
   
   toku_cachetable_verify(ct);
-  r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r == 0);
+  r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
   r = toku_cachetable_close(&ct); lazy_assert_zero(r);
 
 

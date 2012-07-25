@@ -10,9 +10,9 @@
 int verbose = 0;
 
 static void
-print_array (u_int64_t n, const struct block_allocator_blockpair a[/*n*/]) {
+print_array (uint64_t n, const struct block_allocator_blockpair a[/*n*/]) {
     printf("{");
-    for (u_int64_t i=0; i<n; i++) printf(" %016lx", (long)a[i].offset);
+    for (uint64_t i=0; i<n; i++) printf(" %016lx", (long)a[i].offset);
     printf("}\n");
 }
 
@@ -26,8 +26,8 @@ compare_blockpairs (const void *av, const void *bv) {
 }
 
 static void
-test_merge (u_int64_t an, const struct block_allocator_blockpair a[/*an*/],
-	    u_int64_t bn, const struct block_allocator_blockpair b[/*bn*/]) {
+test_merge (uint64_t an, const struct block_allocator_blockpair a[/*an*/],
+	    uint64_t bn, const struct block_allocator_blockpair b[/*bn*/]) {
     if (verbose>1) { printf("a:"); print_array(an, a); }
     if (verbose>1) { printf("b:"); print_array(bn, b); }
     struct block_allocator_blockpair *MALLOC_N(an+bn, q);
@@ -36,10 +36,10 @@ test_merge (u_int64_t an, const struct block_allocator_blockpair a[/*an*/],
 	fprintf(stderr, "malloc failed, continuing\n");
 	goto malloc_failed;
     }
-    for (u_int64_t i=0; i<an; i++) {
+    for (uint64_t i=0; i<an; i++) {
 	q[i] = m[i] = a[i];
     }
-    for (u_int64_t i=0; i<bn; i++) {
+    for (uint64_t i=0; i<bn; i++) {
 	q[an+i] = b[i];
     }
     if (verbose) printf("qsort\n");
@@ -49,7 +49,7 @@ test_merge (u_int64_t an, const struct block_allocator_blockpair a[/*an*/],
     block_allocator_merge_blockpairs_into(an, m, bn, b);
     if (verbose) printf("compare\n");
     if (verbose>1) { printf("m:"); print_array(an+bn, m); }
-    for (u_int64_t i=0; i<an+bn; i++) {
+    for (uint64_t i=0; i<an+bn; i++) {
 	assert(q[i].offset == m[i].offset);
     }
  malloc_failed:
@@ -57,17 +57,17 @@ test_merge (u_int64_t an, const struct block_allocator_blockpair a[/*an*/],
     toku_free(m);
 }
 
-static u_int64_t
-compute_a (u_int64_t i, int mode) {
-    if (mode==0) return (((u_int64_t)random()) << 32) + i;
+static uint64_t
+compute_a (uint64_t i, int mode) {
+    if (mode==0) return (((uint64_t)random()) << 32) + i;
     if (mode==1) return 2*i;
     if (mode==2) return i;
     if (mode==3) return (1LL<<50) + i;
     abort();
 }
-static u_int64_t
-compute_b (u_int64_t i, int mode) {
-    if (mode==0) return (((u_int64_t)random()) << 32) + i;
+static uint64_t
+compute_b (uint64_t i, int mode) {
+    if (mode==0) return (((uint64_t)random()) << 32) + i;
     if (mode==1) return 2*i+1;
     if (mode==2) return (1LL<<50) + i;
     if (mode==3) return i;
@@ -76,7 +76,7 @@ compute_b (u_int64_t i, int mode) {
     
 
 static void
-test_merge_n_m (u_int64_t n, u_int64_t m, int mode)
+test_merge_n_m (uint64_t n, uint64_t m, int mode)
 {
     struct block_allocator_blockpair *MALLOC_N(n, na);
     struct block_allocator_blockpair *MALLOC_N(m, ma);
@@ -85,11 +85,11 @@ test_merge_n_m (u_int64_t n, u_int64_t m, int mode)
 	goto malloc_failed;
     }
     if (verbose) printf("Filling a[%" PRIu64 "]\n", n);
-    for (u_int64_t i=0; i<n; i++) {
+    for (uint64_t i=0; i<n; i++) {
 	na[i].offset = compute_a(i, mode);
     }
     if (verbose) printf("Filling b[%" PRIu64 "]\n", m);
-    for (u_int64_t i=0; i<m; i++) {
+    for (uint64_t i=0; i<m; i++) {
 	if (verbose && i % (1+m/10) == 0) { printf("."); fflush(stdout); }
 	ma[i].offset = compute_b(i, mode);
     }
@@ -104,22 +104,22 @@ test_merge_n_m (u_int64_t n, u_int64_t m, int mode)
 
 static void
 test_big_merge (void) {
-    u_int64_t G = 1024LL * 1024LL * 1024LL;
+    uint64_t G = 1024LL * 1024LL * 1024LL;
     if (toku_os_get_phys_memory_size() < 40 * G) {
 	fprintf(stderr, "Skipping big merge because there is only %4.1fGiB physical memory\n", toku_os_get_phys_memory_size()/(1024.0*1024.0*1024.0));
     } else {
-	u_int64_t twoG = 2*G;
+	uint64_t twoG = 2*G;
 
-	u_int64_t an = twoG;
-	u_int64_t bn = 1;
+	uint64_t an = twoG;
+	uint64_t bn = 1;
 	struct block_allocator_blockpair *MALLOC_N(an+bn, a); 
         assert(a);
 	struct block_allocator_blockpair *MALLOC_N(bn,    b);
         assert(b);
-	for (u_int64_t i=0; i<an; i++) a[i].offset=i+1;
+	for (uint64_t i=0; i<an; i++) a[i].offset=i+1;
 	b[0].offset = 0;
 	block_allocator_merge_blockpairs_into(an, a, bn, b);
-	for (u_int64_t i=0; i<an+bn; i++) assert(a[i].offset == i);
+	for (uint64_t i=0; i<an+bn; i++) assert(a[i].offset == i);
 	toku_free(a);
 	toku_free(b);
     }
@@ -133,7 +133,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     test_merge_n_m(1000000, 1000000, 0);
     // Cannot run this on my laptop, or even on pointy
 #if 0
-    u_int64_t too_big = 1024LL * 1024LL * 1024LL * 2;
+    uint64_t too_big = 1024LL * 1024LL * 1024LL * 2;
     test_merge_n_m(too_big, too_big);
     test_merge_n_m(1, too_big, 0);
 #endif

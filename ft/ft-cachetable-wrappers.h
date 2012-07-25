@@ -18,10 +18,10 @@
 void
 cachetable_put_empty_node_with_dep_nodes(
     FT h,
-    u_int32_t num_dependent_nodes,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     BLOCKNUM* name, //output
-    u_int32_t* fullhash, //output
+    uint32_t* fullhash, //output
     FTNODE* result
     );
 
@@ -36,7 +36,7 @@ create_new_ftnode_with_dep_nodes(
     FTNODE *result,
     int height,
     int n_children,
-    u_int32_t num_dependent_nodes,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes
     );
 
@@ -64,15 +64,15 @@ int
 toku_pin_ftnode(
     FT_HANDLE brt,
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     UNLOCKERS unlockers,
     ANCESTORS ancestors,
     const PIVOT_BOUNDS pbounds,
     FTNODE_FETCH_EXTRA bfe,
-    BOOL may_modify_node,
-    BOOL apply_ancestor_messages, // this BOOL is probably temporary, for #3972, once we know how range query estimates work, will revisit this
+    bool may_modify_node,
+    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,
-    BOOL* msgs_applied
+    bool* msgs_applied
     );
 
 /**
@@ -86,10 +86,10 @@ void
 toku_pin_ftnode_off_client_thread(
     FT h,
     BLOCKNUM blocknum,
-    u_int32_t fullhash,
+    uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
-    BOOL may_modify_node,
-    u_int32_t num_dependent_nodes,
+    bool may_modify_node,
+    uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     FTNODE *node_p
     );

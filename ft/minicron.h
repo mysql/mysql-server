@@ -32,16 +32,16 @@ struct minicron {
     toku_cond_t  condvar;
     int (*f)(void*);
     void *arg;
-    u_int32_t period_in_seconds;
-    BOOL      do_shutdown;
+    uint32_t period_in_seconds;
+    bool      do_shutdown;
 };
 
-int toku_minicron_setup (struct minicron *s, u_int32_t period_in_seconds, int(*f)(void *), void *arg);
-int toku_minicron_change_period(struct minicron *p, u_int32_t new_period);
-u_int32_t toku_minicron_get_period(struct minicron *p);
-u_int32_t toku_minicron_get_period_unlocked(struct minicron *p);
+int toku_minicron_setup (struct minicron *s, uint32_t period_in_seconds, int(*f)(void *), void *arg);
+int toku_minicron_change_period(struct minicron *p, uint32_t new_period);
+uint32_t toku_minicron_get_period(struct minicron *p);
+uint32_t toku_minicron_get_period_unlocked(struct minicron *p);
 int toku_minicron_shutdown(struct minicron *p);
-BOOL toku_minicron_has_been_shutdown(struct minicron *p);
+bool toku_minicron_has_been_shutdown(struct minicron *p);
 
 
 #endif

@@ -17,10 +17,10 @@
 static DB_ENV *env = NULL;
 static DB_TXN *txn = NULL;
 static DB *db = NULL;
-static u_int32_t db_page_size = 4096;
-static u_int32_t db_basement_size = 4096;
+static uint32_t db_page_size = 4096;
+static uint32_t db_basement_size = 4096;
 static const char *envdir = ENVDIR;
-static u_int64_t nrows = 30000;
+static uint64_t nrows = 30000;
 static bool get_all = true;
 static bool use_loader = false;
 static bool random_keys = false;
@@ -45,12 +45,12 @@ my_generate_row(DB *dest_db UU(), DB *src_db UU(), DBT *dest_key UU(), DBT *dest
 }
 
 static void
-swap(u_int64_t keys[], u_int64_t i, u_int64_t j) {
-    u_int64_t t = keys[i]; keys[i] = keys[j]; keys[j] = t;
+swap(uint64_t keys[], uint64_t i, uint64_t j) {
+    uint64_t t = keys[i]; keys[i] = keys[j]; keys[j] = t;
 }
 
-static u_int64_t 
-max64(u_int64_t a, u_int64_t b) {
+static uint64_t 
+max64(uint64_t a, uint64_t b) {
     return a < b ? b : a;
 }
 
@@ -78,11 +78,11 @@ run_test(void) {
     r = txn->commit(txn, 0);    CKERR(r);
 
     uint64_t *XMALLOC_N(nrows, keys);
-    for (u_int64_t i = 0; i < nrows; i++)
+    for (uint64_t i = 0; i < nrows; i++)
         keys[i] = 2*i + 1;
 
     if (random_keys)
-        for (u_int64_t i = 0; i < nrows; i++)
+        for (uint64_t i = 0; i < nrows; i++)
             swap(keys, random() % nrows, random() % nrows);
 
     // insert keys 1, 3, 5, ... 2*(nrows-1) + 1
@@ -90,7 +90,7 @@ run_test(void) {
     if (use_loader) {
         DB_LOADER *loader = NULL;
         r = env->create_loader(env, txn, &loader, db, 1, &db, NULL, NULL, 0); CKERR(r);
-        for (u_int64_t i=0; i<nrows; i++) {
+        for (uint64_t i=0; i<nrows; i++) {
             char key[100],val[100];
             snprintf(key, sizeof key, "%08llu", (unsigned long long)keys[i]);
             snprintf(val, sizeof val, "%08llu", (unsigned long long)keys[i]);
@@ -100,7 +100,7 @@ run_test(void) {
         }
         r = loader->close(loader); CKERR(r);
     } else {
-        for (u_int64_t i=0; i<nrows; i++) {
+        for (uint64_t i=0; i<nrows; i++) {
             char key[100],val[100];
             snprintf(key, sizeof key, "%08llu", (unsigned long long)keys[i]);
             snprintf(val, sizeof val, "%08llu", (unsigned long long)keys[i]);
@@ -122,7 +122,7 @@ run_test(void) {
 
     if (get_all) {
         // read the basements into memory
-        for (u_int64_t i=0; i<nrows; i++) {
+        for (uint64_t i=0; i<nrows; i++) {
             char key[100];
             snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
             DBT k,v;
@@ -146,11 +146,11 @@ run_test(void) {
     if (0) goto skipit; // debug: just write the tree
 
     // verify key_range for keys that exist in the tree
-    for (u_int64_t i=0; i<nrows; i++) {
+    for (uint64_t i=0; i<nrows; i++) {
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	DBT k;
-	u_int64_t less,equal,greater;
+	uint64_t less,equal,greater;
 	int is_exact;
 	r = db->key_range64(db, txn, dbt_init(&k, key, 1+strlen(key)), &less, &equal, &greater, &is_exact); CKERR(r);
 	if (verbose)
@@ -166,18 +166,18 @@ run_test(void) {
         } else {
             assert(less + equal + greater <= nrows + nrows / 8);
             assert(get_all ? equal == 1 : equal == 0);
-            u_int64_t est_i = max64(i, i + rows_per_basement/2);
+            uint64_t est_i = max64(i, i + rows_per_basement/2);
             assert(less <= est_i + est_i / 1);
             assert(greater <= nrows - i + rows_per_basement/2);
 	}
     }
 
     // verify key range for keys that do not exist in the tree
-    for (u_int64_t i=0; i<1+nrows; i++) {
+    for (uint64_t i=0; i<1+nrows; i++) {
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i);
 	DBT k;
-	u_int64_t less,equal,greater;
+	uint64_t less,equal,greater;
 	int is_exact;
 	r = db->key_range64(db, txn, dbt_init(&k, key, 1+strlen(key)), &less, &equal, &greater, &is_exact); CKERR(r);
 	if (verbose) 
@@ -193,7 +193,7 @@ run_test(void) {
         } else {
             assert(less + equal + greater <= nrows + nrows / 8);
             assert(equal == 0);
-            u_int64_t est_i = max64(i, i + rows_per_basement/2);
+            uint64_t est_i = max64(i, i + rows_per_basement/2);
             assert(less <= est_i + est_i / 1);
             assert(greater <= nrows - i + rows_per_basement/2);
         }

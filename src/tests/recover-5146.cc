@@ -31,7 +31,7 @@
 static const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 static const char *namea="a.db";
 static DB_ENV *env;
-static BOOL do_test=FALSE, do_recover=FALSE;
+static bool do_test=false, do_recover=false;
 
 static void checkpoint_callback_2(void * UU(extra)) {
     toku_hard_crash_on_purpose();
@@ -60,7 +60,7 @@ run_test(void) {
         dbt_init(&k, "a", 2);
         dbt_init(&v, "a", 2);
         r = db->put(db, txn, &k, &v, 0);                                  CKERR(r);
-        u_int8_t gid[DB_GID_SIZE];
+        uint8_t gid[DB_GID_SIZE];
         memset(gid, 0, DB_GID_SIZE);
         gid[0]=42;
         r = txn->prepare(txn, gid);                                                            CKERR(r);
@@ -113,9 +113,9 @@ static void test_parse_args (int argc, char * const argv[]) {
             verbose--;
             if (verbose<0) verbose=0;
         } else if (strcmp(argv[0], "--test")==0) {
-            do_test=TRUE;
+            do_test=true;
         } else if (strcmp(argv[0], "--recover") == 0) {
-            do_recover=TRUE;
+            do_recover=true;
         } else if (strcmp(argv[0], "-h")==0) {
             resultcode=0;
         do_usage:
