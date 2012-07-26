@@ -5420,7 +5420,7 @@ void ha_tokudb::track_progress(THD* thd) {
                 first = false;
             }
             if (!first)
-	        thd_proc_info(thd, write_status_msg);
+                thd_proc_info(thd, write_status_msg);
         }
     }
 }
