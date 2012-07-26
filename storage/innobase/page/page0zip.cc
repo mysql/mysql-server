@@ -58,6 +58,13 @@ Created June 2005 by Marko Makela
 UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 #endif /* !UNIV_HOTBACKUP */
 
+/* Compression level to be used by zlib. Settable by user. */
+UNIV_INTERN ulint	page_compression_level = 6;
+
+/* Whether or not to log compressed page images to avoid possible
+compression algorithm changes in zlib. */
+UNIV_INTERN bool	page_log_compressed_pages = true;
+
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
 
@@ -1182,6 +1189,7 @@ page_zip_compress(
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
+	ulint		level,	/*!< in: commpression level */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	z_stream	c_stream;
@@ -1296,7 +1304,7 @@ page_zip_compress(
 	/* Compress the data payload. */
 	page_zip_set_alloc(&c_stream, heap);
 
-	err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+	err = deflateInit2(&c_stream, level,
 			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
 			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	ut_a(err == Z_OK);
@@ -4522,7 +4530,8 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (!page_zip_compress(page_zip, page, index, mtr)) {
+	if (!page_zip_compress(page_zip, page, index,
+			       page_compression_level, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);
