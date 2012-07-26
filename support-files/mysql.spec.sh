@@ -581,8 +581,13 @@ fi
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
+# Handle both ways of spelling the capability.
 installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
+if [ $? -ne 0 -o -z "$installed" ]; then
+  installed=`rpm -q --whatprovides MySQL-server 2> /dev/null`
+fi
 if [ $? -eq 0 -a -n "$installed" ]; then
+  installed=`echo $installed | sed 's/\([^ ]*\) .*/\1/'` # Tests have shown duplicated package names
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
   myoldvendor='%{mysql_old_vendor}'
