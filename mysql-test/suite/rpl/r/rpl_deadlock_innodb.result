@@ -127,7 +127,7 @@ BEGIN;
 SELECT count(*) as zero FROM t1 FOR UPDATE;
 zero
 0
-start slave;
+START SLAVE;
 *** Now the slave must be stopped due to timeout ***
 include/wait_for_slave_sql_error.inc [errno=1205]
 rollback;
