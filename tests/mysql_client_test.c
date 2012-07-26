@@ -7137,16 +7137,19 @@ static void test_embedded_start_stop()
   int argc= original_argc;                    // Start with the original args
   char **argv, **my_argv;
   char test_name[]= "test_embedded_start_stop";
+  const unsigned int drop_db= opt_drop_db;
 #define EMBEDDED_RESTARTS 64
 
   myheader("test_embedded_start_stop");
 
   /* Must stop the main embedded server, since we use the same config. */
-  client_disconnect(mysql, 0);    /* disconnect from server */
+  opt_drop_db= 0;
+  client_disconnect(mysql);    /* disconnect from server */
   free_defaults(defaults_argv);
   mysql_server_end();
   /* Free everything allocated by my_once_alloc */
   my_end(0);
+  opt_drop_db= drop_db;
 
   /*
     Use a copy of the original arguments.
@@ -17909,7 +17912,8 @@ static void test_bug43560(void)
   const char*  values[] = {"eins", "zwei", "drei", "viele", NULL};
   const char   insert_str[] = "INSERT INTO t1 (c2) VALUES (?)";
   unsigned long length;
-  
+  const unsigned int drop_db= opt_drop_db;
+
   DBUG_ENTER("test_bug43560");
   myheader("test_bug43560");
 
@@ -17974,9 +17978,11 @@ static void test_bug43560(void)
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
 
-  client_disconnect(conn, 0);
+  opt_drop_db= 0;
+  client_disconnect(conn);
   rc= mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
+  opt_drop_db= drop_db;
 
   DBUG_VOID_RETURN;
 }
