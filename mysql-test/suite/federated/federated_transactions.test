@@ -1,5 +1,5 @@
 source include/have_innodb.inc;
-source federated.inc;
+source suite/federated/include/federated.inc;
 
 connection slave;
 DROP TABLE IF EXISTS federated.t1;
@@ -35,4 +35,4 @@ INSERT INTO federated.t1 (id, name) VALUES (6, 'fig');
 SELECT * FROM federated.t1;
 DELETE FROM federated.t1;
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;
