@@ -2398,27 +2398,49 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode;
+	ulint		search_mode = 0;
 	dberr_t		err;
 	ulint		n_unique;
 	mtr_t		mtr;
 	ulint*		offsets	= NULL;
 
 	ut_ad(!dict_index_is_clust(index));
-	ut_ad(!dict_index_is_online_ddl(index));
 
 	mtr_start(&mtr);
 
 	cursor.thr = thr;
+
+	/* Ensure that we acquire an S lock (on index->lock) when inserting
+	an index that is still being built. This is to prevent concurrent index
+	online_status change and later the index tree being freed during
+	rollback of create index */
+	if (mode == BTR_MODIFY_LEAF && *index->name == TEMP_INDEX_PREFIX) {
+		DEBUG_SYNC_C("row_ins_sec_index_enter");
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		search_mode = BTR_ALREADY_S_LATCHED;
+	} else {
+		search_mode = 0;
+	}
+
+	/* If this index is being aborted, exit */
+	if (index->online_status == ONLINE_INDEX_ABORTED
+	    || index->online_status == ONLINE_INDEX_ABORTED_DROPPED) {
+		ut_ad(*index->name == TEMP_INDEX_PREFIX);
+		err = DB_SUCCESS;
+
+		goto func_exit;
+	}
+
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
 	if (!thr_get_trx(thr)->check_unique_secondary) {
-		search_mode = mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
+		search_mode |= mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
 	} else {
-		search_mode = mode | BTR_INSERT;
+		search_mode |= mode | BTR_INSERT;
 	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2430,7 +2452,7 @@ row_ins_sec_index_entry_low(
 
 		err = DB_SUCCESS;
 
-		goto function_exit;
+		goto func_exit;
 	}
 
 #ifdef UNIV_DEBUG
@@ -2456,7 +2478,7 @@ row_ins_sec_index_entry_low(
 		mtr_start(&mtr);
 
 		if (err != DB_SUCCESS) {
-			goto function_exit;
+			goto func_exit;
 		}
 
 		/* We did not find a duplicate and we have now
@@ -2509,7 +2531,7 @@ row_ins_sec_index_entry_low(
 		ut_ad(!big_rec);
 	}
 
-function_exit:
+func_exit:
 	mtr_commit(&mtr);
 	return(err);
 }
