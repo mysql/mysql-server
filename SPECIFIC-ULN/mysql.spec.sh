@@ -203,7 +203,7 @@ URL: http://www.mysql.com/
 Packager: MySQL Release Engineering <mysql-build@oss.oracle.com>
 Vendor:         %{mysql_vendor}
 
-# Regression tests take a long time, you can skip 'em with this
+# Regression tests may take a long time, override the default to skip them 
 %{!?runselftest:%global runselftest 1}
 
 # Upstream has a mirror redirector for downloads, so the URL is hard to
@@ -411,10 +411,10 @@ rm -f mysql-test/t/ssl_8k_key-master.opt
 
 %build
 
-# fail quickly and obviously if user tries to build as root
+# Fail quickly and obviously if user tries to build as root
 %if %runselftest
 	if [ x"`id -u`" = x0 ]; then
-		echo "mysql's regression tests fail if run as root."
+		echo "The MySQL regression tests may fail if run as root."
 		echo "If you really need to build the RPM as root, use"
 		echo "--define='runselftest 0' to skip the regression tests."
 		exit 1
