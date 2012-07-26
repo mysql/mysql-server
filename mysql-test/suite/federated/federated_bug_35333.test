@@ -9,7 +9,7 @@
 --echo # to complete while still indicating a problem. This fix applies to any non-fatal system
 --echo # error that occurs during a query against I_S.TABLES.de
 
---source federated.inc
+--source suite/federated/include/federated.inc
 
 --disable_warnings
 CREATE DATABASE IF NOT EXISTS realdb;
@@ -71,4 +71,4 @@ DROP TABLE IF EXISTS federated.t0;
 DROP DATABASE realdb;
 --enable_warnings
 
---source federated_cleanup.inc
+--source suite/federated/include/federated_cleanup.inc
