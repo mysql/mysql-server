@@ -10,16 +10,13 @@
 
 # Repeat daily run
 # big-test option for normal runs 
-# Default suites in modes binlog format stmt/mixed/row,embedded and ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stmt-debug-big  --vardir=var-stmt-debug-big  --mysqld=--binlog-format=statement --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
-perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60  --debug-server --parallel=auto --experimental=collections/default.experimental --comment=n_mix-debug-big  --vardir=var-n_mix-debug-big  --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=row-debug-big  --vardir=var-row-debug-big  --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer --big-test --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug  --vardir=var-embedded-debug  --embedded
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug  --vardir=var-ps-debug  --ps-protocol --skip-test-list=collections/disabled-daily.list
+# Default suites (in modes binlog format stmt/mixed/row, parts), embedded and ps-protocol
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug-big  --vardir=var-embedded-debug-big  --embedded
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
-# Run the suites that are not part of the default - funcs_2, parts, stress, jp, nist
+# Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2-big
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=partitions-debug-big  --vardir=var-parts-debug-big --suite=parts
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=stress-debug-big --vardir=var-stress-debug-big  --suite=stress
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=jp-debug-big --vardir=var-jp-debug-big --suite=jp
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=nist-debug-big  --vardir=var-nist-debug-big --suite=nist
@@ -46,16 +43,13 @@ perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=
 
 # Repeat daily run
 # big-test option for normal runs 
-# Default suites in modes normal, binlog format mixed/row,embedded and ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=stmt-big  --vardir=var-stmt-big --mysqld=--binlog-format=statement --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=n_mix-big  --vardir=var-n_mix-big  --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=row-big  --vardir=var-row-big  --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
-perl mysql-test-run.pl --force --timer  --big-test --parallel=auto --experimental=collections/default.experimental --comment=embedded  --vardir=var-embedded  --embedded
-perl mysql-test-run.pl --force --timer  --parallel=auto --experimental=collections/default.experimental --comment=ps  --vardir=var-ps  --ps-protocol --skip-test-list=collections/disabled-daily.list
+# Default suites in modes normal(binlog format statement/mixed/row, parts), embedded and ps-protocol
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60--parallel=auto --experimental=collections/default.experimental --comment=ps-big  --vardir=var-ps-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
-# Run the suites that are not part of the default - funcs_2, parts, stress, jp, nist
+# Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big  --suite=funcs_2
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=partitions-big  --vardir=var-parts-big --suite=parts
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=stress-big --vardir=var-stress-big  --suite=stress
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=jp-big --vardir=var-jp-big --suite=jp
 perl mysql-test-run.pl --force --timer --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=nist-big  --vardir=var-nist-big --suite=nist
