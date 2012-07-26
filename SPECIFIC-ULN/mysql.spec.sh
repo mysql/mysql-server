@@ -5,25 +5,37 @@
 #   Modifications copyright (c) 2011, 2012, Oracle and/or its
 #   affiliates. All rights reserved.
 #
-#   This program is free software; you can redistribute it and/or
-#   modify it under the terms of the GNU General Public License as
-#   published by the Free Software Foundation; version 2 of the License.
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
 #
-#   This program is distributed in the hope that it will be useful,
-#   but WITHOUT ANY WARRANTY; without even the implied warranty of
-#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#   GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 #
-#   You should have received a copy of the GNU General Public License
-#   along with this program; if not, write to the Free Software
-#   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
-#   02110-1301  USA
+# You should have received a copy of the GNU General Public License
+# along with this program; see the file COPYING. If not, write to the
+# Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
+# MA  02110-1301  USA.
 
+##############################################################################
+# Some common macro definitions
+##############################################################################
+
+# NOTE: "vendor" is used in upgrade/downgrade check, so you can't
+# change these, has to be exactly as is.
+# %define mysql_old_vendor        MySQL AB               # Applies to traditional MySQL RPMs only.
+# %define mysql_vendor_2          Sun Microsystems, Inc. # Duplicated here to have code similar.
+%define mysql_old_vendor        Oracle and/or its affiliates
+%define mysql_vendor_2          Oracle and/or its affiliates
+%define mysql_vendor            Oracle and/or its affiliates
 
 %define mysql_version   @VERSION@
-%define release         1
-%define mysql_vendor            Oracle and/or its affiliates
+
 %define mysqldatadir    /var/lib/mysql
+
+%define release         1
 
 ##############################################################################
 # Command line handling
@@ -118,7 +130,7 @@
           %endif
       %else
         %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-          %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+          %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release | cut -d. -f1)
           %if "%susever" == "10"
             %define distro_description    SUSE Linux Enterprise Server 10
             %define distro_releasetag     sles10
@@ -180,15 +192,16 @@
 ##############################################################################
 
 Name: mysql%{product_suffix}
-Version: @MYSQL_RPM_VERSION@
-Release: %{release}%{?distro_releasetag:.%{distro_releasetag}}
 Summary: MySQL client programs and shared libraries
 Group: Applications/Databases
-URL: http://www.mysql.com
-Packager: MySQL Release Engineering <mysql-build@oss.oracle.com>
+Version: @MYSQL_RPM_VERSION@
+Release: %{release}%{?distro_releasetag:.%{distro_releasetag}}
 # exceptions allow client libraries to be linked with most open source SW,
 # not only GPL code.
 License: Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
+URL: http://www.mysql.com/
+Packager: MySQL Release Engineering <mysql-build@oss.oracle.com>
+Vendor:         %{mysql_vendor}
 
 # Regression tests take a long time, you can skip 'em with this
 %{!?runselftest:%global runselftest 1}
@@ -649,6 +662,84 @@ echo "%{_libdir}/mysql" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/%{name}-%{_arch}.conf
 [ -n "$RPM_BUILD_ROOT" -a  "$RPM_BUILD_ROOT" != "/" ] && rm -rf $RPM_BUILD_ROOT
 
 %pre -n mysql-server%{product_suffix}
+
+# Check if we can safely upgrade.  An upgrade is only safe if it's from one
+# of our RPMs in the same version family.
+
+# Handle both ways of spelling the capability.
+installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
+if [ $? -ne 0 -o -z "$installed" ]; then
+  installed=`rpm -q --whatprovides MySQL-server 2> /dev/null`
+fi
+if [ $? -eq 0 -a -n "$installed" ]; then
+  installed=`echo $installed | sed 's/\([^ ]*\) .*/\1/'` # Tests have shown duplicated package names
+  vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
+  version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
+  myoldvendor='%{mysql_old_vendor}'
+  myvendor_2='%{mysql_vendor_2}'
+  myvendor='%{mysql_vendor}'
+  myversion='%{mysql_version}'
+
+  old_family=`echo $version \
+    | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
+  new_family=`echo $myversion \
+    | sed -n -e 's,^\([1-9][0-9]*\.[0-9][0-9]*\)\..*$,\1,p'`
+
+  [ -z "$vendor" ] && vendor='<unknown>'
+  [ -z "$old_family" ] && old_family="<unrecognized version $version>"
+  [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
+
+  error_text=
+  if [ "$vendor" != "$myoldvendor" \
+    -a "$vendor" != "$myvendor_2" \
+    -a "$vendor" != "$myvendor" ]; then
+    error_text="$error_text
+The current MySQL server package is provided by a different
+vendor ($vendor) than $myoldvendor, $myvendor_2, or $myvendor.
+Some files may be installed to different locations, including log
+files and the service startup script in %{_sysconfdir}/init.d/.
+"
+  fi
+
+  if [ "$old_family" != "$new_family" ]; then
+    error_text="$error_text
+Upgrading directly from MySQL $old_family to MySQL $new_family may not
+be safe in all cases.  A manual dump and restore using mysqldump is
+recommended.  It is important to review the MySQL manual's Upgrading
+section for version-specific incompatibilities.
+"
+  fi
+
+  if [ -n "$error_text" ]; then
+    cat <<HERE >&2
+
+******************************************************************
+A MySQL server package ($installed) is installed.
+$error_text
+A manual upgrade is required.
+
+- Ensure that you have a complete, working backup of your data and my.cnf
+  files
+- Shut down the MySQL server cleanly
+- Remove the existing MySQL packages.  Usually this command will
+  list the packages you should remove:
+  rpm -qa | grep -i '^mysql-'
+
+  You may choose to use 'rpm --nodeps -ev <package-name>' to remove
+  the package which contains the mysqlclient shared library.  The
+  library will be reinstalled by the MySQL-shared-compat package.
+- Install the new MySQL packages supplied by $myvendor
+- Ensure that the MySQL server is started
+- Run the 'mysql_upgrade' program
+
+This is a brief description of the upgrade process.  Important details
+can be found in the MySQL manual, in the Upgrading section.
+******************************************************************
+HERE
+    exit 1
+  fi
+fi
+
 /usr/sbin/groupadd -g 27 -o -r mysql >/dev/null 2>&1 || :
 /usr/sbin/useradd -M -N -g mysql -o -r -d /var/lib/mysql -s /bin/bash \
 	-c "MySQL Server" -u 27 mysql >/dev/null 2>&1 || :
@@ -879,6 +970,12 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Thu Jul 26 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- Add the vendor and release series checks from the traditional MySQL RPM
+  spec file, to protect against errors happening during upgrades.
+- Do some code alignment with the traditional MySQL RPM spec file,
+  to make synchronous maintenance (and possibly even integration?) easier.
+
 * Mon Feb 13 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Add "Provides:" lines for the generic names of the subpackages,
   independent of "product_suffix".
