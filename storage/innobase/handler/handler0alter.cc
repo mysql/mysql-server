@@ -3602,6 +3602,11 @@ oom:
 			ctx->thr, prebuilt->table, table);
 	}
 
+	DEBUG_SYNC_C("inplace_after_index_build");
+
+	DBUG_EXECUTE_IF("create_index_fail",
+			error = DB_DUPLICATE_KEY;);
+
 	/* After an error, remove all those index definitions
 	from the dictionary which were defined. */
 
