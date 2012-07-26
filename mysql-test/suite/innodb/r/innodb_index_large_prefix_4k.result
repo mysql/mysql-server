@@ -132,8 +132,11 @@ show warnings;
 Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 768 bytes
 create index idx4 on worklog5743_2(a2(768));
+Warnings:
+Note	1831	Duplicate index 'idx4' defined on the table 'test.worklog5743_2'. This is deprecated and will be disallowed in a future release.
 show warnings;
 Level	Code	Message
+Note	1831	Duplicate index 'idx4' defined on the table 'test.worklog5743_2'. This is deprecated and will be disallowed in a future release.
 create index idx5 on worklog5743_2(a1, a2(765));
 ERROR 42000: Specified key was too long; max key length is 768 bytes
 show warnings;
@@ -344,8 +347,11 @@ show warnings;
 Level	Code	Message
 Warning	1071	Specified key was too long; max key length is 768 bytes
 create index idx2 on worklog5743(a(768));
+Warnings:
+Note	1831	Duplicate index 'idx2' defined on the table 'test.worklog5743'. This is deprecated and will be disallowed in a future release.
 show warnings;
 Level	Code	Message
+Note	1831	Duplicate index 'idx2' defined on the table 'test.worklog5743'. This is deprecated and will be disallowed in a future release.
 show create table worklog5743;
 Table	Create Table
 worklog5743	CREATE TABLE `worklog5743` (
