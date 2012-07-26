@@ -4,11 +4,15 @@ INSERT INTO ibtest11a VALUES (1, 5, 'khD','khD');
 SET DEBUG_SYNC='foreign_constraint_check_for_ins WAIT_FOR drop_done';
 INSERT INTO ibtest11c VALUES (1, 5, 'khD','khD');
 CREATE INDEX idx1 ON ibtest11a(B, C);
+Warnings:
+Note	1831	Duplicate index 'idx1' defined on the table 'test.ibtest11a'. This is deprecated and will be disallowed in a future release.
 DROP INDEX B ON ibtest11a;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 SET DEBUG_SYNC='foreign_constraint_check_for_update WAIT_FOR drop_done';
 DELETE FROM ibtest11a WHERE A=1;
 CREATE INDEX idx ON ibtest11c(B, C);
+Warnings:
+Note	1831	Duplicate index 'idx' defined on the table 'test.ibtest11c'. This is deprecated and will be disallowed in a future release.
 DROP INDEX B ON ibtest11c;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 SELECT * FROM ibtest11c;

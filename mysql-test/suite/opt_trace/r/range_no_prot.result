@@ -34,6 +34,8 @@ INDEX i1b (key1b, key1a),
 INDEX i2_1(key2, key2_1),
 INDEX i2_2(key2, key2_1)
 );
+Warnings:
+Note	1831	Duplicate index 'i2_2' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
 INSERT INTO t2 SELECT key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 FROM t1;
 
 EXPLAIN SELECT * FROM t1 WHERE key2 < 5 OR key2 > 1020;

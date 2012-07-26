@@ -85,7 +85,11 @@ t1	1	options	1	options	A	NULL	NULL	NULL		BTREE
 t1	1	options	2	flags	A	NULL	NULL	NULL		BTREE		
 CREATE UNIQUE INDEX test on t1 ( auto ) ;
 CREATE INDEX test2 on t1 ( ulonglong,ulong) ;
+Warnings:
+Note	1831	Duplicate index 'test2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 CREATE INDEX test3 on t1 ( medium ) ;
+Warnings:
+Note	1831	Duplicate index 'test3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 DROP INDEX test ON t1;
 insert into t1 values (10, 1,1,1,1,1,1,1,1,1,1,1,1,1,NULL,0,0,0,1,1,1,1,'one','one');
 insert into t1 values (NULL,2,2,2,2,2,2,2,2,2,2,2,2,2,NULL,NULL,NULL,NULL,NULL,NULL,2,2,'two','two,one');
@@ -303,6 +307,8 @@ c2	int(11)	NULL	YES		NULL		#
 const	int(1)	NULL	NO		0		#	
 drop table t1,t2,t3;
 create table t1 ( myfield INT NOT NULL, UNIQUE INDEX (myfield), unique (myfield), index(myfield));
+Warnings:
+Note	1831	Duplicate index 'myfield_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 drop table t1;
 create table t1 ( id integer unsigned not null primary key );
 create table t2 ( id integer unsigned not null primary key );
