@@ -104,8 +104,6 @@ TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
 LSN toku_logger_get_next_lsn(TOKULOGGER logger);
-void toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(DICTIONARY_ID, void *), void * extra);
-void toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_id);
 
 int toku_logger_make_space_in_inbuf (TOKULOGGER logger, int n_bytes_needed);
 

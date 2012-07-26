@@ -401,8 +401,6 @@ needs_recovery (DB_ENV *env) {
 
 static int toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte, uint32_t min, uint32_t flags);
 
-static void finalize_file_removal(DICTIONARY_ID dict_id, void * extra);
-
 // Instruct db to use the default (built-in) key comparison function
 // by setting the flag bits in the db and brt structs
 static int
@@ -939,7 +937,6 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         // if this is a newborn env or if this is an upgrade, then create a brand new rollback file
         assert (using_txns);
         toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
-        toku_logger_set_remove_finalize_callback(env->i->logger, finalize_file_removal, env->i->ltm);
         if (!toku_logger_rollback_is_open(env->i->logger)) {
             bool create_new_rollback_file = newenv | upgrade_in_progress;
             r = toku_logger_open_rollback(env->i->logger, env->i->cachetable, create_new_rollback_file);
@@ -2390,17 +2387,6 @@ env_dbremove_subdb(DB_ENV * env, DB_TXN * txn, const char *fname, const char *db
     return r;
 }
 
-
-//Called during committing an fdelete ONLY IF you still have an fd AND it is not connected to /dev/null
-//Called during aborting an fcreate (harmless to do, and definitely correct)
-static void
-finalize_file_removal(DICTIONARY_ID dict_id, void * extra) {
-    toku_ltm *ltm = (toku_ltm*) extra;
-    if (ltm) {
-        //Poison the lock tree to prevent a future file from re-using it.
-        toku_ltm_invalidate_lt(ltm, dict_id);
-    }
-}
 
 // see if we can acquire a table lock for the given dname.
 // requires: write lock on dname in the directory. dictionary

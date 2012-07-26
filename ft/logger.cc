@@ -1314,28 +1314,6 @@ toku_logger_get_next_lsn(TOKULOGGER logger) {
     return logger->lsn;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////
-// remove_finalize_callback is set when environment is created so that when 
-// a file removal is committed (or a file creation is aborted), the brt
-// layer can call the ydb-layer callback to clean up the lock tree.
-
-
-// called from toku_env_open()
-void 
-toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(DICTIONARY_ID, void *), void * extra) {
-    logger->remove_finalize_callback = funcp;
-    logger->remove_finalize_callback_extra = extra;
-}
-
-// called when a transaction that deleted a file is committed, or
-// when a transaction that created a file is aborted.
-// During recovery, there is no ydb layer, so no callback exists.
-void
-toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_id) {
-    if (logger->remove_finalize_callback)
-        logger->remove_finalize_callback(dict_id, logger->remove_finalize_callback_extra);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
 //

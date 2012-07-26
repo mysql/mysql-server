@@ -60,11 +60,10 @@ static void run_test(void) {
     setup_tree(3, dict_id3);
     assert(lt[0] == lt[3]);
     
-    toku_ltm_invalidate_lt(ltm, dict_id1);
     setup_tree(4, dict_id1);
-    assert(lt[0] != lt[4]);
+    assert(lt[0] == lt[4]);
     setup_tree(5, dict_id1);
-    assert(lt[0] != lt[5]);
+    assert(lt[0] == lt[5]);
     assert(lt[4] == lt[5]);
     
     close_ltm();

@@ -127,8 +127,6 @@ int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, DICTIONARY_ID dict_id
         toku_dbt_cmp compare_fun, toku_lt_on_create_cb on_create_callback, void *on_create_extra,
         toku_lt_on_close_cb on_close_callback);
 
-void toku_ltm_invalidate_lt(toku_ltm* mgr, DICTIONARY_ID dict_id);
-
 extern const DBT* const toku_lt_infinity;     /**< Special value denoting +infty */
 
 extern const DBT* const toku_lt_neg_infinity; /**< Special value denoting -infty */
