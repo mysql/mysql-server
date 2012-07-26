@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -512,7 +513,8 @@ page_create_zip(
 	page = page_create_low(block, TRUE);
 	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
 
-	if (UNIV_UNLIKELY(!page_zip_compress(page_zip, page, index, mtr))) {
+	if (!page_zip_compress(page_zip, page, index,
+	    page_compression_level, mtr)) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
@@ -658,7 +660,11 @@ page_copy_rec_list_end(
 	if (new_page_zip) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (!page_zip_compress(new_page_zip, new_page, index, mtr)) {
+		if (!page_zip_compress(new_page_zip,
+				       new_page,
+				       index,
+				       page_compression_level,
+				       mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos
@@ -778,8 +784,8 @@ page_copy_rec_list_start(
 	if (new_page_zip) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (UNIV_UNLIKELY
-		    (!page_zip_compress(new_page_zip, new_page, index, mtr))) {
+		if (!page_zip_compress(new_page_zip, new_page, index,
+				       page_compression_level, mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos

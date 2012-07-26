@@ -1737,6 +1737,8 @@ btr_page_reorganize_low(
 				there cannot exist locks on the
 				page, and a hash index should not be
 				dropped: it cannot exist */
+	ulint		compression_level,/*!< in: compression level to be used
+				if dealing with compressed page */
 	buf_block_t*	block,	/*!< in: page to be reorganized */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -1754,6 +1756,8 @@ btr_page_reorganize_low(
 	ulint		max_ins_size1;
 	ulint		max_ins_size2;
 	ibool		success		= FALSE;
+	byte		type;
+	byte*		log_ptr;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	btr_assert_not_corrupted(block, index);
@@ -1765,9 +1769,23 @@ btr_page_reorganize_low(
 
 #ifndef UNIV_HOTBACKUP
 	/* Write the log record */
-	mlog_open_and_write_index(mtr, page, index, page_is_comp(page)
-				  ? MLOG_COMP_PAGE_REORGANIZE
-				  : MLOG_PAGE_REORGANIZE, 0);
+	if (page_zip) {
+		type = MLOG_ZIP_PAGE_REORGANIZE;
+	} else if (page_is_comp(page)) {
+		type = MLOG_COMP_PAGE_REORGANIZE;
+	} else {
+		type = MLOG_PAGE_REORGANIZE;
+	}
+
+	log_ptr = mlog_open_and_write_index(
+		mtr, page, index, type, page_zip ? 1 : 0);
+
+	/* For compressed pages write the compression level. */
+	if (log_ptr && page_zip) {
+		mach_write_to_1(log_ptr, compression_level);
+		mlog_close(mtr, log_ptr + 1);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Turn logging off */
@@ -1815,7 +1833,9 @@ btr_page_reorganize_low(
 		ut_ad(max_trx_id != 0 || recovery);
 	}
 
-	if (page_zip && !page_zip_compress(page_zip, page, index, NULL)) {
+	if (page_zip
+	    && !page_zip_compress(page_zip, page, index,
+				  compression_level, NULL)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -1903,7 +1923,8 @@ btr_page_reorganize(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	return(btr_page_reorganize_low(FALSE, block, index, mtr));
+	return(btr_page_reorganize_low(FALSE, page_compression_level,
+				       block, index, mtr));
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1915,18 +1936,32 @@ byte*
 btr_parse_page_reorganize(
 /*======================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)),
-				/*!< in: buffer end */
+	byte*		end_ptr,/*!< in: buffer end */
 	dict_index_t*	index,	/*!< in: record descriptor */
+	bool		compressed,/*!< in: true if compressed page */
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
+	ulint	level = page_compression_level;
+
 	ut_ad(ptr && end_ptr);
 
-	/* The record is empty, except for the record initial part */
+	/* If dealing with a compressed page the record has the
+	compression level used during original compression written in
+	one byte. Otherwise record is empty. */
+	if (compressed) {
+		if (ptr == end_ptr) {
+			return(NULL);
+		}
+
+		level = (ulint)mach_read_from_1(ptr);
+
+		ut_a(level <= 9);
+		++ptr;
+	}
 
 	if (block != NULL) {
-		btr_page_reorganize_low(TRUE, block, index, mtr);
+		btr_page_reorganize_low(TRUE, level, block, index, mtr);
 	}
 
 	return(ptr);
