@@ -62,7 +62,9 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 add unique index (c), add index (d);
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Note	1831	Duplicate index 'd' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

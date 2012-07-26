@@ -3089,6 +3089,90 @@ void promote_first_timestamp_column(List<Create_field> *column_definitions)
 }
 
 
+/**
+  Check if there is a duplicate key. Report a warning for every duplicate key.
+
+  @param thd              Thread context.
+  @param key              Key to be checked.
+  @param key_info         Key meta-data info.
+  @param key_list         List of existing keys.
+*/
+static void check_duplicate_key(THD *thd,
+                                Key *key, KEY *key_info,
+                                List<Key> *key_list)
+{
+  /*
+    We only check for duplicate indexes if it is requested and the
+    key is not auto-generated.
+
+    Check is requested if the key was explicitly created or altered
+    by the user (unless it's a foreign key).
+  */
+  if (!key->key_create_info.check_for_duplicate_indexes || key->generated)
+    return;
+
+  List_iterator<Key> key_list_iterator(*key_list);
+  List_iterator<Key_part_spec> key_column_iterator(key->columns);
+  Key *k;
+
+  while ((k= key_list_iterator++))
+  {
+    // Looking for a similar key...
+
+    if (k == key)
+      break;
+
+    if (k->generated ||
+        (key->type != k->type) ||
+        (key->key_create_info.algorithm != k->key_create_info.algorithm) ||
+        (key->columns.elements != k->columns.elements))
+    {
+      // Keys are different.
+      continue;
+    }
+
+    /*
+      Keys 'key' and 'k' might be identical.
+      Check that the keys have identical columns in the same order.
+    */
+
+    List_iterator<Key_part_spec> k_column_iterator(k->columns);
+
+    bool all_columns_are_identical= true;
+
+    key_column_iterator.rewind();
+
+    for (uint i= 0; i < key->columns.elements; ++i)
+    {
+      Key_part_spec *c1= key_column_iterator++;
+      Key_part_spec *c2= k_column_iterator++;
+
+      DBUG_ASSERT(c1 && c2);
+
+      if (my_strcasecmp(system_charset_info,
+                        c1->field_name.str, c2->field_name.str) ||
+          (c1->length != c2->length))
+      {
+        all_columns_are_identical= false;
+        break;
+      }
+    }
+
+    // Report a warning if we have two identical keys.
+
+    if (all_columns_are_identical)
+    {
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+                          ER_DUP_INDEX, ER(ER_DUP_INDEX),
+                          key_info->name,
+                          thd->lex->query_tables->db,
+                          thd->lex->query_tables->table_name);
+      break;
+    }
+  }
+}
+
+
 /*
   Preparation for table creation
 
@@ -3954,8 +4038,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_info->comment.str= key->key_create_info.comment.str;
     }
 
+    // Check if a duplicate index is defined.
+    check_duplicate_key(thd, key, key_info, &alter_info->key_list);
+
     key_info++;
   }
+
   if (!unique_key && !primary_key &&
       (file->ha_table_flags() & HA_REQUIRE_PRIMARY_KEY))
   {
@@ -6675,6 +6763,12 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         key_create_info.parser_name= *plugin_name(key_info->parser);
       if (key_info->flags & HA_USES_COMMENT)
         key_create_info.comment= key_info->comment;
+
+      /*
+        We're refreshing an already existing index. Since the index is not
+        modified, there is no need to check for duplicate indexes again.
+      */
+      key_create_info.check_for_duplicate_indexes= false;
 
       if (key_info->flags & HA_SPATIAL)
         key_type= Key::SPATIAL;
