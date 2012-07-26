@@ -2728,6 +2728,8 @@ row_merge_drop_indexes(
 				row_log_abort_sec(index);
 			drop_aborted:
 				rw_lock_x_unlock(dict_index_get_lock(index));
+
+				DEBUG_SYNC_C("merge_drop_index_after_abort");
 				/* covered by dict_sys->mutex */
 				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
 				/* fall through */
