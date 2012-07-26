@@ -274,6 +274,8 @@ ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
 SET DEBUG_SYNC = 'now SIGNAL dml3_done';
+Warnings:
+Note	1831	Duplicate index 'c2f' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	0

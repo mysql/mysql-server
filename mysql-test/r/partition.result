@@ -299,6 +299,8 @@ insert into t1 select * from t1;
 create index i on t1 (a);
 ERROR 42000: Duplicate key name 'i'
 create index i2 on t1 (a);
+Warnings:
+Note	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 drop table t1;
 CREATE TABLE t1 (a INT, FOREIGN KEY (a) REFERENCES t0 (a))
 ENGINE=MyISAM

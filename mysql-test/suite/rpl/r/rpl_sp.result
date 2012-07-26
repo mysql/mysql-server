@@ -255,6 +255,8 @@ return 0;
 end
 delete from t2;
 alter table t2 add unique (a);
+Warnings:
+Note	1831	Duplicate index 'a_2' defined on the table 'mysqltest1.t2'. This is deprecated and will be disallowed in a future release.
 drop function fn1;
 create function fn1(x int)
 returns int
