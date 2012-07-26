@@ -1818,7 +1818,12 @@ btr_cur_update_alloc_zip(
 				FALSE=update-in-place */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
-	page_t*	page;
+
+	/* Have a local copy of the variables as these can change
+	dynamically. */
+	bool	log_compressed = page_log_compressed_pages;
+	ulint	compression_level = page_compression_level;
+	page_t*	page = buf_block_get_frame(block);
 
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
@@ -1844,9 +1849,16 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	if (!page_zip_compress(page_zip, page, index, mtr)) {
+	if (!page_zip_compress(
+		page_zip, page, index, compression_level,
+		log_compressed ? mtr : NULL)) {
 		/* Unable to compress the page */
 		return(FALSE);
+	}
+
+	if (mtr && !log_compressed) {
+		page_zip_compress_write_log_no_data(
+			compression_level, page, index, mtr);
 	}
 
 	/* After recompressing a page, we must make sure that the free
@@ -4287,7 +4299,7 @@ btr_store_big_rec_extern_fields(
 		heap = mem_heap_create(250000);
 		page_zip_set_alloc(&c_stream, heap);
 
-		err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+		err = deflateInit2(&c_stream, page_compression_level,
 				   Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
 		ut_a(err == Z_OK);
 	}

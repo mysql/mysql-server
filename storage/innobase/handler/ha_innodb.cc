@@ -92,6 +92,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "fts0priv.h"
+#include "page0zip.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -141,6 +142,9 @@ static uint innobase_old_blocks_pct;
 /** Maximum on-disk size of change buffer in terms of percentage
 of the buffer pool. */
 static uint innobase_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
+
+static ulong innobase_compression_level = DEFAULT_COMPRESSION_LEVEL;
+static my_bool innobase_log_compressed_pages = TRUE;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -3087,6 +3091,11 @@ innobase_change_buffering_inited_ok:
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+
+	page_compression_level = (ulint) innobase_compression_level;
+	page_log_compressed_pages = innobase_log_compressed_pages
+				    ? true : false;
+
 	if (!innobase_use_checksums) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -14710,6 +14719,56 @@ innodb_reset_all_monitor_update(
 }
 
 /****************************************************************//**
+Update the system variable innodb_compression_level using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_compression_level_update(
+/*============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* We have this call back just to avoid confusion between
+	ulong and ulint datatypes. */
+	innobase_compression_level =
+			(*static_cast<const ulong*>(save));
+	page_compression_level =
+			(static_cast<const ulint>(innobase_compression_level));
+}
+
+/****************************************************************//**
+Update the system variable innodb_log_compressed_pages using the
+"saved" value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_log_compressed_pages_update(
+/*===============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* We have this call back just to avoid confusion between
+	my_bool and bool datatypes. */
+
+	if (*(my_bool*) save) {
+		innobase_log_compressed_pages = TRUE;
+		page_log_compressed_pages = true;
+	} else {
+		innobase_log_compressed_pages = FALSE;
+		page_log_compressed_pages = false;
+	}
+}
+
+/****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can list the monitor counters/groups to be enable by specifying
 "loose-innodb_monitor_enable=monitor_name1;monitor_name2..."
@@ -15380,6 +15439,22 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   "innodb_thread_concurrency is reached (0 by default)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
+static MYSQL_SYSVAR_ULONG(compression_level, innobase_compression_level,
+  PLUGIN_VAR_RQCMDARG,
+  "Compression level used for compressed row format.  0 is no compression"
+  ", 1 is fastest, 9 is best compression and default is 6.",
+  NULL, innodb_compression_level_update,
+  DEFAULT_COMPRESSION_LEVEL, 0, 9, 0);
+
+static MYSQL_SYSVAR_BOOL(log_compressed_pages, innobase_log_compressed_pages,
+       PLUGIN_VAR_OPCMDARG,
+  "Enables/disables the logging of entire compressed page images. InnoDB"
+  " logs the compressed pages to prevent against corruption because of a change"
+  " in the zlib compression algorithm to compress the pages."
+  " When turned OFF, this variable makes InnoDB assume that the zlib"
+  " compression algorithm doesn't change.",
+  NULL, innodb_log_compressed_pages_update, TRUE);
+
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "DEPRECATED. This option may be removed in future releases, "
@@ -15823,6 +15898,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
+  MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
@@ -15860,6 +15936,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
+  MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(max_dirty_pages_pct),
   MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
   MYSQL_SYSVAR(adaptive_flushing_lwm),
