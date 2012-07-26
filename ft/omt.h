@@ -137,13 +137,6 @@ int toku_omt_iterate_on_range(OMT omt, uint32_t left, uint32_t right, int (*f)(O
 // Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in omt.
 // Rational: Although the functional iterator requires defining another function (as opposed to C++ style iterator), it is much easier to read.
 
-void toku_omt_free_items(OMT omt);
-// Effect: Iterate over the values of the omt, from left to right, freeing each value with toku_free
-// Requires: all items in OMT to have been malloced with toku_malloc
-// Rational: This function was added due to a problem encountered in ft-ops.c. We needed to free the elements and then
-//   destroy the OMT. However, destroying the OMT requires invalidating cursors. This cannot be done if the values of the OMT
-//   have been already freed. So, this function is written to invalidate cursors and free items.
-
 int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, uint32_t, void*), void*v);
 // Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
 //  The second argument passed to f is the index of the value.
@@ -312,32 +305,6 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 //   ENOMEM on out of memory.
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
-
-int toku_omt_clone(OMT *dest, OMT src, uint32_t eltsize);
-// Effect: Creates a copy of an omt.
-//  Sets *dest to the clone
-//  Each element is allocated separately with toku_xmalloc and is assumed to be eltsize big.
-// Returns 0 on success
-//  ENOMEM on out of memory.
-// On error, nothing is modified.
-// Performance: time between O(n) and O(n log n), depending how long it
-//  takes to traverse src.
-
-int toku_omt_clone_pool(OMT *dest, OMT src, uint32_t eltsize);
-// Effect: Creates a copy of an omt.
-//  Sets *dest to the clone
-//  Each element is copied to a contiguous buffer allocated with toku_xmalloc and each element is assumed to be eltsize big.
-// Returns 0 on success
-//  ENOMEM on out of memory.
-// On error, nothing is modified.
-// Performance: time between O(n) and O(n log n), depending how long it
-//  takes to traverse src.
-
-void toku_omt_free_items_pool(OMT omt);
-// Effect: Frees the memory containing the items in an omt created with toku_omt_clone_pool.
-//  Since toku_omt_clone_pool allocates a contiguous chunk of memory and
-//  the first item is at the first position, this just gets the first
-//  value out of the omt and frees it for you.
 
 int toku_omt_clone_noptr(OMT *dest, OMT src);
 // Effect: Creates a copy of an omt.

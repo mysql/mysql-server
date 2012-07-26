@@ -808,45 +808,6 @@ test_clone(uint32_t nelts)
     }
     toku_omt_destroy(&dest);
     toku_omt_destroy(&src);
-
-    r = toku_omt_create(&src);
-    assert_zero(r);
-    long array[nelts];
-    for (long i = 0; i < nelts; ++i) {
-        array[i] = i;
-        r = toku_omt_insert_at(src, &array[i], i);
-        assert_zero(r);
-    }
-
-    r = toku_omt_clone_pool(&dest, src, (sizeof array[0]));
-    assert_zero(r);
-    assert(dest != NULL);
-    assert(toku_omt_size(dest) == nelts);
-    for (long i = 0; i < nelts; ++i) {
-        OMTVALUE v;
-        long *l;
-        r = toku_omt_fetch(dest, i, &v);
-        assert_zero(r);
-        CAST_FROM_VOIDP(l, v);
-        assert(*l == i);
-    }
-    toku_omt_free_items_pool(dest);
-    toku_omt_destroy(&dest);
-    r = toku_omt_clone(&dest, src, (sizeof array[0]));
-    assert_zero(r);
-    assert(dest != NULL);
-    assert(toku_omt_size(dest) == nelts);
-    for (long i = 0; i < nelts; ++i) {
-        OMTVALUE v;
-        long *l;
-        r = toku_omt_fetch(dest, i, &v);
-        assert_zero(r);
-        CAST_FROM_VOIDP(l, v);
-        assert(*l == i);
-    }
-    toku_omt_free_items(dest);
-    toku_omt_destroy(&dest);
-    toku_omt_destroy(&src);
 }
 
 int

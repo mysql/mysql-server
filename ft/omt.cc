@@ -650,19 +650,6 @@ int toku_omt_fetch(OMT V, uint32_t i, OMTVALUE *v) {
     return 0;
 }
 
-static int
-free_item (OMTVALUE lev, uint32_t UU(idx), void *vsi) {
-    assert(vsi == NULL);
-    toku_free(lev);
-    return 0;
-}
-
-
-void toku_omt_free_items(OMT omt) {
-    int r = toku_omt_iterate(omt, free_item, NULL);
-    lazy_assert_zero(r);
-}
-
 int toku_omt_iterate(OMT omt, int (*f)(OMTVALUE, uint32_t, void*), void*v) {
     if (omt->is_array) {
         return iterate_internal_array(omt, 0, omt_size(omt), f, v);
@@ -780,78 +767,6 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     toku_omt_destroy(&rightomt);
     *newomtp = newomt;
     return 0;
-}
-
-struct copy_data_extra {
-    OMTVALUE *a;
-    uint32_t eltsize;
-};
-
-static int copy_data_iter(OMTVALUE v, uint32_t idx, void *ve) {
-    struct copy_data_extra *CAST_FROM_VOIDP(e, ve);
-    memcpy(e->a[idx], v, e->eltsize);
-    return 0;
-}
-
-static int omt_copy_data(OMTVALUE *a, OMT omt, uint32_t eltsize) {
-    struct copy_data_extra extra = { .a = a, .eltsize = eltsize };
-    if (omt->is_array) {
-        return iterate_internal_array(omt, 0, omt_size(omt), copy_data_iter, &extra);
-    }
-    return iterate_internal(omt, 0, nweight(omt, omt->i.t.root), omt->i.t.root, 0, copy_data_iter, &extra);
-}
-
-int toku_omt_clone(OMT *dest, OMT src, uint32_t eltsize) {
-    uint32_t size = omt_size(src);
-    if (size == 0) {
-        toku_omt_create(dest);
-        return 0;
-    }
-    OMTVALUE *XMALLOC_N(size, a);
-    for (uint32_t i = 0; i < size; ++i) {
-        CAST_FROM_VOIDP(a[i], toku_xmalloc(eltsize));
-    }
-    int r = omt_copy_data(a, src, eltsize);
-    if (r != 0) { goto err; }
-    r = toku_omt_create_steal_sorted_array(dest, &a, size, size);
-    if (r != 0) { goto err; }
-    return 0;
-err:
-    toku_free(a);
-    return r;
-}
-
-int toku_omt_clone_pool(OMT *dest, OMT src, uint32_t eltsize) {
-    uint32_t size = omt_size(src);
-    if (size == 0) {
-        toku_omt_create(dest);
-        return 0;
-    }
-    OMTVALUE *XMALLOC_N(size, a);
-    unsigned char *XMALLOC_N(eltsize * size, data);
-    for (uint32_t i = 0; i < size; ++i) {
-        a[i] = &data[eltsize * i];
-    }
-    int r = omt_copy_data(a, src, eltsize);
-    if (r != 0) { goto err; }
-    r = toku_omt_create_steal_sorted_array(dest, &a, size, size);
-    if (r != 0) { goto err; }
-    return 0;
-err:
-    toku_free(data);
-    toku_free(a);
-    return r;
-}
-
-void toku_omt_free_items_pool(OMT omt) {
-    if (toku_omt_size(omt) == 0) {
-        return;
-    }
-    OMTVALUE v;
-    int r = toku_omt_fetch(omt, 0, &v);
-    lazy_assert_zero(r);
-    invariant(v != NULL);
-    toku_free(v);
 }
 
 int toku_omt_clone_noptr(OMT *dest, OMT src) {
