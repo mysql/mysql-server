@@ -48,6 +48,7 @@ public:
 
 class Item_func_geometry_from_wkb: public Item_geometry_func
 {
+  String tmp_value;
 public:
   Item_func_geometry_from_wkb(Item *a): Item_geometry_func(a) {}
   Item_func_geometry_from_wkb(Item *a, Item *srid): Item_geometry_func(a, srid) {}
