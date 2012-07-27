@@ -14120,9 +14120,11 @@ innodb_cmp_per_index_update(
 {
 	/* Reset the stats whenever we enable the table
 	INFORMATION_SCHEMA.innodb_cmp_per_index. */
-	if (*(my_bool*) save) {
+	if (!srv_cmp_per_index_enabled && *(my_bool*) save) {
 		page_zip_reset_stat_per_index();
 	}
+
+	srv_cmp_per_index_enabled = *(my_bool*) save;
 }
 
 /****************************************************************//**
