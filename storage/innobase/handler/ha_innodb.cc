@@ -14124,7 +14124,7 @@ innodb_cmp_per_index_update(
 		page_zip_reset_stat_per_index();
 	}
 
-	srv_cmp_per_index_enabled = *(my_bool*) save;
+	srv_cmp_per_index_enabled = !!(*(my_bool*) save);
 }
 
 /****************************************************************//**
