@@ -81,22 +81,47 @@ String *Item_func_geometry_from_text::val_str(String *str)
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String arg_val;
   String *wkb;
   Geometry_buffer buffer;
   uint32 srid= 0;
 
-  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
+  if (arg_count == 2)
   {
-    String *str_ret= args[0]->val_str(str);
-    null_value= args[0]->null_value;
-    return str_ret;
+    srid= args[1]->val_int();
+    if ((null_value= args[1]->null_value))
+      return 0;
   }
 
-  wkb= args[0]->val_str(&arg_val);
+  wkb= args[0]->val_str(&tmp_value);
+  if ((null_value= args[0]->null_value))
+    return 0;
 
-  if ((arg_count == 2) && !args[1]->null_value)
-    srid= (uint32)args[1]->val_int();
+  /*
+    GeometryFromWKB(wkb [,srid]) understands both WKB (without SRID) and
+    Geometry (with SRID) values in the "wkb" argument.
+    In case if a Geometry type value is passed, we assume that the value
+    is well-formed and can directly return it without going through
+    Geometry::create_from_wkb().
+  */
+  if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
+  {
+    /*
+      Check if SRID embedded into the Geometry value differs
+      from the SRID value passed in the second argument.
+    */
+    if (wkb->length() < 4 || srid == uint4korr(wkb->ptr()))
+      return wkb; // Do not differ
+    /*
+      Replace SRID to the one passed in the second argument.
+      Note, we cannot replace SRID directly in wkb->ptr(),
+      because wkb can point to some value that we should not touch,
+      e.g. to a SP variable value. So we need to copy to "str".
+    */
+    if ((null_value= str->copy(*wkb)))
+      return 0;
+    str->write_at_position(0, srid);
+    return str;
+  }
 
   str->set_charset(&my_charset_bin);
   if (str->reserve(SRID_SIZE, 512))
