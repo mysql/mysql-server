@@ -10,7 +10,7 @@ def configure(conf):
 def build(ctx):  
   obj = ctx.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "ndbapi"
-  obj.uselib_local = "libimpl_common"
+  obj.uselib_local = "impl_common"
   obj.rpath = ctx.env.rpath
   obj.lib = "ndbclient"
   

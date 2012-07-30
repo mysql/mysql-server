@@ -34,7 +34,8 @@ extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
 void initModule(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
   Ndb_init_initOnLoad(target);
-  
+  DBSessionImpl_initOnLoad(target);
+
 }
 
 

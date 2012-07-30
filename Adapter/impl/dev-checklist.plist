@@ -16,6 +16,17 @@
 	<false/>
 	<key>Mapped NdbError object</key>
 	<false/>
+	<key>Unified C/JS Debug framework</key>
+	<dict>
+		<key>Turn debugging on/off from JavaScript</key>
+		<true/>
+		<key>Compile-time enable/disable in C</key>
+		<true/>
+		<key>Support in waf</key>
+		<true/>
+		<key>Flush &amp; close debug file descriptor</key>
+		<false/>
+	</dict>
 	<key>Notes</key>
 	<dict>
 		<key>One NDB per open session</key>

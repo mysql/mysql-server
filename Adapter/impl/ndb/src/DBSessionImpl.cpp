@@ -23,6 +23,7 @@
 #include "DBSessionImpl.h"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
+#include "unified_debug.h"
 
 using namespace v8;
 
@@ -32,14 +33,22 @@ using namespace v8;
    This is the background thread part of NewDBSessionImpl
 */
 ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
+  DEBUG_ENTER();
   ndb_session * sess = new ndb_session;
   
   sess->ndb = new Ndb(conn);
+
+  DEBUG_TRACE();
   sess->ndb->init();
+
+  DEBUG_TRACE();
   sess->ndb->setDatabaseName(db);  
+
+  DEBUG_TRACE();
   sess->dict = sess->ndb->getDictionary();    // get Dictionary
   sess->err = sess->ndb->getNdbError();        // get NdbError
   
+  DEBUG_TRACE();
   return sess;
 }
 
@@ -52,9 +61,10 @@ ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
    Callback will receive an ndb_session *.
 */
 Handle<Value>NewDBSessionImpl(const Arguments &args) {
+  DEBUG_ENTER();
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(2);
+  REQUIRE_ARGS_LENGTH(3);
   
   typedef NativeCFunctionCall_2_<ndb_session *, Ndb_cluster_connection *, 
                                  const char *> NCALL;
@@ -64,6 +74,7 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   ncallptr->setCallback(args[2]);
   ncallptr->runAsync();
 
+  DEBUG_TRACE();
   return scope.Close(JS_VOID_RETURN);
 }
 

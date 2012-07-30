@@ -30,6 +30,7 @@ using namespace v8;
 /* int ndb_init(void) 
 */
 Handle<Value> Ndb_init_wrapper(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);
@@ -45,6 +46,7 @@ Handle<Value> Ndb_init_wrapper(const Arguments &args) {
 /* void ndb_end(int) 
 */
 Handle<Value> Ndb_end_wrapper(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);  
@@ -58,9 +60,8 @@ Handle<Value> Ndb_end_wrapper(const Arguments &args) {
 
 
 void Ndb_init_initOnLoad(Handle<Object> target) {
+  DEBUG_MARKER();
   DEFINE_JS_FUNCTION(target, "ndb_init", Ndb_init_wrapper);
   DEFINE_JS_FUNCTION(target, "ndb_end", Ndb_end_wrapper);
 }
-
-
 

@@ -64,8 +64,10 @@ exports.DBConnection.prototype.connectSync = function() {
 */
 exports.DBConnection.prototype.connect = function(user_callback) {
   var theDbConn = this;
+  console.log("DBConenction.connect");
   
   var NdbConnection_callback = function(rval) { 
+    console.log("NdbConnection_callback");
     var err = null;
     if(rval != 0) 
       err = new Error('NDB Connect failed' + rval);
@@ -99,8 +101,14 @@ exports.DBConnection.prototype.closeSync = function() {
    Users's callback receives (error, DBSessionHandler)
 */
 exports.DBConnection.prototype.openSessionHandler = function(user_callback) {
-   var 
+  var db = properties.database;
+  assert(ndbconn);
+  assert(db == "test");
+  assert(user_callback)
 
+  var sessionImpl = ndbapi.NewDBSessionImpl(ndbconn, db, private_callback);
 
-
+  var private_callback = function(sess) {
+    user_callback(null, sess);
+  };
 }
