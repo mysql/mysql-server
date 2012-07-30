@@ -170,21 +170,24 @@ in the reset state. Explicit freeing of the mutex with mutex_free is
 necessary only if the memory block containing it is freed. */
 # ifdef UNIV_DEBUG
 #  ifdef UNIV_SYNC_DEBUG
-#   define mutex_create(K, M, level)				\
+#   define mutex_create(K, M, level)					\
 	pfs_mutex_create_func((K), (M), #M, (level), __FILE__, __LINE__)
 #  else
-#   define mutex_create(K, M, level)				\
+#   define mutex_create(K, M, level)					\
 	pfs_mutex_create_func((K), (M), #M, __FILE__, __LINE__)
 #  endif/* UNIV_SYNC_DEBUG */
 # else
-#  define mutex_create(K, M, level)				\
+#  define mutex_create(K, M, level)					\
 	pfs_mutex_create_func((K), (M), __FILE__, __LINE__)
 # endif	/* UNIV_DEBUG */
 
-# define mutex_enter(M)						\
-	pfs_mutex_enter_func((M), __FILE__, __LINE__)
+# define mutex_enter(M)							\
+	pfs_mutex_enter_func((M), __FILE__, __LINE__, false)
 
-# define mutex_enter_nowait(M)					\
+# define mutex_enter_spinonly(M)					\
+	pfs_mutex_enter_func((M), __FILE__, __LINE__, true)
+
+# define mutex_enter_nowait(M)						\
 	pfs_mutex_enter_nowait_func((M), __FILE__, __LINE__)
 
 # define mutex_exit(M)	pfs_mutex_exit_func(M)
@@ -197,18 +200,21 @@ necessary only if the memory block containing it is freed. */
 original non-instrumented functions */
 # ifdef UNIV_DEBUG
 #  ifdef UNIV_SYNC_DEBUG
-#   define mutex_create(K, M, level)			\
+#   define mutex_create(K, M, level)					\
 	mutex_create_func((M), #M, (level), __FILE__, __LINE__)
 #  else /* UNIV_SYNC_DEBUG */
-#   define mutex_create(K, M, level)				\
+#   define mutex_create(K, M, level)					\
 	mutex_create_func((M), #M, __FILE__, __LINE__)
 #  endif /* UNIV_SYNC_DEBUG */
 # else /* UNIV_DEBUG */
-#  define mutex_create(K, M, level)				\
+#  define mutex_create(K, M, level)					\
 	mutex_create_func((M), __FILE__, __LINE__)
 # endif	/* UNIV_DEBUG */
 
 # define mutex_enter(M)	mutex_enter_func((M), __FILE__, __LINE__)
+
+# define mutex_enter_spinonly(M)					\
+	mutex_enter_func((M), __FILE__, __LINE__, true)
 
 # define mutex_enter_nowait(M)	\
 	mutex_enter_nowait_func((M), __FILE__, __LINE__)
@@ -266,7 +272,10 @@ mutex_enter_func(
 /*=============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line);		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	bool		spin_only = false);
+					/*!< in: Don't use the sync array to
+					wait if set to true */
 /********************************************************************//**
 NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
@@ -322,7 +331,10 @@ pfs_mutex_enter_func(
 /*=================*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line);		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	bool		spin_only = false);
+					/*!< in: Don't use the sync array to
+					wait if set to true */
 /********************************************************************//**
 NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
 this function!
@@ -741,8 +753,7 @@ Do not use its fields directly! The structure used in the spin lock
 implementation of a mutual exclusion semaphore. */
 
 /** InnoDB mutex */
-struct ib_mutex_t {
-	os_event_t	event;	/*!< Used by sync0arr.cc for the wait queue */
+struct spin_mutex_t {
 	volatile lock_word_t	lock_word;	/*!< lock_word is the target
 				of the atomic test-and-set instruction when
 				atomic operations are enabled. */
@@ -768,7 +779,7 @@ struct ib_mutex_t {
 	ulong		count_os_wait;	/*!< count of os_wait */
 #ifdef UNIV_DEBUG
 
-/** Value of mutex_struct::magic_n */
+/** Value of ib_mutex_t::magic_n */
 # define MUTEX_MAGIC_N	979585UL
 
 	os_thread_id_t thread_id; /*!< The thread id of the thread
@@ -781,6 +792,11 @@ struct ib_mutex_t {
 	struct PSI_mutex* pfs_psi;	/*!< The performance schema
 					instrumentation hook */
 #endif
+};
+
+/** InnoDB mutex */
+struct ib_mutex_t : public spin_mutex_t {
+	os_event_t	event;	/*!< Used by sync0arr.cc for the wait queue */
 };
 
 /** Constant determining how long spin wait is continued before suspending

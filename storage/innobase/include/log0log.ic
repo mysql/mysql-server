@@ -406,11 +406,11 @@ log_get_lsn(void)
 {
 	lsn_t	lsn;
 
-	mutex_enter(&(log_sys->mutex));
+	mutex_enter(&log_sys->mutex);
 
 	lsn = log_sys->lsn;
 
-	mutex_exit(&(log_sys->mutex));
+	mutex_exit(&log_sys->mutex);
 
 	return(lsn);
 }

@@ -214,7 +214,7 @@ read_view_clone(
 	read_view_t*	clone;
 	read_view_t*	new_view;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	/* Allocate space for two views. */
 
@@ -253,7 +253,7 @@ read_view_add(
 	read_view_t*	elem;
 	read_view_t*	prev_elem;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 	ut_ad(read_view_validate(view));
 
 	/* Find the correct slot for insertion. */
@@ -285,7 +285,7 @@ struct	CreateView {
 
 	void	operator()(const trx_t* trx)
 	{
-		ut_ad(mutex_own(&trx_sys->mutex));
+		ut_ad(trx_sys->mutex.is_owned());
 		ut_ad(trx->in_rw_trx_list);
 
 		/* trx->state cannot change from or to NOT_STARTED
@@ -336,7 +336,7 @@ read_view_open_now_low(
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	view = read_view_create_low(n_trx, heap);
 
@@ -383,11 +383,11 @@ read_view_open_now(
 {
 	read_view_t*	view;
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	view = read_view_open_now_low(cr_trx_id, heap);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	return(view);
 }
@@ -411,7 +411,7 @@ read_view_purge_open(
 	trx_id_t	creator_trx_id;
 	ulint		insert_done	= 0;
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
@@ -419,7 +419,7 @@ read_view_purge_open(
 
 		view = read_view_open_now_low(0, heap);
 
-		mutex_exit(&trx_sys->mutex);
+		trx_sys->mutex.exit();
 
 		return(view);
 	}
@@ -430,7 +430,7 @@ read_view_purge_open(
 
 	ut_ad(read_view_validate(oldest_view));
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	ut_a(oldest_view->creator_trx_id > 0);
 	creator_trx_id = oldest_view->creator_trx_id;
@@ -565,7 +565,7 @@ read_cursor_view_create_for_mysql(
 
 	cr_trx->n_mysql_tables_in_use = 0;
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
@@ -597,7 +597,7 @@ read_cursor_view_create_for_mysql(
 
 	read_view_add(view);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	return(curview);
 }
@@ -640,7 +640,7 @@ read_cursor_set_for_mysql(
 {
 	ut_a(trx);
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	if (UNIV_LIKELY(curview != NULL)) {
 		trx->read_view = curview->read_view;
@@ -650,5 +650,5 @@ read_cursor_set_for_mysql(
 
 	ut_ad(read_view_validate(trx->read_view));
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 }

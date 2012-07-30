@@ -37,7 +37,7 @@ Created 12/9/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0lst.h"
 #ifndef UNIV_HOTBACKUP
-#include "sync0sync.h"
+#include "ib_mutex.h"
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
