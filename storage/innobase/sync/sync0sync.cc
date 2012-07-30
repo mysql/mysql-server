@@ -472,7 +472,9 @@ mutex_spin_wait(
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
-	ulint		line)		/*!< in: line where requested */
+	ulint		line,		/*!< in: line where requested */
+	bool		spin_only)	/*!< in: Don't use the sync array to
+					wait if set to true */
 {
 	ulint		i;		/* spin round count */
 	ulint		index;		/* index of the reserved wait cell */
@@ -534,7 +536,7 @@ spin_loop:
 
 	i++;
 
-	if (i < SYNC_SPIN_ROUNDS) {
+	if (spin_only || i < SYNC_SPIN_ROUNDS) {
 		goto spin_loop;
 	}
 
