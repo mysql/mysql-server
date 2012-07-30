@@ -36,7 +36,7 @@
   choose the Solaris implementation on Solaris (mainly for SunStudio
   compilers).
 */
-#  if defined(_MSV_VER)
+#  if defined(_MSC_VER)
 #    include "generic-msvc.h"
 #  elif __GNUC__
 #    if defined(HAVE_SOLARIS_ATOMIC)
