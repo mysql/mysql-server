@@ -31,7 +31,7 @@ test.run = function() {
     if (error) {
       t.fail('createSQL failed: ' + error);
     } 
-    props = new mynode.ConnectionProperties('ndb');
+    props = new mynode.ConnectionProperties(global.adapter);
     mynode.connect(props, null, function(err, factory) {
       if(err) t.fail(err);
       else(t.pass());

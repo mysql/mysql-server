@@ -103,6 +103,7 @@ var usageMessage =
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
+  "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
   "--set <var>=<value>: set a global variable, overriding test_config.js\n"
   ;
 
@@ -141,6 +142,9 @@ for(var i = 2; i < process.argv.length ; i++) {
         break;
       case '--file':
         driver.fileToRun = values[1];
+        break;
+      case '--adapter':
+        global.adapter = values[1];
         break;
       default:
         console.log('Invalid option ' + val);

@@ -28,7 +28,7 @@ var testInsert = function() {
     this.age;
     this.magic;
   }
-  var properties = mynode.ConnectionProperties('ndb');
+  var properties = mynode.ConnectionProperties(global.adapter);
   var annotations = mynode.Annotations();
   annotations.mapClass(Employee.prototype,
       {'table' : 't_basic'});
