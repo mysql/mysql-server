@@ -61,7 +61,7 @@ global.fail_verify_t_basic = function(err, instance, id, testCase) {
 
 /** Open a session or fail the test case */
 global.fail_openSession = function(testCase, callback) {
-  var properties = new mynode.ConnectionProperties("ndb");
+  var properties = new mynode.ConnectionProperties(global.adapter);
   var annotations = new mynode.Annotations();
   mynode.openSession(properties, annotations, function(err, session) {
     if (err) {
