@@ -13,7 +13,7 @@
 # Default suites (in modes binlog format stmt/mixed/row, parts), embedded and ps-protocol
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug-big  --vardir=var-embedded-debug-big  --embedded
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=funcs2-debug  --vardir=var-funcs2-big  --suite=funcs_2-big
@@ -46,7 +46,7 @@ perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=
 # Default suites in modes normal(binlog format statement/mixed/row, parts), embedded and ps-protocol
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --parallel=auto --experimental=collections/default.experimental --comment=normal-big  --vardir=var-normal-big --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=embedded-big  --vardir=var-embedded-big  --embedded
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60--parallel=auto --experimental=collections/default.experimental --comment=ps-big  --vardir=var-ps-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90--parallel=auto --experimental=collections/default.experimental --comment=ps-big  --vardir=var-ps-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
 # Run the suites that are not part of the default - funcs_2, stress, jp, nist
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=funcs2-big  --vardir=var-funcs2-big  --suite=funcs_2
