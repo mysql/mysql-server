@@ -26,6 +26,7 @@
 
 #include "JsConverter.h"
 #include "async_common.h"
+#include "unified_debug.h"
 
 using namespace v8;
 
@@ -89,6 +90,7 @@ public:
   }
   
   void doAsyncCallback(Local<Object> context) {
+    DEBUG_MARKER();
     Handle<Value> cb_args[1];    
     cb_args[0] = jsReturnVal();
     callback->Call(context, 1, cb_args);
