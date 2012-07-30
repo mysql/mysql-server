@@ -1355,7 +1355,8 @@ static void close_connections(void)
     statements and inform their clients that the server is about to die.
   */
 
-  sql_print_information("Giving client threads a chance to die gracefully");
+  sql_print_information("Giving %d client threads a chance to die gracefully",
+                        static_cast<int>(get_thread_count()));
 
   mysql_mutex_lock(&LOCK_thread_count);
 
@@ -1400,7 +1401,8 @@ static void close_connections(void)
     client on a blocking read call are aborted.
   */
 
-  sql_print_information("Forcefully disconnecting remaining clients");
+  sql_print_information("Forcefully disconnecting %d remaining clients",
+                        static_cast<int>(get_thread_count()));
 
 #ifndef __bsdi__ // Bug in BSDI kernel
   DBUG_PRINT("quit", ("Locking LOCK_thread_count"));
