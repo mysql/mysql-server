@@ -58,40 +58,22 @@ T * JsMethodThis(const v8::Arguments &args) {
  Value conversion from JavaScript to C
 ******************************************************************/
 template <typename T> class JsValueConverter {
-public: 
-  JsValueConverter(jsvalue v);
-  T toC();
-};
-
-
-/* JsPointerConverter<T> Template 
- *
- * To convert pointers, define, in a source file, a class JsValueConverter<P> 
- * that inherits from JsPointerConverter<P>.  This class will be used by the
- * NativeMethodCall_x_ and NativeCFunctionCall_x_ classes.
- * 
- * When the source code asks for a JsValueConverter class that does not exist, 
- * we want the compiler to fail, rather than use the generic (pointer) class.  
- * This is why we require you to create JsValueConverter classes explicitly. * 
- */
-template <typename T> class JsPointerConverter {
 public:  
-  JsPointerConverter(jsvalue v) {  
+  JsValueConverter(jsvalue v) {  
     assert(v->IsObject());
     Local<Object> obj = v->ToObject();
     assert(obj->InternalFieldCount() > 0);
     native_object = static_cast<T>(obj->GetPointerFromInternalField(0));
   }
-  T toC() { 
+  /* If you get an "invalid static cast from type void *" above, then the compiler
+     is erroneously falling back on this implementation. */  
+  virtual T toC() { 
     return native_object;
   }
 
-private:
+protected:
   T native_object;  
 };
-
-
-/* Some JsValueConverter specializations are in common/src/JsConverter.cpp */
 
 template <>
 class JsValueConverter <int> {
@@ -114,11 +96,21 @@ public:
 
 
 template <>
-class JsValueConverter <double> {
+class JsValueConverter <unsigned long> {
 public:
   jsvalue jsval;
   
   JsValueConverter(jsvalue v) : jsval(v) {};
+  int toC() { return jsval->IntegerValue(); };
+};
+
+
+template <>
+class JsValueConverter <double> {
+public:
+  jsvalue jsval;
+  
+JsValueConverter(jsvalue v) : jsval(v) {};
   double toC() { return jsval->NumberValue(); };
 };
 
@@ -161,14 +153,10 @@ public:
  Value Conversion from C to JavaScript
 ******************************************************************/
 
-template <typename T> Local<Value> toJS(T);
-
-
-/*** Generic converter for pointers only.  To convert ptr of type P,
- * in a source file, define a toJS specialization for P 
- * that returns pointerToJS<P>(ptr)
- */
-template <typename T> Local<Value> pointerToJS(T cptr) {
+/* If you get an "invalid static cast from type void *" below, 
+   then the compiler is erroneously falling back on this implementation. 
+*/  
+template <typename T> Local<Value> toJS(T cptr) {
   Local<Object> obj = Object::New();
   assert(obj->InternalFieldCount() > 0);
   obj->SetPointerInInternalField(0, static_cast<void *>(cptr));
@@ -176,4 +164,33 @@ template <typename T> Local<Value> pointerToJS(T cptr) {
 }
 
 
-/* Some toJS specializations are in JsConverter.cpp */
+/*****************************************************************
+ toJs specializations
+ Value Conversion from C to JavaScript
+******************************************************************/
+
+
+// int
+template <>
+inline Local<Value> toJS<int>(int cval){ 
+  return Number::New(cval);
+};
+
+// uint32_t
+template <>
+inline Local<Value> toJS<uint32_t>(uint32_t cval) {
+  return v8::Uint32::New(cval);
+};
+
+// double
+template <>
+inline Local<Value> toJS<double>(double cval) {
+  return Number::New(cval);
+};
+
+// const char *
+template <> 
+inline Local<Value> toJS<const char *>(const char * cval) {
+  return v8::String::New(cval);
+}
+
