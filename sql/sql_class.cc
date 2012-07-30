@@ -1527,13 +1527,12 @@ void THD::release_resources()
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
   DBUG_ASSERT(m_release_resources_done == false);
 
-  /* Ensure that no one is using THD */
-  mysql_mutex_lock(&LOCK_thd_data);
-  mysql_mutex_unlock(&LOCK_thd_data);
-
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
   mysql_mutex_unlock(&LOCK_status);
+
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -1541,8 +1540,11 @@ void THD::release_resources()
   {
     vio_delete(net.vio);
     net_end(&net);
+    net.vio= NULL;
   }
 #endif
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   stmt_map.reset();                     /* close all prepared statements */
   if (!cleanup_done)
     cleanup();
@@ -1803,8 +1805,11 @@ void THD::disconnect()
 #endif
 
   /* Disconnect even if a active vio is not associated. */
-  if (net.vio != vio)
+  if (net.vio != vio && net.vio != NULL)
+  {
     vio_close(net.vio);
+    net.vio= NULL;
+  }
 
   mysql_mutex_unlock(&LOCK_thd_data);
 }
