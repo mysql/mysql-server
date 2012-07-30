@@ -6,7 +6,7 @@ def configure(conf):
 def build(bld):
   client = bld.new_task_gen("cxx", "shlib", "node_addon")
   client.target = "mysqlclient"
-  client.uselib_local = "libimpl_common"
+  client.uselib_local = "impl_common"
   client.source = "mysqlclient_wrapper.cpp"
   client.rpath = bld.env.my_lib
   client.lib = "mysqlclient"

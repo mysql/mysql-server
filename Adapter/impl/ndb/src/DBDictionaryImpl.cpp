@@ -94,7 +94,7 @@ Handle<Value> listTables(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
   
-  JsPointerConverter<ndb_session *> jsptr(args[0]);  
+  JsValueConverter<ndb_session *> jsptr(args[0]);  
   ListTablesCall * ncall = new ListTablesCall(jsptr.toC());  
   ncall->setCallback(args[1]);
   ncall->runAsync();
