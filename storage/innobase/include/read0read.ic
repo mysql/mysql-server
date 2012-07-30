@@ -34,7 +34,7 @@ read_view_validate(
 /*===============*/
 	const read_view_t*	view)	/*!< in: view to validate */
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	/* Check that the view->trx_ids array is in descending order. */
 	for (ulint i = 1; i < view->n_trx_ids; ++i) {
@@ -68,7 +68,7 @@ bool
 read_view_list_validate(void)
 /*=========================*/
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	ut_list_map(trx_sys->view_list, &read_view_t::view_list, ViewCheck());
 
@@ -131,7 +131,7 @@ read_view_remove(
 {
 	if (view != 0) {
 		if (!own_mutex) {
-			mutex_enter(&trx_sys->mutex);
+			trx_sys->mutex.enter();
 		}
 
 		ut_ad(read_view_validate(view));
@@ -141,7 +141,7 @@ read_view_remove(
 		ut_ad(read_view_list_validate());
 
 		if (!own_mutex) {
-			mutex_exit(&trx_sys->mutex);
+			trx_sys->mutex.exit();
 		}
 	}
 }

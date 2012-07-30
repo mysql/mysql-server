@@ -5795,9 +5795,17 @@ fil_tablespace_iterate(
 	ut_a(file_size != (os_offset_t) -1);
 
 	/* The block we will use for every physical page */
-	buf_block_t	block;
+	buf_block_t*	block;
 
-	memset(&block, 0x0, sizeof(block));
+	block = reinterpret_cast<buf_block_t*>(mem_zalloc(sizeof(*block)));
+
+#ifdef UNIV_PFS_MUTEX
+	CheckedPolicy	policy(SYNC_BUF_BLOCK, buffer_block_mutex_key);
+#else
+	CheckedPolicy	policy(SYNC_BUF_BLOCK);
+#endif /* UNIV_PFS_MUTEX */
+
+	new(&block->mutex) SpinMutex(policy);
 
 	/* Allocate a page to read in the tablespace header, so that we
 	can determine the page size and zip_size (if it is compressed).
@@ -5807,7 +5815,7 @@ fil_tablespace_iterate(
 	void*	page_ptr = mem_alloc(3 * UNIV_PAGE_SIZE);
 	byte*	page = static_cast<byte*>(ut_align(page_ptr, UNIV_PAGE_SIZE));
 
-	fil_buf_block_init(&block, page);
+	fil_buf_block_init(block, page);
 
 	/* Read the first page and determine the page and zip size. */
 
@@ -5815,7 +5823,7 @@ fil_tablespace_iterate(
 
 		err = DB_IO_ERROR;
 
-	} else if ((err = callback.init(file_size, &block)) == DB_SUCCESS) {
+	} else if ((err = callback.init(file_size, block)) == DB_SUCCESS) {
 		fil_iterator_t	iter;
 
 		iter.file = file;
@@ -5842,7 +5850,7 @@ fil_tablespace_iterate(
 		iter.io_buffer = static_cast<byte*>(
 			ut_align(io_buffer, UNIV_PAGE_SIZE));
 
-		err = fil_iterate(iter, &block, callback);
+		err = fil_iterate(iter, block, callback);
 
 		mem_free(io_buffer);
 	}
@@ -5863,6 +5871,8 @@ fil_tablespace_iterate(
 
 	mem_free(page_ptr);
 	mem_free(filepath);
+
+	mem_free(block);
 
 	return(err);
 }

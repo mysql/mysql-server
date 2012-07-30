@@ -1360,7 +1360,7 @@ fetch_data_into_cache(
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	trx_i_s_cache_clear(cache);
 
@@ -1393,11 +1393,11 @@ trx_i_s_possibly_fetch_data_into_cache(
 
 	lock_mutex_enter();
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	fetch_data_into_cache(cache);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	lock_mutex_exit();
 

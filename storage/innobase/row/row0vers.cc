@@ -267,7 +267,7 @@ row_vers_impl_x_locked(
 	mtr_t		mtr;
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys->mutex.is_owned());
 
 	mtr_start(&mtr);
 
@@ -671,7 +671,7 @@ row_vers_build_for_semi_consistent_read(
 			rec_trx_id = version_trx_id;
 		}
 
-		mutex_enter(&trx_sys->mutex);
+		trx_sys->mutex.enter();
 		version_trx = trx_get_rw_trx_by_id(version_trx_id);
 		/* Because version_trx is a read-write transaction,
 		its state cannot change from or to NOT_STARTED while
@@ -682,7 +682,7 @@ row_vers_build_for_semi_consistent_read(
 				    TRX_STATE_COMMITTED_IN_MEMORY)) {
 			version_trx = NULL;
 		}
-		mutex_exit(&trx_sys->mutex);
+		trx_sys->mutex.exit();
 
 		if (!version_trx) {
 

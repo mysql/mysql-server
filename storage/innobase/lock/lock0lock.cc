@@ -1646,7 +1646,7 @@ lock_sec_rec_some_has_impl(
 	const page_t*	page = page_align(rec);
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys->mutex.is_owned());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -3481,7 +3481,7 @@ lock_deadlock_trx_print(
 	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	trx_print_low(lock_latest_err_file, trx, max_query_len,
 		      n_lock_rec, n_lock_struct, heap_size);
@@ -3491,7 +3491,7 @@ lock_deadlock_trx_print(
 			      n_lock_rec, n_lock_struct, heap_size);
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 }
 
 /*********************************************************************//**
@@ -4732,7 +4732,7 @@ lock_remove_recovered_trx_record_locks(
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
@@ -4776,7 +4776,7 @@ lock_remove_recovered_trx_record_locks(
 		++n_recovered_trx;
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	return(n_recovered_trx);
 }
@@ -5135,7 +5135,7 @@ lock_print_info_all_transactions(
 
 	ut_ad(lock_mutex_own());
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	/* First print info on non-active transactions */
 
@@ -5185,7 +5185,7 @@ loop:
 		}
 
 		lock_mutex_exit();
-		mutex_exit(&trx_sys->mutex);
+		trx_sys->mutex.exit();
 
 		ut_ad(lock_validate());
 
@@ -5271,7 +5271,7 @@ loop:
 			}
 
 			lock_mutex_exit();
-			mutex_exit(&trx_sys->mutex);
+			trx_sys->mutex.exit();
 
 			mtr_start(&mtr);
 
@@ -5284,7 +5284,7 @@ loop:
 
 			lock_mutex_enter();
 
-			mutex_enter(&trx_sys->mutex);
+			trx_sys->mutex.enter();
 
 			goto loop;
 		}
@@ -5365,7 +5365,7 @@ lock_table_queue_validate(
 	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -5425,7 +5425,7 @@ lock_rec_queue_validate(
 
 	if (!locked_lock_trx_sys) {
 		lock_mutex_enter();
-		mutex_enter(&trx_sys->mutex);
+		trx_sys->mutex.enter();
 	}
 
 	if (!page_rec_is_user_rec(rec)) {
@@ -5502,7 +5502,7 @@ lock_rec_queue_validate(
 func_exit:
 	if (!locked_lock_trx_sys) {
 		lock_mutex_exit();
-		mutex_exit(&trx_sys->mutex);
+		trx_sys->mutex.exit();
 	}
 
 	return(TRUE);
@@ -5530,7 +5530,7 @@ lock_rec_validate_page(
 	ut_ad(!lock_mutex_own());
 
 	lock_mutex_enter();
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 loop:
 	lock = lock_rec_get_first_on_page_addr(buf_block_get_space(block),
 					       buf_block_get_page_no(block));
@@ -5595,7 +5595,7 @@ loop:
 
 function_exit:
 	lock_mutex_exit();
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
@@ -5615,7 +5615,7 @@ lock_validate_table_locks(
 	const trx_t*	trx;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -5657,7 +5657,7 @@ lock_rec_validate(
 					(space, page_no) */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	for (const lock_t* lock = static_cast<const lock_t*>(
 			HASH_GET_FIRST(lock_sys->rec_hash, start));
@@ -5728,7 +5728,7 @@ lock_validate()
 {
 	lock_mutex_enter();
 
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
 	ut_a(lock_validate_table_locks(&trx_sys->ro_trx_list));
@@ -5747,16 +5747,16 @@ lock_validate()
 			ulint	page_no = lock->un_member.rec_lock.page_no;
 
 			lock_mutex_exit();
-			mutex_exit(&trx_sys->mutex);
+			trx_sys->mutex.exit();
 
 			lock_rec_block_validate(space, page_no);
 
 			lock_mutex_enter();
-			mutex_enter(&trx_sys->mutex);
+			trx_sys->mutex.enter();
 		}
 	}
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 
 	lock_mutex_exit();
 
@@ -6680,10 +6680,10 @@ lock_trx_release_locks(
 	assert_trx_in_list(trx);
 
 	if (UNIV_UNLIKELY(trx_state_eq(trx, TRX_STATE_PREPARED))) {
-		mutex_enter(&trx_sys->mutex);
+		trx_sys->mutex.enter();
 		ut_a(trx_sys->n_prepared_trx > 0);
 		trx_sys->n_prepared_trx--;
-		mutex_exit(&trx_sys->mutex);
+		trx_sys->mutex.exit();
 	} else {
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 	}
@@ -6802,7 +6802,7 @@ lock_table_locks_lookup(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys->mutex.is_owned());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -6854,12 +6854,12 @@ lock_table_has_locks(
 	lock_mutex_enter();
 
 #ifdef UNIV_DEBUG
-	mutex_enter(&trx_sys->mutex);
+	trx_sys->mutex.enter();
 
 	ut_ad(lock_table_locks_lookup(table, &trx_sys->rw_trx_list) == NULL);
 	ut_ad(lock_table_locks_lookup(table, &trx_sys->ro_trx_list) == NULL);
 
-	mutex_exit(&trx_sys->mutex);
+	trx_sys->mutex.exit();
 #endif /* UNIV_DEBUG */
 
 	has_locks = UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks > 0;

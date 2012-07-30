@@ -49,7 +49,10 @@ mutex_spin_wait(
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
-	ulint		line);		/*!< in: line where requested */
+	ulint		line,		/*!< in: line where requested */
+	bool		spin_only = false);
+					/*!< in: Don't use the sync array to
+					wait if set to true */
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Sets the debug information for a reserved mutex. */
@@ -201,7 +204,9 @@ mutex_enter_func(
 /*=============*/
 	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line)		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	bool		spin_only)	/*!< in: Don't use the sync array to
+					wait if set to true */
 {
 	ut_ad(mutex_validate(mutex));
 	ut_ad(!mutex_own(mutex));
@@ -217,7 +222,7 @@ mutex_enter_func(
 		return;	/* Succeeded! */
 	}
 
-	mutex_spin_wait(mutex, file_name, line);
+	mutex_spin_wait(mutex, file_name, line, spin_only);
 }
 
 #ifdef UNIV_PFS_MUTEX
@@ -232,7 +237,9 @@ pfs_mutex_enter_func(
 /*=================*/
 	ib_mutex_t*	mutex,	/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where locked */
-	ulint		line)		/*!< in: line where locked */
+	ulint		line,		/*!< in: line where locked */
+	bool		spin_only)	/*!< in: Don't use the sync array to
+					wait if set to true */
 {
 	if (mutex->pfs_psi != NULL) {
 		PSI_mutex_locker*	locker;
@@ -242,13 +249,13 @@ pfs_mutex_enter_func(
 			&state, mutex->pfs_psi,
 			PSI_MUTEX_LOCK, file_name, line);
 
-		mutex_enter_func(mutex, file_name, line);
+		mutex_enter_func(mutex, file_name, line, spin_only);
 
 		if (locker != NULL) {
 			PSI_MUTEX_CALL(end_mutex_wait)(locker, 0);
 		}
 	} else {
-		mutex_enter_func(mutex, file_name, line);
+		mutex_enter_func(mutex, file_name, line, spin_only);
 	}
 }
 
