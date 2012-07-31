@@ -83,6 +83,7 @@
 #cmakedefine HAVE_SYS_SHM_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_SYS_SOCKIO_H 1
+#cmakedefine HAVE_SYS_UTSNAME_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_SYS_STREAM_H 1
 #cmakedefine HAVE_SYS_TERMCAP_H 1
