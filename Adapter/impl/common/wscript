@@ -3,11 +3,18 @@ def configure(conf):
   
 def build(bld):
   libimpl = bld(
-    features = 'cxx node_addon cstaticlib',
-    source = "src/async_common.cpp src/JsConverter.cpp",
-    target = 'libimpl_common'
+    features = "cxx node_addon cstaticlib",
+    source = "src/async_common.cpp src/unified_debug.cpp",
+    target = "impl_common"
   )
   
   ddlo = bld.new_task_gen("cxx", "shlib", "node_addon")
   ddlo.target = "debug_dlopen"
   ddlo.source = "src/debug_dlopen.cpp"
+
+  udeb = bld.new_task_gen("cxx", "shlib", "node_addon") 
+  udeb.target = "unified_debug_impl"
+  udeb.source = "src/unified_debug_v8.cpp"
+  udeb.libpath = "Release/common"
+
+  

@@ -23,6 +23,9 @@
     This tests the loading of required compiled code in shared library files.
  */
 
+try {
+  require("./suite_config.js");
+} catch(e) {};
 
 var test = new harness.SmokeTest("LoadModule");
 

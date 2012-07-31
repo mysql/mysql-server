@@ -16,22 +16,22 @@
 }
  
 
-
-DBColumn = {
-  columnType : "",     //  a ColumnType
-  intSize : ""   ,     //  1,2,3,4, or 8
-  isSigned:   "" ,     //  TRUE for SIGNED; FALSE for UNSIGNED
-  isNullable: "" ,     //  TRUE if NULLABLE
-  scale: ""      ,     //  DECIMAL scale
-  precision: ""  ,     //  DECIMAL precision
-  length: ""     ,     //  CHAR or VARCHAR length
-  isBinary: ""   ,     //  TRUE for BLOB/BINARY/VARBINARY, FALSE for TEXT/CHAR/VARCHAR
-  charset: ""    ,     //  name of charset
-  name: ""       ,     //  column name
-  columnNo: ""   ,     //  position of column in table
-  isPrimaryKey: "",    //  TRUE if column is part of PK
-  userData : ""        //  Data stored in the DBColumn by the ORM layer
-};
+ DBColumn = {
+   columnType : ""  ,     //  a ColumnType
+   intSize : ""     ,     //  1,2,3,4, or 8
+   isUnsigned: ""   ,     //  TRUE for UNSIGNED
+   isNullable: ""   ,     //  TRUE if NULLABLE
+   scale: ""        ,     //  DECIMAL scale
+   precision: ""    ,     //  DECIMAL precision
+   length: ""       ,     //  CHAR or VARCHAR length
+   isBinary: ""     ,     //  TRUE for BLOB/BINARY/VARBINARY
+   charsetNumber: "",     //  internal number of charset
+   charsetName: ""  ,     //  name of charset
+   name: ""         ,     //  column name
+   columnNumber: "" ,     //  position of column in table
+   isPrimaryKey: "" ,     //  TRUE if column is part of PK
+   userData : ""          //  Data stored in the DBColumn by the ORM layer
+ };
 
 
 DBIndex = {

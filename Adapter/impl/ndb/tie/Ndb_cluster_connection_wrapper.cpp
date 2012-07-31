@@ -23,6 +23,7 @@
 
 #include "js_wrapper_macros.h"
 #include "NativeMethodCall.h"
+#include "unified_debug.h"
 
 using namespace v8;
 
@@ -30,6 +31,7 @@ using namespace v8;
 /*  Ndb_cluster_connection(const char * connectstring = 0);
 */
 Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
@@ -46,6 +48,7 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
      TODO: Is this sync or async?
 */
 Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
@@ -61,6 +64,7 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
 /* int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
 */
 Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(3);
@@ -74,6 +78,7 @@ Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
 
 
 Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(4);
@@ -95,6 +100,7 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
      ASYNC
 */
 Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(3);
@@ -114,6 +120,7 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
     IMMEDIATE
 */
 Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
@@ -127,6 +134,7 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
@@ -138,6 +146,7 @@ Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
 
 
 void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
+  DEBUG_MARKER();
   Local<FunctionTemplate> JSNdb_cluster_connection;
 
   DEFINE_JS_CLASS(JSNdb_cluster_connection, "Ndb_cluster_connection", 

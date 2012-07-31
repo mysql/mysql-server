@@ -28,6 +28,7 @@ var ndb_is_initialized = false;
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
+    udebug.log("headed to ndb_init()");
     ndbapi.ndb_init();
     ndb_is_initialized = true;
   }
@@ -37,6 +38,7 @@ function initialize_ndb() {
 /* Constructor 
 */
 exports.DBConnection = function(props) {
+  udebug.log("DBConnection constructor");
   properties = props;
   
   initialize_ndb();
@@ -90,4 +92,23 @@ exports.DBConnection.prototype.isConnected = function() {
 
 exports.DBConnection.prototype.closeSync = function() {
   ndbconn.delete();
+}
+
+
+/* openSessionHandler().
+   ASYNC.
+   Creates and opens a new DBSessionHandler.
+   Users's callback receives (error, DBSessionHandler)
+*/
+exports.DBConnection.prototype.openSessionHandler = function(user_callback) {
+  var db = properties.database;
+  assert(ndbconn);
+  assert(db == "test");
+  assert(user_callback)
+
+  var sessionImpl = ndbapi.NewDBSessionImpl(ndbconn, db, private_callback);
+
+  var private_callback = function(sess) {
+    user_callback(null, sess);
+  };
 }
