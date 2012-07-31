@@ -3028,7 +3028,7 @@ public:
     if (global_system_variables.log_warnings > threshold)
     {
       Security_context *sctx= &main_security_ctx;
-      sql_print_warning(ER(ER_NEW_ABORTING_CONNECTION),
+      sql_print_warning(ER_THD(this, ER_NEW_ABORTING_CONNECTION),
                         thread_id, (db ? db : "unconnected"),
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, reason);
