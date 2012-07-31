@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Use mysqlclient for create/drop table</key>
+	<false/>
+	<key>Wrap or reimplement CharsetMap</key>
+	<false/>
+	<key>Implement ndb/DBDcitionary</key>
+	<false/>
+	<key>waf: --mysql-source=/path for building with 7.1/7.2</key>
+	<false/>
+	<key>Support gyp alongside waf</key>
+	<false/>
+	<key>implement mysql/DBDictionary</key>
+	<false/>
+	<key>Mapped NdbError object</key>
+	<false/>
+	<key>Unified C/JS Debug framework</key>
+	<dict>
+		<key>Turn debugging on/off from JavaScript</key>
+		<true/>
+		<key>Compile-time enable/disable in C</key>
+		<true/>
+		<key>Support in waf</key>
+		<true/>
+		<key>Flush &amp; close debug file descriptor</key>
+		<false/>
+		<key>Support 3 levels: info, debug, &amp; detail</key>
+		<false/>
+	</dict>
+	<key>Notes</key>
+	<dict>
+		<key>One NDB per open session</key>
+		<false/>
+		<key>Multiple SessionFactories share a connection</key>
+		<false/>
+		<key>SessionFactory has a default database</key>
+		<false/>
+		<key>Each Session has an actual database</key>
+		<false/>
+	</dict>
+</dict>
+</plist>

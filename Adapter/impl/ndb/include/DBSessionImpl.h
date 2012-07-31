@@ -18,26 +18,13 @@
  02110-1301  USA
  */
 
-#include <v8.h>
-#include <node.h>
-#include "js_wrapper_macros.h"
-#include "JsConverter.h"
+#include "Ndbapi.hpp"
 
-using namespace v8;
-
-typedef void LOADER_FUNCTION(Handle<Object>);
-
-extern LOADER_FUNCTION Ndb_init_initOnLoad;
-extern LOADER_FUNCTION Ndb_cluster_connection_initOnLoad;
-extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
-
-void initModule(Handle<Object> target) {
-  Ndb_cluster_connection_initOnLoad(target);
-  Ndb_init_initOnLoad(target);
-  DBSessionImpl_initOnLoad(target);
-
-}
+typedef struct ndb_session_t {
+  Ndb                          * ndb;
+  NdbDictionary::Dictionary    * dict;
+  NdbError                     & err;
+} ndb_session;
 
 
-NODE_MODULE(ndbapi, initModule)
 

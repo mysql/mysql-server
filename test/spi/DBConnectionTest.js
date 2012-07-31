@@ -21,12 +21,11 @@
 var spi = require(spi_module);
 
 
-
-
 /**** Actually connect using the default properties.  
       Requires something to connect to. 
 ***/
-var connectSyncTest = function() {
+var t1 = new harness.SerialTest("connectSync");
+t1.run = function() {
   var provider = spi.getDBServiceProvider(global.adapter);
   var properties = provider.getDefaultConnectionProperties();
   var conn = provider.connectSync(properties);
@@ -35,8 +34,8 @@ var connectSyncTest = function() {
   return true; // test is complete
 };
 
-
-var connectAsyncTest = function() {
+var t2 = new harness.SerialTest("connect");
+t2.run = function() {
   var testCase = this;
   var provider = spi.getDBServiceProvider(global.adapter);
   var properties = provider.getDefaultConnectionProperties();
@@ -50,15 +49,31 @@ var connectAsyncTest = function() {
 };
 
 
-/*** spi.ndb.connectSync ***/
-var t3 = new harness.SerialTest("connectSync");
-t3.run = connectSyncTest;
+/**** Connect, leave the connection open, and get a DBSessionHandler
+*/
 
+var t3 = new harness.SerialTest("openSessionHandler");
+t3.run = function() {
+  var testCase = this;
+  var provider = spi.getDBServiceProvider(global.adapter);
+  var properties = provider.getDefaultConnectionProperties();
 
-/** spi.ndb.connect ***/
-var t7 = new harness.SerialTest("connect");
-t7.run = connectAsyncTest;
+  var tcb1 = function(err, connection) {
+    if(err) testcase.fail(err);
+    
+    var tcb2 = function(err, dbsessionhandler) {
+      if(err) testcase.fail(err);
+      else testcase.pass();
+    }
+
+    connection.openSessionHandler(tcb2);
+  }
+
+  provider.connect(properties, tcb1);
+}
 
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t3, t7];
+// module.exports.tests = [t1, t2, t3];
+
+module.exports.tests = [t3];
