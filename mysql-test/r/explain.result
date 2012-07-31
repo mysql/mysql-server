@@ -122,6 +122,46 @@ KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
 KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
 KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
 KEY(b),KEY(b),KEY(b),KEY(b),KEY(b));
+Warnings:
+Warning	1831	Duplicate index 'b_2' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_3' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_4' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_5' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_6' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_7' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_8' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_9' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_10' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_11' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_12' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_13' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_14' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_15' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_16' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_17' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_18' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_19' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_20' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_21' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_22' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_23' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_24' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_25' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_26' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_27' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_28' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_29' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_30' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_31' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_32' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_33' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_34' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_35' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_36' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_37' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_38' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_39' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_40' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
 INSERT INTO t2 VALUES (),(),();
 EXPLAIN SELECT 1 FROM
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
