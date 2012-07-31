@@ -40,7 +40,7 @@ FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql)
   ENDFOREACH()
 ENDFOREACH()
 FILE(READ ${CMAKE_SOURCE_DIR}/scripts/fill_help_tables.sql CONTENTS)
-FILE(APPEND bootstrap.sql ${CONTENTS})
+FILE(APPEND bootstrap.sql "${CONTENTS}")
 
 
 FILE(REMOVE_RECURSE mysql performance_schema)
