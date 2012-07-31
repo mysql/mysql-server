@@ -113,3 +113,18 @@ if($fixed_bug_25705)
 --source include/show_binlog_events.inc
 
 enable_warnings;
+
+# Drop comments in binlog
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+CREATE TABLE t1(id int);
+DROP TABLE /* comment */ t1;
+CREATE TABLE t1(id int);
+DROP TABLE IF EXISTS /* comment */ t1;
+
+CREATE TABLE t1(id int);
+DROP TABLE /**/ t1;
+CREATE TABLE t1(id int);
+DROP TABLE IF EXISTS /* */ t1;
+
+--source include/show_binlog_events.inc
+

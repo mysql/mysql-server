@@ -1944,6 +1944,49 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
 
 /**
+  Find the comment in the query.
+  That's auxiliary function to be used handling DROP TABLE [comment].
+
+  @param  thd             Thread handler
+  @param  comment_pos     How many characters to skip before the comment.
+                          Can be either 9 for DROP TABLE or
+                          17 for DROP TABLE IF EXISTS
+  @param  comment_start   returns the beginning of the comment if found.
+
+  @retval  0  no comment found
+  @retval  >0 the lenght of the comment found
+
+*/
+static uint32 comment_length(THD *thd, uint32 comment_pos,
+                             const char **comment_start)
+{
+  const char *query= thd->query();
+  const char *query_end= query + thd->query_length();
+  const uchar *const state_map= thd->charset()->state_map;
+
+  for (; query < query_end; query++)
+  {
+    if (state_map[*query] == MY_LEX_SKIP)
+      continue;
+    if (comment_pos-- == 0)
+      break;
+  }
+  if (query > query_end - 3 /* comment can't be shorter than 4 */ ||
+      state_map[*query] != MY_LEX_LONG_COMMENT || query[1] != '*')
+    return 0;
+  
+  *comment_start= query;
+  
+  for (query+= 3; query < query_end; query++)
+  {
+    if (query[-1] == '*' && query[0] == '/')
+      return query - *comment_start + 1;
+  }
+  return 0;
+}
+
+
+/**
   Execute the drop of a normal or temporary table.
 
   @param  thd             Thread handler
@@ -2018,11 +2061,20 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     if (!drop_temporary)
     {
+      const char *comment_start;
+      uint32 comment_len;
+
       built_query.set_charset(system_charset_info);
       if (if_exists)
         built_query.append("DROP TABLE IF EXISTS ");
       else
         built_query.append("DROP TABLE ");
+
+      if ((comment_len= comment_length(thd, if_exists ? 17:9, &comment_start)))
+      {
+        built_query.append(comment_start, comment_len);
+        built_query.append(" ");
+      }
     }
 
     if (thd->is_current_stmt_binlog_format_row() || if_exists)
