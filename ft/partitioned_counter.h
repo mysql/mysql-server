@@ -27,19 +27,74 @@
 //   destroy_partitioned_counter   Destroy it.
 //   increment_partitioned_counter Increment it.  This is the frequent operation.
 //   read_partitioned_counter      Get the current value.  This is infrequent.
+// See partitioned_counter.cc for the abstraction function and representation invariant.
+//
+// The google style guide says to avoid using constructors, and it appears that
+// constructors may have broken all the tests, because they called
+// pthread_key_create before the key was actually created.  So the google style
+// guide may have some wisdom there...
+//
+// This version does not use constructors, essentially reverrting to the google C++ style guide.
+//
 
+#include "fttypes.h"
+
+// The old C interface.  This required a bunch of explicit ___attribute__((__destructor__)) functions to remember to destroy counters at the end.
 typedef struct partitioned_counter *PARTITIONED_COUNTER;
 PARTITIONED_COUNTER create_partitioned_counter(void);
 // Effect: Create a counter, initialized to zero.
 
-void destroy_partitioned_counter (PARTITIONED_COUNTER);
+void destroy_partitioned_counter(PARTITIONED_COUNTER);
 // Effect: Destroy the counter.  No operations on that counter are permitted after this.
 
-void increment_partitioned_counter (PARTITIONED_COUNTER, unsigned long amount);
+void increment_partitioned_counter(PARTITIONED_COUNTER, uint64_t amount);
 // Effect: Increment the counter by amount.
 // Requires: No overflows.  This is a 64-bit unsigned counter.
 
-unsigned long read_partitioned_counter (PARTITIONED_COUNTER);
+uint64_t read_partitioned_counter(PARTITIONED_COUNTER);
 // Effect: Return the current value of the counter.
+
+void partitioned_counters_init(void);
+// Effect: Initialize any partitioned counters data structures that must be set up before any partitioned counters run.
+
+void partitioned_counters_destroy(void);
+// Effect: Destroy any partitioned counters data structures.
+
+#if 0
+#include <pthread.h>
+#include "fttypes.h"
+
+// Used inside the PARTITIONED_COUNTER.
+struct linked_list_head {
+    struct linked_list_element *first;
+};
+
+
+class PARTITIONED_COUNTER {
+public:
+    PARTITIONED_COUNTER(void);
+    // Effect: Construct a counter, initialized to zero.
+
+    ~PARTITIONED_COUNTER(void);
+    // Effect: Destruct the counter.
+
+    void increment(uint64_t amount);
+    // Effect: Increment the counter by amount.  This is a 64-bit unsigned counter, and if you overflow it, you will get overflowed results (that is mod 2^64).
+    // Requires: Don't use this from a static constructor or destructor.
+
+    uint64_t read(void);
+    // Effect: Read the sum.
+    // Requires: Don't use this from a static constructor or destructor.
+
+private:
+    uint64_t       _sum_of_dead;             // The sum of all thread-local counts from threads that have terminated.
+    pthread_key_t   _key;                     // The pthread_key which gives us the hook to construct and destruct thread-local storage.
+    struct linked_list_head _ll_counter_head; // A linked list of all the thread-local information for this counter.
+    
+    // This function is used to destroy the thread-local part of the state when a thread terminates.
+    // But it's not the destructor for the local part of the counter, it's a destructor on a "dummy" key just so that we get a notification when a thread ends.
+    friend void destroy_thread_local_part_of_partitioned_counters (void *);
+};
+#endif
 
 #endif

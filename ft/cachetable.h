@@ -507,5 +507,11 @@ extern int toku_cachetable_get_checkpointing_user_data_status(void);
 int
 toku_cleaner_thread (void *cachetable_v);
 
+void toku_cachetables_init (void);
+// Effect: Initialize the cachetables module.  CDall this before calling any other cachetable operations.
+
+void toku_cachetables_destroy (void);
+// Effect: Deinitialize the cachetables module.  CDall this after calling any other cachetable operations to free resources that may have been allocated.
+//  To use the cachetable module again, call toku_cachetables_init() again.
 
 #endif
