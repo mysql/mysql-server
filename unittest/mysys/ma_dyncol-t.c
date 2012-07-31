@@ -194,7 +194,7 @@ static CHARSET_INFO *charset_list[]=
 #endif
 #ifdef HAVE_CHARSET_utf8
   &my_charset_utf8_general_ci,
-#ifdef HAVE_HAVE_UCA_COLLATIONS
+#ifdef HAVE_UCA_COLLATIONS
   &my_charset_utf8_unicode_ci,
 #endif
   &my_charset_utf8_bin,

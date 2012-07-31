@@ -287,5 +287,5 @@ public:
   int fill_statistics_info(THD *thd, TABLE_LIST *tables, Item *cond);
 };
 
-#  endif /* HAVE_PROFILING */
+#  endif /* ENABLED_PROFILING */
 #endif /* _SQL_PROFILE_H */

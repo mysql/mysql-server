@@ -212,7 +212,7 @@ int my_lock(File fd, int locktype, my_off_t start, my_off_t length,
   if (lockf(fd,locktype,length) != -1)
     DBUG_RETURN(0);
 #endif /* HAVE_FCNTL */
-#endif /* HAVE_LOCKING */
+#endif /* _WIN32 */
 
   /* We got an error. We don't want EACCES errors */
   my_errno=(errno == EACCES) ? EAGAIN : errno ? errno : -1;

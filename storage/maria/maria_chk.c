@@ -21,9 +21,6 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_getopt.h>
-#ifdef HAVE_SYS_VADVICE_H
-#include <sys/vadvise.h>
-#endif
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif

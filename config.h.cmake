@@ -46,6 +46,7 @@
 #cmakedefine HAVE_IEEEFP_H 1
 #cmakedefine HAVE_INTTYPES_H 1
 #cmakedefine HAVE_LIMITS_H 1
+#cmakedefine HAVE_LINUX_UNISTD_H 1
 #cmakedefine HAVE_LOCALE_H 1
 #cmakedefine HAVE_MALLOC_H 1
 #cmakedefine HAVE_MEMORY_H 1
@@ -131,6 +132,7 @@
 #cmakedefine FIONREAD_IN_SYS_FILIO 1
 
 /* Functions we may want to use. */
+#cmakedefine HAVE_ACCESS 1
 #cmakedefine HAVE_AIOWAIT 1
 #cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_ALLOCA 1
@@ -152,6 +154,7 @@
 #cmakedefine HAVE_FCONVERT 1
 #cmakedefine HAVE_FDATASYNC 1
 #cmakedefine HAVE_DECL_FDATASYNC 1
+#cmakedefine HAVE_FEDISABLEEXCEPT 1
 #cmakedefine HAVE_FESETROUND 1
 #cmakedefine HAVE_FINITE 1
 #cmakedefine HAVE_FP_EXCEPT 1
@@ -176,6 +179,7 @@
 #cmakedefine HAVE_GETWD 1
 #cmakedefine HAVE_GMTIME_R 1
 #cmakedefine gmtime_r @gmtime_r@
+#cmakedefine HAVE_IN_ADDR_T 1
 #cmakedefine HAVE_INITGROUPS 1
 #cmakedefine HAVE_ISSETUGID 1
 #cmakedefine HAVE_GETUID 1
@@ -216,6 +220,7 @@
 #cmakedefine HAVE_RDTSCLL 1
 #cmakedefine HAVE_READ_REAL_TIME 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
+#cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSCHEDPARAM 1
@@ -248,6 +253,7 @@
 #cmakedefine HAVE_SETFD 1
 #cmakedefine HAVE_SETENV 1
 #cmakedefine HAVE_SETLOCALE 1
+#cmakedefine HAVE_SETUPTERM 1
 #cmakedefine HAVE_SIGADDSET 1
 #cmakedefine HAVE_SIGEMPTYSET 1
 #cmakedefine HAVE_SIGHOLD 1
@@ -285,6 +291,7 @@
 #cmakedefine HAVE_TIME 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VALLOC 1
+#cmakedefine HAVE_VIDATTR 1
 #define HAVE_VIO_READ_BUFF 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_VPRINTF 1

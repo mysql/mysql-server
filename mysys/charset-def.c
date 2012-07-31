@@ -326,7 +326,7 @@ my_bool init_compiled_charsets(myf flags __attribute__((unused)))
   add_compiled_collation(&my_charset_utf16_hungarian_uca_ci);
   add_compiled_collation(&my_charset_utf16_sinhala_uca_ci);
   add_compiled_collation(&my_charset_utf16_croatian_uca_ci);
-#endif /* HAVE_UCA_COLLATIOINS */
+#endif /* HAVE_UCA_COLLATIONS */
 #endif /* HAVE_CHARSET_utf16 */
 
 

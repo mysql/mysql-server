@@ -138,23 +138,6 @@ extern "C" sig_handler handle_fatal_signal(int sig)
   my_safe_printf_stderr("%s",
     "Hope that's ok; if not, decrease some variables in the equation.\n\n");
 
-#if defined(HAVE_LINUXTHREADS)
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-  if (sizeof(char*) == 4 && thread_count > UNSAFE_DEFAULT_LINUX_THREADS)
-  {
-    my_safe_printf_stderr(
-      "You seem to be running 32-bit Linux and have "
-      "%d concurrent connections.\n"
-      "If you have not changed STACK_SIZE in LinuxThreads "
-      "and built the binary \n"
-      "yourself, LinuxThreads is quite likely to steal "
-      "a part of the global heap for\n"
-      "the thread stack. Please read "
-      "http://dev.mysql.com/doc/mysql/en/linux-installation.html\n\n"
-      thread_count);
-  }
-#endif /* HAVE_LINUXTHREADS */
-
 #ifdef HAVE_STACKTRACE
   thd= current_thd;
 

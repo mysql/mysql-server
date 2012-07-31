@@ -23,10 +23,6 @@
 #include <m_string.h>
 #include <m_ctype.h>
 
-#if defined(HAVE_BROKEN_GETPASS) && !defined(HAVE_GETPASSPHRASE)
-#undef HAVE_GETPASS
-#endif
-
 #ifdef HAVE_GETPASS
 #ifdef HAVE_PWD_H
 #include <pwd.h>

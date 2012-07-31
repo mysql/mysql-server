@@ -330,9 +330,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     if (!share->temporary)
       flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
                        FLUSH_KEEP);
-#ifdef HAVE_PWRITE
     _mi_decrement_open_count(info);
-#endif
     if (share->not_flushed)
     {
       share->not_flushed=0;

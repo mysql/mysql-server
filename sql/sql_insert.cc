@@ -2781,9 +2781,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
         {
           int error;
           mysql_audit_release(thd);
-#if defined(HAVE_BROKEN_COND_TIMEDWAIT)
-          error= mysql_cond_wait(&di->cond, &di->mutex);
-#else
           error= mysql_cond_timedwait(&di->cond, &di->mutex, &abstime);
 #ifdef EXTRA_DEBUG
           if (error && error != EINTR && error != ETIMEDOUT)
@@ -2792,7 +2789,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
             DBUG_PRINT("error", ("Got error %d from mysql_cond_timedwait",
                                  error));
           }
-#endif
 #endif
           if (error == ETIMEDOUT || error == ETIME)
             thd->killed= KILL_CONNECTION;

@@ -62,13 +62,9 @@
 
 # define bmove_align(A,B,C)     memcpy((A),(B),(C))
 
-#if !defined(HAVE_BCMP)
 # define bcmp(A,B,C)		memcmp((A),(B),(C))
-#endif
 
-#if !defined(bzero) && (!defined(HAVE_BZERO) || !HAVE_DECL_BZERO || defined(_AIX))
-/* See autoconf doku: "HAVE_DECL_symbol" will be defined after configure, to 0 or 1 */
-/* AIX has bzero() as a function, but the declaration prototype is strangely hidden */
+#if !defined(bzero)
 # define bzero(A,B)             memset((A),0,(B))
 #endif
 

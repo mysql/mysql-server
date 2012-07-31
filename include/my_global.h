@@ -229,11 +229,6 @@
 #include <sys/types.h>
 #endif
 
-#ifdef HAVE_THREADS_WITHOUT_SOCKETS
-/* MIT pthreads does not work with unix sockets */
-#undef HAVE_SYS_UN_H
-#endif
-
 #define __EXTENSIONS__ 1	/* We want some extension */
 #ifndef __STDC_EXT__
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
@@ -305,18 +300,6 @@ C_MODE_START
 inline double my_ulonglong2double(unsigned long long A) { return (double A); }
 C_MODE_END
 #endif /* _AIX */
-
-#ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
-#undef HAVE_SNPRINTF
-#endif
-#ifdef HAVE_BROKEN_PREAD
-/*
-  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
-  installing the kernel patch PHKL_20349 or greater
-*/
-#undef HAVE_PREAD
-#undef HAVE_PWRITE
-#endif
 
 #ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
 #undef HAVE_INITGROUPS
@@ -823,18 +806,7 @@ inline unsigned long long my_double2ulonglong(double d)
 #endif
 
 #ifdef HAVE_ISINF
-/* Check if C compiler is affected by GCC bug #39228 */
-#if !defined(__cplusplus) && defined(HAVE_BROKEN_ISINF)
-/* Force store/reload of the argument to/from a 64-bit double */
-static inline double my_isinf(double x)
-{
-  volatile double t= x;
-  return isinf(t);
-}
-#else
-/* System-provided isinf() is available and safe to use */
 #define my_isinf(X) isinf(X)
-#endif
 #else /* !HAVE_ISINF */
 #define my_isinf(X) (!finite(X) && !isnan(X))
 #endif

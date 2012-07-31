@@ -43,9 +43,6 @@
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
 #undef safe_mutex_free_deadlock_data
-#ifdef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT
-#define pthread_mutex_init(a,b) my_pthread_noposix_mutex_init((a),(b))
-#endif
 #endif /* DO_NOT_REMOVE_THREAD_WRAPPERS */
 
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP

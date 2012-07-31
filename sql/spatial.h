@@ -554,5 +554,5 @@ public:
 struct Geometry_buffer : public
   my_aligned_storage<sizeof(Gis_point), MY_ALIGNOF(Gis_point)> {};
 
-#endif /*HAVE_SPATAIAL*/
+#endif /*HAVE_SPATIAL*/
 #endif
