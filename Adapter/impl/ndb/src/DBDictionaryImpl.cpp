@@ -90,6 +90,7 @@ public:
    Callback will receive an int.
 */
 Handle<Value> listTables(const Arguments &args) {
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(2);
@@ -328,7 +329,7 @@ Handle<Object> buildDBColumn(NdbDictionary::Column *col) {
 
 
 void DBDictionary_initOnLoad(Handle<Object> target) {
-  DEFINE_JS_FUNCTION(target, "", );
+  DEFINE_JS_FUNCTION(target, "listTables", listTables );
   
 }
 

@@ -28,6 +28,7 @@ var ndb_is_initialized = false;
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
+    udebug.log("headed to ndb_init()");
     ndbapi.ndb_init();
     ndb_is_initialized = true;
   }
@@ -37,6 +38,7 @@ function initialize_ndb() {
 /* Constructor 
 */
 exports.DBConnection = function(props) {
+  udebug.log("DBConnection constructor");
   properties = props;
   
   initialize_ndb();
@@ -64,10 +66,8 @@ exports.DBConnection.prototype.connectSync = function() {
 */
 exports.DBConnection.prototype.connect = function(user_callback) {
   var theDbConn = this;
-  console.log("DBConenction.connect");
   
   var NdbConnection_callback = function(rval) { 
-    console.log("NdbConnection_callback");
     var err = null;
     if(rval != 0) 
       err = new Error('NDB Connect failed' + rval);

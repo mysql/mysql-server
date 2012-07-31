@@ -16,9 +16,11 @@ global.build_dir       = path.join(adapter_dir, "impl", "build", "Release");
 
 global.spi_module      = path.join(adapter_dir, "impl", "SPI.js");
 global.api_module      = path.join(adapter_dir, "api", "mynode.js");
+global.udebug_module   = path.join(adapter_dir, "api", "unified_debug.js");
 
 global.harness         = require(path.join(__dirname, "harness"));
 global.mynode          = require(api_module);
+global.udebug          = require(udebug_module);
 
 global.debug           = false;
 global.adapter         = "ndb";

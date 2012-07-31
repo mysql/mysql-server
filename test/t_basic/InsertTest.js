@@ -57,4 +57,4 @@ t1.run = testInsert;
 
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t1];
+module.exports = t1;

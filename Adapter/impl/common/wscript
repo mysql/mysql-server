@@ -15,7 +15,6 @@ def build(bld):
   udeb = bld.new_task_gen("cxx", "shlib", "node_addon") 
   udeb.target = "unified_debug_impl"
   udeb.source = "src/unified_debug_v8.cpp"
-  udeb.staticlib = "impl_common"
   udeb.libpath = "Release/common"
 
   

@@ -114,6 +114,7 @@ for(var i = 2; i < process.argv.length ; i++) {
   case '-d':
     console.log('Setting debug to true');
     debug = true;
+    udebug.on();
     break;
   case '--help':
   case '-h':
