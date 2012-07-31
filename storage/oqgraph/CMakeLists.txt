@@ -1,4 +1,4 @@
-FIND_PACKAGE(Boost 1.45.0) # we need at least 1.45 if we want  -fno-rtti for the server
+FIND_PACKAGE(Boost 1.40.0)
 IF(NOT Boost_FOUND)
   RETURN()
 ENDIF()
@@ -8,7 +8,13 @@ INCLUDE_DIRECTORIES(BEFORE ${Boost_INCLUDE_DIRS})
 IF(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(BOOST_OK 0)
 ELSE()
-  SET(BOOST_OK 1)
+# See if that works. On old gcc it'll fail because of -fno-rtti
+CHECK_CXX_SOURCE_COMPILES(
+"
+#include <boost/config.hpp>
+#include <boost/property_map/property_map.hpp>
+int main() { return 0; }
+" BOOST_OK)
 ENDIF()
 
 IF(BOOST_OK)
