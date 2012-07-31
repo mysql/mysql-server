@@ -26,6 +26,8 @@
 		<true/>
 		<key>Flush &amp; close debug file descriptor</key>
 		<false/>
+		<key>Support 3 levels: info, debug, &amp; detail</key>
+		<false/>
 	</dict>
 	<key>Notes</key>
 	<dict>

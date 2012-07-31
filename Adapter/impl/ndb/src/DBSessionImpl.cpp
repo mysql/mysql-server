@@ -61,7 +61,7 @@ ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
    Callback will receive an ndb_session *.
 */
 Handle<Value>NewDBSessionImpl(const Arguments &args) {
-  DEBUG_ENTER();
+  DEBUG_MARKER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(3);
@@ -74,13 +74,13 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   ncallptr->setCallback(args[2]);
   ncallptr->runAsync();
 
-  DEBUG_TRACE();
   return scope.Close(JS_VOID_RETURN);
 }
 
 
 
 void DBSessionImpl_initOnLoad(Handle<Object> target) {
+  DEBUG_MARKER();
   DEFINE_JS_FUNCTION(target, "NewDBSessionImpl", NewDBSessionImpl);
 }
 

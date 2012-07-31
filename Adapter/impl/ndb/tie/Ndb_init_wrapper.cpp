@@ -30,7 +30,7 @@ using namespace v8;
 /* int ndb_init(void) 
 */
 Handle<Value> Ndb_init_wrapper(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_ENTER();
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);
@@ -38,6 +38,7 @@ Handle<Value> Ndb_init_wrapper(const Arguments &args) {
   NativeCFunctionCall_0_<int> ncall(args);
   ncall.function = & ndb_init;
   ncall.run();
+  DEBUG_TRACE();
   
   return scope.Close(ncall.jsReturnVal());
 }

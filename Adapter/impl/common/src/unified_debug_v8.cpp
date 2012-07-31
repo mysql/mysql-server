@@ -33,25 +33,13 @@ using namespace v8;
 // udeb_add_drop
 // udeb_destination
 
-extern int uni_debug;
-
 Handle<Value> js_udeb_switch(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
   
   int i = args[0]->ToInt32()->Value();
-  
-  switch(i) {
-    case 0:
-      unified_debug_off();
-      break;
-    case 1:
-      unified_debug_on();
-      break;
-    default:
-      break;
-  }
+  udeb_switch(i);
   
   return scope.Close(Null());
 }
@@ -60,13 +48,14 @@ Handle<Value> js_udeb_switch(const Arguments &args) {
 Handle<Value> js_udeb_print(const Arguments &args) {
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(2);
+  REQUIRE_ARGS_LENGTH(3);
 
-  if(uni_debug) { 
+  if(uni_dbg()) {
     String::AsciiValue source_file(args[0]);
-    String::AsciiValue message(args[1]);
+    int level = args[1]->ToInt32()->Value();
+    String::AsciiValue message(args[2]);
     
-    udeb_print(*source_file, *message);
+    udeb_print(*source_file, level, *message);
   }
   return scope.Close(Null());
 }
@@ -126,6 +115,9 @@ void initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "udeb_select"     , js_udeb_select );
   DEFINE_JS_FUNCTION(target, "udeb_add_drop"   , js_udeb_add_drop );
   DEFINE_JS_FUNCTION(target, "udeb_destination", js_udeb_destination);
+  NODE_DEFINE_CONSTANT(target, UDEB_INFO);
+  NODE_DEFINE_CONSTANT(target, UDEB_DEBUG);
+  NODE_DEFINE_CONSTANT(target, UDEB_DETAIL);
 }
 
 NODE_MODULE(unified_debug_impl, initOnLoad)

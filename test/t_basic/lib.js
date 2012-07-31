@@ -35,7 +35,7 @@ global.t_basic_key = function(id) {
 };
 
 /** Verify the instance or fail the test case */
-global.fail_verify_t_basic = function(err, testCase, id, instance) {
+global.fail_verify_t_basic = function(err, instance, id, testCase) {
   if (err) {
     testCase.fail(err);
   }
@@ -67,7 +67,7 @@ global.fail_openSession = function(testCase, callback) {
     if (err) {
       testCase.fail(err);
     }
-    callback(session);
+    callback(session, testCase);
  });
 };
 

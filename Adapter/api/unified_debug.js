@@ -37,8 +37,17 @@ var path = require("path"),
  *
  * debug.on()                       // turn debugging on
  * debug.off()                      // turn debugging off
+ * debug.level_info()               // set output level to INFO
+ * debug.level_debug()              // set output level to DEBUG
+ * debug.level_detail()             // set output level to DETAIL
+ *
  * debug.destination(<log_file>)    // direct output to log_file
- * debug.log(<message>)             // write debugging message
+ *
+ * debug.log(<message>)             // write debugging message (at DEBUG level)
+ * debug.log_info(<message>)        // write message at INFO level
+ * debug.log_debug(<message>)       // same as debug.log
+ * debug.log_detail(<message>)      // write message at DETAIL level
+ *
  * debug.all_files()                // enable messages from all source files
  * debug.all_but_selected()         //  ... from all files except those selected
  * debug.none_but_selected()        //  ... from selected source files only
@@ -60,21 +69,54 @@ exports.destination = function(filename) {
 */
 exports.on = function() {
   impl.udeb_switch(1);
+  exports.log("unified debug enabled");
 }
 
 /* Turn debugging output off.
 */
 exports.off = function() {
+  exports.log("unified debug disabled");
   impl.udeb_switch(0);
 }
+
+/* Set the logging level
+*/
+exports.level_info = function() {
+  impl.udeb_switch(impl.UDEB_INFO);
+}
+
+exports.level_debug = function() {
+  impl.udeb_switch(impl.UDEB_DEBUG);
+}
+
+exports.level_detail = function() {
+  impl.udeb_switch(impl.UDEB_DETAIL);
+}
+
 
 /* Write a message to the debugging destination.
    By default, if debugging is on, all messages are logged.
    However, it is also possible to enable logging only from specific 
    source code files (see below).
 */
-exports.log = function(message) {
-  impl.udeb_print(path.basename(module.parent.filename), message);
+exports.log_debug = function(message) {
+  impl.udeb_print(path.basename(module.parent.filename), impl.UDEB_DEBUG, message);
+}
+
+/* By default, log at DEBUG level
+*/
+exports.log = exports.log_debug;
+
+/* Write a message at INFO level
+*/
+exports.log_info = function(message) {
+  impl.udeb_print(path.basename(module.parent.filename), impl.UDEB_INFO, message);
+}
+
+/* Write a message at DETAIL level
+*/
+exports.log_detail = function(message) {
+  impl.udeb_print(path.basename(module.parent.filename), impl.UDEB_DETAIL, message);
 }
 
 /* Enable debugging output from all source files.
