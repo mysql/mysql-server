@@ -33,7 +33,7 @@ export TOKUDB_NAME=$tokudb_name
 
 productname=$tokudb_name
 
-ftcc=icc
+ftcc=g++47
 BDBVERSION=5.3
 ctest_model=Nightly
 commit=1
@@ -68,23 +68,8 @@ date=$(date +%Y%m%d)
 ncpus=$(grep bogomips /proc/cpuinfo | wc -l)
 njobs=$(echo "$ncpus / 3" | bc)
 
-# setup intel compiler env
-if [ $ftcc = icc ] ; then
-    d=/opt/intel/bin
-    if [ -d $d ] ; then
-	export PATH=$d:$PATH
-	. $d/compilervars.sh intel64
-    fi
-    d=/opt/intel/cilkutil/bin
-    if [ -d $d ] ; then
-	export PATH=$d:$PATH
-    fi
-    export ftar=`which xiar`
-    export ftld=`which xild`
-else
-    export ftar=`which ar`
-    export ftld=`which ld`
-fi
+export ftar=`which ar`
+export ftld=`which ld`
 
 export GCCVERSION=$($ftcc --version|head -1|cut -f3 -d" ")
 
@@ -156,91 +141,6 @@ function my_mktemp() {
 
 yesterday="$(date -u -d yesterday +%F) 03:59:00 +0000"
 
-################################################################################
-## run tests on icc release build
-resultsdir=$tracefilepfx-Release
-mkdir $resultsdir
-tracefile=$tracefilepfx-Release/trace
-
-getsysinfo $tracefile
-
-mkdir -p $FULLTOKUDBDIR/Release >/dev/null 2>&1
-cd $FULLTOKUDBDIR/Release
-cmake \
-    -D CMAKE_BUILD_TYPE=Release \
-    -D INTEL_CC=ON \
-    -D BUILD_TESTING=ON \
-    -D USE_BDB=ON \
-    -D RUN_LONG_TESTS=ON \
-    -D USE_CILK=OFF \
-    -D USE_CTAGS=OFF \
-    -D USE_GTAGS=OFF \
-    -D USE_ETAGS=OFF \
-    -D USE_CSCOPE=OFF \
-    .. 2>&1 | tee -a $tracefile
-cmake --system-information $resultsdir/sysinfo
-make clean
-# update to yesterday exactly just before ctest does nightly update
-svn up -q -r "{$yesterday}" ..
-set +e
-ctest -j$njobs \
-    -D ${ctest_model}Start \
-    -D ${ctest_model}Update \
-    -D ${ctest_model}Configure \
-    -D ${ctest_model}Build \
-    -D ${ctest_model}Test \
-    2>&1 | tee -a $tracefile
-set -e
-
-cp $tracefile notes.txt
-set +e
-ctest -D ${ctest_model}Submit -A notes.txt \
-    2>&1 | tee -a $tracefile
-set -e
-rm notes.txt
-
-tag=$(head -n1 Testing/TAG)
-cp -r Testing/$tag $resultsdir
-if [[ $commit -eq 1 ]]; then
-    cf=$(my_mktemp ftresult)
-    cat "$resultsdir/trace" | awk '
-/[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+/ {
-    fail=$4;
-    total=$9;
-    pass=total-fail;
-    ORS=" ";
-    if (fail>0) {
-        print "FAIL=" fail
-    }
-    print "PASS=" pass
-}' >"$cf"
-    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
-    echo -n " " >>"$cf"
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    FS=": ";
-}
-/Build name/ {
-    print $2;
-    exit
-}' >>"$cf"
-    (echo; echo) >>"$cf"
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    printit=0
-}
-/[0-9]*\% tests passed, [0-9]* tests failed out of [0-9]*/ { printit=1 }
-/^   Site:/ { printit=0 }
-{
-    if (printit) {
-        print $0
-    }
-}' >>"$cf"
-    svn add $resultsdir
-    svn commit -F "$cf" $resultsdir
-    rm $cf
-fi
-
 if [[ $commit -eq 1 ]]; then
     # hack to make long tests run nightly but not when run in experimental mode
     longtests=ON
@@ -248,211 +148,10 @@ else
     longtests=OFF
 fi
 ################################################################################
-## run gcov on gcc debug build
-resultsdir=$tracefilepfx-Coverage
-mkdir $resultsdir
-tracefile=$tracefilepfx-Coverage/trace
-
-getsysinfo $tracefile
-
-mkdir -p $FULLTOKUDBDIR/Coverage >/dev/null 2>&1
-cd $FULLTOKUDBDIR/Coverage
-CC=gcc47 CXX=g++47 cmake \
-    -D CMAKE_BUILD_TYPE=Debug \
-    -D BUILD_TESTING=ON \
-    -D USE_GCOV=ON \
-    -D USE_BDB=OFF \
-    -D RUN_LONG_TESTS=$longtests \
-    -D USE_CILK=OFF \
-    -D USE_CTAGS=OFF \
-    -D USE_GTAGS=OFF \
-    -D USE_ETAGS=OFF \
-    -D USE_CSCOPE=OFF \
-    .. 2>&1 | tee -a $tracefile
-cmake --system-information $resultsdir/sysinfo
-make clean
-# update to yesterday exactly just before ctest does nightly update
-svn up -q -r "{$yesterday}" ..
-set +e
-ctest -j$njobs \
-    -D ${ctest_model}Start \
-    -D ${ctest_model}Update \
-    -D ${ctest_model}Configure \
-    -D ${ctest_model}Build \
-    -D ${ctest_model}Test \
-    -D ${ctest_model}Coverage \
-    2>&1 | tee -a $tracefile
-set -e
-
-cp $tracefile notes.txt
-set +e
-ctest -D ${ctest_model}Submit -A notes.txt \
-    2>&1 | tee -a $tracefile
-set -e
-rm notes.txt
-
-tag=$(head -n1 Testing/TAG)
-cp -r Testing/$tag $resultsdir
-if [[ $commit -eq 1 ]]; then
-    cf=$(my_mktemp ftresult)
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    ORS=" ";
-}
-/Percentage Coverage:/ {
-    covpct=$3;
-}
-/[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+/ {
-    fail=$4;
-    total=$9;
-    pass=total-fail;
-}
-END {
-    print "COVERAGE=" covpct
-    if (fail>0) {
-        print "FAIL=" fail
-    }
-    print "PASS=" pass
-}' >"$cf"
-    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
-    echo -n " " >>"$cf"
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    FS=": ";
-}
-/Build name/ {
-    print $2;
-    exit
-}' >>"$cf"
-    (echo; echo) >>"$cf"
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    printit=0
-}
-/[0-9]*\% tests passed, [0-9]* tests failed out of [0-9]*/ { printit=1 }
-/^   Site:/ { printit=0 }
-{
-    if (printit) {
-        print $0
-    }
-}' >>"$cf"
-    svn add $resultsdir
-    svn commit -F "$cf" $resultsdir
-    rm $cf
-fi
-
-################################################################################
-## run valgrind on icc debug build
-resultsdir=$tracefilepfx-Debug
-mkdir $resultsdir
-tracefile=$tracefilepfx-Debug/trace
-
-getsysinfo $tracefile
-
-mkdir -p $FULLTOKUDBDIR/Debug >/dev/null 2>&1
-cd $FULLTOKUDBDIR/Debug
-cmake \
-    -D CMAKE_BUILD_TYPE=Debug \
-    -D INTEL_CC=ON \
-    -D BUILD_TESTING=ON \
-    -D USE_BDB=OFF \
-    -D RUN_LONG_TESTS=$longtests \
-    -D USE_CILK=OFF \
-    -D USE_CTAGS=OFF \
-    -D USE_GTAGS=OFF \
-    -D USE_ETAGS=OFF \
-    -D USE_CSCOPE=OFF \
-    .. 2>&1 | tee -a $tracefile
-cmake --system-information $resultsdir/sysinfo
-make clean
-# update to yesterday exactly just before ctest does nightly update
-svn up -q -r "{$yesterday}" ..
-set +e
-ctest -j$njobs \
-    -D ${ctest_model}Start \
-    -D ${ctest_model}Update \
-    -D ${ctest_model}Configure \
-    -D ${ctest_model}Build \
-    -D ${ctest_model}Test \
-    -D ${ctest_model}MemCheck \
-    2>&1 | tee -a $tracefile
-set -e
-
-cp $tracefile notes.txt
-set +e
-ctest -D ${ctest_model}Submit -A notes.txt \
-    2>&1 | tee -a $tracefile
-set -e
-rm notes.txt
-
-tag=$(head -n1 Testing/TAG)
-cp -r Testing/$tag $resultsdir
-if [[ $commit -eq 1 ]]; then
-    cf=$(my_mktemp ftresult)
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    errs=0;
-    look=0;
-    ORS=" ";
-}
-/[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+/ {
-    fail=$4;
-    total=$9;
-    pass=total-fail;
-}
-/^Memory checking results:/ {
-    look=1;
-    FS=" - ";
-}
-/Errors while running CTest/ {
-    look=0;
-    FS=" ";
-}
-{
-    if (look) {
-        errs+=$2;
-    }
-}
-END {
-    print "ERRORS=" errs;
-    if (fail>0) {
-        print "FAIL=" fail
-    }
-    print "PASS=" pass
-}' >"$cf"
-    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
-    echo -n " " >>"$cf"
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    FS=": ";
-}
-/Build name/ {
-    print $2;
-    exit
-}' >>"$cf"
-    (echo; echo) >>"$cf"
-    cat "$resultsdir/trace" | awk '
-BEGIN {
-    printit=0
-}
-/[0-9]*\% tests passed, [0-9]* tests failed out of [0-9]*/ { printit=1 }
-/Memory check project/ { printit=0 }
-/^   Site:/ { printit=0 }
-{
-    if (printit) {
-        print $0
-    }
-}' >>"$cf"
-    svn add $resultsdir
-    svn commit -F "$cf" $resultsdir
-    rm $cf
-fi
-
-################################################################################
 ## run valgrind on gcc optimized build
-resultsdir=$tracefilepfx-gccopt
+resultsdir=$tracefilepfx-Release
 mkdir $resultsdir
-tracefile=$tracefilepfx-gccopt/trace
+tracefile=$tracefilepfx-Release/trace
 
 getsysinfo $tracefile
 
@@ -545,6 +244,100 @@ BEGIN {
 }
 /[0-9]*\% tests passed, [0-9]* tests failed out of [0-9]*/ { printit=1 }
 /Memory check project/ { printit=0 }
+/^   Site:/ { printit=0 }
+{
+    if (printit) {
+        print $0
+    }
+}' >>"$cf"
+    svn add $resultsdir
+    svn commit -F "$cf" $resultsdir
+    rm $cf
+fi
+
+################################################################################
+## run gcov on gcc debug build
+resultsdir=$tracefilepfx-Coverage
+mkdir $resultsdir
+tracefile=$tracefilepfx-Coverage/trace
+
+getsysinfo $tracefile
+
+mkdir -p $FULLTOKUDBDIR/Coverage >/dev/null 2>&1
+cd $FULLTOKUDBDIR/Coverage
+CC=gcc47 CXX=g++47 cmake \
+    -D CMAKE_BUILD_TYPE=Debug \
+    -D BUILD_TESTING=ON \
+    -D USE_GCOV=ON \
+    -D USE_BDB=OFF \
+    -D RUN_LONG_TESTS=$longtests \
+    -D USE_CILK=OFF \
+    -D USE_CTAGS=OFF \
+    -D USE_GTAGS=OFF \
+    -D USE_ETAGS=OFF \
+    -D USE_CSCOPE=OFF \
+    .. 2>&1 | tee -a $tracefile
+cmake --system-information $resultsdir/sysinfo
+make clean
+# update to yesterday exactly just before ctest does nightly update
+svn up -q -r "{$yesterday}" ..
+set +e
+ctest -j$njobs \
+    -D ${ctest_model}Start \
+    -D ${ctest_model}Update \
+    -D ${ctest_model}Configure \
+    -D ${ctest_model}Build \
+    -D ${ctest_model}Test \
+    -D ${ctest_model}Coverage \
+    2>&1 | tee -a $tracefile
+set -e
+
+cp $tracefile notes.txt
+set +e
+ctest -D ${ctest_model}Submit -A notes.txt \
+    2>&1 | tee -a $tracefile
+set -e
+rm notes.txt
+
+tag=$(head -n1 Testing/TAG)
+cp -r Testing/$tag $resultsdir
+if [[ $commit -eq 1 ]]; then
+    cf=$(my_mktemp ftresult)
+    cat "$resultsdir/trace" | awk '
+BEGIN {
+    ORS=" ";
+}
+/Percentage Coverage:/ {
+    covpct=$3;
+}
+/[0-9]+% tests passed, [0-9]+ tests failed out of [0-9]+/ {
+    fail=$4;
+    total=$9;
+    pass=total-fail;
+}
+END {
+    print "COVERAGE=" covpct
+    if (fail>0) {
+        print "FAIL=" fail
+    }
+    print "PASS=" pass
+}' >"$cf"
+    get_latest_svn_revision $FULLTOKUDBDIR >>"$cf"
+    echo -n " " >>"$cf"
+    cat "$resultsdir/trace" | awk '
+BEGIN {
+    FS=": ";
+}
+/Build name/ {
+    print $2;
+    exit
+}' >>"$cf"
+    (echo; echo) >>"$cf"
+    cat "$resultsdir/trace" | awk '
+BEGIN {
+    printit=0
+}
+/[0-9]*\% tests passed, [0-9]* tests failed out of [0-9]*/ { printit=1 }
 /^   Site:/ { printit=0 }
 {
     if (printit) {
