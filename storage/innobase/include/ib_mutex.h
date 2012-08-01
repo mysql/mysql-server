@@ -134,7 +134,7 @@ private:
 	ib_mutex_t		m_mutex;
 };
 
-#ifdef HAVE_FUTEX
+#ifdef HAVE_IB_LINUX_FUTEX
 
 #define cmpxchg(p, o, n)	__sync_val_compare_and_swap(p, o, n)
 #define xchg(p, v)		__sync_lock_test_and_set(p, v)
@@ -248,7 +248,7 @@ private:
 	spin_mutex_t		m_mutex;
 };
 
-#else /* HAVE_FUTEX */
+#endif /* HAVE_IB_LINUX_FUTEX */
 
 /** Mutex that doesnot wait on an event and only spins. */
 class SpinOnlyMutex {
@@ -276,8 +276,6 @@ private:
  	/** The mutex implementation */
 	ib_mutex_t		m_mutex;
 };
-
-#endif /* HAVE_FUTEX */
 
 /** Mutex interface for all policy mutexes. */
 template <typename MutexImpl, typename Policy>
@@ -309,8 +307,8 @@ typedef PolicyMutex<ClassicMutex, CheckedPolicy>  Mutex;
 typedef PolicyMutex<POSIXMutex, CheckedPolicy>  SysMutex;
 typedef PolicyMutex<SpinOnlyMutex, CheckedPolicy>  SpinMutex;
 
-#ifdef HAVE_FUTEX
+#ifdef HAVE_IB_LINUX_FUTEX
 typedef PolicyMutex<Futex, CheckedPolicy>  FutexMutex;
-#endif /* HAVE_FUTEX */
+#endif /* HAVE_IB_LINUX_FUTEX */
 
 #endif /* ib_mutex_h */
