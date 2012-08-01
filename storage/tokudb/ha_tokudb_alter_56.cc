@@ -81,6 +81,14 @@ is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
     return true;
 }
 
+#if 50600 < MYSQL_VERSION_ID
+#define TOKU_ALTER_RENAME ALTER_RENAME
+#elif 50500 < MYSQL_VERSION_ID
+#define TOKU_ALTER_RENAME ALTER_RENAME_56
+#else
+#error
+#endif
+
 class tokudb_alter_ctx : public inplace_alter_handler_ctx {
 public:
     tokudb_alter_ctx() {
@@ -119,6 +127,11 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     assert(ha_alter_info->handler_ctx);
 
     ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
+
+    // always allow rename table + any other operation, so turn off the handler flag
+    if (handler_flags & Alter_inplace_info::TOKU_ALTER_RENAME) {
+        handler_flags &= ~Alter_inplace_info::TOKU_ALTER_RENAME;
+    }
 
     // add/drop index
     if (only_flags(handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
