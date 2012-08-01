@@ -100,7 +100,7 @@ public:
 #ifdef UNIV_DEBUG
 	/** @return true if the thread owns the mutex. */
 	// FIXME:
-	//bool is_owned() UNIV_NOTHROW { ut_error; return(false); }
+	bool is_owned() UNIV_NOTHROW { ut_error; return(false); }
 #endif /* UNIV_DEBUG */
 
 private:

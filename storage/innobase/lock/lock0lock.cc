@@ -603,10 +603,21 @@ lock_sys_create(
 
 	lock_sys->last_slot = lock_sys->waiting_threads;
 
-	mutex_create(lock_sys_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
+#ifdef UNIV_PFS_MUTEX
+	CheckedPolicy	lockPolicy(SYNC_LOCK_SYS, lock_sys_mutex_key);
+#else
+	CheckedPolicy	lockPolicy(SYNC_LOCK_SYS);
+#endif /* UNIV_PFS_MUTEX */
 
-	mutex_create(lock_sys_wait_mutex_key,
-		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
+	new (&lock_sys->mutex) LockMutex(lockPolicy);
+
+#ifdef UNIV_PFS_MUTEX
+	CheckedPolicy	waitPolicy(SYNC_LOCK_WAIT_SYS, lock_sys_wait_mutex_key);
+#else
+	CheckedPolicy	waitPolicy(SYNC_LOCK_WAIT_SYS);
+#endif /* UNIV_PFS_MUTEX */
+
+	new (&lock_sys->wait_mutex) LockMutex(waitPolicy);
 
 	lock_sys->timeout_event = os_event_create(NULL);
 
@@ -630,8 +641,8 @@ lock_sys_close(void)
 
 	hash_table_free(lock_sys->rec_hash);
 
-	mutex_free(&lock_sys->mutex);
-	mutex_free(&lock_sys->wait_mutex);
+	lock_sys->mutex.~LockMutex();
+	lock_sys->wait_mutex.~LockMutex();
 
 	mem_free(lock_stack);
 	mem_free(lock_sys);
