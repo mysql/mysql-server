@@ -21,7 +21,6 @@
 #pragma once
 
 #define UNIFIED_DEBUG 1
-// #define METADEBUG 1
 
 /* Unified debugging library for C++ and JavaScript. 
    JavaScript code can control debugging output. 
@@ -75,7 +74,8 @@ enum {
   UDEB_NONE_BUT_SELECTED  = 5,
   UDEB_INFO               = 6,
   UDEB_DEBUG              = 7,
-  UDEB_DETAIL             = 8
+  UDEB_DETAIL             = 8,
+  UDEB_META               = 9
 };
 
 void udeb_select(const char *file_name, int udeb_cmd);
