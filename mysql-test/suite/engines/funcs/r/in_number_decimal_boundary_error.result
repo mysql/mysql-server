@@ -7,7 +7,7 @@ INSERT INTO t5 (c1) VALUES(0);
 INSERT INTO t5 (c1) VALUES(-1);
 ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES('x');
-ERROR HY000: Incorrect decimal value: 'x' for column 'c1' at row 1
+ERROR 22007: Incorrect decimal value: 'x' for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES(999999);
 ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT COUNT(c1) AS total_rows FROM t5;
@@ -27,7 +27,7 @@ INSERT INTO t5 (c1) VALUES(0);
 INSERT INTO t5 (c1) VALUES(-1);
 ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES('x');
-ERROR HY000: Incorrect decimal value: 'x' for column 'c1' at row 1
+ERROR 22007: Incorrect decimal value: 'x' for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES(999999);
 ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT COUNT(c1) AS total_rows FROM t5;
@@ -47,7 +47,7 @@ INSERT INTO t5 (c1) VALUES(0);
 INSERT INTO t5 (c1) VALUES(-1);
 ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES('x');
-ERROR HY000: Incorrect decimal value: 'x' for column 'c1' at row 1
+ERROR 22007: Incorrect decimal value: 'x' for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES(999999);
 ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT COUNT(c1) AS total_rows FROM t5;
@@ -67,7 +67,7 @@ INSERT INTO t5 (c1) VALUES(0);
 INSERT INTO t5 (c1) VALUES(-1);
 ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES('x');
-ERROR HY000: Incorrect decimal value: 'x' for column 'c1' at row 1
+ERROR 22007: Incorrect decimal value: 'x' for column 'c1' at row 1
 INSERT INTO t5 (c1) VALUES(999999);
 ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT COUNT(c1) AS total_rows FROM t5;

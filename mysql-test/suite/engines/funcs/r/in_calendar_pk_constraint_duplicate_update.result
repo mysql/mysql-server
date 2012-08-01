@@ -29,8 +29,15 @@ DROP TABLE t1;
 CREATE TABLE t1(c1 TIME NOT NULL PRIMARY KEY);
 SET TIMESTAMP=1171346973;
 INSERT INTO t1 (c1) VALUES(NOW());
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES(ADDTIME(NOW(),'1 01:01:01'));
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
 INSERT INTO t1 (c1) VALUES(NOW()) ON DUPLICATE KEY UPDATE c1=ADDTIME(NOW(),'2 02:01:01');
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+Note	1265	Data truncated for column 'c1' at row 1
 SELECT * FROM t1;
 c1
 10:10:34
