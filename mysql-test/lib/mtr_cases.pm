@@ -472,11 +472,13 @@ sub process_suite {
     else
     {
       my @combs;
-      @combs = combinations_from_file($parent, "$suitedir/combinations")
-        unless $suite->{skip};
+      my $from =  "$suitedir/combinations";
+      @combs = combinations_from_file($parent, $from) unless $suite->{skip};
       $suite->{combinations} = [ @combs ];
       #  in overlays it's a union of parent's and overlay's files.
-      unshift @{$suite->{combinations}}, @{$parent->{combinations}} if $parent;
+      unshift @{$suite->{combinations}},
+        grep { not $skip_combinations{"$from => $_->{name}"} }
+          @{$parent->{combinations}} if $parent;
     }
 
     # suite.opt
@@ -1039,8 +1041,11 @@ sub get_tags_from_file($$) {
   $suite = load_suite_for_file($comb_file) if $prefix[0] eq '';
   my @comb;
   unless ($suite->{skip}) {
-    @comb = combinations_from_file($over, "$prefix[0]$comb_file");
-    push @comb, combinations_from_file(undef, "$prefix[1]$comb_file") if $over;
+    my $from = "$prefix[0]$comb_file";
+    @comb = combinations_from_file($over, $from);
+    push @comb,
+      grep { not $skip_combinations{"$from => $_->{name}"} }
+        combinations_from_file(undef, "$prefix[1]$comb_file") if $over;
   }
   push @combinations, [ @comb ];
 
