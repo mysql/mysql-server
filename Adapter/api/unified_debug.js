@@ -40,6 +40,7 @@ var path = require("path"),
  * debug.level_info()               // set output level to INFO
  * debug.level_debug()              // set output level to DEBUG
  * debug.level_detail()             // set output level to DETAIL
+ * debug.level_meta()               // also debug the debug system
  *
  * debug.destination(<log_file>)    // direct output to log_file
  *
@@ -91,6 +92,10 @@ exports.level_debug = function() {
 
 exports.level_detail = function() {
   impl.udeb_switch(impl.UDEB_DETAIL);
+}
+
+exports.level_meta = function() {
+  impl.udeb_switch(impl.UDEB_META);
 }
 
 

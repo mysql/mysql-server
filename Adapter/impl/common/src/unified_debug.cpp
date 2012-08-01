@@ -25,7 +25,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <libgen.h>
 
 #include "unified_debug.h"
 
@@ -35,8 +34,10 @@ int udeb_mode;    // initially UDEB_ALL, i.e. zero
 int udeb_level = UDEB_DEBUG;
 int debug_fd = STDERR_FILENO;
 unsigned char bit_index[UDEB_SOURCE_FILE_BITMASK_BYTES];
+const char * levelstr[4] = {"INFO", "DEBUG", "DETAIL", "META"};
 
 int udeb_lookup(const char *);
+void udeb_internal_print(const char *fmt, ...);
 
 void udeb_switch(int i) {
   switch(i) {
@@ -48,6 +49,9 @@ void udeb_switch(int i) {
     case UDEB_INFO:
     case UDEB_DEBUG:
     case UDEB_DETAIL:
+    case UDEB_META:
+      udeb_internal_print("Setting debug output level to %s", 
+                          levelstr[i - UDEB_INFO]);
       udeb_level = i;
       break;
     
@@ -64,36 +68,82 @@ int uni_dbg() {
   return uni_debug;
 }
 
-void udeb_print(const char *src_file, int level, const char *fmt, ...) {
+/* libc's basename(3) is not thread-safe, so we implement a version here.
+   This one is essentially a strlen() function that also remembers the final
+   path separator
+*/
+inline const char * udeb_basename(const char *path) {
+  const char * last_sep = 0;
+  if(path) {  
+    const char * s = path;
+    last_sep = s;
+  
+    for(; *s ; s++) 
+      if(*s == '/') 
+         last_sep = s;
+    if(last_sep > path && last_sep < s) // point just past the separator
+      last_sep += 1;
+  }
+  return last_sep;
+}
+
+
+/* udeb_internal_print is our fprintf() 
+*/
+void udeb_internal_print(const char *fmt, ...) {
   va_list args;
   int sz = 0;
   char message[UDEB_MSG_BUF];
 
-  if(udeb_level >= level && udeb_lookup(src_file)) {
-    va_start(args, fmt);
-    sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
-    va_end(args);
-    sprintf(message + sz++, "\n");
-    write(debug_fd, message, sz);
+  va_start(args, fmt);
+  sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
+  va_end(args);
+  sprintf(message + sz++, "\n");
+  write(debug_fd, message, sz);
+}
+
+
+/* udeb_print() is used by macros in the public API 
+*/ 
+void udeb_print(const char *src_path, int level, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  
+  const char * src_file = udeb_basename(src_path);
+  if(udeb_level >= level && udeb_lookup(src_file))
+    udeb_internal_print(fmt, args);
+  
+  va_end(args);  
+}
+
+
+void udeb_enter(const char *src_path, const char *function, int line) {
+  if(udeb_level >= UDEB_DEBUG) {
+    const char *src_file = udeb_basename(src_path);
+    if(udeb_lookup(src_file)) {
+      udeb_internal_print("Enter: %27s - line %d - %s", function, line, src_file);
+    }
   }
 }
 
 
-void udeb_enter(const char *src_file, const char *function, int line) {
-  udeb_print(src_file, UDEB_DEBUG,
-             "Enter: %27s - line %d - %s", function, line, src_file);
+void udeb_trace(const char *src_path, int line) {
+  if(udeb_level >= UDEB_DETAIL) {
+    const char *src_file = udeb_basename(src_path);
+    if(udeb_lookup(src_file)) {
+      udeb_internal_print("  Trace: %27s line %d", ".....", line);
+    }
+  }
 }
 
 
-void udeb_trace(const char *src_file, int line) {
-  udeb_print(src_file, UDEB_DETAIL,
-             "  Trace: %27s line %d", ".....", line);
-}
-
-
-void udeb_leave(const char *src_file, const char *function) {
-  udeb_print(src_file, UDEB_DEBUG,
-             "  Leave: %25s", function);
+void udeb_leave(const char *src_path, const char *function) {
+  if(udeb_level >= UDEB_DEBUG) {
+    const char *src_file = udeb_basename(src_path);
+    if(udeb_lookup(src_file)) {
+      udeb_internal_print("  Leave: %25s", function);
+    }
+  }
 }
 
 
@@ -102,9 +152,8 @@ void unified_debug_destination(const char * out_file) {
   
   if(fd < 0) {
     fd = STDERR_FILENO;     /* Print to previous destination: */
-    udeb_print(NULL, UDEB_INFO, 
-               "Unified Debug: failed to open \"%s\" for output: %s",
-               out_file, strerror(errno));
+    udeb_internal_print("Unified Debug: failed to open \"%s\" for output: %s",
+                        out_file, strerror(errno));
   }
   debug_fd = fd;
 }
@@ -117,7 +166,13 @@ inline int udeb_hash(const char *name) {
   
   for (p = (const unsigned char *) name ; *p != '\0' ; p++) 
       h = ((h << 5) + h) + *p;
-  return h % UDEB_SOURCE_FILE_BITMASK_BITS;
+
+  h = h % UDEB_SOURCE_FILE_BITMASK_BITS;
+
+  if(udeb_level == UDEB_META) 
+    udeb_internal_print("udeb_hash: %s --> %d", name, h);
+
+  return h;
 }
 
 
@@ -140,12 +195,12 @@ inline int index_clear(unsigned int bit_number) {
 }
 
 void udeb_select(const char *file, int cmd) {
-#ifdef METADEBUG
-  udeb_print(0, UDEB_INFO, "udeb_select: %s %d", file, cmd);
-#endif
+  if(udeb_level == UDEB_META) 
+    udeb_internal_print("udeb_select: %s %d", file ? file : "NULL", cmd);
+
   if(file) {
-    if(cmd == UDEB_ADD)       index_set(udeb_hash(file));
-    else if(cmd == UDEB_DROP) index_clear(udeb_hash(file));
+    if(cmd == UDEB_ADD)       index_set(udeb_hash(udeb_basename(file)));
+    else if(cmd == UDEB_DROP) index_clear(udeb_hash(udeb_basename(file)));
     else abort();
   }
   else udeb_mode = cmd;
@@ -156,8 +211,6 @@ void udeb_select(const char *file, int cmd) {
 inline int udeb_lookup(const char *key) {
   int response;
   
-  if(key == 0) return true;  // special internal case
-
   switch(udeb_mode) {
     case UDEB_NONE: 
       response = false;
@@ -173,9 +226,8 @@ inline int udeb_lookup(const char *key) {
       break;
   }
 
-#ifdef METADEBUG
-  fprintf(stderr, "udeb_lookup: %s: %s\n", key, response ? "T" : "F");
-#endif
+  if(udeb_level == UDEB_META) 
+    udeb_internal_print("udeb_lookup: %s --> %s", key, response ? "T" : "F");
 
   return response;
 }

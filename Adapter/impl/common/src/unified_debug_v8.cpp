@@ -118,6 +118,7 @@ void initOnLoad(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, UDEB_INFO);
   NODE_DEFINE_CONSTANT(target, UDEB_DEBUG);
   NODE_DEFINE_CONSTANT(target, UDEB_DETAIL);
+  NODE_DEFINE_CONSTANT(target, UDEB_META);
 }
 
 NODE_MODULE(unified_debug_impl, initOnLoad)
