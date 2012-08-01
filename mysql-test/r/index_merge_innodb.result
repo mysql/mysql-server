@@ -219,6 +219,8 @@ index i1b (key1b, key1a),
 index i2_1(key2, key2_1),
 index i2_2(key2, key2_1)
 );
+Warnings:
+Warning	1831	Duplicate index 'i2_2' defined on the table 'test.t4'. This is deprecated and will be disallowed in a future release.
 insert into t4 select key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 from t0;
 select * from t4 where key1a = 3 or key1b = 4;
 key1a	key1b	key2	key2_1	key2_2	key3

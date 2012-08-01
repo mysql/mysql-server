@@ -307,7 +307,10 @@ public:
     ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
-  {}
+  {
+    // We don't check for duplicate FKs.
+    key_create_info.check_for_duplicate_indexes= false;
+  }
   Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root);
   /**
     Used to make a clone of this object for ALTER/CREATE TABLE

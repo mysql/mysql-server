@@ -58,6 +58,8 @@ ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ROW_FORMAT=COMPACT,
 LOCK = SHARED, ALGORITHM = INPLACE;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2),
 LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
+Warnings:
+Warning	1831	Duplicate index 'c2_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
