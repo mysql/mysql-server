@@ -891,7 +891,7 @@ pfs_register_buffer_block(
 				 PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
 
 	for (i = 0; i < num_to_register; i++) {
-		SpinMutex*	mutex;
+		BPageMutex*	mutex;
 		rw_lock_t*	rwlock;
 
 #  ifdef UNIV_PFS_MUTEX
@@ -978,7 +978,7 @@ buf_block_init(
 	CheckedPolicy	policy(SYNC_BUF_BLOCK);
 #endif /* UNIV_PFS_MUTEX */
 
-	new(&block->mutex) SpinMutex(policy);
+	new(&block->mutex) BPageMutex(policy);
 
 	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
 
@@ -996,7 +996,7 @@ buf_block_init(
 	CheckedPolicy	policy(SYNC_BUF_BLOCK);
 #endif /* UNIV_PFS_MUTEX */
 
-	new(&block->mutex) SpinMutex(policy);
+	new(&block->mutex) BPageMutex(policy);
 
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
 
@@ -1247,7 +1247,7 @@ buf_pool_init_instance(
 	CheckedPolicy	policy(SYNC_BUF_BLOCK);
 #endif /* UNIV_PFS_MUTEX */
 
-	new(&buf_pool->zip_mutex) SpinMutex(policy);
+	new(&buf_pool->zip_mutex) BPageMutex(policy);
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -1760,7 +1760,7 @@ buf_pool_watch_unset(
 	ut_a(bpage);
 
 	if (!buf_pool_watch_is_sentinel(buf_pool, bpage)) {
-		SpinMutex* block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
 		block_mutex->enter();
 		ut_a(bpage->buf_fix_count > 0);
@@ -1909,7 +1909,7 @@ buf_page_set_file_page_was_freed(
 					   &hash_lock);
 
 	if (bpage) {
-		SpinMutex*	block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		block_mutex->enter();
 		rw_lock_s_unlock(hash_lock);
@@ -1942,7 +1942,7 @@ buf_page_reset_file_page_was_freed(
 	bpage = buf_page_hash_get_s_locked(buf_pool, space, offset,
 					   &hash_lock);
 	if (bpage) {
-		SpinMutex*	block_mutex = buf_page_get_mutex(bpage);
+		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		block_mutex->enter();
 		rw_lock_s_unlock(hash_lock);
@@ -2003,7 +2003,7 @@ buf_page_get_zip(
 	ulint		offset)	/*!< in: page number */
 {
 	buf_page_t*	bpage;
-	SpinMutex*	block_mutex;
+	BPageMutex*	block_mutex;
 	rw_lock_t*	hash_lock;
 	ibool		discard_attempted = FALSE;
 	ibool		must_read;
@@ -2449,7 +2449,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		must_read;
 	rw_lock_t*	hash_lock;
-	SpinMutex*	block_mutex;
+	BPageMutex*	block_mutex;
 	buf_page_t*	hash_bpage;
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);

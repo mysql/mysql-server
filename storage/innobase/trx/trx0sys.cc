@@ -594,7 +594,10 @@ trx_sys_create(void)
 	CheckedPolicy	policy(SYNC_TRX_SYS);
 #endif /* UNIV_PFS_MUTEX */
 
-	new(&trx_sys->mutex) Mutex(policy);
+	TrxSysMutex*	m = new(&trx_sys->mutex) TrxSysMutex(policy);
+
+	// Shutup the compiler
+	ut_a(m != 0);
 }
 
 /*****************************************************************//**
