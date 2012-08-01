@@ -153,6 +153,41 @@ IF(HAVE_IB_ATOMIC_PTHREAD_T_GCC)
   ADD_DEFINITIONS(-DHAVE_IB_ATOMIC_PTHREAD_T_GCC=1)
 ENDIF()
 
+IF(NOT CMAKE_CROSSCOMPILING)
+  CHECK_C_SOURCE_RUNS(
+  "
+  #include <stdio.h>
+  #include <errno.h>
+  #include <assert.h>
+  #include <linux/futex.h>
+  #include <sys/syscall.h>
+
+   int futex_wait(int* futex, int v) {
+	return(syscall(SYS_futex, futex, FUTEX_WAIT, v, NULL, NULL, 0));
+   }
+
+   int futex_signal(int* futex) {
+	return(syscall(SYS_futex, futex, FUTEX_WAKE, 1, NULL, NULL, 0));
+   }
+	
+  int main() {
+    int ret;
+    int	m = 1;
+
+    /* It is setup to fail and return EWOULDBLOCK. */
+    ret = futex_wait(&m, 0);
+    assert(ret == -1 && errno == EWOULDBLOCK);
+    /* Shouldn't wake up any threads. */
+    assert(futex_signal(&m) == 0);
+
+    return(0);
+  }"
+  HAVE_IB_LINUX_FUTEX)
+ENDIF()
+IF(HAVE_IB_LINUX_FUTEX)
+  ADD_DEFINITIONS(-DHAVE_IB_LINUX_FUTEX=1)
+ENDIF()
+
 ENDIF(NOT MSVC)
 
 CHECK_FUNCTION_EXISTS(asprintf  HAVE_ASPRINTF)
