@@ -359,7 +359,7 @@ buf_flush_yield(
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
 	buf_page_t*	bpage)		/*!< in/out: current page */
 {
-	SpinMutex*	block_mutex;
+	BPageMutex*	block_mutex;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_in_file(bpage));
@@ -447,7 +447,7 @@ buf_flush_or_remove_page(
 					don't remove else remove without
 					flushing to disk */
 {
-	SpinMutex*	block_mutex;
+	BPageMutex*	block_mutex;
 	bool		processed = false;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -671,7 +671,7 @@ scan_again:
 
 		rw_lock_t*	hash_lock;
 		buf_page_t*	prev_bpage;
-		SpinMutex*	block_mutex;
+		BPageMutex*	block_mutex;
 
 		ut_a(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
@@ -1781,7 +1781,7 @@ buf_LRU_free_block(
 						     bpage->offset);
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
-	SpinMutex*	block_mutex = buf_page_get_mutex(bpage);
+	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_in_file(bpage));
@@ -2396,7 +2396,7 @@ buf_LRU_free_one_page(
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
-	SpinMutex*	block_mutex = buf_page_get_mutex(bpage);
+	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 

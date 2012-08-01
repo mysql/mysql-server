@@ -882,7 +882,7 @@ buf_page_belongs_to_unzip_LRU(
 Gets the mutex of a block.
 @return	pointer to mutex protecting bpage */
 UNIV_INLINE
-SpinMutex*
+BPageMutex*
 buf_page_get_mutex(
 /*===============*/
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
@@ -1598,7 +1598,7 @@ struct buf_block_struct{
 					decompressed LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
-	SpinMutex	mutex;		/*!< mutex protecting this block:
+	BPageMutex	mutex;		/*!< mutex protecting this block:
 					state (also protected by the buffer
 					pool mutex), io_fix, buf_fix_count,
 					and accessed; we introduce this new
@@ -1764,7 +1764,7 @@ struct buf_pool_struct{
 	/* @{ */
 	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
 					instance */
-	SpinMutex	zip_mutex;	/*!< Zip mutex of this buffer
+	BPageMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
 					only pages (of type buf_page_t, not
 					buf_block_t */

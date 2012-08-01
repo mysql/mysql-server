@@ -27,6 +27,7 @@ Created 3/26/1996 Heikki Tuuri
 #define trx0types_h
 
 #include "ut0byte.h"
+#include "ib_mutex.h"
 
 /** printf(3) format used for printing DB_TRX_ID and other system fields */
 #define TRX_ID_FMT		IB_ID_FMT
@@ -146,5 +147,7 @@ typedef byte	trx_upagef_t;
 /** Undo log record */
 typedef	byte	trx_undo_rec_t;
 /* @} */
+
+typedef SpinMutex TrxSysMutex;
 
 #endif
