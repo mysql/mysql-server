@@ -394,7 +394,7 @@ buf_buddy_relocate(
 	contain uninitialized data. */
 	UNIV_MEM_ASSERT_W(src, size);
 
-	SpinMutex*	block_mutex = buf_page_get_mutex(bpage);
+	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
 	block_mutex->enter();
 
