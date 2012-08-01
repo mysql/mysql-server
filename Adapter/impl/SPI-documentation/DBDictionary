@@ -16,39 +16,40 @@
 }
  
 
- DBColumn = {
-   columnType : ""  ,     //  a ColumnType
-   intSize : ""     ,     //  1,2,3,4, or 8
-   isUnsigned: ""   ,     //  TRUE for UNSIGNED
-   isNullable: ""   ,     //  TRUE if NULLABLE
-   scale: ""        ,     //  DECIMAL scale
-   precision: ""    ,     //  DECIMAL precision
-   length: ""       ,     //  CHAR or VARCHAR length
-   isBinary: ""     ,     //  TRUE for BLOB/BINARY/VARBINARY
-   charsetNumber: "",     //  internal number of charset
-   charsetName: ""  ,     //  name of charset
-   name: ""         ,     //  column name
-   columnNumber: "" ,     //  position of column in table
-   isPrimaryKey: "" ,     //  TRUE if column is part of PK
-   userData : ""          //  Data stored in the DBColumn by the ORM layer
- };
+DBColumn = {
+  columnType    : ""    ,  //  a ColumnType
+  intSize       : null  ,  //  1,2,3,4, or 8 if column type is INT (undefined?)
+  isUnsigned    : false ,  //  true for UNSIGNED
+  isNullable    : false ,  //  true if NULLABLE
+  scale         : 0     ,  //  DECIMAL scale
+  precision     : 0     ,  //  DECIMAL precision
+  length        : 0     ,  //  CHAR or VARCHAR length
+  isBinary      : false ,  //  true for BLOB/BINARY/VARBINARY
+  charsetNumber : 0     ,  //  internal number of charset
+  charsetName   : ""    ,  //  name of charset
+  name          : ""    ,  //  column name
+  columnNumber  : -1    ,  //  position of column in table
+  isPrimaryKey  : false ,  //  true if column is part of PK
+  userData      : ""       //  Data stored in the DBColumn by the ORM layer
+};
 
 
 DBIndex = {
-  isPrimaryKey : "",    // bool
-  isUnique     : "",    // bool
-  isOrdered    : "",    // bool; can scan if true
-  columns      : [],    // an array of DBColumn objects
-  userData     : ""     // Data stored in the DBIndex by the ORM layer
+  name          : ""    ,  // External or Internal index name (see clusterj-core store/Index.java)
+  isPrimaryKey  : false ,  // bool
+  isUnique      : false ,  // bool
+  isOrdered     : false ,  // bool; can scan if true
+  columns       : []    ,  // an array of DBColumn objects
+  userData      : ""       // Data stored in the DBIndex by the ORM layer
 };
 
 
 DBTable = {
-  name :             "",    // Table Name
-  columns :          [],    // an array of DBColumn objects
-  primaryKey :       "",    // a DBIndex object
-  secondaryIndexes : [],    // an array of DBIndex objects 
-  userData :         ""     // Data stored in the DBTable by the ORM layer
+  name          : ""    ,  // Table Name
+  columns       : []    ,  // an array of DBColumn objects
+  primaryKey    : {}    ,  // a DBIndex object
+  secondaryIndexes: []  ,  // an array of DBIndex objects 
+  userData      : ""       // Data stored in the DBTable by the ORM layer
 }
 
 
