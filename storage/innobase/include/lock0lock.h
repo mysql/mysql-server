@@ -862,13 +862,15 @@ struct lock_op_struct{
 	enum lock_mode	mode;	/*!< lock mode */
 };
 
+typedef Mutex LockMutex;
+
 /** The lock system struct */
 struct lock_sys_struct{
-	ib_mutex_t		mutex;			/*!< Mutex protecting the
+	LockMutex	mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
-	ib_mutex_t		wait_mutex;		/*!< Mutex protecting the
+	LockMutex	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for
@@ -899,32 +901,32 @@ struct lock_sys_struct{
 extern lock_sys_t*	lock_sys;
 
 /** Test if lock_sys->mutex can be acquired without waiting. */
-#define lock_mutex_enter_nowait() mutex_enter_nowait(&lock_sys->mutex)
+#define lock_mutex_enter_nowait() (lock_sys->mutex.trylock())
 
 /** Test if lock_sys->mutex is owned. */
-#define lock_mutex_own() mutex_own(&lock_sys->mutex)
+#define lock_mutex_own() (lock_sys->mutex.is_owned())
 
 /** Acquire the lock_sys->mutex. */
 #define lock_mutex_enter() do {			\
-	mutex_enter(&lock_sys->mutex);		\
+	lock_sys->mutex.enter();			\
 } while (0)
 
 /** Release the lock_sys->mutex. */
 #define lock_mutex_exit() do {			\
-	mutex_exit(&lock_sys->mutex);		\
+	lock_sys->mutex.exit();			\
 } while (0)
 
 /** Test if lock_sys->wait_mutex is owned. */
-#define lock_wait_mutex_own() mutex_own(&lock_sys->wait_mutex)
+#define lock_wait_mutex_own() (lock_sys->wait_mutex.is_owned())
 
 /** Acquire the lock_sys->wait_mutex. */
 #define lock_wait_mutex_enter() do {		\
-	mutex_enter(&lock_sys->wait_mutex);	\
+	lock_sys->wait_mutex.enter();		\
 } while (0)
 
 /** Release the lock_sys->wait_mutex. */
 #define lock_wait_mutex_exit() do {		\
-	mutex_exit(&lock_sys->wait_mutex);	\
+	lock_sys->wait_mutex.exit();		\
 } while (0)
 
 #ifndef UNIV_NONINL
