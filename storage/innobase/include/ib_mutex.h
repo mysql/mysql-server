@@ -27,7 +27,11 @@ Created 2012-03-24 Sunny Bains.
 #define ib_mutex_h
 
 #include "univ.i"
+#include "ut0rnd.h"
 #include "sync0sync.h"
+
+extern ulong	srv_spin_wait_delay;
+extern ulong	srv_n_spin_wait_rounds;
 
 #ifdef UNIV_PFS_MUTEX
 /** InnoDB default policy */
@@ -48,6 +52,60 @@ struct CheckedPolicy {
 	ulint			m_level;	/*!< Mutex ordering */
 };
 #endif /* UNIV_PFS_MUTEX */
+
+/** POSIX mutex. */
+class POSIXMutex {
+public:
+	POSIXMutex(const CheckedPolicy& policy) UNIV_NOTHROW {
+		int	ret;
+
+		ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
+		ut_a(ret == 0);
+	}
+
+	~POSIXMutex() UNIV_NOTHROW
+	{
+		int	ret;
+
+		ret = pthread_mutex_destroy(&m_mutex);
+		ut_a(ret == 0);
+	}
+
+	/** Release the muytex. */
+	void exit() UNIV_NOTHROW
+	{
+		int	ret;
+
+		ret = pthread_mutex_unlock(&m_mutex);
+
+		ut_a(ret == 0);
+	}
+
+	/** Acquire the mutex. */
+	void enter() UNIV_NOTHROW
+	{
+		int	ret;
+
+		ret = pthread_mutex_lock(&m_mutex);
+
+		ut_a(ret == 0);
+	}
+
+	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
+	int try_lock() UNIV_NOTHROW
+	{
+		return(pthread_mutex_trylock(&m_mutex));
+	}
+
+#ifdef UNIV_DEBUG
+	/** @return true if the thread owns the mutex. */
+	// FIXME:
+	//bool is_owned() UNIV_NOTHROW { ut_error; return(false); }
+#endif /* UNIV_DEBUG */
+
+private:
+	pthread_mutex_t			m_mutex;
+};
 
 /** InnoDB default mutex. */
 class ClassicMutex {
@@ -76,32 +134,150 @@ private:
 	ib_mutex_t		m_mutex;
 };
 
+#ifdef HAVE_FUTEX
+
+#define cmpxchg(p, o, n)	__sync_val_compare_and_swap(p, o, n)
+#define xchg(p, v)		__sync_lock_test_and_set(p, v)
+
+#include <linux/futex.h>
+#include <sys/syscall.h>
+
+/** Mutex that doesnot wait on an event and only spins. */
+class Futex {
+public:
+	Futex(const CheckedPolicy& policy) UNIV_NOTHROW
+	{
+		m_mutex.lock_word = 0;
+	}
+
+	~Futex() { ut_a(m_mutex.lock_word == 0); }
+
+	/** Release the muytex. */
+	void exit() UNIV_NOTHROW
+	{
+		/* Unlock, and if not contended then exit. */
+		if (m_mutex.lock_word == 2) {
+			m_mutex.lock_word = 0;
+		} else if (xchg(&m_mutex.lock_word, 0) == 1) {
+			return;
+		}
+
+		/* Spin and hope someone takes the lock */
+		for (ulint i = 0; i <= SYNC_SPIN_ROUNDS * 2; i++) {
+
+			/* Need to set to state 2 because there
+			may be waiters */
+
+			if (m_mutex.lock_word
+		            && cmpxchg(&m_mutex.lock_word, 1, 2)) {
+				return;
+			}
+
+			UT_RELAX_CPU();
+		}
+	
+		/* We need to wake someone up */
+		sys_futex(
+			&m_mutex.lock_word, FUTEX_WAKE_PRIVATE, 1, 0, 0, 0);
+	}
+
+	/** Acquire the mutex. */
+	void enter() UNIV_NOTHROW
+	{
+		lock_word_t	c;
+	
+		/* Spin and try to take lock */
+		for (ulint i = 0; i <= SYNC_SPIN_ROUNDS; i++) {
+
+			c = cmpxchg(&m_mutex.lock_word, 0, 1);
+
+			if (!c) {
+				return;
+			}
+		
+			UT_RELAX_CPU();
+		}
+
+		/* The lock is now contended */
+		if (c == 1) {
+			c = xchg(&m_mutex.lock_word, 2);
+		}
+
+		while (c) {
+			/* Wait in the kernel */
+			sys_futex(
+				&m_mutex.lock_word,
+				FUTEX_WAIT_PRIVATE, 2, 0, 0, 0);
+
+			c = xchg(&m_mutex.lock_word, 2);
+		}
+	}
+
+	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
+	int try_lock() UNIV_NOTHROW
+	{
+		/* Try to take the lock, if is currently unlocked */
+		if (!cmpxchg(&m_mutex.lock_word, 0, 1)) {
+			return(0);
+		}
+
+		return(EBUSY);
+	}
+
+#ifdef UNIV_DEBUG
+	// FIXME:
+	/** @return true if the thread owns the mutex. */
+	bool is_owned() UNIV_NOTHROW { ut_error; return(false); }
+#endif /* UNIV_DEBUG */
+
+private:
+	static int sys_futex(
+		volatile void*	addr1,
+		int		op,
+		int		val1,
+		struct timespec*timeout,
+		void*		addr2,
+		int		val3)
+	{
+		return(syscall(
+			SYS_futex, addr1, op, val1, timeout, addr2, val3));
+	}
+
+private:
+	/** The mutex implementation */
+	spin_mutex_t		m_mutex;
+};
+
+#else /* HAVE_FUTEX */
+
 /** Mutex that doesnot wait on an event and only spins. */
 class SpinOnlyMutex {
 public:
 	SpinOnlyMutex(const CheckedPolicy& policy) UNIV_NOTHROW {
 		mutex_create(policy.m_key, &m_mutex, policy.m_level);
 	}
-
+ 
 	~SpinOnlyMutex() { mutex_free(&m_mutex); }
-
-	/** Release the muytex. */
+ 
+ 	/** Release the muytex. */
 	void exit() UNIV_NOTHROW { mutex_exit(&m_mutex); }
-
-	/** Acquire the mutex. */
+ 
+ 	/** Acquire the mutex. */
 	void enter() UNIV_NOTHROW { mutex_enter_spinonly(&m_mutex); }
-
-	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
+ 
+ 	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
 	int try_lock() UNIV_NOTHROW { return(mutex_enter_nowait(&m_mutex)); }
-
+ 
 #ifdef UNIV_DEBUG
 	/** @return true if the thread owns the mutex. */
 	bool is_owned() UNIV_NOTHROW { return(mutex_own(&m_mutex)); }
 #endif /* UNIV_DEBUG */
 private:
-	/** The mutex implementation */
+ 	/** The mutex implementation */
 	ib_mutex_t		m_mutex;
 };
+
+#endif /* HAVE_FUTEX */
 
 /** Mutex interface for all policy mutexes. */
 template <typename MutexImpl, typename Policy>
@@ -130,6 +306,11 @@ private:
 };
 
 typedef PolicyMutex<ClassicMutex, CheckedPolicy>  Mutex;
+typedef PolicyMutex<POSIXMutex, CheckedPolicy>  SysMutex;
 typedef PolicyMutex<SpinOnlyMutex, CheckedPolicy>  SpinMutex;
+
+#ifdef HAVE_FUTEX
+typedef PolicyMutex<Futex, CheckedPolicy>  FutexMutex;
+#endif /* HAVE_FUTEX */
 
 #endif /* ib_mutex_h */
