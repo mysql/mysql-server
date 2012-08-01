@@ -210,7 +210,7 @@ int toku_loader_create_loader(DB_ENV *env,
 
     int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/%s%s", env->i->real_tmp_dir, loader_temp_prefix, loader_temp_suffix);
     if ( !(n>0 && n<MAX_FILE_SIZE) ) {
-        rval = -1;
+        rval = ENAMETOOLONG;
         goto create_exit;
     }
 
@@ -225,20 +225,19 @@ int toku_loader_create_loader(DB_ENV *env,
     loader->close                  = toku_loader_close;
     loader->abort                  = toku_loader_abort;
 
-    int r;
-    r = 0;
     // lock tables and check empty
     for(int i=0;i<N;i++) {
         if (!(loader_flags&DB_PRELOCKED_WRITE)) {
-            r = toku_db_pre_acquire_table_lock(dbs[i], txn);
-            if (r!=0) break;
+            rval = toku_db_pre_acquire_table_lock(dbs[i], txn);
+            if (rval!=0) {
+                goto create_exit;
+            }
         }
-        r = !toku_ft_is_empty_fast(dbs[i]->i->ft_handle);
-        if (r!=0) break;
-    }
-    if ( r!=0 ) {
-        rval = -1;
-        goto create_exit;
+        bool empty = toku_ft_is_empty_fast(dbs[i]->i->ft_handle);
+        if (!empty) {
+            rval = ENOTEMPTY;
+            goto create_exit;
+        }
     }
 
     {
@@ -256,15 +255,14 @@ int toku_loader_create_loader(DB_ENV *env,
         loader->i->ekeys = NULL;
         loader->i->evals = NULL;
         LSN load_lsn;
-        r = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_ft_loader);
-        if ( r!=0 ) {
+        rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_ft_loader);
+        if ( rval!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
-            rval = r;
             goto create_exit;
         }
         TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
-        r = toku_ft_loader_open(&loader->i->ft_loader,
+        rval = toku_ft_loader_open(&loader->i->ft_loader,
                                  loader->i->env->i->cachetable,
                                  loader->i->env->i->generate_row_for_put,
                                  src_db,
@@ -276,10 +274,9 @@ int toku_loader_create_loader(DB_ENV *env,
                                  load_lsn,
                                  ttxn,
                                  !use_puts);
-        if ( r!=0 ) {
+        if ( rval!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
-            rval = r;
             goto create_exit;
         }
         loader->i->inames_in_env = new_inames_in_env;
