@@ -162,7 +162,7 @@ CC=gcc47 CXX=g++47 cmake \
     -D INTEL_CC=OFF \
     -D USE_VALGRIND=ON \
     -D BUILD_TESTING=ON \
-    -D USE_BDB=OFF \
+    -D USE_BDB=ON \
     -D RUN_LONG_TESTS=$longtests \
     -D USE_CILK=OFF \
     -D USE_CTAGS=OFF \
