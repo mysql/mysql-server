@@ -25,20 +25,33 @@ var SessionFactory = function(key) {
   this.dbconnection = {};
   this.annotations = {};
   this.properties = {};
+  this.sessions = [];
 };
 
 
 //openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool
-SessionFactory.prototype.openSession = function(annotations, user_callback) {
-  var newSession = new session.Session();
-  newSession.connection = this.dbconnection;
-  user_callback(null, newSession);  // todo: extras
+SessionFactory.prototype.openSession = function(annotations, user_callback, extra1, extra2, extra3, extra4) {
+  // allocate a new session slot in sessions
+  for (var i = 0; i < this.sessions.length; ++i) {
+    if (this.sessions[i] == null) break;
+  }
+  var newDBSession = this.dbconnection.getDBSession(i);
+  var newSession = new session.Session(i, this, newDBSession);
+  this.sessions[i] = newSession;
+  user_callback(null, newSession, extra1, extra2, extra3, extra4);  // todo: extra user parameters
 };
+
 
 SessionFactory.prototype.close = function() {
   // TODO: close all sessions first
   this.delete_callback(this.key, this.properties.database);
+};
+
+
+SessionFactory.prototype.closeSession = function(index, session) {
+  // TODO put session back into pool
+  this.sessions[index] = null;
 };
 
 

@@ -42,7 +42,6 @@ var testInsert = function() {
     employee.magic = 999;
     session.persist(employee, function(err, instance) {
       if (err) {
-        testCase.appendMessage('testInsert.persist failed.');
         testCase.fail(err);
       } else {
         testCase.pass();

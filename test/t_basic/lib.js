@@ -38,6 +38,7 @@ global.t_basic_key = function(id) {
 global.fail_verify_t_basic = function(err, instance, id, testCase) {
   if (err) {
     testCase.fail(err);
+    return;
   }
   var message = '';
   if (instance.id != id) {
@@ -66,6 +67,7 @@ global.fail_openSession = function(testCase, callback) {
   mynode.openSession(properties, annotations, function(err, session) {
     if (err) {
       testCase.fail(err);
+      return;
     }
     callback(session, testCase);
  });
