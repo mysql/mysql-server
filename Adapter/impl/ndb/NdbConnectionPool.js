@@ -38,8 +38,8 @@ function initialize_ndb() {
 
 /* Constructor 
 */
-exports.DBConnection = function(props) {
-  udebug.log("DBConnection constructor");
+exports.DBConnectionPool = function(props) {
+  udebug.log("DBConnectionPool constructor");
   properties = props;
   
   initialize_ndb();
@@ -53,7 +53,7 @@ exports.DBConnection = function(props) {
    SYNC.
    Returns true on success and false on error.
 */
-exports.DBConnection.prototype.connectSync = function() {
+exports.DBConnectionPool.prototype.connectSync = function() {
   var r = ndbconn.connectSync(properties.ndb_connect_retries,
                               properties.ndb_connect_delay,
                               properties.ndb_connect_verbose);
@@ -65,7 +65,7 @@ exports.DBConnection.prototype.connectSync = function() {
 
 /* Async connect 
 */
-exports.DBConnection.prototype.connect = function(user_callback) {
+exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var theDbConn = this;
   
   var NdbConnection_callback = function(rval) { 
@@ -86,12 +86,12 @@ exports.DBConnection.prototype.connect = function(user_callback) {
    IMMEDIATE.
    Returns bool true/false
  */
-exports.DBConnection.prototype.isConnected = function() {
+exports.DBConnectionPool.prototype.isConnected = function() {
   return is_connected;
 };
 
 
-exports.DBConnection.prototype.closeSync = function() {
+exports.DBConnectionPool.prototype.closeSync = function() {
   ndbconn.delete();
 }
 
@@ -101,7 +101,7 @@ exports.DBConnection.prototype.closeSync = function() {
    Creates and opens a new DBSessionHandler.
    Users's callback receives (error, DBSessionHandler)
 */
-exports.DBConnection.prototype.openSessionHandler = function(user_callback) {
+exports.DBConnectionPool.prototype.openSessionHandler = function(user_callback) {
   var db = properties.database;
   assert(ndbconn);
   assert(db == "test");

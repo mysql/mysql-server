@@ -14,13 +14,13 @@ Object getDefaultConnectionProperties();
 /* Blocking connect.  
    SYNC.
 */
-DBConnection connectSync(Object properties);
+DBConnectionPool connectSync(Object properties);
 
 
 /* Async connect.
    ASYNC.
 */
-connect(Object properties, Function(err, DBConnection) callback);
+connect(Object properties, Function(err, DBConnectionPool) callback);
 
 
 /* Create a SessionFactory key based on connection properties.

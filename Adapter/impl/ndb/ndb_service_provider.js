@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-var ndbconnection = require("./NdbConnection.js");
+var ndbconnection = require("./NdbConnectionPool.js");
 
 var NdbDefaultConnectionProperties = {  
   "implementation" : "ndb",
@@ -39,14 +39,14 @@ exports.getDefaultConnectionProperties = function() {
 
 
 exports.connectSync = function(properties) {
-  var dbconn = new ndbconnection.DBConnection(properties);
+  var dbconn = new ndbconnection.DBConnectionPool(properties);
   dbconn.connectSync();
   return dbconn;
 };
 
 
 exports.connect = function(properties, user_callback) {
-  var dbconn = new ndbconnection.DBConnection(properties);
+  var dbconn = new ndbconnection.DBConnectionPool(properties);
   dbconn.connect(user_callback);
 }
 

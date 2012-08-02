@@ -1,13 +1,13 @@
 
 
-/* DBConnection specifies a common SPI for a database connection.
+/* DBConnectionPool specifies a common SPI for a database connection.
 
    Each implementation is expected to require impl-specific properties 
    in the constructor.
 */
 
 
-/* DBConnection constructor.
+/* DBConnectionPool constructor.
    IMMEDIATE.
    Does not perform any IO. 
    Throws an exception if the Properties object is invalid.
@@ -15,14 +15,14 @@
 DBConnection(Properties connectionProperties); 
 
 
-/* DBConnection.connect() method.
+/* DBConnectionPool.connect() method.
    ASYNC. 
    Connect to the database, using the properties supplied in the constructor.
 */
-   connect(function(error, DBConnection) callback);
+   connect(function(error, DBConnectionPool) callback);
 
 
-/* DBConnection.connectSync() method.
+/* DBConnectionPool.connectSync() method.
    SYNC.
    Blocking connect.  
    This is a convenience method for code startup.
@@ -32,7 +32,7 @@ DBConnection(Properties connectionProperties);
    connectSync();
 
 
-/* DBConnection.isConnected() method.
+/* DBConnectionPool.isConnected() method.
    IMMEDIATE.
 
    @return bool true/false
@@ -40,30 +40,30 @@ DBConnection(Properties connectionProperties);
    isConnected();
 
 
-/* DBConnection.close() method.
+/* DBConnectionPool.close() method.
    ASYNC.
    On successful close, the connection object is passed to the callback.
    It can subsequently be either reopened or destroyed.
 */
-   close(function(error, DBConnection) callback); 
+   close(function(error, DBConnectionPool) callback); 
 
 
-/* DBConnection.closeSync() method.
+/* DBConnectionPool.closeSync() method.
    SYNC.
-   Wait for the connection to close, and destroy the DBConnection object.
+   Wait for the connection to close, and destroy the DBConnectionPool object.
    This is a convenience method for code shutdown.
    Returns null.
 */
   closeSync();
 
 
-/* DBConnection.destroy() method.
+/* DBConnectionPool.destroy() method.
    IMMEDIATE. 
    Frees any native code resources associated with the connection, so that 
-   the DBConnection object can safely be freed by the garbage collector.
+   the DBConnectionPool object can safely be freed by the garbage collector.
    
    Returns true on success and false on error.
-   It is an error if the DBConnection is not closed.
+   It is an error if the DBConnectionPool is not closed.
 */
    destroy();
 
@@ -75,7 +75,7 @@ DBConnection(Properties connectionProperties);
    openSessionHandler(function(error, DBSessionHandler) callback);
 
 
-/* DBConnection.getDataDictionary() method.
+/* DBConnectionPool.getDataDictionary() method.
    ASYNC.
    Opens a new DBDictionary object.  
    May implicitly fetch or open a SessionHandler
