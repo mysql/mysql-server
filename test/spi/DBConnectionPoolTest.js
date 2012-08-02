@@ -51,10 +51,10 @@ t2.run = function() {
 };
 
 
-/**** Connect, leave the connection open, and get a DBSessionHandler
+/**** Connect, leave the connection open, and get a DBSession
 */
 
-var t3 = new harness.SerialTest("openSessionHandler");
+var t3 = new harness.SerialTest("openDBSession");
 t3.run = function() {
   var testCase = this;
   var provider = spi.getDBServiceProvider(global.adapter);

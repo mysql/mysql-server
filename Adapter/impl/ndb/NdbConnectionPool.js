@@ -98,8 +98,8 @@ exports.DBConnectionPool.prototype.closeSync = function() {
 
 /* openSessionHandler().
    ASYNC.
-   Creates and opens a new DBSessionHandler.
-   Users's callback receives (error, DBSessionHandler)
+   Creates and opens a new DBSession.
+   Users's callback receives (error, DBSession)
 */
 exports.DBConnectionPool.prototype.openSessionHandler = function(user_callback) {
   var db = properties.database;
