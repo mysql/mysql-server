@@ -41,6 +41,9 @@ exports.getDefaultConnectionProperties = function() {
 exports.connectSync = function(properties) {
   var conn = new mysqlconnection.DBConnection(properties);
   conn.connectSync();
+
+  
+
   return conn;
 };
 

@@ -20,13 +20,20 @@
 
 
 #include <v8.h>
-
 #include "Wrapper.h"
 
 using namespace v8;
 typedef Local<Value> jsvalue;
 typedef Handle<Object> jsobject;
 
+class Envelope {
+public:
+  int magic;
+  const char * classname;
+  // Persistent<ObjectTemplate> stencil;
+  
+  Envelope(const char *name) : classname(name), magic(0xF00D) /*,stencil(0)*/ {};
+};
 
 
 /*****************************************************************
@@ -35,23 +42,58 @@ typedef Handle<Object> jsobject;
 ******************************************************************/
 
 /* JsConstructorThis template; use as return value from constructor 
+   FIXME
 */
 template <typename P>
-jsobject JsConstructorThis(const v8::Arguments &args, P * ptr) {
-  Wrapper<P> * wrapper = new Wrapper<P>(ptr);
-  return wrapper->Wrap(args.This());
+jsobject JsConstructorThis(const v8::Arguments &args, 
+                           Envelope * env,
+                           P * ptr) {
+  assert(args.IsConstructCall());
+  assert(args.This()->InternalFieldCount() == 2);
+  args.This()->SetInternalField(0, External::Wrap((void *) env));
+  args.This()->SetInternalField(1, External::Wrap((void *) ptr));
+  return args.This();
 }
-
 
 /* JsMethodThis.
    Use in a method call wrapper to get the instance.
 */
 template <typename T> 
 T * JsMethodThis(const v8::Arguments &args) {
-  Wrapper<T> * wrapper = Wrapper<T>::Unwrap(args.This());
-  return wrapper->object;
+  Local<Object> self = args.Holder();
+  assert(self->InternalFieldCount() == 2);
+
+//  Local<External> env_x = Local<External>::Cast(self->GetInternalField(0));
+//  Local<External> obj_x = Local<External>::Cast(self->GetInternalField(1));
+//  Envelope *env = static_cast<Envelope *>(env_x->Value());
+//  T * obj = static_cast<T *>(obj_x->Value());
+
+  Envelope * env = static_cast<Envelope *>(self->GetPointerFromInternalField(0));
+  T * obj = static_cast<T *>(self->GetPointerFromInternalField(1));
+
+  assert(env->magic == 0xF00D);
+
+  return obj;
 }
 
+
+ 
+
+//template <typename T> 
+//T * JsMethodThis(const v8::Arguments &args) {
+//Wrapper<T> * wrapper = Wrapper<T>::Unwrap(args.This());
+//  return wrapper->object;
+//}
+
+//template <typename T> 
+//T * JsMethodThis(const v8::Arguments & args) {
+//  return node::ObjectWrap::Unwrap<T>(args.This());
+//}
+
+//template <typename T> 
+//T * JsMethodThis(const v8::Arguments & args) {
+//  return static_cast<T *>(v8::External::Unwrap(args.Holder()));
+//}
 
 /*****************************************************************
  JsValueConverter 
@@ -59,11 +101,19 @@ T * JsMethodThis(const v8::Arguments &args) {
 ******************************************************************/
 template <typename T> class JsValueConverter {
 public:  
-  JsValueConverter(jsvalue v) {  
+  JsValueConverter(jsvalue v) {
     assert(v->IsObject());
     Local<Object> obj = v->ToObject();
-    assert(obj->InternalFieldCount() > 0);
-    native_object = static_cast<T>(obj->GetPointerFromInternalField(0));
+    assert(obj->InternalFieldCount() == 2);
+
+//    Local<External> env_x = Local<External>::Cast(obj->GetInternalField(0));
+//    Local<External> obj_x = Local<External>::Cast(obj->GetInternalField(1));
+//    Envelope *env = static_cast<Envelope *>(env_x->Value());
+//    native_object = static_cast<T>(obj_x->Value());
+
+  Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
+  native_object = static_cast<T>(obj->GetPointerFromInternalField(1));
+
   }
   /* If you get an "invalid static cast from type void *" above, then the compiler
      is erroneously falling back on this implementation. */  
@@ -158,8 +208,9 @@ public:
 */  
 template <typename T> Local<Value> toJS(T cptr) {
   Local<Object> obj = Object::New();
-  assert(obj->InternalFieldCount() > 0);
-  obj->SetPointerInInternalField(0, static_cast<void *>(cptr));
+  assert(obj->InternalFieldCount() == 2);
+  // TODO: Set envelope pointer
+  obj->SetPointerInInternalField(1, static_cast<void *>(cptr));
   return obj;
 }
 
