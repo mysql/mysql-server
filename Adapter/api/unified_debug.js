@@ -19,7 +19,7 @@
 */
 
 var path = require("path"),
-    impl = require("../impl/build/Release/common/unified_debug_impl");
+    impl = require("../impl/build/Release/common/common_library");
 
 /* This is a common internal run-time debugging package for C and JavaScript. 
  * In the spirit of Fred Fish's dbug package, which is widely used in the 

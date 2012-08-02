@@ -18,6 +18,7 @@
  02110-1301  USA
 */
 
+require("../impl/build/Release/common/common_library");
 var spi = require("../impl/SPI.js");
 var annotations = require("./Annotations.js");
 var sessionfactory = require("./SessionFactory.js");

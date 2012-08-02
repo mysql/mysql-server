@@ -31,7 +31,7 @@ var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
   var response;
-  var dbpath = path.join(build_dir, "common", "debug_dlopen.node");
+  var dbpath = path.join(build_dir, "common", "common_library.node");
   if(debug) console.log("Loading: " + dbpath);
 
   // LOAD the debug_dlopen module

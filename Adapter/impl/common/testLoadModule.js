@@ -1,5 +1,4 @@
-var db = require("../build/Release/common/unified_debug");
+var db = require("../build/Release/common/common_library");
 
+console.dir(db);
 
-console.dir(this);
-// db.testme();
