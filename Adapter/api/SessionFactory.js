@@ -22,7 +22,7 @@ var session = require("./Session.js");
 
 var SessionFactory = function(key) {
   this.key = key;
-  this.dbconnection = {};
+  this.dbconnectionpool = {};
   this.annotations = {};
   this.properties = {};
   this.sessions = [];
@@ -36,7 +36,7 @@ SessionFactory.prototype.openSession = function(annotations, user_callback, extr
   for (var i = 0; i < this.sessions.length; ++i) {
     if (this.sessions[i] == null) break;
   }
-  var newDBSession = this.dbconnection.getDBSession(i);
+  var newDBSession = this.dbconnectionpool.getDBSession(i);
   var newSession = new session.Session(i, this, newDBSession);
   this.sessions[i] = newSession;
   user_callback(null, newSession, extra1, extra2, extra3, extra4);  // todo: extra user parameters

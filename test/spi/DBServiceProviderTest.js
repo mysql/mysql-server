@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-// TODO:  DBServiceProviderTest needs to run before DBConnectionTest.
+// TODO:  DBServiceProviderTest needs to run before DBConnectionPoolTest.
 
 var spi = require(spi_module);
 var service = spi.getDBServiceProvider(global.adapter);
