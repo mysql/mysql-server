@@ -18,6 +18,7 @@
  02110-1301  USA
 */
 
+require("../impl/build/Release/common/common_library");
 var spi = require("../impl/SPI.js");
 var annotations = require("./Annotations.js");
 var sessionfactory = require("./SessionFactory.js");
@@ -47,7 +48,7 @@ exports.ConnectionProperties = function(name) {
 };
 
 
-exports.connect = function(properties, annotations, user_callback) {
+exports.connect = function(properties, annotations, user_callback, extra1, extra2, extra3, extra4) {
   var mynode = this;
   var sp = spi.getDBServiceProvider(properties.implementation);
   var connectionKey = sp.getFactoryKey(properties);
@@ -91,17 +92,18 @@ exports.connect = function(properties, annotations, user_callback) {
       connection.factories[database] = factory;
       connection.count++;
     } 
-    user_callback(null, factory);   //todo: extra parameters
+    user_callback(null, factory, extra1, extra2, extra3, extra4);   //todo: extra parameters
   }
 };
 
 
-exports.openSession = function(properties, annotations, user_callback) {
+exports.openSession = function(properties, annotations, user_callback, extra1, extra2, extra3, extra4) {
   exports.connect(properties, annotations, function(err, factory) {
     if(! err) {
-      var session = factory.openSession(annotations, user_callback);
-    } 
-    user_callback(err, session);   // todo: extra parameters
+      var session = factory.openSession(annotations, user_callback, extra1, extra2, extra3, extra4);
+    } else {
+      user_callback(err, session, extra1, extra2, extra3, extra4);   // todo: extra parameters
+    }
   });
 };
 

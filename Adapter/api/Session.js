@@ -18,10 +18,28 @@
  02110-1301  USA
  */
 
-function Session() {
-
+function Session(index, sessionFactory, dbSession) {
+  this.index = index;
+  this.sessionFactory = sessionFactory;
+  this.dbSession = dbSession;
 }
 
 
 exports.Session = Session;
+
+//TODO proper extra parameter handling
+exports.Session.prototype.find = function(from, key, callback, extra1, extra2, extra3, extra4) {
+  this.dbSession.find(from, key, callback, extra1, extra2, extra3, extra4);
+};
+
+
+//TODO proper extra parameter handling
+exports.Session.prototype.persist = function(instance, callback, extra1, extra2, extra3, extra4) {
+  this.dbSession.persist(instance, callback, extra1, extra2, extra3, extra4);
+};
+
+exports.Session.prototype.close = function() {
+//  this.dbSession.close(this.index);
+  this.sessionFactory.closeSession(this.index);
+};
 
