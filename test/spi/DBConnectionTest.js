@@ -62,17 +62,16 @@ t3.run = function() {
 
   var tcb1 = function(err, connection) {
     udebug.log("DBConnectionTest.js tcb1() 64");
-    if(err) testcase.fail(err);
+    if(err) testCase.fail(err);
     
     var tcb2 = function(err, dbsessionhandler) {
       udebug.log("DBConnectionTest.js tcb2() 68");
       if(err) testcase.fail(err);
-      else testcase.pass();
+      else testCase.pass();
     }
-
     connection.openSessionHandler(tcb2);
+ 
   }
-
   provider.connect(properties, tcb1);
 }
 

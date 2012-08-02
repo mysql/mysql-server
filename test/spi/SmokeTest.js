@@ -31,7 +31,7 @@ var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
   var response;
-  var dbpath = path.join(build_dir, "common", "common_library.node");
+  var dbpath = path.join(build_dir, "common", "debug_dlopen.node");
   // FIXME:
   // ask the {adapter}_service_provider for all required native modules
   // and try to load them

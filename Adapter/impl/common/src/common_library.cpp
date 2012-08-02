@@ -19,8 +19,10 @@
  */
 
 #include <v8.h>
-#include <node.h>
+
+#include "v8_binder.h"
 #include "js_wrapper_macros.h"
+#include "JsConverter.h"
 
 using namespace v8;
 
@@ -29,10 +31,10 @@ typedef void LOADER_FUNCTION(Handle<Object>);
 extern LOADER_FUNCTION dlopen_initOnLoad;
 extern LOADER_FUNCTION udebug_initOnLoad;
 
+
 void initCommon(Handle<Object> target) {
-  dlopen_initOnLoad(target);
   udebug_initOnLoad(target);
 }
 
 
-NODE_MODULE(common_library, initCommon)
+V8BINDER_LOADABLE_MODULE(common_library, initCommon)

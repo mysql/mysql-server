@@ -28,17 +28,28 @@ using namespace v8;
 /*****************************************************************
  An Envelope is a simple structure providing some safety 
  & convenience for wrapped classes.
+
  All objects are wrapped using two internal fields.
  The first points to the envelope; the second to the object itself.
-******************************************************************/
+ ******************************************************************/
 class Envelope {
 public:
-  int magic;                       // for safety when unwrapping 
-  const char * classname;          // for debugging output
-  Handle<ObjectTemplate> stencil;  // for instance construction when needed
+  /* Instance variables */
+  int magic;                            // for safety when unwrapping 
+  const char * classname;               // for debugging output
+  Persistent<ObjectTemplate> stencil;   // for creating JavaScript objects
   
-  Envelope(const char *name) : magic(0xF00D), classname(name), stencil() {}
-  void buildStencil() {
+  /* Constructor */
+  Envelope(const char *name) : magic(0xF00D), classname(name) {
+    HandleScope scope; 
+    Handle<ObjectTemplate> proto = ObjectTemplate::New();
+    proto->SetInternalFieldCount(2);
+    stencil = Persistent<ObjectTemplate>::New(proto);
+  }
+
+  /* Instance Method */
+  Local<Object> newWrapper() { 
+    return stencil->NewInstance();
   }
 };
 

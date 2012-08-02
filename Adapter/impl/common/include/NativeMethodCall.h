@@ -21,11 +21,10 @@
 #include <assert.h>
 
 #include <v8.h>
-#include <uv.h>
 
+#include "v8_binder.h"
 #include "JsConverter.h"
 #include "async_common.h"
-#include "unified_debug.h"
 
 using namespace v8;
 
@@ -35,6 +34,12 @@ using namespace v8;
   *
   * The base class AsyncMethodCall wraps the worker-thread run() routine
   * and the main thread (post-run) doAsyncCallback() needed for async execution.
+  *
+  * The run() method, declared void run(void), will be scheduled to run in a 
+  * uv worker thread.
+  * 
+  * The doAsyncCallback() method will take a JavaScript context.  It is expected
+  * to prepare the result and call the user's callback function.
   * 
   * The templated class NativeMethodCall<R> inherits from AsyncMethodCall and
   * adds a return type, which is initialized at 0.
@@ -80,13 +85,24 @@ class NativeMethodCall : public AsyncMethodCall {
 public:
   /* Member variables */
   RETURN_TYPE return_val;
+  Envelope * envelope;
 
   /* Constructor */
-  NativeMethodCall<RETURN_TYPE>() : return_val(0) {};
+  NativeMethodCall<RETURN_TYPE>() : return_val(0), envelope(0) {};
 
   /* Methods */
   Local<Value> jsReturnVal() {
-    return toJS<RETURN_TYPE>(return_val);
+    HandleScope scope;
+
+    if(isPointer(return_val)) {
+      DEBUG_ASSERT(envelope);
+      Local<Object> obj = envelope->newWrapper();
+      wrapPointerInObject(return_val, *envelope, obj);
+      return scope.Close(obj);
+    }
+    else {
+      return scope.Close(toJS(return_val));
+    }
   }
   
   void doAsyncCallback(Local<Object> context) {
@@ -95,6 +111,7 @@ public:
     cb_args[0] = jsReturnVal();
     callback->Call(context, 1, cb_args);
   }
+
 };
 
 

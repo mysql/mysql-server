@@ -33,7 +33,7 @@
 
 #include <dlfcn.h>
 
-#include <node.h>
+#include "v8_binder.h"
 #include "js_wrapper_macros.h"
 
 using namespace v8;
@@ -87,3 +87,6 @@ void dlopen_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "dlopen_preflight", dlopen_preflight_wrapper);
 #endif
 }
+
+V8BINDER_LOADABLE_MODULE(debug_dlopen, dlopen_initOnLoad)
+
