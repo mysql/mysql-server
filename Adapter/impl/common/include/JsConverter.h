@@ -133,23 +133,11 @@ public:
  Value Conversion from C to JavaScript
 ******************************************************************/
 
-/* If you get an "invalid static cast from type void *" below, 
-   then the compiler is erroneously falling back on this implementation. 
-*/  
+// pointer types
 template <typename T> Local<Value> toJS(T cptr) {
-  Local<Object> obj = Object::New();
-  assert(obj->InternalFieldCount() == 2);
-  // TODO: Set envelope pointer
-  obj->SetPointerInInternalField(1, static_cast<void *>(cptr));
-  return obj;
+  /* This can't be done.  Use wrapPointerInObject() instead. */
+  assert(0);
 }
-
-
-/*****************************************************************
- toJs specializations
- Value Conversion from C to JavaScript
-******************************************************************/
-
 
 // int
 template <>
@@ -174,4 +162,22 @@ template <>
 inline Local<Value> toJS<const char *>(const char * cval) {
   return v8::String::New(cval);
 }
+
+
+
+
+/*****************************************************************
+ isPointer() functions
+******************************************************************/
+template <typename T> bool isPointer(T typ)                { 
+  void * v = static_cast<void *> (typ);
+  return true; 
+}
+
+template <> inline bool isPointer(int typ)                 { return false; }
+template <> inline bool isPointer(uint32_t typ)            { return false; }
+template <> inline bool isPointer(double typ)              { return false; }
+template <> inline bool isPointer(const char * typ)        { return false; }
+template <> inline bool isPointer(int64_t typ)             { return false; }
+template <> inline bool isPointer(unsigned long typ)       { return false; }
 

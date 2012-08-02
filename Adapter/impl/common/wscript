@@ -11,9 +11,12 @@ def build(bld):
   libcommon.target = "common_library"  
   libcommon.source = "src/async_common.cpp " + \
   "src/unified_debug.cpp " + \
-  "src/debug_dlopen.cpp " + \
   "src/unified_debug_v8.cpp " + \
   "src/common_library.cpp"
-  
+
+  libdlopen = bld.new_task_gen("cxx", "shlib", "node_addon")
+  libdlopen.target = "debug_dlopen"
+  libdlopen.source = "src/debug_dlopen.cpp"
+
   bld.recurse("test")
 

@@ -32,28 +32,18 @@ Envelope NdbSessionImplEnv("NdbSessionImpl");
 /* ndb_session_new()
    UV_WORKER_THREAD
    This is the background thread part of NewDBSessionImpl
-   
-   HERE IS THE BUG
-   
-   
 */
 ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
   DEBUG_ENTER();
   ndb_session * sess = new ndb_session;
-  
-  DEBUG_PRINT("Conn: %p", conn);
-  
+    
   sess->ndb = new Ndb(conn);
-  DEBUG_PRINT("Ndb: %p", sess->ndb);
   sess->ndb->init();
 
-  DEBUG_TRACE();
   sess->ndb->setDatabaseName(db);
   DEBUG_PRINT("DBNAME: %s", sess->ndb->getDatabaseName());
 
-  DEBUG_TRACE();
   sess->dict = sess->ndb->getDictionary();    // get Dictionary
-  DEBUG_TRACE();
   // sess->err = sess->ndb->getNdbError();        // get NdbError
   // DEBUG_TRACE();
   
@@ -80,6 +70,7 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   NCALL *ncallptr = new NCALL(args);
   DEBUG_TRACE();
 
+  ncallptr->envelope = & NdbSessionImplEnv;
   ncallptr->function = & ndb_session_new;
   ncallptr->setCallback(args[2]);
   ncallptr->runAsync();
