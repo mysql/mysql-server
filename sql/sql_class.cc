@@ -1811,7 +1811,6 @@ void THD::disconnect()
   if (net.vio != vio && net.vio != NULL)
   {
     vio_close(net.vio);
-    net.vio= NULL;
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
