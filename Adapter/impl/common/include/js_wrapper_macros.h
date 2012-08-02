@@ -39,7 +39,13 @@
   if(args.Length() > N) { \
     THROW_EXCEPTION("Requires no more than " #N " arguments"); \
     return scope.Close(Undefined()); \
-}
+  }
+
+#define REQUIRE_CONSTRUCTOR_CALL() \
+  if(! args.IsConstructCall()) { \
+    THROW_EXCEPTION("Must be called as a Constructor call"); \
+    return scope.Close(Undefined()); \
+  }
 
 #define DEFINE_JS_FUNCTION(TARGET, NAME, FN) \
   TARGET->Set(String::NewSymbol(NAME), FunctionTemplate::New(FN)->GetFunction())
@@ -60,3 +66,9 @@
 #define DEFINE_JS_CONSTRUCTOR(TARGET, NAME, JSCLASS) \
   TARGET->Set(String::NewSymbol(NAME), \
     Persistent<Function>::New(JSCLASS->GetFunction()));
+
+#define DEFINE_JS_CONSTANT(TARGET, constant)                         \
+  (TARGET)->Set(String::NewSymbol(#constant),                        \
+                Integer::New(constant),                              \
+                static_cast<PropertyAttribute>(ReadOnly|DontDelete))
+

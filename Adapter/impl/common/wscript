@@ -14,5 +14,6 @@ def build(bld):
   "src/debug_dlopen.cpp " + \
   "src/unified_debug_v8.cpp " + \
   "src/common_library.cpp"
-
+  
+  bld.recurse("test")
 

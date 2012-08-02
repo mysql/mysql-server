@@ -21,7 +21,7 @@
 #include <stdio.h>
 
 #include "js_wrapper_macros.h"
-#include "node.h"
+#include "v8_binder.h"
 
 #include "unified_debug.h"
 
@@ -115,9 +115,9 @@ void udebug_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "udeb_select"     , js_udeb_select );
   DEFINE_JS_FUNCTION(target, "udeb_add_drop"   , js_udeb_add_drop );
   DEFINE_JS_FUNCTION(target, "udeb_destination", js_udeb_destination);
-  NODE_DEFINE_CONSTANT(target, UDEB_INFO);
-  NODE_DEFINE_CONSTANT(target, UDEB_DEBUG);
-  NODE_DEFINE_CONSTANT(target, UDEB_DETAIL);
-  NODE_DEFINE_CONSTANT(target, UDEB_META);
+  DEFINE_JS_CONSTANT(target, UDEB_INFO);
+  DEFINE_JS_CONSTANT(target, UDEB_DEBUG);
+  DEFINE_JS_CONSTANT(target, UDEB_DETAIL);
+  DEFINE_JS_CONSTANT(target, UDEB_META);
 }
 

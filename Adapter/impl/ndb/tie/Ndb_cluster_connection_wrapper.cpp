@@ -35,14 +35,15 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
   DEBUG_MARKER();
   HandleScope scope;
   
+  REQUIRE_CONSTRUCTOR_CALL();
   REQUIRE_ARGS_LENGTH(1);
-  
+
   JsValueConverter<const char *> arg0(args[0]);
   
   Ndb_cluster_connection * c = new Ndb_cluster_connection(arg0.toC());
-  DEBUG_PRINT(UDEB_DEBUG, "NEW NdbCC: %p", c);
   
-  return scope.Close(JsConstructorThis(args, & NdbccEnvelope, c));
+  wrapPointerInObject(c, NdbccEnvelope, args.This());
+  return args.This();
 }
 
 
@@ -57,7 +58,6 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
   
   NativeVoidMethodCall_1_<Ndb_cluster_connection, const char *> mcall(args);
   mcall.method = & Ndb_cluster_connection::set_name;
-  DEBUG_PRINT(UDEB_DEBUG, "UNWRAPPED NdbCC: %p", mcall.native_obj);
   mcall.run();
   
   return scope.Close(JS_VOID_RETURN);
@@ -74,7 +74,6 @@ Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
 
   NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> mcall(args);
   mcall.method = & Ndb_cluster_connection::connect;
-  DEBUG_PRINT(UDEB_DEBUG, "UNWRAPPED NdbCC: %p", mcall.native_obj);
   mcall.run();
       
   return scope.Close(mcall.jsReturnVal());
@@ -92,7 +91,6 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
 
   mcallptr->method = & Ndb_cluster_connection::connect;
   mcallptr->setCallback(args[3]);
-  DEBUG_PRINT(UDEB_DEBUG, "UNWRAPPED NdbCC: %p", mcallptr->native_obj);
   mcallptr->runAsync();
 
   return scope.Close(JS_VOID_RETURN);
@@ -143,8 +141,7 @@ Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
-  Ndb_cluster_connection *c = JsMethodThis<Ndb_cluster_connection>(args);
-  DEBUG_PRINT(UDEB_DEBUG, "UNWRAPPED NdbCC: %p", c);
+  Ndb_cluster_connection *c = unwrapPointer<Ndb_cluster_connection *>(args.Holder());
 
   delete c;
   return scope.Close(JS_VOID_RETURN);

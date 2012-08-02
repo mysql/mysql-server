@@ -18,6 +18,7 @@
  02110-1301  USA
  */
 
+var common = require("../build/Release/common/common_library.node");
 var ndbapi = require("../build/Release/ndb/ndbapi.node");
 var util = require("./util.js");
 
@@ -105,10 +106,12 @@ exports.DBConnection.prototype.openSessionHandler = function(user_callback) {
   assert(ndbconn);
   assert(db == "test");
   assert(user_callback)
-
-  var sessionImpl = ndbapi.NewDBSessionImpl(ndbconn, db, private_callback);
+  udebug.log("NDB openSessionHandler");
 
   var private_callback = function(sess) {
+    udebug.log("NDB openSessionHandler private_callback");
     user_callback(null, sess);
   };
+
+  var sessionImpl = ndbapi.NewDBSessionImpl(ndbconn, db, private_callback);
 }

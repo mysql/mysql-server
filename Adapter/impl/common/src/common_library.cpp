@@ -19,38 +19,20 @@
  */
 
 #include <v8.h>
-#include "v8_binder.h"
+#include <node.h>
+#include "js_wrapper_macros.h"
 
-#include "NativeMethodCall.h"
-#include "async_common.h"
-#include "unified_debug.h"
+using namespace v8;
 
-void work_thd_run(uv_work_t *req) {
-  DEBUG_ENTER();
-  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
-  
-  m->run();
-  DEBUG_TRACE();
+typedef void LOADER_FUNCTION(Handle<Object>);
+
+extern LOADER_FUNCTION dlopen_initOnLoad;
+extern LOADER_FUNCTION udebug_initOnLoad;
+
+void initCommon(Handle<Object> target) {
+  dlopen_initOnLoad(target);
+  udebug_initOnLoad(target);
 }
 
 
-void main_thd_complete(uv_work_t *req) {
-  DEBUG_ENTER();
-  v8::HandleScope scope;
-  v8::TryCatch try_catch;
-  
-  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
-
-  m->doAsyncCallback(v8::Context::GetCurrent()->Global());
-  
-  /* cleanup */
-  m->callback.Dispose();
-  delete m;
-  delete req;
-  
-  /* exceptions */
-  //if(try_catch.HasCaught())
-  //  FatalException(try_catch);
-  DEBUG_TRACE();
-}
-
+NODE_MODULE(common_library, initCommon)

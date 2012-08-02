@@ -37,7 +37,8 @@ unsigned char bit_index[UDEB_SOURCE_FILE_BITMASK_BYTES];
 const char * levelstr[4] = {"INFO", "DEBUG", "DETAIL", "META"};
 
 int udeb_lookup(const char *);
-void udeb_internal_print(const char *fmt, ...);
+void udeb_internal_print(const char *fmt, va_list ap);
+void udeb_private_print(const char *fmt, ...);
 
 void udeb_switch(int i) {
   switch(i) {
@@ -50,8 +51,8 @@ void udeb_switch(int i) {
     case UDEB_DEBUG:
     case UDEB_DETAIL:
     case UDEB_META:
-      udeb_internal_print("Setting debug output level to %s", 
-                          levelstr[i - UDEB_INFO]);
+      udeb_private_print("Setting debug output level to %s", 
+                         levelstr[i - UDEB_INFO]);
       udeb_level = i;
       break;
     
@@ -90,16 +91,21 @@ inline const char * udeb_basename(const char *path) {
 
 /* udeb_internal_print is our fprintf() 
 */
-void udeb_internal_print(const char *fmt, ...) {
-  va_list args;
+inline void udeb_internal_print(const char *fmt, va_list args) {
   int sz = 0;
   char message[UDEB_MSG_BUF];
 
-  va_start(args, fmt);
   sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
-  va_end(args);
   sprintf(message + sz++, "\n");
   write(debug_fd, message, sz);
+}
+
+
+inline void udeb_private_print(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  udeb_internal_print(fmt, args);
+  va_end(args);
 }
 
 
@@ -121,7 +127,7 @@ void udeb_enter(const char *src_path, const char *function, int line) {
   if(udeb_level >= UDEB_DEBUG) {
     const char *src_file = udeb_basename(src_path);
     if(udeb_lookup(src_file)) {
-      udeb_internal_print("Enter: %27s - line %d - %s", function, line, src_file);
+      udeb_private_print("Enter: %27s - line %d - %s", function, line, src_file);
     }
   }
 }
@@ -131,7 +137,7 @@ void udeb_trace(const char *src_path, int line) {
   if(udeb_level >= UDEB_DETAIL) {
     const char *src_file = udeb_basename(src_path);
     if(udeb_lookup(src_file)) {
-      udeb_internal_print("  Trace: %27s line %d", ".....", line);
+      udeb_private_print("  Trace: %27s line %d", ".....", line);
     }
   }
 }
@@ -141,7 +147,7 @@ void udeb_leave(const char *src_path, const char *function) {
   if(udeb_level >= UDEB_DEBUG) {
     const char *src_file = udeb_basename(src_path);
     if(udeb_lookup(src_file)) {
-      udeb_internal_print("  Leave: %25s", function);
+      udeb_private_print("  Leave: %25s", function);
     }
   }
 }
@@ -152,7 +158,7 @@ void unified_debug_destination(const char * out_file) {
   
   if(fd < 0) {
     fd = STDERR_FILENO;     /* Print to previous destination: */
-    udeb_internal_print("Unified Debug: failed to open \"%s\" for output: %s",
+    udeb_private_print("Unified Debug: failed to open \"%s\" for output: %s",
                         out_file, strerror(errno));
   }
   debug_fd = fd;
@@ -170,7 +176,7 @@ inline int udeb_hash(const char *name) {
   h = h % UDEB_SOURCE_FILE_BITMASK_BITS;
 
   if(udeb_level == UDEB_META) 
-    udeb_internal_print("udeb_hash: %s --> %d", name, h);
+    udeb_private_print("udeb_hash: %s --> %d", name, h);
 
   return h;
 }
@@ -196,7 +202,7 @@ inline int index_clear(unsigned int bit_number) {
 
 void udeb_select(const char *file, int cmd) {
   if(udeb_level == UDEB_META) 
-    udeb_internal_print("udeb_select: %s %d", file ? file : "NULL", cmd);
+    udeb_private_print("udeb_select: %s %d", file ? file : "NULL", cmd);
 
   if(file) {
     if(cmd == UDEB_ADD)       index_set(udeb_hash(udeb_basename(file)));
@@ -227,7 +233,7 @@ inline int udeb_lookup(const char *key) {
   }
 
   if(udeb_level == UDEB_META) 
-    udeb_internal_print("udeb_lookup: %s --> %s", key, response ? "T" : "F");
+    udeb_private_print("udeb_lookup: %s --> %s", key, response ? "T" : "F");
 
   return response;
 }
