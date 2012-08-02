@@ -33,7 +33,11 @@ DIRECTORY STRUCTURE
 TESTING
 -------
 Testing currently requires a running MySQL Cluster with both a management 
-server and a MySQL server on the local machine.  To run the test suite:
+server and a MySQL server on the local machine. The cluster and mysql server
+must be defined with the default server and port. The MySQL server must have
+the database "test" created. The mysql client executable must be in the path.
+
+To run the test suite:
 
 cd test
 node Driver 

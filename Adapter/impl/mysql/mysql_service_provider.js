@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-var mysqlconnection = require("./MysqlConnection.js");
+var mysqlconnection = require("./MysqlConnectionPool.js");
 
 var MysqlDefaultConnectionProperties = {  
   "implementation" : "mysql",
@@ -26,8 +26,8 @@ var MysqlDefaultConnectionProperties = {
   
   "mysql_host"     : "localhost",
   "mysql_port"     : 3306,
-  "mysql_user"     : null,
-  "mysql_password" : null,
+  "mysql_user"     : "",
+  "mysql_password" : "",
   "mysql_socket"   : null,
   "mysql_debug"    : false
 };
@@ -39,8 +39,30 @@ exports.getDefaultConnectionProperties = function() {
 
 
 exports.connectSync = function(properties) {
-  var conn = new mysqlconnection.DBConnection(properties);
-  conn.connectSync();
-  return conn;
+  var connectionPool = new mysqlconnection.DBConnectionPool(properties);
+  connectionPool.connectSync();
+  return connectionPool;
 };
 
+
+exports.getFactoryKey = function(properties) {
+  var socket = properties.mysql_socket;
+  if (!socket) socket = properties.mysql_host + ':' + properties.mysql_port;
+  // TODO: hash user and password to avoid security issue
+  var key = properties.implementation + "://" + socket + 
+    "+" + properties.mysql_user + "<" + properties.mysql_password + ">";
+//  console.log(key);
+  return key;
+};
+
+
+exports.connect = function(properties, sessionFactory_callback) {
+  //the caller of this function is the session factory
+  var callback = sessionFactory_callback;
+  // create the connection pool from the properties
+  var connectionPool = new mysqlconnection.DBConnectionPool(properties);
+  // connect to the database
+  connectionPool.connect(function(err, connection) {
+    callback(err, connectionPool);
+  });
+};

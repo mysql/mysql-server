@@ -413,9 +413,10 @@ Listener.prototype.pass = function(t) {
 };
 Listener.prototype.fail = function(t, e) {
   var message = e.toString();
-if (typeof(e.message) !== 'undefined') {
+  if (typeof(e.message) !== 'undefined') {
     message = e.message;
-  } else if (typeof(e.stack) !== 'undefined') {
+  } 
+  if (debug && typeof(e.stack) !== 'undefined') {
     message = e.stack;
   }
   console.log("[FAIL]", t.fullName(), "\t", message);
