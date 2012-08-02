@@ -66,7 +66,7 @@ ha_tokudb::prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys)
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
     
-    error = drop_indexes(table_arg, key_num, num_of_keys, txn);
+    error = drop_indexes(table_arg, key_num, num_of_keys, table_arg->key_info, txn);
     if (error) { goto cleanup; }
 
 cleanup:
@@ -457,7 +457,7 @@ ha_tokudb::alter_table_phase2(
 
     // drop indexes
     if (dropping_indexes) {
-        error = drop_indexes(table, alter_info->index_drop_buffer, alter_info->index_drop_count, txn);
+        error = drop_indexes(table, alter_info->index_drop_buffer, alter_info->index_drop_count, table->key_info, txn);
         if (error) { goto cleanup; }
     }
 
