@@ -1013,7 +1013,7 @@ ROUND(c1,c2)	TRUNCATE(c1,c2)
 1.133000	1.132000
 DROP TABLE t5;
 CREATE TABLE t7(c1 DECIMAL(66,0));
-ERROR 42000: Too big precision 66 specified for column 'c1'. Maximum is 65.
+ERROR 42000: Too big precision 66 specified for 'c1'. Maximum is 65.
 CREATE TABLE t7(c1 DECIMAL(5,10));
 ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column 'c1').
 DROP TABLE t1,t2;

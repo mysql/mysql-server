@@ -71,13 +71,6 @@ Warning	1265	Data truncated for column 'c2' at row 1
 SELECT count(*) FROM t1 WHERE c2='10:45:15' OR c2='2009-01-32' OR c2='2009-02-30' OR c2='2009-04-31' OR c2='2009-06-31' OR c2='2009-09-31' /* returns 0 */;
 count(*)
 0
-Warnings:
-Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '10:45:15' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '2009-01-32' for column 'c2' at row 1
 UPDATE t1 SET c2='2009-11-31' WHERE c2='2001-01-16';
 Warnings:
 Warning	1265	Data truncated for column 'c2' at row 1
@@ -108,8 +101,7 @@ c1	c2	c3
 2001-01-16	0000-00-00	12
 2001-01-17	0000-00-00	13
 Warnings:
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
-Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 UPDATE t1 SET c2='0000-00-00' WHERE c2='2001-01-18';
 ERROR 22007: Incorrect date value: '0000-00-00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -774,20 +766,17 @@ c1	c2	c3
 INSERT INTO t1 VALUES('2001-01-09','2001-01-10',6),('2001-01-11','2001-01-12',7);
 UPDATE t1 SET c1='2001-01-09 24:59:59',c2='2009-01-10 23:60:59' WHERE c1='2001-01-09';
 Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c1' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 UPDATE t1 SET c2='2001-01-11 23:59:60' WHERE c1='2001-01-11';
 Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 SELECT count(*) FROM t1 WHERE c1='2001-01-09 24:59:59' AND c2='2009-01-10 23:60:59';
 count(*)
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2009-01-10 23:60:59' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-Warning	1292	Truncated incorrect datetime value: '2001-01-09 24:59:59'
-Warning	1292	Truncated incorrect datetime value: '2009-01-10 23:60:59'
+Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59'
+Warning	1292	Incorrect datetime value: '2009-01-10 23:60:59'
 SELECT count(*) FROM t1 WHERE c2='2001-01-11 23:59:60' /* returns 0 */;
 count(*)
 0
@@ -806,8 +795,7 @@ c1	c2	c3
 2001-01-11 00:00:00	0000-00-00 00:00:00	7
 2001-01-17 00:00:00	0000-00-00 00:00:00	8
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
 UPDATE t1 SET c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -949,15 +937,13 @@ c1	c2	c3
 2003-01-01 01:02:03	2002-01-09 01:30:30	10
 UPDATE t1 SET c1='2003-01-01 1:2:3' WHERE c2 BETWEEN '20020109 01:30:40' AND '20020109 01:30:50' ORDER BY c2 LIMIT 2;
 Warnings:
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40'
+Warning	1292	Incorrect datetime value: '20020109 01:30:50'
 SELECT * FROM t1 WHERE c2 BETWEEN '20020109 01:30:40' AND '20020109 01:30:50' ORDER BY c2;
 c1	c2	c3
 Warnings:
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40'
+Warning	1292	Incorrect datetime value: '20020109 01:30:50'
 UPDATE t1 SET c1='2003-01-01 1:2:3' WHERE c2 IN('2002-01-09 1:30:55','2002-01-09 2:00') ORDER BY c2 DESC LIMIT 2;
 SELECT * FROM t1 WHERE c2 IN('2002-01-09 1:30:55','2002-01-09 2:00') ORDER BY c2 DESC;
 c1	c2	c3
@@ -1389,17 +1375,13 @@ SELECT count(*) FROM t1 WHERE c1='2001-01-09 24:59:59' AND c2='2009-01-10 23:60:
 count(*)
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-Warning	1292	Incorrect datetime value: '2009-01-10 23:60:59' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59' for column 'c1' at row 1
-Warning	1292	Truncated incorrect datetime value: '2001-01-09 24:59:59'
-Warning	1292	Truncated incorrect datetime value: '2009-01-10 23:60:59'
+Warning	1292	Incorrect datetime value: '2001-01-09 24:59:59'
+Warning	1292	Incorrect datetime value: '2009-01-10 23:60:59'
 SELECT count(*) FROM t1 WHERE c1='2001-01-11 23:59:59' AND c2='2001-01-11 23:59:60';
 count(*)
 1
 Warnings:
-Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60' for column 'c2' at row 1
-Warning	1292	Truncated incorrect datetime value: '2001-01-11 23:59:60'
+Warning	1292	Incorrect datetime value: '2001-01-11 23:59:60'
 SELECT * FROM t1 WHERE c1='0000-00-00 00:00:00' OR c2='0000-00-00 00:00:00';
 c1	c2	c3
 0000-00-00 00:00:00	0000-00-00 00:00:00	6
@@ -1412,8 +1394,7 @@ c1	c2	c3
 2001-01-11 23:59:59	0000-00-00 00:00:00	7
 2001-01-17 00:00:00	0000-00-00 00:00:00	8
 Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
+Warning	1265	Data truncated for column 'c2' at row 1
 UPDATE t1 SET c1='1972-01-01 07:35',c2='0000-00-00 00:00:00' WHERE c2='2001-01-18 07:35';
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c2' at row 1
 SET SQL_MODE=DEFAULT;
@@ -1552,15 +1533,13 @@ c1	c2	c3
 2003-01-01 01:02:03	2002-01-09 01:30:30	10
 UPDATE t1 SET c1='2003-01-01 1:2:3' WHERE c2 BETWEEN '20020109 01:30:40' AND '20020109 01:30:50' ORDER BY c2 LIMIT 2;
 Warnings:
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40'
+Warning	1292	Incorrect datetime value: '20020109 01:30:50'
 SELECT * FROM t1 WHERE c2 BETWEEN '20020109 01:30:40' AND '20020109 01:30:50' ORDER BY c2;
 c1	c2	c3
 Warnings:
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:40' for column 'c2' at row 1
-Warning	1292	Incorrect datetime value: '20020109 01:30:50' for column 'c2' at row 1
+Warning	1292	Incorrect datetime value: '20020109 01:30:40'
+Warning	1292	Incorrect datetime value: '20020109 01:30:50'
 UPDATE t1 SET c1='2003-01-01 1:2:3' WHERE c2 IN('2002-01-09 1:30:55','2002-01-09 2:00') ORDER BY c2 DESC LIMIT 2;
 SELECT * FROM t1 WHERE c2 IN('2002-01-09 1:30:55','2002-01-09 2:00') ORDER BY c2 DESC;
 c1	c2	c3
