@@ -36,26 +36,26 @@ Created Apr 26, 2012 Vasil Dimov
 extern os_event_t	dict_stats_event;
 
 /*****************************************************************//**
-Add a table to the auto recalc list, which is processed by the
+Add a table to the recalc pool, which is processed by the
 background stats gathering thread. Only the table id is added to the
 list, so the table can be closed after being enqueued and it will be
 opened when needed. If the table does not exist later (has been DROPped),
-then it will be removed from the list and skipped.
-dict_stats_enqueue_table_for_auto_recalc() @{ */
+then it will be removed from the pool and skipped.
+dict_stats_recalc_pool_add() @{ */
 UNIV_INTERN
 void
-dict_stats_enqueue_table_for_auto_recalc(
-/*=====================================*/
-	const dict_table_t*	table);	/*!< in: table */
+dict_stats_recalc_pool_add(
+/*=======================*/
+	const dict_table_t*	table);	/*!< in: table to add */
 /* @} */
 
 /*****************************************************************//**
-Remove a table from the auto recalc list.
-dict_stats_remove_table_from_auto_recalc() @{ */
+Delete a given table from the auto recalc pool.
+dict_stats_recalc_pool_del() */
 UNIV_INTERN
 void
-dict_stats_remove_table_from_auto_recalc(
-/*=====================================*/
+dict_stats_recalc_pool_del(
+/*=======================*/
 	const dict_table_t*	table);	/*!< in: table to remove */
 /* @} */
 
