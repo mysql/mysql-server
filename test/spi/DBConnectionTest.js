@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+require("./suite_config.js");
+
 var spi = require(spi_module);
 
 
@@ -59,9 +61,11 @@ t3.run = function() {
   var properties = provider.getDefaultConnectionProperties();
 
   var tcb1 = function(err, connection) {
+    udebug.log("DBConnectionTest.js tcb1() 64");
     if(err) testcase.fail(err);
     
     var tcb2 = function(err, dbsessionhandler) {
+      udebug.log("DBConnectionTest.js tcb2() 68");
       if(err) testcase.fail(err);
       else testcase.pass();
     }

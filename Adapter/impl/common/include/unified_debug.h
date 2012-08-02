@@ -107,18 +107,24 @@ END_FUNCTIONS_WITH_C_LINKAGE
 #ifdef UNIFIED_DEBUG
 
 #define DEBUG_ENTER()    if(uni_debug) udeb_enter(__FILE__, __func__, __LINE__)
-#define DEBUG_PRINT(...) if(uni_debug) udeb_print(__FILE__, __VA_ARGS__)
+#define DEBUG_PRINT(...) if(uni_debug) udeb_print(__FILE__, UDEB_DEBUG, __VA_ARGS__)
+#define DEBUG_PRINT_DETAIL(...) if(uni_debug) udeb_print(__FILE__, UDEB_DETAIL, __VA_ARGS__)
+#define DEBUG_PRINT_INFO(...) if(uni_debug) udeb_print(__FILE__, UDEB_INFO, __VA_ARGS__)
 #define DEBUG_TRACE()    if(uni_debug) udeb_trace(__FILE__, __LINE__)
 #define DEBUG_LEAVE()    if(uni_debug) udeb_leave(__FILE__, __func__)
 #define DEBUG_MARKER()   u_DebugMarker _dm(__FILE__, __func__, __LINE__)
+#define DEBUG_ASSERT(x) assert(x)
 
 #else
 
 #define DEBUG_PRINT(...)
+#define DEBUG_PRINT_INFO(...)
+#define DEBUG_PRINT_DETAIL(...)
 #define DEBUG_ENTER()
 #define DEBUG_TRACE()
 #define DEBUG_LEAVE()
 #define DEBUG_MARKER()
+#define DEBUG_ASSERT(x)
 
 #endif
 

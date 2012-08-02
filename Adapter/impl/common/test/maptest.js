@@ -1,5 +1,9 @@
 console.log("line 1");
+var udebug = require("../../../api/unified_debug.js");
 var mapper = require("../../build/Release/common/test/mapper.node");
+
+udebug.on();
+udebug.all_files();
 
 console.log("line 4");
 console.log("%d ", mapper.whatnumber(3, "cowboy"));

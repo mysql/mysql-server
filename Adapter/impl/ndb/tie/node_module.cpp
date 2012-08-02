@@ -19,7 +19,7 @@
  */
 
 #include <v8.h>
-#include <node.h>
+#include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "JsConverter.h"
 
@@ -38,6 +38,5 @@ void initModule(Handle<Object> target) {
 
 }
 
-
-NODE_MODULE(ndbapi, initModule)
+V8BINDER_LOADABLE_MODULE(ndbapi, initModule)
 

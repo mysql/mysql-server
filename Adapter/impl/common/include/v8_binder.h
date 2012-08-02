@@ -19,22 +19,28 @@
  */
 
 
+/*****************************************************************
+ This V8 Binder layer helps separate v8 dependencies from 
+ dependencies on a higher-level application framework such as Node.
+
+ Completing this task will require doing something about libuv: 
+ either making libuv common to all frameworks, or creating an 
+ abstraction over it.
+ ******************************************************************/
+
+#pragma once
+
+/* Choose a binder framework:
+*/
+#define V8BINDER_FOR_NODE
+
+
+/***** Node.JS Binder ******/
+#ifdef V8BINDER_FOR_NODE
+
+#define BUILDING_NODE_EXTENSION
 #include "node.h"
 
-using namespace v8;
+#define V8BINDER_LOADABLE_MODULE(A,B)  NODE_MODULE(A,B)
 
-template <class T> class Wrapper : public node::ObjectWrap {
-public:
-  T *object;
-  
-  Wrapper<T>(T * obj) : node::ObjectWrap() , object(obj)                    {};
-   Handle<Object> Wrap( Handle<Object> h)  {
-    node::ObjectWrap::Wrap(h); 
-    return h; 
-  }
-  
-  static Wrapper <T> * Unwrap( Handle<Object> h) {
-    return node::ObjectWrap::Unwrap<Wrapper <T> >(h);
-  }
-};
-
+#endif

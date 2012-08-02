@@ -22,7 +22,6 @@
 
 #include <v8.h>
 #include <uv.h>
-#include "node.h"
 
 #include "JsConverter.h"
 #include "async_common.h"
@@ -62,6 +61,7 @@ class AsyncMethodCall {
     /* Base Class Methods */
     void setCallback(Local<Value> f) {
       callback = Persistent<Function>::New(Local<Function>::Cast(f));
+      DEBUG_PRINT("SETTING CALLBACK");
     }
     
     void runAsync() {
@@ -117,7 +117,7 @@ public:
   /* Constructor */
   NativeVoidMethodCall_1_<C, A0>(const Arguments &args) : method(0) 
   {
-    native_obj = JsMethodThis<C>(args);
+    native_obj = unwrapPointer<C *>(args.Holder());
     
     JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
@@ -148,7 +148,7 @@ public:
   /* Constructor */
   NativeMethodCall_0_<R, C>(const Arguments &args) : method(0)
   {
-    native_obj = JsMethodThis<C>(args);    
+    native_obj = unwrapPointer<C *>(args.Holder());
   }
   
   /* Methods */
@@ -176,7 +176,7 @@ public:
   /* Constructor */
   NativeMethodCall_1_<R, C, A0>(const Arguments &args) : method(0) 
   {
-    native_obj = JsMethodThis<C>(args);
+    native_obj = unwrapPointer<C *>(args.Holder());
     
     JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
@@ -208,7 +208,7 @@ public:
   /* Constructor */
   NativeMethodCall_2_<R, C, A0, A1>(const Arguments &args) : method(0) 
   {
-    native_obj = JsMethodThis<C>(args);
+    native_obj = unwrapPointer<C *>(args.Holder());
     
     JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
@@ -245,7 +245,7 @@ public:
   /* Constructor */
   NativeMethodCall_3_<R, C, A0, A1, A2>(const Arguments &args) : method(0)
   {
-    native_obj = JsMethodThis<C>(args);
+    native_obj = unwrapPointer<C *>(args.Holder());
     
     JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
