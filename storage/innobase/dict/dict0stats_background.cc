@@ -44,10 +44,10 @@ using namespace std;
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
 
-#define SHUTTING_DOWN()	(srv_shutdown_state != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN()		(srv_shutdown_state != SRV_SHUTDOWN_NONE)
 
 /** Event to wake up the stats thread */
-UNIV_INTERN os_event_t	dict_stats_event = NULL;
+UNIV_INTERN os_event_t		dict_stats_event = NULL;
 
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
