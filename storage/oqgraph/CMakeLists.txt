@@ -4,9 +4,13 @@ IF(NOT Boost_FOUND)
 ENDIF()
 INCLUDE_DIRECTORIES(BEFORE ${Boost_INCLUDE_DIRS})
 
-# lp:756966 OQGRAPH on Win64 does not compile
-IF(MSVC AND CMAKE_SIZEOF_VOID_P EQUAL 8)
-  SET(BOOST_OK 0)
+IF(MSVC)
+  # lp:756966 OQGRAPH on Win64 does not compile
+  IF (CMAKE_SIZEOF_VOID_P EQUAL 8)
+    SET(BOOST_OK 0)
+  ELSE()
+    SET(BOOST_OK 1)
+  ENDIF()
 ELSE()
 # See if that works. On old gcc it'll fail because of -fno-rtti
 CHECK_CXX_SOURCE_COMPILES(
