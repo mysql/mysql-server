@@ -45,7 +45,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"

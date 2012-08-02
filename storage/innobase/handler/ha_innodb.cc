@@ -74,7 +74,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0merge.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"

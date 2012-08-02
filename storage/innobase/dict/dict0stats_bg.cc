@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file dict/dict0stats_background.cc
+@file dict/dict0stats_bg.cc
 Code used for background table and index stats gathering.
 
 Created Apr 25, 2012 Vasil Dimov
@@ -30,7 +30,7 @@ using namespace std;
 
 #include "dict0dict.h" /* dict_table_open_on_id() */
 #include "dict0stats.h" /* DICT_STATS_RECALC_PERSISTENT */
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "dict0mem.h" /* dict_table_struct */
 #include "dict0types.h" /* table_id_t */
 #include "ha0storage.h" /* ha_storage_* */
