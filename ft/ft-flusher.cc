@@ -831,7 +831,9 @@ ftleaf_split(
         }
         curr_src_bn_index++;
 
-        assert(B->n_children - curr_dest_bn_index == node->n_children - curr_src_bn_index);
+        invariant(B->n_children >= curr_dest_bn_index);
+        invariant(node->n_children >= curr_src_bn_index);
+        invariant(B->n_children - curr_dest_bn_index == node->n_children - curr_src_bn_index);
         // move the rest of the basement nodes
         for ( ; curr_src_bn_index < node->n_children; curr_src_bn_index++, curr_dest_bn_index++) {
             destroy_basement_node(BLB(B, curr_dest_bn_index));

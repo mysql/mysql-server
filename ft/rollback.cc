@@ -127,9 +127,7 @@ void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     }
 }
 
-static int find_filenum (OMTVALUE v, void *hv) {
-    FT CAST_FROM_VOIDP(h, v);
-    FT CAST_FROM_VOIDP(hfind, hv);
+static int find_filenum (const FT &h, const FT &hfind) {
     FILENUM fnum     = toku_cachefile_filenum(h->cf);
     FILENUM fnumfind = toku_cachefile_filenum(hfind->cf);
     if (fnum.fileid<fnumfind.fileid) return -1;
@@ -140,15 +138,15 @@ static int find_filenum (OMTVALUE v, void *hv) {
 //Notify a transaction that it has touched a brt.
 void toku_txn_maybe_note_ft (TOKUTXN txn, FT ft) {
     toku_txn_lock(txn);
-    OMTVALUE ftv;
+    FT ftv;
     uint32_t idx;
-    int r = toku_omt_find_zero(txn->open_fts, find_filenum, ft, &ftv, &idx);
+    int r = txn->open_fts.find_zero<FT, find_filenum>(ft, &ftv, &idx);
     if (r == 0) {
         // already there
-        assert((FT) ftv == ft);
+        assert(ftv == ft);
         goto exit;
     }
-    r = toku_omt_insert_at(txn->open_fts, ft, idx);
+    r = txn->open_fts.insert_at(ft, idx);
     assert_zero(r);
     // TODO(leif): if there's anything that locks the reflock and then
     // the txn lock, this may deadlock, because it grabs the reflock.

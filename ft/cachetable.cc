@@ -2664,10 +2664,8 @@ int toku_cachetable_unpin_and_remove (
 }
 
 static int
-set_filenum_in_array(OMTVALUE hv, uint32_t index, void*arrayv) {
-    FILENUM *array = (FILENUM *) arrayv;
-    FT h = (FT) hv;
-    array[index] = toku_cachefile_filenum(h->cf);
+set_filenum_in_array(const FT &ft, const uint32_t index, FILENUM *const array) {
+    array[index] = toku_cachefile_filenum(ft->cf);
     return 0;
 }
 
@@ -2679,7 +2677,7 @@ log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ct
     CACHETABLE ct = *ctp;
     TOKULOGGER logger = txn->logger;
     FILENUMS open_filenums;
-    uint32_t num_filenums = toku_omt_size(txn->open_fts);
+    uint32_t num_filenums = txn->open_fts.size();
     FILENUM array[num_filenums];
     if (toku_txn_is_read_only(txn)) {
         goto cleanup;
@@ -2691,7 +2689,8 @@ log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), CACHETABLE *const ct
     open_filenums.num      = num_filenums;
     open_filenums.filenums = array;
     //Fill in open_filenums
-    r = toku_omt_iterate(txn->open_fts, set_filenum_in_array, array);
+
+    r = txn->open_fts.iterate<FILENUM, set_filenum_in_array>(array);
     invariant(r==0);
     switch (toku_txn_get_state(txn)) {
     case TOKUTXN_LIVE:{

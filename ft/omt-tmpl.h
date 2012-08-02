@@ -68,8 +68,130 @@ namespace toku {
  *  If you are storing structs, you may want to be able to get a pointer to the data actually stored in the omt (see find_zero).  To do this, use the second template parameter:
  *   typedef omt<struct foo, struct foo *> foo_omt_t;
  */
+
+namespace omt_internal {
+
+template<bool subtree_supports_marks>
+class subtree_templated {
+private:
+    uint32_t m_index;
+public:
+    static const uint32_t NODE_NULL = UINT32_MAX;
+    inline void set_to_null(void) {
+        m_index = NODE_NULL;
+    }
+
+    inline bool is_null(void) const {
+        return NODE_NULL == get_index();
+    }
+
+    inline uint32_t get_index(void) const {
+        return m_index;
+    }
+
+    inline void set_index(uint32_t index) {
+        invariant(index != NODE_NULL);
+        m_index = index;
+    }
+} __attribute__((__packed__,aligned(4)));
+
+template<>
+class subtree_templated<true> {
+private:
+    uint32_t m_bitfield;
+    static const uint32_t MASK_INDEX = ~(((uint32_t)1) << 31);
+    static const uint32_t MASK_BIT = ((uint32_t)1) << 31;
+
+    inline void set_index_internal(uint32_t new_index) {
+        m_bitfield = (m_bitfield & MASK_BIT) | new_index;
+    }
+public:
+    static const uint32_t NODE_NULL = INT32_MAX;
+    inline void set_to_null(void) {
+        set_index_internal(NODE_NULL);
+    }
+
+    inline bool is_null(void) const {
+        return NODE_NULL == get_index();
+    }
+
+    inline uint32_t get_index(void) const {
+        return m_bitfield & MASK_INDEX;
+    }
+
+    inline void set_index(uint32_t index) {
+        invariant(index < NODE_NULL);
+        set_index_internal(index);
+    }
+
+    inline bool get_bit(void) const {
+        return (m_bitfield & MASK_BIT) != 0;
+    }
+
+    inline void enable_bit(void) {
+        m_bitfield |= MASK_BIT;
+    }
+
+    inline void disable_bit(void) {
+        m_bitfield &= MASK_INDEX;
+    }
+} __attribute__((__packed__)) ;
+
+template<typename omtdata_t, bool subtree_supports_marks>
+class omt_node_templated {
+public:
+    uint32_t weight;
+    subtree_templated<subtree_supports_marks> left;
+    subtree_templated<subtree_supports_marks> right;
+    omtdata_t value;
+
+    // this needs to be in both implementations because we don't have
+    // a "static if" the caller can use
+    inline void clear_stolen_bits(void) {}
+} __attribute__((__packed__,aligned(4)));
+
+template<typename omtdata_t>
+class omt_node_templated<omtdata_t, true> {
+public:
+    uint32_t weight;
+    subtree_templated<true> left;
+    subtree_templated<true> right;
+    omtdata_t value;
+    inline bool get_marked(void) const {
+        return left.get_bit();
+    }
+    inline void set_marked_bit(void) {
+        return left.enable_bit();
+    }
+    inline void unset_marked_bit(void) {
+        return left.disable_bit();
+    }
+
+    inline bool get_marks_below(void) const {
+        return right.get_bit();
+    }
+    inline void set_marks_below_bit(void) {
+        // This function can be called by multiple threads.
+        // Checking first reduces cache invalidation.
+        if (!get_marks_below()) {
+            right.enable_bit();
+        }
+    }
+    inline void unset_marks_below_bit(void) {
+        right.disable_bit();
+    }
+
+    inline void clear_stolen_bits(void) {
+        unset_marked_bit();
+        unset_marks_below_bit();
+    }
+} __attribute__((__packed__,aligned(4)));
+
+}
+
 template<typename omtdata_t,
-         typename omtdataout_t=omtdata_t>
+         typename omtdataout_t=omtdata_t,
+         bool supports_marks=false>
 class omt {
 public:
     /**
@@ -269,6 +391,50 @@ public:
     int iterate_on_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra) const;
 
     /**
+     * Effect: Iterate over the values of the omt, and mark the nodes that are visited.
+     *  Other than the marks, this behaves the same as iterate_on_range.
+     * Requires: supports_marks == true
+     * Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in the omt.
+     * Notes:
+     *  This function MAY be called concurrently by multiple threads, but
+     *  not concurrently with any other non-const function.
+     */
+    template<typename iterate_extra_t,
+             int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
+    int iterate_and_mark_range(const uint32_t left, const uint32_t right, iterate_extra_t *const iterate_extra);
+
+    /**
+     * Effect: Iterate over the values of the omt, from left to right, calling f on each value whose node has been marked.
+     *  Other than the marks, this behaves the same as iterate.
+     * Requires: supports_marks == true
+     * Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in the omt.
+     */
+    template<typename iterate_extra_t,
+             int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
+    int iterate_over_marked(iterate_extra_t *const iterate_extra) const;
+
+    /**
+     * Effect: Delete all elements from the omt, whose nodes have been marked.
+     * Requires: supports_marks == true
+     * Performance: time=O(N + i\log N) where i is the number of marked elements, {c,sh}ould be faster
+     */
+    void delete_all_marked(void);
+
+    /**
+     * Effect: Verify that the internal state of the marks in the tree are self-consistent.
+     *  Crashes the system if the marks are in a bad state.
+     * Requires: supports_marks == true
+     * Performance: time=O(N)
+     * Notes:
+     *  Even though this is a const function, it requires exclusive access.
+     * Rationale:
+     *  The current implementation of the marks relies on a sort of
+     *  "cache" bit representing the state of bits below it in the tree.
+     *  This allows glass-box testing that these bits are correct.
+     */
+    void verify_marks_consistent(void) const;
+
+    /**
      * Effect:  Iterate over the values of the omt, from left to right, calling f on each value.
      *  The first argument passed to f is a pointer to the value stored in the omt.
      *  The second argument passed to f is the index of the value.
@@ -388,16 +554,9 @@ public:
 
 private:
     typedef uint32_t node_idx;
-    enum {
-        NODE_NULL = UINT32_MAX
-    };
-
-    struct omt_node {
-        uint32_t weight;
-        node_idx left;
-        node_idx right;
-        omtdata_t value;
-    } __attribute__((__packed__));
+    typedef omt_internal::subtree_templated<supports_marks> subtree;
+    typedef omt_internal::omt_node_templated<omtdata_t, supports_marks> omt_node;
+    static_assert(std::is_pod<subtree>::value, "not POD");
 
     struct omt_array {
         uint32_t start_idx;
@@ -406,9 +565,9 @@ private:
     };
 
     struct omt_tree {
-        node_idx root;
-        node_idx free_idx;
-        struct omt_node *nodes;
+        subtree root;
+        uint32_t free_idx;
+        omt_node *nodes;
     };
 
     bool is_array;
@@ -423,7 +582,7 @@ private:
 
     void create_internal(const uint32_t new_capacity);
 
-    uint32_t nweight(const node_idx idx) const;
+    uint32_t nweight(const subtree &subtree) const;
 
     node_idx node_malloc(void);
 
@@ -432,27 +591,27 @@ private:
     void maybe_resize_array(const uint32_t n);
 
     __attribute__((nonnull))
-    void fill_array_with_subtree_values(omtdata_t *const array, const node_idx tree_idx) const;
+    void fill_array_with_subtree_values(omtdata_t *const array, const subtree &subtree) const;
 
     void convert_to_array(void);
 
     __attribute__((nonnull))
-    void rebuild_from_sorted_array(node_idx *const n_idxp, const omtdata_t *const values, const uint32_t numvalues);
+    void rebuild_from_sorted_array(subtree *const subtree, const omtdata_t *const values, const uint32_t numvalues);
 
     void convert_to_tree(void);
 
     void maybe_resize_or_convert(const uint32_t n);
 
-    bool will_need_rebalance(const node_idx n_idx, const int leftmod, const int rightmod) const;
+    bool will_need_rebalance(const subtree &subtree, const int leftmod, const int rightmod) const;
 
     __attribute__((nonnull))
-    void insert_internal(node_idx *const n_idxp, const omtdata_t &value, const uint32_t idx, node_idx **const rebalance_idx);
+    void insert_internal(subtree *const subtreep, const omtdata_t &value, const uint32_t idx, subtree **const rebalance_subtree);
 
     void set_at_internal_array(const omtdata_t &value, const uint32_t idx);
 
-    void set_at_internal(const node_idx n_idx, const omtdata_t &value, const uint32_t idx);
+    void set_at_internal(const subtree &subtree, const omtdata_t &value, const uint32_t idx);
 
-    void delete_internal(node_idx *const n_idxp, const uint32_t idx, omt_node *const copyn, node_idx **const rebalance_idx);
+    void delete_internal(subtree *const subtreep, const uint32_t idx, omt_node *const copyn, subtree **const rebalance_subtree);
 
     template<typename iterate_extra_t,
              int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
@@ -462,7 +621,7 @@ private:
     template<typename iterate_extra_t,
              int (*f)(omtdata_t *, const uint32_t, iterate_extra_t *const)>
     void iterate_ptr_internal(const uint32_t left, const uint32_t right,
-                                     const node_idx n_idx, const uint32_t idx,
+                                     const subtree &subtree, const uint32_t idx,
                                      iterate_extra_t *const iterate_extra);
 
     template<typename iterate_extra_t,
@@ -473,21 +632,34 @@ private:
     template<typename iterate_extra_t,
              int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
     int iterate_internal(const uint32_t left, const uint32_t right,
-                                const node_idx n_idx, const uint32_t idx,
+                                const subtree &subtree, const uint32_t idx,
                                 iterate_extra_t *const iterate_extra) const;
+
+    template<typename iterate_extra_t,
+             int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
+    int iterate_and_mark_range_internal(const uint32_t left, const uint32_t right,
+                                        const subtree &subtree, const uint32_t idx,
+                                        iterate_extra_t *const iterate_extra);
+
+    template<typename iterate_extra_t,
+             int (*f)(const omtdata_t &, const uint32_t, iterate_extra_t *const)>
+    int iterate_over_marked_internal(const subtree &subtree, const uint32_t idx,
+                                     iterate_extra_t *const iterate_extra) const;
+
+    uint32_t verify_marks_consistent_internal(const subtree &subtree, const bool allow_marks) const;
 
     void fetch_internal_array(const uint32_t i, omtdataout_t *value) const;
 
-    void fetch_internal(const node_idx idx, const uint32_t i, omtdataout_t *value) const;
+    void fetch_internal(const subtree &subtree, const uint32_t i, omtdataout_t *value) const;
 
     __attribute__((nonnull))
-    void fill_array_with_subtree_idxs(node_idx *const array, const node_idx tree_idx) const;
+    void fill_array_with_subtree_idxs(node_idx *const array, const subtree &subtree) const;
 
     __attribute__((nonnull))
-    void rebuild_subtree_from_idxs(node_idx *const n_idxp, const node_idx *const idxs, const uint32_t numvalues);
+    void rebuild_subtree_from_idxs(subtree *const subtree, const node_idx *const idxs, const uint32_t numvalues);
 
     __attribute__((nonnull))
-    void rebalance(node_idx *const n_idxp);
+    void rebalance(subtree *const subtree);
 
     __attribute__((nonnull))
     static void copyout(omtdata_t *const out, const omt_node *const n);
@@ -507,7 +679,7 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_zero(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_zero(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
@@ -515,7 +687,7 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_plus(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_plus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
@@ -523,7 +695,7 @@ private:
 
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
-    int find_internal_minus(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
+    int find_internal_minus(const subtree &subtree, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
 };
 
 } // namespace toku
