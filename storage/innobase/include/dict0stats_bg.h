@@ -17,14 +17,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/dict0stats_background.h
+@file include/dict0stats_bg.h
 Code used for background table and index stats gathering.
 
 Created Apr 26, 2012 Vasil Dimov
 *******************************************************/
 
-#ifndef dict0stats_background_h
-#define dict0stats_background_h
+#ifndef dict0stats_bg_h
+#define dict0stats_bg_h
 
 #include "univ.i"
 
@@ -113,4 +113,4 @@ DECLARE_THREAD(dict_stats_thread)(
 			required by os_thread_create */
 /* @} */
 
-#endif /* dict0stats_background_h */
+#endif /* dict0stats_bg_h */
