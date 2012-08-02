@@ -109,7 +109,7 @@ Handle<Value> js_udeb_destination(const Arguments &args) {
 }
 
 
-void initOnLoad(Handle<Object> target) {
+void udebug_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "udeb_switch"     , js_udeb_switch);
   DEFINE_JS_FUNCTION(target, "udeb_print"      , js_udeb_print );
   DEFINE_JS_FUNCTION(target, "udeb_select"     , js_udeb_select );
@@ -119,6 +119,4 @@ void initOnLoad(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, UDEB_DEBUG);
   NODE_DEFINE_CONSTANT(target, UDEB_DETAIL);
 }
-
-NODE_MODULE(unified_debug_impl, initOnLoad)
 

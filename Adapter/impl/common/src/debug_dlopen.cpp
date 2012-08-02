@@ -81,14 +81,9 @@ Handle<Value> dlopen_preflight_wrapper(const Arguments &args) {
 #endif
 
 
-void initOnLoad(Handle<Object> target) {
+void dlopen_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "debug_dlopen", dlopen_wrapper);
 #ifdef DO_PREFLIGHT
   DEFINE_JS_FUNCTION(target, "dlopen_preflight", dlopen_preflight_wrapper);
 #endif
 }
-
-NODE_MODULE(debug_dlopen, initOnLoad)
-
-
-
