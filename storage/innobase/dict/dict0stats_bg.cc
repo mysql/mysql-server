@@ -17,17 +17,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file dict/dict0stats_background.cc
+@file dict/dict0stats_bg.cc
 Code used for background table and index stats gathering.
 
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
+#include <vector>
+using namespace std;
+
 #include "univ.i"
 
 #include "dict0dict.h" /* dict_table_open_on_id() */
 #include "dict0stats.h" /* DICT_STATS_RECALC_PERSISTENT */
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "dict0mem.h" /* dict_table_struct */
 #include "dict0types.h" /* table_id_t */
 #include "ha0storage.h" /* ha_storage_* */
@@ -41,149 +44,139 @@ Created Apr 25, 2012 Vasil Dimov
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
 
-#define SHUTTING_DOWN()	(srv_shutdown_state != SRV_SHUTDOWN_NONE)
+#define SHUTTING_DOWN()		(srv_shutdown_state != SRV_SHUTDOWN_NONE)
 
 /** Event to wake up the stats thread */
-UNIV_INTERN os_event_t	dict_stats_event = NULL;
+UNIV_INTERN os_event_t		dict_stats_event = NULL;
 
-/** This mutex protects the following auto_recalc_* variables. */
-static ib_mutex_t	auto_recalc_mutex;
+/** This mutex protects the "recalc_pool" variable. */
+static ib_mutex_t		recalc_pool_mutex;
 #ifdef HAVE_PSI_INTERFACE
-static mysql_pfs_key_t	auto_recalc_mutex_key;
+static mysql_pfs_key_t		recalc_pool_mutex_key;
 #endif /* HAVE_PSI_INTERFACE */
-/** The number of tables that can be queued before the queue is enlarged */
-#define AUTO_RECALC_LIST_INITIAL_SLOTS	128
-/** The autorecalc list - a simple array */
-static table_id_t*	auto_recalc_list = NULL;
-/** The size of the auto_recalc_list, in number of slots (not bytes) */
-static ulint		auto_recalc_size;
-/** The number of slots used in auto_recalc_list */
-static ulint		auto_recalc_used;
+
+/** The number of tables that can be added to "recalc_pool" before
+it is enlarged */
+#define RECALC_POOL_INITIAL_SLOTS	128
+
+/** The multitude of tables whose stats are to be automatically
+recalculated - an STL vector */
+typedef vector<table_id_t>	recalc_pool_t;
+static recalc_pool_t		recalc_pool;
+
+typedef recalc_pool_t::iterator	recalc_pool_iterator_t;
 
 /*****************************************************************//**
-Add a table to the auto recalc list, which is processed by the
+Initialize the recalc pool, called once during thread initialization. */
+static
+void
+dict_stats_recalc_pool_init()
+/*=========================*/
+{
+	recalc_pool.reserve(RECALC_POOL_INITIAL_SLOTS);
+}
+
+/*****************************************************************//**
+Free the resources occupied by the recalc pool, called once during
+thread de-initialization. */
+static
+void
+dict_stats_recalc_pool_deinit()
+/*===========================*/
+{
+	recalc_pool.clear();
+}
+
+/*****************************************************************//**
+Add a table to the recalc pool, which is processed by the
 background stats gathering thread. Only the table id is added to the
 list, so the table can be closed after being enqueued and it will be
 opened when needed. If the table does not exist later (has been DROPped),
-then it will be removed from the list and skipped.
-dict_stats_enqueue_table_for_auto_recalc() @{ */
+then it will be removed from the pool and skipped.
+dict_stats_recalc_pool_add() @{ */
 UNIV_INTERN
 void
-dict_stats_enqueue_table_for_auto_recalc(
-/*=====================================*/
-	const dict_table_t*	table)	/*!< in: table */
+dict_stats_recalc_pool_add(
+/*=======================*/
+	const dict_table_t*	table)	/*!< in: table to add */
 {
-	mutex_enter(&auto_recalc_mutex);
+	mutex_enter(&recalc_pool_mutex);
 
-	ut_a(auto_recalc_used <= auto_recalc_size);
+	/* quit if already in the list */
+	for (recalc_pool_iterator_t iter = recalc_pool.begin();
+	     iter != recalc_pool.end();
+	     ++iter) {
 
-	/* search if already in the list */
-	for (ulint i = 0; i < auto_recalc_used; i++) {
-		if (auto_recalc_list[i] == table->id) {
-			/* already in the list, do not add */
-			mutex_exit(&auto_recalc_mutex);
+		if (*iter == table->id) {
+			mutex_exit(&recalc_pool_mutex);
 			return;
 		}
 	}
 
-	/* not in the list, need to be added */
+	recalc_pool.push_back(table->id);
 
-	/* enlarge if no more space */
-	if (auto_recalc_used == auto_recalc_size) {
-		table_id_t*	p;
-
-		p = reinterpret_cast<table_id_t*>(
-			ut_realloc(auto_recalc_list,
-				   auto_recalc_size * 2
-				   * sizeof(auto_recalc_list[0])));
-
-		if (p == 0) {
-			/* auto_recalc_list is still valid, just quit without
-			adding the table to the list, maybe allocation will
-			succeed in the next enqueue operation */
-			mutex_exit(&auto_recalc_mutex);
-			return;
-		}
-
-		auto_recalc_list = p;
-		auto_recalc_size *= 2;
-	}
-
-	auto_recalc_list[auto_recalc_used++] = table->id;
-
-	mutex_exit(&auto_recalc_mutex);
+	mutex_exit(&recalc_pool_mutex);
 
 	os_event_set(dict_stats_event);
 }
 /* @} */
 
 /*****************************************************************//**
-Pop a table from the auto recalc list.
-dict_stats_dequeue_table_for_auto_recalc() @{
-@return true if list was non-empty and "id" was set, false otherwise */
+Get a table from the auto recalc pool. The returned table id is removed
+from the pool.
+dict_stats_recalc_pool_get() @{
+@return true if the pool was non-empty and "id" was set, false otherwise */
 static
 bool
-dict_stats_dequeue_table_for_auto_recalc(
-/*=====================================*/
+dict_stats_recalc_pool_get(
+/*=======================*/
 	table_id_t*	id)	/*!< out: table id, or unmodified if list is
 				empty */
 {
-	*id = UINT64_UNDEFINED;
+	mutex_enter(&recalc_pool_mutex);
 
-	mutex_enter(&auto_recalc_mutex);
-
-	if (auto_recalc_used > 0) {
-
-		*id = auto_recalc_list[0];
-
-		ut_a(auto_recalc_used > 0);
-
-		--auto_recalc_used;
-
-		ut_memmove(
-			&auto_recalc_list[0],
-			&auto_recalc_list[1],
-			auto_recalc_used * sizeof(auto_recalc_list[0]));
+	if (recalc_pool.empty()) {
+		mutex_exit(&recalc_pool_mutex);
+		return(false);
 	}
 
-	mutex_exit(&auto_recalc_mutex);
+	*id = recalc_pool[0];
 
-	return(*id != UINT64_UNDEFINED);
+	recalc_pool.erase(recalc_pool.begin());
+
+	mutex_exit(&recalc_pool_mutex);
+
+	return(true);
 }
 /* @} */
 
 /*****************************************************************//**
-Remove a table from the auto recalc list.
-dict_stats_remove_table_from_auto_recalc() */
+Delete a given table from the auto recalc pool.
+dict_stats_recalc_pool_del() */
 UNIV_INTERN
 void
-dict_stats_remove_table_from_auto_recalc(
-/*=====================================*/
+dict_stats_recalc_pool_del(
+/*=======================*/
 	const dict_table_t*	table)	/*!< in: table to remove */
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 
-	mutex_enter(&auto_recalc_mutex);
+	mutex_enter(&recalc_pool_mutex);
 
 	ut_ad(table->id > 0);
 
-	for (ulint i = 0; i < auto_recalc_used; ++i) {
+	for (recalc_pool_iterator_t iter = recalc_pool.begin();
+	     iter != recalc_pool.end();
+	     ++iter) {
 
-		if (auto_recalc_list[i] == table->id) {
-
-			ut_memmove(
-				&auto_recalc_list[i],
-				&auto_recalc_list[i + 1],
-				(auto_recalc_used - i - 1)
-				* sizeof(auto_recalc_list[0]));
-
-			auto_recalc_used--;
-
+		if (*iter == table->id) {
+			/* erase() invalidates the iterator */
+			recalc_pool.erase(iter);
 			break;
 		}
 	}
 
-	mutex_exit(&auto_recalc_mutex);
+	mutex_exit(&recalc_pool_mutex);
 }
 
 /*****************************************************************//**
@@ -232,7 +225,7 @@ dict_stats_thread_init()
 {
 	dict_stats_event = os_event_create("dict_stats_event");
 
-	/* The auto_recalc_mutex is acquired from:
+	/* The recalc_pool_mutex is acquired from:
 	1) the background stats gathering thread before any other latch
 	   and released without latching anything else in between (thus
 	   any level would do here)
@@ -245,17 +238,10 @@ dict_stats_thread_init()
 	   and dict_operation_lock (SYNC_DICT_OPERATION) have been locked
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
-	mutex_create(auto_recalc_mutex_key, &auto_recalc_mutex,
+	mutex_create(recalc_pool_mutex_key, &recalc_pool_mutex,
 		     SYNC_STATS_AUTO_RECALC);
 
-	ut_ad(auto_recalc_list == NULL);
-
-	auto_recalc_list = (table_id_t*)
-		ut_malloc(AUTO_RECALC_LIST_INITIAL_SLOTS
-			  * sizeof(auto_recalc_list[0]));
-	ut_a(auto_recalc_list != NULL);
-	auto_recalc_size = AUTO_RECALC_LIST_INITIAL_SLOTS;
-	auto_recalc_used = 0;
+	dict_stats_recalc_pool_init();
 }
 /* @} */
 
@@ -270,13 +256,10 @@ dict_stats_thread_deinit()
 {
 	ut_ad(!srv_dict_stats_thread_active);
 
-	ut_free(auto_recalc_list);
-	auto_recalc_list = NULL;
-	auto_recalc_size = 0;
-	auto_recalc_used = 0;
+	dict_stats_recalc_pool_deinit();
 
-	mutex_free(&auto_recalc_mutex);
-	memset(&auto_recalc_mutex, 0x0, sizeof(auto_recalc_mutex));
+	mutex_free(&recalc_pool_mutex);
+	memset(&recalc_pool_mutex, 0x0, sizeof(recalc_pool_mutex));
 
 	os_event_free(dict_stats_event);
 	dict_stats_event = NULL;
@@ -284,18 +267,18 @@ dict_stats_thread_deinit()
 /* @} */
 
 /*****************************************************************//**
-Pop the first table that has been enqueued for auto recalc and eventually
+Get the first table that has been added for auto recalc and eventually
 update its stats.
-pop_from_auto_recalc_list_and_recalc() @{ */
+dict_stats_process_entry_from_recalc_pool() @{ */
 static
 void
-pop_from_auto_recalc_list_and_recalc()
-/*==================================*/
+dict_stats_process_entry_from_recalc_pool()
+/*=======================================*/
 {
 	table_id_t	table_id;
 
-	/* pop the first table from the auto recalc list */
-	if (!dict_stats_dequeue_table_for_auto_recalc(&table_id)) {
+	/* pop the first table from the auto recalc pool */
+	if (!dict_stats_recalc_pool_get(&table_id)) {
 		/* no tables for auto recalc */
 		return;
 	}
@@ -317,7 +300,7 @@ pop_from_auto_recalc_list_and_recalc()
 
 	mutex_exit(&dict_sys->mutex);
 
-	/* ut_time() could be expensive, pop_from_auto_recalc_list_and_recalc()
+	/* ut_time() could be expensive, the current function
 	is called once every time a table has been changed more than 10% and
 	on a system with lots of small tables, this could become hot. If we
 	find out that this is a problem, then the check below could eventually
@@ -331,7 +314,7 @@ pop_from_auto_recalc_list_and_recalc()
 		too frequent stats updates we put back the table on
 		the auto recalc list and do nothing. */
 
-		dict_stats_enqueue_table_for_auto_recalc(table);
+		dict_stats_recalc_pool_add(table);
 
 	} else {
 
@@ -367,7 +350,7 @@ DECLARE_THREAD(dict_stats_thread)(
 
 		/* Wake up periodically even if not signaled. This is
 		because we may lose an event - if the below call to
-		pop_from_auto_recalc_list_and_recalc() puts the entry back
+		dict_stats_process_entry_from_recalc_pool() puts the entry back
 		in the list, the os_event_set() will be lost by the subsequent
 		os_event_reset(). */
 		os_event_wait_time(
@@ -377,7 +360,7 @@ DECLARE_THREAD(dict_stats_thread)(
 			break;
 		}
 
-		pop_from_auto_recalc_list_and_recalc();
+		dict_stats_process_entry_from_recalc_pool();
 
 		os_event_reset(dict_stats_event);
 	}

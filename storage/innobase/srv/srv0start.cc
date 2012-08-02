@@ -71,7 +71,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "buf0rea.h"
 # include "dict0boot.h"
 # include "dict0load.h"
-# include "dict0stats_background.h" /* dict_stats_thread*(), dict_stats_event */
+# include "dict0stats_bg.h" /* dict_stats_thread*(), dict_stats_event */
 # include "que0que.h"
 # include "usr0sess.h"
 # include "lock0lock.h"

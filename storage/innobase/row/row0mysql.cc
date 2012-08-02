@@ -45,7 +45,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -1047,7 +1047,7 @@ row_update_statistics_if_needed(
 		if (counter > n_rows / 10 /* 10% */
 		    && dict_stats_auto_recalc_is_enabled(table)) {
 
-			dict_stats_enqueue_table_for_auto_recalc(table);
+			dict_stats_recalc_pool_add(table);
 			table->stat_modified_counter = 0;
 		}
 		return;
@@ -3725,7 +3725,7 @@ row_drop_table_for_mysql(
 		fil_delete_link_file(name);
 	}
 
-	dict_stats_remove_table_from_auto_recalc(table);
+	dict_stats_recalc_pool_del(table);
 
 	/* Remove stats for this table and all of its indexes from the
 	persistent storage if it exists and if there are stats for this
