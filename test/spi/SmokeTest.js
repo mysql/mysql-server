@@ -31,6 +31,9 @@ var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
   var response;
+  // FIXME:
+  // ask the {adapter}_service_provider for all required native modules
+  // and try to load them
   var dbpath = path.join(build_dir, "common", "debug_dlopen.node");
   if(debug) console.log("Loading: " + dbpath);
 
@@ -49,15 +52,13 @@ test.run = function() {
   if(debug) console.log("Loading: " + ndb_module_path);
   response = db.debug_dlopen(ndb_module_path);
 
+  // iterate over the module list here
   if(response != "OK") {
+  // message = module_name + ":" + response
     this.appendErrorMessage(response);
-    this.fail();
   }
-  
-  // Finally, use require() to load the ndbapi module
-  require(ndb_module_path);
+
   return true;
 }
-
 
 module.exports.tests = [test];

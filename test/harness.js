@@ -182,11 +182,10 @@ function Suite(name, path) {
   if (debug) console.log('creating Suite for ' + name + ' ' + path);
 }
 
-
 Suite.prototype.addTest = function(filename, test) {
   if (debug) console.log('Suite ' + this.name + ' adding test ' + test.name +
                          ' from file ' + filename);
-  test.filename = filename;
+  test.filename = filename;    /// shorten the filename here
   test.suite = this;
   this.tests.push(test);
   return test;

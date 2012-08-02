@@ -17,4 +17,4 @@ def build(bld):
   udeb.source = "src/unified_debug_v8.cpp"
   udeb.libpath = "Release/common"
 
-  
+  bld.recurse("test");

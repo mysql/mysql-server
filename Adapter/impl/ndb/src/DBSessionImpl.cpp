@@ -27,6 +27,7 @@
 
 using namespace v8;
 
+Envelope NdbSessionImplEnv("NdbSessionImpl");
 
 /* ndb_session_new()
    UV_WORKER_THREAD
@@ -69,6 +70,8 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   typedef NativeCFunctionCall_2_<ndb_session *, Ndb_cluster_connection *, 
                                  const char *> NCALL;
   NCALL *ncallptr = new NCALL(args);
+
+  DEBUG_PRINT(UDEB_DEBUG, "IN NewDbSessionImpl, UNWRAPPED NdbCC: %p", ncallptr->arg0);
 
   ncallptr->function = & ndb_session_new;
   ncallptr->setCallback(args[2]);

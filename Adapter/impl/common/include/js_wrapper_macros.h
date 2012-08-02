@@ -51,7 +51,7 @@
 #define DEFINE_JS_CLASS(JSCLASS, NAME, FN) \
   JSCLASS = FunctionTemplate::New(FN); \
   JSCLASS->SetClassName(String::NewSymbol(NAME)); \
-  JSCLASS->InstanceTemplate()->SetInternalFieldCount(1);
+  JSCLASS->InstanceTemplate()->SetInternalFieldCount(2);
 
 /* This could be replaced with NODE_SET_PROTOTYPE_METHOD from node.h */
 #define DEFINE_JS_METHOD(CLASS, NAME, FN) \
