@@ -1,20 +1,18 @@
 def configure(conf):
   pass
+
+# 
+# The common_library module must be loaded before any others,
+# to avoid linker errors.
+# 
   
 def build(bld):
-  libimpl = bld(
-    features = "cxx node_addon cstaticlib",
-    source = "src/async_common.cpp src/unified_debug.cpp",
-    target = "impl_common"
-  )
-  
-  ddlo = bld.new_task_gen("cxx", "shlib", "node_addon")
-  ddlo.target = "debug_dlopen"
-  ddlo.source = "src/debug_dlopen.cpp"
+  libcommon = bld.new_task_gen("cxx", "shlib", "node_addon")
+  libcommon.target = "common_library"  
+  libcommon.source = "src/async_common.cpp " + \
+  "src/unified_debug.cpp " + \
+  "src/debug_dlopen.cpp " + \
+  "src/unified_debug_v8.cpp " + \
+  "src/common_library.cpp"
 
-  udeb = bld.new_task_gen("cxx", "shlib", "node_addon") 
-  udeb.target = "unified_debug_impl"
-  udeb.source = "src/unified_debug_v8.cpp"
-  udeb.libpath = "Release/common"
 
-  bld.recurse("test");

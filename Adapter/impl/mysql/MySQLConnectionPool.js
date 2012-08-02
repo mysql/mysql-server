@@ -19,12 +19,9 @@
 */
 
 
-/* Requires version 2.0 of Felix Geisendörfer's MySQL client */
+/* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 var mysql = require("mysql");
-var dbconn;
-var driverproperties;
-var is_connected = 0;
-
+var connection = require("./MySQLConnection.js");
 /* Translate our properties to the driver's */
 function getDriverProperties(props) {
   var driver = {};
@@ -48,23 +45,41 @@ function getDriverProperties(props) {
 
 /* Constructor 
 */
-exports.DBConnection = function(props) {
-  driverproperties = getDriverProperties(props);
-  dbconn = mysql.createConnection(driverproperties);
+exports.DBConnectionPool = function(props) {
+  this.driverproperties = getDriverProperties(props);
+  this.dbconn = mysql.createConnection(this.driverproperties);
+  this.is_connected = false;
 };
 
 
-exports.DBConnection.prototype.connectSync = function() {
-  dbconn.connect();
-  is_connected = 1;  // but what if connection failed? 
+exports.DBConnectionPool.prototype.connectSync = function() {
+  this.dbconn.connect();
+  this.is_connected = true;
 };
 
-exports.DBConnection.prototype.closeSync = function() {
-  dbconn.end();
+exports.DBConnectionPool.prototype.connect = function(user_callback) {
+  connectionPool = this;
+  this.dbconn.connect(function(err) {
+    if (!err) {
+      connectionPool.is_connected = true;
+    }
+    user_callback(err);
+  });
 };
 
-exports.DBConnection.prototype.destroy = function() { };
-
-exports.DBConnection.prototype.isConnected = function() {
-  return is_connected;
+exports.DBConnectionPool.prototype.closeSync = function() {
+  this.dbconn.end();
 };
+
+exports.DBConnectionPool.prototype.destroy = function() { 
+};
+
+exports.DBConnectionPool.prototype.isConnected = function() {
+  return this.is_connected;
+};
+
+exports.DBConnectionPool.prototype.getDBSession = function() {
+  var newDBSession = new connection.DBSession();
+  return newDBSession;
+};
+
