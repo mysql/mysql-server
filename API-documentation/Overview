@@ -61,7 +61,7 @@ DBDictionary:
   listTables()
   getTable()
 
-DBSessionHandler:
+DBSession:
   read()
   insert()
   update()

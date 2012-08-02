@@ -70,9 +70,9 @@ DBConnection(Properties connectionProperties);
 
 /* openSessionHandler().
    ASYNC.
-   Creates and opens a new DBSessionHandler.
+   Creates and opens a new DBSession.
 */
-   openSessionHandler(function(error, DBSessionHandler) callback);
+   openSessionHandler(function(error, DBSession) callback);
 
 
 /* DBConnectionPool.getDataDictionary() method.
