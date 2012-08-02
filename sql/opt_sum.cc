@@ -412,6 +412,7 @@ int opt_sum_query(THD *thd,
           if ((error= table->file->ha_index_init((uint) ref.key, 1)))
           {
             table->file->print_error(error, MYF(0));
+            table->set_keyread(FALSE);
             DBUG_RETURN(error);
           }
 

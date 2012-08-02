@@ -9958,8 +9958,13 @@ int QUICK_RANGE_SELECT::reset()
     if (in_ror_merged_scan)
       head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
+    DBUG_EXECUTE_IF("bug14365043_2",
+                    DBUG_SET("+d,ha_index_init_fail"););
     if ((error= file->ha_index_init(index, sorted)))
-        DBUG_RETURN(error);
+    {
+      file->print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */
@@ -12345,7 +12350,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
   if ((result= head->file->ha_index_init(index, true)))
+  {
+    head->file->print_error(result, MYF(0));
     DBUG_RETURN(result);
+  }
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
   result= head->file->ha_index_last(record);
