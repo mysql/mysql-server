@@ -24,9 +24,8 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
-using namespace std;
-
 #include <map>
+using namespace std;
 
 #define THIS_MODULE
 #include "page0zip.h"
