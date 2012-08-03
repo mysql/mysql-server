@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("The repository is not configured properly. Please, fix this before using replication.");
 '#---------------------BS_STVARS_002_01----------------------#'
 SELECT @@GLOBAL.master_info_repository;
 @@GLOBAL.master_info_repository
