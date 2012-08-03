@@ -1,0 +1,60 @@
+#
+# Test information_schema.innodb_cmp_per_index
+#
+
+-- source include/have_innodb.inc
+
+-- vertical_results
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SET GLOBAL innodb_file_format=Barracuda;
+
+# reset any leftover stats from previous tests
+-- disable_query_log
+-- disable_result_log
+SELECT * FROM information_schema.innodb_cmp_per_index_reset;
+-- enable_result_log
+-- enable_query_log
+
+# see that the table is empty
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+# create a table that uses compression
+CREATE TABLE t (
+	a INT,
+	b VARCHAR(512),
+	PRIMARY KEY (a),
+	INDEX (b(512))
+) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+# insert some data into it
+BEGIN;
+-- disable_query_log
+let $i=128;
+while ($i)
+{
+	-- eval INSERT INTO t VALUES ($i, REPEAT('x', 512));
+	dec $i;
+}
+-- enable_query_log
+COMMIT;
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+# restart mysqld and see that uncompress ops also gets increased when
+# selecting from the table again
+
+-- source include/restart_mysqld.inc
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+SELECT COUNT(*) FROM t;
+
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+DROP TABLE t;
+
+SET GLOBAL innodb_cmp_per_index_enabled=default;
+SET GLOBAL innodb_file_format=default;
