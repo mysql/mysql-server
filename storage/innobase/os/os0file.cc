@@ -3155,6 +3155,8 @@ os_file_make_data_dir_path(
 	tablename_len = ut_strlen(tablename);
 
 	ut_memmove(++ptr, tablename, tablename_len);
+
+	ptr[tablename_len] = '\0';
 }
 
 /****************************************************************//**
