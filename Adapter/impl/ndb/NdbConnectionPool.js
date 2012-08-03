@@ -101,15 +101,15 @@ exports.DBConnectionPool.prototype.closeSync = function() {
    Creates and opens a new DBSession.
    Users's callback receives (error, DBSession)
 */
-exports.DBConnectionPool.prototype.openSessionHandler = function(user_callback) {
+exports.DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
   var db = properties.database;
   assert(ndbconn);
   assert(db == "test");
   assert(user_callback)
-  udebug.log("NDB openSessionHandler");
+  udebug.log("NDB getDBSession");
 
   var private_callback = function(sess) {
-    udebug.log("NDB openSessionHandler private_callback");
+    udebug.log("NDB getDBSession private_callback");
     user_callback(null, sess);
   };
 
