@@ -69,7 +69,7 @@ t3.run = function() {
       if(err) testcase.fail(err);
       else testCase.pass();
     }
-    connection.openSessionHandler(tcb2);
+    connection.getDBSession(0, tcb2);
  
   }
   provider.connect(properties, tcb1);
