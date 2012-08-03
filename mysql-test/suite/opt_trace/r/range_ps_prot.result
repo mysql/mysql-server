@@ -3394,17 +3394,25 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
                       "intersecting_indices": [
                         {
                           "index": "cola",
+                          "index_scan_cost": 11.231,
+                          "cumulated_index_scan_cost": 11.231,
+                          "disk_sweep_cost": 309.15,
+                          "cumulated_total_cost": 320.38,
                           "usable": true,
                           "matching_rows_now": 533,
-                          "cumulated_cost": 320.38,
-                          "isect_covering_with_this_index": false
+                          "isect_covering_with_this_index": false,
+                          "chosen": true
                         },
                         {
                           "index": "colb",
+                          "index_scan_cost": 11.231,
+                          "cumulated_index_scan_cost": 22.462,
+                          "disk_sweep_cost": 30.898,
+                          "cumulated_total_cost": 53.359,
                           "usable": true,
                           "matching_rows_now": 32.639,
-                          "cumulated_cost": 53.359,
-                          "isect_covering_with_this_index": false
+                          "isect_covering_with_this_index": false,
+                          "chosen": true
                         }
                       ] /* intersecting_indices */,
                       "clustered_pk": {
@@ -5180,63 +5188,25 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                     "analyzing_roworder_intersect": {
                       "intersecting_indices": [
                         {
-                          "index": "i1_idx",
+                          "index": "v_idx",
+                          "index_scan_cost": 1,
+                          "cumulated_index_scan_cost": 1,
+                          "disk_sweep_cost": 0,
+                          "cumulated_total_cost": 1,
                           "usable": true,
                           "matching_rows_now": 1,
-                          "cumulated_cost": 2,
-                          "isect_covering_with_this_index": false
-                        },
-                        {
-                          "index": "v_idx",
-                          "usable": true,
-                          "matching_rows_now": 0.2,
-                          "cumulated_cost": 2,
-                          "isect_covering_with_this_index": true
+                          "isect_covering_with_this_index": true,
+                          "chosen": true
                         }
                       ] /* intersecting_indices */,
                       "clustered_pk": {
-                        "clustered_pk_scan_added_to_intersect": true,
-                        "cumulated_cost": 1.1
+                        "clustered_pk_added_to_intersect": false,
+                        "cause": "roworder_is_covering"
                       } /* clustered_pk */,
-                      "rows": 1,
-                      "cost": 1.1,
-                      "covering": false,
-                      "chosen": true
-                    } /* analyzing_roworder_intersect */,
-                    "make_covering_roworder_intersect": {
-                      "included_indices": [
-                        "v_idx"
-                      ] /* included_indices */,
-                      "covering": true,
-                      "not_included_indices": [
-                        "i1_idx"
-                      ] /* not_included_indices */,
                       "chosen": false,
-                      "cause": "only_one_index"
-                    } /* make_covering_roworder_intersect */
-                  } /* analyzing_range_alternatives */,
-                  "chosen_range_access_summary": {
-                    "range_access_plan": {
-                      "type": "index_roworder_intersect",
-                      "rows": 1,
-                      "cost": 1.1,
-                      "covering": false,
-                      "clustered_pk_scan": true,
-                      "intersect_of": [
-                        {
-                          "type": "range_scan",
-                          "index": "i1_idx",
-                          "rows": 1,
-                          "ranges": [
-                            "1 <= i1 <= 1"
-                          ] /* ranges */
-                        }
-                      ] /* intersect_of */
-                    } /* range_access_plan */,
-                    "rows_for_plan": 1,
-                    "cost_for_plan": 1.1,
-                    "chosen": true
-                  } /* chosen_range_access_summary */
+                      "cause": "too_few_indexes_to_merge"
+                    } /* analyzing_roworder_intersect */
+                  } /* analyzing_range_alternatives */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -5264,8 +5234,10 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "chosen": false
                     },
                     {
-                      "access_type": "range",
-                      "cause": "covering_index_better_than_full_scan",
+                      "access_type": "scan",
+                      "cost": 2,
+                      "rows": 5,
+                      "cause": "cost",
                       "chosen": false
                     }
                   ] /* considered_access_paths */
@@ -5485,20 +5457,32 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "intersecting_indices": [
                         {
                           "index": "v_idx",
+                          "index_scan_cost": 1,
+                          "cumulated_index_scan_cost": 1,
+                          "disk_sweep_cost": 1,
+                          "cumulated_total_cost": 2,
                           "usable": true,
                           "matching_rows_now": 1,
-                          "cumulated_cost": 2,
-                          "isect_covering_with_this_index": false
+                          "isect_covering_with_this_index": false,
+                          "chosen": true
                         },
                         {
                           "index": "i1_i2_idx",
+                          "index_scan_cost": 1,
+                          "cumulated_index_scan_cost": 2,
+                          "disk_sweep_cost": 0,
+                          "cumulated_total_cost": 2,
                           "usable": true,
                           "matching_rows_now": 0.2,
-                          "cumulated_cost": 2,
-                          "isect_covering_with_this_index": true
+                          "isect_covering_with_this_index": true,
+                          "chosen": false,
+                          "cause": "does_not_reduce_cost"
                         }
                       ] /* intersecting_indices */,
                       "clustered_pk": {
+                        "index_scan_cost": 0.1,
+                        "cumulated_index_scan_cost": 1.1,
+                        "disk_sweep_cost": 0,
                         "clustered_pk_scan_added_to_intersect": true,
                         "cumulated_cost": 1.1
                       } /* clustered_pk */,
@@ -5506,15 +5490,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "cost": 1.1,
                       "covering": false,
                       "chosen": true
-                    } /* analyzing_roworder_intersect */,
-                    "make_covering_roworder_intersect": {
-                      "included_indices": [
-                        "v_idx",
-                        "i1_i2_idx"
-                      ] /* included_indices */,
-                      "chosen": false,
-                      "cause": "cost"
-                    } /* make_covering_roworder_intersect */
+                    } /* analyzing_roworder_intersect */
                   } /* analyzing_range_alternatives */,
                   "chosen_range_access_summary": {
                     "range_access_plan": {
