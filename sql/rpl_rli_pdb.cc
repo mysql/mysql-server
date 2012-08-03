@@ -17,6 +17,7 @@
 */
 const char *info_slave_worker_fields []=
 {
+  "id",
   /*
     These positions identify what has been executed. Notice that they are
     redudant and only the group_master_log_name and group_master_log_pos
@@ -70,6 +71,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                            PSI_mutex_key *param_key_info_stop_cond,
                            PSI_mutex_key *param_key_info_sleep_cond
 #endif
+                           , uint param_id
                           )
   : Relay_log_info(FALSE
 #ifdef HAVE_PSI_INTERFACE
@@ -78,10 +80,16 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                    param_key_info_data_cond, param_key_info_start_cond,
                    param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
-                  ), c_rli(rli),
+                   , param_id + 1
+                  ), c_rli(rli), id(param_id),
     checkpoint_relay_log_pos(0), checkpoint_master_log_pos(0),
     checkpoint_seqno(0), running_status(NOT_RUNNING)
 {
+  /*
+    In the future, it would be great if we use only one identifier.
+    So when factoring out this code, please, consider this.
+  */
+  DBUG_ASSERT(internal_id == id + 1);
   checkpoint_relay_log_name[0]= 0;
   checkpoint_master_log_name[0]= 0;
   my_init_dynamic_array(&curr_group_exec_parts, sizeof(db_worker_hash_entry*),
@@ -203,7 +211,7 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
       (return_check == REPOSITORY_DOES_NOT_EXIST && is_gaps_collecting_phase))
     goto err;
 
-  if (handler->init_info(uidx, nidx))
+  if (handler->init_info())
     goto err;
 
   bitmap_init(&group_executed, NULL, num_bits, FALSE);
@@ -235,7 +243,7 @@ void Slave_worker::end_info()
   if (!inited)
     DBUG_VOID_RETURN;
 
-  handler->end_info(uidx, nidx);
+  handler->end_info();
 
   if (inited)
   {
@@ -265,7 +273,7 @@ int Slave_worker::flush_info(const bool force)
   if (write_info(handler))
     goto err;
 
-  if (handler->flush_info(uidx, nidx, force))
+  if (handler->flush_info(force))
     goto err;
 
   DBUG_RETURN(0);
@@ -286,11 +294,13 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
   ulong temp_checkpoint_seqno= 0;
   ulong nbytes= 0;
   uchar *buffer= (uchar *) group_executed.bitmap;
+  int temp_internal_id= 0;
 
-  if (from->prepare_info_for_read(nidx))
+  if (from->prepare_info_for_read())
     DBUG_RETURN(TRUE);
 
-  if (from->get_info(group_relay_log_name,
+  if (from->get_info((int *) &temp_internal_id, (int) 0) ||
+      from->get_info(group_relay_log_name,
                      (size_t) sizeof(group_relay_log_name),
                      (char *) "") ||
       from->get_info((ulong *) &temp_group_relay_log_pos,
@@ -319,6 +329,7 @@ bool Slave_worker::read_info(Rpl_info_handler *from)
 
   DBUG_ASSERT(nbytes <= no_bytes_in_map(&group_executed));
 
+  internal_id=(uint) temp_internal_id;
   group_relay_log_pos=  temp_group_relay_log_pos;
   group_master_log_pos= temp_group_master_log_pos;
   checkpoint_relay_log_pos=  temp_checkpoint_relay_log_pos;
@@ -334,10 +345,10 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
 
   ulong nbytes= (ulong) no_bytes_in_map(&group_executed);
   uchar *buffer= (uchar*) group_executed.bitmap;
-
   DBUG_ASSERT(nbytes <= (c_rli->checkpoint_group + 7) / 8);
 
-  if (to->prepare_info_for_write(nidx) ||
+  if (to->prepare_info_for_write() ||
+      to->set_info((int) internal_id) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
@@ -1896,7 +1907,6 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
 err:
   if (error)
   {
-
     if (log_warnings > 1)
       sql_print_information("Worker %lu is exiting: killed %i, error %i, "
                             "running_status %d",
