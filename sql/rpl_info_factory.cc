@@ -193,11 +193,24 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
   Relay_log_info *rli= NULL;
   Rpl_info_handler* handler_src= NULL;
   Rpl_info_handler* handler_dest= NULL;
+  uint worker_repository= INVALID_INFO_REPOSITORY;
+  uint worker_instances= 1;
   uint instances= 1;
   const char *msg= "Failed to allocate memory for the relay log info "
                    "structure";
 
   DBUG_ENTER("Rpl_info_factory::create_rli");
+
+  /*
+    Returns how many occurrences of rli's repositories exist. For example,
+    if the repository is a table, this retrieves the number of rows in it.
+    Besides, it also returns the type of the repository where entries were
+    found.
+  */
+  if (rli_option != INFO_REPOSITORY_DUMMY &&
+      scan_repositories(&worker_instances, &worker_repository,
+                        worker_table_data, worker_file_data))
+    goto err;
 
   if (!(rli= new Relay_log_info(is_slave_recovery
 #ifdef HAVE_PSI_INTERFACE
@@ -216,6 +229,17 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
   if(init_repositories(rli_table_data, rli_file_data, rli_option, instances,
                        &handler_src, &handler_dest, &msg))
     goto err;
+
+  if (rli_option != INFO_REPOSITORY_DUMMY &&
+      worker_repository != INVALID_INFO_REPOSITORY &&
+      worker_repository != rli_option)
+  {
+    sql_print_warning("It is not possible to change the type of the relay log's "
+                      "repository because there are workers' repositories and "
+                      "possible gaps. Please, fix the gaps first before doing "
+                      "such change.");
+    std::swap(handler_src, handler_dest);
+  }
 
   if (decide_repository(rli, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
@@ -792,6 +816,61 @@ bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
       DBUG_ASSERT(0);
   }
   error= FALSE;
+
+err:
+  DBUG_RETURN(error);
+}
+
+bool Rpl_info_factory::scan_repositories(uint* found_instances,
+                                         uint* found_rep_option,
+                                         const struct_table_data table_data,
+                                         const struct_file_data file_data)
+{
+  bool error= false;
+  uint file_instances= 0;
+  uint table_instances= 0;
+  DBUG_ASSERT(found_rep_option != NULL);
+
+  DBUG_ENTER("Rpl_info_factory::scan_repositories");
+
+  if (Rpl_info_table::do_count_info(table_data.n_fields, table_data.schema,
+                                    table_data.name, &table_instances))
+  {
+    error= true;
+    goto err;
+  }
+
+  if (Rpl_info_file::do_count_info(file_data.n_fields, file_data.pattern,
+                                   &file_instances))
+  {
+    error= true;
+    goto err;
+  }
+
+  if (file_instances != 0 && table_instances != 0)
+  {
+    error= true;
+    sql_print_error ("Multiple repository instances found with data in "
+                     "them. Unable to decide which is the correct one to "
+                     "choose.");
+    goto err;
+  }
+
+  if (table_instances != 0)
+  {
+    *found_instances= table_instances;
+    *found_rep_option= INFO_REPOSITORY_TABLE;
+  }
+  else if (file_instances != 0)
+  {
+    *found_instances= file_instances;
+    *found_rep_option= INFO_REPOSITORY_FILE;
+  }
+  else
+  {
+    *found_instances= 0;
+    *found_rep_option= INVALID_INFO_REPOSITORY;
+  }
 
 err:
   DBUG_RETURN(error);
