@@ -184,7 +184,7 @@ ctest -j$njobs \
     2>&1 | tee -a $tracefile
 ctest -j$njobs \
     -D ${ctest_model}MemCheck \
-    -E '^ydb/.*\.bdb$' \
+    -E '^ydb/.*\.bdb$|test1426.tdb' \
     2>&1 | tee -a $tracefile
 set -e
 
