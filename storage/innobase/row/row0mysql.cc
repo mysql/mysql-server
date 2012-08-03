@@ -1012,9 +1012,14 @@ row_get_prebuilt_insert_row(
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
-	ut_ad(prebuilt->trx_id == 0 || prebuilt->trx_id <= last_index->trx_id);
+	/* The prebuilt->trx_id can be greater than the current last
+	index trx id for cases where the secondary index create failed
+	but the secondary index was visible briefly during the create
+	process. */
 
-	prebuilt->trx_id = last_index->trx_id;
+	if (last_index->trx_id > prebuilt->trx_id) {
+		prebuilt->trx_id = last_index->trx_id;
+	}
 
 	return(prebuilt->ins_node->row);
 }
