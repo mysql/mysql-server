@@ -2577,7 +2577,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     Set up the table to write to, do as select_union::create_result_table does
   */
   sjm->table_param.init();
-  sjm->table_param.field_count= item_list.elements;
+  count_field_types(tab->join->select_lex, &sjm->table_param, item_list, false);
   sjm->table_param.bit_fields_as_long= TRUE;
   List_iterator<Item> it(item_list);
   Item *right_expr;

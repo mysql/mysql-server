@@ -380,6 +380,13 @@ JOIN::optimize()
       DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
       DBUG_RETURN(1);
     }
+    /*
+      Fields may have been replaced by Item_func_rollup_const, so we must
+      recalculate the number of fields and functions. However,
+      JOIN::rollup_init() has set quick_group=0, and we must not undo that.
+    */
+    count_field_types(select_lex, &tmp_table_param, all_fields, false);
+    tmp_table_param.quick_group= 0; // Can't create groups in tmp table
   }
   else
   {
