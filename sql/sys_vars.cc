@@ -838,18 +838,23 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
         }
         break;
         case SLAVE_THD_SQL:
-          /*
-            The worker repositories will be migrated when the SQL Thread is start up.
-            We may decide to change this behavior in the future if people think that
-            this is odd. /Alfranio
-          */
-          if (Rpl_info_factory::change_rli_repository(active_mi->rli,
-                                                      var->save_result.ulonglong_value,
-                                                      &msg))
+          mts_recovery_groups(active_mi->rli);
+          if (!active_mi->rli->is_mts_recovery())
           {
-            ret= TRUE;
-            my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+            if (Rpl_info_factory::reset_workers(active_mi->rli) ||
+                Rpl_info_factory::change_rli_repository(active_mi->rli,
+                                                        var->save_result.ulonglong_value,
+                                                        &msg))
+            {
+              ret= TRUE;
+              my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+            }
           }
+          else
+            sql_print_warning("It is not possible to change the type of the "
+                              "relay log's repository because there are workers' "
+                              "repositories with gaps. Please, fix the gaps first "
+                              "before doing such change.");
         break;
         default:
           assert(0);

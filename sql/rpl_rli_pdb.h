@@ -288,6 +288,7 @@ public:
                PSI_mutex_key *param_key_info_stop_cond,
                PSI_mutex_key *param_key_info_sleep_cond
 #endif
+               , uint param_id
               );
   virtual ~Slave_worker();
 

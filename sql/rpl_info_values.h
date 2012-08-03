@@ -29,7 +29,9 @@ public:
 
   bool init();
 
-  /* Sequence of values to be read from or stored into a repository. */
+  /** 
+    Sequence of values to be read from or stored into a repository.
+  */
   String *value;
 
 private:
