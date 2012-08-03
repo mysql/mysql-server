@@ -38,6 +38,7 @@ call mtr.add_suppression("Tablespace open failed for");
 call mtr.add_suppression("tablespace id and flags are");
 call mtr.add_suppression("but in the InnoDB data dictionary they are");
 call mtr.add_suppression("has been found in multiple places");
+call mtr.add_suppression("have been found in two places;");
 call mtr.add_suppression("Will not open the tablespace for");
 call mtr.add_suppression("Default location;");
 call mtr.add_suppression("Remote location;");
@@ -45,8 +46,7 @@ call mtr.add_suppression("Dictionary location;");
 call mtr.add_suppression("Failed to find tablespace for table");
 call mtr.add_suppression("Attempt to open a tablespace previously opened");
 call mtr.add_suppression("A link file was found named");
-call mtr.add_suppression("Tablespaces for test/* have been found in two places;");
-call mtr.add_suppression("InnoDB: Table test/aa in the InnoDB data dictionary has tablespace id");
+call mtr.add_suppression("but tablespace with that id or name does not exist.");
 --enable_query_log
 
 --echo #
@@ -341,18 +341,12 @@ DROP TABLE nolink;
 --echo # recovered first by InnoDB.  It is the source of the 'wrong' tablespaces.
 --echo # Tablename   Default_Tablespace  Remote_Tablespace
 --echo #    aa              Yes                 No
---echo #    yy              Yes                 Yes  (both the same file)
---echo #    yn              Yes                 No
 --echo #    ny              Yes                 Yes
---echo #    yw              Yes                 Wrong
 --echo #    wy              Wrong               Yes
+--echo #    yn              Yes                 No
+--echo #    yw              Yes                 Wrong
+--echo #    yy              Yes                 Yes  (both the same file)
 --echo #
-
-# Combinations that would cause no tablespace to be opened for recovery will
-# cause recovery to stop will a log file message.
-# These include nn, ww, nw, wn and are not tested here.
-# wy and yw are considered to be one location since the wrong tablespace has
-# the same ID as the aa table which should have been opened already.
 
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
@@ -362,35 +356,42 @@ eval CREATE TABLE aa (c1 INT KEY, c2 TEXT) ENGINE=InnoDB;
 INSERT INTO aa VALUES (1, 'aa - control table');
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE yy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
-INSERT INTO yy VALUES (1, 'yy');
+eval CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
+INSERT INTO ny VALUES (1, 'ny');
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE wy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
+INSERT INTO wy VALUES (1, 'wy');
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE yn (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
 INSERT INTO yn VALUES (1, 'yn');
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
-INSERT INTO ny VALUES (1, 'ny');
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE yw (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
 INSERT INTO yw VALUES (1, 'yw');
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE wy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
-INSERT INTO wy VALUES (1, 'wy');
+eval CREATE TABLE yy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
+INSERT INTO yy VALUES (1, 'yy');
 
 --echo #
 --echo # Crash the server, copy and remove files.
 --echo #
 BEGIN;
 INSERT INTO aa VALUES (2, 'aa');
-INSERT INTO yy VALUES (2, 'yy');
-INSERT INTO yn VALUES (2, 'yn');
 INSERT INTO ny VALUES (2, 'ny');
-INSERT INTO yw VALUES (2, 'yw');
 INSERT INTO wy VALUES (2, 'wy');
+INSERT INTO yn VALUES (2, 'yn');
+INSERT INTO yw VALUES (2, 'yw');
+INSERT INTO yy VALUES (2, 'yy');
+
+SELECT * FROM aa;
+SELECT * FROM ny;
+SELECT * FROM wy;
+SELECT * FROM yn;
+SELECT * FROM yw;
+SELECT * FROM yy;
 
 # Request a crash on next execution of commit.
 SET SESSION debug="+d,crash_commit_before";
@@ -399,159 +400,117 @@ SET SESSION debug="+d,crash_commit_before";
 # Execute the statement that causes the crash.
 --error 2013
 COMMIT;
+-- source include/wait_until_disconnected.inc
 
+--echo #
+--echo # Now that the engine is not running, move files around to test various scenarios.
+--echo #
 --echo # AA; Control table, used as the source of 'wrong' tablespaces.
 --echo #     AA also has a link file which points to the file in the default datadir.
 --exec echo $MYSQLD_DATADIR/test/aa.ibd > $MYSQLD_DATADIR/test/aa.isl
 
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
+--echo # NY; Tablespace found in alt_dir but not the default directory.
 
---echo #
---echo # Start the server and let it do recovery with aa.ibd and aa.isl.
---echo # It will exit when it finds aa in the default directory and an isl file.
---echo #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--echo # WY; The wrong tablespace is found in the default directory
+--echo #     and the correct one in alt_dir.
+--copy_file $MYSQLD_DATADIR/test/aa.ibd $MYSQLD_DATADIR/test/wy.ibd
 
---echo # Delete the invalid aa.isl.
---remove_file $MYSQLD_DATADIR/test/aa.isl
+--echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
+--move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--copy_file $MYSQLD_DATADIR/test/aa.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
---echo # Move the aa file so that it is not found during recovery.
---echo # Since we cannot make all OSes return that file first,
---echo # we cannot assure that it is opened before the copies of it.
---move_file $MYSQLD_DATADIR/test/aa.ibd $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak
+--echo # YN; Tablespace found the default directory but not in alt_dir.
+--move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
 
 --echo # YY; Found in both default directory and alt-dir.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd $MYSQLD_DATADIR/test/yy.ibd
 
 --echo ---- MYSQLD_DATADIR/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---replace_regex  /#P#/#p#/  /#SP#/#sp#/
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
---echo #
---echo # Start the server and let it do recovery for yy in 2 places.
---echo # It will exit when it finds two copies of yy.
---echo #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Delete the extra copy of yy.
---remove_file $MYSQLD_DATADIR/test/yy.ibd
-
---echo # WY; The wrong tablespace is found in the default directory
---echo # and the corect one in alt_dir.
---copy_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
-
---echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
---echo # Start the server and let it do recovery for wy in 2 places.
---echo # It will exit when it finds two copies of wy.
+--echo # Start the server with innodb-force-recovery=1 so that it does not quit
+--echo # when it finds multiple possible locations for aa, yy, wy and yw.
 --echo #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Delete the wrong copy of wy.
---remove_file $MYSQLD_DATADIR/test/wy.ibd
-
---echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
---copy_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
---echo #
---echo # Start the server and let it do recovery for yw in 2 places.
---echo # It will exit when it finds two copies of yw.
---echo #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-
---echo # Delete the wrong copy of yw.
---remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
-
---echo # YN; Tablespace found the default directory but not in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
-
---echo # NY; Tablespace found in alt_dir but not the default directory.
-
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
---echo #
---echo # Start the server and let it do recovery for ny, wy, yn, yw, & yy.
---echo #
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
+--exec echo "restart:--innodb-force-recovery=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-SHOW VARIABLES LIKE 'innodb_strict_mode';
+--error ER_NO_SUCH_TABLE
+SELECT * FROM aa;
+SELECT * FROM ny;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM wy;
+SELECT * FROM yn;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM yw;
+--error ER_NO_SUCH_TABLE
+SELECT * FROM yy;
+
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE aa;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE ny;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE wy;
+SHOW CREATE TABLE yn;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE yw;
+--error ER_NO_SUCH_TABLE
+SHOW CREATE TABLE yy;
 
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
 
---error ER_NO_SUCH_TABLE
-SELECT * FROM aa;
-SELECT * FROM yy;
-SELECT * FROM yn;
-SELECT * FROM ny;
-SELECT * FROM yw;
-SELECT * FROM wy;
+--echo #
+--echo # Shutdown the server and remove extra tablespace files.
+--echo #
+--source include/shutdown_mysqld.inc
 
---error ER_NO_SUCH_TABLE
-SHOW CREATE TABLE aa;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE yy;
-SHOW CREATE TABLE yn;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE ny;
-SHOW CREATE TABLE yw;
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-SHOW CREATE TABLE wy;
+--remove_file $MYSQLD_DATADIR/test/aa.ibd
+--remove_file $MYSQLD_DATADIR/test/aa.isl
+--remove_file $MYSQLD_DATADIR/test/ny.isl
+--remove_file $MYSQLD_DATADIR/test/wy.ibd
+--remove_file $MYSQLD_DATADIR/test/wy.isl
+--remove_file $MYSQLD_DATADIR/test/yn.ibd
+--remove_file $MYSQLD_DATADIR/test/yn.isl
+--remove_file $MYSQLD_DATADIR/test/yw.ibd
+--remove_file $MYSQLD_DATADIR/test/yw.isl
+--remove_file $MYSQLD_DATADIR/test/yy.ibd
+--remove_file $MYSQLD_DATADIR/test/yy.isl
+
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 
 --echo #
---echo # List of files before DROP TABLES
+--echo # List of files before restart and DROP TABLES
 --echo #
+
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
+--echo #
+--echo # Start the server without using force_recover.
+--echo #
+--source include/start_mysqld.inc
+
 DROP TABLE aa;
-DROP TABLE yy;
-DROP TABLE yn;
 DROP TABLE ny;
-DROP TABLE yw;
 DROP TABLE wy;
+DROP TABLE yn;
+DROP TABLE yw;
+DROP TABLE yy;
 
 --echo #
 --echo # List of files after DROP TABLES
---echo #
---echo ---- MYSQLD_DATADIR/test
---list_files $MYSQLD_DATADIR/test
---echo ---- MYSQL_TMP_DIR/alt_dir/test
---list_files $MYSQL_TMP_DIR/alt_dir/test
-
---remove_file $MYSQL_TMP_DIR/alt_dir/test/aa.ibd.bak
-
---echo #
---echo # List of files after deleting unknown files
 --echo #
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
