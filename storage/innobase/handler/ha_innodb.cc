@@ -11090,7 +11090,7 @@ ha_innobase::check(
 
 			innobase_format_name(
 				index_name, sizeof index_name,
-				prebuilt->index->name, TRUE);
+				index->name, TRUE);
 
 			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
