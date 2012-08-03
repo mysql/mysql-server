@@ -154,7 +154,8 @@ select_union::create_result_table(THD *thd_arg, List<Item> *column_types,
 {
   DBUG_ASSERT(table == 0);
   tmp_table_param.init();
-  tmp_table_param.field_count= column_types->elements;
+  count_field_types(thd_arg->lex->current_select, &tmp_table_param,
+                    *column_types, false);
   tmp_table_param.skip_create_table= !create_table;
   tmp_table_param.bit_fields_as_long= bit_fields_as_long;
 
