@@ -3961,6 +3961,9 @@ int ha_partition::update_row(const uchar *old_data, uchar *new_data)
   longlong func_value;
   DBUG_ENTER("ha_partition::update_row");
 
+  // Need to read partition-related columns, to locate the row's partition:
+  DBUG_ASSERT(bitmap_is_subset(&m_part_info->full_part_field_set,
+                               table->read_set));
   if ((error= get_parts_for_update(old_data, new_data, table->record[0],
                                    m_part_info, &old_part_id, &new_part_id,
                                    &func_value)))
@@ -4078,6 +4081,8 @@ int ha_partition::delete_row(const uchar *buf)
   THD *thd= ha_thd();
   DBUG_ENTER("ha_partition::delete_row");
 
+  DBUG_ASSERT(bitmap_is_subset(&m_part_info->full_part_field_set,
+                               table->read_set));
   if ((error= get_part_for_delete(buf, m_rec0, m_part_info, &part_id)))
   {
     DBUG_RETURN(error);
@@ -4685,14 +4690,6 @@ void ha_partition::position(const uchar *record)
   DBUG_VOID_RETURN;
 }
 
-
-void ha_partition::column_bitmaps_signal()
-{
-    handler::column_bitmaps_signal();
-    /* Must read all partition fields to make position() call possible */
-    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
-}
- 
 
 /*
   Read row using position
