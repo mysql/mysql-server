@@ -92,6 +92,10 @@ private:
                                 Rpl_info_handler **handler_src,
                                 Rpl_info_handler **handler_dst,
                                 const char **msg);
+  static bool scan_repositories(uint* found_instances,
+                                uint* found_rep_option,
+                                const struct_table_data table_data,
+                                const struct_file_data file_data);
 };
 
 #endif
