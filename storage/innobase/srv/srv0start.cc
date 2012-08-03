@@ -71,7 +71,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "buf0rea.h"
 # include "dict0boot.h"
 # include "dict0load.h"
-# include "dict0stats_background.h" /* dict_stats_thread*(), dict_stats_event */
+# include "dict0stats_bg.h" /* dict_stats_thread*(), dict_stats_event */
 # include "que0que.h"
 # include "usr0sess.h"
 # include "lock0lock.h"
@@ -631,6 +631,12 @@ open_or_create_log_file(
 		fprintf(stderr,
 			"InnoDB: Database physically writes the file"
 			" full: wait...\n");
+
+#ifndef __WIN__
+		/* To avoid kernel buffer pollution when creating large
+		log files we disable fs caching. */
+		os_file_set_nocache(files[i], name, "log file creation");
+#endif /* __WIN__ */
 
 		ret = os_file_set_size(name, files[i],
 				       (os_offset_t) srv_log_file_size

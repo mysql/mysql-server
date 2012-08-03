@@ -32,7 +32,7 @@ Smart ALTER TABLE
 #include "dict0crea.h"
 #include "dict0dict.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "log0log.h"
 #include "row0log.h"
 #include "row0merge.h"
