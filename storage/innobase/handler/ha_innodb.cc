@@ -75,7 +75,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0merge.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
@@ -2854,12 +2854,12 @@ innobase_init(
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
 			 default_path);
 
-	/* Set default InnoDB data file size to 10 MB and let it be
+	/* Set default InnoDB data file size to 12 MB and let it be
 	auto-extending. Thus users can use InnoDB in >= 4.0 without having
 	to specify any startup options. */
 
 	if (!innobase_data_file_path) {
-		innobase_data_file_path = (char*) "ibdata1:10M:autoextend";
+		innobase_data_file_path = (char*) "ibdata1:12M:autoextend";
 	}
 
 	/* Since InnoDB edits the argument in the next call, we make another

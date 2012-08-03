@@ -73,7 +73,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 				    uint order_num, ORDER *order,
 				    ha_rows *copied,ha_rows *deleted,
                                     Alter_info::enum_enable_or_disable keys_onoff,
-                                    bool error_if_not_empty);
+                                    Alter_table_ctx *alter_ctx);
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static void sp_prepare_create_field(THD *thd, Create_field *sql_field);
@@ -6900,6 +6900,319 @@ err:
 
 
 /**
+  Get Create_field object for newly created table by its name
+  in the old version of table.
+
+  @param alter_info  Alter_info describing newly created table.
+  @param old_name    Name of field in old table.
+
+  @returns Pointer to Create_field object, NULL - if field is
+           not present in new version of table.
+*/
+
+static Create_field *get_field_by_old_name(Alter_info *alter_info,
+                                           const char *old_name)
+{
+  List_iterator_fast<Create_field> new_field_it(alter_info->create_list);
+  Create_field *new_field;
+
+  while ((new_field= new_field_it++))
+  {
+    if (new_field->field &&
+        (my_strcasecmp(system_charset_info,
+                       new_field->field->field_name,
+                       old_name) == 0))
+      break;
+  }
+  return new_field;
+}
+
+
+/** Type of change to foreign key column, */
+
+enum fk_column_change_type
+{
+  FK_COLUMN_NO_CHANGE, FK_COLUMN_DATA_CHANGE,
+  FK_COLUMN_RENAMED, FK_COLUMN_DROPPED
+};
+
+
+/**
+  Check that ALTER TABLE's changes on columns of a foreign key are allowed.
+
+  @param[in]   thd              Thread context.
+  @param[in]   alter_info       Alter_info describing changes to be done
+                                by ALTER TABLE.
+  @param[in]   fk_columns       List of columns of the foreign key to check.
+  @param[out]  bad_column_name  Name of field on which ALTER TABLE tries to
+                                do prohibited operation.
+
+  @note This function takes into account value of @@foreign_key_checks
+        setting.
+
+  @retval FK_COLUMN_NO_CHANGE    No significant changes are to be done on
+                                 foreign key columns.
+  @retval FK_COLUMN_DATA_CHANGE  ALTER TABLE might result in value
+                                 change in foreign key column (and
+                                 foreign_key_checks is on).
+  @retval FK_COLUMN_RENAMED      Foreign key column is renamed.
+  @retval FK_COLUMN_DROPPED      Foreign key column is dropped.
+*/
+
+static enum fk_column_change_type
+fk_check_column_changes(THD *thd, Alter_info *alter_info,
+                        List<LEX_STRING> &fk_columns,
+                        const char **bad_column_name)
+{
+  List_iterator_fast<LEX_STRING> column_it(fk_columns);
+  LEX_STRING *column;
+
+  *bad_column_name= NULL;
+
+  while ((column= column_it++))
+  {
+    Create_field *new_field= get_field_by_old_name(alter_info, column->str);
+
+    if (new_field)
+    {
+      Field *old_field= new_field->field;
+
+      if (my_strcasecmp(system_charset_info, old_field->field_name,
+                        new_field->field_name))
+      {
+        /*
+          Copy algorithm doesn't support proper renaming of columns in
+          the foreign key yet. At the moment we lack API which will tell
+          SE that foreign keys should be updated to use new name of column
+          like it happens in case of in-place algorithm.
+        */
+        *bad_column_name= column->str;
+        return FK_COLUMN_RENAMED;
+      }
+
+      if ((old_field->is_equal(new_field) == IS_EQUAL_NO) ||
+          ((new_field->flags & NOT_NULL_FLAG) &&
+           !(old_field->flags & NOT_NULL_FLAG)))
+      {
+        if (!(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
+        {
+          /*
+            Column in a FK has changed significantly. Unless
+            foreign_key_checks are off we prohibit this since this
+            means values in this column might be changed by ALTER
+            and thus referential integrity might be broken,
+          */
+          *bad_column_name= column->str;
+          return FK_COLUMN_DATA_CHANGE;
+        }
+      }
+    }
+    else
+    {
+      /*
+        Column in FK was dropped. Most likely this will break
+        integrity constraints of InnoDB data-dictionary (and thus
+        InnoDB will emit an error), so we prohibit this right away
+        even if foreign_key_checks are off.
+        This also includes a rare case when another field replaces
+        field being dropped since it is easy to break referential
+        integrity in this case.
+      */
+      *bad_column_name= column->str;
+      return FK_COLUMN_DROPPED;
+    }
+  }
+
+  return FK_COLUMN_NO_CHANGE;
+}
+
+
+/**
+  Check if ALTER TABLE we are about to execute using COPY algorithm
+  is not supported as it might break referential integrity.
+
+  @note If foreign_key_checks is disabled (=0), we allow to break
+        referential integrity. But we still disallow some operations
+        like dropping or renaming columns in foreign key since they
+        are likely to break consistency of InnoDB data-dictionary
+        and thus will end-up in error anyway.
+
+  @param[in]  thd          Thread context.
+  @param[in]  table        Table to be altered.
+  @param[in]  alter_info   Lists of fields, keys to be changed, added
+                           or dropped.
+  @param[out] alter_ctx    ALTER TABLE runtime context.
+                           Alter_table_ctx::fk_error_if_delete flag
+                           is set if deletion during alter can break
+                           foreign key integrity.
+
+  @retval false  Success.
+  @retval true   Error, ALTER - tries to do change which is not compatible
+                 with foreign key definitions on the table.
+*/
+
+static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
+                                        Alter_info *alter_info,
+                                        Alter_table_ctx *alter_ctx)
+{
+  List <FOREIGN_KEY_INFO> fk_parent_key_list;
+  List <FOREIGN_KEY_INFO> fk_child_key_list;
+  FOREIGN_KEY_INFO *f_key;
+
+  DBUG_ENTER("fk_prepare_copy_alter_table");
+
+  table->file->get_parent_foreign_key_list(thd, &fk_parent_key_list);
+
+  /* OOM when building list. */
+  if (thd->is_error())
+    DBUG_RETURN(true);
+
+  /*
+    Remove from the list all foreign keys in which table participates as
+    parent which are to be dropped by this ALTER TABLE. This is possible
+    when a foreign key has the same table as child and parent.
+  */
+  List_iterator<FOREIGN_KEY_INFO> fk_parent_key_it(fk_parent_key_list);
+
+  while ((f_key= fk_parent_key_it++))
+  {
+    Alter_drop *drop;
+    List_iterator_fast<Alter_drop> drop_it(alter_info->drop_list);
+
+    while ((drop= drop_it++))
+    {
+      /*
+        InnoDB treats foreign key names in case-insensitive fashion.
+        So we do it here too. For database and table name type of
+        comparison used depends on lower-case-table-names setting.
+        For l_c_t_n = 0 we use case-sensitive comparison, for
+        l_c_t_n > 0 modes case-insensitive comparison is used.
+      */
+      if ((drop->type == Alter_drop::FOREIGN_KEY) &&
+          (my_strcasecmp(system_charset_info, f_key->foreign_id->str,
+                         drop->name) == 0) &&
+          (my_strcasecmp(table_alias_charset, f_key->foreign_db->str,
+                         table->s->db.str) == 0) &&
+          (my_strcasecmp(table_alias_charset, f_key->foreign_table->str,
+                         table->s->table_name.str) == 0))
+        fk_parent_key_it.remove();
+    }
+  }
+
+  /*
+    If there are FKs in which this table is parent which were not
+    dropped we need to prevent ALTER deleting rows from the table,
+    as it might break referential integrity. OTOH it is OK to do
+    so if foreign_key_checks are disabled.
+  */
+  if (!fk_parent_key_list.is_empty() &&
+      !(thd->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS))
+    alter_ctx->set_fk_error_if_delete_row(fk_parent_key_list.head());
+
+  fk_parent_key_it.rewind();
+  while ((f_key= fk_parent_key_it++))
+  {
+    enum fk_column_change_type changes;
+    const char *bad_column_name;
+
+    changes= fk_check_column_changes(thd, alter_info,
+                                     f_key->referenced_fields,
+                                     &bad_column_name);
+
+    switch(changes)
+    {
+    case FK_COLUMN_NO_CHANGE:
+      /* No significant changes. We can proceed with ALTER! */
+      break;
+    case FK_COLUMN_DATA_CHANGE:
+    {
+      char buff[NAME_LEN*2+2];
+      strxnmov(buff, sizeof(buff)-1, f_key->foreign_db->str, ".",
+               f_key->foreign_table->str, NullS);
+      my_error(ER_FK_COLUMN_CANNOT_CHANGE_CHILD, MYF(0), bad_column_name,
+               f_key->foreign_id->str, buff);
+      DBUG_RETURN(true);
+    }
+    case FK_COLUMN_RENAMED:
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      DBUG_RETURN(true);
+    case FK_COLUMN_DROPPED:
+    {
+      char buff[NAME_LEN*2+2];
+      strxnmov(buff, sizeof(buff)-1, f_key->foreign_db->str, ".",
+               f_key->foreign_table->str, NullS);
+      my_error(ER_FK_COLUMN_CANNOT_DROP_CHILD, MYF(0), bad_column_name,
+               f_key->foreign_id->str, buff);
+      DBUG_RETURN(true);
+    }
+    default:
+      DBUG_ASSERT(0);
+    }
+  }
+
+  table->file->get_foreign_key_list(thd, &fk_child_key_list);
+
+  /* OOM when building list. */
+  if (thd->is_error())
+    DBUG_RETURN(true);
+
+  /*
+    Remove from the list all foreign keys which are to be dropped
+    by this ALTER TABLE.
+  */
+  List_iterator<FOREIGN_KEY_INFO> fk_key_it(fk_child_key_list);
+
+  while ((f_key= fk_key_it++))
+  {
+    Alter_drop *drop;
+    List_iterator_fast<Alter_drop> drop_it(alter_info->drop_list);
+
+    while ((drop= drop_it++))
+    {
+      /* Names of foreign keys in InnoDB are case-insensitive. */
+      if ((drop->type == Alter_drop::FOREIGN_KEY) &&
+          (my_strcasecmp(system_charset_info, f_key->foreign_id->str,
+                         drop->name) == 0))
+        fk_key_it.remove();
+    }
+  }
+
+  fk_key_it.rewind();
+  while ((f_key= fk_key_it++))
+  {
+    enum fk_column_change_type changes;
+    const char *bad_column_name;
+
+    changes= fk_check_column_changes(thd, alter_info,
+                                     f_key->foreign_fields,
+                                     &bad_column_name);
+
+    switch(changes)
+    {
+    case FK_COLUMN_NO_CHANGE:
+      /* No significant changes. We can proceed with ALTER! */
+      break;
+    case FK_COLUMN_DATA_CHANGE:
+      my_error(ER_FK_COLUMN_CANNOT_CHANGE, MYF(0), bad_column_name,
+               f_key->foreign_id->str);
+      DBUG_RETURN(true);
+    case FK_COLUMN_RENAMED:
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      DBUG_RETURN(true);
+    case FK_COLUMN_DROPPED:
+      my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0), bad_column_name,
+               f_key->foreign_id->str);
+      DBUG_RETURN(true);
+    default:
+      DBUG_ASSERT(0);
+    }
+  }
+
+  DBUG_RETURN(false);
+}
+
+
+/**
   Rename table and/or turn indexes on/off without touching .FRM
 
   @param thd            Thread handler
@@ -7609,6 +7922,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
 
   /* ALTER TABLE using copy algorithm. */
 
+  /* Check if ALTER TABLE is compatible with foreign key definitions. */
+  if (fk_prepare_copy_alter_table(thd, table, alter_info, &alter_ctx))
+    goto err_new_table_cleanup;
+
   if (!table->s->tmp_table)
   {
     // COPY algorithm doesn't work with concurrent writes.
@@ -7704,7 +8021,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                                  alter_info->create_list, ignore,
                                  order_num, order, &copied, &deleted,
                                  alter_info->keys_onoff,
-                                 alter_ctx.error_if_not_empty))
+                                 &alter_ctx))
       goto err_new_table_cleanup;
   }
   else
@@ -8029,7 +8346,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 			 ha_rows *copied,
 			 ha_rows *deleted,
                          Alter_info::enum_enable_or_disable keys_onoff,
-                         bool error_if_not_empty)
+                         Alter_table_ctx *alter_ctx)
 {
   int error;
   Copy_field *copy,*copy_end;
@@ -8134,7 +8451,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     error= 1;
     goto err;
   }
-  if (ignore)
+  if (ignore && !alter_ctx->fk_error_if_delete_row)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->get_stmt_da()->reset_current_row_for_warning();
   restore_record(to, s->default_values);        // Create empty record
@@ -8147,7 +8464,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       break;
     }
     /* Return error if source table isn't empty. */
-    if (error_if_not_empty)
+    if (alter_ctx->error_if_not_empty)
     {
       error= 1;
       break;
@@ -8183,31 +8500,56 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     to->auto_increment_field_not_null= FALSE;
     if (error)
     {
-      if (!ignore ||
-          to->file->is_fatal_error(error, HA_CHECK_DUP))
+      if (to->file->is_fatal_error(error, HA_CHECK_DUP))
       {
-         if (!to->file->is_fatal_error(error, HA_CHECK_DUP))
-         {
-           uint key_nr= to->file->get_dup_key(error);
-           if ((int) key_nr >= 0)
-           {
-             const char *err_msg= ER(ER_DUP_ENTRY_WITH_KEY_NAME);
-             if (key_nr == 0 &&
-                 (to->key_info[0].key_part[0].field->flags &
-                  AUTO_INCREMENT_FLAG))
-               err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-             to->file->print_keydup_error(key_nr == MAX_KEY ? NULL :
-                                          &to->key_info[key_nr],
-                                          err_msg, MYF(0));
-             break;
-           }
-         }
-
-	to->file->print_error(error,MYF(0));
+        /* Not a duplicate key error. */
+	to->file->print_error(error, MYF(0));
 	break;
       }
-      to->file->restore_auto_increment(prev_insert_id);
-      delete_count++;
+      else
+      {
+        /* Duplicate key error. */
+        if (alter_ctx->fk_error_if_delete_row)
+        {
+          /*
+            We are trying to omit a row from the table which serves as parent
+            in a foreign key. This might have broken referential integrity so
+            emit an error. Note that we can't ignore this error even if we are
+            executing ALTER IGNORE TABLE. IGNORE allows to skip rows, but
+            doesn't allow to break unique or foreign key constraints,
+          */
+          my_error(ER_FK_CANNOT_DELETE_PARENT, MYF(0),
+                   alter_ctx->fk_error_id,
+                   alter_ctx->fk_error_table);
+          break;
+        }
+
+        if (ignore)
+        {
+          /* This ALTER IGNORE TABLE. Simply skip row and continue. */
+          to->file->restore_auto_increment(prev_insert_id);
+          delete_count++;
+        }
+        else
+        {
+          /* Ordinary ALTER TABLE. Report duplicate key error. */
+          uint key_nr= to->file->get_dup_key(error);
+          if ((int) key_nr >= 0)
+          {
+            const char *err_msg= ER(ER_DUP_ENTRY_WITH_KEY_NAME);
+            if (key_nr == 0 &&
+                (to->key_info[0].key_part[0].field->flags &
+                 AUTO_INCREMENT_FLAG))
+              err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
+            to->file->print_keydup_error(key_nr == MAX_KEY ?
+                                         NULL : &to->key_info[key_nr],
+                                         err_msg, MYF(0));
+          }
+          else
+            to->file->print_error(error, MYF(0));
+          break;
+        }
+      }
     }
     else
       found_count++;
