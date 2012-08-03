@@ -12015,7 +12015,15 @@ expr_or_default:
 
 opt_insert_update:
           /* empty */
-        | ON DUPLICATE_SYM { Lex->duplicates= DUP_UPDATE; }
+        | ON DUPLICATE_SYM
+          {
+            Lex->duplicates= DUP_UPDATE;
+            TABLE_LIST *first_table= Lex->select_lex.table_list.first;
+            /* Fix lock for ON DUPLICATE KEY UPDATE */
+            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT ||
+                first_table->lock_type == TL_WRITE_DELAYED)
+              first_table->lock_type= TL_WRITE_DEFAULT;
+          }
           KEY_SYM UPDATE_SYM insert_update_list
         ;
 
@@ -12925,6 +12933,9 @@ load:
           opt_duplicate INTO TABLE_SYM table_ident opt_use_partition
           {
             LEX *lex=Lex;
+            /* Fix lock for LOAD DATA CONCURRENT REPLACE */
+            if (lex->duplicates == DUP_REPLACE && $4 == TL_WRITE_CONCURRENT_INSERT)
+              $4= TL_WRITE_DEFAULT;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
                                            $4, MDL_SHARED_WRITE, NULL, $13))
               MYSQL_YYABORT;
