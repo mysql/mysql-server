@@ -1,0 +1,60 @@
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SET GLOBAL innodb_file_format=Barracuda;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+CREATE TABLE t (
+a INT,
+b VARCHAR(512),
+PRIMARY KEY (a),
+INDEX (b(512))
+) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+database_name	test
+table_name	t
+index_name	PRIMARY
+compress_ops	1
+compress_ops_ok	1
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+database_name	test
+table_name	t
+index_name	b
+compress_ops	1
+compress_ops_ok	1
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+BEGIN;
+COMMIT;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+database_name	test
+table_name	t
+index_name	PRIMARY
+compress_ops	50
+compress_ops_ok	50
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+database_name	test
+table_name	t
+index_name	b
+compress_ops	42
+compress_ops_ok	42
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT COUNT(*) FROM t;
+COUNT(*)	128
+SELECT * FROM information_schema.innodb_cmp_per_index;
+database_name	test
+table_name	t
+index_name	b
+compress_ops	0
+compress_ops_ok	0
+compress_time	0
+uncompress_ops	6
+uncompress_time	0
+DROP TABLE t;
+SET GLOBAL innodb_cmp_per_index_enabled=default;
+SET GLOBAL innodb_file_format=default;
