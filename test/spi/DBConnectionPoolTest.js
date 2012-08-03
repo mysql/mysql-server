@@ -36,38 +36,32 @@ t1.run = function() {
   return true; // test is complete
 };
 
-var t2 = new harness.SerialTest("connect");
-t2.run = function() {
-  var testCase = this;
-  var provider = spi.getDBServiceProvider(global.adapter);
-  var properties = provider.getDefaultConnectionProperties();
-  var connection = provider.connect(properties, function(err, connection) {
-    if(err) testCase.fail(err);
-    else {
-      connection.closeSync();
-      testCase.pass();
-    }
-  });
-};
+var t2 = new harness.ConcurrentTest("connect");
+t2.hasProxyTest();
 
 
 /**** Connect, leave the connection open, and get a DBSession
 */
 
-var t3 = new harness.SerialTest("openDBSession");
+var t3 = new harness.ConcurrentTest("openDBSession");
 t3.run = function() {
-  var testCase = this;
   var provider = spi.getDBServiceProvider(global.adapter);
   var properties = provider.getDefaultConnectionProperties();
 
   var tcb1 = function(err, connection) {
     udebug.log("DBConnectionPoolTest.js tcb1() 64");
-    if(err) testCase.fail(err);
-    
+    if(err) {
+      t2.fail(err);
+      t3.fail(err);
+    }
+    else {
+      t2.pass();
+    }
+      
     var tcb2 = function(err, dbsessionhandler) {
       udebug.log("DBConnectionPoolTest.js tcb2() 68");
-      if(err) testcase.fail(err);
-      else testCase.pass();
+      if(err) t3.fail(err);
+      else t3.pass();
     }
     connection.openSessionHandler(tcb2);
  
@@ -77,6 +71,5 @@ t3.run = function() {
 
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-// module.exports.tests = [t1, t2, t3];
+module.exports.tests = [t1, t2, t3];
 
-module.exports.tests = [t3];
