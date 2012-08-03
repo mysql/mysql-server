@@ -390,13 +390,6 @@ static
 void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
                        enum_duplicates duplic)
 {
-  if (duplic == DUP_UPDATE ||
-      (duplic == DUP_REPLACE && *lock_type == TL_WRITE_CONCURRENT_DEFAULT))
-  {
-    *lock_type= TL_WRITE_DEFAULT;
-    return;
-  }
-
   if (*lock_type == TL_WRITE_DELAYED)
   {
     /*
