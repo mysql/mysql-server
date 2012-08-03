@@ -1930,8 +1930,6 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
   table->null_row=0;
   table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
 
-  MY_BITMAP * const save_read_set= table->read_set;
-  bool restore_read_set= false;
   if (table->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE)
   {
     const enum_sql_command sql_command= tab->join->thd->lex->sql_command;
@@ -1955,8 +1953,8 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
         result->initialize_tables(), which has not yet been called when we do
         the reading now, so we must read all columns.
       */
-      table->column_bitmaps_set(&table->s->all_set, table->write_set);
-      restore_read_set= true;
+      bitmap_set_all(table->read_set);
+      table->file->column_bitmaps_signal();
     }
   }
 
@@ -1969,11 +1967,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
-      {
-        if (restore_read_set)
-          table->column_bitmaps_set(save_read_set, table->write_set);
 	DBUG_RETURN(error);
-      }
     }
   }
   else
@@ -1994,11 +1988,7 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
       pos->records_read=0.0;
       pos->ref_depend_map= 0;
       if (!table->pos_in_table_list->outer_join || error > 0)
-      {
-        if (restore_read_set)
-          table->column_bitmaps_set(save_read_set, table->write_set);
 	DBUG_RETURN(error);
-      }
     }
   }
 
@@ -2032,8 +2022,6 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
            embedding->nested_join->join_list.head() == embedded);
   }
 
-  if (restore_read_set)
-    table->column_bitmaps_set(save_read_set, table->write_set);
   DBUG_RETURN(0);
 }
 
