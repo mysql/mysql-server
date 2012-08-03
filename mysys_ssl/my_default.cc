@@ -260,8 +260,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   int error= 0;
   DBUG_ENTER("my_search_option_files");
 
-  /* Skip if default files have already been read. */
-  if (! defaults_already_read)
+  /* Skip for login file. */
+  if (! is_login_file)
   {
     /* Check if we want to force the use a specific default file */
     *args_used+= get_defaults_options(*argc - *args_used, *argv + *args_used,
@@ -629,12 +629,6 @@ int my_load_defaults(const char *conf_file, const char **groups,
   const char **dirs;
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
-
-  /*
-    Set it to FALSE, as this function can be invoked
-    multiple times with different conf_file.
-  */
-  defaults_already_read= FALSE;
 
   init_alloc_root(&alloc,512,0);
   if ((dirs= init_default_directories(&alloc)) == NULL)
