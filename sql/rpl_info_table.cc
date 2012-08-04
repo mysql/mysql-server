@@ -474,7 +474,7 @@ bool Rpl_info_table::do_count_info(uint nparam,
   DBUG_ENTER("Rpl_info_table::do_count_info");
 
   if (!(info= new Rpl_info_table(nparam, param_schema, param_table)))
-    DBUG_ASSERT(true); 
+    DBUG_RETURN(true);
 
   thd= info->access->create_thd();
   saved_mode= thd->variables.sql_mode;
