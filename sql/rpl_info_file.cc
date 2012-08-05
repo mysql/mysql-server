@@ -197,12 +197,20 @@ enum_return_check Rpl_info_file::do_check_info(uint instance)
       counter++;
       if (counter == instance)
       {
+
         if (my_access(file_info->name, F_OK))
+        {
+          my_dirend(dir_info);
           return REPOSITORY_DOES_NOT_EXIST;
+        }
 
         if (my_access(file_info->name, F_OK | R_OK | W_OK))
+        {
+          my_dirend(dir_info);
           return ERROR_CHECKING_REPOSITORY;
+        }
 
+        my_dirend(dir_info);
         return REPOSITORY_EXISTS;
       }
     }
@@ -356,7 +364,8 @@ int Rpl_info_file::do_reset_info(const int nparam, const char* param_pattern_fna
     }
   }
   my_dirend(dir_info);
- 
+
+  delete info; 
   DBUG_RETURN(error);
 }
 
