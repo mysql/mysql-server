@@ -123,8 +123,8 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
 }
 
 
-void udeb_enter(const char *src_path, const char *function, int line) {
-  if(udeb_level >= UDEB_DEBUG) {
+void udeb_enter(int level, const char *src_path, const char *function, int line) {
+  if(udeb_level >= level) {
     const char *src_file = udeb_basename(src_path);
     if(udeb_lookup(src_file)) {
       udeb_private_print("Enter: %27s - line %d - %s", function, line, src_file);
@@ -143,8 +143,8 @@ void udeb_trace(const char *src_path, int line) {
 }
 
 
-void udeb_leave(const char *src_path, const char *function) {
-  if(udeb_level >= UDEB_DEBUG) {
+void udeb_leave(int level, const char *src_path, const char *function) {
+  if(udeb_level >= level) {
     const char *src_file = udeb_basename(src_path);
     if(udeb_lookup(src_file)) {
       udeb_private_print("  Leave: %25s", function);
