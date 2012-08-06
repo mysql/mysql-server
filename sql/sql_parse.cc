@@ -1646,9 +1646,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
-    ulong id=(ulong) uint4korr(packet);
-    sql_kill(thd,id,false);
+    if (thread_id & (~0xfffffffful))
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else
+    {
+      status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
+      ulong id=(ulong) uint4korr(packet);
+      sql_kill(thd,id,false);
+    }
     break;
   }
   case COM_SET_OPTION:
