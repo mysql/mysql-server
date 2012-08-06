@@ -38,7 +38,6 @@ static my_bool win32_init_tcp_ip();
 #define SCALE_USEC      10000
 
 my_bool my_init_done= 0;
-uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
 ulong   my_thread_stack_size= 65536;
 
 static ulong atoi_octal(const char *str)
@@ -72,7 +71,6 @@ my_bool my_init(void)
 
   my_init_done= 1;
 
-  mysys_usage_id++;
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
 

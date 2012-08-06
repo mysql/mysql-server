@@ -632,9 +632,6 @@ open_or_create_log_file(
 			"InnoDB: Database physically writes the file"
 			" full: wait...\n");
 
-		/* To avoid kernel buffer pollution when creating large
-		log files we disable fs caching. */
-		os_file_set_nocache(files[i], name, "log file creation");
 		ret = os_file_set_size(name, files[i],
 				       (os_offset_t) srv_log_file_size
 				       << UNIV_PAGE_SIZE_SHIFT);
