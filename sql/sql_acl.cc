@@ -4685,16 +4685,19 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
 
   if (write_to_binlog && should_write_to_binlog)
   {
-    if (revoke_grant)
+    /*
+      For performance reasons, we don't rewrite the query if we don't have to.
+      If that was the case, write the original query.
+    */
+    if (!thd->rewritten_query.length())
     {
-      if (write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+      if (write_bin_log(thd, false, thd->query(), thd->query_length(),
                         transactional_tables))
         result= TRUE;
     }
     else
     {
-      DBUG_ASSERT(thd->rewritten_query.length());
-      if (write_bin_log(thd, FALSE,
+      if (write_bin_log(thd, false,
                         thd->rewritten_query.c_ptr_safe(),
                         thd->rewritten_query.length(),
                         transactional_tables))
@@ -6034,19 +6037,6 @@ uint command_lengths[]=
   6, 6, 6, 6, 6, 4, 6, 8, 7, 4, 5, 10, 5, 5, 14, 5, 23, 11, 7, 17, 18, 11, 9,
   14, 13, 11, 5, 7, 17
 };
-
-
-void append_int(String *str, const char *txt, size_t len,
-                long val, int cond)
-{
-  if (cond)
-  {
-    String numbuf(42);
-    str->append(txt,len);
-    numbuf.set((longlong)val,&my_charset_bin);
-    str->append(numbuf);
-  }
-}
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 
@@ -7457,10 +7447,14 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   if (some_users_created)
   {
-    result|= write_bin_log(thd, FALSE,
-                           thd->rewritten_query.c_ptr_safe(),
-                           thd->rewritten_query.length(),
-                           transactional_tables);
+    if (!thd->rewritten_query.length())
+      result|= write_bin_log(thd, false, thd->query(), thd->query_length(),
+                             transactional_tables);
+    else
+      result|= write_bin_log(thd, false,
+                             thd->rewritten_query.c_ptr_safe(),
+                             thd->rewritten_query.length(),
+                             transactional_tables);
   }
 
   mysql_rwlock_unlock(&LOCK_grant);
