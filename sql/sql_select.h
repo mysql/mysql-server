@@ -375,18 +375,20 @@ typedef struct st_join_table : public Sql_alloc
   /// Return true if join_tab finishes a Duplicate Weedout action
   bool finishes_weedout() const { return check_weed_out_table; }
 
-  TABLE		*table;
-  Key_use	*keyuse;        /**< pointer to first used key               */
-  SQL_SELECT	*select;
+  TABLE         *table;
+  POSITION      *position;      /**< Use after get_best_combination()        */
+  Key_use       *keyuse;        /**< pointer to first used key               */
+  SQL_SELECT    *select;
 private:
   Item          *m_condition;   /**< condition for this join_tab             */
 public:
   QUICK_SELECT_I *quick;
-  Item	       **on_expr_ref;   /**< pointer to the associated on expression */
+  Item         **on_expr_ref;   /**< pointer to the associated on expression */
   COND_EQUAL    *cond_equal;    /**< multiple equalities for the on expression*/
   st_join_table *first_inner;   /**< first inner table for including outerjoin*/
   bool           found;         /**< true after all matches or null complement*/
   bool           not_null_compl;/**< true before null complement is added    */
+  bool           materialized;  /**< true if materialized from derived/subq */
   st_join_table *last_inner;    /**< last table table for embedding outer join*/
   st_join_table *first_upper;  /**< first inner table for embedding outer join*/
   st_join_table *first_unmatched; /**< used for optimization purposes only   */
@@ -599,6 +601,7 @@ public:
   /** TRUE <=> remove duplicates on this table. */
   bool distinct;
 
+  /** Clean up associated table after query execution, including resources */
   void cleanup();
   inline bool is_using_loose_index_scan()
   {
@@ -658,6 +661,10 @@ public:
       select->cond= new_cond;
     return tmp_cond;
   }
+
+  /**
+    @returns semijoin strategy for this table.
+  */
   uint get_sj_strategy() const;
 
   bool and_with_condition(Item *tmp_cond, uint line);
@@ -683,6 +690,7 @@ public:
 inline
 st_join_table::st_join_table()
   : table(NULL),
+    position(NULL),
     keyuse(NULL),
     select(NULL),
     m_condition(NULL),
@@ -690,8 +698,9 @@ st_join_table::st_join_table()
     on_expr_ref(NULL),
     cond_equal(NULL),
     first_inner(NULL),
-    found(FALSE),
-    not_null_compl(FALSE),
+    found(false),
+    not_null_compl(false),
+    materialized(false),
     last_inner(NULL),
     first_upper(NULL),
     first_unmatched(NULL),
@@ -728,8 +737,8 @@ st_join_table::st_join_table()
     used_uneven_bit_fields(0),
     use_quick(QS_NONE),
     type(JT_UNKNOWN),
-    not_used_in_distinct(FALSE),
-    sorted(FALSE),
+    not_used_in_distinct(false),
+    sorted(false),
 
     limit(0),
     ref(),

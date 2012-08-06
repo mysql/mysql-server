@@ -249,6 +249,7 @@ JOIN::optimize()
       zero_result_cause=  select_lex->having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
+      primary_tables= 0;
       best_rowcount= 0;
       goto setup_subq_exit;
     }
@@ -309,6 +310,7 @@ JOIN::optimize()
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
         tables= 0;
+        primary_tables= 0;
         goto setup_subq_exit;
       }
       if (res > 1)
@@ -322,13 +324,14 @@ JOIN::optimize()
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
         tables= 0;
+        primary_tables= 0;
         goto setup_subq_exit;
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
       best_rowcount= 1;
-      const_tables= tables;
+      const_tables= primary_tables;
       /*
         Extract all table-independent conditions and replace the WHERE
         clause with them. All other conditions were computed by opt_sum_query
@@ -384,7 +387,7 @@ JOIN::optimize()
   else
   {
     /* Remove distinct if only const tables */
-    select_distinct= select_distinct && (const_tables != tables);
+    select_distinct&= !plan_is_const();
   }
 
   if (const_table_map != found_const_table_map &&
@@ -446,7 +449,7 @@ JOIN::optimize()
   */ 
   for (JOIN_TAB *tab= join_tab + const_tables; tab < join_tab + tables ; tab++)
   {
-    if (*tab->on_expr_ref)
+    if (tab->on_expr_ref && *tab->on_expr_ref)
     {
       *tab->on_expr_ref= substitute_for_best_equal_field(*tab->on_expr_ref,
                                                          tab->cond_equal,
@@ -526,7 +529,8 @@ JOIN::optimize()
 
      The FROM clause must contain a single non-constant table.
   */
-  if (tables - const_tables == 1 && (group_list || select_distinct) &&
+  if (plan_is_single_table() &&
+      (group_list || select_distinct) &&
       !tmp_table_param.sum_func_count &&
       (!join_tab[const_tables].select ||
        !join_tab[const_tables].select->quick ||
@@ -584,7 +588,8 @@ JOIN::optimize()
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
-  else if (select_distinct && tables - const_tables == 1 &&
+  else if (select_distinct &&
+           plan_is_single_table() &&
            rollup.state == ROLLUP::STATE_NONE)
   {
     /*
@@ -691,7 +696,7 @@ JOIN::optimize()
     table (it does not make sense for other tables) then we cannot do join
     buffering.
   */
-  if (const_tables < tables)
+  if (!plan_is_const())
   {
     const TABLE * const first= join_tab[const_tables].table;
     if ((first->force_index_order && order) ||
@@ -717,7 +722,7 @@ JOIN::optimize()
     When the WITH ROLLUP modifier is present, we cannot skip temporary table
     creation for the DISTINCT clause just because there are only const tables.
   */
-  need_tmp= ((const_tables != tables &&
+  need_tmp= ((!plan_is_const() &&
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
@@ -770,7 +775,7 @@ JOIN::optimize()
   // See if this subquery can be evaluated with subselect_indexsubquery_engine
   if (!group_list && !order &&
       unit->item && unit->item->substype() == Item_subselect::IN_SUBS &&
-      tables == 1 && conds &&
+      primary_tables == 1 && conds &&
       !unit->is_union())
   {
     bool changed= FALSE;
@@ -845,11 +850,14 @@ JOIN::optimize()
   if (need_tmp || select_distinct || group_list || order)
   {
     for (uint i = const_tables; i < tables; i++)
-      join_tab[i].table->prepare_for_position();
+    {
+      if (join_tab[i].table)
+        join_tab[i].table->prepare_for_position();
+    }
   }
   DBUG_EXECUTE("info", TEST_join(this););
 
-  if (const_tables != tables)
+  if (!plan_is_const())
   {
     JOIN_TAB *tab= &join_tab[const_tables];
 
@@ -965,7 +973,7 @@ JOIN::optimize()
    * Currently pushed joins are only implemented by NDB.
    * It only make sense to try pushing if > 1 tables.
    */
-  if ((tables-const_tables) > 1)
+  if (primary_tables - const_tables > 1)
   {
     const AQP::Join_plan plan(this);
     if (ha_make_pushed_joins(thd, &plan))
@@ -1962,7 +1970,6 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     return new Item_int((longlong) 0,1); 
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
-  Item *head;
   if (!item_const)
   {
     /*
@@ -1975,21 +1982,24 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
   while ((item_field= it++))
   {
     Item_equal *upper= item_field->find_item_equal(upper_levels);
-    Item_field *item= item_field;
+    Item_field *item_match= item_field;
     if (upper)
     { 
       if (item_const && upper->get_const())
-        item= NULL;
+        item_match= NULL;
       else
       {
         Item_equal_iterator li(*item_equal);
-        while ((item= li++) != item_field)
+        while ((item_match= li++) != item_field)
         {
-          if (item->find_item_equal(upper_levels) == upper)
+          if (item_match->find_item_equal(upper_levels) == upper)
+          {
+            item_match= NULL;
             break;
+          }
         }
         /*
-          If the field belongs to a semi-join nest that is used for
+          If item_field belongs to a semi-join nest that is used for
           Materialization and was rejected due to being covered by an upper-
           level multiple equality, and the upper-level multiple equality
           refers to tables that are outside of the materialized semi-join nest,
@@ -1997,69 +2007,60 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
           As noted in Item_equal::get_subst_item(), subquery materialization
           does not have this problem.
         */
-        if (item != item_field &&
-            item->field->table->reginfo.join_tab->emb_sj_nest !=
-            item_field->field->table->reginfo.join_tab->emb_sj_nest)
-        {
-          /*
-            Original field is in a materialized semi-join nest and
-            substitution field is in an outer table:
-          */
-          if (sj_is_materialize_strategy(
-                item_field->field->table->reginfo.join_tab->get_sj_strategy())&&
-              item_equal->get_subst_item(item_field) == item_field)
-            item= item_field;
-          /*
-            Original field is in an outer table, and the substitution field
-            is in a materialized semi-join nest:
-          */
-          if (sj_is_materialize_strategy(
-                item->field->table->reginfo.join_tab->get_sj_strategy()) &&
-              item_equal->get_subst_item(item_field) == item)
-            item= item_field;
-        }
+        if (item_match == NULL &&
+            sj_is_materialize_strategy(
+              item_field->field->table->reginfo.join_tab->get_sj_strategy()))
+          item_match= item_field;
       }
     }
-    if (item == item_field)
+
+    /*
+      If item_match is non-NULL, it should be compared with the head of
+      the multiple equality list.
+      item_match may refer to a table that is within a semijoin
+      materialization nest. In that case, the join order may look like:
+
+        ot1 ot2 <subquery> ot5 SJM(it3 it4)
+
+      If we have a multiple equality
+
+        (ot1.c1, ot2.c2, <subquery>.c it3.c3, it4.c4, ot5.c5),
+
+      we should generate the following equalities:
+        1. ot1.c1 = ot2.c2
+        2. ot1.c1 = <subquery>.c
+        3. it3.c3 = it4.c4
+        4. ot1.c1 = ot5.c5
+
+      Equalities 1) and 4) are regular equalities between two outer tables.
+      Equality 2) is an equality that matches the outer query with a
+      materialized temporary table. It is either performed as a lookup
+      into the materialized table (SJM-lookup), or as a condition on the
+      outer table (SJM-scan).
+      Equality 3) is evaluated during semijoin materialization.
+
+      If there is a const item, match against this one.
+      Otherwise, match against the first field item in the multiple equality,
+      unless the item is within a materialized semijoin nest, in case it will
+      be matched against the first item within the SJM nest.
+      @see JOIN::set_access_methods()
+      @see JOIN::set_prefix_tables()
+      @see Item_equal::get_subst_item()
+    */
+
+    Item *head= NULL;
+    if (item_match != NULL)
+    {
+      head= item_const ? item_const : item_equal->get_subst_item(item_field);
+      if (head == item_match)
+        item_match= NULL;
+    }
+    if (item_match != NULL)
     {
       if (eq_item)
         eq_list.push_back(eq_item);
 
-      /*
-        item_field may refer to a table that is within a semijoin
-        materialization nest. In that case, the join order may look like:
-
-          ot1 ot2 SJM (it3 it4) ot5 
-
-        If we have a multiple equality (ot1.c1, ot2.c2, it3.c3, it4.c4, ot5.c5),
-        we should generate the following equalities:
-         1. ot1.c1 = ot2.c2
-         2. ot1.c1 = it3.c3
-         3. it3.c3 = it4.c4
-         4. ot1.c1 = ot5.c5
-
-        Equalities 1) and 4) are regular equalities between two outer tables.
-        Equality 2) is an equality that matches the outer query with a
-        materialized semijoin table. It is either performed as a lookup
-        into the materialized table (SJM-lookup), or as a condition on the
-        outer table (SJM-scan).
-        Equality 3) is evaluated during semijoin materialization.
-
-        If there is a const item, match against this one.
-        Otherwise, match against the first field item in the multiple equality,
-        unless the item is within a materialized semijoin nest, where we match
-        against the first item within the SJM nest (if the item is not the first
-        item within the SJM nest), or match against the first item in the
-        list (if the item is the first one in the SJM nest).
-        @see JOIN::set_access_methods()
-        @see JOIN::set_prefix_tables()
-        @see Item_equal::get_subst_item()
-      */
-      head= item_const ? item_const : item_equal->get_subst_item(item_field);
-      if (head == item_field)                   // First item in SJM nest
-        head= item_equal->get_first();
-
-      eq_item= new Item_func_eq(item_field, head);
+      eq_item= new Item_func_eq(item_match, head);
       if (!eq_item || eq_item->set_cmp_func())
         return NULL;
       eq_item->quick_fix_field();
@@ -2833,11 +2834,10 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 
 void update_depend_map(JOIN *join)
 {
-  JOIN_TAB *join_tab=join->join_tab, *end=join_tab+join->tables;
-
-  for (; join_tab != end ; join_tab++)
+  for (uint tableno = 0; tableno < join->tables; tableno++)
   {
-    TABLE_REF *ref= &join_tab->ref;
+    JOIN_TAB *const join_tab= join->join_tab + tableno;
+    TABLE_REF *const ref= &join_tab->ref;
     table_map depend_map=0;
     Item **item=ref->items;
     uint i;
@@ -2883,6 +2883,104 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /**
+  Update keyuse references into materialized semi-joined tables.
+
+  @details
+    All primary tables after the materialized temporary table must be inspected.
+    This update is necessary for the MaterializeScan semi-join strategy.
+    After plan has been determined, keyuse objects for outer tables may point
+    to expressions from the subquery tables. These references must be replaced
+    with references to corresponding columns in the materialized temporary
+    table instead.
+*/
+
+void JOIN::update_keyuse()
+{
+  if (sjm_nests == 0)
+    return;
+
+  for (uint i= const_tables; i < primary_tables; i++)
+  {
+    JOIN_TAB *const mat_tab= join_tab + i;
+    Semijoin_mat_exec *const sjm=
+      mat_tab->table->pos_in_table_list->sj_mat_exec;
+    if (sjm == NULL)
+      continue;
+
+    // Loop over all primary tables that follow the materialized table
+    for (uint j= i + 1; j < primary_tables; j++)
+    {
+      JOIN_TAB *const tab= join_tab + j;
+      for (Key_use *keyuse= tab->position->key;
+           keyuse && keyuse->table == tab->table;
+           keyuse++)
+      {
+        if (keyuse->val->type() != Item::FIELD_ITEM)
+          continue;
+        List_iterator<Item> it(sjm->subq_exprs);
+        Item *old;
+        uint fieldno= 0;
+        while ((old= it++))
+        {
+          if (old->eq(keyuse->val, false))
+          {
+            /*
+              Replace the expression selected from the subquery with the
+              corresponding column of the materialized temporary table.
+            */
+            keyuse->val= sjm->mat_fields[fieldno];
+            keyuse->used_tables= keyuse->val->used_tables();
+            break;
+          }
+          fieldno++;
+        }
+      }
+    }
+  }
+}
+
+
+/**
+  Update equalities after semi-join materialization strategy is chosen.
+
+  @details
+    For each multiple equality that contains a field that is selected
+    from a subquery, and that subquery is executed using a semi-join
+    materialization strategy, add the corresponding column in the materialized
+    temporary table to the equality.
+    For each injected semi-join equality that is not converted to
+    multiple equality, replace the reference to the expression selected
+    from the subquery with the corresponding column in the temporary table.
+
+  @return False if success, true if error
+*/
+
+bool JOIN::update_equalities()
+{
+  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
+  Semijoin_mat_exec *sjm;
+  while ((sjm= it++))
+  {
+    TABLE_LIST *const emb_sj_nest= sjm->emb_sj_nest;
+    Item *cond= emb_sj_nest->outer_join_nest() ?
+                  emb_sj_nest->outer_join_nest()->join_cond() :
+                  conds;
+    if (!cond)
+      continue;
+
+    uchar *dummy= NULL;
+    cond= cond->compile(&Item::equality_substitution_analyzer, &dummy,
+                        &Item::equality_substitution_transformer, (uchar *)sjm);
+    if (cond == NULL)
+      return true;
+    cond->update_used_tables();
+  }
+
+  return false;
+}
+
+
+/**
   Assign set of available (prefix) tables to all tables in query block.
   Also set added tables, ie the tables added in each JOIN_TAB compared to the
   previous JOIN_TAB.
@@ -2908,6 +3006,8 @@ void JOIN::set_prefix_tables()
   for (uint i= const_tables; i < tables; i++)
   {
     JOIN_TAB *const tab= join_tab + i;
+    if (!tab->table)
+      continue;
     /* 
       Tables that are within SJ-Materialization nests cannot have their
       conditions referring to preceding non-const tables.
@@ -2936,16 +3036,6 @@ void JOIN::set_prefix_tables()
         current_tables_map= saved_tables_map;
         prev_tables_map= last_non_sjm_tab ?
                          last_non_sjm_tab->prefix_tables() : (table_map) 0;
-        /*
-          For a materialize-scan semi-join nest, fields from subquery tables
-          are available in the table prefix (the necessary fields are copied
-          back from the materialized temporary table).
-        */
-        if (tab->get_sj_strategy() == SJ_OPT_MATERIALIZE_SCAN)
-        {
-          current_tables_map|= sjm_inner_tables;
-          prev_tables_map|= sjm_inner_tables;
-        }
       }
     }
     else
@@ -3035,8 +3125,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
         new (thd->mem_root) POSITION[table_count+1]))
     DBUG_RETURN(true);
 
+  // Up to one extra slot per semi-join nest is needed (if materialized)
+  const uint sj_nests= join->select_lex->sj_nests.elements;
   if (!(join->best_positions=
-        new (thd->mem_root) POSITION[table_count+1]))
+      new (thd->mem_root) POSITION[table_count+sj_nests+1]))
     DBUG_RETURN(true);
 
   join->best_ref= stat_vector;
@@ -3164,6 +3256,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
+        join->primary_tables= 0;
         my_message(ER_WRONG_OUTER_JOIN, ER(ER_WRONG_OUTER_JOIN), MYF(0));
         goto error;
       }
@@ -3623,7 +3716,7 @@ const_table_extraction_done:
   join->all_tables= table_vector;
   join->const_tables=const_count;
 
-  if (join->const_tables != join->tables)
+  if (!join->plan_is_const())
     optimize_keyuse(join, keyuse_array);
 
   join->allow_outer_refs= true;
@@ -3662,6 +3755,9 @@ const_table_extraction_done:
   /* Generate an execution plan from the found optimal join order. */
   if (join->get_best_combination())
     DBUG_RETURN(true);
+
+  // No need for this struct after new JOIN_TAB array is set up.
+  join->best_positions= NULL;
 
   /* Some called function may still set thd->is_fatal_error unnoticed */
   if (thd->is_fatal_error)
@@ -3706,33 +3802,9 @@ error:
        than CONVERT_IF_BIGGER_TO_BLOB, will be represented as BLOB
        columns.)
 
-    2. Materialize and then do a full scan of the materialized table. At the
-       moment, this strategy's applicability criteria are even stricter than
-       in #1.
-
-       This is so because of the following: consider an uncorrelated subquery
-       
-       ...WHERE (ot1.col1, ot2.col2 ...) IN (SELECT ie1,ie2,... FROM it1 ...)
-
-       and a join order that could be used to do sjm-materialization: 
-          
-          SJM-Scan(it1, it1), ot1, ot2
-       
-       IN-equalities will be parts of conditions attached to the outer tables:
-
-         ot1:  ot1.col1 = ie1 AND ... (C1)
-         ot2:  ot1.col2 = ie2 AND ... (C2)
-       
-       besides those there may be additional references to ie1 and ie2
-       generated by equality propagation. The problem with evaluating C1 and
-       C2 is that ie{1,2} refer to subquery tables' columns, while we only have 
-       current value of materialization temptable. Our solution is to 
-        * require that all ie{N} are table column references. This allows 
-          to copy the values of materialization temptable columns to the
-          original table's columns (see setup_sj_materialization for more
-          details)
-        * require that compared columns have exactly the same type. This is
-          a temporary measure to avoid BUG#36752-type problems.
+    2. Materialize and then do a full scan of the materialized table.
+       The same criteria as for MaterializeLookup are applied, except that
+       BLOB/GEOMETRY columns are allowed.
 */
 
 static 
@@ -3749,18 +3821,15 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   sj_nest->nested_join->sjm.scan_allowed= false;
   sj_nest->nested_join->sjm.lookup_allowed= false;
 
-  bool all_are_fields= true;
   bool blobs_involved= false;
   Item *outer, *inner;
   while (outer= it1++, inner= it2++)
   {
-    all_are_fields &= (outer->real_item()->type() == Item::FIELD_ITEM && 
-                       inner->real_item()->type() == Item::FIELD_ITEM);
     if (!types_allow_materialization(outer, inner))
       DBUG_VOID_RETURN;
     blobs_involved|= inner->is_blob_field();
   }
-  sj_nest->nested_join->sjm.scan_allowed= all_are_fields;
+  sj_nest->nested_join->sjm.scan_allowed=   true;
   sj_nest->nested_join->sjm.lookup_allowed= !blobs_involved;
 
   if (sj_nest->embedding)
@@ -3774,6 +3843,7 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
       2. sub_select_sjm() lacks support for setup of first_unmatched
          and evaluation of triggered conditions, as in
          evaluate_null_complemented_join_record().
+         TODO: Remove this limitation!
       Handle this by disabling materialization strategies:
     */
     sj_nest->nested_join->sjm.scan_allowed= false;
@@ -5424,7 +5494,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
   Item_sum **sum_item_ptr;
   bool result= false;
 
-  if (join->tables != 1 ||                    /* reference more than 1 table */
+  if (join->primary_tables > 1 ||             /* reference more than 1 table */
       join->select_distinct ||                /* or a DISTINCT */
       join->select_lex->olap == ROLLUP_TYPE)  /* Check (B3) for ROLLUP */
     return false;
@@ -5786,6 +5856,51 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 }
 
 
+/**
+  Create a keyuse array for a table with a primary key
+
+  @param thd         THD pointer, for memory allocation
+  @param table       Table object representing table
+  @param keyparts    Number of key parts in the primary key
+  @param outer_exprs List of items used for key lookup
+
+  @return Pointer to created keyuse array, or NULL if error
+*/
+Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table,
+                             uint keyparts, List<Item> outer_exprs)
+{
+  void *mem= thd->alloc(sizeof(Key_use_array));
+  if (!mem)
+    return NULL;
+  Key_use_array *keyuses= new (mem) Key_use_array(thd->mem_root);
+
+  List_iterator<Item> outer_expr(outer_exprs);
+
+  for (uint keypartno= 0; keypartno < keyparts; keypartno++)
+  {
+    Item *const item= outer_expr++;
+    const Key_use keyuse(table,
+                         item,
+                         item->used_tables(),
+                         0,
+                         keypartno,
+                         0,
+                         (key_part_map) 1 << keypartno,
+                         ~(ha_rows) 0,
+                         (item->type() == Item::FIELD_ITEM),
+                         NULL,
+                         UINT_MAX);
+    if (keyuses->push_back(keyuse))
+      return NULL;
+  }
+  const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
+  if (keyuses->push_back(key_end)) // added for easy testing
+    return NULL;
+
+  return keyuses;
+}
+
+
 /** Save const tables first as used tables. */
 
 static void
@@ -5863,6 +5978,10 @@ make_outerjoin_info(JOIN *join)
   {
     JOIN_TAB   *const tab= join->join_tab + i;
     TABLE      *const table= tab->table;
+
+    if (!table)
+      continue;
+
     TABLE_LIST *const tbl= table->pos_in_table_list;
 
     if (tbl->outer_join)
@@ -5969,7 +6088,7 @@ static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
   for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
        join_tab < join->join_tab+join->tables ; join_tab++)
   {
-    if (*join_tab->on_expr_ref)
+    if (join_tab->on_expr_ref && *join_tab->on_expr_ref)
     {
       JOIN_TAB *cond_tab= join_tab->first_inner;
       Item *tmp_cond= make_cond_for_table(*join_tab->on_expr_ref,
@@ -6176,9 +6295,8 @@ static bool test_if_ref(Item *root_cond,
      does this is located at the end, search down for "EQ_FUNC").
 
    @note
-     Make sure to keep the implementations of make_cond_for_table() and
-     make_cond_after_sjm() synchronized.
-     make_cond_for_info_schema() uses similar algorithm as well.
+     make_cond_for_info_schema() uses an algorithm similar to
+     make_cond_for_table().
 */ 
 
 /**
@@ -6470,6 +6588,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
        sj-nest.
   */
   st_select_lex *subq_lex= subq_pred->unit->first_select();
+  nested_join->query_block_id= subq_lex->select_number;
   nested_join->join_list.empty();
   List_iterator_fast<TABLE_LIST> li(subq_lex->top_join_list);
   TABLE_LIST *tl;
@@ -6521,6 +6640,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
       emb->select_lex= parent_join->select_lex;
   }
   parent_join->tables+= subq_lex->join->tables;
+  parent_join->primary_tables+= subq_lex->join->tables;
 
   nested_join->sj_outer_exprs.empty();
   nested_join->sj_inner_exprs.empty();
@@ -6581,13 +6701,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
       if (item_eq == NULL)
         DBUG_RETURN(TRUE);
 
-      /*
-        Mark this item as a subquery equality predicate. Currently, we
-        only check that this field is different from UINT_MAX, so a boolean
-        would do better than an integer.
-        @todo: Convert to bool, or start using it as an integer.
-      */
-      item_eq->in_equality_no= i;
       sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
       if (sj_nest->sj_on_expr == NULL)
         DBUG_RETURN(TRUE);
@@ -6696,7 +6809,9 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     A join may have at most MAX_TABLES tables. This may prevent us from
     flattening all subqueries when the total number of tables in parent and
-    child selects exceeds MAX_TABLES.
+    child selects exceeds MAX_TABLES. In addition, one slot is reserved per
+    semi-join nest, in case the subquery needs to be materialized in a
+    temporary table.
     We deal with this problem by flattening children's subqueries first and
     then using a heuristic rule to determine each subquery predicate's
     "priority".
@@ -6730,7 +6845,6 @@ bool JOIN::flatten_subqueries()
 
     st_select_lex *child_select= (*subq)->unit->first_select();
     JOIN *child_join= child_select->join;
-    child_join->outer_tables = child_join->tables;
 
     /*
       child_select->where contains only the WHERE predicate of the
@@ -6745,7 +6859,7 @@ bool JOIN::flatten_subqueries()
 
     (*subq)->sj_convert_priority= 
       (((*subq)->unit->uncacheable & UNCACHEABLE_DEPENDENT) ? MAX_TABLES : 0) +
-      child_join->outer_tables;
+      child_join->tables;
   }
 
   //dump_TABLE_LIST_struct(select_lex, select_lex->leaf_tables);
@@ -6759,12 +6873,13 @@ bool JOIN::flatten_subqueries()
            sj_subselects.size(), sj_subselects.element_size(),
            reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
 
-  // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
+  // #tables-in-parent-query + #tables-in-subquery + sj nests < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
   for (subq= sj_subselects.begin(); 
        subq != subq_end && 
-       tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
+       tables + (*subq)->unit->first_select()->join->tables +
+       sj_subselects.size() < MAX_TABLES;
        subq++)
   {
     Item **tree= ((*subq)->embedding_join_nest == NULL) ?
@@ -6775,7 +6890,8 @@ bool JOIN::flatten_subqueries()
 
   for (subq= sj_subselects.begin();
        subq != subq_end &&
-       tables + (*subq)->unit->first_select()->join->tables < MAX_TABLES;
+       tables + (*subq)->unit->first_select()->join->tables +
+       sj_subselects.size() < MAX_TABLES;
        subq++)
   {
     OPT_TRACE_TRANSFORM(trace, oto0, oto1,
@@ -6966,7 +7082,8 @@ void JOIN::drop_unused_derived_keys()
         only one defined key and we need to leave it as is if it's used or
         ignore it otherwise).
     */
-    if (table->pos_in_table_list->uses_materialization() && // (1)
+    if (table &&
+        table->pos_in_table_list->uses_materialization() &&     // (1)
         !table->created &&                                       // (2)
         (table->max_keys > 1 ||                                 // (3)
         (table->max_keys == 1 && tab->ref.key < 0)))            // (4)
@@ -6993,7 +7110,7 @@ void JOIN::drop_unused_derived_keys()
 bool JOIN::cache_const_exprs()
 {
   /* No need in cache if all tables are constant. */
-  if (const_tables == tables)
+  if (plan_is_const())
     return false;
 
   for (uint i= const_tables; i < tables; i++)
@@ -7097,9 +7214,8 @@ void JOIN::replace_item_field(const char* field_name, Item* new_item)
     does this is located at the end, search down for "EQ_FUNC").
 
   @note
-    Make sure to keep the implementations of make_cond_for_table() and
-    make_cond_after_sjm() synchronized.
-    make_cond_for_info_schema() uses similar algorithm as well.
+    make_cond_for_info_schema() uses an algorithm similar to
+    make_cond_for_table().
 */
 
 Item *
@@ -7246,141 +7362,6 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
 
 
 /**
-  Generate a condition that can be checked after materializing a semi-join nest
-
-  @param root_cond  Root condition, ancestor of the condition being analyzed.
-  @param cond       Condition to analyze.
-  @param tables     Tables in the outer part of the join nest, contains
-                    correlated and non-correlated tables already seen.
-  @param sjm_tables Tables within the semi-join nest (the inner part).
-
-  @retval <>NULL Generated condition
-  @retval = NULL Already checked, OR error
-
-  @details
-  A semijoin materialization with lookup is always non-correlated, ie
-  the subquery is always resolved by performing a lookup generated in
-  create_subquery_equalities, hence this function never needs to produce
-  any condition for it.
-  For a scan semijoin materialization, this function may return a condition
-  to be checked, when there are outer tables before the SJM tables in the
-  join prefix.
-
-  @note
-    Make sure to keep the implementations of make_cond_for_table() and
-    make_cond_after_sjm() synchronized.
-*/
-
-static Item *
-make_cond_after_sjm(Item *root_cond, Item *cond, table_map tables,
-                    table_map sjm_tables)
-{
-  /*
-    We can only test conditions that cover tables from the join prefix
-    and tables from the semijoin nest. Other conditions will be handled
-    by make_cond_for_table().
-  */
-  if ((!(cond->used_tables() & ~tables) || 
-       !(cond->used_tables() & ~sjm_tables)))
-    return NULL;
-
-  if (cond->type() == Item::COND_ITEM)
-  {
-    if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
-    {
-      /* Create new top level AND item */
-      Item_cond_and *new_cond= new Item_cond_and;
-      if (!new_cond)
-        return NULL;
-      List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
-      Item *item;
-      while ((item= li++))
-      {
-        Item *fix= make_cond_after_sjm(root_cond, item, tables, sjm_tables);
-        if (fix)
-          new_cond->argument_list()->push_back(fix);
-      }
-      switch (new_cond->argument_list()->elements) {
-      case 0:
-        return NULL;                    // Always true
-      case 1:
-        return new_cond->argument_list()->head();
-      default:
-	/*
-          Item_cond_and do not need fix_fields for execution, its parameters
-          are fixed or do not need fix_fields, too
-	*/
-        new_cond->quick_fix_field();
-        new_cond->set_used_tables(cond->used_tables() & tables);
-        return new_cond;
-      }
-    }
-    else
-    {                                          // Or list
-      Item_cond_or *new_cond= new Item_cond_or;
-      if (!new_cond)
-        return NULL;
-      List_iterator<Item> li(*((Item_cond*) cond)->argument_list());
-      Item *item;
-      while ((item= li++))
-      {
-        Item *fix= make_cond_after_sjm(root_cond, item, tables, 0L);
-        if (!fix)
-          return NULL;                  // Always true
-        new_cond->argument_list()->push_back(fix);
-      }
-      /*
-        Item_cond_and do not need fix_fields for execution, its parameters
-        are fixed or do not need fix_fields, too
-      */
-      new_cond->quick_fix_field();
-      new_cond->set_used_tables(cond->used_tables());
-      new_cond->top_level_item();
-      return new_cond;
-    }
-  }
-
-  /*
-    Omit this condition if
-     1. It has been marked as omittable before, or
-     2. Some tables referred by the condition are not available.
-  */
-  if (cond->marker == 3 ||                                             // 1
-      cond->used_tables() & ~(tables | sjm_tables))                    // 2
-    return NULL;
-
-  /*
-    Extract this condition if
-     1. It has already been marked as applicable, or
-     2. It is not a <comparison predicate> (=, <, >, <=, >=, <=>)
-  */
-  if (cond->marker == 2 ||                                             // 1
-      cond->eq_cmp_result() == Item::COND_OK)                          // 2
-    return cond;
-
-  /* 
-    Remove equalities that are guaranteed to be true by use of 'ref' access
-    method
-  */
-  if (((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
-  {
-    Item *left_item= ((Item_func*) cond)->arguments()[0]->real_item();
-    Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
-    if ((left_item->type() == Item::FIELD_ITEM &&
-	 test_if_ref(root_cond, (Item_field*) left_item, right_item)) ||
-        (right_item->type() == Item::FIELD_ITEM &&
-	 test_if_ref(root_cond, (Item_field*) right_item, left_item)))
-    {
-      cond->marker= 3;                  // Condition can be omitted
-      return NULL;
-    }
-  }
-  cond->marker= 2;                      // Mark condition as applicable
-  return cond;
-}
-
-
-/**
   Separates the predicates in a join condition and pushes them to the 
   join step where all involved tables are available in the join prefix.
   ON clauses from JOIN expressions are also pushed to the most appropriate step.
@@ -7412,9 +7393,9 @@ static bool make_join_select(JOIN *join, Item *cond)
     */
     if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
     {                        /* there may be a select without a cond. */    
-      if (join->tables > 1)
+      if (join->primary_tables > 1)
         cond->update_used_tables();		// Tablenr may have changed
-      if (join->const_tables == join->tables &&
+      if (join->plan_is_const() &&
 	  thd->lex->current_select->master_unit() ==
 	  &thd->lex->unit)		// not upper level SELECT
         join->const_table_map|=RAND_TABLE_BIT;
@@ -7442,7 +7423,7 @@ static bool make_join_select(JOIN *join, Item *cond)
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
         {
-          if (*tab->on_expr_ref)
+          if (tab->on_expr_ref && *tab->on_expr_ref)
           {
             JOIN_TAB *cond_tab= tab->first_inner;
             Item *tmp= make_cond_for_table(*tab->on_expr_ref,
@@ -7486,12 +7467,12 @@ static bool make_join_select(JOIN *join, Item *cond)
     Opt_trace_array
       trace_attached_comp(trace, "attached_conditions_computation");
 
-    // Helper object for correct processing of SJM-scan:
-    table_map outer_used_tables= (table_map) 0;
-
     for (uint i=join->const_tables ; i < join->tables ; i++)
     {
       JOIN_TAB *const tab= join->join_tab + i;
+
+      if (!tab->position)
+        continue;
       /*
         first_inner is the X in queries like:
         SELECT * FROM t1 LEFT OUTER JOIN (t2 JOIN t3) ON X
@@ -7525,13 +7506,14 @@ static bool make_join_select(JOIN *join, Item *cond)
 	tab->use_quick=QS_RANGE;
         tab->ref.key= -1;
 	tab->ref.key_parts=0;		// Don't use ref key.
-	join->best_positions[i].records_read= rows2double(tab->quick->records);
+	tab->position->records_read= rows2double(tab->quick->records);
         /* 
           We will use join cache here : prevent sorting of the first
           table only and sort at the end.
         */
-        if (i != join->const_tables && join->tables > join->const_tables + 1)
-          join->full_join= 1;
+        if (i != join->const_tables &&
+            join->primary_tables > join->const_tables + 1)
+          join->full_join= true;
       }
 
       tmp= NULL;
@@ -7655,8 +7637,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	  if ((cond &&
               !tab->keys.is_subset(tab->const_keys) && i > 0) ||
 	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
-	       join->unit->select_limit_cnt <
-	       join->best_positions[i].records_read &&
+	       join->unit->select_limit_cnt < tab->position->records_read &&
 	       !(join->select_options & OPTION_FOUND_ROWS)))
 	  {
             Opt_trace_object trace_one_table(trace);
@@ -7709,7 +7690,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 
 	    /* Fix for EXPLAIN */
 	    if (sel->quick)
-	      join->best_positions[i].records_read= (double)sel->quick->records;
+	      tab->position->records_read= (double)sel->quick->records;
 	  }
 	  else
 	  {
@@ -7749,45 +7730,6 @@ static bool make_join_select(JOIN *join, Item *cond)
       
       if (pushdown_on_conditions(join, tab))
         DBUG_RETURN(1);
-
-      if (sj_is_materialize_strategy(tab->get_sj_strategy()))        // 1
-      {
-        if (!(tab->emb_sj_nest->sj_inner_tables & ~used_tables) &&   // 2
-            tab->get_sj_strategy() == SJ_OPT_MATERIALIZE_SCAN &&     // 3
-            cond)                                                    // 3
-        {
-        /*
-          We are:
-           1. inside a materialized semijoin nest, and
-           2. all inner tables of the nest are covered, and
-           3. we may have to create a special condition for semi-join scan.
-
-          The join order now looks like this:
-
-           ot1 ... otI SJM(it1 ... itN) otI+1 ... otM
-                                       ^
-                                        \-we're here
-          At this point, we have generated a condition that can be checked
-          when we have all of the sj-inner tables (it1 ... itN).
-          This will be used while doing materialization.
-
-          In addition, we need a condition that can be checked when we have
-          all of the tables in the prefix (both inner and outer).
-          This condition is only generated (and used) when we have an SJM-scan
-          operation. For SJM-lookup, the condition is completely fulfilled
-          through the lookup into the materialized table.
-          This constraint will last as long as we do not allow correlated
-          subqueries with materialized semijoin execution.
-        */
-          tab->emb_sj_nest->sj_mat_exec->join_cond= 
-            make_cond_after_sjm(cond, cond, outer_used_tables, used_tables);
-        }
-      }
-      else
-      {
-        // Save the current prefix of outer tables for a possible SJM-scan
-        outer_used_tables= tab->prefix_tables();
-      }
     }
     trace_attached_comp.end();
 
@@ -7801,6 +7743,8 @@ static bool make_join_select(JOIN *join, Item *cond)
     for (uint i= join->const_tables ; i < join->tables ; i++)
     {
       JOIN_TAB * const tab= &join->join_tab[i];
+      if (!tab->table)
+        continue;
       Item * const cond= tab->condition();
       Opt_trace_object trace_one_table(trace);
       trace_one_table.add_utf8_table(tab->table).
@@ -8005,7 +7949,7 @@ static ORDER *
 remove_const(JOIN *join,ORDER *first_order, Item *cond,
              bool change_list, bool *simple_order, const char *clause_type)
 {
-  if (join->tables == join->const_tables)
+  if (join->plan_is_const())
     return change_list ? 0 : first_order;		// No need to sort
 
   Opt_trace_context * const trace= &join->thd->opt_trace;
@@ -8054,8 +7998,9 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
           table for all queries containing more than one table, ROLLUP, and an
           outer join.
          */
-        (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
-        join->outer_join))
+        (join->primary_tables > 1 &&
+         join->rollup.state == ROLLUP::STATE_INITED &&
+         join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
@@ -8975,7 +8920,7 @@ static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
 
 void JOIN::optimize_fts_query()
 {
-  if (tables > 1)
+  if (primary_tables > 1)
     return;    // We only optimize single table FTS queries
 
   JOIN_TAB * const tab= &(join_tab[0]);
@@ -9108,7 +9053,7 @@ JOIN::optimize_fts_limit_query()
      5. There is a LIMIT clause
      6. Ordering is on a MATCH expression
    */
-  if (tables == 1 &&                                // 1
+  if (primary_tables == 1 &&                        // 1
       conds == NULL &&                              // 2
       order && order->next == NULL &&     // 3
       order->direction == ORDER::ORDER_DESC && // 4
@@ -9393,7 +9338,7 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
     trace_parent.add_select_number(parent_join->select_lex->select_number);
     double parent_fanout;
     if (// safety, not sure needed
-        parent_join->tables == parent_join->const_tables ||
+        parent_join->plan_is_const() ||
         // if subq is in condition on constant table:
         !parent_join->child_subquery_can_materialize)
     {
@@ -9422,12 +9367,12 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
         DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
         trace_parent.add("subq_attached_to_table", true);
         trace_parent.add_utf8_table(parent_join->join_tab[idx].table);
-        parent_fanout= parent_join->best_positions[idx].records_read;
+        parent_fanout= parent_join->join_tab[idx].position->records_read;
         if ((idx > parent_join->const_tables) &&
             !sj_is_materialize_strategy(parent_join
-                                        ->best_positions[idx].sj_strategy))
+                                        ->join_tab[idx].position->sj_strategy))
           parent_fanout*=
-            parent_join->best_positions[idx - 1].prefix_record_count;
+            parent_join->join_tab[idx - 1].position->prefix_record_count;
       }
       else
       {
@@ -9522,13 +9467,14 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
   This allocates execution structures so may be called only after we have the
   very final plan. It must be called after
   Optimize_table_order::fix_semijoin_strategies(), and before
-  make_join_select() which uses those structures.
+  get_best_combination() which uses those structures.
 */
 bool JOIN::allocate_sj_mat_exec()
 {
   if (select_lex->sj_nests.is_empty())
     return false;
 
+  // "tables" is number of input tables at this point.
   for (uint tableno= const_tables; tableno < tables; )
   {
     POSITION *const pos= best_positions + tableno;
@@ -9536,13 +9482,13 @@ bool JOIN::allocate_sj_mat_exec()
     {
       TABLE_LIST *emb_sj_nest= pos->table->emb_sj_nest;
       const uint table_count= my_count_bits(emb_sj_nest->sj_inner_tables);
-      Semijoin_mat_exec *sjm_exec;
-      if (!(sjm_exec=
-            new (thd->mem_root)
-            Semijoin_mat_exec(table_count,
-                              (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN))))
+      if (!(emb_sj_nest->sj_mat_exec=
+          new (thd->mem_root)
+          Semijoin_mat_exec((pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
+                            emb_sj_nest, table_count,
+                            emb_sj_nest->nested_join->sj_inner_exprs.elements)))
         return true;
-      emb_sj_nest->sj_mat_exec= sjm_exec;
+      sjm_nests++;
       tableno+= table_count;
     }
     else
@@ -9558,7 +9504,7 @@ bool JOIN::allocate_sj_mat_exec()
  */
 void JOIN::refine_best_rowcount()
 {
-  if (const_tables == tables)
+  if (plan_is_const())
     return;
   /*
     Calculate estimated number of rows for materialized derived

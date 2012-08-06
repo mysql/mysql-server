@@ -6376,9 +6376,12 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
 
       Example: suppose we have a join order:
 
-       ot1 ot2  SJM(it1  it2  it3)  ot3
+       ot1 ot2 <subquery> ot3 SJM(it1  it2  it3)
 
-      and equality ot2.col = it1.col = it2.col
+      <subquery> is the temporary table that is materialized from the join
+      of it1, it2 and it3.
+
+      and equality ot2.col = <subquery>.col = it1.col = it2.col
 
       If we're looking for best substitute for 'it2.col', we must pick it1.col
       and not ot2.col. it2.col is evaluated while performing materialization,
@@ -6413,23 +6416,97 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
 
       Example: suppose we have a join order with MaterializeLookup:
 
-       ot1 ot2  SJM-Lookup(it1  it2)
+        ot1 ot2 <subquery> SJM(it1 it2)
 
       Here we should always pick the first field in the multiple equality,
       as this will be present before all other dependent fields.
 
       Example: suppose we have a join order with MaterializeScan:
 
-          SJM-Scan(it1  it2)  ot1  ot2
+        <subquery> ot1 ot2 SJM(it1 it2)
 
-      and equality ot2.col = ot1.col = it2.col.
+      and equality <subquery>.col = ot2.col = ot1.col = it2.col.
 
-      When looking for best substitute for 'ot2.col', we can pick it2.col,
-      because when we run the scan, column values from the inner materialized
-      tables will be copied back to the column buffers for it1 and it2.
+      When looking for best substitute for ot2.col, we should pick
+      <subquery>.col, because column values from the inner materialized tables
+      are copied to the temporary table <subquery>, and when we run the scan,
+      field values are read into this table's field buffers.
     */
     return fields.head();
   }
   DBUG_ASSERT(FALSE);                          // Should never get here.
   return NULL;
+}
+
+/**
+  Transform an Item_equal object after having added a table that
+  represents a materialized semi-join.
+
+  @details
+    If the multiple equality represented by the Item_equal object contains
+    a field from the subquery that was used to create the materialized table,
+    add the corresponding key field from the materialized table to the
+    multiple equality.
+*/
+
+Item* Item_equal::equality_substitution_transformer(uchar *arg)
+{
+  Semijoin_mat_exec *sjm= reinterpret_cast<Semijoin_mat_exec *>(arg);
+  List_iterator<Item_field> it(fields);
+  List<Item_field> added_fields;
+  Item_field *item;
+  // Iterate over the fields in the multiple equality
+  while ((item= it++))
+  {
+    // Skip fields that do not come from materialized subqueries
+    const JOIN_TAB *tab= item->field->table->reginfo.join_tab;
+    if (!tab || !sj_is_materialize_strategy(tab->get_sj_strategy()))
+      continue;
+
+    // Iterate over the fields selected from the subquery
+    List_iterator<Item> mit(sjm->subq_exprs);
+    Item *existing;
+    uint fieldno= 0;
+    while ((existing= mit++))
+    {
+      if (existing->real_item()->eq(item, false))
+        added_fields.push_back(sjm->mat_fields[fieldno]);
+      fieldno++;
+    }
+  }
+  if (added_fields.elements)
+    fields.concat(&added_fields);
+
+  return this;
+}
+
+/**
+  Replace arg of Item_func_eq object after having added a table that
+  represents a materialized semi-join.
+
+  @details
+    The right argument of an injected semi-join equality (which comes from
+    the select list of the subquery) is replaced with the corresponding
+    column from the materialized temporary table, if the left and right
+    arguments are not from the same semi-join nest.
+*/
+Item* Item_func_eq::equality_substitution_transformer(uchar *arg)
+{
+  Semijoin_mat_exec *sjm= reinterpret_cast<Semijoin_mat_exec *>(arg);
+
+  // Iterate over the fields selected from the subquery
+  List_iterator<Item> mit(sjm->subq_exprs);
+  Item *existing;
+  uint fieldno= 0;
+  while ((existing= mit++))
+  {
+    if (existing->real_item()->eq(args[1], false) &&
+        !(args[0]->used_tables() & sjm->emb_sj_nest->sj_inner_tables))
+    {
+      current_thd->change_item_tree(args+1, sjm->mat_fields[fieldno]);
+      args[1]= sjm->mat_fields[fieldno];
+    }
+    fieldno++;
+  }
+  return this;
 }

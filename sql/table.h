@@ -2169,13 +2169,19 @@ typedef struct st_nested_join
     outer join structure need this, other nests have bit set to zero.
   */
   nested_join_map   nj_map;
-  /*
+  /**
     Tables outside the semi-join that are used within the semi-join's
     ON condition (ie. the subquery WHERE clause and optional IN equalities).
   */
   table_map         sj_depends_on;
-  /* Outer non-trivially correlated tables, a true subset of sj_depends_on */
+  /**
+    Outer non-trivially correlated tables, a true subset of sj_depends_on
+  */
   table_map         sj_corr_tables;
+  /**
+    Subquery block id if this struct is generated from a subquery transform.
+  */
+  uint query_block_id;
   /*
     Lists of trivially-correlated expressions from the outer and inner tables
     of the semi-join, respectively.
