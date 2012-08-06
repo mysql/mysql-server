@@ -175,7 +175,9 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+#if !defined(HAVE_YASSL)
 static char *opt_server_public_key= 0;
+#endif
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1715,10 +1717,12 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"server-public-key", OPT_SERVER_PUBLIC_KEY,
+#if !defined(HAVE_YASSL)
+  {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
    "File path to the server public RSA key in PEM format.",
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -4534,8 +4538,10 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+#if !defined(HAVE_YASSL)
   if (opt_server_public_key && *opt_server_public_key)
     mysql_options(&mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+#endif
 
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
