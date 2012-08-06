@@ -42,7 +42,10 @@ public:
   R (*function)();    // function pointer
   
   /* Constructor */
-  NativeCFunctionCall_0_<R>(const Arguments &args) : function(0) { }
+  NativeCFunctionCall_0_<R>(const Arguments &args) : 
+  function(0), 
+  NativeMethodCall<R>(args[0]) // callback 
+  { }
 
   /* Methods */
   void run() {
@@ -61,13 +64,16 @@ template <typename R, typename A0>
 class NativeCFunctionCall_1_ : public NativeMethodCall<R> {
 public:
   /* Member variables */
-  A0  arg0;
   R (*function)(A0);    // function pointer
+  JsValueConverter<A0> arg0converter;
+  A0  arg0;
   
   /* Constructor */
-  NativeCFunctionCall_1_<R, A0>(const Arguments &args) : function(0)
+  NativeCFunctionCall_1_<R, A0>(const Arguments &args) : 
+  function(0),
+  arg0converter(args[0]),
+  NativeMethodCall<R>(args[1]) // callback
   {    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
   }
 
@@ -88,17 +94,20 @@ template <typename R, typename A0, typename A1>
 class NativeCFunctionCall_2_ : public NativeMethodCall<R> {
 public:
   /* Member variables */
+  JsValueConverter<A0> arg0converter;
+  JsValueConverter<A1> arg1converter;
   A0  arg0;
   A1  arg1;
   R (*function)(A0,A1);    // function pointer
   
   /* Constructor */
-  NativeCFunctionCall_2_<R, A0, A1>(const Arguments &args) : function(0)
+  NativeCFunctionCall_2_<R, A0, A1>(const Arguments &args) : 
+  function(0),
+  arg0converter(args[0]),
+  arg1converter(args[1]),
+  NativeMethodCall<R>(args[2]) // callback
   {    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
-
-    JsValueConverter<A1> arg1converter(args[1]);
     arg1 = arg1converter.toC();
   }
 
@@ -120,6 +129,14 @@ template <typename R, typename A0, typename A1, typename A2, typename A3,
 class NativeCFunctionCall_8_ : public NativeMethodCall<R> {
 public:
   /* Member variables */
+  JsValueConverter<A0> arg0converter;
+  JsValueConverter<A1> arg1converter;
+  JsValueConverter<A2> arg2converter;
+  JsValueConverter<A3> arg3converter;
+  JsValueConverter<A4> arg4converter;
+  JsValueConverter<A5> arg5converter;
+  JsValueConverter<A6> arg6converter;
+  JsValueConverter<A7> arg7converter;  
   A0  arg0;
   A1  arg1;
   A2  arg2;
@@ -133,30 +150,25 @@ public:
   
   /* Constructor */
   NativeCFunctionCall_8_<R, A0, A1, A2, A3, A4, A5, A6, A7>
-  (const Arguments &args) : function(0)
+  (const Arguments &args) : 
+  function(0),
+  arg0converter(args[0]),
+  arg1converter(args[1]),
+  arg2converter(args[2]),
+  arg3converter(args[3]),
+  arg4converter(args[4]),
+  arg5converter(args[5]),
+  arg6converter(args[6]),
+  arg7converter(args[7]),
+  NativeMethodCall<R>(args[8]) // callback
   {    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
-
-    JsValueConverter<A1> arg1converter(args[1]);
     arg1 = arg1converter.toC();
-
-    JsValueConverter<A2> arg2converter(args[2]);
     arg2 = arg2converter.toC();
-
-    JsValueConverter<A3> arg3converter(args[3]);
     arg3 = arg3converter.toC();
-
-    JsValueConverter<A4> arg4converter(args[4]);
     arg4 = arg4converter.toC();
-
-    JsValueConverter<A5> arg5converter(args[5]);
     arg5 = arg5converter.toC();
-
-    JsValueConverter<A6> arg6converter(args[6]);
     arg6 = arg6converter.toC();
-
-    JsValueConverter<A7> arg7converter(args[7]);
     arg7 = arg7converter.toC();
   }
 
@@ -183,13 +195,16 @@ template <typename A0>
 class NativeCVoidFunctionCall_1_ : public NativeMethodCall<int> {
 public:
   /* Member variables */
+  JsValueConverter<A0> arg0converter;
   A0  arg0;
   void (*function)(A0);   // function pointer
   
   /* Constructor */
-  NativeCVoidFunctionCall_1_<A0>(const Arguments &args) : function(0) 
+  NativeCVoidFunctionCall_1_<A0>(const Arguments &args) : 
+  function(0),
+  arg0converter(args[0]),
+  NativeMethodCall<int>(args[1]) // callback
   {    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
   }
   

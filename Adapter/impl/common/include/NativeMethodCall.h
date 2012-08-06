@@ -49,31 +49,40 @@ using namespace v8;
   * method calls on C++ objects.  
   */
 
+
 /** Base class
 **/
 class AsyncMethodCall {
   public:
     /* Member variables */
+    bool has_cb;
     Persistent<Function> callback;
+    Envelope * envelope;
     
-    /* Constructor */
-    AsyncMethodCall() : callback() {}
+    /* Constructors */
+    AsyncMethodCall() : callback(), envelope(0), has_cb(false) {}
+    
+    AsyncMethodCall(Local<Value> f) {
+      // FIXME: raise an error if you use the wrong type as a callback
+      callback = Persistent<Function>::New(Local<Function>::Cast(f));
+      has_cb = true;      
+    }
+
+    /* Destructor */
+    ~AsyncMethodCall() {
+      if(has_cb) callback.Dispose();
+    }
 
     /* Methods (Pure virtual) */
     virtual void run(void) = 0;
     virtual void doAsyncCallback(Local<Object>) = 0;
     
     /* Base Class Methods */
-    void setCallback(Local<Value> f) {
-      callback = Persistent<Function>::New(Local<Function>::Cast(f));
-      DEBUG_PRINT("SETTING CALLBACK");
-    }
-    
     void runAsync() {
       uv_work_t * req = new uv_work_t;
       req->data = (void *) this;
       uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
-    }
+    }    
 };  
 
 
@@ -85,10 +94,10 @@ class NativeMethodCall : public AsyncMethodCall {
 public:
   /* Member variables */
   RETURN_TYPE return_val;
-  Envelope * envelope;
 
   /* Constructor */
-  NativeMethodCall<RETURN_TYPE>() : return_val(0), envelope(0) {};
+  NativeMethodCall<RETURN_TYPE>(Local<Value> callback) : 
+    AsyncMethodCall(callback), return_val(0) {};
 
   /* Methods */
   Local<Value> jsReturnVal() {
@@ -105,8 +114,14 @@ public:
     }
   }
   
+  /* doAsyncCallback() is an async callback, run by main_thread_complete().
+     It currently returns *one* JavaScript object (wrapped return_val), 
+     and no error indicator
+  */
   void doAsyncCallback(Local<Object> context) {
-    DEBUG_MARKER();
+    DEBUG_PRINT("doAsyncCallback() for %s", 
+                (envelope && envelope->classname) ? 
+                envelope->classname : "{?}");
     Handle<Value> cb_args[1];    
     cb_args[0] = jsReturnVal();
     callback->Call(context, 1, cb_args);
@@ -128,15 +143,19 @@ class NativeVoidMethodCall_1_ : public NativeMethodCall<int> {
 public:
   /* Member variables */
   C * native_obj;
+
+  JsValueConverter<A0> arg0converter;
   A0  arg0;
+
   void (C::*method)(A0);  // "method" is pointer to member function
   
   /* Constructor */
-  NativeVoidMethodCall_1_<C, A0>(const Arguments &args) : method(0) 
+  NativeVoidMethodCall_1_<C, A0>(const Arguments &args) : 
+    method(0),
+    arg0converter(args[0]),
+    NativeMethodCall<int>(args[1]) // callback
   {
     native_obj = unwrapPointer<C *>(args.Holder());
-    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
   }
   
@@ -163,7 +182,9 @@ public:
   R (C::*method)(void);  // "method" is pointer to member function
   
   /* Constructor */
-  NativeMethodCall_0_<R, C>(const Arguments &args) : method(0)
+  NativeMethodCall_0_<R, C>(const Arguments &args) : 
+  method(0),
+  NativeMethodCall<R>(args[0]) // callback
   {
     native_obj = unwrapPointer<C *>(args.Holder());
   }
@@ -187,15 +208,17 @@ class NativeMethodCall_1_ : public NativeMethodCall<R> {
 public:
   /* Member variables */
   C * native_obj;
+  JsValueConverter<A0> arg0converter;
   A0  arg0;
   R (C::*method)(A0);  // "method" is pointer to member function
   
   /* Constructor */
-  NativeMethodCall_1_<R, C, A0>(const Arguments &args) : method(0) 
+  NativeMethodCall_1_<R, C, A0>(const Arguments &args) : 
+  method(0),
+  arg0converter(args[0]),
+  NativeMethodCall<R>(args[1]) // callback
   {
-    native_obj = unwrapPointer<C *>(args.Holder());
-    
-    JsValueConverter<A0> arg0converter(args[0]);
+    native_obj = unwrapPointer<C *>(args.Holder());    
     arg0 = arg0converter.toC();
   }
 
@@ -218,19 +241,21 @@ class NativeMethodCall_2_ : public NativeMethodCall<R> {
 public:
   /* Member variables */
   C * native_obj;
+  JsValueConverter<A0> arg0converter;
+  JsValueConverter<A1> arg1converter;
   A0  arg0;
   A1  arg1;
   R (C::*method)(A0, A1);  // "method" is pointer to member function
   
   /* Constructor */
-  NativeMethodCall_2_<R, C, A0, A1>(const Arguments &args) : method(0) 
+  NativeMethodCall_2_<R, C, A0, A1>(const Arguments &args) :
+  method(0),
+  arg0converter(args[0]),
+  arg1converter(args[1]),
+  NativeMethodCall<R>(args[2]) // callback
   {
     native_obj = unwrapPointer<C *>(args.Holder());
-    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
-    
-    JsValueConverter<A1> arg1converter(args[1]);
     arg1 = arg1converter.toC();
   }
   
@@ -254,23 +279,25 @@ class NativeMethodCall_3_ : public NativeMethodCall <R> {
 public:
   /* Member variables */
   C * native_obj;
+  JsValueConverter<A0> arg0converter;
+  JsValueConverter<A1> arg1converter;
+  JsValueConverter<A2> arg2converter;
   A0  arg0;
   A1  arg1;
   A2  arg2;
   R (C::*method)(A0, A1, A2);  // "method" is pointer to member function
   
   /* Constructor */
-  NativeMethodCall_3_<R, C, A0, A1, A2>(const Arguments &args) : method(0)
+  NativeMethodCall_3_<R, C, A0, A1, A2>(const Arguments &args) : 
+  method(0),
+  arg0converter(args[0]),
+  arg1converter(args[1]),
+  arg2converter(args[2]),
+  NativeMethodCall<R>(args[3]) // callback
   {
     native_obj = unwrapPointer<C *>(args.Holder());
-    
-    JsValueConverter<A0> arg0converter(args[0]);
     arg0 = arg0converter.toC();
-    
-    JsValueConverter<A1> arg1converter(args[1]);
     arg1 = arg1converter.toC();
-
-    JsValueConverter<A1> arg2converter(args[1]);
     arg2 = arg1converter.toC();
   }
   
