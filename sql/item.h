@@ -1429,8 +1429,12 @@ public:
      @return argument if this is an Item_field
      @return this otherwise.
   */
-  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; };
-  
+  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; }
+
+  virtual bool equality_substitution_analyzer(uchar **arg) { return false; }
+
+  virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
+
   /*
     Check if a partition function is allowed
     SYNOPSIS

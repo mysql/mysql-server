@@ -719,7 +719,7 @@ public:
 
   virtual bool format_derived(Opt_trace_context *json)
   {
-    DBUG_ASSERT(derived_select_number == 0 || derived_from.elements != 0);
+    //DBUG_ASSERT(derived_select_number == 0 || derived_from.elements != 0);
     if (derived_from.elements == 0)
       return false;
     else if (derived_from.elements == 1)

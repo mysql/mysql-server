@@ -2355,7 +2355,7 @@ bool Item_in_subselect::init_left_expr_cache()
     Item::result_field. In the case end_[send | write]_group result_field is
     one row behind field.
   */
-  end_select= outer_join->join_tab[outer_join->tables-1].next_select;
+  end_select= outer_join->join_tab[outer_join->primary_tables-1].next_select;
   if (end_select == end_send_group || end_select == end_write_group)
     use_result_field= TRUE;
 
@@ -2658,7 +2658,7 @@ bool subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint i=join->const_tables ; i < join->tables ; i++)
+      for (uint i= join->const_tables; i < join->primary_tables; i++)
       {
         JOIN_TAB *tab=join->join_tab+i;
         if (tab && tab->keyuse)

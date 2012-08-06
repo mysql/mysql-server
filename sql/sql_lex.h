@@ -729,6 +729,7 @@ public:
     SLT_SUBQUERY,
     SLT_UNION,
     SLT_UNION_RESULT,
+    SLT_MATERIALIZED,
   // Total:
     SLT_total ///< fake type, total number of all valid types
   // Don't insert new types below this line!

@@ -162,8 +162,11 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
 
 void JOIN_CACHE::calc_record_fields()
 {
-  JOIN_TAB *tab = prev_cache ? prev_cache->join_tab :
-                               join->join_tab+join->const_tables;
+  JOIN_TAB *tab = prev_cache ?
+                    prev_cache->join_tab :
+                    sj_is_materialize_strategy(join_tab->get_sj_strategy()) ?
+                      join_tab->first_sj_inner_tab :
+                      join->join_tab+join->const_tables;
   tables= join_tab-tab;
 
   fields= 0;

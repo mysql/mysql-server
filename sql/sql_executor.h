@@ -240,8 +240,6 @@ enum_nested_loop_state end_send_group(JOIN *join, JOIN_TAB *join_tab,
                                       bool end_of_records);
 enum_nested_loop_state end_write_group(JOIN *join, JOIN_TAB *join_tab,
                                        bool end_of_records);
-enum_nested_loop_state sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, 
-                                      bool end_of_records);
 enum_nested_loop_state sub_select(JOIN *join,JOIN_TAB *join_tab, bool
                                   end_of_records);
 enum_nested_loop_state
@@ -266,6 +264,7 @@ int join_read_first(JOIN_TAB *tab);
 int join_read_last(JOIN_TAB *tab);
 int join_read_last_key(JOIN_TAB *tab);
 int join_materialize_table(JOIN_TAB *tab);
+int join_materialize_semijoin(JOIN_TAB *tab);
 int join_read_prev_same(READ_RECORD *info);
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);

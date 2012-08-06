@@ -3472,6 +3472,7 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   }
 
   tablenr= thd->current_tablenr++;
+  derived_select_number= 0;
   used_fields= 0;
   const_table= 0;
   null_row= 0;

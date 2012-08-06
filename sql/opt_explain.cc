@@ -370,6 +370,8 @@ protected:
   virtual bool explain_ref();
   virtual bool explain_rows_and_filtered();
   virtual bool explain_extra();
+  virtual bool explain_select_type();
+  virtual bool explain_id();
 };
 
 
@@ -1155,6 +1157,14 @@ bool Explain_join::end_simple_sort_context(Explain_sort_clause clause,
 
 bool Explain_join::shallow_explain()
 {
+  struct
+  {
+    uint start;
+    uint end;
+  } sjm_info[MAX_TABLES];
+  uint sjm_count= 0;
+  uint sjm_offset= 0;
+
   if (begin_sort_context(ESC_ORDER_BY, CTX_ORDER_BY))
     return true;
   if (begin_sort_context(ESC_DISTINCT, CTX_DISTINCT))
@@ -1169,6 +1179,8 @@ bool Explain_join::shallow_explain()
     tabnum= t;
     tab= join->join_tab + tabnum;
     table= tab->table;
+    if (!tab->position)
+      continue;
     usable_keys= tab->keys;
     quick_type= -1;
     select= (tab->filesort && tab->filesort->select) ?
@@ -1183,40 +1195,48 @@ bool Explain_join::shallow_explain()
     if (tab->starts_weedout())
       fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
 
-    uint sj_strategy= join->best_positions[t].sj_strategy;
-    if (sj_is_materialize_strategy(sj_strategy) && tab->emb_sj_nest)
+    //uint sj_strategy= tab->position->sj_strategy;
+    //if (sj_is_materialize_strategy(sj_strategy) && tab->emb_sj_nest)
+    Semijoin_mat_exec *sjm= tab->table->pos_in_table_list->sj_mat_exec;
+    if (sjm)
     {
-      materialize_start= t;
-      materialize_end= t + join->best_positions[t].n_sj_tables - 1;
-      if (fmt->begin_context(CTX_MATERIALIZATION))
-        return true;
+      sjm_info[sjm_count].start= t + sjm->table_index;
+      sjm_info[sjm_count].end= t + sjm->table_index + sjm->table_count - 1;
+      sjm_count++;
+    }
+    if (sjm_count > sjm_offset && t == sjm_info[sjm_offset].start)
+    {
+      materialize_start= sjm_info[sjm_offset].start;
+      materialize_end= sjm_info[sjm_offset].end;
+      //if (fmt->begin_context(CTX_MATERIALIZATION))
+      //  return true;
       if (fmt->is_hierarchical())
       {
-        Semijoin_mat_exec *const sjm= tab->emb_sj_nest->sj_mat_exec;
-        if (sjm->is_scan)
-          fmt->entry()->col_join_type.set_const(join_type_str[JT_ALL]);
-        else
-        {
-          fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
-          fmt->entry()->col_key.set_const("<auto_key>");
-          char buff_key_len[24];
-          fmt->entry()->col_key_len.set(buff_key_len,
-                                        longlong2str(sjm->table->key_info[0].key_length,
-                                                     buff_key_len, 10) - buff_key_len);
+        //Semijoin_mat_exec *const sjm= tab->emb_sj_nest->sj_mat_exec;
+        //if (sjm->is_scan)
+        //  fmt->entry()->col_join_type.set_const(join_type_str[JT_ALL]);
+        //else
+        //{
+        //  fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
+        //  fmt->entry()->col_key.set_const("<auto_key>");
+        //  char buff_key_len[24];
+       //   fmt->entry()->col_key_len.set(buff_key_len,
+        //                                longlong2str(sjm->table->key_info[0].key_length,
+        //                                             buff_key_len, 10) - buff_key_len);
 
-          fmt->entry()->col_rows.set(1);
+        //  fmt->entry()->col_rows.set(1);
 
-          if (explain_ref_key(fmt, sjm->tab_ref->key_parts,
-                              sjm->tab_ref->key_copy))
-            return true;
-          if (sjm->in_equality)
-          {
-            Lazy_condition *c= new Lazy_condition(sjm->in_equality);
-            if (c == NULL)
-              return true;
-            fmt->entry()->col_attached_condition.set(c);
-          }
-        }
+          //if (explain_ref_key(fmt, sjm->tab_ref->key_parts,
+          //                    sjm->tab_ref->key_copy))
+          //  return true;
+          //if (sjm->in_equality)
+          //{
+          //  Lazy_condition *c= new Lazy_condition(sjm->in_equality);
+          //  if (c == NULL)
+          //    return true;
+          //  fmt->entry()->col_attached_condition.set(c);
+          //}
+        //}
       }
     }
 
@@ -1252,10 +1272,12 @@ bool Explain_join::shallow_explain()
         return true;
     }
 
-    if (t == materialize_end &&
-        fmt->end_context(CTX_MATERIALIZATION))
-      return true;
-
+    if (t == materialize_end)
+    {
+      //if (fmt->end_context(CTX_MATERIALIZATION))
+      //  return true;
+      sjm_offset++;
+    }
     if (tab->check_weed_out_table &&
         fmt->end_context(CTX_DUPLICATES_WEEDOUT))
       return true;
@@ -1277,7 +1299,7 @@ bool Explain_join::shallow_explain()
 
 bool Explain_join::explain_table_name()
 {
-  if (table->derived_select_number && !fmt->is_hierarchical())
+  if (table->pos_in_table_list->derived && !fmt->is_hierarchical())
   {
     /* Derived table name generation */
     char table_name_buffer[NAME_LEN];
@@ -1288,6 +1310,28 @@ bool Explain_join::explain_table_name()
   }
   else
     return fmt->entry()->col_table_name.set(table->pos_in_table_list->alias);
+}
+
+
+bool Explain_join::explain_select_type()
+{
+  // Currently derived_select_type is used only for derived tables and
+  // materialized semijoins.
+  if (table->derived_select_number && !table->pos_in_table_list->derived)
+    fmt->entry()->col_select_type.set(st_select_lex::SLT_MATERIALIZED);
+  else
+    return Explain::explain_select_type();
+  return false;
+}
+
+
+bool Explain_join::explain_id()
+{
+  if (table->derived_select_number && !table->pos_in_table_list->derived)
+    fmt->entry()->col_id.set(table->derived_select_number);
+  else
+    return Explain::explain_id();
+  return false;
 }
 
 
@@ -1362,7 +1406,7 @@ bool Explain_join::explain_rows_and_filtered()
     }
   }
   else
-    examined_rows= join->best_positions[tabnum].records_read;
+    examined_rows= tab->position->records_read;
 
   fmt->entry()->col_rows.set(static_cast<longlong>(examined_rows));
 
@@ -1371,7 +1415,7 @@ bool Explain_join::explain_rows_and_filtered()
   {
     float f= 0.0;
     if (examined_rows)
-      f= 100.0 * join->best_positions[tabnum].records_read / examined_rows;
+      f= 100.0 * tab->position->records_read / examined_rows;
     fmt->entry()->col_filtered.set(f);
   }
   return false;
@@ -1515,7 +1559,8 @@ bool Explain_join::explain_extra()
       {
         StringBuffer<64> buff(cs);
         TABLE *prev_table= tab->firstmatch_return->table;
-        if (prev_table->derived_select_number && !fmt->is_hierarchical())
+        if (prev_table->derived_select_number && !fmt->is_hierarchical() &&
+            prev_table->pos_in_table_list->derived)
         {
           char namebuf[NAME_LEN];
           /* Derived table name generation */
@@ -1529,30 +1574,6 @@ bool Explain_join::explain_extra()
         if (push_extra(ET_FIRST_MATCH, buff))
           return true;
       }
-    }
-    if (!fmt->is_hierarchical())
-    {
-      if (tabnum == materialize_start && tabnum == materialize_end)
-      {
-        if (push_extra(ET_MATERIALIZE))
-          return true;
-      }
-      else if (tabnum == materialize_start)
-      {
-        if (push_extra(ET_START_MATERIALIZE))
-          return true;
-      }
-      else if (tabnum == materialize_end)
-      {
-        if (push_extra(ET_END_MATERIALIZE))
-          return true;
-      }
-    }
-    uint sj_strategy= join->best_positions[tabnum].sj_strategy;
-    if (sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
-    {
-      if (!fmt->is_hierarchical() && push_extra(ET_SCAN))
-        return true;
     }
 
     if (tab->has_guarded_conds() && push_extra(ET_FULL_SCAN_ON_NULL_KEY))
