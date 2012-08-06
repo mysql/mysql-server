@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+#include <string.h>
+
 #include <v8.h>
 
 #include "Ndbapi.hpp"
@@ -26,6 +28,8 @@
 #include "DBSessionImpl.h"
 
 using namespace v8;
+
+Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 
 
 /**** Dictionary implementation
@@ -43,38 +47,74 @@ using namespace v8;
  * can run in the main thread.
 */
 
+struct DBDictImpl {
+  ndb_session *sess;
+};
 
-class ListTablesCall : public AsyncMethodCall {
+Handle<Value> NewDBDictionaryImpl(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  
+  PROHIBIT_CONSTRUCTOR_CALL();
+  REQUIRE_ARGS_LENGTH(1);
+
+  Local<Object> dict_obj = NdbDictionaryImplEnv.newWrapper();
+ 
+  JsValueConverter<ndb_session *> arg0(args[0]);
+  ndb_session * my_sess = arg0.toC();
+  
+  DBDictImpl *self = new DBDictImpl;
+  self->sess = arg0.toC();
+
+  wrapPointerInObject(self, NdbDictionaryImplEnv, dict_obj);
+  return dict_obj;
+}
+
+
+class ListTablesCall : public NativeCFunctionCall_2_<int, DBDictImpl *, const char *> 
+{
 private:
-  ndb_session * sess;
   NdbDictionary::Dictionary::List list;
-  int rv;
 
 public:
-  ListTablesCall(ndb_session *s) : sess(s), list() {};
+  /* Constructor */
+  ListTablesCall(const Arguments &args) : 
+    NativeCFunctionCall_2_<int, DBDictImpl *, const char *>(args), 
+    list() {  }
   
   /* UV_WORKER_THREAD part of listTables */
   void run() {
-    rv = sess->dict->listObjects(list, NdbDictionary::Object::UserTable);
+    DEBUG_MARKER(UDEB_DEBUG);
+    NdbDictionary::Dictionary * dict = arg0->sess->dict;
+    return_val = dict->listObjects(list, NdbDictionary::Object::UserTable);
   }
 
   /* V8 main thread */
-  /* For now we will copy the table names into a new JavaScript object;
-     but note that this could be implemented as an "externalized" array with
-     a v8::IndexedPropertyGetter
-  */
   void doAsyncCallback(Local<Object> ctx) {
+    DEBUG_MARKER(UDEB_DEBUG);
     Handle<Value> cb_args[2];
     
-    if(rv == -1) {
-      cb_args[0] = String::New(sess->ndb->getNdbError().message);
+    DEBUG_PRINT("RETURN VAL: %d", return_val);
+    if(return_val == -1) {
+      cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
       cb_args[1] = Null();
     }
     else {
       cb_args[0] = Null(); // no error
-      Local<Array> cb_list = Array::New(list.count);
+      /* ListObjects has returned tables in all databases; 
+         we need to filter here on database name. */
+      int stack[list.count];
+      int nmatch = 0;
       for(unsigned i = 0; i < list.count ; i++) {
-        cb_list->Set(i, String::New(list.elements[i].name));
+        if(strcmp(arg1, list.elements[i].database) == 0) {
+          stack[nmatch++] = i;
+        }
+      }
+      DEBUG_PRINT("arg1/nmatch/list.count: %s/%d/%d", arg1,nmatch,list.count);
+
+      Local<Array> cb_list = Array::New(nmatch);
+      for(unsigned i = 0; i < nmatch ; i++) {
+        cb_list->Set(i, String::New(list.elements[stack[i]].name));
       }
       cb_args[1] = cb_list;
     }
@@ -83,22 +123,25 @@ public:
 };
 
 
-/* listTables()
+
+/* listTables() Method call
    ASYNC
-   arg0: ndb_session *
-   arg1: callback
+   arg0: DBDictionaryImpl
+   arg1: table name
+   arg2: callback
    Callback will receive an int.
 */
 Handle<Value> listTables(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(2);
+  // FIXME: This throws an assertion that never gets caught ...
+  REQUIRE_ARGS_LENGTH(3);
   
-  JsValueConverter<ndb_session *> jsptr(args[0]);  
-  ListTablesCall * ncall = new ListTablesCall(jsptr.toC());  
-  ncall->setCallback(args[1]);
-  ncall->runAsync();
+  ListTablesCall * ncallptr = new ListTablesCall(args);  
+
+  DEBUG_PRINT("arg1: %s", ncallptr->arg1);
+  ncallptr->runAsync();
 
   return scope.Close(JS_VOID_RETURN);
 }
@@ -327,10 +370,14 @@ Handle<Object> buildDBColumn(NdbDictionary::Column *col) {
 } 
 
 
+void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
+  HandleScope scope;
+  Persistent<Object> dbdict_obj = Persistent<Object>(Object::New());
 
-void DBDictionary_initOnLoad(Handle<Object> target) {
-  DEFINE_JS_FUNCTION(target, "listTables", listTables );
-  
+  DEFINE_JS_FUNCTION(dbdict_obj, "create", NewDBDictionaryImpl);
+  DEFINE_JS_FUNCTION(dbdict_obj, "listTables", listTables);
+
+  target->Set(Persistent<String>(String::NewSymbol("DBDictionary")), dbdict_obj);
 }
 
 

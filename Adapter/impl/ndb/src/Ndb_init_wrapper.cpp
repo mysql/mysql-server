@@ -47,7 +47,7 @@ Handle<Value> Ndb_init_wrapper(const Arguments &args) {
 /* void ndb_end(int) 
 */
 Handle<Value> Ndb_end_wrapper(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);  
@@ -61,7 +61,7 @@ Handle<Value> Ndb_end_wrapper(const Arguments &args) {
 
 
 void Ndb_init_initOnLoad(Handle<Object> target) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   DEFINE_JS_FUNCTION(target, "ndb_init", Ndb_init_wrapper);
   DEFINE_JS_FUNCTION(target, "ndb_end", Ndb_end_wrapper);
 }
