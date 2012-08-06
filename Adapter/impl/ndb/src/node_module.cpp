@@ -30,13 +30,31 @@ typedef void LOADER_FUNCTION(Handle<Object>);
 extern LOADER_FUNCTION Ndb_init_initOnLoad;
 extern LOADER_FUNCTION Ndb_cluster_connection_initOnLoad;
 extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
+extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
 
-void initModule(Handle<Object> target) {
+void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
   Ndb_init_initOnLoad(target);
-  DBSessionImpl_initOnLoad(target);
-
 }
 
-V8BINDER_LOADABLE_MODULE(ndbapi, initModule)
+
+void init_impl(Handle<Object> target) {
+  DBSessionImpl_initOnLoad(target);
+  DBDictionaryImpl_initOnLoad(target);
+}
+
+
+void initModule(Handle<Object> target) {
+  HandleScope scope;
+  Persistent<Object> ndbapi_obj = Persistent<Object>(Object::New());
+  Persistent<Object> impl_obj   = Persistent<Object>(Object::New());
+
+  init_ndbapi(ndbapi_obj);
+  init_impl(impl_obj);
+  
+  target->Set(Persistent<String>(String::NewSymbol("ndbapi")), ndbapi_obj);
+  target->Set(Persistent<String>(String::NewSymbol("impl")), impl_obj);
+}
+
+V8BINDER_LOADABLE_MODULE(ndb_adapter, initModule)
 

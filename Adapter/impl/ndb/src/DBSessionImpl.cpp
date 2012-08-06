@@ -37,10 +37,10 @@ ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
   DEBUG_ENTER();
   ndb_session * sess = new ndb_session;
     
-  sess->ndb = new Ndb(conn);
+  sess->ndb = new Ndb(conn, db);
+  sess->dbname = db;
   sess->ndb->init();
 
-  sess->ndb->setDatabaseName(db);
   DEBUG_PRINT("DBNAME: %s", sess->ndb->getDatabaseName());
 
   sess->dict = sess->ndb->getDictionary();    // get Dictionary
@@ -60,7 +60,7 @@ ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
    Callback will receive an ndb_session *.
 */
 Handle<Value>NewDBSessionImpl(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(3);
@@ -72,7 +72,6 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
 
   ncallptr->envelope = & NdbSessionImplEnv;
   ncallptr->function = & ndb_session_new;
-  ncallptr->setCallback(args[2]);
   ncallptr->runAsync();
 
   return scope.Close(JS_VOID_RETURN);
@@ -81,8 +80,12 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
 
 
 void DBSessionImpl_initOnLoad(Handle<Object> target) {
-  DEBUG_MARKER();
-  DEFINE_JS_FUNCTION(target, "NewDBSessionImpl", NewDBSessionImpl);
+  HandleScope scope;
+  Persistent<Object> dbsession_obj = Persistent<Object>(Object::New());
+  
+  DEFINE_JS_FUNCTION(dbsession_obj, "create", NewDBSessionImpl);
+  
+  target->Set(Persistent<String>(String::NewSymbol("DBSession")), dbsession_obj);
 }
 
 
