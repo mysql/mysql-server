@@ -80,8 +80,8 @@ enum {
 
 void udeb_select(const char *file_name, int udeb_cmd);
 void udeb_print(const char *, int level, const char *fmt, ...);
-void udeb_enter(const char *, const char *, int);
-void udeb_leave(const char *, const char *);
+void udeb_enter(int level, const char *, const char *, int);
+void udeb_leave(int level, const char *, const char *);
 void udeb_trace(const char *, int);
 void udeb_switch(int);
 int uni_dbg(void);
@@ -106,13 +106,13 @@ END_FUNCTIONS_WITH_C_LINKAGE
 */   
 #ifdef UNIFIED_DEBUG
 
-#define DEBUG_ENTER()    if(uni_debug) udeb_enter(__FILE__, __func__, __LINE__)
+#define DEBUG_ENTER()    if(uni_debug) udeb_enter(UDEB_DEBUG, __FILE__, __func__, __LINE__)
 #define DEBUG_PRINT(...) if(uni_debug) udeb_print(__FILE__, UDEB_DEBUG, __VA_ARGS__)
 #define DEBUG_PRINT_DETAIL(...) if(uni_debug) udeb_print(__FILE__, UDEB_DETAIL, __VA_ARGS__)
 #define DEBUG_PRINT_INFO(...) if(uni_debug) udeb_print(__FILE__, UDEB_INFO, __VA_ARGS__)
 #define DEBUG_TRACE()    if(uni_debug) udeb_trace(__FILE__, __LINE__)
-#define DEBUG_LEAVE()    if(uni_debug) udeb_leave(__FILE__, __func__)
-#define DEBUG_MARKER()   u_DebugMarker _dm(__FILE__, __func__, __LINE__)
+#define DEBUG_LEAVE()    if(uni_debug) udeb_leave(UDEB_DEBUG, __FILE__, __func__)
+#define DEBUG_MARKER(l)  u_DebugMarker _dm( __FILE__, __func__, __LINE__, l)
 #define DEBUG_ASSERT(x) assert(x)
 
 #else
@@ -128,7 +128,7 @@ END_FUNCTIONS_WITH_C_LINKAGE
 
 #endif
 
-/* For a C++ API, you can declare a debug_marker on the stack in any scope.
+/* For a C++ API, you can declare a DEBUG_MARKER() on the stack in any scope.
    Its constructor will write a message when the scope is entered, 
    and its destructor will write a message when the scope is exited.
 */
@@ -136,9 +136,12 @@ END_FUNCTIONS_WITH_C_LINKAGE
 class u_DebugMarker {
 public:
   const char *sfile, *sfunc;
-  u_DebugMarker(const char *sfl, const char * sfn, int ln) : 
-    sfile(sfl), sfunc(sfn)  { if(uni_debug) udeb_enter(sfile, sfunc, ln); }
-  ~u_DebugMarker()          { if(uni_debug) udeb_leave(sfile, sfunc); }
+  int level;
+  u_DebugMarker(const char *sfl, const char * sfn, int ln, int l=UDEB_DEBUG) : 
+    sfile(sfl), sfunc(sfn), level(l)  { 
+      if(uni_debug) udeb_enter(level, sfile, sfunc, ln); 
+    }
+  ~u_DebugMarker()          { if(uni_debug) udeb_leave(level, sfile, sfunc); }
 };
 #endif
 
