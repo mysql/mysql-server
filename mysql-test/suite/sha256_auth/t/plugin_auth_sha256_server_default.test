@@ -32,7 +32,7 @@ disconnect con2;
 --echo **** Client default_auth=native and server default auth=native
 --exec $MYSQL -ukristofer -psecret2 --default_auth=mysql_native_password -e "select user(), current_user()"
 --echo **** Client default_auth=sha_256_password + public key on file.
---exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password --server_public_key=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
+--exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password --server_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
 DROP USER 'kristofer'@'localhost';
 DROP USER 'kristofer2'@'localhost';
 
