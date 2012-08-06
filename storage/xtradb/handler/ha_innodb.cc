@@ -12562,7 +12562,7 @@ static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
   "So you should use ANALYZE TABLE command intentionally.",
   NULL, NULL, FALSE);
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG_never
 static MYSQL_SYSVAR_ULONG(sys_stats_root_page, innobase_sys_stats_root_page,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Override the SYS_STATS root page id, 0 = no override (for testing only)",
@@ -12785,7 +12785,7 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG_never
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
   "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",
