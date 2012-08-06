@@ -32,7 +32,7 @@ Envelope NdbccEnvelope("Ndb_cluster_connection");
 /*  Ndb_cluster_connection(const char * connectstring = 0);
 */
 Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_CONSTRUCTOR_CALL();
@@ -51,7 +51,7 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
      TODO: Is this sync or async?
 */
 Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
@@ -67,12 +67,13 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
 /* int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
 */
 Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
+  typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
   
   REQUIRE_ARGS_LENGTH(3);
 
-  NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> mcall(args);
+  MCALL mcall(args);
   mcall.method = & Ndb_cluster_connection::connect;
   mcall.run();
       
@@ -81,16 +82,16 @@ Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
 
 
 Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
+  typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
   
   REQUIRE_ARGS_LENGTH(4);
   
-  NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> * mcallptr = 
-    new NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int>(args);
+  MCALL * mcallptr = new MCALL(args);
 
   mcallptr->method = & Ndb_cluster_connection::connect;
-  mcallptr->setCallback(args[3]);
+  mcallptr->envelope = & NdbccEnvelope;
   mcallptr->runAsync();
 
   return scope.Close(JS_VOID_RETURN);
@@ -103,16 +104,16 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
      ASYNC
 */
 Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
+  typedef NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> MCALL;
   
   REQUIRE_ARGS_LENGTH(3);
   
-  NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> * mcallptr = 
-    new NativeMethodCall_2_<int, Ndb_cluster_connection, int, int>(args);
+  MCALL * mcallptr = new MCALL(args);
 
   mcallptr->method = & Ndb_cluster_connection::wait_until_ready;
-  mcallptr->setCallback(args[3]);
+  mcallptr->envelope = & NdbccEnvelope;
   mcallptr->runAsync();
     
   return scope.Close(JS_VOID_RETURN);
@@ -123,7 +124,7 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
     IMMEDIATE
 */
 Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
@@ -137,7 +138,7 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
@@ -149,7 +150,7 @@ Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
 
 
 void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
-  DEBUG_MARKER();
+  DEBUG_MARKER(UDEB_DETAIL);
   Local<FunctionTemplate> JSNdb_cluster_connection;
 
   DEFINE_JS_CLASS(JSNdb_cluster_connection, "Ndb_cluster_connection", 
