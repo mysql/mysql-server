@@ -22,6 +22,7 @@
 
 typedef struct ndb_session_t {
   Ndb                          * ndb;
+  const char                   * dbname;
   NdbDictionary::Dictionary    * dict;
   NdbError                     & err;
 } ndb_session;
