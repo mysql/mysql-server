@@ -111,7 +111,7 @@ const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(21) unsigned") },
     { NULL, 0 }
   }
 };
@@ -149,7 +149,7 @@ const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(21) unsigned") },
     { NULL, 0 }
   },
   {
