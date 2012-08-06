@@ -20,30 +20,42 @@
 
 #define JS_VOID_RETURN toJS<int>(0)
 
-#define THROW_EXCEPTION(MESSAGE) \
+#define THROW_ERROR(MESSAGE) \
+  ThrowException(Exception::Error(String::New(MESSAGE)))
+  
+#define THROW_TYPE_ERROR(MESSAGE) \
   ThrowException(Exception::TypeError(String::New(MESSAGE)))
   
+//#define REQUIRE_ARGS_LENGTH(N) \
+//  if(args.Length() != N) { \
+//    THROW_TYPE_ERROR("Requires " #N " arguments"); \
+//    return scope.Close(Undefined()); \
+//  }
 #define REQUIRE_ARGS_LENGTH(N) \
-  if(args.Length() != N) { \
-    THROW_EXCEPTION("Requires " #N " arguments"); \
-    return scope.Close(Undefined()); \
-  }
+  assert(args.Length() == N);
+
 
 #define REQUIRE_MIN_ARGS(N) \
   if(args.Length() < N) { \
-    THROW_EXCEPTION("Requires at least " #N " arguments"); \
+    THROW_TYPE_ERROR("Requires at least " #N " arguments"); \
     return scope.Close(Undefined()); \
   }
 
 #define REQUIRE_MAX_ARGS(N) \
   if(args.Length() > N) { \
-    THROW_EXCEPTION("Requires no more than " #N " arguments"); \
+    THROW_TYPE_ERROR("Requires no more than " #N " arguments"); \
     return scope.Close(Undefined()); \
   }
 
 #define REQUIRE_CONSTRUCTOR_CALL() \
   if(! args.IsConstructCall()) { \
-    THROW_EXCEPTION("Must be called as a Constructor call"); \
+    THROW_ERROR("Must be called as a Constructor call"); \
+    return scope.Close(Undefined()); \
+  }
+
+#define PROHIBIT_CONSTRUCTOR_CALL() \
+  if(args.IsConstructCall()) { \
+    THROW_ERROR("May not be used as a Constructor call"); \
     return scope.Close(Undefined()); \
   }
 
