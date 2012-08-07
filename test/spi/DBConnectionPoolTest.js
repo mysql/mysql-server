@@ -18,7 +18,9 @@
  02110-1301  USA
  */
 
-require("./suite_config.js");
+try {
+  require("./suite_config.js");
+} catch(e) {} 
 
 var spi = require(spi_module);
 
@@ -36,32 +38,48 @@ t1.run = function() {
   return true; // test is complete
 };
 
+
+/***** 
+  t2:  get a connection
+  t3:  get a session
+*****/
+
 var t2 = new harness.ConcurrentTest("connect");
 t2.hasProxyTest();
 
-
-/**** Connect, leave the connection open, and get a DBSession
-*/
-
 var t3 = new harness.ConcurrentTest("openDBSession");
 t3.run = function() {
-  var provider = spi.getDBServiceProvider(global.adapter);
-  var properties = provider.getDefaultConnectionProperties();
+  var provider = spi.getDBServiceProvider(global.adapter),
+      properties = provider.getDefaultConnectionProperties(), 
+      x_conn = null,
+      x_session = null;
+    
+  this.teardown = function() {
+    // FIXME
+    // session.close() does not exist in the spi?
+    // if(x_session !== null) x_session.close(); 
+
+    // WARNING -- "Deleting Ndb_cluster_connection with Ndb-object not deleted"
+    if(x_conn !== null) x_conn.closeSync();
+  }
 
   var tcb1 = function(err, connection) {
-    udebug.log("DBConnectionPoolTest.js tcb1() 64");
+    udebug.log("DBConnectionPoolTest.js tcb1() 56");
     if(err) {
       t2.fail(err);
-      t3.fail(err);
+      t3.fail();
     }
     else {
       t2.pass();
     }
-      
+    x_conn = connection; // for teardown  
     var tcb2 = function(err, dbsessionhandler) {
-      udebug.log("DBConnectionPoolTest.js tcb2() 68");
+      udebug.log("DBConnectionPoolTest.js tcb2() 66");
       if(err) t3.fail(err);
-      else t3.pass();
+      else {
+        t3.pass();
+        x_session = dbsessionhandler;   // for teardown
+      }
     }
     connection.getDBSession(0, tcb2);
  
