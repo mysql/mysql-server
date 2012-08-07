@@ -120,6 +120,45 @@ public:
 
 
 /** Template class with:
+  * three arguments of type A0, A1, A2
+  * return value of type R
+**/
+
+template <typename R, typename A0, typename A1, typename A2> 
+class NativeCFunctionCall_3_ : public NativeMethodCall<R> {
+public:
+  /* Member variables */
+  JsValueConverter<A0> arg0converter;
+  JsValueConverter<A1> arg1converter;
+  JsValueConverter<A2> arg2converter;
+  A0  arg0;
+  A1  arg1;
+  A2  arg2;
+  R (*function)(A0,A1,A2);    // function pointer
+  
+  /* Constructor */
+  NativeCFunctionCall_3_<R, A0, A1, A2>(const Arguments &args) : 
+  function(0),
+  arg0converter(args[0]),
+  arg1converter(args[1]),
+  arg2converter(args[2]),
+  NativeMethodCall<R>(args[3]) // callback
+  {    
+    arg0 = arg0converter.toC();
+    arg1 = arg1converter.toC();
+    arg2 = arg2converter.toC();    
+  }
+
+  /* Methods */
+  void run() {
+    assert(function);
+    NativeMethodCall<R>::return_val = (function)(arg0, arg1, arg2);
+  }
+};
+
+
+
+/** Template class with:
   * 8 arguments
   * return value of type R
 **/

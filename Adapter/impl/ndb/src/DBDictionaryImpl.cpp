@@ -31,6 +31,7 @@ using namespace v8;
 
 Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 
+Handle<Object> buildDBColumn(const NdbDictionary::Column *col);
 
 /**** Dictionary implementation
  *
@@ -51,6 +52,9 @@ struct DBDictImpl {
   ndb_session *sess;
 };
 
+/*** NewDBDictionaryImpl implements DBDictionary.create()
+  ** Called from DBSession.getDataDictionary() 
+   **/
 Handle<Value> NewDBDictionaryImpl(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
@@ -71,6 +75,9 @@ Handle<Value> NewDBDictionaryImpl(const Arguments &args) {
 }
 
 
+/*** DBDictionary.listTables()
+  **
+   **/
 class ListTablesCall : public NativeCFunctionCall_2_<int, DBDictImpl *, const char *> 
 {
 private:
@@ -122,14 +129,11 @@ public:
   }
 };
 
-
-
 /* listTables() Method call
    ASYNC
    arg0: DBDictionaryImpl
-   arg1: table name
-   arg2: callback
-   Callback will receive an int.
+   arg1: database name
+   arg2: user_callback
 */
 Handle<Value> listTables(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
@@ -147,7 +151,90 @@ Handle<Value> listTables(const Arguments &args) {
 }
 
 
-Handle<Value> getColumnType(NdbDictionary::Column * col) {
+/*** DBDictionary.getTable()
+  **
+   **/
+class GetTableCall : public NativeCFunctionCall_3_<int, DBDictImpl *, 
+                                                   const char *, const char *> 
+{
+private:
+  const NdbDictionary::Table * ndb_table;
+  NdbDictionary::Dictionary::List idx_list;
+
+public:
+  /* Constructor */
+  GetTableCall(const Arguments &args) : 
+    NativeCFunctionCall_3_<int, DBDictImpl *, const char *, const char *>(args), 
+    ndb_table(0), idx_list() {  }
+  
+  /* UV_WORKER_THREAD part of listTables */
+  void run() {
+    DEBUG_MARKER(UDEB_DEBUG);
+    NdbDictionary::Dictionary * dict = arg0->sess->dict;
+    // TODO: Set database name? 
+    ndb_table = dict->getTable(arg2);
+    if(ndb_table) 
+      return_val = dict->listIndexes(idx_list, *ndb_table);
+    else
+      return_val = -1;
+  }
+
+  /* V8 main thread */
+  void doAsyncCallback(Local<Object> ctx) {
+    DEBUG_MARKER(UDEB_DEBUG);
+    HandleScope scope;  
+
+    /* User callback arguments */
+    Handle<Value> cb_args[2];
+    cb_args[0] = Null();
+    cb_args[1] = Null();
+    
+    /* DBTable = {
+        name          : ""    ,  // Table Name
+        columns       : []    ,  // an array of DBColumn objects
+        primaryKey    : {}    ,  // a DBIndex object
+        secondaryIndexes: []  ,  // an array of DBIndex objects 
+        userData      : ""       // Data stored in the DBTable by the ORM layer
+      }
+    */    
+    if(ndb_table && ! return_val) {
+      Local<Object> table = Object::New();
+      table->Set(String::New("name"), String::New(ndb_table->getName()));
+      
+      Local<Array> columns = Array::New(ndb_table->getNoOfColumns());
+      for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
+        columns->Set(i, buildDBColumn(ndb_table->getColumn(i)));    
+      }
+      table->Set(String::New("columns"), columns);
+      
+      cb_args[1] = table;
+    }
+    else {
+      cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
+    }
+    
+    callback->Call(ctx, 2, cb_args);
+  }
+};
+
+
+/* getTable() method call
+   ASYNC
+   arg0: DBDictionaryImpl
+   arg1: database name
+   arg2: table name
+   arg3: user_callback
+*/
+Handle<Value> getTable(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  REQUIRE_ARGS_LENGTH(4);
+  GetTableCall * ncallptr = new GetTableCall(args);
+  ncallptr->runAsync();
+  return JS_VOID_RETURN;
+}
+
+
+Handle<Value> getColumnType(const NdbDictionary::Column * col) {
   HandleScope scope;
 
   /* Based on ndb_constants.h */
@@ -197,7 +284,7 @@ Handle<Value> getColumnType(NdbDictionary::Column * col) {
 }
 
 
-Handle<Value> getIntColumnSize(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getIntColumnSize(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
 
   if(! do_test) return Null();
@@ -206,7 +293,7 @@ Handle<Value> getIntColumnSize(bool do_test, NdbDictionary::Column *col) {
 }
 
 
-Handle<Value> getIntColumnUnsigned(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getIntColumnUnsigned(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
 
   if(! do_test) return Null();
@@ -225,14 +312,14 @@ Handle<Value> getIntColumnUnsigned(bool do_test, NdbDictionary::Column *col) {
 }
 
 
-Handle<Value> getColumnNullable(NdbDictionary::Column *col) {
+Handle<Value> getColumnNullable(const NdbDictionary::Column *col) {
   HandleScope scope;
   
   return scope.Close(Boolean::New(col->getNullable()));
 }
 
 
-Handle<Value> getDecimalColumnScale(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getDecimalColumnScale(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
   
   if(! do_test) return Null();
@@ -241,7 +328,7 @@ Handle<Value> getDecimalColumnScale(bool do_test, NdbDictionary::Column *col) {
 }
  
  
-Handle<Value> getDecimalColumnPrecision(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getDecimalColumnPrecision(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
   
   if(! do_test) return Null();
@@ -250,7 +337,7 @@ Handle<Value> getDecimalColumnPrecision(bool do_test, NdbDictionary::Column *col
 }                     
 
 
-Handle<Value> getColumnLength(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getColumnLength(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
   
   if(! do_test) return Null();
@@ -259,7 +346,7 @@ Handle<Value> getColumnLength(bool do_test, NdbDictionary::Column *col) {
 }
 
 
-Handle<Value> getColumnBinary(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getColumnBinary(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
   
   if(! do_test) return Null();
@@ -277,7 +364,7 @@ Handle<Value> getColumnBinary(bool do_test, NdbDictionary::Column *col) {
 }
 
 
-Handle<Value> getColumnCharsetNumber(bool do_test, NdbDictionary::Column *col) {
+Handle<Value> getColumnCharsetNumber(bool do_test, const NdbDictionary::Column *col) {
   HandleScope scope;
   
   if(! do_test) return Null();
@@ -287,28 +374,28 @@ Handle<Value> getColumnCharsetNumber(bool do_test, NdbDictionary::Column *col) {
 }
 
 
-inline Handle<Value> getColumnNumber(NdbDictionary::Column *col) {
+inline Handle<Value> getColumnNumber(const NdbDictionary::Column *col) {
   HandleScope scope;
 
   return scope.Close(Integer::New(col->getColumnNo()));
 }
 
 
-inline Handle<Value> getColumnIsPrimaryKey(NdbDictionary::Column *col) {
+inline Handle<Value> getColumnIsPrimaryKey(const NdbDictionary::Column *col) {
   HandleScope scope;
 
   return scope.Close(Boolean::New(col->getPrimaryKey()));
 }
 
 
-inline Handle<Value> getColumnName(NdbDictionary::Column *col) {
+inline Handle<Value> getColumnName(const NdbDictionary::Column *col) {
   HandleScope scope;
   
   return scope.Close(String::New(col->getName()));
 }
 
 
-Handle<Object> buildDBColumn(NdbDictionary::Column *col) {
+Handle<Object> buildDBColumn(const NdbDictionary::Column *col) {
   HandleScope scope;
   
   Local<Object> obj = Object::New();
@@ -350,9 +437,10 @@ Handle<Object> buildDBColumn(NdbDictionary::Column *col) {
            getColumnBinary(true, col),
            ReadOnly);
   
-  obj->Set(String::New("charsetNumber"),
-           getColumnCharsetNumber(true, col),
-           ReadOnly);
+  //FIXME:  getCharsetNumber() causes segfault
+  //obj->Set(String::New("charsetNumber"),
+  //         getColumnCharsetNumber(true, col),
+  //         ReadOnly);
   
   obj->Set(String::New("name"),
            getColumnName(col),
@@ -376,6 +464,7 @@ void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
 
   DEFINE_JS_FUNCTION(dbdict_obj, "create", NewDBDictionaryImpl);
   DEFINE_JS_FUNCTION(dbdict_obj, "listTables", listTables);
+  DEFINE_JS_FUNCTION(dbdict_obj, "getTable", getTable);
 
   target->Set(Persistent<String>(String::NewSymbol("DBDictionary")), dbdict_obj);
 }
