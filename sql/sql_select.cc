@@ -3046,6 +3046,8 @@ void JOIN_TAB::cleanup()
     {
       free_tmp_table(join->thd, table);
       table= NULL;
+      delete tmp_table_param;
+      tmp_table_param= NULL;
     }
     op->free();
     op= NULL;
