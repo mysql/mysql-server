@@ -103,9 +103,6 @@ const char *tx_isolation_names[] =
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
 
-static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
-uint known_extensions_id= 0;
-
 #ifndef DBUG_OFF
 
 const char *ha_legacy_type_name(legacy_db_type legacy_type)
@@ -2503,6 +2500,7 @@ int handler::ha_close(void)
 
 int handler::ha_index_init(uint idx, bool sorted)
 {
+  DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
   DBUG_ENTER("ha_index_init");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
@@ -2550,6 +2548,7 @@ int handler::ha_index_end()
 
 int handler::ha_rnd_init(bool scan)
 {
+  DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
   DBUG_ENTER("ha_rnd_init");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
@@ -6704,34 +6703,33 @@ static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
   return FALSE;
 }
 
-TYPELIB *ha_known_exts(void)
+TYPELIB* ha_known_exts()
 {
-  if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
-  {
-    List<char> found_exts;
-    const char **ext, *old_ext;
+  TYPELIB *known_extensions = (TYPELIB*) sql_alloc(sizeof(TYPELIB));
+  known_extensions->name= "known_exts";
+  known_extensions->type_lengths= NULL;
+  
+  List<char> found_exts;
+  const char **ext, *old_ext;
 
-    known_extensions_id= mysys_usage_id;
-    found_exts.push_back((char*) TRG_EXT);
-    found_exts.push_back((char*) TRN_EXT);
+  found_exts.push_back((char*) TRG_EXT);
+  found_exts.push_back((char*) TRN_EXT);
 
-    plugin_foreach(NULL, exts_handlerton,
-                   MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
+  plugin_foreach(NULL, exts_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
 
-    ext= (const char **) my_once_alloc(sizeof(char *)*
-                                       (found_exts.elements+1),
-                                       MYF(MY_WME | MY_FAE));
+  size_t arr_length= sizeof(char *)* (found_exts.elements+1);
+  ext= (const char **) sql_alloc(arr_length);
 
-    DBUG_ASSERT(ext != 0);
-    known_extensions.count= found_exts.elements;
-    known_extensions.type_names= ext;
+  DBUG_ASSERT(NULL != ext);
+  known_extensions->count= found_exts.elements;
+  known_extensions->type_names= ext;
 
-    List_iterator_fast<char> it(found_exts);
-    while ((old_ext= it++))
-      *ext++= old_ext;
-    *ext= 0;
-  }
-  return &known_extensions;
+  List_iterator_fast<char> it(found_exts);
+  while ((old_ext= it++))
+    *ext++= old_ext;
+  *ext= NULL;
+  return known_extensions;
 }
 
 

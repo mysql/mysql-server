@@ -22,20 +22,20 @@ ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
 # We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
-# In order to get correct symbol visibility, my_aes.cc
+# In order to get correct symbol visibility, these files
 # must be compiled with "-fvisibility=hidden"
 IF(HAVE_VISIBILITY_HIDDEN)
-  SET_SOURCE_FILES_PROPERTIES(my_aes.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-  SET_SOURCE_FILES_PROPERTIES(my_md5.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-  SET_SOURCE_FILES_PROPERTIES(my_sha1.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-  SET_SOURCE_FILES_PROPERTIES(my_sha2.cc
+  SET_SOURCE_FILES_PROPERTIES(
+    crypt_genhash_impl.cc
+    my_aes.cc
+    my_md5.cc
+    my_sha1.cc
+    my_sha2.cc
     PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
 ENDIF()
 
 SET(MYSYS_SSL_SOURCES
+    crypt_genhash_impl.cc
     my_default.cc
     my_getopt.cc
     my_aes.cc

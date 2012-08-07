@@ -310,6 +310,17 @@ public:
   const char *get_tmp_path() const
   { return tmp_path; }
 
+  /**
+    Mark ALTER TABLE as needing to produce foreign key error if
+    it deletes a row from the table being changed.
+  */
+  void set_fk_error_if_delete_row(FOREIGN_KEY_INFO *fk)
+  {
+    fk_error_if_delete_row= true;
+    fk_error_id= fk->foreign_id->str;
+    fk_error_table= fk->foreign_table->str;
+  }
+
 public:
   Create_field *datetime_field;
   bool         error_if_not_empty;
@@ -321,6 +332,16 @@ public:
   char         *new_name;
   char         *new_alias;
   char         tmp_name[80];
+  /**
+    Indicates that if a row is deleted during copying of data from old version
+    of table to the new version ER_FK_CANNOT_DELETE_PARENT error should be
+    emitted.
+  */
+  bool         fk_error_if_delete_row;
+  /** Name of foreign key for the above error. */
+  const char   *fk_error_id;
+  /** Name of table for the above error. */
+  const char   *fk_error_table;
 
 private:
   char new_filename[FN_REFLEN + 1];
