@@ -95,7 +95,6 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
          }
          user_callback(err, self);
       }
-      console.dir(ready_cb);
       ndbconn.wait_until_ready(1, 1, ready_cb);
     }
     else {
@@ -120,7 +119,7 @@ exports.DBConnectionPool.prototype.closeSync = function() {
 }
 
 
-/* openSessionHandler().
+/* getDBSession().
    ASYNC.
    Creates and opens a new DBSession.
    Users's callback receives (error, DBSession)

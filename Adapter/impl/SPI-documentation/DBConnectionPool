@@ -68,11 +68,11 @@ DBConnection(Properties connectionProperties);
    destroy();
 
 
-/* openSessionHandler().
+/* getDBSession().
    ASYNC.
    Creates and opens a new DBSession.
 */
-   openSessionHandler(function(error, DBSession) callback);
+   getDBSession(function(error, DBSession) callback);
 
 
 /* DBConnectionPool.getDataDictionary() method.
