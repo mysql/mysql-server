@@ -43,32 +43,61 @@ function getDriverProperties(props) {
 }
 
 
-/* Constructor 
+/* Constructor saves properties but doesn't actually do anything with them.
 */
 exports.DBConnectionPool = function(props) {
+  udebug.log("MySQLConnectionPool constructor");
   this.driverproperties = getDriverProperties(props);
-  this.dbconn = mysql.createConnection(this.driverproperties);
+  // connections not being used at the moment
+  this.pooledConnections = [];
+  // connections being used (wrapped by DBSession)
+  this.openConnections = [];
+//  this.dbconn = mysql.createConnection(this.driverproperties);
   this.is_connected = false;
 };
 
 
 exports.DBConnectionPool.prototype.connectSync = function() {
-  this.dbconn.connect();
+  if (this.is_connected) return;
+  pooledConnection = mysql.createConnection(this.driverproperties);
+  pooledConnection.connect();
+  this.pooledConnections[0] = pooledConnection;
   this.is_connected = true;
 };
 
 exports.DBConnectionPool.prototype.connect = function(user_callback) {
-  connectionPool = this;
-  this.dbconn.connect(function(err) {
-    if (!err) {
+  var callback = user_callback;
+  if (this.is_connected) {
+    udebug.log('MySQLConnectionPool.connect is already connected');
+    callback(null);
+  } else {
+    connectionPool = this;
+    pooledConnection = mysql.createConnection(this.driverproperties);
+    pooledConnection.connect(function(err) {
+    if (err) {
+      callback(err);
+    } else {
+      connectionPool.pooledConnections[0] = pooledConnection;
       connectionPool.is_connected = true;
+      callback(null, connectionPool);
     }
-    user_callback(err);
   });
+  }
 };
 
 exports.DBConnectionPool.prototype.closeSync = function() {
-  this.dbconn.end();
+  udebug.log('MySQLConnectionPool.closeSync');
+  for (var i = 0; i < this.pooledConnections.length; ++i) {
+    udebug.log('MySQLConnectionPool.closeSync ending pooled connection ' + i);
+    this.pooledConnections[i].close();
+  }
+  this.pooledConnections = [];
+  for (var i = 0; i < this.openConnections.length; ++i) {
+    udebug.log('MySQLConnectionPool.closeSync ending open connection ' + i);
+    this.openConnections[i].closeSync();
+  }
+  this.openConnections = [];
+  this.is_connected = false;
 };
 
 exports.DBConnectionPool.prototype.destroy = function() { 
@@ -79,7 +108,29 @@ exports.DBConnectionPool.prototype.isConnected = function() {
 };
 
 exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
-  var newDBSession = new connection.DBSession();
-  callback(null, newDBSession);
+  // get a connection from the pool
+  var pooledConnection = null;
+  var connectionPool = this;
+
+  if (this.pooledConnections.length > 0) {
+    // pop a connection from the pool
+    pooledConnection = connectionPool.pooledConnections.pop();
+    var newDBSession = new connection.DBSession(pooledConnection);
+    connectionPool.openConnections[index] = newDBSession;
+    callback(null, newDBSession);
+  } else {
+    // create a new connection
+    var connected_callback = function(err) {      
+      var newDBSession = new connection.DBSession(pooledConnection);
+      connectionPool.openConnections[index] = newDBSession;
+      udebug.log('MySQLConnectionPool.getDBSession '
+          + ' pooledConnections: ' + connectionPool.pooledConnections.length
+          + ' openConnections: ' + connectionPool.openConnections.length);
+      
+      callback(err, newDBSession);
+    };
+    pooledConnection = mysql.createConnection(this.driverproperties);
+    pooledConnection.connect(connected_callback);
+  }
 };
 

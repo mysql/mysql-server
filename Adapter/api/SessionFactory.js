@@ -39,6 +39,7 @@ SessionFactory.prototype.openSession = function(annotations, user_callback, extr
   for (var i = 0; i < this.sessions.length; ++i) {
     if (this.sessions[i] == null) break;
   }
+  this.sessions[i] = {'placeholder':true, 'index':i};
   var sessions = this.sessions;
   var sessionFactory = this;
 
@@ -57,6 +58,7 @@ SessionFactory.prototype.openSession = function(annotations, user_callback, extr
 
 SessionFactory.prototype.close = function() {
   // TODO: close all sessions first
+  this.dbConnectionPool.closeSync();
   this.delete_callback(this.key, this.properties.database);
 };
 
