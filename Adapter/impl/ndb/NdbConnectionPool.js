@@ -18,19 +18,14 @@
  02110-1301  USA
  */
 
-var common = require("../build/Release/common/common_library.node");
-var ndbapi = require("../build/Release/ndb/ndbapi.node");
-var util = require("./util.js");
-
-var properties;
-var ndbconn;
-var is_connected = false;
+var common = require("../build/Release/common/common_library.node"),
+    adapter = require("../build/Release/ndb/ndb_adapter.node"),
+    ndbsession = require("./NdbSession.js");
 var ndb_is_initialized = false;
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
-    udebug.log("headed to ndb_init()");
-    ndbapi.ndb_init();
+    adapter.ndbapi.ndb_init();
     ndb_is_initialized = true;
   }
 }
@@ -39,24 +34,29 @@ function initialize_ndb() {
 /* Constructor 
 */
 exports.DBConnectionPool = function(props) {
+  "use strict";
   udebug.log("DBConnectionPool constructor");
-  properties = props;
+  
+  this.properties = props;
+  this.ndbconn = null;
+  this.is_connected = false;
   
   initialize_ndb();
 
-  ndbconn = new ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
-  ndbconn.set_name("nodejs");
+  this.ndbconn = new adapter.ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
+  this.ndbconn.set_name("nodejs");
 };
 
 
 /* Blocking connect.  
    SYNC.
    Returns true on success and false on error.
+   FIXME:  NEEDS wait_until_ready() and node_id()
 */
 exports.DBConnectionPool.prototype.connectSync = function() {
-  var r = ndbconn.connectSync(properties.ndb_connect_retries,
-                              properties.ndb_connect_delay,
-                              properties.ndb_connect_verbose);
+  var r = this.ndbconn.connectSync(this.properties.ndb_connect_retries,
+                                   this.properties.ndb_connect_delay,
+                                   this.properties.ndb_connect_verbose);
   if(r == 0) is_connected = true;
 
   return is_connected;
@@ -66,19 +66,43 @@ exports.DBConnectionPool.prototype.connectSync = function() {
 /* Async connect 
 */
 exports.DBConnectionPool.prototype.connect = function(user_callback) {
-  var theDbConn = this;
+  "use strict";
+  var self = this;
+  var ndbconn = this.ndbconn;
+  var err = null;
+  var ready_cb;
   
-  var NdbConnection_callback = function(rval) { 
-    var err = null;
-    if(rval != 0) 
-      err = new Error('NDB Connect failed' + rval);
-    user_callback(err, theDbConn);
-  }
-  
-  ndbconn.connectAsync(properties.ndb_connect_retries,
-                       properties.ndb_connect_delay,
-                       properties.ndb_connect_verbose,
-                       NdbConnection_callback);
+    ndbconn.connectAsync(self.properties.ndb_connect_retries,
+                         self.properties.ndb_connect_delay,
+                         self.properties.ndb_connect_verbose,
+                         function(rval) {
+    udebug.log("connect() connectAsync internal callback/rval=" + rval);
+    if(rval == 0) {
+      assert(typeof ndbconn.wait_until_ready === 'function');
+      ready_cb = function(nnodes) {
+        udebug.log("connect() wait_until_ready internal callback/nnodes=" + nnodes);
+        if(nnodes < 0) {
+          // FIXME: what should be the type of err? a string? an error object?
+          err = "Timeout waiting for cluster to become ready."
+        }
+        else {
+          self.is_connected = true;
+          if(nnodes > 0) {
+            // FIXME: How to log a console warning?
+            console.log("Warning: only " + nnodes + " data nodes are running.");
+          }
+          console.log("Connected to cluster as node id: " + ndbconn.node_id());
+         }
+         user_callback(err, self);
+      }
+      console.dir(ready_cb);
+      ndbconn.wait_until_ready(1, 1, ready_cb);
+    }
+    else {
+      err = new Error('NDB Connect failed ' + rval);       
+      user_callback(err, self);
+    }
+  });
 }
 
 
@@ -92,7 +116,7 @@ exports.DBConnectionPool.prototype.isConnected = function() {
 
 
 exports.DBConnectionPool.prototype.closeSync = function() {
-  ndbconn.delete();
+  this.ndbconn.delete();
 }
 
 
@@ -100,18 +124,22 @@ exports.DBConnectionPool.prototype.closeSync = function() {
    ASYNC.
    Creates and opens a new DBSession.
    Users's callback receives (error, DBSession)
+
+   TODO: Figure out opening of Session and SessionImpl ... 
 */
 exports.DBConnectionPool.prototype.openSessionHandler = function(user_callback) {
-  var db = properties.database;
-  assert(ndbconn);
-  assert(db == "test");
+  var db = this.properties.database;
+  assert(this.ndbconn);
   assert(user_callback)
   udebug.log("NDB openSessionHandler");
 
   var private_callback = function(sess) {
     udebug.log("NDB openSessionHandler private_callback");
-    user_callback(null, sess);
+    // TODO:  Check for errors & forward them to the user
+    user_session = new ndbsession.DBSession();
+    user_session.impl = sess;
+    user_callback(null, user_session);
   };
 
-  var sessionImpl = ndbapi.NewDBSessionImpl(ndbconn, db, private_callback);
+  var sessionImpl = adapter.impl.DBSession.create(this.ndbconn, db, private_callback);
 }
