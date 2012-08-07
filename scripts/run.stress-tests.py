@@ -719,8 +719,8 @@ if __name__ == '__main__':
                            help='skip the svn up and build phase before testing [default=False]')
     build_group.add_option('--rebuild_period', type='int', dest='rebuild_period', default=60 * 60 * 24,
                            help='how many seconds between doing an svn up and rebuild, 0 means never rebuild [default=24 hours]')
-    build_group.add_option('--cc', type='string', dest='cc', default='icc',
-                           help='which compiler to use [default=icc]')
+    build_group.add_option('--cc', type='string', dest='cc', default='gcc',
+                           help='which compiler to use [default=gcc]')
     build_group.add_option('--jemalloc', type='string', dest='jemalloc',
                            help='a libjemalloc.so to put in LD_PRELOAD when running tests')
     build_group.add_option('--add_test', action='append', type='string', dest='testnames', default=default_testnames,
@@ -736,8 +736,8 @@ if __name__ == '__main__':
                              help="skip the tests that don't involve upgrade [default=False]")
     upgrade_group.add_option('--double_upgrade', action='store_true', dest='double_upgrade', default=False,
                              help='run the upgrade tests twice in a row [default=False]')
-    upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0'],
-                             help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0]')
+    upgrade_group.add_option('--add_old_version', action='append', type='choice', dest='old_versions', choices=['4.2.0', '5.0.8', '5.2.7', '6.0.0', '6.1.0'],
+                             help='which old versions to use for running the stress tests in upgrade mode. can be specified multiple times [options=4.2.0, 5.0.8, 5.2.7, 6.0.0, 6.1.0]')
     upgrade_group.add_option('--old_environments_dir', type='string', dest='old_environments_dir',
                              default='../../tokudb.data/old-stress-test-envs',
                              help='directory containing old version environments (should contain 5.0.8/, 5.2.7/, etc, and the environments should be in those) [default=../../tokudb.data/stress_environments]')
