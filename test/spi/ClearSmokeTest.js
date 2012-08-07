@@ -18,36 +18,17 @@
  02110-1301  USA
  */
 
-#include <v8.h>
-#include "v8_binder.h"
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
-#include "NativeMethodCall.h"
-#include "async_common.h"
-#include "unified_debug.h"
+test.run = function() {
+  var t = this;
+  harness.SQL.drop(this.suite, function(error) {
+    if (error) {
+      t.fail('dropSQL failed: ' + error);
+    } else {
+      t.pass();
+    }
+  });
+};
 
-void work_thd_run(uv_work_t *req) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
-  
-  m->run();
-}
-
-
-void main_thd_complete(uv_work_t *req) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  v8::HandleScope scope;
-  v8::TryCatch try_catch;
-  
-  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
-
-  m->doAsyncCallback(v8::Context::GetCurrent()->Global());
-  
-  /* cleanup */
-  delete m;
-  delete req;
-  
-  /* exceptions */
-  //if(try_catch.HasCaught())
-  //  FatalException(try_catch);
-}
-
+module.exports.tests = [test];
