@@ -55,3 +55,12 @@ exports.getFactoryKey = function(properties) {
   var key = properties.implementation + "://" + properties.ndb_connectstring;
   return key;
 }
+
+
+exports.getNativeCodeModules = function() {
+  var modulelist = 
+    [ "impl/build/Release/common/common_library.node" ,
+      "impl/build/Release/ndb/ndb_adapter.node"
+    ];
+  return modulelist;
+}
