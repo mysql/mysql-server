@@ -265,6 +265,21 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	/* If a column change from NOT NULL to NULL,
+	and there's a implict pk on this column. the
+	table should be rebuild. The change should
+	only go through the "Copy" method.*/
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ALTER_COLUMN_NULLABLE)) {
+		uint primary_key = altered_table->s->primary_key;
+
+		/* See if MYSQL table has no pk but we do.*/
+		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
+		    && !row_table_got_default_clust_index(
+			prebuilt->table))
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	/* We should be able to do the operation in-place.
 	See if we can do it online (LOCK=NONE). */
 	bool	online = true;
