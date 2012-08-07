@@ -51,9 +51,11 @@ void udeb_switch(int i) {
     case UDEB_DEBUG:
     case UDEB_DETAIL:
     case UDEB_META:
-      udeb_private_print("Setting debug output level to %s", 
-                         levelstr[i - UDEB_INFO]);
       udeb_level = i;
+      if(uni_debug) {
+        const char * lstr = levelstr[i - UDEB_INFO];
+        udeb_private_print("Setting debug output level to %s", lstr);
+      }
       break;
     
     default:

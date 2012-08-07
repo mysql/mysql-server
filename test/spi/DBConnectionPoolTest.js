@@ -44,8 +44,7 @@ t1.run = function() {
   t3:  get a session
 *****/
 
-var t2 = new harness.ConcurrentTest("connect");
-t2.hasProxyTest();
+var t2 = new harness.ConcurrentSubTest("connect");
 
 var t3 = new harness.ConcurrentTest("openDBSession");
 t3.run = function() {
@@ -64,7 +63,6 @@ t3.run = function() {
   }
 
   var tcb1 = function(err, connection) {
-    udebug.log("DBConnectionPoolTest.js tcb1() 56");
     if(err) {
       t2.fail(err);
       t3.fail();
@@ -74,7 +72,6 @@ t3.run = function() {
     }
     x_conn = connection; // for teardown  
     var tcb2 = function(err, dbsessionhandler) {
-      udebug.log("DBConnectionPoolTest.js tcb2() 66");
       if(err) t3.fail(err);
       else {
         t3.pass();

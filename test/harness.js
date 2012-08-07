@@ -57,12 +57,15 @@ SmokeTest.prototype = new Test();
 function ConcurrentTest(name) {
   this.name = name;
   this.phase = 1;
-  this.hasProxyTest = function() {
-    if(debug) console.log("using proxy test for: " + this.name);
-    this.has_proxy = true;
-  }
 };
 ConcurrentTest.prototype = new Test();
+
+function ConcurrentSubTest(name) {
+  this.name = name;
+  this.phase = 1;
+  this.has_proxy = true;
+};
+ConcurrentSubTest.prototype = new Test();
 
 function SerialTest(name) {
   this.name = name;
@@ -113,22 +116,21 @@ Test.prototype.test = function(result) {
   }
 
   this.teardown(); 
-  result.listener.endTest(this);
 };
 
 Test.prototype.pass = function() {
-  this.teardown();
   this.result.pass(this);
+  this.teardown();
 };
 
 Test.prototype.fail = function(message) {
-  this.teardown();
+  debugger;
   this.failed = true;
-  if (typeof(message.toString()) != 'undefined' ) {
+  if (message) {
     this.appendErrorMessage(message);
   }
-  this.result.fail(this,
-      { 'message' : this.errorMessages});
+  this.result.fail(this, { 'message' : this.errorMessages});
+  this.teardown();
 };
 
 Test.prototype.appendErrorMessage = function(message) {
@@ -313,7 +315,7 @@ Suite.prototype.startConcurrentTests = function(result) {
     this.concurrentTests.forEach(function(testCase) {
       if (debug) console.log('Suite.startConcurrentTests starting ' + testCase.name);
       testCase.test(result);
-       ++this.numberOfConcurrentTestsStarted;
+       this.numberOfConcurrentTestsStarted++;
     });
     return false;    
   } else {
@@ -419,13 +421,17 @@ function Listener() {
 Listener.prototype.startTest = function(t) { 
   this.started++;
 };
+
 Listener.prototype.endTest = function(t) { 
-  this.ended++;
 };
+
 Listener.prototype.pass = function(t) {
+  this.ended++;
   console.log("[pass]", t.fullName() );
 };
+
 Listener.prototype.fail = function(t, e) {
+  this.ended++;
   var message = e.toString();
   if (typeof(e.message) !== 'undefined') {
     message = e.message;
@@ -489,12 +495,13 @@ SQL.drop = function(suite, callback) {
 
 
 /* Exports from this module */
-exports.Test           = Test;
-exports.Suite          = Suite;
-exports.Listener       = Listener;
-exports.Result         = Result;
-exports.SmokeTest      = SmokeTest;
-exports.ConcurrentTest = ConcurrentTest;
-exports.SerialTest     = SerialTest;
-exports.ClearSmokeTest = ClearSmokeTest;
-exports.SQL            = SQL;
+exports.Test              = Test;
+exports.Suite             = Suite;
+exports.Listener          = Listener;
+exports.Result            = Result;
+exports.SmokeTest         = SmokeTest;
+exports.ConcurrentTest    = ConcurrentTest;
+exports.ConcurrentSubTest = ConcurrentSubTest;
+exports.SerialTest        = SerialTest;
+exports.ClearSmokeTest    = ClearSmokeTest;
+exports.SQL               = SQL;

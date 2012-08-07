@@ -40,3 +40,8 @@ exports.DBSession.prototype.persist = function(instance, callback, extra1, extra
   callback(err, extra1, extra2, extra3, extra4);
 };
 
+
+//TODO
+exports.DBSession.prototype.getDataDictionary = function() {
+  throw new Error('MySQLConnection.getDataDictionary not implemented');
+};

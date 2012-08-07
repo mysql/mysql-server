@@ -32,16 +32,12 @@ try {
 
 var spi = require(spi_module);
 
-var t1 = new harness.ConcurrentTest("getDataDictionary");
-t1.hasProxyTest();
-
-var t2 = new harness.ConcurrentTest("listTables");
-t2.hasProxyTest();
-
+var t1 = new harness.ConcurrentSubTest("getDataDictionary");
+var t2 = new harness.ConcurrentSubTest("listTables");
 var t3 = new harness.ConcurrentTest("getTable");
 
 t3.run = function() {  
-   var provider = spi.getDBServiceProvider(global.adapter),
+  var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       x_conn = null,
       x_session = null,
@@ -70,20 +66,18 @@ t3.run = function() {
       t1.pass();     // succesfully got a DBDictionary object
   
       test2_cb = function(error, table_list) {
-        console.log("IN test2_cb: table_list.count: "+ table_list.length);
-        console.dir(table_list);
         t2.errorIfNotEqual("Error return", error, undefined);
         t2.errorIfNotEqual("Bad table count", table_list.length, 2);
-        console.log("t2 error messages: " + t2.errorMessages);
         t2.failOnError();
         
-        /* getTable */
-        t3.fail();        
+        /* FIXME: getTable */
+        t3.fail("Not implemented yet");
       };
       dict.listTables("test", test2_cb);
 
     };
-    connection.openSessionHandler(test1_cb);
+    // fixme:  what is the "index" argument supposed to do?
+    connection.getDBSession(0, test1_cb);
   };
 
   provider.connect(properties, connect_cb);

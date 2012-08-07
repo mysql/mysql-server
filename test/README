@@ -25,9 +25,11 @@ SerialTest: tests to be run serially, using the test setup. These tests
   test suite.
 
 Tests are functions that are created via the ConcurrentTest or SerialTest
-constructors.  SerialTests must declare a run() method.  Some asynchronous 
-ConcurrentTests will not have a run() method but will rather be "proxied by"
-(run as part of) some other test, as described below. 
+constructors.  SerialTests and ConcurrentTests must declare a run() method.
+ConcurrentSubTests are asynchronous concurrent tests which do not have a run() 
+method of their own but are run as part of a larger ConcurrentTest.  The run()
+method of the larger test must separately call fail() or pass() on itself and on
+each ConcurrentSubTest.
 
 Tests are either synchronous or asynchronous depending on whether the run
 function returns immediately (synchronous) or not (asynchronous). 
@@ -52,11 +54,6 @@ functions, e.g.
 errorIfNotEqual(message, object1, object2)
 
 Other errorIf... functions will be added as they are needed.
-
-An asynchronous ConcurrentTest may either declare a run() method or declare that
-it has a proxy test, by calling ConcurrentTest.hasProxyTest().  The run() 
-method of a proxy test must separately call fail() or pass() on itself and on 
-each of the tests for which it proxies.
 
 Test programs that implement one test export that test:
 module.exports = test1;
