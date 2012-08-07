@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -245,7 +245,7 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2010"));
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
     puts("MySQL utility for upgrading databases to new MySQL versions.\n");
     my_print_help(my_long_options);
     exit(0);
