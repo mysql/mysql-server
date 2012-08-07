@@ -529,6 +529,8 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 
 void destroy_thread(PFS_thread *pfs);
 
+PFS_file* find_file(PFS_thread *thread,
+                    const char *filename, uint len);
 PFS_file* find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
                               const char *filename, uint len);
 

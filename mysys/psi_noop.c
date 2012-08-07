@@ -402,17 +402,17 @@ static void end_table_lock_wait_noop(PSI_table_locker* locker NNN)
   return;
 }
 
-static PSI_file* start_file_open_wait_noop(PSI_file_locker *locker NNN,
-                                           const char *src_file NNN,
-                                           uint src_line NNN)
-{
-  return NULL;
-}
-
-static void end_file_open_wait_noop(PSI_file_locker *locker NNN,
-                                    void *result NNN)
+static void start_file_open_wait_noop(PSI_file_locker *locker NNN,
+                                      const char *src_file NNN,
+                                      uint src_line NNN)
 {
   return;
+}
+
+static PSI_file* end_file_open_wait_noop(PSI_file_locker *locker NNN,
+                                         void *result NNN)
+{
+  return NULL;
 }
 
 static void end_file_open_wait_and_bind_to_descriptor_noop
@@ -431,6 +431,19 @@ static void start_file_wait_noop(PSI_file_locker *locker NNN,
 
 static void end_file_wait_noop(PSI_file_locker *locker NNN,
                                size_t count NNN)
+{
+  return;
+}
+
+static void start_file_close_wait_noop(PSI_file_locker *locker NNN,
+                                       const char *src_file NNN,
+                                       uint src_line NNN)
+{
+  return;
+}
+
+static void end_file_close_wait_noop(PSI_file_locker *locker NNN,
+                                     int result NNN)
 {
   return;
 }
@@ -698,6 +711,8 @@ static PSI PSI_noop=
   end_file_open_wait_and_bind_to_descriptor_noop,
   start_file_wait_noop,
   end_file_wait_noop,
+  start_file_close_wait_noop,
+  end_file_close_wait_noop,
   start_stage_noop,
   end_stage_noop,
   get_thread_statement_locker_noop,
