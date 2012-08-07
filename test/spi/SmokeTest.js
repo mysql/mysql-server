@@ -72,17 +72,10 @@ test.run = function() {
   var service = spi.getDBServiceProvider(global.adapter);
   var modules = service.getNativeCodeModules();
 
-  /* Create SQL */
-  harness.SQL.create(this.suite, function(error) {
-    if (error) {
-      this.fail('createSQL failed: ' + error);
-      return;
-    }
-  });
-
-  /* Get the list of required modules from the adapter */
-
-  /* Test loading them */
+  /* Create SQL if there is a file */
+  harness.SQL.create(this.suite, function() {});
+  
+  /* Test loading the required native code modules */
   if(test_load_modules(modules) === false) {
     this.fail();
     return;

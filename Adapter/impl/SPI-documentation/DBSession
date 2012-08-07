@@ -109,3 +109,6 @@
      */
     void setLockMode(LockMode lockmode);
 
+
+    /** close DBSession
+     *  

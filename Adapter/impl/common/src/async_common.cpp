@@ -26,16 +26,15 @@
 #include "unified_debug.h"
 
 void work_thd_run(uv_work_t *req) {
-  DEBUG_ENTER();
+  DEBUG_MARKER(UDEB_DETAIL);
   AsyncMethodCall *m = (AsyncMethodCall *) req->data;
   
   m->run();
-  DEBUG_TRACE();
 }
 
 
 void main_thd_complete(uv_work_t *req) {
-  DEBUG_ENTER();
+  DEBUG_MARKER(UDEB_DETAIL);
   v8::HandleScope scope;
   v8::TryCatch try_catch;
   
@@ -44,13 +43,11 @@ void main_thd_complete(uv_work_t *req) {
   m->doAsyncCallback(v8::Context::GetCurrent()->Global());
   
   /* cleanup */
-  m->callback.Dispose();
   delete m;
   delete req;
   
   /* exceptions */
   //if(try_catch.HasCaught())
   //  FatalException(try_catch);
-  DEBUG_TRACE();
 }
 

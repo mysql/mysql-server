@@ -66,3 +66,8 @@ exports.connect = function(properties, sessionFactory_callback) {
     callback(err, connectionPool);
   });
 };
+
+
+exports.getNativeCodeModules = function() {
+  return [];
+}
