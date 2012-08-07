@@ -20,11 +20,12 @@
 
 var session = require("./Session.js");
 
-var SessionFactory = function(key) {
+var SessionFactory = function(key, dbConnectionPool, properties, annotations, delete_callback) {
   this.key = key;
-  this.dbconnectionpool = {};
-  this.annotations = {};
-  this.properties = {};
+  this.dbConnectionPool = dbConnectionPool;
+  this.properties = properties;
+  this.annotations = annotations;
+  this.delete_callback = delete_callback;
   this.sessions = [];
 };
 
@@ -32,14 +33,25 @@ var SessionFactory = function(key) {
 //openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool
 SessionFactory.prototype.openSession = function(annotations, user_callback, extra1, extra2, extra3, extra4) {
+  var callback = user_callback; // save user_callback for use inside dbSessionCreated_callback
+  callback_arguments = arguments;
   // allocate a new session slot in sessions
   for (var i = 0; i < this.sessions.length; ++i) {
     if (this.sessions[i] == null) break;
   }
-  var newDBSession = this.dbconnectionpool.getDBSession(i);
-  var newSession = new session.Session(i, this, newDBSession);
-  this.sessions[i] = newSession;
-  user_callback(null, newSession, extra1, extra2, extra3, extra4);  // todo: extra user parameters
+  var sessions = this.sessions;
+  var sessionFactory = this;
+
+  var dbSessionCreated_callback = function(err, dbSession) {
+    var newSession = new session.Session(i, sessionFactory, dbSession);
+    sessions[i] = newSession;
+    callback_arguments[0] = err;
+    callback_arguments[1] = newSession;
+    // TODO: use user_callback.apply to return extra arguments but what is "this" for the apply function?
+    callback(err, newSession, extra1, extra2, extra3, extra4);  // todo: extra user parameters
+  };
+  var newDBSession = this.dbConnectionPool.getDBSession(i, dbSessionCreated_callback);
+
 };
 
 

@@ -73,7 +73,7 @@ test.run = function() {
   var modules = service.getNativeCodeModules();
 
   /* Create SQL if there is a file */
-  harness.SQL.create(this.suite);
+  harness.SQL.create(this.suite, function() {});
   
   /* Test loading the required native code modules */
   if(test_load_modules(modules) === false) {
