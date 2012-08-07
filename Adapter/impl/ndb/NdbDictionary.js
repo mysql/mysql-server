@@ -38,9 +38,19 @@ exports.DBDictionary = function() {
   */
 exports.DBDictionary.prototype.listTables = function(databaseName, user_callback) {
   udebug.log("DBDictionary listTables");
-  if(typeof adapter.impl.DBDictionary.listTables !== 'function') {
-    console.log("NOT A FUNCTION!");
-  }
+  assert(typeof adapter.impl.DBDictionary.listTables === 'function');
   adapter.impl.DBDictionary.listTables(this.impl, databaseName, user_callback);
+}
+
+
+/** Fetch metadata for a table
+  * ASYNC
+  * 
+  * getTable(databaseName, tableName, callback(error, DBTable));
+  */
+exports.DBDictionary.prototype.getTable = function(dbname, tabname, user_callback) {
+  udebug.log("DBDictionary listTables");
+  assert(typeof adapter.impl.DBDictionary.listTables === 'function');
+  adapter.impl.DBDictionary.getTable(this.impl, dbname, tabname, user_callback);
 }
 

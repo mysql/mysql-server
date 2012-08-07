@@ -70,8 +70,10 @@ t3.run = function() {
         t2.errorIfNotEqual("Bad table count", table_list.length, 2);
         t2.failOnError();
         
-        /* FIXME: getTable */
-        t3.fail("Not implemented yet");
+        dict.getTable("test","tbl1", function(err, tab) {
+          console.dir(tab);
+          t3.pass();
+        });
       };
       dict.listTables("test", test2_cb);
 
