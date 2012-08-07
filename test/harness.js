@@ -117,10 +117,12 @@ Test.prototype.test = function(result) {
 };
 
 Test.prototype.pass = function() {
+  this.teardown();
   this.result.pass(this);
 };
 
 Test.prototype.fail = function(message) {
+  this.teardown();
   this.failed = true;
   if (typeof(message.toString()) != 'undefined' ) {
     this.appendErrorMessage(message);
@@ -135,7 +137,7 @@ Test.prototype.appendErrorMessage = function(message) {
 };
 
 Test.prototype.failOnError = function() {
-  if (errorMessages !== '') {
+  if (this.errorMessages != '') {
     this.fail();
   } else {
     this.pass();
@@ -149,7 +151,7 @@ Test.prototype.teardown = function() {};
 Test.prototype.fullName = function() {
   var n = "";
   if(this.suite)    n = n + this.suite.name + " ";
-  if(this.filename) n = n + this.filename + " ";
+  if(this.filename) n = n + path.relative(suites_dir, this.filename) + " ";
   return n + this.name;
 }
 
@@ -411,6 +413,7 @@ Suite.prototype.testCompleted = function(testCase) {
 function Listener() {
   this.started = 0;
   this.ended   = 0;
+  this.printStackTraces = false;
 }
 
 Listener.prototype.startTest = function(t) { 
@@ -427,7 +430,7 @@ Listener.prototype.fail = function(t, e) {
   if (typeof(e.message) !== 'undefined') {
     message = e.message;
   } 
-  if (debug && typeof(e.stack) !== 'undefined') {
+  if ((this.printStackTraces || debug) && typeof(e.stack) !== 'undefined') {
     message = e.stack;
   }
   console.log("[FAIL]", t.fullName(), "\t", message);
