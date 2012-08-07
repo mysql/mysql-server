@@ -28,3 +28,11 @@ connect(Object properties, Function(err, DBConnectionPool) callback);
 */
 String getFactoryKey(Object properties);
 
+
+/* Get an array containing the native-code modules required by a
+   service provider.
+   The array constists of pathnames relative to the Adapter directory.
+   The array elements are in the order in which the files should be loaded.
+   IMMEDIATE
+*/
+Array getNativeCodeModules();
