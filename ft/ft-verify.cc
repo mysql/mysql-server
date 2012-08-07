@@ -106,9 +106,9 @@ struct count_msgs_extra {
 };
 
 // template-only function, but must be extern
-int count_msgs(const long &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
+int count_msgs(const int32_t &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
     __attribute__((nonnull(3)));
-int count_msgs(const long &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
+int count_msgs(const int32_t &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
 {
     const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
     if (entry->msn.msn == e->msn.msn) {
@@ -128,9 +128,9 @@ struct verify_message_tree_extra {
 };
 
 // template-only function, but must be extern
-int verify_message_tree(const long &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
     __attribute__((nonnull(3)));
-int verify_message_tree(const long &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
     int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;
@@ -155,16 +155,21 @@ done:
     return result;
 }
 
+template<typename verify_omt_t>
 static int
-verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, const off_omt_t &mt) {
+verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, const verify_omt_t &mt) {
     int result = 0;
     size_t last_offset = 0;
     for (uint32_t i = 0; i < mt.size(); i++) {
-        long offset;
+        int32_t offset;
         int r = mt.fetch(i, &offset);
         assert_zero(r);
         if (i > 0) {
-            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &brt->ft->cmp_descriptor, .cmp = brt->ft->compare_fun, .fifo = fifo };
+            struct toku_fifo_entry_key_msn_cmp_extra extra;
+            ZERO_STRUCT(extra);
+            extra.desc = &brt->ft->cmp_descriptor;
+            extra.cmp = brt->ft->compare_fun;
+            extra.fifo = fifo;
             if (toku_fifo_entry_key_msn_cmp(extra, last_offset, offset) >= 0) {
                 result = TOKUDB_NEEDS_REPAIR;
                 break;
@@ -175,12 +180,17 @@ verify_sorted_by_key_msn(FT_HANDLE brt, FIFO fifo, const off_omt_t &mt) {
     return result;
 }
 
+template<typename count_omt_t>
 static int
-count_eq_key_msn(FT_HANDLE brt, FIFO fifo, const off_omt_t &mt, const DBT *key, MSN msn) {
-    struct toku_fifo_entry_key_msn_heaviside_extra extra = {
-        .desc = &brt->ft->cmp_descriptor, .cmp = brt->ft->compare_fun, .fifo = fifo, .key = key, .msn = msn 
-    };
-    int r = mt.find_zero<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(extra, nullptr, nullptr);
+count_eq_key_msn(FT_HANDLE brt, FIFO fifo, const count_omt_t &mt, const DBT *key, MSN msn) {
+    struct toku_fifo_entry_key_msn_heaviside_extra extra;
+    ZERO_STRUCT(extra);
+    extra.desc = &brt->ft->cmp_descriptor;
+    extra.cmp = brt->ft->compare_fun;
+    extra.fifo = fifo;
+    extra.key = key;
+    extra.msn = msn;
+    int r = mt.template find_zero<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(extra, nullptr, nullptr);
     int count;
     if (r == 0) {
         count = 1;

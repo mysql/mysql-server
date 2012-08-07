@@ -918,8 +918,8 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
                          DESCRIPTOR desc, ft_compare_func cmp) {
     int r;
     int n_in_this_buffer = rbuf_int(rbuf);
-    long *fresh_offsets = NULL, *stale_offsets = NULL;
-    long *broadcast_offsets = NULL;
+    int32_t *fresh_offsets = NULL, *stale_offsets = NULL;
+    int32_t *broadcast_offsets = NULL;
     int nfresh = 0, nstale = 0;
     int nbroadcast_offsets = 0;
     if (cmp) {
@@ -940,7 +940,7 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
         rbuf_bytes(rbuf, &val, &vallen);
         //printf("Found %s,%s\n", (char*)key, (char*)val);
-        long *dest;
+        int32_t *dest;
         if (cmp) {
             if (ft_msg_type_applies_once(type)) {
                 if (is_fresh) {
@@ -968,11 +968,11 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
 
     if (cmp) {
         struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer };
-        r = toku::sort<long, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
+        r = toku::sort<int32_t, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
         assert_zero(r);
         bnc->fresh_message_tree.destroy();
         bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-        r = toku::sort<long, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
+        r = toku::sort<int32_t, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
         assert_zero(r);
         bnc->stale_message_tree.destroy();
         bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
@@ -1790,8 +1790,8 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         NONLEAF_CHILDINFO bnc = BNC(node, i);
         int n_in_this_buffer = rbuf_int(rb);
 
-        long *fresh_offsets = NULL;
-        long *broadcast_offsets = NULL;
+        int32_t *fresh_offsets = NULL;
+        int32_t *broadcast_offsets = NULL;
         int nfresh = 0;
         int nbroadcast_offsets = 0;
 
@@ -1822,7 +1822,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             rbuf_bytes(rb, &val, &vallen);
 
             // <CER> can we factor this out?
-            long *dest;
+            int32_t *dest;
             if (bfe->h->compare_fun) {
                 if (ft_msg_type_applies_once(type)) {
                     dest = &fresh_offsets[nfresh];
@@ -1858,7 +1858,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &bfe->h->cmp_descriptor,
                                                                .cmp = bfe->h->compare_fun,
                                                                .fifo = bnc->buffer };
-            typedef toku::sort<long, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp> key_msn_sort;
+            typedef toku::sort<int32_t, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp> key_msn_sort;
             r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
             assert_zero(r);
             bnc->fresh_message_tree.destroy();

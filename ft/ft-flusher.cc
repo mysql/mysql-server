@@ -1784,15 +1784,9 @@ flush_node_on_background_thread(FT h, FTNODE parent)
     //
     // see if we can pin the child
     //
-    void *node_v;
     FTNODE child;
     uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
-    int r = toku_cachetable_maybe_get_and_pin_clean (
-        h->cf,
-        BP_BLOCKNUM(parent,childnum),
-        childfullhash,
-        &node_v
-        );
+    int r = toku_maybe_pin_ftnode_clean(h, BP_BLOCKNUM(parent, childnum), childfullhash, &child, true);
     if (r != 0) {
         // In this case, we could not lock the child, so just place the parent on the background thread
         // In the callback, we will use flush_some_child, which checks to
@@ -1803,7 +1797,6 @@ flush_node_on_background_thread(FT h, FTNODE parent)
         //
         // successfully locked child
         //
-        child = (FTNODE) node_v;
         bool may_child_be_reactive = may_node_be_reactive(child);
         if (!may_child_be_reactive) {
             // We're going to unpin the parent, so before we do, we must

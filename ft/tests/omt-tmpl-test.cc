@@ -20,11 +20,13 @@
 
 namespace toku {
 
+namespace test {
+
     struct four_xids {
         TXNID one, two, three, four;
     };
 
-    inline int find_xid_one(const struct four_xids &xids, const TXNID &find) {
+    static inline int find_xid_one(const struct four_xids &xids, const TXNID &find) {
         if (xids.one > find) {
             return 1;
         }
@@ -34,7 +36,7 @@ namespace toku {
         return 0;
     }
 
-    inline int find_xid_two(const struct four_xids &xids, const TXNID &find) {
+    static inline int find_xid_two(const struct four_xids &xids, const TXNID &find) {
         if (xids.two > find) {
             return 1;
         }
@@ -44,7 +46,7 @@ namespace toku {
         return 0;
     }
 
-    inline int fx_iter(const struct four_xids &xids __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int &unused __attribute__((__unused__))) {
+    static inline int fx_iter(const struct four_xids &UU(xids), const uint32_t UU(idx), void *const UU(unused)) {
         return 0;
     }
 
@@ -52,7 +54,7 @@ namespace toku {
     static_assert(std::is_pod<fx_omt_t>::value, "fx_omt_t isn't POD");
     static_assert(24 == sizeof(fx_omt_t), "fx_omt_t is bigger than 24 bytes");
 
-    inline int find_by_xid(const TOKUTXN &txn, const TXNID &findid) {
+    static inline int find_by_xid(const TOKUTXN &txn, const TXNID &findid) {
         if (txn->txnid64 > findid) {
             return 1;
         }
@@ -62,7 +64,7 @@ namespace toku {
         return 0;
     }
 
-    inline int txn_iter(const TOKUTXN &txn __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int &unused __attribute__((__unused__))) {
+    static inline int txn_iter(const TOKUTXN &UU(txn), const uint32_t UU(idx), void *const UU(unused)) {
         return 0;
     }
 
@@ -72,7 +74,7 @@ namespace toku {
 
     const int NTXNS = 1<<13;
 
-    void runit(void)
+    static void perftest(void)
     {
         if (0) {
             srandom(0);
@@ -80,8 +82,8 @@ namespace toku {
             size_t overhead = 0;
 
             for (int trial = 0; trial < 100; ++trial) {
-                fx_omt_t *fx_omt;
-                fx_omt_t::create(fx_omt);
+                fx_omt_t *XMALLOC(fx_omt);
+                fx_omt->create();
 
                 struct four_xids *XMALLOC_N(NTXNS, txns);
                 for (int i = 0; i < NTXNS; ++i) {
@@ -103,8 +105,7 @@ namespace toku {
                     invariant(v != &txns[i]);
                 }
                 tokutime_t t2 = get_tokutime();
-                int unused = 0;
-                fx_omt->iterate<int, fx_iter>(unused);
+                fx_omt->iterate<void, fx_iter>(nullptr);
                 tokutime_t t3 = get_tokutime();
                 for (int i = 0; i < NTXNS; ++i) {
                     struct four_xids *v;
@@ -121,7 +122,8 @@ namespace toku {
                     overhead = fx_omt->memory_size();
                 }
 
-                fx_omt_t::destroy(fx_omt);
+                fx_omt->destroy();
+                toku_free(fx_omt);
                 toku_free(txns);
             }
 
@@ -134,13 +136,14 @@ namespace toku {
             size_t overhead = 0;
 
             for (int trial = 0; trial < 100; ++trial) {
-                txn_omt_t *txn_omt;
-                txn_omt_t::create(txn_omt);
+                txn_omt_t *XMALLOC(txn_omt);
+                txn_omt->create();
 
                 TOKUTXN XMALLOC_N(NTXNS, txns);
                 for (int i = 0; i < NTXNS; ++i) {
                     TOKUTXN txn = &txns[i];
-                    txn->txnid64 = ((random() << 32) | random());
+                    // eww, sorry:
+                    *(const_cast<TXNID *>(&txn->txnid64)) = ((random() << 32) | random());
                 }
                 tokutime_t t0 = get_tokutime();
                 for (int i = 0; i < NTXNS; ++i) {
@@ -157,8 +160,7 @@ namespace toku {
                     invariant(txn == &txns[i]);
                 }
                 tokutime_t t2 = get_tokutime();
-                int unused = 0;
-                txn_omt->iterate<int, txn_iter>(unused);
+                txn_omt->iterate<void, txn_iter>(nullptr);
                 tokutime_t t3 = get_tokutime();
 
                 inserttime += tokutime_to_seconds(t1-t0);
@@ -168,8 +170,8 @@ namespace toku {
                     overhead = txn_omt->memory_size();
                 }
 
-                txn_omt_t::destroy(txn_omt);
-                invariant_null(txn_omt);
+                txn_omt->destroy();
+                toku_free(txn_omt);
                 toku_free(txns);
             }
 
@@ -181,7 +183,7 @@ namespace toku {
         printf("memused: %" PRId64 "\n", maxrss);
     }
 
-    inline int intcmp(const int &a, const int &b) {
+    static inline int intcmp(const int &a, const int &b) {
         if (a < b) {
             return -1;
         }
@@ -194,8 +196,8 @@ namespace toku {
     typedef omt<int> int_omt_t;
 
     static int intiter_magic = 0xdeadbeef;
-    int intiter(const int &value __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int &extra) {
-        invariant(extra == intiter_magic);
+    static int intiter(const int &value __attribute__((__unused__)), const uint32_t idx __attribute__((__unused__)), int *const extra) {
+        invariant(*extra == intiter_magic);
         return 0;
     }
 
@@ -203,17 +205,17 @@ namespace toku {
         int count;
         int last;
     };
-    int intiter2(const int &value, const uint32_t idx __attribute__((__unused__)), struct intiter2extra &extra) {
-        extra.count++;
-        invariant(extra.last < value);
-        extra.last = value;
+    static int intiter2(const int &value, const uint32_t idx __attribute__((__unused__)), struct intiter2extra *const extra) {
+        extra->count++;
+        invariant(extra->last < value);
+        extra->last = value;
         return 0;
     }
 
-    void unittest(void) {
+    static void unittest(void) {
         int_omt_t o;
         int r;
-        o.init();
+        o.create();
         invariant(o.size() == 0);
 
         r = o.insert<int, intcmp>(1, 1, nullptr);
@@ -234,11 +236,11 @@ namespace toku {
 
         invariant(x == 2);
 
-        r = o.iterate<int, intiter>(intiter_magic);
+        r = o.iterate<int, intiter>(&intiter_magic);
         invariant_zero(r);
 
         struct intiter2extra e = {0, 0};
-        r = o.iterate_on_range<struct intiter2extra, intiter2>(0, 2, e);
+        r = o.iterate_on_range<struct intiter2extra, intiter2>(0, 2, &e);
         invariant_zero(r);
         invariant(e.count == 2);
         invariant(e.last == 2);
@@ -250,16 +252,16 @@ namespace toku {
 
         invariant(o.size() == 2);
 
-        o.deinit();
+        o.destroy();
 
         int *XMALLOC_N(4, intarray);
         for (int i = 0; i < 4; ++i) {
             intarray[i] = i + 1;
         }
         int_omt_t left, right;
-        left.init_steal_sorted_array(intarray, 4, 4);
+        left.create_steal_sorted_array(&intarray, 4, 4);
         invariant_null(intarray);
-        right.init();
+        right.create();
         r = right.insert<int, intcmp>(8, 8, nullptr);
         invariant_zero(r);
         r = right.insert<int, intcmp>(7, 7, nullptr);
@@ -270,38 +272,25 @@ namespace toku {
         invariant_zero(r);
 
         int_omt_t combined;
-        combined.merge_init(left, right);
+        combined.merge(&left, &right);
         invariant(combined.size() == 8);
         invariant(left.size() == 0);
         invariant(right.size() == 0);
         struct intiter2extra e2 = {0, 0};
-        r = combined.iterate<struct intiter2extra, intiter2>(e2);
+        r = combined.iterate<struct intiter2extra, intiter2>(&e2);
         invariant_zero(r);
         invariant(e2.count == 8);
         invariant(e2.last == 8);
 
-        combined.deinit();
-
-        omt<int *> intptr_omt;
-        intptr_omt.init();
-        int *ptrs[3];
-        for (int i = 0; i < 3; ++i) {
-            XMALLOC(ptrs[i]);
-            *(ptrs[i]) = i;
-            intptr_omt.insert_at(ptrs[i], i);
-        }
-        omt<int *> intptr_omt2;
-        intptr_omt2.deep_clone_init(intptr_omt);
-        intptr_omt.free_items();
-        intptr_omt.deinit();
-        intptr_omt2.free_items();
-        intptr_omt2.deinit();
+        combined.destroy();
     }
 
-};
+} // end namespace test
+
+} // end namespace toku
 
 int main(void) {
-    toku::unittest();
-    toku::runit();
+    toku::test::unittest();
+    toku::test::perftest();
     return 0;
 }

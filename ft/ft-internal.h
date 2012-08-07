@@ -104,7 +104,7 @@ struct toku_fifo_entry_key_msn_heaviside_extra {
 // comparison function for inserting messages into a
 // ftnode_nonleaf_childinfo's message_tree
 int
-toku_fifo_entry_key_msn_heaviside(const long &v, const struct toku_fifo_entry_key_msn_heaviside_extra &extra);
+toku_fifo_entry_key_msn_heaviside(const int32_t &v, const struct toku_fifo_entry_key_msn_heaviside_extra &extra);
 
 struct toku_fifo_entry_key_msn_cmp_extra {
     DESCRIPTOR desc;
@@ -114,15 +114,16 @@ struct toku_fifo_entry_key_msn_cmp_extra {
 
 // same thing for qsort_r
 int
-toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extrap, const long &a, const long &b);
+toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extrap, const int &a, const int &b);
 
-typedef toku::omt<long> off_omt_t;
+typedef toku::omt<int32_t> off_omt_t;
+typedef toku::omt<int32_t, int32_t, true> marked_off_omt_t;
 
 // data of an available partition of a nonleaf ftnode
 struct ftnode_nonleaf_childinfo {
     FIFO buffer;
     off_omt_t broadcast_list;
-    off_omt_t fresh_message_tree;
+    marked_off_omt_t fresh_message_tree;
     off_omt_t stale_message_tree;
 };
 
@@ -807,8 +808,9 @@ struct pivot_bounds {
     const DBT * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
 };
 
-// FIXME needs toku prefix
-void maybe_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied);
+__attribute__((nonnull))
+void toku_move_ftnode_messages_to_stale(FT ft, FTNODE node);
+void toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied);
 
 int
 toku_ft_search_which_child(
