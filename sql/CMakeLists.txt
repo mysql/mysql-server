@@ -84,7 +84,6 @@ SET(SQL_SHARED_SOURCES
   parse_file.cc
   partition_info.cc
   password.c
-  ../sql-common/crypt_genhash_impl.cc
   procedure.cc 
   protocol.cc
   records.cc
