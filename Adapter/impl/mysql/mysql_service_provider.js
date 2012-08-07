@@ -29,6 +29,7 @@ var MysqlDefaultConnectionProperties = {
   "mysql_user"     : "",
   "mysql_password" : "",
   "mysql_socket"   : null,
+  "debug"          : true,
   "mysql_debug"    : false
 };
 
