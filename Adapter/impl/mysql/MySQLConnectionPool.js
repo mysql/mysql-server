@@ -78,8 +78,8 @@ exports.DBConnectionPool.prototype.isConnected = function() {
   return this.is_connected;
 };
 
-exports.DBConnectionPool.prototype.getDBSession = function() {
+exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   var newDBSession = new connection.DBSession();
-  return newDBSession;
+  callback(null, newDBSession);
 };
 

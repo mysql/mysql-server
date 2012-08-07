@@ -127,19 +127,19 @@ exports.DBConnectionPool.prototype.closeSync = function() {
 
    TODO: Figure out opening of Session and SessionImpl ... 
 */
-exports.DBConnectionPool.prototype.openSessionHandler = function(user_callback) {
+exports.DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
   var db = this.properties.database;
   assert(this.ndbconn);
   assert(user_callback)
-  udebug.log("NDB openSessionHandler");
+  udebug.log("NDB getDBSession");
 
   var private_callback = function(sess) {
-    udebug.log("NDB openSessionHandler private_callback");
+    udebug.log("NDB getDBSession private_callback");
     // TODO:  Check for errors & forward them to the user
     user_session = new ndbsession.DBSession();
     user_session.impl = sess;
     user_callback(null, user_session);
-  };
+};
 
   var sessionImpl = adapter.impl.DBSession.create(this.ndbconn, db, private_callback);
 }
