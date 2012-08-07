@@ -56,7 +56,7 @@ Other errorIf... functions will be added as they are needed.
 An asynchronous ConcurrentTest may either declare a run() method or declare that
 it has a proxy test, by calling ConcurrentTest.hasProxyTest().  The run() 
 method of a proxy test must separately call fail() or pass() on itself and on 
-each of the tests that for which it proxies.
+each of the tests for which it proxies.
 
 Test programs that implement one test export that test:
 module.exports = test1;

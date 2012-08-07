@@ -20,7 +20,7 @@
 
 #include <mysql.h>
 
-#include <node.h>
+#include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "NativeCFunctionCall.h"
 
@@ -102,7 +102,7 @@ void mysqlclient_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "myqsl_query", mysql_query_wrapper);  
 }
 
-NODE_MODULE(mysqlclient, mysqlclient_initOnLoad)
+V8BINDER_LOADABLE_MODULE(mysqlclient, mysqlclient_initOnLoad)
 
 
 
