@@ -16,6 +16,8 @@
 	<false/>
 	<key>Mapped NdbError object</key>
 	<false/>
+	<key>Split main ndb binary into several top level objects</key>
+	<false/>
 	<key>Unified C/JS Debug framework</key>
 	<dict>
 		<key>Turn debugging on/off from JavaScript</key>
@@ -27,7 +29,7 @@
 		<key>Flush &amp; close debug file descriptor</key>
 		<false/>
 		<key>Support 3 levels: info, debug, &amp; detail</key>
-		<false/>
+		<true/>
 	</dict>
 	<key>Notes</key>
 	<dict>

@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/** This is the smoke test for the t_basic suite.
+/** This is the clear smoke test for the t_basic suite.
  */
 var test = new harness.ClearSmokeTest("ClearSmokeTest");
 

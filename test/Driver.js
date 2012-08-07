@@ -93,17 +93,18 @@ driver = new Driver();
 var result = new harness.Result(driver);
 result.listener = new harness.Listener();
 var exit = false;
+var timeoutMillis = 5000;
 
 var usageMessage = 
   "Usage: node driver [options]\n" +
-  "                 -h: print this message\n" +
-  "             --help: print this message\n" +
-  "                 -d: set the debug flag\n" +
-  "            --debug: set the debug flag\n" +
+  "       -h or --help: print this message\n" +
+  "      -d or --debug: set the debug flag\n" +
+  "      -t or --trace: print stack trace from failing tests\n" +
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
   "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
+  "       --timer=<ms>: set timeout (in msec); set to 0 to disable timer.\n" +
   "--set <var>=<value>: set a global variable, overriding test_config.js\n"
   ;
 
@@ -121,6 +122,10 @@ for(var i = 2; i < process.argv.length ; i++) {
   case '-h':
     exit = true;
     break;
+  case '--trace':
+  case '-t':
+    result.listener.printStackTraces = true;
+    break;
   case '--set':
     i++;  // next argument
     pair = process.argv[i].split('=');
@@ -132,7 +137,7 @@ for(var i = 2; i < process.argv.length ; i++) {
       console.log("Invalid --set option " + process.argv[i]);
       exit = true;
     }
-    break;    
+    break;
   default:
     values = val.split('=');
     if (values.length == 2) {
@@ -146,6 +151,9 @@ for(var i = 2; i < process.argv.length ; i++) {
         break;
       case '--adapter':
         global.adapter = values[1];
+        break;
+      case '--timer':
+        timeoutMillis = values[1];
         break;
       default:
         console.log('Invalid option ' + val);
@@ -186,11 +194,12 @@ if (driver.numberOfRunningSuites == 0) {
   driver.reportResultsAndExit();
 }
 
-var timeoutMillis = 10000;
 // set a timeout to prevent process from waiting forever
-if (debug) console.log('Setting timeout of ' + timeoutMillis);
+if(timeoutMillis > 0) {
+  if (debug) console.log('Setting timeout of ' + timeoutMillis);
   setTimeout(function() {
     var nwait = result.listener.started - result.listener.ended;
     var tests = (nwait == 1 ? " test." : " tests.");
     console.log('TIMEOUT: still waiting for ' + nwait + tests);
   }, timeoutMillis);
+}
