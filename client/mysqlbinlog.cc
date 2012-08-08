@@ -36,6 +36,7 @@
 #include "mysql_priv.h" 
 #include "log_event.h"
 #include "sql_common.h"
+#include "my_dir.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define BIN_LOG_HEADER_SIZE	4
@@ -1767,6 +1768,7 @@ static Exit_status check_header(IO_CACHE* file,
   uchar header[BIN_LOG_HEADER_SIZE];
   uchar buf[PROBE_HEADER_LEN];
   my_off_t tmp_pos, pos;
+  MY_STAT my_file_stat;
 
   delete glob_description_event;
   if (!(glob_description_event= new Format_description_log_event(3)))
@@ -1776,7 +1778,16 @@ static Exit_status check_header(IO_CACHE* file,
   }
 
   pos= my_b_tell(file);
-  my_b_seek(file, (my_off_t)0);
+
+  /* fstat the file to check if the file is a regular file. */
+  if (my_fstat(file->file, &my_file_stat, MYF(0)) == -1)
+  {
+    error("Unable to stat the file.");
+    return ERROR_STOP;
+  }
+  if ((my_file_stat.st_mode & S_IFMT) == S_IFREG)
+    my_b_seek(file, (my_off_t)0);
+
   if (my_b_read(file, header, sizeof(header)))
   {
     error("Failed reading header; probably an empty file.");
