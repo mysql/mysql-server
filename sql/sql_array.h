@@ -84,6 +84,15 @@ public:
 
   Element_type *array() const { return m_array; }
 
+  bool operator==(const Bounds_checked_array<Element_type>&rhs) const
+  {
+    return m_array == rhs.m_array && m_size == rhs.m_size;
+  }
+  bool operator!=(const Bounds_checked_array<Element_type>&rhs) const
+  {
+    return m_array != rhs.m_array || m_size != rhs.m_size;
+  }
+
 private:
   Element_type *m_array;
   size_t        m_size;

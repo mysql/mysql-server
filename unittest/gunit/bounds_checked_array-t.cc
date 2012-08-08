@@ -41,6 +41,23 @@ public:
   Int_array int_array;
 };
 
+}
+
+/*
+  operator<<() is needed by the EXPECT macros.
+  It is a template argument, so static rather than in unnamed namespace.
+ */
+static inline std::ostream &operator<<(std::ostream &s, const Int_array &v)
+{
+  return s << "{"
+ << v.array() << ", "
+ << v.size()
+ << "}"
+    ;
+}
+
+namespace {
+
 TEST_F(BoundsCheckedArray, Empty)
 {
   EXPECT_EQ(sizeof(int), int_array.element_size());
@@ -146,6 +163,25 @@ TEST_F(BoundsCheckedArray, PopFront)
     EXPECT_EQ(ix, int_array[0]);
     int_array.pop_front();
   }
+}
+
+TEST_F(BoundsCheckedArray, Equality)
+{
+  int_array= Int_array(c_array, c_array_size);
+  EXPECT_EQ(int_array, int_array);
+
+  Int_array int_array_copy(int_array);
+  EXPECT_EQ(int_array, int_array_copy);
+
+  int_array_copy.resize(c_array_size - 1);
+  EXPECT_NE(int_array, int_array_copy);
+
+  // We share the underlying array, so these should be equal.
+  Int_array int_array_two(c_array, c_array_size);
+  EXPECT_EQ(int_array, int_array_two);
+
+  int_array_two.pop_front();
+  EXPECT_NE(int_array, int_array_two);
 }
 
 }  // namespace
