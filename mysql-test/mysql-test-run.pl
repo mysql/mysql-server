@@ -1147,7 +1147,6 @@ sub command_line_setup {
              'start-from=s'             => \&collect_option,
              'big-test+'                => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
-             'skip-combinations'        => \&collect_option,
              'experimental=s'           => \@opt_experimentals,
 	     # skip-im is deprecated and silently ignored
 	     'skip-im'                  => \&ignore_option,
@@ -6261,7 +6260,6 @@ Options to control what engine/variation to run
                         all generated configs
   combination=<opt>     Use at least twice to run tests with specified
                         options to mysqld
-  skip-combinations     Ignore combination file (or options)
 
 Options to control directories to use
   tmpdir=DIR            The directory where temporary files are stored
