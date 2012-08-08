@@ -20,10 +20,11 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 var mysql = require("mysql");
+var dictionary = require('./MySQLDictionary');
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract */
-exports.DBSession = function() {
-//  console.log('new MySQLConnection.DBSession');
+exports.DBSession = function(pooledConnection) {
+  this.pooledConnection = pooledConnection;
 };
 
 // TODO proper extra parameter handling
@@ -40,8 +41,17 @@ exports.DBSession.prototype.persist = function(instance, callback, extra1, extra
   callback(err, extra1, extra2, extra3, extra4);
 };
 
+exports.DBSession.prototype.closeSync = function() {
+  if (this.pooledConnection) {
+    this.pooledConnection.end();
+    this.pooledConnection = null;
+  }
+};
 
 //TODO
+
 exports.DBSession.prototype.getDataDictionary = function() {
-  throw new Error('MySQLConnection.getDataDictionary not implemented');
+  return new dictionary.DataDictionary();
 };
+
+
