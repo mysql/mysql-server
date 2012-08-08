@@ -771,7 +771,7 @@ void JOIN::reset()
     }
   }
   clear_sj_tmp_tables(this);
-  if (!items0.is_null())
+  if (current_ref_ptrs != items0)
   {
     set_items_ref_array(items0);
     set_group_rpa= false;
@@ -3287,6 +3287,12 @@ void JOIN::cleanup(bool full)
     */
     tmp_table_param.copy_funcs.empty();
     tmp_table_param.cleanup();
+  }
+  /* Restore ref array to original state */
+  if (current_ref_ptrs != items0)
+  {
+    set_items_ref_array(items0);
+    set_group_rpa= false;
   }
   DBUG_VOID_RETURN;
 }
