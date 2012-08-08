@@ -31,7 +31,6 @@ extern const char	*not_error_sqlstate;
 struct st_mysql_options_extention {
   char *plugin_dir;
   char *default_auth;
-  my_bool enable_cleartext_plugin;
 };
 
 typedef struct st_mysql_methods
@@ -105,7 +104,6 @@ int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 struct st_mysql_client_plugin;
 extern struct st_mysql_client_plugin *mysql_client_builtins[];
-extern my_bool libmysql_cleartext_plugin_enabled;
 
 #ifdef	__cplusplus
 }
