@@ -28,8 +28,8 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
           curr_field->field_name, 
           curr_field->null_bit,
           null_offset,
-          (curr_field->null_ptr != NULL),
-          (curr_field->null_ptr != NULL) ? table->s->default_values[null_offset] & curr_field->null_bit : 0xffffffff
+          curr_field->real_maybe_null(),
+          curr_field->real_maybe_null() ? table->s->default_values[null_offset] & curr_field->null_bit : 0xffffffff
           );
     }
     printf("******\n");
@@ -42,8 +42,8 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
          curr_field->field_name, 
          curr_field->null_bit,
          null_offset,
-         (curr_field->null_ptr != NULL),
-         (curr_field->null_ptr != NULL) ? altered_table->s->default_values[null_offset] & curr_field->null_bit : 0xffffffff
+         curr_field->real_maybe_null(),
+         curr_field->real_maybe_null() ? altered_table->s->default_values[null_offset] & curr_field->null_bit : 0xffffffff
          );
     }
     printf("******\n");
@@ -229,10 +229,7 @@ ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info 
     tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
     assert(ctx);
     ha_alter_info->handler_ctx = ctx;
-
-    int r = db_env->txn_begin(db_env, 0, &ctx->alter_txn, 0);
-    if (r != 0)
-        result = true; // fail
+    ctx->alter_txn = transaction;
     DBUG_RETURN(result);
 }
 
@@ -515,14 +512,25 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
         }
     }
 
-    if (commit) {
-        // commit the alter transaction NOW
-        commit_txn(ctx->alter_txn, 0);
-        ctx->alter_txn = NULL;
-    } else { 
+    THD *thd = ha_thd();
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    assert(trx->stmt == ctx->alter_txn);
+
+    if (!commit) {
         // abort the alter transaction NOW so that any alters are rolled back. this allows the following restores to work.
-        abort_txn(ctx->alter_txn);
-        ctx->alter_txn = NULL;
+        THD *thd = ha_thd();
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        assert(ctx->alter_txn == trx->stmt);
+        trx->should_abort = true;
+        assert(trx->tokudb_lock_count > 0);
+        if (!--trx->tokudb_lock_count) {
+            abort_txn(ctx->alter_txn);
+            ctx->alter_txn = NULL;
+            trx->stmt = NULL;
+            trx->sub_sp_level = NULL;
+            trx->should_abort = false;
+        }
+        transaction = NULL;
 
         if (ctx->add_index_changed) {
             restore_add_index(table, ha_alter_info->index_add_count, ctx->incremented_num_DBs, ctx->modified_DBs);
