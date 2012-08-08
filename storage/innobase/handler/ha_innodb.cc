@@ -2123,10 +2123,21 @@ innobase_copy_frm_flags_from_create_info(
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	HA_CREATE_INFO*	create_info)		/*!< in: create info */
 {
-	dict_stats_set_persistent(
-		innodb_table,
-		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
-		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	ibool	ps_on;
+	ibool	ps_off;
+
+	if (dict_table_is_temporary(innodb_table)) {
+		/* Temp tables do not use persistent stats */
+		ps_on = FALSE;
+		ps_off = TRUE;
+	} else {
+		ps_on = create_info->table_options
+			& HA_OPTION_STATS_PERSISTENT;
+		ps_off = create_info->table_options
+			& HA_OPTION_NO_STATS_PERSISTENT;
+	}
+
+	dict_stats_set_persistent(innodb_table, ps_on, ps_off);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
@@ -2148,10 +2159,21 @@ innobase_copy_frm_flags_from_table_share(
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	TABLE_SHARE*	table_share)		/*!< in: table share */
 {
-	dict_stats_set_persistent(
-		innodb_table,
-		table_share->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table_share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+	ibool	ps_on;
+	ibool	ps_off;
+
+	if (dict_table_is_temporary(innodb_table)) {
+		/* Temp tables do not use persistent stats */
+		ps_on = FALSE;
+		ps_off = TRUE;
+	} else {
+		ps_on = table_share->db_create_options
+			& HA_OPTION_STATS_PERSISTENT;
+		ps_off = table_share->db_create_options
+			& HA_OPTION_NO_STATS_PERSISTENT;
+	}
+
+	dict_stats_set_persistent(innodb_table, ps_on, ps_off);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
