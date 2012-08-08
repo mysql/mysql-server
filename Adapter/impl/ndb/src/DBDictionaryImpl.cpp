@@ -31,11 +31,14 @@ using namespace v8;
 
 Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 
-Handle<Object> buildDBColumn(const NdbDictionary::Column *col);
+Handle<Object> buildDBColumn(const NdbDictionary::Column *);
+Handle<Object> buildDBIndex_PK(Handle<Object>, const NdbDictionary::Table *);
+Handle<Object> buildDBIndex(const NdbDictionary::Index *);
+
 
 /**** Dictionary implementation
  *
- * getTable(), getIndexes(), and listTables() should run in a uv background 
+ * getTable(), listIndexes(), and listTables() should run in a uv background 
  * thread, as they may require network waits.
  *
  * Looking at NdbDictionaryImpl.cpp, any method that calls into 
@@ -97,37 +100,41 @@ public:
   }
 
   /* V8 main thread */
-  void doAsyncCallback(Local<Object> ctx) {
-    DEBUG_MARKER(UDEB_DEBUG);
-    Handle<Value> cb_args[2];
-    
-    DEBUG_PRINT("RETURN VAL: %d", return_val);
-    if(return_val == -1) {
-      cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
-      cb_args[1] = Null();
-    }
-    else {
-      cb_args[0] = Null(); // no error
-      /* ListObjects has returned tables in all databases; 
-         we need to filter here on database name. */
-      int stack[list.count];
-      int nmatch = 0;
-      for(unsigned i = 0; i < list.count ; i++) {
-        if(strcmp(arg1, list.elements[i].database) == 0) {
-          stack[nmatch++] = i;
-        }
-      }
-      DEBUG_PRINT("arg1/nmatch/list.count: %s/%d/%d", arg1,nmatch,list.count);
-
-      Local<Array> cb_list = Array::New(nmatch);
-      for(unsigned i = 0; i < nmatch ; i++) {
-        cb_list->Set(i, String::New(list.elements[stack[i]].name));
-      }
-      cb_args[1] = cb_list;
-    }
-    callback->Call(ctx, 2, cb_args);
-  }
+  void doAsyncCallback(Local<Object> ctx);
 };
+
+
+void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  Handle<Value> cb_args[2];
+  
+  DEBUG_PRINT("RETURN VAL: %d", return_val);
+  if(return_val == -1) {
+    cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
+    cb_args[1] = Null();
+  }
+  else {
+    cb_args[0] = Null(); // no error
+    /* ListObjects has returned tables in all databases; 
+       we need to filter here on database name. */
+    int stack[list.count];
+    int nmatch = 0;
+    for(unsigned i = 0; i < list.count ; i++) {
+      if(strcmp(arg1, list.elements[i].database) == 0) {
+        stack[nmatch++] = i;
+      }
+    }
+    DEBUG_PRINT("arg1/nmatch/list.count: %s/%d/%d", arg1,nmatch,list.count);
+
+    Local<Array> cb_list = Array::New(nmatch);
+    for(unsigned i = 0; i < nmatch ; i++) {
+      cb_list->Set(i, String::New(list.elements[stack[i]].name));
+    }
+    cb_args[1] = cb_list;
+  }
+  callback->Call(ctx, 2, cb_args);
+}
+
 
 /* listTables() Method call
    ASYNC
@@ -159,63 +166,100 @@ class GetTableCall : public NativeCFunctionCall_3_<int, DBDictImpl *,
 {
 private:
   const NdbDictionary::Table * ndb_table;
-  NdbDictionary::Dictionary::List idx_list;
+  const NdbDictionary::Index ** indexes;
+  int n_index;
 
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, DBDictImpl *, const char *, const char *>(args), 
-    ndb_table(0), idx_list() {  }
+    ndb_table(0), indexes(0), n_index(0) {  }
   
   /* UV_WORKER_THREAD part of listTables */
-  void run() {
-    DEBUG_MARKER(UDEB_DEBUG);
-    NdbDictionary::Dictionary * dict = arg0->sess->dict;
-    // TODO: Set database name? 
-    ndb_table = dict->getTable(arg2);
-    if(ndb_table) 
-      return_val = dict->listIndexes(idx_list, *ndb_table);
-    else
-      return_val = -1;
-  }
+  void run();
 
   /* V8 main thread */
-  void doAsyncCallback(Local<Object> ctx) {
-    DEBUG_MARKER(UDEB_DEBUG);
-    HandleScope scope;  
-
-    /* User callback arguments */
-    Handle<Value> cb_args[2];
-    cb_args[0] = Null();
-    cb_args[1] = Null();
-    
-    /* DBTable = {
-        name          : ""    ,  // Table Name
-        columns       : []    ,  // an array of DBColumn objects
-        primaryKey    : {}    ,  // a DBIndex object
-        secondaryIndexes: []  ,  // an array of DBIndex objects 
-        userData      : ""       // Data stored in the DBTable by the ORM layer
-      }
-    */    
-    if(ndb_table && ! return_val) {
-      Local<Object> table = Object::New();
-      table->Set(String::New("name"), String::New(ndb_table->getName()));
-      
-      Local<Array> columns = Array::New(ndb_table->getNoOfColumns());
-      for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
-        columns->Set(i, buildDBColumn(ndb_table->getColumn(i)));    
-      }
-      table->Set(String::New("columns"), columns);
-      
-      cb_args[1] = table;
-    }
-    else {
-      cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
-    }
-    
-    callback->Call(ctx, 2, cb_args);
-  }
+  void doAsyncCallback(Local<Object> ctx);  
 };
+
+void GetTableCall::run() {
+  DEBUG_MARKER(UDEB_DEBUG);
+  NdbDictionary::Dictionary * dict = arg0->sess->dict;
+  NdbDictionary::Dictionary::List idx_list;
+  
+  // TODO: Set database name? 
+  ndb_table = dict->getTable(arg2);
+  if(ndb_table) {
+    return_val = dict->listIndexes(idx_list, *ndb_table);
+    if(return_val != -1) {
+      n_index = idx_list.count;
+      indexes = new const NdbDictionary::Index *[idx_list.count];
+      for(int i = 0 ; i < idx_list.count ; i++) {
+        indexes[i] = dict->getIndex(idx_list.elements[i].name, arg2);
+      }
+    }
+  }
+  else
+    return_val = -1;
+}
+
+
+void GetTableCall::doAsyncCallback(Local<Object> ctx) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;  
+
+  /* User callback arguments */
+  Handle<Value> cb_args[2];
+  cb_args[0] = Null();
+  cb_args[1] = Null();
+  
+  /* DBTable = {
+      name          : ""    ,  // Table Name
+      columns       : []    ,  // an array of DBColumn objects
+      primaryKey    : {}    ,  // a DBIndex object
+      secondaryIndexes: []  ,  // an array of DBIndex objects 
+      userData      : ""       // Data stored in the DBTable by the ORM layer
+    }
+  */    
+  if(ndb_table && ! return_val) {
+
+    Local<Object> table = Object::New();
+    Local<Object> cols_by_name = Object::New();
+    
+    // name
+    table->Set(String::New("name"), String::New(ndb_table->getName()));
+    
+    // columns
+    Local<Array> columns = Array::New(ndb_table->getNoOfColumns());
+    for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
+      Handle<Object> col = buildDBColumn(ndb_table->getColumn(i));
+      columns->Set(i, col);
+      cols_by_name->Set(String::New(ndb_table->getColumn(i)->getName()), col);        
+    }
+    table->Set(String::New("columns"), columns);
+
+    // primaryKey
+    // TODO: Can the API layer set "userData" in this object?
+    table->Set(String::New("primaryKey"), 
+               buildDBIndex_PK(cols_by_name, ndb_table),
+               ReadOnly);
+
+    // secondaryIndexes
+    Local<Array> secondaryIndexes = Array::New(n_index);
+    for(int i = 0 ; i < n_index ; i++) {
+      secondaryIndexes->Set(i, buildDBIndex(indexes[i]));
+    }    
+    table->Set(String::New("secondaryIndexes"), secondaryIndexes, ReadOnly);
+    
+    // User Callback
+    cb_args[1] = table;
+  }
+  else {
+    cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
+  }
+  
+  callback->Call(ctx, 2, cb_args);
+}
 
 
 /* getTable() method call
@@ -456,6 +500,61 @@ Handle<Object> buildDBColumn(const NdbDictionary::Column *col) {
 
   return scope.Close(obj);
 } 
+
+
+/* DBIndex = {
+  name          : ""    ,  // External or Internal index name (see clusterj-core store/Index.java)
+  isPrimaryKey  : false ,  // bool
+  isUnique      : false ,  // bool
+  isOrdered     : false ,  // bool; can scan if true
+  columns       : []    ,  // an array of DBColumn objects
+  userData      : ""       // Data stored in the DBIndex by the ORM layer
+};
+*/
+Handle<Object> buildDBIndex_PK(Handle<Object> table_columns,
+                               const NdbDictionary::Table *ndb_table) {
+  HandleScope scope;
+  
+  Local<Object> obj = Object::New();
+
+  obj->Set(String::New("name"), Null(), ReadOnly);
+  obj->Set(String::New("isPrimaryKey"), Boolean::New(true), ReadOnly);
+  obj->Set(String::New("isUnique"),     Boolean::New(true), ReadOnly);
+  obj->Set(String::New("isOrdered"),    Boolean::New(false), ReadOnly);
+  
+  int ncol = ndb_table->getNoOfPrimaryKeys();
+  Local<Array> idx_columns = Array::New(ncol);
+  obj->Set(String::New("columns"), idx_columns);
+  for(int i = 0 ; i < ncol ; i++) {
+    const char * col_name = ndb_table->getPrimaryKey(i);
+    idx_columns->Set(i, table_columns->Get(String::New(col_name)));
+  }
+  return scope.Close(obj);
+}
+
+
+Handle<Object> buildDBIndex(const NdbDictionary::Index *idx) {
+  HandleScope scope;
+  
+  Local<Object> obj = Object::New();
+
+  obj->Set(String::New("name"), String::New(idx->getName()));
+  obj->Set(String::New("isPrimaryKey"), Boolean::New(false), ReadOnly);
+  obj->Set(String::New("isUnique"),     
+           Boolean::New(idx->getType() == NdbDictionary::Index::UniqueHashIndex),
+           ReadOnly);
+  obj->Set(String::New("isOrdered"),
+           Boolean::New(idx->getType() == NdbDictionary::Index::OrderedIndex),
+           ReadOnly);
+  
+  int ncol = idx->getNoOfColumns();
+  Local<Array> idx_columns = Array::New(ncol);
+  obj->Set(String::New("columns"), idx_columns);
+  for(int i = 0 ; i < ncol ; i++) {
+    idx_columns->Set(i, buildDBColumn(idx->getColumn(i)));
+  }
+  return scope.Close(obj);
+}
 
 
 void DBDictionaryImpl_initOnLoad(Handle<Object> target) {

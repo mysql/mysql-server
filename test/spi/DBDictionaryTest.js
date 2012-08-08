@@ -71,8 +71,9 @@ t3.run = function() {
         t2.failOnError();
         
         dict.getTable("test","tbl1", function(err, tab) {
-          console.dir(tab);
-          t3.pass();
+          // TODO: Test specific properties of the table object
+          if(tab) t3.pass();
+          else t3.fail("getTable error");
         });
       };
       dict.listTables("test", test2_cb);
