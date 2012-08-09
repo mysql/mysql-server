@@ -81,6 +81,7 @@ Driver.prototype.reportResultsAndExit = function() {
   });
   console.log("Passed: ", result.passed.length);
   console.log("Failed: ", result.failed.length);
+  if(debug) udebug.close();
   process.exit(result.failed.length > 0);  
 };
 
