@@ -1,3 +1,9 @@
+2012-08-07	The InnoDB Team
+
+	* btr/btr0pcur.c, row/row0merge.c:
+	Fix Bug#14399148 INNODB TABLES UNDER LOAD PRODUCE DUPLICATE COPIES
+	OF ROWS IN QUERIES
+
 2012-03-15	The InnoDB Team
 
 	* fil/fil0fil.c, ibuf/ibuf0ibuf.c, include/fil0fil.h,
