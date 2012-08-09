@@ -51,6 +51,8 @@ void unified_debug_none_but_selected(void);
 void unified_debug_none();
 void unified_debug_destination(const char * file);
 void unified_debug_log_level(int);
+void unified_debug_close();
+
 /* Macros in the Public API:
  *
  * DEBUG_PRINT(level, fmt, ...) : print message at level

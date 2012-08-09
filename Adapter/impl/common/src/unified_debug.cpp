@@ -167,6 +167,13 @@ void unified_debug_destination(const char * out_file) {
 }
 
 
+void unified_debug_close() {
+  if(debug_fd != STDERR_FILENO) {
+    close(debug_fd);
+  }
+}
+
+
 // Bernstein hash
 inline int udeb_hash(const char *name) {
   const unsigned char *p;

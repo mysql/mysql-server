@@ -109,12 +109,20 @@ Handle<Value> js_udeb_destination(const Arguments &args) {
 }
 
 
+Handle<Value> js_udeb_close(const Arguments &args) {  
+  REQUIRE_ARGS_LENGTH(0);  
+  unified_debug_close();
+  return Null();
+}
+
+
 void udebug_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "udeb_switch"     , js_udeb_switch);
   DEFINE_JS_FUNCTION(target, "udeb_print"      , js_udeb_print );
   DEFINE_JS_FUNCTION(target, "udeb_select"     , js_udeb_select );
   DEFINE_JS_FUNCTION(target, "udeb_add_drop"   , js_udeb_add_drop );
   DEFINE_JS_FUNCTION(target, "udeb_destination", js_udeb_destination);
+  DEFINE_JS_FUNCTION(target, "udeb_close"      , js_udeb_close);
   DEFINE_JS_CONSTANT(target, UDEB_INFO);
   DEFINE_JS_CONSTANT(target, UDEB_DEBUG);
   DEFINE_JS_CONSTANT(target, UDEB_DETAIL);
