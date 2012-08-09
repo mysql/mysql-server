@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ extern bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name,
 extern bool plugin_register_builtin(struct st_mysql_plugin *plugin);
 extern void plugin_thdvar_init(THD *thd);
 extern void plugin_thdvar_cleanup(THD *thd);
-extern SHOW_COMP_OPTION plugin_status(const char *name, int len, size_t type);
+extern SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type);
 extern bool check_valid_path(const char *path, size_t length);
 
 typedef my_bool (plugin_foreach_func)(THD *thd,

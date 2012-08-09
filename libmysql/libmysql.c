@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates
+   Copyright (c) 2009, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -811,7 +812,7 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  return unpack_fields(query,&mysql->field_alloc,
+  return unpack_fields(mysql, query,&mysql->field_alloc,
 		       mysql->field_count, 1, mysql->server_capabilities);
 }
 
@@ -871,7 +872,7 @@ mysql_list_processes(MYSQL *mysql)
   if (!(fields = (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*) 0,
 					      protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(NULL);
-  if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
+  if (!(mysql->fields=unpack_fields(mysql, fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
     DBUG_RETURN(0);
   mysql->status=MYSQL_STATUS_GET_RESULT;
@@ -1456,7 +1457,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 
     if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
       DBUG_RETURN(1);
-    if (!(stmt->fields= unpack_fields(fields_data,&stmt->mem_root,
+    if (!(stmt->fields= unpack_fields(mysql, fields_data,&stmt->mem_root,
 				      field_count,0,
 				      mysql->server_capabilities)))
       DBUG_RETURN(1);

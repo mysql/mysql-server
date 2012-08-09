@@ -1097,7 +1097,6 @@ CPackSourceConfig.cmake
 Docs/INFO_BIN
 Docs/INFO_SRC
 tags
-sql/.empty
 Testing
 info_macros.cmake
 VERSION.dep

@@ -715,6 +715,8 @@ JOIN::prepare(Item ***rref_pointer_array,
   
   if (having)
   {
+    Query_arena backup, *arena;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
@@ -730,6 +732,10 @@ JOIN::prepare(Item ***rref_pointer_array,
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    select_lex->having= having;
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
     thd->lex->allow_sum_func= save_allow_sum_func;
@@ -16454,7 +16460,8 @@ int report_error(TABLE *table, int error)
     Locking reads can legally return also these errors, do not
     print them to the .err log
   */
-  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
+      && !table->in_use->killed)
   {
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN, error,
                         "Got error %d when reading table `%s`.`%s`",
@@ -18861,6 +18868,14 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   /* Currently ORDER BY ... LIMIT is not supported in subqueries. */
   DBUG_ASSERT(join->group_list || !join->is_in_subquery());
 
+  /* 
+    If we have a select->quick object that is created outside of
+    create_sort_index() and this is part of a subquery that
+    potentially can be executed multiple times then we should not
+    delete the quick object on exit from this function.
+  */
+  bool keep_quick= select && select->quick && join->join_tab_save;
+
   /*
     When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
     and thus force sorting on disk unless a group min-max optimization
@@ -18912,6 +18927,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			    get_quick_select_for_ref(thd, table, &tab->ref, 
                                                      tab->found_records))))
 	goto err;
+      DBUG_ASSERT(!keep_quick);
     }
   }
 
@@ -18944,9 +18960,26 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     tablesort_result_cache= table->sort.io_cache;
     table->sort.io_cache= NULL;
 
-    select->cleanup();				// filesort did select
-    table->quick_keys.clear_all();  // as far as we cleanup select->quick
-    table->intersect_keys.clear_all();
+    /*
+      If a quick object was created outside of create_sort_index()
+      that might be reused, then do not call select->cleanup() since
+      it will delete the quick object.
+    */
+    if (!keep_quick)
+    {
+      select->cleanup();
+      /*
+        The select object should now be ready for the next use. If it
+        is re-used then there exists a backup copy of this join tab
+        which has the pointer to it. The join tab will be restored in
+        JOIN::reset(). So here we just delete the pointer to it.
+      */
+      tab->select= NULL;
+      // If we deleted the quick select object we need to clear quick_keys
+      table->quick_keys.clear_all();
+      table->intersect_keys.clear_all();
+    }
+    // Restore the output resultset
     table->sort.io_cache= tablesort_result_cache;
   }
   tab->set_select_cond(NULL, __LINE__);

@@ -762,7 +762,6 @@ struct log_struct{
 					buffer */
 #ifndef UNIV_HOTBACKUP
 	mutex_t		mutex;		/*!< mutex protecting the log */
-#endif /* !UNIV_HOTBACKUP */
 
 	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
@@ -772,6 +771,7 @@ struct log_struct{
 					mtr_commit and still ensure that
 					insertions in the flush_list happen
 					in the LSN order. */
+#endif /* !UNIV_HOTBACKUP */
 	byte*		buf_ptr;	/* unaligned log buffer */
 	byte*		buf;		/*!< log buffer */
 	ulint		buf_size;	/*!< log buffer size in bytes */

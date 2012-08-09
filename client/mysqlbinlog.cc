@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -843,6 +844,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   DBUG_ENTER("process_event");
   print_event_info->short_form= short_form;
   Exit_status retval= OK_CONTINUE;
+  IO_CACHE *const head= &print_event_info->head_cache;
 
   /*
     Format events are not concerned by --offset and such, we always need to
@@ -922,6 +924,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         print_skip_replication_statement(print_event_info, ev);
         ev->print(result_file, print_event_info);
       }
+      if (head->error == -1)
+        goto err;
       break;
     }
 
@@ -954,8 +958,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       {
         print_skip_replication_statement(print_event_info, ev);
         ce->print(result_file, print_event_info, TRUE);
+        if (head->error == -1)
+          goto err;
       }
-
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
       {
@@ -977,6 +982,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         output of Append_block_log_event::print is only a comment.
       */
       ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
       if ((retval= load_processor.process((Append_block_log_event*) ev)) !=
           OK_CONTINUE)
         goto end;
@@ -985,6 +992,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case EXEC_LOAD_EVENT:
     {
       ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
       Execute_load_log_event *exv= (Execute_load_log_event*)ev;
       Create_file_log_event *ce= load_processor.grab_event(exv->file_id);
       /*
@@ -1002,6 +1011,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	ce->print(result_file, print_event_info, TRUE);
 	my_free((void*)ce->fname);
 	delete ce;
+        if (head->error == -1)
+          goto err;
       }
       else
         warning("Ignoring Execute_load_log_event as there is no "
@@ -1014,6 +1025,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       print_event_info->common_header_len=
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
       if (!remote_opt)
       {
         ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
@@ -1043,6 +1056,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       break;
     case BEGIN_LOAD_QUERY_EVENT:
       ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
       if ((retval= load_processor.process((Begin_load_query_log_event*) ev)) !=
           OK_CONTINUE)
         goto end;
@@ -1060,6 +1075,12 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           convert_path_to_forward_slashes(fname);
           print_skip_replication_statement(print_event_info, ev);
           exlq->print(result_file, print_event_info, fname);
+          if (head->error == -1)
+          {
+            if (fname)
+              my_free(fname);
+            goto err;
+          }
         }
         else
           warning("Ignoring Execute_load_query since there is no "
@@ -1190,6 +1211,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     default:
       print_skip_replication_statement(print_event_info, ev);
       ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
     }
   }
 
@@ -1353,7 +1376,7 @@ static struct my_option my_options[] =
    "Stop reading the binlog at position N. Applies to the last binlog "
    "passed on the command line.",
    &stop_position, &stop_position, 0, GET_ULL,
-   REQUIRED_ARG, (ulonglong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE,
+   REQUIRED_ARG, (longlong)(~(my_off_t)0), BIN_LOG_HEADER_SIZE,
    (ulonglong)(~(my_off_t)0), 0, 0, 0},
   {"to-last-log", 't', "Requires -R. Will not stop at the end of the \
 requested binlog but rather continue printing until the end of the last \
@@ -2322,7 +2345,13 @@ err:
 end:
   if (fd >= 0)
     my_close(fd, MYF(MY_WME));
-  end_io_cache(file);
+  /*
+    Since the end_io_cache() writes to the
+    file errors may happen.
+   */
+  if (end_io_cache(file))
+    retval= ERROR_STOP;
+
   return retval;
 }
 

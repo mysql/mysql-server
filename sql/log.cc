@@ -2836,7 +2836,10 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     {
       end= strxmov(buff, "# administrator command: ", NullS);
       buff_len= (ulong) (end - buff);
-      my_b_write(&log_file, (uchar*) buff, buff_len);
+      DBUG_EXECUTE_IF("simulate_slow_log_write_error",
+                      {DBUG_SET("+d,simulate_file_write_error");});
+      if(my_b_write(&log_file, (uchar*) buff, buff_len))
+        tmp_errno= errno;
     }
     if (my_b_write(&log_file, (uchar*) sql_text, sql_text_len) ||
         my_b_write(&log_file, (uchar*) ";\n",2) ||
@@ -2890,7 +2893,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
    need_start_event(TRUE),
    group_commit_queue(0), group_commit_queue_busy(FALSE),
    num_commits(0), num_group_commits(0),
-   sync_period_ptr(sync_period),
+   sync_period_ptr(sync_period), sync_counter(0),
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),

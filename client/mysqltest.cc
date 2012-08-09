@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2012 Monty Program Ab.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2012, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5148,7 +5148,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1, "" },
+  { "<No error>", -1U, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -7710,6 +7710,8 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     */
     if ((counter==0) && do_read_query_result(cn))
     {
+      /* we've failed to collect the result set */
+      cn->pending= TRUE;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;

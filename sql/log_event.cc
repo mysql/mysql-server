@@ -1348,7 +1348,7 @@ failed my_b_read"));
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
+  uint max_allowed_packet= thd ? slave_max_allowed_packet:~(ulong)0;
 #endif
 
   if (data_len > max_allowed_packet)
@@ -3218,24 +3218,41 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos= (const uchar*) end;                         // Break loop
     }
   }
-  
+
+  /**
+    Layout for the data buffer is as follows
+    +--------+-----------+------+------+---------+----+-------+
+    | catlog | time_zone | user | host | db name | \0 | Query |
+    +--------+-----------+------+------+---------+----+-------+
+
+    To support the query cache we append the following buffer to the above
+    +-------+----------------------------------------+-------+
+    |db len | uninitiatlized space of size of db len | FLAGS |
+    +-------+----------------------------------------+-------+
+
+    The area of buffer starting from Query field all the way to the end belongs
+    to the Query buffer and its structure is described in alloc_query() in
+    sql_parse.cc
+    */
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                              time_zone_len + 1 +
-                                              data_len + 1 +
-                                              QUERY_CACHE_DB_LENGTH_SIZE +
-                                              QUERY_CACHE_FLAGS_SIZE +
-                                              user.length + 1 +
-                                              host.length + 1 +
-                                              db_len + 1,
-                                              MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1
+                                                    +  sizeof(size_t)//for db_len
+                                                    +  db_len + 1
+                                                    +  QUERY_CACHE_DB_LENGTH_SIZE
+                                                    +  QUERY_CACHE_FLAGS_SIZE,
+                                                       MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                             time_zone_len + 1 +
-                                             data_len + 1 +
-                                             user.length + 1 +
-                                             host.length + 1,
-                                             MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1,
+                                                       MYF(MY_WME))))
 #endif
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
@@ -3275,6 +3292,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   db= (char *)start;
   query= (char *)(start + db_len + 1);
   q_len= data_len - db_len -1;
+  /**
+    Append the db length at the end of the buffer. This will be used by
+    Query_cache::send_result_to_client() in case the query cache is On.
+   */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+  size_t db_length= (size_t)db_len;
+  memcpy(start + data_len + 1, &db_length, sizeof(size_t));
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -3461,6 +3486,12 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   Write_on_release_cache cache(&print_event_info->head_cache, file);
 
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_write().
+   */
+  DBUG_EXECUTE_IF ("simulate_file_write_error",
+                   {(&cache)->write_pos= (&cache)->write_end- 500;});
   print_query_header(&cache, print_event_info);
   my_b_write(&cache, (uchar*) query, q_len);
   my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
@@ -6205,6 +6236,9 @@ User_var_log_event::
 User_var_log_event(const char* buf,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
+#ifndef MYSQL_CLIENT
+  , deferred(false)
+#endif
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   const char *start= buf;
@@ -6454,7 +6488,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
 
   if (rli->deferred_events_collecting)
+  {
+    set_deferred();
     return rli->deferred_events->add(this);
+  }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
@@ -6506,7 +6543,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+
+  Item_func_set_user_var *e= new Item_func_set_user_var(user_var_name, it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -6515,7 +6553,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     crash the server, so if fix fields fails, we just return with an
     error.
   */
-  if (e.fix_fields(thd, 0))
+  if (e->fix_fields(thd, 0))
     return 1;
 
   /*
@@ -6523,9 +6561,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
-                (flags & User_var_log_event::UNSIGNED_F));
-  free_root(thd->mem_root,0);
+  e->update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
+                 (flags & User_var_log_event::UNSIGNED_F));
+  if (!is_deferred())
+    free_root(thd->mem_root, 0);
 
   return 0;
 }
@@ -6922,11 +6961,18 @@ void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info
   {
     Load_log_event::print(file, print_event_info,
 			  !check_fname_outside_temp_buf());
-    /* 
-       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
-       SHOW BINLOG EVENTS we don't.
-    */
-    my_b_printf(&cache, "#"); 
+    /**
+      reduce the size of io cache so that the write function is called
+      for every call to my_b_printf().
+     */
+    DBUG_EXECUTE_IF ("simulate_create_event_write_error",
+                     {(&cache)->write_pos= (&cache)->write_end;
+                     DBUG_SET("+d,simulate_file_write_error");});
+    /*
+      That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
+      SHOW BINLOG EVENTS we don't.
+     */
+    my_b_printf(&cache, "#");
   }
 
   my_b_printf(&cache, " file_id: %d  block_len: %d\n", file_id, block_len);
@@ -7616,6 +7662,13 @@ void Execute_load_query_log_event::print(FILE* file,
   Write_on_release_cache cache(&print_event_info->head_cache, file);
 
   print_query_header(&cache, print_event_info);
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_printf().
+   */
+  DBUG_EXECUTE_IF ("simulate_execute_event_write_error",
+                   {(&cache)->write_pos= (&cache)->write_end;
+                   DBUG_SET("+d,simulate_file_write_error");});
 
   if (local_fname)
   {

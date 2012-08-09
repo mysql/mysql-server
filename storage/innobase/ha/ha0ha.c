@@ -28,6 +28,7 @@ Created 8/22/1994 Heikki Tuuri
 #include "ha0ha.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 # include "buf0buf.h"
 #endif /* UNIV_DEBUG */
@@ -51,17 +52,13 @@ ha_create_func(
 				hash table: must be a power of 2, or 0 */
 {
 	hash_table_t*	table;
-#ifndef UNIV_HOTBACKUP
 	ulint		i;
-#endif /* !UNIV_HOTBACKUP */
 
 	ut_ad(ut_is_2pow(n_mutexes));
 	table = hash_create(n);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 	table->adaptive = TRUE;
-# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	/* Creating MEM_HEAP_BTR_SEARCH type heaps can potentially fail,
 	but in practise it never should in this case, hence the asserts. */
@@ -74,7 +71,6 @@ ha_create_func(
 		return(table);
 	}
 
-#ifndef UNIV_HOTBACKUP
 	hash_create_mutexes(table, n_mutexes, mutex_level);
 
 	table->heaps = mem_alloc(n_mutexes * sizeof(void*));
@@ -83,7 +79,6 @@ ha_create_func(
 		table->heaps[i] = mem_heap_create_in_btr_search(4096);
 		ut_a(table->heaps[i]);
 	}
-#endif /* !UNIV_HOTBACKUP */
 
 	return(table);
 }
@@ -134,7 +129,6 @@ ha_insert_for_fold_func(
 	while (prev_node != NULL) {
 		if (prev_node->fold == fold) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 			if (table->adaptive) {
 				buf_block_t* prev_block = prev_node->block;
 				ut_a(prev_block->frame
@@ -143,7 +137,6 @@ ha_insert_for_fold_func(
 				prev_block->n_pointers--;
 				block->n_pointers++;
 			}
-# endif /* !UNIV_HOTBACKUP */
 
 			prev_node->block = block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -171,11 +164,9 @@ ha_insert_for_fold_func(
 	ha_node_set_data(node, block, data);
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		block->n_pointers++;
 	}
-# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	node->fold = fold;
@@ -217,13 +208,11 @@ ha_delete_hash_node(
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(btr_search_enabled);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
 		ut_a(del_node->block->frame = page_align(del_node->data));
 		ut_a(del_node->block->n_pointers > 0);
 		del_node->block->n_pointers--;
 	}
-# endif /* !UNIV_HOTBACKUP */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 
 	HASH_DELETE_AND_COMPACT(ha_node_t, next, table, del_node);
@@ -264,13 +253,11 @@ ha_search_and_update_if_found_func(
 
 	if (node) {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
-# ifndef UNIV_HOTBACKUP
 		if (table->adaptive) {
 			ut_a(node->block->n_pointers > 0);
 			node->block->n_pointers--;
 			new_block->n_pointers++;
 		}
-# endif /* !UNIV_HOTBACKUP */
 
 		node->block = new_block;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -278,7 +265,6 @@ ha_search_and_update_if_found_func(
 	}
 }
 
-#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
 points to the page given. */

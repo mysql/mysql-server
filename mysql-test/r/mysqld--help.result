@@ -697,7 +697,7 @@ The following options may be given as the first argument:
  partial matching
  --rpl-recovery-rank=# 
  Unused, will be removed
- --safe-mode         Skip some optimize stages (for testing).
+ --safe-mode         Skip some optimize stages (for testing). Deprecated.
  --safe-user-create  Don't allow new user creation by the user who has no
  write privileges to the mysql.user table.
  --secure-auth       Disallow authentication for accounts that have old
@@ -737,6 +737,9 @@ The following options may be given as the first argument:
  --slave-load-tmpdir=name 
  The location where the slave should put its temporary
  files when replicating a LOAD DATA INFILE command
+ --slave-max-allowed-packet=# 
+ The maximum packet length to sent successfully from the
+ master to slave.
  --slave-net-timeout=# 
  Number of seconds to wait for more data from a
  master/slave connection before aborting the read
@@ -1057,6 +1060,7 @@ skip-show-database FALSE
 skip-slave-start FALSE
 slave-compressed-protocol FALSE
 slave-exec-mode STRICT
+slave-max-allowed-packet 1073741824
 slave-net-timeout 3600
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE
