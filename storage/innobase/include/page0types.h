@@ -97,6 +97,16 @@ struct page_zip_stat_struct {
 	ib_uint64_t	compressed_usec;
 	/** Duration of page decompressions in microseconds */
 	ib_uint64_t	decompressed_usec;
+	page_zip_stat_struct() :
+		/* Initialize members to 0 so that when we do
+		stlmap[key].compressed++ and element with "key" does not
+		exist it gets inserted with zeroed members. */
+		compressed(0),
+		compressed_ok(0),
+		decompressed(0),
+		compressed_usec(0),
+		decompressed_usec(0)
+	{ }
 };
 
 /** Compression statistics */
