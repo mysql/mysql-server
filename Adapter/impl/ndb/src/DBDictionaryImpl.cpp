@@ -32,7 +32,7 @@ using namespace v8;
 Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 
 Handle<Object> buildDBColumn(const NdbDictionary::Column *);
-Handle<Object> buildDBIndex_PK(Handle<Object>, const NdbDictionary::Table *);
+Handle<Object> buildDBIndex_PK(const NdbDictionary::Table *);
 Handle<Object> buildDBIndex(const NdbDictionary::Index *);
 
 
@@ -214,6 +214,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   cb_args[1] = Null();
   
   /* DBTable = {
+      database      : ""    ,  // Database name
       name          : ""    ,  // Table Name
       columns       : []    ,  // an array of DBColumn objects
       primaryKey    : {}    ,  // a DBIndex object
@@ -224,24 +225,24 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   if(ndb_table && ! return_val) {
 
     Local<Object> table = Object::New();
-    Local<Object> cols_by_name = Object::New();
+
+    // database
+    table->Set(String::NewSymbol("database"), String::New(arg1));
     
     // name
-    table->Set(String::New("name"), String::New(ndb_table->getName()));
+    table->Set(String::NewSymbol("name"), String::New(ndb_table->getName()));
     
     // columns
     Local<Array> columns = Array::New(ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
       Handle<Object> col = buildDBColumn(ndb_table->getColumn(i));
       columns->Set(i, col);
-      cols_by_name->Set(String::New(ndb_table->getColumn(i)->getName()), col);        
     }
-    table->Set(String::New("columns"), columns);
+    table->Set(String::NewSymbol("columns"), columns);
 
     // primaryKey
-    // TODO: Can the API layer set "userData" in this object?
-    table->Set(String::New("primaryKey"), 
-               buildDBIndex_PK(cols_by_name, ndb_table),
+    table->Set(String::NewSymbol("primaryKey"), 
+               buildDBIndex_PK(ndb_table),
                ReadOnly);
 
     // secondaryIndexes
@@ -249,7 +250,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     for(int i = 0 ; i < n_index ; i++) {
       secondaryIndexes->Set(i, buildDBIndex(indexes[i]));
     }    
-    table->Set(String::New("secondaryIndexes"), secondaryIndexes, ReadOnly);
+    table->Set(String::NewSymbol("secondaryIndexes"), secondaryIndexes, ReadOnly);
     
     // User Callback
     cb_args[1] = table;
@@ -284,16 +285,16 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
   /* Based on ndb_constants.h */
   const char * typenames[NDB_TYPE_MAX] = {
     "",
-    "INT",            // TINY INT
-    "INT",            // TINY UNSIGNED
-    "INT",            // SMALL INT
-    "INT",            // SMALL UNSIGNED
-    "INT",            // MEDIIUM INT
-    "INT",            // MEDIUM UNSIGNED
+    "TINYINT",        // TINY INT
+    "TINYINT",        // TINY UNSIGNED
+    "SMALLINT",       // SMALL INT
+    "SMALLINT",       // SMALL UNSIGNED
+    "MEDIUMINT",      // MEDIIUM INT
+    "MEDIUMINT",      // MEDIUM UNSIGNED
     "INT",            // INT
     "INT",            // UNSIGNED
-    "INT",            // BIGINT
-    "INT",            // BIG UNSIGNED
+    "BIGINT",         // BIGINT
+    "BIGINT",         // BIG UNSIGNED
     "FLOAT",
     "DOUBLE",    
     "",               // OLDDECIMAL
@@ -328,20 +329,9 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
 }
 
 
-Handle<Value> getIntColumnSize(bool do_test, const NdbDictionary::Column *col) {
+Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *col) {
   HandleScope scope;
-
-  if(! do_test) return Null();
-  
-  return scope.Close(Integer::New(col->getSizeInBytes()));
-}
-
-
-Handle<Value> getIntColumnUnsigned(bool do_test, const NdbDictionary::Column *col) {
-  HandleScope scope;
-
-  if(! do_test) return Null();
-   
+     
   switch(col->getType()) {
     case NdbDictionary::Column::Unsigned:
     case NdbDictionary::Column::Bigunsigned:
@@ -355,90 +345,7 @@ Handle<Value> getIntColumnUnsigned(bool do_test, const NdbDictionary::Column *co
   }
 }
 
-
-Handle<Value> getColumnNullable(const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  return scope.Close(Boolean::New(col->getNullable()));
-}
-
-
-Handle<Value> getDecimalColumnScale(bool do_test, const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  if(! do_test) return Null();
-
-  return scope.Close(Integer::New(col->getScale()));
-}
  
- 
-Handle<Value> getDecimalColumnPrecision(bool do_test, const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  if(! do_test) return Null();
-  
-  return scope.Close(Integer::New(col->getPrecision()));
-}                     
-
-
-Handle<Value> getColumnLength(bool do_test, const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  if(! do_test) return Null();
-
-  return scope.Close(Integer::New(col->getLength()));
-}
-
-
-Handle<Value> getColumnBinary(bool do_test, const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  if(! do_test) return Null();
-  
-  switch(col->getType()) {
-    case NdbDictionary::Column::Blob:
-    case NdbDictionary::Column::Binary:
-    case NdbDictionary::Column::Varbinary:
-    case NdbDictionary::Column::Longvarbinary:
-      return scope.Close(Boolean::New(true));
-  
-    default:
-      return scope.Close(Boolean::New(false));
-  }
-}
-
-
-Handle<Value> getColumnCharsetNumber(bool do_test, const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  if(! do_test) return Null();
-    
-  Local<Number> n = Number::New(col->getCharsetNumber());
-  return scope.Close(n);
-}
-
-
-inline Handle<Value> getColumnNumber(const NdbDictionary::Column *col) {
-  HandleScope scope;
-
-  return scope.Close(Integer::New(col->getColumnNo()));
-}
-
-
-inline Handle<Value> getColumnIsPrimaryKey(const NdbDictionary::Column *col) {
-  HandleScope scope;
-
-  return scope.Close(Boolean::New(col->getPrimaryKey()));
-}
-
-
-inline Handle<Value> getColumnName(const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  return scope.Close(String::New(col->getName()));
-}
-
-
 Handle<Object> buildDBColumn(const NdbDictionary::Column *col) {
   HandleScope scope;
   
@@ -446,58 +353,82 @@ Handle<Object> buildDBColumn(const NdbDictionary::Column *col) {
   NdbDictionary::Column::Type col_type = col->getType();
   bool is_int = (col_type <= NDB_TYPE_BIGUNSIGNED);
   bool is_dec = ((col_type == NDB_TYPE_DECIMAL) || (col_type == NDB_TYPE_DECIMALUNSIGNED));
+  bool is_binary = ((col_type == NDB_TYPE_BLOB) || (col_type == NDB_TYPE_BINARY) 
+                   || (col_type == NDB_TYPE_VARBINARY) || (col_type == NDB_TYPE_LONGVARBINARY));
+  bool is_char = ((col_type == NDB_TYPE_CHAR) || (col_type == NDB_TYPE_TEXT)
+                   || (col_type == NDB_TYPE_VARCHAR) || (col_type == NDB_TYPE_LONGVARCHAR));
 
-  // TODO: set do_test in more places
+  /* Required Properties */
+
+  obj->Set(String::NewSymbol("name"),
+           String::New(col->getName()),
+           ReadOnly);
   
-  obj->Set(String::New("columnType"), 
+  obj->Set(String::NewSymbol("columnNumber"),
+           Integer::New(col->getColumnNo()),
+           ReadOnly);
+  
+  obj->Set(String::NewSymbol("columnType"), 
            getColumnType(col), 
            ReadOnly);
-  
-  obj->Set(String::New("intSize"),
-           getIntColumnSize(is_int, col),
+
+  obj->Set(String::NewSymbol("isIntegral"),
+           Boolean::New(is_int),
            ReadOnly);
 
-  obj->Set(String::New("isUnsigned"),
-           getIntColumnUnsigned(is_int, col),
-           ReadOnly);
-  
-  obj->Set(String::New("isNullable"),
-           getColumnNullable(col),
-           ReadOnly);
-  
-  obj->Set(String::New("scale"),
-           getDecimalColumnScale(is_dec, col),
-           ReadOnly);
-  
-  obj->Set(String::New("precision"),
-           getDecimalColumnPrecision(is_dec, col),
-           ReadOnly);
-  
-  obj->Set(String::New("length"),
-           getColumnLength(true, col),
-           ReadOnly);
-  
-  obj->Set(String::New("isBinary"),
-           getColumnBinary(true, col),
-           ReadOnly);
-  
-  //FIXME:  getCharsetNumber() causes segfault
-  //obj->Set(String::New("charsetNumber"),
-  //         getColumnCharsetNumber(true, col),
-  //         ReadOnly);
-  
-  obj->Set(String::New("name"),
-           getColumnName(col),
-           ReadOnly);
-  
-  obj->Set(String::New("columnNumber"),
-           getColumnNumber(col),
-           ReadOnly);
-  
-  obj->Set(String::New("isPrimaryKey"),
-           getColumnIsPrimaryKey(col),
+  obj->Set(String::NewSymbol("isNullable"),
+           Boolean::New(col->getNullable()),
            ReadOnly);
 
+   obj->Set(String::NewSymbol("isPrimaryKey"),
+           Boolean::New(col->getPrimaryKey()),
+           ReadOnly);
+
+   // todo: columnspace
+  
+  /* Optional Properties, depending on columnType */
+
+  /* Group A: Numeric */
+  if(is_int || is_dec) {
+    obj->Set(String::NewSymbol("isUnsigned"),
+             getIntColumnUnsigned(col),
+             ReadOnly);
+  }
+  
+  if(is_int) {    
+    obj->Set(String::NewSymbol("intSize"),
+             Integer::New(col->getSizeInBytes()),
+             ReadOnly);
+  }
+  
+  if(is_dec) {
+    obj->Set(String::NewSymbol("scale"),
+             Integer::New(col->getScale()),
+             ReadOnly);
+    
+    obj->Set(String::NewSymbol("precision"),
+             Integer::New(col->getPrecision()),
+             ReadOnly);
+  }
+  
+  /* Group B: Non-numeric */
+  if(is_binary || is_char) {  
+    obj->Set(String::NewSymbol("length"),
+             Integer::New(col->getLength()),
+             ReadOnly);
+
+    obj->Set(String::NewSymbol("isBinary"),
+             Boolean::New(is_binary),
+             ReadOnly);
+  
+    if(is_char) {
+      obj->Set(String::NewSymbol("charsetNumber"),
+               Number::New(col->getCharsetNumber()),
+               ReadOnly);
+      // todo: charsetName
+    }
+  }
+    
   return scope.Close(obj);
 } 
 
@@ -511,23 +442,22 @@ Handle<Object> buildDBColumn(const NdbDictionary::Column *col) {
   userData      : ""       // Data stored in the DBIndex by the ORM layer
 };
 */
-Handle<Object> buildDBIndex_PK(Handle<Object> table_columns,
-                               const NdbDictionary::Table *ndb_table) {
+Handle<Object> buildDBIndex_PK(const NdbDictionary::Table *ndb_table) {
   HandleScope scope;
   
   Local<Object> obj = Object::New();
 
-  obj->Set(String::New("name"), Null(), ReadOnly);
-  obj->Set(String::New("isPrimaryKey"), Boolean::New(true), ReadOnly);
-  obj->Set(String::New("isUnique"),     Boolean::New(true), ReadOnly);
-  obj->Set(String::New("isOrdered"),    Boolean::New(false), ReadOnly);
+  obj->Set(String::NewSymbol("name"), Null(), ReadOnly);
+  obj->Set(String::NewSymbol("isPrimaryKey"), Boolean::New(true), ReadOnly);
+  obj->Set(String::NewSymbol("isUnique"),     Boolean::New(true), ReadOnly);
+  obj->Set(String::NewSymbol("isOrdered"),    Boolean::New(false), ReadOnly);
   
   int ncol = ndb_table->getNoOfPrimaryKeys();
   Local<Array> idx_columns = Array::New(ncol);
-  obj->Set(String::New("columns"), idx_columns);
+  obj->Set(String::NewSymbol("columns"), idx_columns);
   for(int i = 0 ; i < ncol ; i++) {
     const char * col_name = ndb_table->getPrimaryKey(i);
-    idx_columns->Set(i, table_columns->Get(String::New(col_name)));
+    idx_columns->Set(i, String::New(col_name));
   }
   return scope.Close(obj);
 }
@@ -538,20 +468,20 @@ Handle<Object> buildDBIndex(const NdbDictionary::Index *idx) {
   
   Local<Object> obj = Object::New();
 
-  obj->Set(String::New("name"), String::New(idx->getName()));
-  obj->Set(String::New("isPrimaryKey"), Boolean::New(false), ReadOnly);
-  obj->Set(String::New("isUnique"),     
+  obj->Set(String::NewSymbol("name"), String::New(idx->getName()));
+  obj->Set(String::NewSymbol("isPrimaryKey"), Boolean::New(false), ReadOnly);
+  obj->Set(String::NewSymbol("isUnique"),     
            Boolean::New(idx->getType() == NdbDictionary::Index::UniqueHashIndex),
            ReadOnly);
-  obj->Set(String::New("isOrdered"),
+  obj->Set(String::NewSymbol("isOrdered"),
            Boolean::New(idx->getType() == NdbDictionary::Index::OrderedIndex),
            ReadOnly);
   
   int ncol = idx->getNoOfColumns();
   Local<Array> idx_columns = Array::New(ncol);
-  obj->Set(String::New("columns"), idx_columns);
+  obj->Set(String::NewSymbol("columns"), idx_columns);
   for(int i = 0 ; i < ncol ; i++) {
-    idx_columns->Set(i, buildDBColumn(idx->getColumn(i)));
+    idx_columns->Set(i, Integer::New(idx->getColumn(i)->getColumnNo()));
   }
   return scope.Close(obj);
 }

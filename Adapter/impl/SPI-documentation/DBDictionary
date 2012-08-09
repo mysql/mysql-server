@@ -14,42 +14,52 @@
     */
     getTable(databaseName, tableName, callback(error, DBTable));
 }
- 
+
+
+// TODO, 8 Aug. 2012:
+//  Table needs its database name
 
 DBColumn = {
+  /* Required Properties */
+  name          : ""    ,  //  column name
+  columnNumber  : -1    ,  //  position of column in table
   columnType    : ""    ,  //  a ColumnType
-  intSize       : null  ,  //  1,2,3,4, or 8 if column type is INT (undefined?)
-  isUnsigned    : false ,  //  true for UNSIGNED
+  isIntegral    : false ,  //  true if column is some variety of INTEGER type
   isNullable    : false ,  //  true if NULLABLE
+  isPrimaryKey  : false ,  //  true if column is part of PK
+  columnSpace   : 0     ,  //  buffer space required for encoded stored value
+  
+  /* Optional Properties, depending on columnType */
+  /* Group A: Numeric */
+  isUnsigned    : false ,  //  true for UNSIGNED
+  intSize       : null  ,  //  1,2,3,4, or 8 if column type is INT
   scale         : 0     ,  //  DECIMAL scale
   precision     : 0     ,  //  DECIMAL precision
+
+  /* Group B: Non-numeric */
   length        : 0     ,  //  CHAR or VARCHAR length
   isBinary      : false ,  //  true for BLOB/BINARY/VARBINARY
   charsetNumber : 0     ,  //  internal number of charset
   charsetName   : ""    ,  //  name of charset
-  name          : ""    ,  //  column name
-  columnNumber  : -1    ,  //  position of column in table
-  isPrimaryKey  : false ,  //  true if column is part of PK
-  userData      : ""       //  Data stored in the DBColumn by the ORM layer
 };
 
 
+// change columns to an array of column numbers
 DBIndex = {
   name          : ""    ,  // External or Internal index name (see clusterj-core store/Index.java)
-  isPrimaryKey  : false ,  // bool
-  isUnique      : false ,  // bool
-  isOrdered     : false ,  // bool; can scan if true
-  columns       : []    ,  // an array of DBColumn objects
-  userData      : ""       // Data stored in the DBIndex by the ORM layer
+  isPrimaryKey  : false ,  // true or undefined
+  isUnique      : false ,  // true or undefined
+  isOrdered     : false ,  // true or undefined; can scan if true
+  columnNumbers : []    ,  // an array of column numbers
 };
 
 
 DBTable = {
+  database      : ""    ,  // Database name
   name          : ""    ,  // Table Name
   columns       : []    ,  // an array of DBColumn objects
   primaryKey    : {}    ,  // a DBIndex object
   secondaryIndexes: []  ,  // an array of DBIndex objects 
-  userData      : ""       // Data stored in the DBTable by the ORM layer
 }
 
 
