@@ -4585,10 +4585,11 @@ loop:
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
 	while (foreign != NULL) {
-		if (0 == strcmp(foreign->id, id)
+		if (0 == innobase_strcasecmp(foreign->id, id)
 		    || (strchr(foreign->id, '/')
-			&& 0 == strcmp(id,
-				       dict_remove_db_name(foreign->id)))) {
+			&& 0 == innobase_strcasecmp(
+				id,
+				dict_remove_db_name(foreign->id)))) {
 			/* Found */
 			break;
 		}
