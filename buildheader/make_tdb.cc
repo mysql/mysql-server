@@ -144,6 +144,12 @@ static void print_defines (void) {
     dodefine(DB_THREAD);
     dodefine(DB_TXN_NOSYNC);
 
+    /* according to BDB 4.6.19, this is the next unused flag in the set of
+     * common flags plus private flags for DB->open */
+#define	DB_BLACKHOLE 0x0080000
+    dodefine(DB_BLACKHOLE);
+#undef DB_BLACKHOLE
+
     dodefine(DB_LOCK_DEFAULT);
     dodefine(DB_LOCK_OLDEST);
     dodefine(DB_LOCK_RANDOM);
