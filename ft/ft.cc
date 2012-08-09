@@ -1055,4 +1055,7 @@ void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp
     toku_ft_unlock(ft);
 }
 
-
+// mark the ft as a blackhole. any message injections will be a no op.
+void toku_ft_set_blackhole(FT_HANDLE ft_handle) {
+    ft_handle->ft->blackhole = true;
+}

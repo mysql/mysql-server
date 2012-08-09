@@ -2453,16 +2453,21 @@ static void push_something_at_root (FT h, FTNODE *nodep, FT_MSG cmd)
 }
 
 int
-toku_ft_root_put_cmd (FT h, FT_MSG_S * cmd)
+toku_ft_root_put_cmd (FT ft, FT_MSG_S * cmd)
 // Effect:
 //  - assign msn to cmd
 //  - push the cmd into the brt
 //  - cmd will set new msn in tree
 {
+    // blackhole fractal trees drop all messages, so do nothing.
+    if (ft->blackhole) {
+        return 0;
+    }
+
     FTNODE node;
     CACHEKEY root_key;
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
-    assert(h);
+    assert(ft);
     //
     // As of Dr. Noga, the following code is currently protected by two locks:
     //  - the ydb lock
@@ -2492,16 +2497,16 @@ toku_ft_root_put_cmd (FT h, FT_MSG_S * cmd)
     //  others
     //
     {
-        toku_ft_grab_treelock(h);
+        toku_ft_grab_treelock(ft);
 
         uint32_t fullhash;
-        toku_calculate_root_offset_pointer(h, &root_key, &fullhash);
+        toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
 
         // get the root node
         struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, h);
+        fill_bfe_for_full_read(&bfe, ft);
         toku_pin_ftnode_off_client_thread(
-            h,
+            ft,
             root_key,
             fullhash,
             &bfe,
@@ -2520,28 +2525,28 @@ toku_ft_root_put_cmd (FT h, FT_MSG_S * cmd)
 
         //VERIFY_NODE(brt, node);
         assert(node->fullhash==fullhash);
-        ft_verify_flags(h, node);
+        ft_verify_flags(ft, node);
 
         // first handle a reactive root, then put in the message
         CACHEKEY new_root_key;
-        bool root_changed = ft_process_maybe_reactive_root(h, &new_root_key, &node);
+        bool root_changed = ft_process_maybe_reactive_root(ft, &new_root_key, &node);
         if (root_changed) {
-            toku_ft_set_new_root_blocknum(h, new_root_key);
+            toku_ft_set_new_root_blocknum(ft, new_root_key);
         }
 
-        toku_ft_release_treelock(h);
+        toku_ft_release_treelock(ft);
     }
-    push_something_at_root(h, &node, cmd);
+    push_something_at_root(ft, &node, cmd);
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
     invariant(cmd->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
 
     // if we call flush_some_child, then that function unpins the root
     // otherwise, we unpin ourselves
     if (node->height > 0 && toku_ft_nonleaf_is_gorged(node)) {
-        flush_node_on_background_thread(h, node);
+        flush_node_on_background_thread(ft, node);
     }
     else {
-        toku_unpin_ftnode(h, node);  // unpin root
+        toku_unpin_ftnode(ft, node);  // unpin root
     }
 
     return 0;
@@ -3389,17 +3394,13 @@ toku_ft_get_dictionary_id(FT_HANDLE brt) {
     return dict_id;
 }
 
-int toku_ft_set_flags(FT_HANDLE brt, unsigned int flags) {
-    assert(flags==(flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
-    brt->did_set_flags = true;
-    brt->options.flags = flags;
-    return 0;
+void toku_ft_set_flags(FT_HANDLE ft_handle, unsigned int flags) {
+    ft_handle->did_set_flags = true;
+    ft_handle->options.flags = flags;
 }
 
-int toku_ft_get_flags(FT_HANDLE brt, unsigned int *flags) {
-    *flags = brt->options.flags;
-    assert(brt->options.flags==(brt->options.flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extraneous flags
-    return 0;
+void toku_ft_get_flags(FT_HANDLE ft_handle, unsigned int *flags) {
+    *flags = ft_handle->options.flags;
 }
 
 void toku_ft_get_maximum_advised_key_value_lengths (unsigned int *max_key_len, unsigned int *max_val_len)
@@ -3455,7 +3456,6 @@ void toku_ft_set_redirect_callback(FT_HANDLE brt, on_redirect_callback redir_cb,
     brt->redirect_callback = redir_cb;
     brt->redirect_callback_extra = extra;
 }
-
 
 int toku_ft_set_update(FT_HANDLE brt, ft_update_func update_fun) {
     brt->options.update_fun = update_fun;

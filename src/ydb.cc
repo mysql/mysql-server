@@ -406,20 +406,18 @@ static int toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte, uint32_t min, u
 static int
 db_use_builtin_key_cmp(DB *db) {
     HANDLE_PANICKED_DB(db);
-    int r;
+    int r = 0;
     if (db_opened(db))
         r = toku_ydb_do_error(db->dbenv, EINVAL, "Comparison functions cannot be set after DB open.\n");
     else if (db->i->key_compare_was_set)
         r = toku_ydb_do_error(db->dbenv, EINVAL, "Key comparison function already set.\n");
     else {
         uint32_t tflags;
-        r = toku_ft_get_flags(db->i->ft_handle, &tflags);
-        if (r!=0) return r;
+        toku_ft_get_flags(db->i->ft_handle, &tflags);
 
         tflags |= TOKU_DB_KEYCMP_BUILTIN;
-        r = toku_ft_set_flags(db->i->ft_handle, tflags);
-        if (!r)
-            db->i->key_compare_was_set = true;
+        toku_ft_set_flags(db->i->ft_handle, tflags);
+        db->i->key_compare_was_set = true;
     }
     return r;
 }

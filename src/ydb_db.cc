@@ -234,18 +234,18 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     int is_db_hot_index  = flags & DB_IS_HOT_INDEX;  unused_flags&=~DB_IS_HOT_INDEX;
 
     //We support READ_UNCOMMITTED and READ_COMMITTED whether or not the flag is provided.
-                                            unused_flags&=~DB_READ_UNCOMMITTED;
-                                            unused_flags&=~DB_READ_COMMITTED;
-                                            unused_flags&=~DB_SERIALIZABLE;
-    if (unused_flags & ~DB_THREAD) return EINVAL; // unknown flags
+    unused_flags&=~DB_READ_UNCOMMITTED;
+    unused_flags&=~DB_READ_COMMITTED;
+    unused_flags&=~DB_SERIALIZABLE;
+
+    // DB_THREAD is implicitly supported and DB_BLACKHOLE is supported at the ft-layer
+    unused_flags &= ~DB_THREAD;
+    unused_flags &= ~DB_BLACKHOLE;
+
+    // check for unknown or conflicting flags
+    if (unused_flags) return EINVAL; // unknown flags
     if (is_db_excl && !is_db_create) return EINVAL;
     if (dbtype==DB_UNKNOWN && is_db_excl) return EINVAL;
-
-    /* tokudb supports no duplicates and sorted duplicates only */
-    unsigned int tflags;
-    r = toku_ft_get_flags(db->i->ft_handle, &tflags);
-    if (r != 0) 
-        return r;
 
     if (db_opened(db)) {
         // it was already open
@@ -384,15 +384,10 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, i
                                             flags&=~DB_SERIALIZABLE;
                                             flags&=~DB_IS_HOT_INDEX;
     // unknown or conflicting flags are bad
-    if ((flags & ~DB_THREAD) || (is_db_excl && !is_db_create)) {
+    int unknown_flags = flags & ~DB_THREAD;
+    unknown_flags &= ~DB_BLACKHOLE;
+    if (unknown_flags || (is_db_excl && !is_db_create)) {
         return EINVAL;
-    }
-
-    /* tokudb supports no duplicates and sorted duplicates only */
-    unsigned int tflags;
-    r = toku_ft_get_flags(db->i->ft_handle, &tflags);
-    if (r != 0)  {
-        return r;
     }
 
     if (db_opened(db)) {
@@ -409,6 +404,12 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, i
                       txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
     if (r != 0) {
         goto error_cleanup;
+    }
+
+    // if the dictionary was opened as a blackhole, mark the
+    // fractal tree as blackhole too.
+    if (flags & DB_BLACKHOLE) {
+        toku_ft_set_blackhole(ft_handle);
     }
 
     db->i->opened = 1;

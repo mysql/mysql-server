@@ -131,6 +131,9 @@ static void print_defines (void) {
     dodefine(DB_ARCH_ABS);
     dodefine(DB_ARCH_LOG);
 
+#define	DB_BLACKHOLE 0x0001000 /* unused common bit according to BDB */
+    dodefine(DB_BLACKHOLE);
+
     dodefine(DB_CREATE);
     dodefine(DB_CXX_NO_EXCEPTIONS);
     dodefine(DB_EXCL);
