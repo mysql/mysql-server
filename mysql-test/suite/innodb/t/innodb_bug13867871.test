@@ -39,12 +39,14 @@ CREATE INDEX idx ON ibtest11c(B, C);
 DROP INDEX B ON ibtest11c;
 SET DEBUG_SYNC='now SIGNAL drop_done';
 
+connection con1;
+reap;
+
+connection default;
 SELECT * FROM ibtest11c;
 SELECT * FROM ibtest11a;
 
 connection con1;
-reap;
-
 # Test cascade update case
 
 INSERT INTO ibtest11a VALUES (1, 5, 'khD','khD');
