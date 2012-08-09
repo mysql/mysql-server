@@ -528,8 +528,6 @@ JOIN::prepare(Item ***rref_pointer_array,
   
   if (having)
   {
-    Query_arena backup, *arena;
-    arena= thd->activate_stmt_arena_if_needed(&backup);
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
@@ -539,8 +537,6 @@ JOIN::prepare(Item ***rref_pointer_array,
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
     select_lex->having= having;
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
 
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
