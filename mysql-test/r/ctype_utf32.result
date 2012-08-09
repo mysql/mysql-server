@@ -1182,5 +1182,11 @@ a	256
 Warnings:
 Warning	1260	Row 1 was cut by GROUP_CONCAT()
 #
+# incorrect charset for val_str_ascii
+#
+SELECT '2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second;
+'2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second
+2010-10-10 10:10:10
+#
 # End of 5.5 tests
 #

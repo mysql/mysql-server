@@ -854,6 +854,11 @@ SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
 GROUP BY id
 ORDER BY l DESC;
 
+--echo #
+--echo # incorrect charset for val_str_ascii
+--echo #
+
+SELECT '2010-10-10 10:10:10' + INTERVAL GeometryType(GeomFromText('POINT(1 1)')) hour_second;
 
 --echo #
 --echo # End of 5.5 tests
