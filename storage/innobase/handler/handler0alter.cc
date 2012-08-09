@@ -3795,12 +3795,14 @@ func_exit:
 		if (ctx->num_to_drop) {
 			row_mysql_lock_data_dictionary(prebuilt->trx);
 
-			/* Clear the to_be_dropped flag
-			in the data dictionary cache. */
+			/* Clear the to_be_dropped flags
+			in the data dictionary cache.
+			The flags may already have been cleared,
+			in case an error was detected in
+			commit_inplace_alter_table(). */
 			for (ulint i = 0; i < ctx->num_to_drop; i++) {
 				dict_index_t*	index = ctx->drop[i];
 				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
-				DBUG_ASSERT(index->to_be_dropped);
 
 				index->to_be_dropped = 0;
 			}
