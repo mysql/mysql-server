@@ -7993,6 +7993,20 @@ bool change_master(THD* thd, Master_info* mi)
   if ((lex_mi->host && strcmp(lex_mi->host, mi->host)) ||
       (lex_mi->port && lex_mi->port != mi->port))
   {
+    /*
+      This is necessary because the primary key, i.e. host or port, has
+      changed.
+
+      The repository does not support direct changes on the primary key,
+      so the row is dropped and re-inserted with a new primary key. If we
+      don't do that, the master info repository we will end up with several
+      rows.
+    */
+    if (mi->clean_info())
+    {
+      ret= true;
+      goto err;
+    }
     mi->master_uuid[0]= 0;
     mi->master_id= 0;
   }
@@ -8265,7 +8279,8 @@ bool change_master(THD* thd, Master_info* mi)
     running.
   */
   DBUG_ASSERT(!mi->rli->slave_running);
-  ret= mi->rli->flush_info(TRUE);
+  if ((ret= mi->rli->flush_info(true)))
+    my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush relay info file.");
   mysql_cond_broadcast(&mi->data_cond);
   mysql_mutex_unlock(&mi->rli->data_lock);
 
