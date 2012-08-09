@@ -13200,19 +13200,25 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 static void
 print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
 {
+  Field *field= key_part->field;
+
+  if (field->flags & BLOB_FLAG)
+  {
+    out->append(STRING_WITH_LEN("unprintable_blob_value"));    
+    return;
+  }
+
   char buff[128];
   String tmp(buff, sizeof(buff), system_charset_info);
   tmp.length(0);
 
-  uint store_length;
-  TABLE *table= key_part->field->table;
+  TABLE *table= field->table;
   my_bitmap_map *old_sets[2];
 
   dbug_tmp_use_all_columns(table, old_sets, table->read_set,
                            table->write_set);
 
-  Field *field= key_part->field;
-  store_length= key_part->store_length;
+  uint store_length= key_part->store_length;
 
   if (field->real_maybe_null())
   {
@@ -13455,6 +13461,12 @@ static inline void dbug_print_tree(const char *tree_name,
   if (tree->type == SEL_TREE::ALWAYS)
   {
     DBUG_PRINT("info", ("sel_tree: %s is ALWAYS", tree_name));
+    return;
+  }
+
+  if (tree->type == SEL_TREE::MAYBE)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is MAYBE", tree_name));
     return;
   }
 
