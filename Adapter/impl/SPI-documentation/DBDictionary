@@ -16,9 +16,6 @@
 }
 
 
-// TODO, 8 Aug. 2012:
-//  Table needs its database name
-
 DBColumn = {
   /* Required Properties */
   name          : ""    ,  //  column name
@@ -44,7 +41,6 @@ DBColumn = {
 };
 
 
-// change columns to an array of column numbers
 DBIndex = {
   name          : ""    ,  // External or Internal index name (see clusterj-core store/Index.java)
   isPrimaryKey  : false ,  // true or undefined
@@ -55,16 +51,20 @@ DBIndex = {
 
 
 DBTable = {
-  database      : ""    ,  // Database name
-  name          : ""    ,  // Table Name
-  columns       : []    ,  // an array of DBColumn objects
-  primaryKey    : {}    ,  // a DBIndex object
+  database        : ""  ,  // Database name
+  name            : ""  ,  // Table Name
+  columns         : []  ,  // an array of DBColumn objects
+  primaryKey      : {}  ,  // a DBIndex object
   secondaryIndexes: []  ,  // an array of DBIndex objects 
 }
 
 
 ColumnTypes =  [
-  "INT", 
+  "TINYINT",
+  "SMALLINT",
+  "MEDIUMINT",
+  "INT",
+  "BIGINT",
   "FLOAT",
   "DOUBLE",
   "DECIMAL",
