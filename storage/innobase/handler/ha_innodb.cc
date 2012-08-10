@@ -1909,7 +1909,7 @@ innobase_next_autoinc() will be called with increment set to 3 where
 autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
 the multi-value INSERT above.
 @return	the next value */
-static
+UNIV_INTERN
 ulonglong
 innobase_next_autoinc(
 /*==================*/
@@ -4201,7 +4201,7 @@ test_ut_format_name()
 /********************************************************************//**
 Get the upper limit of the MySQL integral and floating-point type.
 @return maximum allowed value for the field */
-static
+UNIV_INTERN
 ulonglong
 innobase_get_int_col_max_value(
 /*===========================*/
