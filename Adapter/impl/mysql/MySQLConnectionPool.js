@@ -88,13 +88,19 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
 exports.DBConnectionPool.prototype.closeSync = function() {
   udebug.log('MySQLConnectionPool.closeSync');
   for (var i = 0; i < this.pooledConnections.length; ++i) {
+    var pooledConnection = this.pooledConnections[i];
     udebug.log('MySQLConnectionPool.closeSync ending pooled connection ' + i);
-    this.pooledConnections[i].close();
+    if (pooledConnection._connectCalled) {
+        pooledConnection.end();
+    }
   }
   this.pooledConnections = [];
   for (var i = 0; i < this.openConnections.length; ++i) {
     udebug.log('MySQLConnectionPool.closeSync ending open connection ' + i);
-    this.openConnections[i].closeSync();
+    var openConnection = this.openConnections[i];
+    if (openConnection._connectCalled) {
+      this.openConnections[i].end();
+    }
   }
   this.openConnections = [];
   this.is_connected = false;
