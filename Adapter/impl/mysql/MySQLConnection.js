@@ -51,7 +51,7 @@ exports.DBSession.prototype.closeSync = function() {
 //TODO
 
 exports.DBSession.prototype.getDataDictionary = function() {
-  return new dictionary.DataDictionary();
+  return new dictionary.DataDictionary(this.pooledConnection);
 };
 
 
