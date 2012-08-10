@@ -1,38 +1,54 @@
 
 /* This is the top level of the Database Storage Service Provider Interface.
    Its methods correspond to top-level methods in the API. 
+
+   METHODS:
+     getDefaultConnectionProperties()
+     connectSync(properties)
+     connect(properties, callback)
+     getFactoryKey(properties)
+     getNativeCodeModules()
 */
 
 
-/* returns an object containing all of the valid properties 
-   for this service provider, all set to their default values.
-   IMMEDIATE.
- */   
-Object getDefaultConnectionProperties();
-
-
-/* Blocking connect.  
-   SYNC.
-*/
-DBConnectionPool connectSync(Object properties);
-
-
-/* Async connect.
-   ASYNC.
-*/
-connect(Object properties, Function(err, DBConnectionPool) callback);
-
-
-/* Create a SessionFactory key based on connection properties.
+/* Object getDefaultConnectionProperties()
    IMMEDIATE
+   RETURNS an object containing all of the valid properties 
+   for this service provider, all set to their default values.
+ */   
+  getDefaultConnectionProperties();
+
+
+/* DBConnectionPool connectSync(Object properties);
+   SYNC.
+   Blocking connect.  
+   RETURNS a DBConnectionPool object
 */
-String getFactoryKey(Object properties);
+  connectSync(properties);
 
 
-/* Get an array containing the native-code modules required by a
+/* connect(Object properties, Function(err, DBConnectionPool) callback)
+   ASYNC.
+   Async connect.
+*/
+  connect(properties, callback);
+
+
+/* String getFactoryKey(Object properties);
+   IMMEDIATE
+   Create a SessionFactory key that will identify a DBConnectionPool 
+   based on connection properties.
+   RETURNS the String key
+*/
+  getFactoryKey(properties);
+
+
+/* Array getNativeCodeModules();
+   IMMEDIATE
+   Get an array containing the native-code modules required by a
    service provider.
    The array constists of pathnames relative to the Adapter directory.
    The array elements are in the order in which the files should be loaded.
-   IMMEDIATE
+   RETURNS the array.
 */
-Array getNativeCodeModules();
+  getNativeCodeModules();

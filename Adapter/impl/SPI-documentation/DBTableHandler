@@ -1,0 +1,76 @@
+/* 
+   A DBTableHandler combines table information, from the data dictionary,
+   with user information about column selection, column name mapping in 
+   results, and data conversion handlers.
+
+   It has the same life cycle as the DBConnectionPool that creates it.
+
+   By default, it will:
+     select all columns
+     use default converters for all data types
+     perform no column name remapping
+
+  METHODS:
+    allColumns()
+    useMapping(mapping)
+    useColumns(column_def)
+    useMappedColumns(mapping)
+    registerConverter(column_name, converter_class)
+    setResultPrototype(proto_object)
+*/
+
+
+/* DBTableHandler.allColumns()
+   IMMEDIATE
+
+   Indicates that all columns should be used in the operation
+*/
+  useAllColumns();
+
+
+/* DBTableHandler.useMapping(Object mapping)
+   IMMEDIATE
+
+   Defines a column-name mapping for the table
+*/
+  useMapping(mapping);
+
+
+/* DBTableHandler.useColumns(Object column_def)
+   IMMEDIATE
+   
+   Declares that only the specific columns present in the column_def object
+   are to be read or written.  
+   If the column_def object is an array, then its elements represent column names.
+   If column_def is not an array, then its properties represent the column names.
+*/
+  useColumns(column_def);
+
+
+/* DBTableHandler.mappedColumns(Object mapping) 
+   IMMEDIATE
+
+   Convenience method; has two effects: 
+     A. Defines a column-name mapping for the table -- (useMapping)
+     B. Include only mapped columns -- (useColumn)
+*/
+  useMappedColumns(mapping);
+
+
+/* DBTableHandler.registerConverter(String column_name, Converter converter_class) 
+   IMMEDIATE
+
+   Declare that converter_class should be used for data type conversions
+   for column column_name.
+*/
+  registerConverter(column_name, converter_class);
+   
+
+/* DBTableHandler.setResultRowPrototype(Object proto_object)
+   IMMEDIATE
+
+   Declare that proto_object should be used as a prototype 
+   when creating a results object for a row read from the database.
+*/
+  setResultPrototype(proto_object);
+

@@ -1,9 +1,18 @@
-
-
-/* DBConnectionPool specifies a common SPI for a database connection.
+/* DBConnectionPool
+   DBConnectionPool specifies a common SPI for a database connection.
 
    Each implementation is expected to require impl-specific properties 
    in the constructor.
+
+   METHODS: 
+     connect(callback)
+     connectSync()
+     isConnected()
+     close()
+     destroy()
+     getDBSession()
+     getDataDictionary()
+     createDBTableHandler()
 */
 
 
@@ -12,14 +21,14 @@
    Does not perform any IO. 
    Throws an exception if the Properties object is invalid.
 */   
-DBConnection(Properties connectionProperties); 
+DBConnectionPool(Properties connectionProperties); 
 
 
-/* DBConnectionPool.connect() method.
+/* connect(function(error, DBConnectionPool) callback)
    ASYNC. 
    Connect to the database, using the properties supplied in the constructor.
 */
-   connect(function(error, DBConnectionPool) callback);
+   connect(callback);
 
 
 /* DBConnectionPool.connectSync() method.
@@ -82,3 +91,12 @@ DBConnection(Properties connectionProperties);
 */
    getDataDictionary(function(error, DBDictionary) callback);
 
+
+/* DBConnectionPool.createDBTableHandler() 
+   IMMEDIATE
+   Create a DBTableHandler for a table.
+   A DBTableHandler is a persistent metadata object that combines table 
+   information from the data dictionary with user information about column 
+   selection, column name mapping, and data conversion. 
+*/
+  createDBTableHandler(DBTable);

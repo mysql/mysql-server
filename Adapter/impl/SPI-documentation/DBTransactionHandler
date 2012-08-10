@@ -1,42 +1,72 @@
+/* DBTransactionHandler represents a database transaction.
+   METHODS:
+     addOperation(op)
+     setPartitionKey(tableHandler, partitionKey)
+     execute(execMode, callback)
+     close()
+        
+  OBJECT DEFINITIONS:
+     DBTransactionHandler
+     TransactionExecuteCode
+     TransactionStatusCode
+*/
 
 
-    /** addOperation()
-     *  IMMEDIATE
-     * 
-     *  Add an operation to the list that will be performed the next time
-     *  this transaction is executed.
-     *  
-     */
-    addOperation(DBOperation);
+DBTransactionHandler = { 
+  success        : true  ,   // boolean indicating whether the transaction succeeded
+  state          :  ""   ,   // a TransactionStatusCode
+  operations     :  []   ,   // ordered array of DBOperation objects
+  error          :  {}   ,   // a DBOperationError applying to the transaction
+  callback       :  {}   ,   // callback function for transaction completion
+}
 
 
-    /** getStatus() 
-     *  IMMEDIATE
-     * 
-     *  Get the transaction status:  NotStarted / Started / Committed / Aborted 
-     */
-    int getStatus();
-    
+/* execute(TransactionExecuteMode mode, 
+           function(error, DBTransactionHandler) callback);
+   ASYNC
+   
+   Executes all of the DBOperations that have been added to the 
+   transaction's list -- see DBTransactionHandler.addOperation().
+*/
+  execute(int execmode, callback);
 
-    /** close()
-     * IMMEDIATE
-     * 
-     * If the transaction has not been executed, this returns an error.
-     */
-    error close();
-    
-    
-    /** setUserData()
-     *  IMMEDIATE
-     *
-     *  Allows the ORM layer to store arbitrary data with the Transaction
-     */
-    setUserData(Object data);
-    
-    
-    /** getUserData()
-     *  IMMEDIATE
-     * 
-     *  Allows the ORM layer to fetch its data stored in the Transaction
-     */
-    Object getUserData();
+
+/* setPartitionKey(TableHandler Table, Array partitionKey)
+  IMMEDIATE
+  
+  In NDB, setting the partition key causes the NDB API to select a 
+  Transaction Coordinator on the node that would be the primary node
+  for a row with that key.
+*/
+  setPartitionKey(tableHandler, partitionKey);
+
+
+/* addOperation(operation)
+   IMMEDIATE
+  
+   Add an operation to be performed when this transaction is executed.
+   RETURNS void
+*/
+  addOperation(op);
+
+
+/* close()
+   ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
+*/
+  close();
+
+
+TransactionExecuteModes = [
+  "NoCommit",
+  "Commit",
+  "Rollback"
+];
+
+
+TransactionStatusCodes = [
+  "NotStarted",
+  "Started",
+  "Committed",
+  "Aborted"
+];
+
