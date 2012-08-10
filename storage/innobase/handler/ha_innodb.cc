@@ -10490,10 +10490,15 @@ innobase_get_mysql_key_number_for_index(
 	     ind != NULL;
 	     ind = dict_table_get_next_index(ind)) {
 		if (index == ind) {
-			sql_print_error("Find index %s in InnoDB index list "
-					"but not its MySQL index number "
-					"It could be an InnoDB internal index.",
-					index->name);
+			/* Temp index is internal to InnoDB, that is
+			not present in the MySQL index list, so no
+			need to print such mismatch warning. */
+			if (*(index->name) != TEMP_INDEX_PREFIX) {
+				sql_print_warning("Find index %s in InnoDB index list "
+						"but not its MySQL index number "
+						"It could be an InnoDB internal index.",
+						index->name);
+			}
 			return(-1);
 		}
 	}
