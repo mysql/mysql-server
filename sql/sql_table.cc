@@ -1966,13 +1966,13 @@ static uint32 comment_length(THD *thd, uint32 comment_pos,
 
   for (; query < query_end; query++)
   {
-    if (state_map[*query] == MY_LEX_SKIP)
+    if (state_map[static_cast<uchar>(*query)] == MY_LEX_SKIP)
       continue;
     if (comment_pos-- == 0)
       break;
   }
   if (query > query_end - 3 /* comment can't be shorter than 4 */ ||
-      state_map[*query] != MY_LEX_LONG_COMMENT || query[1] != '*')
+      state_map[static_cast<uchar>(*query)] != MY_LEX_LONG_COMMENT || query[1] != '*')
     return 0;
   
   *comment_start= query;
