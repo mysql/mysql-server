@@ -1752,7 +1752,7 @@ i_s_cmp_per_index_fill_low(
 		} else {
 			/* index not found */
 			ut_snprintf(name, sizeof(name),
-				    "index_id:%lu", iter->first);
+				    "index_id:" IB_ID_FMT, iter->first);
 			field_store_string(fields[IDX_DATABASE_NAME],
 					   "unknown");
 			field_store_string(fields[IDX_TABLE_NAME],
