@@ -1,1 +1,1 @@
---loose-debug=+d,incident_database_resync_on_replace
+--force-restart --loose-debug=+d,incident_database_resync_on_replace
