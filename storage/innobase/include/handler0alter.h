@@ -46,3 +46,46 @@ innobase_rec_reset(
 /*===============*/
 	struct TABLE*		table)		/*!< in/out: MySQL table */
 	__attribute__((nonnull));
+
+/** Generate the next autoinc based on a snapshot of the session
+auto_increment_increment and auto_increment_offset variables. */
+struct ib_sequence_t {
+
+	/**
+	@param thd - the session
+	@param start_value - the lower bound
+	@param max_value - the upper bound (inclusive) */
+	ib_sequence_t(THD* thd, ulonglong start_value, ulonglong max_value);
+
+	/**
+	Postfix increment
+	@return the value to insert */
+	ulonglong operator++(int) UNIV_NOTHROW;
+
+	/** Check if the autoinc "sequence" is exhausted.
+	@return true if the sequence is exhausted */
+	bool eof() const UNIV_NOTHROW
+	{
+		return(m_next_value == ulonglong(~0));
+	}
+
+	/**
+	@return the next value in the sequence */
+	ulonglong last() const UNIV_NOTHROW
+	{
+		return(m_next_value);
+	}
+
+	/** Maximum calumn value if adding an AUTOINC column else 0. Once
+	we reach the end of the sequence it will be set to ~0. */
+	const ulonglong	m_max_value;
+
+	/** Value of auto_increment_increment */
+	ulong		m_increment;
+
+	/** Value of auto_increment_offset */
+	ulong		m_offset;
+
+	/** Next value in the sequence */
+	ulonglong	m_next_value;
+};
