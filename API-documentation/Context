@@ -8,21 +8,6 @@
  * The mynode implementation will not ever define a property called "user".
  */
 
-  /** mapClass()
-   * Supply annotations to a prototype object.
-   *
-   * Annotations specify details of how the object is mapped to the database.
-   * For allowable objectAnnotations, see the mapClass description
-   * in Annotations.
-   * 
-   * @param token_object prototype object to annotate
-   * @param annotations field annotations object 
-   * @param callback function to call when mapping is complete and validated
-   * @param other parameters are returned in the callback function
-   * @return nothing
-   */
-  mapClass(Object token_object, Object objectAnnotations, function(err[, ...]) callback[, ...]);
-
   /** Get mappings for a table or class. 
    * IMMEDIATE
    * The result is a javascript
