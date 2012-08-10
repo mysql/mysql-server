@@ -79,7 +79,6 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
       });
       callback(err, result);
     }
-  callback(null, new table.Table);
   };
   this.connection.query('show create table ' + tableName + '', showCreateTable_callback);
 };
