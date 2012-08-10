@@ -5,17 +5,6 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <memory.h>
-#ifndef OMT_TMPL_H
-#include <toku_portability.h>
-#include <toku_assert.h>
-#include <stdint.h>
-#include <string.h>
-#include <errno.h>
-#include <db.h>
-#include "omt-tmpl.h"
-#include "fttypes.h"
-#include "log-internal.h"
-#endif
 
 namespace toku {
 
@@ -318,21 +307,21 @@ int omt<omtdata_t, omtdataout_t, supports_marks>::iterate_over_marked(iterate_ex
 }
 
 template<typename omtdata_t, typename omtdataout_t, bool supports_marks>
-void omt<omtdata_t, omtdataout_t, supports_marks>::unmark(const subtree &subtree, const uint32_t index, uint32_t *const num_indexes, uint32_t *const indexes) {
+void omt<omtdata_t, omtdataout_t, supports_marks>::unmark(const subtree &subtree, const uint32_t index, GrowableArray<node_idx> *const indexes) {
     if (subtree.is_null()) { return; }
     omt_node &n = this->d.t.nodes[subtree.get_index()];
     const uint32_t index_root = index + this->nweight(n.left);
 
     const bool below = n.get_marks_below();
     if (below) {
-        this->unmark(n.left, index, num_indexes, indexes);
+        this->unmark(n.left, index, indexes);
     }
     if (n.get_marked()) {
-        indexes[(*num_indexes)++] = index_root;
+        indexes->push(index_root);
     }
     n.clear_stolen_bits();
     if (below) {
-        this->unmark(n.right, index_root + 1, num_indexes, indexes);
+        this->unmark(n.right, index_root + 1, indexes);
     }
 }
 
@@ -343,19 +332,20 @@ void omt<omtdata_t, omtdataout_t, supports_marks>::delete_all_marked(void) {
         return;
     }
     invariant(!this->is_array);
-    uint32_t marked_indexes[this->size()];
-    uint32_t num_indexes = 0;
+    GrowableArray<node_idx> marked_indexes;
+    marked_indexes.init();
 
     // Remove all marks.
     // We need to delete all the stolen bits before calling delete_at to prevent barfing.
-    this->unmark(this->d.t.root, 0, &num_indexes, marked_indexes);
+    this->unmark(this->d.t.root, 0, &marked_indexes);
 
-    for (uint32_t i = 0; i < num_indexes; i++) {
+    for (uint32_t i = 0; i < marked_indexes.get_size(); i++) {
         // Delete from left to right, shift by number already deleted.
         // Alternative is delete from right to left.
-        int r = this->delete_at(marked_indexes[i] - i);
+        int r = this->delete_at(marked_indexes.fetch_unchecked(i) - i);
         lazy_assert_zero(r);
     }
+    marked_indexes.deinit();
     barf_if_marked(*this);
 }
 

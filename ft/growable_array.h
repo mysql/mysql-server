@@ -48,7 +48,7 @@ template<typename T> class GrowableArray {
 	m_size_limit=0;
     }
 
-    T fetch_unchecked (size_t i) 
+    T fetch_unchecked (size_t i) const
     // Effect: Fetch the ith element.  If i is out of range, the system asserts.
     {
 	return m_array[i];
@@ -75,13 +75,13 @@ template<typename T> class GrowableArray {
 	}
 	m_array[m_size++]=v;
     }
-			
-    size_t get_size (void) 
+
+    size_t get_size (void) const
     // Effect: Return the number of elements in the array.
     {
 	return m_size;
     }
-    size_t memory_size(void)
+    size_t memory_size(void) const
     // Effect: Return the size (in bytes) that the array occupies in memory.  This is really only an estimate.
     {
 	return sizeof(*this)+sizeof(T)*m_size_limit;
