@@ -4756,7 +4756,7 @@ ib_sequence_t::operator++(int) UNIV_NOTHROW
 	m_next_value = innobase_next_autoinc(
 		current, 1, m_increment, m_offset, m_max_value);
 
-	if (current == m_next_value) {
+	if (m_next_value == m_max_value && current == m_next_value) {
 		m_eof = true;
 	}
 
