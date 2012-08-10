@@ -832,7 +832,7 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
-	fts_result_t*	result;		/* The result of an FTS query */
+	bool		in_fts_query;	/*!< Whether we are in a FTS query */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */
