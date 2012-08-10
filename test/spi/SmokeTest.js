@@ -71,17 +71,19 @@ test.run = function() {
   var spi = require(spi_module);
   var service = spi.getDBServiceProvider(global.adapter);
   var modules = service.getNativeCodeModules();
+  var test = this;
 
   /* Create SQL if there is a file */
-  harness.SQL.create(this.suite, function() {});
+  harness.SQL.create(this.suite, function() {
   
-  /* Test loading the required native code modules */
-  if(test_load_modules(modules) === false) {
-    this.fail();
-    return;
-  }
+    /* Test loading the required native code modules */
+    if(test_load_modules(modules) === false) {
+      test.fail();
+      return;
+    }
 
-  this.pass();
-}
+    test.pass();
+  });
+};
 
 exports.tests = [test];
