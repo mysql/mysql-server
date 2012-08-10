@@ -447,8 +447,6 @@ innobase_init_foreign(
 	ulint		referenced_num_field)	/*!< in: number of referenced
 						columns */
 {
-	dict_foreign_t*		existing_foreign;
-
         if (constraint_name) {
                 ulint   db_len;
 
@@ -470,14 +468,16 @@ innobase_init_foreign(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Check if any existing foreign key has the same id */
-	existing_foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
-	while (existing_foreign) {
+	for (const dict_foreign_t* existing_foreign
+		= UT_LIST_GET_FIRST(table->foreign_list);
+	     existing_foreign != 0;
+	     existing_foreign = UT_LIST_GET_NEXT(
+		     foreign_list, existing_foreign)) {
+
 		if (ut_strcmp(existing_foreign->id, foreign->id) == 0) {
 			return(false);
 		}
-
-		existing_foreign = UT_LIST_GET_NEXT(foreign_list, existing_foreign);
 	}
 
         foreign->foreign_table = table;
@@ -1819,9 +1819,8 @@ innobase_create_temporary_tablename(
 	return(name);
 }
 
-class ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
+struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
-public:
 	/** Dummy query graph */
 	que_thr_t*	thr;
 	/** InnoDB indexes being created */
@@ -1854,10 +1853,11 @@ public:
 	const ulint*	col_map;
 	/** added AUTO_INCREMENT column position, or ULINT_UNDEFINED */
 	const ulint	add_autoinc;
-	/** auto_increment_increment */
-	const ulong	autoinc_inc;
 	/** default values of ADD COLUMN, or NULL */
 	const dtuple_t*	add_cols;
+	/** autoinc sequence to use */
+	ib_sequence_t	sequence;
+
 	ha_innobase_inplace_ctx(trx_t* user_trx,
 				dict_index_t** add_arg,
 				const ulint* add_key_numbers_arg,
@@ -1874,7 +1874,8 @@ public:
 				dict_table_t* indexed_table_arg,
 				const ulint* col_map_arg,
 				ulint add_autoinc_arg,
-				ulong autoinc_inc_arg,
+				ulonglong autoinc_col_min_value_arg,
+				ulonglong autoinc_col_max_value_arg,
 				const dtuple_t*	add_cols_arg) :
 		inplace_alter_handler_ctx(),
 		add (add_arg), add_key_numbers (add_key_numbers_arg),
@@ -1885,7 +1886,10 @@ public:
 		online (online_arg), heap (heap_arg), trx (trx_arg),
 		indexed_table (indexed_table_arg),
 		col_map (col_map_arg), add_autoinc (add_autoinc_arg),
-		autoinc_inc (autoinc_inc_arg), add_cols (add_cols_arg) {
+		add_cols (add_cols_arg),
+		sequence(user_trx ? user_trx->mysql_thd : 0,
+			 autoinc_col_min_value_arg, autoinc_col_max_value_arg)
+	{
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add; i++) {
 			ut_ad(!add[i]->to_be_dropped);
@@ -1897,9 +1901,16 @@ public:
 
 		thr = pars_complete_graph_for_exec(NULL, user_trx, heap);
 	}
-	~ha_innobase_inplace_ctx() {
+
+	~ha_innobase_inplace_ctx()
+	{
 		mem_heap_free(heap);
 	}
+
+private:
+	// Disable copying
+	ha_innobase_inplace_ctx(const ha_innobase_inplace_ctx&);
+	ha_innobase_inplace_ctx& operator=(const ha_innobase_inplace_ctx&);
 };
 
 /********************************************************************//**
@@ -2127,7 +2138,8 @@ innobase_check_foreigns(
 		cf_it.rewind();
 		const Create_field* new_field;
 
-		ut_ad(!(*fp)->real_maybe_null() == !!((*fp)->flags & NOT_NULL_FLAG));
+		ut_ad(!(*fp)->real_maybe_null()
+		      == !!((*fp)->flags & NOT_NULL_FLAG));
 
 		while ((new_field = cf_it++)) {
 			if (new_field->field == *fp) {
@@ -2184,11 +2196,10 @@ adding columns.
 @param new_table	InnoDB table corresponding to MySQL altered_table
 @param old_table	InnoDB table corresponding to MYSQL table
 @param add_cols		Default values for ADD COLUMN, or NULL if no ADD COLUMN
-@param autoinc_val	Initial value for an added AUTO_INCREMENT column
 @param heap		Memory heap where allocated
 @return	array of integers, mapping column numbers in the table
 to column numbers in altered_table */
-static __attribute__((nonnull(1,2,3,4,5,8), warn_unused_result))
+static __attribute__((nonnull(1,2,3,4,5,7), warn_unused_result))
 const ulint*
 innobase_build_col_map(
 /*===================*/
@@ -2198,7 +2209,6 @@ innobase_build_col_map(
 	const dict_table_t*	new_table,
 	const dict_table_t*	old_table,
 	dtuple_t*		add_cols,
-	ulonglong		autoinc_val,
 	mem_heap_t*		heap)
 {
 	DBUG_ENTER("innobase_build_col_map");
@@ -2234,15 +2244,6 @@ innobase_build_col_map(
 				goto found_col;
 			}
 		}
-
-		/* ADD_COLUMN */
-#if 0/*TODO: review and enable this*/
-		if (altered_table->found_next_number_field
-		    == altered_table->field[i]) {
-			/* Override the default for AUTO_INCREMENT column. */
-			altered_table->s->field[i]->store(autoinc_val);
-		}
-#endif
 
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
@@ -2344,6 +2345,7 @@ prepare_inplace_alter_table_dict(
 	unsigned		num_fts_index,
 	ulint			fts_doc_id_col,
 	ulint			add_autoinc_col,
+	ulonglong		autoinc_col_max_value,
 	bool			add_fts_doc_id,
 	bool			add_fts_doc_id_idx)
 {
@@ -2360,7 +2362,6 @@ prepare_inplace_alter_table_dict(
 	THD*			user_thd	= user_trx->mysql_thd;
 	const ulint*		col_map		= NULL;
 	dtuple_t*		add_cols	= NULL;
-	ulong			autoinc_inc	= 0;
 
 	const bool locked =
 		num_fts_index > 0
@@ -2373,6 +2374,8 @@ prepare_inplace_alter_table_dict(
 		== Alter_info::ALTER_TABLE_LOCK_SHARED;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
+	DBUG_ASSERT((add_autoinc_col != ULINT_UNDEFINED)
+		    == (autoinc_col_max_value > 0));
 	DBUG_ASSERT(!n_drop_index == !drop_index);
 	DBUG_ASSERT(!n_drop_foreign == !drop_foreign);
 	DBUG_ASSERT(num_fts_index <= 1);
@@ -2640,37 +2643,19 @@ prepare_inplace_alter_table_dict(
 			goto err_exit;
 		}
 
-		ulong	autoinc_val = 0;
-
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_COLUMN) {
+
 			add_cols = dtuple_create(
 				heap, dict_table_get_n_cols(indexed_table));
+
 			dict_table_copy_types(add_cols, indexed_table);
-
-			autoinc_val = ha_alter_info->create_info
-				->auto_increment_value;
-
-			ulong autoinc_off;
-
-			thd_get_autoinc(user_thd, &autoinc_off, &autoinc_inc);
-
-			if (autoinc_val < autoinc_off) {
-				autoinc_val = autoinc_off;
-			}
-
-			if (autoinc_val && autoinc_inc) {
-				/* Round down to the previous multiple
-				of auto_increment_increment. */
-				autoinc_val = (autoinc_val - 1)
-					/ autoinc_inc * autoinc_inc;
-			}
 		}
 
 		col_map = innobase_build_col_map(
 			ha_alter_info, altered_table, old_table,
 			indexed_table, user_table,
-			add_cols, autoinc_val, heap);
+			add_cols, heap);
 	} else {
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 
@@ -2854,7 +2839,10 @@ error_handling:
 			drop_foreign, n_drop_foreign,
 			add_foreign, n_add_foreign,
 			!locked, heap, trx, indexed_table, col_map,
-			add_autoinc_col, autoinc_inc, add_cols);
+			add_autoinc_col,
+			ha_alter_info->create_info->auto_increment_value,
+			autoinc_col_max_value,
+			add_cols);
 		DBUG_RETURN(false);
 	case DB_TABLESPACE_EXISTS:
 		my_error(ER_TABLESPACE_EXISTS, MYF(0), "(unknown)");
@@ -2966,6 +2954,7 @@ ha_innobase::prepare_inplace_alter_table(
 	ulint		max_col_len;
 	ulint		num_fts_index;
 	ulint		add_autoinc_col_no	= ULINT_UNDEFINED;
+	ulonglong	autoinc_col_max_value	= 0;
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
 	bool		add_fts_doc_id		= false;
 	bool		add_fts_doc_id_idx	= false;
@@ -3398,14 +3387,15 @@ index_needed:
 				== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
 				|| ha_alter_info->alter_info->requested_lock
 				== Alter_info::ALTER_TABLE_LOCK_SHARED;
+
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
-					prebuilt->trx, NULL, NULL, 0,
+					prebuilt->trx, 0, 0, 0,
 					drop_index, n_drop_index,
 					drop_fk, n_drop_fk,
 					add_fk, n_add_fk, !locked,
-					heap, NULL, indexed_table, NULL,
-					ULINT_UNDEFINED, 0, NULL);
+					heap, 0, indexed_table, 0,
+					ULINT_UNDEFINED, 0, 0, 0);
 		}
 
 func_exit:
@@ -3524,6 +3514,9 @@ err_exit:
 				goto err_exit;
 			}
 			add_autoinc_col_no = i;
+
+			autoinc_col_max_value = innobase_get_int_col_max_value(
+				field);
 		}
 found_col:
 		i++;
@@ -3539,7 +3532,8 @@ found_col:
 			    drop_fk, n_drop_fk, add_fk, n_add_fk,
 			    num_fts_index,
 			    fts_doc_col_no, add_autoinc_col_no,
-			    add_fts_doc_id, add_fts_doc_id_idx));
+			    autoinc_col_max_value, add_fts_doc_id,
+			    add_fts_doc_id_idx));
 }
 
 /** Alter the table structure in-place with operations
@@ -3606,7 +3600,7 @@ ok_exit:
 		ctx->online,
 		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table,
 		ctx->add_cols, ctx->col_map, ctx->add_autoinc,
-		ctx->autoinc_inc);
+		ctx->sequence);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -4664,12 +4658,22 @@ trx_commit:
 	srv_active_wake_master_thread();
 
 func_exit:
-	if (err == 0 && (ha_alter_info->create_info->used_fields
-			 & HA_CREATE_USED_AUTO)) {
+
+	if (err == 0
+	    && (ha_alter_info->create_info->used_fields
+		& HA_CREATE_USED_AUTO)) {
+
+		if (ctx != 0) {
+			ha_alter_info->create_info->auto_increment_value =
+				ctx->sequence.last();
+		}
+
 		dict_table_autoinc_lock(prebuilt->table);
+
 		dict_table_autoinc_initialize(
 			prebuilt->table,
 			ha_alter_info->create_info->auto_increment_value);
+
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
@@ -4699,4 +4703,63 @@ func_exit:
 	}
 
 	DBUG_RETURN(err != 0);
+}
+
+/**
+@param thd - the session
+@param start_value - the lower bound
+@param max_value - the upper bound (inclusive) */
+ib_sequence_t::ib_sequence_t(
+	THD*		thd,
+	ulonglong	start_value,
+	ulonglong	max_value)
+	:
+	m_max_value(max_value),
+	m_increment(0),
+	m_offset(0),
+	m_next_value(0)
+{
+	if (thd != 0 && m_max_value > 0) {
+
+		thd_get_autoinc(thd, &m_offset, &m_increment);
+
+		if (m_increment > 1 || m_offset > 1) {
+
+			/* If there is an offset or increment specified
+			then we need to work out the exact next value. */
+
+			m_next_value = innobase_next_autoinc(
+				start_value, 1,
+				m_increment, m_offset, m_max_value);
+
+		} else if (start_value == 0) {
+			/* The next value can never be 0. */
+			m_next_value = 1;
+		} else {
+			m_next_value = start_value;
+		}
+	} else {
+		m_next_value = ulonglong(~0);
+	}
+}
+
+/**
+Postfix increment
+@return the next value to insert */
+ulonglong
+ib_sequence_t::operator++(int) UNIV_NOTHROW
+{
+	ulonglong	current = m_next_value;
+
+	ut_ad(m_max_value > 0);
+	ut_ad(current != ulonglong(~0));
+
+	m_next_value = innobase_next_autoinc(
+		current, 1, m_increment, m_offset, m_max_value);
+
+	if (current == m_next_value) {
+		m_next_value = ulonglong(~0);
+	}
+
+	return(current);
 }
