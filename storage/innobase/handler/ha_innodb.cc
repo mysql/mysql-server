@@ -2686,6 +2686,7 @@ ha_innobase::reset_template(void)
 
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
+	prebuilt->in_fts_query = 0;
 	/* Reset index condition pushdown state. */
 	if (prebuilt->idx_cond) {
 		prebuilt->idx_cond = NULL;
@@ -8017,15 +8018,10 @@ ha_innobase::ft_init_ext(
 
 	error = fts_query(trx, index, flags, query, query_len, &result);
 
-	prebuilt->result = result;
-
 	// FIXME: Proper error handling and diagnostic
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "Error processing query\n");
 	} else {
-		/* Must return an instance of a result even if it's empty */
-		ut_a(prebuilt->result);
-
 		/* Allocate FTS handler, and instantiate it before return */
 		fts_hdl = (NEW_FT_INFO*) my_malloc(sizeof(NEW_FT_INFO),
 						   MYF(0));
@@ -8034,6 +8030,10 @@ ha_innobase::ft_init_ext(
 		fts_hdl->could_you = (struct _ft_vft_ext*)(&ft_vft_ext_result);
 		fts_hdl->ft_prebuilt = prebuilt;
 		fts_hdl->ft_result = result;
+
+		/* FIXME: Re-evluate the condition when Bug 14469540
+		is resolved */
+		prebuilt->in_fts_query = true;
 	}
 
 	return ((FT_INFO*) fts_hdl);
@@ -8180,11 +8180,6 @@ void
 ha_innobase::ft_end()
 {
 	fprintf(stderr, "ft_end()\n");
-
-	if (prebuilt->result != NULL) {
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
-	}
 
 	rnd_end();
 }
@@ -11794,14 +11789,6 @@ ha_innobase::start_stmt(
 		++trx->will_lock;
 	}
 
-	if (prebuilt->result) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Warning: FTS result set not NULL\n");
-
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
-	}
-
 	return(0);
 }
 
@@ -14872,19 +14859,15 @@ innobase_fts_close_ranking(
 		FT_INFO * fts_hdl)
 {
 	fts_result_t*	result;
-	row_prebuilt_t*	ft_prebuilt;
 
-	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
+	((NEW_FT_INFO*) fts_hdl)->ft_prebuilt->in_fts_query = false;
 
 	result = ((NEW_FT_INFO*) fts_hdl)->ft_result;
 
 	fts_query_free_result(result);
 
-	if (result == ft_prebuilt->result) {
-		ft_prebuilt->result = NULL;
-	}
-
 	my_free((uchar*) fts_hdl);
+
 
 	return;
 }
@@ -15016,12 +14999,8 @@ innobase_fts_count_matches(
 /*=======================*/
 		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
 {
-	row_prebuilt_t* ft_prebuilt;
-
-	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
-
-	if (ft_prebuilt->result->rankings_by_id != NULL) {
-		return rbt_size(ft_prebuilt->result->rankings_by_id);
+	if (((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id != NULL) {
+		return rbt_size(((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id);
 	} else {
 		return(0);
 	}
