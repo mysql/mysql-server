@@ -10649,7 +10649,7 @@ ha_innobase::info_low(
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
-		if (os_file_get_status(path,&stat_info)) {
+		if (os_file_get_status(path, &stat_info, false) == DB_SUCCESS) {
 			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
