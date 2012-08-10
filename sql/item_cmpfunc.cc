@@ -519,6 +519,27 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
 }
 
 
+bool Item_bool_func2::convert_constant_arg(THD *thd, Item *field, Item **item)
+{
+  if (field->real_item()->type() != FIELD_ITEM)
+    return false;
+
+  Item_field *field_item= (Item_field*) (field->real_item());
+  if (field_item->field->can_be_compared_as_longlong() &&
+      !(field_item->is_temporal_with_date() &&
+      (*item)->result_type() == STRING_RESULT))
+  {
+    if (convert_constant_item(thd, field_item, item))
+    {
+      cmp.set_cmp_func(this, tmp_arg, tmp_arg + 1, INT_RESULT);
+      field->cmp_context= (*item)->cmp_context= INT_RESULT;
+      return true;
+    }
+  }
+  return false;
+}
+
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -555,38 +576,9 @@ void Item_bool_func2::fix_length_and_dec()
   thd= current_thd;
   if (!thd->lex->is_ps_or_view_context_analysis())
   {
-    if (args[0]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_temporal_with_date() &&
-            args[1]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[1]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT);		// Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          DBUG_VOID_RETURN;
-        }
-      }
-    }
-    if (args[1]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[1]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_temporal_with_date() &&
-            args[0]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[0]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT); // Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          DBUG_VOID_RETURN;
-        }
-      }
-    }
+    if (convert_constant_arg(thd, args[0], &args[1]) ||
+        convert_constant_arg(thd, args[1], &args[0]))
+      DBUG_VOID_RETURN;
   }
   set_cmp_func();
   DBUG_VOID_RETURN;
