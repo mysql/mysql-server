@@ -58,10 +58,14 @@ using namespace std;
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
-UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+UNIV_INTERN page_zip_stat_t		page_zip_stat[PAGE_ZIP_SSIZE_MAX];
 /** Statistics on compression, indexed by index->id */
-/* XXX protect this guy with a mutex */
-UNIV_INTERN map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index;
+UNIV_INTERN page_zip_stat_per_index_t	page_zip_stat_per_index;
+/** Mutex protecting page_zip_stat_per_index */
+UNIV_INTERN ib_mutex_t			page_zip_stat_per_index_mutex;
+#ifdef HAVE_PSI_INTERFACE
+UNIV_INTERN mysql_pfs_key_t		page_zip_stat_per_index_mutex_key;
+#endif /* HAVE_PSI_INTERFACE */
 #endif /* !UNIV_HOTBACKUP */
 
 /* Compression level to be used by zlib. Settable by user. */
@@ -1285,7 +1289,9 @@ page_zip_compress(
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
 	if (cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index[index->id].compressed++;
+		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1438,8 +1444,10 @@ err_exit:
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
 			+= time_diff;
 		if (cmp_per_index_enabled) {
+			mutex_enter(&page_zip_stat_per_index_mutex);
 			page_zip_stat_per_index[index->id].compressed_usec
 				+= time_diff;
+			mutex_exit(&page_zip_stat_per_index_mutex);
 		}
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
@@ -1504,8 +1512,10 @@ err_exit:
 	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
 	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
 	if (cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index[index->id].compressed_ok++;
 		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
 	if (page_is_leaf(page)) {
@@ -3119,8 +3129,10 @@ err_exit:
 	index_id_t	index_id = btr_page_get_index_id(page);
 
 	if (srv_cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
 		page_zip_stat_per_index[index_id].decompressed++;
 		page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
