@@ -1248,8 +1248,7 @@ row_merge_read_clustered_index(
 					/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong			autoinc_inc,
-					/*!< in: auto_increment_increment */
+	ib_sequence_t&		sequence,/*!< in/out: autoinc sequence */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
@@ -1572,54 +1571,53 @@ end_of_index:
 		}
 
 		if (add_autoinc != ULINT_UNDEFINED) {
+
 			ut_ad(add_autoinc
 			      < dict_table_get_n_user_cols(new_table));
 
-			dfield_t*	field	= dtuple_get_nth_field(
-				row, add_autoinc);
-			byte*	b	= static_cast<byte*>(
-				dfield_get_data(field));
+			const dfield_t*	dfield;
 
-			/* Increment the auto-increment column value.
-			Signed and unsigned fields should behave
-			the same with respect to this.
+			dfield = dtuple_get_nth_field(row, add_autoinc);
 
-			NOTE: we ignore any wrap-around or overflows
-			here. Wrap-around could cause a
-			cmp_dtuple_rec() debug assertion failure in
-			row_merge_insert_index_tuples(). */
-			switch (dfield_get_len(field)) {
-			case 1:
-				*b += autoinc_inc;
-				goto write_buffers;
-			case 2:
-				mach_write_to_2(b, mach_read_from_2(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 3:
-				mach_write_to_3(b, mach_read_from_3(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 4:
-				mach_write_to_4(b, mach_read_from_4(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 6:
-				mach_write_to_6(b, mach_read_from_6(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 7:
-				mach_write_to_7(b, mach_read_from_7(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 8:
-				mach_write_to_8(b, mach_read_from_8(b)
-						+ autoinc_inc);
-				goto write_buffers;
+			const dtype_t*  dtype = dfield_get_type(dfield);
+			byte*	b = static_cast<byte*>(dfield_get_data(dfield));
+
+			if (sequence.eof()) {
+				err = DB_ERROR;
+				trx->error_key_num = 0;
+
+				ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+					ER_AUTOINC_READ_FAILED, "[NULL]");
+
+				goto func_exit;
 			}
 
-			/* This should not happen. */
-			ut_ad(0);
+			ulonglong	value = sequence++;
+
+			switch (dtype_get_mtype(dtype)) {
+			case DATA_INT: {
+				ibool	usign;
+				ulint	len = dfield_get_len(dfield);
+
+				usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
+
+				mach_write_int_type(
+					b, reinterpret_cast<byte*>(&value),
+					len, usign);
+				break;
+				}
+
+			case DATA_FLOAT:
+				mach_float_write(b, value);
+				break;
+
+			case DATA_DOUBLE:
+				mach_double_write(b, value);
+				break;
+
+			default:
+				ut_ad(0);
+			}
 		}
 
 write_buffers:
@@ -2805,7 +2803,8 @@ row_merge_drop_indexes(
 				In inplace_alter_table(),
 				row_merge_build_indexes()
 				should never leave the index in this state.
-				It would invoke row_log_abort_sec() on failure. */
+				It would invoke row_log_abort_sec() on
+				failure. */
 			case ONLINE_INDEX_COMPLETE:
 				/* In these cases, we are able to drop
 				the index straight. The DROP INDEX was
@@ -3429,7 +3428,8 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
+	ib_sequence_t&	sequence)	/*!< in: autoinc instance if
+					add_autoinc != ULINT_UNDEFINED */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3501,7 +3501,7 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map,
-		add_autoinc, autoinc_inc, block);
+		add_autoinc, sequence, block);
 
 	if (error != DB_SUCCESS) {
 
