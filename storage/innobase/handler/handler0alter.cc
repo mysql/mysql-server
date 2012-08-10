@@ -3577,8 +3577,8 @@ ok_exit:
 		goto ok_exit;
 	}
 
-	class ha_innobase_inplace_ctx*	ctx
-		= static_cast<class ha_innobase_inplace_ctx*>
+	ha_innobase_inplace_ctx*	ctx
+		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
 	DBUG_ASSERT(ctx);
@@ -3719,8 +3719,8 @@ rollback_inplace_alter_table(
 {
 	bool	fail	= false;
 
-	class ha_innobase_inplace_ctx*	ctx
-		= static_cast<class ha_innobase_inplace_ctx*>
+	ha_innobase_inplace_ctx*	ctx
+		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
 	DBUG_ENTER("rollback_inplace_alter_table");
@@ -4129,8 +4129,8 @@ ha_innobase::commit_inplace_alter_table(
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit)
 {
-	class ha_innobase_inplace_ctx*	ctx
-		= static_cast<class ha_innobase_inplace_ctx*>
+	ha_innobase_inplace_ctx*	ctx
+		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 	trx_t*				trx;
 	int				err	= 0;
@@ -4717,7 +4717,8 @@ ib_sequence_t::ib_sequence_t(
 	m_max_value(max_value),
 	m_increment(0),
 	m_offset(0),
-	m_next_value(0)
+	m_next_value(start_value),
+	m_eof(false)
 {
 	if (thd != 0 && m_max_value > 0) {
 
@@ -4735,11 +4736,9 @@ ib_sequence_t::ib_sequence_t(
 		} else if (start_value == 0) {
 			/* The next value can never be 0. */
 			m_next_value = 1;
-		} else {
-			m_next_value = start_value;
 		}
 	} else {
-		m_next_value = ulonglong(~0);
+		m_eof = true;
 	}
 }
 
@@ -4751,14 +4750,14 @@ ib_sequence_t::operator++(int) UNIV_NOTHROW
 {
 	ulonglong	current = m_next_value;
 
+	ut_ad(!m_eof);
 	ut_ad(m_max_value > 0);
-	ut_ad(current != ulonglong(~0));
 
 	m_next_value = innobase_next_autoinc(
 		current, 1, m_increment, m_offset, m_max_value);
 
 	if (current == m_next_value) {
-		m_next_value = ulonglong(~0);
+		m_eof = true;
 	}
 
 	return(current);

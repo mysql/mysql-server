@@ -359,16 +359,18 @@ of this size from the thread stack; that is why this should not be made much
 bigger than 4000 bytes */
 #define OS_FILE_MAX_PATH	4000
 
-/* Struct used in fetching information of a file in a directory */
-struct os_file_stat_struct{
+/** Struct used in fetching information of a file in a directory */
+struct os_file_stat_t {
 	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
 	os_file_type_t	type;			/*!< file type */
 	ib_int64_t	size;			/*!< file size */
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */
 	time_t		atime;			/*!< access time */
+	bool		rw_perm;		/*!< true if can be opened
+						in read-write mode. Only valid
+						if type == OS_FILE_TYPE_FILE */
 };
-typedef struct os_file_stat_struct	os_file_stat_t;
 
 #ifdef __WIN__
 typedef HANDLE	os_file_dir_t;	/*!< directory stream */
@@ -1162,14 +1164,16 @@ os_aio_all_slots_free(void);
 
 /*******************************************************************//**
 This function returns information about the specified file
-@return	TRUE if stat information found */
+@return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ibool
+dberr_t
 os_file_get_status(
 /*===============*/
-	const char*	path,		/*!< in:	pathname of the file */
-	os_file_stat_t* stat_info);	/*!< information of a file in a
+	const char*	path,		/*!< in: pathname of the file */
+	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
+	bool		check_rw_perm);	/*!< in: for testing whether the
+					file can be opened in RW mode */
 
 #if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**

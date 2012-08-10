@@ -1293,11 +1293,14 @@ os_file_create_simple_no_error_handling_func(
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
 		access = GENERIC_READ;
-		share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ
-			| FILE_SHARE_WRITE;	/*!< A backup program has to give
-						mysqld the maximum freedom to
-						do what it likes with the
-						file */
+
+		/*!< A backup program has to give mysqld the maximum
+		freedom to do what it likes with the file */
+
+		share_mode =
+			FILE_SHARE_DELETE
+			| FILE_SHARE_READ
+			| FILE_SHARE_WRITE;
 	} else {
 		access = 0;
 		ut_error;
@@ -2929,47 +2932,65 @@ os_file_status(
 
 /*******************************************************************//**
 This function returns information about the specified file
-@return	TRUE if stat information found */
+@return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ibool
+dberr_t
 os_file_get_status(
 /*===============*/
 	const char*	path,		/*!< in:	pathname of the file */
-	os_file_stat_t* stat_info)	/*!< information of a file in a
+	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
+	bool		check_rw_perm)	/*!< in: for testing whether the
+					file can be opened in RW mode */
 {
-#ifdef __WIN__
 	int		ret;
+
+#ifdef __WIN__
 	struct _stat	statinfo;
 
 	ret = _stat(path, &statinfo);
+
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
 
-		return(FALSE);
+		return(DB_NOT_FOUND);
+
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
 		os_file_handle_error_no_exit(path, "stat", FALSE);
 
-		return(FALSE);
-	}
-	if (_S_IFDIR & statinfo.st_mode) {
+		return(DB_FAIL);
+
+	} else if (_S_IFDIR & statinfo.st_mode) {
 		stat_info->type = OS_FILE_TYPE_DIR;
 	} else if (_S_IFREG & statinfo.st_mode) {
+
 		stat_info->type = OS_FILE_TYPE_FILE;
+
+		if (check_rw_perm) {
+			HANDLE	fh;
+
+			fh = CreateFile(
+				(LPCTSTR) path,		// File to open
+				GENERIC_WRITE | GENERIC_READ,
+				0,			// No sharing
+				NULL,			// Default security
+				OPEN_EXISTING,		// Existing file only
+				FILE_ATTRIBUTE_NORMAL,	// Normal file
+				NULL);			// No attr. template
+
+			if (fh == INVALID_HANDLE_VALUE) {
+				stat_info->rw_perm = false;
+			} else {
+				stat_info->rw_perm = true;
+				CloseHandle(fh);
+			}
+		}
 	} else {
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
-
-	stat_info->ctime = statinfo.st_ctime;
-	stat_info->atime = statinfo.st_atime;
-	stat_info->mtime = statinfo.st_mtime;
-	stat_info->size	 = statinfo.st_size;
-
-	return(TRUE);
 #else
-	int		ret;
 	struct stat	statinfo;
 
 	ret = stat(path, &statinfo);
@@ -2977,32 +2998,46 @@ os_file_get_status(
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
 
-		return(FALSE);
+		return(DB_NOT_FOUND);
+
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
 		os_file_handle_error_no_exit(path, "stat", FALSE);
 
-		return(FALSE);
-	}
+		return(DB_FAIL);
 
-	if (S_ISDIR(statinfo.st_mode)) {
+	} else if (S_ISDIR(statinfo.st_mode)) {
 		stat_info->type = OS_FILE_TYPE_DIR;
 	} else if (S_ISLNK(statinfo.st_mode)) {
 		stat_info->type = OS_FILE_TYPE_LINK;
 	} else if (S_ISREG(statinfo.st_mode)) {
 		stat_info->type = OS_FILE_TYPE_FILE;
+
+		if (check_rw_perm) {
+			int	fh;
+
+			fh = open(path, O_RDWR);
+
+			if (fh == -1) {
+				stat_info->rw_perm = false;
+			} else {
+				stat_info->rw_perm = true;
+				close(fh);
+			}
+		}
 	} else {
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
+
+#endif /* _WIN_ */
 
 	stat_info->ctime = statinfo.st_ctime;
 	stat_info->atime = statinfo.st_atime;
 	stat_info->mtime = statinfo.st_mtime;
 	stat_info->size	 = statinfo.st_size;
 
-	return(TRUE);
-#endif
+	return(DB_SUCCESS);
 }
 
 /* path name separator character */
