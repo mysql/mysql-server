@@ -373,6 +373,8 @@ public:
 
 class Item_bool_func2 :public Item_bool_func
 {						/* Bool with 2 string args */
+private:
+  bool convert_constant_arg(THD *thd, Item *field, Item **item);
 protected:
   Arg_comparator cmp;
   bool abort_on_null;
