@@ -67,7 +67,13 @@ t3.run = function() {
   
       test2_cb = function(error, table_list) {
         t2.errorIfNotEqual("Error return", error, undefined);
-        t2.errorIfNotEqual("Bad table count", table_list.length, 2);
+        var count = 0;
+        table_list.forEach(function(tableName) {
+          if (tableName == 'tbl1') ++count;
+          if (tableName == 'tbl2') ++count;
+        }
+          );
+        t2.errorIfNotEqual("Bad table count", count, 2);
         t2.failOnError();
         
         dict.getTable("test","tbl1", function(err, tab) {
