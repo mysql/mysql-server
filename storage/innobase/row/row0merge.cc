@@ -1594,8 +1594,6 @@ end_of_index:
 
 			ulonglong	value = sequence++;
 
-			fprintf(stderr, "c=%llu\n", value);
-
 			switch (dtype_get_mtype(dtype)) {
 			case DATA_INT: {
 				ibool	usign;
