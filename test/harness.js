@@ -95,7 +95,7 @@ Test.prototype.test = function(result) {
   try {
     if (debug) console.log('test.run: ' + this.name);
     if (!this.run()) {
-      if (debug) console.log('test returning from async call without calling pass or fail for test ' + this.name);
+      if (debug) console.log(this.name + 'started.');
       // async test must call Test.pass or Test.fail when done
       return;
     }
