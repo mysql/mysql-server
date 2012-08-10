@@ -1594,16 +1594,16 @@ end_of_index:
 
 			ulonglong	value = sequence++;
 
+			fprintf(stderr, "c=%llu\n", value);
+
 			switch (dtype_get_mtype(dtype)) {
 			case DATA_INT: {
 				ibool	usign;
 				ulint	len = dfield_get_len(dfield);
 
 				usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
+				mach_write_ulonglong(b, value, len, usign);
 
-				mach_write_int_type(
-					b, reinterpret_cast<byte*>(&value),
-					len, usign);
 				break;
 				}
 
