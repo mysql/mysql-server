@@ -1,62 +1,99 @@
+/* DBDictionary 
+   Data Dictionary API.
 
-/* Methods on DBDictionary */
-{  
-  /** List all tables in the schema
-    * ASYNC
-    * 
-    */
-    listTables(databaseName, callback(error, array));
+   METHODS:
+     listTables()
+     getTable()
+     registerTypeConverter()
+   OBJECT DEFINITIONS:
+     DBTable 
+     DBColumn
+     DBIndex
+     ColumnType 
+*/
+
+
+/* listTables(databaseName, callback(error, array))
+   ASYNC
+   List all tables in the schema   
+*/
+  listTables(databaseName, callback);
 
     
-  /** Fetch metadata for a table
-    * ASYNC
-    * 
-    */
-    getTable(databaseName, tableName, callback(error, DBTable));
-}
+/* getTable(databaseName, tableName, callback(error, DBTable));
+   ASYNC
+   Fetch metadata for a table
+*/
+  getTable(databaseName, tableName, callback);
 
 
+/* registerTypeConverter(ColumnType typeName, Converter converterClass) 
+   IMMEDIATE
+
+   Declare that converterClass should be used for data type conversions
+   for type typeName
+*/
+   registerTypeConverter(typeName, converterClass);
+
+
+
+/* DBTable Object represents a table.
+   This is the object returned in the getTable() callback.
+   indexes[0] will *ALWAYS* represent the intrinsic primary key.
+*/
+DBTable = {
+  database         : ""    ,  // Database name
+  name             : ""    ,  // Table Name
+  columns          : []    ,  // ordered array of DBColumn objects
+  indexes          : []    ,  // array of DBIndex objects 
+  partitionKey     : []    ,  // ordered array of column numbers in the partition key
+};
+
+
+/* DBColumn object represents a column.
+*/
 DBColumn = {
   /* Required Properties */
-  name          : ""    ,  //  column name
-  columnNumber  : -1    ,  //  position of column in table
-  columnType    : ""    ,  //  a ColumnType
-  isIntegral    : false ,  //  true if column is some variety of INTEGER type
-  isNullable    : false ,  //  true if NULLABLE
-  isPrimaryKey  : false ,  //  true if column is part of PK
-  columnSpace   : 0     ,  //  buffer space required for encoded stored value
+  name             : ""    ,  // column name
+  columnNumber     : -1    ,  // position of column in table, and in columns array
+  columnType       : ""    ,  // a ColumnType
+  isIntegral       : false ,  // true if column is some variety of INTEGER type
+  isNullable       : false ,  // true if NULLABLE
+  isInPrimaryKey   : false ,  // true if column is part of PK
+  isInPartitionKey : false ,  // true if column is part of partition key
+  columnSpace      : 0     ,  // buffer space required for encoded stored value
   
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
-  isUnsigned    : false ,  //  true for UNSIGNED
-  intSize       : null  ,  //  1,2,3,4, or 8 if column type is INT
-  scale         : 0     ,  //  DECIMAL scale
-  precision     : 0     ,  //  DECIMAL precision
+  isUnsigned       : false ,  //  true for UNSIGNED
+  intSize          : null  ,  //  1,2,3,4, or 8 if column type is INT
+  scale            : 0     ,  //  DECIMAL scale
+  precision        : 0     ,  //  DECIMAL precision
 
   /* Group B: Non-numeric */
-  length        : 0     ,  //  CHAR or VARCHAR length
-  isBinary      : false ,  //  true for BLOB/BINARY/VARBINARY
-  charsetNumber : 0     ,  //  internal number of charset
-  charsetName   : ""    ,  //  name of charset
+  length           : 0     ,  //  CHAR or VARCHAR length
+  isBinary         : false ,  //  true for BLOB/BINARY/VARBINARY
+  charsetNumber    : 0     ,  //  internal number of charset
+  charsetName      : ""    ,  //  name of charset
 };
 
 
+/* DBIndex represents a table index.  
+
+   The "indexes" array of DBTable will hold one DBIndex per table index. 
+
+   An NDB primary key might be viewed through the NDBAPI adapter as two indexes 
+   (one unique, the other ordered), but through a MySQL adapter as a single 
+   index that is both unique and ordered.  We tolerate this discrepency and note 
+   that the code in Adapter/api must treat the two descriptions as equivalent. 
+*/
 DBIndex = {
-  name          : ""    ,  // External or Internal index name (see clusterj-core store/Index.java)
-  isPrimaryKey  : false ,  // true or undefined
-  isUnique      : false ,  // true or undefined
-  isOrdered     : false ,  // true or undefined; can scan if true
-  columnNumbers : []    ,  // an array of column numbers
+  name             : ""    ,  // Index name
+  isPrimaryKey     : true  ,  // true or undefined
+  isUnique         : true  ,  // true or undefined
+  isOrdered        : true  ,  // true or undefined; can scan if true
+  columnNumbers    : []    ,  // an ordered array of column numbers
 };
-
-
-DBTable = {
-  database        : ""  ,  // Database name
-  name            : ""  ,  // Table Name
-  columns         : []  ,  // an array of DBColumn objects
-  primaryKey      : {}  ,  // a DBIndex object
-  secondaryIndexes: []  ,  // an array of DBIndex objects 
-}
 
 
 ColumnTypes =  [
@@ -71,6 +108,7 @@ ColumnTypes =  [
   "CHAR",
   "VARCHAR",
   "BLOB",
+  "TEXT",
   "DATE",
   "TIME",
   "DATETIME",

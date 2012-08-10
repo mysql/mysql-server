@@ -1,114 +1,93 @@
-    /** get data dictionary.
-     *  IMMEDIATE
-     *  Immediately returns a DBDictionary object.  The underlying 
-     *  local data dictionary may be empty, or may contain cached entries from
-     *  earlier calls.
-     * 
-     *  @return DBDictionary
-     */
-     DBDictionary getDataDictionary(); 
+/* DBSession
+   Represents a single user's session (e.g., a single HTTP request).
+   METHODS:
+      getDataDictinary()
+      read(table, keys)
+      insert(table, row)
+      update(table, keys, row)
+      write(table, row)
+      delete(table, keys)
+      openTransaction()
+*/
 
 
-    /** Implement Sesion::load()
-     *  IMMEDIATE
-     *  Define an operation which when executed will fetch a row
-     * 
-     *  @return DBOperationHandler 
-     */
-    DBOperation read(TableHandler table, Array primaryKey,
-                     Buffer KeyBuffer,  Buffer RowBuffer);
-
-
-    /** Implement Session::makePersistent()
-     *  IMMEDIATE
-     *  Define an operation which when executed will insert a row
-     *
-     *  @return DBOperationHandler 
-     */
-    DBOperation insert(TableHandler table, Array row, Buffer RowBuffer);
-
-
-    /** Implemtent Session::updatePersistent()
-     * IMMEDIATE
-     *  Define an operation which when executed will update a row
-     * 
-     *  @return DBOperationHandler 
-     */
-    DBOperation update(TableHandler table, Array primaryKey, Array row,
-                       Buffer KeyBuffer,  Buffer RowBuffer);
-
-
-    /** Implement Session::savePersistent() 
-     * IMMEDIATE
-     *  Define an operation which when executed will update or insert
-     *
-     *  @return DBOperationHandler 
-     */
-    DBOperation write(TableHandler table, Array primaryKey, Array row,
-                      Buffer KeyBuffer,  Buffer RowBuffer);
-
-
-    /** Implement Session::deletePersistent 
-     *  IMMEDIATE 
-     *  Define an operation which when executed will delete a row
-     *
-     *  @return DBOperationHandler 
-     */  
-    DBOperation delete(TableHandler table, Array primaryKey, Buffer KeyBuffer);
-
+/*  DBDictionary getDataDictionary(); 
+    IMMEDIATE
+    Get data dictionary.
     
-    /** Implement Session::deletePersistentAll() for entire table
-     *  IMMEDIATE
-     *  Define an operation which when executed will delete all rows
-     *
-     *  @return DBOperationHandler 
-     */
-    DBOperation truncateTable(TableHandler table);
+    RETURNS the DBDictionary object associated with the parent DBConnectionPool.
+*/
+  getDataDictionary();
 
 
-    /** Open a transaction.
-     *  IMMEDIATE
-     *  In the NDB case, making this IMMEDIATE will require prefetching 
-     *  transactions at startup time.
-     *
-     *  @return DBTransactionHandler
-     */
-    DBTransactionHandler openTransaction();
+/*  DBOperation read(DBTableHandler table, Object ResolvedKeys)
+    IMMEDIATE
+    Define an operation which when executed will fetch a row
+   
+    RETURNS a DBOperation structure
+*/
+  read(tableHandler, keys);
 
+
+/* DBOperation insert(DBTableHandler table, Array row)
+   IMMEDIATE
+   Define an operation which when executed will insert a row
  
-    /** Implement Session::flush()
-     *  ASYNC.
-     *  Executes all of the DBOperations that have been added to the 
-     *  transaction's list -- see DBTransactionHandler::addOperation().
-     * 
-     * @param tx The current DBTransaction
-     * @param execmode, one of NOCOMMIT, COMMIT, ROLLBACK
-     * @param callback Function that will be called on completion.
-     *      
-     */
-    execute(DBTransaction tx, int execmode, callback );
+   RETURNS a DBOperation structure
+*/
+  insert(tableHandler, row);
 
 
-    /** Implement Session::setPartitionKey()
-     * IMMEDIATE
-     * 
-     * In NDB, setting the partition key causes the NDB API to select a 
-     * Transaction Coordinator on the node that would be the primary node
-     * for a row with that key.
-     *      
-     */
-    setPartitionKey(TableHandler Table, Array key, Buffer HashBuffer);
+/* DBOperation update(DBTableHandler table, Array key, Array row)
+   IMMEDIATE
+   Define an operation which when executed will update a row
+  
+   RETURNS a DBOperation structure
+*/
+  update(tableHandler, keys, row);
 
 
-    /** Implement Session::setLockMode()
-     * IMMEDIATE
-     * Set the lock mode for read operations. This will take effect immediately
-     * and will remain in effect until this session is closed or this method
-     * is called again.
-     * @param lockmode the LockMode
-     */
-    void setLockMode(LockMode lockmode);
+/* DBOperation write(DBTableHandler table, Array key, Array row)
+   IMMEDIATE
+   Define an operation which when executed will update or insert
+ 
+   RETURNS a DBOperation structure
+*/
+  write(tableHandler, keys, row);
 
 
-    /** close DBSession
-     *  
+/* DBOperation delete(DBTableHandler table, Array primaryKey)
+   IMMEDIATE 
+   Define an operation which when executed will delete a row
+ 
+   RETURNS a DBOperation structure
+*/  
+  delete(tableHandler, keys);
+
+
+/* DBTransactionHandler openTransaction()
+   IMMEDIATE
+
+   In the NDB case, making this IMMEDIATE will require prefetching 
+   transactions at startup time.
+ 
+   RETURNS a DBTransactionHandler
+*/
+  openTransaction();
+
+
+/* void setLockMode(LockMode lockmode)
+  IMMEDIATE
+
+  Set the lock mode for read operations. This will take effect immediately
+  and will remain in effect until this session is closed or this method
+  is called again.
+*/
+  setLockMode(mode)
+
+
+/* close DBSession
+   ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
+*/
+void close();
+
