@@ -451,9 +451,13 @@ void
 page_zip_reset_stat_per_index()
 /*===========================*/
 {
+	mutex_enter(&page_zip_stat_per_index_mutex);
+
 	page_zip_stat_per_index.erase(
 		page_zip_stat_per_index.begin(),
 		page_zip_stat_per_index.end());
+
+	mutex_exit(&page_zip_stat_per_index_mutex);
 }
 
 #ifdef UNIV_MATERIALIZE

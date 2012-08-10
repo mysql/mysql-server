@@ -932,6 +932,17 @@ srv_init(void)
 
 	UT_LIST_INIT(srv_sys->tasks);
 
+	/* page_zip_stat_per_index_mutex is acquired from:
+	1. page_zip_compress() (after SYNC_FSP)
+	2. page_zip_decompress()
+	3. i_s_cmp_per_index_fill_low() (where SYNC_DICT is acquired)
+	4. innodb_cmp_per_index_update(), no other latches
+	since we do not acquire any other latches while holding this mutex,
+	it can have very low level. We pick SYNC_ANY_LATCH for it. */
+	mutex_create(page_zip_stat_per_index_mutex_key,
+		     &page_zip_stat_per_index_mutex,
+		     SYNC_ANY_LATCH);
+
 	/* Create dummy indexes for infimum and supremum records */
 
 	dict_ind_init();

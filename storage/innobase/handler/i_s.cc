@@ -1723,14 +1723,18 @@ i_s_cmp_per_index_fill_low(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
+	/* Create a snapshot of the stats so we do not bump into lock
+	order violations with dict_sys->mutex below. */
+	mutex_enter(&page_zip_stat_per_index_mutex);
+	page_zip_stat_per_index_t		snap (page_zip_stat_per_index);
+	mutex_exit(&page_zip_stat_per_index_mutex);
+
 	mutex_enter(&dict_sys->mutex);
 
-	map<index_id_t, page_zip_stat_t>::iterator	iter;
-	ulint						i;
+	page_zip_stat_per_index_t::iterator	iter;
+	ulint					i;
 
-	for (iter = page_zip_stat_per_index.begin(), i = 0;
-	     iter != page_zip_stat_per_index.end();
-	     iter++, i++) {
+	for (iter = snap.begin(), i = 0; iter != snap.end(); iter++, i++) {
 
 		char		name[192];
 		dict_index_t*	index = dict_index_find_on_id_low(iter->first);
