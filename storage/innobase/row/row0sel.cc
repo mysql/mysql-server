@@ -4802,7 +4802,7 @@ requires_clust_rec:
 	    && !prebuilt->innodb_api
 	    && prebuilt->template_type
 	    != ROW_MYSQL_DUMMY_TEMPLATE
-	    && !prebuilt->result) {
+	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual
