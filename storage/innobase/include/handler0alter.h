@@ -66,13 +66,15 @@ struct ib_sequence_t {
 	@return true if the sequence is exhausted */
 	bool eof() const UNIV_NOTHROW
 	{
-		return(m_next_value == ulonglong(~0));
+		return(m_eof);
 	}
 
 	/**
 	@return the next value in the sequence */
 	ulonglong last() const UNIV_NOTHROW
 	{
+		ut_ad(m_next_value > 0);
+
 		return(m_next_value);
 	}
 
@@ -88,4 +90,7 @@ struct ib_sequence_t {
 
 	/** Next value in the sequence */
 	ulonglong	m_next_value;
+
+	/** true if no more values left in the sequence */
+	bool		m_eof;
 };
