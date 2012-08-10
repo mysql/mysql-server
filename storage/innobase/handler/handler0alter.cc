@@ -3577,8 +3577,8 @@ ok_exit:
 		goto ok_exit;
 	}
 
-	class ha_innobase_inplace_ctx*	ctx
-		= static_cast<class ha_innobase_inplace_ctx*>
+	ha_innobase_inplace_ctx*	ctx
+		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
 	DBUG_ASSERT(ctx);
@@ -3719,8 +3719,8 @@ rollback_inplace_alter_table(
 {
 	bool	fail	= false;
 
-	class ha_innobase_inplace_ctx*	ctx
-		= static_cast<class ha_innobase_inplace_ctx*>
+	ha_innobase_inplace_ctx*	ctx
+		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 
 	DBUG_ENTER("rollback_inplace_alter_table");
@@ -4129,8 +4129,8 @@ ha_innobase::commit_inplace_alter_table(
 	Alter_inplace_info*	ha_alter_info,
 	bool			commit)
 {
-	class ha_innobase_inplace_ctx*	ctx
-		= static_cast<class ha_innobase_inplace_ctx*>
+	ha_innobase_inplace_ctx*	ctx
+		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 	trx_t*				trx;
 	int				err	= 0;
