@@ -101,47 +101,51 @@ vio_set_cert_stuff(SSL_CTX *ctx, const char *cert_file, const char *key_file,
   DBUG_ENTER("vio_set_cert_stuff");
   DBUG_PRINT("enter", ("ctx: 0x%lx  cert_file: %s  key_file: %s",
 		       (long) ctx, cert_file, key_file));
-  if (cert_file)
+
+  if (!cert_file &&  key_file)
+    cert_file= key_file;
+  
+  if (!key_file &&  cert_file)
+    key_file= cert_file;
+
+  if (cert_file &&
+      SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0)
   {
-    if (SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0)
-    {
-      *error= SSL_INITERR_CERT;
-      DBUG_PRINT("error",("%s from file '%s'", sslGetErrString(*error), cert_file));
-      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-      fprintf(stderr, "SSL error: %s from '%s'\n", sslGetErrString(*error),
-              cert_file);
-      fflush(stderr);
-      DBUG_RETURN(1);
-    }
-
-    if (!key_file)
-      key_file= cert_file;
-
-    if (SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) <= 0)
-    {
-      *error= SSL_INITERR_KEY;
-      DBUG_PRINT("error", ("%s from file '%s'", sslGetErrString(*error), key_file));
-      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-      fprintf(stderr, "SSL error: %s from '%s'\n", sslGetErrString(*error),
-              key_file);
-      fflush(stderr);
-      DBUG_RETURN(1);
-    }
-
-    /*
-      If we are using DSA, we can copy the parameters from the private key
-      Now we know that a key and cert have been set against the SSL context
-    */
-    if (!SSL_CTX_check_private_key(ctx))
-    {
-      *error= SSL_INITERR_NOMATCH;
-      DBUG_PRINT("error", ("%s",sslGetErrString(*error)));
-      DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
-      fprintf(stderr, "SSL error: %s\n", sslGetErrString(*error));
-      fflush(stderr);
-      DBUG_RETURN(1);
-    }
+    *error= SSL_INITERR_CERT;
+    DBUG_PRINT("error",("%s from file '%s'", sslGetErrString(*error), cert_file));
+    DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+    fprintf(stderr, "SSL error: %s from '%s'\n", sslGetErrString(*error),
+            cert_file);
+    fflush(stderr);
+    DBUG_RETURN(1);
   }
+
+  if (key_file &&
+      SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) <= 0)
+  {
+    *error= SSL_INITERR_KEY;
+    DBUG_PRINT("error", ("%s from file '%s'", sslGetErrString(*error), key_file));
+    DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+    fprintf(stderr, "SSL error: %s from '%s'\n", sslGetErrString(*error),
+            key_file);
+    fflush(stderr);
+    DBUG_RETURN(1);
+  }
+
+  /*
+    If we are using DSA, we can copy the parameters from the private key
+    Now we know that a key and cert have been set against the SSL context
+  */
+  if (cert_file && !SSL_CTX_check_private_key(ctx))
+  {
+    *error= SSL_INITERR_NOMATCH;
+    DBUG_PRINT("error", ("%s",sslGetErrString(*error)));
+    DBUG_EXECUTE("error", ERR_print_errors_fp(DBUG_FILE););
+    fprintf(stderr, "SSL error: %s\n", sslGetErrString(*error));
+    fflush(stderr);
+    DBUG_RETURN(1);
+  }
+
   DBUG_RETURN(0);
 }
 
@@ -253,6 +257,20 @@ new_VioSSLFd(const char *key_file, const char *cert_file,
   if (SSL_CTX_load_verify_locations(ssl_fd->ssl_context, ca_file, ca_path) == 0)
   {
     DBUG_PRINT("warning", ("SSL_CTX_load_verify_locations failed"));
+    if (ca_file || ca_path)
+    {
+      /* fail only if ca file or ca path were supplied and looking into 
+         them fails. */
+      *error= SSL_INITERR_BAD_PATHS;
+      DBUG_PRINT("error", ("SSL_CTX_load_verify_locations failed : %s", 
+                 sslGetErrString(*error)));
+      report_errors();
+      SSL_CTX_free(ssl_fd->ssl_context);
+      my_free((void*)ssl_fd,MYF(0));
+      DBUG_RETURN(0);
+    }
+
+    /* otherwise go use the defaults */
     if (SSL_CTX_set_default_verify_paths(ssl_fd->ssl_context) == 0)
     {
       *error= SSL_INITERR_BAD_PATHS;
