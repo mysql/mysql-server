@@ -45,13 +45,13 @@ class Arg_comparator: public Sql_alloc
   bool is_nulls_eq;                // TRUE <=> compare for the EQUAL_FUNC
   bool set_null;                   // TRUE <=> set owner->null_value
                                    //   when one of arguments is NULL.
-  enum enum_date_cmp_type { CMP_DATE_DFLT= 0, CMP_DATE_WITH_DATE,
-                            CMP_DATE_WITH_STR, CMP_STR_WITH_DATE };
   longlong (*get_value_a_func)(THD *thd, Item ***item_arg, Item **cache_arg,
                                Item *warn_item, bool *is_null);
   longlong (*get_value_b_func)(THD *thd, Item ***item_arg, Item **cache_arg,
                                Item *warn_item, bool *is_null);
   bool try_year_cmp_func(Item_result type);
+  static bool get_date_from_const(Item *date_arg, Item *str_arg,
+                                  ulonglong *value);
 public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
@@ -105,8 +105,7 @@ public:
   int compare_e_real_fixed();
   int compare_datetime();        // compare args[0] & args[1] as DATETIMEs
 
-  static enum enum_date_cmp_type can_compare_as_dates(Item *a, Item *b,
-                                                      ulonglong *const_val_arg);
+  static bool can_compare_as_dates(Item *a, Item *b, ulonglong *const_val_arg);
 
   Item** cache_converted_constant(THD *thd, Item **value, Item **cache,
                                   Item_result type);
