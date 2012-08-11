@@ -10,8 +10,8 @@ def set_options(opt):
 
 def configure(conf):
   import Options
-  my_lib = Options.options.mysql + "lib/"
-  my_inc = Options.options.mysql + "include/"
+  my_lib = Options.options.mysql + "/lib/"
+  my_inc = Options.options.mysql + "/include/"
 
   if os.path.isdir(my_lib + "/mysql"):
     my_lib = my_lib + "/mysql"
