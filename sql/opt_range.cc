@@ -3071,27 +3071,28 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
   ppar->cur_subpart_fields+= ppar->is_subpart_keypart[key_tree_part];
   *(ppar->arg_stack_end++)= key_tree;
 
+  if (ignore_part_fields)
+  {
+    /*
+      We come here when a condition on the first partitioning
+      fields led to evaluating the partitioning condition
+      (due to finding a condition of the type a < const or
+      b > const). Thus we must ignore the rest of the
+      partitioning fields but we still want to analyse the
+      subpartitioning fields.
+    */
+    if (key_tree->next_key_part)
+      res= find_used_partitions(ppar, key_tree->next_key_part);
+    else
+      res= -1;
+    goto pop_and_go_right;
+  }
+
   if (key_tree->type == SEL_ARG::KEY_RANGE)
   {
     if (ppar->part_info->get_part_iter_for_interval && 
         key_tree->part <= ppar->last_part_partno)
     {
-      if (ignore_part_fields)
-      {
-        /*
-          We come here when a condition on the first partitioning
-          fields led to evaluating the partitioning condition
-          (due to finding a condition of the type a < const or
-          b > const). Thus we must ignore the rest of the
-          partitioning fields but we still want to analyse the
-          subpartitioning fields.
-        */
-        if (key_tree->next_key_part)
-          res= find_used_partitions(ppar, key_tree->next_key_part);
-        else
-          res= -1;
-        goto pop_and_go_right;
-      }
       /* Collect left and right bound, their lengths and flags */
       uchar *min_key= ppar->cur_min_key;
       uchar *max_key= ppar->cur_max_key;
@@ -3332,6 +3333,13 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         res= -1;
         goto pop_and_go_right;
       }
+      /*
+        No meaning in continuing with rest of partitioning key parts.
+        Will try to continue with subpartitioning key parts.
+      */
+      ppar->ignore_part_fields= true;
+      did_set_ignore_part_fields= true;
+      goto process_next_key_part;
     }
   }
 
