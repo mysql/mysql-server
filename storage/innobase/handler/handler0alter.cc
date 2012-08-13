@@ -4140,6 +4140,8 @@ ha_innobase::commit_inplace_alter_table(
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_enter");
 
+	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_wait");
+
 	if (!commit) {
 		/* A rollback is being requested. So far we may at
 		most have created some indexes. If any indexes were to
