@@ -194,6 +194,9 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --echo # it should still be found. And the ISL file should be re-created.
 --remove_file $MYSQLD_DATADIR/test/nolink.isl
 
+--echo # Make a backup of this tablespace to use later.
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak
+
 --echo ---- MYSQLD_DATADIR/test
 --list_files $MYSQLD_DATADIR/test
 --echo ---- MYSQL_TMP_DIR/alt_dir/test
@@ -336,11 +339,10 @@ DROP TABLE nolink;
 --echo # SYS_DATAFILES is unavailable during recovery.
 --echo # Link File will refer to the file at alt_dir.
 --echo # In each case except the control tablespace, the Link file will
---echo # exist with a file name in alt_dir.  'aa' is the control table and
---echo # is alphabetically before the other tablespace names so it will be
---echo # recovered first by InnoDB.  It is the source of the 'wrong' tablespaces.
+--echo # exist with a file name in alt_dir.  'fnolink.ibd.bak' is the
+--echo # source of the 'wrong' tablespaces.
+--echo #
 --echo # Tablename   Default_Tablespace  Remote_Tablespace
---echo #    aa              Yes                 No
 --echo #    ny              Yes                 Yes
 --echo #    wy              Wrong               Yes
 --echo #    yn              Yes                 No
@@ -350,10 +352,6 @@ DROP TABLE nolink;
 
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
-
---replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
-eval CREATE TABLE aa (c1 INT KEY, c2 TEXT) ENGINE=InnoDB;
-INSERT INTO aa VALUES (1, 'aa - control table');
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 eval CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  $data_directory;
@@ -379,14 +377,12 @@ INSERT INTO yy VALUES (1, 'yy');
 --echo # Crash the server, copy and remove files.
 --echo #
 BEGIN;
-INSERT INTO aa VALUES (2, 'aa');
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');
 INSERT INTO yn VALUES (2, 'yn');
 INSERT INTO yw VALUES (2, 'yw');
 INSERT INTO yy VALUES (2, 'yy');
 
-SELECT * FROM aa;
 SELECT * FROM ny;
 SELECT * FROM wy;
 SELECT * FROM yn;
@@ -405,19 +401,16 @@ COMMIT;
 --echo #
 --echo # Now that the engine is not running, move files around to test various scenarios.
 --echo #
---echo # AA; Control table, used as the source of 'wrong' tablespaces.
---echo #     AA also has a link file which points to the file in the default datadir.
---exec echo $MYSQLD_DATADIR/test/aa.ibd > $MYSQLD_DATADIR/test/aa.isl
 
 --echo # NY; Tablespace found in alt_dir but not the default directory.
 
 --echo # WY; The wrong tablespace is found in the default directory
 --echo #     and the correct one in alt_dir.
---copy_file $MYSQLD_DATADIR/test/aa.ibd $MYSQLD_DATADIR/test/wy.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
 
 --echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
 --move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
---copy_file $MYSQLD_DATADIR/test/aa.ibd $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
 --echo # YN; Tablespace found the default directory but not in alt_dir.
 --move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
@@ -432,15 +425,13 @@ COMMIT;
 
 --echo #
 --echo # Start the server with innodb-force-recovery=1 so that it does not quit
---echo # when it finds multiple possible locations for aa, yy, wy and yw.
+--echo # when it finds multiple possible locations for yy, wy and yw.
 --echo #
 --enable_reconnect
 --exec echo "restart:--innodb-force-recovery=1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
---error ER_NO_SUCH_TABLE
-SELECT * FROM aa;
 SELECT * FROM ny;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM wy;
@@ -450,8 +441,6 @@ SELECT * FROM yw;
 --error ER_NO_SUCH_TABLE
 SELECT * FROM yy;
 
---error ER_NO_SUCH_TABLE
-SHOW CREATE TABLE aa;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE ny;
 --error ER_NO_SUCH_TABLE
@@ -471,8 +460,15 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo #
 --source include/shutdown_mysqld.inc
 
---remove_file $MYSQLD_DATADIR/test/aa.ibd
---remove_file $MYSQLD_DATADIR/test/aa.isl
+--echo #
+--echo # List of files before removing unused files
+--echo #
+
+--echo ---- MYSQLD_DATADIR/test
+--list_files $MYSQLD_DATADIR/test
+--echo ---- MYSQL_TMP_DIR/alt_dir/test
+--list_files $MYSQL_TMP_DIR/alt_dir/test
+
 --remove_file $MYSQLD_DATADIR/test/ny.isl
 --remove_file $MYSQLD_DATADIR/test/wy.ibd
 --remove_file $MYSQLD_DATADIR/test/wy.isl
@@ -483,6 +479,7 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --remove_file $MYSQLD_DATADIR/test/yy.ibd
 --remove_file $MYSQLD_DATADIR/test/yy.isl
 
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/ny.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/wy.ibd
 --remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
@@ -502,7 +499,6 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo #
 --source include/start_mysqld.inc
 
-DROP TABLE aa;
 DROP TABLE ny;
 DROP TABLE wy;
 DROP TABLE yn;
