@@ -3038,7 +3038,7 @@ innobase_change_buffering_inited_ok:
 	} else if (srv_max_io_capacity < srv_io_capacity) {
 		sql_print_warning("InnoDB: innodb_io_capacity"
 				  " cannot be set higher than"
-				  " innodb_max_io_capacity.\n"
+				  " innodb_io_capacity_max.\n"
 				  "InnoDB: Setting"
 				  " innodb_io_capacity to %lu\n",
 				  srv_max_io_capacity);
@@ -13485,11 +13485,11 @@ ha_innobase::check_if_incompatible_data(
 }
 
 /****************************************************************//**
-Update the system variable innodb_max_io_capacity using the "saved"
+Update the system variable innodb_io_capacity_max using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
 void
-innodb_max_io_capacity_update(
+innodb_io_capacity_max_update(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -13504,11 +13504,11 @@ innodb_max_io_capacity_update(
 		in_val = srv_io_capacity;
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "innodb_max_io_capacity cannot be"
+				    "innodb_io_capacity_max cannot be"
 				    " set lower than innodb_io_capacity.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "Setting innodb_max_io_capacity to %lu",
+				    "Setting innodb_io_capacity_max to %lu",
 				    srv_io_capacity);
 	}
 
@@ -13536,7 +13536,7 @@ innodb_io_capacity_update(
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_io_capacity cannot be set"
-				    " higher than innodb_max_io_capacity.");
+				    " higher than innodb_io_capacity_max.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_io_capacity to %lu",
@@ -15161,10 +15161,10 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, innodb_io_capacity_update, 200, 100, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
+static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Limit to which innodb_io_capacity can be inflated.",
-  NULL, innodb_max_io_capacity_update,
+  NULL, innodb_io_capacity_max_update,
   SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
   SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
@@ -15918,7 +15918,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(max_io_capacity),
+  MYSQL_SYSVAR(io_capacity_max),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),
