@@ -1263,12 +1263,21 @@ public:
      *       command when that is needed.
      */
     UintR prevLogpage;
-    /**
-     *       The number of files remaining to gather GCI information
-     *       for during system restart.  Only used if number of files
-     *       is larger than 60.
-     */
-    UintR srRemainingFiles;
+    union {
+      /**
+       *       The number of files remaining to gather GCI information
+       *       for during system restart.  Only used if number of files
+       *       is larger than 60.
+       */
+      UintR srRemainingFiles;
+
+      /**
+       *       The index of the file which we should start loading redo
+       *       meta information from after the 'FRONTPAGE' file has been
+       *       closed.
+       */
+      UintR srLastFileIndex;
+    };
     /**
      *       The log file where to start executing the log during
      *       system restart.
@@ -1439,6 +1448,7 @@ public:
       ,OPEN_EXEC_LOG_CACHED = 28
       ,CLOSING_EXEC_LOG_CACHED = 29
 #endif
+      ,CLOSING_SR_FRONTPAGE = 30
     };
     
     /**
@@ -2531,6 +2541,7 @@ private:
   void openExecLogLab(Signal* signal);
   void checkInitCompletedLab(Signal* signal);
   void closingSrLab(Signal* signal);
+  void closingSrFrontPage(Signal* signal);
   void closeExecSrLab(Signal* signal);
   void execLogComp(Signal* signal);
   void execLogComp_extra_files_closed(Signal* signal);
@@ -2717,7 +2728,17 @@ private:
   LogPartRecordPtr logPartPtr;
   UintR clogPartFileSize;
   Uint32 clogFileSize; // In MBYTE
-  Uint32 cmaxLogFilesInPageZero; //
+  /* Max entries for log file:mb meta info in file page zero */
+  Uint32 cmaxLogFilesInPageZero; 
+  /* Max valid entries for log file:mb meta info in file page zero 
+   *  = cmaxLogFilesInPageZero - 1
+   * as entry zero (for current file) is invalid.
+   */
+  Uint32 cmaxValidLogFilesInPageZero;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  Uint32 cmaxLogFilesInPageZero_DUMP;
+#endif
 
 // Configurable
   LogFileRecord *logFileRecord;
