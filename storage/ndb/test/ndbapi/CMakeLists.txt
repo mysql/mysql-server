@@ -70,6 +70,7 @@ TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 ADD_EXECUTABLE(testLimits testLimits.cpp)
 ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp)
 ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
+ADD_EXECUTABLE(testRedo testRedo.cpp)
 
 INSTALL(TARGETS create_all_tabs create_tab
   drop_all_tabs flexAsynch flexBench
@@ -84,5 +85,5 @@ INSTALL(TARGETS create_all_tabs create_tab
   DbAsyncGenerator test_event_merge testNdbinfo
   testNativeDefault testLimits testSpj
   testSingleUserMode
-  testIndexStat
+  testIndexStat testRedo
 DESTINATION bin)
