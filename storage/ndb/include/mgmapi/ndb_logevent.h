@@ -707,6 +707,8 @@ extern "C" {
     unsigned total_lo;
     unsigned free_hi;
     unsigned free_lo;
+    unsigned no_logfiles;
+    unsigned logfilesize;
   };
 
   /** Log event data @ref NDB_LE_LogFileInitStatus */
