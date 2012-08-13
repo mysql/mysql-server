@@ -13,3 +13,19 @@
    Helgrind:Race
    fun:toku_get_checkpointing_user_data_status
 }
+{
+   ignore_race_inside_pthread_mutex_lock
+   Helgrind:Race
+   fun:pthread_mutex_lock
+}
+{
+   ignore_race_inside_pthread_mutex_unlock
+   Helgrind:Race
+   ...
+   fun:pthread_mutex_unlock
+}
+{
+   ignore_race_inside_pthread_join
+   Helgrind:Race
+   fun:pthread_join
+}
