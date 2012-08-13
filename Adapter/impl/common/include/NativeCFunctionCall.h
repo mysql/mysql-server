@@ -61,26 +61,23 @@ public:
 **/
 
 template <typename R, typename A0> 
-class NativeCFunctionCall_1_ : public NativeMethodCall<R> {
+class NativeCFunctionCall_1_ : public NativeMethodCall<R>,
+                               public Call_1_<A0>
+{
 public:
   /* Member variables */
   R (*function)(A0);    // function pointer
-  JsValueConverter<A0> arg0converter;
-  A0  arg0;
   
   /* Constructor */
   NativeCFunctionCall_1_<R, A0>(const Arguments &args) : 
-  function(0),
-  arg0converter(args[0]),
-  NativeMethodCall<R>(args[1]) // callback
-  {    
-    arg0 = arg0converter.toC();
-  }
+    function(0),
+    NativeMethodCall<R>(args[1]), /* callback */
+    Call_1_<A0>(args)                                           { }
 
   /* Methods */
   void run() {
     assert(function);
-    NativeMethodCall<R>::return_val = (function)(arg0);
+    NativeMethodCall<R>::return_val = (function)(Call_1_<A0>::arg0);
   }
 };
 
@@ -91,30 +88,26 @@ public:
 **/
 
 template <typename R, typename A0, typename A1> 
-class NativeCFunctionCall_2_ : public NativeMethodCall<R> {
+class NativeCFunctionCall_2_ : public NativeMethodCall<R>,
+                               public Call_2_<A0, A1>
+{
 public:
   /* Member variables */
-  JsValueConverter<A0> arg0converter;
-  JsValueConverter<A1> arg1converter;
-  A0  arg0;
-  A1  arg1;
   R (*function)(A0,A1);    // function pointer
   
   /* Constructor */
   NativeCFunctionCall_2_<R, A0, A1>(const Arguments &args) : 
-  function(0),
-  arg0converter(args[0]),
-  arg1converter(args[1]),
-  NativeMethodCall<R>(args[2]) // callback
-  {    
-    arg0 = arg0converter.toC();
-    arg1 = arg1converter.toC();
-  }
+    function(0),
+    NativeMethodCall<R>(args[2]), // callback
+    Call_2_<A0, A1>(args)                                         { } 
 
   /* Methods */
   void run() {
     assert(function);
-    NativeMethodCall<R>::return_val = (function)(arg0, arg1);
+    NativeMethodCall<R>::return_val = (function)(
+      Call_2_<A0, A1>::arg0,
+      Call_2_<A0, A1>::arg1
+    );
   }
 };
 
@@ -125,37 +118,64 @@ public:
 **/
 
 template <typename R, typename A0, typename A1, typename A2> 
-class NativeCFunctionCall_3_ : public NativeMethodCall<R> {
+class NativeCFunctionCall_3_ : public NativeMethodCall<R>,
+                               public Call_3_<A0, A1, A2>
+{
 public:
   /* Member variables */
-  JsValueConverter<A0> arg0converter;
-  JsValueConverter<A1> arg1converter;
-  JsValueConverter<A2> arg2converter;
-  A0  arg0;
-  A1  arg1;
-  A2  arg2;
   R (*function)(A0,A1,A2);    // function pointer
   
   /* Constructor */
   NativeCFunctionCall_3_<R, A0, A1, A2>(const Arguments &args) : 
-  function(0),
-  arg0converter(args[0]),
-  arg1converter(args[1]),
-  arg2converter(args[2]),
-  NativeMethodCall<R>(args[3]) // callback
-  {    
-    arg0 = arg0converter.toC();
-    arg1 = arg1converter.toC();
-    arg2 = arg2converter.toC();    
-  }
+    function(0),
+    NativeMethodCall<R>(args[3]), /* callback */
+    Call_3_<A0, A1, A2>(args)                                     { } 
 
   /* Methods */
   void run() {
     assert(function);
-    NativeMethodCall<R>::return_val = (function)(arg0, arg1, arg2);
+    NativeMethodCall<R>::return_val = (function)(
+      Call_3_<A0, A1, A2>::arg0,
+      Call_3_<A0, A1, A2>::arg1,
+      Call_3_<A0, A1, A2>::arg2
+    );
   }
 };
 
+
+/** Template class with:
+  * 6 arguments
+  * return value of type R
+**/
+
+template <typename R, typename A0, typename A1, typename A2, 
+                      typename A3, typename A4, typename A5> 
+class NativeCFunctionCall_6_ : public NativeMethodCall<R>,
+                               public Call_6_<A0, A1, A2, A3, A4, A5>
+{
+public:
+  /* Member variables */
+  R (*function)(A0,A1,A2,A3,A4,A5);    // function pointer
+  
+  /* Constructor */
+  NativeCFunctionCall_6_<R, A0, A1, A2, A3, A4, A5>(const Arguments &args) : 
+    function(0),
+    NativeMethodCall<R>(args[8]),  /* callback */
+    Call_6_<A0, A1, A2, A3, A4, A5>(args)                { } 
+
+  /* Methods */
+  void run() {
+    assert(function);
+    NativeMethodCall<R>::return_val = (function)(
+      Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
+      Call_6_<A0, A1, A2, A3, A4, A5>::arg1,
+      Call_6_<A0, A1, A2, A3, A4, A5>::arg2,
+      Call_6_<A0, A1, A2, A3, A4, A5>::arg3,
+      Call_6_<A0, A1, A2, A3, A4, A5>::arg4,
+      Call_6_<A0, A1, A2, A3, A4, A5>::arg5
+    );
+  }
+};
 
 
 /** Template class with:
@@ -165,63 +185,60 @@ public:
 
 template <typename R, typename A0, typename A1, typename A2, typename A3,
           typename A4, typename A5, typename A6, typename A7> 
-class NativeCFunctionCall_8_ : public NativeMethodCall<R> {
+class NativeCFunctionCall_8_ : public NativeMethodCall<R>,
+                               public Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>
+{
 public:
   /* Member variables */
-  JsValueConverter<A0> arg0converter;
-  JsValueConverter<A1> arg1converter;
-  JsValueConverter<A2> arg2converter;
-  JsValueConverter<A3> arg3converter;
-  JsValueConverter<A4> arg4converter;
-  JsValueConverter<A5> arg5converter;
-  JsValueConverter<A6> arg6converter;
-  JsValueConverter<A7> arg7converter;  
-  A0  arg0;
-  A1  arg1;
-  A2  arg2;
-  A3  arg3;
-  A4  arg4;
-  A5  arg5;
-  A6  arg6;
-  A7  arg7;
-
   R (*function)(A0,A1,A2,A3,A4,A5,A6,A7);    // function pointer
   
   /* Constructor */
-  NativeCFunctionCall_8_<R, A0, A1, A2, A3, A4, A5, A6, A7>
-  (const Arguments &args) : 
-  function(0),
-  arg0converter(args[0]),
-  arg1converter(args[1]),
-  arg2converter(args[2]),
-  arg3converter(args[3]),
-  arg4converter(args[4]),
-  arg5converter(args[5]),
-  arg6converter(args[6]),
-  arg7converter(args[7]),
-  NativeMethodCall<R>(args[8]) // callback
-  {    
-    arg0 = arg0converter.toC();
-    arg1 = arg1converter.toC();
-    arg2 = arg2converter.toC();
-    arg3 = arg3converter.toC();
-    arg4 = arg4converter.toC();
-    arg5 = arg5converter.toC();
-    arg6 = arg6converter.toC();
-    arg7 = arg7converter.toC();
-  }
+  NativeCFunctionCall_8_<R, A0, A1, A2, A3, A4, A5, A6, A7>(const Arguments &args) : 
+    function(0),
+    NativeMethodCall<R>(args[8]),  /* callback */
+    Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args)                { } 
 
   /* Methods */
   void run() {
     assert(function);
-    NativeMethodCall<R>::return_val = 
-      (function)(arg0,arg1,arg2,arg3,arg4,arg5,arg6,arg7);
+    NativeMethodCall<R>::return_val = (function)(
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg0,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg1,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg2,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg3,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg4,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg5,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg6,
+      Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg7
+    );
   }
 };
 
-
 /*********************************************************************/
 /*  Functions returning void */
+
+
+/** Template class with no arguments 
+ * Wrapped native funtion call returning void
+ * 
+**/
+class NativeCVoidFunctionCall_0_ : public NativeMethodCall<int> {
+public:
+  /* Member variables */
+  void (*function)();
+
+  /* Constructor */
+  NativeCVoidFunctionCall_0_(const Arguments &args) : 
+    function(0), 
+    NativeMethodCall<int>(args[1]) /*callback*/                   { }
+    
+  /* Methods */
+  void run() {
+    assert(function);
+    function();
+  }
+};
+  
 
 /** Template class with:
  * one argument of type A0
@@ -231,25 +248,22 @@ public:
 **/
 
 template <typename A0> 
-class NativeCVoidFunctionCall_1_ : public NativeMethodCall<int> {
+class NativeCVoidFunctionCall_1_ : public NativeMethodCall<int>,
+                                   public Call_1_<A0>
+{
 public:
   /* Member variables */
-  JsValueConverter<A0> arg0converter;
-  A0  arg0;
   void (*function)(A0);   // function pointer
   
   /* Constructor */
   NativeCVoidFunctionCall_1_<A0>(const Arguments &args) : 
-  function(0),
-  arg0converter(args[0]),
-  NativeMethodCall<int>(args[1]) // callback
-  {    
-    arg0 = arg0converter.toC();
-  }
+    function(0),
+    NativeMethodCall<int>(args[1]), // callback
+    Call_1_<A0>(args)                                             { }
   
   /* Methods */
   void run() {
     assert(function);
-    function(arg0);
+    function(Call_1_<A0>::arg0);
   }
 };
