@@ -26,14 +26,10 @@
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
 #include "DBSessionImpl.h"
+#include "Record.h"
+#include "NdbWrappers.h"
 
 using namespace v8;
-
-Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
-
-Handle<Object> buildDBColumn(const NdbDictionary::Column *);
-Handle<Object> buildDBIndex_PK(const NdbDictionary::Table *);
-Handle<Object> buildDBIndex(const NdbDictionary::Index *);
 
 
 /**** Dictionary implementation
@@ -49,7 +45,27 @@ Handle<Object> buildDBIndex(const NdbDictionary::Index *);
  * 
  * After all background calls return, methods that create JavaScript objects 
  * can run in the main thread.
+ * 
 */
+
+/*
+ * A note on getTable():
+ *   In addition to the user-visible fields, the returned value wraps some 
+ *   NdbDictionary objects.
+ *   The DBTable wraps an NdbDictionary::Table
+ *   The DBColumn objects each wrap an NdbDictionary::Column
+ *   The DBIndex objects for SECONDARY indexes wrap an NdbDictionary::Index,
+ *    -- but DBIndex for PK does *not* wrap any native object!
+*/
+Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
+Envelope NdbDictTableEnv("NdbDictionary::Table");
+Envelope NdbDictColumnEnv("NdbDictionary::Column");
+Envelope NdbDictIndexEnv("NdbDictionary::Index");
+Envelope RecordEnv("Record");
+
+Handle<Value> getColumnType(const NdbDictionary::Column *);
+Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
+
 
 struct DBDictImpl {
   ndb_session *sess;
@@ -168,6 +184,10 @@ private:
   const NdbDictionary::Table * ndb_table;
   const NdbDictionary::Index ** indexes;
   int n_index;
+  
+  Handle<Object> buildDBIndex_PK();
+  Handle<Object> buildDBIndex(const NdbDictionary::Index *);
+  Handle<Object> buildDBColumn(const NdbDictionary::Column *);
 
 public:
   /* Constructor */
@@ -181,6 +201,7 @@ public:
   /* V8 main thread */
   void doAsyncCallback(Local<Object> ctx);  
 };
+
 
 void GetTableCall::run() {
   DEBUG_MARKER(UDEB_DEBUG);
@@ -224,7 +245,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   */    
   if(ndb_table && ! return_val) {
 
-    Local<Object> table = Object::New();
+    Local<Object> table = NdbDictTableEnv.newWrapper();
+    wrapPointerInObject(ndb_table, NdbDictTableEnv, table);
 
     // database
     table->Set(String::NewSymbol("database"), String::New(arg1));
@@ -240,17 +262,25 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     }
     table->Set(String::NewSymbol("columns"), columns);
 
-    // primaryKey
-    table->Set(String::NewSymbol("primaryKey"), 
-               buildDBIndex_PK(ndb_table),
-               ReadOnly);
-
-    // secondaryIndexes
-    Local<Array> secondaryIndexes = Array::New(n_index);
-    for(int i = 0 ; i < n_index ; i++) {
-      secondaryIndexes->Set(i, buildDBIndex(indexes[i]));
+    // indexes (primary key & secondary) 
+    Local<Array> js_indexes = Array::New(n_index + 1);
+    js_indexes->Set(0, buildDBIndex_PK());                // primary key
+    for(int i = 0 ; i < n_index ; i++) {                  // secondary indexes
+      js_indexes->Set(i+1, buildDBIndex(indexes[i]));
     }    
-    table->Set(String::NewSymbol("secondaryIndexes"), secondaryIndexes, ReadOnly);
+    table->Set(String::NewSymbol("indexes"), js_indexes, ReadOnly);
+
+    // partitionKey
+    
+  
+    // Table Record (implementation artifact; not part of spec)
+    Record * rec = new Record(arg0->sess->dict, ndb_table->getNoOfColumns());
+    for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
+      rec->addColumn(ndb_table->getColumn(i));      
+    }
+    rec->completeTableRecord(ndb_table);
+
+    table->Set(String::NewSymbol("record"), Record_Wrapper(rec));    
     
     // User Callback
     cb_args[1] = table;
@@ -261,6 +291,167 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   
   callback->Call(ctx, 2, cb_args);
 }
+
+
+/* 
+DBIndex = {
+  name             : ""    ,  // Index name; undefined for PK 
+  isPrimaryKey     : true  ,  // true for PK; otherwise undefined
+  isUnique         : true  ,  // true or false
+  isOrdered        : true  ,  // true or false; can scan if true
+  columnNumbers    : []    ,  // an ordered array of column numbers
+};
+*/
+Handle<Object> GetTableCall::buildDBIndex_PK() {
+  HandleScope scope;
+  
+  Local<Object> obj = Object::New();
+
+  obj->Set(String::NewSymbol("isPrimaryKey"), Boolean::New(true), ReadOnly);
+  obj->Set(String::NewSymbol("isUnique"),     Boolean::New(true), ReadOnly);
+  obj->Set(String::NewSymbol("isOrdered"),    Boolean::New(false), ReadOnly);
+
+  /* Loop over the columns of the key. 
+     Build the "columns" array and the "record" object, then set both.
+  */  
+  int ncol = ndb_table->getNoOfPrimaryKeys();
+  Record * pk_record = new Record(arg0->sess->dict, ncol);
+  Local<Array> idx_columns = Array::New(ncol);
+  for(int i = 0 ; i < ncol ; i++) {
+    const char * col_name = ndb_table->getPrimaryKey(i);
+    const NdbDictionary::Column * col = ndb_table->getColumn(col_name);
+    pk_record->addColumn(col);
+    idx_columns->Set(i, v8::Int32::New(col->getColumnNo()));
+  }
+  pk_record->completeTableRecord(ndb_table);
+
+  obj->Set(String::NewSymbol("columns"), idx_columns);
+  obj->Set(String::NewSymbol("record"), Record_Wrapper(pk_record), ReadOnly);
+ 
+  return scope.Close(obj);
+}
+
+
+Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
+  HandleScope scope;
+  
+  Local<Object> obj = NdbDictIndexEnv.newWrapper();
+  wrapPointerInObject(idx, NdbDictIndexEnv, obj);
+
+  obj->Set(String::NewSymbol("name"), String::New(idx->getName()));
+  obj->Set(String::NewSymbol("isUnique"),     
+           Boolean::New(idx->getType() == NdbDictionary::Index::UniqueHashIndex),
+           ReadOnly);
+  obj->Set(String::NewSymbol("isOrdered"),
+           Boolean::New(idx->getType() == NdbDictionary::Index::OrderedIndex),
+           ReadOnly);
+  
+  /* Loop over the columns of the key. 
+     Build the "columns" array and the "record" object, then set both.
+  */  
+  int ncol = idx->getNoOfColumns();
+  Local<Array> idx_columns = Array::New(ncol);
+  Record * idx_record = new Record(arg0->sess->dict, ncol);
+  for(int i = 0 ; i < ncol ; i++) {    
+    idx_columns->Set(i, v8::Int32::New(idx->getColumn(i)->getColumnNo()));
+    idx_record->addColumn(ndb_table->getColumn(idx->getColumn(i)->getName()));
+  }
+  idx_record->completeIndexRecord(idx);
+  obj->Set(String::NewSymbol("record"), Record_Wrapper(idx_record), ReadOnly);
+  obj->Set(String::NewSymbol("columns"), idx_columns);
+  
+  return scope.Close(obj);
+}
+
+
+Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
+  HandleScope scope;
+  
+  Local<Object> obj = NdbDictColumnEnv.newWrapper();
+  wrapPointerInObject(col, NdbDictColumnEnv, obj);  
+  
+  NdbDictionary::Column::Type col_type = col->getType();
+  bool is_int = (col_type <= NDB_TYPE_BIGUNSIGNED);
+  bool is_dec = ((col_type == NDB_TYPE_DECIMAL) || (col_type == NDB_TYPE_DECIMALUNSIGNED));
+  bool is_binary = ((col_type == NDB_TYPE_BLOB) || (col_type == NDB_TYPE_BINARY) 
+                   || (col_type == NDB_TYPE_VARBINARY) || (col_type == NDB_TYPE_LONGVARBINARY));
+  bool is_char = ((col_type == NDB_TYPE_CHAR) || (col_type == NDB_TYPE_TEXT)
+                   || (col_type == NDB_TYPE_VARCHAR) || (col_type == NDB_TYPE_LONGVARCHAR));
+
+  /* Required Properties */
+
+  obj->Set(String::NewSymbol("name"),
+           String::New(col->getName()),
+           ReadOnly);
+  
+  obj->Set(String::NewSymbol("columnNumber"),
+           v8::Int32::New(col->getColumnNo()),
+           ReadOnly);
+  
+  obj->Set(String::NewSymbol("columnType"), 
+           getColumnType(col), 
+           ReadOnly);
+
+  obj->Set(String::NewSymbol("isIntegral"),
+           Boolean::New(is_int),
+           ReadOnly);
+
+  obj->Set(String::NewSymbol("isNullable"),
+           Boolean::New(col->getNullable()),
+           ReadOnly);
+
+  obj->Set(String::NewSymbol("isPrimaryKey"),
+           Boolean::New(col->getPrimaryKey()),
+           ReadOnly);
+
+  obj->Set(String::NewSymbol("columnSpace"),
+           v8::Int32::New(col->getSizeInBytes()),
+           ReadOnly);
+  
+  /* Optional Properties, depending on columnType */
+  /* Group A: Numeric */
+  if(is_int || is_dec) {
+    obj->Set(String::NewSymbol("isUnsigned"),
+             getIntColumnUnsigned(col),
+             ReadOnly);
+  }
+  
+  if(is_int) {    
+    obj->Set(String::NewSymbol("intSize"),
+             v8::Int32::New(col->getSizeInBytes()),
+             ReadOnly);
+  }
+  
+  if(is_dec) {
+    obj->Set(String::NewSymbol("scale"),
+             v8::Int32::New(col->getScale()),
+             ReadOnly);
+    
+    obj->Set(String::NewSymbol("precision"),
+             v8::Int32::New(col->getPrecision()),
+             ReadOnly);
+  }
+  
+  /* Group B: Non-numeric */
+  if(is_binary || is_char) {  
+    obj->Set(String::NewSymbol("length"),
+             v8::Int32::New(col->getLength()),
+             ReadOnly);
+
+    obj->Set(String::NewSymbol("isBinary"),
+             Boolean::New(is_binary),
+             ReadOnly);
+  
+    if(is_char) {
+      obj->Set(String::NewSymbol("charsetNumber"),
+               Number::New(col->getCharsetNumber()),
+               ReadOnly);
+      // todo: charsetName
+    }
+  }
+    
+  return scope.Close(obj);
+} 
 
 
 /* getTable() method call
@@ -305,7 +496,7 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
     "DATETIME",
     "DATE",
     "BLOB",
-    "BLOB",           // TEXT
+    "TEXT",           // TEXT
     "BIT",
     "VARCHAR",        // LONGVARCHAR
     "VARBINARY",      // LONGVARBINARY
@@ -345,147 +536,6 @@ Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *col) {
   }
 }
 
- 
-Handle<Object> buildDBColumn(const NdbDictionary::Column *col) {
-  HandleScope scope;
-  
-  Local<Object> obj = Object::New();
-  NdbDictionary::Column::Type col_type = col->getType();
-  bool is_int = (col_type <= NDB_TYPE_BIGUNSIGNED);
-  bool is_dec = ((col_type == NDB_TYPE_DECIMAL) || (col_type == NDB_TYPE_DECIMALUNSIGNED));
-  bool is_binary = ((col_type == NDB_TYPE_BLOB) || (col_type == NDB_TYPE_BINARY) 
-                   || (col_type == NDB_TYPE_VARBINARY) || (col_type == NDB_TYPE_LONGVARBINARY));
-  bool is_char = ((col_type == NDB_TYPE_CHAR) || (col_type == NDB_TYPE_TEXT)
-                   || (col_type == NDB_TYPE_VARCHAR) || (col_type == NDB_TYPE_LONGVARCHAR));
-
-  /* Required Properties */
-
-  obj->Set(String::NewSymbol("name"),
-           String::New(col->getName()),
-           ReadOnly);
-  
-  obj->Set(String::NewSymbol("columnNumber"),
-           Integer::New(col->getColumnNo()),
-           ReadOnly);
-  
-  obj->Set(String::NewSymbol("columnType"), 
-           getColumnType(col), 
-           ReadOnly);
-
-  obj->Set(String::NewSymbol("isIntegral"),
-           Boolean::New(is_int),
-           ReadOnly);
-
-  obj->Set(String::NewSymbol("isNullable"),
-           Boolean::New(col->getNullable()),
-           ReadOnly);
-
-   obj->Set(String::NewSymbol("isPrimaryKey"),
-           Boolean::New(col->getPrimaryKey()),
-           ReadOnly);
-
-   // todo: columnspace
-  
-  /* Optional Properties, depending on columnType */
-
-  /* Group A: Numeric */
-  if(is_int || is_dec) {
-    obj->Set(String::NewSymbol("isUnsigned"),
-             getIntColumnUnsigned(col),
-             ReadOnly);
-  }
-  
-  if(is_int) {    
-    obj->Set(String::NewSymbol("intSize"),
-             Integer::New(col->getSizeInBytes()),
-             ReadOnly);
-  }
-  
-  if(is_dec) {
-    obj->Set(String::NewSymbol("scale"),
-             Integer::New(col->getScale()),
-             ReadOnly);
-    
-    obj->Set(String::NewSymbol("precision"),
-             Integer::New(col->getPrecision()),
-             ReadOnly);
-  }
-  
-  /* Group B: Non-numeric */
-  if(is_binary || is_char) {  
-    obj->Set(String::NewSymbol("length"),
-             Integer::New(col->getLength()),
-             ReadOnly);
-
-    obj->Set(String::NewSymbol("isBinary"),
-             Boolean::New(is_binary),
-             ReadOnly);
-  
-    if(is_char) {
-      obj->Set(String::NewSymbol("charsetNumber"),
-               Number::New(col->getCharsetNumber()),
-               ReadOnly);
-      // todo: charsetName
-    }
-  }
-    
-  return scope.Close(obj);
-} 
-
-
-/* DBIndex = {
-  name          : ""    ,  // External or Internal index name (see clusterj-core store/Index.java)
-  isPrimaryKey  : false ,  // bool
-  isUnique      : false ,  // bool
-  isOrdered     : false ,  // bool; can scan if true
-  columns       : []    ,  // an array of DBColumn objects
-  userData      : ""       // Data stored in the DBIndex by the ORM layer
-};
-*/
-Handle<Object> buildDBIndex_PK(const NdbDictionary::Table *ndb_table) {
-  HandleScope scope;
-  
-  Local<Object> obj = Object::New();
-
-  obj->Set(String::NewSymbol("name"), Null(), ReadOnly);
-  obj->Set(String::NewSymbol("isPrimaryKey"), Boolean::New(true), ReadOnly);
-  obj->Set(String::NewSymbol("isUnique"),     Boolean::New(true), ReadOnly);
-  obj->Set(String::NewSymbol("isOrdered"),    Boolean::New(false), ReadOnly);
-  
-  int ncol = ndb_table->getNoOfPrimaryKeys();
-  Local<Array> idx_columns = Array::New(ncol);
-  obj->Set(String::NewSymbol("columns"), idx_columns);
-  for(int i = 0 ; i < ncol ; i++) {
-    const char * col_name = ndb_table->getPrimaryKey(i);
-    idx_columns->Set(i, String::New(col_name));
-  }
-  return scope.Close(obj);
-}
-
-
-Handle<Object> buildDBIndex(const NdbDictionary::Index *idx) {
-  HandleScope scope;
-  
-  Local<Object> obj = Object::New();
-
-  obj->Set(String::NewSymbol("name"), String::New(idx->getName()));
-  obj->Set(String::NewSymbol("isPrimaryKey"), Boolean::New(false), ReadOnly);
-  obj->Set(String::NewSymbol("isUnique"),     
-           Boolean::New(idx->getType() == NdbDictionary::Index::UniqueHashIndex),
-           ReadOnly);
-  obj->Set(String::NewSymbol("isOrdered"),
-           Boolean::New(idx->getType() == NdbDictionary::Index::OrderedIndex),
-           ReadOnly);
-  
-  int ncol = idx->getNoOfColumns();
-  Local<Array> idx_columns = Array::New(ncol);
-  obj->Set(String::NewSymbol("columns"), idx_columns);
-  for(int i = 0 ; i < ncol ; i++) {
-    idx_columns->Set(i, Integer::New(idx->getColumn(i)->getColumnNo()));
-  }
-  return scope.Close(obj);
-}
-
 
 void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
   HandleScope scope;
@@ -497,5 +547,4 @@ void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
 
   target->Set(Persistent<String>(String::NewSymbol("DBDictionary")), dbdict_obj);
 }
-
 

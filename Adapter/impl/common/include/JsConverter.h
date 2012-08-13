@@ -151,6 +151,12 @@ inline Local<Value> toJS<uint32_t>(uint32_t cval) {
   return v8::Uint32::New(cval);
 };
 
+// size_t
+template <>
+inline Local<Value> toJS<size_t>(size_t cval) {
+  return v8::Uint32::New(cval);
+};
+
 // double
 template <>
 inline Local<Value> toJS<double>(double cval) {
@@ -163,6 +169,12 @@ inline Local<Value> toJS<const char *>(const char * cval) {
   return v8::String::New(cval);
 }
 
+// const bool * 
+template <> 
+inline Local<Value> toJS<const bool *>(const bool * cbp) {
+  HandleScope scope;
+  return BooleanObject::New(*cbp);
+}
 
 
 
@@ -180,4 +192,5 @@ template <> inline bool isPointer(double typ)              { return false; }
 template <> inline bool isPointer(const char * typ)        { return false; }
 template <> inline bool isPointer(int64_t typ)             { return false; }
 template <> inline bool isPointer(unsigned long typ)       { return false; }
+template <> inline bool isPointer(const bool * typ)        { return false; }
 

@@ -20,16 +20,17 @@
 
 var common = require("../build/Release/common/common_library.node"),
     adapter = require("../build/Release/ndb/ndb_adapter.node"),
-    ndbsession = require("./NdbSession.js");
+    ndbsession = require("./NdbSession.js"),
+    ndbtablehandler = require("./NdbTableHandler.js");
 var ndb_is_initialized = false;
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
-    adapter.ndbapi.ndb_init();
+    adapter.ndbapi.ndb_init();                       // ndb_init()
+    adapter.ndbapi.util.CharsetMap_init();           // CharsetMap::init()
     ndb_is_initialized = true;
   }
 }
-
 
 /* Constructor 
 */
@@ -141,4 +142,11 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, user_callback)
 };
 
   var sessionImpl = adapter.impl.DBSession.create(this.ndbconn, db, private_callback);
+}
+
+
+exports.DBConnectionPool.prototype.createDBTableHandler = function(dbtable) {
+  
+  
+
 }

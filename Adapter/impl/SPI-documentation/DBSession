@@ -68,9 +68,11 @@
 /* DBTransactionHandler openTransaction()
    IMMEDIATE
 
-   In the NDB case, making this IMMEDIATE will require prefetching 
-   transactions at startup time.
- 
+   This is a deffered operation. 
+   An actual transaction begins with a "BEGIN WORK" SQL statement (mysql)
+   or an Ndb::startTransaction() call (NDBAPI); those calls are deferred 
+   until execute time.  
+
    RETURNS a DBTransactionHandler
 */
   openTransaction();
@@ -89,5 +91,5 @@
 /* close DBSession
    ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
 */
-void close();
+  void close();
 

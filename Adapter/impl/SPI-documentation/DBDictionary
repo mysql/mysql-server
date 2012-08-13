@@ -88,10 +88,10 @@ DBColumn = {
    that the code in Adapter/api must treat the two descriptions as equivalent. 
 */
 DBIndex = {
-  name             : ""    ,  // Index name
-  isPrimaryKey     : true  ,  // true or undefined
-  isUnique         : true  ,  // true or undefined
-  isOrdered        : true  ,  // true or undefined; can scan if true
+  name             : ""    ,  // Index name; undefined for PK 
+  isPrimaryKey     : true  ,  // true for PK; otherwise undefined
+  isUnique         : true  ,  // true or false
+  isOrdered        : true  ,  // true or false; can scan if true
   columnNumbers    : []    ,  // an ordered array of column numbers
 };
 
