@@ -266,7 +266,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 7,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
       "attached_subqueries": [
         {
           "using_temporary_table": true,
@@ -316,7 +316,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
 # simple UNION
 EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -806,7 +806,7 @@ t1.a IN (SELECT t3.a FROM t3 WHERE t3.a IN
 EXPLAIN
 {
   "query_block": {
-    "select_id": 3,
+    "select_id": 1,
     "nested_loop": [
       {
         "table": {
@@ -820,17 +820,39 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery3>",
+          "using_temporary_table": true,
           "access_type": "eq_ref",
-          "possible_keys": [
-            "distinct_key"
-          ] /* possible_keys */,
-          "key": "distinct_key",
+          "key": "<auto_key>",
           "key_length": "5",
           "ref": [
             "test.t1.a"
           ] /* ref */,
           "rows": 1,
-          "filtered": 100
+          "materialized_from_subquery": {
+            "query_block": {
+              "nested_loop": [
+                {
+                  "table": {
+                    "table_name": "t3",
+                    "access_type": "ALL",
+                    "rows": 3,
+                    "filtered": 100,
+                    "attached_condition": "(`test`.`t3`.`a` > 0)"
+                  } /* table */
+                },
+                {
+                  "table": {
+                    "table_name": "t4",
+                    "access_type": "ALL",
+                    "rows": 3,
+                    "filtered": 100,
+                    "using_join_buffer": "Block Nested Loop",
+                    "attached_condition": "(`test`.`t4`.`a` = `test`.`t3`.`a`)"
+                  } /* table */
+                }
+              ] /* nested_loop */
+            } /* query_block */
+          } /* materialized_from_subquery */
         } /* table */
       },
       {
@@ -842,25 +864,6 @@ EXPLAIN
           "first_match": "<subquery3>",
           "using_join_buffer": "Block Nested Loop",
           "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
-        } /* table */
-      },
-      {
-        "table": {
-          "table_name": "t3",
-          "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100,
-          "attached_condition": "(`test`.`t3`.`a` > 0)"
-        } /* table */
-      },
-      {
-        "table": {
-          "table_name": "t4",
-          "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100,
-          "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "(`test`.`t4`.`a` = `test`.`t3`.`a`)"
         } /* table */
       }
     ] /* nested_loop */
@@ -995,8 +998,8 @@ WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key)
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	Using where
-1	SIMPLE	<subquery2>	eq_ref	distinct_key	distinct_key	5	test.t5.c	1	NULL
-1	SIMPLE	<subquery3>	eq_ref	distinct_key	distinct_key	5	test.t5.c	1	NULL
+1	SIMPLE	<subquery2>	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	NULL
+1	SIMPLE	<subquery3>	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	NULL
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 2	MATERIALIZED	t1	index	c_key	c_key	5	NULL	3	Using where; Using index; Using join buffer (Block Nested Loop)
 3	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	3	Using where
@@ -1021,83 +1024,89 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery2>",
+          "using_temporary_table": true,
           "access_type": "eq_ref",
-          "possible_keys": [
-            "distinct_key"
-          ] /* possible_keys */,
-          "key": "distinct_key",
+          "key": "<auto_key>",
           "key_length": "5",
           "ref": [
             "test.t5.c"
           ] /* ref */,
           "rows": 1,
-          "filtered": 100
+          "materialized_from_subquery": {
+            "query_block": {
+              "nested_loop": [
+                {
+                  "table": {
+                    "table_name": "t2",
+                    "access_type": "ALL",
+                    "rows": 3,
+                    "filtered": 100
+                  } /* table */
+                },
+                {
+                  "table": {
+                    "table_name": "t1",
+                    "access_type": "index",
+                    "possible_keys": [
+                      "c_key"
+                    ] /* possible_keys */,
+                    "key": "c_key",
+                    "key_length": "5",
+                    "rows": 3,
+                    "filtered": 100,
+                    "using_index": true,
+                    "using_join_buffer": "Block Nested Loop",
+                    "attached_condition": "(`test`.`t1`.`c_key` = `test`.`t2`.`c_key`)"
+                  } /* table */
+                }
+              ] /* nested_loop */
+            } /* query_block */
+          } /* materialized_from_subquery */
         } /* table */
       },
       {
         "table": {
           "table_name": "<subquery3>",
+          "using_temporary_table": true,
           "access_type": "eq_ref",
-          "possible_keys": [
-            "distinct_key"
-          ] /* possible_keys */,
-          "key": "distinct_key",
+          "key": "<auto_key>",
           "key_length": "5",
           "ref": [
             "test.t5.c"
           ] /* ref */,
           "rows": 1,
-          "filtered": 100
-        } /* table */
-      },
-      {
-        "table": {
-          "table_name": "t2",
-          "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100
-        } /* table */
-      },
-      {
-        "table": {
-          "table_name": "t1",
-          "access_type": "index",
-          "possible_keys": [
-            "c_key"
-          ] /* possible_keys */,
-          "key": "c_key",
-          "key_length": "5",
-          "rows": 3,
-          "filtered": 100,
-          "using_index": true,
-          "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "(`test`.`t1`.`c_key` = `test`.`t2`.`c_key`)"
-        } /* table */
-      },
-      {
-        "table": {
-          "table_name": "t4",
-          "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100,
-          "attached_condition": "(`test`.`t4`.`c_key` is not null)"
-        } /* table */
-      },
-      {
-        "table": {
-          "table_name": "t3",
-          "access_type": "ref",
-          "possible_keys": [
-            "c_key"
-          ] /* possible_keys */,
-          "key": "c_key",
-          "key_length": "5",
-          "ref": [
-            "test.t4.c_key"
-          ] /* ref */,
-          "rows": 1,
-          "filtered": 100,
-          "using_index": true
+          "materialized_from_subquery": {
+            "query_block": {
+              "nested_loop": [
+                {
+                  "table": {
+                    "table_name": "t4",
+                    "access_type": "ALL",
+                    "rows": 3,
+                    "filtered": 100,
+                    "attached_condition": "(`test`.`t4`.`c_key` is not null)"
+                  } /* table */
+                },
+                {
+                  "table": {
+                    "table_name": "t3",
+                    "access_type": "ref",
+                    "possible_keys": [
+                      "c_key"
+                    ] /* possible_keys */,
+                    "key": "c_key",
+                    "key_length": "5",
+                    "ref": [
+                      "test.t4.c_key"
+                    ] /* ref */,
+                    "rows": 1,
+                    "filtered": 100,
+                    "using_index": true
+                  } /* table */
+                }
+              ] /* nested_loop */
+            } /* query_block */
+          } /* materialized_from_subquery */
         } /* table */
       }
     ] /* nested_loop */
