@@ -15,6 +15,9 @@ def build(ctx):
   
   obj.source = "src/node_module.cpp " + \
   "src/Ndb_init_wrapper.cpp " + \
+  "src/Ndb_util_wrapper.cpp " +\
   "src/Ndb_cluster_connection_wrapper.cpp " + \
   "src/DBSessionImpl.cpp " + \
-  "src/DBDictionaryImpl.cpp "
+  "src/DBDictionaryImpl.cpp " +\
+  "src/Record.cpp " +\
+  "src/Record_wrapper.cpp"

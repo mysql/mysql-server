@@ -48,7 +48,6 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
 
 
 /*   void set_name(const char *name);
-     TODO: Is this sync or async?
 */
 Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);

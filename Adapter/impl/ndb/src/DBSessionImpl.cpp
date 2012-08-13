@@ -52,6 +52,31 @@ ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
 }
 
 
+
+
+
+// FIXME:  This is declared as a native method on a wrapped Ndb *
+Handle<Value> startTransaction(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(4);
+  
+  typedef NativeMethodCall_3_<NdbTransaction *, Ndb, 
+                              const NdbDictionary::Table *, 
+                              const char *, uint32_t> MCALL;
+
+  MCALL * mcallptr = new MCALL(args);
+  
+  mcallptr->envelope = & NdbSessionImplEnv;
+  mcallptr->method  = & Ndb::startTransaction;
+  mcallptr->runAsync();
+  
+  return scope.Close(JS_VOID_RETURN);
+}
+
+
+
 /* NewDBSessionImpl()
    ASYNC
    arg0: Ndb_cluster_connection
