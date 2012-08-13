@@ -67,6 +67,7 @@ TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 ADD_EXECUTABLE(testLimits testLimits.cpp)
 ADD_EXECUTABLE(testSingleUserMode testSingleUserMode.cpp)
 ADD_EXECUTABLE(testIndexStat testIndexStat.cpp)
+ADD_EXECUTABLE(testRedo testRedo.cpp)
 ADD_EXECUTABLE(testUpgrade testUpgrade.cpp)
 ADD_EXECUTABLE(testAsynchMultiwait testAsynchMultiwait.cpp)
 
@@ -83,7 +84,7 @@ SET(BINS create_all_tabs create_tab
   DbAsyncGenerator test_event_merge testNdbinfo
   testNativeDefault testLimits testSpj
   testSingleUserMode
-  testIndexStat
+  testIndexStat testRedo
   testUpgrade
   testAsynchMultiwait)
 
