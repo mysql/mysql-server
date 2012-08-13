@@ -28,13 +28,18 @@ using namespace v8;
 typedef void LOADER_FUNCTION(Handle<Object>);
 
 extern LOADER_FUNCTION Ndb_init_initOnLoad;
+extern LOADER_FUNCTION Ndb_util_initOnLoad;
 extern LOADER_FUNCTION Ndb_cluster_connection_initOnLoad;
 extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
 extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
+extern LOADER_FUNCTION NdbTransaction_initOnLoad;
+
 
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
   Ndb_init_initOnLoad(target);
+  Ndb_util_initOnLoad(target);
+//  NdbTransaction_initOnLoad(target);
 }
 
 

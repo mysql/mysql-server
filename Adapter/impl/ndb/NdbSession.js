@@ -22,12 +22,15 @@ var adapter = require("../build/Release/ndb/ndb_adapter.node"),
     ndbdictionary = require("./NdbDictionary.js");
 
 
-/* Do-Nothing Constructor.  Instances are actually constructed 
+
+/* Private Constructor
+Instances are actually constructed 
    by NdbConnectionPool.getSessionHandler().
 */
 exports.DBSession = function() { 
   udebug.log("DBSession constructor");
 };
+
 
 
 /** get data dictionary.
