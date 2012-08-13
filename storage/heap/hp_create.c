@@ -245,21 +245,32 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
 {
   uint i,recbuffer,records_in_block;
 
-  max_records= max(min_records,max_records);
+  /*
+    If not min_records and max_records are given, optimize for 1000 rows
+  */
+  if (!min_records)
+    min_records= min(1000, max_records);
   if (!max_records)
-    max_records= 1000;			/* As good as quess as anything */
-  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
-  records_in_block= max_records / 10;
+    max_records= max(min_records, 1000);
 
   /*
     We don't want too few records_in_block as otherwise the overhead of
     of the HP_PTRS block will be too notable
   */
-  records_in_block= min(1000, max_records);
+  records_in_block= max(1000, min_records);
+  records_in_block= min(records_in_block, max_records);
+  /* If big max_records is given, allocate bigger blocks */
+  records_in_block= max(records_in_block, max_records / 10);
+  /* We don't want too few blocks per row either */
   if (records_in_block < 10)
     records_in_block= 10;
 
-  /* The + 1 is there to ensure that we get at least 1 row per level */
+  recbuffer= (uint) (reclength + sizeof(uchar**) - 1) & ~(sizeof(uchar**) - 1);
+  /*
+    Don't allocate more than my_default_record_cache_size per level.
+    The + 1 is there to ensure that we get at least 1 row per level (for
+    the exceptional case of very long rows)
+  */
   if (records_in_block*recbuffer >
       (my_default_record_cache_size-sizeof(HP_PTRS)*HP_MAX_LEVELS))
     records_in_block= (my_default_record_cache_size - sizeof(HP_PTRS) *

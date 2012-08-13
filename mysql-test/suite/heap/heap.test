@@ -485,3 +485,47 @@ INSERT INTO t1 VALUES('', 0);
 ALTER TABLE t1 MODIFY c1 VARCHAR(101);
 SELECT c2 FROM t1;
 DROP TABLE t1;
+
+#
+# Show that MIN_ROWS and MAX_ROWS have an effect on how data_length
+# and index_length are allocated.
+# Result is different for 32 / 64 bit machines as pointer lengths are different
+#
+
+CREATE TABLE t1 (a int, index(a)) engine=heap min_rows=10 max_rows=100;
+insert into t1 values(1);
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+drop table t1;
+CREATE TABLE t1 (a int, index(a)) engine=heap min_rows=10 max_rows=10000;
+insert into t1 values(1);
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+drop table t1;
+CREATE TABLE t1 (a int, index(a)) engine=heap min_rows=3000 max_rows=3000;
+insert into t1 values(1);
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+drop table t1;
+CREATE TABLE t1 (a int, index(a)) engine=heap max_rows=15000;
+insert into t1 values(1);
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+drop table t1;
+
+create table t1 (c1 int, index(c1)) engine=heap max_rows=10000;
+insert into t1 select rand(100000000);
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1;
+insert into t1 select rand(100000000) from t1 limit 488;
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+insert into t1 select rand(100000000) from t1 limit 1;
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+insert into t1 select rand(100000000) from t1 limit 1000;
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+insert into t1 select rand(100000000) from t1;
+select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
+drop table t1;

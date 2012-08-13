@@ -1049,9 +1049,10 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   ulong    log_file_len = 0;
   ulong    packet_len;
   int      result = -1;
-
   struct timespec start_ts;
   ulong trc_level = trace_level_;
+
+  LINT_INIT_STRUCT(start_ts);
 
   function_enter(kWho);
 

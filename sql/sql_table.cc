@@ -1960,8 +1960,9 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 static uint32 comment_length(THD *thd, uint32 comment_pos,
                              const char **comment_start)
 {
-  const char *query= thd->query();
-  const char *query_end= query + thd->query_length();
+  /* We use uchar * here to make array indexing portable */
+  const uchar *query= (uchar*) thd->query();
+  const uchar *query_end= (uchar*) query + thd->query_length();
   const uchar *const state_map= thd->charset()->state_map;
 
   for (; query < query_end; query++)
@@ -1975,12 +1976,12 @@ static uint32 comment_length(THD *thd, uint32 comment_pos,
       state_map[static_cast<uchar>(*query)] != MY_LEX_LONG_COMMENT || query[1] != '*')
     return 0;
   
-  *comment_start= query;
+  *comment_start= (char*) query;
   
   for (query+= 3; query < query_end; query++)
   {
     if (query[-1] == '*' && query[0] == '/')
-      return query - *comment_start + 1;
+      return (char*) query - *comment_start + 1;
   }
   return 0;
 }
