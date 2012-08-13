@@ -690,7 +690,7 @@ static int rr_cmp(uchar *a,uchar *b)
   if (a[4] != b[4])
     return (int) a[4] - (int) b[4];
   if (a[5] != b[5])
-    return (int) a[1] - (int) b[5];
+    return (int) a[5] - (int) b[5];
   if (a[6] != b[6])
     return (int) a[6] - (int) b[6];
   return (int) a[7] - (int) b[7];

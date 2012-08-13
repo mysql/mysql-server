@@ -24,7 +24,9 @@ but is included in mem0mem.* !
 Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
-#include "ha_prototypes.h"
+#ifndef UNIV_HOTBACKUP
+# include "ha_prototypes.h"
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_MEM_DEBUG
 # ifndef UNIV_HOTBACKUP
