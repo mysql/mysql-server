@@ -599,20 +599,20 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 {
   int error;
   THD *thd= join->thd;
-  Semijoin_mat_exec *sjm= join_tab[-1].emb_sj_nest->sj_mat_exec;
+  Semijoin_mat_exec *sjm= join_tab[-1].sj_mat_exec;
   DBUG_ENTER("end_sj_materialize");
   if (!end_of_records)
   {
     TABLE *table= sjm->table;
 
-    List_iterator<Item> it(sjm->subq_exprs);
+    List_iterator<Item> it(*sjm->subq_exprs);
     Item *item;
     while ((item= it++))
     {
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, sjm->subq_exprs, 1, NULL);
+    fill_record(thd, table->field, *sjm->subq_exprs, 1, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))
@@ -1272,7 +1272,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   @details This function is the place to do any work on the table that
   needs to be done before table can be scanned. Currently it
-  only materialized derived tables and binds buffer for current rowid.
+  only materialized derived tables and semi-joined subqueries and binds
+  buffer for current rowid.
 
   @returns false - Ok, true  - error
 */
@@ -1929,7 +1930,7 @@ join_read_const(JOIN_TAB *tab)
   DBUG_ENTER("join_read_const");
 
   if (tab->prepare_scan())
-    return 1;
+    DBUG_RETURN(1);
 
   if (table->status & STATUS_GARBAGE)		// If first read
   {
@@ -2358,7 +2359,7 @@ int join_init_read_record(JOIN_TAB *tab)
 */
 
 int
-join_materialize_table(JOIN_TAB *tab)
+join_materialize_derived(JOIN_TAB *tab)
 {
   TABLE_LIST *derived= tab->table->pos_in_table_list;
   DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
@@ -2374,30 +2375,38 @@ join_materialize_table(JOIN_TAB *tab)
 
 /*
   Helper function for materialization of a semi-joined subquery.
+
+  @param tab JOIN_TAB referencing a materialized semi-join table
+
+  @return Nested loop state
 */
 
 int
 join_materialize_semijoin(JOIN_TAB *tab)
 {
-  Semijoin_mat_exec *sjm= tab->table->pos_in_table_list->sj_mat_exec;
+  DBUG_ENTER("join_materialize_semijoin");
 
-  JOIN_TAB *const first= tab + sjm->table_index;
+  Semijoin_mat_exec *const sjm= tab->sj_mat_exec;
+
+  JOIN_TAB *const first= tab->join->join_tab + sjm->inner_table_index;
   JOIN_TAB *const last= first + (sjm->table_count - 1);
   /*
     Set up the end_sj_materialize function after the last inner table,
     so that generated rows are inserted into the materialized table.
   */
   last->next_select= end_sj_materialize;
+  last->sj_mat_exec= sjm; // TODO: This violates comment for sj_mat_exec!
 
   int rc;
   if ((rc= sub_select(tab->join, first, false)) < 0)
-    return rc;
+    DBUG_RETURN(rc);
   if ((rc= sub_select(tab->join, first, true)) < 0)
-    return rc;
+    DBUG_RETURN(rc);
 
-  tab->materialized= true;
+  last->next_select= NULL;
+  last->sj_mat_exec= NULL;
 
-  return NESTED_LOOP_OK;
+  DBUG_RETURN(NESTED_LOOP_OK);
 }
 
 /*

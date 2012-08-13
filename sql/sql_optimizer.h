@@ -64,22 +64,27 @@ public:
     query block and "primary_tables" is equal to "tables".
     After plan has been created (after JOIN::get_best_combination()),
     the JOIN_TAB objects are enumerated as follows:
-    - tables gives the total number of allocated JOIN_TAB objects
-    - primary_tables gives the number of input tables, including
-      materialized temporary tables.
-    - const_tables are those tables out of primary_tables that are detected
+    - "tables" gives the total number of allocated JOIN_TAB objects
+    - "primary_tables" gives the number of input tables, including
+      materialized temporary tables from semi-join operation.
+    - "const_tables" are those tables among primary_tables that are detected
       to be constant.
-    - tmp_tables is 0, 1 or 2 and counts the maximum possible number of
+    - "tmp_tables" is 0, 1 or 2 and counts the maximum possible number of
       intermediate tables in post-processing (ie sorting and duplicate removal).
       Later, tmp_tables will be adjusted to the correct number of
       intermediate tables.
     - The remaining tables (ie. tables - primary_tables - tmp_tables) are
-      materialized semi-join tables.
+      input tables to materialized semi-join operations.
+    The tables are ordered as follows in the join_tab array:
+     1. const primary table
+     2. non-const primary tables
+     3. intermediate sort/group tables
+     4. possible holes in array
+     5. materialized semi-join tables
   */
   uint     tables;         ///< Total number of tables in query block
   uint     primary_tables; ///< Number of primary input tables in query block
   uint     const_tables;   ///< Number of primary tables deemed constant
-  uint     sjm_nests;      ///< Number of semi-join nests using materialization
   uint     send_group_parts;
   /**
     Indicates that grouping will be performed on the result set during
@@ -411,7 +416,6 @@ public:
     join_tab= 0;
     all_tables= 0;
     tables= 0;
-    sjm_nests= 0;
     primary_tables= 0;
     const_tables= 0;
     const_table_map= 0;
@@ -472,7 +476,10 @@ public:
   /// True if plan is const, ie it will return zero or one rows.
   bool plan_is_const() const { return const_tables == primary_tables; }
 
-  /// True if plan contains one non-const table (excluding materialization)
+  /**
+    True if plan contains one non-const primary table (ie not including
+    tables taking part in semi-join materialization).
+  */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
   int prepare(TABLE_LIST *tables, uint wind_num,
@@ -576,12 +583,10 @@ public:
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();
-  void update_keyuse();
-  bool update_equalities();
+  bool update_equalities_for_sjm();
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
-  bool allocate_sj_mat_exec();
 
 private:
   /**
@@ -680,7 +685,7 @@ private:
   void set_semijoin_info();
   bool set_access_methods();
   bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
-                                POSITION *const inner_pos,
+                                const POSITION *inner_pos,
                                 POSITION *sjm_pos);
   bool make_tmp_tables_info();
   bool compare_costs_of_subquery_strategies(
@@ -704,8 +709,9 @@ Item *build_equal_items(THD *thd, Item *cond,
                         List<TABLE_LIST> *join_list,
                         COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table,
-                                       uint keyparts, List<Item> outer_exprs);
+Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+                                       Item_field **fields,
+                                       List<Item> outer_exprs);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);

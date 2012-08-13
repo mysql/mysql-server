@@ -9785,7 +9785,7 @@ FROM t1 AS subquery3_t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subquery3_t1	index	col_varchar_key	col_varchar_key	9	NULL	0	Using where; Using index
 1	PRIMARY	<subquery3>	ALL	NULL	NULL	NULL	NULL	0	NULL
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	9	const,test.subquery3_t1.col_varchar_key	2	NULL
+1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	9	<subquery3>.7,test.subquery3_t1.col_varchar_key	2	Using where
 1	PRIMARY	table2	index	NULL	PRIMARY	4	NULL	1	Using index
 3	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	0	NULL
 2	DERIVED	subquery1_t1	ALL	PRIMARY	NULL	NULL	NULL	1	NULL

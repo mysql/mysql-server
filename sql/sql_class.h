@@ -4468,22 +4468,22 @@ class Semijoin_mat_exec : public Sql_alloc
 {
 public:
   Semijoin_mat_exec(bool is_scan, TABLE_LIST *const emb_sj_nest,
-                    uint table_count, uint field_count)
+                    uint table_count, uint mat_table_index,
+                    uint inner_table_index)
     :is_scan(is_scan), emb_sj_nest(emb_sj_nest),
-    table_count(table_count), field_count(field_count), 
-    table_index(-1), subq_exprs(), table_param(), table(NULL), mat_fields(NULL)
+    table_count(table_count),
+    mat_table_index(mat_table_index), inner_table_index(inner_table_index),
+    subq_exprs(&emb_sj_nest->nested_join->sj_inner_exprs),
+    table_param(), table(NULL), mat_fields(NULL)
   {}
-private:
-  // Nobody deletes me apparently ...
   ~Semijoin_mat_exec()
   {}
-public:
   const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
   TABLE_LIST *const emb_sj_nest;///< Semi-join nest for operation
   const uint table_count;       ///< Number of tables in the sj-nest
-  const uint field_count;       ///< Number of fields in temporary table
-  int table_index;              ///< Index into join_tab array for inner tables
-  List<Item> subq_exprs;        ///< List of expressions describing temp. table
+  const uint mat_table_index;   ///< Index in join_tab for materialized table
+  const uint inner_table_index; ///< Index in join_tab for first inner table
+  List<Item> *const subq_exprs; ///< List of expressions describing temp. table
   TMP_TABLE_PARAM table_param;  ///< The temptable and its related info
   TABLE *table;                 ///< Reference to temporary table
   Item_field **mat_fields;      ///< Fields in materialized table

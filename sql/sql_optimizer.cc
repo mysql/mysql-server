@@ -849,11 +849,8 @@ JOIN::optimize()
   */
   if (need_tmp || select_distinct || group_list || order)
   {
-    for (uint i = const_tables; i < tables; i++)
-    {
-      if (join_tab[i].table)
-        join_tab[i].table->prepare_for_position();
-    }
+    for (uint i = const_tables; i < primary_tables; i++)
+      join_tab[i].table->prepare_for_position();
   }
   DBUG_EXECUTE("info", TEST_join(this););
 
@@ -1968,7 +1965,7 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
   Item_func_eq *eq_item= NULL;
   if (((Item *) item_equal)->const_item() && !item_equal->val_int())
     return new Item_int((longlong) 0,1); 
-  Item *item_const= item_equal->get_const();
+  Item *const item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   if (!item_const)
   {
@@ -1978,46 +1975,47 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     */
     it++;
   }
-  Item_field *item_field;
+  Item_field *item_field; // Field to generate equality for.
   while ((item_field= it++))
   {
-    Item_equal *upper= item_field->find_item_equal(upper_levels);
-    Item_field *item_match= item_field;
-    if (upper)
-    { 
+    /*
+      Generate an equality of the form:
+      item_field = some previous field in item_equal's list.
+
+      First see if we really need to generate it:
+    */
+    Item_equal *const upper= item_field->find_item_equal(upper_levels);
+    if (upper) // item_field is in this upper equality
+    {
       if (item_const && upper->get_const())
-        item_match= NULL;
-      else
+        continue; // Const at both levels, no need to generate at current level
+      /*
+        If the upper-level multiple equality contains this item, there is no
+        need to generate the equality, unless item_field belongs to a
+        semi-join nest that is used for Materialization, and refers to tables
+        that are outside of the materialized semi-join nest,
+        As noted in Item_equal::get_subst_item(), subquery materialization
+        does not have this problem.
+      */
+      if (!sj_is_materialize_strategy(
+            item_field->field->table->reginfo.join_tab->get_sj_strategy()))
       {
+        Item_field *item_match;
         Item_equal_iterator li(*item_equal);
         while ((item_match= li++) != item_field)
         {
           if (item_match->find_item_equal(upper_levels) == upper)
-          {
-            item_match= NULL;
-            break;
-          }
+            break; // (item_match, item_field) is also in upper level equality
         }
-        /*
-          If item_field belongs to a semi-join nest that is used for
-          Materialization and was rejected due to being covered by an upper-
-          level multiple equality, and the upper-level multiple equality
-          refers to tables that are outside of the materialized semi-join nest,
-          generate the equality predicate regardless.
-          As noted in Item_equal::get_subst_item(), subquery materialization
-          does not have this problem.
-        */
-        if (item_match == NULL &&
-            sj_is_materialize_strategy(
-              item_field->field->table->reginfo.join_tab->get_sj_strategy()))
-          item_match= item_field;
+        if (item_match != item_field)
+          continue;
       }
-    }
+    } // ... if (upper).
 
     /*
-      If item_match is non-NULL, it should be compared with the head of
-      the multiple equality list.
-      item_match may refer to a table that is within a semijoin
+      item_field should be compared with the head of the multiple equality
+      list.
+      item_field may refer to a table that is within a semijoin
       materialization nest. In that case, the join order may look like:
 
         ot1 ot2 <subquery> ot5 SJM(it3 it4)
@@ -2048,24 +2046,20 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
       @see Item_equal::get_subst_item()
     */
 
-    Item *head= NULL;
-    if (item_match != NULL)
-    {
-      head= item_const ? item_const : item_equal->get_subst_item(item_field);
-      if (head == item_match)
-        item_match= NULL;
-    }
-    if (item_match != NULL)
-    {
-      if (eq_item)
-        eq_list.push_back(eq_item);
+    Item *const head=
+      item_const ? item_const : item_equal->get_subst_item(item_field);
+    if (head == item_field)
+      continue;
 
-      eq_item= new Item_func_eq(item_match, head);
-      if (!eq_item || eq_item->set_cmp_func())
-        return NULL;
-      eq_item->quick_fix_field();
-    }
-  }
+    // we have a pair, can generate 'item_field=head'
+    if (eq_item)
+      eq_list.push_back(eq_item);
+
+    eq_item= new Item_func_eq(item_field, head);
+    if (!eq_item || eq_item->set_cmp_func())
+      return NULL;
+    eq_item->quick_fix_field();
+  } // ... while ((item_field= it++))
 
   if (!cond && !eq_list.head())
   {
@@ -2883,27 +2877,63 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /**
-  Update keyuse references into materialized semi-joined tables.
+  Update keyuse references and equalities after semi-join materialization
+  strategy is chosen.
 
   @details
-    All primary tables after the materialized temporary table must be inspected.
-    This update is necessary for the MaterializeScan semi-join strategy.
-    After plan has been determined, keyuse objects for outer tables may point
+    For each multiple equality that contains a field that is selected
+    from a subquery, and that subquery is executed using a semi-join
+    materialization strategy, add the corresponding column in the materialized
+    temporary table to the equality.
+    For each injected semi-join equality that is not converted to
+    multiple equality, replace the reference to the expression selected
+    from the subquery with the corresponding column in the temporary table.
+
+    For the MaterializeScan semi-join strategy, all primary tables after the
+    materialized temporary table must be inspected for keyuse objects that point
     to expressions from the subquery tables. These references must be replaced
     with references to corresponding columns in the materialized temporary
     table instead.
+
+    This is needed to reflect the current join plan, and in particular to
+    generate correct equality predicates, @see eliminate_item_equal().
+
+  @return False if success, true if error
 */
 
-void JOIN::update_keyuse()
+bool JOIN::update_equalities_for_sjm()
 {
-  if (sjm_nests == 0)
-    return;
+  if (sjm_exec_list.is_empty())
+    return false;
+
+  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
+  Semijoin_mat_exec *sjm;
+  while ((sjm= it++))
+  {
+    TABLE_LIST *const emb_sj_nest= sjm->emb_sj_nest;
+    DBUG_ASSERT(!emb_sj_nest->outer_join_nest());
+    /*
+      The table cannot actually be an outer join inner table yet, this is
+      just a preparatory step (ie emb_sj_nest->outer_join_nest() is NULL)
+    */
+    Item *cond= emb_sj_nest->outer_join_nest() ?
+                  emb_sj_nest->outer_join_nest()->join_cond() :
+                  conds;
+    if (!cond)
+      continue;
+
+    uchar *dummy= NULL;
+    cond= cond->compile(&Item::equality_substitution_analyzer, &dummy,
+                        &Item::equality_substitution_transformer, (uchar *)sjm);
+    if (cond == NULL)
+      return true;
+    cond->update_used_tables();
+  }
 
   for (uint i= const_tables; i < primary_tables; i++)
   {
     JOIN_TAB *const mat_tab= join_tab + i;
-    Semijoin_mat_exec *const sjm=
-      mat_tab->table->pos_in_table_list->sj_mat_exec;
+    Semijoin_mat_exec *const sjm= mat_tab->sj_mat_exec;
     if (sjm == NULL)
       continue;
 
@@ -2912,12 +2942,11 @@ void JOIN::update_keyuse()
     {
       JOIN_TAB *const tab= join_tab + j;
       for (Key_use *keyuse= tab->position->key;
-           keyuse && keyuse->table == tab->table;
+           keyuse && keyuse->table == tab->table &&
+           keyuse->key == tab->position->key->key;
            keyuse++)
       {
-        if (keyuse->val->type() != Item::FIELD_ITEM)
-          continue;
-        List_iterator<Item> it(sjm->subq_exprs);
+        List_iterator<Item> it(*sjm->subq_exprs);
         Item *old;
         uint fieldno= 0;
         while ((old= it++))
@@ -2936,44 +2965,6 @@ void JOIN::update_keyuse()
         }
       }
     }
-  }
-}
-
-
-/**
-  Update equalities after semi-join materialization strategy is chosen.
-
-  @details
-    For each multiple equality that contains a field that is selected
-    from a subquery, and that subquery is executed using a semi-join
-    materialization strategy, add the corresponding column in the materialized
-    temporary table to the equality.
-    For each injected semi-join equality that is not converted to
-    multiple equality, replace the reference to the expression selected
-    from the subquery with the corresponding column in the temporary table.
-
-  @return False if success, true if error
-*/
-
-bool JOIN::update_equalities()
-{
-  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
-  Semijoin_mat_exec *sjm;
-  while ((sjm= it++))
-  {
-    TABLE_LIST *const emb_sj_nest= sjm->emb_sj_nest;
-    Item *cond= emb_sj_nest->outer_join_nest() ?
-                  emb_sj_nest->outer_join_nest()->join_cond() :
-                  conds;
-    if (!cond)
-      continue;
-
-    uchar *dummy= NULL;
-    cond= cond->compile(&Item::equality_substitution_analyzer, &dummy,
-                        &Item::equality_substitution_transformer, (uchar *)sjm);
-    if (cond == NULL)
-      return true;
-    cond->update_used_tables();
   }
 
   return false;
@@ -3128,7 +3119,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   // Up to one extra slot per semi-join nest is needed (if materialized)
   const uint sj_nests= join->select_lex->sj_nests.elements;
   if (!(join->best_positions=
-      new (thd->mem_root) POSITION[table_count+sj_nests+1]))
+      new (thd->mem_root) POSITION[table_count + sj_nests + 1]))
     DBUG_RETURN(true);
 
   join->best_ref= stat_vector;
@@ -3736,9 +3727,6 @@ const_table_extraction_done:
 
   join->refine_best_rowcount();
 
-  if (join->allocate_sj_mat_exec())
-    DBUG_RETURN(true);
-
   // Only best_positions should be needed from now on.
   join->positions= NULL;
   join->best_ref= NULL;
@@ -3840,9 +3828,9 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
       used when a semi-join nest is on the inner side of an outer join:
       1. If the semi-join contains dependencies to outer tables,
          materialize-scan strategy cannot be used.
-      2. sub_select_sjm() lacks support for setup of first_unmatched
-         and evaluation of triggered conditions, as in
-         evaluate_null_complemented_join_record().
+      2. Make sure that executor is able to evaluate triggered conditions
+         for semi-join materialized tables. It should be correct, but needs
+         verification.
          TODO: Remove this limitation!
       Handle this by disabling materialization strategies:
     */
@@ -4051,7 +4039,7 @@ static void trace_table_dependencies(Opt_trace_context * trace,
       
     Implementation overview
       1. update_ref_and_keys() accumulates info about null-rejecting
-         predicates in in KEY_FIELD::null_rejecting
+         predicates in in Key_field::null_rejecting
       1.1 add_key_part saves these to Key_use.
       2. create_ref_for_key copies them to TABLE_REF.
       3. add_not_null_conds adds "x IS NOT NULL" to join_tab->m_condition of
@@ -4249,7 +4237,6 @@ static bool optimize_semijoin_nests_for_materialization(JOIN *join)
   while ((sj_nest= sj_list_it++))
   {
     /* As a precaution, reset pointers that were used in prior execution */
-    sj_nest->sj_mat_exec= NULL;
     sj_nest->nested_join->sjm.positions= NULL;
 
     /* Calculate the cost of materialization if materialization is allowed. */
@@ -4543,7 +4530,13 @@ static bool pull_out_semijoin_tables(JOIN *join)
 *****************************************************************************/
 
 /// Used when finding key fields
-typedef struct key_field_t {
+struct Key_field {
+  Key_field(Field *field, Item *val, uint level, uint optimize, bool eq_func,
+            bool null_rejecting, bool *cond_guard, uint sj_pred_no)
+  : field(field), val(val), level(level), optimize(0), eq_func(true),
+  null_rejecting(null_rejecting), cond_guard(cond_guard),
+  sj_pred_no(sj_pred_no)
+  {}
   Field		*field;
   Item		*val;			///< May be empty if diff constant
   uint		level;
@@ -4557,7 +4550,7 @@ typedef struct key_field_t {
   bool          null_rejecting;
   bool          *cond_guard;                    ///< @sa Key_use::cond_guard
   uint          sj_pred_no;                     ///< @sa Key_use::sj_pred_no
-} KEY_FIELD;
+};
 
 /* Values in optimize */
 #define KEY_OPTIMIZE_EXISTS		1
@@ -4576,7 +4569,7 @@ typedef struct key_field_t {
   SELECT * FROM t1 WHERE t1.key=outer_ref_field or t1.key IS NULL 
   @endcode
 
-  KEY_FIELD::null_rejecting is processed as follows: @n
+  Key_field::null_rejecting is processed as follows: @n
   result has null_rejecting=true if it is set for both ORed references.
   for example:
   -   (t2.key = t1.field OR t2.key  =  t1.field) -> null_rejecting=true
@@ -4587,8 +4580,8 @@ typedef struct key_field_t {
     OptimizerTeam: Fix this
 */
 
-static KEY_FIELD *
-merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
+static Key_field *
+merge_key_fields(Key_field *start, Key_field *new_fields, Key_field *end,
 		 uint and_level)
 {
   if (start == new_fields)
@@ -4596,12 +4589,12 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
   if (new_fields == end)
     return start;				// No new fields, skip all
 
-  KEY_FIELD *first_free=new_fields;
+  Key_field *first_free=new_fields;
 
   /* Mark all found fields in old array */
   for (; new_fields != end ; new_fields++)
   {
-    for (KEY_FIELD *old=start ; old != first_free ; old++)
+    for (Key_field *old=start ; old != first_free ; old++)
     {
       if (old->field == new_fields->field)
       {
@@ -4680,7 +4673,7 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
     }
   }
   /* Remove all not used items */
-  for (KEY_FIELD *old=start ; old != first_free ;)
+  for (Key_field *old=start ; old != first_free ;)
   {
     if (old->level != and_level)
     {						// Not used in all levels
@@ -4774,7 +4767,7 @@ warn_index_not_applicable(THD *thd, const Field *field,
   Add a possible key to array of possible keys if it's usable as a key
 
     @param key_fields      Pointer to add key, if usable
-    @param and_level       And level, to be stored in KEY_FIELD
+    @param and_level       And level, to be stored in Key_field
     @param cond            Condition predicate
     @param field           Field used in comparision
     @param eq_func         True if we used =, <=> or IS NULL
@@ -4792,7 +4785,7 @@ warn_index_not_applicable(THD *thd, const Field *field,
 */
 
 static void
-add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
+add_key_field(Key_field **key_fields,uint and_level, Item_func *cond,
               Field *field, bool eq_func, Item **value, uint num_values,
               table_map usable_tables, SARGABLE_PARAM **sargables)
 {
@@ -4961,7 +4954,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
   predicate.
 
     @param  key_fields     Pointer to add key, if usable
-    @param  and_level      And level, to be stored in KEY_FIELD
+    @param  and_level      And level, to be stored in Key_field
     @param  cond           Condition predicate
     @param  field          Field used in comparision
     @param  eq_func        True if we used =, <=> or IS NULL
@@ -4979,7 +4972,7 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
 */
 
 static void
-add_key_equal_fields(KEY_FIELD **key_fields, uint and_level,
+add_key_equal_fields(Key_field **key_fields, uint and_level,
                      Item_func *cond, Item_field *field_item,
                      bool eq_func, Item **val,
                      uint num_values, table_map usable_tables,
@@ -5032,14 +5025,14 @@ is_local_field (Item *field)
 
 
 static void
-add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
+add_key_fields(JOIN *join, Key_field **key_fields, uint *and_level,
                Item *cond, table_map usable_tables,
                SARGABLE_PARAM **sargables)
 {
   if (cond->type() == Item_func::COND_ITEM)
   {
     List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
-    KEY_FIELD *org_key_fields= *key_fields;
+    Key_field *org_key_fields= *key_fields;
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
@@ -5058,7 +5051,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
       Item *item;
       while ((item=li++))
       {
-	KEY_FIELD *start_key_fields= *key_fields;
+	Key_field *start_key_fields= *key_fields;
 	(*and_level)++;
         add_key_fields(join, key_fields, and_level, item, usable_tables,
                        sargables);
@@ -5084,7 +5077,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
           join->unit->item->substype() == Item_subselect::IN_SUBS &&
           !join->unit->is_union())
       {
-        KEY_FIELD *save= *key_fields;
+        Key_field *save= *key_fields;
         add_key_fields(join, key_fields, and_level, cond_arg, usable_tables,
                        sargables);
         // Indicate that this ref access candidate is for subquery lookup:
@@ -5274,7 +5267,7 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
 */
 
 static bool
-add_key_part(Key_use_array *keyuse_array, KEY_FIELD *key_field)
+add_key_part(Key_use_array *keyuse_array, Key_field *key_field)
 {
   Field *field=key_field->field;
   TABLE *form= field->table;
@@ -5401,9 +5394,9 @@ static int sort_keyuse(Key_use *a, Key_use *b)
 
 
 /*
-  Add to KEY_FIELD array all 'ref' access candidates within nested join.
+  Add to Key_field array all 'ref' access candidates within nested join.
 
-    This function populates KEY_FIELD array with entries generated from the 
+    This function populates Key_field array with entries generated from the 
     ON condition of the given nested join, and does the same for nested joins 
     contained within this nested join.
 
@@ -5436,7 +5429,7 @@ static int sort_keyuse(Key_use *a, Key_use *b)
 */
 
 static void add_key_fields_for_nj(JOIN *join, TABLE_LIST *nested_join_table,
-                                  KEY_FIELD **end, uint *and_level,
+                                  Key_field **end, uint *and_level,
                                   SARGABLE_PARAM **sargables)
 {
   List_iterator<TABLE_LIST> li(nested_join_table->nested_join->join_list);
@@ -5687,21 +5680,21 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
                     SARGABLE_PARAM **sargables)
 {
   uint	and_level,i,found_eq_constant;
-  KEY_FIELD *key_fields, *end, *field;
+  Key_field *key_fields, *end, *field;
   uint sz;
   uint m= max(select_lex->max_equal_elems, 1U);
   
   /* 
-    We use the same piece of memory to store both  KEY_FIELD 
+    We use the same piece of memory to store both  Key_field 
     and SARGABLE_PARAM structure.
-    KEY_FIELD values are placed at the beginning this memory
+    Key_field values are placed at the beginning this memory
     while  SARGABLE_PARAM values are put at the end.
-    All predicates that are used to fill arrays of KEY_FIELD
+    All predicates that are used to fill arrays of Key_field
     and SARGABLE_PARAM structures have at most 2 arguments
     except BETWEEN predicates that have 3 arguments and 
     IN predicates.
     This any predicate if it's not BETWEEN/IN can be used 
-    directly to fill at most 2 array elements, either of KEY_FIELD
+    directly to fill at most 2 array elements, either of Key_field
     or SARGABLE_PARAM type. For a BETWEEN predicate 3 elements
     can be filled as this predicate is considered as
     saragable with respect to each of its argument.
@@ -5712,10 +5705,10 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
     can be not more than select_lex->max_equal_elems such 
     substitutions.
   */ 
-  sz= max(sizeof(KEY_FIELD), sizeof(SARGABLE_PARAM)) *
+  sz= max(sizeof(Key_field), sizeof(SARGABLE_PARAM)) *
       (((select_lex->cond_count + 1) * 2 +
 	select_lex->between_count) * m + 1);
-  if (!(key_fields=(KEY_FIELD*)	thd->alloc(sz)))
+  if (!(key_fields=(Key_field*)	thd->alloc(sz)))
     return TRUE; /* purecov: inspected */
   and_level= 0;
   field= end= key_fields;
@@ -5728,7 +5721,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
   {
     add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
                    sargables);
-    for (KEY_FIELD *fld= field; fld != end ; fld++)
+    for (Key_field *fld= field; fld != end ; fld++)
     {
       /* Mark that we can optimize LEFT JOIN */
       if (fld->val->type() == Item::NULL_ITEM &&
@@ -5857,7 +5850,8 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 
 
 /**
-  Create a keyuse array for a table with a primary key
+  Create a keyuse array for a table with a primary key.
+  To be used when creating a materialized temporary table.
 
   @param thd         THD pointer, for memory allocation
   @param table       Table object representing table
@@ -5866,8 +5860,9 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 
   @return Pointer to created keyuse array, or NULL if error
 */
-Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table,
-                             uint keyparts, List<Item> outer_exprs)
+Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+                                       Item_field **fields,
+                                       List<Item> outer_exprs)
 {
   void *mem= thd->alloc(sizeof(Key_use_array));
   if (!mem)
@@ -5879,18 +5874,13 @@ Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table,
   for (uint keypartno= 0; keypartno < keyparts; keypartno++)
   {
     Item *const item= outer_expr++;
-    const Key_use keyuse(table,
-                         item,
-                         item->used_tables(),
-                         0,
-                         keypartno,
-                         0,
-                         (key_part_map) 1 << keypartno,
-                         ~(ha_rows) 0,
-                         (item->type() == Item::FIELD_ITEM),
-                         NULL,
-                         UINT_MAX);
-    if (keyuses->push_back(keyuse))
+    Key_field key_field(fields[keypartno]->field, item, 0, 0, true,
+                        // null_rejecting must be true for field items only,
+                        // add_not_null_conds() is incapable of handling
+                        // other item types.
+                        (item->type() == Item::FIELD_ITEM),
+                        NULL, UINT_MAX);
+    if (add_key_part(keyuses, &key_field))
       return NULL;
   }
   const Key_use key_end(NULL, NULL, 0, 0, 0, 0, 0, 0, false, NULL, 0);
@@ -9322,7 +9312,7 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
   }
 
   Semijoin_mat_optimize sjm;
-  calculate_materialization_costs(this, NULL, tables, &sjm);
+  calculate_materialization_costs(this, NULL, primary_tables, &sjm);
 
   /*
     The number of evaluations of the subquery influences costs, we need to
@@ -9458,41 +9448,6 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
       Don't restore JOIN::positions or best_ref, they're not used
       afterwards. best_positions is (like: by get_sj_strategy()).
     */
-  }
-  return false;
-}
-
-
-/**
-  This allocates execution structures so may be called only after we have the
-  very final plan. It must be called after
-  Optimize_table_order::fix_semijoin_strategies(), and before
-  get_best_combination() which uses those structures.
-*/
-bool JOIN::allocate_sj_mat_exec()
-{
-  if (select_lex->sj_nests.is_empty())
-    return false;
-
-  // "tables" is number of input tables at this point.
-  for (uint tableno= const_tables; tableno < tables; )
-  {
-    POSITION *const pos= best_positions + tableno;
-    if (sj_is_materialize_strategy(pos->sj_strategy))
-    {
-      TABLE_LIST *emb_sj_nest= pos->table->emb_sj_nest;
-      const uint table_count= my_count_bits(emb_sj_nest->sj_inner_tables);
-      if (!(emb_sj_nest->sj_mat_exec=
-          new (thd->mem_root)
-          Semijoin_mat_exec((pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
-                            emb_sj_nest, table_count,
-                            emb_sj_nest->nested_join->sj_inner_exprs.elements)))
-        return true;
-      sjm_nests++;
-      tableno+= table_count;
-    }
-    else
-      tableno++;
   }
   return false;
 }

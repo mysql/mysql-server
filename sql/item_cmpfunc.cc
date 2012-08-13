@@ -6447,6 +6447,7 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
     a field from the subquery that was used to create the materialized table,
     add the corresponding key field from the materialized table to the
     multiple equality.
+    @see JOIN::update_equalities_for_sjm() for the reason.
 */
 
 Item* Item_equal::equality_substitution_transformer(uchar *arg)
@@ -6464,7 +6465,7 @@ Item* Item_equal::equality_substitution_transformer(uchar *arg)
       continue;
 
     // Iterate over the fields selected from the subquery
-    List_iterator<Item> mit(sjm->subq_exprs);
+    List_iterator<Item> mit(*sjm->subq_exprs);
     Item *existing;
     uint fieldno= 0;
     while ((existing= mit++))
@@ -6474,8 +6475,7 @@ Item* Item_equal::equality_substitution_transformer(uchar *arg)
       fieldno++;
     }
   }
-  if (added_fields.elements)
-    fields.concat(&added_fields);
+  fields.concat(&added_fields);
 
   return this;
 }
@@ -6489,23 +6489,21 @@ Item* Item_equal::equality_substitution_transformer(uchar *arg)
     the select list of the subquery) is replaced with the corresponding
     column from the materialized temporary table, if the left and right
     arguments are not from the same semi-join nest.
+    @see JOIN::update_equalities_for_sjm() for why this is needed.
 */
 Item* Item_func_eq::equality_substitution_transformer(uchar *arg)
 {
   Semijoin_mat_exec *sjm= reinterpret_cast<Semijoin_mat_exec *>(arg);
 
   // Iterate over the fields selected from the subquery
-  List_iterator<Item> mit(sjm->subq_exprs);
+  List_iterator<Item> mit(*sjm->subq_exprs);
   Item *existing;
   uint fieldno= 0;
   while ((existing= mit++))
   {
     if (existing->real_item()->eq(args[1], false) &&
-        !(args[0]->used_tables() & sjm->emb_sj_nest->sj_inner_tables))
-    {
+        (args[0]->used_tables() & ~sjm->emb_sj_nest->sj_inner_tables))
       current_thd->change_item_tree(args+1, sjm->mat_fields[fieldno]);
-      args[1]= sjm->mat_fields[fieldno];
-    }
     fieldno++;
   }
   return this;
