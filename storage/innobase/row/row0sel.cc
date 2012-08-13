@@ -5154,6 +5154,9 @@ func_exit:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
+
+	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
+
 	return(err);
 }
 
