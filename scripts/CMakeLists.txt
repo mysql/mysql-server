@@ -283,6 +283,7 @@ SET(mysql_config_COMPONENT COMPONENT Development)
 SET(msql2mysql_COMPONENT COMPONENT Client)
 SET(mysqlaccess_COMPONENT COMPONENT Client)
 SET(mysql_find_rows_COMPONENT COMPONENT Client)
+SET(mytop_COMPONENT Client)
 
 IF(WIN32)
   # On Windows, some .sh and some .pl.in files are configured 
@@ -311,7 +312,6 @@ IF(WIN32)
   ENDFOREACH()
 ELSE()
   # On Unix, most of the files end up in the bin directory
-  SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     msql2mysql
     mysql_config
@@ -322,6 +322,7 @@ ELSE()
     mysqlaccess
     mysql_convert_table_format
     mysql_find_rows
+    mytop
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
