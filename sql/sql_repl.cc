@@ -476,7 +476,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     heartbeat_ts= &heartbeat_buf;
     set_timespec_nsec(*heartbeat_ts, 0);
   }
-  sql_print_information("Start binlog_dump to slave_server(%d), pos(%s, %lu)",
+  if (global_system_variables.log_warnings > 1)
+    sql_print_information("Start binlog_dump to slave_server(%d), pos(%s, %lu)",
                         thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, flags, log_ident, pos)))
   {
@@ -587,7 +588,7 @@ impossible position";
     this larger than the corresponding packet (query) sent 
     from client to master.
   */
-  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
+  thd->variables.max_allowed_packet= MAX_MAX_ALLOWED_PACKET;
 
   /*
     We can set log_lock now, it does not move (it's a member of

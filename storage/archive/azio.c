@@ -37,6 +37,10 @@ void putLong(File file, uLong x);
 uLong  getLong(azio_stream *s);
 void read_header(azio_stream *s, unsigned char *buffer);
 
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_file_key arch_key_file_data;
+#endif
+
 /* ===========================================================================
   Opens a gzip (.gz) file for reading or writing. The mode parameter
   is as in fopen ("rb" or "wb"). The file is given either by file descriptor
@@ -113,7 +117,7 @@ int az_open (azio_stream *s, const char *path, int Flags, File fd)
   s->stream.avail_out = AZ_BUFSIZE_WRITE;
 
   errno = 0;
-  s->file = fd < 0 ? my_open(path, Flags, MYF(0)) : fd;
+  s->file = fd < 0 ? mysql_file_open(arch_key_file_data, path, Flags, MYF(0)) : fd;
   DBUG_EXECUTE_IF("simulate_archive_open_failure",
   {
     if (s->file >= 0)
@@ -235,8 +239,8 @@ int get_byte(s)
   if (s->stream.avail_in == 0) 
   {
     errno = 0;
-    s->stream.avail_in= (uInt) my_read(s->file, (uchar *)s->inbuf,
-                                       AZ_BUFSIZE_READ, MYF(0));
+    s->stream.avail_in= (uInt) mysql_file_read(s->file, (uchar *)s->inbuf,
+                                               AZ_BUFSIZE_READ, MYF(0));
     if (s->stream.avail_in == 0) 
     {
       s->z_eof = 1;
@@ -277,7 +281,8 @@ void check_header(azio_stream *s)
   if (len < 2) {
     if (len) s->inbuf[0] = s->stream.next_in[0];
     errno = 0;
-    len = (uInt)my_read(s->file, (uchar *)s->inbuf + len, AZ_BUFSIZE_READ >> len, MYF(0));
+    len = (uInt)mysql_file_read(s->file, (uchar *)s->inbuf + len,
+                                AZ_BUFSIZE_READ >> len, MYF(0));
     if (len == (uInt)-1) s->z_err = Z_ERRNO;
     s->stream.avail_in += len;
     s->stream.next_in = s->inbuf;
@@ -468,7 +473,8 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, size_t len, int *error)
       if (s->stream.avail_out > 0) 
       {
         s->stream.avail_out -=
-          (uInt)my_read(s->file, (uchar *)next_out, s->stream.avail_out, MYF(0));
+          (uInt)mysql_file_read(s->file, (uchar *)next_out,
+                                s->stream.avail_out, MYF(0));
       }
       len -= s->stream.avail_out;
       s->in  += len;
@@ -481,7 +487,8 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, size_t len, int *error)
     if (s->stream.avail_in == 0 && !s->z_eof) {
 
       errno = 0;
-      s->stream.avail_in = (uInt)my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
+      s->stream.avail_in = (uInt)mysql_file_read(s->file, (uchar *)s->inbuf,
+                                                 AZ_BUFSIZE_READ, MYF(0));
       if (s->stream.avail_in == 0) 
       {
         s->z_eof = 1;
@@ -548,8 +555,8 @@ unsigned int azwrite (azio_stream *s, const voidp buf, unsigned int len)
     {
 
       s->stream.next_out = s->outbuf;
-      if (my_write(s->file, (uchar *)s->outbuf, AZ_BUFSIZE_WRITE, 
-                   MYF(0)) != AZ_BUFSIZE_WRITE) 
+      if (mysql_file_write(s->file, (uchar *)s->outbuf, AZ_BUFSIZE_WRITE, 
+                           MYF(0)) != AZ_BUFSIZE_WRITE) 
       {
         s->z_err = Z_ERRNO;
         break;
@@ -596,7 +603,7 @@ int do_flush (azio_stream *s, int flush)
     if (len != 0) 
     {
       s->check_point= my_tell(s->file, MYF(0));
-      if ((uInt)my_write(s->file, (uchar *)s->outbuf, len, MYF(0)) != len) 
+      if ((uInt)mysql_file_write(s->file, (uchar *)s->outbuf, len, MYF(0)) != len) 
       {
         s->z_err = Z_ERRNO;
         return Z_ERRNO;
@@ -783,7 +790,7 @@ void putLong (File file, uLong x)
   for (n = 0; n < 4; n++) 
   {
     buffer[0]= (int)(x & 0xff);
-    my_write(file, buffer, 1, MYF(0));
+    mysql_file_write(file, buffer, 1, MYF(0));
     x >>= 8;
   }
 }

@@ -222,7 +222,6 @@ UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
-#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
@@ -239,7 +238,6 @@ trx_write_trx_id(
 /*=============*/
 	byte*		ptr,	/*!< in: pointer to memory where written */
 	trx_id_t	id);	/*!< in: id */
-#ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Reads a trx id from an index page. In case that the id size changes in
 some future version, this function should be used instead of
@@ -572,7 +570,6 @@ FIL_PAGE_ARCH_LOG_NO_OR_SPACE_NO. */
 #define TRX_SYS_DOUBLEWRITE_BLOCK_SIZE	FSP_EXTENT_SIZE
 /* @} */
 
-#ifndef UNIV_HOTBACKUP
 /** File format tag */
 /* @{ */
 /** The offset of the file format tag on the trx system header page
@@ -591,6 +588,7 @@ identifier is added to this 64-bit constant. */
 	 | TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW)
 /* @} */
 
+#ifndef UNIV_HOTBACKUP
 /** Doublewrite control struct */
 struct trx_doublewrite_struct{
 	mutex_t	mutex;		/*!< mutex protecting the first_free field and

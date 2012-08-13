@@ -71,7 +71,7 @@ public:
 class ReplSemiSyncBase
   :public Trace {
 public:
-  static const char  kSyncHeader[2];              /* three byte packet header */
+  static const unsigned char  kSyncHeader[2];     /* three byte packet header */
 
   /* Constants in network packet header. */
   static const unsigned char kPacketMagicNum;

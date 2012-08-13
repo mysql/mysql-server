@@ -4877,8 +4877,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
       }
       if (canDoTurboBM)
       {
-        pattern     = first + 1;
         pattern_len = (int) len - 2;
+        pattern     = thd->strmake(first + 1, pattern_len);
         DBUG_PRINT("info", ("Initializing pattern: '%s'", first));
         int *suff = (int*) thd->alloc((int) (sizeof(int)*
                                       ((pattern_len + 1)*2+

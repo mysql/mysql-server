@@ -302,7 +302,6 @@ struct buf_chunk_struct{
 					was allocated for the frames */
 	buf_block_t*	blocks;		/*!< array of buffer control blocks */
 };
-#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
@@ -438,6 +437,7 @@ buf_block_alloc(
 
 	return(block);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /********************************************************************//**
 Calculates a page checksum which is stored to the page when it is written
@@ -3470,9 +3470,10 @@ buf_mark_space_corrupt(
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
-the buffer pool. */
+the buffer pool.
+@return TRUE if successful */
 UNIV_INTERN
-void
+ibool
 buf_page_io_complete(
 /*=================*/
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
@@ -3599,7 +3600,7 @@ corrupt:
 				table as corrupted instead of crashing server */
 				if (bpage->space > TRX_SYS_SPACE
 				    && buf_mark_space_corrupt(bpage)) {
-					return;
+					return(FALSE);
 				} else {
 					fputs("InnoDB: Ending processing"
 					      " because of"
@@ -3689,6 +3690,8 @@ corrupt:
 
 	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
+
+	return(TRUE);
 }
 
 /*********************************************************************//**
