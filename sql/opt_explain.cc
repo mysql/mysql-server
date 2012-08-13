@@ -1197,11 +1197,11 @@ bool Explain_join::shallow_explain()
 
     //uint sj_strategy= tab->position->sj_strategy;
     //if (sj_is_materialize_strategy(sj_strategy) && tab->emb_sj_nest)
-    Semijoin_mat_exec *sjm= tab->table->pos_in_table_list->sj_mat_exec;
+    Semijoin_mat_exec *sjm= tab->sj_mat_exec;
     if (sjm)
     {
-      sjm_info[sjm_count].start= t + sjm->table_index;
-      sjm_info[sjm_count].end= t + sjm->table_index + sjm->table_count - 1;
+      sjm_info[sjm_count].start= sjm->inner_table_index;
+      sjm_info[sjm_count].end= sjm->inner_table_index + sjm->table_count - 1;
       sjm_count++;
     }
     if (sjm_count > sjm_offset && t == sjm_info[sjm_offset].start)

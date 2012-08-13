@@ -2969,7 +2969,7 @@ bool subselect_indexsubquery_engine::exec()
   item_in->value= false;
   table->status= 0;
 
-  if (tl && tl->uses_materialization() && !tl->materialized)
+  if (tl && tl->uses_materialization() && !tab->materialized)
   {
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
@@ -2980,6 +2980,8 @@ bool subselect_indexsubquery_engine::exec()
                                   mysql_derived_cleanup);
     if (err)
       DBUG_RETURN(1);
+
+    tab->materialized= true;
   }
 
   if (check_null)

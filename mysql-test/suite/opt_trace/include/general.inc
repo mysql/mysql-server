@@ -425,6 +425,9 @@ select * from information_schema.OPTIMIZER_TRACE|
 # treated differently: it is executed, so the order and amount of
 # executions of f1() becomes different, which changes the order of
 # substatements in the trace.
+set @old_opt_switch=@@optimizer_switch;
+# Test was created when sj-mat-scan could not handle this query...
+set optimizer_switch="materialization=off";
 set optimizer_trace_offset=-60, optimizer_trace_limit=60|
 select * from t6 where d in (select f1() from t2 where s="c")|
 select * from information_schema.OPTIMIZER_TRACE|
@@ -438,6 +441,7 @@ select * from t6 where d in (select f1() from t2 where s="c")|
 # In ps-protocol mode, we also have trace of PREPARE for the top
 # SELECT, so we see one trace before the DELETE: the INSERT.
 select * from information_schema.OPTIMIZER_TRACE|
+set @@optimizer_switch=@old_opt_switch;
 
 # Stored procedures
 create procedure p1(arg char(1))
@@ -446,9 +450,13 @@ begin
   select d into res from t6 where d in (select f1() from t2 where s=arg);
   select d+1 into res from t6 where d=res+1;
 end|
+set @old_opt_switch=@@optimizer_switch;
+# Test was created when sj-mat-scan could not handle this query...
+set optimizer_switch="materialization=off";
 set optimizer_trace_offset=0, optimizer_trace_limit=100;
 call p1("c")|
 select * from information_schema.OPTIMIZER_TRACE|
+set @@optimizer_switch=@old_opt_switch;
 
 # Triggers
 create trigger trg1 before insert on t2 for each row

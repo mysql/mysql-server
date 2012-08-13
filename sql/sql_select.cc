@@ -398,7 +398,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
     JOIN_TAB *const tab= join->join_tab + tableno;
     POSITION *const pos= tab->position;
     uint keylen, keyno;
-    if (!pos || pos->sj_strategy == SJ_OPT_NONE)
+    if (pos->sj_strategy == SJ_OPT_NONE)
     {
       tableno++;  // nothing to do
       continue;
@@ -407,7 +407,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
     switch (pos->sj_strategy) {
       case SJ_OPT_MATERIALIZE_LOOKUP:
       case SJ_OPT_MATERIALIZE_SCAN:
-        /* Do nothing */
+        DBUG_ASSERT(false); // Should not occur among "primary" tables
+        // Do nothing
         tableno+= pos->n_sj_tables;
         break;
       case SJ_OPT_LOOSE_SCAN:
@@ -729,6 +730,11 @@ static int clear_sj_tmp_tables(JOIN *join)
     if ((res= table->file->ha_delete_all_rows()))
       return res; /* purecov: inspected */
   }
+  Semijoin_mat_exec *sjm;
+  List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
+  while ((sjm= it2++))
+    join->join_tab[sjm->mat_table_index].materialized= false;
+
   return 0;
 }
 
@@ -902,10 +908,10 @@ bool JOIN::destroy()
   cleanup_item_list(tmp_all_fields3);
   destroy_sj_tmp_tables(this);
 
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest= sj_list_it++))
-    sj_nest->sj_mat_exec= NULL;
+  List_iterator<Semijoin_mat_exec> sjm_list_it(sjm_exec_list);
+  Semijoin_mat_exec *sjm;
+  while ((sjm= sjm_list_it++))
+    delete sjm;
 
   keyuse.clear();
   DBUG_RETURN(test(error));
@@ -1284,7 +1290,10 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
 
 
 /**
-  Set up JOIN_TAB structs according to the picked join order in best_positions
+  Set up JOIN_TAB structs according to the picked join order in best_positions.
+  This allocates execution structures so may be called only after we have the
+  very final plan. It must be called after
+  Optimize_table_order::fix_semijoin_strategies().
 
   @return False if success, True if error
 
@@ -1294,17 +1303,21 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
     - Number of intermediate tables "tmp_tables" is calculated.
     - "tables" and "primary_tables" are recalculated.
 
-   Notice that intermediate tables will not have a POSITION reference, and they
+   Notice that intermediate tables will not have a POSITION reference; and they
    will not have a TABLE reference before the final stages of code generation.
 */
 
 bool JOIN::get_best_combination()
 {
   DBUG_ENTER("JOIN::get_best_combination");
+
+  // At this point "tables" and "primary"tables" represent the same:
+  DBUG_ASSERT(tables == primary_tables);
+
   /*
     Allocate additional space for tmp tables.
     Number of plan nodes:
-      # of regular input tables +
+      # of regular input tables (including semi-joined ones) +
       # of semi-join nests for materialization +
       1? + // For GROUP BY
       1? + // For DISTINCT
@@ -1320,24 +1333,23 @@ bool JOIN::get_best_combination()
   if (tmp_tables > 2)
     tmp_tables= 2;
 
-  if (!(join_tab= new (thd->mem_root) JOIN_TAB[tables+sjm_nests+tmp_tables]))
-    DBUG_RETURN(true);
-
   /*
     Rearrange queries with materialized semi-join nests so that the semi-join
     nest is replaced with a reference to a materialized temporary table and all
     materialized subquery tables are placed after the intermediate tables.
     After the following loop, "outer_target" is the position of first
-    materialized temporary table and "inner_target" is the position of the
-    first subquery table.
+    materialized temporary table (if there is one) and "inner_target" is
+    the position of the first subquery table (if any).
   */
   uint outer_target= 0;                   
-  uint inner_target= tables + tmp_tables;
-  for (uint tableno= 0; tableno < tables; )
+  uint inner_target= primary_tables + tmp_tables;
+  uint sjm_nests= 0;
+
+  for (uint tableno= 0; tableno < primary_tables; )
   {
-    if (best_positions[tableno].sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
-        best_positions[tableno].sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
+    if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
     {
+      sjm_nests++;
       inner_target-= (best_positions[tableno].n_sj_tables - 1);
       tableno+= best_positions[tableno].n_sj_tables;
     }
@@ -1345,34 +1357,48 @@ bool JOIN::get_best_combination()
       tableno++;
   }
 
-  int sjm_position= tables;  // Number assigned to materialized temporary table
-  int remaining_sjm= 0;
+  if (!(join_tab= new(thd->mem_root) JOIN_TAB[tables + sjm_nests + tmp_tables]))
+    DBUG_RETURN(true);
+
+  int sjm_index= tables;  // Number assigned to materialized temporary table
+  int remaining_sjm_inner= 0;
   for (uint tableno= 0; tableno < tables; tableno++)
   {
-    if (best_positions[tableno].sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
-        best_positions[tableno].sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
+    if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
     {
+      DBUG_ASSERT(outer_target < inner_target);
+
+      POSITION *const pos_table= best_positions + tableno;
       // Handle this many inner tables of materialized semi-join
-      remaining_sjm= best_positions[tableno].n_sj_tables;
+      remaining_sjm_inner= pos_table->n_sj_tables;
 
       Semijoin_mat_exec *const sjm=
-        (best_positions + tableno)->table->emb_sj_nest->sj_mat_exec;
+        new (thd->mem_root)
+        Semijoin_mat_exec((pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
+                          pos_table->table->emb_sj_nest, remaining_sjm_inner,
+                          outer_target, inner_target);
+      if (!sjm)
+        DBUG_RETURN(true);
 
-      sjm->table_index= inner_target - outer_target;
+      (join_tab + outer_target)->sj_mat_exec= sjm;
 
-      if (setup_materialized_table(join_tab + outer_target, sjm_position,
-                                   best_positions + tableno,
-                                   best_positions + sjm_position))
+      if (setup_materialized_table(join_tab + outer_target, sjm_index,
+                                   pos_table, best_positions + sjm_index))
         DBUG_RETURN(true);
 
       all_tables[outer_target]= sjm->table;
       map2table[sjm->table->tablenr]= join_tab + outer_target;
 
       outer_target++;
-      sjm_position++;
+      sjm_index++;
     }
-    // Locate join_tab target for the table we are considering:
-    const uint target= (remaining_sjm--) > 0 ? inner_target++ : outer_target++;
+    /*
+      Locate join_tab target for the table we are considering.
+      (remaining_sjm_inner becomes negative for non-SJM tables, this can be
+       safely ignored).
+    */
+    const uint target=
+      (remaining_sjm_inner--) > 0 ? inner_target++ : outer_target++;
     JOIN_TAB *const tab= join_tab + target;
 
     // Copy data from existing join_tab
@@ -1395,11 +1421,15 @@ bool JOIN::get_best_combination()
 
   set_semijoin_info();
 
-  // Update keyuse objects after having added semi-join materialization
-  update_keyuse();
+  // Update equalities and keyuses after having added semi-join materialization
+  if (update_equalities_for_sjm())
+    DBUG_RETURN(true);
 
-  // Update equalities after having added semi-join materialization
-  update_equalities();
+  // sjm is no longer needed, trash it. To reuse it, reset its members!
+  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
+  TABLE_LIST *sj_nest;
+  while ((sj_nest= sj_list_it++))
+    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
 
   DBUG_RETURN(false);
 }
@@ -2534,13 +2564,13 @@ no_join_cache:
 */
 
 bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
-                                    POSITION *const inner_pos,
+                                    const POSITION *inner_pos,
                                     POSITION *sjm_pos)
 {
   DBUG_ENTER("JOIN::setup_materialized_table");
   TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
-  Semijoin_mat_exec *const sjm= emb_sj_nest->sj_mat_exec;
-  List<Item> &item_list= emb_sj_nest->nested_join->sj_inner_exprs;
+  Semijoin_mat_exec *const sjm= tab->sj_mat_exec;
+  const uint field_count= sjm->subq_exprs->elements;
 
   DBUG_ASSERT(inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
@@ -2549,25 +2579,21 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     Set up the table to write to, do as select_union::create_result_table does
   */
   sjm->table_param.init();
-  sjm->table_param.field_count= sjm->field_count;
+  sjm->table_param.field_count= field_count;
   sjm->table_param.bit_fields_as_long= true;
-  List_iterator<Item> it(item_list);
-  Item *right_expr;
-  while ((right_expr= it++))
-    sjm->subq_exprs.push_back(right_expr);
 
-  TABLE *table;
   char buffer[NAME_LEN];
   const size_t len= my_snprintf(buffer, sizeof(buffer) - 1, "<subquery%u>",
                                 emb_sj_nest->nested_join->query_block_id);
-  char *name= (char *)alloc_root(thd->mem_root, len);
+  char *name= (char *)alloc_root(thd->mem_root, len + 1);
   if (name == NULL)
     DBUG_RETURN(true); /* purecov: inspected */
 
   memcpy(name, buffer, len);
   name[len] = '\0';
+  TABLE *table;
   if (!(table= create_tmp_table(thd, &sjm->table_param, 
-                                sjm->subq_exprs, NULL, 
+                                *sjm->subq_exprs, NULL, 
                                 true /* distinct */, 
                                 true /*save_sum_fields*/,
                                 thd->variables.option_bits |
@@ -2586,10 +2612,10 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 
   if (!(sjm->mat_fields=
     (Item_field **) alloc_root(thd->mem_root,
-                               sjm->field_count * sizeof(Item_field **))))
+                               field_count * sizeof(Item_field **))))
     DBUG_RETURN(true);
 
-  for (uint fieldno= 0; fieldno < sjm->field_count; fieldno++)
+  for (uint fieldno= 0; fieldno < field_count; fieldno++)
   {
     if (!(sjm->mat_fields[fieldno]= new Item_field(table->field[fieldno])))
       DBUG_RETURN(true);
@@ -2598,14 +2624,11 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   TABLE_LIST *tl;
   if (!(tl= (TABLE_LIST *) alloc_root(thd->mem_root, sizeof(TABLE_LIST))))
     DBUG_RETURN(true);
-  memset(tl, 0, sizeof(TABLE_LIST));
   // TODO: May have to setup outer-join info for this TABLE_LIST !!!
 
-  tl->alias= name;
-  tl->table_name= name;
+  tl->init_one_table("", 0, name, strlen(name), name, TL_IGNORE);
 
   tl->table= table;
-  tl->sj_mat_exec= sjm;  // This indicates that the table is "materialized".
 
   tab->table= table;  
   tab->position= sjm_pos;
@@ -2619,33 +2642,37 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->on_expr_ref= tl->join_cond_ref();
 
   table->pos_in_table_list= tl;
-
+  table->keys_in_use_for_query.set_all();
   sjm_pos->table= tab;
   sjm_pos->sj_strategy= SJ_OPT_NONE;
 
   sjm_pos->use_join_buffer= false;
 
+  /*
+    Key_use objects are required so that create_ref_for_key() can set up
+    a proper ref access for this table.
+  */
   Key_use_array *keyuse=
-   create_keyuse_for_table(thd, table, sjm->field_count,
+   create_keyuse_for_table(thd, table, field_count, sjm->mat_fields,
                            emb_sj_nest->nested_join->sj_outer_exprs);
   if (!keyuse)
     DBUG_RETURN(true);
 
-  double fanout= (tab == join_tab) ?
+  double fanout= (tab == join_tab + tab->join->const_tables) ?
                  1.0 : (tab-1)->position->prefix_record_count;
   if (!sjm->is_scan)
   {
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
-    sjm_pos->prefix_record_count= fanout;
+    sjm_pos->set_prefix_costs(1.0, fanout);
     sjm_pos->records_read= 1.0;   
     sjm_pos->read_time= 1.0;      
   }
   else
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
-    sjm_pos->prefix_record_count= tab->records * fanout;
+    sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
     sjm_pos->records_read= tab->records;
     sjm_pos->read_time= tab->read_time;
   }
@@ -2842,12 +2869,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     }
     // Materialize derived tables prior to accessing them.
     if (tab->table->pos_in_table_list->uses_materialization())
-      tab->materialize_table= join_materialize_table;
-    if (tab->table->pos_in_table_list->sj_mat_exec)
+      tab->materialize_table= join_materialize_derived;
+    if (tab->sj_mat_exec)
       tab->materialize_table= join_materialize_semijoin;
   }
 
-  for (uint i= join->const_tables; i < join->tables; i++)
+  for (uint i= join->const_tables; i < join->primary_tables; i++)
   {
     if (join->join_tab[i].use_join_cache != JOIN_CACHE::ALG_NONE)
     {
@@ -2885,7 +2912,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 
 bool error_if_full_join(JOIN *join)
 {
-  for (uint i= 0; i < join->tables; i++)
+  for (uint i= 0; i < join->primary_tables; i++)
   {
     JOIN_TAB *const tab= join->join_tab + i;
 
@@ -2895,10 +2922,10 @@ bool error_if_full_join(JOIN *join)
       join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
-      return(1);
+      return true;
     }
   }
-  return(0);
+  return false;
 }
 
 
@@ -2918,6 +2945,7 @@ void JOIN_TAB::cleanup()
   delete quick;
   quick= 0;
   limit= 0;
+
   // Free select that was created for filesort outside of create_sort_index
   if (filesort && filesort->select && !filesort->own_select)
     delete filesort->select;
@@ -2955,7 +2983,7 @@ void JOIN_TAB::cleanup()
 /**
   @returns semijoin strategy for this table.
 */
-inline uint JOIN_TAB::get_sj_strategy() const
+uint JOIN_TAB::get_sj_strategy() const
 {
   if (first_sj_inner_tab == NULL)
     return SJ_OPT_NONE;
@@ -3127,6 +3155,9 @@ void JOIN::join_free()
 void JOIN::cleanup(bool full)
 {
   DBUG_ENTER("JOIN::cleanup");
+
+  DBUG_ASSERT(const_tables <= primary_tables &&
+              primary_tables <= tables);
 
   if (all_tables)
   {
@@ -4661,7 +4692,7 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 
 void JOIN::clear()
 {
-  for (uint tableno= 0; tableno < tables; tableno++)
+  for (uint tableno= 0; tableno < primary_tables; tableno++)
   {
     TABLE *const table= (join_tab+tableno)->table;
     if (table)
@@ -5093,18 +5124,14 @@ bool JOIN::make_tmp_tables_info()
         We can abort sorting after thd->select_limit rows if there are no
         filter conditions for any tables after the sorted one.
         Filter conditions come in several forms:
-         - as a condition item attached to the join_tab,
-         - as a keyuse attached to the join_tab (ref access),
-         - as a semi-join equality attached to materialization semi-join nest.
-           TODO: This may be eliminated now!
+         1. as a condition item attached to the join_tab, or
+         2. as a keyuse attached to the join_tab (ref access).
       */
-      JOIN_TAB *curr_table= &join_tab[const_tables + 1];
-      JOIN_TAB *end_table= &join_tab[primary_tables];
-      for (; curr_table < end_table ; curr_table++)
+      for (uint i= const_tables + 1; i < primary_tables; i++)
       {
-        if (curr_table->condition() ||
-            (curr_table->keyuse && !curr_table->first_inner) ||
-            curr_table->get_sj_strategy() == SJ_OPT_MATERIALIZE_LOOKUP)
+        JOIN_TAB *const tab= join_tab + i;
+        if (tab->condition() ||                                // 1
+            (tab->keyuse && !tab->first_inner))                // 2
         {
           /* We have to sort all rows */
           m_select_limit= HA_POS_ERROR;

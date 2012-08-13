@@ -263,7 +263,7 @@ int join_init_read_record(JOIN_TAB *tab);
 int join_read_first(JOIN_TAB *tab);
 int join_read_last(JOIN_TAB *tab);
 int join_read_last_key(JOIN_TAB *tab);
-int join_materialize_table(JOIN_TAB *tab);
+int join_materialize_derived(JOIN_TAB *tab);
 int join_materialize_semijoin(JOIN_TAB *tab);
 int join_read_prev_same(READ_RECORD *info);
 

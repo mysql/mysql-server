@@ -376,7 +376,7 @@ typedef struct st_join_table : public Sql_alloc
   bool finishes_weedout() const { return check_weed_out_table; }
 
   TABLE         *table;
-  POSITION      *position;      /**< Use after get_best_combination()        */
+  POSITION      *position;      /**< points into best_positions array        */
   Key_use       *keyuse;        /**< pointer to first used key               */
   SQL_SELECT    *select;
 private:
@@ -388,7 +388,7 @@ public:
   st_join_table *first_inner;   /**< first inner table for including outerjoin*/
   bool           found;         /**< true after all matches or null complement*/
   bool           not_null_compl;/**< true before null complement is added    */
-  bool           materialized;  /**< true if materialized from derived/subq */
+  bool           materialized;  /**< true if materialized from derived/SJ    */
   st_join_table *last_inner;    /**< last table table for embedding outer join*/
   st_join_table *first_upper;  /**< first inner table for embedding outer join*/
   st_join_table *first_unmatched; /**< used for optimization purposes only   */
@@ -425,6 +425,8 @@ public:
   */  
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
+  /// Non-NULL if table is temporary table materialized from subquery
+  Semijoin_mat_exec *sj_mat_exec;          
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
   key_map	checked_keys;			/**< Keys checked */
@@ -662,9 +664,7 @@ public:
     return tmp_cond;
   }
 
-  /**
-    @returns semijoin strategy for this table.
-  */
+  /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
 
   bool and_with_condition(Item *tmp_cond, uint line);
@@ -713,6 +713,7 @@ st_join_table::st_join_table()
     read_record(),
     save_read_first_record(NULL),
     save_read_record(NULL),
+    sj_mat_exec(NULL),
     worst_seeks(0.0),
     const_keys(),
     checked_keys(),

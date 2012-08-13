@@ -162,6 +162,11 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
 
 void JOIN_CACHE::calc_record_fields()
 {
+  /*
+    If there is a previous cache, start with the corresponding table, otherwise:
+    - if in a regular execution, start with the first non-const table.
+    - if in a materialized subquery, start with the first table of the subquery.
+  */
   JOIN_TAB *tab = prev_cache ?
                     prev_cache->join_tab :
                     sj_is_materialize_strategy(join_tab->get_sj_strategy()) ?
