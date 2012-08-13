@@ -105,6 +105,7 @@ yyy.ibd
 # WWW; Put the wrong file in all three locations
 # NOLINK; Delete the ISL file Since remote location is still in SYS_DATAFILES,
 # it should still be found. And the ISL file should be re-created.
+# Make a backup of this tablespace to use later.
 ---- MYSQLD_DATADIR/test
 nnn.frm
 nolink.frm
@@ -140,6 +141,7 @@ yyy.ibd
 yyy.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 nolink.ibd
+nolink.ibd.bak
 nwy.ibd
 nyw.ibd
 nyy.ibd
@@ -308,6 +310,7 @@ yyy.ibd
 yyy.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
 nolink.ibd
+nolink.ibd.bak
 nwy.ibd
 nyw.ibd
 nyy.ibd
@@ -352,6 +355,7 @@ yny.ibd
 yyn.ibd
 yyy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
 nwy.ibd
 nyy.ibd
 www.ibd
@@ -370,6 +374,7 @@ yyy.ibd
 #
 ---- MYSQLD_DATADIR/test
 ---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
 ---- MYSQL_TMP_DIR/new_dir/test
 #
 # Create some tables again and this time, crash instead of shutdown
@@ -385,11 +390,10 @@ yyy.ibd
 # SYS_DATAFILES is unavailable during recovery.
 # Link File will refer to the file at alt_dir.
 # In each case except the control tablespace, the Link file will
-# exist with a file name in alt_dir.  'aa' is the control table and
-# is alphabetically before the other tablespace names so it will be
-# recovered first by InnoDB.  It is the source of the 'wrong' tablespaces.
+# exist with a file name in alt_dir.  'fnolink.ibd.bak' is the
+# source of the 'wrong' tablespaces.
+#
 # Tablename   Default_Tablespace  Remote_Tablespace
-#    aa              Yes                 No
 #    ny              Yes                 Yes
 #    wy              Wrong               Yes
 #    yn              Yes                 No
@@ -398,8 +402,6 @@ yyy.ibd
 #
 set global innodb_file_per_table=on;
 set global innodb_file_format='Barracuda';
-CREATE TABLE aa (c1 INT KEY, c2 TEXT) ENGINE=InnoDB;
-INSERT INTO aa VALUES (1, 'aa - control table');
 CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 INSERT INTO ny VALUES (1, 'ny');
 CREATE TABLE wy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
@@ -414,16 +416,11 @@ INSERT INTO yy VALUES (1, 'yy');
 # Crash the server, copy and remove files.
 #
 BEGIN;
-INSERT INTO aa VALUES (2, 'aa');
 INSERT INTO ny VALUES (2, 'ny');
 INSERT INTO wy VALUES (2, 'wy');
 INSERT INTO yn VALUES (2, 'yn');
 INSERT INTO yw VALUES (2, 'yw');
 INSERT INTO yy VALUES (2, 'yy');
-SELECT * FROM aa;
-c1	c2
-1	aa - control table
-2	aa
 SELECT * FROM ny;
 c1	c2
 1	ny
@@ -450,8 +447,6 @@ ERROR HY000: Lost connection to MySQL server during query
 #
 # Now that the engine is not running, move files around to test various scenarios.
 #
-# AA; Control table, used as the source of 'wrong' tablespaces.
-#     AA also has a link file which points to the file in the default datadir.
 # NY; Tablespace found in alt_dir but not the default directory.
 # WY; The wrong tablespace is found in the default directory
 #     and the correct one in alt_dir.
@@ -459,9 +454,6 @@ ERROR HY000: Lost connection to MySQL server during query
 # YN; Tablespace found the default directory but not in alt_dir.
 # YY; Found in both default directory and alt-dir.
 ---- MYSQLD_DATADIR/test
-aa.frm
-aa.ibd
-aa.isl
 ny.frm
 ny.isl
 wy.frm
@@ -477,16 +469,15 @@ yy.frm
 yy.ibd
 yy.isl
 ---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
 ny.ibd
 wy.ibd
 yw.ibd
 yy.ibd
 #
 # Start the server with innodb-force-recovery=1 so that it does not quit
-# when it finds multiple possible locations for aa, yy, wy and yw.
+# when it finds multiple possible locations for yy, wy and yw.
 #
-SELECT * FROM aa;
-ERROR 42S02: Table 'test.aa' doesn't exist
 SELECT * FROM ny;
 c1	c2
 1	ny
@@ -499,8 +490,6 @@ SELECT * FROM yw;
 ERROR 42S02: Table 'test.yw' doesn't exist
 SELECT * FROM yy;
 ERROR 42S02: Table 'test.yy' doesn't exist
-SHOW CREATE TABLE aa;
-ERROR 42S02: Table 'test.aa' doesn't exist
 SHOW CREATE TABLE ny;
 Table	Create Table
 ny	CREATE TABLE `ny` (
@@ -524,7 +513,6 @@ ERROR 42S02: Table 'test.yy' doesn't exist
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
-MYSQLD_DATADIR/test/aa.ibd
 MYSQL_TMP_DIR/alt_dir/test/ny.ibd
 MYSQL_TMP_DIR/alt_dir/test/wy.ibd
 MYSQL_TMP_DIR/alt_dir/test/yn.ibd
@@ -534,10 +522,33 @@ MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 # Shutdown the server and remove extra tablespace files.
 #
 #
+# List of files before removing unused files
+#
+---- MYSQLD_DATADIR/test
+ny.frm
+ny.isl
+wy.frm
+wy.ibd
+wy.isl
+yn.frm
+yn.ibd
+yn.isl
+yw.frm
+yw.ibd
+yw.isl
+yy.frm
+yy.ibd
+yy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
+ny.ibd
+wy.ibd
+yw.ibd
+yy.ibd
+#
 # List of files before restart and DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
-aa.frm
 ny.frm
 wy.frm
 yn.frm
@@ -547,7 +558,6 @@ yy.frm
 #
 # Start the server without using force_recover.
 #
-DROP TABLE aa;
 DROP TABLE ny;
 DROP TABLE wy;
 DROP TABLE yn;
