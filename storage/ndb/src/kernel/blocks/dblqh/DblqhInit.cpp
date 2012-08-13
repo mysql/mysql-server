@@ -66,6 +66,11 @@ void Dblqh::initData()
   m_backup_ptr = RNIL;
   clogFileSize = 16;
   cmaxLogFilesInPageZero = 40;
+  cmaxValidLogFilesInPageZero = cmaxLogFilesInPageZero - 1;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  cmaxLogFilesInPageZero_DUMP = 0;
+#endif
 
   for (Uint32 i = 0; i < 1024; i++) {
     ctransidHash[i] = RNIL;

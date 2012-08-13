@@ -1237,6 +1237,27 @@ void Dblqh::execREAD_CONFIG_REQ(Signal* signal)
     ndbrequire(cmaxLogFilesInPageZero);
   }
 
+#if defined VM_TRACE || defined ERROR_INSERT
+  if (cmaxLogFilesInPageZero_DUMP != 0)
+  {
+    ndbout << "LQH DUMP 2396 " << cmaxLogFilesInPageZero_DUMP;
+    if (cmaxLogFilesInPageZero_DUMP > cmaxLogFilesInPageZero)
+    {
+      ndbout << ": max allowed is " << cmaxLogFilesInPageZero << endl;
+      // do not continue with useless test
+      ndbrequire(false);
+    }
+    cmaxLogFilesInPageZero = cmaxLogFilesInPageZero_DUMP;
+    ndbout << endl;
+  }
+#endif
+
+  /* How many file's worth of info is actually valid? */
+  cmaxValidLogFilesInPageZero = cmaxLogFilesInPageZero - 1;
+
+  /* Must be at least 1 */
+  ndbrequire(cmaxValidLogFilesInPageZero > 0);
+
   Uint64 totalmb = Uint64(cnoLogFiles) * Uint64(clogFileSize);
   Uint64 limit = totalmb / 3;
   ndbrequire(limit < Uint64(0xFFFFFFFF));
@@ -12782,6 +12803,8 @@ retry:
 /*SET THE NEW LOG TAIL AND CONTINUE WITH NEXT LOG PART.                      */
 /*THIS MBYTE IS NOT TO BE INCLUDED SO WE NEED TO STEP BACK ONE MBYTE.        */
 /* ------------------------------------------------------------------------- */
+        /* Check keepGCI MB has a reasonable GCI value */
+        ndbrequire(sltLogFilePtr.p->logMaxGciStarted[tsltIndex] != ((Uint32) -1));
         if (tsltIndex != 0) {
           jam();
           tsltMbyte = tsltIndex - 1;
@@ -13425,6 +13448,10 @@ void Dblqh::execFSCLOSECONF(Signal* signal)
     release(signal, m_redo_open_file_cache);
     return;
 #endif
+  case LogFileRecord::CLOSING_SR_FRONTPAGE:
+    jam();
+    closingSrFrontPage(signal);
+    return;
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -14782,6 +14809,15 @@ void Dblqh::writeFileHeaderOpen(Signal* signal, Uint32 wmoType)
   logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_LOG_TYPE] = ZFD_TYPE;
   logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO] = 
     logFilePtr.p->fileNo;
+  /* 
+   * When writing a file header on open, we write cmaxLogFilesInPageZero,
+   * though the entries for the first file (this file), will be invalid,
+   * as we do not know e.g. which GCIs will be included by log records
+   * in the MBs in this file.  On the first lap these will be initial values
+   * on subsequent laps, they will be values from the previous lap.
+   * We take care when reading these values back, not to use the values for
+   * the current file.
+   */
   if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
     jam();
     twmoNoLogDescriptors = cmaxLogFilesInPageZero;
@@ -14955,25 +14991,19 @@ void Dblqh::openSrFrontpageLab(Signal* signal)
 void Dblqh::readSrFrontpageLab(Signal* signal) 
 {
   Uint32 fileNo = logPagePtr.p->logPageWord[ZPAGE_HEADER_SIZE + ZPOS_FILE_NO];
-  if (fileNo == 0) {
-    jam();
-    /* ----------------------------------------------------------------------
-     *       FILE 0 WAS ALSO LAST FILE SO WE DO NOT NEED TO READ IT AGAIN.
-     * ---------------------------------------------------------------------- */
-    readSrLastFileLab(signal);
-    return;
-  }//if
   /* ------------------------------------------------------------------------
    *    CLOSE FILE 0 SO THAT WE HAVE CLOSED ALL FILES WHEN STARTING TO READ 
    *    THE FRAGMENT LOG. ALSO RELEASE PAGE ZERO.
    * ------------------------------------------------------------------------ */
   releaseLogpage(signal);
-  logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
+  logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR_FRONTPAGE;
   closeFile(signal, logFilePtr, __LINE__);
+  /* Lookup index of last file */
   LogFileRecordPtr locLogFilePtr;
   findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
-  locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_LAST_FILE;
-  openFileRw(signal, locLogFilePtr);
+  
+  /* Store in logPart record for use once file 0 is closed */
+  logPartPtr.p->srLastFileIndex = locLogFilePtr.i;
   return;
 }//Dblqh::readSrFrontpageLab()
 
@@ -14995,9 +15025,9 @@ void Dblqh::readSrLastFileLab(Signal* signal)
              logPartPtr.p->logPartState,
              logPartPtr.p->logLap);
   }
-  if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
+  if (logPartPtr.p->noLogFiles > cmaxValidLogFilesInPageZero) {
     jam();
-    initGciInLogFileRec(signal, cmaxLogFilesInPageZero);
+    initGciInLogFileRec(signal, cmaxValidLogFilesInPageZero);
   } else {
     jam();
     initGciInLogFileRec(signal, logPartPtr.p->noLogFiles);
@@ -15055,33 +15085,40 @@ void Dblqh::readSrLastMbyteLab(Signal* signal)
   }//if
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
   closeFile(signal, logFilePtr, __LINE__);
-  if (logPartPtr.p->noLogFiles > cmaxLogFilesInPageZero) {
+
+  /* Head file is initialised by reading per-MB headers rather than per-file
+   * headers.  Therefore, when stepping back through the redo files to get
+   * the previous file's metadata, we must be careful not to read the 
+   * per-file header info over the just-read per-MB headers, invalidating
+   * the head metainfo.
+   */
+  Uint32 nonHeadFileCount = logPartPtr.p->noLogFiles - 1;
+
+  if (logPartPtr.p->noLogFiles > cmaxValidLogFilesInPageZero) {
+    /* Step back from head to get file:mb metadata from a 
+     * previous file's page zero
+     */
     Uint32 fileNo;
-    if (logFilePtr.p->fileNo >= cmaxLogFilesInPageZero) {
+    if (logFilePtr.p->fileNo >= cmaxValidLogFilesInPageZero) {
       jam();
-      fileNo = logFilePtr.p->fileNo - cmaxLogFilesInPageZero;
+      fileNo = logFilePtr.p->fileNo - cmaxValidLogFilesInPageZero;
     } else {
+      /* Wrap at 0:0 */
       jam();
       fileNo = 
 	(logPartPtr.p->noLogFiles + logFilePtr.p->fileNo) - 
-	cmaxLogFilesInPageZero;
+	cmaxValidLogFilesInPageZero;
     }//if
-    if (fileNo == 0) {
-      jam();
-      /* --------------------------------------------------------------------
-       *  AVOID USING FILE 0 AGAIN SINCE THAT IS PROBABLY CLOSING AT THE 
-       *  MOMENT.
-       * -------------------------------------------------------------------- */
-      fileNo = 1;
-      logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->noLogFiles - (cmaxLogFilesInPageZero - 1);
-    } else {
-      jam();
-      logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->noLogFiles - cmaxLogFilesInPageZero;
-    }//if
+
+    jam();
+    logPartPtr.p->srRemainingFiles = 
+      nonHeadFileCount - cmaxValidLogFilesInPageZero;
+
+    /* Check we're making progress */
+    ndbrequire(fileNo != logFilePtr.p->fileNo);
     LogFileRecordPtr locLogFilePtr;
     findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
+    ndbrequire(locLogFilePtr.p->logFileStatus == LogFileRecord::CLOSED);
     locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_NEXT_FILE;
     openFileRw(signal, locLogFilePtr);
     return;
@@ -15103,9 +15140,9 @@ void Dblqh::openSrNextFileLab(Signal* signal)
 
 void Dblqh::readSrNextFileLab(Signal* signal) 
 {
-  if (logPartPtr.p->srRemainingFiles > cmaxLogFilesInPageZero) {
+  if (logPartPtr.p->srRemainingFiles > cmaxValidLogFilesInPageZero) {
     jam();
-    initGciInLogFileRec(signal, cmaxLogFilesInPageZero);
+    initGciInLogFileRec(signal, cmaxValidLogFilesInPageZero);
   } else {
     jam();
     initGciInLogFileRec(signal, logPartPtr.p->srRemainingFiles);
@@ -15113,32 +15150,31 @@ void Dblqh::readSrNextFileLab(Signal* signal)
   releaseLogpage(signal);
   logFilePtr.p->logFileStatus = LogFileRecord::CLOSING_SR;
   closeFile(signal, logFilePtr, __LINE__);
-  if (logPartPtr.p->srRemainingFiles > cmaxLogFilesInPageZero) {
+  if (logPartPtr.p->srRemainingFiles > cmaxValidLogFilesInPageZero) {
+    /* Step back from head to get file:mb metadata from a
+     * previous file's page zero
+     */
     Uint32 fileNo;
-    if (logFilePtr.p->fileNo >= cmaxLogFilesInPageZero) {
+    if (logFilePtr.p->fileNo >= cmaxValidLogFilesInPageZero) {
       jam();
-      fileNo = logFilePtr.p->fileNo - cmaxLogFilesInPageZero;
+      fileNo = logFilePtr.p->fileNo - cmaxValidLogFilesInPageZero;
     } else {
+      /* Wrap at 0:0 */
       jam();
       fileNo = 
 	(logPartPtr.p->noLogFiles + logFilePtr.p->fileNo) - 
-	cmaxLogFilesInPageZero;
+	cmaxValidLogFilesInPageZero;
     }//if
-    if (fileNo == 0) {
-      jam();
-      /* --------------------------------------------------------------------
-       * AVOID USING FILE 0 AGAIN SINCE THAT IS PROBABLY CLOSING AT THE MOMENT.
-       * -------------------------------------------------------------------- */
-      fileNo = 1;
-      logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->srRemainingFiles - (cmaxLogFilesInPageZero - 1);
-    } else {
-      jam();
-      logPartPtr.p->srRemainingFiles = 
-	logPartPtr.p->srRemainingFiles - cmaxLogFilesInPageZero;
-    }//if
+
+    jam();
+    logPartPtr.p->srRemainingFiles = 
+      logPartPtr.p->srRemainingFiles - cmaxValidLogFilesInPageZero;
+    
+    /* Check we're making progress */
+    ndbrequire(fileNo != logFilePtr.p->fileNo);
     LogFileRecordPtr locLogFilePtr;
     findLogfile(signal, fileNo, logPartPtr, &locLogFilePtr);
+    ndbrequire(locLogFilePtr.p->logFileStatus == LogFileRecord::CLOSED);
     locLogFilePtr.p->logFileStatus = LogFileRecord::OPEN_SR_NEXT_FILE;
     openFileRw(signal, locLogFilePtr);
   }//if
@@ -15149,6 +15185,36 @@ void Dblqh::readSrNextFileLab(Signal* signal)
    * ------------------------------------------------------------------------ */
   return;
 }//Dblqh::readSrNextFileLab()
+
+void Dblqh::closingSrFrontPage(Signal* signal)
+{
+  jam();
+  /* Front page (file 0) has closed, now it's safe to continue
+   * to read any page (including file 0) as part of restoring
+   * redo metadata
+   */
+  logFilePtr.p->logFileStatus = LogFileRecord::CLOSED;
+  logPartPtr.i = logFilePtr.p->logPartRec;
+  ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+  logFilePtr.i = logPartPtr.p->firstLogfile;
+  
+  /* Pre-restart head file index was stored in logPartPtr.p->srLastFileIndex
+   * prior to closing this file, now let's use it...
+   */
+  ndbrequire(logPartPtr.p->srLastFileIndex != RNIL);
+  
+  LogFileRecordPtr oldHead;
+  oldHead.i = logPartPtr.p->srLastFileIndex;
+  ptrCheckGuard(oldHead, clogFileFileSize, logFileRecord);
+
+  /* Reset srLastFileIndex */
+  logPartPtr.p->srLastFileIndex = RNIL;
+  
+  /* And now open the head file to begin redo meta reload */
+  oldHead.p->logFileStatus = LogFileRecord::OPEN_SR_LAST_FILE;
+  openFileRw(signal, oldHead);
+  return;
+}
 
 void Dblqh::closingSrLab(Signal* signal) 
 {
@@ -18982,9 +19048,25 @@ void Dblqh::initFragrec(Signal* signal,
  * ========================================================================= */
 void Dblqh::initGciInLogFileRec(Signal* signal, Uint32 noFdDescriptors) 
 {
+  /* We are reading the per file:mb metadata from page zero in this file
+   * We cannot use the data for this file (fd 0), but the data for
+   * previous files is valid.
+   * So we start reading at fd 1.
+   * The metadata for this file (fd 0) is set either reading the next file,
+   * or by probing the last megabytes.
+   */
   LogFileRecordPtr filePtr = logFilePtr;
   Uint32 pos = ZPAGE_HEADER_SIZE + ZFD_HEADER_SIZE;
-  for (Uint32 fd = 0; fd < noFdDescriptors; fd++)
+  ndbrequire(noFdDescriptors <= cmaxValidLogFilesInPageZero);
+
+  /* We start by initialising the previous file's metadata, 
+   * so lets move there now...
+   */
+  filePtr.i = filePtr.p->prevLogFile;
+  ptrCheckGuard(filePtr, clogFileFileSize, logFileRecord);
+    
+           
+  for (Uint32 fd = 1; fd <= noFdDescriptors; fd++)
   {
     jam();
     for (Uint32 mb = 0; mb < clogFileSize; mb++)
@@ -19000,7 +19082,7 @@ void Dblqh::initGciInLogFileRec(Signal* signal, Uint32 noFdDescriptors)
       filePtr.p->logMaxGciStarted[mb] = logPagePtr.p->logPageWord[pos1];
       filePtr.p->logLastPrepRef[mb] = logPagePtr.p->logPageWord[pos2];
     }
-    if (fd + 1 < noFdDescriptors)
+    if (fd + 1 <= noFdDescriptors)
     {
       jam();
       filePtr.i = filePtr.p->prevLogFile;
@@ -21480,7 +21562,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       signal->theData[7] = Uint32(total);
       signal->theData[8] = Uint32(mb >> 32);
       signal->theData[9] = Uint32(mb);
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 10, JBB);
+      signal->theData[10] = logPartPtr.p->noLogFiles;
+      signal->theData[11] = clogFileSize;
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 12, JBB);
     }
   }
 
@@ -21514,6 +21598,9 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
                total, mb);
     }
   }
+
+  if (arg == 2396 && signal->length() == 2)
+      cmaxLogFilesInPageZero_DUMP = dumpState->args[1];
 
 }//Dblqh::execDUMP_STATE_ORD()
 

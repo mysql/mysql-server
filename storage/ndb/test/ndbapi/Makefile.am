@@ -60,7 +60,8 @@ ndbapi_50compat1 \
 testNDBT \
 testReconnect \
 NdbRepStress \
-msa
+msa \
+testRedo
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -121,6 +122,7 @@ test_event_merge_SOURCES = test_event_merge.cpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testIndexStat_SOURCES = testIndexStat.cpp
 msa_SOURCES = msa.cpp
+testRedo_SOURCES = testRedo.cpp
 
 ndbapi_50compat0_CPPFLAGS = -DNDBAPI_50_COMPAT
 ndbapi_50compat0_SOURCES = ndbapi_50compat0.cpp
