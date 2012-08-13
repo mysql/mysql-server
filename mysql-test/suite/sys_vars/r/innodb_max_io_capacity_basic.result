@@ -1,7 +1,7 @@
 SET @start_innodb_max_capacity = @@global.innodb_max_io_capacity;
 SELECT @start_innodb_max_capacity;
 @start_innodb_max_capacity
-400
+2000
 SET @start_innodb_capacity = @@global.innodb_io_capacity;
 SELECT @start_innodb_capacity;
 @start_innodb_capacity
@@ -12,21 +12,21 @@ select @@global.innodb_max_io_capacity > 99;
 1
 select @@global.innodb_max_io_capacity;
 @@global.innodb_max_io_capacity
-400
+2000
 select @@session.innodb_max_io_capacity;
 ERROR HY000: Variable 'innodb_max_io_capacity' is a GLOBAL variable
 show global variables like 'innodb_max_io_capacity';
 Variable_name	Value
-innodb_max_io_capacity	400
+innodb_max_io_capacity	2000
 show session variables like 'innodb_max_io_capacity';
 Variable_name	Value
-innodb_max_io_capacity	400
+innodb_max_io_capacity	2000
 select * from information_schema.global_variables where variable_name='innodb_max_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_MAX_IO_CAPACITY	400
+INNODB_MAX_IO_CAPACITY	2000
 select * from information_schema.session_variables where variable_name='innodb_max_io_capacity';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_MAX_IO_CAPACITY	400
+INNODB_MAX_IO_CAPACITY	2000
 set global innodb_max_io_capacity=@start_innodb_capacity + 1;
 select @@global.innodb_max_io_capacity;
 @@global.innodb_max_io_capacity
@@ -74,7 +74,7 @@ select @@global.innodb_max_io_capacity;
 SET @@global.innodb_max_io_capacity = @start_innodb_max_capacity;
 SELECT @@global.innodb_max_io_capacity;
 @@global.innodb_max_io_capacity
-400
+2000
 SET @@global.innodb_io_capacity = @start_innodb_capacity;
 SELECT @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
