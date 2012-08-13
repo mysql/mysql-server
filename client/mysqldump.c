@@ -4784,7 +4784,7 @@ static int add_slave_statements(void)
 
 static int do_show_slave_status(MYSQL *mysql_con)
 {
-  MYSQL_RES *slave;
+  MYSQL_RES *slave= 0;
   const char *comment_prefix=
     (opt_slave_data == MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL) ? "-- " : "";
   if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))

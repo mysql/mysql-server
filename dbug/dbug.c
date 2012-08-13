@@ -284,9 +284,6 @@ static int DoTrace(CODE_STATE *cs);
         /* Test to see if file is writable */
 #if defined(HAVE_ACCESS)
 static BOOLEAN Writable(const char *pathname);
-        /* Change file owner and group */
-static void ChangeOwner(CODE_STATE *cs, char *pathname);
-        /* Allocate memory for runtime support */
 #endif
 
 static void DoPrefix(CODE_STATE *cs, uint line);
