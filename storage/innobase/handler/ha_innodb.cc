@@ -3029,7 +3029,19 @@ innobase_change_buffering_inited_ok:
 		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
 	}
 
-	if (srv_max_io_capacity < srv_io_capacity) {
+	if (srv_max_io_capacity == SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT) {
+
+		if (srv_io_capacity >= SRV_MAX_IO_CAPACITY_LIMIT / 2) {
+			/* Avoid overflow. */
+			srv_max_io_capacity = SRV_MAX_IO_CAPACITY_LIMIT;
+		} else {
+			/* The user has not set the value. We should
+			set it based on innodb_io_capacity. */
+			srv_max_io_capacity =
+				ut_max(2 * srv_io_capacity, 2000);
+		}
+
+	} else if (srv_max_io_capacity < srv_io_capacity) {
 		sql_print_warning("InnoDB: innodb_io_capacity"
 				  " cannot be set higher than"
 				  " innodb_max_io_capacity.\n"
@@ -15213,7 +15225,9 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
 static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Limit to which innodb_io_capacity can be inflated.",
-  NULL, innodb_max_io_capacity_update, 400, 100, ~0UL, 0);
+  NULL, innodb_max_io_capacity_update,
+  SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
+  SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
