@@ -23628,8 +23628,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
+#if defined VM_TRACE || defined ERROR_INSERT
   if (arg == 2396 && signal->length() == 2)
       cmaxLogFilesInPageZero_DUMP = dumpState->args[1];
+#endif
 
   if (arg == 2397)
   {
