@@ -7,6 +7,7 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ft/ft_loader-test-extractor-1
   ft/ft_loader-test-extractor-2
   ft/ft_loader-test-extractor-3
+  ft/helgrind_test_partitioned_counter
   ft/upgrade_test_simple
   portability/try-leak-lost
   portability/try-leak-reachable
