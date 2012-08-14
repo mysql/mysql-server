@@ -8236,6 +8236,17 @@ err:
   return TYPE_ERR_BAD_VALUE;
 }
 
+
+uint Field_geom::is_equal(Create_field *new_field)
+{
+  return new_field->field_flags_are_binary() == field_flags_are_binary() &&
+         new_field->sql_type == real_type() &&
+         new_field->geom_type == get_geometry_type() &&
+         new_field->charset == field_charset &&
+         new_field->pack_length == pack_length();
+}
+
+
 #endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
