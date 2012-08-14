@@ -4068,6 +4068,17 @@ is_ldm_thread(unsigned thr_no)
          thr_no <  NUM_MAIN_THREADS+globalData.ndbMtLqhThreads;
 }
 
+/**
+ * All LDM threads are not created equal: 
+ * First LDMs BACKUP-thread act as client during BACKUP
+ * (See usage of Backup::UserBackupInstanceKey)
+ */
+static bool
+is_first_ldm_thread(unsigned thr_no)
+{
+  return thr_no == NUM_MAIN_THREADS;
+}
+
 static bool
 is_tc_thread(unsigned thr_no)
 {
@@ -4099,9 +4110,16 @@ may_communicate(unsigned from, unsigned to)
   }
   else if (is_ldm_thread(from))
   {
-    // LQH threads can communicates with TC-, main- and itself
+    // First LDM is special as it may act as internal client
+    // during backup, and thus communicate with other LDMs:
+    if (is_first_ldm_thread(from) && is_ldm_thread(to))
+      return true;
+
+    // All LDM threads can communicates with TC-, main-
+    // itself, and the BACKUP client (above) 
     return is_main_thread(to) ||
            is_tc_thread(to)   ||
+           is_first_ldm_thread(to) ||
            (to == from);
   }
   else if (is_tc_thread(from))
@@ -4423,6 +4441,14 @@ compute_jb_pages(struct EmulatorData * ed)
    */
   tot += num_lqh_threads *
          (num_tc_threads + num_main_threads + 1) *
+         job_queue_pages_per_thread;
+
+  /**
+   * First LDM thread is special as it will act as client
+   * during backup. It will send to, and receive from (2x) 
+   * the 'num_lqh_threads - 1' other LQH threads.
+   */
+  tot += 2 * (num_lqh_threads-1) *
          job_queue_pages_per_thread;
 
   /**
