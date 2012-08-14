@@ -47,6 +47,7 @@
 #include "sql_base.h"                           // close_cached_tables
 #include <myisam.h>
 #include "log_slow.h"
+#include "debug_sync.h"                         // DEBUG_SYNC
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -3256,6 +3257,13 @@ bool Sys_var_rpl_filter::do_check(THD *thd, set_var *var)
 {
   bool status;
 
+  /*
+    We must not be holding LOCK_global_system_variables here, otherwise we can
+    deadlock with THD::init() which is invoked from within the slave threads
+    with opposite locking order.
+  */
+  mysql_mutex_assert_not_owner(&LOCK_global_system_variables);
+
   mysql_mutex_lock(&LOCK_active_mi);
   mysql_mutex_lock(&active_mi->rli.run_lock);
 
@@ -3272,21 +3280,42 @@ bool Sys_var_rpl_filter::do_check(THD *thd, set_var *var)
   return status;
 }
 
+void Sys_var_rpl_filter::lock(void)
+{
+  /*
+    Starting a slave thread causes the new thread to attempt to
+    acquire LOCK_global_system_variables (in THD::init) while
+    LOCK_active_mi is being held by the thread that initiated
+    the process. In order to not violate the lock order, unlock
+    LOCK_global_system_variables before grabbing LOCK_active_mi.
+  */
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  mysql_mutex_lock(&LOCK_active_mi);
+  mysql_mutex_lock(&active_mi->rli.run_lock);
+}
+
+void Sys_var_rpl_filter::unlock(void)
+{
+  mysql_mutex_unlock(&active_mi->rli.run_lock);
+  mysql_mutex_unlock(&LOCK_active_mi);
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+}
+
 bool Sys_var_rpl_filter::global_update(THD *thd, set_var *var)
 {
   bool slave_running, status= false;
 
-  mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli.run_lock);
+  lock();
 
   if (! (slave_running= active_mi->rli.slave_running))
     status= set_filter_value(var->save_result.string_value.str);
 
-  mysql_mutex_unlock(&active_mi->rli.run_lock);
-  mysql_mutex_unlock(&LOCK_active_mi);
-
   if (slave_running)
     my_error(ER_SLAVE_MUST_STOP, MYF(0));
+
+  unlock();
 
   return slave_running || status;
 }
@@ -3326,8 +3355,7 @@ uchar *Sys_var_rpl_filter::global_value_ptr(THD *thd, LEX_STRING *base)
 
   tmp.length(0);
 
-  mysql_mutex_lock(&LOCK_active_mi);
-  mysql_mutex_lock(&active_mi->rli.run_lock);
+  lock();
 
   switch (opt_id) {
   case OPT_REPLICATE_DO_DB:
@@ -3350,8 +3378,7 @@ uchar *Sys_var_rpl_filter::global_value_ptr(THD *thd, LEX_STRING *base)
     break;
   }
 
-  mysql_mutex_unlock(&active_mi->rli.run_lock);
-  mysql_mutex_unlock(&LOCK_active_mi);
+  unlock();
 
   return (uchar *) thd->strmake(tmp.ptr(), tmp.length());
 }
@@ -3404,6 +3431,9 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
+  DEBUG_SYNC(thd, "fix_slave_net_timeout");
+
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
@@ -3413,6 +3443,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   return false;
 }
 static Sys_var_uint Sys_slave_net_timeout(
@@ -3439,6 +3470,7 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_active_mi);
   mysql_mutex_lock(&active_mi->rli.run_lock);
   /*
@@ -3454,6 +3486,7 @@ static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
   }
   mysql_mutex_unlock(&active_mi->rli.run_lock);
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_global_system_variables);
   return 0;
 }
 static Sys_var_uint Sys_slave_skip_counter(

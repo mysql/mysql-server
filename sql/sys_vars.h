@@ -588,6 +588,8 @@ public:
 protected:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base);
   bool set_filter_value(const char *value);
+  void lock(void);
+  void unlock(void);
 };
 
 /**
