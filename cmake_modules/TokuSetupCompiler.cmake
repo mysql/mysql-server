@@ -126,6 +126,7 @@ else ()
   endif ()
 endif ()
 
+option(USE_VALGRIND "Do not pass NVALGRIND to the compiler, because valgrind will be run on the generated executables." ON)
 if (NOT USE_VALGRIND)
   set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELEASE NVALGRIND=1)
 endif ()
