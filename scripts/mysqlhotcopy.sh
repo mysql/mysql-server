@@ -373,7 +373,7 @@ foreach my $rdb ( @db_desc ) {
     $hc_base_tables .= ", "  if ( length $hc_base_tables && @hc_base_tables );
     $hc_base_tables .= join ", ", @hc_base_tables;
     $hc_views .= ", "  if ( length $hc_views && @hc_views );
-    $hc_views .= join ", ", @hc_views;
+    $hc_views .= join " READ, ", @hc_views;
 
     @hc_tables = (@hc_base_tables, @hc_views);
 
