@@ -102,6 +102,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 {
   int error;
   ulong memavl, min_sort_memory;
+  ulong sort_buff_sz;
   uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows records= HA_POS_ERROR;
@@ -210,6 +211,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
   memavl= thd->variables.sortbuff_size;
   min_sort_memory= max(MIN_SORT_MEMORY, param.sort_length*MERGEBUFF2);
+  set_if_bigger(min_sort_memory, sizeof(BUFFPEK*)*MERGEBUFF2);
   if (!table_sort.sort_keys)
   {
     while (memavl >= min_sort_memory)
@@ -217,9 +219,10 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       ulong old_memavl;
       ulong keys= memavl/(param.rec_length+sizeof(char*));
       table_sort.keys= (uint) min(records+1, keys);
+      sort_buff_sz= table_sort.keys*(param.rec_length+sizeof(char*));
+      set_if_bigger(sort_buff_sz, param.rec_length * MERGEBUFF2);   
       if ((table_sort.sort_keys=
-           (uchar**) my_malloc(table_sort.keys*(param.rec_length+sizeof(char*)),
-                               MYF(0))))
+           (uchar**) my_malloc(sort_buff_sz, MYF(0))))
         break;
       old_memavl=memavl;
       if ((memavl=memavl/4*3) < min_sort_memory &&
@@ -282,8 +285,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       Use also the space previously used by string pointers in sort_buffer
       for temporary key storage.
     */
-    param.keys=((param.keys*(param.rec_length+sizeof(char*))) /
-		param.rec_length-1);
+    param.keys= sort_buff_sz / param.rec_length;
     maxbuffer--;				// Offset from 0
     if (merge_many_buff(&param,(uchar*) sort_keys,buffpek,&maxbuffer,
 			&tempfile))
@@ -1257,7 +1259,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   to_start_filepos= my_b_tell(to_file);
   strpos= sort_buffer;
   org_max_rows=max_rows= param->max_rows;
-
+  
   /* The following will fire if there is not enough space in sort_buffer */
   DBUG_ASSERT(maxcount!=0);
   
