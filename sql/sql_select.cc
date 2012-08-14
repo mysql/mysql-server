@@ -1340,7 +1340,6 @@ bool JOIN::get_best_combination()
     best_positions[tableno].table= NULL;
 
     TABLE    *const table= tab->table;
-    all_tables[tableno]= table;
     table->reginfo.join_tab= tab;
     if (!*tab->on_expr_ref)
       table->reginfo.not_exists_optimize= false;     // Only with LEFT JOIN
@@ -3234,7 +3233,7 @@ void JOIN::cleanup(bool full)
 {
   DBUG_ENTER("JOIN::cleanup");
 
-  if (all_tables)
+  if (join_tab)
   {
     JOIN_TAB *tab,*end;
     /*
@@ -3243,8 +3242,8 @@ void JOIN::cleanup(bool full)
     if (tables > const_tables) // Test for not-const tables
       for (uint ix= const_tables; ix < tables; ++ix)
       {
-        free_io_cache(all_tables[ix]);
-        filesort_free_buffers(all_tables[ix], full);
+        free_io_cache(join_tab[ix].table);
+        filesort_free_buffers(join_tab[ix].table, full);
       }
 
     if (full)
