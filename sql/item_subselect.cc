@@ -5167,10 +5167,16 @@ Ordered_key::cmp_keys_by_row_data(ha_rows a, ha_rows b)
   rowid_a= row_num_to_rowid + a * rowid_length;
   rowid_b= row_num_to_rowid + b * rowid_length;
   /* Fetch the rows for comparison. */
-  error= tbl->file->ha_rnd_pos(tbl->record[0], rowid_a);
-  DBUG_ASSERT(!error);
-  error= tbl->file->ha_rnd_pos(tbl->record[1], rowid_b);
-  DBUG_ASSERT(!error);
+  if ((error= tbl->file->ha_rnd_pos(tbl->record[0], rowid_a)))
+  {
+    tbl->file->print_error(error, MYF(ME_FATALERROR));  // Sets fatal_error
+    return 0;
+  }
+  if ((error= tbl->file->ha_rnd_pos(tbl->record[1], rowid_b)))
+  {
+    tbl->file->print_error(error, MYF(ME_FATALERROR));  // Sets fatal_error
+    return 0;
+  }    
   /*
     Compare the two rows by the corresponding values of the indexed
     columns.
@@ -5245,8 +5251,11 @@ int Ordered_key::cmp_key_with_search_key(rownum_t row_num)
   uchar *cur_rowid= row_num_to_rowid + row_num * rowid_length;
   int error, cmp_res;
 
-  error= tbl->file->ha_rnd_pos(tbl->record[0], cur_rowid);
-  DBUG_ASSERT(!error);
+  if ((error= tbl->file->ha_rnd_pos(tbl->record[0], cur_rowid)))
+  {
+    tbl->file->print_error(error, MYF(ME_FATALERROR));  // Sets fatal_error
+    return 0;
+  }
 
   for (uint i= 0; i < key_column_count; i++)
   {

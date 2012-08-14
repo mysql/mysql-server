@@ -945,7 +945,10 @@ uint _ma_apply_redo_index(MARIA_HA *info,
   const uchar *header_end= header + head_length;
   uint page_offset= 0, org_page_length;
   uint page_length, keypage_header, keynr;
-  uint max_page_size= share->max_index_block_size, new_page_length= 0;
+  uint max_page_size= share->max_index_block_size;
+#ifndef DBUG_OFF
+  uint new_page_length= 0;
+#endif
   int result;
   MARIA_PAGE page;
   DBUG_ENTER("_ma_apply_redo_index");
@@ -1107,7 +1110,9 @@ uint _ma_apply_redo_index(MARIA_HA *info,
       DBUG_PRINT("redo", ("org_page_length: %u  new_page_length: %u",
                           uint2korr(header), uint2korr(header+2)));
       DBUG_ASSERT(uint2korr(header) == page_length);
+#ifndef DBUG_OFF
       new_page_length= min(uint2korr(header+2), max_page_size);
+#endif
       header+= 4;
       break;
     case KEY_OP_MAX_PAGELENGTH:

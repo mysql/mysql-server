@@ -494,18 +494,22 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a int, index(a)) engine=heap min_rows=10 max_rows=100;
 insert into t1 values(1);
+--replace_result 800 1600 1200 2400
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 drop table t1;
 CREATE TABLE t1 (a int, index(a)) engine=heap min_rows=10 max_rows=10000;
 insert into t1 values(1);
+--replace_result 8000 16000 12000 24000
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 drop table t1;
 CREATE TABLE t1 (a int, index(a)) engine=heap min_rows=3000 max_rows=3000;
 insert into t1 values(1);
+--replace_result 24000 48000 36000 72000
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 drop table t1;
 CREATE TABLE t1 (a int, index(a)) engine=heap max_rows=15000;
 insert into t1 values(1);
+--replace_result 12000 24000 18000 36000
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 drop table t1;
 
@@ -521,11 +525,15 @@ insert into t1 select rand(100000000) from t1;
 insert into t1 select rand(100000000) from t1;
 insert into t1 select rand(100000000) from t1;
 insert into t1 select rand(100000000) from t1 limit 488;
+--replace_result 8000 16000 12000 24000
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 insert into t1 select rand(100000000) from t1 limit 1;
+--replace_result 16512 33024 24512 49024
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 insert into t1 select rand(100000000) from t1 limit 1000;
+--replace_result 24512 49024 36512 73024
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 insert into t1 select rand(100000000) from t1;
+--replace_result 40512 81024 60512 121024
 select data_length,index_length from information_schema.tables where table_schema="test" and table_name="t1";
 drop table t1;

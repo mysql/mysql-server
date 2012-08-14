@@ -1325,7 +1325,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR *current_global_status_var;      // Big; Don't allocate on stack
     ulong uptime;
-    uint length;
+    uint length __attribute__((unused));
     ulonglong queries_per_second1000;
     char buff[250];
     uint buff_len= sizeof(buff);
