@@ -495,15 +495,8 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     bool result = false; // success
 
     if (commit) {
-        if (altered_table->part_info == NULL) {
-            // read frm data for the altered table
-            uchar *frm_data; size_t frm_len;
-            int error = readfrm(altered_table->s->path.str, &frm_data, &frm_len);
-            if (!error) {
-                // transactionally write frm data to status
-                error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, ctx->alter_txn);
-                my_free(frm_data);
-            }
+        if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
+            int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {
                 commit = false; 
                 result = true;
@@ -511,10 +504,6 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
             }
         }
     }
-
-    THD *thd = ha_thd();
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
-    assert(trx->stmt == ctx->alter_txn);
 
     if (!commit) {
         // abort the alter transaction NOW so that any alters are rolled back. this allows the following restores to work.
@@ -556,6 +545,21 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     }
     
     DBUG_RETURN(result);
+}
+
+int
+ha_tokudb::create_handler_files(const char *name, const char *old_name, int action_flag, HA_CREATE_INFO *info) {
+    TOKUDB_DBUG_ENTER("create_handler_files");
+    int error = 0;
+    if (action_flag == CHF_CREATE_FLAG) {
+        THD *thd = ha_thd();
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        if (trx && trx->stmt && share) {
+            int error = write_frm_data(share->status_block, trx->stmt, name);
+            assert(error == 0);
+        }
+    }
+    DBUG_RETURN(error);
 }
 
 #endif
