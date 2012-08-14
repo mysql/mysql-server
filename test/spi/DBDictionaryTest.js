@@ -76,7 +76,7 @@ t3.run = function() {
         t2.errorIfNotEqual("Bad table count", count, 2);
         t2.failOnError();
         
-        dict.getTable("test","tbl1", function(err, tab) {
+        dict.getTable("test","tbl2", function(err, tab) {
           // TODO: Test specific properties of the table object
           if(tab) t3.pass();
           else t3.fail("getTable error");

@@ -1,3 +1,50 @@
 use test;
 create table IF NOT EXISTS tbl1 (i int primary key not null, j int) engine = ndb;
-create table IF NOT EXISTS tbl2 (i int primary key not null, j int) engine = ndb;
+create table IF NOT EXISTS tbl2 (
+  colbit bit(9),
+  coltinyint tinyint,
+  colsmallint smallint default 55,
+  colmediumint mediumint,
+  colint int primary key not null,
+  colinteger integer,
+  colbigint bigint,
+  colreal real,
+  coldouble double,
+  colfloat float,
+  coldecimal decimal(12,2),
+  colnumeric numeric,
+
+  coltinyintunsigned tinyint unsigned,
+  colsmallintunsigned smallint unsigned,
+  colmediumintunsigned mediumint unsigned,
+  colintunsigned int unsigned,
+  colintegerunsigned integer unsigned,
+  colbigintunsigned bigint unsigned,
+  colrealunsigned real unsigned,
+  coldoubleunsigned double unsigned,
+  colfloatunsigned float unsigned,
+  coldecimalunsigned decimal unsigned,
+  colnumericunsigned numeric unsigned,
+
+  coldate date,
+  coltime time,
+  coltimestamp timestamp,
+  colyear year,
+
+  colchar char(12),
+  colvarchar varchar(16),
+  colbinary binary(22),
+  colvarbinary varbinary(28),
+  coltinyblob tinyblob,
+  colblob blob,
+  colmediumblob mediumblob,
+  collongblob longblob,
+
+  coltinytext tinytext,
+  coltext text,
+  colmediumtext mediumtext,
+  collongtext longtext,
+  unique key idxcoltinyintusinghash (coltinyint) using hash,
+  unique key idxcolsmallintboth (colsmallint),
+  key idxcolintcoldateusingbtree (colint, coldate)
+  ) engine = ndb;
