@@ -52,7 +52,7 @@ class JOIN :public Sql_alloc
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  TABLE    **table,**all_tables;
+  TABLE    **table;
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
@@ -391,7 +391,6 @@ public:
        select_result *result_arg)
   {
     join_tab= 0;
-    all_tables= 0;
     tables= 0;
     const_tables= 0;
     const_table_map= 0;
