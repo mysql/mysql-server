@@ -285,7 +285,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
       Use also the space previously used by string pointers in sort_buffer
       for temporary key storage.
     */
-    param.keys= sort_buff_sz / param.rec_length;
+    param.keys=((param.keys*(param.rec_length+sizeof(char*))) /
+		param.rec_length-1);
     maxbuffer--;				// Offset from 0
     if (merge_many_buff(&param,(uchar*) sort_keys,buffpek,&maxbuffer,
 			&tempfile))
@@ -1260,8 +1261,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   strpos= sort_buffer;
   org_max_rows=max_rows= param->max_rows;
   
-  /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount!=0);
+  set_if_bigger(maxcount, 1);
   
   if (unique_buff)
   {
