@@ -764,7 +764,7 @@ String *Item_int_func::val_str(String *str)
 void Item_func_connection_id::fix_length_and_dec()
 {
   Item_int_func::fix_length_and_dec();
-  max_length= 10;
+  unsigned_flag= 1;
 }
 
 
