@@ -86,7 +86,7 @@ read_view_sees_trx_id(
 	const read_view_t*	view,	/*!< in: read view */
 	trx_id_t		trx_id)	/*!< in: trx id */
 {
-	if (trx_id < view->up_limit_id) {
+	if (trx_id < view->up_limit_id || trx_id == view->creator_trx_id) {
 
 		return(true);
 	} else if (trx_id >= view->low_limit_id) {
@@ -146,3 +146,11 @@ read_view_remove(
 	}
 }
 
+/*********************************************************************//**
+Insert the view in the proper order into the trx_sys->view_list. The
+read view list is ordered by read_view_t::low_limit_no in descending order. */
+UNIV_INTERN
+void
+read_view_add(
+/*==========*/
+	read_view_t*	view);		/*!< in: view to add to */

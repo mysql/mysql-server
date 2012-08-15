@@ -4846,6 +4846,7 @@ dict_index_online_log(
 	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
 	enum row_op	op)	/*!< in: operation */
 {
+	ut_ad(trx_id > 0);
 	row_log_online_op(index, entry, trx_id, op);
 }
 

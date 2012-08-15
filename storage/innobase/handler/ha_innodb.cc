@@ -1068,7 +1068,7 @@ thd_requested_durability(
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
 UNIV_INTERN
-ibool
+bool
 thd_trx_is_read_only(
 /*=================*/
 	THD*	thd)	/*!< in: thread handle */
@@ -2730,7 +2730,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_xa(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx, false);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -3398,7 +3398,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, false);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -9664,7 +9664,7 @@ ha_innobase::discard_or_import_tablespace(
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx, true);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
@@ -9836,7 +9836,6 @@ ha_innobase::delete_table(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
-	trx->ddl = true;
 
 	/* Drop the table in InnoDB */
 	err = row_drop_table_for_mysql(

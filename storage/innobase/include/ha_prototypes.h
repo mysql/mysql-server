@@ -424,7 +424,7 @@ innobase_get_fts_charset(
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
 UNIV_INTERN
-ibool
+bool
 thd_trx_is_read_only(
 /*=================*/
 	THD*	thd);	/*!< in/out: thread handle */

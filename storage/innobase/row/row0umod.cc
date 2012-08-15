@@ -86,6 +86,8 @@ row_undo_mod_undo_also_prev_vers(
 
 	trx = node->trx;
 
+	ut_ad(trx->id > 0);
+
 	if (node->new_trx_id != trx->id) {
 
 		*undo_no = 0;
@@ -526,6 +528,8 @@ row_undo_mod_del_mark_or_remove_sec(
 {
 	dberr_t	err;
 
+	ut_ad(thr_get_trx(thr)->id > 0);
+
 	if (dict_index_online_trylog(
 		    index, entry, thr_get_trx(thr)->id, ROW_OP_DELETE_MARK)) {
 		/* The index is being created, and the delete-mark
@@ -570,6 +574,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	trx_t*			trx		= thr_get_trx(thr);
 	enum row_search_result	search_result;
 
+	ut_ad(trx->id > 0);
 	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
 
 	if (dict_index_online_trylog(
