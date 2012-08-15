@@ -638,9 +638,8 @@ open_or_create_log_file(
 		    && os_file_get_last_error(false) != 100
 #endif
 		    ) {
-			fprintf(stderr,
-				"InnoDB: Error in creating"
-				" or opening %s\n", name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Can't create or open '%s'", name);
 
 			return(DB_ERROR);
 		}
@@ -649,8 +648,9 @@ open_or_create_log_file(
 					  OS_FILE_OPEN, OS_FILE_AIO,
 					  OS_LOG_FILE, &ret);
 		if (!ret) {
-			fprintf(stderr,
-				"InnoDB: Error in opening %s\n", name);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to open '%s'\n", name);
 
 			return(DB_ERROR);
 		}
@@ -658,13 +658,13 @@ open_or_create_log_file(
 		size = os_file_get_size(files[i]);
 		ut_a(size != (os_offset_t) -1);
 
-		if (UNIV_UNLIKELY(size != (os_offset_t) srv_log_file_size
-				  << UNIV_PAGE_SIZE_SHIFT)) {
+		if (size != ((os_offset_t) srv_log_file_size
+			     << UNIV_PAGE_SIZE_SHIFT)) {
 
-			fprintf(stderr,
-				"InnoDB: Error: log file %s is"
-				" of different size "UINT64PF" bytes\n"
-				"InnoDB: than specified in the .cnf"
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Log file %s is"
+				" of different size "UINT64PF" bytes"
+				"than specified in the .cnf"
 				" file "UINT64PF" bytes!\n",
 				name, size,
 				(os_offset_t) srv_log_file_size
@@ -673,35 +673,37 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 	} else {
+		ut_a(!srv_read_only_mode);
+
 		*log_file_created = TRUE;
 
-		ut_print_timestamp(stderr);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Log file %s did not exist:"
+			" new to be created\n", name);
 
-		fprintf(stderr,
-			" InnoDB: Log file %s did not exist:"
-			" new to be created\n",
-			name);
 		if (log_file_has_been_opened) {
 
 			return(DB_ERROR);
 		}
 
-		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Setting log file %s size to %lu MB\n",
 			name, (ulong) srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
 
-		fprintf(stderr,
-			"InnoDB: Database physically writes the file"
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Database physically writes the file"
 			" full: wait...\n");
 
-		ret = os_file_set_size(name, files[i],
-				       (os_offset_t) srv_log_file_size
-				       << UNIV_PAGE_SIZE_SHIFT);
+		ret = os_file_set_size(
+			name, files[i],
+			(os_offset_t) srv_log_file_size
+			<< UNIV_PAGE_SIZE_SHIFT);
+
 		if (!ret) {
-			fprintf(stderr,
-				"InnoDB: Error in creating %s:"
-				" probably out of disk space\n",
-				name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Can't create '%s': probably out "
+				"of disk space.", name);
 
 			return(DB_ERROR);
 		}
@@ -841,14 +843,14 @@ open_or_create_data_files(
 			    && os_file_get_last_error(false) != 100
 #endif
 			    ) {
-				fprintf(stderr,
-					"InnoDB: Error in creating"
-					" or opening %s\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Creating or opening %s failed!",
 					name);
 
 				return(DB_ERROR);
 			}
 		} else if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
+			ut_a(!srv_read_only_mode);
 			/* The partition is opened, not created; then it is
 			written over */
 
@@ -888,6 +890,7 @@ open_or_create_data_files(
 			}
 
 			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
+				ut_a(!srv_read_only_mode);
 				files[i] = os_file_create(
 					innodb_file_data_key,
 					name, OS_FILE_OPEN_RAW,
@@ -905,8 +908,10 @@ open_or_create_data_files(
 			}
 
 			if (!ret) {
-				fprintf(stderr,
-					"InnoDB: Error in opening %s\n", name);
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Can't open '%s'", name);
+
 				os_file_get_last_error(true);
 
 				return(DB_ERROR);
@@ -988,23 +993,19 @@ skip_size_check:
 			    && UNIV_PAGE_SIZE
 			       != fsp_flags_get_page_size(flags)) {
 
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: Error: data file %s"
-					" uses page size %lu,\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Data file '%s' uses page size %lu,"
+					"but the start-up parameter "
+					"is --innodb-page-size=%lu",
 					name,
-					fsp_flags_get_page_size(flags));
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: but the start-up parameter"
-					" is innodb-page-size=%lu\n",
+					fsp_flags_get_page_size(flags),
 					UNIV_PAGE_SIZE);
 
 				return(DB_ERROR);
 			}
 
 			one_opened = TRUE;
-		} else {
+		} else if (!srv_read_only_mode) {
 			/* We created the data file and now write it full of
 			zeros */
 
@@ -1086,11 +1087,16 @@ srv_undo_tablespace_create(
 	os_file_create_subdirs_if_needed(name);
 
 	fh = os_file_create(
-		innodb_file_data_key, name, OS_FILE_CREATE,
+		innodb_file_data_key,
+		name,
+		srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
 		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
-	if (ret == FALSE
-	    && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
+	if (srv_read_only_mode && ret) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"%s opened in read-only mode", name);
+	} else if (ret == FALSE
+		   && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 	    /* AIX 5.1 after security patch ML7 may have
 	    errno set to 0 here, which causes our function
@@ -1099,30 +1105,32 @@ srv_undo_tablespace_create(
 #endif
 		) {
 
-		fprintf(stderr, "InnoDB: Error in creating %s\n", name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Can't create UNDO tablespace %s", name);
 
 		err = DB_ERROR;
 	} else {
+		ut_a(!srv_read_only_mode);
+
 		/* We created the data file and now write it full of zeros */
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Data file %s did not"
-				" exist: new to be created\n", name);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Data file %s did not exist: new to be created",
+			name);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Setting file %s size to %lu MB\n",
-				name, size >> (20 - UNIV_PAGE_SIZE_SHIFT));
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Setting file %s size to %lu MB",
+			name, size >> (20 - UNIV_PAGE_SIZE_SHIFT));
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Database physically writes the"
-				" file full: wait...\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Database physically writes the file full: wait...");
 
 		ret = os_file_set_size(name, fh, size << UNIV_PAGE_SIZE_SHIFT);
 
 		if (!ret) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Error in creating %s:"
-					" probably out of disk space\n", name);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Error in creating %s: probably out of "
+				"disk space", name);
 
 			err = DB_ERROR;
 		}
@@ -1466,6 +1474,10 @@ innobase_start_or_create_for_mysql(void)
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
 
+	if (srv_read_only_mode) {
+		ib_logf(IB_LOG_LEVEL_INFO, "Started in READ ONLY mode");
+	}
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
@@ -1723,46 +1735,59 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_boot();
 
-	mutex_create(srv_monitor_file_mutex_key,
-		     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	if (!srv_read_only_mode) {
 
-	if (srv_innodb_status) {
+		mutex_create(srv_monitor_file_mutex_key,
+			     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
 
-		srv_monitor_file_name = static_cast<char*>(
-			mem_alloc(
-				strlen(fil_path_to_mysql_datadir)
-				+ 20 + sizeof "/innodb_status."));
+		if (srv_innodb_status) {
 
-		sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
-			fil_path_to_mysql_datadir, os_proc_get_number());
-		srv_monitor_file = fopen(srv_monitor_file_name, "w+");
-		if (!srv_monitor_file) {
-			fprintf(stderr, "InnoDB: unable to create %s: %s\n",
-				srv_monitor_file_name, strerror(errno));
+			srv_monitor_file_name = static_cast<char*>(
+				mem_alloc(
+					strlen(fil_path_to_mysql_datadir)
+					+ 20 + sizeof "/innodb_status."));
+
+			sprintf(srv_monitor_file_name, "%s/innodb_status.%lu",
+				fil_path_to_mysql_datadir,
+				os_proc_get_number());
+
+			srv_monitor_file = fopen(srv_monitor_file_name, "w+");
+
+			if (!srv_monitor_file) {
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Unable to create %s: %s",
+					srv_monitor_file_name,
+					strerror(errno));
+
+				return(DB_ERROR);
+			}
+		} else {
+			srv_monitor_file_name = NULL;
+			srv_monitor_file = os_file_create_tmpfile();
+
+			if (!srv_monitor_file) {
+				return(DB_ERROR);
+			}
+		}
+
+		mutex_create(srv_dict_tmpfile_mutex_key,
+			     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+
+		srv_dict_tmpfile = os_file_create_tmpfile();
+
+		if (!srv_dict_tmpfile) {
 			return(DB_ERROR);
 		}
-	} else {
-		srv_monitor_file_name = NULL;
-		srv_monitor_file = os_file_create_tmpfile();
-		if (!srv_monitor_file) {
+
+		mutex_create(srv_misc_tmpfile_mutex_key,
+			     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+
+		srv_misc_tmpfile = os_file_create_tmpfile();
+
+		if (!srv_misc_tmpfile) {
 			return(DB_ERROR);
 		}
-	}
-
-	mutex_create(srv_dict_tmpfile_mutex_key,
-		     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
-
-	srv_dict_tmpfile = os_file_create_tmpfile();
-	if (!srv_dict_tmpfile) {
-		return(DB_ERROR);
-	}
-
-	mutex_create(srv_misc_tmpfile_mutex_key,
-		     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
-
-	srv_misc_tmpfile = os_file_create_tmpfile();
-	if (!srv_misc_tmpfile) {
-		return(DB_ERROR);
 	}
 
 	/* If user has set the value of innodb_file_io_threads then
@@ -2342,11 +2367,15 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the master thread which does purge and other utility
 	operations */
 
-	os_thread_create(
-		srv_master_thread,
-		NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
+	if (!srv_read_only_mode) {
 
-	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
+		os_thread_create(
+			srv_master_thread,
+			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
+	}
+
+	if (!srv_read_only_mode
+	    && srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		os_thread_create(
 			srv_purge_coordinator_thread,
@@ -2368,7 +2397,9 @@ innobase_start_or_create_for_mysql(void)
 		purge_sys->state = PURGE_STATE_DISABLED;
 	}
 
-	os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
+	if (!srv_read_only_mode) {
+		os_thread_create(buf_flush_page_cleaner_thread, NULL, NULL);
+	}
 
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
@@ -2381,7 +2412,8 @@ innobase_start_or_create_for_mysql(void)
 
 	tablespace_size_in_header = fsp_header_get_tablespace_size();
 
-	if (!srv_auto_extend_last_data_file
+	if (!srv_read_only_mode
+	    && !srv_auto_extend_last_data_file
 	    && sum_of_data_file_sizes != tablespace_size_in_header) {
 
 		ut_print_timestamp(stderr);
@@ -2424,7 +2456,8 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	if (srv_auto_extend_last_data_file
+	if (!srv_read_only_mode
+	    && srv_auto_extend_last_data_file
 	    && sum_of_data_file_sizes < tablespace_size_in_header) {
 
 		ut_print_timestamp(stderr);

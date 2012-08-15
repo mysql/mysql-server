@@ -6931,6 +6931,8 @@ ER_FK_COLUMN_CANNOT_CHANGE_CHILD
 ER_FK_CANNOT_DELETE_PARENT
   eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
 
+ER_READ_ONLY_MODE
+        eng "Running in read-only mode"
 #
 #  End of 5.6 error messages.
 #

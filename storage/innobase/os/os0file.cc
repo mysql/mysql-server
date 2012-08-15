@@ -717,19 +717,23 @@ os_file_lock(
 	const char*	name)	/*!< in: file name */
 {
 	struct flock lk;
+
+	ut_ad(!srv_read_only_mode);
+
 	lk.l_type = F_WRLCK;
 	lk.l_whence = SEEK_SET;
 	lk.l_start = lk.l_len = 0;
+
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
-		fprintf(stderr,
-			"InnoDB: Unable to lock %s, error: %d\n", name, errno);
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to lock %s, error: %d\n", name, errno);
 
 		if (errno == EAGAIN || errno == EACCES) {
-			fprintf(stderr,
-				"InnoDB: Check that you do not already have"
-				" another mysqld process\n"
-				"InnoDB: using the same InnoDB data"
-				" or log files.\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Check that you do not already have "
+				"another mysqld process using the "
+				"same InnoDB data or log files.");
 		}
 
 		return(-1);
@@ -769,6 +773,8 @@ os_file_create_tmpfile(void)
 {
 	FILE*	file	= NULL;
 	int	fd	= innobase_mysql_tmpfile();
+
+	ut_ad(!srv_read_only_mode);
 
 	if (fd >= 0) {
 		file = fdopen(fd, "w+b");
@@ -1122,129 +1128,204 @@ os_file_create_simple_func(
 				OS_FILE_READ_WRITE */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
-#ifdef __WIN__
 	os_file_t	file;
-	DWORD		create_flag;
-	DWORD		access;
-	DWORD		attributes	= 0;
 	ibool		retry;
+
+#ifdef __WIN__
+	DWORD		access;
+	DWORD		create_flag;
+	DWORD		attributes	= 0;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
-try_again:
-	ut_a(name);
 
 	if (create_mode == OS_FILE_OPEN) {
+
 		create_flag = OPEN_EXISTING;
+
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"create file '%s'", name);
+
+		return((os_file_t)(-1));
+
 	} else if (create_mode == OS_FILE_CREATE) {
+
 		create_flag = CREATE_NEW;
+
 	} else if (create_mode == OS_FILE_CREATE_PATH) {
-		/* create subdirs along the path if needed  */
+
+		ut_a(!srv_read_only_mode);
+
+		/* Create subdirs along the path if needed  */
 		*success = os_file_create_subdirs_if_needed(name);
+
 		if (!*success) {
-			ut_error;
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to create subdirectories '%s'",
+				name);
+
+			return((os_file_t) -1);
 		}
+
 		create_flag = CREATE_NEW;
 		create_mode = OS_FILE_CREATE;
+
 	} else {
-		create_flag = 0;
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file create mode (%lu) for file '%s'",
+			create_mode, name);
+
+		return((os_file_t) -1);
 	}
 
 	if (access_type == OS_FILE_READ_ONLY) {
 		access = GENERIC_READ;
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"open file '%s' in RW mode", name);
+
+		return((os_file_t)(-1));
+
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else {
-		access = 0;
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file access type (%lu) for file '%s'",
+			access_type, name);
+
+		return((os_file_t) -1);
 	}
 
-	file = CreateFile((LPCTSTR) name,
-			  access,
-			  FILE_SHARE_READ | FILE_SHARE_WRITE,
-			  /* file can be read and written also
-			  by other processes */
-			  NULL,	/* default security attributes */
-			  create_flag,
-			  attributes,
-			  NULL);	/*!< no template file */
+	ibool	retry;
 
-	if (file == INVALID_HANDLE_VALUE) {
-		*success = FALSE;
+	do {
+		/* Use default security attributes and no template file. */
 
-		retry = os_file_handle_error(name,
-					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
-		if (retry) {
-			goto try_again;
+		file = CreateFile(
+			(LPCTSTR) name, access, FILE_SHARE_READ, NULL,
+			create_flag, attributes, NULL);
+	
+		if (file == INVALID_HANDLE_VALUE) {
+
+			*success = FALSE;
+	
+			retry = os_file_handle_error(
+				name, create_mode == OS_FILE_OPEN ?
+		       		"open" : "create");
+
+		} else {
+			*success = TRUE;
+			retry = false;
 		}
-	} else {
-		*success = TRUE;
-	}
 
-	return(file);
+	} while (retry);
+
 #else /* __WIN__ */
-	os_file_t	file;
 	int		create_flag;
-	ibool		retry;
 
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_SILENT));
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
-try_again:
-	ut_a(name);
-
 	if (create_mode == OS_FILE_OPEN) {
+
 		if (access_type == OS_FILE_READ_ONLY) {
 			create_flag = O_RDONLY;
+		} else if (srv_read_only_mode) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"READ ONLY mode set. Unable to "
+				"open file '%s' in RW mode", name);
+
+			return((os_file_t)(-1));
 		} else {
 			create_flag = O_RDWR;
 		}
+
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"create file '%s'", name);
+
+		return((os_file_t)(-1));
+
 	} else if (create_mode == OS_FILE_CREATE) {
+
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
+
 	} else if (create_mode == OS_FILE_CREATE_PATH) {
-		/* create subdirs along the path if needed  */
+
+		/* Create subdirs along the path if needed  */
+
 		*success = os_file_create_subdirs_if_needed(name);
+
 		if (!*success) {
-			return (-1);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to create subdirectories '%s'",
+				name);
+
+			return((os_file_t) -1);
 		}
+
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 		create_mode = OS_FILE_CREATE;
 	} else {
-		create_flag = 0;
-		ut_error;
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file create mode (%lu) for file '%s'",
+			create_mode, name);
+
+		return((os_file_t) -1);
 	}
 
-	if (create_mode == OS_FILE_CREATE) {
-		file = open(name, create_flag, S_IRUSR | S_IWUSR
-			    | S_IRGRP | S_IWGRP);
-	} else {
-		file = open(name, create_flag);
-	}
+	do {
+		if (create_mode == OS_FILE_CREATE) {
 
-	if (file == -1) {
-		*success = FALSE;
+			ut_a(!srv_read_only_mode);
 
-		retry = os_file_handle_error(name,
-					     create_mode == OS_FILE_OPEN ?
-					     "open" : "create");
-		if (retry) {
-			goto try_again;
+			file = open(
+				name, create_flag,
+				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+		} else {
+			file = open(name, create_flag);
 		}
+
+		if (file == -1) {
+			*success = FALSE;
+
+			retry = os_file_handle_error(
+				name,
+				create_mode == OS_FILE_OPEN
+				?  "open" : "create");
+		} else {
+			*success = TRUE;
+			retry = false;
+		}
+
+	} while (retry);
+
 #ifdef USE_FILE_LOCK
-	} else if (access_type == OS_FILE_READ_WRITE
-		   && os_file_lock(file, name)) {
+	if (!srv_read_only_mode
+	    && *success
+	    && access_type == OS_FILE_READ_WRITE
+	    && os_file_lock(file, name)) {
+
 		*success = FALSE;
 		close(file);
 		file = -1;
-#endif
-	} else {
-		*success = TRUE;
 	}
+#endif /* USE_FILE_LOCK */
+
+#endif /* __WIN__ */
 
 	return(file);
-#endif /* __WIN__ */
 }
 
 /****************************************************************//**
@@ -1266,12 +1347,13 @@ os_file_create_simple_no_error_handling_func(
 				used by a backup program reading the file */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
-#ifdef __WIN__
 	os_file_t	file;
-	DWORD		create_flag;
+
+#ifdef __WIN__
 	DWORD		access;
+	DWORD		create_flag;
 	DWORD		attributes	= 0;
-	DWORD		share_mode	= FILE_SHARE_READ | FILE_SHARE_WRITE;
+	DWORD		share_mode	= FILE_SHARE_READ;
 
 	ut_a(name);
 
@@ -1280,49 +1362,65 @@ os_file_create_simple_no_error_handling_func(
 
 	if (create_mode == OS_FILE_OPEN) {
 		create_flag = OPEN_EXISTING;
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"create file '%s'", name);
+
+		return((os_file_t)(-1));
+
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = CREATE_NEW;
 	} else {
-		create_flag = 0;
-		ut_error;
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file create mode (%lu) for file '%s'",
+			create_mode, name);
+
+		return((os_file_t) -1);
 	}
 
 	if (access_type == OS_FILE_READ_ONLY) {
 		access = GENERIC_READ;
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"open file '%s' in RW mode", name);
+
+		return((os_file_t)(-1));
+
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
+
+		ut_a(!srv_read_only_mode);
+
 		access = GENERIC_READ;
 
 		/*!< A backup program has to give mysqld the maximum
 		freedom to do what it likes with the file */
 
-		share_mode =
-			FILE_SHARE_DELETE
-			| FILE_SHARE_READ
-			| FILE_SHARE_WRITE;
+		share_mode |= FILE_SHARE_DELETE | FILE_SHARE_WRITE;
 	} else {
-		access = 0;
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file access type (%lu) for file '%s'",
+			access_type, name);
+
+		return((os_file_t) -1);
 	}
 
 	file = CreateFile((LPCTSTR) name,
 			  access,
 			  share_mode,
-			  NULL,	/* default security attributes */
+			  NULL,			// Security attributes
 			  create_flag,
 			  attributes,
-			  NULL);	/*!< no template file */
+			  NULL);		// No template file
 
-	if (file == INVALID_HANDLE_VALUE) {
-		*success = FALSE;
-	} else {
-		*success = TRUE;
-	}
-
-	return(file);
+	*success = (file != INVALID_HANDLE_VALUE);
 #else /* __WIN__ */
-	os_file_t	file;
 	int		create_flag;
 
 	ut_a(name);
@@ -1331,40 +1429,66 @@ os_file_create_simple_no_error_handling_func(
 	ut_a(!(create_mode & OS_FILE_ON_ERROR_NO_EXIT));
 
 	if (create_mode == OS_FILE_OPEN) {
+
 		if (access_type == OS_FILE_READ_ONLY) {
+
 			create_flag = O_RDONLY;
+
+		} else if (srv_read_only_mode) {
+ 
+ 			ib_logf(IB_LOG_LEVEL_ERROR,
+ 				"READ ONLY mode set. Unable to "
+ 				"open file '%s' in RW mode", name);
+ 
+ 			return((os_file_t)(-1));
+
 		} else {
+
+			ut_a(access_type == OS_FILE_READ_WRITE
+			     || access_type == OS_FILE_READ_ALLOW_DELETE);
+
 			create_flag = O_RDWR;
 		}
+
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"create file '%s'", name);
+
+		return((os_file_t)(-1));
+
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 	} else {
-		create_flag = 0;
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file create mode (%lu) for file '%s'",
+			create_mode, name);
+
+		return((os_file_t) -1);
 	}
 
-	if (create_mode == OS_FILE_CREATE) {
-		file = open(name, create_flag, S_IRUSR | S_IWUSR
-			    | S_IRGRP | S_IWGRP);
-	} else {
-		file = open(name, create_flag);
-	}
+	file = open(name, create_flag);
 
 	if (file == -1) {
 		*success = FALSE;
 #ifdef USE_FILE_LOCK
-	} else if (access_type == OS_FILE_READ_WRITE
+	} else if (!srv_read_only_mode
+		   && *success
+		   && access_type == OS_FILE_READ_WRITE
 		   && os_file_lock(file, name)) {
+
 		*success = FALSE;
 		close(file);
 		file = -1;
-#endif
+
+#endif /* USE_FILE_LOCK */
 	} else {
 		*success = TRUE;
 	}
+#endif /* __WIN__ */
 
 	return(file);
-#endif /* __WIN__ */
 }
 
 /****************************************************************//**
@@ -1374,12 +1498,13 @@ void
 os_file_set_nocache(
 /*================*/
 	int		fd		/*!< in: file descriptor to alter */
-	__attribute__((unused)),
-	const char*	file_name	/*!< in: used in the diagnostic message */
-	__attribute__((unused)),
+					__attribute__((unused)),
+	const char*	file_name	/*!< in: used in the diagnostic
+					message */
+					__attribute__((unused)),
 	const char*	operation_name __attribute__((unused)))
-					/*!< in: "open" or "create"; used in the
-					diagnostic message */
+					/*!< in: "open" or "create"; used
+					in the diagnostic message */
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
@@ -1435,131 +1560,140 @@ os_file_create_func(
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
+	os_file_t	file;
+	ibool		retry;
 	ibool		on_error_no_exit;
 	ibool		on_error_silent;
 
 #ifdef __WIN__
-	os_file_t	file;
-	DWORD		share_mode	= FILE_SHARE_READ;
 	DWORD		create_flag;
-	DWORD		attributes;
-	ibool		retry;
+	DWORD		share_mode	= FILE_SHARE_READ;
 
 	on_error_no_exit = create_mode & OS_FILE_ON_ERROR_NO_EXIT
 		? TRUE : FALSE;
+
 	on_error_silent = create_mode & OS_FILE_ON_ERROR_SILENT
 		? TRUE : FALSE;
 
 	create_mode &= ~OS_FILE_ON_ERROR_NO_EXIT;
 	create_mode &= ~OS_FILE_ON_ERROR_SILENT;
 
-try_again:
-	ut_a(name);
-
 	if (create_mode == OS_FILE_OPEN_RAW) {
+
 		create_flag = OPEN_EXISTING;
-		share_mode = FILE_SHARE_WRITE;
+
+		/* On Windows Physical devices require admin privileges and
+		have to have the write-share mode set. See the remarks
+		section for the CreateFile() function documentation in MSDN. */
+
+		share_mode |= FILE_SHARE_WRITE;
+
 	} else if (create_mode == OS_FILE_OPEN
 		   || create_mode == OS_FILE_OPEN_RETRY) {
+
 		create_flag = OPEN_EXISTING;
+
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"create file '%s'", name);
+
+		return((os_file_t)(-1));
+
 	} else if (create_mode == OS_FILE_CREATE) {
+
 		create_flag = CREATE_NEW;
+
 	} else if (create_mode == OS_FILE_OVERWRITE) {
+
 		create_flag = CREATE_ALWAYS;
+
 	} else {
-		create_flag = 0;
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file create mode (%lu) for file '%s'",
+			create_mode, name);
+
+		return((os_file_t) -1);
 	}
 
+	DWORD		attributes = 0;
+
+#ifdef UNIV_HOTBACKUP
+	attributes |= FILE_FLAG_NO_BUFFERING;
+#else
 	if (purpose == OS_FILE_AIO) {
+
+#ifdef WIN_ASYNC_IO
 		/* If specified, use asynchronous (overlapped) io and no
 		buffering of writes in the OS */
-		attributes = 0;
-#ifdef WIN_ASYNC_IO
+
 		if (srv_use_native_aio) {
-			attributes = attributes | FILE_FLAG_OVERLAPPED;
+			attributes |= FILE_FLAG_OVERLAPPED;
 		}
-#endif
-#ifdef UNIV_NON_BUFFERED_IO
-# ifndef UNIV_HOTBACKUP
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
-			/* Do not use unbuffered i/o to log files because
-			value 2 denotes that we do not flush the log at every
-			commit, but only once per second */
-		} else if (srv_win_file_flush_method
-			   == SRV_WIN_IO_UNBUFFERED) {
-			attributes = attributes | FILE_FLAG_NO_BUFFERING;
-		}
-# else /* !UNIV_HOTBACKUP */
-		attributes = attributes | FILE_FLAG_NO_BUFFERING;
-# endif /* !UNIV_HOTBACKUP */
-#endif /* UNIV_NON_BUFFERED_IO */
+#endif /* WIN_ASYNC_IO */
+
 	} else if (purpose == OS_FILE_NORMAL) {
-		attributes = 0;
+		/* Use default setting. */
+	} else {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown purpose flag (%lu) while opening file '%s'",
+			purpose, name);
+
+		return((os_file_t)(-1));
+	}
+
 #ifdef UNIV_NON_BUFFERED_IO
-# ifndef UNIV_HOTBACKUP
-		if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
-			/* Do not use unbuffered i/o to log files because
-			value 2 denotes that we do not flush the log at every
-			commit, but only once per second */
-		} else if (srv_win_file_flush_method
-			   == SRV_WIN_IO_UNBUFFERED) {
-			attributes = attributes | FILE_FLAG_NO_BUFFERING;
-		}
-# else /* !UNIV_HOTBACKUP */
-		attributes = attributes | FILE_FLAG_NO_BUFFERING;
-# endif /* !UNIV_HOTBACKUP */
+	// TODO: Create a bug, this looks wrong. The flush log
+	// parameter is dynamic. 
+	if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
+
+		/* Do not use unbuffered i/o for the log files because
+		value 2 denotes that we do not flush the log at every
+		commit, but only once per second */
+
+	} else if (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED) {
+
+		attributes |= FILE_FLAG_NO_BUFFERING;
+	}
 #endif /* UNIV_NON_BUFFERED_IO */
-	} else {
-		attributes = 0;
-		ut_error;
+
+#endif /* UNIV_HOTBACKUP */
+	DWORD	access = GENERIC_READ;
+       
+	if (!srv_read_only_mode) {
+		access |= GENERIC_WRITE;
 	}
 
-	file = CreateFile((LPCTSTR) name,
-			  GENERIC_READ | GENERIC_WRITE, /* read and write
-							access */
-			  share_mode,	/* File can be read also by other
-					processes; we must give the read
-					permission because of ibbackup. We do
-					not give the write permission to
-					others because if one would succeed to
-					start 2 instances of mysqld on the
-					SAME files, that could cause severe
-					database corruption! When opening
-					raw disk partitions, Microsoft manuals
-					say that we must give also the write
-					permission. */
-			  NULL,	/* default security attributes */
-			  create_flag,
-			  attributes,
-			  NULL);	/*!< no template file */
+	do {
+		/* Use default security attributes and no template file. */
+		file = CreateFile(
+			(LPCTSTR) name, access, share_mode, NULL,
+			create_flag, attributes, NULL);
 
-	if (file == INVALID_HANDLE_VALUE) {
-		const char*	operation;
+		if (file == INVALID_HANDLE_VALUE) {
+			const char*	operation;
 
-		operation = create_mode == OS_FILE_CREATE ? "create" : "open";
+			operation = (create_mode == OS_FILE_CREATE)
+				? "create" : "open";
 
-		*success = FALSE;
+			*success = FALSE;
 
-		if (on_error_no_exit) {
-			retry = os_file_handle_error_no_exit(
-				name, operation, on_error_silent);
+			if (on_error_no_exit) {
+				retry = os_file_handle_error_no_exit(
+					name, operation, on_error_silent);
+			} else {
+				retry = os_file_handle_error(name, operation);
+			}
 		} else {
-			retry = os_file_handle_error(name, operation);
+			*success = TRUE;
+			retry = FALSE;
 		}
 
-		if (retry) {
-			goto try_again;
-		}
-	} else {
-		*success = TRUE;
-	}
+	} while (retry);
 
-	return(file);
 #else /* __WIN__ */
-	os_file_t	file;
 	int		create_flag;
-	ibool		retry;
 	const char*	mode_str	= NULL;
 
 	on_error_no_exit = create_mode & OS_FILE_ON_ERROR_NO_EXIT
@@ -1570,22 +1704,42 @@ try_again:
 	create_mode &= ~OS_FILE_ON_ERROR_NO_EXIT;
 	create_mode &= ~OS_FILE_ON_ERROR_SILENT;
 
-try_again:
-	ut_a(name);
-
-	if (create_mode == OS_FILE_OPEN || create_mode == OS_FILE_OPEN_RAW
+	if (create_mode == OS_FILE_OPEN
+	    || create_mode == OS_FILE_OPEN_RAW
 	    || create_mode == OS_FILE_OPEN_RETRY) {
+
 		mode_str = "OPEN";
-		create_flag = O_RDWR;
+
+		if (srv_read_only_mode) {
+			create_flag = O_RDONLY;
+		} else {
+			create_flag = O_RDWR;
+		}
+
+	} else if (srv_read_only_mode) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Unable to "
+			"create file '%s'", name);
+
+		return((os_file_t)(-1));
+
 	} else if (create_mode == OS_FILE_CREATE) {
+
 		mode_str = "CREATE";
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
+
 	} else if (create_mode == OS_FILE_OVERWRITE) {
+
 		mode_str = "OVERWRITE";
 		create_flag = O_RDWR | O_CREAT | O_TRUNC;
+
 	} else {
-		create_flag = 0;
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown file create mode (%lu) for file '%s'",
+			create_mode, name);
+
+		return((os_file_t) -1);
 	}
 
 	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
@@ -1595,69 +1749,72 @@ try_again:
 	/* We let O_SYNC only affect log files; note that we map O_DSYNC to
 	O_SYNC because the datasync options seemed to corrupt files in 2001
 	in both Linux and Solaris */
-	if (type == OS_LOG_FILE
+
+	if (!srv_read_only_mode
+	    && type == OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
 
-# if 0
-		fprintf(stderr, "Using O_SYNC for file %s\n", name);
-# endif
-
-		create_flag = create_flag | O_SYNC;
+		create_flag |= O_SYNC;
 	}
 #endif /* O_SYNC */
 
-	file = open(name, create_flag, os_innodb_umask);
+	do {
+		file = open(name, create_flag, os_innodb_umask);
 
-	if (file == -1) {
-		const char*	operation;
+		if (file == -1) {
+			const char*	operation;
 
-		operation = create_mode == OS_FILE_CREATE ? "create" : "open";
+			operation = (create_mode == OS_FILE_CREATE)
+				? "create" : "open";
 
-		*success = FALSE;
+			*success = FALSE;
 
-		if (on_error_no_exit) {
-			retry = os_file_handle_error_no_exit(
-				name, operation, on_error_silent);
+			if (on_error_no_exit) {
+				retry = os_file_handle_error_no_exit(
+					name, operation, on_error_silent);
+			} else {
+				retry = os_file_handle_error(name, operation);
+			}
 		} else {
-			retry = os_file_handle_error(name, operation);
+			*success = TRUE;
+			retry = false;
 		}
 
-		if (retry) {
-			goto try_again;
-		} else {
-			return(file /* -1 */);
-		}
-	}
-	/* else */
-
-	*success = TRUE;
+	} while (retry);
 
 	/* We disable OS caching (O_DIRECT) only on data files */
-	if (type != OS_LOG_FILE
+
+	if (!srv_read_only_mode
+	    && type != OS_LOG_FILE
 	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
 
 		os_file_set_nocache(file, name, mode_str);
 	}
 
 #ifdef USE_FILE_LOCK
-	if (create_mode != OS_FILE_OPEN_RAW && os_file_lock(file, name)) {
+	if (!srv_read_only_mode
+	    && *success
+	    && create_mode != OS_FILE_OPEN_RAW
+	    && os_file_lock(file, name)) {
 
 		if (create_mode == OS_FILE_OPEN_RETRY) {
-			int i;
-			ut_print_timestamp(stderr);
-			fputs(" InnoDB: Retrying to lock"
-			      " the first data file\n",
-			      stderr);
-			for (i = 0; i < 100; i++) {
+
+			ut_a(!srv_read_only_mode);
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Retrying to lock the first data file");
+
+			for (int i = 0; i < 100; i++) {
 				os_thread_sleep(1000000);
+
 				if (!os_file_lock(file, name)) {
 					*success = TRUE;
 					return(file);
 				}
 			}
-			ut_print_timestamp(stderr);
-			fputs(" InnoDB: Unable to open the first data file\n",
-			      stderr);
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Unable to open the first data file");
 		}
 
 		*success = FALSE;
@@ -1666,8 +1823,9 @@ try_again:
 	}
 #endif /* USE_FILE_LOCK */
 
-	return(file);
 #endif /* __WIN__ */
+
+	return(file);
 }
 
 /***********************************************************************//**
@@ -2317,6 +2475,7 @@ os_file_pwrite(
 	off_t	offs;
 
 	ut_ad(n);
+	ut_ad(!srv_read_only_mode);
 
 	/* If off_t is > 4 bytes in size, then we assume we can pass a
 	64-bit address */
@@ -2682,6 +2841,8 @@ os_file_write_func(
 	os_offset_t	offset,	/*!< in: file offset where to write */
 	ulint		n)	/*!< in: number of bytes to write */
 {
+	ut_ad(!srv_read_only_mode);
+
 #ifdef __WIN__
 	BOOL		ret;
 	DWORD		len;
@@ -3258,11 +3419,18 @@ os_file_create_subdirs_if_needed(
 /*=============================*/
 	const char*	path)	/*!< in: path name */
 {
-	char*		subdir;
-	ibool		success, subdir_exists;
-	os_file_type_t	type;
+	if (srv_read_only_mode) {
 
-	subdir = os_file_dirname(path);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"READ ONLY mode set. Can't create subdirectories '%s'",
+			path);
+
+		return(FALSE);
+
+	}
+
+	char*	subdir = os_file_dirname(path);
+
 	if (strlen(subdir) == 1
 	    && (*subdir == OS_FILE_PATH_SEPARATOR || *subdir == '.')) {
 		/* subdir is root or cwd, nothing to do */
@@ -3272,15 +3440,21 @@ os_file_create_subdirs_if_needed(
 	}
 
 	/* Test if subdir exists */
-	success = os_file_status(subdir, &subdir_exists, &type);
+	os_file_type_t	type;
+	ibool	subdir_exists;
+	ibool	success = os_file_status(subdir, &subdir_exists, &type);
+
 	if (success && !subdir_exists) {
+
 		/* subdir does not exist, create it */
 		success = os_file_create_subdirs_if_needed(subdir);
+
 		if (!success) {
 			mem_free(subdir);
 
 			return(FALSE);
 		}
+
 		success = os_file_create_directory(subdir, FALSE);
 	}
 

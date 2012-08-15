@@ -1758,6 +1758,7 @@ log_group_checkpoint(
 	byte*		buf;
 	ulint		i;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
 # error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
@@ -1945,12 +1946,13 @@ log_groups_write_checkpoint_info(void)
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
-	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	if (!srv_read_only_mode) {
+		for (group = UT_LIST_GET_FIRST(log_sys->log_groups);
+		     group;
+		     group = UT_LIST_GET_NEXT(log_groups, group)) {
 
-	while (group) {
-		log_group_checkpoint(group);
-
-		group = UT_LIST_GET_NEXT(log_groups, group);
+			log_group_checkpoint(group);
+		}
 	}
 }
 
@@ -1974,6 +1976,8 @@ log_checkpoint(
 				made to log files */
 {
 	lsn_t	oldest_lsn;
+
+	ut_ad(!srv_read_only_mode);
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
@@ -3281,7 +3285,9 @@ loop:
 		return;
 	}
 
-	log_make_checkpoint_at(LSN_MAX, TRUE);
+	if (!srv_read_only_mode) {
+		log_make_checkpoint_at(LSN_MAX, TRUE);
+	}
 
 	mutex_enter(&log_sys->mutex);
 
@@ -3324,8 +3330,10 @@ loop:
 		goto loop;
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
-	fil_flush_file_spaces(FIL_LOG);
+	if (!srv_read_only_mode) {
+		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_LOG);
+	}
 
 	/* The call fil_write_flushed_lsn_to_data_files() will pass the buffer
 	pool: therefore it is essential that the buffer pool has been
@@ -3362,9 +3370,11 @@ loop:
 
 	srv_shutdown_lsn = lsn;
 
-	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
+	if (!srv_read_only_mode) {
+		fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
 
 	fil_close_all_files();
 
