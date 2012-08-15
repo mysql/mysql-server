@@ -4533,7 +4533,7 @@ static bool pull_out_semijoin_tables(JOIN *join)
 struct Key_field {
   Key_field(Field *field, Item *val, uint level, uint optimize, bool eq_func,
             bool null_rejecting, bool *cond_guard, uint sj_pred_no)
-  : field(field), val(val), level(level), optimize(0), eq_func(true),
+  : field(field), val(val), level(level), optimize(optimize), eq_func(eq_func),
   null_rejecting(null_rejecting), cond_guard(cond_guard),
   sj_pred_no(sj_pred_no)
   {}
@@ -4918,12 +4918,6 @@ add_key_field(Key_field **key_fields,uint and_level, Item_func *cond,
     extensions where we want to remembers other things than just eq comparisons
   */
   DBUG_ASSERT(eq_func);
-  /* Store possible eq field */
-  (*key_fields)->field=		field;
-  (*key_fields)->eq_func=	eq_func;
-  (*key_fields)->val=		*value;
-  (*key_fields)->level=		and_level;
-  (*key_fields)->optimize=	exists_optimize;
   /*
     If the condition has form "tbl.keypart = othertbl.field" and 
     othertbl.field can be NULL, there will be no matches if othertbl.field 
@@ -4933,19 +4927,20 @@ add_key_field(Key_field **key_fields,uint and_level, Item_func *cond,
     join. We also use it to shortcut reading "tbl" when othertbl.field is
     found to be a NULL value (in join_read_always_key() and BKA).
   */
-  {
-    Item *real= (*value)->real_item();
-    if (((cond->functype() == Item_func::EQ_FUNC) ||
-         (cond->functype() == Item_func::MULT_EQUAL_FUNC)) &&
-        (real->type() == Item::FIELD_ITEM) &&
-        ((Item_field*)real)->field->maybe_null())
-      (*key_fields)->null_rejecting= true;
-    else
-      (*key_fields)->null_rejecting= false;
-  }
-  (*key_fields)->cond_guard= NULL;
-  
-  (*key_fields)->sj_pred_no= get_semi_join_select_list_index(field);
+  bool null_rejecting;
+  Item *real= (*value)->real_item();
+  if (((cond->functype() == Item_func::EQ_FUNC) ||
+       (cond->functype() == Item_func::MULT_EQUAL_FUNC)) &&
+      (real->type() == Item::FIELD_ITEM) &&
+      ((Item_field*)real)->field->maybe_null())
+    null_rejecting= true;
+  else
+    null_rejecting= false;
+
+  /* Store possible eq field */
+  new (*key_fields)
+    Key_field(field, *value, and_level, exists_optimize, eq_func,
+              null_rejecting, NULL, get_semi_join_select_list_index(field));
   (*key_fields)++;
 }
 
