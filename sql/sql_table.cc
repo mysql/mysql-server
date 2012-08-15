@@ -7247,7 +7247,7 @@ err_with_mdl:
 
 bool mysql_trans_prepare_alter_copy_data(THD *thd)
 {
-  DBUG_ENTER("mysql_prepare_alter_copy_data");
+  DBUG_ENTER("mysql_trans_prepare_alter_copy_data");
   /*
     Turn off recovery logging since rollback of an alter table is to
     delete the new table so there is no need to log the changes to it.
@@ -7267,7 +7267,7 @@ bool mysql_trans_prepare_alter_copy_data(THD *thd)
 bool mysql_trans_commit_alter_copy_data(THD *thd)
 {
   bool error= FALSE;
-  DBUG_ENTER("mysql_commit_alter_copy_data");
+  DBUG_ENTER("mysql_trans_commit_alter_copy_data");
 
   if (ha_enable_transaction(thd, TRUE))
     DBUG_RETURN(TRUE);

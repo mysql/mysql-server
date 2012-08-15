@@ -2473,3 +2473,17 @@ SELECT * FROM vtmp;
 1
 DROP VIEW vtmp;
 DROP TABLE t1;
+#
+# MDEV-365 "Got assertion when doing alter table on a partition"
+#
+CREATE TABLE t1 ( i INT ) ENGINE=Aria PARTITION BY HASH(i) PARTITIONS 2;
+INSERT INTO t1 VALUES (1),(2),(2),(3),(4);
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT * from t1 order by i;
+i
+1
+2
+2
+3
+4
+DROP TABLE t1;

@@ -5500,10 +5500,12 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
 
-  if(mysql_trans_prepare_alter_copy_data(thd))
+  /* First lock the original tables */
+  if (file->ha_external_lock(thd, F_WRLCK))
     DBUG_RETURN(TRUE);
 
-  if (file->ha_external_lock(thd, F_WRLCK))
+  /* Disable transactions for all new tables */
+  if (mysql_trans_prepare_alter_copy_data(thd))
     DBUG_RETURN(TRUE);
 
   /* TODO: test if bulk_insert would increase the performance */

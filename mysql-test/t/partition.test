@@ -2476,3 +2476,13 @@ SELECT 1 FROM t1 AS t1_0 JOIN t1 ON t1_0.a LIKE (SELECT 1 FROM t1);
 SELECT * FROM vtmp;
 DROP VIEW vtmp;
 DROP TABLE t1;
+
+--echo #
+--echo # MDEV-365 "Got assertion when doing alter table on a partition"
+--echo #
+
+CREATE TABLE t1 ( i INT ) ENGINE=Aria PARTITION BY HASH(i) PARTITIONS 2;
+INSERT INTO t1 VALUES (1),(2),(2),(3),(4);
+ALTER TABLE t1 ADD PARTITION PARTITIONS 2;
+SELECT * from t1 order by i;
+DROP TABLE t1;
