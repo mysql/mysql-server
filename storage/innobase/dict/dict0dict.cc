@@ -241,7 +241,7 @@ dict_non_lru_find_table(
 #endif /* UNIV_DEBUG */
 
 /* Stream for storing detailed information about the latest foreign key
-and unique key errors */
+and unique key errors. Only created if !srv_read_only_mode */
 UNIV_INTERN FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
 UNIV_INTERN ib_mutex_t	dict_foreign_err_mutex;
@@ -887,11 +887,13 @@ dict_init(void)
 	rw_lock_create(dict_operation_lock_key,
 		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
-	dict_foreign_err_file = os_file_create_tmpfile();
-	ut_a(dict_foreign_err_file);
+	if (!srv_read_only_mode) {
+		dict_foreign_err_file = os_file_create_tmpfile();
+		ut_a(dict_foreign_err_file);
 
-	mutex_create(dict_foreign_err_mutex_key,
-		     &dict_foreign_err_mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create(dict_foreign_err_mutex_key,
+			     &dict_foreign_err_mutex, SYNC_NO_ORDER_CHECK);
+	}
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
 		rw_lock_create(dict_table_stats_latch_key,
@@ -3848,6 +3850,8 @@ dict_foreign_report_syntax_err(
 					in the SQL string */
 	const char*	ptr)		/*!< in: place of the syntax error */
 {
+	ut_ad(!srv_read_only_mode);
+
 	FILE*	ef = dict_foreign_err_file;
 
 	mutex_enter(&dict_foreign_err_mutex);
@@ -3908,6 +3912,7 @@ dict_create_foreign_constraints_low(
 	const char*	column_names[500];
 	const char*	referenced_table_name;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = dict_table_get_low(name);
@@ -4529,7 +4534,6 @@ dict_foreign_parse_drop_constraints(
 	size_t			len;
 	const char*		ptr;
 	const char*		id;
-	FILE*			ef	= dict_foreign_err_file;
 	struct charset_info_st*	cs;
 
 	ut_a(trx);
@@ -4607,20 +4611,26 @@ loop:
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
+
 	if (foreign == NULL) {
-		mutex_enter(&dict_foreign_err_mutex);
-		rewind(ef);
-		ut_print_timestamp(ef);
-		fputs(" Error in dropping of a foreign key constraint"
-		      " of table ", ef);
-		ut_print_name(ef, NULL, TRUE, table->name);
-		fputs(",\n"
-		      "in SQL command\n", ef);
-		fputs(str, ef);
-		fputs("\nCannot find a constraint with the given id ", ef);
-		ut_print_name(ef, NULL, FALSE, id);
-		fputs(".\n", ef);
-		mutex_exit(&dict_foreign_err_mutex);
+
+		if (!srv_read_only_mode) {
+			FILE*	ef = dict_foreign_err_file;
+
+			mutex_enter(&dict_foreign_err_mutex);
+			rewind(ef);
+			ut_print_timestamp(ef);
+			fputs(" Error in dropping of a foreign key "
+			      "constraint of table ", ef);
+			ut_print_name(ef, NULL, TRUE, table->name);
+			fputs(",\nin SQL command\n", ef);
+			fputs(str, ef);
+			fputs("\nCannot find a constraint with the "
+			      "given id ", ef);
+			ut_print_name(ef, NULL, FALSE, id);
+			fputs(".\n", ef);
+			mutex_exit(&dict_foreign_err_mutex);
+		}
 
 		mem_free(str);
 
@@ -4630,15 +4640,19 @@ loop:
 	goto loop;
 
 syntax_error:
-	mutex_enter(&dict_foreign_err_mutex);
-	rewind(ef);
-	ut_print_timestamp(ef);
-	fputs(" Syntax error in dropping of a"
-	      " foreign key constraint of table ", ef);
-	ut_print_name(ef, NULL, TRUE, table->name);
-	fprintf(ef, ",\n"
-		"close to:\n%s\n in SQL command\n%s\n", ptr, str);
-	mutex_exit(&dict_foreign_err_mutex);
+	if (!srv_read_only_mode) {
+		FILE*	ef = dict_foreign_err_file;
+
+		mutex_enter(&dict_foreign_err_mutex);
+		rewind(ef);
+		ut_print_timestamp(ef);
+		fputs(" Syntax error in dropping of a"
+		      " foreign key constraint of table ", ef);
+		ut_print_name(ef, NULL, TRUE, table->name);
+		fprintf(ef, ",\n"
+			"close to:\n%s\n in SQL command\n%s\n", ptr, str);
+		mutex_exit(&dict_foreign_err_mutex);
+	}
 
 	mem_free(str);
 

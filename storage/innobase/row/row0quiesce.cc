@@ -486,6 +486,7 @@ row_quiesce_table_start(
 {
 	ut_a(trx->mysql_thd != 0);
 	ut_a(srv_n_purge_threads > 0);
+	ut_ad(!srv_read_only_mode);
 
 	char		table_name[MAX_FULL_NAME_LEN + 1];
 
@@ -607,7 +608,14 @@ row_quiesce_set_state(
 {
 	ut_a(srv_n_purge_threads > 0);
 
-	if (table->space == TRX_SYS_SPACE) {
+	if (srv_read_only_mode) {
+
+		ib_senderrf(trx->mysql_thd,
+			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+
+		return(DB_UNSUPPORTED);
+
+	} else if (table->space == TRX_SYS_SPACE) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 

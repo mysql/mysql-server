@@ -113,6 +113,10 @@ UNIV_INTERN ulong	srv_undo_logs = 1;
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 
+/** Set if InnoDB must operate in read-only mode. We don't do any
+recovery and open all tables in RO mode instead of RW mode. We don't
+sync the max trx id to disk either. */
+UNIV_INTERN my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 UNIV_INTERN my_bool	srv_file_per_table;
@@ -375,7 +379,7 @@ UNIV_INTERN time_t	srv_last_monitor_time;
 
 UNIV_INTERN ib_mutex_t	srv_innodb_monitor_mutex;
 
-/* Mutex for locking srv_monitor_file */
+/* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 UNIV_INTERN ib_mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
@@ -399,13 +403,13 @@ UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 
 /** Temporary file for innodb monitor output */
 UNIV_INTERN FILE*	srv_monitor_file;
-/** Mutex for locking srv_dict_tmpfile.
+/** Mutex for locking srv_dict_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
 UNIV_INTERN ib_mutex_t	srv_dict_tmpfile_mutex;
 /** Temporary file for output from the data dictionary */
 UNIV_INTERN FILE*	srv_dict_tmpfile;
-/** Mutex for locking srv_misc_tmpfile.
+/** Mutex for locking srv_misc_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 UNIV_INTERN ib_mutex_t	srv_misc_tmpfile_mutex;
@@ -1117,7 +1121,7 @@ srv_printf_innodb_monitor(
 
 	mutex_enter(&dict_foreign_err_mutex);
 
-	if (ftell(dict_foreign_err_file) != 0L) {
+	if (!srv_read_only_mode && ftell(dict_foreign_err_file) != 0L) {
 		fputs("------------------------\n"
 		      "LATEST FOREIGN KEY ERROR\n"
 		      "------------------------\n", file);
@@ -1481,7 +1485,10 @@ loop:
 		}
 
 
-		if (srv_innodb_status) {
+		/* We don't create the temp files or associated
+		mutexes in read-only-mode */
+
+		if (!srv_read_only_mode && srv_innodb_status) {
 			mutex_enter(&srv_monitor_file_mutex);
 			rewind(srv_monitor_file);
 			if (!srv_printf_innodb_monitor(srv_monitor_file,
@@ -2138,6 +2145,8 @@ srv_master_do_shutdown_tasks(
 	ulint		n_bytes_merged = 0;
 	ulint		n_tables_to_drop = 0;
 
+	ut_ad(!srv_read_only_mode);
+
 	++srv_main_shutdown_loops;
 
 	ut_a(srv_shutdown_state > 0);
@@ -2212,6 +2221,8 @@ DECLARE_THREAD(srv_master_thread)(
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
+
+	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
