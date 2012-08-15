@@ -28,7 +28,7 @@ Created 2012-03-24 Sunny Bains.
 
 #include "univ.i"
 #include "ut0rnd.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 
 extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;

@@ -26,6 +26,13 @@ Created 9/5/1995 Heikki Tuuri
 #ifndef sync0types_h
 #define sync0types_h
 
+#ifdef HAVE_WINDOWS_ATOMICS
+typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
+				on LONG variable */
+#else
+typedef byte lock_word_t;
+#endif /* HAVE_WINDOES_ATOMICS */
+
 struct ib_mutex_t;
 
 #endif
