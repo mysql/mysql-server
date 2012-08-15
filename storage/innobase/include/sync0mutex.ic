@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -24,10 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/sync0sync.ic
+@file include/sync0mutex.ic
 Mutex, the basic synchronization primitive
 
-Created 9/5/1995 Heikki Tuuri
+Created 2012/08/15 Sunny Bains
 *******************************************************/
 
 /******************************************************************//**
@@ -38,6 +38,7 @@ mutex_set_waiters(
 /*==============*/
 	ib_mutex_t*	mutex,	/*!< in: mutex */
 	ulint		n);	/*!< in: value to set */
+
 /******************************************************************//**
 Reserves a mutex for the current thread. If the mutex is reserved, the
 function spins a preset time (controlled by SYNC_SPIN_ROUNDS) waiting
@@ -70,7 +71,7 @@ UNIV_INTERN
 void
 mutex_signal_object(
 /*================*/
-	ib_mutex_t*	mutex);	/*!< in: mutex */
+	ib_mutex_t*	mutex);		/*!< in/out: mutex */
 
 /******************************************************************//**
 Performs an atomic test-and-set instruction to the lock_word field of a
@@ -79,8 +80,8 @@ mutex.
 UNIV_INLINE
 byte
 ib_mutex_test_and_set(
-/*===============*/
-	ib_mutex_t*	mutex)	/*!< in: mutex */
+/*==================*/
+	ib_mutex_t*	mutex)		/*!< in/out: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
 	return(os_atomic_test_and_set_byte(&mutex->lock_word, 1));

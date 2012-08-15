@@ -16,6 +16,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "ut0list.h"
+#include "mem0mem.h"
+#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "ut0wqueue.h"
 
 /*******************************************************************//**
@@ -24,6 +28,13 @@ A work queue
 
 Created 4/26/2006 Osku Salerma
 ************************************************************************/
+
+/* Work queue. */
+struct ib_wqueue_t {
+	ib_mutex_t	mutex;	/*!< mutex protecting everything */
+	ib_list_t*	items;	/*!< work item list */
+	os_event_t	event;	/*!< event we use to signal additions to list */
+};
 
 /****************************************************************//**
 Create a new work queue.

@@ -31,6 +31,7 @@ Created 5/20/1997 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "sync0sync.h"
 # include "sync0rw.h"
+# include "sync0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
 
 typedef struct hash_table_struct hash_table_t;
