@@ -425,7 +425,6 @@ i_s_locks_row_validate(
 /*===================*/
 	const i_s_locks_row_t*	row)	/*!< in: row to validate */
 {
-	ut_ad(row->lock_trx_id != 0);
 	ut_ad(row->lock_mode != NULL);
 	ut_ad(row->lock_type != NULL);
 	ut_ad(row->lock_table != NULL);
@@ -478,7 +477,12 @@ fill_trx_row(
 
 	ut_ad(lock_mutex_own());
 
-	row->trx_id = trx->id;
+	/* RO and transaction's whose intentions are unknown (whether they
+	will eventually do a WRITE) don't have an ID assigned to them. For
+	such transactions we print the transaction instance pointer. */
+	
+	row->trx_id = trx->id > 0 ? trx->id : (ulint) trx;
+
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 	row->requested_lock_row = requested_lock_row;

@@ -862,7 +862,7 @@ dict_update_filepath(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx_start_internal(trx);
 
 	pars_info_t*	info = pars_info_create();
 
@@ -916,7 +916,7 @@ dict_insert_tablespace_and_filepath(
 	ut_ad(filepath);
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx_start_internal(trx);
 
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in

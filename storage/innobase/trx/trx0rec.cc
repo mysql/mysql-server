@@ -1240,6 +1240,7 @@ trx_undo_report_row_operation(
 
 	/* This table is visible only to the session that created it. */
 	if (trx->read_only) {
+		ut_ad(trx->in_ro_trx_list);
 		/* MySQL should block writes to non-temporary tables. */
 		ut_a(DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_TEMPORARY));
 		if (trx->rseg == 0) {

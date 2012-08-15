@@ -395,6 +395,7 @@ row_upd_index_entry_sys_field(
 	field = static_cast<byte*>(dfield_get_data(dfield));
 
 	if (type == DATA_TRX_ID) {
+		ut_ad(val > 0);
 		trx_write_trx_id(field, val);
 	} else {
 		ut_ad(type == DATA_ROLL_PTR);
@@ -1743,6 +1744,7 @@ row_upd_sec_online(
 	dtuple_t*	entry;
 	dict_index_t*	index	= node->index;;
 
+	ut_ad(trx_id > 0);
 	ut_ad(node->state == UPD_NODE_UPDATE_ALL_SEC
 	      || node->state == UPD_NODE_UPDATE_SOME_SEC);
 	ut_ad(!dict_index_is_clust(index));
@@ -1761,7 +1763,6 @@ row_upd_sec_online(
 		mem_heap_empty(heap);
 		entry = row_build_index_entry(node->upd_row, node->upd_ext,
 					      index, heap);
-		ut_a(entry);
 		row_log_online_op(index, entry, trx_id, ROW_OP_INSERT);
 	}
 
@@ -1944,7 +1945,6 @@ row_upd_clust_rec_by_insert(
 
 	entry = row_build_index_entry(node->upd_row, node->upd_ext,
 				      index, heap);
-	ut_a(entry);
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
@@ -2325,7 +2325,7 @@ row_upd_clust_step(
 	debug_sync_end_thread(this)". Once it is fixed we can get rid of
 	the "if". */
 
-	if (!thr_get_trx(thr)->ddl) {
+	if (!thr_get_trx(thr)->internal) {
 		DEBUG_SYNC_C_IF_THD(
 			thr_get_trx(thr)->mysql_thd,
 			"innodb_row_upd_clust_step_enter");
@@ -2575,7 +2575,7 @@ row_upd_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	node = static_cast<upd_node_t*>(thr->run_node);
 

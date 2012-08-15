@@ -2395,7 +2395,7 @@ prepare_inplace_alter_table_dict(
 	}
 #endif /* !DBUG_OFF */
 
-	trx_start_if_not_started_xa(user_trx);
+	trx_start_if_not_started_xa(user_trx, true);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
@@ -4157,7 +4157,7 @@ ha_innobase::commit_inplace_alter_table(
 		goto func_exit;
 	}
 
-	trx_start_if_not_started_xa(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx, true);
 
 	if (!ctx || !ctx->trx) {
 		/* Create a background transaction for the operations on
@@ -4578,7 +4578,7 @@ trx_commit:
 			drop the old table. */
 			update_thd();
 			prebuilt->trx->will_lock++;
-			trx_start_if_not_started_xa(prebuilt->trx);
+			trx_start_if_not_started_xa(prebuilt->trx, true);
 		}
 	}
 

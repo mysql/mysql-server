@@ -565,7 +565,8 @@ ib_trx_start(
 
 	ut_a(ib_trx_level <= IB_TRX_SERIALIZABLE);
 
-	trx_start_if_not_started(trx);
+	// FIXME
+	trx_start_if_not_started(trx, true);
 
 	trx->isolation_level = ib_trx_level;
 
