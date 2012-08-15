@@ -17,12 +17,12 @@ const int item_size = 1;
 int n_flush, n_write_me, n_keep_me, n_fetch;
 
 static void flush(
-    CACHEFILE cf, 
+    CACHEFILE UU(cf), 
     int UU(fd), 
-    CACHEKEY key, 
-    void *value, 
+    CACHEKEY UU(key), 
+    void *UU(value), 
     void** UU(dd),
-    void *extraargs, 
+    void *UU(extraargs), 
     PAIR_ATTR size, 
     PAIR_ATTR* UU(new_size), 
     bool write_me, 
@@ -31,7 +31,6 @@ static void flush(
         bool UU(is_clone)
     ) 
 {
-    cf = cf; key = key; value = value; extraargs = extraargs; 
     // assert(key == make_blocknum((long)value));
     assert(size.size == item_size);
     n_flush++;
@@ -40,18 +39,18 @@ static void flush(
 }
 
 static int fetch(
-    CACHEFILE cf, 
+    CACHEFILE UU(cf), 
+    PAIR UU(p),
     int UU(fd), 
-    CACHEKEY key, 
-    uint32_t fullhash, 
-    void **value, 
+    CACHEKEY UU(key), 
+    uint32_t UU(fullhash), 
+    void **UU(value), 
     void** UU(dd),
-    PAIR_ATTR *sizep, 
+    PAIR_ATTR *UU(sizep), 
     int *dirtyp, 
-    void *extraargs
+    void *UU(extraargs)
     ) 
 {
-    cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs;
     n_fetch++;
     sleep(10);
     *value = 0;
@@ -93,10 +92,10 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     for (i=0; i<n; i++) {
         CACHEKEY key = make_blocknum(i);
         uint32_t hi = toku_cachetable_hash(f1, key);
-        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc);
+        r = toku_cachetable_put(f1, key, hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
         assert(r == 0);
 
-        r = toku_cachetable_unpin(f1, key, hi, dirty, make_pair_attr(item_size));
+        r = toku_test_cachetable_unpin(f1, key, hi, dirty, make_pair_attr(item_size));
         assert(r == 0);
 
         void *v;
@@ -114,8 +113,8 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // the checkpoint should cause n writes, but since n <= the cachetable size,
     // all items should be kept in the cachetable
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
-
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(r == 0);
     assert(n_flush == n && n_write_me == n && n_keep_me == n);
 
@@ -127,7 +126,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
         r = toku_cachetable_maybe_get_and_pin(f1, key, hi, &v);
         if (r != 0) 
             continue;
-        r = toku_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, make_pair_attr(item_size));
+        r = toku_test_cachetable_unpin(f1, key, hi, CACHETABLE_CLEAN, make_pair_attr(item_size));
         assert(r == 0);
         
         int its_dirty;
@@ -144,7 +143,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     // a subsequent checkpoint should cause no flushes, or writes since all of the items are clean
     n_flush = n_write_me = n_keep_me = n_fetch = 0;
 
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 

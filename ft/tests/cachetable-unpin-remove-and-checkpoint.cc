@@ -9,12 +9,13 @@ CACHETABLE ct;
 
 //
 // This test exposed a bug (#3970) caught only by Valgrind.
-// freed memory was being accessed by toku_cachetable_unpin_and_remove
+// freed memory was being accessed by toku_test_cachetable_unpin_and_remove
 //
 static void *run_end_chkpt(void *arg) {
     assert(arg == NULL);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     int r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL
@@ -40,7 +41,7 @@ run_test (void) {
     long s1;
     //long s2;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-    toku_cachetable_unpin(
+    toku_test_cachetable_unpin(
         f1, 
         make_blocknum(1), 
         toku_cachetable_hash(f1, make_blocknum(1)),
@@ -49,7 +50,8 @@ run_test (void) {
         );
 
     // now this should mark the pair for checkpoint
-    r = toku_cachetable_begin_checkpoint(ct, NULL);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
 
     toku_pthread_t mytid;
@@ -58,7 +60,7 @@ run_test (void) {
 
     // give checkpoint thread a chance to start waiting on lock
     sleep(1);
-    r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
+    r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(1), NULL, NULL);
     assert(r==0);
 
     void* ret;

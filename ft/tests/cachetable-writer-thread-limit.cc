@@ -48,10 +48,10 @@ cachetable_test (void) {
     for (int64_t i = 0; i < num_entries; i++) {
        CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
        wc.flush_callback = flush;
-        r = toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), wc);
+        r = toku_cachetable_put(f1, make_blocknum(i), i, NULL, make_pair_attr(1), wc, put_callback_nop);
         int curr_size = __sync_fetch_and_add(&total_size, 1);
         assert(curr_size <= test_limit + test_limit/2+1);
-        r = toku_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(4));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(i), i, CACHETABLE_DIRTY, make_pair_attr(4));
     }
     
     r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);

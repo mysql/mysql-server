@@ -78,6 +78,7 @@ struct rollback_log_node {
     struct roll_entry *newest_logentry;
     MEMARENA           rollentry_arena;
     size_t             rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
+    PAIR               ct_pair;
 };
 
 #endif // TOKU_ROLLBACK_H

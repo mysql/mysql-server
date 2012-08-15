@@ -40,46 +40,46 @@ minicron_do (void *pv)
     struct minicron *CAST_FROM_VOIDP(p, pv);
     toku_mutex_lock(&p->mutex);
     while (1) {
-	if (p->do_shutdown) {
-	    toku_mutex_unlock(&p->mutex);
-	    return 0;
-	}
-	if (p->period_in_seconds==0) {
-	    // if we aren't supposed to do it then just do an untimed wait.
-	    toku_cond_wait(&p->condvar, &p->mutex);
-	} else {
-	    // Recompute the wakeup time every time (instead of once per call to f) in case the period changges.
-	    toku_timespec_t wakeup_at = p->time_of_last_call_to_f;
-	    wakeup_at.tv_sec += p->period_in_seconds;
-	    toku_timespec_t now;
-	    toku_gettime(&now);
-	    //printf("wakeup at %.6f (after %d seconds) now=%.6f\n", wakeup_at.tv_sec + wakeup_at.tv_nsec*1e-9, p->period_in_seconds, now.tv_sec + now.tv_nsec*1e-9);
-	    int r = toku_cond_timedwait(&p->condvar, &p->mutex, &wakeup_at);
-	    if (r!=0 && r!=ETIMEDOUT) fprintf(stderr, "%s:%d r=%d (%s)", __FILE__, __LINE__, r, strerror(r));
-	    assert(r==0 || r==ETIMEDOUT);
-	}
-	// Now we woke up, and we should figure out what to do
-	if (p->do_shutdown) {
-	    toku_mutex_unlock(&p->mutex);
-	    return 0;
-	}
-	if (p->period_in_seconds >0) {
-	    // maybe do a checkpoint
-	    toku_timespec_t now;
-	    toku_gettime(&now);
-	    toku_timespec_t time_to_call = p->time_of_last_call_to_f;
-	    time_to_call.tv_sec += p->period_in_seconds;
-	    int compare = timespec_compare(&time_to_call, &now);
-	    //printf("compare(%.6f, %.6f)=%d\n", time_to_call.tv_sec + time_to_call.tv_nsec*1e-9, now.tv_sec+now.tv_nsec*1e-9, compare);
-	    if (compare <= 0) {
-		toku_mutex_unlock(&p->mutex);
-		int r = p->f(p->arg);
-		assert(r==0);
-		toku_mutex_lock(&p->mutex);
-		toku_gettime(&p->time_of_last_call_to_f); // the period is measured between calls to f.
-		
-	    }
-	}
+        if (p->do_shutdown) {
+            toku_mutex_unlock(&p->mutex);
+            return 0;
+        }
+        if (p->period_in_seconds==0) {
+            // if we aren't supposed to do it then just do an untimed wait.
+            toku_cond_wait(&p->condvar, &p->mutex);
+        } else {
+            // Recompute the wakeup time every time (instead of once per call to f) in case the period changges.
+            toku_timespec_t wakeup_at = p->time_of_last_call_to_f;
+            wakeup_at.tv_sec += p->period_in_seconds;
+            toku_timespec_t now;
+            toku_gettime(&now);
+            //printf("wakeup at %.6f (after %d seconds) now=%.6f\n", wakeup_at.tv_sec + wakeup_at.tv_nsec*1e-9, p->period_in_seconds, now.tv_sec + now.tv_nsec*1e-9);
+            int r = toku_cond_timedwait(&p->condvar, &p->mutex, &wakeup_at);
+            if (r!=0 && r!=ETIMEDOUT) fprintf(stderr, "%s:%d r=%d (%s)", __FILE__, __LINE__, r, strerror(r));
+            assert(r==0 || r==ETIMEDOUT);
+        }
+        // Now we woke up, and we should figure out what to do
+        if (p->do_shutdown) {
+            toku_mutex_unlock(&p->mutex);
+            return 0;
+        }
+        if (p->period_in_seconds >0) {
+            // maybe do a checkpoint
+            toku_timespec_t now;
+            toku_gettime(&now);
+            toku_timespec_t time_to_call = p->time_of_last_call_to_f;
+            time_to_call.tv_sec += p->period_in_seconds;
+            int compare = timespec_compare(&time_to_call, &now);
+            //printf("compare(%.6f, %.6f)=%d\n", time_to_call.tv_sec + time_to_call.tv_nsec*1e-9, now.tv_sec+now.tv_nsec*1e-9, compare);
+            if (compare <= 0) {
+                toku_mutex_unlock(&p->mutex);
+                int r = p->f(p->arg);
+                assert(r==0);
+                toku_mutex_lock(&p->mutex);
+                toku_gettime(&p->time_of_last_call_to_f); // the period is measured between calls to f.
+                
+            }
+        }
     }
 }
 

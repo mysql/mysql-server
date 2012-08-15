@@ -234,7 +234,6 @@ if(BUILD_TESTING)
       test_logflush
       test_multiple_checkpoints_block_commit
       test_query
-      test_rand_insert_mult_db
       test_redirect_func
       test_row_size_supported
       test_stress1
@@ -657,7 +656,6 @@ if(BUILD_TESTING)
     ydb/test_archive1.tdb
     ydb/test_logmax.tdb
     ydb/test_query.tdb
-    ydb/test_rand_insert_mult_db.tdb
     ydb/test_txn_abort5.tdb
     ydb/test_txn_abort5a.tdb
     ydb/test_txn_abort6.tdb

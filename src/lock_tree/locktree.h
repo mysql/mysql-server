@@ -11,6 +11,12 @@
 #include <db.h>
 #include <ft/fttypes.h>
 
+#if defined(__APPLE__)
+typedef suseconds_t SUSECONDS;
+#else
+typedef __suseconds_t SUSECONDS;
+#endif
+
 /**
    \file  locktree.h
    \brief Lock trees: header and comments

@@ -741,6 +741,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     int r;
     bool newenv;  // true iff creating a new environment
     uint32_t unused_flags=flags;
+    CHECKPOINTER cp;
 
     if (env_opened(env)) {
         r = toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
@@ -996,7 +997,8 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         r = locked_txn_commit(txn, 0);
         assert_zero(r);
     }
-    r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
+    cp = toku_cachetable_get_checkpointer(env->i->cachetable);
+    r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, STARTUP_CHECKPOINT);
     assert_zero(r);
     env_fs_poller(env);          // get the file system state at startup
     env_fs_init_minicron(env); 
@@ -1060,7 +1062,8 @@ env_close(DB_ENV * env, uint32_t flags) {
     if (env->i->cachetable) {
         toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
-            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
+            CHECKPOINTER cp = toku_cachetable_get_checkpointer(env->i->cachetable);
+            r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {
                 err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1073,7 +1076,7 @@ env_close(DB_ENV * env, uint32_t flags) {
                 goto panic_and_quit_early;
             }
             //Do a second checkpoint now that the rollback cachefile is closed.
-            r = toku_checkpoint(env->i->cachetable, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
+            r = toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
             if (r) {
                 err_msg = "Cannot close environment (error during checkpoint)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1427,7 +1430,8 @@ env_set_verbose(DB_ENV * env, uint32_t UU(which), int UU(onoff)) {
 
 static int 
 toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte __attribute__((__unused__)), uint32_t min __attribute__((__unused__)), uint32_t flags __attribute__((__unused__))) {
-    int r = toku_checkpoint(env->i->cachetable, env->i->logger,
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(env->i->cachetable);
+    int r = toku_checkpoint(cp, env->i->logger,
                             checkpoint_callback_f,  checkpoint_callback_extra,
                             checkpoint_callback2_f, checkpoint_callback2_extra,
                             CLIENT_CHECKPOINT);

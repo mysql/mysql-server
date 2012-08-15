@@ -65,7 +65,8 @@ static void checkpoint_callback(void* UU(extra)) {
 static void *do_checkpoint(void *arg) {
     // first verify that checkpointed_data is correct;
     if (verbose) printf("starting a checkpoint\n");
-    int r = toku_checkpoint(ct, NULL, checkpoint_callback, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    int r = toku_checkpoint(cp, NULL, checkpoint_callback, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);
     if (verbose) printf("completed a checkpoint\n");
     return arg;

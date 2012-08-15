@@ -32,6 +32,7 @@ static int fetch_calls = 0;
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -117,7 +118,7 @@ static void cachetable_eviction_full_test (void) {
             0
             );
         assert(r==0);
-        r = toku_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, key, fullhash, CACHETABLE_DIRTY, make_pair_attr(8));
         assert(r == 0);
     }
     expect_full_flush = true;
@@ -139,7 +140,7 @@ static void cachetable_eviction_full_test (void) {
         0
         );
     assert(r==0);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(1));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(1));
     assert(r == 0);
     toku_cachetable_verify(ct);
 

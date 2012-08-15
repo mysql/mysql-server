@@ -764,7 +764,7 @@ toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
     }
 }
 
-int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, uint32_t fullhash,
+int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash,
                                  void **ftnode_pv,  void** disk_data, PAIR_ATTR *sizep, int *dirtyp, void *extraargs) {
     assert(extraargs);
     assert(*ftnode_pv == NULL);
@@ -789,6 +789,7 @@ int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodena
 
     if (r == 0) {
         *sizep = make_ftnode_pair_attr(*node);
+        (*node)->ct_pair = p;
         *dirtyp = (*node)->dirty;  // deserialize could mark the node as dirty (presumably for upgrade)
     }
     return r;
@@ -1309,7 +1310,7 @@ ft_init_new_root(FT ft, FTNODE nodea, FTNODE nodeb, DBT splitk, CACHEKEY *rootp,
     //printf("%s:%d put %lld\n", __FILE__, __LINE__, newroot_diskoff);
     uint32_t fullhash = toku_cachetable_hash(ft->cf, newroot_diskoff);
     newroot->fullhash = fullhash;
-    toku_cachetable_put(ft->cf, newroot_diskoff, fullhash, newroot, make_ftnode_pair_attr(newroot), get_write_callbacks_for_node(ft));
+    toku_cachetable_put(ft->cf, newroot_diskoff, fullhash, newroot, make_ftnode_pair_attr(newroot), get_write_callbacks_for_node(ft), toku_node_save_ct_pair);
 
     //at this point, newroot is associated with newroot_diskoff, nodea is associated with root_blocknum
     // make newroot_diskoff point to nodea
@@ -4287,9 +4288,9 @@ ft_search_node (
 #if TOKU_DO_PREFETCH
 
 static int
-ftnode_fetch_callback_and_free_bfe(CACHEFILE cf, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int *dirtyp, void *extraargs)
+ftnode_fetch_callback_and_free_bfe(CACHEFILE cf, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int *dirtyp, void *extraargs)
 {
-    int r = toku_ftnode_fetch_callback(cf, fd, nodename, fullhash, ftnode_pv, disk_data, sizep, dirtyp, extraargs);
+    int r = toku_ftnode_fetch_callback(cf, p, fd, nodename, fullhash, ftnode_pv, disk_data, sizep, dirtyp, extraargs);
     struct ftnode_fetch_extra *CAST_FROM_VOIDP(ffe, extraargs);
     destroy_bfe_for_prefetch(ffe);
     toku_free(ffe);
@@ -4355,8 +4356,7 @@ unlock_ftnode_fun (void *v) {
     // CT lock is held
     int r = toku_cachetable_unpin_ct_prelocked_no_flush(
         brt->ft->cf,
-        node->thisnodename,
-        node->fullhash,
+        node->ct_pair,
         (enum cachetable_dirty) node->dirty,
         x->msgs_applied ? make_ftnode_pair_attr(node) : make_invalid_pair_attr()
         );
@@ -4388,16 +4388,24 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         );
     bool msgs_applied = false;
     {
-        int rr = toku_pin_ftnode(brt, childblocknum, fullhash,
-                                  unlockers,
-                                  &next_ancestors, bounds,
-                                  &bfe,
-                                  (node->height == 1), // may_modify_node true iff child is leaf
-                                  true,
-                                  &childnode,
-                                  &msgs_applied);
-        if (rr==TOKUDB_TRY_AGAIN) return rr;
-        assert(rr==0);
+        int rr = toku_pin_ftnode_batched(brt, childblocknum, fullhash,
+                                         unlockers,
+                                         &next_ancestors, bounds,
+                                         &bfe,
+                                         (node->height == 1), // may_modify_node true iff child is leaf
+                                         true,
+                                         (node->height == 1), // end_batch_on_success true iff child is a leaf
+                                         &childnode,
+                                         &msgs_applied);
+        if (rr==TOKUDB_TRY_AGAIN) {
+            // We're going to try again, so we aren't pinning any more
+            // nodes in this batch.
+            toku_cachetable_end_batched_pin(brt->ft->cf);
+            return rr;
+        }
+        // We end the batch before applying ancestor messages if we get
+        // all the way to a leaf.
+        invariant_zero(rr);
     }
 
     struct unlock_ftnode_extra unlock_extra   = {brt,childnode,msgs_applied};
@@ -4565,13 +4573,18 @@ ft_search_node(
     struct pivot_bounds const * const bounds,
     bool can_bulk_fetch
     )
-{   int r = 0;
+{
+    int r = 0;
     // assert that we got a valid child_to_search
     assert(child_to_search >= 0 && child_to_search < node->n_children);
     //
     // At this point, we must have the necessary partition available to continue the search
     //
     assert(BP_STATE(node,child_to_search) == PT_AVAIL);
+    // When we enter, we are in a batch.  If we search a node but get
+    // DB_NOTFOUND and need to search the next node, we'll need to start
+    // another batch.
+    bool must_begin_batch = false;
     while (child_to_search >= 0 && child_to_search < node->n_children) {
         //
         // Normally, the child we want to use is available, as we checked
@@ -4587,6 +4600,10 @@ ft_search_node(
         }
         const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
         if (node->height > 0) {
+            if (must_begin_batch) {
+                toku_cachetable_begin_batched_pin(brt->ft->cf);
+                must_begin_batch = false;
+            }
             r = ft_search_child(
                 brt,
                 node,
@@ -4618,34 +4635,35 @@ ft_search_node(
         if (r != DB_NOTFOUND) {
             return r; //Error (or message to quit early, such as TOKUDB_FOUND_BUT_REJECTED or TOKUDB_TRY_AGAIN)
         }
-        // we have a new pivotkey
-        else {
-            if (node->height == 0) {
-                // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
-                const DBT *pivot = NULL;
-                if (search->direction == FT_SEARCH_LEFT)
-                    pivot = next_bounds.upper_bound_inclusive; // left -> right
-                else
-                    pivot = next_bounds.lower_bound_exclusive; // right -> left
-                if (pivot) {
-                    int rr = getf(pivot->size, pivot->data, 0, NULL, getf_v, true);
-                    if (rr != 0)
-                        return rr; // lock was not granted
-                }
-            }
-
-            // If we got a DB_NOTFOUND then we have to search the next record.        Possibly everything present is not visible.
-            // This way of doing DB_NOTFOUND is a kludge, and ought to be simplified.  Something like this is needed for DB_NEXT, but
-            //        for point queries, it's overkill.  If we got a DB_NOTFOUND on a point query then we should just stop looking.
-            // When releasing locks on I/O we must not search the same subtree again, or we won't be guaranteed to make forward progress.
-            // If we got a DB_NOTFOUND, then the pivot is too small if searching from left to right (too large if searching from right to left).
-            // So save the pivot key in the search object.
-            maybe_search_save_bound(node, child_to_search, search);
-        }
         // not really necessary, just put this here so that reading the
         // code becomes simpler. The point is at this point in the code,
         // we know that we got DB_NOTFOUND and we have to continue
         assert(r == DB_NOTFOUND);
+        // we have a new pivotkey
+        if (node->height == 0) {
+            // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
+            const DBT *pivot = NULL;
+            if (search->direction == FT_SEARCH_LEFT)
+                pivot = next_bounds.upper_bound_inclusive; // left -> right
+            else
+                pivot = next_bounds.lower_bound_exclusive; // right -> left
+            if (pivot) {
+                int rr = getf(pivot->size, pivot->data, 0, NULL, getf_v, true);
+                if (rr != 0)
+                    return rr; // lock was not granted
+            }
+        }
+
+        // If we got a DB_NOTFOUND then we have to search the next record.        Possibly everything present is not visible.
+        // This way of doing DB_NOTFOUND is a kludge, and ought to be simplified.  Something like this is needed for DB_NEXT, but
+        //        for point queries, it's overkill.  If we got a DB_NOTFOUND on a point query then we should just stop looking.
+        // When releasing locks on I/O we must not search the same subtree again, or we won't be guaranteed to make forward progress.
+        // If we got a DB_NOTFOUND, then the pivot is too small if searching from left to right (too large if searching from right to left).
+        // So save the pivot key in the search object.
+        maybe_search_save_bound(node, child_to_search, search);
+
+        // We're about to pin some more nodes, but we thought we were done before.
+        must_begin_batch = true;
         if (search->direction == FT_SEARCH_LEFT) {
             child_to_search++;
         }
@@ -4663,11 +4681,12 @@ toku_ft_search (FT_HANDLE brt, ft_search_t *search, FT_GET_CALLBACK_FUNCTION get
 {
     int r;
     uint trycount = 0;     // How many tries did it take to get the result?
+    FT ft = brt->ft;
 
 try_again:
 
     trycount++;
-    assert(brt->ft);
+    assert(ft);
 
     //
     // Here is how searches work
@@ -4698,7 +4717,7 @@ try_again:
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_subset_read(
         &bfe,
-        brt->ft,
+        ft,
         search,
         &ftcursor->range_lock_left_key,
         &ftcursor->range_lock_right_key,
@@ -4708,12 +4727,17 @@ try_again:
         );
     FTNODE node = NULL;
     {
-        toku_ft_grab_treelock(brt->ft);
+        toku_ft_grab_treelock(ft);
         uint32_t fullhash;
         CACHEKEY root_key;
-        toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-        toku_pin_ftnode_off_client_thread(
-            brt->ft,
+        toku_calculate_root_offset_pointer(ft, &root_key, &fullhash);
+        // Begin a batch of pins here.  If a child gets TOKUDB_TRY_AGAIN
+        // it must immediately end the batch.  Otherwise, it must end the
+        // batch as soon as it pins the leaf.  The batch will never be
+        // ended in this function.
+        toku_cachetable_begin_batched_pin(ft->cf);
+        toku_pin_ftnode_off_client_thread_batched(
+            ft,
             root_key,
             fullhash,
             &bfe,
@@ -4722,7 +4746,13 @@ try_again:
             NULL,
             &node
             );
-        toku_ft_release_treelock(brt->ft);
+        if (node->height == 0) {
+            // The root is a leaf, must end the batch now because we
+            // won't apply ancestor messages, which is where we usually
+            // end it.
+            toku_cachetable_end_batched_pin(ft->cf);
+        }
+        toku_ft_release_treelock(ft);
     }
 
     uint tree_height = node->height + 1;  // How high is the tree?  This is the height of the root node plus one (leaf is at height 0).
@@ -5401,7 +5431,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
             }
         }
     }
-    r = toku_cachetable_unpin(brt->ft->cf, blocknum, fullhash, CACHETABLE_CLEAN, make_ftnode_pair_attr(node));
+    r = toku_cachetable_unpin(brt->ft->cf, node->ct_pair, CACHETABLE_CLEAN, make_ftnode_pair_attr(node));
     assert_zero(r);
     return result;
 }
@@ -5432,7 +5462,6 @@ int toku_ft_layer_init(void) {
     partitioned_counters_init();
     toku_checkpoint_init();
     toku_ft_serialize_layer_init();
-    toku_cachetables_init();
     toku_mutex_init(&ft_open_close_lock, NULL);
 exit:
     return r;
@@ -5440,7 +5469,6 @@ exit:
 
 void toku_ft_layer_destroy(void) {
     toku_mutex_destroy(&ft_open_close_lock);
-    toku_cachetables_destroy();
     toku_ft_serialize_layer_destroy();
     toku_checkpoint_destroy();
     partitioned_counters_destroy();

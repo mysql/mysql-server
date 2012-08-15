@@ -53,7 +53,7 @@ run_test (void) {
         // set cachepressure_size to 0
         PAIR_ATTR attr = make_pair_attr(8);
         attr.cache_pressure_size = 0;
-        r = toku_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_CLEAN, attr);
+        r = toku_test_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_CLEAN, attr);
         assert_zero(r);
     }
 

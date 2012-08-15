@@ -63,19 +63,20 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     wc.clone_callback = cloneable ? clone_callback : NULL;
     wc.flush_callback = flush;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
-    r = toku_cachetable_begin_checkpoint(ct, NULL);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL);
     assert_zero(r);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     
     // at this point, there should be no more dirty writes
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
     usleep(2*1024*1024);
     r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL

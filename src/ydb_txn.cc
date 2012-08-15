@@ -259,7 +259,8 @@ locked_txn_commit_with_progress(DB_TXN *txn, uint32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
     if (toku_txn_requires_checkpoint(ttxn)) {
-        toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
+        CHECKPOINTER cp = toku_cachetable_get_checkpointer(txn->mgrp->i->cachetable);
+        toku_checkpoint(cp, txn->mgrp->i->logger, NULL, NULL, NULL, NULL, TXN_COMMIT_CHECKPOINT);
     }
     bool holds_mo_lock = false;
     if (!toku_txn_is_read_only(db_txn_struct_i(txn)->tokutxn)) {

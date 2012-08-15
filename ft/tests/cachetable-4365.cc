@@ -32,7 +32,8 @@ static void *put_same_key(void *arg) {
         toku_cachetable_hash(f1,make_blocknum(1)),
         NULL, 
         make_pair_attr(4),
-        def_write_callback(NULL)
+        def_write_callback(NULL),
+        put_callback_nop
         );
     assert(r==0);
     return arg;
@@ -74,7 +75,7 @@ cachetable_test (void) {
   assert_zero(r);    
   // sleep 3 seconds
   usleep(3*1024*1024);
-  r = toku_cachetable_unpin_and_remove(f1, make_blocknum(1), test_remove_key, NULL);
+  r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(1), test_remove_key, NULL);
   assert_zero(r);
   
   void *ret;
@@ -83,7 +84,7 @@ cachetable_test (void) {
   r = toku_pthread_join(put_tid, &ret); 
   assert_zero(r);
 
-  r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(2));
+  r = toku_test_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(2));
   
   toku_cachetable_verify(ct);
   r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);

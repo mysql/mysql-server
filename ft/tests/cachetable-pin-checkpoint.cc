@@ -70,6 +70,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
+       PAIR UU(p),
        int UU(fd),
        CACHEKEY k,
        uint32_t fullhash __attribute__((__unused__)),
@@ -187,7 +188,7 @@ static void *move_numbers(void *arg) {
         usleep(10);
         (*first_val)++;
         (*second_val)--;
-        r = toku_cachetable_unpin(f1, less_key, less_fullhash, less_dirty, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, less_key, less_fullhash, less_dirty, make_pair_attr(8));
 
         int third = 0;
         int num_possible_values = (NUM_ELEMENTS-1) - greater;
@@ -219,9 +220,9 @@ static void *move_numbers(void *arg) {
             usleep(10);
             (*second_val)++;
             (*third_val)--;
-            r = toku_cachetable_unpin(f1, third_key, third_fullhash, third_dirty, make_pair_attr(8));
+            r = toku_test_cachetable_unpin(f1, third_key, third_fullhash, third_dirty, make_pair_attr(8));
         }
-        r = toku_cachetable_unpin(f1, greater_key, greater_fullhash, greater_dirty, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, greater_key, greater_fullhash, greater_dirty, make_pair_attr(8));
     }
     return arg;
 }
@@ -247,7 +248,7 @@ static void *read_random_numbers(void *arg) {
             NULL
             );
         if (r1 == 0) {
-            r1 = toku_cachetable_unpin(f1, make_blocknum(rand_key1), rand_key1, CACHETABLE_CLEAN, make_pair_attr(8));
+            r1 = toku_test_cachetable_unpin(f1, make_blocknum(rand_key1), rand_key1, CACHETABLE_CLEAN, make_pair_attr(8));
             assert(r1 == 0);
         }
     }
@@ -269,10 +270,10 @@ static void *checkpoints(void *arg) {
         // now run a checkpoint
         //
         int r;
-        
-        r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);    
+        CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);    
         r = toku_cachetable_end_checkpoint(
-            ct, 
+            cp, 
             NULL, 
             NULL,
             NULL

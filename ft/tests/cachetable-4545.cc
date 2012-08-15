@@ -57,19 +57,20 @@ cachetable_test (void) {
   CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
   wc.flush_callback = flush;
   r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, true, NULL);
-  r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
+  r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
 
   flush_called = false;
   pf_req_called = false;
   pf_called = false;
-  r = toku_cachetable_begin_checkpoint(ct, NULL);
+  CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+  r = toku_cachetable_begin_checkpoint(cp, NULL);
   assert_zero(r);
   r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, true, NULL);
   assert_zero(r);
-  r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
+  r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
   assert_zero(r);
   r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL

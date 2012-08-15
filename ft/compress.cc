@@ -75,7 +75,7 @@ void toku_compress (enum toku_compression_method a,
             assert(1 <= *destLen);
             *destLen = 1;
         } else {
-            qlz_state_compress *XMALLOC(qsc);
+            qlz_state_compress *XCALLOC(qsc);
             size_t actual_destlen = qlz_compress(source, (char*)(dest+1), sourceLen, qsc);
             assert(actual_destlen +1 <= *destLen);
             *destLen = actual_destlen+1; // add one for the rfc1950-style header byte.
@@ -132,7 +132,7 @@ void toku_decompress (Bytef       *dest,   uLongf destLen,
     }
     case TOKU_QUICKLZ_METHOD:
         if (sourceLen>1) {
-            qlz_state_decompress *XMALLOC(qsd);
+            qlz_state_decompress *XCALLOC(qsd);
             uLongf actual_destlen = qlz_decompress((char*)source+1, dest, qsd);
             assert(actual_destlen == destLen);
             toku_free(qsd);

@@ -26,18 +26,18 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
 
 static int
 fetch (
-    CACHEFILE cf, 
+    CACHEFILE UU(cf), 
+    PAIR UU(p),
     int UU(fd), 
     CACHEKEY key, 
-    uint32_t hash, 
+    uint32_t UU(hash), 
     void **vptr, 
     void** UU(dd),
     PAIR_ATTR *sizep, 
     int *dirtyp, 
-    void *extra
+    void *UU(extra)
     ) 
 {
-    cf = cf; hash = hash; extra = extra;
     *sizep = make_pair_attr((long) key.b);
     *vptr = toku_malloc(sizep->size);
     *dirtyp = 0;
@@ -68,7 +68,7 @@ cachetable_getandpin_test (int n) {
         assert(r == 0);
         assert(size == i);
 
-        r = toku_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(i));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(i));
         assert(r == 0);
     }
     toku_cachetable_verify(ct);

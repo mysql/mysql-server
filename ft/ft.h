@@ -108,6 +108,7 @@ void toku_ft_set_basementnodesize(FT ft, unsigned int basementnodesize);
 void toku_ft_get_basementnodesize(FT ft, unsigned int *basementnodesize);
 void toku_ft_set_compression_method(FT ft, enum toku_compression_method method);
 void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp);
+void toku_node_save_ct_pair(void *value_data, PAIR p);
 
 // mark the ft as a blackhole. any message injections will be a no op.
 void toku_ft_set_blackhole(FT_HANDLE ft_handle);

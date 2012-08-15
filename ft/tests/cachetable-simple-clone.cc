@@ -75,7 +75,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     wc.clone_callback = cloneable ? clone_callback : NULL;
     wc.flush_callback = flush;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, dirty, make_pair_attr(8));
     
     check_flush = true;
     clone_called = false;
@@ -83,7 +83,8 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     flush_called = false;
     // begin checkpoint, since pair is clean, we should not 
     // have the clone called
-    r = toku_cachetable_begin_checkpoint(ct, NULL);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL);
     assert_zero(r);
     struct timeval tstart;
     struct timeval tend; 
@@ -91,7 +92,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
 
     // test that having a pin that passes false for may_modify_value does not stall behind checkpoint
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, false, NULL);
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     gettimeofday(&tend, NULL);
     assert(tdelta_usec(&tend, &tstart) <= 2000000); 
     assert(!clone_called);
@@ -118,7 +119,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     }
 
     // at this point, there should be no more dirty writes
-    r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     gettimeofday(&tend, NULL);
     if (cloneable || !dirty ) {
         assert(tdelta_usec(&tend, &tstart) <= 2000000); 
@@ -128,7 +129,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     }
 
     r = toku_cachetable_end_checkpoint(
-        ct, 
+        cp, 
         NULL, 
         NULL,
         NULL

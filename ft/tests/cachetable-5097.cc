@@ -13,6 +13,8 @@ bool dirty_flush_called;
 bool check_pe_callback;
 bool pe_callback_called;
 
+CACHETABLE ct;
+
 static int 
 pe_callback (
     void *ftnode_pv __attribute__((__unused__)), 
@@ -63,9 +65,11 @@ static void *f2_pin(void *arg) {
     check_pe_callback = true;
     r = toku_cachetable_get_and_pin(f2, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     assert(r == 0);
+    ct->ev.signal_eviction_thread();
+    usleep(1*1024*1024);
     assert(pe_callback_called);
     pe_callback_called = false;
-    r = toku_cachetable_unpin(f2, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
+    r = toku_test_cachetable_unpin(f2, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
     check_pe_callback = false;
     assert(!pe_callback_called);
     assert(r == 0);
@@ -80,8 +84,9 @@ cachetable_test (void) {
     check_flush = false;
     dirty_flush_called = false;
     
-    CACHETABLE ct;
     r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    evictor_test_helpers::disable_ev_thread(&ct->ev); // disable eviction thread
+    
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     char fname2[] = __SRCFILE__ "test2.dat";
@@ -101,7 +106,7 @@ cachetable_test (void) {
     for (int i = 0; i < 20; i++) {
         r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
         assert(r == 0);
-        r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
+        r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
         assert(r == 0);
     }
 

@@ -90,7 +90,7 @@ run_test (void) {
                                         true, 
                                         &expect);
         assert_zero(r);
-        r = toku_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_DIRTY, attrs[i]);
+        r = toku_test_cachetable_unpin(f1, make_blocknum(i+1), i+1, CACHETABLE_DIRTY, attrs[i]);
         assert_zero(r);
         expect.size += attrs[i].size;
         expect.nonleaf_size += attrs[i].nonleaf_size;
@@ -114,7 +114,7 @@ run_test (void) {
                                     def_pf_callback,
                                     true, 
                                     &expect);
-    toku_cachetable_unpin(f1, make_blocknum(n_pairs + 1), n_pairs + 1, CACHETABLE_CLEAN,
+    toku_test_cachetable_unpin(f1, make_blocknum(n_pairs + 1), n_pairs + 1, CACHETABLE_CLEAN,
                           make_pair_attr(test_limit - expect.size + 20));
 
     usleep(2*1024*1024);

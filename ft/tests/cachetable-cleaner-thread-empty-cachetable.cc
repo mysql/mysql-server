@@ -23,10 +23,10 @@ cachetable_test (void) {
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     usleep(4000000);
-
-    r = toku_cachetable_begin_checkpoint(ct, NULL); assert(r == 0);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
     r = toku_cachetable_end_checkpoint(
-        ct,
+        cp,
         NULL,
         NULL,
         NULL

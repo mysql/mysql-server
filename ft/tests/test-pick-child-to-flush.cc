@@ -157,7 +157,8 @@ doit (void) {
     //
     // now run a checkpoint to get everything clean
     //
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);
 
     // now with setup done, start the test
@@ -196,7 +197,7 @@ doit (void) {
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) > 0);
     toku_unpin_ftnode(t->ft, node);
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(!node->dirty);
@@ -214,7 +215,7 @@ doit (void) {
     assert(toku_bnc_n_entries(node->bp[1].ptr.u.nonleaf) == 0);
     // now let's do a flush with an empty buffer, make sure it is ok
     toku_unpin_ftnode(t->ft, node);
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(!node->dirty);
@@ -280,7 +281,7 @@ doit (void) {
         0
         );
     assert_zero(r);
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert_zero(r);    
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     for (int i = 0; i < 20; i++) {

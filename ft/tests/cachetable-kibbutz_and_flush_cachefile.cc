@@ -18,7 +18,7 @@ static void kibbutz_work(void *fe_v)
     // note that we make the size 16 to induce an eviction
     // once evictions are moved to their own thread, we need
     // to modify this test
-    int r = toku_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(16));
+    int r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(16));
     assert(r==0);
     remove_background_job_from_cf(f1);    
 }

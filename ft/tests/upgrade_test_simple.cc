@@ -108,7 +108,8 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     r2 = cb(t, ct, cb_extra);
     r = toku_verify_ft(t);
     CKERR(r);
-    r = toku_checkpoint(ct, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
+    CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
+    r = toku_checkpoint(cp, NULL, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     CKERR(r);
     r = toku_close_ft_handle_nolsn(t, 0);
     CKERR(r);

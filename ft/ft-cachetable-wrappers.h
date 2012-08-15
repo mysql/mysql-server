@@ -58,7 +58,7 @@ toku_create_new_ftnode (
  * a partial fetch is not required and there is no contention for the node)
  * or it returns TOKUDB_TRY_AGAIN after unlocking its ancestors (using 
  * unlockers and ancestors) and bringing the necessary pieces of the node
- * into memory. 
+ * into memory.
  */
 int
 toku_pin_ftnode(
@@ -71,6 +71,26 @@ toku_pin_ftnode(
     FTNODE_FETCH_EXTRA bfe,
     bool may_modify_node,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
+    FTNODE *node_p,
+    bool* msgs_applied
+    );
+
+/**
+ * Batched version of toku_pin_ftnode, see cachetable batched API for more
+ * details.
+ */
+int
+toku_pin_ftnode_batched(
+    FT_HANDLE brt,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    UNLOCKERS unlockers,
+    ANCESTORS ancestors,
+    const PIVOT_BOUNDS pbounds,
+    FTNODE_FETCH_EXTRA bfe,
+    bool may_modify_node,
+    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
+    bool end_batch_on_success,
     FTNODE *node_p,
     bool* msgs_applied
     );
@@ -99,6 +119,22 @@ toku_pin_ftnode_off_client_thread(
  * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
  */
 int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep, bool may_modify_node);
+
+/**
+ * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
+ * batched API for more details.
+ */
+void
+toku_pin_ftnode_off_client_thread_batched(
+    FT h,
+    BLOCKNUM blocknum,
+    uint32_t fullhash,
+    FTNODE_FETCH_EXTRA bfe,
+    bool may_modify_node,
+    uint32_t num_dependent_nodes,
+    FTNODE* dependent_nodes,
+    FTNODE *node_p
+    );
 
 /**
  * Effect: Unpin a brt node. Used for

@@ -137,6 +137,8 @@ struct logged_btt_pair {
 
 typedef struct cachetable *CACHETABLE;
 typedef struct cachefile *CACHEFILE;
+typedef struct ctpair *PAIR;
+typedef class checkpointer *CHECKPOINTER;
 
 /* tree command types */
 enum ft_msg_type {

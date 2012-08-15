@@ -34,6 +34,7 @@ static void f_flush (CACHEFILE f,
 }
 
 static int f_fetch (CACHEFILE f,
+                    PAIR UU(p),
                     int UU(fd),
 		    CACHEKEY key,
 		    uint32_t fullhash __attribute__((__unused__)),
@@ -74,8 +75,8 @@ static void writeit (void) {
 	for (j=0; j<BLOCKSIZE; j++) ((char*)buf)[j]=(char)((i+j)%256);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = f_flush;
-	r = toku_cachetable_put(f, key, fullhash, buf, make_pair_attr(BLOCKSIZE), wc);	assert(r==0);
-	r = toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE)); assert(r==0);
+	r = toku_cachetable_put(f, key, fullhash, buf, make_pair_attr(BLOCKSIZE), wc, put_callback_nop);	assert(r==0);
+	r = toku_test_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE)); assert(r==0);
     }
     gettimeofday(&end, 0);
     double diff = toku_tdiff(&end, &start);
@@ -98,7 +99,7 @@ static void readit (void) {
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = f_flush;
 	r=toku_cachetable_get_and_pin(f, key, fullhash, &block, &current_size, wc, f_fetch, def_pf_req_callback, def_pf_callback, true, 0); assert(r==0);
-	r=toku_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE));                                      assert(r==0);
+	r=toku_test_cachetable_unpin(f, key, fullhash, CACHETABLE_CLEAN, make_pair_attr(BLOCKSIZE));                                      assert(r==0);
     }
     r = toku_cachefile_close(&f, 0, false, ZERO_LSN);    assert(r == 0);
     r = toku_cachetable_close(&t);      assert(r == 0);
