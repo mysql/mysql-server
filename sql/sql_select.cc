@@ -771,7 +771,7 @@ void JOIN::reset()
     }
   }
   clear_sj_tmp_tables(this);
-  if (!items0.is_null())
+  if (current_ref_ptrs != items0)
   {
     set_items_ref_array(items0);
     set_group_rpa= false;
@@ -1340,7 +1340,6 @@ bool JOIN::get_best_combination()
     best_positions[tableno].table= NULL;
 
     TABLE    *const table= tab->table;
-    all_tables[tableno]= table;
     table->reginfo.join_tab= tab;
     if (!*tab->on_expr_ref)
       table->reginfo.not_exists_optimize= false;     // Only with LEFT JOIN
@@ -2577,7 +2576,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     Set up the table to write to, do as select_union::create_result_table does
   */
   sjm->table_param.init();
-  sjm->table_param.field_count= item_list.elements;
+  count_field_types(tab->join->select_lex, &sjm->table_param, item_list, false);
   sjm->table_param.bit_fields_as_long= TRUE;
   List_iterator<Item> it(item_list);
   Item *right_expr;
@@ -3046,6 +3045,8 @@ void JOIN_TAB::cleanup()
     {
       free_tmp_table(join->thd, table);
       table= NULL;
+      delete tmp_table_param;
+      tmp_table_param= NULL;
     }
     op->free();
     op= NULL;
@@ -3232,7 +3233,7 @@ void JOIN::cleanup(bool full)
 {
   DBUG_ENTER("JOIN::cleanup");
 
-  if (all_tables)
+  if (join_tab)
   {
     JOIN_TAB *tab,*end;
     /*
@@ -3241,8 +3242,8 @@ void JOIN::cleanup(bool full)
     if (tables > const_tables) // Test for not-const tables
       for (uint ix= const_tables; ix < tables; ++ix)
       {
-        free_io_cache(all_tables[ix]);
-        filesort_free_buffers(all_tables[ix], full);
+        free_io_cache(join_tab[ix].table);
+        filesort_free_buffers(join_tab[ix].table, full);
       }
 
     if (full)
@@ -3285,6 +3286,12 @@ void JOIN::cleanup(bool full)
     */
     tmp_table_param.copy_funcs.empty();
     tmp_table_param.cleanup();
+  }
+  /* Restore ref array to original state */
+  if (current_ref_ptrs != items0)
+  {
+    set_items_ref_array(items0);
+    set_group_rpa= false;
   }
   DBUG_VOID_RETURN;
 }

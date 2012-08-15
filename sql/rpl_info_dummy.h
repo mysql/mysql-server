@@ -34,16 +34,18 @@ public:
   virtual ~Rpl_info_dummy() { };
 
 private:
-  int do_init_info(const ulong *uidx, const uint nidx);
-  enum_return_check do_check_info(const ulong *uidx, const uint nidx);
-  void do_end_info(const ulong *uidx, const uint nidx);
-  int do_flush_info(const ulong *uidx, const uint nidx,
-                    const bool force);
-  int do_remove_info(const ulong *uidx, const uint nidx);
+  int do_init_info();
+  int do_init_info(uint instance);
+  enum_return_check do_check_info();
+  enum_return_check do_check_info(uint instance);
+  void do_end_info();
+  int do_flush_info(const bool force);
+  int do_remove_info();
+  int do_clean_info();
   static int do_reset_info(const int nparam);
 
-  int do_prepare_info_for_read(const uint nidx);
-  int do_prepare_info_for_write(const uint nidx);
+  int do_prepare_info_for_read();
+  int do_prepare_info_for_write();
   bool do_set_info(const int pos, const char *value);
   bool do_set_info(const int pos, const uchar *value,
                    const size_t size);
@@ -66,6 +68,7 @@ private:
   char* do_get_description_info();
   bool do_is_transactional();
   bool do_update_is_transactional();
+  uint do_get_rpl_info_type();
 
   static const bool abort= FALSE;
 

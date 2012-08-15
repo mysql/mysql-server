@@ -461,8 +461,18 @@ bool partition_info::set_used_partition(List<Item> &fields,
   if (info.function_defaults_apply_on_columns(&full_part_field_set))
     info.set_function_defaults(table);
 
-  if (get_partition_id(this, &part_id, &func_value))
-    goto err;
+  {
+    /*
+      This function is used in INSERT; 'values' are supplied by user,
+      or are default values, not values read from a table, so read_set is
+      irrelevant.
+    */
+    my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
+    const int rc= get_partition_id(this, &part_id, &func_value);
+    dbug_tmp_restore_column_map(table->read_set, old_map);
+    if (rc)
+      goto err;
+  }
 
   DBUG_PRINT("info", ("Insert into partition %u", part_id));
   bitmap_set_bit(used_partitions, part_id);

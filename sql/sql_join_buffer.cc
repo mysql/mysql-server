@@ -2396,8 +2396,16 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
     Prepare to iterate over keys from the join buffer and to get
     matching candidates obtained with MMR handler functions.
   */ 
-  return (!file->inited &&
-          file->ha_index_init(join_tab->ref.key, 1)) ||
+  if (!file->inited)
+  {
+    const int error= file->ha_index_init(join_tab->ref.key, 1);
+    if (error)
+    {
+      file->print_error(error, MYF(0));
+      return error;
+    }
+  }
+  return
     file->multi_range_read_init(seq_funcs, (void*) this, ranges,
                                 mrr_mode, &mrr_buff);
 }

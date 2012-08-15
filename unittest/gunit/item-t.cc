@@ -293,6 +293,18 @@ TEST_F(ItemTest, ItemFuncIntDivUnderflow)
 }
 
 
+TEST_F(ItemTest, ItemFuncNegLongLongMin)
+{
+  // Bug#14314156 MAIN.FUNC_MATH TEST FAILS ON MYSQL-TRUNK ON PB2
+  const longlong longlong_min= LONGLONG_MIN;
+  Item_func_neg *item_neg= new Item_func_neg(new Item_int(longlong_min));
+
+  EXPECT_FALSE(item_neg->fix_fields(thd(), NULL));
+  initializer.set_expected_error(ER_DATA_OUT_OF_RANGE);
+  EXPECT_EQ(0, item_neg->int_op());
+}
+
+
 /*
   This is not an exhaustive test. It simply demonstrates that more of the
   initializations in mysqld.cc are needed for testing Item_xxx classes.

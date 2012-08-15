@@ -40,6 +40,9 @@ Created 13/06/2005 Jan Lindstrom
 #include "lock0types.h"
 #include "srv0srv.h"
 
+// Forward declaration
+struct ib_sequence_t;
+
 /** @brief Block size for I/O operations in merge sort.
 
 The minimum is UNIV_PAGE_SIZE, or page_get_free_space_of_empty()
@@ -317,7 +320,7 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
+	ib_sequence_t&	sequence)	/*!< in/out: autoinc sequence */
 	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */

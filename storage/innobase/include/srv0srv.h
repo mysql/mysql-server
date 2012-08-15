@@ -285,6 +285,11 @@ extern ulint	srv_n_write_io_threads;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
+
+/* We use this dummy default value at startup for max_io_capacity.
+The real value is set based on the value of io_capacity. */
+#define SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT	(~0UL)
+#define SRV_MAX_IO_CAPACITY_LIMIT		(~0UL)
 extern ulong    srv_max_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that

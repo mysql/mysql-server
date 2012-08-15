@@ -878,12 +878,7 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
                                        double read_time);
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
-                                          double read_time,
-                                          bool *are_all_covering);
-static
-TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
-                                                   SEL_TREE *tree,
-                                                   double read_time);
+                                          double read_time);
 static
 TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
                                          double read_time);
@@ -905,6 +900,10 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
                                      SEL_ARG *keypart_root,
                                      const KEY_PART_INFO *key_parts);
 #endif
+static inline void dbug_print_tree(const char *tree_name,
+                                   SEL_TREE *tree, 
+                                   const RANGE_OPT_PARAM *param);
+
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
                   const uchar *min_key, const uchar *max_key,
@@ -2166,16 +2165,20 @@ typedef struct st_ror_scan_info
 
   /** Fields used in the query and covered by this ROR scan. */
   MY_BITMAP covered_fields;
-  uint      used_fields_covered; ///< # of set bits in covered_fields
-  int       key_rec_length;      ///< length of key record (including rowid)
+  /**
+    Fields used in the query that are a) covered by this ROR scan and
+    b) not already covered by ROR scans ordered earlier in the merge
+    sequence.
+  */
+  MY_BITMAP covered_fields_remaining;
+  /** #fields in covered_fields_remaining (caching of bitmap_bits_set()) */
+  uint      num_covered_fields_remaining;
 
   /**
     Cost of reading all index records with values in sel_arg intervals set
     (assuming there is no need to access full table records)
   */
   double    index_read_cost;
-  uint      first_uncovered_field; ///< first unused bit in covered_fields
-  uint      key_components;        ///< # of parts in the key
 } ROR_SCAN_INFO;
 
 /* Plan for QUICK_ROR_INTERSECT_SELECT scan. */
@@ -2762,14 +2765,18 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         It is possible to use a range-based quick select (but it might be
         slower than 'all' table scan).
       */
-      if (tree->merges.is_empty())
+      dbug_print_tree("final_tree", tree, &param);
+
       {
+        /*
+          Calculate cost of single index range scan and possible
+          intersections of these
+        */
         Opt_trace_object trace_range(trace,
                                      "analyzing_range_alternatives",
                                      Opt_trace_context::RANGE_OPTIMIZER);
         TRP_RANGE         *range_trp;
         TRP_ROR_INTERSECT *rori_trp;
-        bool can_build_covering= FALSE;
 
         /* Get best 'range' plan and prepare data for making other plans */
         if ((range_trp= get_key_scans_params(&param, tree, FALSE, TRUE,
@@ -2793,26 +2800,16 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
             Get best non-covering ROR-intersection plan and prepare data for
             building covering ROR-intersection.
           */
-          if ((rori_trp= get_best_ror_intersect(&param, tree, best_read_time,
-                                                &can_build_covering)))
+          if ((rori_trp= get_best_ror_intersect(&param, tree, best_read_time)))
           {
             best_trp= rori_trp;
             best_read_time= best_trp->read_cost;
-            /*
-              Try constructing covering ROR-intersect only if it looks possible
-              and worth doing.
-            */
-            if (!rori_trp->is_covering && can_build_covering &&
-                (rori_trp= get_best_covering_ror_intersect(&param, tree,
-                                                           best_read_time)))
-            {
-              trace_range.add("made_roworder_intersect_covering", true);
-              best_trp= rori_trp;
-            }
           }
         }
       }
-      else
+
+      // Here we calculate cost of union index merge
+      if (!tree->merges.is_empty())
       {
         // Cannot return rows in descending order.
         if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE) &&
@@ -2823,8 +2820,6 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
           SEL_IMERGE *imerge;
           TABLE_READ_PLAN *best_conj_trp= NULL, *new_conj_trp;
           LINT_INIT(new_conj_trp); /* no empty index_merge lists possible */
-          DBUG_PRINT("info",("No range reads possible,"
-                             " trying to construct index_merge"));
           List_iterator_fast<SEL_IMERGE> it(tree->merges);
           Opt_trace_array trace_idx_merge(trace,
                                           "analyzing_index_merge",
@@ -3594,27 +3589,28 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
   ppar->cur_subpart_fields+= ppar->is_subpart_keypart[key_tree_part];
   *(ppar->arg_stack_end++)= key_tree;
 
+  if (ignore_part_fields)
+  {
+    /*
+      We come here when a condition on the first partitioning
+      fields led to evaluating the partitioning condition
+      (due to finding a condition of the type a < const or
+      b > const). Thus we must ignore the rest of the
+      partitioning fields but we still want to analyse the
+      subpartitioning fields.
+    */
+    if (key_tree->next_key_part)
+      res= find_used_partitions(ppar, key_tree->next_key_part);
+    else
+      res= -1;
+    goto pop_and_go_right;
+  }
+
   if (key_tree->type == SEL_ARG::KEY_RANGE)
   {
     if (ppar->part_info->get_part_iter_for_interval && 
         key_tree->part <= ppar->last_part_partno)
     {
-      if (ignore_part_fields)
-      {
-        /*
-          We come here when a condition on the first partitioning
-          fields led to evaluating the partitioning condition
-          (due to finding a condition of the type a < const or
-          b > const). Thus we must ignore the rest of the
-          partitioning fields but we still want to analyse the
-          subpartitioning fields.
-        */
-        if (key_tree->next_key_part)
-          res= find_used_partitions(ppar, key_tree->next_key_part);
-        else
-          res= -1;
-        goto pop_and_go_right;
-      }
       /* Collect left and right bound, their lengths and flags */
       uchar *min_key= ppar->cur_min_key;
       uchar *max_key= ppar->cur_max_key;
@@ -3855,6 +3851,13 @@ int find_used_partitions(PART_PRUNE_PARAM *ppar, SEL_ARG *key_tree)
         res= -1;
         goto pop_and_go_right;
       }
+      /*
+        No meaning in continuing with rest of partitioning key parts.
+        Will try to continue with subpartitioning key parts.
+      */
+      ppar->ignore_part_fields= true;
+      did_set_ignore_part_fields= true;
+      goto process_next_key_part;
     }
   }
 
@@ -4427,7 +4430,6 @@ build_ror_index_merge:
     DBUG_RETURN(imerge_trp);
 
   /* Ok, it is possible to build a ROR-union, try it. */
-  bool dummy;
   if (!(roru_read_plans=
           (TABLE_READ_PLAN**)alloc_root(param->mem_root,
                                         sizeof(TABLE_READ_PLAN*)*
@@ -4471,8 +4473,7 @@ skip_to_ror_scan:
       cost= read_time;
 
     TABLE_READ_PLAN *prev_plan= *cur_child;
-    if (!(*cur_roru_plan= get_best_ror_intersect(param, *ptree, cost,
-                                                 &dummy)))
+    if (!(*cur_roru_plan= get_best_ror_intersect(param, *ptree, cost)))
     {
       if (prev_plan->is_ror)
         *cur_roru_plan= prev_plan;
@@ -4559,7 +4560,8 @@ static
 ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 {
   ROR_SCAN_INFO *ror_scan;
-  my_bitmap_map *bitmap_buf;
+  my_bitmap_map *bitmap_buf1;
+  my_bitmap_map *bitmap_buf2;
   uint keynr;
   DBUG_ENTER("make_ror_scan");
 
@@ -4569,18 +4571,23 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 
   ror_scan->idx= idx;
   ror_scan->keynr= keynr= param->real_keynr[idx];
-  ror_scan->key_rec_length= (param->table->key_info[keynr].key_length +
-                             param->table->file->ref_length);
   ror_scan->sel_arg= sel_arg;
   ror_scan->records= param->table->quick_rows[keynr];
 
-  if (!(bitmap_buf= (my_bitmap_map*) alloc_root(param->mem_root,
-                                                param->fields_bitmap_size)))
+  if (!(bitmap_buf1= (my_bitmap_map*) alloc_root(param->mem_root,
+                                                 param->fields_bitmap_size)))
+    DBUG_RETURN(NULL);
+  if (!(bitmap_buf2= (my_bitmap_map*) alloc_root(param->mem_root,
+                                                 param->fields_bitmap_size)))
     DBUG_RETURN(NULL);
 
-  if (bitmap_init(&ror_scan->covered_fields, bitmap_buf,
+  if (bitmap_init(&ror_scan->covered_fields, bitmap_buf1,
                   param->table->s->fields, FALSE))
     DBUG_RETURN(NULL);
+  if (bitmap_init(&ror_scan->covered_fields_remaining, bitmap_buf2,
+                  param->table->s->fields, FALSE))
+    DBUG_RETURN(NULL);
+
   bitmap_clear_all(&ror_scan->covered_fields);
 
   KEY_PART_INFO *key_part= param->table->key_info[keynr].key_part;
@@ -4591,6 +4598,8 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
     if (bitmap_is_set(&param->needed_fields, key_part->fieldnr-1))
       bitmap_set_bit(&ror_scan->covered_fields, key_part->fieldnr-1);
   }
+  bitmap_copy(&ror_scan->covered_fields_remaining, &ror_scan->covered_fields);
+
   double rows= rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost=
     param->table->file->index_only_read_time(ror_scan->keynr, rows);
@@ -4598,60 +4607,132 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 }
 
 
-/*
-  Compare two ROR_SCAN_INFO** by  E(#records_matched) * key_record_length.
-  SYNOPSIS
-    cmp_ror_scan_info()
-      a ptr to first compared value
-      b ptr to second compared value
+/**
+  Compare two ROR_SCAN_INFO* by
+    1. #fields in this index that are not already covered
+       by other indexes earlier in the intersect ordering: descending
+    2. E(#records): ascending
 
-  RETURN
-   -1 a < b
-    0 a = b
-    1 a > b
+  @param scan1   first ror scan to compare
+  @param scan2   second ror scan to compare
+
+  @return true if scan1 > scan2, false otherwise
 */
-
-static int cmp_ror_scan_info(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
+static bool is_better_intersect_match(const ROR_SCAN_INFO *scan1,
+                                      const ROR_SCAN_INFO *scan2)
 {
-  double val1= rows2double((*a)->records) * (*a)->key_rec_length;
-  double val2= rows2double((*b)->records) * (*b)->key_rec_length;
-  return (val1 < val2)? -1: (val1 == val2)? 0 : 1;
+  if (scan1 == scan2)
+    return false;
+
+  if (scan1->num_covered_fields_remaining >
+      scan2->num_covered_fields_remaining)
+    return false;
+
+  if (scan1->num_covered_fields_remaining <
+      scan2->num_covered_fields_remaining)
+    return true;
+
+  return (scan1->records > scan2->records);
 }
 
-/*
-  Compare two ROR_SCAN_INFO** by
-   (#covered fields in F desc,
-    #components asc,
-    number of first not covered component asc)
+/**
+  Sort indexes in an order that is likely to be a good index merge
+  intersection order. After running this function, [start, ..., end-1]
+  is ordered according to this strategy:
 
-  SYNOPSIS
-    cmp_ror_scan_info_covering()
-      a ptr to first compared value
-      b ptr to second compared value
+    1) Minimize the number of indexes that must be used in the
+       intersection. I.e., the index covering most fields not already
+       covered by other indexes earlier in the sort order is picked first.
+    2) When multiple indexes cover equally many uncovered fields, the
+       index with lowest E(#rows) is chosen.
 
-  RETURN
-   -1 a < b
-    0 a = b
-    1 a > b
+  Note that all permutations of index ordering are not tested, so this
+  function may not find the optimal order.
+
+  @param[in,out] start     Pointer to the start of indexes that may
+                           be used in index merge intersection
+  @param         end       Pointer past the last index that may be used.
+  @param         param     Parameter from test_quick_select function.
 */
-
-static int cmp_ror_scan_info_covering(ROR_SCAN_INFO** a, ROR_SCAN_INFO** b)
+static void find_intersect_order(ROR_SCAN_INFO **start,
+                                 ROR_SCAN_INFO **end,
+                                 const PARAM *param)
 {
-  if ((*a)->used_fields_covered > (*b)->used_fields_covered)
-    return -1;
-  if ((*a)->used_fields_covered < (*b)->used_fields_covered)
-    return 1;
-  if ((*a)->key_components < (*b)->key_components)
-    return -1;
-  if ((*a)->key_components > (*b)->key_components)
-    return 1;
-  if ((*a)->first_uncovered_field < (*b)->first_uncovered_field)
-    return -1;
-  if ((*a)->first_uncovered_field > (*b)->first_uncovered_field)
-    return 1;
-  return 0;
-}
+  // nothing to sort if there are only zero or one ROR scans
+  if ((start == end) || (start + 1 == end))
+    return;
 
+  /*
+    Bitmap of fields we would like the ROR scans to cover. Will be
+    modified by the loop below so that when we're looking for a ROR
+    scan in position 'x' in the ordering, all fields covered by ROR
+    scans 0,...,x-1 have been removed.
+  */
+  MY_BITMAP fields_to_cover;
+  my_bitmap_map *map;
+  if (!(map= (my_bitmap_map*) alloc_root(param->mem_root,
+                                         param->fields_bitmap_size)))
+    return;
+  bitmap_init(&fields_to_cover, map, param->needed_fields.n_bits, FALSE);
+  bitmap_copy(&fields_to_cover, &param->needed_fields);
+
+  // Sort ROR scans in [start,...,end-1]
+  for (ROR_SCAN_INFO **place= start; place < (end - 1); place++)
+  {
+    /* Placeholder for the best ROR scan found for position 'place' so far */
+    ROR_SCAN_INFO **best= place;
+    ROR_SCAN_INFO **current= place + 1;
+
+    {
+      /*
+        Calculate how many fields in 'fields_to_cover' not already
+        covered by [start,...,place-1] the 'best' index covers. The
+        result is used in is_better_intersect_match() and is valid
+        when finding the best ROR scan for position 'place' only.
+      */
+      bitmap_intersect(&(*best)->covered_fields_remaining, &fields_to_cover);
+      (*best)->num_covered_fields_remaining=
+        bitmap_bits_set(&(*best)->covered_fields_remaining);
+    }
+    for (; current < end; current++)
+    {
+      {
+        /*
+          Calculate how many fields in 'fields_to_cover' not already
+          covered by [start,...,place-1] the 'current' index covers.
+          The result is used in is_better_intersect_match() and is
+          valid when finding the best ROR scan for position 'place' only.
+        */
+        bitmap_intersect(&(*current)->covered_fields_remaining,
+                         &fields_to_cover);
+        (*current)->num_covered_fields_remaining=
+          bitmap_bits_set(&(*current)->covered_fields_remaining);
+
+        /*
+          No need to compare with 'best' if 'current' does not
+          contribute with uncovered fields.
+        */
+        if ((*current)->num_covered_fields_remaining == 0)
+          continue;
+      }
+
+      if (is_better_intersect_match(*best, *current))
+        best= current;
+    }
+
+    /*
+      'best' is now the ROR scan that will be sorted in position
+      'place'. When searching for the best ROR scans later in the sort
+      sequence we do not need coverage of the fields covered by 'best'
+     */
+    bitmap_subtract(&fields_to_cover, &(*best)->covered_fields);
+    if (best != place)
+      swap_variables(ROR_SCAN_INFO*, *best, *place);
+
+    if (bitmap_is_clear_all(&fields_to_cover))
+      return;                                   // No more fields to cover
+  }
+}
 
 /* Auxiliary structure for incremental ROR-intersection creation */
 typedef struct
@@ -4942,6 +5023,7 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
       is_cpk_scan  If TRUE, add the scan as CPK scan (this can be inferred
                    from other parameters and is passed separately only to
                    avoid duplicating the inference code)
+      trace_costs  Optimizer trace object cost details are added to
 
   NOTES
     Adding a ROR scan to ROR-intersect "makes sense" iff the cost of ROR-
@@ -4966,7 +5048,8 @@ static double ror_scan_selectivity(const ROR_INTERSECT_INFO *info,
 */
 
 static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
-                              ROR_SCAN_INFO* ror_scan, bool is_cpk_scan)
+                              ROR_SCAN_INFO* ror_scan, bool is_cpk_scan,
+                              Opt_trace_object *trace_costs)
 {
   double selectivity_mult= 1.0;
 
@@ -4993,13 +5076,16 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
       each record of every scan. Assuming ROWID_COMPARE_COST
       per check this gives us:
     */
-    info->index_scan_costs += rows2double(info->index_records) * 
-                              ROWID_COMPARE_COST;
+    const double idx_cost= 
+      rows2double(info->index_records) * ROWID_COMPARE_COST;
+    info->index_scan_costs+= idx_cost;
+    trace_costs->add("index_scan_cost", idx_cost);
   }
   else
   {
     info->index_records += info->param->table->quick_rows[ror_scan->keynr];
     info->index_scan_costs += ror_scan->index_read_cost;
+    trace_costs->add("index_scan_cost", ror_scan->index_read_cost);
     bitmap_union(&info->covered_fields, &ror_scan->covered_fields);
     if (!info->is_covering && bitmap_is_subset(&info->param->needed_fields,
                                                &info->covered_fields))
@@ -5010,7 +5096,8 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   }
 
   info->total_cost= info->index_scan_costs;
-  DBUG_PRINT("info", ("info->total_cost: %g", info->total_cost));
+  trace_costs->add("cumulated_index_scan_cost", info->index_scan_costs);
+
   if (!info->is_covering)
   {
     Cost_estimate sweep_cost;
@@ -5019,8 +5106,11 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
-    DBUG_PRINT("info", ("info->total_cost= %g", info->total_cost));
+    trace_costs->add("disk_sweep_cost", sweep_cost.total_cost());
   }
+  else
+    trace_costs->add("disk_sweep_cost", 0);
+
   DBUG_PRINT("info", ("New out_rows: %g", info->out_rows));
   DBUG_PRINT("info", ("New cost: %g, %scovering", info->total_cost,
                       info->is_covering?"" : "non-"));
@@ -5094,8 +5184,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
 
 static
 TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
-                                          double read_time,
-                                          bool *are_all_covering)
+                                          double read_time)
 {
   uint idx;
   double min_cost= DBL_MAX;
@@ -5159,8 +5248,8 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     ROR_SCAN_INFO's.
     Step 2: Get best ROR-intersection using an approximate algorithm.
   */
-  my_qsort(tree->ror_scans, tree->n_ror_scans, sizeof(ROR_SCAN_INFO*),
-           (qsort_cmp)cmp_ror_scan_info);
+  find_intersect_order(tree->ror_scans, tree->ror_scans_end, param);
+
   DBUG_EXECUTE("info",print_ror_scans_arr(param->table, "ordered",
                                           tree->ror_scans,
                                           tree->ror_scans_end););
@@ -5194,17 +5283,18 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     trace_idx.add_utf8("index",
                        param->table->key_info[(*cur_ror_scan)->keynr].name);
     /* S= S + first(R);  R= R - first(R); */
-    if (!ror_intersect_add(intersect, *cur_ror_scan, FALSE))
+    if (!ror_intersect_add(intersect, *cur_ror_scan, FALSE, &trace_idx))
     {
-      trace_idx.add("usable", false).
+      trace_idx.add("cumulated_total_cost", intersect->total_cost).
+        add("usable", false).
         add_alnum("cause", "does_not_reduce_cost_of_intersect");
       cur_ror_scan++;
       continue;
     }
     
-    trace_idx.add("usable", true).
+    trace_idx.add("cumulated_total_cost", intersect->total_cost).
+      add("usable", true).
       add("matching_rows_now", intersect->out_rows).
-      add("cumulated_cost", intersect->total_cost).
       add("isect_covering_with_this_index", intersect->is_covering);
 
     *(intersect_scans_end++)= *(cur_ror_scan++);
@@ -5215,6 +5305,12 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
       ror_intersect_cpy(intersect_best, intersect);
       intersect_scans_best= intersect_scans_end;
       min_cost = intersect->total_cost;
+      trace_idx.add("chosen", true);
+    }
+    else
+    {
+      trace_idx.add("chosen", false).
+        add_alnum("cause", "does_not_reduce_cost");
     }
   }
   // Note: trace_isect_idx trace object is closed here
@@ -5233,7 +5329,6 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                                           intersect_scans,
                                           intersect_scans_best););
 
-  *are_all_covering= intersect->is_covering;
   uint best_num= intersect_scans_best - intersect_scans;
   ror_intersect_cpy(intersect, intersect_best);
 
@@ -5246,7 +5341,7 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
     Opt_trace_object trace_cpk(trace, "clustered_pk");
     if (cpk_scan && !intersect->is_covering)
     {
-      if (ror_intersect_add(intersect, cpk_scan, TRUE) &&
+      if (ror_intersect_add(intersect, cpk_scan, TRUE, &trace_cpk) &&
           (intersect->total_cost < min_cost))
       {
         trace_cpk.add("clustered_pk_scan_added_to_intersect", true).
@@ -5298,191 +5393,14 @@ TRP_ROR_INTERSECT *get_best_ror_intersect(const PARAM *param, SEL_TREE *tree,
                         trp->read_cost, (ulong) trp->records));
   }
   else
-    trace_ror.add("chosen", false);
+  {
+    trace_ror.add("chosen", false).
+      add_alnum("cause", (min_cost >= read_time) ? "cost" : 
+                "too_few_indexes_to_merge");
+    
+  }
   DBUG_RETURN(trp);
 }
-
-
-/*
-  Get best covering ROR-intersection.
-  SYNOPSIS
-    get_best_covering_ror_intersect()
-      param     Parameter from test_quick_select function.
-      tree      SEL_TREE with sets of intervals for different keys.
-      read_time Don't return table read plans with cost > read_time.
-
-  RETURN
-    Best covering ROR-intersection plan
-    NULL if no plan found.
-
-  NOTES
-    get_best_ror_intersect must be called for a tree before calling this
-    function for it.
-    This function invalidates tree->ror_scans member values.
-
-  The following approximate algorithm is used:
-    I=set of all covering indexes
-    F=set of all fields to cover
-    S={}
-
-    do
-    {
-      Order I by (#covered fields in F desc,
-                  #components asc,
-                  number of first not covered component asc);
-      F=F-covered by first(I);
-      S=S+first(I);
-      I=I-first(I);
-    } while F is not empty.
-*/
-
-static
-TRP_ROR_INTERSECT *get_best_covering_ror_intersect(PARAM *param,
-                                                   SEL_TREE *tree,
-                                                   double read_time)
-{
-  ROR_SCAN_INFO **ror_scan_mark;
-  ROR_SCAN_INFO **ror_scans_end= tree->ror_scans_end;
-  DBUG_ENTER("get_best_covering_ror_intersect");
-
-  if (!param->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT))
-    DBUG_RETURN(NULL);
-
-  Opt_trace_context * const trace= &param->thd->opt_trace;
-  Opt_trace_object trace_covering(trace, "make_covering_roworder_intersect");
-
-  for (ROR_SCAN_INFO **scan= tree->ror_scans; scan != ror_scans_end; ++scan)
-    (*scan)->key_components=
-      param->table->key_info[(*scan)->keynr].key_parts;
-
-  /*
-    Run covering-ROR-search algorithm.
-    Assume set I is [ror_scan .. ror_scans_end)
-  */
-
-  /*I=set of all covering indexes */
-  ror_scan_mark= tree->ror_scans;
-
-  MY_BITMAP *covered_fields= &param->tmp_covered_fields;
-  if (!covered_fields->bitmap) 
-    covered_fields->bitmap= (my_bitmap_map*)alloc_root(param->mem_root,
-                                               param->fields_bitmap_size);
-  if (!covered_fields->bitmap ||
-      bitmap_init(covered_fields, covered_fields->bitmap,
-                  param->table->s->fields, FALSE))
-    DBUG_RETURN(0);
-  bitmap_clear_all(covered_fields);
-
-  double total_cost= 0.0f;
-  ha_rows records=0;
-  bool all_covered;
-
-  DBUG_PRINT("info", ("Building covering ROR-intersection"));
-
-  // Note: trace_idx.end() is called to close this object after this loop.
-  Opt_trace_array trace_idx(trace, "included_indices");
-
-  do
-  {
-    /*
-      Update changed sorting info:
-        #covered fields,
-	number of first not covered component
-      Calculate and save these values for each of remaining scans.
-    */
-    for (ROR_SCAN_INFO **scan= ror_scan_mark; scan != ror_scans_end; ++scan)
-    {
-      bitmap_subtract(&(*scan)->covered_fields, covered_fields);
-      (*scan)->used_fields_covered=
-        bitmap_bits_set(&(*scan)->covered_fields);
-      (*scan)->first_uncovered_field=
-        bitmap_get_first(&(*scan)->covered_fields);
-    }
-
-    my_qsort(ror_scan_mark, ror_scans_end-ror_scan_mark, sizeof(ROR_SCAN_INFO*),
-             (qsort_cmp)cmp_ror_scan_info_covering);
-
-    /* I=I-first(I) */
-    total_cost += (*ror_scan_mark)->index_read_cost;
-    records += (*ror_scan_mark)->records;
-
-    trace_idx.add_utf8(param->table->key_info[(*ror_scan_mark)->keynr].name);
-
-    if (total_cost > read_time)
-    {
-      trace_idx.end();
-      trace_covering.add("chosen", false).add_alnum("cause", "cost");
-      DBUG_RETURN(NULL);
-    }
-    /* F=F-covered by first(I) */
-    bitmap_union(covered_fields, &(*ror_scan_mark)->covered_fields);
-    all_covered= bitmap_is_subset(&param->needed_fields, covered_fields);
-  } while ((++ror_scan_mark < ror_scans_end) && !all_covered);
-
-  trace_idx.end();
-  
-  if (!all_covered)
-  {
-    trace_covering.add("covering", false).add("chosen", false);
-    DBUG_RETURN(NULL);
-  }
-  trace_covering.add("covering", true);
-  if (unlikely((ror_scan_mark < ror_scans_end) && trace->is_started()))
-  {
-    Opt_trace_array ota(trace, "not_included_indices");
-    for (ROR_SCAN_INFO **remaining_idx= ror_scan_mark;
-         remaining_idx < ror_scans_end; remaining_idx++)
-      ota.add_utf8(param->table->key_info[(*remaining_idx)->keynr].name);
-  }
-
-  if ((ror_scan_mark - tree->ror_scans) == 1)
-  {
-    trace_covering.add("chosen", false).
-      add_alnum("cause", "only_one_index");
-    DBUG_RETURN(NULL);
-  }
-
-  /*
-    Ok, [tree->ror_scans .. ror_scan) holds covering index_intersection with
-    cost total_cost.
-  */
-  DBUG_PRINT("info", ("Covering ROR-intersect scans cost: %g", total_cost));
-
-  /* Add priority queue use cost. */
-  total_cost += rows2double(records) *
-                log((double)(ror_scan_mark - tree->ror_scans)) *
-                ROWID_COMPARE_COST / M_LN2;
-  DBUG_PRINT("info", ("Covering ROR-intersect full cost: %g", total_cost));
-
-  if (total_cost > read_time)
-  {
-    trace_covering.add("chosen", false).add_alnum("cause", "cost");
-    DBUG_RETURN(NULL);
-  }
-
-  TRP_ROR_INTERSECT *trp;
-  if (!(trp= new (param->mem_root) TRP_ROR_INTERSECT))
-    DBUG_RETURN(trp);
-  uint best_num= (ror_scan_mark - tree->ror_scans);
-  if (!(trp->first_scan= (ROR_SCAN_INFO**)alloc_root(param->mem_root,
-                                                     sizeof(ROR_SCAN_INFO*)*
-                                                     best_num)))
-    DBUG_RETURN(NULL);
-  memcpy(trp->first_scan, tree->ror_scans, best_num*sizeof(ROR_SCAN_INFO*));
-  trp->last_scan=  trp->first_scan + best_num;
-  trp->is_covering= TRUE;
-  trp->read_cost= total_cost;
-  trp->records= records;
-  trp->cpk_scan= NULL;
-  set_if_smaller(param->table->quick_condition_rows, records); 
-
-  trace_covering.add("rows", trp->records).
-    add("cost", trp->read_cost).
-    add("chosen", true);
-
-  DBUG_RETURN(trp);
-}
-
 
 /*
   Get best "range" table read plan for given SEL_TREE, also update some info
@@ -6180,6 +6098,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
             param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
 	  DBUG_RETURN(0);	// out of memory
 	tree=tree_and(param,tree,new_tree);
+        dbug_print_tree("after_and", tree, param);
 	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
 	  break;
       }
@@ -6196,11 +6115,13 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 	  if (!new_tree)
 	    DBUG_RETURN(0);	// out of memory
 	  tree=tree_or(param,tree,new_tree);
+          dbug_print_tree("after_or", tree, param);
 	  if (!tree || tree->type == SEL_TREE::ALWAYS)
 	    break;
 	}
       }
     }
+    dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
   /* 
@@ -6220,6 +6141,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     tree= cond->val_int() ? new(tmp_root) SEL_TREE(SEL_TREE::ALWAYS) :
                             new(tmp_root) SEL_TREE(SEL_TREE::IMPOSSIBLE);
     param->thd->mem_root= tmp_root;
+    dbug_print_tree("tree_returned", tree, param);
     DBUG_RETURN(tree);
   }
 
@@ -6322,6 +6244,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       }
     }
     
+    dbug_print_tree("tree_returned", ftree, param);
     DBUG_RETURN(ftree);
   }
   default:
@@ -6358,6 +6281,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     }
   }
 
+  dbug_print_tree("tree_returned", ftree, param);
   DBUG_RETURN(ftree);
 }
 
@@ -7058,6 +6982,10 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     tree1->type=SEL_TREE::KEY_SMALLER;
     DBUG_RETURN(tree1);
   }
+
+  dbug_print_tree("tree1", tree1, param);
+  dbug_print_tree("tree2", tree2, param);
+
   key_map  result_keys;
   
   /* Join the trees key per key */
@@ -7086,12 +7014,6 @@ tree_and(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     }
   }
   tree1->keys_map= result_keys;
-  /* dispose index_merge if there is a "range" option */
-  if (!result_keys.is_clear_all())
-  {
-    tree1->merges.empty();
-    DBUG_RETURN(tree1);
-  }
 
   /* ok, both trees are index_merge trees */
   imerge_list_and_list(&tree1->merges, &tree2->merges);
@@ -7112,6 +7034,9 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
   DBUG_ENTER("sel_trees_can_be_ored");
   common_keys.intersect(tree2->keys_map);
 
+  dbug_print_tree("tree1", tree1, param);
+  dbug_print_tree("tree2", tree2, param);
+
   if (common_keys.is_clear_all())
     DBUG_RETURN(FALSE);
 
@@ -7124,9 +7049,7 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
       key1= tree1->keys + key_no;
       key2= tree2->keys + key_no;
       if ((*key1)->part == (*key2)->part)
-      {
         DBUG_RETURN(TRUE);
-      }
     }
   }
   DBUG_RETURN(FALSE);
@@ -10057,8 +9980,13 @@ int QUICK_RANGE_SELECT::reset()
     if (in_ror_merged_scan)
       head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
     const bool sorted= (mrr_flags & HA_MRR_SORTED);
+    DBUG_EXECUTE_IF("bug14365043_2",
+                    DBUG_SET("+d,ha_index_init_fail"););
     if ((error= file->ha_index_init(index, sorted)))
-        DBUG_RETURN(error);
+    {
+      file->print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */
@@ -12444,7 +12372,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
     ::index_first() within QUICK_GROUP_MIN_MAX_SELECT depends on it.
   */
   if ((result= head->file->ha_index_init(index, true)))
+  {
+    head->file->print_error(result, MYF(0));
     DBUG_RETURN(result);
+  }
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
   result= head->file->ha_index_last(record);
@@ -13277,16 +13208,25 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
 static void
 print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
 {
-  String tmp;
-  uint store_length;
-  TABLE *table= key_part->field->table;
+  Field *field= key_part->field;
+
+  if (field->flags & BLOB_FLAG)
+  {
+    out->append(STRING_WITH_LEN("unprintable_blob_value"));    
+    return;
+  }
+
+  char buff[128];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  tmp.length(0);
+
+  TABLE *table= field->table;
   my_bitmap_map *old_sets[2];
 
   dbug_tmp_use_all_columns(table, old_sets, table->read_set,
                            table->write_set);
 
-  Field *field= key_part->field;
-  store_length= key_part->store_length;
+  uint store_length= key_part->store_length;
 
   if (field->real_maybe_null())
   {
@@ -13407,10 +13347,189 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
     }
     keypart_range= keypart_range->next;
   }
-
 }
 
 #endif //OPTIMIZER_TRACE
+
+#ifndef DBUG_OFF
+
+/**
+  Traverse an R-B tree of range conditions and append all ranges for
+  this keypart and consecutive keyparts to a String. See description
+  of R-B trees/SEL_ARG for details on how ranges are linked.
+
+  @see trace_range_all_keyparts
+
+  @param[in,out] range_result  The string where range predicates are
+                               appended when the last keypart has
+                               been reached.
+  @param[in]     range_so_far  String containing ranges for keyparts prior
+                               to this keypart.
+  @param[in]     keypart_root  The root of the R-B tree containing intervals
+                               for this keypart.
+  @param[in]     key_parts     Index components description, used when adding
+                               information to the optimizer trace
+*/
+static void print_range_all_keyparts(String *range_result,
+                                     String *range_so_far,
+                                     SEL_ARG *keypart_root,
+                                     const KEY_PART_INFO *key_parts)
+{
+  DBUG_ASSERT(keypart_root && keypart_root != &null_element);
+
+  // Navigate to first interval in red-black tree
+  const KEY_PART_INFO *cur_key_part= key_parts + keypart_root->part;
+  const SEL_ARG *keypart_range= keypart_root->first();
+
+  const uint save_range_so_far_length= range_so_far->length();
+
+  while (keypart_range)
+  {
+    /*
+      Skip the rest if the string becomes too long to avoid OOM.
+      Printing very long range conditions normally doesn't make sense
+      either.
+     */
+    if (range_result->length() > 500)
+    {
+      range_result->append(STRING_WITH_LEN("..."));
+      break;
+    }
+
+    // Append the current range to the range String
+    append_range(range_so_far, cur_key_part,
+                 keypart_range->min_value, keypart_range->max_value,
+                 keypart_range->min_flag | keypart_range->max_flag);
+
+    if (keypart_range->next_key_part)
+    {
+      // Not done - there are ranges in consecutive keyparts as well
+      print_range_all_keyparts(range_result, range_so_far,
+                               keypart_range->next_key_part, key_parts);
+    }
+    else
+    {
+      /*
+        This is the last keypart with a range. Print full range
+        info to range_result
+      */
+      if (range_result->length() == 0)
+        range_result->append(STRING_WITH_LEN("("));
+      else
+        range_result->append(STRING_WITH_LEN(" OR ("));
+
+      range_result->append(range_so_far->ptr(), range_so_far->length());
+      range_result->append(STRING_WITH_LEN(")"));
+    }
+    keypart_range= keypart_range->next;
+    /*
+      Now moving to next range for this keypart, so "reset"
+      range_so_far to include only range description of earlier
+      keyparts
+    */
+    range_so_far->length(save_range_so_far_length);
+  }
+}
+
+#endif // DBUG_OFF
+
+/**
+  Print the ranges in a SEL_TREE to debug log.
+
+  @param tree_name   Descriptive name of the tree
+  @param tree        The SEL_TREE that will be printed to debug log
+  @param param       PARAM from SQL_SELECT::test_quick_select
+*/
+static inline void dbug_print_tree(const char *tree_name,
+                                   SEL_TREE *tree,
+                                   const RANGE_OPT_PARAM *param)
+{
+#ifndef DBUG_OFF
+  if (!param->using_real_indexes)
+  {
+    DBUG_PRINT("info",
+               ("sel_tree: "
+                "%s uses a partitioned index and cannot be printed",
+                tree_name));
+    return;
+  }
+
+  if (!tree)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is NULL", tree_name));
+    return;
+  }
+
+  if (tree->type == SEL_TREE::IMPOSSIBLE)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is IMPOSSIBLE", tree_name));
+    return;
+  }
+
+  if (tree->type == SEL_TREE::ALWAYS)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is ALWAYS", tree_name));
+    return;
+  }
+
+  if (tree->type == SEL_TREE::MAYBE)
+  {
+    DBUG_PRINT("info", ("sel_tree: %s is MAYBE", tree_name));
+    return;
+  }
+
+  if (!tree->merges.is_empty())
+  {
+    DBUG_PRINT("info",
+               ("sel_tree: "
+                "%s contains the following merges", tree_name));
+
+    List_iterator<SEL_IMERGE> it(tree->merges);
+    int i= 0;
+    for (SEL_IMERGE *el= it++; el; el= it++, i++)
+    {
+      for (SEL_TREE** current= el->trees;
+           current != el->trees_next;
+           current++)
+        dbug_print_tree("  merge_tree", *current, param);
+    }
+  }
+
+  for (uint i= 0; i< param->keys; i++)
+  {
+    if (tree->keys[i] == NULL || tree->keys[i] == &null_element)
+      continue;
+
+    uint real_key_nr= param->real_keynr[i];
+
+    const KEY &cur_key= param->table->key_info[real_key_nr];
+    const KEY_PART_INFO *key_part= cur_key.key_part;
+
+    /*
+      String holding the final range description from
+      print_range_all_keyparts()
+    */
+    char buff1[512];
+    String range_result(buff1, sizeof(buff1), system_charset_info);
+    range_result.length(0);
+
+    /*
+      Range description up to a certain keypart - used internally in
+      print_range_all_keyparts()
+    */
+    char buff2[128];
+    String range_so_far(buff2, sizeof(buff2), system_charset_info);
+    range_so_far.length(0);
+
+    print_range_all_keyparts(&range_result, &range_so_far,
+                             tree->keys[i], key_part);
+
+    DBUG_PRINT("info",
+               ("sel_tree: %s->keys[%d(real_keynr: %d)]: %s",
+                tree_name, i, real_key_nr, range_result.ptr()));
+  }
+#endif
+}
 
 /*****************************************************************************
 ** Print a quick range for debugging

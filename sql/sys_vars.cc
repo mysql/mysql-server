@@ -788,10 +788,10 @@ static Sys_var_mybool Sys_binlog_direct(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
 /**
-  This variable is not visible to and is read only to users. It can be
-  enabled or disabled only at mysqld startup. This variable is used by
-  User thread and as well as by replication slave applier thread to apply
-  relay_log. Slave applier thread enables/disables this option based on
+  This variable is read only to users. It can be enabled or disabled
+  only at mysqld startup. This variable is used by User thread and
+  as well as by replication slave applier thread to apply relay_log.
+  Slave applier thread enables/disables this option based on
   relay_log's from replication master versions. There is possibility of
   slave applier thread and User thread to have different setting for
   explicit_defaults_for_timestamp, hence this options is defined as
@@ -803,7 +803,7 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
        "as NULL with DEFAULT NULL attribute, Without this option, "
        "TIMESTAMP columns are NOT NULL and have implicit DEFAULT clauses. "
        "The old behavior is deprecated.",
-       READ_ONLY NOT_VISIBLE SESSION_VAR(explicit_defaults_for_timestamp),
+       READ_ONLY SESSION_VAR(explicit_defaults_for_timestamp),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
@@ -838,18 +838,23 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
         }
         break;
         case SLAVE_THD_SQL:
-          /*
-            The worker repositories will be migrated when the SQL Thread is start up.
-            We may decide to change this behavior in the future if people think that
-            this is odd. /Alfranio
-          */
-          if (Rpl_info_factory::change_rli_repository(active_mi->rli,
-                                                      var->save_result.ulonglong_value,
-                                                      &msg))
+          mts_recovery_groups(active_mi->rli);
+          if (!active_mi->rli->is_mts_recovery())
           {
-            ret= TRUE;
-            my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+            if (Rpl_info_factory::reset_workers(active_mi->rli) ||
+                Rpl_info_factory::change_rli_repository(active_mi->rli,
+                                                        var->save_result.ulonglong_value,
+                                                        &msg))
+            {
+              ret= TRUE;
+              my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+            }
           }
+          else
+            sql_print_warning("It is not possible to change the type of the "
+                              "relay log's repository because there are workers' "
+                              "repositories with gaps. Please, fix the gaps first "
+                              "before doing such change.");
         break;
         default:
           assert(0);

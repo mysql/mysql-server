@@ -1248,8 +1248,7 @@ row_merge_read_clustered_index(
 					/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong			autoinc_inc,
-					/*!< in: auto_increment_increment */
+	ib_sequence_t&		sequence,/*!< in/out: autoinc sequence */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
@@ -1375,9 +1374,6 @@ row_merge_read_clustered_index(
 		page_cur_move_to_next(cur);
 
 		if (page_cur_is_after_last(cur)) {
-			ulint		next_page_no;
-			buf_block_t*	block;
-
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
 				trx->error_key_num = 0;
@@ -1391,67 +1387,97 @@ row_merge_read_clustered_index(
 					goto func_exit;
 				}
 			}
+#ifdef DBUG_OFF
+# define dbug_run_purge	false
+#else /* DBUG_OFF */
+			bool	dbug_run_purge = false;
+#endif /* DBUG_OFF */
+			DBUG_EXECUTE_IF(
+				"ib_purge_on_create_index_page_switch",
+				dbug_run_purge = true;);
 
-			if (rw_lock_get_waiters(
+			if (dbug_run_purge
+			    || rw_lock_get_waiters(
 				    dict_index_get_lock(clust_index))) {
-				ibool	on_user_rec;
-
 				/* There are waiters on the clustered
 				index tree lock, likely the purge
 				thread. Store and restore the cursor
 				position, and yield so that scanning a
 				large table will not starve other
 				threads. */
+
+				/* Store the cursor position on the last user
+				record on the page. */
+				btr_pcur_move_to_prev_on_page(&pcur);
+				/* Leaf pages must never be empty, unless
+				this is the only page in the index tree. */
+				ut_ad(btr_pcur_is_on_user_rec(&pcur)
+				      || buf_block_get_page_no(
+					      btr_pcur_get_block(&pcur))
+				      == clust_index->page);
+
 				btr_pcur_store_position(&pcur, &mtr);
-				ut_ad(pcur.rel_pos == BTR_PCUR_AFTER
-				      || pcur.rel_pos
-				      == BTR_PCUR_AFTER_LAST_IN_TREE);
 				mtr_commit(&mtr);
+
+				if (dbug_run_purge) {
+					/* This is for testing
+					purposes only (see
+					DBUG_EXECUTE_IF above).  We
+					signal the purge thread and
+					hope that the purge batch will
+					complete before we execute
+					btr_pcur_restore_position(). */
+					trx_purge_run();
+					os_thread_sleep(1000000);
+				}
 
 				/* Give the waiters a chance to proceed. */
 				os_thread_yield();
 
 				mtr_start(&mtr);
-				/* This should always return FALSE.
-				Normally, pcur should remain
-				positioned on the page supremum. When
-				another thread happened to insert a
-				record or reorganize the tree, the
-				cursor would be positioned on the
-				successor of the predecessor of the
-				former supremum, and we would have to
-				resume processing from there. */
-				on_user_rec = btr_pcur_restore_position(
+				/* Restore position on the record, or its
+				predecessor if the record was purged
+				meanwhile. */
+				btr_pcur_restore_position(
 					BTR_SEARCH_LEAF, &pcur, &mtr);
-				ut_a(!on_user_rec);
-			}
-
-			next_page_no = btr_page_get_next(
-				page_cur_get_page(cur), &mtr);
-
-			if (next_page_no == FIL_NULL) {
-				row = NULL;
-				mtr_commit(&mtr);
-				mem_heap_free(row_heap);
-				if (nonnull) {
-					mem_free(nonnull);
+				/* Move to the successor of the
+				original record. */
+				if (!btr_pcur_move_to_next_user_rec(
+					    &pcur, &mtr)) {
+end_of_index:
+					row = NULL;
+					mtr_commit(&mtr);
+					mem_heap_free(row_heap);
+					if (nonnull) {
+						mem_free(nonnull);
+					}
+					goto write_buffers;
 				}
-				goto write_buffers;
+			} else {
+				ulint		next_page_no;
+				buf_block_t*	block;
+
+				next_page_no = btr_page_get_next(
+					page_cur_get_page(cur), &mtr);
+
+				if (next_page_no == FIL_NULL) {
+					goto end_of_index;
+				}
+
+				block = page_cur_get_block(cur);
+				block = btr_block_get(
+					buf_block_get_space(block),
+					buf_block_get_zip_size(block),
+					next_page_no, BTR_SEARCH_LEAF,
+					clust_index, &mtr);
+
+				btr_leaf_page_release(page_cur_get_block(cur),
+						      BTR_SEARCH_LEAF, &mtr);
+				page_cur_set_before_first(block, cur);
+				page_cur_move_to_next(cur);
+
+				ut_ad(!page_cur_is_after_last(cur));
 			}
-
-			block = page_cur_get_block(cur);
-			block = btr_block_get(
-				buf_block_get_space(block),
-				buf_block_get_zip_size(block),
-				next_page_no, BTR_SEARCH_LEAF,
-				clust_index, &mtr);
-
-			btr_leaf_page_release(page_cur_get_block(cur),
-					      BTR_SEARCH_LEAF, &mtr);
-			page_cur_set_before_first(block, cur);
-			page_cur_move_to_next(cur);
-
-			ut_ad(!page_cur_is_after_last(cur));
 		}
 
 		rec = page_cur_get_rec(cur);
@@ -1545,54 +1571,51 @@ row_merge_read_clustered_index(
 		}
 
 		if (add_autoinc != ULINT_UNDEFINED) {
+
 			ut_ad(add_autoinc
 			      < dict_table_get_n_user_cols(new_table));
 
-			dfield_t*	field	= dtuple_get_nth_field(
-				row, add_autoinc);
-			byte*	b	= static_cast<byte*>(
-				dfield_get_data(field));
+			const dfield_t*	dfield;
 
-			/* Increment the auto-increment column value.
-			Signed and unsigned fields should behave
-			the same with respect to this.
+			dfield = dtuple_get_nth_field(row, add_autoinc);
 
-			NOTE: we ignore any wrap-around or overflows
-			here. Wrap-around could cause a
-			cmp_dtuple_rec() debug assertion failure in
-			row_merge_insert_index_tuples(). */
-			switch (dfield_get_len(field)) {
-			case 1:
-				*b += autoinc_inc;
-				goto write_buffers;
-			case 2:
-				mach_write_to_2(b, mach_read_from_2(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 3:
-				mach_write_to_3(b, mach_read_from_3(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 4:
-				mach_write_to_4(b, mach_read_from_4(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 6:
-				mach_write_to_6(b, mach_read_from_6(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 7:
-				mach_write_to_7(b, mach_read_from_7(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 8:
-				mach_write_to_8(b, mach_read_from_8(b)
-						+ autoinc_inc);
-				goto write_buffers;
+			const dtype_t*  dtype = dfield_get_type(dfield);
+			byte*	b = static_cast<byte*>(dfield_get_data(dfield));
+
+			if (sequence.eof()) {
+				err = DB_ERROR;
+				trx->error_key_num = 0;
+
+				ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+					ER_AUTOINC_READ_FAILED, "[NULL]");
+
+				goto func_exit;
 			}
 
-			/* This should not happen. */
-			ut_ad(0);
+			ulonglong	value = sequence++;
+
+			switch (dtype_get_mtype(dtype)) {
+			case DATA_INT: {
+				ibool	usign;
+				ulint	len = dfield_get_len(dfield);
+
+				usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
+				mach_write_ulonglong(b, value, len, usign);
+
+				break;
+				}
+
+			case DATA_FLOAT:
+				mach_float_write(b, value);
+				break;
+
+			case DATA_DOUBLE:
+				mach_double_write(b, value);
+				break;
+
+			default:
+				ut_ad(0);
+			}
 		}
 
 write_buffers:
@@ -2778,7 +2801,8 @@ row_merge_drop_indexes(
 				In inplace_alter_table(),
 				row_merge_build_indexes()
 				should never leave the index in this state.
-				It would invoke row_log_abort_sec() on failure. */
+				It would invoke row_log_abort_sec() on
+				failure. */
 			case ONLINE_INDEX_COMPLETE:
 				/* In these cases, we are able to drop
 				the index straight. The DROP INDEX was
@@ -3402,7 +3426,8 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
+	ib_sequence_t&	sequence)	/*!< in: autoinc instance if
+					add_autoinc != ULINT_UNDEFINED */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3474,7 +3499,7 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map,
-		add_autoinc, autoinc_inc, block);
+		add_autoinc, sequence, block);
 
 	if (error != DB_SUCCESS) {
 

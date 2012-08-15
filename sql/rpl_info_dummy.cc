@@ -21,68 +21,68 @@ Rpl_info_dummy::Rpl_info_dummy(const int nparam)
 {
 }
 
-int Rpl_info_dummy::do_init_info(const ulong *uidx __attribute__((unused)),
-                                const uint nidx __attribute__((unused)))
+int Rpl_info_dummy::do_init_info(uint instance __attribute__((unused)))
 {
   return 0;
 }
 
-int Rpl_info_dummy::do_prepare_info_for_read(const uint nidx
-                                             __attribute__((unused)))
+int Rpl_info_dummy::do_init_info()
 {
-  if (abort) DBUG_ASSERT(0);
+  return 0;
+}
+
+int Rpl_info_dummy::do_prepare_info_for_read()
+{
+  DBUG_ASSERT(!abort);
   cursor= 0;
   return 0;
 }
 
-int Rpl_info_dummy::do_prepare_info_for_write(const uint nidx
-                                              __attribute__((unused)))
+int Rpl_info_dummy::do_prepare_info_for_write()
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
   cursor= 0;
   return 0;
 }
 
-enum_return_check Rpl_info_dummy::do_check_info(const ulong *uidx __attribute__((unused)),
-                                                const uint nidx __attribute__((unused)))
+enum_return_check Rpl_info_dummy::do_check_info()
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
   return REPOSITORY_DOES_NOT_EXIST;
 }
 
-int Rpl_info_dummy::do_flush_info(const ulong *uidx __attribute__((unused)),
-                                 const uint nidx __attribute__((unused)),
-                                 const bool force __attribute__((unused)))
+enum_return_check Rpl_info_dummy::do_check_info(uint instance __attribute__((unused)))
 {
-  if (abort) DBUG_ASSERT(0);
+  DBUG_ASSERT(!abort);
+  return REPOSITORY_DOES_NOT_EXIST;
+}
+
+int Rpl_info_dummy::do_flush_info(const bool force __attribute__((unused)))
+{
+  DBUG_ASSERT(!abort);
   return 0;
 }
 
-void Rpl_info_dummy::do_end_info(const ulong *uidx __attribute__((unused)),
-                                const uint nidx __attribute__((unused)))
+void Rpl_info_dummy::do_end_info()
 {
   return;
 }
 
-int Rpl_info_dummy::do_reset_info(const int nparam)
+int Rpl_info_dummy::do_remove_info()
 {
-  Rpl_info_dummy* info= NULL;
-
-  if (!(info= new Rpl_info_dummy(nparam)))
-    return 1;
-
-  DBUG_ASSERT(!info->abort);
-
-  delete info;
+  DBUG_ASSERT(!abort);
   return 0;
 }
 
-int Rpl_info_dummy::do_remove_info(const ulong *uidx __attribute__((unused)),
-                                  const uint nidx __attribute__((unused)))
+int Rpl_info_dummy::do_clean_info()
 {
   DBUG_ASSERT(!abort);
-
   return 0;
+}
+
+uint Rpl_info_dummy::do_get_rpl_info_type()
+{
+  return INFO_REPOSITORY_DUMMY;
 }
 
 bool Rpl_info_dummy::do_set_info(const int pos __attribute__((unused)),

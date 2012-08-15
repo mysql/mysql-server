@@ -802,6 +802,7 @@ mach_swap_byte_order(
         case 1: *--dest = *from;
         }
 }
+
 /*************************************************************
 Convert integral type from host byte order (big-endian) storage
 byte order. */
@@ -809,22 +810,47 @@ UNIV_INLINE
 void
 mach_write_int_type(
 /*================*/
-        byte*           dest,           /*!< in: where to write*/
-        const byte*     src,            /*!< in: where to read from */
-        ulint           len,            /*!< in: length of src */
-        ibool           usign)          /*!< in: signed or unsigned flag */
+	byte*		dest,		/*!< in: where to write */
+	const byte*	src,		/*!< in: where to read from */
+	ulint		len,		/*!< in: length of src */
+	bool		usign)		/*!< in: signed or unsigned flag */
 {
 #ifdef WORDS_BIGENDIAN
         memcpy(dest, src, len);
 #else
         mach_swap_byte_order(dest, src, len);
+#endif /* WORDS_BIGENDIAN */
 
-#endif
-        if (!usign) {
-
-                *dest ^=  0x80;
-        }
+	if (!usign) {
+		*dest ^=  0x80;
+	}
 }
 
+/*************************************************************
+Convert a ulonglong integer from host byte order to (big-endian)
+storage byte order. */
+UNIV_INLINE
+void
+mach_write_ulonglong(
+/*=================*/
+	byte*		dest,		/*!< in: where to write */
+	ulonglong	src,		/*!< in: where to read from */
+	ulint		len,		/*!< in: length of dest */
+	bool		usign)		/*!< in: signed or unsigned flag */
+{
+	byte*		ptr = reinterpret_cast<byte*>(&src);
+
+	ut_ad(len <= sizeof(ulonglong));
+
+#ifdef WORDS_BIGENDIAN
+	memcpy(dest, ptr + (sizeof(src) - len), len);
+#else
+	mach_swap_byte_order(dest, reinterpret_cast<byte*>(ptr), len);
+#endif /* WORDS_BIGENDIAN */
+
+	if (!usign) {
+		*dest ^=  0x80;
+	}
+}
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */

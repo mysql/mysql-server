@@ -1836,6 +1836,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 
   if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL))
   {
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
     goto err;
   }
