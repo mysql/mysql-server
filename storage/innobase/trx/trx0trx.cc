@@ -703,8 +703,8 @@ trx_start_low(
 	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
 
 	trx->read_only =
-		!trx->ddl
-		&& thd_trx_is_read_only(trx->mysql_thd);
+		(!trx->ddl && thd_trx_is_read_only(trx->mysql_thd))
+		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
 		++trx->will_lock;

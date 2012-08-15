@@ -2923,6 +2923,8 @@ row_import_for_mysql(
 	char		table_name[MAX_FULL_NAME_LEN + 1];
 	char*		filepath = NULL;
 
+	ut_ad(!srv_read_only_mode);
+
 	innobase_format_name(
 		table_name, sizeof(table_name), table->name, FALSE);
 

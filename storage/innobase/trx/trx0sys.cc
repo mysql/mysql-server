@@ -179,13 +179,17 @@ trx_sys_flush_max_trx_id(void)
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	mtr_start(&mtr);
+	if (!srv_read_only_mode) {
+		mtr_start(&mtr);
 
-	sys_header = trx_sysf_get(&mtr);
+		sys_header = trx_sysf_get(&mtr);
 
-	mlog_write_ull(sys_header + TRX_SYS_TRX_ID_STORE,
-		       trx_sys->max_trx_id, &mtr);
-	mtr_commit(&mtr);
+		mlog_write_ull(
+			sys_header + TRX_SYS_TRX_ID_STORE,
+			trx_sys->max_trx_id, &mtr);
+
+		mtr_commit(&mtr);
+	}
 }
 
 /*****************************************************************//**

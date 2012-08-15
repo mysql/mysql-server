@@ -222,7 +222,9 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	} else if (srv_created_new_raw || srv_force_recovery) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -2963,6 +2965,10 @@ ha_innobase::prepare_inplace_alter_table(
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
 
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
+	}
+
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
 #ifdef UNIV_DEBUG
@@ -3558,6 +3564,11 @@ ha_innobase::inplace_alter_table(
 	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
+
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
@@ -4135,6 +4146,8 @@ ha_innobase::commit_inplace_alter_table(
 	trx_t*				trx;
 	int				err	= 0;
 	bool				new_clustered;
+
+	ut_ad(!srv_read_only_mode);
 
 	DBUG_ENTER("commit_inplace_alter_table");
 
