@@ -42,3 +42,11 @@ select * from t1;
 drop table t2;
 unlock tables;
 drop table t1;
+
+#
+# MDEV-366: lock table twice with LOCK TABLES and then drop it
+#
+
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+LOCK TABLES t1 WRITE, t1 AS t1a WRITE;
+DROP TABLE t1;

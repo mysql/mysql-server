@@ -27,3 +27,6 @@ i
 drop table t2;
 unlock tables;
 drop table t1;
+CREATE TABLE t1 (i INT) ENGINE=Aria;
+LOCK TABLES t1 WRITE, t1 AS t1a WRITE;
+DROP TABLE t1;
