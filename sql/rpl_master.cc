@@ -313,10 +313,10 @@ static uint8 get_binlog_checksum_value_at_connect(THD * thd)
   }
   else
   {
-    DBUG_ASSERT(entry->type == STRING_RESULT);
+    DBUG_ASSERT(entry->type() == STRING_RESULT);
     String str;
     uint dummy_errors;
-    str.copy(entry->value, entry->length, &my_charset_bin, &my_charset_bin,
+    str.copy(entry->ptr(), entry->length(), &my_charset_bin, &my_charset_bin,
              &dummy_errors);
     ret= (uint8) find_type ((char*) str.ptr(), &binlog_checksum_typelib, 1) - 1;
     DBUG_ASSERT(ret <= BINLOG_CHECKSUM_ALG_CRC32); // while it's just on CRC32 alg
@@ -1611,9 +1611,9 @@ String *get_slave_uuid(THD *thd, String *value)
     return NULL;
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
-  if (entry && entry->length > 0)
+  if (entry && entry->length() > 0)
   {
-    value->copy(entry->value, entry->length, NULL);
+    value->copy(entry->ptr(), entry->length(), NULL);
     return value;
   }
   else

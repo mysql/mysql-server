@@ -4561,20 +4561,181 @@ public:
 // this is needed for user_vars hash
 class user_var_entry
 {
- public:
-  user_var_entry() {}                         /* Remove gcc warning */
-  LEX_STRING name;
-  char *value;
-  ulong length;
-  query_id_t update_query_id, used_query_id;
-  Item_result type;
-  bool unsigned_flag;
+  static const size_t extra_size= sizeof(double);
+  char *m_ptr;          // Value
+  ulong m_length;       // Value length
+  Item_result m_type;   // Value type
 
+  void reset_value()
+  { m_ptr= NULL; m_length= 0; }
+  void set_value(char *value, ulong length)
+  { m_ptr= value; m_length= length; }
+
+  /**
+    Position inside a user_var_entry where small values are stored:
+    double values, longlong values and string values with length
+    up to extra_size (should be 8 bytes on all platforms).
+    String values with length longer than 8 are stored in a separate
+    memory buffer, which is allocated when needed using the method realloc().
+  */
+  char *internal_buffer_ptr() const
+  { return (char *) this + ALIGN_SIZE(sizeof(user_var_entry)); }
+
+  /**
+    Position inside a user_var_entry where a null-terminates array
+    of characters representing the variable name is stored.
+  */
+  char *name_ptr() const
+  { return internal_buffer_ptr() + extra_size; }
+
+  /**
+    Initialize m_ptr to the internal buffer (if the value is small enough),
+    or allocate a separate buffer.
+    @param length - length of the value to be stored.
+  */
+  bool realloc(uint length);
+
+  /**
+    Check if m_ptr point to an external buffer previously alloced by realloc().
+    @retval true  - an external buffer is alloced.
+    @retval false - m_ptr is null, or points to the internal buffer.
+  */
+  bool alloced()
+  { return m_ptr && m_ptr != internal_buffer_ptr(); }
+
+  /**
+    Free the external value buffer, if it's allocated.
+  */
+  void free_value()
+  {
+    if (alloced())
+      my_free(m_ptr);
+  }
+
+  /**
+    Copy the array of characters from the given name into the internal
+    name buffer and initialize entry_name to point to it.
+  */
+  void copy_name(const Simple_cstring &name)
+  {
+    name.strcpy(name_ptr());
+    entry_name= Name_string(name_ptr(), name.length());
+  }
+
+  /**
+    Initialize all members
+    @param name - Name of the user_var_entry instance.
+  */
+  void init(const Simple_cstring &name)
+  {
+    copy_name(name);
+    reset_value();
+    update_query_id= 0;
+    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    unsigned_flag= 0;
+    /*
+      If we are here, we were called from a SET or a query which sets a
+      variable. Imagine it is this:
+      INSERT INTO t SELECT @a:=10, @a:=@a+1.
+      Then when we have a Item_func_get_user_var (because of the @a+1) so we
+      think we have to write the value of @a to the binlog. But before that,
+      we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+      the variable as "already logged" (line below) so that it won't be logged
+      by Item_func_get_user_var (because that's not necessary).
+    */
+    used_query_id= current_thd->query_id;
+    set_type(STRING_RESULT);
+  }
+
+  /**
+    Store a value of the given type into a user_var_entry instance.
+    @param from    Value
+    @param length  Size of the value
+    @param type    type
+    @return
+    @retval        false on success
+    @retval        true on memory allocation error
+  */
+  bool store(void *from, uint length, Item_result type);
+
+public:
+  user_var_entry() {}                         /* Remove gcc warning */
+
+  Simple_cstring entry_name;  // Variable name
+  DTCollation collation;      // Collation with attributes
+  query_id_t update_query_id, used_query_id;
+  bool unsigned_flag;         // true if unsigned, false if signed
+
+  /**
+    Store a value of the given type and attributes (collation, sign)
+    into a user_var_entry instance.
+    @param from         Value
+    @param length       Size of the value
+    @param type         type
+    @param cs           Character set and collation of the value
+    @param dv           Collationd erivation of the value
+    @param unsigned_arg Signess of the value
+    @return
+    @retval        false on success
+    @retval        true on memory allocation error
+  */
+  bool store(void *from, uint length, Item_result type,
+             const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
+  /**
+    Set type of to the given value.
+    @param type  Data type.
+  */
+  void set_type(Item_result type) { m_type= type; }
+  /**
+    Set value to NULL
+    @param type  Data type.
+  */
+
+  void set_null_value(Item_result type)
+  {
+    free_value();
+    reset_value();
+    set_type(type);
+  }
+
+  /**
+    Allocate and initialize a user variable instance.
+    @param namec  Name of the variable.
+    @return
+    @retval  Address of the allocated and initialized user_var_entry instance.
+    @retval  NULL on allocation error.
+  */
+  static user_var_entry *create(const Name_string &name)
+  {
+    user_var_entry *entry;
+    uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
+               (name.length() + 1) + extra_size;
+    if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
+                                                       ME_FATALERROR))))
+      return NULL;
+    entry->init(name);
+    return entry;
+  }
+
+  /**
+    Free all memory used by a user_var_entry instance
+    previously created by create().
+  */
+  void destroy()
+  {
+    free_value();  // Free the external value buffer
+    my_free(this); // Free the instance itself
+  }
+
+  /* Routines to access the value and its type */
+  const char *ptr() const { return m_ptr; }
+  ulong length() const { return m_length; }
+  Item_result type() const { return m_type; }
+  /* Item-alike routines to access the value */
   double val_real(my_bool *null_value);
   longlong val_int(my_bool *null_value) const;
   String *val_str(my_bool *null_value, String *str, uint decimals);
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
-  DTCollation collation;
 };
 
 /*
