@@ -6657,7 +6657,7 @@ double JOIN::get_examined_rows()
   while ((tab= next_breadth_first_tab(this, tab)))
   {
     prev_fanout *= prev_tab->records_read;
-    examined_rows+= tab->get_examined_rows() * prev_fanout;
+    examined_rows+= (ha_rows) (tab->get_examined_rows() * prev_fanout);
     prev_tab= tab;
   }
   return examined_rows;

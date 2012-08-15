@@ -8418,9 +8418,10 @@ ha_innobase::info_low(
 				                }
                                                 else if (rec_per_key > 1) {
                                                         rec_per_key =
-                                                        k_rec_per_key *
-						        (double)rec_per_key /
-							n_rows;
+                                                        (ha_rows)
+                                                          (k_rec_per_key *
+						          (double)rec_per_key /
+                                                           n_rows);
 						}
                                                 
 				                key_info->rec_per_key[k++]=
