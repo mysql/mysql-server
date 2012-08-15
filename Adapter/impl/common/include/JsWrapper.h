@@ -86,7 +86,25 @@ PTR unwrapPointer(Local<Object> obj) {
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
   ptr = static_cast<PTR>(obj->GetPointerFromInternalField(1));
-  DEBUG_PRINT("Unwrapping %s: %p", env->classname, ptr);
+  DEBUG_PRINT_DETAIL("Unwrapping %s: %p", env->classname, ptr);
   return ptr;
 }
+
+
+/*****************************************************************
+ Capture an error message from a C++ routine 
+ Provide a method to run later (in the v8 main JavaScript thread) 
+ and generate a JavaScript Error object from the message
+******************************************************************/
+class NativeCodeError {
+public:
+  const char * message;
+
+  NativeCodeError(const char * msg) : message(msg) {}
+  
+  virtual Local<Value> toJS() {
+    HandleScope scope;
+    return scope.Close(Exception::Error(String::New(message)));
+  }
+};
 
