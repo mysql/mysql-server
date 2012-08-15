@@ -320,7 +320,7 @@ ha_partition::~ha_partition()
     for (i= 0; i < m_tot_parts; i++)
       delete m_file[i];
   }
-  my_free((char*) m_ordered_rec_buffer, MYF(MY_ALLOW_ZERO_PTR));
+  destroy_record_priority_queue();
 
   clear_handler_file();
   DBUG_VOID_RETURN;
@@ -2594,7 +2594,6 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 {
   char *name_buffer_ptr;
   int error= HA_ERR_INITIALIZATION;
-  uint alloc_len;
   handler **file;
   char name_buff[FN_REFLEN];
   bool is_not_tmp_table= (table_share->tmp_table == NO_TMP_TABLE);
@@ -2612,32 +2611,6 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
   m_start_key.length= 0;
   m_rec0= table->record[0];
   m_rec_length= table_share->reclength;
-  alloc_len= m_tot_parts * (m_rec_length + PARTITION_BYTES_IN_POS);
-  alloc_len+= table_share->max_key_length;
-  if (!m_ordered_rec_buffer)
-  {
-    if (!(m_ordered_rec_buffer= (uchar*)my_malloc(alloc_len, MYF(MY_WME))))
-    {
-      DBUG_RETURN(error);
-    }
-    {
-      /*
-        We set-up one record per partition and each record has 2 bytes in
-        front where the partition id is written. This is used by ordered
-        index_read.
-        We also set-up a reference to the first record for temporary use in
-        setting up the scan.
-      */
-      char *ptr= (char*)m_ordered_rec_buffer;
-      uint i= 0;
-      do
-      {
-        int2store(ptr, i);
-        ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
-      } while (++i < m_tot_parts);
-      m_start_key.key= (const uchar*)ptr;
-    }
-  }
 
   /* Initialize the bitmap we use to minimize ha_start_bulk_insert calls */
   if (bitmap_init(&m_bulk_insert_started, NULL, m_tot_parts + 1, FALSE))
@@ -2657,7 +2630,7 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
 
   if (m_is_clone_of)
   {
-    uint i;
+    uint i, alloc_len;
     DBUG_ASSERT(m_clone_mem_root);
     /* Allocate an array of handler pointers for the partitions handlers. */
     alloc_len= (m_tot_parts + 1) * sizeof(handler*);
@@ -2733,12 +2706,6 @@ int ha_partition::open(const char *name, int mode, uint test_if_locked)
     being opened once.
   */
   clear_handler_file();
-  /*
-    Initialize priority queue, initialized to reading forward.
-  */
-  if ((error= init_queue(&m_queue, m_tot_parts, (uint) PARTITION_BYTES_IN_POS,
-                         0, key_rec_cmp, (void*)this)))
-    goto err_handler;
 
   /*
     Use table_share->ha_data to share auto_increment_value among all handlers
@@ -2861,7 +2828,7 @@ int ha_partition::close(void)
   DBUG_ENTER("ha_partition::close");
 
   DBUG_ASSERT(table->s == table_share);
-  delete_queue(&m_queue);
+  destroy_record_priority_queue();
   bitmap_free(&m_bulk_insert_started);
   if (!m_is_clone_of)
     bitmap_free(&(m_part_info->used_partitions));
@@ -4073,6 +4040,87 @@ int ha_partition::rnd_pos_by_record(uchar *record)
     subset of the partitions are used, then only use those partitions.
 */
 
+
+/**
+  Setup the ordered record buffer and the priority queue.
+*/
+
+bool ha_partition::init_record_priority_queue()
+{
+  DBUG_ENTER("ha_partition::init_record_priority_queue");
+  DBUG_ASSERT(!m_ordered_rec_buffer);
+  /*
+    Initialize the ordered record buffer.
+  */
+  if (!m_ordered_rec_buffer)
+  {
+    uint map_len, alloc_len;
+    uint used_parts= 0;
+    /* Allocate an array for mapping used partitions to their record buffer. */
+    map_len= m_tot_parts * PARTITION_BYTES_IN_POS;
+    alloc_len= map_len;
+    /* Allocate record buffer for each used partition. */
+    alloc_len+= bitmap_bits_set(&m_part_info->used_partitions) *
+                  (m_rec_length + PARTITION_BYTES_IN_POS);
+    /* Allocate a key for temporary use when setting up the scan. */
+    alloc_len+= table_share->max_key_length;
+
+    if (!(m_ordered_rec_buffer= (uchar*)my_malloc(alloc_len, MYF(MY_WME))))
+      DBUG_RETURN(true);
+
+    /*
+      We set-up one record per partition and each record has 2 bytes in
+      front where the partition id is written. This is used by ordered
+      index_read.
+      We also set-up a reference to the first record for temporary use in
+      setting up the scan.
+      No need to initialize the full map, it should only be used partitions
+      that will be read, so it is better to not set them to find possible
+      bugs through valgrind.
+    */
+    uint16 *map= (uint16*) m_ordered_rec_buffer;
+    char *ptr= (char*) m_ordered_rec_buffer + map_len;
+    uint16 i= 0;
+    do
+    {
+      if (bitmap_is_set(&m_part_info->used_partitions, i))
+      {
+        map[i]= used_parts++;
+        int2store(ptr, i);
+        ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
+      }
+    } while (++i < m_tot_parts);
+    m_start_key.key= (const uchar*)ptr;
+    /* Initialize priority queue, initialized to reading forward. */
+    if (init_queue(&m_queue, used_parts, (uint) PARTITION_BYTES_IN_POS,
+                   0, key_rec_cmp, (void*)m_curr_key_info))
+    {
+      my_free(m_ordered_rec_buffer, MYF(0));
+      m_ordered_rec_buffer= NULL;
+      DBUG_RETURN(true);
+    }
+  }
+  DBUG_RETURN(false);
+}
+
+
+/**
+  Destroy the ordered record buffer and the priority queue.
+*/
+
+void ha_partition::destroy_record_priority_queue()
+{
+  DBUG_ENTER("ha_partition::destroy_record_priority_queue");
+  if (m_ordered_rec_buffer)
+  {
+    delete_queue(&m_queue);
+    my_free(m_ordered_rec_buffer, MYF(0));
+    m_ordered_rec_buffer= NULL;
+  }
+  DBUG_VOID_RETURN;
+}
+
+
 /*
   Initialize handler before start of index scan
 
@@ -4114,6 +4162,10 @@ int ha_partition::index_init(uint inx, bool sorted)
   }
   else
     m_curr_key_info[1]= NULL;
+
+  if (init_record_priority_queue())
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+
   /*
     Some handlers only read fields as specified by the bitmap for the
     read set. For partitioned handlers we always require that the
@@ -4188,11 +4240,11 @@ int ha_partition::index_end()
   do
   {
     int tmp;
-    /* TODO RONM: Change to index_end() when code is stable */
     if (bitmap_is_set(&(m_part_info->used_partitions), (file - m_file)))
       if ((tmp= (*file)->ha_index_end()))
         error= tmp;
   } while (*(++file));
+  destroy_record_priority_queue();
   DBUG_RETURN(error);
 }
 
