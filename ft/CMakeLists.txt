@@ -71,7 +71,6 @@ set(FT_SOURCES
   txn
   txn_manager
   ule
-  workqueue
   x1764
   xids
   ybt
