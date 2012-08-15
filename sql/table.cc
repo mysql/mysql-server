@@ -3472,7 +3472,6 @@ void TABLE::init(THD *thd, TABLE_LIST *tl)
   }
 
   tablenr= thd->current_tablenr++;
-  derived_select_number= 0;
   used_fields= 0;
   const_table= 0;
   null_row= 0;
@@ -5497,6 +5496,11 @@ void TABLE_LIST::reinit_before_use(THD *thd)
 Item_subselect *TABLE_LIST::containing_subselect()
 {    
   return (select_lex ? select_lex->master_unit()->item : 0);
+}
+
+uint TABLE_LIST::query_block_id() const
+{
+  return derived ? derived->first_select()->select_number : 0;
 }
 
 /*

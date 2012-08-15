@@ -1525,10 +1525,6 @@ void JOIN::set_semijoin_info()
       break;
     case SJ_OPT_MATERIALIZE_LOOKUP:
     case SJ_OPT_MATERIALIZE_SCAN:
-      for (uint i= tableno; i < tableno + pos->n_sj_tables; i++)
-        (join_tab+i)->table->derived_select_number=
-          tab->emb_sj_nest->nested_join->query_block_id;
-      // Fall through
     case SJ_OPT_LOOSE_SCAN:
     case SJ_OPT_DUPS_WEEDOUT:
     case SJ_OPT_FIRST_MATCH:
@@ -2990,6 +2986,13 @@ uint JOIN_TAB::get_sj_strategy() const
   DBUG_ASSERT(first_sj_inner_tab->position->sj_strategy != SJ_OPT_NONE);
   return first_sj_inner_tab->position->sj_strategy;
 }
+
+uint JOIN_TAB::sjm_query_block_id() const
+{
+  return sj_is_materialize_strategy(get_sj_strategy()) ?
+    first_sj_inner_tab->emb_sj_nest->nested_join->query_block_id : 0;
+}
+
 
 /**
   Extend join_tab->m_condition and join_tab->select->cond by AND'ing

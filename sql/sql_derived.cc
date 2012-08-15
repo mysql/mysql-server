@@ -249,7 +249,6 @@ exit:
       derived->table= table;
       derived->table_name=        table->s->table_name.str;
       derived->table_name_length= table->s->table_name.length;
-      table->derived_select_number= first_select->select_number;
       table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (derived->referencing_view)
