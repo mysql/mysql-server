@@ -6864,16 +6864,18 @@ lock_table_has_locks(
 
 	lock_mutex_enter();
 
-#ifdef UNIV_DEBUG
-	trx_sys->mutex.enter();
-
-	ut_ad(lock_table_locks_lookup(table, &trx_sys->rw_trx_list) == NULL);
-	ut_ad(lock_table_locks_lookup(table, &trx_sys->ro_trx_list) == NULL);
-
-	trx_sys->mutex.exit();
-#endif /* UNIV_DEBUG */
-
 	has_locks = UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks > 0;
+
+#ifdef UNIV_DEBUG
+	if (!has_locks) {
+		trx_sys->mutex.enter();
+
+		ut_ad(!lock_table_locks_lookup(table, &trx_sys->rw_trx_list));
+		ut_ad(!lock_table_locks_lookup(table, &trx_sys->ro_trx_list));
+
+		trx_sys->mutex.exit();
+	}
+#endif /* UNIV_DEBUG */
 
 	lock_mutex_exit();
 

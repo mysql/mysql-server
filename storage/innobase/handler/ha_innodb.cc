@@ -1915,7 +1915,7 @@ innobase_next_autoinc() will be called with increment set to 3 where
 autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
 the multi-value INSERT above.
 @return	the next value */
-static
+UNIV_INTERN
 ulonglong
 innobase_next_autoinc(
 /*==================*/
@@ -2129,10 +2129,21 @@ innobase_copy_frm_flags_from_create_info(
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	HA_CREATE_INFO*	create_info)		/*!< in: create info */
 {
-	dict_stats_set_persistent(
-		innodb_table,
-		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
-		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	ibool	ps_on;
+	ibool	ps_off;
+
+	if (dict_table_is_temporary(innodb_table)) {
+		/* Temp tables do not use persistent stats */
+		ps_on = FALSE;
+		ps_off = TRUE;
+	} else {
+		ps_on = create_info->table_options
+			& HA_OPTION_STATS_PERSISTENT;
+		ps_off = create_info->table_options
+			& HA_OPTION_NO_STATS_PERSISTENT;
+	}
+
+	dict_stats_set_persistent(innodb_table, ps_on, ps_off);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
@@ -2154,10 +2165,21 @@ innobase_copy_frm_flags_from_table_share(
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	TABLE_SHARE*	table_share)		/*!< in: table share */
 {
-	dict_stats_set_persistent(
-		innodb_table,
-		table_share->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table_share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+	ibool	ps_on;
+	ibool	ps_off;
+
+	if (dict_table_is_temporary(innodb_table)) {
+		/* Temp tables do not use persistent stats */
+		ps_on = FALSE;
+		ps_off = TRUE;
+	} else {
+		ps_on = table_share->db_create_options
+			& HA_OPTION_STATS_PERSISTENT;
+		ps_off = table_share->db_create_options
+			& HA_OPTION_NO_STATS_PERSISTENT;
+	}
+
+	dict_stats_set_persistent(innodb_table, ps_on, ps_off);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
@@ -2670,6 +2692,7 @@ ha_innobase::reset_template(void)
 
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
+	prebuilt->in_fts_query = 0;
 	/* Reset index condition pushdown state. */
 	if (prebuilt->idx_cond) {
 		prebuilt->idx_cond = NULL;
@@ -3006,10 +3029,22 @@ innobase_change_buffering_inited_ok:
 		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
 	}
 
-	if (srv_max_io_capacity < srv_io_capacity) {
+	if (srv_max_io_capacity == SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT) {
+
+		if (srv_io_capacity >= SRV_MAX_IO_CAPACITY_LIMIT / 2) {
+			/* Avoid overflow. */
+			srv_max_io_capacity = SRV_MAX_IO_CAPACITY_LIMIT;
+		} else {
+			/* The user has not set the value. We should
+			set it based on innodb_io_capacity. */
+			srv_max_io_capacity =
+				ut_max(2 * srv_io_capacity, 2000);
+		}
+
+	} else if (srv_max_io_capacity < srv_io_capacity) {
 		sql_print_warning("InnoDB: innodb_io_capacity"
 				  " cannot be set higher than"
-				  " innodb_max_io_capacity.\n"
+				  " innodb_io_capacity_max.\n"
 				  "InnoDB: Setting"
 				  " innodb_io_capacity to %lu\n",
 				  srv_max_io_capacity);
@@ -4190,7 +4225,7 @@ test_ut_format_name()
 /********************************************************************//**
 Get the upper limit of the MySQL integral and floating-point type.
 @return maximum allowed value for the field */
-static
+UNIV_INTERN
 ulonglong
 innobase_get_int_col_max_value(
 /*===========================*/
@@ -8006,15 +8041,10 @@ ha_innobase::ft_init_ext(
 
 	error = fts_query(trx, index, flags, query, query_len, &result);
 
-	prebuilt->result = result;
-
 	// FIXME: Proper error handling and diagnostic
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "Error processing query\n");
 	} else {
-		/* Must return an instance of a result even if it's empty */
-		ut_a(prebuilt->result);
-
 		/* Allocate FTS handler, and instantiate it before return */
 		fts_hdl = (NEW_FT_INFO*) my_malloc(sizeof(NEW_FT_INFO),
 						   MYF(0));
@@ -8023,6 +8053,10 @@ ha_innobase::ft_init_ext(
 		fts_hdl->could_you = (struct _ft_vft_ext*)(&ft_vft_ext_result);
 		fts_hdl->ft_prebuilt = prebuilt;
 		fts_hdl->ft_result = result;
+
+		/* FIXME: Re-evluate the condition when Bug 14469540
+		is resolved */
+		prebuilt->in_fts_query = true;
 	}
 
 	return ((FT_INFO*) fts_hdl);
@@ -8169,11 +8203,6 @@ void
 ha_innobase::ft_end()
 {
 	fprintf(stderr, "ft_end()\n");
-
-	if (prebuilt->result != NULL) {
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
-	}
 
 	rnd_end();
 }
@@ -10479,10 +10508,15 @@ innobase_get_mysql_key_number_for_index(
 	     ind != NULL;
 	     ind = dict_table_get_next_index(ind)) {
 		if (index == ind) {
-			sql_print_error("Find index %s in InnoDB index list "
-					"but not its MySQL index number "
-					"It could be an InnoDB internal index.",
-					index->name);
+			/* Temp index is internal to InnoDB, that is
+			not present in the MySQL index list, so no
+			need to print such mismatch warning. */
+			if (*(index->name) != TEMP_INDEX_PREFIX) {
+				sql_print_warning("Find index %s in InnoDB index list "
+						"but not its MySQL index number "
+						"It could be an InnoDB internal index.",
+						index->name);
+			}
 			return(-1);
 		}
 	}
@@ -10633,7 +10667,7 @@ ha_innobase::info_low(
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
-		if (os_file_get_status(path,&stat_info)) {
+		if (os_file_get_status(path, &stat_info, false) == DB_SUCCESS) {
 			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
@@ -11090,7 +11124,7 @@ ha_innobase::check(
 
 			innobase_format_name(
 				index_name, sizeof index_name,
-				prebuilt->index->name, TRUE);
+				index->name, TRUE);
 
 			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
@@ -11776,14 +11810,6 @@ ha_innobase::start_stmt(
 
 	if (!trx_is_started(trx)) {
 		++trx->will_lock;
-	}
-
-	if (prebuilt->result) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Warning: FTS result set not NULL\n");
-
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
 	}
 
 	return(0);
@@ -13470,11 +13496,11 @@ ha_innobase::check_if_incompatible_data(
 }
 
 /****************************************************************//**
-Update the system variable innodb_max_io_capacity using the "saved"
+Update the system variable innodb_io_capacity_max using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
 void
-innodb_max_io_capacity_update(
+innodb_io_capacity_max_update(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -13489,11 +13515,11 @@ innodb_max_io_capacity_update(
 		in_val = srv_io_capacity;
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "innodb_max_io_capacity cannot be"
+				    "innodb_io_capacity_max cannot be"
 				    " set lower than innodb_io_capacity.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "Setting innodb_max_io_capacity to %lu",
+				    "Setting innodb_io_capacity_max to %lu",
 				    srv_io_capacity);
 	}
 
@@ -13521,7 +13547,7 @@ innodb_io_capacity_update(
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_io_capacity cannot be set"
-				    " higher than innodb_max_io_capacity.");
+				    " higher than innodb_io_capacity_max.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_io_capacity to %lu",
@@ -14906,19 +14932,15 @@ innobase_fts_close_ranking(
 		FT_INFO * fts_hdl)
 {
 	fts_result_t*	result;
-	row_prebuilt_t*	ft_prebuilt;
 
-	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
+	((NEW_FT_INFO*) fts_hdl)->ft_prebuilt->in_fts_query = false;
 
 	result = ((NEW_FT_INFO*) fts_hdl)->ft_result;
 
 	fts_query_free_result(result);
 
-	if (result == ft_prebuilt->result) {
-		ft_prebuilt->result = NULL;
-	}
-
 	my_free((uchar*) fts_hdl);
+
 
 	return;
 }
@@ -15050,12 +15072,8 @@ innobase_fts_count_matches(
 /*=======================*/
 		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
 {
-	row_prebuilt_t* ft_prebuilt;
-
-	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
-
-	if (ft_prebuilt->result->rankings_by_id != NULL) {
-		return rbt_size(ft_prebuilt->result->rankings_by_id);
+	if (((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id != NULL) {
+		return rbt_size(((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id);
 	} else {
 		return(0);
 	}
@@ -15204,10 +15222,12 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, innodb_io_capacity_update, 200, 100, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
+static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Limit to which innodb_io_capacity can be inflated.",
-  NULL, innodb_max_io_capacity_update, 400, 100, ~0UL, 0);
+  NULL, innodb_io_capacity_max_update,
+  SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
+  SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
@@ -15990,7 +16010,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(max_io_capacity),
+  MYSQL_SYSVAR(io_capacity_max),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),

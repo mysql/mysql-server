@@ -845,7 +845,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     share->default_values= table->record[1]+alloc_length;
   }
   copy_func[0]=0;				// End marker
-  param->func_count= copy_func - param->items_to_copy; 
+  param->func_count= copy_func - param->items_to_copy;
+  DBUG_ASSERT(param->func_count <= copy_func_count); // Used <= allocated
 
   setup_tmp_table_column_bitmaps(table, bitmaps);
 

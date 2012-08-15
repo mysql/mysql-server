@@ -60,7 +60,17 @@ Rpl_info_table::~Rpl_info_table()
   my_free(str_schema.str);
 }
 
-int Rpl_info_table::do_init_info(const ulong *uidx, const uint nidx)
+int Rpl_info_table::do_init_info()
+{
+  return do_init_info(FIND_KEY, 0);
+}
+
+int Rpl_info_table::do_init_info(uint instance)
+{
+  return do_init_info(FIND_SCAN, instance);
+}
+
+int Rpl_info_table::do_init_info(enum_find_method method, uint instance)
 {
   int error= 1;
   enum enum_return_id res= FOUND_ID;
@@ -84,15 +94,29 @@ int Rpl_info_table::do_init_info(const ulong *uidx, const uint nidx)
     goto end;
 
   /*
-    Points the cursor at the row to be read.
+    Points the cursor at the row to be read according to the
+    keys.
   */
-  if ((res= access->find_info(uidx, nidx, field_values,
-                              table)) == FOUND_ID)
+  switch (method)
+  {
+    case FIND_KEY:
+      res= access->find_info(field_values, table);
+    break;
+
+    case FIND_SCAN:
+      res= access->scan_info(table, instance);
+    break;
+
+    default:
+      DBUG_ASSERT(0);
+    break;
+  }
+
+  if (res == FOUND_ID)
   {
     /*
       Reads the information stored in the rpl_info table into a
       set of variables. If there is a failure, an error is returned.
-      Then executes some initialization routines.
     */
     if (access->load_info_values(get_number_info(), table->field,
                                  field_values))
@@ -110,8 +134,7 @@ end:
   DBUG_RETURN(error);
 }
 
-int Rpl_info_table::do_flush_info(const ulong *uidx, const uint nidx,
-                                  const bool force)
+int Rpl_info_table::do_flush_info(const bool force)
 {
   int error= 1;
   enum enum_return_id res= FOUND_ID;
@@ -140,11 +163,10 @@ int Rpl_info_table::do_flush_info(const ulong *uidx, const uint nidx,
     goto end;
 
   /*
-    Points the cursor at the row to be read. If the row is not found
-    an error is reported.
+    Points the cursor at the row to be read according to the
+    keys. If the row is not found an error is reported.
   */
-  if ((res= access->find_info(uidx, nidx, field_values,
-                              table)) == NOT_FOUND_ID)
+  if ((res= access->find_info(field_values, table)) == NOT_FOUND_ID)
   {
     /*
       Prepares the information to be stored before calling ha_write_row.
@@ -220,10 +242,64 @@ end:
   DBUG_RETURN(error);
 }
 
+int Rpl_info_table::do_remove_info()
+{
+  return do_clean_info();
+}
+
+int Rpl_info_table::do_clean_info()
+{
+  int error= 1;
+  enum enum_return_id res= FOUND_ID;
+  TABLE *table= NULL;
+  ulong saved_mode;
+  Open_tables_backup backup;
+
+  DBUG_ENTER("Rpl_info_table::do_remove_info");
+
+  THD *thd= access->create_thd();
+
+  saved_mode= thd->variables.sql_mode;
+  tmp_disable_binlog(thd);
+
+  /*
+    Opens and locks the rpl_info table before accessing it.
+  */
+  if (access->open_table(thd, str_schema, str_table,
+                         get_number_info(), TL_WRITE,
+                         &table, &backup))
+    goto end;
+
+  /*
+    Points the cursor at the row to be deleted according to the
+    keys. If the row is not found, the execution proceeds normally.
+  */
+  if ((res= access->find_info(field_values, table)) == FOUND_ID)
+  {
+    /*
+      Deletes a row in the rpl_info table.
+    */
+    if ((error= table->file->ha_delete_row(table->record[0])))
+    {
+      table->file->print_error(error, MYF(0));
+      goto end;
+    }
+  }
+  error= (res == ERROR_ID);
+end:
+  /*
+    Unlocks and closes the rpl_info table.
+  */
+  access->close_table(thd, table, &backup, error);
+  reenable_binlog(thd);
+  thd->variables.sql_mode= saved_mode;
+  access->drop_thd(thd);
+  DBUG_RETURN(error);
+}
+
 int Rpl_info_table::do_reset_info(uint nparam,
                                   const char* param_schema,
                                   const char *param_table)
-
 {
   int error= 1;
   TABLE *table= NULL;
@@ -273,58 +349,7 @@ end:
   DBUG_RETURN(error);
 }
 
-int Rpl_info_table::do_remove_info(const ulong *uidx, const uint nidx)
-{
-  int error= 1;
-  enum enum_return_id res= FOUND_ID;
-  TABLE *table= NULL;
-  ulong saved_mode;
-  Open_tables_backup backup;
-
-  DBUG_ENTER("Rpl_info_table::do_remove_info");
-
-  THD *thd= access->create_thd();
-
-  saved_mode= thd->variables.sql_mode;
-  tmp_disable_binlog(thd);
-
-  /*
-    Opens and locks the rpl_info table before accessing it.
-  */
-  if (access->open_table(thd, str_schema, str_table,
-                         get_number_info(), TL_WRITE,
-                         &table, &backup))
-    goto end;
-
-  /*
-    Points the cursor at the row to be deleted. If the row is not
-    found, the execution proceeds normally.
-  */
-  if ((res= access->find_info(uidx, nidx, field_values,
-                              table)) == FOUND_ID)
-  {
-    /*
-      Deletes a row in the rpl_info table.
-    */
-    if ((error= table->file->ha_delete_row(table->record[0])))
-    {
-      table->file->print_error(error, MYF(0));
-      goto end;
-    }
-  }
-  error= (res == ERROR_ID);
-end:
-  /*
-    Unlocks and closes the rpl_info table.
-  */
-  access->close_table(thd, table, &backup, error);
-  reenable_binlog(thd);
-  thd->variables.sql_mode= saved_mode;
-  access->drop_thd(thd);
-  DBUG_RETURN(error);
-}
-
-enum_return_check Rpl_info_table::do_check_info(const ulong *uidx, const uint nidx)
+enum_return_check Rpl_info_table::do_check_info()
 {
   TABLE *table= NULL;
   ulong saved_mode;
@@ -352,11 +377,10 @@ enum_return_check Rpl_info_table::do_check_info(const ulong *uidx, const uint ni
   }
 
   /*
-    Points the cursor at the row to be cheked. If the row is not
-    found, the execution proceeds normally.
+    Points the cursor at the row to be read according to the
+    keys.
   */
-  if (access->find_info(uidx, nidx, field_values,
-                        table) != FOUND_ID)
+  if (access->find_info(field_values, table) != FOUND_ID)
   {
     /* 
        We cannot simply call my_error here because it does not
@@ -367,6 +391,7 @@ enum_return_check Rpl_info_table::do_check_info(const ulong *uidx, const uint ni
     goto end;
   }
   return_check= REPOSITORY_EXISTS;
+
 
 end:
   /*
@@ -379,23 +404,142 @@ end:
   DBUG_RETURN(return_check);
 }
 
-void Rpl_info_table::do_end_info(const ulong *uidx, const uint nidx)
+enum_return_check Rpl_info_table::do_check_info(uint instance)
+{
+  TABLE *table= NULL;
+  ulong saved_mode;
+  Open_tables_backup backup;
+  enum_return_check return_check= ERROR_CHECKING_REPOSITORY;
+
+  DBUG_ENTER("Rpl_info_table::do_check_info");
+
+  THD *thd= access->create_thd();
+  saved_mode= thd->variables.sql_mode;
+
+  /*
+    Opens and locks the rpl_info table before accessing it.
+  */
+  if (access->open_table(thd, str_schema, str_table,
+                         get_number_info(), TL_READ,
+                         &table, &backup))
+  {
+    sql_print_warning("Info table is not ready to be used. Table "
+                      "'%s.%s' cannot be opened.", str_schema.str,
+                      str_table.str);
+
+    return_check= ERROR_CHECKING_REPOSITORY;
+    goto end;
+  }
+
+  /*
+    Points the cursor at the row to be read according to the
+    keys.
+  */
+  if (access->scan_info(table, instance) != FOUND_ID)
+  {
+    /* 
+       We cannot simply call my_error here because it does not
+       really means that there was a failure but only that the
+       record was not found.
+    */
+    return_check= REPOSITORY_DOES_NOT_EXIST;
+    goto end;
+  }
+  return_check= REPOSITORY_EXISTS;
+
+
+end:
+  /*
+    Unlocks and closes the rpl_info table.
+  */
+  access->close_table(thd, table, &backup,
+                      return_check == ERROR_CHECKING_REPOSITORY);
+  thd->variables.sql_mode= saved_mode;
+  access->drop_thd(thd);
+  DBUG_RETURN(return_check);
+}
+
+bool Rpl_info_table::do_count_info(uint nparam,
+                                   const char* param_schema,
+                                   const char *param_table,
+                                   uint* counter)
+{
+  int error= 1;
+  TABLE *table= NULL;
+  ulong saved_mode;
+  Open_tables_backup backup;
+  Rpl_info_table *info= NULL;
+  THD *thd= NULL;
+   
+  DBUG_ENTER("Rpl_info_table::do_count_info");
+
+  if (!(info= new Rpl_info_table(nparam, param_schema, param_table)))
+    DBUG_RETURN(true);
+
+  thd= info->access->create_thd();
+  saved_mode= thd->variables.sql_mode;
+
+  /*
+    Opens and locks the rpl_info table before accessing it.
+  */
+  if (info->access->open_table(thd, info->str_schema, info->str_table,
+                               info->get_number_info(), TL_READ,
+                               &table, &backup))
+  {
+    /*
+      We cannot simply print out a warning message at this
+      point because this may represent a bootstrap.
+    */
+    error= 0;
+    goto end;
+  }
+
+  /*
+    Counts entries in the rpl_info table.
+  */
+  if (info->access->count_info(table, counter))
+  {
+    sql_print_warning("Info table is not ready to be used. Table "
+                      "'%s.%s' cannot be scanned.", info->str_schema.str,
+                      info->str_table.str);
+    goto end;
+  }
+  error= 0;
+
+end:
+  /*
+    Unlocks and closes the rpl_info table.
+  */
+  info->access->close_table(thd, table, &backup, error);
+  thd->variables.sql_mode= saved_mode;
+  info->access->drop_thd(thd);
+  delete info;
+  DBUG_RETURN(error);
+}
+
+void Rpl_info_table::do_end_info()
 {
 }
 
-int Rpl_info_table::do_prepare_info_for_read(const uint nidx)
+int Rpl_info_table::do_prepare_info_for_read()
 {
   if (!field_values)
     return TRUE;
 
-  cursor= nidx;
+  cursor= 0;
+  prv_error= FALSE; 
 
   return FALSE;
 }
 
-int Rpl_info_table::do_prepare_info_for_write(const uint nidx)
+int Rpl_info_table::do_prepare_info_for_write()
 {
-  return(do_prepare_info_for_read(nidx));
+  return(do_prepare_info_for_read());
+}
+
+uint Rpl_info_table::do_get_rpl_info_type()
+{
+  return INFO_REPOSITORY_TABLE;
 }
 
 bool Rpl_info_table::do_set_info(const int pos, const char *value)

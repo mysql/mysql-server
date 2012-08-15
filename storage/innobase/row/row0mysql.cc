@@ -1012,9 +1012,14 @@ row_get_prebuilt_insert_row(
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
-	ut_ad(prebuilt->trx_id == 0 || prebuilt->trx_id <= last_index->trx_id);
+	/* The prebuilt->trx_id can be greater than the current last
+	index trx id for cases where the secondary index create failed
+	but the secondary index was visible briefly during the create
+	process. */
 
-	prebuilt->trx_id = last_index->trx_id;
+	if (last_index->trx_id > prebuilt->trx_id) {
+		prebuilt->trx_id = last_index->trx_id;
+	}
 
 	return(prebuilt->ins_node->row);
 }
@@ -3717,7 +3722,14 @@ row_drop_table_for_mysql(
 			fts_optimize_remove_table(table);
 			row_mysql_lock_data_dictionary(trx);
 		}
-		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+
+		/* Do not bother to deal with persistent stats for temp
+		tables since we know temp tables do not use persistent
+		stats. */
+		if (!dict_table_is_temporary(table)) {
+			dict_stats_wait_bg_to_stop_using_tables(
+				table, NULL, trx);
+		}
 	}
 
 	/* Delete the link file if used. */
@@ -3725,17 +3737,20 @@ row_drop_table_for_mysql(
 		fil_delete_link_file(name);
 	}
 
-	dict_stats_recalc_pool_del(table);
+	if (!dict_table_is_temporary(table)) {
 
-	/* Remove stats for this table and all of its indexes from the
-	persistent storage if it exists and if there are stats for this
-	table in there. This function creates its own trx and commits
-	it. */
-	char	errstr[1024];
-	err = dict_stats_drop_table(name, errstr, sizeof(errstr));
-	if (err != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
+		dict_stats_recalc_pool_del(table);
+
+		/* Remove stats for this table and all of its indexes from the
+		persistent storage if it exists and if there are stats for this
+		table in there. This function creates its own trx and commits
+		it. */
+		char	errstr[1024];
+		err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+		if (err != DB_SUCCESS) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: %s\n", errstr);
+		}
 	}
 
 	ut_a(table->n_foreign_key_checks_running == 0);

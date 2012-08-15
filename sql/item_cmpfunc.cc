@@ -519,6 +519,27 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
 }
 
 
+bool Item_bool_func2::convert_constant_arg(THD *thd, Item *field, Item **item)
+{
+  if (field->real_item()->type() != FIELD_ITEM)
+    return false;
+
+  Item_field *field_item= (Item_field*) (field->real_item());
+  if (field_item->field->can_be_compared_as_longlong() &&
+      !(field_item->is_temporal_with_date() &&
+      (*item)->result_type() == STRING_RESULT))
+  {
+    if (convert_constant_item(thd, field_item, item))
+    {
+      cmp.set_cmp_func(this, tmp_arg, tmp_arg + 1, INT_RESULT);
+      field->cmp_context= (*item)->cmp_context= INT_RESULT;
+      return true;
+    }
+  }
+  return false;
+}
+
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -555,38 +576,9 @@ void Item_bool_func2::fix_length_and_dec()
   thd= current_thd;
   if (!thd->lex->is_ps_or_view_context_analysis())
   {
-    if (args[0]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_temporal_with_date() &&
-            args[1]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[1]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT);		// Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          DBUG_VOID_RETURN;
-        }
-      }
-    }
-    if (args[1]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[1]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_temporal_with_date() &&
-            args[0]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[0]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT); // Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          DBUG_VOID_RETURN;
-        }
-      }
-    }
+    if (convert_constant_arg(thd, args[0], &args[1]) ||
+        convert_constant_arg(thd, args[1], &args[0]))
+      DBUG_VOID_RETURN;
   }
   set_cmp_func();
   DBUG_VOID_RETURN;
@@ -789,6 +781,67 @@ static ulonglong get_date_from_str(THD *thd, String *str,
 }
 
 
+/**
+  Check if str_arg is a constant and convert it to datetime packed value.
+  Note, const_value may stay untouched, so the caller is responsible to
+  initialize it.
+
+  @param date_arg        - date argument, it's name is used for error reporting.
+  @param str_arg         - string argument to get datetime value from.
+  @param OUT const_value - the converted value is stored here, if not NULL.
+
+  @return true on error, false on success, false if str_arg is not a const.
+*/
+bool Arg_comparator::get_date_from_const(Item *date_arg,
+                                         Item *str_arg,
+                                         ulonglong *const_value)
+{
+  THD *thd= current_thd;
+  /*
+    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
+    for the current thread but it still may change during the execution.
+    Don't use cache while in the context analysis mode only (i.e. for 
+    EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
+    cases and can cause problems. For example evaluating subqueries can 
+    confuse storage engines since in context analysis mode tables 
+    aren't locked.
+  */
+  if (!thd->lex->is_ps_or_view_context_analysis() &&
+      str_arg->const_item() &&
+      (str_arg->type() != Item::FUNC_ITEM ||
+      ((Item_func*) str_arg)->functype() != Item_func::GUSERVAR_FUNC))
+  {
+    ulonglong value;
+    if (str_arg->field_type() == MYSQL_TYPE_TIME)
+    {
+      // Convert from TIME to DATETIME
+      value= str_arg->val_date_temporal();
+      if (str_arg->null_value)
+        return true;
+    }
+    else
+    {
+      // Convert from string to DATETIME
+      DBUG_ASSERT(str_arg->result_type() == STRING_RESULT);
+      bool error;
+      String tmp, *str_val= 0;
+      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
+                              MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+      str_val= str_arg->val_str(&tmp);
+      if (str_arg->null_value)
+        return true;
+      value= get_date_from_str(thd, str_val, t_type,
+                               date_arg->item_name.ptr(), &error);
+      if (error)
+        return true;
+    }
+    if (const_value)
+      *const_value= value;
+  }
+  return false;
+}
+
+
 /*
   Check whether compare_datetime() can be used to compare items.
 
@@ -817,82 +870,35 @@ static ulonglong get_date_from_str(THD *thd, String *str,
     compare_datetime() isn't applicable then the *const_value remains
     unchanged.
 
-  RETURN
-    the found type of date comparison
+  @return true if can compare as dates, false otherwise.
 */
 
-enum Arg_comparator::enum_date_cmp_type
+bool
 Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 {
-  enum enum_date_cmp_type cmp_type= CMP_DATE_DFLT;
-  Item *str_arg= 0, *date_arg= 0;
-
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
-    return CMP_DATE_DFLT;
+    return false;
 
   if (a->is_temporal_with_date())
   {
-    if (b->is_temporal_with_date())
-      cmp_type= CMP_DATE_WITH_DATE;
-    else if (b->result_type() == STRING_RESULT)
+    if (b->is_temporal_with_date()) //  date[time] + date
     {
-      cmp_type= CMP_DATE_WITH_STR;
-      date_arg= a;
-      str_arg= b;
+      return true;
     }
-  }
-  else if (b->is_temporal_with_date() && a->result_type() == STRING_RESULT)
-  {
-    cmp_type= CMP_STR_WITH_DATE;
-    date_arg= b;
-    str_arg= a;
-  }
-
-  if (cmp_type != CMP_DATE_DFLT)
-  {
-    THD *thd= current_thd;
-    /*
-      Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-      for the current thread but it still may change during the execution.
-      Don't use cache while in the context analysis mode only (i.e. for 
-      EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
-      cases and can cause problems. For example evaluating subqueries can 
-      confuse storage engines since in context analysis mode tables 
-      aren't locked.
-    */
-    if (!thd->lex->is_ps_or_view_context_analysis() &&
-        cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
-        (str_arg->type() != Item::FUNC_ITEM ||
-        ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
+    else if (b->result_type() == STRING_RESULT) // date[time] + string
     {
-      ulonglong value;
-      if (str_arg->field_type() == MYSQL_TYPE_TIME)
-      {
-        // Convert TIME to DATETIME
-        value= str_arg->val_date_temporal();
-        if (str_arg->null_value)
-          return CMP_DATE_DFLT;
-        if (const_value)
-          *const_value= value;
-        return cmp_type;
-      }
-
-      // Convert from string to DATETIME
-      bool error;
-      String tmp, *str_val= 0;
-      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
-                              MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
-      str_val= str_arg->val_str(&tmp);
-      if (str_arg->null_value)
-        return CMP_DATE_DFLT;
-      value= get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(), &error);
-      if (error)
-        return CMP_DATE_DFLT;
-      if (const_value)
-        *const_value= value;
+      return !get_date_from_const(a, b, const_value);
     }
+    else
+      return false; // date[time] + number
   }
-  return cmp_type;
+  else if (b->is_temporal_with_date() &&
+           a->result_type() == STRING_RESULT) // string + date[time]
+  {
+    return !get_date_from_const(b, a, const_value);
+  }
+  else
+    return false; // No date[time] items found
 }
 
 
@@ -980,7 +986,6 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
-  enum enum_date_cmp_type cmp_type;
   ulonglong const_value= (ulonglong)-1;
   thd= current_thd;
   owner= owner_arg;
@@ -988,7 +993,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   a= a1;
   b= a2;
 
-  if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
+  if (can_compare_as_dates(*a, *b, &const_value))
   {
     a_type= (*a)->field_type();
     b_type= (*b)->field_type();

@@ -5,13 +5,13 @@ CREATE USER 'kristofer' IDENTIFIED BY 'secret';
 SELECT user, plugin FROM mysql.user;
 --exec $MYSQL -ukristofer -psecret --default_auth=sha256_password -e "select user(), current_user()"
 --exec $MYSQL -ukristofer -psecret --default_auth=mysql_native_password -e "select user(), current_user()"
---exec $MYSQL -ukristofer -psecret --default_auth=sha256_password --server_public_key=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
+--exec $MYSQL -ukristofer -psecret --default_auth=sha256_password --server_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
 DROP USER 'kristofer';
 
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'secret2';
 --exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password -e "select user(), current_user()"
 --exec $MYSQL -ukristofer -psecret2 --default_auth=mysql_native_password -e "select user(), current_user()"
---exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password --server_public_key=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
+--exec $MYSQL -ukristofer -psecret2 --default_auth=sha256_password --server_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
 --replace_regex /PASSWORD .*$/PASSWORD '<non-deterministic-password-hash>'/
 SHOW GRANTS FOR 'kristofer'@'localhost';
 DROP USER 'kristofer'@'localhost';
@@ -19,7 +19,7 @@ DROP USER 'kristofer'@'localhost';
 GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY '';
 --exec $MYSQL -ukristofer --default_auth=sha256_password -e "select user(), current_user()"
 --exec $MYSQL -ukristofer --default_auth=mysql_native_password -e "select user(), current_user()"
---exec $MYSQL -ukristofer --default_auth=sha256_password --server_public_key=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
+--exec $MYSQL -ukristofer --default_auth=sha256_password --server_public_key_path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem -e "select user(), current_user()"
 --replace_regex /PASSWORD .*$/PASSWORD '<non-deterministic-password-hash>'/
 SHOW GRANTS FOR 'kristofer'@'localhost';
 DROP USER 'kristofer'@'localhost';
