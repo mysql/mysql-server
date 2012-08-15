@@ -913,9 +913,9 @@ buf_LRU_insert_zip_clean(
 	}
 
 	if (b) {
-		UT_LIST_INSERT_AFTER(list, buf_pool->zip_clean, b, bpage);
+		UT_LIST_INSERT_AFTER(buf_pool->zip_clean, b, bpage);
 	} else {
-		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, bpage);
+		UT_LIST_ADD_FIRST(buf_pool->zip_clean, bpage);
 	}
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -934,7 +934,7 @@ buf_LRU_free_from_unzip_LRU_list(
 					srv_LRU_scan_depth / 2 blocks. */
 {
 	buf_block_t*	block;
-	ibool 		freed;
+	ibool		freed;
 	ulint		scanned;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -1097,7 +1097,7 @@ buf_LRU_get_free_only(
 		ut_ad(!block->page.in_flush_list);
 		ut_ad(!block->page.in_LRU_list);
 		ut_a(!buf_page_in_file(&block->page));
-		UT_LIST_REMOVE(list, buf_pool->free, (&block->page));
+		UT_LIST_REMOVE(buf_pool->free, &block->page);
 
 		mutex_enter(&block->mutex);
 
@@ -1480,7 +1480,7 @@ buf_unzip_LRU_remove_block_if_needed(
 		ut_ad(block->in_unzip_LRU_list);
 		ut_d(block->in_unzip_LRU_list = FALSE);
 
-		UT_LIST_REMOVE(unzip_LRU, buf_pool->unzip_LRU, block);
+		UT_LIST_REMOVE(buf_pool->unzip_LRU, block);
 	}
 }
 
@@ -1525,7 +1525,7 @@ buf_LRU_remove_block(
 	}
 
 	/* Remove the block from the LRU list */
-	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
+	UT_LIST_REMOVE(buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = FALSE);
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
@@ -1581,9 +1581,9 @@ buf_unzip_LRU_add_block(
 	ut_d(block->in_unzip_LRU_list = TRUE);
 
 	if (old) {
-		UT_LIST_ADD_LAST(unzip_LRU, buf_pool->unzip_LRU, block);
+		UT_LIST_ADD_LAST(buf_pool->unzip_LRU, block);
 	} else {
-		UT_LIST_ADD_FIRST(unzip_LRU, buf_pool->unzip_LRU, block);
+		UT_LIST_ADD_FIRST(buf_pool->unzip_LRU, block);
 	}
 }
 
@@ -1604,7 +1604,7 @@ buf_LRU_add_block_to_end_low(
 	ut_a(buf_page_in_file(bpage));
 
 	ut_ad(!bpage->in_LRU_list);
-	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
+	UT_LIST_ADD_LAST(buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = TRUE);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
@@ -1657,7 +1657,7 @@ buf_LRU_add_block_low(
 
 	if (!old || (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN)) {
 
-		UT_LIST_ADD_FIRST(LRU, buf_pool->LRU, bpage);
+		UT_LIST_ADD_FIRST(buf_pool->LRU, bpage);
 
 		bpage->freed_page_clock = buf_pool->freed_page_clock;
 	} else {
@@ -1670,8 +1670,9 @@ buf_LRU_add_block_low(
 		ut_a(!UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)
 		     || UT_LIST_GET_NEXT(LRU, buf_pool->LRU_old)->old);
 #endif /* UNIV_LRU_DEBUG */
-		UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU, buf_pool->LRU_old,
-				     bpage);
+		UT_LIST_INSERT_AFTER(buf_pool->LRU, buf_pool->LRU_old,
+			bpage);
+
 		buf_pool->LRU_old_len++;
 	}
 
@@ -1923,8 +1924,7 @@ func_exit:
 			uninitialized pad bytes. */
 			UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
 #endif
-			UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
-					     prev_b, b);
+			UT_LIST_INSERT_AFTER(buf_pool->LRU, prev_b, b);
 
 			if (buf_page_is_old(b)) {
 				buf_pool->LRU_old_len++;
@@ -2097,7 +2097,7 @@ buf_LRU_block_free_non_file_page(
 		page_zip_set_size(&block->page.zip, 0);
 	}
 
-	UT_LIST_ADD_FIRST(list, buf_pool->free, (&block->page));
+	UT_LIST_ADD_FIRST(buf_pool->free, &block->page);
 	ut_d(block->page.in_free_list = TRUE);
 
 	UNIV_MEM_ASSERT_AND_FREE(block->frame, UNIV_PAGE_SIZE);
@@ -2269,7 +2269,7 @@ buf_LRU_block_remove_hashed_page(
 		ut_a(buf_page_get_zip_size(bpage));
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
+		UT_LIST_REMOVE(buf_pool->zip_clean, bpage);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 		mutex_exit(&buf_pool->zip_mutex);
@@ -2560,7 +2560,7 @@ buf_LRU_validate_instance(
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(LRU, buf_page_t, buf_pool->LRU, CheckInLRUList());
+	UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList());
 
 	old_len = 0;
 
@@ -2602,7 +2602,7 @@ buf_LRU_validate_instance(
 
 	ut_a(buf_pool->LRU_old_len == old_len);
 
-	UT_LIST_VALIDATE(list, buf_page_t, buf_pool->free, CheckInFreeList());
+	UT_LIST_VALIDATE(buf_pool->free, CheckInFreeList());
 
 	for (bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
@@ -2611,9 +2611,7 @@ buf_LRU_validate_instance(
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
-	UT_LIST_VALIDATE(
-                unzip_LRU, buf_block_t, buf_pool->unzip_LRU,
-                CheckUnzipLRUAndLRUList());
+	UT_LIST_VALIDATE(buf_pool->unzip_LRU, CheckUnzipLRUAndLRUList());
 
 	for (block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
 	     block;

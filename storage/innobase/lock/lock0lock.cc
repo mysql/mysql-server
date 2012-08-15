@@ -25,6 +25,7 @@ Created 5/7/1996 Heikki Tuuri
 
 #define LOCK_MODULE_IMPLEMENTATION
 
+#include "dict0mem.h"
 #include "lock0lock.h"
 #include "lock0priv.h"
 
@@ -36,7 +37,6 @@ Created 5/7/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "usr0sess.h"
 #include "trx0purge.h"
-#include "dict0mem.h"
 #include "trx0sys.h"
 #include "pars0pars.h" /* pars_complete_graph_for_exec() */
 #include "que0que.h" /* que_node_get_parent() */
@@ -1809,7 +1809,7 @@ lock_rec_create(
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
 
-	UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
+	UT_LIST_ADD_LAST(trx->lock.trx_locks, lock);
 
 	if (!caller_owns_trx_mutex) {
 		trx_mutex_exit(trx);
@@ -2426,7 +2426,7 @@ lock_rec_dequeue_from_page(
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
-	UT_LIST_REMOVE(trx_locks, trx_lock->trx_locks, in_lock);
+	UT_LIST_REMOVE(trx_lock->trx_locks, in_lock);
 
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
@@ -2476,7 +2476,7 @@ lock_rec_discard(
 	HASH_DELETE(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), in_lock);
 
-	UT_LIST_REMOVE(trx_locks, trx_lock->trx_locks, in_lock);
+	UT_LIST_REMOVE(trx_lock->trx_locks, in_lock);
 
 	MONITOR_INC(MONITOR_RECLOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_RECLOCK);
@@ -2713,13 +2713,13 @@ lock_move_reorganize_page(
 	bitmaps in the original locks; chain the copies of the locks
 	using the trx_locks field in them. */
 
-	UT_LIST_INIT(old_locks);
+	UT_LIST_INIT(old_locks, &lock_t::trx_locks);
 
 	do {
 		/* Make a copy of the lock */
 		lock_t*	old_lock = lock_rec_copy(lock, heap);
 
-		UT_LIST_ADD_LAST(trx_locks, old_locks, old_lock);
+		UT_LIST_ADD_LAST(old_locks, old_lock);
 
 		/* Reset bitmap of lock */
 		lock_rec_bitmap_reset(lock);
@@ -3994,6 +3994,14 @@ lock_deadlock_check_and_resolve(
 
 /*========================= TABLE LOCKS ==============================*/
 
+/** Functor for accessing the embedded node within a table lock. */
+struct TableLockGetNode {
+	ut_list_node<lock_t>& operator() (lock_t& elem)
+	{
+		return(elem.un_member.tab_lock.locks);
+	}
+};
+
 /*********************************************************************//**
 Creates a table lock object and adds it as the last in the lock queue
 of the table. Does NOT check for deadlocks or lock compatibility.
@@ -4044,8 +4052,9 @@ lock_table_create(
 
 	ut_ad(table->n_ref_count > 0 || !table->can_be_evicted);
 
-	UT_LIST_ADD_LAST(trx_locks, trx->lock.trx_locks, lock);
-	UT_LIST_ADD_LAST(un_member.tab_lock.locks, table->locks, lock);
+	UT_LIST_ADD_LAST(trx->lock.trx_locks, lock);
+
+	ut_list_append(table->locks, lock, TableLockGetNode());
 
 	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
 
@@ -4184,8 +4193,8 @@ lock_table_remove_low(
 		table->n_waiting_or_granted_auto_inc_locks--;
 	}
 
-	UT_LIST_REMOVE(trx_locks, trx->lock.trx_locks, lock);
-	UT_LIST_REMOVE(un_member.tab_lock.locks, table->locks, lock);
+	UT_LIST_REMOVE(trx->lock.trx_locks, lock);
+	ut_list_remove(table->locks, lock, TableLockGetNode());
 
 	MONITOR_INC(MONITOR_TABLELOCK_REMOVED);
 	MONITOR_DEC(MONITOR_NUM_TABLELOCK);
@@ -6869,4 +6878,36 @@ lock_table_has_locks(
 	lock_mutex_exit();
 
 	return(has_locks);
+}
+
+/*******************************************************************//**
+Initialise the table lock list. */
+UNIV_INTERN
+void
+lock_table_lock_list_init(
+/*======================*/
+	table_lock_list_t*	lock_list)	/*!< List to initialise */
+{
+	UT_LIST_INIT(*lock_list, &lock_table_t::locks);
+}
+
+/*******************************************************************//**
+Initialise the trx lock list. */
+UNIV_INTERN
+void
+lock_trx_lock_list_init(
+/*====================*/
+	trx_lock_list_t*	lock_list)	/*!< List to initialise */
+{
+	UT_LIST_INIT(*lock_list, &lock_t::trx_locks);
+}
+
+/*******************************************************************//**
+Set the lock system timeout event. */
+UNIV_INTERN
+void
+lock_set_timeout_event()
+/*====================*/
+{
+	os_event_set(lock_sys->timeout_event);
 }
