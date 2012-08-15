@@ -681,8 +681,8 @@ handle_new_error:
 			" and try again\n", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
 		break;
 	default:
-		fprintf(stderr, "InnoDB: unknown error code %lu\n",
-			(ulong) err);
+		fprintf(stderr, "InnoDB: unknown error code %lu: %s\n",
+			(ulong) err, ut_strerr(err));
 		ut_error;
 	}
 
@@ -1121,7 +1121,7 @@ run_again:
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
 
@@ -1192,7 +1192,7 @@ run_again:
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, false);
 
 	if (table) {
 		err = lock_table(
@@ -1293,7 +1293,7 @@ row_insert_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	row_get_prebuilt_insert_row(prebuilt);
 	node = prebuilt->ins_node;
@@ -1680,7 +1680,7 @@ row_update_for_mysql(
 
 	init_fts_doc_id_for_ref(table, &fk_depth);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	node = prebuilt->upd_node;
 
@@ -2155,7 +2155,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	/* The table name is prefixed with the database name and a '/'.
 	Certain table names starting with 'innodb_' have their special
@@ -2373,7 +2373,7 @@ row_create_index_for_mysql(
 	table = dict_table_open_on_name(table_name, TRUE, TRUE,
 					DICT_ERR_IGNORE_NONE);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	for (i = 0; i < index->n_def; i++) {
 		/* Check that prefix_len and actual length
@@ -2486,7 +2486,7 @@ row_table_add_foreign_constraints(
 
 	trx->op_info = "adding foreign keys";
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -2761,7 +2761,7 @@ row_discard_tablespace_begin(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	this is to avoid deadlocks during data dictionary operations */
@@ -3194,7 +3194,7 @@ row_truncate_table_for_mysql(
 		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, true);
 
 	trx->op_info = "truncating table";
 
@@ -3671,7 +3671,9 @@ row_drop_table_for_mysql(
 
 	trx->op_info = "dropping table";
 
-	trx_start_if_not_started(trx);
+	trx->internal = true;
+
+	trx_start_if_not_started(trx, true);
 
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 		/* Prevent foreign key checks etc. while we are dropping the
@@ -4395,7 +4397,7 @@ row_drop_database_for_mysql(
 
 	trx->op_info = "dropping database";
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 loop:
 	row_mysql_lock_data_dictionary(trx);
 
@@ -4589,7 +4591,7 @@ row_rename_table_for_mysql(
 	}
 
 	trx->op_info = "renaming table";
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	old_is_tmp = row_is_mysql_tmp_table_name(old_name);
 	new_is_tmp = row_is_mysql_tmp_table_name(new_name);

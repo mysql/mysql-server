@@ -173,8 +173,9 @@ Allocates a new transaction id.
 @return	new, allocated trx id */
 UNIV_INLINE
 trx_id_t
-trx_sys_get_new_trx_id(void);
+trx_sys_get_new_trx_id(
 /*========================*/
+	bool	flush);			/*!< in: flush max id if true */
 /*****************************************************************//**
 Determines the maximum transaction id.
 @return maximum currently allocated trx id; will be stale after the
@@ -453,9 +454,9 @@ trx_sys_file_format_id_to_name(
 /*************************************************************//**
 Validate the trx_sys_t::trx_list. */
 UNIV_INTERN
-ibool
-trx_sys_validate_trx_list(void);
-/*===========================*/
+bool
+trx_sys_validate_trx_list();
+/*========================*/
 #endif /* UNIV_DEBUG */
 
 /* The automatically created system rollback segment has this id */
@@ -652,7 +653,7 @@ struct trx_sys_struct{
 /** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
-#define TRX_SYS_TRX_ID_WRITE_MARGIN	256
+#define TRX_SYS_TRX_ID_WRITE_MARGIN	((trx_id_t) 256)
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

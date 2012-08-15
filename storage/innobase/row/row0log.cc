@@ -2495,7 +2495,7 @@ row_log_apply_op_low(
 	      == has_index_lock);
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!dict_index_is_corrupted(index));
-	ut_ad(trx_id || op == ROW_OP_PURGE);
+	ut_ad(trx_id > 0 || op == ROW_OP_PURGE);
 
 	mtr_start(&mtr);
 

@@ -125,27 +125,54 @@ trx_lists_init_at_db_start(void);
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_xa(
-/*========================*/
-	trx_t*	trx);	/*!< in: transaction */
+trx_start_if_not_started_xa_low(
+/*============================*/
+	trx_t*	trx,	/*!< in: transaction */
+	bool	read_write);	/*!< in: true if read write transaction */
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
 trx_start_if_not_started_low(
 /*=========================*/
-	trx_t*	trx);	/*!< in: transaction */
+	trx_t*	trx,		/*!< in/out: transaction */
+	bool	read_write);	/*!< in: true if read write transaction */
+
+/*************************************************************//**
+Starts a transaction for internal processing. */
+UNIV_INTERN
+void
+trx_start_internal_low(
+/*===================*/
+	trx_t*	trx);		/*!< in/out: transaction */
 
 #ifdef UNIV_DEBUG
-#define trx_start_if_not_started(t)				\
+#define trx_start_if_not_started_xa(t, rw)			\
 	{							\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
-	trx_start_if_not_started_low((t));			\
+	trx_start_if_not_started_xa_low((t), rw);		\
+	}
+
+#define trx_start_if_not_started(t, rw)				\
+	{							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_if_not_started_low((t), rw);			\
+	}
+
+#define trx_start_internal(t)					\
+	{							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_internal_low((t));				\
 	}
 #else
-#define trx_start_if_not_started(t)				\
-	trx_start_if_not_started_low((t))
+#define trx_start_if_not_started(t, rw)				\
+	trx_start_if_not_started_low((t), rw)
+
+#define trx_start_internal(t)					\
+	trx_start_internal_low((t))
 #endif /* UNIV_DEBUG */
 
 /*************************************************************//**
@@ -200,7 +227,7 @@ UNIV_INTERN
 void
 trx_prepare_for_mysql(
 /*==================*/
-	trx_t*	trx);	/*!< in/out: trx handle */
+	trx_t*	trx);		/*!< in/out: trx handle */
 /**********************************************************************//**
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery.
@@ -434,6 +461,16 @@ trx_assign_rseg(
 /*============*/
 	trx_t*		trx);		/*!< A read-only transaction that
 					needs to be assigned a RBS. */
+
+/*************************************************************//**
+Set the transaction as a read-write transaction if it is not already
+tagged as such. */
+UNIV_INTERN
+void
+trx_set_rw_mode(
+/*============*/
+	trx_t*		trx);		/*!< in/out: transaction that is RW */
+
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
@@ -474,8 +511,8 @@ Assert that the transaction is either in trx_sys->ro_trx_list or
 trx_sys->rw_trx_list but not both and it cannot be an autocommit
 non-locking select */
 #define assert_trx_in_list(t) do {					\
-	ut_ad((t)->in_ro_trx_list == (t)->read_only);			\
-	ut_ad((t)->in_rw_trx_list == !(t)->read_only);			\
+	ut_ad((t)->in_ro_trx_list == ((t)->read_only || !(t)->rseg));	\
+	ut_ad((t)->in_rw_trx_list == !((t)->read_only || !(t)->rseg));	\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
 	switch ((t)->state) {						\
 	case TRX_STATE_PREPARED:					\
@@ -559,12 +596,12 @@ struct trx_lock_struct {
 	ib_uint64_t	deadlock_mark;	/*!< A mark field that is initialized
 					to and checked against lock_mark_counter
 					by lock_deadlock_recursive(). */
-	ibool		was_chosen_as_deadlock_victim;
+	bool		was_chosen_as_deadlock_victim;
 					/*!< when the transaction decides to
-					wait for a lock, it sets this to FALSE;
+					wait for a lock, it sets this to false;
 					if another transaction chooses this
 					transaction as a victim in deadlock
-					resolution, it sets this to TRUE.
+					resolution, it sets this to true.
 					Protected by trx->mutex. */
 	time_t		wait_started;	/*!< lock wait started at this time,
 					protected only by lock_sys->mutex */
@@ -590,7 +627,7 @@ struct trx_lock_struct {
 	ib_vector_t*	table_locks;	/*!< All table locks requested by this
 					transaction, including AUTOINC locks */
 
-	ibool		cancel;		/*!< TRUE if the transaction is being
+	bool		cancel;		/*!< true if the transaction is being
 					rolled back either via deadlock
 					detection or due to lock timeout. The
 					caller has to acquire the trx_t::mutex
@@ -651,7 +688,7 @@ lock_sys->mutex and sometimes by trx->mutex. */
 struct trx_struct{
 	ulint		magic_n;
 
-	ib_mutex_t		mutex;		/*!< Mutex protecting the fields
+	ib_mutex_t	mutex;		/*!< Mutex protecting the fields
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
@@ -693,6 +730,13 @@ struct trx_struct{
 	Autocommit non-locking read-only transactions move between states
 	without holding any mutex. They are !in_rw_trx_list, !in_ro_trx_list.
 
+	All transactions, unless they are determined to be ac-nl-ro,
+	explicitly tagged as read-only or read-write, will first be put
+	on the read-only transaction list. Only when a !read-only transaction
+	in the read-only list tries to acquire an X or IX lock on a table
+	do we remove it from the read-only list and put it on the read-write
+	list. During this switch we assign it a rollback segment.
+
 	When a transaction is NOT_STARTED, it can be in_mysql_trx_list if
 	it is a user transaction. It cannot be in ro_trx_list or rw_trx_list.
 
@@ -712,6 +756,7 @@ struct trx_struct{
 	NOTE: In the future we should add read only transactions to the
 	ro_trx_list the first time they try to acquire a lock ie. by default
 	we treat all read-only transactions as non-locking.  */
+
 	trx_state_t	state;
 
 	trx_lock_t	lock;		/*!< Information about the transaction
@@ -737,11 +782,12 @@ struct trx_struct{
 	commit between multiple storage engines and the binary log. When
 	an engine participates in a transaction, it's responsible for
 	registering itself using the trans_register_ha() API. */
-	unsigned	is_registered:1;/* This flag is set to 1 after the
+	bool		is_registered;	/* This flag is set to 1 after the
 					transaction has been registered with
 					the coordinator using the XA API, and
 					is set to 0 after commit or rollback. */
-	unsigned	owns_prepare_mutex:1;/* 1 if owns prepare mutex, if
+	bool		owns_prepare_mutex;
+					/* 1 if owns prepare mutex, if
 					this is set to 1 then registered should
 					also be set to 1. This is used in the
 					XA code */
@@ -852,15 +898,15 @@ struct trx_struct{
 	/** The following two fields are mutually exclusive. */
 	/* @{ */
 
-	ibool		in_ro_trx_list;	/*!< TRUE if in trx_sys->ro_trx_list */
-	ibool		in_rw_trx_list;	/*!< TRUE if in trx_sys->rw_trx_list */
+	bool		in_ro_trx_list;	/*!< TRUE if in trx_sys->ro_trx_list */
+	bool		in_rw_trx_list;	/*!< TRUE if in trx_sys->rw_trx_list */
 	/* @} */
 #endif /* UNIV_DEBUG */
 	UT_LIST_NODE_T(trx_t)
 			mysql_trx_list;	/*!< list of transactions created for
 					MySQL; protected by trx_sys->mutex */
 #ifdef UNIV_DEBUG
-	ibool		in_mysql_trx_list;
+	bool		in_mysql_trx_list;
 					/*!< TRUE if in
 					trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
@@ -900,7 +946,7 @@ struct trx_struct{
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	ib_mutex_t		undo_mutex;	/*!< mutex protecting the fields in this
+	ib_mutex_t	undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there
@@ -943,7 +989,7 @@ struct trx_struct{
 					when the trx instance is destroyed.
 					Protected by lock_sys->mutex. */
 	/*------------------------------*/
-	ibool		read_only;	/*!< TRUE if transaction is flagged
+	bool		read_only;	/*!< TRUE if transaction is flagged
 					as a READ-ONLY transaction.
 					if !auto_commit || will_lock > 0
 					then it will added to the list
@@ -952,12 +998,10 @@ struct trx_struct{
 					UNDO log. Non-locking auto-commit
 					read-only transaction will not be on
 					either list. */
-	ibool		auto_commit;	/*!< TRUE if it is an autocommit */
+	bool		auto_commit;	/*!< TRUE if it is an autocommit */
 	ulint		will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
-	bool		ddl;		/*!< true if it is a transaction that
-					is being started for a DDL operation */
 	/*------------------------------*/
 	fts_trx_t*	fts_trx;	/*!< FTS information, or NULL if
 					transaction hasn't modified tables
@@ -967,6 +1011,11 @@ struct trx_struct{
 	ulint		flush_tables;	/*!< if "covering" the FLUSH TABLES",
 					count of tables being flushed. */
 
+	/*------------------------------*/
+	bool		internal;	/*!< true if it is a system/internal
+					transaction for DDL or used by a
+					background task. Such transactions are
+					always treated as read-write. */
 	/*------------------------------*/
 #ifdef UNIV_DEBUG
 	ulint		start_line;	/*!< Track where it was started from */
