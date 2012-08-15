@@ -32,20 +32,18 @@ processing.
 #ifndef IB_WORK_QUEUE_H
 #define IB_WORK_QUEUE_H
 
-#include "ut0list.h"
-#include "mem0mem.h"
-#include "os0sync.h"
-#include "sync0types.h"
+#include "univ.i"
 
-typedef struct ib_wqueue_struct ib_wqueue_t;
+// Forward declaration
+struct ib_wqueue_t;
 
 /****************************************************************//**
 Create a new work queue.
 @return	work queue */
 UNIV_INTERN
 ib_wqueue_t*
-ib_wqueue_create(void);
-/*===================*/
+ib_wqueue_create();
+/*===============*/
 
 /****************************************************************//**
 Free a work queue. */
@@ -68,7 +66,7 @@ ib_wqueue_add(
 
 /********************************************************************
 Check if queue is empty. */
-
+UNIV_INTERN
 ibool
 ib_wqueue_is_empty(
 /*===============*/
@@ -87,19 +85,12 @@ ib_wqueue_wait(
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
-
+UNIV_INTERN
 void*
 ib_wqueue_timedwait(
 /*================*/
 					/* out: work item or NULL on timeout*/
 	ib_wqueue_t*	wq,		/* in: work queue */
 	ib_time_t	wait_in_usecs); /* in: wait time in micro seconds */
-
-/* Work queue. */
-struct ib_wqueue_struct {
-	ib_mutex_t		mutex;	/*!< mutex protecting everything */
-	ib_list_t*	items;	/*!< work item list */
-	os_event_t	event;	/*!< event we use to signal additions to list */
-};
 
 #endif
