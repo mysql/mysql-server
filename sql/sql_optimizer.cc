@@ -380,6 +380,13 @@ JOIN::optimize()
       DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
       DBUG_RETURN(1);
     }
+    /*
+      Fields may have been replaced by Item_func_rollup_const, so we must
+      recalculate the number of fields and functions. However,
+      JOIN::rollup_init() has set quick_group=0, and we must not undo that.
+    */
+    count_field_types(select_lex, &tmp_table_param, all_fields, false);
+    tmp_table_param.quick_group= 0; // Can't create groups in tmp table
   }
   else
   {
@@ -405,7 +412,12 @@ JOIN::optimize()
   }
   if (const_tables && !thd->locked_tables_mode &&
       !(select_options & SELECT_NO_UNLOCK))
-    mysql_unlock_some_tables(thd, all_tables, const_tables);
+  {
+    TABLE *ct[MAX_TABLES];
+    for (uint i= 0; i < const_tables; i++)
+      ct[i]= join_tab[i].table;
+    mysql_unlock_some_tables(thd, ct, const_tables);
+  }
   if (!conds && outer_join)
   {
     /* Handle the case where we have an OUTER JOIN without a WHERE */
@@ -3016,7 +3028,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   uint i,const_count,key;
   const uint table_count= join->tables;
   table_map found_ref, refs;
-  TABLE **table_vector;
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   Key_use *keyuse, *start_keyuse;
   table_map outer_join= 0;
@@ -3027,8 +3038,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 
   stat= new (thd->mem_root) JOIN_TAB[table_count];
   stat_ref= (JOIN_TAB**) thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector= (TABLE**) thd->alloc(sizeof(TABLE*)*(table_count*2));
-  if (!stat || !stat_ref || !table_vector)
+  if (!stat || !stat_ref)
     DBUG_RETURN(true);
 
   if (!(join->positions=
@@ -3057,7 +3067,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
   {
     stat_vector[i]=s;
     TABLE *const table= tables->table;
-    table_vector[i]= s->table= table;
+    s->table= table;
     table->pos_in_table_list= tables;
     error= tables->fetch_number_of_rows();
 
@@ -3628,7 +3638,6 @@ const_table_extraction_done:
 
   join->join_tab=stat;
   join->map2table=stat_ref;
-  join->all_tables= table_vector;
   join->const_tables=const_count;
 
   if (join->const_tables != join->tables)
@@ -8967,7 +8976,7 @@ static void optimize_keyuse(JOIN *join, Key_use_array *keyuse_array)
       for (tablenr=0 ; ! (map & 1) ; map>>=1, tablenr++) ;
       if (map == 1)			// Only one table
       {
-	TABLE *tmp_table=join->all_tables[tablenr];
+	TABLE *tmp_table= join->join_tab[tablenr].table;
 	keyuse->ref_table_rows= max<ha_rows>(tmp_table->file->stats.records, 100);
       }
     }

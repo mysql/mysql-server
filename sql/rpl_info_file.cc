@@ -28,25 +28,70 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val);
 bool init_dynarray_intvar_from_file(char *buffer, size_t size, 
                                     char **buffer_act, IO_CACHE* f);
 
-Rpl_info_file::Rpl_info_file(const int nparam, const char* param_info_fname)
+Rpl_info_file::Rpl_info_file(const int nparam,
+                             const char* param_pattern_fname,
+                             const char* param_info_fname)
   :Rpl_info_handler(nparam), info_fd(-1)
 {
   DBUG_ENTER("Rpl_info_file::Rpl_info_file");
 
   memset(&info_file, 0, sizeof(info_file));
+  fn_format(pattern_fname, param_pattern_fname, mysql_data_home, "", 4 + 32);
   fn_format(info_fname, param_info_fname, mysql_data_home, "", 4 + 32);
 
   DBUG_VOID_RETURN;
 }
 
-int Rpl_info_file::do_init_info(const ulong *uidx __attribute__((unused)),
-                                const uint nidx __attribute__((unused)))
+int Rpl_info_file::do_init_info(uint instance)
+{
+  DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
+
+  uint i= 0;
+  struct st_my_dir *dir_info= NULL;
+  struct fileinfo *file_info= NULL;
+  char dir_name[FN_REFLEN];
+  size_t dir_size= 0;
+  char* file_name= NULL;
+  size_t file_size= 0;
+  uint counter= 0;
+
+  file_name= pattern_fname +
+             dirname_part(dir_name, pattern_fname, &dir_size);
+  file_size= strlen(file_name);
+
+  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+    DBUG_RETURN(true);
+
+  file_info= dir_info->dir_entry;
+  for (i= dir_info->number_off_files ; i--; file_info++)
+  {
+    if (!strncmp(file_info->name, file_name, file_size))
+    {
+      counter++;
+      /*
+        Fixing the file name as it may not be correct as it usually
+        indexed by instance.
+      */
+      if (counter == instance)
+      {
+        fn_format(info_fname, file_info->name, mysql_data_home,
+                  "", 4 + 32);
+        break;
+      }
+    }
+  }
+  my_dirend(dir_info);
+
+  DBUG_RETURN(do_init_info());
+}
+
+int Rpl_info_file::do_init_info()
 {
   int error= 0;
   DBUG_ENTER("Rpl_info_file::do_init_info");
 
   /* does info file exist ? */
-  enum_return_check ret_check= do_check_info(uidx, nidx);
+  enum_return_check ret_check= do_check_info();
   if (ret_check == REPOSITORY_DOES_NOT_EXIST)
   {
     /*
@@ -112,24 +157,70 @@ file '%s')", info_fname);
   DBUG_RETURN(error);
 }
 
-int Rpl_info_file::do_prepare_info_for_read(const uint nidx
-                                            __attribute__((unused)))
+int Rpl_info_file::do_prepare_info_for_read()
 {
   cursor= 0;
   prv_error= FALSE;
   return (reinit_io_cache(&info_file, READ_CACHE, 0L, 0, 0));
 }
 
-int Rpl_info_file::do_prepare_info_for_write(const uint nidx
-                                             __attribute__((unused)))
+int Rpl_info_file::do_prepare_info_for_write()
 {
   cursor= 0;
   prv_error= FALSE;
   return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
 }
 
-enum_return_check Rpl_info_file::do_check_info(const ulong *uidx __attribute__((unused)),
-                                               const uint nidx __attribute__((unused)))
+enum_return_check Rpl_info_file::do_check_info(uint instance)
+{
+  uint i= 0;
+  struct st_my_dir *dir_info= NULL;
+  struct fileinfo *file_info= NULL;
+  char dir_name[FN_REFLEN];
+  size_t dir_size= 0;
+  char* file_name= NULL;
+  size_t file_size= 0;
+  uint counter= 0;
+
+  file_name= pattern_fname +
+             dirname_part(dir_name, pattern_fname, &dir_size);
+  file_size= strlen(file_name);
+
+  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+    return ERROR_CHECKING_REPOSITORY;
+
+  file_info= dir_info->dir_entry;
+  for (i= dir_info->number_off_files ; i--; file_info++)
+  {
+    if (!strncmp(file_info->name, file_name, file_size))
+    {
+      counter++;
+      if (counter == instance)
+      {
+
+        if (my_access(file_info->name, F_OK))
+        {
+          my_dirend(dir_info);
+          return REPOSITORY_DOES_NOT_EXIST;
+        }
+
+        if (my_access(file_info->name, F_OK | R_OK | W_OK))
+        {
+          my_dirend(dir_info);
+          return ERROR_CHECKING_REPOSITORY;
+        }
+
+        my_dirend(dir_info);
+        return REPOSITORY_EXISTS;
+      }
+    }
+  }
+  my_dirend(dir_info);
+
+  return REPOSITORY_DOES_NOT_EXIST;
+}
+
+enum_return_check Rpl_info_file::do_check_info()
 {
   if (my_access(info_fname, F_OK))
     return REPOSITORY_DOES_NOT_EXIST;
@@ -140,9 +231,47 @@ enum_return_check Rpl_info_file::do_check_info(const ulong *uidx __attribute__((
   return REPOSITORY_EXISTS;
 }
 
-int Rpl_info_file::do_flush_info(const ulong *uidx,
-                                 const uint nidx,
-                                 const bool force)
+bool Rpl_info_file::do_count_info(const int nparam,
+                                  const char* param_pattern_fname,
+                                  uint* counter)
+{
+  uint i= 0;
+  struct st_my_dir *dir_info= NULL;
+  struct fileinfo *file_info= NULL;
+  char dir_name[FN_REFLEN];
+  size_t dir_size= 0;
+  char* file_name= NULL;
+  size_t file_size= 0;
+  Rpl_info_file* info= NULL;
+
+  DBUG_ENTER("Rpl_info_file::do_count_info");
+
+  if (!(info= new Rpl_info_file(nparam, param_pattern_fname, "")))
+    DBUG_RETURN(true);
+
+  file_name= info->pattern_fname +
+             dirname_part(dir_name, info->pattern_fname, &dir_size);
+  file_size= strlen(file_name);
+
+  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+  {
+    delete info;
+    DBUG_RETURN(true);
+  }
+
+  file_info= dir_info->dir_entry;
+  for (i= dir_info->number_off_files ; i-- ; file_info++)
+  {
+    if (!strncmp(file_info->name, file_name, file_size))
+      (*counter)++;
+  }
+  my_dirend(dir_info);
+
+  delete info;
+  DBUG_RETURN(false);
+}
+
+int Rpl_info_file::do_flush_info(const bool force)
 {
   int error= 0;
 
@@ -162,8 +291,7 @@ int Rpl_info_file::do_flush_info(const ulong *uidx,
   DBUG_RETURN(error);
 }
 
-void Rpl_info_file::do_end_info(const ulong *uidx __attribute__((unused)),
-                                const uint nidx __attribute__((unused)))
+void Rpl_info_file::do_end_info()
 {
   DBUG_ENTER("Rpl_info_file::do_end_info");
 
@@ -178,8 +306,7 @@ void Rpl_info_file::do_end_info(const ulong *uidx __attribute__((unused)),
   DBUG_VOID_RETURN;
 }
 
-int Rpl_info_file::do_remove_info(const ulong *uidx __attribute__((unused)),
-                                  const uint nidx __attribute__((unused)))
+int Rpl_info_file::do_remove_info()
 {
   MY_STAT stat_area;
   int error= 0;
@@ -192,34 +319,53 @@ int Rpl_info_file::do_remove_info(const ulong *uidx __attribute__((unused)),
   DBUG_RETURN(error);
 }
 
-int Rpl_info_file::do_reset_info(const int nparam, const char* param_info_fname)
+int Rpl_info_file::do_clean_info()
+{
+  /*
+    There is nothing to do here. Maybe we can truncate the
+    file in the future. Howerver, for now, there is no need.
+  */
+  return 0;
+}
+
+int Rpl_info_file::do_reset_info(const int nparam, const char* param_pattern_fname)
 {
   uint i= 0;
   struct st_my_dir *dir_info= NULL;
   struct fileinfo *file_info= NULL;
   const char* file_name= NULL;
-  size_t file_len= 0;
-  int error= FALSE;
+  size_t file_size= 0;
+  char dir_name[FN_REFLEN];
+  size_t dir_size= 0;
+  Rpl_info_file* info= NULL;
+  int error= false;
 
   DBUG_ENTER("Rpl_info_file::do_reset_info");
 
-  file_name= param_info_fname;
-  file_len= strlen(file_name);
-  if (!(dir_info= my_dir(mysql_data_home, MYF(MY_DONT_SORT))))
-    DBUG_RETURN(TRUE);
+  if (!(info= new Rpl_info_file(nparam, param_pattern_fname, "")))
+    DBUG_RETURN(true);
+
+  file_name= info->pattern_fname + dirname_part(dir_name, info->pattern_fname, &dir_size);
+  file_size= strlen(file_name);
+
+  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+  {
+    delete info;
+    DBUG_RETURN(true);
+  }
 
   file_info= dir_info->dir_entry;
   for (i= dir_info->number_off_files ; i-- ; file_info++)
   {
-    if (!strncmp(file_info->name, file_name, file_len))
+    if (!strncmp(file_info->name, file_name, file_size))
     {
-      DBUG_PRINT("info", ("Deleting %s\n", file_info->name));
       if (my_delete(file_info->name, MYF(MY_WME)))
-        error= TRUE;
+        error= true;
     }
   }
   my_dirend(dir_info);
- 
+
+  delete info; 
   DBUG_RETURN(error);
 }
 
@@ -365,6 +511,11 @@ bool Rpl_info_file::do_update_is_transactional()
                   return TRUE;
                   });
   return FALSE;
+}
+
+uint Rpl_info_file::do_get_rpl_info_type()
+{
+  return INFO_REPOSITORY_FILE;
 }
 
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,

@@ -3397,6 +3397,7 @@ fil_report_bad_tablespace(
 
 struct fsp_open_info {
 	ibool		success;	/*!< Has the tablespace been opened? */
+	ibool		valid;		/*!< Is the tablespace valid? */
 	os_file_t	file;		/*!< File handle */
 	char*		filepath;	/*!< File path to open */
 	lsn_t		lsn;		/*!< Flushed LSN from header page */
@@ -3408,10 +3409,11 @@ struct fsp_open_info {
 };
 
 /********************************************************************//**
-Tries to open a single-table tablespace and optionally checks the space id is
-right in it. If does not succeed, prints an error message to the .err log. This
-function is used to open a tablespace when we start up mysqld, and also in
-IMPORT TABLESPACE.
+Tries to open a single-table tablespace and optionally checks that the
+space id in it is correct. If this does not succeed, print an error message
+to the .err log. This function is used to open a tablespace when we start
+mysqld after the dictionary has been booted, and also in IMPORT TABLESPACE.
+
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
 race here. This operation does not leave the file associated with the
@@ -3448,6 +3450,7 @@ fil_open_single_table_tablespace(
 	fsp_open_info	dict;
 	fsp_open_info	remote;
 	ulint		tablespaces_found = 0;
+	ulint		valid_tablespaces_found = 0;
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
@@ -3519,7 +3522,7 @@ fil_open_single_table_tablespace(
 		tablespaces_found++;
 	}
 
-	/*  We have now checked all possible tablesapce locations and
+	/*  We have now checked all possible tablespace locations and
 	have a count of how many we found.  If things are normal, we
 	only found 1. */
 	if (!validate && tablespaces_found == 1) {
@@ -3539,14 +3542,14 @@ fil_open_single_table_tablespace(
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
 		ulint mod_def_flags = def.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (def.id != id || mod_def_flags != mod_flags) {
+		if (def.id == id && mod_def_flags == mod_flags) {
+			valid_tablespaces_found++;
+			def.valid = TRUE;
+		} else {
 			/* Do not use this tablespace. */
 			fil_report_bad_tablespace(
 				def.filepath, def.id,
 				def.flags, id, flags);
-			def.success = FALSE;
-			os_file_close(def.file);
-			tablespaces_found--;
 		}
 	}
 
@@ -3563,17 +3566,15 @@ fil_open_single_table_tablespace(
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
 		ulint mod_remote_flags = remote.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (remote.id != id || mod_remote_flags != mod_flags) {
+		if (remote.id == id && mod_remote_flags == mod_flags) {
+			valid_tablespaces_found++;
+			remote.valid = TRUE;
+		} else {
 			/* Do not use this linked tablespace. */
 			fil_report_bad_tablespace(
 				remote.filepath, remote.id,
 				remote.flags, id, flags);
-			remote.success = FALSE;
 			link_file_is_bad = true;
-			os_file_close(remote.file);
-			mem_free(remote.filepath);
-			remote.filepath = NULL;
-			tablespaces_found--;
 		}
 	}
 
@@ -3590,20 +3591,20 @@ fil_open_single_table_tablespace(
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
 		ulint mod_dict_flags = dict.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (dict.id != id || mod_dict_flags != mod_flags) {
+		if (dict.id == id && mod_dict_flags == mod_flags) {
+			valid_tablespaces_found++;
+			dict.valid = TRUE;
+		} else {
 			/* Do not use this tablespace. */
 			fil_report_bad_tablespace(
 				dict.filepath, dict.id,
 				dict.flags, id, flags);
-			dict.success = FALSE;
-			os_file_close(dict.file);
-			tablespaces_found--;
 		}
 	}
 
 	/* Make sense of these three possible locations.
 	First, bail out if no tablespace files were found. */
-	if (tablespaces_found == 0) {
+	if (valid_tablespaces_found == 0) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
@@ -3613,16 +3614,9 @@ fil_open_single_table_tablespace(
 			"for how to resolve the issue.\n",
 			tablename);
 
-		ut_ad(!def.success);
-		ut_ad(!dict.success);
-		ut_ad(!remote.success);
-		ut_ad(remote.filepath == NULL);
-		if (dict.filepath) {
-			mem_free(dict.filepath);
-		}
-		mem_free(def.filepath);
+		err = DB_CORRUPTION;
 
-		return(DB_CORRUPTION);
+		goto cleanup_and_exit;
 	}
 
 	/* Do not open any tablespaces if more than one tablespace with
@@ -3637,7 +3631,6 @@ fil_open_single_table_tablespace(
 				", Space ID=%lu, Flags=%lu\n",
 				def.filepath, def.lsn,
 				(ulong) def.id, (ulong) def.flags);
-			os_file_close(def.file);
 		}
 		if (remote.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3645,7 +3638,6 @@ fil_open_single_table_tablespace(
 				", Space ID=%lu, Flags=%lu\n",
 				remote.filepath, remote.lsn,
 				(ulong) remote.id, (ulong) remote.flags);
-			os_file_close(remote.file);
 		}
 		if (dict.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3653,25 +3645,57 @@ fil_open_single_table_tablespace(
 				", Space ID=%lu, Flags=%lu\n",
 				dict.filepath, dict.lsn,
 				(ulong) dict.id, (ulong) dict.flags);
+		}
+
+		/* Force-recovery will allow some tablespaces to be
+		skipped by REDO if there was more than one file found.
+		Unlike during the REDO phase of recovery, we now know
+		if the tablespace is valid according to the dictionary,
+		which was not available then. So if we did not force
+		recovery and there is only one good tablespace, ignore
+		any bad tablespaces. */
+		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Will not open the tablespace for '%s'\n",
+				tablename);
+
+			if (def.success != def.valid
+			    || dict.success != dict.valid
+			    || remote.success != remote.valid) {
+				err = DB_CORRUPTION;
+			} else {
+				err = DB_ERROR;
+			}
+			goto cleanup_and_exit;
+		}
+
+		/* There is only one valid tablespace found and we did
+		not use srv_force_recovery during REDO.  Use this one
+		tablespace and clean up invalid tablespace pointers */
+		if (def.success && !def.valid) {
+			def.success = false;
+			os_file_close(def.file);
+			tablespaces_found--;
+		}
+		if (dict.success && !dict.valid) {
+			dict.success = false;
 			os_file_close(dict.file);
+			/* Leave dict.filepath so that SYS_DATAFILES
+			can be corrected below. */
+			tablespaces_found--;
 		}
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Will not open the tablespace for '%s'\n",
-			tablename);
-
-		if (remote.filepath) {
+		if (remote.success && !remote.valid) {
+			remote.success = false;
+			os_file_close(remote.file);
 			mem_free(remote.filepath);
+			remote.filepath = NULL;
+			tablespaces_found--;
 		}
-		if (dict.filepath) {
-			mem_free(dict.filepath);
-		}
-		mem_free(def.filepath);
-
-		return(DB_ERROR);
 	}
 
 	/* At this point, there should be only one filepath. */
 	ut_a(tablespaces_found == 1);
+	ut_a(valid_tablespaces_found == 1);
 
 	/* Only fix the dictionary at startup when there is only one thread.
 	Calls to dict_load_table() can be done while holding other latches. */
@@ -3684,7 +3708,7 @@ fil_open_single_table_tablespace(
 	Since a failure to update SYS_TABLESPACES or SYS_DATAFILES does
 	not prevent opening and using the single_table_tablespace either
 	this time or the next, we do not check the return code or fail
-	to open the tablespace. dict_update_filepath() will issue a
+	to open the tablespace. But dict_update_filepath() will issue a
 	warning to the log. */
 	if (dict.filepath) {
 		if (remote.success) {
@@ -3726,6 +3750,7 @@ skip_validate:
 				def.filepath, 0, id, FALSE);
 	}
 
+cleanup_and_exit:
 	if (remote.success) {
 		os_file_close(remote.file);
 	}

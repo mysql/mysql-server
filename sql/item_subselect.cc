@@ -1695,7 +1695,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
   }
   else
   {
-    Item *orig_item= select_lex->item_list.head();
+    Item *orig_item= select_lex->item_list.head()->real_item();
 
     if (select_lex->table_list.elements)
     {

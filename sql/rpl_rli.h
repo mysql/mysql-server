@@ -804,7 +804,7 @@ public:
   }
 #endif
 
-  size_t get_number_info_rli_fields();
+  static size_t get_number_info_rli_fields();
 
   /**
     Indicate that a delay starts.
@@ -838,6 +838,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
+                 , uint param_id
                 );
   virtual ~Relay_log_info();
 
@@ -931,6 +932,7 @@ private:
   time_t sql_delay_end;
 
   uint32 m_flags;
+
   /*
     Before the MASTER_DELAY parameter was added (WL#344), relay_log.info
     had 4 lines. Now it has 5 lines.
@@ -941,6 +943,12 @@ private:
     Before the WL#5599, relay_log.info had 5 lines. Now it has 6 lines.
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_WORKERS= 6;
+
+  /*
+    Before the Id was added (BUG#2334346), relay_log.info
+    had 6 lines. Now it has 7 lines.
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_ID= 7;
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);

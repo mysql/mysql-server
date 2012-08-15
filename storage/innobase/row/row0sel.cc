@@ -4802,7 +4802,7 @@ requires_clust_rec:
 	    && !prebuilt->innodb_api
 	    && prebuilt->template_type
 	    != ROW_MYSQL_DUMMY_TEMPLATE
-	    && !prebuilt->result) {
+	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual
@@ -5154,6 +5154,9 @@ func_exit:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
+
+	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
+
 	return(err);
 }
 
