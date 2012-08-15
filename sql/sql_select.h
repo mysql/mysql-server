@@ -667,6 +667,9 @@ public:
   /// @returns semijoin strategy for this table.
   uint get_sj_strategy() const;
 
+  /// @returns (sub)query block id for an inner table of materialized semi-join
+  uint sjm_query_block_id() const;
+
   bool and_with_condition(Item *tmp_cond, uint line);
   bool and_with_jt_and_sel_condition(Item *tmp_cond, uint line);
 

@@ -1097,8 +1097,6 @@ public:
   uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		db_stat;		/* mode of file as in handler.h */
-  /* number of select if it is derived table */
-  uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
 
   /*
@@ -1928,6 +1926,9 @@ public:
      i.e.  the result of a subquery.
   */
   bool is_anonymous_derived_table() const { return derived && !view; }
+
+  /// returns query block id for derived table, and zero if not derived.
+  uint query_block_id() const;
 
   /**
      @brief Returns the name of the database that the referenced table belongs

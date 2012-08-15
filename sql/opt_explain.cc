@@ -855,7 +855,7 @@ bool Explain_union_result::explain_extra()
 bool Explain_table_base::explain_partitions()
 {
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (!table->derived_select_number && table->part_info)
+  if (!table->pos_in_table_list->derived && table->part_info)
     return make_used_partitions_str(table->part_info,
                                     &fmt->entry()->col_partitions);
 #endif
@@ -1223,7 +1223,7 @@ bool Explain_join::explain_join_tab(size_t tab_num)
   if (fmt->begin_context(c) || prepare_columns())
     return true;
   
-  fmt->entry()->derived_select_number= table->derived_select_number;
+  fmt->entry()->query_block_id= table->pos_in_table_list->query_block_id();
 
   if (sjm)
   {
@@ -1282,7 +1282,8 @@ bool Explain_join::explain_table_name()
     char table_name_buffer[NAME_LEN];
     const size_t len= my_snprintf(table_name_buffer,
                                   sizeof(table_name_buffer) - 1,
-                                  "<derived%u>", table->derived_select_number);
+                                  "<derived%u>",
+                                  table->pos_in_table_list->query_block_id());
     return fmt->entry()->col_table_name.set(table_name_buffer, len);
   }
   else
@@ -1292,9 +1293,7 @@ bool Explain_join::explain_table_name()
 
 bool Explain_join::explain_select_type()
 {
-  // Currently derived_select_type is used only for derived tables and
-  // materialized semijoins.
-  if (table->derived_select_number && !table->pos_in_table_list->derived)
+  if (sj_is_materialize_strategy(tab->get_sj_strategy()))
     fmt->entry()->col_select_type.set(st_select_lex::SLT_MATERIALIZED);
   else
     return Explain::explain_select_type();
@@ -1304,8 +1303,8 @@ bool Explain_join::explain_select_type()
 
 bool Explain_join::explain_id()
 {
-  if (table->derived_select_number && !table->pos_in_table_list->derived)
-    fmt->entry()->col_id.set(table->derived_select_number);
+  if (sj_is_materialize_strategy(tab->get_sj_strategy()))
+    fmt->entry()->col_id.set(tab->sjm_query_block_id());
   else
     return Explain::explain_id();
   return false;
@@ -1536,14 +1535,15 @@ bool Explain_join::explain_extra()
       {
         StringBuffer<64> buff(cs);
         TABLE *prev_table= tab->firstmatch_return->table;
-        if (prev_table->derived_select_number && !fmt->is_hierarchical() &&
+        if (prev_table->pos_in_table_list->query_block_id() &&
+            !fmt->is_hierarchical() &&
             prev_table->pos_in_table_list->derived)
         {
           char namebuf[NAME_LEN];
           /* Derived table name generation */
           int len= my_snprintf(namebuf, sizeof(namebuf)-1,
               "<derived%u>",
-              prev_table->derived_select_number);
+              prev_table->pos_in_table_list->query_block_id());
           buff.append(namebuf, len);
         }
         else

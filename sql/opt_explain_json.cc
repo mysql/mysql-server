@@ -719,7 +719,6 @@ public:
 
   virtual bool format_derived(Opt_trace_context *json)
   {
-    //DBUG_ASSERT(derived_select_number == 0 || derived_from.elements != 0);
     if (derived_from.elements == 0)
       return false;
     else if (derived_from.elements == 1)
@@ -878,7 +877,7 @@ public:
 
   virtual bool find_and_set_derived(context *subquery)
   {
-    if (derived_select_number == subquery->id())
+    if (query_block_id == subquery->id())
     {
       derived_from.push_back(subquery);
       return true;
