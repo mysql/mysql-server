@@ -1063,8 +1063,10 @@ buf_block_get_frame(
 /*================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
+# define buf_block_get_frame_fast(block) buf_block_get_frame(block)
 #else /* UNIV_DEBUG */
 # define buf_block_get_frame(block) (block ? (block)->frame : 0)
+# define buf_block_get_frame_fast(block) (block)->frame
 #endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Gets the space id of a block.

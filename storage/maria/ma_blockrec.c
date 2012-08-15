@@ -4677,6 +4677,8 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
   MARIA_ROW *cur_row= &info->cur_row;
   DBUG_ENTER("_ma_read_block_record2");
 
+  LINT_INIT(blob_buffer);
+
   start_of_data= data;
   flag= (uint) (uchar) data[0];
   cur_null_bytes= share->base.original_null_bytes;

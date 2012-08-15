@@ -83,6 +83,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 #endif
   DBUG_ENTER("walk_and_match");
 
+  LINT_INIT_STRUCT(subkeys);
+
   word->weight=LWS_FOR_QUERY;
 
   _ma_ft_make_key(info, &key, aio->keynr, keybuff, word, 0);

@@ -6408,7 +6408,8 @@ greedy_search(JOIN      *join,
   uint      size_remain;    // cardinality of remaining_tables
   POSITION  best_pos;
   JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
-  uint      n_tables; // ==join->tables or # tables in the sj-mat nest we're optimizing
+  // ==join->tables or # tables in the sj-mat nest we're optimizing
+  uint      n_tables __attribute__((unused));
 
   DBUG_ENTER("greedy_search");
 
@@ -6656,7 +6657,7 @@ double JOIN::get_examined_rows()
   while ((tab= next_breadth_first_tab(this, tab)))
   {
     prev_fanout *= prev_tab->records_read;
-    examined_rows+= tab->get_examined_rows() * prev_fanout;
+    examined_rows+= (ha_rows) (tab->get_examined_rows() * prev_fanout);
     prev_tab= tab;
   }
   return examined_rows;

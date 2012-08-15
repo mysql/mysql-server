@@ -3372,6 +3372,7 @@ restart:
     PAGECACHE_BLOCK_LINK *block;
     uint status;
     int page_st;
+    LINT_INIT(page_st);
 
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (!pagecache->can_be_used)

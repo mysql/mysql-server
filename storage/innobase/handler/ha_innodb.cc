@@ -8418,9 +8418,10 @@ ha_innobase::info_low(
 				                }
                                                 else if (rec_per_key > 1) {
                                                         rec_per_key =
-                                                        k_rec_per_key *
-						        (double)rec_per_key /
-							n_rows;
+                                                        (ha_rows)
+                                                          (k_rec_per_key *
+						          (double)rec_per_key /
+                                                           n_rows);
 						}
                                                 
 				                key_info->rec_per_key[k++]=
@@ -11712,7 +11713,7 @@ static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG_never
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
   "Debug flags for InnoDB to limit TRX_RSEG_N_SLOTS for trx_rsegf_undo_find_free()",

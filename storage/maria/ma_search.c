@@ -439,6 +439,10 @@ int _ma_prefix_search(const MARIA_KEY *key, const MARIA_PAGE *ma_page,
   const uchar *sort_order= keyinfo->seg->charset->sort_order;
   DBUG_ENTER("_ma_prefix_search");
 
+  LINT_INIT(seg_len_pack);
+  LINT_INIT(prefix_len);
+  LINT_INIT(length);
+
   t_buff[0]=0;                                  /* Avoid bugs */
   page_flag=   ma_page->flag;
   nod_flag=    ma_page->node;
