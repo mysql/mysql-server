@@ -4439,13 +4439,11 @@ ha_innobase::commit_inplace_alter_table(
 				}
 			}
 
-			UT_LIST_ADD_LAST(foreign_list,
-					 prebuilt->table->foreign_list,
+			UT_LIST_ADD_LAST(prebuilt->table->foreign_list,
 					 ctx->add_fk[i]);
 
 			if (ctx->add_fk[i]->referenced_table) {
 				UT_LIST_ADD_LAST(
-					referenced_list,
 					ctx->add_fk[i]->referenced_table
 					->referenced_list,
 					ctx->add_fk[i]);

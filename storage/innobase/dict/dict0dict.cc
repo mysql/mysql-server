@@ -876,6 +876,9 @@ dict_init(void)
 
 	dict_sys = static_cast<dict_sys_t*>(mem_zalloc(sizeof(*dict_sys)));
 
+	UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
+	UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
+
 	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
 
 	dict_sys->table_hash = hash_create(buf_pool_get_curr_size()
@@ -913,9 +916,9 @@ dict_move_to_mru(
 
 	ut_a(table->can_be_evicted);
 
-	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+	UT_LIST_REMOVE(dict_sys->table_LRU, table);
 
-	UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
+	UT_LIST_ADD_FIRST(dict_sys->table_LRU, table);
 
 	ut_ad(dict_lru_validate());
 }
@@ -1139,9 +1142,9 @@ dict_table_add_to_cache(
 	table->can_be_evicted = can_be_evicted;
 
 	if (table->can_be_evicted) {
-		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_LRU, table);
+		UT_LIST_ADD_FIRST(dict_sys->table_LRU, table);
 	} else {
-		UT_LIST_ADD_FIRST(table_LRU, dict_sys->table_non_LRU, table);
+		UT_LIST_ADD_FIRST(dict_sys->table_non_LRU, table);
 	}
 
 	ut_ad(dict_lru_validate());
@@ -1286,9 +1289,9 @@ dict_table_move_from_lru_to_non_lru(
 
 	ut_a(table->can_be_evicted);
 
-	UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+	UT_LIST_REMOVE(dict_sys->table_LRU, table);
 
-	UT_LIST_ADD_LAST(table_LRU, dict_sys->table_non_LRU, table);
+	UT_LIST_ADD_LAST(dict_sys->table_non_LRU, table);
 
 	table->can_be_evicted = FALSE;
 }
@@ -1306,9 +1309,9 @@ dict_table_move_from_non_lru_to_lru(
 
 	ut_a(!table->can_be_evicted);
 
-	UT_LIST_REMOVE(table_LRU, dict_sys->table_non_LRU, table);
+	UT_LIST_REMOVE(dict_sys->table_non_LRU, table);
 
-	UT_LIST_ADD_LAST(table_LRU, dict_sys->table_LRU, table);
+	UT_LIST_ADD_LAST(dict_sys->table_LRU, table);
 
 	table->can_be_evicted = TRUE;
 }
@@ -1551,7 +1554,9 @@ dict_table_rename_in_cache(
 
 		/* Make the list of referencing constraints empty */
 
-		UT_LIST_INIT(table->referenced_list);
+		UT_LIST_INIT(
+			table->referenced_list,
+			&dict_foreign_t::referenced_list);
 
 		return(DB_SUCCESS);
 	}
@@ -1747,10 +1752,10 @@ dict_table_remove_from_cache_low(
 	/* Remove table from LRU or non-LRU list. */
 	if (table->can_be_evicted) {
 		ut_ad(dict_lru_find_table(table));
-		UT_LIST_REMOVE(table_LRU, dict_sys->table_LRU, table);
+		UT_LIST_REMOVE(dict_sys->table_LRU, table);
 	} else {
 		ut_ad(dict_non_lru_find_table(table));
-		UT_LIST_REMOVE(table_LRU, dict_sys->table_non_LRU, table);
+		UT_LIST_REMOVE(dict_sys->table_non_LRU, table);
 	}
 
 	ut_ad(dict_lru_validate());
@@ -2282,7 +2287,7 @@ undo_size_ok:
 
 	/* Add the new index as the last index for the table */
 
-	UT_LIST_ADD_LAST(indexes, table->indexes, new_index);
+	UT_LIST_ADD_LAST(table->indexes, new_index);
 	new_index->table = table;
 	new_index->table_name = table->name;
 	new_index->search_info = btr_search_info_create(new_index->heap);
@@ -2376,7 +2381,7 @@ dict_index_remove_from_cache_low(
 	rw_lock_free(&index->lock);
 
 	/* Remove the index from the list of indexes of the table */
-	UT_LIST_REMOVE(indexes, table->indexes, index);
+	UT_LIST_REMOVE(table->indexes, index);
 
 	size = mem_heap_get_size(index->heap);
 
@@ -2995,15 +3000,12 @@ dict_foreign_remove_from_cache(
 	ut_a(foreign);
 
 	if (foreign->referenced_table) {
-		UT_LIST_REMOVE(referenced_list,
-			       foreign->referenced_table->referenced_list,
+		UT_LIST_REMOVE(foreign->referenced_table->referenced_list,
 			       foreign);
 	}
 
 	if (foreign->foreign_table) {
-		UT_LIST_REMOVE(foreign_list,
-			       foreign->foreign_table->foreign_list,
-			       foreign);
+		UT_LIST_REMOVE(foreign->foreign_table->foreign_list, foreign);
 	}
 
 	dict_foreign_free(foreign);
@@ -3215,9 +3217,7 @@ dict_foreign_add_to_cache(
 
 		for_in_cache->referenced_table = ref_table;
 		for_in_cache->referenced_index = index;
-		UT_LIST_ADD_LAST(referenced_list,
-				 ref_table->referenced_list,
-				 for_in_cache);
+		UT_LIST_ADD_LAST(ref_table->referenced_list, for_in_cache);
 		added_to_referenced_list = TRUE;
 	}
 
@@ -3246,7 +3246,6 @@ dict_foreign_add_to_cache(
 			if (for_in_cache == foreign) {
 				if (added_to_referenced_list) {
 					UT_LIST_REMOVE(
-						referenced_list,
 						ref_table->referenced_list,
 						for_in_cache);
 				}
@@ -3259,9 +3258,7 @@ dict_foreign_add_to_cache(
 
 		for_in_cache->foreign_table = for_table;
 		for_in_cache->foreign_index = index;
-		UT_LIST_ADD_LAST(foreign_list,
-				 for_table->foreign_list,
-				 for_in_cache);
+		UT_LIST_ADD_LAST(for_table->foreign_list, for_in_cache);
 	}
 
 	/* We need to move the table to the non-LRU end of the table LRU
@@ -4430,12 +4427,10 @@ try_find_index:
 
 	/* We found an ok constraint definition: add to the lists */
 
-	UT_LIST_ADD_LAST(foreign_list, table->foreign_list, foreign);
+	UT_LIST_ADD_LAST(table->foreign_list, foreign);
 
 	if (referenced_table) {
-		UT_LIST_ADD_LAST(referenced_list,
-				 referenced_table->referenced_list,
-				 foreign);
+		UT_LIST_ADD_LAST(referenced_table->referenced_list, foreign);
 	}
 
 	goto loop;

@@ -801,6 +801,22 @@ lock_table_get_n_locks(
 /*===================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull));
+/*******************************************************************//**
+Initialise the trx lock list. */
+UNIV_INTERN
+void
+lock_trx_lock_list_init(
+/*====================*/
+	trx_lock_list_t*	lock_list)	/*!< List to initialise */
+	__attribute__((nonnull));
+
+/*******************************************************************//**
+Set the lock system timeout event. */
+UNIV_INTERN
+void
+lock_set_timeout_event();
+/*====================*/
+
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the

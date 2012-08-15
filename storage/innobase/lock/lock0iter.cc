@@ -27,6 +27,7 @@ Created July 16, 2007 Vasil Dimov
 #define LOCK_MODULE_IMPLEMENTATION
 
 #include "univ.i"
+#include "dict0mem.h"
 #include "lock0iter.h"
 #include "lock0lock.h"
 #include "lock0priv.h"

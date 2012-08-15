@@ -150,6 +150,9 @@ trx_create(void)
 	for new transactions. */
 	trx->start_time = ut_time();
 
+	lock_trx_lock_list_init(&trx->lock.trx_locks);
+	UT_LIST_INIT(trx->trx_savepoints, &trx_named_savept_t::trx_savepoints);
+
 	return(trx);
 }
 
@@ -185,7 +188,7 @@ trx_allocate_for_mysql(void)
 	mutex_enter(&trx_sys->mutex);
 
 	ut_d(trx->in_mysql_trx_list = TRUE);
-	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
+	UT_LIST_ADD_FIRST(trx_sys->mysql_trx_list, trx);
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -306,7 +309,7 @@ trx_free_prepared(
 
 	ut_a(!trx->read_only);
 
-	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
+	UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
 	trx_free(trx);
@@ -324,7 +327,7 @@ trx_free_for_mysql(
 
 	ut_ad(trx->in_mysql_trx_list);
 	ut_d(trx->in_mysql_trx_list = FALSE);
-	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
+	UT_LIST_REMOVE(trx_sys->mysql_trx_list, trx);
 
 	ut_ad(trx_sys_validate_trx_list());
 
@@ -371,13 +374,12 @@ trx_list_rw_insert_ordered(
 		trx2 = UT_LIST_GET_PREV(trx_list, trx2);
 
 		if (trx2 == NULL) {
-			UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
+			UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 		} else {
-			UT_LIST_INSERT_AFTER(
-				trx_list, trx_sys->rw_trx_list, trx2, trx);
+			UT_LIST_INSERT_AFTER(trx_sys->rw_trx_list, trx2, trx);
 		}
 	} else {
-		UT_LIST_ADD_LAST(trx_list, trx_sys->rw_trx_list, trx);
+		UT_LIST_ADD_LAST(trx_sys->rw_trx_list, trx);
 	}
 
 	ut_ad(!trx->in_rw_trx_list);
@@ -558,21 +560,14 @@ void
 trx_lists_init_at_db_start(void)
 /*============================*/
 {
-	ulint		i;
-
 	ut_a(srv_is_being_started);
-
-	UT_LIST_INIT(trx_sys->ro_trx_list);
-	UT_LIST_INIT(trx_sys->rw_trx_list);
 
 	/* Look from the rollback segments if there exist undo logs for
 	transactions */
 
-	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
 		trx_undo_t*	undo;
-		trx_rseg_t*	rseg;
-
-		rseg = trx_sys->rseg_array[i];
+		trx_rseg_t*	rseg = trx_sys->rseg_array[i];
 
 		if (rseg == NULL) {
 			continue;
@@ -746,7 +741,7 @@ trx_start_low(
 		doesn't need a list wide lock to increase concurrency. */
 
 		if (!trx_is_autocommit_non_locking(trx)) {
-			UT_LIST_ADD_FIRST(trx_list, trx_sys->ro_trx_list, trx);
+			UT_LIST_ADD_FIRST(trx_sys->ro_trx_list, trx);
 			ut_d(trx->in_ro_trx_list = TRUE);
 		}
 	} else {
@@ -755,7 +750,7 @@ trx_start_low(
 		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
 
 		ut_ad(!trx_is_autocommit_non_locking(trx));
-		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
+		UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
 	}
 
@@ -1122,11 +1117,11 @@ trx_commit(
 		assert_trx_in_list(trx);
 
 		if (trx->read_only) {
-			UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
+			UT_LIST_REMOVE(trx_sys->ro_trx_list, trx);
 			ut_d(trx->in_ro_trx_list = FALSE);
 			MONITOR_INC(MONITOR_TRX_RO_COMMIT);
 		} else {
-			UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
+			UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
 			ut_d(trx->in_rw_trx_list = FALSE);
 			MONITOR_INC(MONITOR_TRX_RW_COMMIT);
 		}
@@ -1261,7 +1256,7 @@ trx_cleanup_at_db_startup(
 
 	ut_a(!trx->read_only);
 
-	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
+	UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
 
 	assert_trx_in_rw_list(trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
