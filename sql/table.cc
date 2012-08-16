@@ -3623,6 +3623,12 @@ void TABLE_LIST::set_underlying_merge()
     if (!multitable_view)
     {
       table= merge_underlying_list->table;
+      /*
+        If underlying view is not updatable and current view
+        is a single table view
+      */
+      if (!merge_underlying_list->updatable)
+        updatable= false;
       schema_table= merge_underlying_list->schema_table;
     }
   }
