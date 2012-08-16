@@ -20,6 +20,8 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
+var util = require('util');
+
 exports.DataDictionary = function(pooledConnection) {
   this.connection = pooledConnection;
 };
@@ -38,7 +40,7 @@ exports.DataDictionary.prototype.listTables = function(databaseName, user_callba
       udebug.log('MySQLDictionary.listTables function result: ' + result);
       callback(err, result);
     }
-  }
+  };
   this.connection.query('show tables', showTables_callback);
 };
 
@@ -186,27 +188,44 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
         udebug.log_detail('MySQLDictionary.parseCreateTable: columnDefinition: ' + columnTypeAndSize);
         var columnTypeAndSizeSplit = columnTypeAndSize.split('(');
         var columnType = columnTypeAndSizeSplit[0];
-        udebug.log_detail('MySQLDictionary.parseCreateTable: columnType: ' + columnType);
+        udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': columnType: ' + columnType);
         column['columnType'] = columnType;
         if (columnTypeAndSizeSplit.length > 1) {
           var columnSize = columnTypeAndSizeSplit[1].split(')')[0];
-          udebug.log_detail('MySQLDictionary.parseCreateTable: columnSize: ' + columnSize);
+          udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': columnSize: ' + columnSize);
         }
+        ++j;
+
         // check for unsigned
-        if (tokens[++j] == 'unsigned') {
+        if (tokens[j] == 'unsigned') {
           var unsigned = true;
           ++j;
         }
-        udebug.log_detail('MySQLDictionary.parseCreateTable: unsigned: ' + unsigned);
+        udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': unsigned: ' + unsigned);
         column['isUnsigned'] = unsigned;
+
+        // check for character set
+        if (tokens[j] == 'CHARACTER') {
+          var charset = tokens[j + 2];
+          udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': charset: ' + charset);
+          j += 3; // skip 'CHARACTER SET charset'
+          column['charsetName'] = charset;
+          // check for collation
+          if (tokens[j] == 'COLLATE') {
+            var collation = tokens[j + 1];
+            udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': collation: ' + collation);
+            column['collationName'] = collation;
+            j+= 2; // skip 'COLLATE collation'
+          }
+        }
         if (tokens[j] == 'NOT') { // 'NOT NULL' clause
           nullable = false;
           j += 2; // skip 'not null'
         }
-        udebug.log_detail('MySQLDictionary.parseCreateTable: NOT NULL: ' + nullable);
+        udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ' NOT NULL: ' + !nullable);
         column['isNullable'] = nullable;
         if (tokens[j] == 'DEFAULT') {
-          udebug.log_detail('MySQLDictionary.parseCreateTable: DEFAULT: ' + tokens[j]);
+          udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': DEFAULT: ' + tokens[j]);
         }
 
         // add extra metadata specific to type
@@ -244,25 +263,25 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
 
   callback = user_callback;
   showCreateTable_callback = function(err, rows) {
+    var result;
     if (err) {
       callback(err);
     } else {
       udebug.log(rows);
-      result = [];
-      rows.forEach(function(row) {
-        // result of show create table is of the form:
-        // [ { Table: 'tbl1',
-        // 'Create Table': 'CREATE TABLE `tbl1` (\n  `i` int(11) NOT NULL,\n  `j` int(11) DEFAULT NULL,\n  PRIMARY KEY (`i`)\n) ENGINE=ndbcluster DEFAULT CHARSET=latin1' } ]
-        // the create table statement is the attribute named 'Create Table'
-        var createTableStatement = row['Create Table'];
-        var metadata = parseCreateTable(tableName, createTableStatement);
-        udebug.log('showCreateTable_callback.forEach metadata: ' + JSON.stringify(metadata));
-        result.push(metadata);
-        
-      });
+      row = rows[0];
+      // result of show create table is of the form:
+      // [ { Table: 'tbl1',
+      // 'Create Table': 'CREATE TABLE `tbl1` (\n  `i` int(11) NOT NULL,\n  `j` int(11) DEFAULT NULL,\n  PRIMARY KEY (`i`)\n) ENGINE=ndbcluster DEFAULT CHARSET=latin1' } ]
+      // the create table statement is the attribute named 'Create Table'
+      var createTableStatement = row['Create Table'];
+      var metadata = parseCreateTable(tableName, createTableStatement);
+      udebug.log('showCreateTable_callback.forEach metadata: ' + util.inspect(metadata));
+      result = metadata;
+      
       callback(err, result);
     }
   };
+
   this.connection.query('show create table ' + tableName + '', showCreateTable_callback);
 };
 
