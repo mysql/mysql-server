@@ -1241,7 +1241,7 @@ trx_sys_close(void)
 	trx_sys->mutex.exit();
 
 	/* We used placement new to create this mutex. Call the destructor. */
-	trx_sys->mutex.~PolicyMutex();
+	trx_sys->mutex.~TrxSysMutex();
 
 	mem_free(trx_sys);
 

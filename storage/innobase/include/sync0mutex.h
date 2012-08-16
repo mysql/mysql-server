@@ -340,6 +340,8 @@ mutex_list_print_info(
 /*==================*/
 	FILE*	file);			/*!< in: file where to print */
 
+#endif /* UNIV_SYNC_DEBUG */
+
 /******************************************************************//**
 @return total number of spin rounds since startup. */
 UNIV_INTERN
@@ -360,7 +362,6 @@ UNIV_INTERN
 ib_uint64_t
 mutex_os_wait_count_get();
 /*======================*/
-#endif /* UNIV_SYNC_DEBUG */
 
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! The structure used in the spin lock

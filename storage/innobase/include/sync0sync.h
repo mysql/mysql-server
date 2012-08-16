@@ -470,12 +470,12 @@ to 20 microseconds. */
 extern	ib_int64_t	mutex_exit_count;
 
 #ifdef UNIV_SYNC_DEBUG
-/** Latching order checks start when this is set TRUE */
-extern ibool		sync_order_checks_on;
+/** Latching order checks start when this is set true */
+extern bool		sync_order_checks_on;
 #endif /* UNIV_SYNC_DEBUG */
 
-/** This variable is set to TRUE when sync_init is called */
-extern ibool		sync_initialized;
+/** This variable is set to true when sync_init is called */
+extern bool		sync_initialized;
 
 /** Global list of database mutexes (not OS mutexes) created. */
 typedef UT_LIST_BASE_NODE_T(ib_mutex_t)  ut_list_base_node_t;
