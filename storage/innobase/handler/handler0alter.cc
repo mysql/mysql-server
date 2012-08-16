@@ -177,6 +177,45 @@ innobase_fulltext_exist(
 	return(false);
 }
 
+/** Check if table to ALTER has foreign key with DELETE/UPDATE
+CONSTRAINT created with reference option CASCADE/SET NULL
+@param table		InnoDB table that is being altered
+@return			whether a CASCADE or SET NULL option exists */
+static
+bool
+innobase_fk_cscd_setnull_exist(
+/*===========================*/
+	const dict_table_t* table)
+{
+	/* For "ALTER .... INPLACE (LOCK=NONE/DEFAULT) we avoid online
+	inplace and so force it to use SHARED lock.
+	This is done to protect ALTER TABLE INPLACE against a bug in
+	MySQL MDL that fails to lock foreign key table while modifying
+	the parent table in a way that affects foreign table.
+	(For example: delete from parent; will affect child table if
+	there is fk-del-on-cascade/set-null dependency on child table.)
+	If avoided, this leads to an issue in form that parallel
+	transaction running ALTER TABLE is allowed to proceed on TABLE
+	that is already being modified by other transaction, further
+	causing data-inconsistency.
+	Remove this fix once WL#6049 is fixed as it would take
+	care of the issue in MySQL MDL locking.
+	Corresponding bug for this is bug#14219233 */
+	for (const dict_foreign_t* foreign =
+		UT_LIST_GET_FIRST(table->foreign_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+		if (foreign->type
+		    & (DICT_FOREIGN_ON_DELETE_CASCADE
+		      | DICT_FOREIGN_ON_DELETE_SET_NULL
+		      | DICT_FOREIGN_ON_UPDATE_CASCADE
+		      | DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
+			return(true);
+		}
+	}
+	return(false);
+}
+
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info		the DDL operation
@@ -387,6 +426,15 @@ ha_innobase::check_if_supported_inplace_alter(
 	}
 
 	prebuilt->trx->will_lock++;
+
+	/* Other check viz. full-text or add-index are checking for
+	alter table option which are explicity specified by user
+	for altering. Here we are checking for implicit feasibility
+	of table for altering and so this check can't be clubbed
+	in same category like fts or add-index and so separate if */
+	if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
+		online = false;
+	}
 
 	if (!online) {
 		/* We already determined that only a non-locking
@@ -2368,6 +2416,7 @@ prepare_inplace_alter_table_dict(
 		|| (innobase_need_rebuild(ha_alter_info)
 		    && innobase_fulltext_exist(altered_table->s))
 		|| (add_autoinc_col != ULINT_UNDEFINED)
+		|| innobase_fk_cscd_setnull_exist(user_table)
 		|| ha_alter_info->alter_info->requested_lock
 		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
 		|| ha_alter_info->alter_info->requested_lock
