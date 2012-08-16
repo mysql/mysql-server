@@ -1220,7 +1220,12 @@ fail_err:
 
 		if (UNIV_UNLIKELY(reorg)) {
 			ut_a(zip_size);
-			ut_a(*rec);
+			/* It's possible for rec to be NULL if the
+			page is compressed.  This is because a
+			reorganized page may become incompressible. */
+			if (!*rec) {
+				goto fail;
+			}
 		}
 	}
 
@@ -1973,8 +1978,12 @@ any_extern:
 		goto err_exit;
 	}
 
-	max_size = old_rec_size
-		+ page_get_max_insert_size_after_reorganize(page, 1);
+	/* We do not attempt to reorganize if the page is compressed.
+	This is because the page may fail to compress after reorganization. */
+	max_size = page_zip
+		? page_get_max_insert_size(page, 1)
+		: (old_rec_size
+		   + page_get_max_insert_size_after_reorganize(page, 1));
 
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
