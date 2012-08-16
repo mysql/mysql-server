@@ -1361,20 +1361,9 @@ btr_cur_pessimistic_insert(
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
-	/* Try first an optimistic insert; reset the cursor flag: we do not
-	assume anything of how it was positioned */
-
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-					big_rec, n_ext, thr, mtr);
-	if (err != DB_FAIL) {
-
-		return(err);
-	}
-
-	/* Retry with a pessimistic insert. Check locks and write to undo log,
-	if specified */
+	/* Check locks and write to undo log, if specified */
 
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &dummy_inh);
@@ -2365,8 +2354,10 @@ make_external:
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
 
-	/* The first parameter means that no lock checking and undo logging
-	is made in the insert */
+	/* Lock checks and undo logging were already performed by
+	btr_cur_upd_lock_and_undo(). We do not try
+	btr_cur_optimistic_insert() because
+	btr_cur_insert_if_possible() already failed above. */
 
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
