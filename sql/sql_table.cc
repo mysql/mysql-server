@@ -5267,7 +5267,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     Adjust values of table-level and metadata which was set in parser
     for the case general ALTER TABLE.
   */
-  table_list->mdl_request.set_type(MDL_SHARED_WRITE);
+  table_list->mdl_request.set_type(MDL_EXCLUSIVE);
   table_list->lock_type= TL_WRITE;
   /* Do not open views. */
   table_list->required_type= FRMTYPE_TABLE;
