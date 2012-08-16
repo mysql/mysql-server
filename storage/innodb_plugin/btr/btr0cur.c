@@ -2326,7 +2326,12 @@ make_external:
 		err = DB_SUCCESS;
 		goto return_after_reservations;
 	} else {
-		ut_a(optim_err != DB_UNDERFLOW);
+		/* If the page is compressed and it initially
+		compresses very well, and there is a subsequent insert
+		of a badly-compressing record, it is possible for
+		btr_cur_optimistic_update() to return DB_UNDERFLOW and
+		btr_cur_insert_if_possible() to return FALSE. */
+		ut_a(page_zip || optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
 		if (!dict_index_is_clust(index)
