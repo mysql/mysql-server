@@ -3108,7 +3108,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
 
   stat= new (thd->mem_root) JOIN_TAB[table_count];
   stat_ref= (JOIN_TAB**) thd->alloc(sizeof(JOIN_TAB*)*MAX_TABLES);
-  table_vector= (TABLE**) thd->alloc(sizeof(TABLE*)*(table_count*2));
+  table_vector= (TABLE**) thd->alloc(sizeof(TABLE*)*(table_count*2+2));
   if (!stat || !stat_ref || !table_vector)
     DBUG_RETURN(true);
 
