@@ -79,7 +79,7 @@ any waiting threads who have missed the signal. */
 /** A cell where an individual thread may wait suspended
 until a resource is released. The suspending is implemented
 using an operating system event semaphore. */
-struct sync_cell_struct {
+struct sync_cell_t {
 	void*		wait_object;	/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
@@ -110,20 +110,19 @@ struct sync_cell_struct {
 					the wait cell */
 };
 
-/* NOTE: It is allowed for a thread to wait
-for an event allocated for the array without owning the
-protecting mutex (depending on the case: OS or database mutex), but
-all changes (set or reset) to the state of the event must be made
-while owning the mutex. */
+/* NOTE: It is allowed for a thread to wait for an event allocated for
+the array without owning the protecting mutex (depending on the case:
+OS or database mutex), but all changes (set or reset) to the state of
+the event must be made while owning the mutex. */
 
 /** Synchronization array */
-struct sync_array_struct {
+struct sync_array_t {
 	ulint		n_reserved;	/*!< number of currently reserved
 					cells in the wait array */
 	ulint		n_cells;	/*!< number of cells in the
 					wait array */
 	sync_cell_t*	array;		/*!< pointer to wait array */
-	ib_mutex_t		mutex;		/*!< possible database mutex
+	ib_mutex_t	mutex;		/*!< possible database mutex
 					protecting this data structure */
 	os_ib_mutex_t	os_mutex;	/*!< Possible operating system mutex
 					protecting the data structure.
@@ -137,14 +136,14 @@ struct sync_array_struct {
 };
 
 /** User configured sync array size */
-UNIV_INTERN ulong	srv_sync_array_size = 32;
+UNIV_INTERN ulong		srv_sync_array_size = 32;
 
 /** Locally stored copy of srv_sync_array_size */
-static	ulint		sync_array_size;
+UNIV_INTERN ulint		sync_array_size;
 
 /** The global array of wait cells for implementation of the database's own
 mutexes and read-write locks */
-static	sync_array_t**	sync_wait_array;
+UNIV_INTERN sync_array_t**	sync_wait_array;
 
 /** count of how many times an object has been signalled */
 static ulint		sg_count;
@@ -1132,21 +1131,3 @@ sync_array_print(
 
 }
 
-/**********************************************************************//**
-Get an instance of the sync wait array. */
-UNIV_INTERN
-sync_array_t*
-sync_array_get(void)
-/*================*/
-{
-	ulint		i;
-	static ulint	count;
-
-#ifdef HAVE_ATOMIC_BUILTINS
-	i = os_atomic_increment_ulint(&count, 1);
-#else
-	i = count++;
-#endif /* HAVE_ATOMIC_BUILTINS */
-
-	return(sync_wait_array[i % sync_array_size]);
-}

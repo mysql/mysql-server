@@ -24,3 +24,25 @@ Inline code
 
 Created 9/5/1995 Heikki Tuuri
 *******************************************************/
+
+extern ulint		sync_array_size;
+extern sync_array_t**	sync_wait_array;
+
+/**********************************************************************//**
+Get an instance of the sync wait array.
+@return an instance of the sync wait array. */
+UNIV_INLINE
+sync_array_t*
+sync_array_get()
+/*============*/
+{
+	if (sync_array_size == 0) {
+		return(sync_wait_array[0]);
+	}
+
+	static ulint	count;
+
+	ulint	i = count++;
+
+	return(sync_wait_array[i % sync_array_size]);
+}
