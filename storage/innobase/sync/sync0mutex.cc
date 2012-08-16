@@ -399,7 +399,9 @@ ulint
 mutex_spin(
 /*=======*/
 	ib_mutex_t*	mutex,		/*!< in/out: pointer to mutex */
-	ulint		spin)		/*!< in/out: spin count */
+	ulint		spin,		/*!< in/out: spin count */
+	const ulint	max_spins,	/*!< in: max spins */
+	const ulint	max_delay)	/*!< in: max delay */
 {
 	/* Spin waiting for the lock word to become zero. Note
 	that we do not have to assume that the read access to
@@ -407,10 +409,10 @@ mutex_spin(
 	committed with atomic test-and-set. In reality, however,
 	all processors probably have an atomic read of a memory word. */
 
-	while (mutex_get_lock_word(mutex) != 0 && spin < SYNC_SPIN_ROUNDS) {
+	while (mutex_get_lock_word(mutex) != 0 && spin < max_spins) {
 
 		if (srv_spin_wait_delay) {
-			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+			ut_delay(ut_rnd_interval(0, max_delay));
 		}
 
 		++spin;
@@ -494,7 +496,9 @@ mutex_spin_wait(
 	bool		spin_only)	/*!< in: Don't use the sync array to
 					wait if set to true */
 {
-	size_t		counter_index = (size_t) os_thread_get_curr_id();
+	const ulint	max_spins = SYNC_SPIN_ROUNDS;
+	const ulint	max_delay = srv_spin_wait_delay;
+	const size_t	counter_index = (size_t) os_thread_get_curr_id();
 
 	/* This update is not thread safe, but we don't mind if the count
 	isn't exact. Moved out of ifdef that follows because we are willing
@@ -507,9 +511,20 @@ mutex_spin_wait(
 		ulint	spin = 0;
 
 		do {
-			spin = mutex_spin(mutex, spin);
+			spin = mutex_spin(mutex, spin, max_spins, max_delay);
 
 			mutex_spin_round_count.add(counter_index, spin);
+
+			if (spin == max_spins) {
+
+				os_thread_yield();
+
+				if (spin_only) {
+					spin = 0;
+				} else {
+					break;
+				}
+			}
 
 			if (ib_mutex_test_and_set(mutex) == 0) {
 
@@ -519,15 +534,6 @@ mutex_spin_wait(
 				mutex_set_debug_info(mutex, file_name, line);
 #endif /* UNIV_SYNC_DEBUG */
 				return;
-			} else if (spin == SYNC_SPIN_ROUNDS) {
-
-				os_thread_yield();
-
-				if (spin_only) {
-					spin = 0;
-				} else {
-					break;
-				}
 			}
 
 		} while (spin < SYNC_SPIN_ROUNDS);
@@ -636,36 +642,6 @@ mutex_n_reserved()
 }
 
 /******************************************************************//**
-@return total number of spin rounds since startup. */
-UNIV_INTERN
-ib_uint64_t
-mutex_spin_round_count_get()
-/*========================*/
-{
-	return(mutex_spin_round_count);
-}
-
-/******************************************************************//**
-@return total number of spin wait calls since startup. */
-UNIV_INTERN
-ib_uint64_t
-mutex_spin_wait_count_get()
-/*=======================*/
-{
-	return(mutex_spin_wait_count);
-}
-
-/******************************************************************//**
-@return total number of OS waits since startup. */
-UNIV_INTERN
-ib_uint64_t
-mutex_os_wait_count_get()
-/*=====================*/
-{
-	return(mutex_os_wait_count);
-}
-
-/******************************************************************//**
 Sets the debug information for a reserved mutex. */
 UNIV_INTERN
 void
@@ -701,3 +677,32 @@ mutex_get_debug_info(
 }
 #endif /* UNIV_SYNC_DEBUG */
 
+/******************************************************************//**
+@return total number of spin rounds since startup. */
+UNIV_INTERN
+ib_uint64_t
+mutex_spin_round_count_get()
+/*========================*/
+{
+	return(mutex_spin_round_count);
+}
+
+/******************************************************************//**
+@return total number of spin wait calls since startup. */
+UNIV_INTERN
+ib_uint64_t
+mutex_spin_wait_count_get()
+/*=======================*/
+{
+	return(mutex_spin_wait_count);
+}
+
+/******************************************************************//**
+@return total number of OS waits since startup. */
+UNIV_INTERN
+ib_uint64_t
+mutex_os_wait_count_get()
+/*=====================*/
+{
+	return(mutex_os_wait_count);
+}
