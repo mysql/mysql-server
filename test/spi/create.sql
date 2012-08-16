@@ -31,8 +31,8 @@ create table IF NOT EXISTS tbl2 (
   coltimestamp timestamp,
   colyear year,
 
-  colchar char(12),
-  colvarchar varchar(16),
+  colchar char(12) collate latin1_spanish_ci,
+  colvarchar varchar(16) collate big5_chinese_ci,
   colbinary binary(22),
   colvarbinary varbinary(28),
   coltinyblob tinyblob,
@@ -41,10 +41,10 @@ create table IF NOT EXISTS tbl2 (
   collongblob longblob,
 
   coltinytext tinytext,
-  coltext text,
-  colmediumtext mediumtext,
-  collongtext longtext,
+  coltext text character set sjis collate sjis_bin,
+  colmediumtext mediumtext collate hebrew_general_ci,
+  collongtext longtext character set latin5,
   unique key idxcoltinyintusinghash (coltinyint) using hash,
   unique key idxcolsmallintboth (colsmallint),
-  key idxcolintcoldateusingbtree (colint, coldate)
+  key idxcolintunsignedcoldateusingbtree (colintunsigned, coldate)
   ) engine = ndb;
