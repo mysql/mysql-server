@@ -39,9 +39,10 @@ reated 9/5/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "srv0srv.h"
 #include "buf0types.h"
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "os0sync.h"
+#include "os0thread.h"
 #ifdef UNIV_SYNC_DEBUG
-# include "srv0start.h" /* srv_is_being_started */
+# include "srv0start.h"
 #endif /* UNIV_SYNC_DEBUG */
 #include "ha_prototypes.h"
 

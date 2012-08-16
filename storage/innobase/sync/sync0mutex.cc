@@ -34,11 +34,12 @@ Created 2012/08/15 Sunny Bains
 
 #ifdef UNIV_NONINL
 #include "sync0mutex.ic"
-#endif
+#endif /* UNIV_NOINL */
 
 #include "ut0rnd.h"
 #include "os0sync.h"
 #include "srv0srv.h"
+#include "os0thread.h"
 #include "ut0counter.h"
 
 /*
@@ -391,6 +392,94 @@ mutex_set_waiters(
 }
 
 /******************************************************************//**
+Try and acquire the mutex by spinning.
+@return new spin value */
+static
+ulint
+mutex_spin(
+/*=======*/
+	ib_mutex_t*	mutex,		/*!< in/out: pointer to mutex */
+	ulint		spin)		/*!< in/out: spin count */
+{
+	/* Spin waiting for the lock word to become zero. Note
+	that we do not have to assume that the read access to
+	the lock word is atomic, as the actual locking is always
+	committed with atomic test-and-set. In reality, however,
+	all processors probably have an atomic read of a memory word. */
+
+	while (mutex_get_lock_word(mutex) != 0 && spin < SYNC_SPIN_ROUNDS) {
+
+		if (srv_spin_wait_delay) {
+			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
+		}
+
+		++spin;
+	}
+
+	return(spin);
+}
+
+/******************************************************************//**
+Wait in the sync array.
+@return true if the mutex acquisition was successful. */
+static
+bool
+mutex_wait(
+/*=======*/
+	ib_mutex_t*	mutex,		/*!< in/out: pointer to mutex */
+	const char*	file_name,	/*!< in: file where requested */
+	ulint		line)		/*!< in: line where requested */
+{
+	ulint		index;
+	sync_array_t*	sync_arr = sync_array_get();
+
+	sync_array_reserve_cell(
+		sync_arr, mutex, SYNC_MUTEX, file_name, line, &index);
+
+	/* The memory order of the array reservation and
+	the change in the waiters field is important: when
+	we suspend a thread, we first reserve the cell and
+	then set waiters field to 1. When threads are released
+	in mutex_exit, the waiters field is first set to zero
+	and then the event is set to the signaled state. */
+
+	mutex_set_waiters(mutex, 1);
+
+	/* Try to reserve still a few times. */
+
+	for (ulint i = 0; i < 4; ++i) {
+
+		if (ib_mutex_test_and_set(mutex) == 0) {
+
+			sync_array_free_cell(sync_arr, index);
+
+			ut_d(mutex->thread_id = os_thread_get_curr_id());
+#ifdef UNIV_SYNC_DEBUG
+			mutex_set_debug_info(mutex, file_name, line);
+#endif /* UNIV_SYNC_DEBUG */
+
+			/* Note that in this case we leave
+			the waiters field set to 1. We cannot
+			reset it to zero, as we do not know if
+			there are other waiters. */
+
+			return(true);
+		}
+	}
+
+	/* Now we know that there has been some thread
+	holding the mutex after the change in the wait
+	array and the waiters field was made.  Now there
+	is no risk of infinite wait on the event. */
+
+	++mutex->count_os_wait;
+
+	sync_array_wait_event(sync_arr, index);
+
+	return(false);
+}
+
+/******************************************************************//**
 Reserves a mutex for the current thread. If the mutex is reserved, the
 function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
 for the mutex before suspending the thread. */
@@ -405,14 +494,7 @@ mutex_spin_wait(
 	bool		spin_only)	/*!< in: Don't use the sync array to
 					wait if set to true */
 {
-	ulint		i;		/* spin round count */
-	ulint		index;		/* index of the reserved wait cell */
-	sync_array_t*	sync_arr;
-	size_t		counter_index;
-
-	counter_index = (size_t) os_thread_get_curr_id();
-
-	ut_ad(mutex);
+	size_t		counter_index = (size_t) os_thread_get_curr_id();
 
 	/* This update is not thread safe, but we don't mind if the count
 	isn't exact. Moved out of ifdef that follows because we are willing
@@ -420,99 +502,42 @@ mutex_spin_wait(
 	Count the number of calls to mutex_spin_wait. */
 	mutex_spin_wait_count.add(counter_index, 1);
 
-mutex_loop:
+	for (;;) {
 
-	i = 0;
+		ulint	spin = 0;
 
-	/* Spin waiting for the lock word to become zero. Note that we do
-	not have to assume that the read access to the lock word is atomic,
-	as the actual locking is always committed with atomic test-and-set.
-	In reality, however, all processors probably have an atomic read of
-	a memory word. */
+		do {
+			spin = mutex_spin(mutex, spin);
 
-spin_loop:
+			mutex_spin_round_count.add(counter_index, spin);
 
-	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
-		if (srv_spin_wait_delay) {
-			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
-		}
+			if (ib_mutex_test_and_set(mutex) == 0) {
 
-		i++;
-	}
-
-	if (i == SYNC_SPIN_ROUNDS) {
-		os_thread_yield();
-	}
-
-	mutex_spin_round_count.add(counter_index, i);
-
-	if (ib_mutex_test_and_set(mutex) == 0) {
-		/* Succeeded! */
-
-		ut_d(mutex->thread_id = os_thread_get_curr_id());
+				ut_d(mutex->thread_id
+				     = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
-		mutex_set_debug_info(mutex, file_name, line);
+				mutex_set_debug_info(mutex, file_name, line);
 #endif /* UNIV_SYNC_DEBUG */
-		return;
-	}
+				return;
+			} else if (spin == SYNC_SPIN_ROUNDS) {
 
-	/* We may end up with a situation where lock_word is 0 but the OS
-	fast mutex is still reserved. On FreeBSD the OS does not seem to
-	schedule a thread which is constantly calling pthread_mutex_trylock
-	(in ib_mutex_test_and_set implementation). Then we could end up
-	spinning here indefinitely. The following 'i++' stops this infinite
-	spin. */
+				os_thread_yield();
 
-	i++;
+				if (spin_only) {
+					spin = 0;
+				} else {
+					break;
+				}
+			}
 
-	if (spin_only || i < SYNC_SPIN_ROUNDS) {
-		goto spin_loop;
-	}
+		} while (spin < SYNC_SPIN_ROUNDS);
 
-	sync_arr = sync_array_get();
-
-	sync_array_reserve_cell(
-		sync_arr, mutex, SYNC_MUTEX, file_name, line, &index);
-
-	/* The memory order of the array reservation and the change in the
-	waiters field is important: when we suspend a thread, we first
-	reserve the cell and then set waiters field to 1. When threads are
-	released in mutex_exit, the waiters field is first set to zero and
-	then the event is set to the signaled state. */
-
-	mutex_set_waiters(mutex, 1);
-
-	/* Try to reserve still a few times */
-	for (i = 0; i < 4; i++) {
-		if (ib_mutex_test_and_set(mutex) == 0) {
-			/* Succeeded! Free the reserved wait cell */
-
-			sync_array_free_cell(sync_arr, index);
-
-			ut_d(mutex->thread_id = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-			mutex_set_debug_info(mutex, file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
-
+		if (mutex_wait(mutex, file_name, line)) {
 			return;
-
-			/* Note that in this case we leave the waiters field
-			set to 1. We cannot reset it to zero, as we do not
-			know if there are other waiters. */
 		}
+
+		mutex_os_wait_count.add(counter_index, 1);
 	}
-
-	/* Now we know that there has been some thread holding the mutex
-	after the change in the wait array and the waiters field was made.
-	Now there is no risk of infinite wait on the event. */
-
-	mutex_os_wait_count.add(counter_index, 1);
-
-	mutex->count_os_wait++;
-
-	sync_array_wait_event(sync_arr, index);
-
-	goto mutex_loop;
 }
 
 /******************************************************************//**
@@ -521,55 +546,18 @@ UNIV_INTERN
 void
 mutex_signal_object(
 /*================*/
-	ib_mutex_t*	mutex)	/*!< in: mutex */
+	ib_mutex_t*	mutex)			/*!< in/out: mutex */
 {
 	mutex_set_waiters(mutex, 0);
 
 	/* The memory order of resetting the waiters field and
 	signaling the object is important. See LEMMA 1 above. */
 	os_event_set(mutex->event);
+
 	sync_array_object_signalled();
 }
 
 #ifdef UNIV_SYNC_DEBUG
-/******************************************************************//**
-Sets the debug information for a reserved mutex. */
-UNIV_INTERN
-void
-mutex_set_debug_info(
-/*=================*/
-	ib_mutex_t*	mutex,		/*!< in: mutex */
-	const char*	file_name,	/*!< in: file where requested */
-	ulint		line)		/*!< in: line where requested */
-{
-	ut_ad(mutex);
-	ut_ad(file_name);
-
-	sync_thread_add_level(mutex, mutex->level, FALSE);
-
-	mutex->file_name = file_name;
-	mutex->line	 = line;
-}
-
-/******************************************************************//**
-Gets the debug information for a reserved mutex. */
-UNIV_INTERN
-void
-mutex_get_debug_info(
-/*=================*/
-	ib_mutex_t*	mutex,		/*!< in: mutex */
-	const char**	file_name,	/*!< out: file where requested */
-	ulint*		line,		/*!< out: line where requested */
-	os_thread_id_t* thread_id)	/*!< out: id of the thread which owns
-					the mutex */
-{
-	ut_ad(mutex);
-
-	*file_name = mutex->file_name;
-	*line	   = mutex->line;
-	*thread_id = mutex->thread_id;
-}
-
 /******************************************************************//**
 Prints debug info of currently reserved mutexes. */
 UNIV_INTERN
@@ -578,34 +566,36 @@ mutex_list_print_info(
 /*==================*/
 	FILE*	file)		/*!< in: file where to print */
 {
-	ib_mutex_t*	mutex;
-	const char*	file_name;
-	ulint		line;
-	os_thread_id_t	thread_id;
-	ulint		count		= 0;
+	ulint	count		= 0;
 
-	fputs("----------\n"
-	      "MUTEX INFO\n"
-	      "----------\n", file);
+	fprintf(stderr,
+		"----------\n"
+		"MUTEX INFO\n"
+		"----------\n");
 
 	mutex_enter(&mutex_list_mutex);
 
-	mutex = UT_LIST_GET_FIRST(mutex_list);
+	for (const ib_mutex_t* mutex = UT_LIST_GET_FIRST(mutex_list);
+	     mutex != NULL;
+	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
 
-	while (mutex != NULL) {
-		count++;
+		++count;
 
 		if (mutex_get_lock_word(mutex) != 0) {
-			mutex_get_debug_info(mutex, &file_name, &line,
-					     &thread_id);
+
+			ulint		line;
+			os_thread_id_t	thread_id;
+			const char*	file_name;
+
+			mutex_get_debug_info(
+				mutex, &file_name, &line, &thread_id);
+
 			fprintf(file,
 				"Locked mutex: addr %p thread %ld"
 				" file %s line %ld\n",
 				(void*) mutex, os_thread_pf(thread_id),
 				file_name, line);
 		}
-
-		mutex = UT_LIST_GET_NEXT(list, mutex);
 	}
 
 	fprintf(file, "Total number of mutexes %ld\n", count);
@@ -621,18 +611,17 @@ ulint
 mutex_n_reserved()
 /*==============*/
 {
-	ib_mutex_t*	mutex;
-	ulint		count	= 0;
+	ulint	count	= 0;
 
 	mutex_enter(&mutex_list_mutex);
 
-	for (mutex = UT_LIST_GET_FIRST(mutex_list);
+	for (const ib_mutex_t* mutex = UT_LIST_GET_FIRST(mutex_list);
 	     mutex != NULL;
 	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
 
 		if (mutex_get_lock_word(mutex) != 0) {
 
-			count++;
+			++count;
 		}
 	}
 
@@ -676,5 +665,39 @@ mutex_os_wait_count_get()
 	return(mutex_os_wait_count);
 }
 
+/******************************************************************//**
+Sets the debug information for a reserved mutex. */
+UNIV_INTERN
+void
+mutex_set_debug_info(
+/*=================*/
+	ib_mutex_t*	mutex,		/*!< in/out: mutex */
+	const char*	file_name,	/*!< in: file where requested */
+	ulint		line)		/*!< in: line where requested */
+{
+	ut_ad(line > 0);
+	ut_ad(file_name);
+
+	sync_thread_add_level(mutex, mutex->level, FALSE);
+
+	mutex->line = line;
+	mutex->file_name = file_name;
+}
+
+/******************************************************************//**
+Gets the debug information for a reserved mutex. */
+UNIV_INTERN
+void
+mutex_get_debug_info(
+/*=================*/
+	const ib_mutex_t*	mutex,		/*!< in: mutex */
+	const char**		file_name,	/*!< out: where it was locked */
+	ulint*			line,		/*!< out: where it was locked */
+	os_thread_id_t*		thread_id)	/*!< out: owner thread id */
+{
+	*line = mutex->line;
+	*file_name = mutex->file_name;
+	*thread_id = mutex->thread_id;
+}
 #endif /* UNIV_SYNC_DEBUG */
 
