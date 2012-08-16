@@ -46,15 +46,14 @@ reated 9/5/1995 Heikki Tuuri
 #endif /* UNIV_SYNC_DEBUG */
 #include "ha_prototypes.h"
 
+// Forward declaration
+struct sync_thread_t;
+struct sync_level_t;
+
 /** This variable is set to TRUE when sync_init is called */
-UNIV_INTERN ibool	sync_initialized	= FALSE;
+UNIV_INTERN bool		sync_initialized;
 
 #ifdef UNIV_SYNC_DEBUG
-/** An acquired mutex or rw-lock and its level in the latching order */
-typedef struct sync_level_struct	sync_level_t;
-/** Mutexes or rw-locks held by a thread */
-typedef struct sync_thread_struct	sync_thread_t;
-
 /** The latch levels currently owned by threads are stored in this data
 structure; the size of this array is OS_THREAD_MAX_N */
 
@@ -80,15 +79,13 @@ UNIV_INTERN mysql_pfs_key_t	mutex_list_mutex_key;
 
 #ifdef UNIV_SYNC_DEBUG
 /** Latching order checks start when this is set TRUE */
-UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
+UNIV_INTERN bool		sync_order_checks_on;
 
 /** Number of slots reserved for each OS thread in the sync level array */
 static const ulint SYNC_THREAD_N_LEVELS = 10000;
 
-typedef struct sync_arr_struct sync_arr_t;
-
 /** Array for tracking sync levels per thread. */
-struct sync_arr_struct {
+struct sync_arr_t {
 	ulint		in_use;		/*!< Number of active cells */
 	ulint		n_elems;	/*!< Number of elements in the array */
 	ulint		max_elems;	/*!< Maximum elements */
@@ -98,14 +95,14 @@ struct sync_arr_struct {
 };
 
 /** Mutexes or rw-locks held by a thread */
-struct sync_thread_struct{
+struct sync_thread_t {
 	os_thread_id_t	id;		/*!< OS thread id */
 	sync_arr_t*	levels;		/*!< level array for this thread; if
 					this is NULL this slot is unused */
 };
 
 /** An acquired mutex or rw-lock and its level in the latching order */
-struct sync_level_struct{
+struct sync_level_t {
 	void*		latch;		/*!< pointer to a mutex or an
 					rw-lock; NULL means that
 					the slot is empty */
@@ -117,7 +114,6 @@ struct sync_level_struct{
 					the ordinal value of the next free
 					element */
 };
-#endif /* UNIV_SYNC_DEBUG */
 
 /******************************************************************//**
 Returns TRUE if no mutex or rw-lock is currently locked. Works only in
@@ -130,8 +126,6 @@ sync_all_freed()
 {
 	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
 }
-
-#ifdef UNIV_SYNC_DEBUG
 
 /******************************************************************//**
 Looks for the thread slot for the calling thread.
