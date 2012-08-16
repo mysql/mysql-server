@@ -2401,7 +2401,7 @@ buf_LRU_free_one_page(
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	rw_lock_x_lock(hash_lock);
-	block_mutex->exit();
+	block_mutex->enter();
 
 	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
 	    != BUF_BLOCK_ZIP_FREE) {

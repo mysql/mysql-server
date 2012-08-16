@@ -280,23 +280,30 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const ib_mutex_t*	mutex)	/*!< in: mutex */
+	const ib_mutex_t*	mutex)		/*!< in: mutex */
 	__attribute__((warn_unused_result));
 
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
+UNIV_INTERN
+void
+mutex_set_debug_info(
+/*=================*/
+	ib_mutex_t*	mutex,			/*!< in/out: mutex */
+	const char*	file_name,		/*!< in: file where requested */
+	ulint		line);			/*!< in: line where requested */
+
 /******************************************************************//**
 Gets the debug information for a reserved mutex. */
 UNIV_INTERN
 void
 mutex_get_debug_info(
 /*=================*/
-	ib_mutex_t*	mutex,		/*!< in: mutex */
-	const char**	file_name,	/*!< out: file where requested */
-	ulint*		line,		/*!< out: line where requested */
-	os_thread_id_t* thread_id);	/*!< out: id of the thread which owns
-					the mutex */
+	const ib_mutex_t*	mutex,		/*!< in: mutex */
+	const char**		file_name,	/*!< out: where it was locked */
+	ulint*			line,		/*!< out: where it was locked */
+	os_thread_id_t*		thread_id);	/*!< out: owner thread id */
 
 /******************************************************************//**
 Counts currently reserved mutexes. Works only in the debug version.
@@ -345,7 +352,7 @@ mutex_spin_round_count_get();
 UNIV_INTERN
 ib_uint64_t
 mutex_spin_wait_count_get();
-/*=========================*/
+/*========================*/
 
 /******************************************************************//**
 @return total number of OS waits since startup. */

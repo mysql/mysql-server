@@ -31,10 +31,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "os0thread.h"
 
-/** Synchronization wait array cell */
-typedef struct sync_cell_struct		sync_cell_t;
-/** Synchronization wait array */
-typedef struct sync_array_struct	sync_array_t;
+// Forward declarations
+struct sync_cell_t;
+struct sync_array_t;
 
 /******************************************************************//**
 Reserves a wait array cell for waiting for an object.
@@ -73,8 +72,8 @@ sync_array_free_cell(
 Note that one of the wait objects was signalled. */
 UNIV_INTERN
 void
-sync_array_object_signalled(void);
-/*=============================*/
+sync_array_object_signalled();
+/*=========================*/
 
 /**********************************************************************//**
 If the wakeup algorithm does not work perfectly at semaphore relases,
@@ -82,7 +81,7 @@ this function will do the waking (see the comment in mutex_exit). This
 function should be called about every 1 second in the server. */
 UNIV_INTERN
 void
-sync_arr_wake_threads_if_sema_free(void);
+sync_arr_wake_threads_if_sema_free();
 /*====================================*/
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
@@ -121,15 +120,15 @@ sync_array_init(
 Close sync array wait sub-system. */
 UNIV_INTERN
 void
-sync_array_close(void);
-/*==================*/
+sync_array_close();
+/*==============*/
 
 /**********************************************************************//**
 Get an instance of the sync wait array. */
-UNIV_INTERN
+UNIV_INLINE
 sync_array_t*
-sync_array_get(void);
-/*================*/
+sync_array_get();
+/*=============*/
 
 #ifndef UNIV_NONINL
 #include "sync0arr.ic"
