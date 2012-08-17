@@ -1206,14 +1206,14 @@ os_file_create_simple_func(
 		file = CreateFile(
 			(LPCTSTR) name, access, FILE_SHARE_READ, NULL,
 			create_flag, attributes, NULL);
-	
+
 		if (file == INVALID_HANDLE_VALUE) {
 
 			*success = FALSE;
-	
+
 			retry = os_file_handle_error(
 				name, create_mode == OS_FILE_OPEN ?
-		       		"open" : "create");
+				"open" : "create");
 
 		} else {
 			*success = TRUE;
@@ -1626,7 +1626,7 @@ os_file_create_func(
 
 #endif /* UNIV_HOTBACKUP */
 	DWORD	access = GENERIC_READ;
-       
+
 	if (!srv_read_only_mode) {
 		access |= GENERIC_WRITE;
 	}
