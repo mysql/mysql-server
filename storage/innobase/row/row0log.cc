@@ -2701,20 +2701,23 @@ update_the_rec:
 			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
 insert_the_rec:
-			/* Insert the record */
+			/* Insert the record. As we are inserting into
+			a secondary index, there cannot be externally
+			stored columns (!big_rec). */
+			*error = btr_cur_optimistic_insert(
+				BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG,
+				&cursor, &offsets, &offsets_heap,
+				const_cast<dtuple_t*>(entry),
+				&rec, &big_rec,
+				0, NULL, &mtr);
+			ut_ad(!big_rec);
+			if (*error != DB_FAIL) {
+				break;
+			}
+
 			if (!has_index_lock) {
-				*error = btr_cur_optimistic_insert(
-					BTR_NO_UNDO_LOG_FLAG
-					| BTR_NO_LOCKING_FLAG
-					| BTR_CREATE_FLAG,
-					&cursor, &offsets, &offsets_heap,
-					const_cast<dtuple_t*>(entry),
-					&rec, &big_rec,
-					0, NULL, &mtr);
-				ut_ad(!big_rec);
-				if (*error != DB_FAIL) {
-					break;
-				}
 				/* This needs a pessimistic operation.
 				Lock the index tree exclusively. */
 				mtr_commit(&mtr);
@@ -2723,12 +2726,13 @@ insert_the_rec:
 					index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0,
 					__FILE__, __LINE__, &mtr);
-				/* We already determined that the
-				record did not exist. No other thread
-				than the current one is allowed to
-				modify the index tree. Thus, the
-				record should still not exist. */
 			}
+
+			/* We already determined that the
+			record did not exist. No other thread
+			than the current one is allowed to
+			modify the index tree. Thus, the
+			record should still not exist. */
 
 			*error = btr_cur_pessimistic_insert(
 				BTR_NO_UNDO_LOG_FLAG
