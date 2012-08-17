@@ -4732,8 +4732,9 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
             if (user_var_event->unsigned_flag)
               flags|= User_var_log_event::UNSIGNED_F;
 
-            User_var_log_event e(thd, user_var_event->user_var_event->name.str,
-                                 user_var_event->user_var_event->name.length,
+            User_var_log_event e(thd,
+                                 user_var_event->user_var_event->entry_name.ptr(),
+                                 user_var_event->user_var_event->entry_name.length(),
                                  user_var_event->value,
                                  user_var_event->length,
                                  user_var_event->type,
