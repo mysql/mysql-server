@@ -218,7 +218,9 @@ srv_file_check_mode(
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%s can't be opened in read-write mode",
+					"%s can't be opened in %s mode",
+					srv_read_only_mode
+					? "read-write" : "read",
 					name);
 
 				return(false);
@@ -1196,7 +1198,8 @@ srv_undo_tablespace_open(
 
 	if (!srv_file_check_mode(name)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"UNDO tablespaces must be writable!");
+			"UNDO tablespaces must be %s!",
+			srv_read_only_mode ? "writable" : "readable");
 
 		return(DB_ERROR);
 	}
