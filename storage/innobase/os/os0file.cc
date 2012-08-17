@@ -3088,6 +3088,12 @@ os_file_get_status(
 		stat_info->type = OS_FILE_TYPE_DIR;
 	} else if (_S_IFREG & statinfo.st_mode) {
 
+		DWORD	access = GENERIC_READ;
+       
+		if (!srv_read_only_mode) {
+			access |= GENERIC_WRITE;
+		}
+
 		stat_info->type = OS_FILE_TYPE_FILE;
 
 		if (check_rw_perm) {
@@ -3095,7 +3101,7 @@ os_file_get_status(
 
 			fh = CreateFile(
 				(LPCTSTR) path,		// File to open
-				GENERIC_WRITE | GENERIC_READ,
+				access,
 				0,			// No sharing
 				NULL,			// Default security
 				OPEN_EXISTING,		// Existing file only
@@ -3138,8 +3144,11 @@ os_file_get_status(
 
 		if (check_rw_perm) {
 			int	fh;
+			int	access;
 
-			fh = open(path, O_RDWR);
+			access = !srv_read_only_mode ? O_RDWR : O_RDONLY;
+
+			fh = open(path, access);
 
 			if (fh == -1) {
 				stat_info->rw_perm = false;
