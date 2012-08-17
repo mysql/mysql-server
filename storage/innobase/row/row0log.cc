@@ -494,7 +494,7 @@ row_log_table_delete(
 	if (byte* b = row_log_table_open(index->online_log,
 					 mrec_size, &avail_size)) {
 		*b++ = ROW_T_DELETE;
-		*b++ = old_pk_extra_size;
+		*b++ = static_cast<byte>(old_pk_extra_size);
 
 		rec_convert_dtuple_to_rec_comp(
 			b + old_pk_extra_size, 0, new_index,
@@ -609,7 +609,7 @@ row_log_table_low_redundant(
 		*b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
 		if (old_pk_size) {
-			*b++ = old_pk_extra_size;
+			*b++ = static_cast<byte>(old_pk_extra_size);
 
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
@@ -619,11 +619,11 @@ row_log_table_low_redundant(
 		}
 
 		if (extra_size < 0x80) {
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(extra_size);
 		} else {
 			ut_ad(extra_size < 0x8000);
-			*b++ = (byte) (0x80 | (extra_size >> 8));
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(0x80 | (extra_size >> 8));
+			*b++ = static_cast<byte>(extra_size);
 		}
 
 		rec_convert_dtuple_to_rec_comp(
@@ -722,7 +722,7 @@ row_log_table_low(
 		*b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
 		if (old_pk_size) {
-			*b++ = old_pk_extra_size;
+			*b++ = static_cast<byte>(old_pk_extra_size);
 
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
@@ -732,11 +732,11 @@ row_log_table_low(
 		}
 
 		if (extra_size < 0x80) {
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(extra_size);
 		} else {
 			ut_ad(extra_size < 0x8000);
-			*b++ = (byte) (0x80 | (extra_size >> 8));
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(0x80 | (extra_size >> 8));
+			*b++ = static_cast<byte>(extra_size);
 		}
 
 		memcpy(b, rec - rec_offs_extra_size(offsets), extra_size);
