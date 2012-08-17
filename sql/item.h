@@ -3659,6 +3659,11 @@ public:
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
 
+  virtual void no_rows_in_result()
+  {
+    item->no_rows_in_result();
+  }
+
   /*  
     Override the methods below as pure virtual to make sure all the 
     sub-classes implement them.
