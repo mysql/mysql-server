@@ -1430,7 +1430,7 @@ dict_table_rename_in_cache(
 	if (table2) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot rename table '%s' to '%s' since the "
-			"dictionary cache already contains '%s'.\n",
+			"dictionary cache already contains '%s'.",
 			old_name, new_name, new_name);
 		return(DB_ERROR);
 	}
@@ -5975,7 +5975,9 @@ dict_close(void)
 	rw_lock_free(&dict_operation_lock);
 	memset(&dict_operation_lock, 0x0, sizeof(dict_operation_lock));
 
-	mutex_free(&dict_foreign_err_mutex);
+	if (!srv_read_only_mode) {
+		mutex_free(&dict_foreign_err_mutex);
+	}
 
 	mem_free(dict_sys);
 	dict_sys = NULL;

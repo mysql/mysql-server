@@ -1306,20 +1306,20 @@ dict_create_or_check_foreign_constraint_tables(void)
 	if (sys_foreign_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_FOREIGN table.\n");
+			"SYS_FOREIGN table.");
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (sys_foreign_cols_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_FOREIGN_COLS table.\n");
+			"SYS_FOREIGN_COLS table.");
 
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_WARN,
-		"Creating foreign key constraint system tables.\n");
+		"Creating foreign key constraint system tables.");
 
 	/* NOTE: in dict_load_foreigns we use the fact that
 	there are 2 secondary indexes on SYS_FOREIGN, and they
@@ -1363,7 +1363,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS "
 			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.\n",
+			"Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_ad(err == DB_OUT_OF_FILE_SPACE
@@ -1387,7 +1387,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	if (err == DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Foreign key constraint system tables created\n");
+			"Foreign key constraint system tables created");
 	}
 
 	/* Note: The master thread has not been started at this point. */
@@ -1670,20 +1670,20 @@ dict_create_or_check_sys_tablespace(void)
 	if (sys_tablespaces_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_TABLESPACES table.\n");
+			"SYS_TABLESPACES table.");
 		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
 	}
 
 	if (sys_datafiles_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_DATAFILES table.\n");
+			"SYS_DATAFILES table.");
 
 		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Creating tablespace and datafile system tables.\n");
+		"Creating tablespace and datafile system tables.");
 
 	/* We always want SYSTEM tables to be created inside the system
 	tablespace. */
@@ -1709,7 +1709,7 @@ dict_create_or_check_sys_tablespace(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Creation of SYS_TABLESPACES and SYS_DATAFILES "
 			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.\n",
+			"Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_a(err == DB_OUT_OF_FILE_SPACE
@@ -1733,7 +1733,7 @@ dict_create_or_check_sys_tablespace(void)
 
 	if (err == DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Tablespace and datafile system tables created\n");
+			"Tablespace and datafile system tables created.");
 	}
 
 	/* Note: The master thread has not been started at this point. */

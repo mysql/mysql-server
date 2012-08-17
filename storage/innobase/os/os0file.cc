@@ -1145,11 +1145,7 @@ os_file_create_simple_func(
 
 	} else if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"create file '%s'", name);
-
-		return((os_file_t)(-1));
+		create_flag = OPEN_EXISTING;
 
 	} else if (create_mode == OS_FILE_CREATE) {
 
@@ -1186,11 +1182,11 @@ os_file_create_simple_func(
 		access = GENERIC_READ;
 	} else if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"READ ONLY mode set. Unable to "
-			"open file '%s' in RW mode", name);
+			"open file '%s' in RW mode, trying RO mode", name);
 
-		return((os_file_t)(-1));
+		access = GENERIC_READ;
 
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
@@ -1237,23 +1233,14 @@ os_file_create_simple_func(
 		if (access_type == OS_FILE_READ_ONLY) {
 			create_flag = O_RDONLY;
 		} else if (srv_read_only_mode) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"READ ONLY mode set. Unable to "
-				"open file '%s' in RW mode", name);
-
-			return((os_file_t)(-1));
+			create_flag = O_RDONLY;
 		} else {
 			create_flag = O_RDWR;
 		}
 
 	} else if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"create file '%s'", name);
-
-		return((os_file_t)(-1));
+		create_flag = O_RDONLY;
 
 	} else if (create_mode == OS_FILE_CREATE) {
 
@@ -1286,9 +1273,8 @@ os_file_create_simple_func(
 	}
 
 	do {
-		if (create_mode == OS_FILE_CREATE) {
-
-			ut_a(!srv_read_only_mode);
+		if (create_mode == OS_FILE_CREATE
+		    && !srv_read_only_mode) {
 
 			file = open(
 				name, create_flag,
@@ -1363,13 +1349,7 @@ os_file_create_simple_no_error_handling_func(
 	if (create_mode == OS_FILE_OPEN) {
 		create_flag = OPEN_EXISTING;
 	} else if (srv_read_only_mode) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"create file '%s'", name);
-
-		return((os_file_t)(-1));
-
+		create_flag = OPEN_EXISTING;
 	} else if (create_mode == OS_FILE_CREATE) {
 		create_flag = CREATE_NEW;
 	} else {
@@ -1384,13 +1364,7 @@ os_file_create_simple_no_error_handling_func(
 	if (access_type == OS_FILE_READ_ONLY) {
 		access = GENERIC_READ;
 	} else if (srv_read_only_mode) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"open file '%s' in RW mode", name);
-
-		return((os_file_t)(-1));
-
+		access = GENERIC_READ;
 	} else if (access_type == OS_FILE_READ_WRITE) {
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
@@ -1435,12 +1409,8 @@ os_file_create_simple_no_error_handling_func(
 			create_flag = O_RDONLY;
 
 		} else if (srv_read_only_mode) {
- 
- 			ib_logf(IB_LOG_LEVEL_ERROR,
- 				"READ ONLY mode set. Unable to "
- 				"open file '%s' in RW mode", name);
- 
- 			return((os_file_t)(-1));
+
+			create_flag = O_RDONLY;
 
 		} else {
 
@@ -1452,14 +1422,12 @@ os_file_create_simple_no_error_handling_func(
 
 	} else if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"create file '%s'", name);
-
-		return((os_file_t)(-1));
+		create_flag = O_RDONLY;
 
 	} else if (create_mode == OS_FILE_CREATE) {
+
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
+
 	} else {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unknown file create mode (%lu) for file '%s'",
@@ -1580,6 +1548,8 @@ os_file_create_func(
 
 	if (create_mode == OS_FILE_OPEN_RAW) {
 
+		ut_a(!srv_read_only_mode);
+
 		create_flag = OPEN_EXISTING;
 
 		/* On Windows Physical devices require admin privileges and
@@ -1595,11 +1565,7 @@ os_file_create_func(
 
 	} else if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"create file '%s'", name);
-
-		return((os_file_t)(-1));
+		create_flag = OPEN_EXISTING;
 
 	} else if (create_mode == OS_FILE_CREATE) {
 
@@ -1674,7 +1640,8 @@ os_file_create_func(
 		if (file == INVALID_HANDLE_VALUE) {
 			const char*	operation;
 
-			operation = (create_mode == OS_FILE_CREATE)
+			operation = (create_mode == OS_FILE_CREATE
+				     && !srv_read_only_mode)
 				? "create" : "open";
 
 			*success = FALSE;
@@ -1710,19 +1677,13 @@ os_file_create_func(
 
 		mode_str = "OPEN";
 
-		if (srv_read_only_mode) {
-			create_flag = O_RDONLY;
-		} else {
-			create_flag = O_RDWR;
-		}
+		create_flag = srv_read_only_mode ? O_RDONLY : O_RDWR;
 
 	} else if (srv_read_only_mode) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Unable to "
-			"create file '%s'", name);
+		mode_str = "OPEN";
 
-		return((os_file_t)(-1));
+		create_flag = O_RDONLY;
 
 	} else if (create_mode == OS_FILE_CREATE) {
 
@@ -1764,7 +1725,8 @@ os_file_create_func(
 		if (file == -1) {
 			const char*	operation;
 
-			operation = (create_mode == OS_FILE_CREATE)
+			operation = (create_mode == OS_FILE_CREATE
+				     && !srv_read_only_mode)
 				? "create" : "open";
 
 			*success = FALSE;
@@ -2482,10 +2444,9 @@ os_file_pwrite(
 	offs = (off_t) offset;
 
 	if (sizeof(off_t) <= 4) {
-		if (UNIV_UNLIKELY(offset != (os_offset_t) offs)) {
-			fprintf(stderr,
-				"InnoDB: Error: file write"
-				" at offset > 4 GB\n");
+		if (offset != (os_offset_t) offs) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"file write at offset > 4 GB.");
 		}
 	}
 
