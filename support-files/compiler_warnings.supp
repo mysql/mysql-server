@@ -163,7 +163,7 @@ mySTL/algorithm\.hpp: is used uninitialized in this function
 #
 .*/my_config\.h : _FILE_OFFSET_BITS
 /usr/include/sys/feature_tests.h : this is the location of the previous definition
-*auth_pam\.c : initialization from incompatible pointer type : 100-200
+.*auth_pam\.c : initialization from incompatible pointer type : 100-200
 
 #
 # Unexplanable (?) stuff
