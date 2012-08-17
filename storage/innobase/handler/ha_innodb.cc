@@ -3029,10 +3029,22 @@ innobase_change_buffering_inited_ok:
 		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
 	}
 
-	if (srv_max_io_capacity < srv_io_capacity) {
+	if (srv_max_io_capacity == SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT) {
+
+		if (srv_io_capacity >= SRV_MAX_IO_CAPACITY_LIMIT / 2) {
+			/* Avoid overflow. */
+			srv_max_io_capacity = SRV_MAX_IO_CAPACITY_LIMIT;
+		} else {
+			/* The user has not set the value. We should
+			set it based on innodb_io_capacity. */
+			srv_max_io_capacity =
+				ut_max(2 * srv_io_capacity, 2000);
+		}
+
+	} else if (srv_max_io_capacity < srv_io_capacity) {
 		sql_print_warning("InnoDB: innodb_io_capacity"
 				  " cannot be set higher than"
-				  " innodb_max_io_capacity.\n"
+				  " innodb_io_capacity_max.\n"
 				  "InnoDB: Setting"
 				  " innodb_io_capacity to %lu\n",
 				  srv_max_io_capacity);
@@ -10551,10 +10563,11 @@ innobase_get_mysql_key_number_for_index(
 			not present in the MySQL index list, so no
 			need to print such mismatch warning. */
 			if (*(index->name) != TEMP_INDEX_PREFIX) {
-				sql_print_warning("Find index %s in InnoDB index list "
-						"but not its MySQL index number "
-						"It could be an InnoDB internal index.",
-						index->name);
+				sql_print_warning(
+					"Find index %s in InnoDB index list "
+					"but not its MySQL index number "
+					"It could be an InnoDB internal index.",
+					index->name);
 			}
 			return(-1);
 		}
@@ -13555,11 +13568,11 @@ ha_innobase::check_if_incompatible_data(
 }
 
 /****************************************************************//**
-Update the system variable innodb_max_io_capacity using the "saved"
+Update the system variable innodb_io_capacity_max using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
 void
-innodb_max_io_capacity_update(
+innodb_io_capacity_max_update(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -13574,11 +13587,11 @@ innodb_max_io_capacity_update(
 		in_val = srv_io_capacity;
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "innodb_max_io_capacity cannot be"
+				    "innodb_io_capacity_max cannot be"
 				    " set lower than innodb_io_capacity.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "Setting innodb_max_io_capacity to %lu",
+				    "Setting innodb_io_capacity_max to %lu",
 				    srv_io_capacity);
 	}
 
@@ -13606,7 +13619,7 @@ innodb_io_capacity_update(
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_io_capacity cannot be set"
-				    " higher than innodb_max_io_capacity.");
+				    " higher than innodb_io_capacity_max.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_io_capacity to %lu",
@@ -15281,10 +15294,12 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, innodb_io_capacity_update, 200, 100, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
+static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Limit to which innodb_io_capacity can be inflated.",
-  NULL, innodb_max_io_capacity_update, 400, 100, ~0UL, 0);
+  NULL, innodb_io_capacity_max_update,
+  SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
+  SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
@@ -16073,7 +16088,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(read_only_mode),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(max_io_capacity),
+  MYSQL_SYSVAR(io_capacity_max),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),

@@ -85,16 +85,13 @@ const char * const THD::DEFAULT_WHERE= "field list";
 extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
 {
-  *length= entry->name.length;
-  return (uchar*) entry->name.str;
+  *length= entry->entry_name.length();
+  return (uchar*) entry->entry_name.ptr();
 }
 
 extern "C" void free_user_var(user_var_entry *entry)
 {
-  char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
-  if (entry->value && entry->value != pos)
-    my_free(entry->value);
-  my_free(entry);
+  entry->destroy();
 }
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const

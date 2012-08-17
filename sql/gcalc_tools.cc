@@ -1258,8 +1258,7 @@ static int chunk_info_cmp(const Gcalc_result_receiver::chunk_info *a1,
     return a1->first_point < a2->first_point ? -1 : 1;
   if (a1->is_poly_hole != a2->is_poly_hole)
     return a1->is_poly_hole < a2->is_poly_hole ? -1 : 1;
-  DBUG_ASSERT(a1->order != a2->order);
-  return a1->order < a2->order ? -1 : 1;
+  return (int) a1->order - (int) a2->order;
 }
 
 

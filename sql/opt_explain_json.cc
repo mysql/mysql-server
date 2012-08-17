@@ -1180,6 +1180,13 @@ bool join_ctx::add_subquery(subquery_list_enum subquery_type,
        case CTX_SIMPLE_DISTINCT:
        case CTX_SIMPLE_GROUP_BY:
          return j->add_subquery(subquery_type, ctx);
+       case CTX_MESSAGE:
+         DBUG_ASSERT(subquery_type == SQ_ORDER_BY || subquery_type == SQ_GROUP_BY);
+         /* As far as CTX_MESSAGE is actually an "optimized out" subquery,
+            so ORDER/GROUP BY subqueries of such a subquery are "optimized out" as well,
+            so we can replace ORDER/GROUP BY subquery type to SQ_HOMELESS:
+         */
+         return unit_ctx::add_subquery(SQ_HOMELESS, ctx);
        default: ;
        }
      }
