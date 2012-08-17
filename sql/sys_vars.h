@@ -959,7 +959,7 @@ public:
   Sys_var_max_user_conn(const char *name_arg,
           const char *comment, int flag_args, ptrdiff_t off, size_t size,
           CMD_LINE getopt,
-          uint min_val, uint max_val, uint def_val,
+          int min_val, int max_val, int def_val,
           uint block_size, PolyLock *lock=0,
           enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
           on_check_function on_check_func=0,

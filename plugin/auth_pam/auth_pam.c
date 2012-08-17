@@ -107,7 +107,7 @@ static int conv(int n, const struct pam_message **msg,
 
 #define DO(X) if ((status = (X)) != PAM_SUCCESS) goto end
 
-#ifdef SOLARIS
+#if defined(SOLARIS) || defined(__sun)
 typedef void** pam_get_item_3_arg;
 #else
 typedef const void** pam_get_item_3_arg;
