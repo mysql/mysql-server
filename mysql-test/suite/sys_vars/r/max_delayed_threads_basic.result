@@ -8,43 +8,63 @@ SELECT @start_session_value;
 20
 '#--------------------FN_DYNVARS_075_01-------------------------#'
 SET @@global.max_delayed_threads = 1000;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SET @@global.max_delayed_threads = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 20
 SET @@session.max_delayed_threads = 1000;
 ERROR 42000: Variable 'max_delayed_threads' can't be set to the value of '1000'
 SET @@session.max_delayed_threads = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 20
 '#--------------------FN_DYNVARS_075_02-------------------------#'
 SET @@global.max_delayed_threads = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads = 20;
 @@global.max_delayed_threads = 20
 1
 SET @@session.max_delayed_threads = DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@session.max_delayed_threads = 20;
 @@session.max_delayed_threads = 20
 1
 '#--------------------FN_DYNVARS_075_03-------------------------#'
 SET @@global.max_delayed_threads = 1;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 1
 SET @@global.max_delayed_threads = 1025;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 1025
 SET @@global.max_delayed_threads = 0;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 0
 SET @@global.max_delayed_threads = 16384;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 16384
 SET @@global.max_delayed_threads = 16383;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 16383
@@ -60,6 +80,8 @@ SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 20
 SET @@session.max_delayed_threads = 0;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 0
@@ -69,24 +91,29 @@ SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 0
 SET @@session.max_delayed_threads = 16383;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 16383
 '#------------------FN_DYNVARS_075_05-----------------------#'
 SET @@global.max_delayed_threads = -1024;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '-1024'
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 0
 SET @@global.max_delayed_threads = -1;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '-1'
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 0
 SET @@global.max_delayed_threads = 16385;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '16385'
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
@@ -103,18 +130,21 @@ SELECT @@global.max_delayed_threads;
 16384
 SET @@session.max_delayed_threads = 16385;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '16385'
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 16384
 SET @@session.max_delayed_threads = -1;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '-1'
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 0
 SET @@session.max_delayed_threads = -2;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '-2'
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
@@ -123,6 +153,7 @@ SET @@session.max_delayed_threads = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_delayed_threads'
 SET @@session.max_delayed_threads = 10737418241;
 Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 Warning	1292	Truncated incorrect max_delayed_threads value: '10737418241'
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
@@ -146,15 +177,21 @@ WHERE VARIABLE_NAME='max_delayed_threads';
 1
 '#------------------FN_DYNVARS_075_08-----------------------#'
 SET @@global.max_delayed_threads = TRUE;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 1
 SET @@global.max_delayed_threads = FALSE;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 0
 '#---------------------FN_DYNVARS_001_09----------------------#'
 SET @@global.max_delayed_threads = 2048;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@max_delayed_threads = @@global.max_delayed_threads;
 @@max_delayed_threads = @@global.max_delayed_threads
 0
@@ -180,10 +217,14 @@ ERROR 42S02: Unknown table 'session' in field list
 SELECT max_delayed_threads = @@session.max_delayed_threads;
 ERROR 42S22: Unknown column 'max_delayed_threads' in 'field list'
 SET @@global.max_delayed_threads = @start_global_value;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@global.max_delayed_threads;
 @@global.max_delayed_threads
 20
 SET @@session.max_delayed_threads = @start_session_value;
+Warnings:
+Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
 SELECT @@session.max_delayed_threads;
 @@session.max_delayed_threads
 20
