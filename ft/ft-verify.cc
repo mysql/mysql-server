@@ -125,6 +125,7 @@ struct verify_message_tree_extra {
     int verbose;
     BLOCKNUM blocknum;
     int keep_going_on_failure;
+    bool messages_have_been_moved;
 };
 
 __attribute__((nonnull(3)))
@@ -142,10 +143,10 @@ static int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), st
         VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) entry->type),
                          e->i, "message found in fresh or stale message tree that does not apply once");
         if (e->is_fresh) {
-            // Disabling this assert because of
-            // marked messages in the fresh tree
-            //VERIFY_ASSERTION(entry->is_fresh,
-            //                 e->i, "message found in fresh message tree that is not fresh");
+            if (e->messages_have_been_moved) {
+                VERIFY_ASSERTION(entry->is_fresh,
+                                 e->i, "message found in fresh message tree that is not fresh");
+            }
         } else {
             VERIFY_ASSERTION(!entry->is_fresh,
                              e->i, "message found in stale message tree that is fresh");
@@ -153,6 +154,10 @@ static int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), st
     }
 done:
     return result;
+}
+
+static int error_on_iter(const int32_t &UU(offset), const uint32_t UU(idx), void *UU(e)) {
+    return TOKUDB_NEEDS_REPAIR;
 }
 
 __attribute__((nonnull(3)))
@@ -224,27 +229,26 @@ toku_get_node_for_verify(
     uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
         brt->ft,
         blocknum,
         fullhash,
         &bfe,
-        true, // may_modify_node, safe to set to true
+        true, // may_modify_node
         0,
         NULL,
-        nodep
+        nodep,
+        false
         );
 }
 
-// input is a pinned node, on exit, node is unpinned
-int
-toku_verify_ftnode (FT_HANDLE brt,
-                     MSN rootmsn, MSN parentmsn,
-                     FTNODE node, int height,
-                     const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
-                     const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
-                     int (*progress_callback)(void *extra, float progress), void *progress_extra,
-                     int recurse, int verbose, int keep_going_on_failure)
+static int
+toku_verify_ftnode_internal(FT_HANDLE brt,
+                            MSN rootmsn, MSN parentmsn,
+                            FTNODE node, int height,
+                            const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                            const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                            int verbose, int keep_going_on_failure, bool messages_have_been_moved)
 {
     int result=0;
     MSN   this_msn;
@@ -304,23 +308,27 @@ toku_verify_ftnode (FT_HANDLE brt,
                                  int count;
                                  DBT keydbt;
                                  toku_fill_dbt(&keydbt, key, keylen);
+                                 int total_count = 0;
                                  count = count_eq_key_msn(brt, bnc->buffer, bnc->fresh_message_tree, toku_fill_dbt(&keydbt, key, keylen), msn);
+                                 total_count += count;
                                  if (is_fresh) {
                                      VERIFY_ASSERTION(count == 1, i, "a fresh message was not found in the fresh message tree");
-                                     assert(count == 1);
-                                 } else {
-                                     // Disabling this assert because of
-                                     // marked messages in the fresh tree
-                                     //VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
+                                 } else if (messages_have_been_moved) {
+                                     VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
                                  }
+                                 VERIFY_ASSERTION(count <= 1, i, "a message was found multiple times in the fresh message tree");
                                  count = count_eq_key_msn(brt, bnc->buffer, bnc->stale_message_tree, &keydbt, msn);
+
+                                 total_count += count;
                                  if (is_fresh) {
                                      VERIFY_ASSERTION(count == 0, i, "a fresh message was found in the stale message tree");
-                                 } else {
-                                     // Disabling this assert because of
-                                     // marked messages in the fresh tree
-                                     //VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
+                                 } else if (messages_have_been_moved) {
+                                     VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
                                  }
+                                 VERIFY_ASSERTION(count <= 1, i, "a message was found multiple times in the stale message tree");
+
+                                 VERIFY_ASSERTION(total_count <= 1, i, "a message was found in both message trees (or more than once in a single tree)");
+                                 VERIFY_ASSERTION(total_count >= 1, i, "a message was not found in either message tree");
                              } else {
                                  VERIFY_ASSERTION(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type), i, "a message was found that does not apply either to all or to only one key");
                                  struct count_msgs_extra extra = { .count = 0, .msn = msn, .fifo = bnc->buffer };
@@ -329,14 +337,24 @@ toku_verify_ftnode (FT_HANDLE brt,
                              }
                              last_msn = msn;
                          }));
-            struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure };
+            struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure, .messages_have_been_moved = messages_have_been_moved };
             int r = bnc->fresh_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
             extra.is_fresh = false;
             r = bnc->stale_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
-            r = bnc->fresh_message_tree.iterate_over_marked<struct verify_message_tree_extra, verify_marked_messages>(&extra);
-            if (r != 0) { result = r; goto done; }
+
+            bnc->fresh_message_tree.verify_marks_consistent();
+            if (messages_have_been_moved) {
+                VERIFY_ASSERTION(!bnc->fresh_message_tree.has_marks(), i, "fresh message tree still has marks after moving messages");
+                r = bnc->fresh_message_tree.iterate_over_marked<void, error_on_iter>(nullptr);
+                if (r != 0) { result = r; goto done; }
+            }
+            else {
+                r = bnc->fresh_message_tree.iterate_over_marked<struct verify_message_tree_extra, verify_marked_messages>(&extra);
+                if (r != 0) { result = r; goto done; }
+            }
+
             extra.broadcast = true;
             r = bnc->broadcast_list.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
@@ -362,6 +380,53 @@ toku_verify_ftnode (FT_HANDLE brt,
             }
         }
     } 
+    
+done:
+    return result;
+}
+
+
+// input is a pinned node, on exit, node is unpinned
+int
+toku_verify_ftnode (FT_HANDLE brt,
+                     MSN rootmsn, MSN parentmsn,
+                     FTNODE node, int height,
+                     const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
+                     int (*progress_callback)(void *extra, float progress), void *progress_extra,
+                     int recurse, int verbose, int keep_going_on_failure)
+{
+    MSN   this_msn;
+
+    //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
+    toku_assert_entire_node_in_memory(node);
+    this_msn = node->max_msn_applied_to_node_on_disk;
+    if (rootmsn.msn == ZERO_MSN.msn) {
+        assert(parentmsn.msn == ZERO_MSN.msn);
+        rootmsn = this_msn;
+        parentmsn = this_msn;
+    }
+
+    int result = 0;
+    int result2 = 0;
+    if (node->height > 0) {
+        // Otherwise we'll just do the next call
+
+        result = toku_verify_ftnode_internal(
+                brt, rootmsn, parentmsn, node, height, lesser_pivot, greatereq_pivot,
+                verbose, keep_going_on_failure, false);
+        if (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR) goto done;
+    }
+    if (node->height > 0) {
+        toku_move_ftnode_messages_to_stale(brt->ft, node);
+    }
+    result2 = toku_verify_ftnode_internal(
+            brt, rootmsn, parentmsn, node, height, lesser_pivot, greatereq_pivot,
+            verbose, keep_going_on_failure, true);
+    if (result == 0) {
+        result = result2;
+        if (!keep_going_on_failure || result != TOKUDB_NEEDS_REPAIR) goto done;
+    }
     
     // Verify that the subtrees have the right properties.
     if (recurse && node->height > 0) {
