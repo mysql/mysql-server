@@ -3823,7 +3823,6 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, str
         const XIDS xids = (XIDS) &entry->xids_s;
         bytevec key = xids_get_end_of_array(xids);
         bytevec val = (uint8_t*)key + entry->keylen;
-        entry->is_fresh = false;
 
         DBT hk;
         toku_fill_dbt(&hk, key, keylen);
@@ -3841,6 +3840,11 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, str
     } else {
         STATUS_VALUE(FT_MSN_DISCARDS)++;
     }
+    // We must always mark entry as stale since it has been marked
+    // (using omt::iterate_and_mark_range)
+    // It is possible to call do_bn_apply_cmd even when it won't apply the message because
+    // the node containing it could have been evicted and brought back in.
+    entry->is_fresh = false;
 }
 
 struct iterate_do_bn_apply_cmd_extra {
