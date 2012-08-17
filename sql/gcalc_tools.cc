@@ -429,6 +429,12 @@ int Gcalc_result_receiver::complete_shape()
   }
   if (n_points == 1)
   {
+    if (cur_shape == Gcalc_function::shape_hole)
+    {
+      // All points of a hole had the same coordinates -remove this hole.
+      buffer.length(shape_pos);
+      DBUG_RETURN(0);
+    }
     if (cur_shape != Gcalc_function::shape_point)
     {
       cur_shape= Gcalc_function::shape_point;
