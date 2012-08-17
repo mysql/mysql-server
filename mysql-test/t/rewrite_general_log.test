@@ -32,16 +32,20 @@ CREATE TABLE     t1(f1 INT, f2 INT, f3 INT, f4 INT);
 CREATE PROCEDURE proc_rewrite_1() INSERT INTO test.t1 VALUES ("hocus pocus");
 CREATE FUNCTION  func_rewrite_1(i INT) RETURNS INT DETERMINISTIC RETURN i+1;
 
-GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER
-      on test.t1 TO test_user1 IDENTIFIED BY 'azundris1';
-GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1;
-GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1;
-GRANT USAGE ON TABLE test.* TO test_user3@localhost REQUIRE SSL;
-GRANT SELECT,USAGE ON test.* TO test_user3@localhost REQUIRE X509 WITH
+GRANT SELECT(f2), INSERT(f3), INDEX, UPDATE(f1,f3, f2, f4), ALTER on test.t1 TO
+  test_user1 IDENTIFIED BY 'azundris1';
+GRANT ALL ON PROCEDURE test.proc_rewrite_1 TO test_user1
+      IDENTIFIED BY 'meow';
+GRANT EXECUTE ON FUNCTION test.func_rewrite_1 TO test_user1
+      IDENTIFIED BY 'meow';
+GRANT USAGE ON TABLE test.* TO test_user3@localhost IDENTIFIED BY 'meow'
+      REQUIRE SSL;
+GRANT SELECT,USAGE ON test.* TO test_user3@localhost IDENTIFIED BY 'meow'
+      REQUIRE X509 WITH
       MAX_QUERIES_PER_HOUR 1 MAX_UPDATES_PER_HOUR 2
       MAX_CONNECTIONS_PER_HOUR 3 MAX_USER_CONNECTIONS 4;
-GRANT SELECT ON test.* TO test_user3@localhost REQUIRE NONE
-      WITH GRANT OPTION;
+GRANT SELECT ON test.* TO test_user3@localhost IDENTIFIED BY 'maus'
+      REQUIRE NONE WITH GRANT OPTION;
 
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;

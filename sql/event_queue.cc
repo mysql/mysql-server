@@ -439,6 +439,7 @@ void
 Event_queue::recalculate_activation_times(THD *thd)
 {
   uint i;
+  Event_db_repository *db_repository= Events::get_db_repository();
   DBUG_ENTER("Event_queue::recalculate_activation_times");
 
   LOCK_QUEUE_DATA();
@@ -465,6 +466,11 @@ Event_queue::recalculate_activation_times(THD *thd)
       always the last element.
     */
     queue_remove(&queue, i - 1);
+    /*
+      Dropping the event from mysql.event table
+    */
+    if (element->dropped)
+      db_repository->drop_event(thd, element->dbname, element->name, false);
     delete element;
   }
   UNLOCK_QUEUE_DATA();
@@ -648,6 +654,11 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
                             top->dropped? "Dropping.":"");
       delete top;
       queue_remove(&queue, 0);
+      /*
+       This event will get dropped from mysql.event table in
+       Event_job_data::execute() function eventually.
+       So no need add check to drop it from mysql.event table here.
+      */
     }
     else
       queue_replaced(&queue);
