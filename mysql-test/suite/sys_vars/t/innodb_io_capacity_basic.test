@@ -8,7 +8,7 @@
 SET @start_io_capacity = @@global.innodb_io_capacity;
 SELECT @start_io_capacity;
 
-SET @start_max_io_capacity = @@global.innodb_max_io_capacity;
+SET @start_max_io_capacity = @@global.innodb_io_capacity_max;
 SELECT @start_max_io_capacity;
 
 #
@@ -68,5 +68,5 @@ select @@global.innodb_io_capacity;
 SET @@global.innodb_io_capacity = @start_io_capacity;
 SELECT @@global.innodb_io_capacity;
 
-SET @@global.innodb_max_io_capacity = @start_max_io_capacity;
-SELECT @@global.innodb_max_io_capacity;
+SET @@global.innodb_io_capacity_max = @start_max_io_capacity;
+SELECT @@global.innodb_io_capacity_max;
