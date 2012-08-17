@@ -391,7 +391,7 @@ buf_dblwr_init_or_restore_pages(
 	}
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
-	!= TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
+	    != TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
 
 		/* We are upgrading from a version < 4.1.x to a version where
 		multiple tablespaces are supported. We must reset the space id
@@ -401,9 +401,8 @@ buf_dblwr_init_or_restore_pages(
 
 		reset_space_ids = TRUE;
 
-		fprintf(stderr,
-			"InnoDB: Resetting space id's in the"
-			" doublewrite buffer\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Resetting space id's in the doublewrite buffer");
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
@@ -459,12 +458,11 @@ buf_dblwr_init_or_restore_pages(
 
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
-			fprintf(stderr,
-				"InnoDB: Warning: a page in the"
-				" doublewrite buffer is not within space\n"
-				"InnoDB: bounds; space id %lu"
-				" page number %lu, page %lu in"
-				" doublewrite buf.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"A page in the doublewrite buffer is not "
+				"within space bounds; space id %lu "
+				"page number %lu, page %lu in "
+				"doublewrite buf.",
 				(ulong) space_id, (ulong) page_no, (ulong) i);
 
 		} else if (space_id == TRX_SYS_SPACE

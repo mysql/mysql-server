@@ -581,6 +581,50 @@ srv_normalize_path_for_win(
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
+Opens the log files.
+@return	DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+open_log_file(
+/*==========*/
+	const char*	name,		/*!< in: log file to open */
+	ulint		i)		/*!< in: file index to open */
+{
+	ibool		ret;
+
+	files[i] = os_file_create(
+		innodb_file_log_key, name, OS_FILE_OPEN, OS_FILE_AIO,
+		OS_LOG_FILE, &ret);
+
+	if (!ret) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR, "Unable to open '%s'", name);
+
+		return(DB_ERROR);
+	}
+
+	os_offset_t	size = os_file_get_size(files[i]);
+
+	ut_a(size != (os_offset_t) -1);
+
+	if (size != ((os_offset_t) srv_log_file_size << UNIV_PAGE_SIZE_SHIFT)) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Log file %s is"
+			" of different size "UINT64PF" bytes"
+			"than specified in the .cnf"
+			" file "UINT64PF" bytes!",
+			name, size,
+			(os_offset_t) srv_log_file_size
+			<< UNIV_PAGE_SIZE_SHIFT);
+
+		return(DB_ERROR);
+	}
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************//**
 Creates or opens the log files and closes them.
 @return	DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
@@ -597,10 +641,8 @@ open_or_create_log_file(
 	ulint	k,			/*!< in: log group number */
 	ulint	i)			/*!< in: log file number in group */
 {
-	ibool		ret;
-	os_offset_t	size;
-	char		name[10000];
 	ulint		dirnamelen;
+	char		name[10000];
 
 	UT_NOT_USED(create_new_db);
 
@@ -625,11 +667,28 @@ open_or_create_log_file(
 		return(DB_ERROR);
 	}
 
+	ibool		ret;
+
 	files[i] = os_file_create(
 		innodb_file_log_key, name,
 		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
 
-	if (ret == FALSE) {
+	if (srv_read_only_mode) {
+
+		if (ret == FALSE) {
+			/* File exists but we can't open it. */
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to open: %s", name);
+			return(DB_ERROR);
+		}
+
+		dberr_t	err = open_log_file(name, i);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
+	} else if (ret == FALSE) {
 		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 		    /* AIX 5.1 after security patch ML7 may have errno set
@@ -644,34 +703,12 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 
-		files[i] = os_file_create(innodb_file_log_key, name,
-					  OS_FILE_OPEN, OS_FILE_AIO,
-					  OS_LOG_FILE, &ret);
-		if (!ret) {
+		dberr_t	err = open_log_file(name, i);
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to open '%s'\n", name);
-
-			return(DB_ERROR);
+		if (err != DB_SUCCESS) {
+			return(err);
 		}
 
-		size = os_file_get_size(files[i]);
-		ut_a(size != (os_offset_t) -1);
-
-		if (size != ((os_offset_t) srv_log_file_size
-			     << UNIV_PAGE_SIZE_SHIFT)) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Log file %s is"
-				" of different size "UINT64PF" bytes"
-				"than specified in the .cnf"
-				" file "UINT64PF" bytes!\n",
-				name, size,
-				(os_offset_t) srv_log_file_size
-				<< UNIV_PAGE_SIZE_SHIFT);
-
-			return(DB_ERROR);
-		}
 	} else {
 		ut_a(!srv_read_only_mode);
 
@@ -679,7 +716,7 @@ open_or_create_log_file(
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Log file %s did not exist:"
-			" new to be created\n", name);
+			" new to be created", name);
 
 		if (log_file_has_been_opened) {
 
@@ -687,13 +724,13 @@ open_or_create_log_file(
 		}
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Setting log file %s size to %lu MB\n",
+			"Setting log file %s size to %lu MB",
 			name, (ulong) srv_log_file_size
 			>> (20 - UNIV_PAGE_SIZE_SHIFT));
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Database physically writes the file"
-			" full: wait...\n");
+			" full: wait...");
 
 		ret = os_file_set_size(
 			name, files[i],
@@ -790,7 +827,7 @@ open_or_create_data_files(
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can only have < 1000 data files, you have "
-			"defined %lu\n", (ulong) srv_n_data_files);
+			"defined %lu", (ulong) srv_n_data_files);
 
 		return(DB_ERROR);
 	}
@@ -833,15 +870,18 @@ open_or_create_data_files(
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 
-			if (ret == FALSE
-			    && os_file_get_last_error(false)
-			    != OS_FILE_ALREADY_EXISTS
+			if (srv_read_only_mode && ret) {
+				goto skip_size_check;
+			} else if (ret == FALSE
+				   && os_file_get_last_error(false)
+				   != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-			    /* AIX 5.1 after security patch ML7 may have
-			    errno set to 0 here, which causes our function
-			    to return 100; work around that AIX problem */
-			    && os_file_get_last_error(false) != 100
-#endif
+			    	   /* AIX 5.1 after security patch ML7 may have
+			           errno set to 0 here, which causes our
+				   function to return 100; work around that
+				   AIX problem */
+				   && os_file_get_last_error(false) != 100
+#endif /* UNIV_AIX */
 			    ) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Creating or opening %s failed!",
@@ -849,8 +889,11 @@ open_or_create_data_files(
 
 				return(DB_ERROR);
 			}
+
 		} else if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
+
 			ut_a(!srv_read_only_mode);
+
 			/* The partition is opened, not created; then it is
 			written over */
 
@@ -862,8 +905,8 @@ open_or_create_data_files(
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 			if (!ret) {
-				fprintf(stderr,
-					"InnoDB: Error in opening %s\n", name);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error in opening %s", name);
 
 				return(DB_ERROR);
 			}
@@ -879,16 +922,13 @@ open_or_create_data_files(
 			/* We open the data file */
 
 			if (one_created) {
-				fprintf(stderr,
-					"InnoDB: Error: data files can only"
-					" be added at the end\n");
-				fprintf(stderr,
-					"InnoDB: of a tablespace, but"
-					" data file %s existed beforehand.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Data files can only be added at "
+					"the end of a tablespace, but "
+					"data file %s existed beforehand.",
 					name);
 				return(DB_ERROR);
 			}
-
 			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
 				ut_a(!srv_read_only_mode);
 				files[i] = os_file_create(
@@ -937,16 +977,16 @@ open_or_create_data_files(
 					&& srv_last_file_size_max
 					< rounded_size_pages)) {
 
-					fprintf(stderr,
-						"InnoDB: Error: auto-extending"
-						" data file %s is"
-						" of a different size\n"
-						"InnoDB: %lu pages (rounded"
-						" down to MB) than specified"
-						" in the .cnf file:\n"
-						"InnoDB: initial %lu pages,"
-						" max %lu (relevant if"
-						" non-zero) pages!\n",
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"auto-extending "
+						"data file %s is "
+						"of a different size "
+						"%lu pages (rounded "
+						"down to MB) than specified "
+						"in the .cnf file: "
+						"initial %lu pages, "
+						"max %lu (relevant if "
+						"non-zero) pages!",
 						name,
 						(ulong) rounded_size_pages,
 						(ulong) srv_data_file_sizes[i],
@@ -961,13 +1001,11 @@ open_or_create_data_files(
 
 			if (rounded_size_pages != srv_data_file_sizes[i]) {
 
-				fprintf(stderr,
-					"InnoDB: Error: data file %s"
-					" is of a different size\n"
-					"InnoDB: %lu pages"
-					" (rounded down to MB)\n"
-					"InnoDB: than specified"
-					" in the .cnf file %lu pages!\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Data file %s is of a different "
+					"size %lu pages (rounded down to MB) "
+					"than specified in the .cnf file "
+					"%lu pages!",
 					name,
 					(ulong) rounded_size_pages,
 					(ulong) srv_data_file_sizes[i]);
@@ -1012,30 +1050,29 @@ skip_size_check:
 			one_created = TRUE;
 
 			if (i > 0) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					" InnoDB: Data file %s did not"
-					" exist: new to be created\n",
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Data file %s did not"
+					" exist: new to be created",
 					name);
 			} else {
-				fprintf(stderr,
-					"InnoDB: The first specified"
-					" data file %s did not exist:\n"
-					"InnoDB: a new database"
-					" to be created!\n", name);
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"The first specified "
+					"data file %s did not exist: "
+					"a new database to be created!",
+					name);
+
 				*create_new_db = TRUE;
 			}
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Setting file %s size to %lu MB\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Setting file %s size to %lu MB",
 				name,
 				(ulong) (srv_data_file_sizes[i]
 					 >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
-			fprintf(stderr,
-				"InnoDB: Database physically writes the"
-				" file full: wait...\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Database physically writes the"
+				" file full: wait...");
 
 			ret = os_file_set_size(
 				name, files[i],
@@ -1043,9 +1080,10 @@ skip_size_check:
 				<< UNIV_PAGE_SIZE_SHIFT);
 
 			if (!ret) {
-				fprintf(stderr,
-					"InnoDB: Error in creating %s:"
-					" probably out of disk space\n", name);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error in creating %s: "
+					"probably out of disk space",
+					name);
 
 				return(DB_ERROR);
 			}
@@ -2198,10 +2236,10 @@ innobase_start_or_create_for_mysql(void)
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
-		err = recv_recovery_from_checkpoint_start(LOG_CHECKPOINT,
-							  IB_ULONGLONG_MAX,
-							  min_flushed_lsn,
-							  max_flushed_lsn);
+		err = recv_recovery_from_checkpoint_start(
+			LOG_CHECKPOINT, IB_ULONGLONG_MAX,
+			min_flushed_lsn, max_flushed_lsn);
+
 		if (err != DB_SUCCESS) {
 
 			return(DB_ERROR);

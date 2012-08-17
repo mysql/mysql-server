@@ -2854,20 +2854,17 @@ void
 recv_init_crash_recovery(void)
 /*==========================*/
 {
+	ut_ad(!srv_read_only_mode);
 	ut_a(!recv_needed_recovery);
 
 	recv_needed_recovery = TRUE;
 
-	ut_print_timestamp(stderr);
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"Database was notshut down normally! Starting crash "
+		"recovery.");
 
-	fprintf(stderr,
-		"  InnoDB: Database was not"
-		" shut down normally!\n"
-		"InnoDB: Starting crash recovery.\n");
-
-	fprintf(stderr,
-		"InnoDB: Reading tablespace information"
-		" from the .ibd files...\n");
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"Reading tablespace information from the .ibd files...");
 
 	fil_load_single_table_tablespaces();
 
@@ -2878,11 +2875,10 @@ recv_init_crash_recovery(void)
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 
-		fprintf(stderr,
-			"InnoDB: Restoring possible"
-			" half-written data pages from"
-			" the doublewrite\n"
-			"InnoDB: buffer...\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Restoring possible half-written data pages from "
+			"the doublewrite buffer...");
+
 		buf_dblwr_init_or_restore_pages(TRUE);
 	}
 }
@@ -2939,10 +2935,10 @@ recv_recovery_from_checkpoint_start_func(
 	}
 
 	if (srv_force_recovery >= SRV_FORCE_NO_LOG_REDO) {
-		fprintf(stderr,
-			"InnoDB: The user has set SRV_FORCE_NO_LOG_REDO on\n");
-		fprintf(stderr,
-			"InnoDB: Skipping log redo\n");
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"The user has set SRV_FORCE_NO_LOG_REDO on, "
+			"skipping log redo");
 
 		return(DB_SUCCESS);
 	}
@@ -2983,17 +2979,27 @@ recv_recovery_from_checkpoint_start_func(
 
 	if (0 == ut_memcmp(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 			   (byte*)"ibbackup", (sizeof "ibbackup") - 1)) {
+
+		if (srv_read_only_mode) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot restore from ibbackup, InnoDB running "
+				"in read-only mode!");
+
+			return(DB_ERROR);
+		}
+
 		/* This log file was created by ibbackup --restore: print
 		a note to the user about it */
 
-		fprintf(stderr,
-			"InnoDB: The log file was created by"
-			" ibbackup --apply-log at\n"
-			"InnoDB: %s\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"The log file was created by ibbackup --apply-log at "
+			"%s ",
 			log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
-		fprintf(stderr,
-			"InnoDB: NOTE: the following crash recovery"
-			" is part of a normal restore.\n");
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"The following crash recovery is part of a normal "
+			"restore.");
 
 		/* Wipe over the label now */
 
@@ -3120,41 +3126,45 @@ recv_recovery_from_checkpoint_start_func(
 		    || checkpoint_lsn != min_flushed_lsn) {
 
 			if (checkpoint_lsn < max_flushed_lsn) {
-				fprintf(stderr,
-					"InnoDB: #########################"
-					"#################################\n"
-					"InnoDB:                          "
-					"WARNING!\n"
-					"InnoDB: The log sequence number"
-					" in ibdata files is higher\n"
-					"InnoDB: than the log sequence number"
-					" in the ib_logfiles! Are you sure\n"
-					"InnoDB: you are using the right"
-					" ib_logfiles to start up"
-					" the database?\n"
-					"InnoDB: Log sequence number in"
-					" ib_logfiles is " LSN_PF ", log\n"
-					"InnoDB: sequence numbers stamped"
-					" to ibdata file headers are between\n"
-					"InnoDB: " LSN_PF " and " LSN_PF ".\n"
-					"InnoDB: #########################"
-					"#################################\n",
+
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"WARNING! The log sequence number "
+					"in the ibdata files is higher "
+					"than the log sequence number "
+					"in the ib_logfiles! Are you sure "
+					"you are using the right "
+					"ib_logfiles to start up the database. "
+					"Log sequence number in the "
+					"ib_logfiles is " LSN_PF ", log"
+					"sequence numbers stamped "
+					"to ibdata file headers are between "
+					"" LSN_PF " and " LSN_PF ".",
 					checkpoint_lsn,
 					min_flushed_lsn,
 					max_flushed_lsn);
 			}
 
 			if (!recv_needed_recovery) {
-				fprintf(stderr,
-					"InnoDB: The log sequence number"
-					" in ibdata files does not match\n"
-					"InnoDB: the log sequence number"
-					" in the ib_logfiles!\n");
-				recv_init_crash_recovery();
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"The log sequence number "
+					"in ibdata files does not match "
+					"the log sequence number "
+					"in the ib_logfiles!");
+
+				if (!srv_read_only_mode) {
+					recv_init_crash_recovery();
+				} else {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Can't initiate database "
+						"recovery because InnoDB is "
+						"running in read-only-mode.");
+					return(DB_READ_ONLY);
+				}
 			}
 		}
 
-		if (!recv_needed_recovery) {
+		if (!recv_needed_recovery && !srv_read_only_mode) {
 			/* Init the doublewrite buffer memory structure */
 			buf_dblwr_init_or_restore_pages(FALSE);
 		}
@@ -3162,26 +3172,21 @@ recv_recovery_from_checkpoint_start_func(
 
 	/* We currently have only one log group */
 	if (group_scanned_lsn < checkpoint_lsn) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: ERROR: We were only able to scan the log"
-			" up to\n"
-			"InnoDB: " LSN_PF ", but a checkpoint was at "
-			LSN_PF ".\n"
-			"InnoDB: It is possible that"
-			" the database is now corrupt!\n",
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"We were only able to scan the log up to "
+			"" LSN_PF ", but a checkpoint was at " LSN_PF ". "
+			"It is possible thatthe database is now corrupt!",
 			group_scanned_lsn,
 			checkpoint_lsn);
 	}
 
 	if (group_scanned_lsn < recv_max_page_lsn) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: ERROR: We were only able to scan the log"
-			" up to " LSN_PF "\n"
-			"InnoDB: but a database page a had an lsn " LSN_PF "."
-			" It is possible that the\n"
-			"InnoDB: database is now corrupt!\n",
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"We were only able to scan the log up to " LSN_PF " "
+			"but a database page a had an lsn " LSN_PF ". "
+			"It is possible that the database is now corrupt!",
 			group_scanned_lsn,
 			recv_max_page_lsn);
 	}
@@ -3195,7 +3200,10 @@ recv_recovery_from_checkpoint_start_func(
 			return(DB_SUCCESS);
 		}
 
-		ut_error;
+		/* No harm in trying to do RO access. */
+		if (!srv_read_only_mode) {
+			ut_error;
+		}
 
 		return(DB_ERROR);
 	}
@@ -3241,13 +3249,13 @@ recv_recovery_from_checkpoint_start_func(
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
-	mutex_enter(&(recv_sys->mutex));
+	mutex_enter(&recv_sys->mutex);
 
 	recv_sys->apply_log_recs = TRUE;
 
-	mutex_exit(&(recv_sys->mutex));
+	mutex_exit(&recv_sys->mutex);
 
-	mutex_exit(&(log_sys->mutex));
+	mutex_exit(&log_sys->mutex);
 
 	recv_lsn_checks_on = TRUE;
 
