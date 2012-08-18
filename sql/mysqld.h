@@ -687,24 +687,25 @@ inline void table_case_convert(char * name, uint length)
 
 ulong sql_rnd_with_mutex();
 
+extern int32 num_thread_running;
 inline int32
 inc_thread_running()
 {
-  int32 num_thread_running;
+  int32 num_threads;
   my_atomic_rwlock_wrlock(&thread_running_lock);
-  num_thread_running= my_atomic_add32(&num_thread_running, 1);
+  num_threads= my_atomic_add32(&num_thread_running, 1);
   my_atomic_rwlock_wrunlock(&thread_running_lock);
-  return (num_thread_running+1);
+  return (num_threads+1);
 }
 
 inline int32
 dec_thread_running()
 {
-  int32 num_thread_running;
+  int32 num_threads;
   my_atomic_rwlock_wrlock(&thread_running_lock);
-  num_thread_running= my_atomic_add32(&num_thread_running, -1);
+  num_threads= my_atomic_add32(&num_thread_running, -1);
   my_atomic_rwlock_wrunlock(&thread_running_lock);
-  return (num_thread_running-1);
+  return (num_threads-1);
 }
 
 #if defined(MYSQL_DYNAMIC_PLUGIN) && defined(_WIN32)
