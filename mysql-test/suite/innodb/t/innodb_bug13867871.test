@@ -71,7 +71,10 @@ UPDATE ibtest11a SET a = 2;
 # insert blocked in dict_foreign_replace_index().
 connection default;
 
-ALTER TABLE ibtest11c ADD INDEX idx_2(b, c), DROP INDEX idx, ALGORITHM = INPLACE;
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE ibtest11c ADD INDEX idx_2(B, C), DROP INDEX idx,
+ALGORITHM=INPLACE, LOCK=NONE;
+ALTER TABLE ibtest11c ADD INDEX idx_2(B, C), DROP INDEX idx, ALGORITHM=INPLACE;
 
 SET DEBUG_SYNC = 'now SIGNAL drop_done';
 

@@ -339,7 +339,7 @@ public:
   MYSQL_QUERY_LOG() : last_time(0) {}
   void reopen_file();
   bool write(time_t event_time, const char *user_host,
-             uint user_host_len, int thread_id,
+             uint user_host_len, my_thread_id thread_id,
              const char *command_type, uint command_type_len,
              const char *sql_text, uint sql_text_len);
   bool write(THD *thd, time_t current_time, time_t query_start_arg,
@@ -386,7 +386,7 @@ public:
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args)= 0;
   virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
-                           uint user_host_len, int thread_id,
+                           uint user_host_len, my_thread_id thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
                            const CHARSET_INFO *client_cs)= 0;
@@ -413,7 +413,7 @@ public:
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
   virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
-                           uint user_host_len, int thread_id,
+                           uint user_host_len, my_thread_id thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
                            const CHARSET_INFO *client_cs);
@@ -445,7 +445,7 @@ public:
   virtual bool log_error(enum loglevel level, const char *format,
                          va_list args);
   virtual bool log_general(THD *thd, time_t event_time, const char *user_host,
-                           uint user_host_len, int thread_id,
+                           uint user_host_len, my_thread_id thread_id,
                            const char *command_type, uint command_type_len,
                            const char *sql_text, uint sql_text_len,
                            const CHARSET_INFO *client_cs);
