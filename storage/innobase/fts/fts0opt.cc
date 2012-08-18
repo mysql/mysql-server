@@ -2884,6 +2884,8 @@ fts_optimize_thread(
 	ulint		n_optimize = 0;
 	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
 
+	ut_ad(!srv_read_only_mode);
+
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
 
@@ -3050,13 +3052,15 @@ void
 fts_optimize_init(void)
 /*===================*/
 {
-	/* For now we only support one optimize thread. */
-	ut_a(fts_optimize_wq == NULL);
+	if (!srv_read_only_mode) {
+		/* For now we only support one optimize thread. */
+		ut_a(fts_optimize_wq == NULL);
 
-	fts_optimize_wq = ib_wqueue_create();
-	ut_a(fts_optimize_wq != NULL);
+		fts_optimize_wq = ib_wqueue_create();
+		ut_a(fts_optimize_wq != NULL);
 
-	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
+		os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
+	}
 }
 
 /**********************************************************************//**
@@ -3077,21 +3081,23 @@ void
 fts_optimize_start_shutdown(void)
 /*=============================*/
 {
-	fts_msg_t*	msg;
-	os_event_t	event;
+	if (!srv_read_only_mode) {
+		fts_msg_t*	msg;
+		os_event_t	event;
 
-	/* We tell the OPTIMIZE thread to switch to state done, we
-	can't delete the work queue here because the add thread needs
-	deregister the FTS tables. */
-	event = os_event_create(NULL);
+		/* We tell the OPTIMIZE thread to switch to state done, we
+		can't delete the work queue here because the add thread needs
+		deregister the FTS tables. */
+		event = os_event_create(NULL);
 
-	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
-	msg->ptr = event;
+		msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
+		msg->ptr = event;
 
-	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+		ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
-	os_event_wait(event);
-	os_event_free(event);
+		os_event_wait(event);
+		os_event_free(event);
+	}
 }
 
 /**********************************************************************//**
