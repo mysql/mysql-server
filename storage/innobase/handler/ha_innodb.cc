@@ -6429,7 +6429,7 @@ ha_innobase::write_row(
 		ib_senderrf(ha_thd(),
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	} else if (prebuilt->trx != trx) {
 		sql_print_error("The transaction object for the table handle "
 				"is at %p, but for the current thread it is at "
@@ -6967,7 +6967,7 @@ ha_innobase::update_row(
 	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(),
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
@@ -7100,7 +7100,7 @@ ha_innobase::delete_row(
 	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(),
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
@@ -9360,7 +9360,7 @@ ha_innobase::create(
 	} else if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(),
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	}
 
 	/* Create the table definition in InnoDB */
@@ -9676,7 +9676,7 @@ ha_innobase::discard_or_import_tablespace(
 	if (srv_read_only_mode) {
 		ib_senderrf(prebuilt->trx->mysql_thd,
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	}
 
 	dict_table = prebuilt->table;
@@ -9772,7 +9772,7 @@ ha_innobase::truncate()
 	if (srv_read_only_mode) {
 		ib_senderrf(ha_thd(),
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	}
 
 	/* Get the transaction associated with the current thd, or create one
@@ -9848,7 +9848,7 @@ ha_innobase::delete_table(
 	if (srv_read_only_mode) {
 		ib_senderrf(trx->mysql_thd,
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	} else if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
@@ -10143,7 +10143,7 @@ ha_innobase::rename_table(
 	if (srv_read_only_mode) {
 		ib_senderrf(trx->mysql_thd,
 			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_READ_ONLY_TRANSACTION);
+		DBUG_RETURN(HA_ERR_TABLE_READ_ONLY);
 	}
 
 	/* Get the transaction associated with the current thd, or create one
