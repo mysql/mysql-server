@@ -1350,7 +1350,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	case DB_READ_ONLY:
-		return(HA_ERR_READ_ONLY_TRANSACTION);
+		return(HA_ERR_TABLE_READONLY);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
