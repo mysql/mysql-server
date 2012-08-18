@@ -796,7 +796,7 @@ void Item_subselect::print(String *str, enum_query_type query_type)
 
 
 Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
-  :Item_subselect(), value(0)
+  :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
   init(select_lex, new select_singlerow_subselect(this));
@@ -981,6 +981,11 @@ void Item_singlerow_subselect::fix_length_and_dec()
     maybe_null= engine->may_be_null();
 }
 
+void Item_singlerow_subselect::no_rows_in_result()
+{
+  no_rows= true;
+}
+
 uint Item_singlerow_subselect::cols()
 {
   return engine->cols();
@@ -1017,7 +1022,7 @@ void Item_singlerow_subselect::bring_value()
 double Item_singlerow_subselect::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_real();
@@ -1032,7 +1037,7 @@ double Item_singlerow_subselect::val_real()
 longlong Item_singlerow_subselect::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_int();
@@ -1046,7 +1051,7 @@ longlong Item_singlerow_subselect::val_int()
 
 String *Item_singlerow_subselect::val_str(String *str)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_str(str);
@@ -1061,7 +1066,7 @@ String *Item_singlerow_subselect::val_str(String *str)
 
 my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_decimal(decimal_value);
@@ -1076,7 +1081,7 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 
 bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= false;
     return value->get_date(ltime, fuzzydate);
@@ -1091,7 +1096,7 @@ bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 
 bool Item_singlerow_subselect::get_time(MYSQL_TIME *ltime)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= false;
     return value->get_time(ltime);
@@ -1106,7 +1111,7 @@ bool Item_singlerow_subselect::get_time(MYSQL_TIME *ltime)
 
 bool Item_singlerow_subselect::val_bool()
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_bool();
