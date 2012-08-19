@@ -47,8 +47,8 @@ reated 9/5/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 
 // Forward declaration
-struct sync_thread_t;
 struct sync_level_t;
+struct sync_thread_t;
 
 /** This variable is set to TRUE when sync_init is called */
 UNIV_INTERN bool		sync_initialized;
@@ -114,18 +114,6 @@ struct sync_level_t {
 					the ordinal value of the next free
 					element */
 };
-
-/******************************************************************//**
-Returns TRUE if no mutex or rw-lock is currently locked. Works only in
-the debug version.
-@return	TRUE if no mutexes and rw-locks reserved */
-UNIV_INTERN
-ibool
-sync_all_freed()
-/*============*/
-{
-	return(mutex_n_reserved() + rw_lock_n_locked() == 0);
-}
 
 /******************************************************************//**
 Looks for the thread slot for the calling thread.

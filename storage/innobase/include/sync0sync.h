@@ -133,17 +133,6 @@ void
 sync_close();
 /*========*/
 
-#ifdef UNIV_SYNC_DEBUG
-/******************************************************************//**
-Returns TRUE if no mutex or rw-lock is currently locked.
-Works only in the debug version.
-@return	TRUE if no mutexes and rw-locks reserved */
-UNIV_INTERN
-ibool
-sync_all_freed();
-/*============*/
-#endif /* UNIV_SYNC_DEBUG */
-
 /*******************************************************************//**
 Prints wait info of the sync system. */
 UNIV_INTERN
