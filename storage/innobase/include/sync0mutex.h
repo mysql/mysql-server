@@ -25,9 +25,10 @@ Created 2012-08-15 Sunny Bains.
 
 #include "univ.i"
 #include "ut0lst.h"
-#include "os0thread.h"
 #include "os0sync.h"
+#include "os0thread.h"
 #include "sync0sync.h"
+#include "ut0counter.h"
 
 #ifndef sync0mutex_h
 
@@ -43,7 +44,7 @@ if "UNIV_PFS_MUTEX" is defined:
 mutex_create
 mutex_enter
 mutex_exit
-mutex_enter_nowait
+mutex_trylock
 mutex_free
 
 These mutex APIs will point to corresponding wrapper functions that contain
@@ -107,7 +108,7 @@ original non-instrumented functions */
 	mutex_enter_func((M), __FILE__, __LINE__, true)
 
 # define mutex_enter_nowait(M)	\
-	mutex_enter_nowait_func((M), __FILE__, __LINE__)
+	mutex_trylock((M))
 
 # define mutex_exit(M)	mutex_exit_func(M)
 
@@ -166,14 +167,11 @@ NOTE! Use the corresponding macro in the header file, not this function
 directly. Tries to lock the mutex for the current thread. If the lock is not
 acquired immediately, returns with return value 1.
 @return	0 if succeed, 1 if not */
-UNIV_INTERN
+UNIV_INLINE
 ulint
-mutex_enter_nowait_func(
-/*====================*/
-	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
-	const char*	file_name,	/*!< in: file name where mutex
-					requested */
-	ulint		line);		/*!< in: line where requested */
+mutex_trylock(
+/*==========*/
+	ib_mutex_t*	mutex);		/*!< in/out: pointer to mutex */
 
 /******************************************************************//**
 NOTE! Use the corresponding macro mutex_exit(), not directly this function!
@@ -431,6 +429,10 @@ struct ib_mutex_t : public spin_mutex_t {
 	os_event_t	event;		/*!< Used by sync0arr.cc for the
 					wait queue */
 };
+
+extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
+extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
+extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
 
 #ifndef UNIV_NONINL
 #include "sync0mutex.ic"
