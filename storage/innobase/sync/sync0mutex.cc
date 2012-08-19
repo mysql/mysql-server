@@ -409,13 +409,19 @@ mutex_spin(
 	committed with atomic test-and-set. In reality, however,
 	all processors probably have an atomic read of a memory word. */
 
-	while (mutex_get_lock_word(mutex) != 0 && spin < max_spins) {
+	const ulint	n = spin / max_spins;
 
-		if (srv_spin_wait_delay) {
-			ut_delay(ut_rnd_interval(0, max_delay));
+	while (!(spin++ % max_spins)) {
+
+		if (mutex_get_lock_word(mutex) == 0) {
+			return(spin);
 		}
 
-		++spin;
+		const ulint	m = n * ut_rnd_interval(0, max_delay);
+
+		for (ulint i = 0; i < m; ++i) {
+			UT_RELAX_CPU();
+		}
 	}
 
 	return(spin);
@@ -506,22 +512,20 @@ mutex_spin_wait(
 	Count the number of calls to mutex_spin_wait. */
 	mutex_spin_wait_count.add(counter_index, 1);
 
-	for (;;) {
+	ulint		spin = 0;
 
-		ulint	spin = 0;
+	for (;;) {
 
 		do {
 			spin = mutex_spin(mutex, spin, max_spins, max_delay);
 
 			mutex_spin_round_count.add(counter_index, spin);
 
-			if (spin == max_spins) {
+			if (!(spin % max_spins)) {
 
 				os_thread_yield();
 
-				if (spin_only) {
-					spin = 0;
-				} else {
+				if (!spin_only) {
 					break;
 				}
 			}
