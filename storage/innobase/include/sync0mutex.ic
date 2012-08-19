@@ -305,11 +305,6 @@ mutex_wait(
 
 			sync_array_free_cell(sync_arr, index);
 
-			ut_d(mutex->thread_id = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-			mutex_set_debug_info(mutex, file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
-
 			/* Note that in this case we leave
 			the waiters field set to 1. We cannot
 			reset it to zero, as we do not know if
