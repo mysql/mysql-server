@@ -168,15 +168,18 @@ Q.E.D. */
 
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
-static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
+UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>
+						mutex_spin_round_count;
 
 /** The number of mutex_spin_wait() calls.  Intended for
 performance monitoring. */
-static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
+UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>
+						mutex_spin_wait_count;
 
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
-static ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
+UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>
+						mutex_os_wait_count;
 
 /** The number of mutex_exit() calls. Intended for performance
 monitoring. */
@@ -308,37 +311,6 @@ func_exit:
 	return;
 }
 
-/********************************************************************//**
-NOTE! Use the corresponding macro in the header file, not this function
-directly. Tries to lock the mutex for the current thread. If the lock is not
-acquired immediately, returns with return value 1.
-@return	0 if succeed, 1 if not */
-UNIV_INTERN
-ulint
-mutex_enter_nowait_func(
-/*====================*/
-	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
-	const char*	file_name __attribute__((unused)),
-					/*!< in: file name where mutex
-					requested */
-	ulint		line __attribute__((unused)))
-					/*!< in: line where requested */
-{
-	ut_ad(mutex_validate(mutex));
-
-	if (!ib_mutex_test_and_set(mutex)) {
-
-		ut_d(mutex->thread_id = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-		mutex_set_debug_info(mutex, file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
-
-		return(0);	/* Succeeded! */
-	}
-
-	return(1);
-}
-
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the mutex has been initialized.
@@ -371,201 +343,6 @@ mutex_own(
 	       && os_thread_eq(mutex->thread_id, os_thread_get_curr_id()));
 }
 #endif /* UNIV_DEBUG */
-
-/******************************************************************//**
-Sets the waiters field in a mutex. */
-UNIV_INTERN
-void
-mutex_set_waiters(
-/*==============*/
-	ib_mutex_t*	mutex,	/*!< in: mutex */
-	ulint		n)	/*!< in: value to set */
-{
-	volatile ulint*	ptr;		/* declared volatile to ensure that
-					the value is stored to memory */
-	ut_ad(mutex);
-
-	ptr = &(mutex->waiters);
-
-	*ptr = n;		/* Here we assume that the write of a single
-				word in memory is atomic */
-}
-
-/******************************************************************//**
-Try and acquire the mutex by spinning.
-@return new spin value */
-static
-ulint
-mutex_spin(
-/*=======*/
-	ib_mutex_t*	mutex,		/*!< in/out: pointer to mutex */
-	ulint		spin,		/*!< in/out: spin count */
-	const ulint	max_spins,	/*!< in: max spins */
-	const ulint	max_delay)	/*!< in: max delay */
-{
-	/* Spin waiting for the lock word to become zero. Note
-	that we do not have to assume that the read access to
-	the lock word is atomic, as the actual locking is always
-	committed with atomic test-and-set. In reality, however,
-	all processors probably have an atomic read of a memory word. */
-
-	const ulint	n = spin / max_spins;
-
-	while (!(spin++ % max_spins)) {
-
-		if (mutex_get_lock_word(mutex) == 0) {
-			return(spin);
-		}
-
-		const ulint	m = n * ut_rnd_interval(0, max_delay);
-
-		for (ulint i = 0; i < m; ++i) {
-			UT_RELAX_CPU();
-		}
-	}
-
-	return(spin);
-}
-
-/******************************************************************//**
-Wait in the sync array.
-@return true if the mutex acquisition was successful. */
-static
-bool
-mutex_wait(
-/*=======*/
-	ib_mutex_t*	mutex,		/*!< in/out: pointer to mutex */
-	const char*	file_name,	/*!< in: file where requested */
-	ulint		line)		/*!< in: line where requested */
-{
-	ulint		index;
-	sync_array_t*	sync_arr = sync_array_get();
-
-	sync_array_reserve_cell(
-		sync_arr, mutex, SYNC_MUTEX, file_name, line, &index);
-
-	/* The memory order of the array reservation and
-	the change in the waiters field is important: when
-	we suspend a thread, we first reserve the cell and
-	then set waiters field to 1. When threads are released
-	in mutex_exit, the waiters field is first set to zero
-	and then the event is set to the signaled state. */
-
-	mutex_set_waiters(mutex, 1);
-
-	/* Try to reserve still a few times. */
-
-	for (ulint i = 0; i < 4; ++i) {
-
-		if (ib_mutex_test_and_set(mutex) == 0) {
-
-			sync_array_free_cell(sync_arr, index);
-
-			ut_d(mutex->thread_id = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-			mutex_set_debug_info(mutex, file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
-
-			/* Note that in this case we leave
-			the waiters field set to 1. We cannot
-			reset it to zero, as we do not know if
-			there are other waiters. */
-
-			return(true);
-		}
-	}
-
-	/* Now we know that there has been some thread
-	holding the mutex after the change in the wait
-	array and the waiters field was made.  Now there
-	is no risk of infinite wait on the event. */
-
-	++mutex->count_os_wait;
-
-	sync_array_wait_event(sync_arr, index);
-
-	return(false);
-}
-
-/******************************************************************//**
-Reserves a mutex for the current thread. If the mutex is reserved, the
-function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
-for the mutex before suspending the thread. */
-UNIV_INTERN
-void
-mutex_spin_wait(
-/*============*/
-	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
-	const char*	file_name,	/*!< in: file name where mutex
-					requested */
-	ulint		line,		/*!< in: line where requested */
-	bool		spin_only)	/*!< in: Don't use the sync array to
-					wait if set to true */
-{
-	const ulint	max_spins = SYNC_SPIN_ROUNDS;
-	const ulint	max_delay = srv_spin_wait_delay;
-	const size_t	counter_index = (size_t) os_thread_get_curr_id();
-
-	/* This update is not thread safe, but we don't mind if the count
-	isn't exact. Moved out of ifdef that follows because we are willing
-	to sacrifice the cost of counting this as the data is valuable.
-	Count the number of calls to mutex_spin_wait. */
-	mutex_spin_wait_count.add(counter_index, 1);
-
-	ulint		spin = 0;
-
-	for (;;) {
-
-		do {
-			spin = mutex_spin(mutex, spin, max_spins, max_delay);
-
-			mutex_spin_round_count.add(counter_index, spin);
-
-			if (!(spin % max_spins)) {
-
-				os_thread_yield();
-
-				if (!spin_only) {
-					break;
-				}
-			}
-
-			if (ib_mutex_test_and_set(mutex) == 0) {
-
-				ut_d(mutex->thread_id
-				     = os_thread_get_curr_id());
-#ifdef UNIV_SYNC_DEBUG
-				mutex_set_debug_info(mutex, file_name, line);
-#endif /* UNIV_SYNC_DEBUG */
-				return;
-			}
-
-		} while (spin < SYNC_SPIN_ROUNDS);
-
-		if (mutex_wait(mutex, file_name, line)) {
-			return;
-		}
-
-		mutex_os_wait_count.add(counter_index, 1);
-	}
-}
-
-/******************************************************************//**
-Releases the threads waiting in the primary wait array for this mutex. */
-UNIV_INTERN
-void
-mutex_signal_object(
-/*================*/
-	ib_mutex_t*	mutex)			/*!< in/out: mutex */
-{
-	mutex_set_waiters(mutex, 0);
-
-	/* The memory order of resetting the waiters field and
-	signaling the object is important. See LEMMA 1 above. */
-	os_event_set(mutex->event);
-
-	sync_array_object_signalled();
-}
 
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
