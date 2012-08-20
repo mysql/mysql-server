@@ -518,23 +518,6 @@ private:
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
   int handle_unordered_scan_next_partition(uchar * buf);
-  uchar *queue_buf(uint part_id)
-    {
-      uint16 *part_id_map= (uint16*) m_ordered_rec_buffer;
-      /* Offset to the partition's record buffer in number of partitions. */
-      uint offset= part_id_map[part_id];
-      /*
-        Return the pointer to the partition's record buffer.
-        First skip the partition id map, and then add the offset.
-      */
-      return (m_ordered_rec_buffer + m_tot_parts * PARTITION_BYTES_IN_POS +
-              (offset * (m_rec_length + PARTITION_BYTES_IN_POS)));
-    }
-  uchar *rec_buf(uint part_id)
-    {
-      return (queue_buf(part_id) +
-              PARTITION_BYTES_IN_POS);
-    }
   int handle_ordered_index_scan(uchar * buf, bool reverse_order);
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
