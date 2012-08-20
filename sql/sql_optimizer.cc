@@ -6820,7 +6820,7 @@ bool JOIN::flatten_subqueries()
 
   /* First, convert child join's subqueries. We proceed bottom-up here */
   for (subq= sj_subselects.begin(), subq_end= sj_subselects.end(); 
-       subq != subq_end;
+       subq < subq_end;
        subq++)
   {
     /*
@@ -6858,27 +6858,32 @@ bool JOIN::flatten_subqueries()
            sj_subselects.size(), sj_subselects.element_size(),
            reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
 
-  // #tables-in-parent-query + #tables-in-subquery + sj nests < MAX_TABLES
+  // #tables-in-parent-query + #tables-in-subquery + sj nests <= MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-  for (subq= sj_subselects.begin(); 
-       subq != subq_end && 
-       tables + (*subq)->unit->first_select()->join->tables +
-       sj_subselects.size() < MAX_TABLES;
-       subq++)
+  uint table_count= tables;
+  for (subq= sj_subselects.begin(); subq < subq_end; subq++)
   {
+    // Add the tables in the subquery nest plus one in case of materialization:
+    const uint tables_added= (*subq)->unit->first_select()->join->tables + 1;
+    (*subq)->sj_chosen= table_count + tables_added <= MAX_TABLES;
+
+    if (!(*subq)->sj_chosen)
+      continue;
+
+    table_count+= tables_added;
+
     Item **tree= ((*subq)->embedding_join_nest == NULL) ?
                    &conds : ((*subq)->embedding_join_nest->join_cond_ref());
     if (replace_subcondition(this, tree, *subq, new Item_int(1), FALSE))
       DBUG_RETURN(TRUE); /* purecov: inspected */
   }
 
-  for (subq= sj_subselects.begin();
-       subq != subq_end &&
-       tables + (*subq)->unit->first_select()->join->tables +
-       sj_subselects.size() < MAX_TABLES;
-       subq++)
+  for (subq= sj_subselects.begin(); subq < subq_end; subq++)
   {
+    if (!(*subq)->sj_chosen)
+      continue;
+
     OPT_TRACE_TRANSFORM(trace, oto0, oto1,
                         (*subq)->unit->first_select()->select_number,
                         "IN (SELECT)", "semijoin");
@@ -6890,8 +6895,10 @@ bool JOIN::flatten_subqueries()
     3. Finalize the subqueries that we did not convert,
        ie. perform IN->EXISTS rewrite.
   */
-  for (; subq!= subq_end; subq++)
+  for (subq= sj_subselects.begin(); subq < subq_end; subq++)
   {
+    if ((*subq)->sj_chosen)
+      continue;
     {
       OPT_TRACE_TRANSFORM(trace, oto0, oto1,
                           (*subq)->unit->first_select()->select_number,
