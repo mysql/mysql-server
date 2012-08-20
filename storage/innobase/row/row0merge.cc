@@ -1606,11 +1606,13 @@ end_of_index:
 				}
 
 			case DATA_FLOAT:
-				mach_float_write(b, value);
+				mach_float_write(
+					b, static_cast<float>(value));
 				break;
 
 			case DATA_DOUBLE:
-				mach_double_write(b, value);
+				mach_double_write(
+					b, static_cast<double>(value));
 				break;
 
 			default:
