@@ -904,14 +904,14 @@ do_select(JOIN *join)
       if (join->select_lex->master_unit()->item && join->const_tables)
         save_const_null_info(join, &save_nullinfo);
 
-      // Mark tables as containing only NULL values
-      join->clear();
-
       // Calculate aggregate functions for no rows
       List_iterator_fast<Item> it(*join->fields);
       Item *item;
       while ((item= it++))
         item->no_rows_in_result();
+
+      // Mark tables as containing only NULL values
+      join->clear();
 
       if (!join->having || join->having->val_int())
         rc= join->result->send_data(*join->fields);
@@ -2933,15 +2933,15 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
             if (join->select_lex->master_unit()->item && join->const_tables)
               save_const_null_info(join, &save_nullinfo);
 
-            // Mark tables as containing only NULL values
-            join->clear();
-
             // Calculate aggregate functions for no rows
             List_iterator_fast<Item> it(*fields);
             Item *item;
 
             while ((item= it++))
               item->no_rows_in_result();
+
+            // Mark tables as containing only NULL values
+            join->clear();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -3229,14 +3229,14 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
           if (join->select_lex->master_unit()->item && join->const_tables)
             save_const_null_info(join, &save_nullinfo);
 
-          // Mark tables as containing only NULL values
-          join->clear();
-
           // Calculate aggregate functions for no rows
           List_iterator_fast<Item> it(*(join_tab-1)->fields);
           Item *item;
           while ((item= it++))
             item->no_rows_in_result();
+
+          // Mark tables as containing only NULL values
+          join->clear();
         }
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);

@@ -494,7 +494,7 @@ row_log_table_delete(
 	if (byte* b = row_log_table_open(index->online_log,
 					 mrec_size, &avail_size)) {
 		*b++ = ROW_T_DELETE;
-		*b++ = old_pk_extra_size;
+		*b++ = static_cast<byte>(old_pk_extra_size);
 
 		rec_convert_dtuple_to_rec_comp(
 			b + old_pk_extra_size, 0, new_index,
@@ -609,7 +609,7 @@ row_log_table_low_redundant(
 		*b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
 		if (old_pk_size) {
-			*b++ = old_pk_extra_size;
+			*b++ = static_cast<byte>(old_pk_extra_size);
 
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
@@ -619,11 +619,11 @@ row_log_table_low_redundant(
 		}
 
 		if (extra_size < 0x80) {
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(extra_size);
 		} else {
 			ut_ad(extra_size < 0x8000);
-			*b++ = (byte) (0x80 | (extra_size >> 8));
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(0x80 | (extra_size >> 8));
+			*b++ = static_cast<byte>(extra_size);
 		}
 
 		rec_convert_dtuple_to_rec_comp(
@@ -722,7 +722,7 @@ row_log_table_low(
 		*b++ = insert ? ROW_T_INSERT : ROW_T_UPDATE;
 
 		if (old_pk_size) {
-			*b++ = old_pk_extra_size;
+			*b++ = static_cast<byte>(old_pk_extra_size);
 
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
@@ -732,11 +732,11 @@ row_log_table_low(
 		}
 
 		if (extra_size < 0x80) {
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(extra_size);
 		} else {
 			ut_ad(extra_size < 0x8000);
-			*b++ = (byte) (0x80 | (extra_size >> 8));
-			*b++ = (byte) extra_size;
+			*b++ = static_cast<byte>(0x80 | (extra_size >> 8));
+			*b++ = static_cast<byte>(extra_size);
 		}
 
 		memcpy(b, rec - rec_offs_extra_size(offsets), extra_size);
@@ -2701,20 +2701,23 @@ update_the_rec:
 			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
 insert_the_rec:
-			/* Insert the record */
+			/* Insert the record. As we are inserting into
+			a secondary index, there cannot be externally
+			stored columns (!big_rec). */
+			*error = btr_cur_optimistic_insert(
+				BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
+				| BTR_CREATE_FLAG,
+				&cursor, &offsets, &offsets_heap,
+				const_cast<dtuple_t*>(entry),
+				&rec, &big_rec,
+				0, NULL, &mtr);
+			ut_ad(!big_rec);
+			if (*error != DB_FAIL) {
+				break;
+			}
+
 			if (!has_index_lock) {
-				*error = btr_cur_optimistic_insert(
-					BTR_NO_UNDO_LOG_FLAG
-					| BTR_NO_LOCKING_FLAG
-					| BTR_CREATE_FLAG,
-					&cursor, &offsets, &offsets_heap,
-					const_cast<dtuple_t*>(entry),
-					&rec, &big_rec,
-					0, NULL, &mtr);
-				ut_ad(!big_rec);
-				if (*error != DB_FAIL) {
-					break;
-				}
 				/* This needs a pessimistic operation.
 				Lock the index tree exclusively. */
 				mtr_commit(&mtr);
@@ -2723,12 +2726,13 @@ insert_the_rec:
 					index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0,
 					__FILE__, __LINE__, &mtr);
-				/* We already determined that the
-				record did not exist. No other thread
-				than the current one is allowed to
-				modify the index tree. Thus, the
-				record should still not exist. */
 			}
+
+			/* We already determined that the
+			record did not exist. No other thread
+			than the current one is allowed to
+			modify the index tree. Thus, the
+			record should still not exist. */
 
 			*error = btr_cur_pessimistic_insert(
 				BTR_NO_UNDO_LOG_FLAG

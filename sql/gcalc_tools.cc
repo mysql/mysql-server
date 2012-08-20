@@ -429,6 +429,12 @@ int Gcalc_result_receiver::complete_shape()
   }
   if (n_points == 1)
   {
+    if (cur_shape == Gcalc_function::shape_hole)
+    {
+      // All points of a hole had the same coordinates -remove this hole.
+      buffer.length(shape_pos);
+      DBUG_RETURN(0);
+    }
     if (cur_shape != Gcalc_function::shape_point)
     {
       cur_shape= Gcalc_function::shape_point;
@@ -1258,8 +1264,7 @@ static int chunk_info_cmp(const Gcalc_result_receiver::chunk_info *a1,
     return a1->first_point < a2->first_point ? -1 : 1;
   if (a1->is_poly_hole != a2->is_poly_hole)
     return a1->is_poly_hole < a2->is_poly_hole ? -1 : 1;
-  DBUG_ASSERT(a1->order != a2->order);
-  return a1->order < a2->order ? -1 : 1;
+  return (int) a1->order - (int) a2->order;
 }
 
 

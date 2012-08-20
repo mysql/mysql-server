@@ -21,6 +21,8 @@
 ###############################################################################
 --source include/not_relay_log_info_table.inc
 
+CALL mtr.add_suppression("The repository is not configured properly. Please, fix this before using replication.");
+
 --echo '#---------------------BS_STVARS_002_01----------------------#'
 ####################################################################
 #   Displaying default value                                       #
