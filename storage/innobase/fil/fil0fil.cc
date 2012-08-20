@@ -236,8 +236,9 @@ struct fil_space_struct {
 	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
 				/*!< list of spaces with at least one unflushed
 				file we have written to */
-	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
-				currently in unflushed_spaces */
+	bool		is_in_unflushed_spaces;
+				/*!< true if this space is currently in
+				unflushed_spaces */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
@@ -312,6 +313,16 @@ static fil_system_t*	fil_system	= NULL;
 
 /** Determine if (i) is a user tablespace id or not. */
 # define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
+
+/** Determine if user has explicitly disabled fsync(). */
+#ifndef __WIN__
+# define fil_buffering_disabled(s)	\
+	((s)->purpose == FIL_TABLESPACE	\
+	 && srv_unix_file_flush_method	\
+	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
+#else /* __WIN__ */
+# define fil_buffering_disabled(s)	(0)
+#endif /* __WIN__ */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -580,9 +591,9 @@ fil_space_get_type(
 /**********************************************************************//**
 Checks if all the file nodes in a space are flushed. The caller must hold
 the fil_system mutex.
-@return	TRUE if all are flushed */
+@return	true if all are flushed */
 static
-ibool
+bool
 fil_space_is_flushed(
 /*=================*/
 	fil_space_t*	space)	/*!< in: space */
@@ -596,13 +607,14 @@ fil_space_is_flushed(
 	while (node) {
 		if (node->modification_counter > node->flush_counter) {
 
-			return(FALSE);
+			ut_ad(!fil_buffering_disabled(space));
+			return(false);
 		}
 
 		node = UT_LIST_GET_NEXT(chain, node);
 	}
 
-	return(TRUE);
+	return(true);
 }
 
 /*******************************************************************//**
@@ -959,6 +971,7 @@ fil_try_to_close_file_in_LRU(
 				", because mod_count %ld != fl_count %ld\n",
 				(long) node->modification_counter,
 				(long) node->flush_counter);
+
 		}
 
 		if (node->being_extended) {
@@ -1131,10 +1144,15 @@ fil_node_free(
 
 		node->modification_counter = node->flush_counter;
 
-		if (space->is_in_unflushed_spaces
-		    && fil_space_is_flushed(space)) {
+		if (fil_buffering_disabled(space)) {
 
-			space->is_in_unflushed_spaces = FALSE;
+			ut_ad(!space->is_in_unflushed_spaces);
+			ut_ad(fil_space_is_flushed(space));
+
+		} else if (space->is_in_unflushed_spaces
+			   && fil_space_is_flushed(space)) {
+
+			space->is_in_unflushed_spaces = false;
 
 			UT_LIST_REMOVE(unflushed_spaces,
 				       system->unflushed_spaces,
@@ -1289,7 +1307,7 @@ fil_space_create(
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
-	space->is_in_unflushed_spaces = FALSE;
+	space->is_in_unflushed_spaces = false;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -1400,7 +1418,9 @@ fil_space_free(
 		    ut_fold_string(space->name), space);
 
 	if (space->is_in_unflushed_spaces) {
-		space->is_in_unflushed_spaces = FALSE;
+
+		ut_ad(!fil_buffering_disabled(space));
+		space->is_in_unflushed_spaces = false;
 
 		UT_LIST_REMOVE(unflushed_spaces, fil_system->unflushed_spaces,
 			       space);
@@ -4933,9 +4953,17 @@ fil_node_complete_io(
 		system->modification_counter++;
 		node->modification_counter = system->modification_counter;
 
-		if (!node->space->is_in_unflushed_spaces) {
+		if (fil_buffering_disabled(node->space)) {
 
-			node->space->is_in_unflushed_spaces = TRUE;
+			/* We don't need to keep track of unflushed
+			changes as user has explicitly disabled
+			buffering. */
+			ut_ad(!node->space->is_in_unflushed_spaces);
+			node->flush_counter = node->modification_counter;
+
+		} else if (!node->space->is_in_unflushed_spaces) {
+
+			node->space->is_in_unflushed_spaces = true;
 			UT_LIST_ADD_FIRST(unflushed_spaces,
 					  system->unflushed_spaces,
 					  node->space);
@@ -5303,6 +5331,28 @@ fil_flush(
 		return;
 	}
 
+	if (fil_buffering_disabled(space)) {
+
+		/* No need to flush. User has explicitly disabled
+		buffering. */
+		ut_ad(!space->is_in_unflushed_spaces);
+		ut_ad(fil_space_is_flushed(space));
+		ut_ad(space->n_pending_flushes == 0);
+
+#ifdef UNIV_DEBUG
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+			ut_ad(node->modification_counter
+			      == node->flush_counter);
+			ut_ad(node->n_pending_flushes == 0);
+		}
+#endif /* UNIV_DEBUG */
+
+		mutex_exit(&fil_system->mutex);
+		return;
+	}
+
 	space->n_pending_flushes++;	/*!< prevent dropping of the space while
 					we are flushing */
 	node = UT_LIST_GET_FIRST(space->chain);
@@ -5369,7 +5419,7 @@ skip_flush:
 				if (space->is_in_unflushed_spaces
 				    && fil_space_is_flushed(space)) {
 
-					space->is_in_unflushed_spaces = FALSE;
+					space->is_in_unflushed_spaces = false;
 
 					UT_LIST_REMOVE(
 						unflushed_spaces,

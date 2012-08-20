@@ -483,8 +483,19 @@ enum {
 				when writing data files, but do flush
 				after writing to log files */
 	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
-	SRV_UNIX_O_DIRECT	/*!< invoke os_file_set_nocache() on
-				data files */
+	SRV_UNIX_O_DIRECT,	/*!< invoke os_file_set_nocache() on
+				data files. This implies using
+				non-buffered IO but still using fsync,
+				the reason for which is that some FS
+				do not flush meta-data when
+				unbuffered IO happens */
+	SRV_UNIX_O_DIRECT_NO_FSYNC
+				/*!< do not use fsync() when using
+				direct IO i.e.: it can be set to avoid
+				the fsync() call that we make when
+				using SRV_UNIX_O_DIRECT. However, in
+				this case user/DBA should be sure about
+				the integrity of the meta-data */
 };
 
 /** Alternatives for file i/o in Windows */
