@@ -3886,9 +3886,6 @@ static void start_file_open_wait_v1(PSI_file_locker *locker,
                                     const char *src_file,
                                     uint src_line)
 {
-  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-
   start_file_wait_v1(locker, 0, src_file, src_line);
 
   return;
