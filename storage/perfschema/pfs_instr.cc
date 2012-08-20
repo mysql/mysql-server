@@ -1054,107 +1054,21 @@ LF_PINS* get_filename_hash_pins(PFS_thread *thread)
 }
 
 /**
-  Find instrumentation for a file instance by file name.
-  @param thread                       the executing instrumented thread
-  @param filename                     the file name
-  @param len                          the length in bytes of filename
-  @return a file instance, or NULL
-*/
-PFS_file*
-find_file(PFS_thread *thread,
-          const char *filename, uint len)
-{
-  PFS_file *pfs= NULL;
-
-  LF_PINS *pins= get_filename_hash_pins(thread);
-  if (unlikely(pins == NULL))
-  {
-    return NULL;
-  }
-
-  char safe_buffer[FN_REFLEN];
-  const char *safe_filename;
-
-  if (len >= FN_REFLEN)
-  {
-    /*
-      The instrumented code uses file names that exceeds FN_REFLEN.
-      This could be legal for instrumentation on non mysys APIs,
-      so we support it.
-      Truncate the file name so that:
-      - it fits into pfs->m_filename
-      - it is safe to use mysys apis to normalize the file name.
-    */
-    memcpy(safe_buffer, filename, FN_REFLEN - 1);
-    safe_buffer[FN_REFLEN - 1]= 0;
-    safe_filename= safe_buffer;
-  }
-  else
-    safe_filename= filename;
-
-  char buffer[FN_REFLEN];
-  char dirbuffer[FN_REFLEN];
-  size_t dirlen;
-  const char *normalized_filename;
-  int normalized_length;
-
-  dirlen= dirname_length(safe_filename);
-  if (dirlen == 0)
-  {
-    dirbuffer[0]= FN_CURLIB;
-    dirbuffer[1]= FN_LIBCHAR;
-    dirbuffer[2]= '\0';
-  }
-  else
-  {
-    memcpy(dirbuffer, safe_filename, dirlen);
-    dirbuffer[dirlen]= '\0';
-  }
-
-  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0)
-  {
-    return NULL;
-  }
-
-  /* Append the unresolved file name to the resolved path */
-  char *ptr= buffer + strlen(buffer);
-  char *buf_end= &buffer[sizeof(buffer)-1];
-  if ((buf_end > ptr) && (*(ptr-1) != FN_LIBCHAR))
-    *ptr++= FN_LIBCHAR;
-  if (buf_end > ptr)
-    strncpy(ptr, safe_filename + dirlen, buf_end - ptr);
-  *buf_end= '\0';
-
-  normalized_filename= buffer;
-  normalized_length= strlen(normalized_filename);
-
-  PFS_file **entry;
-
-  entry= reinterpret_cast<PFS_file**>
-    (lf_hash_search(&filename_hash, pins,
-                    normalized_filename, normalized_length));
-  if (entry && (entry != MY_ERRPTR))
-  {
-    pfs= *entry;
-  }
-
-  lf_hash_search_unpin(pins);
-  return pfs;
-}
-
-/**
   Find or create instrumentation for a file instance by file name.
   @param thread                       the executing instrumented thread
   @param klass                        the file class
   @param filename                     the file name
   @param len                          the length in bytes of filename
+  @param create                       create a file instance if none found
   @return a file instance, or NULL
 */
 PFS_file*
 find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
-                    const char *filename, uint len)
+                    const char *filename, uint len, bool create)
 {
   PFS_file *pfs;
+
+  DBUG_ASSERT(klass != NULL || ! create);
 
   LF_PINS *pins= get_filename_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -1264,6 +1178,12 @@ search:
   }
 
   lf_hash_search_unpin(pins);
+
+  if (! create)
+  {
+    /* No lost counter, just looking for the file existence. */
+    return NULL;
+  }
 
   while (++attempts <= file_max)
   {
