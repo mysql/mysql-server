@@ -899,6 +899,10 @@ struct PSI_file_locker_state_v1
   enum PSI_file_operation m_operation;
   /** Current file. */
   struct PSI_file *m_file;
+  /** Current file name. */
+  const char *m_name;
+  /** Current file class. */
+  void *m_class;
   /** Current thread. */
   struct PSI_thread *m_thread;
   /** Operation number of bytes. */
@@ -1575,17 +1579,18 @@ typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
   @param op the operation to perform
   @param src_file the source file name
   @param src_line the source line number
-  @return an instrumented file handle
 */
-typedef struct PSI_file* (*start_file_open_wait_v1_t)
+typedef void (*start_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
 
 /**
   End a file instrumentation open operation, for file streams.
   @param locker the file locker.
+  @param result the opened file (NULL indicates failure, non NULL success).
+  @return an instrumented file handle
 */
-typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker,
-                                        void *result);
+typedef struct PSI_file* (*end_file_open_wait_v1_t)
+  (struct PSI_file_locker *locker, void *result);
 
 /**
   End a file instrumentation open operation, for non stream files.
@@ -1621,6 +1626,25 @@ typedef void (*start_file_wait_v1_t)
 */
 typedef void (*end_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count);
+
+/**
+  Start a file instrumentation close operation.
+  @param locker the file locker
+  @param op the operation to perform
+  @param src_file the source file name
+  @param src_line the source line number
+*/
+typedef void (*start_file_close_wait_v1_t)
+  (struct PSI_file_locker *locker, const char *src_file, uint src_line);
+
+/**
+  End a file instrumentation close operation.
+  @param locker the file locker.
+  @param rc the close operation return code (0 for success).
+  @return an instrumented file handle
+*/
+typedef void (*end_file_close_wait_v1_t)
+  (struct PSI_file_locker *locker, int rc);
 
 /**
   Start a new stage, and implicitly end the previous stage.
@@ -2025,6 +2049,10 @@ struct PSI_v1
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */
   end_file_wait_v1_t end_file_wait;
+  /** @sa start_file_close_wait_v1_t. */
+  start_file_close_wait_v1_t start_file_close_wait;
+  /** @sa end_file_close_wait_v1_t. */
+  end_file_close_wait_v1_t end_file_close_wait;
   /** @sa start_stage_v1_t. */
   start_stage_v1_t start_stage;
   /** @sa end_stage_v1_t. */

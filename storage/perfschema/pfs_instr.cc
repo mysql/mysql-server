@@ -1059,13 +1059,16 @@ LF_PINS* get_filename_hash_pins(PFS_thread *thread)
   @param klass                        the file class
   @param filename                     the file name
   @param len                          the length in bytes of filename
+  @param create                       create a file instance if none found
   @return a file instance, or NULL
 */
 PFS_file*
 find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
-                    const char *filename, uint len)
+                    const char *filename, uint len, bool create)
 {
   PFS_file *pfs;
+
+  DBUG_ASSERT(klass != NULL || ! create);
 
   LF_PINS *pins= get_filename_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -1175,6 +1178,12 @@ search:
   }
 
   lf_hash_search_unpin(pins);
+
+  if (! create)
+  {
+    /* No lost counter, just looking for the file existence. */
+    return NULL;
+  }
 
   while (++attempts <= file_max)
   {
