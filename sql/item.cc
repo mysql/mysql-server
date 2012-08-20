@@ -3579,9 +3579,9 @@ bool Item_param::set_longdata(const char *str, ulong length)
 bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
 {
   DBUG_ENTER("Item_param::set_from_user_var");
-  if (entry && entry->value)
+  if (entry && entry->ptr())
   {
-    item_result_type= entry->type;
+    item_result_type= entry->type();
     unsigned_flag= entry->unsigned_flag;
     if (limit_clause_param)
     {
@@ -3592,11 +3592,11 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
     }
     switch (item_result_type) {
     case REAL_RESULT:
-      set_double(*(double*)entry->value);
+      set_double(*(double*) entry->ptr());
       item_type= Item::REAL_ITEM;
       break;
     case INT_RESULT:
-      set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
+      set_int(*(longlong*) entry->ptr(), MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
       break;
     case STRING_RESULT:
@@ -3621,13 +3621,13 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       */
       item_type= Item::STRING_ITEM;
 
-      if (set_str((const char *)entry->value, entry->length))
+      if (set_str((const char *) entry->ptr(), entry->length()))
         DBUG_RETURN(1);
       break;
     }
     case DECIMAL_RESULT:
     {
-      const my_decimal *ent_value= (const my_decimal *)entry->value;
+      const my_decimal *ent_value= (const my_decimal *) entry->ptr();
       my_decimal2decimal(ent_value, &decimal_value);
       state= DECIMAL_VALUE;
       decimals= ent_value->frac;
@@ -4892,7 +4892,15 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
                  ref->item_name.ptr(), "forward reference in item list");
         return NULL;
       }
-      DBUG_ASSERT((*select_ref)->fixed);
+      /*
+       Assert if its an incorrect reference . We do not assert if its a outer
+       reference, as they get fixed later in fix_innner_refs function.
+      */
+      DBUG_ASSERT((*select_ref)->fixed ||
+                  ((*select_ref)->type() == Item::REF_ITEM &&
+                   ((Item_ref *)(*select_ref))->ref_type() ==
+                   Item_ref::OUTER_REF));
+
       return &select->ref_pointer_array[counter];
     }
     if (group_by_ref)
@@ -7234,7 +7242,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(thd, last_checked_context, from_field)))
+        Query_arena backup, *arena;
+        arena= thd->activate_stmt_arena_if_needed(&backup);
+        fld= new Item_field(thd, last_checked_context, from_field);
+        if (arena)
+          thd->restore_active_arena(arena, &backup);
+        if (!fld)
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,

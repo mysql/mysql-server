@@ -143,20 +143,11 @@ SET(CLIENT_SOURCES
   ../sql-common/client.c 
   ../sql-common/my_time.c 
   ../sql-common/client_plugin.c 
-  ../sql-common/crypt_genhash_impl.cc
   ../sql-common/client_authentication.cc
   ../sql/net_serv.cc
   ../sql-common/pack.c 
   ../sql/password.c
 )
-
-# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
-# In order to get correct symbol visibility, md5.cc and sha1.cc
-# must be compiled with "-fvisibility=hidden"
-IF(HAVE_VISIBILITY_HIDDEN)
-  SET_SOURCE_FILES_PROPERTIES(../sql-common/crypt_genhash_impl.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)

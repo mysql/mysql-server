@@ -3473,6 +3473,7 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new Field_geom(*this);
   }
+  uint is_equal(Create_field *new_field);
 };
 #endif /*HAVE_SPATIAL*/
 
