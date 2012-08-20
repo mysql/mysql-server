@@ -821,6 +821,10 @@ struct pivot_bounds {
 __attribute__((nonnull))
 void toku_move_ftnode_messages_to_stale(FT ft, FTNODE node);
 void toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied);
+__attribute__((nonnull))
+bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, MSN *const max_msn_in_path);
+__attribute__((nonnull))
+void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied);
 
 int
 toku_ft_search_which_child(
