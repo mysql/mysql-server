@@ -2116,20 +2116,22 @@ public:
 
 struct Semijoin_mat_optimize
 {
-  /* Optimal join order calculated for inner tables of this semijoin op. */
+  /// Optimal join order calculated for inner tables of this semijoin op.
   struct st_position *positions;
-  /** True if data types allow the MaterializeLookup semijoin strategy */
+  /// True if data types allow the MaterializeLookup semijoin strategy
   bool lookup_allowed;
-  /** True if data types allow the MaterializeScan semijoin strategy */
+  /// True if data types allow the MaterializeScan semijoin strategy
   bool scan_allowed;
-  /* Expected #rows in the materialized table */
+  /// Expected #rows in the materialized table
   double expected_rowcount;
-  /* Materialization cost - execute sub-join and write rows to temp.table */
+  /// Materialization cost - execute sub-join and write rows to temp.table
   Cost_estimate materialization_cost;
-  /* Cost to make one lookup in the temptable */
+  /// Cost to make one lookup in the temptable
   Cost_estimate lookup_cost;
-  /* Cost of scanning the materialized table */
+  /// Cost of scanning the materialized table
   Cost_estimate scan_cost;
+  /// Array of pointers to fields in the materialized table.
+  Item_field **mat_fields;
 };
 
 /**

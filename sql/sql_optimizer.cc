@@ -2903,28 +2903,31 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 bool JOIN::update_equalities_for_sjm()
 {
-  if (sjm_exec_list.is_empty())
+  if (select_lex->sj_nests.is_empty())
     return false;
 
-  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
-  Semijoin_mat_exec *sjm;
-  while ((sjm= it++))
+  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
+  TABLE_LIST *sj_nest;
+  while ((sj_nest= sj_list_it++))
   {
-    TABLE_LIST *const emb_sj_nest= sjm->emb_sj_nest;
-    DBUG_ASSERT(!emb_sj_nest->outer_join_nest());
+    if (sj_nest->sj_mat_exec == NULL)
+      continue;
+
+    DBUG_ASSERT(!sj_nest->outer_join_nest());
     /*
       The table cannot actually be an outer join inner table yet, this is
-      just a preparatory step (ie emb_sj_nest->outer_join_nest() is NULL)
+      just a preparatory step (ie sj_nest->outer_join_nest() is NULL)
     */
-    Item *cond= emb_sj_nest->outer_join_nest() ?
-                  emb_sj_nest->outer_join_nest()->join_cond() :
+    Item *cond= sj_nest->outer_join_nest() ?
+                  sj_nest->outer_join_nest()->join_cond() :
                   conds;
     if (!cond)
       continue;
 
     uchar *dummy= NULL;
     cond= cond->compile(&Item::equality_substitution_analyzer, &dummy,
-                        &Item::equality_substitution_transformer, (uchar *)sjm);
+                        &Item::equality_substitution_transformer,
+                        (uchar *)sj_nest);
     if (cond == NULL)
       return true;
     cond->update_used_tables();
@@ -2933,9 +2936,12 @@ bool JOIN::update_equalities_for_sjm()
   for (uint i= const_tables; i < primary_tables; i++)
   {
     JOIN_TAB *const mat_tab= join_tab + i;
-    Semijoin_mat_exec *const sjm= mat_tab->sj_mat_exec;
-    if (sjm == NULL)
+    Semijoin_mat_exec *const sjm_exec= mat_tab->sj_mat_exec;
+    if (sjm_exec == NULL)
       continue;
+
+    TABLE_LIST *const sj_nest=
+      (join_tab + sjm_exec->inner_table_index)->emb_sj_nest;
 
     // Loop over all primary tables that follow the materialized table
     for (uint j= i + 1; j < primary_tables; j++)
@@ -2946,7 +2952,7 @@ bool JOIN::update_equalities_for_sjm()
            keyuse->key == tab->position->key->key;
            keyuse++)
       {
-        List_iterator<Item> it(*sjm->subq_exprs);
+        List_iterator<Item> it(*sjm_exec->subq_exprs);
         Item *old;
         uint fieldno= 0;
         while ((old= it++))
@@ -2957,7 +2963,7 @@ bool JOIN::update_equalities_for_sjm()
               Replace the expression selected from the subquery with the
               corresponding column of the materialized temporary table.
             */
-            keyuse->val= sjm->mat_fields[fieldno];
+            keyuse->val= sj_nest->nested_join->sjm.mat_fields[fieldno];
             keyuse->used_tables= keyuse->val->used_tables();
             break;
           }
