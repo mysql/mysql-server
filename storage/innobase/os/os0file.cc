@@ -1634,7 +1634,9 @@ try_again:
 
 	/* We disable OS caching (O_DIRECT) only on data files */
 	if (type != OS_LOG_FILE
-	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+		|| srv_unix_file_flush_method
+		   == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
 		os_file_set_nocache(file, name, mode_str);
 	}
