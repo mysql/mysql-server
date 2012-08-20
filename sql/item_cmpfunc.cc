@@ -6452,7 +6452,7 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
 
 Item* Item_equal::equality_substitution_transformer(uchar *arg)
 {
-  Semijoin_mat_exec *sjm= reinterpret_cast<Semijoin_mat_exec *>(arg);
+  TABLE_LIST *sj_nest= reinterpret_cast<TABLE_LIST *>(arg);
   List_iterator<Item_field> it(fields);
   List<Item_field> added_fields;
   Item_field *item;
@@ -6465,13 +6465,13 @@ Item* Item_equal::equality_substitution_transformer(uchar *arg)
       continue;
 
     // Iterate over the fields selected from the subquery
-    List_iterator<Item> mit(*sjm->subq_exprs);
+    List_iterator<Item> mit(sj_nest->nested_join->sj_inner_exprs);
     Item *existing;
     uint fieldno= 0;
     while ((existing= mit++))
     {
       if (existing->real_item()->eq(item, false))
-        added_fields.push_back(sjm->mat_fields[fieldno]);
+        added_fields.push_back(sj_nest->nested_join->sjm.mat_fields[fieldno]);
       fieldno++;
     }
   }
@@ -6493,17 +6493,18 @@ Item* Item_equal::equality_substitution_transformer(uchar *arg)
 */
 Item* Item_func_eq::equality_substitution_transformer(uchar *arg)
 {
-  Semijoin_mat_exec *sjm= reinterpret_cast<Semijoin_mat_exec *>(arg);
+  TABLE_LIST *sj_nest= reinterpret_cast<TABLE_LIST *>(arg);
 
   // Iterate over the fields selected from the subquery
-  List_iterator<Item> mit(*sjm->subq_exprs);
+  List_iterator<Item> mit(sj_nest->nested_join->sj_inner_exprs);
   Item *existing;
   uint fieldno= 0;
   while ((existing= mit++))
   {
     if (existing->real_item()->eq(args[1], false) &&
-        (args[0]->used_tables() & ~sjm->emb_sj_nest->sj_inner_tables))
-      current_thd->change_item_tree(args+1, sjm->mat_fields[fieldno]);
+        (args[0]->used_tables() & ~sj_nest->sj_inner_tables))
+      current_thd->change_item_tree(args+1,
+                                 sj_nest->nested_join->sjm.mat_fields[fieldno]);
     fieldno++;
   }
   return this;

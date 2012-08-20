@@ -1369,25 +1369,28 @@ bool JOIN::get_best_combination()
       DBUG_ASSERT(outer_target < inner_target);
 
       POSITION *const pos_table= best_positions + tableno;
+      TABLE_LIST *const sj_nest= pos_table->table->emb_sj_nest;
+
       // Handle this many inner tables of materialized semi-join
       remaining_sjm_inner= pos_table->n_sj_tables;
 
-      Semijoin_mat_exec *const sjm=
+      Semijoin_mat_exec *const sjm_exec=
         new (thd->mem_root)
         Semijoin_mat_exec((pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
-                          pos_table->table->emb_sj_nest, remaining_sjm_inner,
-                          outer_target, inner_target);
-      if (!sjm)
+                          remaining_sjm_inner, outer_target, inner_target,
+                          &sj_nest->nested_join->sj_inner_exprs);
+      if (!sjm_exec)
         DBUG_RETURN(true);
 
-      (join_tab + outer_target)->sj_mat_exec= sjm;
+      (join_tab + outer_target)->sj_mat_exec= sjm_exec;
+      sj_nest->sj_mat_exec= sjm_exec;
 
       if (setup_materialized_table(join_tab + outer_target, sjm_index,
                                    pos_table, best_positions + sjm_index))
         DBUG_RETURN(true);
 
-      all_tables[outer_target]= sjm->table;
-      map2table[sjm->table->tablenr]= join_tab + outer_target;
+      all_tables[outer_target]= sjm_exec->table;
+      map2table[sjm_exec->table->tablenr]= join_tab + outer_target;
 
       outer_target++;
       sjm_index++;
@@ -2565,8 +2568,9 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 {
   DBUG_ENTER("JOIN::setup_materialized_table");
   TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
-  Semijoin_mat_exec *const sjm= tab->sj_mat_exec;
-  const uint field_count= sjm->subq_exprs->elements;
+  Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
+  Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec;
+  const uint field_count= sjm_exec->subq_exprs->elements;
 
   DBUG_ASSERT(inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
@@ -2574,9 +2578,9 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   /* 
     Set up the table to write to, do as select_union::create_result_table does
   */
-  sjm->table_param.init();
-  sjm->table_param.field_count= field_count;
-  sjm->table_param.bit_fields_as_long= true;
+  sjm_exec->table_param.init();
+  sjm_exec->table_param.field_count= field_count;
+  sjm_exec->table_param.bit_fields_as_long= true;
 
   char buffer[NAME_LEN];
   const size_t len= my_snprintf(buffer, sizeof(buffer) - 1, "<subquery%u>",
@@ -2588,8 +2592,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   memcpy(name, buffer, len);
   name[len] = '\0';
   TABLE *table;
-  if (!(table= create_tmp_table(thd, &sjm->table_param, 
-                                *sjm->subq_exprs, NULL, 
+  if (!(table= create_tmp_table(thd, &sjm_exec->table_param, 
+                                *sjm_exec->subq_exprs, NULL, 
                                 true /* distinct */, 
                                 true /*save_sum_fields*/,
                                 thd->variables.option_bits |
@@ -2597,23 +2601,23 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                 HA_POS_ERROR /*rows_limit */, 
                                 name)))
     DBUG_RETURN(true); /* purecov: inspected */
-  sjm->table= table;
+  sjm_exec->table= table;
   table->tablenr= tableno;
   table->map= (table_map)1 << tableno;
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   table->reginfo.join_tab= tab;
   sj_tmp_tables.push_back(table);
-  sjm_exec_list.push_back(sjm);
+  sjm_exec_list.push_back(sjm_exec);
 
-  if (!(sjm->mat_fields=
+  if (!(sjm_opt->mat_fields=
     (Item_field **) alloc_root(thd->mem_root,
                                field_count * sizeof(Item_field **))))
     DBUG_RETURN(true);
 
   for (uint fieldno= 0; fieldno < field_count; fieldno++)
   {
-    if (!(sjm->mat_fields[fieldno]= new Item_field(table->field[fieldno])))
+    if (!(sjm_opt->mat_fields[fieldno]= new Item_field(table->field[fieldno])))
       DBUG_RETURN(true);
   }
 
@@ -2649,14 +2653,14 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     a proper ref access for this table.
   */
   Key_use_array *keyuse=
-   create_keyuse_for_table(thd, table, field_count, sjm->mat_fields,
+   create_keyuse_for_table(thd, table, field_count, sjm_opt->mat_fields,
                            emb_sj_nest->nested_join->sj_outer_exprs);
   if (!keyuse)
     DBUG_RETURN(true);
 
   double fanout= (tab == join_tab + tab->join->const_tables) ?
                  1.0 : (tab-1)->position->prefix_record_count;
-  if (!sjm->is_scan)
+  if (!sjm_exec->is_scan)
   {
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
     tab->keys.set_bit(0);          // There is one index - use it always
