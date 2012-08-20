@@ -5252,7 +5252,7 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
         uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, child_number);
         FTNODE childnode;
         bool msgs_applied = false;
-        r = toku_pin_ftnode(
+        r = toku_pin_ftnode_batched(
             brt,
             childblocknum,
             fullhash,
@@ -5261,6 +5261,7 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
             bounds,
             bfe,
             PL_READ, // may_modify_node is false, because node guaranteed to not change
+            false,
             false,
             &childnode,
             &msgs_applied
@@ -5312,7 +5313,8 @@ try_again:
             uint32_t fullhash;
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(brt->ft, &root_key, &fullhash);
-            toku_pin_ftnode_off_client_thread(
+            toku_cachetable_begin_batched_pin(brt->ft->cf);
+            toku_pin_ftnode_off_client_thread_batched(
                 brt->ft,
                 root_key,
                 fullhash,
@@ -5337,6 +5339,7 @@ try_again:
                                                 numrows,
                                                 &bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
             assert(r == 0 || r == TOKUDB_TRY_AGAIN);
+            toku_cachetable_end_batched_pin(brt->ft->cf);
             if (r == TOKUDB_TRY_AGAIN) {
                 assert(!unlockers.locked);
                 goto try_again;
