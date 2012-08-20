@@ -3,6 +3,8 @@
 #
 
 -- source include/have_innodb.inc
+# numbers read in this test depend on the page size
+-- source include/have_innodb_16k.inc
 
 -- vertical_results
 
