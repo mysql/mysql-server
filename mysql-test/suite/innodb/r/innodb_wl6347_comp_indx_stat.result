@@ -345,22 +345,22 @@ LIMIT 1;
 col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-# check the stats of the table & size of the table
-SET @inl_val=2;
+# check the stats of the table 
+# testcase : pass = 1 fail = 0
+SET @comp_val=0;
+SET @uncomp_val=1;
 ===============
-Chekc the stats of the table
-Check the size of the ibd file
+After Restart Chekc the stats of the table
 ===============
 # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"
 FROM information_schema.innodb_cmp_per_index
 WHERE 
-compress_ops_ok BETWEEN @inl_val AND 1000
-AND compress_ops BETWEEN @inl_val AND 1000
+compress_ops_ok BETWEEN @comp_val AND 1000
+AND uncompress_ops BETWEEN @uncomp_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
-The size of the tab5.ibd file: 2097152 
+compress_stat	1
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase
@@ -702,22 +702,22 @@ LIMIT 1;
 col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-# check the stats of the table & size of the table
-SET @inl_val=2;
+# check the stats of the table 
+# testcase : pass = 1 fail = 0
+SET @comp_val=0;
+SET @uncomp_val=2;
 ===============
-Chekc the stats of the table
-Check the size of the ibd file
+After Restart Chekc the stats of the table
 ===============
 # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"
 FROM information_schema.innodb_cmp_per_index
 WHERE 
-compress_ops_ok BETWEEN @inl_val AND 1000
-AND compress_ops BETWEEN @inl_val AND 1000
+compress_ops_ok BETWEEN @comp_val AND 1000
+AND uncompress_ops BETWEEN @uncomp_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
-The size of the tab5.ibd file: 2097152 
+compress_stat	1
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase
@@ -973,7 +973,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -986,7 +986,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 159744 
 # fetch the compressed page and check the stats
 ===============
@@ -999,7 +999,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1012,7 +1012,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 159744 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -1026,7 +1026,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1039,7 +1039,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 159744 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -1296,7 +1296,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1309,7 +1309,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 212992 
 # fetch the compressed page and check the stats
 ===============
@@ -1322,7 +1322,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1335,7 +1335,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 212992 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -1349,7 +1349,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1362,7 +1362,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 212992 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -1619,7 +1619,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1632,7 +1632,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed page and check the stats
 ===============
@@ -1645,7 +1645,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1658,7 +1658,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -1672,7 +1672,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -1685,7 +1685,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -2040,22 +2040,22 @@ LIMIT 1;
 col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-# check the stats of the table & size of the table
-SET @inl_val=2;
+# check the stats of the table 
+# testcase : pass = 1 fail = 0
+SET @comp_val=0;
+SET @uncomp_val=1;
 ===============
-Chekc the stats of the table
-Check the size of the ibd file
+After Restart Chekc the stats of the table
 ===============
 # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"
 FROM information_schema.innodb_cmp_per_index
 WHERE 
-compress_ops_ok BETWEEN @inl_val AND 1000
-AND compress_ops BETWEEN @inl_val AND 1000
+compress_ops_ok BETWEEN @comp_val AND 1000
+AND uncompress_ops BETWEEN @uncomp_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
-The size of the tab5.ibd file: 65536 
+compress_stat	1
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase
@@ -2069,7 +2069,7 @@ create table & Index
 CREATE TABLE tab5(col_1 TINYBLOB, col_2 TINYTEXT,col_3 BLOB,
 col_4 TEXT,col_5 MEDIUMBLOB,col_6 MEDIUMTEXT,
 col_7 LONGBLOB,col_8 LONGTEXT,col_9 VARCHAR(255)) 
-ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+ENGINE=INNODB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
 CREATE INDEX  idx9 ON tab5(col_9(10));
 CREATE INDEX  idx8 ON tab5(col_8(10));
 CREATE INDEX  idx7 ON tab5(col_7(10));
@@ -2399,22 +2399,22 @@ LIMIT 1;
 col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-# check the stats of the table & size of the table
-SET @inl_val=2;
+# check the stats of the table 
+# testcase : pass = 1 fail = 0
+SET @comp_val=0;
+SET @uncomp_val=1;
 ===============
-Chekc the stats of the table
-Check the size of the ibd file
+After Restart Chekc the stats of the table
 ===============
 # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"
 FROM information_schema.innodb_cmp_per_index
 WHERE 
-compress_ops_ok BETWEEN @inl_val AND 1000
-AND compress_ops BETWEEN @inl_val AND 1000
+compress_ops_ok BETWEEN @comp_val AND 1000
+AND uncompress_ops BETWEEN @uncomp_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
-The size of the tab5.ibd file: 65536 
+compress_stat	1
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase
@@ -2672,7 +2672,7 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 159744
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -2685,7 +2685,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed page and check the stats
 ===============
@@ -2698,7 +2698,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -2711,7 +2711,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -2725,7 +2725,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -2738,7 +2738,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -2996,7 +2996,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3009,7 +3009,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed page and check the stats
 ===============
@@ -3023,7 +3023,7 @@ col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 212992 
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3036,7 +3036,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -3050,7 +3050,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3063,7 +3063,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -3321,7 +3321,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3334,7 +3334,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed page and check the stats
 ===============
@@ -3348,7 +3348,7 @@ col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 344064
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3361,7 +3361,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -3375,7 +3375,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3388,7 +3388,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -3974,7 +3974,7 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 86016
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -3987,7 +3987,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed page and check the stats
 ===============
@@ -4000,7 +4000,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -4013,7 +4013,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -4273,7 +4273,7 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 172032
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -4286,7 +4286,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed page and check the stats
 ===============
@@ -4299,7 +4299,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -4312,7 +4312,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -4572,7 +4572,7 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
 # The size of the file with 0 compress = 344064
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -4585,7 +4585,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed page and check the stats
 ===============
@@ -4598,7 +4598,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -4611,7 +4611,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -4978,22 +4978,22 @@ LIMIT 1;
 col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-# check the stats of the table & size of the table
-SET @inl_val=2;
+# check the stats of the table 
+# testcase : pass = 1 fail = 0
+SET @comp_val=0;
+SET @uncomp_val=1;
 ===============
-Chekc the stats of the table
-Check the size of the ibd file
+After Restart Chekc the stats of the table
 ===============
 # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"
 FROM information_schema.innodb_cmp_per_index
 WHERE 
-compress_ops_ok BETWEEN @inl_val AND 1000
-AND compress_ops BETWEEN @inl_val AND 1000
+compress_ops_ok BETWEEN @comp_val AND 1000
+AND uncompress_ops BETWEEN @uncomp_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
-The size of the tab5.ibd file: 65536 
+compress_stat	1
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase
@@ -5572,7 +5572,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -5585,7 +5585,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed page and check the stats
 ===============
@@ -5598,7 +5598,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -5611,7 +5611,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -5625,7 +5625,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -5638,7 +5638,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -5895,7 +5895,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -5908,7 +5908,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed page and check the stats
 ===============
@@ -5921,7 +5921,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -5934,7 +5934,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -5948,7 +5948,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -5961,7 +5961,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -6218,7 +6218,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -6231,7 +6231,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed page and check the stats
 ===============
@@ -6244,7 +6244,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -6257,7 +6257,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -6271,7 +6271,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -6284,7 +6284,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -6654,22 +6654,22 @@ LIMIT 1;
 col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
-# check the stats of the table & size of the table
-SET @inl_val=2;
+# check the stats of the table 
+# testcase : pass = 1 fail = 0
+SET @comp_val=0;
+SET @uncomp_val=1;
 ===============
-Chekc the stats of the table
-Check the size of the ibd file
+After Restart Chekc the stats of the table
 ===============
 # testcase : pass = 1 fail = 0
 SELECT count(*) > 0 as "compress_stat"
 FROM information_schema.innodb_cmp_per_index
 WHERE 
-compress_ops_ok BETWEEN @inl_val AND 1000
-AND compress_ops BETWEEN @inl_val AND 1000
+compress_ops_ok BETWEEN @comp_val AND 1000
+AND uncompress_ops BETWEEN @uncomp_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
-The size of the tab5.ibd file: 65536 
+compress_stat	1
 #cleanup
 DROP TABLE IF EXISTS tab5;
 #reset the stat table before starting next testcase
@@ -7249,7 +7249,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7262,7 +7262,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed page and check the stats
 ===============
@@ -7275,7 +7275,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7288,7 +7288,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -7302,7 +7302,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7315,7 +7315,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 86016 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -7573,7 +7573,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7586,7 +7586,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed page and check the stats
 ===============
@@ -7599,7 +7599,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7612,7 +7612,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -7626,7 +7626,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7639,7 +7639,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 172032 
 #cleanup
 DROP TABLE IF EXISTS tab5;
@@ -7896,7 +7896,7 @@ INSERT INTO tab5
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,@col_7,@col_8,@col_9);
 commit;
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7909,7 +7909,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed page and check the stats
 ===============
@@ -7922,7 +7922,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7935,7 +7935,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 # fetch the compressed same page once again and check the stats
 # the stat figures should be same as above query
@@ -7949,7 +7949,7 @@ col_7	gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg
 col_8	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh
 col_9	iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii
 # check the stats of the table & size of the table
-SET @inl_val=2;
+SET @inl_val=1;
 ===============
 Chekc the stats of the table
 Check the size of the ibd file
@@ -7962,7 +7962,7 @@ compress_ops_ok BETWEEN @inl_val AND 1000
 AND compress_ops BETWEEN @inl_val AND 1000
 AND table_name='tab5' AND database_name='test'
 AND index_name like 'idx%' ;
-compress_stat	0
+compress_stat	1
 The size of the tab5.ibd file: 344064 
 #cleanup
 DROP TABLE IF EXISTS tab5;
