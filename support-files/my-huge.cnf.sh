@@ -121,7 +121,7 @@ server-id	= 1
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@
 #innodb_data_file_path = ibdata1:2000M;ibdata2:10M:autoextend
-o#innodb_log_group_home_dir = @localstatedir@
+#innodb_log_group_home_dir = @localstatedir@
 # You can set .._buffer_pool_size up to 50 - 80 %
 # of RAM but beware of setting memory usage too high
 #innodb_buffer_pool_size = 384M
