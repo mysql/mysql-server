@@ -8,7 +8,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
+#include <valgrind/drd.h>
 #include <stdint.h>
+#include "memory.h"
 #include "growable_array.h"
 
 namespace toku {
@@ -117,7 +119,10 @@ public:
     }
 
     inline uint32_t get_index(void) const {
-        return m_bitfield & MASK_INDEX;
+        TOKU_DRD_IGNORE_VAR(m_bitfield);
+        const uint32_t bits = m_bitfield;
+        TOKU_DRD_STOP_IGNORING_VAR(m_bitfield);
+        return bits & MASK_INDEX;
     }
 
     inline void set_index(uint32_t index) {
@@ -126,11 +131,23 @@ public:
     }
 
     inline bool get_bit(void) const {
-        return (m_bitfield & MASK_BIT) != 0;
+        TOKU_DRD_IGNORE_VAR(m_bitfield);
+        const uint32_t bits = m_bitfield;
+        TOKU_DRD_STOP_IGNORING_VAR(m_bitfield);
+        return (bits & MASK_BIT) != 0;
     }
 
     inline void enable_bit(void) {
+        // These bits may be set by a thread with a write lock on some
+        // leaf, and the index can be read by another thread with a (read
+        // or write) lock on another thread.  Also, the has_marks_below
+        // bit can be set by two threads simultaneously.  Neither of these
+        // are real races, so if we are using DRD we should tell it to
+        // ignore these bits just while we set this bit.  If there were a
+        // race in setting the index, that would be a real race.
+        TOKU_DRD_IGNORE_VAR(m_bitfield);
         m_bitfield |= MASK_BIT;
+        TOKU_DRD_STOP_IGNORING_VAR(m_bitfield);
     }
 
     inline void disable_bit(void) {

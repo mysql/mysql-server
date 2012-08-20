@@ -126,10 +126,14 @@ size_t toku_memory_footprint(void * p, size_t touched);
 # define HELGRIND_ANNOTATE_NEW_MEMORY(p, size) ANNOTATE_NEW_MEMORY(p, size)
 # define HELGRIND_VALGRIND_HG_ENABLE_CHECKING(p, size) VALGRIND_HG_ENABLE_CHECKING(p, size)
 # define HELGRIND_VALGRIND_HG_DISABLE_CHECKING(p, size) VALGRIND_HG_DISABLE_CHECKING(p, size)
+# define TOKU_DRD_IGNORE_VAR(v) DRD_IGNORE_VAR(v)
+# define TOKU_DRD_STOP_IGNORING_VAR(v) DRD_STOP_IGNORING_VAR(v)
 #else
 # define HELGRIND_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
 # define HELGRIND_VALGRIND_HG_ENABLE_CHECKING(p, size) ((void) 0)
 # define HELGRIND_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)
+# define TOKU_DRD_IGNORE_VAR(v)
+# define TOKU_DRD_STOP_IGNORING_VAR(v)
 #endif
 
 

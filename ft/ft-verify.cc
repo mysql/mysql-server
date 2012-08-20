@@ -234,7 +234,7 @@ toku_get_node_for_verify(
         blocknum,
         fullhash,
         &bfe,
-        true, // may_modify_node
+        PL_WRITE_EXPENSIVE, // may_modify_node
         0,
         NULL,
         nodep,
@@ -446,15 +446,7 @@ toku_verify_ftnode (FT_HANDLE brt,
         }
     }
 done:
-    {
-    int r = toku_cachetable_unpin(
-        brt->ft->cf, 
-        node->ct_pair,
-        CACHETABLE_CLEAN, 
-        make_ftnode_pair_attr(node)
-        );
-    assert_zero(r); // this is a bad failure if it happens.
-    }
+    toku_unpin_ftnode(brt->ft, node);
     
     if (result == 0 && progress_callback) 
     result = progress_callback(progress_extra, 0.0);

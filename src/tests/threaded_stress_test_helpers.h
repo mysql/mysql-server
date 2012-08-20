@@ -924,6 +924,10 @@ static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, vo
     return 0;
 }
 
+static int dbt_do_nothing (DBT const *UU(key), DBT  const *UU(row), void *UU(context)) {
+  return 0;
+}
+
 static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, bool check) {
     int r;
     int rand_key = myrandom_r(arg->random_data);
@@ -933,7 +937,14 @@ static int UU() ptquery_and_maybe_check_op(DB* db, DB_TXN *txn, ARG arg, bool ch
     DBT key, val;
     dbt_init(&key, &rand_key, sizeof rand_key);
     dbt_init(&val, NULL, 0);
-    r = db->get(db, txn, &key, &val, 0);
+    r = db->getf_set(
+        db, 
+        txn, 
+        0, 
+        &key, 
+        dbt_do_nothing, 
+        NULL
+        );
     if (check) assert(r != DB_NOTFOUND);
     r = 0;
     return r;

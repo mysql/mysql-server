@@ -402,7 +402,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             toku_calculate_root_offset_pointer(h, &root, &fullhash);
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
-            toku_pin_ftnode_off_client_thread(h, root, fullhash, &bfe, true, 0, NULL, &root_node);
+            toku_pin_ftnode_off_client_thread(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, 0, NULL, &root_node);
             toku_assert_entire_node_in_memory(root_node);
 
             toku_ft_release_treelock(h);
@@ -1342,7 +1342,7 @@ ft_merge_child(
         uint32_t childfullhash = compute_child_fullhash(h->cf, node, childnuma);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, true, 1, &node, &childa);
+        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnuma), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &node, &childa);
     }
     // for test
     call_flusher_thread_callback(flt_flush_before_pin_second_node_for_merge);
@@ -1353,7 +1353,7 @@ ft_merge_child(
         uint32_t childfullhash = compute_child_fullhash(h->cf, node, childnumb);
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
-        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, true, 2, dep_nodes, &childb);
+        toku_pin_ftnode_off_client_thread(h, BP_BLOCKNUM(node, childnumb), childfullhash, &bfe, PL_WRITE_EXPENSIVE, 2, dep_nodes, &childb);
     }
 
     if (toku_bnc_n_entries(BNC(node,childnuma))>0) {
@@ -1486,7 +1486,7 @@ flush_some_child(
     // Note that we don't read the entire node into memory yet.
     // The idea is let's try to do the minimum work before releasing the parent lock
     fill_bfe_for_min_read(&bfe, h);
-    toku_pin_ftnode_off_client_thread(h, targetchild, childfullhash, &bfe, true, 1, &parent, &child);
+    toku_pin_ftnode_off_client_thread(h, targetchild, childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &parent, &child);
 
     // for test
     call_flusher_thread_callback(ft_flush_aflter_child_pin);
@@ -1785,7 +1785,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
     //
     FTNODE child;
     uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
-    int r = toku_maybe_pin_ftnode_clean(h, BP_BLOCKNUM(parent, childnum), childfullhash, &child, true);
+    int r = toku_maybe_pin_ftnode_clean(h, BP_BLOCKNUM(parent, childnum), childfullhash, &child);
     if (r != 0) {
         // In this case, we could not lock the child, so just place the parent on the background thread
         // In the callback, we will use flush_some_child, which checks to

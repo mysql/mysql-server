@@ -265,7 +265,13 @@ struct ftnode {
 // macros for managing a node's clock
 // Should be managed by ft-ops.c, NOT by serialize/deserialize
 //
-#define BP_TOUCH_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
+
+//
+// BP_TOUCH_CLOCK uses a compare and swap because multiple threads
+// that have a read lock on an internal node may try to touch the clock
+// simultaneously
+//
+#define BP_TOUCH_CLOCK(node, i) ((void) __sync_val_compare_and_swap(&(node)->bp[i].clock_count, 0, 1))
 #define BP_SWEEP_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
 #define BP_SHOULD_EVICT(node, i) ((node)->bp[i].clock_count == 0)
 // not crazy about having these two here, one is for the case where we create new

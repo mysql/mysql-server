@@ -17,7 +17,7 @@ static void *pin_nonblocking(void *arg) {
         &v1, 
         &s1, 
         def_write_callback(NULL), def_fetch, def_pf_req_callback, def_pf_callback, 
-        true,
+        PL_WRITE_EXPENSIVE,
         NULL, 
         NULL
         );

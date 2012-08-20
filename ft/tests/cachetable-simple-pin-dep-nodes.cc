@@ -124,7 +124,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
         &v3,
         &s3,
         wc, fetch, def_pf_req_callback, def_pf_callback,
-        true,
+        PL_WRITE_EXPENSIVE,
         &val3,
         2, //num_dependent_pairs
         dependent_cfs,

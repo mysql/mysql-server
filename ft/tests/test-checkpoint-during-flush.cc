@@ -150,7 +150,7 @@ doit (bool after_child_pin) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -169,7 +169,7 @@ doit (bool after_child_pin) {
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -206,7 +206,7 @@ doit (bool after_child_pin) {
         node_root,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node
@@ -227,7 +227,7 @@ doit (bool after_child_pin) {
         node_leaf,
         toku_cachetable_hash(c_ft->ft->cf, node_root),
         &bfe,
-        true, 
+        PL_WRITE_EXPENSIVE, 
         0,
         NULL,
         &node

@@ -36,8 +36,10 @@ typedef struct toku_mutex {
 
 #if defined(__APPLE__)
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{0}};
+static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
 #else
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{{0}}};
+static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
 #endif
 
 static inline void
@@ -94,6 +96,8 @@ toku_mutex_assert_locked(toku_mutex_t *mutex __attribute__((unused))) {
 typedef struct toku_cond {
     pthread_cond_t pcond;
 } toku_cond_t;
+
+#define TOKU_COND_INITIALIZER {PTHREAD_COND_INITIALIZER}
 
 static inline void
 toku_cond_init(toku_cond_t *cond, const toku_pthread_condattr_t *attr) {
@@ -203,6 +207,11 @@ toku_pthread_create(toku_pthread_t *thread, const toku_pthread_attr_t *attr, voi
 static inline int 
 toku_pthread_join(toku_pthread_t thread, void **value_ptr) {
     return pthread_join(thread, value_ptr);
+}
+
+static inline int 
+toku_pthread_detach(toku_pthread_t thread) {
+    return pthread_detach(thread);
 }
 
 static inline int 

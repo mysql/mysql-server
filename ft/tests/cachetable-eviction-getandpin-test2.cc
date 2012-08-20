@@ -117,7 +117,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
         def_fetch, 
         def_pf_req_callback, 
         def_pf_callback, 
-        true,
+        PL_WRITE_EXPENSIVE,
         NULL, 
         NULL
         );

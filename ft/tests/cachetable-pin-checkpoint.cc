@@ -149,7 +149,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback,
-            true,
+            PL_WRITE_EXPENSIVE,
             NULL,
             0, //num_dependent_pairs
             NULL,
@@ -171,7 +171,7 @@ static void *move_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback, 
-            true,
+            PL_WRITE_EXPENSIVE,
             NULL,
             1, //num_dependent_pairs
             &f1,
@@ -205,7 +205,7 @@ static void *move_numbers(void *arg) {
                 &v1,
                 &s1,
                 wc, fetch, def_pf_req_callback, def_pf_callback,
-                true,
+                PL_WRITE_EXPENSIVE,
                 NULL,
                 1, //num_dependent_pairs
                 &f1,
@@ -243,7 +243,7 @@ static void *read_random_numbers(void *arg) {
             &v1,
             &s1,
             wc, fetch, def_pf_req_callback, def_pf_callback, 
-            false,
+            PL_READ,
             NULL,
             NULL
             );

@@ -1443,9 +1443,9 @@ toku_ft_bn_apply_cmd_once (
         }
     }
     if (workdone) {  // test programs may call with NULL
-        *workdone += workdone_this_le;
-        if (*workdone > STATUS_VALUE(FT_MAX_WORKDONE))
-            STATUS_VALUE(FT_MAX_WORKDONE) = *workdone;
+        uint64_t new_workdone = __sync_add_and_fetch(workdone, workdone_this_le);
+        if (new_workdone > STATUS_VALUE(FT_MAX_WORKDONE))
+            STATUS_VALUE(FT_MAX_WORKDONE) = new_workdone;
     }
 
     // if we created a new mempool buffer, free the old one
@@ -2511,7 +2511,7 @@ toku_ft_root_put_cmd (FT ft, FT_MSG_S * cmd)
             root_key,
             fullhash,
             &bfe,
-            true, // may_modify_node
+            PL_WRITE_EXPENSIVE, // may_modify_node
             0,
             NULL,
             &node
@@ -4354,7 +4354,8 @@ struct unlock_ftnode_extra {
 // When this is called, the cachetable lock is held
 static void
 unlock_ftnode_fun (void *v) {
-    struct unlock_ftnode_extra *CAST_FROM_VOIDP(x, v);
+    struct unlock_ftnode_extra *x = NULL;
+    CAST_FROM_VOIDP(x, v);
     FT_HANDLE brt = x->ft_handle;
     FTNODE node = x->node;
     // CT lock is held
@@ -4392,11 +4393,12 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         );
     bool msgs_applied = false;
     {
+        pair_lock_type lock_type = (node->height == 1) ? PL_WRITE_CHEAP : PL_READ;
         int rr = toku_pin_ftnode_batched(brt, childblocknum, fullhash,
                                          unlockers,
                                          &next_ancestors, bounds,
                                          &bfe,
-                                         (node->height == 1), // may_modify_node true iff child is leaf
+                                         lock_type, // may_modify_node true iff child is leaf
                                          true,
                                          (node->height == 1), // end_batch_on_success true iff child is a leaf
                                          &childnode,
@@ -4745,7 +4747,7 @@ try_again:
             root_key,
             fullhash,
             &bfe,
-            false, // may_modify_node set to false, because root cannot change during search
+            PL_READ, // may_modify_node set to false, because root cannot change during search
             0,
             NULL,
             &node
@@ -5258,7 +5260,7 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
             &next_ancestors,
             bounds,
             bfe,
-            false, // may_modify_node is false, because node guaranteed to not change
+            PL_READ, // may_modify_node is false, because node guaranteed to not change
             false,
             &childnode,
             &msgs_applied
@@ -5315,7 +5317,7 @@ try_again:
                 root_key,
                 fullhash,
                 &bfe,
-                false, // may_modify_node, cannot change root during keyrange
+                PL_READ, // may_modify_node, cannot change root during keyrange
                 0,
                 NULL,
                 &node
@@ -5361,27 +5363,21 @@ static int
 toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const DBT *lorange, const DBT *hirange) {
     int result=0;
     FTNODE node;
-    void* node_v;
     toku_get_node_for_verify(blocknum, brt, &node);
     result=toku_verify_ftnode(brt, ZERO_MSN, ZERO_MSN, node, -1, lorange, hirange, NULL, NULL, 0, 1, 0);
     uint32_t fullhash = toku_cachetable_hash(brt->ft->cf, blocknum);
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->ft);
-    int r = toku_cachetable_get_and_pin(
-        brt->ft->cf,
+    toku_pin_ftnode_off_client_thread(
+        brt->ft,
         blocknum,
         fullhash,
-        &node_v,
+        &bfe,
+        PL_WRITE_EXPENSIVE,
+        0,
         NULL,
-        get_write_callbacks_for_node(brt->ft),
-        toku_ftnode_fetch_callback,
-        toku_ftnode_pf_req_callback,
-        toku_ftnode_pf_callback,
-        true, // may_modify_value, just safe to set to true, I think it could theoretically be false
-        &bfe
+        &node
         );
-    assert_zero(r);
-    CAST_FROM_VOIDP(node, node_v);
     assert(node->fullhash==fullhash);
     fprintf(file, "%*sNode=%p\n", depth, "", node);
 
@@ -5411,7 +5407,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
                 if (0)
                     for (int j=0; j<size; j++) {
                         OMTVALUE v = 0;
-                        r = toku_omt_fetch(BLB_BUFFER(node, i), j, &v);
+                        int r = toku_omt_fetch(BLB_BUFFER(node, i), j, &v);
                         assert_zero(r);
                         LEAFENTRY CAST_FROM_VOIDP(le, v);
                         fprintf(file, " [%d]=", j);
@@ -5435,8 +5431,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
             }
         }
     }
-    r = toku_cachetable_unpin(brt->ft->cf, node->ct_pair, CACHETABLE_CLEAN, make_ftnode_pair_attr(node));
-    assert_zero(r);
+    toku_unpin_ftnode_off_client_thread(brt->ft, node);
     return result;
 }
 
@@ -5590,7 +5585,7 @@ static bool is_empty_fast_iter (FT_HANDLE brt, FTNODE node) {
                     childblocknum,
                     fullhash,
                     &bfe,
-                    false, // may_modify_node set to false, as nodes not modified
+                    PL_READ, // may_modify_node set to false, as nodes not modified
                     0,
                     NULL,
                     &childnode
@@ -5631,7 +5626,7 @@ bool toku_ft_is_empty_fast (FT_HANDLE brt)
             root_key,
             fullhash,
             &bfe,
-            false, // may_modify_node set to false, node does not change
+            PL_READ, // may_modify_node set to false, node does not change
             0,
             NULL,
             &node

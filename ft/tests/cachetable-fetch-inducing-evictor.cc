@@ -49,7 +49,7 @@ cachetable_test (enum pin_evictor_test_type test_type, bool nonblocking) {
     if (test_type == pin_in_memory) {
         old_num_ev_runs = evictor_test_helpers::get_num_eviction_runs(&ct->ev);
         if (nonblocking) {
-            r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
+            r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
             assert_zero(r);
         }
         else {
@@ -64,7 +64,7 @@ cachetable_test (enum pin_evictor_test_type test_type, bool nonblocking) {
     else if (test_type == pin_fetch) {
         old_num_ev_runs = evictor_test_helpers::get_num_eviction_runs(&ct->ev);
         if (nonblocking) {
-            r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(2), 2, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL, NULL);
+            r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(2), 2, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
             assert(r == TOKUDB_TRY_AGAIN);
             new_num_ev_runs = evictor_test_helpers::get_num_eviction_runs(&ct->ev);
             assert(new_num_ev_runs > old_num_ev_runs);
@@ -81,7 +81,7 @@ cachetable_test (enum pin_evictor_test_type test_type, bool nonblocking) {
     else if (test_type == pin_partial_fetch) {
         old_num_ev_runs = evictor_test_helpers::get_num_eviction_runs(&ct->ev);
         if (nonblocking) {
-            r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, true, NULL, NULL);
+            r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, pf_req_callback, pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
             assert(r == TOKUDB_TRY_AGAIN);
             new_num_ev_runs = evictor_test_helpers::get_num_eviction_runs(&ct->ev);
             assert(new_num_ev_runs > old_num_ev_runs);

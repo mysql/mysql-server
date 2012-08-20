@@ -121,7 +121,7 @@ static void cachetable_prefetch_maybegetandpin_test (bool do_partial_fetch) {
     void *v = 0;
     long size = 0;
     do_pf = false;
-    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, true, NULL, NULL);
+    r = toku_cachetable_get_and_pin_nonblocking(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
     r = toku_cachetable_get_and_pin(f1, key, fullhash, &v, &size, wc, fetch, pf_req_callback, pf_callback, true, NULL);
     assert(r == 0 && v == 0 && size == 2);
