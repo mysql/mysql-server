@@ -4194,7 +4194,7 @@ bool ha_partition::init_record_priority_queue()
   */
   if (!m_ordered_rec_buffer)
   {
-    uint map_len, alloc_len;
+    uint alloc_len;
     uint used_parts= bitmap_bits_set(&m_part_info->used_partitions);
     /* Allocate record buffer for each used partition. */
     alloc_len= used_parts * (m_rec_length + PARTITION_BYTES_IN_POS);
