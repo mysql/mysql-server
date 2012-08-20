@@ -1784,7 +1784,7 @@ static void create_file_v1(PSI_file_key key, const char *name, File file)
   }
 
   uint len= strlen(name);
-  PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len);
+  PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len, true);
 
   file_handle_array[index]= pfs_file;
 }
@@ -3915,7 +3915,7 @@ static PSI_file* end_file_open_wait_v1(PSI_file_locker *locker,
       PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
       const char *name= state->m_name;
       uint len= strlen(name);
-      PFS_file *pfs_file= find_or_create_file(thread, klass, name, len);
+      PFS_file *pfs_file= find_or_create_file(thread, klass, name, len, true);
       state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
     }
     break;
@@ -3948,7 +3948,7 @@ static void end_file_open_wait_and_bind_to_descriptor_v1
     PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
     const char *name= state->m_name;
     uint len= strlen(name);
-    pfs_file= find_or_create_file(thread, klass, name, len);
+    pfs_file= find_or_create_file(thread, klass, name, len, true);
     state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
   }
 
@@ -4138,7 +4138,7 @@ static void start_file_close_wait_v1(PSI_file_locker *locker,
     thread= reinterpret_cast<PFS_thread*> (state->m_thread);
     name= state->m_name;
     len= strlen(name);
-    pfs_file= find_file(thread, name, len);
+    pfs_file= find_or_create_file(thread, NULL, name, len, false);
     state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
     break;
   case PSI_FILE_STREAM_CLOSE:
