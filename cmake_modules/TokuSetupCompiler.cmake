@@ -19,6 +19,9 @@ add_c_defines(
   __STDC_LIMIT_MACROS
   )
 
+## add TOKU_PTHREAD_DEBUG for debug builds
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG)
+
 if (CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_CXX_COMPILER_ID MATCHES Clang)
   message(WARNING "Setting TOKU_ALLOW_DEPRECATED on Darwin and with clang.  TODO: remove this.")
   add_c_defines(TOKU_ALLOW_DEPRECATED)
