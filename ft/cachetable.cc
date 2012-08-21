@@ -2613,10 +2613,10 @@ int toku_cachetable_unpin_and_remove (
     CACHETABLE ct = cachefile->cachetable;
 
     p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
-    assert(p->value_rwlock.writers());
     // grab disk_nb_mutex to ensure any background thread writing
     // out a cloned value completes
     pair_lock(p);
+    assert(p->value_rwlock.writers());
     nb_mutex_lock(&p->disk_nb_mutex, &p->mutex);
     pair_unlock(p);
     assert(p->cloned_value_data == NULL);
