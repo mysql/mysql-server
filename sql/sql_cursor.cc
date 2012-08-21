@@ -115,6 +115,8 @@ int mysql_open_cursor(THD *thd, select_result *result,
                          &thd->security_ctx->priv_user[0],
                          (char *) thd->security_ctx->host_or_ip,
                          2);
+  /* Mark that we can't use query cache with cursors */
+  thd->query_cache_is_applicable= 0;
   rc= mysql_execute_command(thd);
   MYSQL_QUERY_EXEC_DONE(rc);
 

@@ -1813,7 +1813,10 @@ Query_cache::send_result_to_client(THD *thd, char *org_sql, uint query_length)
     goto err;
 
   if (query_cache_size == 0)
+  {
+    thd->query_cache_is_applicable= 0;            // Query can't be cached
     goto err_unlock;
+  }
 
   Query_cache_block *query_block;
   if (thd->variables.query_cache_strip_comments)

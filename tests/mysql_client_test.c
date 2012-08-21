@@ -357,6 +357,7 @@ static void test_prepare_insert_update()
   myquery(rc);
 }
 
+
 /* Test simple prepares of all DML statements */
 
 static void test_prepare_simple()
@@ -2308,6 +2309,7 @@ static void test_ps_query_cache()
 
       if (!opt_silent)
         fprintf(stdout, "OK");
+      break;
     }
 
     strmov(query, "select id1, value1 from t1 where id1= ? or "
@@ -13024,6 +13026,49 @@ static void test_bug8880()
     mysql_stmt_close(*stmt);
 }
 
+/*
+  Test executing a query with prepared statements while query cache is active
+*/
+
+static void test_open_cursor_prepared_statement_query_cache()
+{
+  MYSQL_STMT *stmt;
+  int rc;
+  MYSQL_RES *result;
+
+  myheader("test_open_cursor_prepared_statement_query_cache");
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_open_cursor_prepared_statement_query_cache: Query cache not available.\n");
+    return;
+  }
+
+  rc= mysql_query(mysql, "set global query_cache_size=1000000");
+  myquery(rc);
+
+  mysql_query(mysql, "drop table if exists t1");
+  mysql_query(mysql, "create table t1 (a int not null primary key, b int)");
+  rc= mysql_query(mysql, "insert into t1 values (1,1)");
+  myquery(rc);                                  /* one check is enough */
+
+  /* Store query in query cache */
+  rc= mysql_query(mysql, "SELECT * FROM t1");
+  myquery(rc);
+  result= mysql_store_result(mysql);
+  mytest(result);
+  (void) my_process_result_set(result);
+  mysql_free_result(result);
+
+  /* Test using a cursor */
+  stmt= open_cursor("select a from t1");
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "set global query_cache_size=1000000");
+  myquery(rc);
+}
+
 
 static void test_bug9159()
 {
@@ -18917,6 +18962,8 @@ static struct my_tests_st my_tests[]= {
   { "test_bug8378", test_bug8378 },
   { "test_bug8722", test_bug8722 },
   { "test_bug8880", test_bug8880 },
+  { "test_open_cursor_prepared_statement_query_cache",
+    test_open_cursor_prepared_statement_query_cache },
   { "test_bug9159", test_bug9159 },
   { "test_bug9520", test_bug9520 },
   { "test_bug9478", test_bug9478 },
