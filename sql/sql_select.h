@@ -897,6 +897,19 @@ protected:
 
 public:
   JOIN_TAB *join_tab, **best_ref;
+
+  /*
+    For "Using temporary+Using filesort" queries, JOIN::join_tab can point to
+    either: 
+    1. array of join tabs describing how to run the select, or
+    2. array of single join tab describing read from the temporary table.
+
+    SHOW EXPLAIN code needs to read/show #1. This is why two next members are
+    there for saving it.
+  */
+  JOIN_TAB *table_access_tabs;
+  uint     top_table_access_tabs_count;
+
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
   JOIN_TAB *join_tab_save; ///< saved join_tab for subquery reexecution
 
