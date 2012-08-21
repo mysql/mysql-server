@@ -5940,8 +5940,8 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling the
-  TABLE::add_tmp_key to actually add keys. A name "auto_key" with a
-  sequential number is given to each key to ease debugging.
+  TABLE::add_tmp_key to actually add keys. A name <auto_keyN>, where N is a
+  sequential number, is given to each key to ease debugging.
   @see add_derived_key
 
   @return TRUE  an error occur.
@@ -5966,7 +5966,7 @@ bool TABLE_LIST::generate_keys()
   derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
   while ((entry= it++))
   {
-    sprintf(buf, "auto_key%i", key++);
+    sprintf(buf, "<auto_key%i>", key++);
     if (table->add_tmp_key(&entry->used_fields,
                            table->in_use->strdup(buf)))
       return TRUE;

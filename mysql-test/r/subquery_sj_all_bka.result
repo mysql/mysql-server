@@ -9643,7 +9643,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<subquery4>	ALL	NULL	NULL	NULL	NULL	NULL	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	8	<subquery4>.p,<subquery4>.My_exp_p	2	NULL
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	8	<subquery4>.p,<subquery4>.My_exp_p	2	NULL
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	11	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	<subquery3>	eq_ref	<auto_key>	<auto_key>	8	test.alias2.col_varchar_nokey,<subquery4>.p	1	NULL
 4	MATERIALIZED	<derived7>	ALL	NULL	NULL	NULL	NULL	2	NULL
@@ -9773,7 +9773,7 @@ FROM t1 AS subquery3_t1
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subquery3_t1	index	col_varchar_key	col_varchar_key	9	NULL	0	Using where; Using index; LooseScan
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	9	const,test.subquery3_t1.col_varchar_key	2	NULL
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	9	const,test.subquery3_t1.col_varchar_key	2	NULL
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	FirstMatch(<derived2>); Using join buffer (Block Nested Loop)
 1	PRIMARY	table2	index	NULL	PRIMARY	4	NULL	1	Using index; Using join buffer (Block Nested Loop)
 2	DERIVED	subquery1_t1	ALL	PRIMARY	NULL	NULL	NULL	1	NULL
@@ -10064,9 +10064,9 @@ EXPLAIN
           "table_name": "derived1",
           "access_type": "ref",
           "possible_keys": [
-            "auto_key0"
+            "<auto_key0>"
           ],
-          "key": "auto_key0",
+          "key": "<auto_key0>",
           "key_length": "4",
           "ref": [
             "<subquery3>.col_varchar_nokey"
