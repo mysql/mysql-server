@@ -298,6 +298,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
 	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
 	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
+	{&dict_stats_recalc_pool_mutex_key, "dict_stats_recalc_pool_mutex_key", 0},
 	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
 	{&fil_system_mutex_key, "fil_system_mutex", 0},
 	{&flush_list_mutex_key, "flush_list_mutex", 0},
