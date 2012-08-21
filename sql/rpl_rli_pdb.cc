@@ -11,6 +11,9 @@
   uint mts_debug_concurrent_access= 0;
 #endif
 
+#define HASH_DYNAMIC_INIT 4
+#define HASH_DYNAMIC_INCR 1
+
 /*
   Please every time you add a new field to the worker slave info, update
   what follows. For now, this is just used to get the number of fields.
@@ -709,6 +712,13 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 {
   uint i;
   DYNAMIC_ARRAY *workers= &rli->workers;
+
+  /*
+    A dynamic array to store the mapping_db_to_worker hash elements 
+    that needs to be deleted, since deleting the hash entires while 
+    iterating over it is wrong.
+  */
+  DYNAMIC_ARRAY hash_element;
   THD *thd= rli->info_thd;
 
   DBUG_ENTER("get_slave_worker");
@@ -791,21 +801,39 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     entry->worker->usage_partition++;
     if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
-      /* remove zero-usage (todo: rare or long ago scheduled) records */
+      /*
+        remove zero-usage (todo: rare or long ago scheduled) records.
+        Store the element of the hash in a dynamic array after checking whether
+        the usage of the hash entry is 0 or not. We later free it from the HASH.
+      */
+      my_init_dynamic_array(&hash_element, sizeof(db_worker_hash_entry *),
+                            HASH_DYNAMIC_INIT, HASH_DYNAMIC_INCR);
       for (uint i= 0; i < mapping_db_to_worker.records; i++)
       {
+        DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
+        DBUG_ASSERT(!thd->temporary_tables || !thd->temporary_tables->prev);
+
         db_worker_hash_entry *entry=
           (db_worker_hash_entry*) my_hash_element(&mapping_db_to_worker, i);
+
         if (entry->usage == 0)
         {
-          DBUG_ASSERT(!entry->temporary_tables || !entry->temporary_tables->prev);
-          DBUG_ASSERT(!thd->temporary_tables || !thd->temporary_tables->prev);
-          
           mts_move_temp_tables_to_thd(thd, entry->temporary_tables);
           entry->temporary_tables= NULL;
-          my_hash_delete(&mapping_db_to_worker, (uchar*) entry);
+
+          /* Push the element in the dynamic array*/
+          push_dynamic(&hash_element, (uchar*) &entry);
         }
       }
+
+      /* Delete the hash element based on the usage */
+      for (uint i=0; i < hash_element.elements; i++)
+      {
+        db_worker_hash_entry *temp_entry= *(db_worker_hash_entry **) dynamic_array_ptr(&hash_element, i);
+        my_hash_delete(&mapping_db_to_worker, (uchar*) temp_entry);        
+      }
+        /* Deleting the dynamic array */
+      delete_dynamic(&hash_element);
     }
 
     ret= my_hash_insert(&mapping_db_to_worker, (uchar*) entry);
