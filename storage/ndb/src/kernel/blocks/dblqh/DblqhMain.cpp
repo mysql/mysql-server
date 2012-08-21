@@ -23701,7 +23701,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint32(getOwnNodeId());
       row.write_uint32(0);              // log type, 0 = REDO
       row.write_uint32(0);              // log id, always 0 in LQH
-      row.write_uint32(logpart);        // log part
+      row.write_uint32(logPartPtr.p->logPartNo); // log part
 
       row.write_uint64(total*1024*1024);          // total allocated
       row.write_uint64((total-mb)*1024*1024);     // currently in use
