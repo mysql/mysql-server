@@ -827,13 +827,15 @@ Item_singlerow_subselect::invalidate_and_restore_select_lex()
 
 Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
                                              Item_subselect *parent,
-					     st_select_lex *select_lex,
-					     bool max_arg)
+                                             st_select_lex *select_lex,
+                                             bool max_arg,
+                                             bool ignore_nulls)
   :Item_singlerow_subselect(), was_values(false)
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new select_max_min_finder_subselect(this, max_arg));
+  init(select_lex, new select_max_min_finder_subselect(this, max_arg,
+                                                       ignore_nulls));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -1426,6 +1428,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
   SELECT_LEX *select_lex= join->select_lex;
+  bool subquery_maybe_null= false;
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   /*
@@ -1442,6 +1445,19 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   THD * const thd= unit->thd;
 
   /*
+    Check the nullability of the subquery. The subquery should return
+    only one column, so we check the nullability of the first item in
+    SELECT_LEX::item_list. In case the subquery is a union, check the
+    nullability of the first item of each SELECT_LEX belonging to the
+    union.
+  */
+  for (SELECT_LEX* lex= select_lex->master_unit()->first_select();
+       lex != NULL && lex->master_unit() == select_lex->master_unit();
+       lex= lex->next_select())
+    if (lex->item_list.head()->maybe_null)
+      subquery_maybe_null= true;
+
+  /*
     If this is an ALL/ANY single-value subquery predicate, try to rewrite
     it with a MIN/MAX subquery.
 
@@ -1452,13 +1468,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     1. has a greater than/less than comparison operator, and
     2. is not correlated with the outer query, and
     3. UNKNOWN results are treated as FALSE, or can never be generated, and
-    4. is not an ALL query where expression from subquery is nullable
   */
   if (!func->eqne_op() &&                                             // 1
       !select_lex->master_unit()->uncacheable &&                      // 2
       (abort_on_null || (upper_item && upper_item->top_level()) ||    // 3
-       (!left_expr->maybe_null && !join->ref_ptrs[0]->maybe_null)) &&
-      !(substype() == ALL_SUBS && join->ref_ptrs[0]->maybe_null))     // 4
+       (!left_expr->maybe_null && !subquery_maybe_null)))
   {
     if (substitution)
     {
@@ -1469,9 +1483,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     Item *subs;
     if (!select_lex->group_list.elements &&
         !select_lex->having &&
-	!select_lex->with_sum_func &&
-	!(select_lex->next_select()) &&
-        select_lex->table_list.elements)
+        !select_lex->with_sum_func &&
+        !(select_lex->next_select()) &&
+        select_lex->table_list.elements &&
+        !(substype() == ALL_SUBS && subquery_maybe_null))
     {
       OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1,
                           select_lex->select_number,
@@ -1541,7 +1556,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                           "> ALL/ANY (SELECT)", "MIN (SELECT)");
       oto1.add("chosen", true);
       Item_maxmin_subselect *item;
-      subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
+      subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op(),
+                                            substype()==ANY_SUBS);
       if (upper_item)
         upper_item->set_sub_test(item);
     }

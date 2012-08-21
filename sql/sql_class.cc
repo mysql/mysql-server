@@ -3092,45 +3092,82 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
+/**
+  Compare two floating point numbers for MAX or MIN.
+
+  Compare two numbers and decide if the number should be cached as the
+  maximum/minimum number seen this far. If fmax==true, this is a
+  comparison for MAX, otherwise it is a comparison for MIN.
+
+  val1 is the new numer to compare against the current
+  maximum/minimum. val2 is the current maximum/minimum.
+
+  ignore_nulls is used to control behavior when comparing with a NULL
+  value. If ignore_nulls==false, the behavior is to store the first
+  NULL value discovered (i.e, return true, that it is larger than the
+  current maximum) and never replace it. If ignore_nulls==true, NULL
+  values are not stored. ANY subqueries use ignore_nulls==true, ALL
+  subqueries use ignore_nulls==false.
+
+  @retval true if the new number should be the new maximum/minimum.
+  @retval false if the maximum/minimum should stay unchanged.
+ */
 bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) ? (val1 > val2) : (val1 < val2);
+  /*
+    If we're ignoring NULLs and the current maximum/minimum is NULL
+    (must have been placed there as the first value iterated over) and
+    the new value is not NULL, return true so that a new, non-NULL
+    maximum/minimum is set. Otherwise, return false to keep the
+    current non-NULL maximum/minimum.
+
+    If we're not ignoring NULLs and the current maximum/minimum is not
+    NULL, return true to store NULL. Otherwise, return false to keep
+    the NULL we've already got.
+  */
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
+/**
+  Compare two integer numbers for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) ? (val1 > val2) : (val1 < val2);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
+/**
+  Compare two decimal numbers for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_decimal()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) 
-      ? (my_decimal_cmp(cvalue,mvalue) > 0)
-      : (my_decimal_cmp(cvalue,mvalue) < 0);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (my_decimal_cmp(cvalue,mvalue) > 0)
+    : (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
+/**
+  Compare two strings for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_str()
 {
   String *val1, *val2, buf1, buf2;
@@ -3141,14 +3178,11 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) 
-      ? (sortcmp(val1, val2, cache->collation.collation) > 0)
-      : (sortcmp(val1, val2, cache->collation.collation) < 0);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (sortcmp(val1, val2, cache->collation.collation) > 0)
+    : (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 bool select_exists_subselect::send_data(List<Item> &items)

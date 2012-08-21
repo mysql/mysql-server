@@ -4445,9 +4445,16 @@ class select_max_min_finder_subselect :public select_subselect
   Item_cache *cache;
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
+  /**
+    If ignoring NULLs, comparisons will skip NULL values. If not
+    ignoring NULLs, the first (if any) NULL value discovered will be
+    returned as the maximum/minimum value.
+  */
+  bool ignore_nulls;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
-    :select_subselect(item_arg), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
+                                  bool ignore_nulls)
+    :select_subselect(item_arg), cache(0), fmax(mx), ignore_nulls(ignore_nulls)
   {}
   void cleanup();
   bool send_data(List<Item> &items);
