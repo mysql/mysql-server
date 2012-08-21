@@ -45,6 +45,20 @@ while ($i)
 -- enable_query_log
 COMMIT;
 
+GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
+FLUSH PRIVILEGES;
+
+-- connect (con1,localhost,tuser01,cDJvI9s_Uq,)
+-- connection con1
+
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+-- connection default
+-- disconnect con1
+
+DROP USER 'tuser01'@'localhost';
+
 SELECT * FROM information_schema.innodb_cmp_per_index;
 
 # restart mysqld and see that uncompress ops also gets increased when
