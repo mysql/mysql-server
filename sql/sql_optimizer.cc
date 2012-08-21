@@ -3809,6 +3809,13 @@ void semijoin_types_allow_materialization(TABLE_LIST *sj_nest)
   DBUG_ASSERT(sj_nest->nested_join->sj_outer_exprs.elements ==
               sj_nest->nested_join->sj_inner_exprs.elements);
 
+  if (sj_nest->nested_join->sj_outer_exprs.elements > MAX_REF_PARTS)
+  {
+    sj_nest->nested_join->sjm.scan_allowed= false;
+    sj_nest->nested_join->sjm.lookup_allowed= false;
+    DBUG_VOID_RETURN;
+  }
+
   List_iterator<Item> it1(sj_nest->nested_join->sj_outer_exprs);
   List_iterator<Item> it2(sj_nest->nested_join->sj_inner_exprs);
 
