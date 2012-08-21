@@ -1618,6 +1618,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
           keyparts == keyuse->keypart &&
           !(found_part_ref_or_null & keyuse->optimize))
       {
+        DBUG_ASSERT(keyparts < MAX_REF_PARTS);
         chosen_keyuses[keyparts]= keyuse;
         keyparts++;
         length+= keyinfo->key_part[keyuse->keypart].store_length;
