@@ -128,7 +128,8 @@ done:
     return 0;
 }
 
-static int find_ft_from_filenum (const FT &h, const FILENUM &filenum) {
+int find_ft_from_filenum (const FT &h, const FILENUM &filenum);
+int find_ft_from_filenum (const FT &h, const FILENUM &filenum) {
     FILENUM thisfnum = toku_cachefile_filenum(h->cf);
     if (thisfnum.fileid<filenum.fileid) return -1;
     if (thisfnum.fileid>filenum.fileid) return +1;

@@ -137,7 +137,8 @@ void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     }
 }
 
-static int find_filenum (const FT &h, const FT &hfind) {
+int find_filenum (const FT &h, const FT &hfind);
+int find_filenum (const FT &h, const FT &hfind) {
     FILENUM fnum     = toku_cachefile_filenum(h->cf);
     FILENUM fnumfind = toku_cachefile_filenum(hfind->cf);
     if (fnum.fileid<fnumfind.fileid) return -1;
