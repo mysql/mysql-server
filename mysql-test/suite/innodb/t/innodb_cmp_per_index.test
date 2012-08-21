@@ -27,8 +27,10 @@ SELECT * FROM information_schema.innodb_cmp_per_index;
 CREATE TABLE t (
 	a INT,
 	b VARCHAR(512),
+	c VARCHAR(16),
 	PRIMARY KEY (a),
-	INDEX (b(512))
+	INDEX (b(512)),
+	INDEX (c(16))
 ) ENGINE=INNODB KEY_BLOCK_SIZE=2;
 
 SELECT * FROM information_schema.innodb_cmp_per_index;
@@ -39,11 +41,13 @@ BEGIN;
 let $i=128;
 while ($i)
 {
-	-- eval INSERT INTO t VALUES ($i, REPEAT('x', 512));
+	-- eval INSERT INTO t VALUES ($i, REPEAT('x', 512), NULL);
 	dec $i;
 }
 -- enable_query_log
 COMMIT;
+
+ALTER TABLE t DROP INDEX c;
 
 GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
 FLUSH PRIVILEGES;
@@ -59,6 +63,7 @@ SELECT * FROM information_schema.innodb_cmp_per_index;
 
 DROP USER 'tuser01'@'localhost';
 
+-- replace_regex /index_id:[0-9]+/index_id:idisnondeterministic/
 SELECT * FROM information_schema.innodb_cmp_per_index;
 
 # restart mysqld and see that uncompress ops also gets increased when
