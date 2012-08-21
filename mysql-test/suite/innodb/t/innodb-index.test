@@ -229,8 +229,8 @@ show create table t2;
 delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
---error ER_CANT_DROP_FIELD_OR_KEY
 --enable_info
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;
 --disable_info

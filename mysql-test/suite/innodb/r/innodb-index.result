@@ -515,8 +515,7 @@ t3	CREATE TABLE `t3` (
   `c` int(11) NOT NULL,
   `d` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
-  KEY `c` (`c`),
-  CONSTRAINT `dc` FOREIGN KEY (`a`) REFERENCES `t1` (`a`)
+  KEY `c` (`c`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t2 drop index b, add index (beta);
 affected rows: 0
@@ -542,8 +541,7 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 drop index dc on t4;
 ERROR 42000: Can't DROP 'dc'; check that column/key exists
 alter table t3 drop foreign key dc;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+ERROR 42000: Can't DROP 'dc'; check that column/key exists
 alter table t4 drop foreign key dc;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0

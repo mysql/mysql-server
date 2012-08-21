@@ -2977,9 +2977,6 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
-	ut_a(!foreign->foreign_table
-	     || foreign->foreign_table->n_foreign_key_checks_running == 0);
-
 	mem_heap_free(foreign->heap);
 }
 

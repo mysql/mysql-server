@@ -3819,11 +3819,6 @@ rollback_inplace_alter_table(
 	row_mysql_unlock_data_dictionary(ctx->trx);
 	trx_free_for_mysql(ctx->trx);
 
-	if (ctx->num_to_add_fk) {
-		for (ulint i = 0; i < ctx->num_to_add_fk; i++) {
-			dict_foreign_free(ctx->add_fk[i]);
-		}
-	}
 
 func_exit:
 #ifndef DBUG_OFF
@@ -3835,6 +3830,12 @@ func_exit:
 #endif /* !DBUG_OFF */
 
 	if (ctx) {
+		if (ctx->num_to_add_fk) {
+			for (ulint i = 0; i < ctx->num_to_add_fk; i++) {
+				dict_foreign_free(ctx->add_fk[i]);
+			}
+		}
+
 		if (ctx->num_to_drop) {
 			row_mysql_lock_data_dictionary(prebuilt->trx);
 
@@ -4156,6 +4157,33 @@ processed_field:
 	return(false);
 }
 
+/** Undo the in-memory addition of foreign key on table->foreign_list
+and table->referenced_list.
+@param ctx		saved alter table context
+@param table		the foreign table */
+static __attribute__((nonnull))
+void
+innobase_undo_add_fk(
+/*=================*/
+	ha_innobase_inplace_ctx*	ctx,
+	dict_table_t*			fk_table)
+{
+	for (ulint i = 0; i < ctx->num_to_add_fk; i++) {
+		UT_LIST_REMOVE(
+			foreign_list,
+			fk_table->foreign_list,
+			ctx->add_fk[i]);
+
+		if (ctx->add_fk[i]->referenced_table) {
+			UT_LIST_REMOVE(
+				referenced_list,
+				ctx->add_fk[i]->referenced_table
+				->referenced_list,
+				ctx->add_fk[i]);
+		}
+	}
+}
+
 /** Commit or rollback the changes made during
 prepare_inplace_alter_table() and inplace_alter_table() inside
 the storage engine. Note that the allowed level of concurrency
@@ -4182,8 +4210,10 @@ ha_innobase::commit_inplace_alter_table(
 		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
 	trx_t*				trx;
+	trx_t*				fk_trx = NULL;
 	int				err	= 0;
 	bool				new_clustered;
+	dict_table_t*			fk_table = NULL;
 
 	DBUG_ENTER("commit_inplace_alter_table");
 
@@ -4249,6 +4279,112 @@ ha_innobase::commit_inplace_alter_table(
 	if (ctx) {
 		dict_stats_wait_bg_to_stop_using_tables(
 			prebuilt->table, ctx->indexed_table, trx);
+	}
+
+	/* Final phase of add foreign key processing */
+	if (ctx && ctx->num_to_add_fk > 0) {
+		ulint		highest_id_so_far;
+		dberr_t		error;
+
+		/* If it runs concurrently with create clustered index
+		or index rebuild, we will need a separate trx to do
+		the system table change, since in the case of failure
+		rebuild index/create clustered index will need to commit the
+		drop new table change, while FK needs to rollback the
+		metadata change */
+		if (new_clustered) {
+			fk_trx = innobase_trx_allocate(user_thd);
+
+			trx_start_for_ddl(fk_trx, TRX_DICT_OP_INDEX);
+
+			fk_trx->dict_operation_lock_mode =
+				 trx->dict_operation_lock_mode;
+		} else {
+			fk_trx = trx;
+		}
+
+		ut_ad(ha_alter_info->handler_flags
+		      & Alter_inplace_info::ADD_FOREIGN_KEY);
+
+		highest_id_so_far = dict_table_get_highest_foreign_id(
+			prebuilt->table);
+
+		highest_id_so_far++;
+
+		fk_table = ctx->indexed_table;
+
+		for (ulint i = 0; i < ctx->num_to_add_fk; i++) {
+
+			/* Get the new dict_table_t */
+			if (new_clustered) {
+				ctx->add_fk[i]->foreign_table
+					= fk_table;
+			}
+
+			if (!ctx->add_fk[i]->foreign_index) {
+				ctx->add_fk[i]->foreign_index
+					= dict_foreign_find_index(
+					fk_table,
+					ctx->add_fk[i]->foreign_col_names,
+					ctx->add_fk[i]->n_fields, NULL,
+					TRUE, FALSE);
+
+				ut_ad(ctx->add_fk[i]->foreign_index);
+
+				if (!innobase_check_fk_option(
+					ctx->add_fk[i])) {
+					my_error(ER_FK_INCORRECT_OPTION,
+						 MYF(0),
+						 table_share->table_name.str);
+					err = -1;
+					goto undo_add_fk;
+				}
+			}
+
+			/* Add Foreign Key info to in-memory metadata */
+			UT_LIST_ADD_LAST(foreign_list,
+					 fk_table->foreign_list,
+					 ctx->add_fk[i]);
+
+			if (ctx->add_fk[i]->referenced_table) {
+				UT_LIST_ADD_LAST(
+					referenced_list,
+					ctx->add_fk[i]->referenced_table->referenced_list,
+					ctx->add_fk[i]);
+			}
+
+			/* System table change */
+			error = dict_create_add_foreign_to_dictionary(
+				&highest_id_so_far, prebuilt->table,
+				ctx->add_fk[i], fk_trx);
+
+			DBUG_EXECUTE_IF(
+				"innodb_test_cannot_add_fk_system",
+				error = DB_ERROR;);
+
+			if (error != DB_SUCCESS) {
+				my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0),
+					 ctx->add_fk[i]->id);
+				goto undo_add_fk;
+			}
+		}
+
+		/* Make sure the tables are moved to non-lru side of
+		dictionary list */
+		error = dict_load_foreigns(prebuilt->table->name, FALSE, TRUE);
+
+		if (error != DB_SUCCESS) {
+			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
+
+undo_add_fk:
+			err = -1;
+
+			if (new_clustered) {
+				goto drop_new_clustered;
+			} else {
+				goto trx_rollback;
+			}
+		}
 	}
 
 	if (new_clustered) {
@@ -4351,6 +4487,10 @@ ha_innobase::commit_inplace_alter_table(
 		case DB_SUCCESS:
 			old_table = prebuilt->table;
 			trx_commit_for_mysql(prebuilt->trx);
+			if (fk_trx) {
+				ut_ad(fk_trx != trx);
+				trx_commit_for_mysql(fk_trx);
+			}
 			row_prebuilt_free(prebuilt, TRUE);
 			error = row_merge_drop_table(trx, old_table, false);
 			prebuilt = row_create_prebuilt(
@@ -4372,7 +4512,15 @@ ha_innobase::commit_inplace_alter_table(
 					table_share->table_name.str,
 					prebuilt->table->flags);
 			err = -1;
-		drop_new_clustered:
+
+drop_new_clustered:
+			/* Need to drop the added foreign key first */
+			if (fk_trx) {
+				ut_ad(fk_trx != trx);
+				innobase_undo_add_fk(ctx, fk_table);
+				trx_rollback_for_mysql(fk_trx);
+			}
+
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, ctx->indexed_table, false);
 			ctx->indexed_table = NULL;
@@ -4449,87 +4597,16 @@ ha_innobase::commit_inplace_alter_table(
 		err = -1;
 	}
 
-	if (err == 0 && ctx && ctx->num_to_add_fk > 0) {
-		ulint	highest_id_so_far;
-		dberr_t	error;
-
-		ut_ad(ha_alter_info->handler_flags
-		      & Alter_inplace_info::ADD_FOREIGN_KEY);
-
-		highest_id_so_far = dict_table_get_highest_foreign_id(
-			prebuilt->table);
-		highest_id_so_far++;
-
-		for (ulint i = 0; i < ctx->num_to_add_fk; i++) {
-
-			/* Get the new dict_table_t */
-			if (new_clustered) {
-				ctx->add_fk[i]->foreign_table
-					= prebuilt->table;
-			}
-
-			if (!ctx->add_fk[i]->foreign_index) {
-				ctx->add_fk[i]->foreign_index
-					= dict_foreign_find_index(
-					prebuilt->table,
-					ctx->add_fk[i]->foreign_col_names,
-					ctx->add_fk[i]->n_fields, NULL,
-					TRUE, FALSE);
-
-				ut_ad(ctx->add_fk[i]->foreign_index);
-
-				if (!innobase_check_fk_option(
-					ctx->add_fk[i])) {
-					my_error(ER_FK_INCORRECT_OPTION,
-						 MYF(0),
-						 table_share->table_name.str);
-					err = -1;
-					break;
-				}
-			}
-
-			UT_LIST_ADD_LAST(foreign_list,
-					 prebuilt->table->foreign_list,
-					 ctx->add_fk[i]);
-
-			if (ctx->add_fk[i]->referenced_table) {
-				UT_LIST_ADD_LAST(
-					referenced_list,
-					ctx->add_fk[i]->referenced_table
-					->referenced_list,
-					ctx->add_fk[i]);
-			}
-
-			error = dict_create_add_foreign_to_dictionary(
-				&highest_id_so_far, prebuilt->table,
-				ctx->add_fk[i], trx);
-
-			DBUG_EXECUTE_IF(
-				"innodb_test_cannot_add_fk_system",
-				error = DB_ERROR;);
-
-			if (error != DB_SUCCESS) {
-				my_error(ER_FK_FAIL_ADD_SYSTEM, MYF(0),
-					 ctx->add_fk[i]->id);
-				err = -1;
-				break;
-			}
-		}
-
-		/* Make sure the tables are moved to non-lru side of
-		dictionary list */
-		error = dict_load_foreigns(prebuilt->table->name, FALSE, TRUE);
-
-		if (error != DB_SUCCESS) {
-			my_error(ER_CANNOT_ADD_FOREIGN, MYF(0));
-			err = -1;
-		}
-	}
-
 	if (err == 0) {
 trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
+trx_rollback:
+		/* undo the in-memory addition of foreign key */
+		if (fk_trx) {
+			innobase_undo_add_fk(ctx, fk_table);
+		}
+
 		trx_rollback_for_mysql(trx);
 	}
 
@@ -4635,6 +4712,10 @@ trx_commit:
 		     prebuilt->table, CHECK_ABORTED_OK));
 	ut_a(fts_check_cached_index(prebuilt->table));
 	row_mysql_unlock_data_dictionary(trx);
+	if (fk_trx && fk_trx != trx) {
+		fk_trx->dict_operation_lock_mode = 0;
+		trx_free_for_mysql(fk_trx);
+	}
 	trx_free_for_mysql(trx);
 
 	if (ctx && trx == ctx->trx) {
