@@ -2334,17 +2334,13 @@ err_exit:
 				goto err_exit;
 			}
 
-			if (flags & BTR_CREATE_FLAG) {
-				err = btr_cur_optimistic_insert(
-					flags, &cursor,
-					&offsets, &offsets_heap,
-					entry, &insert_rec, &big_rec,
-					n_ext, thr, &mtr);
-				if (err == DB_FAIL) {
-					goto pessimistic_insert;
-				}
-			} else {
-pessimistic_insert:
+			err = btr_cur_optimistic_insert(
+				flags, &cursor,
+				&offsets, &offsets_heap,
+				entry, &insert_rec, &big_rec,
+				n_ext, thr, &mtr);
+
+			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
 					flags, &cursor,
 					&offsets, &offsets_heap,
@@ -2533,17 +2529,15 @@ row_ins_sec_index_entry_low(
 			if (buf_LRU_buf_pool_running_out()) {
 
 				err = DB_LOCK_TABLE_FULL;
-			} else if (flags & BTR_CREATE_FLAG) {
-				err = btr_cur_optimistic_insert(
-					flags, &cursor,
-					&offsets, &offsets_heap,
-					entry, &insert_rec,
-					&big_rec, 0, thr, &mtr);
-				if (err == DB_FAIL) {
-					goto pessimistic_insert;
-				}
-			} else {
-pessimistic_insert:
+				goto func_exit;
+			}
+
+			err = btr_cur_optimistic_insert(
+				flags, &cursor,
+				&offsets, &offsets_heap,
+				entry, &insert_rec,
+				&big_rec, 0, thr, &mtr);
+			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
 					flags, &cursor,
 					&offsets, &offsets_heap,
