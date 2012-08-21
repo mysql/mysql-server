@@ -4,8 +4,10 @@ SELECT * FROM information_schema.innodb_cmp_per_index;
 CREATE TABLE t (
 a INT,
 b VARCHAR(512),
+c VARCHAR(16),
 PRIMARY KEY (a),
-INDEX (b(512))
+INDEX (b(512)),
+INDEX (c(16))
 ) ENGINE=INNODB KEY_BLOCK_SIZE=2;
 SELECT * FROM information_schema.innodb_cmp_per_index;
 database_name	test
@@ -24,8 +26,17 @@ compress_ops_ok	1
 compress_time	0
 uncompress_ops	0
 uncompress_time	0
+database_name	test
+table_name	t
+index_name	c
+compress_ops	1
+compress_ops_ok	1
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
 BEGIN;
 COMMIT;
+ALTER TABLE t DROP INDEX c;
 GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
 FLUSH PRIVILEGES;
 SELECT * FROM information_schema.innodb_cmp_per_index;
@@ -45,6 +56,14 @@ table_name	t
 index_name	b
 compress_ops	42
 compress_ops_ok	42
+compress_time	0
+uncompress_ops	0
+uncompress_time	0
+database_name	unknown
+table_name	unknown
+index_name	index_id:idisnondeterministic
+compress_ops	1
+compress_ops_ok	1
 compress_time	0
 uncompress_ops	0
 uncompress_time	0
