@@ -30,7 +30,7 @@ extern "C"
 int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
                                      const char *charset_name,
                                      char *buffer,
-                                     uint buffer_size,
+                                     unsigned int buffer_size,
                                      int *error)
 {
   String *str= (String *) string_handle;
