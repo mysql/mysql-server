@@ -1454,6 +1454,69 @@ static bool try_pin_pair(
         ct->list.read_list_lock();
     }
 
+    bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
+    
+    if (partial_fetch_required) {    
+        if (ct->ev.should_client_thread_sleep() && !already_slept) {
+            pair_lock(p);
+            unpin_pair(p, (lock_type == PL_READ));
+            pair_unlock(p);
+            try_again = true;
+            goto exit;
+        }
+        if (ct->ev.should_client_wake_eviction_thread()) {
+            ct->ev.signal_eviction_thread();
+        }
+        //
+        // Just because the PAIR exists does necessarily mean the all the data the caller requires
+        // is in memory. A partial fetch may be required, which is evaluated above
+        // if the variable is true, a partial fetch is required so we must grab the PAIR's write lock
+        // and then call a callback to retrieve what we need
+        //
+        assert(partial_fetch_required);
+        // As of Dr. No, only clean PAIRs may have pieces missing,
+        // so we do a sanity check here.
+        assert(!p->dirty);
+
+        // This may be slow, better release and re-grab the
+        // read list lock.
+        ct->list.read_list_unlock();
+        if (lock_type == PL_READ) {
+            pair_lock(p);
+            p->value_rwlock.read_unlock();
+            p->value_rwlock.write_lock(true);
+            pair_unlock(p);
+        }
+        else if (lock_type == PL_WRITE_CHEAP) {
+            pair_lock(p);
+            p->value_rwlock.write_unlock();
+            p->value_rwlock.write_lock(true);
+            pair_unlock(p);
+        }
+        
+        partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
+        if (partial_fetch_required) {
+            do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, true);
+        }
+        if (lock_type == PL_READ) {
+            //
+            // TODO: Zardosht, somehow ensure that a partial eviction cannot happen
+            // between these two calls
+            //
+            pair_lock(p);
+            p->value_rwlock.write_unlock();
+            p->value_rwlock.read_lock();
+            pair_unlock(p);
+        }
+        else if (lock_type == PL_WRITE_CHEAP) {
+            pair_lock(p);
+            p->value_rwlock.write_unlock();
+            p->value_rwlock.write_lock(false);
+            pair_unlock(p);
+        }
+        ct->list.read_list_lock();
+    }
+
     if (lock_type != PL_READ) {
         ct->list.read_pending_cheap_lock();
         bool p_checkpoint_pending = p->checkpoint_pending;
@@ -1473,74 +1536,6 @@ static bool try_pin_pair(
             dependent_dirty
             );
     }
-
-    bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
-    // shortcutting a path to getting the user the data
-    // helps scalability for in-memory workloads
-    if (!partial_fetch_required) {
-        try_again = false;
-        goto exit;
-    }
-    
-    // at this point, a partial fetch is required    
-    if (ct->ev.should_client_thread_sleep() && !already_slept) {
-        pair_lock(p);
-        unpin_pair(p, (lock_type == PL_READ));
-        pair_unlock(p);
-        try_again = true;
-        goto exit;
-    }
-    if (ct->ev.should_client_wake_eviction_thread()) {
-        ct->ev.signal_eviction_thread();
-    }
-    //
-    // Just because the PAIR exists does necessarily mean the all the data the caller requires
-    // is in memory. A partial fetch may be required, which is evaluated above
-    // if the variable is true, a partial fetch is required so we must grab the PAIR's write lock
-    // and then call a callback to retrieve what we need
-    //
-    assert(partial_fetch_required);
-    // As of Dr. No, only clean PAIRs may have pieces missing,
-    // so we do a sanity check here.
-    assert(!p->dirty);
-
-    // This may be slow, better release and re-grab the
-    // read list lock.
-    ct->list.read_list_unlock();
-    if (lock_type == PL_READ) {
-        pair_lock(p);
-        p->value_rwlock.read_unlock();
-        p->value_rwlock.write_lock(true);
-        pair_unlock(p);
-    }
-    else if (lock_type == PL_WRITE_CHEAP) {
-        pair_lock(p);
-        p->value_rwlock.write_unlock();
-        p->value_rwlock.write_lock(true);
-        pair_unlock(p);
-    }
-    
-    partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
-    if (partial_fetch_required) {
-        do_partial_fetch(ct, cachefile, p, pf_callback, read_extraargs, true);
-    }
-    if (lock_type == PL_READ) {
-        //
-        // TODO: Zardosht, somehow ensure that a partial eviction cannot happen
-        // between these two calls
-        //
-        pair_lock(p);
-        p->value_rwlock.write_unlock();
-        p->value_rwlock.read_lock();
-        pair_unlock(p);
-    }
-    else if (lock_type == PL_WRITE_CHEAP) {
-        pair_lock(p);
-        p->value_rwlock.write_unlock();
-        p->value_rwlock.write_lock(false);
-        pair_unlock(p);
-    }
-    ct->list.read_list_lock();
 
     try_again = false;
 exit:
@@ -1731,16 +1726,6 @@ beginning:
             p->value_rwlock.read_lock();
             pair_unlock(p);
         }
-        // because we grabbed an expensive lock for the fetch,
-        // we ought to downgrade it back to cheap if we have to
-        // once we are done with the fetch
-        else if (lock_type == PL_WRITE_CHEAP) {
-            pair_lock(p);
-            p->value_rwlock.write_unlock();
-            p->value_rwlock.write_lock(false);
-            pair_unlock(p);
-        }
-
         // We need to be holding the read list lock when we exit.
         // We grab it here because we released it earlier to 
         // grab the write list lock because the checkpointing and
