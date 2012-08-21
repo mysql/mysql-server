@@ -1720,6 +1720,11 @@ beginning:
         cachetable_miss++;
         cachetable_misstime += get_tnow() - t0;
 
+        // If the lock_type requested was a PL_READ, we downgrade to PL_READ,
+        // but if the request was for a PL_WRITE_CHEAP, we don't bother 
+        // downgrading, because we would have to possibly resolve the 
+        // checkpointing again, and that would just make this function even 
+        // messier.
         if (lock_type == PL_READ) {
             pair_lock(p);
             p->value_rwlock.write_unlock();
