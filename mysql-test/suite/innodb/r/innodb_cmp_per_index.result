@@ -26,6 +26,11 @@ uncompress_ops	0
 uncompress_time	0
 BEGIN;
 COMMIT;
+GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
+FLUSH PRIVILEGES;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+DROP USER 'tuser01'@'localhost';
 SELECT * FROM information_schema.innodb_cmp_per_index;
 database_name	test
 table_name	t
