@@ -956,7 +956,7 @@ ft_nonleaf_split(
     B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
     node->dirty = 1;
-    node->dirty = 1;
+    B->dirty = 1;
     toku_assert_entire_node_in_memory(node);
     toku_assert_entire_node_in_memory(B);
     //VERIFY_NODE(t,node);
