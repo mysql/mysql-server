@@ -65,6 +65,12 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define WHEN_NOT_GCOV(x) x
 #endif
 
+#if !defined(__clang__)
+# define ENSURE_POD(type) static_assert(std::is_pod<type>::value, #type " isn't POD")
+#else
+# define ENSURE_POD(type) // TEMP, clang is much more strict about POD.
+#endif
+
 #define lazy_assert(a)          assert(a)      // indicates code is incomplete 
 #define lazy_assert_zero(a)     assert_zero(a) // indicates code is incomplete 
 #define invariant(a)            assert(a)      // indicates a code invariant that must be true
