@@ -56,6 +56,8 @@ struct innodb_conn_data_struct {
 	ib_crsr_t       idx_crsr;	/*!< index cursor */
 	bool            in_use;		/*!< whether the connection
 					is processing a request */
+	bool		is_stale;	/*!< connection closed, this is
+					stale */
 	void*		conn_cookie;	/*!< connection cookie */
 	uint64_t	n_total_reads;	/*!< number of reads */
 	uint64_t	n_reads_since_commit;
@@ -70,6 +72,7 @@ struct innodb_conn_data_struct {
 	void*		mysql_tbl;	/*!< MySQL TABLE, used for binlog */
 	meta_cfg_info_t*conn_meta;	/*!< metadata info for this
 					connection */
+	pthread_mutex_t	curr_conn_mutex;/*!< mutex protect current connection */
 	UT_LIST_NODE_T(innodb_conn_data_t)
 			conn_list;	/*!< list ptr */
 };
@@ -113,6 +116,9 @@ typedef struct innodb_engine {
 						for InnoDB Memcached */
 	ib_trx_level_t		trx_level;	/*!< transaction isolation
 						level */
+	ib_ulint_t		bk_commit_interval;
+						/*!< background commit
+						interval in seconds */
 	int			cfg_status;	/*!< configure status */
 	meta_cfg_info_t*	meta_info;	/*!< default metadata info from
 						configuration */
@@ -122,6 +128,9 @@ typedef struct innodb_engine {
 						connection specific data */
 	pthread_mutex_t		cas_mutex;	/*!< mutex synchronizes
 						CAS */
+	pthread_t		bk_thd_for_commit;/*!< background thread for
+						committing long running
+						transactions */
 	ib_cb_t*		innodb_cb;	/*!< pointer to callback
 						functions */
 	uint64_t		read_batch_size;/*!< configured read batch

@@ -68,6 +68,9 @@ my_bool ib_disable_row_lock = FALSE;
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
 
+/** configure variable for background commit interval in seconds */
+ulong ib_bk_commit_interval = 0;
+
 /** InnoDB tuple types. */
 enum ib_tuple_type_t{
 	TPL_TYPE_ROW,			/*!< Data row tuple */
@@ -610,6 +613,18 @@ ib_trx_state(
 	return((ib_trx_state_t) trx->state);
 }
 
+/*****************************************************************//**
+Get a trx start time.
+@return	trx start_time */
+UNIV_INTERN
+ib_u64_t
+ib_trx_get_start_time(
+/*==================*/
+	ib_trx_t	ib_trx)		/*!< in: transaction */
+{
+	trx_t*		trx = (trx_t*) ib_trx;
+	return(static_cast<ib_u64_t>(trx->start_time));
+}
 /*****************************************************************//**
 Release the resources of the transaction.
 @return	DB_SUCCESS or err code */
@@ -3359,7 +3374,7 @@ ib_cursor_set_lock_mode(
 
 	if (ib_lck_mode == IB_LOCK_X) {
 		err = ib_cursor_lock(ib_crsr, IB_LOCK_IX);
-	} else {
+	} else if (ib_lck_mode == IB_LOCK_S) {
 		err = ib_cursor_lock(ib_crsr, IB_LOCK_IS);
 	}
 
@@ -3777,6 +3792,17 @@ ib_cfg_trx_level()
 /*==============*/
 {
 	return(static_cast<ib_trx_state_t>(ib_trx_level_setting));
+}
+
+/*****************************************************************//**
+Return configure value for background commit interval (in seconds)
+@return background commit interval (in seconds) */
+UNIV_INTERN
+ib_ulint_t
+ib_cfg_bk_commit_interval()
+/*=======================*/
+{
+	return(static_cast<ib_ulint_t>(ib_bk_commit_interval));
 }
 
 /*****************************************************************//**
