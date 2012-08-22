@@ -2513,7 +2513,31 @@ Dblqh::dropTab_wait_usage(Signal* signal){
 void
 Dblqh::execDROP_TAB_REQ(Signal* signal){
   jamEntry();
-
+  if (ERROR_INSERTED(5076))
+  {
+    /**
+     * This error insert simulates a situation where it takes a long time
+     * to execute DROP_TAB_REQ, such that we can crash the (dict) master
+     * while there is an outstanding DROP_TAB_REQ.
+     */
+    jam();
+    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal, 1000,
+                        signal->getLength());
+    return;
+  }
+  if (ERROR_INSERTED(5077))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    /** 
+     * Kill this node 2 seconds from now. We wait for two seconds to make sure
+     * that DROP_TAB_REQ messages have reached other nodes before this one
+     * dies.
+     */
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 2000, 1);
+    return;
+  }
   DropTabReq reqCopy = * (DropTabReq*)signal->getDataPtr();
   DropTabReq* req = &reqCopy;
   
@@ -23709,7 +23733,7 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       row.write_uint32(getOwnNodeId());
       row.write_uint32(0);              // log type, 0 = REDO
       row.write_uint32(0);              // log id, always 0 in LQH
-      row.write_uint32(logpart);        // log part
+      row.write_uint32(logPartPtr.p->logPartNo); // log part
 
       row.write_uint64(total*1024*1024);          // total allocated
       row.write_uint64((total-mb)*1024*1024);     // currently in use

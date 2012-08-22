@@ -2225,6 +2225,7 @@ void Dbdict::initCommonData()
   c_systemRestart = false;
   c_initialNodeRestart = false;
   c_nodeRestart = false;
+  c_takeOverInProgress = false;
 
   c_outstanding_sub_startstop = 0;
   c_sub_startstop_lock.clear();
@@ -4619,6 +4620,7 @@ void Dbdict::handle_master_takeover(Signal* signal)
   }
   DictTakeoverReq* req = (DictTakeoverReq*)signal->getDataPtrSend();
   req->senderRef = reference();
+  c_takeOverInProgress = true;
   sendSignal(rg, GSN_DICT_TAKEOVER_REQ, signal,
                DictTakeoverReq::SignalLength, JBB);
 }
@@ -7827,8 +7829,8 @@ Dbdict::dropTable_complete_done(Signal* signal,
     sendSignal(SUMA_REF, GSN_DROP_TAB_CONF, signal,
                DropTabConf::SignalLength, JBB);
   }
-
-  sendTransConf(signal, trans_ptr);
+  ndbassert(op_ptr.p->m_state == SchemaOp::OS_COMPLETING);
+  sendTransConf(signal, op_ptr);
 }
 
 // DropTable: ABORT
@@ -19745,12 +19747,16 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
        case SchemaOp::OS_COMMITTING:
        case SchemaOp::OS_COMPLETING:
        {
+         /**
+          * Wait 100ms and check again. This delay is there to save CPU cycles
+          * and to avoid filling the jam trace buffer.
+          */
          jam();
          Uint32* data = &signal->theData[0];
-         data[0] = ZDICT_TAKEOVER_REQ;
          memmove(&data[1], &data[0], DictTakeoverReq::SignalLength << 2);
-         sendSignal(reference(), GSN_CONTINUEB, signal,
-                    1 + DictTakeoverReq::SignalLength, JBB);
+         data[0] = ZDICT_TAKEOVER_REQ;
+         sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                             100, 1 + DictTakeoverReq::SignalLength);
          return;
        }
        default:
@@ -19873,6 +19879,7 @@ Dbdict::execDICT_TAKEOVER_REF(Signal* signal)
       return;
     }
   }
+  c_takeOverInProgress = false;
   check_takeover_replies(signal);
 }
 
@@ -19918,6 +19925,7 @@ Dbdict::execDICT_TAKEOVER_CONF(Signal* signal)
       return;
     }
   }
+  c_takeOverInProgress = false;
   check_takeover_replies(signal);
 }
 
@@ -24813,6 +24821,18 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       break;
     }
 
+    if (c_takeOverInProgress)
+    {
+      /**
+       * There is a dict takeover in progress. There may thus another
+       * transaction that should be rolled backward or forward before we
+       * can allow another transaction to start.
+       */
+      jam();
+      setError(error, SchemaTransBeginRef::Busy, __LINE__);
+      break;
+    }
+
     if (!check_ndb_versions() && !localTrans)
     {
       jam();
@@ -25008,6 +25028,18 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       // future when MNF is handled
       //ndbassert(false);
       setError(error, SchemaTransEndRef::NotMaster, __LINE__);
+      break;
+    }
+
+    if (c_takeOverInProgress)
+    {
+      /**
+       * There is a dict takeover in progress, and the transaction may thus
+       * be in an inconsistent state. Therefore we cannot process this request
+       * now.
+       */
+      jam();
+      setError(error, SchemaTransEndRef::Busy, __LINE__);
       break;
     }
 #ifdef MARTIN
@@ -25222,6 +25254,17 @@ Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
 
+  if (c_takeOverInProgress)
+  {
+    /**
+     * The new master will rebuild the transaction state from the
+     * DICT_TAKEOVER_CONF signals. Therefore we ignore this signal during 
+     * takeover.
+     */
+    jam();
+    return;
+  }
+
   const SchemaTransImplConf* conf =
     (const SchemaTransImplConf*)signal->getDataPtr();
 
@@ -25247,6 +25290,17 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
 {
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
+
+  if (c_takeOverInProgress)
+  {
+    /**
+     * The new master will rebuild the transaction state from the
+     * DICT_TAKEOVER_CONF signals. Therefore we ignore this signal during 
+     * takeover.
+     */
+    jam();
+    return;
+  }
 
   SchemaTransImplRef refCopy =
     *(SchemaTransImplRef*)signal->getDataPtr();
