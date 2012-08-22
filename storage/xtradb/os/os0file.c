@@ -3593,13 +3593,12 @@ os_aio_simulated_wake_handler_thread(
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
-	ulint		segment __attribute__ ((unused));
 	ulint		n;
 	ulint		i;
 
 	ut_ad(!os_aio_use_native_aio);
 
-	segment = os_aio_get_array_and_local_segment(&array, global_segment);
+	os_aio_get_array_and_local_segment(&array, global_segment);
 
 	n = array->n_slots;
 
@@ -4079,7 +4078,6 @@ os_aio_simulated_handle(
 	ulint*	space_id)
 {
 	os_aio_array_t*	array;
-	ulint		segment __attribute__ ((unused));
 	os_aio_slot_t*	slot;
 	os_aio_slot_t*	slot2;
 	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];
@@ -4102,7 +4100,7 @@ os_aio_simulated_handle(
 	/* Fix compiler warning */
 	*consecutive_ios = NULL;
 
-	segment = os_aio_get_array_and_local_segment(&array, global_segment);
+	os_aio_get_array_and_local_segment(&array, global_segment);
 
 restart:
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
@@ -4111,7 +4109,6 @@ restart:
 	srv_set_io_thread_op_info(global_segment,
 				  "looking for i/o requests (a)");
 	ut_ad(os_aio_validate());
-	ut_ad(segment < array->n_segments);
 
 	n = array->n_slots;
 

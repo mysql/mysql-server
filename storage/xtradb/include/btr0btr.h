@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -188,26 +188,45 @@ btr_block_get_func(
 	ulint		mode,		/*!< in: latch mode */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr)		/*!< in/out: mtr */
-	__attribute__((nonnull));
+# ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,	/*!< in: index tree, may be NULL
+					if it is not an insert buffer tree */
+# endif /* UNIV_SYNC_DEBUG */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+# ifdef UNIV_SYNC_DEBUG
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param index	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the block descriptor */
-# define btr_block_get(space,zip_size,page_no,mode,mtr) \
-	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+#  define btr_block_get(space,zip_size,page_no,mode,index,mtr)	\
+	btr_block_get_func(space,zip_size,page_no,mode,		\
+			   __FILE__,__LINE__,index,mtr)
+# else /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
 @param space	tablespace identifier
 @param zip_size	compressed page size in bytes or 0 for uncompressed pages
 @param page_no	page number
 @param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
+@param mtr	mini-transaction handle
+@return the block descriptor */
+#  define btr_block_get(space,zip_size,page_no,mode,idx,mtr)		\
+	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+# endif /* UNIV_SYNC_DEBUG */
+/** Gets a buffer page and declares its latching order level.
+@param space	tablespace identifier
+@param zip_size	compressed page size in bytes or 0 for uncompressed pages
+@param page_no	page number
+@param mode	latch mode
+@param idx	index tree, may be NULL if not the insert buffer tree
 @param mtr	mini-transaction handle
 @return the uncompressed page frame */
-# define btr_page_get(space,zip_size,page_no,mode,mtr) \
-	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,mtr))
+# define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
+	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
 /**************************************************************//**
 Sets the index id field of a page. */
 UNIV_INLINE
@@ -378,8 +397,7 @@ btr_free_root(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	root_page_no,	/*!< in: root page number */
-	mtr_t*	mtr);		/*!< in: a mini-transaction which has already
-				been started */
+	mtr_t*	mtr);		/*!< in/out: mini-transaction */
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.
@@ -588,17 +606,23 @@ btr_parse_page_reorganize(
 #ifndef UNIV_HOTBACKUP
 /**************************************************************//**
 Gets the number of pages in a B-tree.
-@return	number of pages */
+@return	number of pages, or ULINT_UNDEFINED if the index is unavailable */
 UNIV_INTERN
 ulint
 btr_get_size(
 /*=========*/
 	dict_index_t*	index,	/*!< in: index */
-	ulint		flag);	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+	ulint		flag,	/*!< in: BTR_N_LEAF_PAGES or BTR_TOTAL_SIZE */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction where index
+				is s-latched */
+	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Allocates a new file page to be used in an index tree. NOTE: we assume
 that the caller has made the reservation for free extents!
-@return	new allocated block, x-latched; NULL if out of space */
+@retval NULL if no page could be allocated
+@retval block, rw_lock_x_lock_count(&block->lock) == 1 if allocation succeeded
+(init_mtr == mtr, or the page was not previously freed in mtr)
+@retval block (not allocated or initialized) otherwise */
 UNIV_INTERN
 buf_block_t*
 btr_page_alloc(
@@ -609,7 +633,12 @@ btr_page_alloc(
 					page split is made */
 	ulint		level,		/*!< in: level where the page is placed
 					in the tree */
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*		mtr,		/*!< in/out: mini-transaction
+					for the allocation */
+	mtr_t*		init_mtr)	/*!< in/out: mini-transaction
+					for x-latching and initializing
+					the page */
+	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Frees a file page used in an index tree. NOTE: cannot free field external
 storage pages because the page must contain info on its level. */

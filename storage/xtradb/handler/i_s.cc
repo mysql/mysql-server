@@ -768,7 +768,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
         table->field[2]->store(block->page.offset);
         table->field[3]->store(page_get_n_recs(frame));
         table->field[4]->store(page_get_data_size(frame));
-        table->field[5]->store(block->is_hashed);
+        table->field[5]->store(block->index != NULL); /* is_hashed */
         table->field[6]->store(block->page.access_time);
         table->field[7]->store(block->page.newest_modification != 0);
         table->field[8]->store(block->page.oldest_modification != 0);

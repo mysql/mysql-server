@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -356,7 +356,7 @@ ibuf_tree_root_get(
 	block = buf_page_get(
 		IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO, RW_X_LATCH, mtr);
 
-	buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+	buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 	return(buf_block_get_frame(block));
 }
@@ -498,7 +498,7 @@ ibuf_init_at_db_start(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, FSP_IBUF_TREE_ROOT_PAGE_NO,
 			RW_X_LATCH, &mtr);
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 		root = buf_block_get_frame(block);
 	}
@@ -1725,14 +1725,14 @@ ulint
 ibuf_add_free_page(void)
 /*====================*/
 {
-	mtr_t	mtr;
-	page_t*	header_page;
-	ulint	flags;
-	ulint	zip_size;
-	ulint	page_no;
-	page_t*	page;
-	page_t*	root;
-	page_t*	bitmap_page;
+	mtr_t		mtr;
+	page_t*		header_page;
+	ulint		flags;
+	ulint		zip_size;
+	buf_block_t*	block;
+	page_t*		page;
+	page_t*		root;
+	page_t*		bitmap_page;
 
 	mtr_start(&mtr);
 
@@ -1753,33 +1753,23 @@ ibuf_add_free_page(void)
 	of a deadlock. This is the reason why we created a special ibuf
 	header page apart from the ibuf tree. */
 
-	page_no = fseg_alloc_free_page(
+	block = fseg_alloc_free_page(
 		header_page + IBUF_HEADER + IBUF_TREE_SEG_HEADER, 0, FSP_UP,
 		&mtr);
 
-	if (page_no == FIL_NULL) {
+	if (block == NULL) {
 		mtr_commit(&mtr);
 
 		return(DB_STRONG_FAIL);
 	}
 
-	{
-		buf_block_t*	block;
-
-		block = buf_page_get(
-			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
-
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE_NEW);
-
-
-		page = buf_block_get_frame(block);
-	}
-
+	ut_ad(rw_lock_get_x_lock_count(&block->lock) == 1);
 	ibuf_enter();
-
 	mutex_enter(&ibuf_mutex);
-
 	root = ibuf_tree_root_get(&mtr);
+
+	buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE_NEW);
+	page = buf_block_get_frame(block);
 
 	/* Add the page to the free list and update the ibuf size data */
 
@@ -1796,10 +1786,11 @@ ibuf_add_free_page(void)
 	(level 2 page) */
 
 	bitmap_page = ibuf_bitmap_get_map_page(
-		IBUF_SPACE_ID, page_no, zip_size, &mtr);
+		IBUF_SPACE_ID, buf_block_get_page_no(block), zip_size, &mtr);
 
 	ibuf_bitmap_page_set_bits(
-		bitmap_page, page_no, zip_size, IBUF_BITMAP_IBUF, TRUE, &mtr);
+		bitmap_page, buf_block_get_page_no(block), zip_size,
+		IBUF_BITMAP_IBUF, TRUE, &mtr);
 
 	mtr_commit(&mtr);
 
@@ -1900,8 +1891,7 @@ ibuf_remove_free_page(void)
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, page_no, RW_X_LATCH, &mtr);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
-
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 		page = buf_block_get_frame(block);
 	}
@@ -2095,7 +2085,15 @@ ibuf_get_merge_page_nos(
 		} else {
 			rec_page_no = ibuf_rec_get_page_no(rec);
 			rec_space_id = ibuf_rec_get_space(rec);
-			ut_ad(rec_page_no > IBUF_TREE_ROOT_PAGE_NO);
+			/* In the system tablespace, the smallest
+			possible secondary index leaf page number is
+			bigger than IBUF_TREE_ROOT_PAGE_NO (4). In
+			other tablespaces, the clustered index tree is
+			created at page 3, which makes page 4 the
+			smallest possible secondary index leaf page
+			(and that only after DROP INDEX). */
+			ut_ad(rec_page_no
+			      > IBUF_TREE_ROOT_PAGE_NO - (rec_space_id != 0));
 		}
 
 #ifdef UNIV_IBUF_DEBUG
@@ -2413,7 +2411,7 @@ ibuf_get_volume_buffered(
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, prev_page_no, RW_X_LATCH, mtr);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 
 		prev_page = buf_block_get_frame(block);
@@ -2487,7 +2485,7 @@ count_later:
 		block = buf_page_get(
 			IBUF_SPACE_ID, 0, next_page_no, RW_X_LATCH, mtr);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 
 
 		next_page = buf_block_get_frame(block);
@@ -2980,7 +2978,7 @@ ibuf_insert_to_index_page(
 
 	ut_ad(ibuf_inside());
 	ut_ad(dtuple_check_typed(entry));
-	ut_ad(!buf_block_align(page)->is_hashed);
+	ut_ad(!buf_block_align(page)->index);
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {
@@ -3255,6 +3253,7 @@ ibuf_merge_or_delete_for_page(
 	ut_ad(!block || buf_block_get_space(block) == space);
 	ut_ad(!block || buf_block_get_page_no(block) == page_no);
 	ut_ad(!block || buf_block_get_zip_size(block) == zip_size);
+	ut_ad(!block || buf_block_get_io_fix(block) == BUF_IO_READ);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(space, page_no)) {
@@ -3289,7 +3288,7 @@ ibuf_merge_or_delete_for_page(
 		function. When the counter is > 0, that prevents tablespace
 		from being dropped. */
 
-		tablespace_being_deleted = fil_inc_pending_ibuf_merges(space);
+		tablespace_being_deleted = fil_inc_pending_ops(space);
 
 		if (UNIV_UNLIKELY(tablespace_being_deleted)) {
 			/* Do not try to read the bitmap page from space;
@@ -3313,7 +3312,7 @@ ibuf_merge_or_delete_for_page(
 				mtr_commit(&mtr);
 
 				if (!tablespace_being_deleted) {
-					fil_decr_pending_ibuf_merges(space);
+					fil_decr_pending_ops(space);
 				}
 
 				return;
@@ -3410,7 +3409,13 @@ loop:
 
 		ut_a(success);
 
-		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
+		/* This is a user page (secondary index leaf page),
+		but we pretend that it is a change buffer page in
+		order to obey the latching order. This should be OK,
+		because buffered changes are applied immediately while
+		the block is io-fixed. Other threads must not try to
+		latch an io-fixed block. */
+		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 	}
 
 	/* Position pcur in the insert buffer at the first entry for this
@@ -3539,7 +3544,7 @@ reset_bit:
 
 	if (update_ibuf_bitmap && !tablespace_being_deleted) {
 
-		fil_decr_pending_ibuf_merges(space);
+		fil_decr_pending_ops(space);
 	}
 
 	ibuf_exit();

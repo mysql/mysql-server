@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -53,6 +53,14 @@ Created 9/17/2000 Heikki Tuuri
 #include "fil0fil.h"
 #include "ibuf0ibuf.h"
 #include "ha_prototypes.h"
+
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
@@ -1363,6 +1371,8 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
+	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
+
 	trx->op_info = "updating or deleting";
 
 	row_mysql_delay_if_needed();
@@ -1914,6 +1924,20 @@ err_exit:
 			trx_commit_for_mysql(trx);
 		}
 		break;
+
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* We already have .ibd file here. it should be deleted. */
+
+		if (table->space && !fil_delete_tablespace(table->space)) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Error: not able to"
+				" delete tablespace %lu of table ",
+				(ulong) table->space);
+			ut_print_name(stderr, trx, TRUE, table->name);
+			fputs("!\n", stderr);
+		}
+		/* fall through */
 
 	case DB_DUPLICATE_KEY:
 	default:
@@ -2709,7 +2733,7 @@ row_import_tablespace_for_mysql(
 	success = fil_open_single_table_tablespace(
 		TRUE, table->space,
 		table->flags == DICT_TF_COMPACT ? 0 : table->flags,
-		table->name);
+		table->name, trx);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
@@ -3121,6 +3145,7 @@ row_drop_table_for_mysql(
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
+	dict_index_t*	index;
 	ulint		space_id;
 	ulint		err;
 	const char*	table_name;
@@ -3327,6 +3352,18 @@ check_next_foreign:
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 	trx->table_id = table->id;
 
+	/* Mark all indexes unavailable in the data dictionary cache
+	before starting to drop the table. */
+
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		rw_lock_x_lock(dict_index_get_lock(index));
+		ut_ad(!index->to_be_dropped);
+		index->to_be_dropped = TRUE;
+		rw_lock_x_unlock(dict_index_get_lock(index));
+	}
+
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in deleting the dictionary data from system
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
@@ -3343,6 +3380,19 @@ check_next_foreign:
 			   "index_id CHAR;\n"
 			   "foreign_id CHAR;\n"
 			   "found INT;\n"
+
+			   "DECLARE CURSOR cur_fk IS\n"
+			   "SELECT ID FROM SYS_FOREIGN\n"
+			   "WHERE FOR_NAME = :table_name\n"
+			   "AND TO_BINARY(FOR_NAME)\n"
+			   "  = TO_BINARY(:table_name)\n"
+			   "LOCK IN SHARE MODE;\n"
+
+			   "DECLARE CURSOR cur_idx IS\n"
+			   "SELECT ID FROM SYS_INDEXES\n"
+			   "WHERE TABLE_ID = table_id\n"
+			   "LOCK IN SHARE MODE;\n"
+
 			   "BEGIN\n"
 			   "SELECT ID INTO table_id\n"
 			   "FROM SYS_TABLES\n"
@@ -3365,13 +3415,9 @@ check_next_foreign:
 			   "IF (:table_name = 'SYS_FOREIGN_COLS') THEN\n"
 			   "       found := 0;\n"
 			   "END IF;\n"
+			   "OPEN cur_fk;\n"
 			   "WHILE found = 1 LOOP\n"
-			   "       SELECT ID INTO foreign_id\n"
-			   "       FROM SYS_FOREIGN\n"
-			   "       WHERE FOR_NAME = :table_name\n"
-			   "               AND TO_BINARY(FOR_NAME)\n"
-			   "                 = TO_BINARY(:table_name)\n"
-			   "               LOCK IN SHARE MODE;\n"
+			   "       FETCH cur_fk INTO foreign_id;\n"
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
@@ -3381,12 +3427,11 @@ check_next_foreign:
 			   "               WHERE ID = foreign_id;\n"
 			   "       END IF;\n"
 			   "END LOOP;\n"
+			   "CLOSE cur_fk;\n"
 			   "found := 1;\n"
+			   "OPEN cur_idx;\n"
 			   "WHILE found = 1 LOOP\n"
-			   "       SELECT ID INTO index_id\n"
-			   "       FROM SYS_INDEXES\n"
-			   "       WHERE TABLE_ID = table_id\n"
-			   "       LOCK IN SHARE MODE;\n"
+			   "       FETCH cur_idx INTO index_id;\n"
 			   "       IF (SQL % NOTFOUND) THEN\n"
 			   "               found := 0;\n"
 			   "       ELSE\n"
@@ -3399,6 +3444,7 @@ check_next_foreign:
 			   "               AND TABLE_ID = table_id;\n"
 			   "       END IF;\n"
 			   "END LOOP;\n"
+			   "CLOSE cur_idx;\n"
 			   "DELETE FROM SYS_COLUMNS\n"
 			   "WHERE TABLE_ID = table_id;\n"
 			   "DELETE FROM SYS_TABLES\n"
@@ -3485,6 +3531,17 @@ check_next_foreign:
 		the undo log. We can directly exit here
 		and return the DB_TOO_MANY_CONCURRENT_TRXS
 		error. */
+
+		/* Mark all indexes available in the data dictionary
+		cache again. */
+
+		for (index = dict_table_get_first_index(table);
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
+			rw_lock_x_lock(dict_index_get_lock(index));
+			index->to_be_dropped = FALSE;
+			rw_lock_x_unlock(dict_index_get_lock(index));
+		}
 		break;
 
 	case DB_OUT_OF_FILE_SPACE:
@@ -3842,6 +3899,7 @@ row_rename_table_for_mysql(
 	ulint		n_constraints_to_drop	= 0;
 	ibool		old_is_tmp, new_is_tmp;
 	pars_info_t*	info			= NULL;
+	ulint		retry			= 0;
 
 	ut_ad(trx->mysql_thread_id == os_thread_get_curr_id());
 	ut_a(old_name != NULL);
@@ -3923,6 +3981,25 @@ row_rename_table_for_mysql(
 
 			goto funct_exit;
 		}
+	}
+
+	/* Is a foreign key check running on this table? */
+	for (retry = 0; retry < 100
+	     && table->n_foreign_key_checks_running > 0; ++retry) {
+		row_mysql_unlock_data_dictionary(trx);
+		os_thread_yield();
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	if (table->n_foreign_key_checks_running > 0) {
+		ut_print_timestamp(stderr);
+		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
+		ut_print_name(stderr, trx, TRUE, old_name);
+		fprintf(stderr, "\n"
+			"InnoDB: a FOREIGN KEY check is running.\n"
+			"InnoDB: Cannot rename table.\n");
+		err = DB_TABLE_IN_FK_CHECK;
+		goto funct_exit;
 	}
 
 	/* We use the private SQL parser of Innobase to generate the query
@@ -4086,6 +4163,7 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+			err = DB_ERROR;
 			goto funct_exit;
 		}
 
