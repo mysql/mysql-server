@@ -3890,10 +3890,13 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
   uchar buff[STACK_BUFF_ALLOC];
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(0);                           // Fatal error flag is set
+
+  DBUG_ASSERT(select);
+
+  TABLE_LIST *const tl= table->pos_in_table_list;
+
   // Derived tables aren't filled yet, so no stats are available.
-  if (select &&
-      (!table->pos_in_table_list->uses_materialization() ||
-       table->pos_in_table_list->materialized))
+  if (!tl->uses_materialization())
   {
     select->head=table;
     int error= select->test_quick_select(thd, 
@@ -3910,6 +3913,10 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
       DBUG_RETURN(0);
     }
     DBUG_PRINT("warning",("Couldn't use record count on const keypart"));
+  }
+  else if (tl->materializable_is_const())
+  {
+    DBUG_RETURN(tl->get_unit()->get_result()->estimated_rowcount);
   }
   DBUG_RETURN(HA_POS_ERROR);
 }

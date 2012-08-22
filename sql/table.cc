@@ -5714,6 +5714,14 @@ void init_mdl_requests(TABLE_LIST *table_list)
 }
 
 
+
+///  @returns true if materializable table contains one or zero rows
+bool TABLE_LIST::materializable_is_const() const
+{
+  DBUG_ASSERT(uses_materialization());
+  return get_unit()->get_result()->estimated_rowcount <= 1;
+}
+
 /**
   @brief
   Retrieve number of rows in the table
@@ -5731,7 +5739,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (uses_materialization() && !materialized)
+  if (uses_materialization())
     table->file->stats.records= derived->get_result()->estimated_rowcount;
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -6026,7 +6034,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
   @return 0                    when it's not a derived table/view.
 */
 
-st_select_lex_unit *TABLE_LIST::get_unit()
+st_select_lex_unit *TABLE_LIST::get_unit() const
 {
   return (view ? &view->unit : derived);
 }

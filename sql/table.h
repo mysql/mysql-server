@@ -1796,11 +1796,6 @@ public:
   uint8 trg_event_map;
   /* TRUE <=> this table is a const one and was optimized away. */
   bool optimized_away;
-  /**
-    TRUE <=> already materialized. Valid only for materialized derived
-    tables/views.
-  */
-  bool materialized;
   uint i_s_requested_object;
   bool has_db_lookup_value;
   bool has_table_lookup_value;
@@ -1860,15 +1855,23 @@ public:
       TRUE  this is a materializable derived table/view.
       FALSE otherwise.
   */
-  inline bool uses_materialization()
+  inline bool uses_materialization() const
   {
     return (effective_algorithm == VIEW_ALGORITHM_TMPTABLE ||
             effective_algorithm == DERIVED_ALGORITHM_TMPTABLE);
   }
-  inline bool is_view_or_derived()
+  inline bool is_view_or_derived() const
   {
     return (effective_algorithm != VIEW_ALGORITHM_UNDEFINED);
   }
+  /**
+    @returns true if materializable table contains one or zero rows.
+
+    Returning true implies that the table is materialized during optimization,
+    so it need not be optimized during execution.
+  */
+  bool materializable_is_const() const;
+
   void register_want_access(ulong want_access);
   bool prepare_security(THD *thd);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1947,7 +1950,7 @@ public:
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();
   bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
-  st_select_lex_unit *get_unit();
+  st_select_lex_unit *get_unit() const;
 
   /**
     @brief Returns the outer join nest that this TABLE_LIST belongs to, if any.
