@@ -1932,7 +1932,7 @@ fil_inc_pending_ops(
 
 	if (space == NULL) {
 		fprintf(stderr,
-			"InnoDB: Error: trying to do ibuf merge to a"
+			"InnoDB: Error: trying to do an operation on a"
 			" dropped tablespace %lu\n",
 			(ulong) id);
 	}
@@ -3440,6 +3440,7 @@ skip_info:
 			for (offset = 0; offset < free_limit_bytes;
 			     offset += zip_size ? zip_size : UNIV_PAGE_SIZE) {
 				ibool		page_is_corrupt;
+				ibool		is_descr_page = FALSE;
 
 				success = os_file_read(file, page,
 							(ulint)(offset & 0xFFFFFFFFUL),
@@ -3478,6 +3479,7 @@ skip_info:
 
 					/* store as descr page */
 					memcpy(descr_page, page, (zip_size ? zip_size : UNIV_PAGE_SIZE));
+					is_descr_page = TRUE;
 
 				} else if (descr_is_corrupt) {
 					/* unknown state of the page */
@@ -3554,7 +3556,8 @@ skip_info:
 						}
 					}
 
-					if (fil_page_get_type(page) == FIL_PAGE_INDEX) {
+					if (fil_page_get_type(page) ==
+					    FIL_PAGE_INDEX && !is_descr_page) {
 						index_id_t tmp = mach_read_from_8(page + (PAGE_HEADER + PAGE_INDEX_ID));
 
 						for (i = 0; i < n_index; i++) {
