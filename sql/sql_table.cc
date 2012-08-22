@@ -7826,6 +7826,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Set markers for fields in TABLE object for altered table. */
     update_altered_table(ha_alter_info, altered_table);
 
+    /*
+      Mark all columns in 'altered_table' as used to allow usage
+      of its record[0] buffer and Field objects during in-place
+      ALTER TABLE.
+    */
+    altered_table->column_bitmaps_set_no_signal(&altered_table->s->all_set,
+                                                &altered_table->s->all_set);
+
     if (ha_alter_info.handler_flags == 0)
     {
       /*
@@ -8541,9 +8549,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                 (to->key_info[0].key_part[0].field->flags &
                  AUTO_INCREMENT_FLAG))
               err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-            to->file->print_keydup_error(key_nr == MAX_KEY ?
-                                         NULL : &to->key_info[key_nr],
-                                         err_msg, MYF(0));
+            print_keydup_error(to, key_nr == MAX_KEY ? NULL :
+                                   &to->key_info[key_nr],
+                               err_msg, MYF(0));
           }
           else
             to->file->print_error(error, MYF(0));
