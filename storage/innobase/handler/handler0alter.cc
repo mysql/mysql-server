@@ -349,17 +349,17 @@ ha_innobase::check_if_supported_inplace_alter(
 
 			DBUG_ASSERT(new_field);
 
-			key_part->field = new_field->field;
+			key_part->field = altered_table->field[
+				key_part->fieldnr];
 
 			if (new_field->field) {
+				/* This is an existing column. */
 				continue;
 			}
 
 			/* This is an added column. */
 			DBUG_ASSERT(ha_alter_info->handler_flags
 				    & Alter_inplace_info::ADD_COLUMN);
-			key_part->field = altered_table->field[
-				key_part->fieldnr];
 
 			/* We cannot replace a hidden FTS_DOC_ID
 			with a user-visible FTS_DOC_ID. */
@@ -1077,46 +1077,26 @@ void
 innobase_rec_to_mysql(
 /*==================*/
 	struct TABLE*		table,	/*!< in/out: MySQL table */
-	const ulint*		col_map,/*!< in: mapping of column
-					numbers in table to the
-					rebuilt table (index->table),
-					or NULL if not rebuilding table */
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index,	/*!< in: index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(
 					rec, index, ...) */
 {
 	uint	n_fields	= table->s->fields;
-	uint	i;
 
-	ut_ad(col_map || n_fields == dict_table_get_n_user_cols(index->table)
+	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
 	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
 					DICT_TF2_FTS_HAS_DOC_ID)));
 
-	for (i = 0; i < n_fields; i++) {
+	for (uint i = 0; i < n_fields; i++) {
 		Field*		field	= table->field[i];
-		ulint		col_no;
 		ulint		ipos;
 		ulint		ilen;
 		const uchar*	ifield;
 
 		field->reset();
 
-		if (col_map) {
-			col_no = col_map[i];
-
-			if (col_no >= n_fields) {
-				/* If col_no != ULINT_UNDEFINED, this
-				should be a hidden FTS_DOC_ID column.
-				Either way, it does not exist in the
-				MySQL view of the table. */
-				goto null_field;
-			}
-		} else {
-			col_no = i;
-		}
-
-		ipos = dict_index_get_nth_col_pos(index, col_no);
+		ipos = dict_index_get_nth_col_pos(index, i);
 
 		if (ipos == ULINT_UNDEFINED
 		    || rec_offs_nth_extern(offsets, ipos)) {
@@ -1129,7 +1109,7 @@ null_field:
 
 		/* Assign the NULL flag */
 		if (ilen == UNIV_SQL_NULL) {
-			ut_ad(col_map || field->real_maybe_null());
+			ut_ad(field->real_maybe_null());
 			goto null_field;
 		}
 
@@ -1139,6 +1119,85 @@ null_field:
 			dict_field_get_col(
 				dict_index_get_nth_field(index, ipos)),
 			ifield, ilen, field);
+	}
+}
+
+/*************************************************************//**
+Copies an InnoDB index entry to table->record[0]. */
+UNIV_INTERN
+void
+innobase_fields_to_mysql(
+/*=====================*/
+	struct TABLE*		table,	/*!< in/out: MySQL table */
+	const dict_index_t*	index,	/*!< in: InnoDB index */
+	const dfield_t*		fields)	/*!< in: InnoDB index fields */
+{
+	uint	n_fields	= table->s->fields;
+
+	ut_ad(n_fields == dict_table_get_n_user_cols(index->table)
+	      - !!(DICT_TF2_FLAG_IS_SET(index->table,
+					DICT_TF2_FTS_HAS_DOC_ID)));
+
+	for (uint i = 0; i < n_fields; i++) {
+		Field*		field	= table->field[i];
+		ulint		ipos;
+
+		field->reset();
+
+		ipos = dict_index_get_nth_col_pos(index, i);
+
+		if (ipos == ULINT_UNDEFINED
+		    || dfield_is_ext(&fields[ipos])
+		    || dfield_is_null(&fields[ipos])) {
+
+			field->set_null();
+		} else {
+			field->set_notnull();
+
+			const dfield_t*	df	= &fields[ipos];
+
+			innobase_col_to_mysql(
+				dict_field_get_col(
+					dict_index_get_nth_field(index, ipos)),
+				static_cast<const uchar*>(dfield_get_data(df)),
+				dfield_get_len(df), field);
+		}
+	}
+}
+
+/*************************************************************//**
+Copies an InnoDB row to table->record[0]. */
+UNIV_INTERN
+void
+innobase_row_to_mysql(
+/*==================*/
+	struct TABLE*		table,	/*!< in/out: MySQL table */
+	const dict_table_t*	itab,	/*!< in: InnoDB table */
+	const dtuple_t*		row)	/*!< in: InnoDB row */
+{
+	uint  n_fields	= table->s->fields;
+
+	/* The InnoDB row may contain an extra FTS_DOC_ID column at the end. */
+	ut_ad(row->n_fields == dict_table_get_n_cols(itab));
+	ut_ad(n_fields == row->n_fields - DATA_N_SYS_COLS
+	      - !!(DICT_TF2_FLAG_IS_SET(itab, DICT_TF2_FTS_HAS_DOC_ID)));
+
+	for (uint i = 0; i < n_fields; i++) {
+		Field*		field	= table->field[i];
+		const dfield_t*	df	= dtuple_get_nth_field(row, i);
+
+		field->reset();
+
+		if (dfield_is_ext(df) || dfield_is_null(df)) {
+			field->set_null();
+		} else {
+			field->set_notnull();
+
+			innobase_col_to_mysql(
+				dict_table_get_nth_col(itab, i),
+				static_cast<const uchar*>(dfield_get_data(df)),
+				dfield_get_len(df), field);
+		}
 	}
 }
 
@@ -3647,9 +3706,9 @@ ok_exit:
 		prebuilt->trx,
 		prebuilt->table, ctx->indexed_table,
 		ctx->online,
-		ctx->add, ctx->add_key_numbers, ctx->num_to_add, table,
-		ctx->add_cols, ctx->col_map, ctx->add_autoinc,
-		ctx->sequence);
+		ctx->add, ctx->add_key_numbers, ctx->num_to_add,
+		altered_table, ctx->add_cols, ctx->col_map,
+		ctx->add_autoinc, ctx->sequence);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -3657,7 +3716,7 @@ oom:
 	    && ctx->indexed_table != prebuilt->table) {
 		DEBUG_SYNC_C("row_log_table_apply1_before");
 		error = row_log_table_apply(
-			ctx->thr, prebuilt->table, table);
+			ctx->thr, prebuilt->table, altered_table);
 	}
 
 	DEBUG_SYNC_C("inplace_after_index_build");
@@ -3689,7 +3748,7 @@ oom:
 			dup_key = &ha_alter_info->key_info_buffer[
 				prebuilt->trx->error_key_num];
 		}
-		print_keydup_error(dup_key, MYF(0));
+		print_keydup_error(altered_table, dup_key, MYF(0));
 		break;
 	case DB_ONLINE_LOG_TOO_BIG:
 		DBUG_ASSERT(ctx->online);
@@ -4338,6 +4397,18 @@ ha_innobase::commit_inplace_alter_table(
 					= fk_table;
 			}
 
+			/* Add Foreign Key info to in-memory metadata */
+			UT_LIST_ADD_LAST(foreign_list,
+					 fk_table->foreign_list,
+					 ctx->add_fk[i]);
+
+			if (ctx->add_fk[i]->referenced_table) {
+				UT_LIST_ADD_LAST(
+					referenced_list,
+					ctx->add_fk[i]->referenced_table->referenced_list,
+					ctx->add_fk[i]);
+			}
+
 			if (!ctx->add_fk[i]->foreign_index) {
 				ctx->add_fk[i]->foreign_index
 					= dict_foreign_find_index(
@@ -4352,22 +4423,10 @@ ha_innobase::commit_inplace_alter_table(
 					ctx->add_fk[i])) {
 					my_error(ER_FK_INCORRECT_OPTION,
 						 MYF(0),
-						 table_share->table_name.str);
-					err = -1;
+						 table_share->table_name.str,
+						 ctx->add_fk[i]->id);
 					goto undo_add_fk;
 				}
-			}
-
-			/* Add Foreign Key info to in-memory metadata */
-			UT_LIST_ADD_LAST(foreign_list,
-					 fk_table->foreign_list,
-					 ctx->add_fk[i]);
-
-			if (ctx->add_fk[i]->referenced_table) {
-				UT_LIST_ADD_LAST(
-					referenced_list,
-					ctx->add_fk[i]->referenced_table->referenced_list,
-					ctx->add_fk[i]);
 			}
 
 			/* System table change */
@@ -4424,7 +4483,7 @@ undo_add_fk:
 		if (ctx->online) {
 			DEBUG_SYNC_C("row_log_table_apply2_before");
 			error = row_log_table_apply(
-				ctx->thr, prebuilt->table, table);
+				ctx->thr, prebuilt->table, altered_table);
 
 			switch (error) {
 				KEY*	dup_key;
@@ -4445,7 +4504,7 @@ undo_add_fk:
 							prebuilt->trx
 							->error_key_num];
 				}
-				print_keydup_error(dup_key, MYF(0));
+				print_keydup_error(altered_table, dup_key, MYF(0));
 				break;
 			case DB_ONLINE_LOG_TOO_BIG:
 				my_error(ER_INNODB_ONLINE_LOG_TOO_BIG, MYF(0),
@@ -4714,15 +4773,15 @@ trx_rollback:
 		if (add_fts) {
 			fts_optimize_add_table(prebuilt->table);
 		}
+	}
 
-		if (!prebuilt->trx) {
-			/* We created a new clustered index and committed the
-			user transaction already, so that we were able to
-			drop the old table. */
-			update_thd();
-			prebuilt->trx->will_lock++;
-			trx_start_if_not_started_xa(prebuilt->trx);
-		}
+	if (!prebuilt->trx) {
+		/* We created a new clustered index and committed the
+		user transaction already, so that we were able to
+		drop the old table. */
+		update_thd();
+		prebuilt->trx->will_lock++;
+		trx_start_if_not_started_xa(prebuilt->trx);
 	}
 
 	ut_d(dict_table_check_for_dup_indexes(
