@@ -2513,7 +2513,31 @@ Dblqh::dropTab_wait_usage(Signal* signal){
 void
 Dblqh::execDROP_TAB_REQ(Signal* signal){
   jamEntry();
-
+  if (ERROR_INSERTED(5076))
+  {
+    /**
+     * This error insert simulates a situation where it takes a long time
+     * to execute DROP_TAB_REQ, such that we can crash the (dict) master
+     * while there is an outstanding DROP_TAB_REQ.
+     */
+    jam();
+    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal, 1000,
+                        signal->getLength());
+    return;
+  }
+  if (ERROR_INSERTED(5077))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    /** 
+     * Kill this node 2 seconds from now. We wait for two seconds to make sure
+     * that DROP_TAB_REQ messages have reached other nodes before this one
+     * dies.
+     */
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 2000, 1);
+    return;
+  }
   DropTabReq reqCopy = * (DropTabReq*)signal->getDataPtr();
   DropTabReq* req = &reqCopy;
   
