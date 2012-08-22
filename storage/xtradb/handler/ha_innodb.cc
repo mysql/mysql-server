@@ -4701,6 +4701,27 @@ table_opened:
 }
 
 UNIV_INTERN
+handler*
+ha_innobase::clone(
+/*===============*/
+	const char*	name,		/*!< in: table name */
+	MEM_ROOT*	mem_root)	/*!< in: memory context */
+{
+	ha_innobase* new_handler;
+
+	DBUG_ENTER("ha_innobase::clone");
+
+	new_handler = static_cast<ha_innobase*>(handler::clone(name,
+							       mem_root));
+	if (new_handler) {
+		new_handler->prebuilt->select_lock_type
+			= prebuilt->select_lock_type;
+	}
+
+	DBUG_RETURN(new_handler);
+}
+
+UNIV_INTERN
 uint
 ha_innobase::max_supported_key_part_length() const
 {
@@ -9452,7 +9473,7 @@ ha_innobase::check(
 
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	srv_fatal_semaphore_wait_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
 	mutex_exit(&kernel_mutex);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
@@ -9593,7 +9614,7 @@ ha_innobase::check(
 
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+	srv_fatal_semaphore_wait_threshold -= SRV_SEMAPHORE_WAIT_EXTENSION;
 	mutex_exit(&kernel_mutex);
 
 	prebuilt->trx->op_info = "";

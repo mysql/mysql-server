@@ -54,10 +54,7 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_BUGFIX	8
 
 #ifndef PERCONA_INNODB_VERSION
-/* this is *not* the version of XtraDB as in Percona-Server sources,
-   but the version of Percona-Server, where this XtraDB was taken from.
-   Because Percona does not update XtraDB version for every release */
-#define PERCONA_INNODB_VERSION 26.0
+#define PERCONA_INNODB_VERSION 27.0
 #endif
 
 /* The following is the InnoDB version as shown in
