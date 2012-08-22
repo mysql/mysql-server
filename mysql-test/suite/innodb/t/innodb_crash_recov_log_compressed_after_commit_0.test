@@ -120,7 +120,6 @@ SELECT COUNT(*) FROM t1;
 
 --echo #clean up
 DROP TABLE t1;
---remove_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 
 # restore environment to the state it was before this test execution
