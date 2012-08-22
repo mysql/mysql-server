@@ -126,9 +126,9 @@ sub my_find_file {
 #
 #
 sub my_find_dir {
-  my ($base, $paths, $dirs, $required)= @_;
-  croak "usage: my_find_dir(<base>, <paths>[, <dirs>])"
-    unless (@_ == 3 or @_ == 2);
+  my ($base, $paths, $dirs, $optional)= @_;
+  croak "usage: my_find_dir(<base>, <paths>[, <dirs>[, <optional>]])"
+    unless (@_ == 3 or @_ == 2 or @_ == 4);
 
   # -------------------------------------------------------
   # Find and return the first directory
@@ -136,6 +136,7 @@ sub my_find_dir {
   foreach my $path (my_find_paths($base, $paths, $dirs)) {
     return $path if ( -d $path );
   }
+  return "" if $optional;
   find_error($base, $paths, $dirs);
 }
 

@@ -516,7 +516,7 @@ terminate_slave_thread(THD *thd,
     int error __attribute__((unused));
     DBUG_PRINT("loop", ("killing slave thread"));
 
-    pthread_mutex_lock(&thd->LOCK_thd_data);
+    pthread_mutex_lock(&thd->LOCK_thd_kill);
 #ifndef DONT_USE_THR_ALARM
     /*
       Error codes from pthread_kill are:
@@ -527,7 +527,7 @@ terminate_slave_thread(THD *thd,
     DBUG_ASSERT(err != EINVAL);
 #endif
     thd->awake(THD::NOT_KILLED);
-    pthread_mutex_unlock(&thd->LOCK_thd_data);
+    pthread_mutex_unlock(&thd->LOCK_thd_kill);
 
     /*
       There is a small chance that slave thread might miss the first
@@ -1847,8 +1847,7 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   slave threads, since a replication event can become this much larger
   than the corresponding packet (query) sent from client to master.
 */
-  thd->variables.max_allowed_packet= global_system_variables.max_allowed_packet
-    + MAX_LOG_EVENT_HEADER;  /* note, incr over the global not session var */
+  thd->variables.max_allowed_packet= slave_max_allowed_packet;
   thd->slave_thread = 1;
   thd->enable_slow_log= opt_log_slow_slave_statements;
   thd->variables.log_slow_filter= global_system_variables.log_slow_filter;
@@ -2324,7 +2323,8 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       used to read info about the relay log's format; it will be deleted when
       the SQL thread does not need it, i.e. when this thread terminates.
     */
-    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
+    if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT &&
+        !rli->is_deferred_event(ev))
     {
       DBUG_PRINT("info", ("Deleting the event after it has been executed"));
       delete ev;
@@ -2594,6 +2594,7 @@ pthread_handler_t handle_slave_io(void *arg)
     thread, since a replication event can become this much larger than
     the corresponding packet (query) sent from client to master.
   */
+    thd->net.max_packet_size= slave_max_allowed_packet;
     mysql->net.max_packet_size= thd->net.max_packet_size+= MAX_LOG_EVENT_HEADER;
   }
   else
@@ -2725,12 +2726,12 @@ reading event"))
         switch (mysql_error_number) {
         case CR_NET_PACKET_TOO_LARGE:
           sql_print_error("\
-Log entry on master is longer than max_allowed_packet (%ld) on \
+Log entry on master is longer than slave_max_allowed_packet (%lu) on \
 slave. If the entry is correct, restart the server with a higher value of \
-max_allowed_packet",
-                          thd->variables.max_allowed_packet);
+slave_max_allowed_packet",
+                         slave_max_allowed_packet);
           mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
-                     "%s", ER(ER_NET_PACKET_TOO_LARGE));
+                     "%s", "Got a packet bigger than 'slave_max_allowed_packet' bytes");
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
           mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
@@ -2956,6 +2957,12 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_for_queries();
+  thd->rli_slave= rli;
+  if ((rli->deferred_events_collecting= rpl_filter->is_on()))
+  {
+    rli->deferred_events= new Deferred_log_events(rli);
+  }
+
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   set_thd_in_use_temporary_tables(rli);   // (re)set sql_thd in use for saved temp tables
   pthread_mutex_lock(&LOCK_thread_count);

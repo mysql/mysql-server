@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,7 @@ Created 8/18/1994 Heikki Tuuri
 
 #include "ut0rnd.h"
 #include "mem0mem.h"
+#include "btr0types.h"
 
 /***********************************************************//**
 Deletes a hash node. */
@@ -39,10 +40,10 @@ ha_delete_hash_node(
 Gets a hash node data.
 @return	pointer to the data */
 UNIV_INLINE
-void*
+const rec_t*
 ha_node_get_data(
 /*=============*/
-	ha_node_t*	node)	/*!< in: hash chain node */
+	const ha_node_t*	node)	/*!< in: hash chain node */
 {
 	return(node->data);
 }
@@ -57,7 +58,7 @@ ha_node_set_data_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/*!< in: buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		data)	/*!< in: pointer to the data */
+	const rec_t*	data)	/*!< in: pointer to the data */
 {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	node->block = block;
@@ -107,39 +108,10 @@ ha_chain_get_first(
 
 /*************************************************************//**
 Looks for an element in a hash table.
-@return pointer to the first hash table node in chain having the fold
-number, NULL if not found */
-UNIV_INLINE
-ha_node_t*
-ha_search(
-/*======*/
-	hash_table_t*	table,	/*!< in: hash table */
-	ulint		fold)	/*!< in: folded value of the searched data */
-{
-	ha_node_t*	node;
-
-	ASSERT_HASH_MUTEX_OWN(table, fold);
-
-	node = ha_chain_get_first(table, fold);
-
-	while (node) {
-		if (node->fold == fold) {
-
-			return(node);
-		}
-
-		node = ha_chain_get_next(node);
-	}
-
-	return(NULL);
-}
-
-/*************************************************************//**
-Looks for an element in a hash table.
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
 UNIV_INLINE
-void*
+const rec_t*
 ha_search_and_get_data(
 /*===================*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -148,6 +120,10 @@ ha_search_and_get_data(
 	ha_node_t*	node;
 
 	ASSERT_HASH_MUTEX_OWN(table, fold);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(btr_search_enabled);
 
 	node = ha_chain_get_first(table, fold);
 
@@ -172,11 +148,13 @@ ha_search_with_data(
 /*================*/
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
-	void*		data)	/*!< in: pointer to the data */
+	const rec_t*	data)	/*!< in: pointer to the data */
 {
 	ha_node_t*	node;
 
 	ASSERT_HASH_MUTEX_OWN(table, fold);
+
+	ut_ad(btr_search_enabled);
 
 	node = ha_chain_get_first(table, fold);
 
@@ -202,11 +180,15 @@ ha_search_and_delete_if_found(
 /*==========================*/
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
-	void*		data)	/*!< in: pointer to the data */
+	const rec_t*	data)	/*!< in: pointer to the data */
 {
 	ha_node_t*	node;
 
 	ASSERT_HASH_MUTEX_OWN(table, fold);
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(btr_search_enabled);
 
 	node = ha_search_with_data(table, fold, data);
 

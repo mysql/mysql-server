@@ -1,0 +1,124 @@
+--- mysql-test/r/information_schema.result.orig	2009-01-31 03:38:50.000000000 +0200
++++ mysql-test/r/information_schema.result	2009-01-31 07:51:58.000000000 +0200
+@@ -71,6 +71,13 @@
+ TRIGGERS
+ USER_PRIVILEGES
+ VIEWS
++INNODB_CMP_RESET
++INNODB_TRX
++INNODB_CMPMEM_RESET
++INNODB_LOCK_WAITS
++INNODB_CMPMEM
++INNODB_CMP
++INNODB_LOCKS
+ columns_priv
+ db
+ event
+@@ -799,6 +806,8 @@
+ TABLES	UPDATE_TIME	datetime
+ TABLES	CHECK_TIME	datetime
+ TRIGGERS	CREATED	datetime
++INNODB_TRX	trx_started	datetime
++INNODB_TRX	trx_wait_started	datetime
+ event	execute_at	datetime
+ event	last_executed	datetime
+ event	starts	datetime
+@@ -852,7 +861,7 @@
+ flush privileges;
+ SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
+ table_schema	count(*)
+-information_schema	28
++information_schema	35
+ mysql	22
+ create table t1 (i int, j int);
+ create trigger trg1 before insert on t1 for each row
+@@ -1267,6 +1276,13 @@
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
+ VIEWS	TABLE_SCHEMA
++INNODB_CMP_RESET	page_size
++INNODB_TRX	trx_id
++INNODB_CMPMEM_RESET	page_size
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_CMPMEM	page_size
++INNODB_CMP	page_size
++INNODB_LOCKS	lock_id
+ SELECT t.table_name, c1.column_name
+ FROM information_schema.tables t
+ INNER JOIN
+@@ -1310,6 +1326,13 @@
+ TRIGGERS	TRIGGER_SCHEMA
+ USER_PRIVILEGES	GRANTEE
+ VIEWS	TABLE_SCHEMA
++INNODB_CMP_RESET	page_size
++INNODB_TRX	trx_id
++INNODB_CMPMEM_RESET	page_size
++INNODB_LOCK_WAITS	requesting_trx_id
++INNODB_CMPMEM	page_size
++INNODB_CMP	page_size
++INNODB_LOCKS	lock_id
+ SELECT MAX(table_name) FROM information_schema.tables WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test');
+ MAX(table_name)
+ VIEWS
+@@ -1386,6 +1409,13 @@
+ FILES	information_schema.FILES	1
+ GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
+ GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
++INNODB_CMP	information_schema.INNODB_CMP	1
++INNODB_CMPMEM	information_schema.INNODB_CMPMEM	1
++INNODB_CMPMEM_RESET	information_schema.INNODB_CMPMEM_RESET	1
++INNODB_CMP_RESET	information_schema.INNODB_CMP_RESET	1
++INNODB_LOCKS	information_schema.INNODB_LOCKS	1
++INNODB_LOCK_WAITS	information_schema.INNODB_LOCK_WAITS	1
++INNODB_TRX	information_schema.INNODB_TRX	1
+ KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+ PARTITIONS	information_schema.PARTITIONS	1
+ PLUGINS	information_schema.PLUGINS	1
+diff mysql-test/r/information_schema_db.result.orig mysql-test/r/information_schema_db.result
+--- mysql-test/r/information_schema_db.result.orig	2008-08-04 09:27:49.000000000 +0300
++++ mysql-test/r/information_schema_db.result	2008-10-07 12:26:31.000000000 +0300
+@@ -33,6 +33,13 @@
+ TRIGGERS
+ USER_PRIVILEGES
+ VIEWS
++INNODB_CMP_RESET
++INNODB_TRX
++INNODB_CMPMEM_RESET
++INNODB_LOCK_WAITS
++INNODB_CMPMEM
++INNODB_CMP
++INNODB_LOCKS
+ show tables from INFORMATION_SCHEMA like 'T%';
+ Tables_in_information_schema (T%)
+ TABLES
+diff mysql-test/r/mysqlshow.result.orig mysql-test/r/mysqlshow.result
+--- mysql-test/r/mysqlshow.result.orig	2008-08-04 09:27:51.000000000 +0300
++++ mysql-test/r/mysqlshow.result	2008-10-07 12:35:39.000000000 +0300
+@@ -107,6 +107,13 @@
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
+ | VIEWS                                 |
++| INNODB_CMP_RESET                      |
++| INNODB_TRX                            |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_LOCK_WAITS                     |
++| INNODB_CMPMEM                         |
++| INNODB_CMP                            |
++| INNODB_LOCKS                          |
+ +---------------------------------------+
+ Database: INFORMATION_SCHEMA
+ +---------------------------------------+
+@@ -140,6 +147,13 @@
+ | TRIGGERS                              |
+ | USER_PRIVILEGES                       |
+ | VIEWS                                 |
++| INNODB_CMP_RESET                      |
++| INNODB_TRX                            |
++| INNODB_CMPMEM_RESET                   |
++| INNODB_LOCK_WAITS                     |
++| INNODB_CMPMEM                         |
++| INNODB_CMP                            |
++| INNODB_LOCKS                          |
+ +---------------------------------------+
+ Wildcard: inf_rmation_schema
+ +--------------------+

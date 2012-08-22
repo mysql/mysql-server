@@ -1325,6 +1325,8 @@ class THD :public Statement,
 public:
   /* Used to execute base64 coded binlog events in MySQL server */
   Relay_log_info* rli_fake;
+  /* Slave applier execution context */
+  Relay_log_info* rli_slave;
 
   /*
     Constant for THD::where initialization in the beginning of every query.
@@ -1376,10 +1378,22 @@ public:
     Protects THD data accessed from other threads:
     - thd->query and thd->query_length (used by SHOW ENGINE
       INNODB STATUS and SHOW PROCESSLIST
-    - thd->mysys_var (used by KILL statement and shutdown).
-    Is locked when THD is deleted.
   */
   pthread_mutex_t LOCK_thd_data;
+
+  /**
+    - Protects thd->mysys_var (used during KILL statement and shutdown).
+    - Is Locked when THD is deleted.
+
+    Note: This responsibility was earlier handled by LOCK_thd_data.
+    This lock is introduced to solve a deadlock issue waiting for
+    LOCK_thd_data. As this lock reduces responsibility of LOCK_thd_data
+    the deadlock issues is solved.
+    Caution: LOCK_thd_kill should not be taken while holding LOCK_thd_data.
+             THD::awake() currently takes LOCK_thd_data after holding
+             LOCK_thd_kill.
+  */
+  pthread_mutex_t LOCK_thd_kill;
 
   /* all prepared statements and cursors of this connection */
   Statement_map stmt_map;
@@ -2140,7 +2154,6 @@ public:
   void add_changed_table(const char *key, long key_length);
   CHANGED_TABLE_LIST * changed_table_dup(const char *key, long key_length);
   int send_explain_fields(select_result *result);
-#ifndef EMBEDDED_LIBRARY
   /**
     Clear the current error, if any.
     We do not clear is_fatal_error or is_fatal_sub_stmt_error since we
@@ -2156,9 +2169,9 @@ public:
     is_slave_error= 0;
     DBUG_VOID_RETURN;
   }
+#ifndef EMBEDDED_LIBRARY
   inline bool vio_ok() const { return net.vio != 0; }
 #else
-  void clear_error();
   inline bool vio_ok() const { return true; }
 #endif
   /**
