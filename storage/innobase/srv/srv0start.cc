@@ -1722,6 +1722,9 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
 
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT_NO_FSYNC")) {
+		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT_NO_FSYNC;
+
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "littlesync")) {
 		srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
