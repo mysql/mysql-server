@@ -1218,7 +1218,7 @@ bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   else
   {
     reset();
-    return 0;
+    return 1;
   }
 }
 
