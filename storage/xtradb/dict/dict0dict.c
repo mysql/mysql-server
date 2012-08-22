@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,8 @@ Created 1/8/1996 Heikki Tuuri
 ***********************************************************************/
 
 #include "dict0dict.h"
+#include "m_string.h"
+#include "my_sys.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -270,15 +272,39 @@ dict_table_stats_lock(
 	ulint			latch_mode)	/*!< in: RW_S_LATCH or
 						RW_X_LATCH */
 {
+	rw_lock_t *want, *got;
+
 	ut_ad(table != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	switch (latch_mode) {
 	case RW_S_LATCH:
-		rw_lock_s_lock(GET_TABLE_STATS_LATCH(table));
+		/* Lock one of dict_table_stats_latches in S-mode.
+		Latch is picked using table->id. table->id might be
+		changed while we are waiting for lock to be grabbed */
+		for (;;) {
+			want= GET_TABLE_STATS_LATCH(table);
+			rw_lock_s_lock(want);
+			got= GET_TABLE_STATS_LATCH(table);
+			if (want == got) {
+				break;
+			}
+			rw_lock_s_unlock(want);
+		}
 		break;
 	case RW_X_LATCH:
-		rw_lock_x_lock(GET_TABLE_STATS_LATCH(table));
+		/* Lock one of dict_table_stats_latches in X-mode.
+		Latch is picked using table->id. table->id might be
+		changed while we are waiting for lock to be grabbed */
+		for (;;) {
+			want= GET_TABLE_STATS_LATCH(table);
+			rw_lock_x_lock(want);
+			got= GET_TABLE_STATS_LATCH(table);
+			if (want == got) {
+				break;
+			}
+			rw_lock_x_unlock(want);
+		}
 		break;
 	case RW_NO_LATCH:
 		/* fall through */
@@ -1167,11 +1193,20 @@ dict_table_change_id_in_cache(
 	dict_table_t*	table,	/*!< in/out: table object already in cache */
 	dulint		new_id)	/*!< in: new id to set */
 {
+	dict_table_t table_tmp;
+
 	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
 	/* Remove the table from the hash table of id's */
+
+	/* Lock is needed to prevent dict_table_stats_latches from
+	being leaked. dict_table_stats_lock picks one latch using
+	table->id. We are changing table->id below. That is why
+	we also should remember the old value to unlock table */
+	dict_table_stats_lock(table, RW_X_LATCH);
+	table_tmp= *table;
 
 	HASH_DELETE(dict_table_t, id_hash, dict_sys->table_id_hash,
 		    ut_fold_dulint(table->id), table);
@@ -1180,6 +1215,8 @@ dict_table_change_id_in_cache(
 	/* Add the table back to the hash table */
 	HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash,
 		    ut_fold_dulint(table->id), table);
+
+	dict_table_stats_unlock(&table_tmp, RW_X_LATCH);
 }
 
 /**********************************************************************//**
@@ -1727,7 +1764,9 @@ undo_size_ok:
 	new_index->stat_n_leaf_pages = 1;
 
 	new_index->page = page_no;
-	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
+	rw_lock_create(&new_index->lock,
+		       dict_index_is_ibuf(index)
+		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 
@@ -2341,6 +2380,8 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
+	ut_a(foreign->foreign_table->n_foreign_key_checks_running == 0);
+
 	mem_heap_free(foreign->heap);
 }
 
@@ -4309,19 +4350,26 @@ dict_reload_statistics(
 	heap = mem_heap_create(1000);
 
 	while (index) {
+		mtr_t mtr;
+
 		if (table->is_corrupt) {
 			ut_a(srv_pass_corrupt_table);
 			mem_heap_free(heap);
 			return(FALSE);
 		}
 
-		size = btr_get_size(index, BTR_TOTAL_SIZE);
+		mtr_start(&mtr);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+		size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
 		index->stat_index_size = size;
 
 		*sum_of_index_sizes += size;
 
-		size = btr_get_size(index, BTR_N_LEAF_PAGES);
+		size = btr_get_size(index, BTR_N_LEAF_PAGES, &mtr);
+
+		mtr_commit(&mtr);
 
 		if (size == 0) {
 			/* The root node of the tree is a leaf */
@@ -4671,16 +4719,27 @@ dict_update_statistics(
 		    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
 		     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
 			 && dict_index_is_clust(index)))) {
+			mtr_t	mtr;
 			ulint	size;
-			size = btr_get_size(index, BTR_TOTAL_SIZE);
 
-			index->stat_index_size = size;
+			mtr_start(&mtr);
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-			sum_of_index_sizes += size;
+			size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
 
-			size = btr_get_size(index, BTR_N_LEAF_PAGES);
+			if (size != ULINT_UNDEFINED) {
+				sum_of_index_sizes += size;
+				index->stat_index_size = size;
+				size = btr_get_size(
+					index, BTR_N_LEAF_PAGES, &mtr);
+			}
 
-			if (size == 0) {
+			mtr_commit(&mtr);
+
+			switch (size) {
+			case ULINT_UNDEFINED:
+				goto fake_statistics;
+			case 0:
 				/* The root node of the tree is a leaf */
 				size = 1;
 			}
@@ -4697,6 +4756,7 @@ dict_update_statistics(
 			various means, also via secondary indexes. */
 			ulint	i;
 
+fake_statistics:
 			sum_of_index_sizes++;
 			index->stat_index_size = index->stat_n_leaf_pages = 1;
 

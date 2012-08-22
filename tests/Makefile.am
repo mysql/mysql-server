@@ -33,6 +33,7 @@ EXTRA_DIST =		auto_increment.res auto_increment.tst \
 			grant.pl grant.res test_delayed_insert.pl \
 			pmail.pl mail_to_db.pl table_types.pl \
 			myisam-big-rows.tst \
+			mysql_client_fw.c \
 			CMakeLists.txt
 
 bin_PROGRAMS =		mysql_client_test
@@ -47,6 +48,7 @@ LDADD =			@CLIENT_EXTRA_LDFLAGS@ \
 mysql_client_test_LDADD= $(LDADD) $(CXXLDFLAGS)
 mysql_client_test_SOURCES= mysql_client_test.c\
 			$(top_srcdir)/mysys/my_memmem.c
+mysql_client_test.o:	mysql_client_fw.c
 
 insert_test_SOURCES=       insert_test.c
 select_test_SOURCES=       select_test.c

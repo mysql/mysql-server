@@ -7108,10 +7108,9 @@ DROP FUNCTION f1;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
-#
-# LP bug#993459 Execution of PS for a query with GROUP BY
-# returns wrong result (see also mysql bug#13805127)
-#
+
+# Bug#13805127: Stored program cache produces wrong result in same THD
+
 CREATE PROCEDURE p1(x INT UNSIGNED)
 BEGIN
 SELECT c1, t2.c2, count(c3)

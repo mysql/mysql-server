@@ -672,6 +672,8 @@ JOIN::prepare(Item ***rref_pointer_array,
   
   if (having)
   {
+    Query_arena backup, *arena;
+    arena= thd->activate_stmt_arena_if_needed(&backup);
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
     thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
@@ -687,6 +689,10 @@ JOIN::prepare(Item ***rref_pointer_array,
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    select_lex->having= having;
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
     thd->lex->allow_sum_func= save_allow_sum_func;
@@ -16042,7 +16048,8 @@ int report_error(TABLE *table, int error)
     Locking reads can legally return also these errors, do not
     print them to the .err log
   */
-  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
+      && !table->in_use->killed)
   {
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_ERROR, error,
                         "Got error %d when reading table `%s`.`%s`",
@@ -18490,8 +18497,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_NEXT;           // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key) && ! table->key_read)
-          table->enable_keyread();
         if (tab->pre_idx_push_select_cond)
         {
           tab->set_cond(tab->pre_idx_push_select_cond);

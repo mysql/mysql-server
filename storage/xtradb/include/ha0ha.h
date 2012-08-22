@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,13 +31,14 @@ Created 8/18/1994 Heikki Tuuri
 #include "hash0hash.h"
 #include "page0types.h"
 #include "buf0types.h"
+#include "rem0types.h"
 
 /*************************************************************//**
 Looks for an element in a hash table.
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
 UNIV_INLINE
-void*
+const rec_t*
 ha_search_and_get_data(
 /*===================*/
 	hash_table_t*	table,	/*!< in: hash table */
@@ -51,11 +52,11 @@ ha_search_and_update_if_found_func(
 /*===============================*/
 	hash_table_t*	table,	/*!< in/out: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
-	void*		data,	/*!< in: pointer to the data */
+	const rec_t*	data,	/*!< in: pointer to the data */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	new_block,/*!< in: block containing new_data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		new_data);/*!< in: new pointer to the data */
+	const rec_t*	new_data);/*!< in: new pointer to the data */
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /** Looks for an element when we know the pointer to the data and
@@ -114,14 +115,6 @@ chosen to be a slightly bigger prime number.
 #endif /* UNIV_SYNC_DEBUG */
 
 /*************************************************************//**
-Empties a hash table and frees the memory heaps. */
-UNIV_INTERN
-void
-ha_clear(
-/*=====*/
-	hash_table_t*	table);	/*!< in, own: hash table */
-
-/*************************************************************//**
 Inserts an entry into a hash table. If an entry with the same fold number
 is found, its node is updated to point to the new data, and no new node
 is inserted.
@@ -138,7 +131,7 @@ ha_insert_for_fold_func(
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block,	/*!< in: buffer block containing the data */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		data);	/*!< in: data, must not be NULL */
+	const rec_t*	data);	/*!< in: data, must not be NULL */
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 /**
@@ -174,7 +167,7 @@ ha_search_and_delete_if_found(
 /*==========================*/
 	hash_table_t*	table,	/*!< in: hash table */
 	ulint		fold,	/*!< in: folded value of the searched data */
-	void*		data);	/*!< in: pointer to the data */
+	const rec_t*	data);	/*!< in: pointer to the data */
 #ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Removes from the chain determined by fold all nodes whose data pointer
@@ -217,7 +210,7 @@ struct ha_node_struct {
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block;	/*!< buffer block containing the data, or NULL */
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-	void*		data;	/*!< pointer to the data */
+	const rec_t*	data;	/*!< pointer to the data */
 	ulint		fold;	/*!< fold value for the data */
 };
 

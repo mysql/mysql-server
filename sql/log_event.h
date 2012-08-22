@@ -278,6 +278,13 @@ struct sql_ex_info
   MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
   NAME_LEN + 1)
 
+/*
+  The new option is added to handle large packets that are sent from the master 
+  to the slave. It is used to increase the thd(max_allowed) for both the
+  DUMP thread on the master and the SQL/IO thread on the slave. 
+*/
+#define MAX_MAX_ALLOWED_PACKET 1024*1024*1024
+
 /* 
    Event header offsets; 
    these point to places inside the fixed header.
@@ -2579,12 +2586,14 @@ public:
   uint charset_number;
   bool is_null;
 #ifndef MYSQL_CLIENT
+  bool deferred;
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg,
                      uint16 cache_type_arg)
     :Log_event(thd_arg, 0, 0), name(name_arg), name_len(name_len_arg), val(val_arg),
-     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg)
+     val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
+    deferred(false)
     { is_null= !val; cache_type= cache_type_arg; }
   void pack_info(Protocol* protocol);
 #else
@@ -2597,6 +2606,13 @@ public:
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
+  /* 
+     Getter and setter for deferred User-event. 
+     Returns true if the event is not applied directly 
+     and which case the applier adjusts execution path.
+  */
+  bool is_deferred() { return deferred; }
+  void set_deferred() { deferred= val; }
 #endif
   bool is_valid() const { return 1; }
 
@@ -4131,6 +4147,16 @@ bool rpl_get_position_info(const char **log_file_name, ulonglong *log_pos,
 bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
+
+#ifndef MYSQL_CLIENT
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
+#endif
 
 /**
   @} (end of group Replication)

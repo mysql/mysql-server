@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include "events.h"
 #include <waiting_threads.h>
 #include "debug_sync.h"
+#include "log_event.h"
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -659,6 +660,7 @@ static const char *slave_exec_mode_str= "STRICT";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
+ulong slave_max_allowed_packet= 0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
 query_id_t global_query_id;
@@ -5877,6 +5879,7 @@ enum options_mysqld
   OPT_KEY_CACHE_PARTITIONS,
   OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
+  OPT_SLAVE_MAX_ALLOWED_PACKET,
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
   OPT_MAX_CONNECTIONS, OPT_MAX_CONNECT_ERRORS,
   OPT_MAX_DELAYED_THREADS, OPT_MAX_HEP_TABLE_SIZE,
@@ -7180,10 +7183,14 @@ each time the SQL thread starts.",
    &global_system_variables.max_allowed_packet,
    &max_system_variables.max_allowed_packet, 0, GET_ULONG,
    REQUIRED_ARG, 1024*1024L, 1024, 1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
+  {"slave_max_allowed_packet", OPT_SLAVE_MAX_ALLOWED_PACKET,
+   "The maximum packet length to sent successfully from the master to slave.",
+   &slave_max_allowed_packet, &slave_max_allowed_packet, 0, GET_ULONG,
+   REQUIRED_ARG, MAX_MAX_ALLOWED_PACKET, 1024, MAX_MAX_ALLOWED_PACKET, MALLOC_OVERHEAD, 1024, 0},
   {"max_binlog_cache_size", OPT_MAX_BINLOG_CACHE_SIZE,
    "Can be used to restrict the total size used to cache a multi-transaction query.",
    &max_binlog_cache_size, &max_binlog_cache_size, 0,
-   GET_ULL, REQUIRED_ARG, ULONG_MAX, IO_SIZE, ULONGLONG_MAX, 0, IO_SIZE, 0},
+   GET_ULL, REQUIRED_ARG, (longlong) ULONG_MAX, IO_SIZE, ULONGLONG_MAX, 0, IO_SIZE, 0},
   {"max_binlog_size", OPT_MAX_BINLOG_SIZE,
    "Binary log will be rotated automatically when the size exceeds this "
    "value. Will also apply to relay logs if max_relay_log_size is 0. "
@@ -7221,7 +7228,7 @@ each time the SQL thread starts.",
    "Joins that are probably going to read more than max_join_size records return an error.",
    &global_system_variables.max_join_size,
    &max_system_variables.max_join_size, 0, GET_HA_ROWS, REQUIRED_ARG,
-   HA_POS_ERROR, 1, HA_POS_ERROR, 0, 1, 0},
+   (longlong) HA_POS_ERROR, 1, HA_POS_ERROR, 0, 1, 0},
    {"max_length_for_sort_data", OPT_MAX_LENGTH_FOR_SORT_DATA,
     "Max number of bytes in sorted records.",
     &global_system_variables.max_length_for_sort_data,
@@ -7247,7 +7254,7 @@ each time the SQL thread starts.",
     "Limit assumed max number of seeks when looking up rows based on a key.",
     &global_system_variables.max_seeks_for_key,
     &max_system_variables.max_seeks_for_key, 0, GET_ULONG,
-    REQUIRED_ARG, (longlong) ULONG_MAX, 1, (longlong) ULONG_MAX, 0, 1, 0 },
+    REQUIRED_ARG, (longlong) ULONG_MAX, 1, ULONG_MAX, 0, 1, 0 },
   {"max_sort_length", OPT_MAX_SORT_LENGTH,
    "The number of bytes to use when sorting BLOB or TEXT values (only the "
    "first max_sort_length bytes of each value are used; the rest are ignored).",
@@ -7271,7 +7278,7 @@ each time the SQL thread starts.",
   {"max_write_lock_count", OPT_MAX_WRITE_LOCK_COUNT,
    "After this many write locks, allow some read locks to run in between.",
    &max_write_lock_count, &max_write_lock_count, 0, GET_ULONG,
-   REQUIRED_ARG, (longlong) ULONG_MAX, 1, (longlong) ULONG_MAX, 0, 1, 0},
+   REQUIRED_ARG, (longlong) ULONG_MAX, 1, ULONG_MAX, 0, 1, 0},
   {"min_examined_row_limit", OPT_MIN_EXAMINED_ROW_LIMIT,
    "Don't log queries which examine less than min_examined_row_limit rows to file.",
    &global_system_variables.min_examined_row_limit,
@@ -7299,18 +7306,19 @@ each time the SQL thread starts.",
    &global_system_variables.myisam_max_extra_sort_file_size,
    &max_system_variables.myisam_max_extra_sort_file_size,
    0, GET_ULL, REQUIRED_ARG, (ulonglong) INT_MAX32,
-   0, (ulonglong) MAX_FILE_SIZE, 0, 1, 0},
+   0, MAX_FILE_SIZE, 0, 1, 0},
   {"myisam_max_sort_file_size", OPT_MYISAM_MAX_SORT_FILE_SIZE,
    "Don't use the fast sort index method to created index if the temporary "
    "file would get bigger than this.",
    &global_system_variables.myisam_max_sort_file_size,
    &max_system_variables.myisam_max_sort_file_size, 0,
-   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
+   GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, MAX_FILE_SIZE,
    0, 1024*1024, 0},
   {"myisam_mmap_size", OPT_MYISAM_MMAP_SIZE,
    "Can be used to restrict the total memory used for memory mmaping of myisam files",
    &myisam_mmap_size, &myisam_mmap_size, 0,
-   GET_ULL, REQUIRED_ARG, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX, 0, 1, 0},
+   GET_ULL, REQUIRED_ARG, (longlong) SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX,
+   0, 1, 0},
   {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
    "Specifies whether several threads should be used when repairing MyISAM "
    "tables. For values > 1, one thread is used per index. The value of 1 "
@@ -7323,7 +7331,7 @@ each time the SQL thread starts.",
    "or when creating indexes with CREATE INDEX or ALTER TABLE.",
    &global_system_variables.myisam_sort_buff_size,
    &max_system_variables.myisam_sort_buff_size, 0,
-   GET_ULONG, REQUIRED_ARG, 8192 * 1024, 4096, (longlong) ULONG_MAX, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 8192 * 1024, 4096, ~0ULL, 0, 1, 0},
   {"myisam_use_mmap", OPT_MYISAM_USE_MMAP,
    "Use memory mapping for reading and writing MyISAM tables.",
    &opt_myisam_use_mmap, &opt_myisam_use_mmap, 0, GET_BOOL, NO_ARG,
@@ -7446,7 +7454,7 @@ each time the SQL thread starts.",
   {"query_cache_size", OPT_QUERY_CACHE_SIZE,
    "The memory allocated to store results from old queries.",
    &query_cache_size, &query_cache_size, 0, GET_ULONG,
-   REQUIRED_ARG, 0, 0, (longlong) ULONG_MAX, 0, 1024, 0},
+   REQUIRED_ARG, 0, 0, ULONG_MAX, 0, 1024, 0},
 #ifdef HAVE_QUERY_CACHE
   {"query_cache_strip_comments", OPT_QUERY_CACHE_STRIP_COMMENTS,
    "Enable and disable optimisation \"strip comment for query cache\" - "
@@ -7520,7 +7528,7 @@ each time the SQL thread starts.",
    "Maximum space to use for all relay logs.",
    &relay_log_space_limit,
    &relay_log_space_limit, 0, GET_ULL, REQUIRED_ARG, 0L, 0L,
-   (longlong) ULONG_MAX, 0, 1, 0},
+   ULONG_MAX, 0, 1, 0},
   {"slave_compressed_protocol", OPT_SLAVE_COMPRESSED_PROTOCOL,
    "Use compression on master/slave protocol.",
    &opt_slave_compressed_protocol,
@@ -7535,7 +7543,7 @@ each time the SQL thread starts.",
    "it failed with a deadlock or elapsed lock wait timeout, "
    "before giving up and stopping.",
    &slave_trans_retries, &slave_trans_retries, 0,
-   GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+   GET_ULONG, REQUIRED_ARG, 10L, 0L, ULONG_MAX, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), "
@@ -7546,8 +7554,8 @@ each time the SQL thread starts.",
    "Each thread that needs to do a sort allocates a buffer of this size.",
    &global_system_variables.sortbuff_size,
    &max_system_variables.sortbuff_size, 0, GET_ULONG, REQUIRED_ARG,
-   MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, (longlong) ULONG_MAX,
-   MALLOC_OVERHEAD, 1, 0},
+   MAX_SORT_MEMORY, MIN_SORT_MEMORY+MALLOC_OVERHEAD*2, ~0ULL, MALLOC_OVERHEAD,
+   1, 0},
   {"sync-binlog", OPT_SYNC_BINLOG,
    "Synchronously flush binary log to disk after every #th event. "
    "Use 0 (default) to disable synchronous flushing.",

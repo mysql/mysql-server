@@ -118,6 +118,8 @@ static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
                                  bool send_refresh);
 static bool
 has_write_table_with_auto_increment(TABLE_LIST *tables);
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables);
 
 
 extern "C" uchar *table_cache_key(const uchar *record, size_t *length,
@@ -2273,6 +2275,8 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex, pthread_cond_t *cond)
   */
     
   pthread_mutex_unlock(mutex);
+  DEBUG_SYNC(thd, "waiting_for_table_unlock");
+  DBUG_EXECUTE_IF("sleep_after_waiting_for_table", my_sleep(1000000););
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
   thd->mysys_var->current_cond= 0;
@@ -5599,6 +5603,12 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
     {
       if (!table->placeholder())
 	*(ptr++)= table->table;
+    }
+
+    if (thd->variables.binlog_format != BINLOG_FORMAT_ROW && tables)
+    {
+      if (has_write_table_auto_increment_not_first_in_pk(tables))
+        thd->lex->set_stmt_unsafe();
     }
 
     /* We have to emulate LOCK TABLES if we are statement needs prelocking. */
@@ -9503,6 +9513,32 @@ has_write_table_with_auto_increment(TABLE_LIST *tables)
     if (!table->placeholder() &&
         table->table->found_next_number_field &&
         (table->lock_type >= TL_WRITE_ALLOW_WRITE))
+      return 1;
+  }
+
+  return 0;
+}
+
+/*
+  Tells if there is a table whose auto_increment column is a part
+  of a compound primary key while is not the first column in
+  the table definition.
+
+  @param tables Table list
+
+  @return true if the table exists, fais if does not.
+*/
+
+static bool
+has_write_table_auto_increment_not_first_in_pk(TABLE_LIST *tables)
+{
+  for (TABLE_LIST *table= tables; table; table= table->next_global)
+  {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->placeholder() &&
+        table->table->found_next_number_field &&
+        (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        && table->table->s->next_number_keypart != 0)
       return 1;
   }
 

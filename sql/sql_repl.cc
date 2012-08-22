@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+   Copyright (c) 2008, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -582,7 +582,7 @@ impossible position";
     this larger than the corresponding packet (query) sent 
     from client to master.
   */
-  thd->variables.max_allowed_packet+= MAX_LOG_EVENT_HEADER;
+  thd->variables.max_allowed_packet= MAX_MAX_ALLOWED_PACKET;
 
   /*
     We can set log_lock now, it does not move (it's a member of
@@ -1301,7 +1301,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
     if (tmp->command == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
-      pthread_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
+      pthread_mutex_lock(&tmp->LOCK_thd_kill);	// Lock from delete
       break;
     }
   }
@@ -1314,7 +1314,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
       again. We just to do kill the thread ourselves.
     */
     tmp->awake(KILL_QUERY);
-    pthread_mutex_unlock(&tmp->LOCK_thd_data);
+    pthread_mutex_unlock(&tmp->LOCK_thd_kill);
   }
 }
 
@@ -1622,6 +1622,8 @@ bool mysql_show_binlog_events(THD* thd)
   IO_CACHE log;
   File file = -1;
   int old_max_allowed_packet= thd->variables.max_allowed_packet;
+  LOG_INFO linfo;
+
   DBUG_ENTER("mysql_show_binlog_events");
 
   Log_event::init_show_field_list(&field_list);
@@ -1648,7 +1650,6 @@ bool mysql_show_binlog_events(THD* thd)
     char search_file_name[FN_REFLEN], *name;
     const char *log_file_name = lex_mi->log_file_name;
     pthread_mutex_t *log_lock = mysql_bin_log.get_log_lock();
-    LOG_INFO linfo;
     Log_event* ev;
 
     unit->set_limit(thd->lex->current_select);
@@ -1745,6 +1746,8 @@ bool mysql_show_binlog_events(THD* thd)
 
     pthread_mutex_unlock(log_lock);
   }
+  // Check that linfo is still on the function scope.
+  DEBUG_SYNC(thd, "after_show_binlog_events");
 
   ret= FALSE;
 

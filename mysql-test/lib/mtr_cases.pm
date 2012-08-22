@@ -128,6 +128,7 @@ sub collect_test_cases ($$$) {
     {
       push(@$cases, collect_one_suite($suite, $opt_cases));
       last if $some_test_found;
+      push(@$cases, collect_one_suite("i_".$suite, $opt_cases));
     }
   }
 
@@ -281,10 +282,10 @@ sub collect_one_suite
       $suitedir= my_find_dir($suitedir,
 			     ["suite",
 			      ".",
-			      # Look in storage engine specific suite dirs
-			      "../storage/*/mysql-test-suites"
+			      "../internal/mysql-test/suite"
 			     ],
-			     [$suite]);
+			     [$suite], ($suite =~ /^i_/));
+      return unless $suitedir;
     }
     mtr_verbose("suitedir: $suitedir");
   }

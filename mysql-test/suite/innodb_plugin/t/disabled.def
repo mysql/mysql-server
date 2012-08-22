@@ -15,3 +15,4 @@
 # add --skip inside if() into the test file itself
 #
 
+innodb_bug52745: Disabled as this has valgrind failures (also in MySQL 5.1.50)

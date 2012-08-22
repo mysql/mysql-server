@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -215,12 +215,6 @@ page_set_max_trx_id(
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
-	const ibool	is_hashed	= block->is_hashed;
-
-	if (is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
 	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -241,12 +235,6 @@ page_set_max_trx_id(
 	} else {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}
-
-#ifndef UNIV_HOTBACKUP
-	if (is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /************************************************************//**
@@ -1632,6 +1620,7 @@ page_rec_print(
 	rec_validate(rec, offsets);
 }
 
+# ifdef UNIV_BTR_PRINT
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
@@ -1792,6 +1781,7 @@ page_print(
 	page_dir_print(page, dn);
 	page_print_list(block, index, rn);
 }
+# endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**

@@ -1,5 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008, 2011, Monty Program Ab
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -718,6 +718,8 @@ bool Protocol::send_fields(List<Item> *list, uint flags)
       /* Store fixed length fields */
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
+      /* inject a NULL to test the client */
+      DBUG_EXECUTE_IF("poison_rs_fields", pos[-1]= 0xfb;);
       if (item->collation.collation == &my_charset_bin || thd_charset == NULL)
       {
         /* No conversion */

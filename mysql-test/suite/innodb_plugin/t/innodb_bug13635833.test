@@ -4,11 +4,6 @@
 # InnoDB Plugin cannot use DEBUG_SYNC on Windows
 --source include/not_windows.inc
 
-if (`select plugin_auth_version <= "1.0.17-13.0" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB 1.0.17-13.0 or earlier
-}
-
 SET DEBUG_SYNC='reset';
 
 # Save the initial number of concurrent sessions

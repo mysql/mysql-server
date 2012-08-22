@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -870,9 +870,9 @@ trx_undo_discard_latest_update_undo(
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Tries to add a page to the undo log segment where the undo log is placed.
-@return	page number if success, else FIL_NULL */
+@return	X-latched block if success, else NULL */
 UNIV_INTERN
-ulint
+buf_block_t*
 trx_undo_add_page(
 /*==============*/
 	trx_t*		trx,	/*!< in: transaction */
@@ -882,11 +882,10 @@ trx_undo_add_page(
 				the rollback segment mutex */
 {
 	page_t*		header_page;
+	buf_block_t*	new_block;
 	page_t*		new_page;
 	trx_rseg_t*	rseg;
-	ulint		page_no;
 	ulint		n_reserved;
-	ibool		success;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 	ut_ad(!mutex_own(&kernel_mutex));
@@ -896,37 +895,37 @@ trx_undo_add_page(
 
 	if (rseg->curr_size == rseg->max_size) {
 
-		return(FIL_NULL);
+		return(NULL);
 	}
 
 	header_page = trx_undo_page_get(undo->space, undo->zip_size,
 					undo->hdr_page_no, mtr);
 
-	success = fsp_reserve_free_extents(&n_reserved, undo->space, 1,
-					   FSP_UNDO, mtr);
-	if (!success) {
+	if (!fsp_reserve_free_extents(&n_reserved, undo->space, 1,
+				      FSP_UNDO, mtr)) {
 
-		return(FIL_NULL);
+		return(NULL);
 	}
 
-	page_no = fseg_alloc_free_page_general(header_page + TRX_UNDO_SEG_HDR
-					       + TRX_UNDO_FSEG_HEADER,
-					       undo->top_page_no + 1, FSP_UP,
-					       TRUE, mtr);
+	new_block = fseg_alloc_free_page_general(
+		TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER
+		+ header_page,
+		undo->top_page_no + 1, FSP_UP, TRUE, mtr, mtr);
 
 	fil_space_release_free_extents(undo->space, n_reserved);
 
-	if (page_no == FIL_NULL) {
+	if (new_block == NULL) {
 
 		/* No space left */
 
-		return(FIL_NULL);
+		return(NULL);
 	}
 
-	undo->last_page_no = page_no;
+	ut_ad(rw_lock_get_x_lock_count(&new_block->lock) == 1);
+	buf_block_dbg_add_level(new_block, SYNC_TRX_UNDO_PAGE);
+	undo->last_page_no = buf_block_get_page_no(new_block);
 
-	new_page = trx_undo_page_get(undo->space, undo->zip_size,
-				     page_no, mtr);
+	new_page = buf_block_get_frame(new_block);
 
 	trx_undo_page_init(new_page, undo->type, mtr);
 
@@ -935,7 +934,7 @@ trx_undo_add_page(
 	undo->size++;
 	rseg->curr_size++;
 
-	return(page_no);
+	return(new_block);
 }
 
 /********************************************************************//**
@@ -998,29 +997,28 @@ trx_undo_free_page(
 }
 
 /********************************************************************//**
-Frees an undo log page when there is also the memory object for the undo
-log. */
-static
+Frees the last undo log page.
+The caller must hold the rollback segment mutex. */
+UNIV_INTERN
 void
-trx_undo_free_page_in_rollback(
-/*===========================*/
-	trx_t*		trx __attribute__((unused)), /*!< in: transaction */
-	trx_undo_t*	undo,	/*!< in: undo log memory copy */
-	ulint		page_no,/*!< in: page number to free: must not be the
-				header page */
-	mtr_t*		mtr)	/*!< in: mtr which does not have a latch to any
-				undo log page; the caller must have reserved
-				the rollback segment mutex */
+trx_undo_free_last_page_func(
+/*==========================*/
+#ifdef UNIV_DEBUG
+	const trx_t*	trx,	/*!< in: transaction */
+#endif /* UNIV_DEBUG */
+	trx_undo_t*	undo,	/*!< in/out: undo log memory copy */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction which does not
+				have a latch to any undo log page or which
+				has allocated the undo log page */
 {
-	ulint	last_page_no;
+	ut_ad(mutex_own(&trx->undo_mutex));
+	ut_ad(undo->hdr_page_no != undo->last_page_no);
+	ut_ad(undo->size > 0);
 
-	ut_ad(undo->hdr_page_no != page_no);
-	ut_ad(mutex_own(&(trx->undo_mutex)));
+	undo->last_page_no = trx_undo_free_page(
+		undo->rseg, FALSE, undo->space,
+		undo->hdr_page_no, undo->last_page_no, mtr);
 
-	last_page_no = trx_undo_free_page(undo->rseg, FALSE, undo->space,
-					  undo->hdr_page_no, page_no, mtr);
-
-	undo->last_page_no = last_page_no;
 	undo->size--;
 }
 
@@ -1056,9 +1054,11 @@ Truncates an undo log from the end. This function is used during a rollback
 to free space from an undo log. */
 UNIV_INTERN
 void
-trx_undo_truncate_end(
-/*==================*/
-	trx_t*		trx,	/*!< in: transaction whose undo log it is */
+trx_undo_truncate_end_func(
+/*=======================*/
+#ifdef UNIV_DEBUG
+	const trx_t*	trx,	/*!< in: transaction whose undo log it is */
+#endif /* UNIV_DEBUG */
 	trx_undo_t*	undo,	/*!< in: undo log */
 	undo_no_t	limit)	/*!< in: all undo records with undo number
 				>= this value should be truncated */
@@ -1084,18 +1084,7 @@ trx_undo_truncate_end(
 
 		rec = trx_undo_page_get_last_rec(undo_page, undo->hdr_page_no,
 						 undo->hdr_offset);
-		for (;;) {
-			if (rec == NULL) {
-				if (last_page_no == undo->hdr_page_no) {
-
-					goto function_exit;
-				}
-
-				trx_undo_free_page_in_rollback(
-					trx, undo, last_page_no, &mtr);
-				break;
-			}
-
+		while (rec) {
 			if (ut_dulint_cmp(trx_undo_rec_get_undo_no(rec), limit)
 			    >= 0) {
 				/* Truncate at least this record off, maybe
@@ -1109,6 +1098,14 @@ trx_undo_truncate_end(
 							 undo->hdr_page_no,
 							 undo->hdr_offset);
 		}
+
+		if (last_page_no == undo->hdr_page_no) {
+
+			goto function_exit;
+		}
+
+		ut_ad(last_page_no == undo->last_page_no);
+		trx_undo_free_last_page(trx, undo, &mtr);
 
 		mtr_commit(&mtr);
 	}
