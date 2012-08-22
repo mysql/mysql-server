@@ -4238,6 +4238,23 @@ ha_innobase::commit_inplace_alter_table(
 
 	trx_start_if_not_started_xa(prebuilt->trx);
 
+	{
+		/* Exclusively lock the table, to ensure that no other
+		transaction is holding locks on the table while we
+		change the table definition. The MySQL meta-data lock
+		should normally guarantee that no conflicting locks
+		exist. However, FOREIGN KEY constraints checks and any
+		transactions collected during crash recovery could be
+		holding InnoDB locks only, not MySQL locks. */
+		dberr_t error = row_merge_lock_table(
+			prebuilt->trx, prebuilt->table, LOCK_X);
+
+		if (error != DB_SUCCESS) {
+			my_error_innodb(error, table_share->table_name.str, 0);
+			DBUG_RETURN(true);
+		}
+	}
+
 	if (!ctx || !ctx->trx) {
 		/* Create a background transaction for the operations on
 		the data dictionary tables. */
