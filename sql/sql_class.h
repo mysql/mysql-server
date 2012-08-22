@@ -1844,6 +1844,7 @@ public:
     MEM_ROOT mem_root; // Transaction-life memory allocation pool
     void cleanup()
     {
+      DBUG_ENTER("thd::cleanup");
       changed_tables= 0;
       savepoints= 0;
       /*
@@ -1855,6 +1856,7 @@ public:
       if (!xid_state.rm_error)
         xid_state.xid.null();
       free_root(&mem_root,MYF(MY_KEEP_PREALLOC));
+      DBUG_VOID_RETURN;
     }
     my_bool is_active()
     {

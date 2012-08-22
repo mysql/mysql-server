@@ -3534,6 +3534,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   LEX_STRING new_db;
   int expected_error,actual_error= 0;
   HA_CREATE_INFO db_options;
+  DBUG_ENTER("Query_log_event::do_apply_event");
 
   /*
     Colleagues: please never free(thd->catalog) in MySQL. This would
@@ -3929,7 +3930,7 @@ end:
   thd->first_successful_insert_id_in_prev_stmt= 0;
   thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-  return thd->is_slave_error;
+  DBUG_RETURN(thd->is_slave_error);
 }
 
 int Query_log_event::do_update_pos(Relay_log_info *rli)
@@ -5284,6 +5285,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                                    bool use_rli_only_for_errors)
 {
   LEX_STRING new_db;
+  DBUG_ENTER("Load_log_event::do_apply_event");
+
   new_db.length= db_len;
   new_db.str= (char *) rpl_filter->get_rewrite_db(db, &new_db.length);
   thd->set_db(new_db.str, new_db.length);
@@ -5524,7 +5527,7 @@ error:
 Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
                     err, (char*)table_name, print_slave_db_safe(remember_db));
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-    return 1;
+    DBUG_RETURN(1);
   }
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
 
@@ -5539,10 +5542,10 @@ Error '%s' running LOAD DATA INFILE on table '%s'. Default database: '%s'",
 
     rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                 ER(ER_SLAVE_FATAL_ERROR), buf);
-    return 1;
+    DBUG_RETURN(1);
   }
 
-  return ( use_rli_only_for_errors ? 0 : Log_event::do_apply_event(rli) ); 
+  DBUG_RETURN( use_rli_only_for_errors ? 0 : Log_event::do_apply_event(rli) ); 
 }
 #endif
 
@@ -6486,15 +6489,16 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
   Item *it= 0;
   CHARSET_INFO *charset;
+  DBUG_ENTER("User_var_log_event::do_apply_event");
 
   if (rli->deferred_events_collecting)
   {
     set_deferred();
-    return rli->deferred_events->add(this);
+    DBUG_RETURN(rli->deferred_events->add(this));
   }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
-    return 1;
+    DBUG_RETURN(1);
   LEX_STRING user_var_name;
   user_var_name.str= name;
   user_var_name.length= name_len;
@@ -6540,7 +6544,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     case ROW_RESULT:
     default:
       DBUG_ASSERT(0);
-      return 0;
+      DBUG_RETURN(0);
     }
   }
 
@@ -6554,7 +6558,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     error.
   */
   if (e->fix_fields(thd, 0))
-    return 1;
+    DBUG_RETURN(1);
 
   /*
     A variable can just be considered as a table with
@@ -6566,7 +6570,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   if (!is_deferred())
     free_root(thd->mem_root, 0);
 
-  return 0;
+  DBUG_RETURN(0);
 }
 
 int User_var_log_event::do_update_pos(Relay_log_info *rli)
