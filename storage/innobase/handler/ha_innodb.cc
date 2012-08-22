@@ -459,7 +459,9 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_tuple_get_n_user_cols,
 	(ib_cb_t) ib_cursor_set_lock_mode,
 	(ib_cb_t) ib_cursor_clear_trx,
-	(ib_cb_t) ib_get_idx_field_name
+	(ib_cb_t) ib_get_idx_field_name,
+	(ib_cb_t) ib_trx_get_start_time,
+	(ib_cb_t) ib_cfg_bk_commit_interval
 };
 
 /*************************************************************//**
@@ -15723,11 +15725,19 @@ static MYSQL_SYSVAR_BOOL(api_disable_rowlock, ib_disable_row_lock,
 
 static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use.",
+  "InnoDB API transaction isolation level",
   NULL, NULL,
   0,		/* Default setting */
   0,		/* Minimum value */
   3, 0);	/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(api_bk_commit_interval, ib_bk_commit_interval,
+  PLUGIN_VAR_OPCMDARG,
+  "Background commit interval in seconds",
+  NULL, NULL,
+  5,		/* Default setting */
+  1,		/* Minimum value */
+  1024 * 1024 * 1024, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
@@ -15814,6 +15824,7 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(api_trx_level),
+  MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
