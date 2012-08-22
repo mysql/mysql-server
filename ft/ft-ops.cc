@@ -2535,18 +2535,20 @@ toku_ft_root_put_cmd (FT ft, FT_MSG_S * cmd)
             );
         toku_assert_entire_node_in_memory(node);
 
-        cmd->msn.msn = node->max_msn_applied_to_node_on_disk.msn + 1;
-        // Note, the lower level function that filters messages based on
-        // msn, (toku_ft_bn_apply_cmd() or ft_nonleaf_put_cmd()) will capture
-        // the msn and store it in the relevant node, including the root
-        // node. This is how the new msn is set in the root.
-
         //VERIFY_NODE(brt, node);
         assert(node->fullhash==fullhash);
         ft_verify_flags(ft, node);
 
         // first handle a reactive root, then put in the message
+        // ft_process_maybe_reactive_root may release and re-pin the root
+        // so we cannot set the msn yet.
         ft_process_maybe_reactive_root(ft, &node);
+
+        cmd->msn.msn = node->max_msn_applied_to_node_on_disk.msn + 1;
+        // Note, the lower level function that filters messages based on
+        // msn, (toku_ft_bn_apply_cmd() or ft_nonleaf_put_cmd()) will capture
+        // the msn and store it in the relevant node, including the root
+        // node. This is how the new msn is set in the root.
     }
     push_something_at_root(ft, &node, cmd);
     // verify that msn of latest message was captured in root node (push_something_at_root() did not release ydb lock)
