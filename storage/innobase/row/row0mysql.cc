@@ -1946,6 +1946,8 @@ run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
+	DEBUG_SYNC_C("foreign_constraint_update_cascade");
+
 	row_upd_step(thr);
 
 	/* The recursive call for cascading update/delete happens
