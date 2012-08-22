@@ -14,3 +14,6 @@ innodb_bug13635833: Disabled until merging with XtraDB 5.1.63
 
 innodb-lock:  Disabled until merging with XtraDB 5.1.60
 innodb_replace:  Disabled until merging with XtraDB 5.1.60
+
+innodb_bug14007649: Disabled until merging with XtraDB 5.1.65
+

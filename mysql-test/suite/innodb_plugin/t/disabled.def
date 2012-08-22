@@ -17,3 +17,4 @@ innodb-index:    Disabled until merging with XtraDB 5.1.60
 innodb-lock:     Disabled until merging with XtraDB 5.1.60
 innodb_replace:  Disabled until merging with XtraDB 5.1.60
 innodb-blob:     Disabled until merging with XtraDB 5.1.63
+innodb_bug14007649: Disabled until merging with XtraDB 5.1.65

@@ -173,6 +173,7 @@ extern	ibool	srv_print_latch_waits;
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
+#define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,

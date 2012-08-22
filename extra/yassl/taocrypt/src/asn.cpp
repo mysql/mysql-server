@@ -758,6 +758,10 @@ void CertDecoder::GetName(NameType nt)
 
     while (source_.get_index() < length) {
         GetSet();
+        if (source_.GetError().What() == SET_E) {
+            source_.SetError(NO_ERROR_E);  // extensions may only have sequence
+            source_.prev();
+        }
         GetSequence();
 
         byte b = source_.next();

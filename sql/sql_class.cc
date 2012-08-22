@@ -369,6 +369,7 @@ extern "C"
 char *thd_security_context(THD *thd, char *buffer, unsigned int length,
                            unsigned int max_query_len)
 {
+  DEBUG_SYNC(thd, "thd_security_context");
   String str(buffer, length, &my_charset_latin1);
   const Security_context *sctx= &thd->main_security_ctx;
   char header[64];
@@ -607,7 +608,7 @@ Diagnostics_area::disable_status()
 THD::THD()
    :Statement(&main_lex, &main_mem_root, CONVENTIONAL_EXECUTION,
               /* statement id */ 0),
-   Open_tables_state(refresh_version), rli_fake(0),
+   Open_tables_state(refresh_version), rli_fake(NULL), rli_slave(NULL),
    lock_id(&main_lock_id),
    user_time(0), in_sub_stmt(0),
    sql_log_bin_toplevel(false),
@@ -707,6 +708,7 @@ THD::THD()
   active_vio = 0;
 #endif
   pthread_mutex_init(&LOCK_thd_data, MY_MUTEX_INIT_FAST);
+  pthread_mutex_init(&LOCK_thd_kill, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
   proc_info="login";
@@ -1011,6 +1013,8 @@ THD::~THD()
   /* Ensure that no one is using THD */
   pthread_mutex_lock(&LOCK_thd_data);
   pthread_mutex_unlock(&LOCK_thd_data);
+  pthread_mutex_lock(&LOCK_thd_kill);
+  pthread_mutex_unlock(&LOCK_thd_kill);
   add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
@@ -1039,6 +1043,7 @@ THD::~THD()
 #endif
   mysys_var=0;					// Safety (shouldn't be needed)
   pthread_mutex_destroy(&LOCK_thd_data);
+  pthread_mutex_destroy(&LOCK_thd_kill);
 #ifndef DBUG_OFF
   dbug_sentry= THD_SENTRY_GONE;
 #endif  
@@ -1048,6 +1053,8 @@ THD::~THD()
     delete rli_fake;
     rli_fake= NULL;
   }
+  if (rli_slave)
+    rli_slave->cleanup_after_session();
 #endif
 
   free_root(&main_mem_root, MYF(0));
@@ -1123,9 +1130,11 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 void THD::awake(THD::killed_state state_to_set)
 {
   DBUG_ENTER("THD::awake");
-  DBUG_PRINT("enter", ("this: 0x%lx", (long) this));
+  DBUG_PRINT("enter", ("this: 0x%lx thread_id=%lu killed_state=%d",
+             (long) this, thread_id, state_to_set));
   THD_CHECK_SENTRY(this);
-  safe_mutex_assert_owner(&LOCK_thd_data);
+  safe_mutex_assert_not_owner(&LOCK_thd_data);
+  safe_mutex_assert_owner(&LOCK_thd_kill);
 
   killed= state_to_set;
   if (state_to_set != THD::KILL_QUERY)
@@ -1146,7 +1155,9 @@ void THD::awake(THD::killed_state state_to_set)
         hack is not used.
       */
 
+      pthread_mutex_lock(&LOCK_thd_data);
       close_active_vio();
+      pthread_mutex_unlock(&LOCK_thd_data);
     }
 #endif    
   }
@@ -1335,6 +1346,10 @@ void THD::cleanup_after_query()
   /* reset table map for multi-table update */
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
+#ifndef EMBEDDED_LIBRARY
+  if (rli_slave)
+    rli_slave->cleanup_after_query();
+#endif
 }
 
 
