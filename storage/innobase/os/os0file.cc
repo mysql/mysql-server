@@ -1748,7 +1748,9 @@ os_file_create_func(
 
 	if (!srv_read_only_mode
 	    && type != OS_LOG_FILE
-	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+		|| srv_unix_file_flush_method
+		   == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
 		os_file_set_nocache(file, name, mode_str);
 	}

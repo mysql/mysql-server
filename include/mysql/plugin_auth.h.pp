@@ -78,7 +78,7 @@ typedef void *mysql_string_iterator_handle;
 typedef void *mysql_string_handle;
 extern struct mysql_string_service_st {
   int (*mysql_string_convert_to_char_ptr_type)
-       (mysql_string_handle, const char *, char *, int *);
+       (mysql_string_handle, const char *, char *, unsigned int, int *);
   mysql_string_iterator_handle (*mysql_string_get_iterator_type)
                                 (mysql_string_handle);
   int (*mysql_string_iterator_next_type)(mysql_string_iterator_handle);
@@ -91,7 +91,7 @@ extern struct mysql_string_service_st {
 } *mysql_string_service;
 int mysql_string_convert_to_char_ptr(mysql_string_handle string_handle,
                                      const char *charset_name, char *buffer,
-                                     int *error);
+                                     unsigned int buffer_size, int *error);
 mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
                                                        string_handle);
 int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle);

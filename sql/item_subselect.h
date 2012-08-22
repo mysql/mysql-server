@@ -253,7 +253,7 @@ protected:
   bool was_values;  // Set if we have found at least one row
 public:
   Item_maxmin_subselect(THD *thd, Item_subselect *parent,
-			st_select_lex *select_lex, bool max);
+			st_select_lex *select_lex, bool max, bool ignore_nulls);
   virtual void print(String *str, enum_query_type query_type);
   virtual void cleanup();
   bool any_value() { return was_values; }

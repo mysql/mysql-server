@@ -1296,7 +1296,7 @@ void test_locker_disabled()
   cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, __FILE__, __LINE__);
   ok(cond_locker != NULL, "locker");
   psi->end_cond_wait(cond_locker, 0);
-  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_STREAM_OPEN, "xxx", NULL);
   ok(file_locker != NULL, "locker");
   psi->start_file_open_wait(file_locker, __FILE__, __LINE__);
   psi->end_file_open_wait(file_locker, NULL);
