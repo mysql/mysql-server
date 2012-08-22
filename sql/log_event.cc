@@ -2756,7 +2756,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
       DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
-      DBUG_ASSERT(mts_assigned_partitions[i]->usage > 0);
+      DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
 
       i++;
     } while (it++);
