@@ -1319,6 +1319,13 @@ private:
   bool   c_nodeRestart;
   bool   c_initialNodeRestart;
   Uint32 c_tabinfoReceived;
+  /**
+   * This flag indicates that a dict takeover is in progress, specifically 
+   * that the new master has outstanding DICT_TAKEOVER_REQ messages. The flag
+   * is used to prevent client from starting (or ending) transactions during
+   * takeover.
+   */
+  bool   c_takeOverInProgress;
 
   /**
    * Temporary structure used when parsing table info
