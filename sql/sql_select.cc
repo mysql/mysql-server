@@ -2980,18 +2980,6 @@ void JOIN_TAB::cleanup()
   }
 }
 
-
-/**
-  @returns semijoin strategy for this table.
-*/
-uint JOIN_TAB::get_sj_strategy() const
-{
-  if (first_sj_inner_tab == NULL)
-    return SJ_OPT_NONE;
-  DBUG_ASSERT(first_sj_inner_tab->position->sj_strategy != SJ_OPT_NONE);
-  return first_sj_inner_tab->position->sj_strategy;
-}
-
 uint JOIN_TAB::sjm_query_block_id() const
 {
   return sj_is_materialize_strategy(get_sj_strategy()) ?
