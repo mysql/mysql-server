@@ -33,7 +33,15 @@ CREATE TABLE t (
 	INDEX (c(16))
 ) ENGINE=INNODB KEY_BLOCK_SIZE=2;
 
-SELECT * FROM information_schema.innodb_cmp_per_index;
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
 
 # insert some data into it
 BEGIN;
@@ -64,7 +72,15 @@ SELECT * FROM information_schema.innodb_cmp_per_index;
 DROP USER 'tuser01'@'localhost';
 
 -- replace_regex /index_id:[0-9]+/index_id:idisnondeterministic/
-SELECT * FROM information_schema.innodb_cmp_per_index;
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
 
 # restart mysqld and see that uncompress ops also gets increased when
 # selecting from the table again
@@ -75,7 +91,15 @@ SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 SELECT COUNT(*) FROM t;
 
-SELECT * FROM information_schema.innodb_cmp_per_index;
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
 
 DROP TABLE t;
 
