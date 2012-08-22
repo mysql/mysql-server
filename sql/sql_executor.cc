@@ -2363,6 +2363,10 @@ join_materialize_derived(JOIN_TAB *tab)
 {
   TABLE_LIST *derived= tab->table->pos_in_table_list;
   DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
+
+  if (derived->materializable_is_const()) // Has been materialized by optimizer
+    return NESTED_LOOP_OK;
+
   bool res= mysql_handle_single_derived(tab->table->in_use->lex,
                                         derived, &mysql_derived_materialize);
   if (!tab->table->in_use->lex->describe)
