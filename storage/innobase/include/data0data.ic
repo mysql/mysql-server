@@ -439,26 +439,6 @@ dtuple_create(
 	return(tuple);
 }
 
-/**********************************************************//**
-Wrap data fields in a tuple. The default value for number
-of fields used in record comparisons for this tuple is n_fields.
-@return	data tuple */
-UNIV_INLINE
-const dtuple_t*
-dtuple_from_fields(
-/*===============*/
-	dtuple_t*	tuple,		/*!< in: storage for data tuple */
-	const dfield_t*	fields,		/*!< in: fields */
-	ulint		n_fields)	/*!< in: number of fields */
-{
-	tuple->info_bits = 0;
-	tuple->n_fields = tuple->n_fields_cmp = n_fields;
-	tuple->fields = (dfield_t*) fields;
-	ut_d(tuple->magic_n = DATA_TUPLE_MAGIC_N);
-
-	return(tuple);
-}
-
 /*********************************************************************//**
 Copies a data tuple to another.  This is a shallow copy; if a deep copy
 is desired, dfield_dup() will have to be invoked on each field.

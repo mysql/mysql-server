@@ -28,15 +28,33 @@ void
 innobase_rec_to_mysql(
 /*==================*/
 	struct TABLE*		table,	/*!< in/out: MySQL table */
-	const ulint*		col_map,/*!< in: mapping of column
-					numbers in table to the
-					rebuilt table (index->table),
-					or NULL if not rebuilding table */
 	const rec_t*		rec,	/*!< in: record */
 	const dict_index_t*	index,	/*!< in: index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(
 					rec, index, ...) */
-	__attribute__((nonnull(1,3,4,5)));
+	__attribute__((nonnull));
+
+/*************************************************************//**
+Copies an InnoDB index entry to table->record[0]. */
+UNIV_INTERN
+void
+innobase_fields_to_mysql(
+/*=====================*/
+	struct TABLE*		table,	/*!< in/out: MySQL table */
+	const dict_index_t*	index,	/*!< in: InnoDB index */
+	const dfield_t*		fields)	/*!< in: InnoDB index fields */
+	__attribute__((nonnull));
+
+/*************************************************************//**
+Copies an InnoDB row to table->record[0]. */
+UNIV_INTERN
+void
+innobase_row_to_mysql(
+/*==================*/
+	struct TABLE*		table,	/*!< in/out: MySQL table */
+	const dict_table_t*	itab,	/*!< in: InnoDB table */
+	const dtuple_t*		row)	/*!< in: InnoDB row */
+	__attribute__((nonnull));
 
 /*************************************************************//**
 Resets table->record[0]. */

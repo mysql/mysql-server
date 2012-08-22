@@ -288,19 +288,6 @@ dtuple_create(
 	ulint		n_fields)/*!< in: number of fields */
 	__attribute__((nonnull, malloc));
 
-/**********************************************************//**
-Wrap data fields in a tuple. The default value for number
-of fields used in record comparisons for this tuple is n_fields.
-@return	data tuple */
-UNIV_INLINE
-const dtuple_t*
-dtuple_from_fields(
-/*===============*/
-	dtuple_t*	tuple,		/*!< in: storage for data tuple */
-	const dfield_t*	fields,		/*!< in: fields */
-	ulint		n_fields)	/*!< in: number of fields */
-	__attribute__((nonnull, warn_unused_result));
-
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
