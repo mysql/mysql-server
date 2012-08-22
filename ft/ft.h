@@ -23,11 +23,6 @@ int toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn) __attribute__((__war
 //Effect: suppresses rollback logs
 void toku_ft_suppress_rollbacks(FT h, TOKUTXN txn);
 
-void toku_ft_init_treelock(FT h);
-void toku_ft_destroy_treelock(FT h);
-void toku_ft_grab_treelock(FT h);
-void toku_ft_release_treelock(FT h);
-
 void toku_ft_init_reflock(FT ft);
 void toku_ft_destroy_reflock(FT ft);
 void toku_ft_grab_reflock(FT ft);

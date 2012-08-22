@@ -202,6 +202,12 @@ always_recursively_flush(FTNODE UU(child), void* UU(extra))
     return true;
 }
 
+bool
+never_recursively_flush(FTNODE UU(child), void* UU(extra))
+{
+    return false;
+}
+
 static bool
 recurse_if_child_is_gorged(FTNODE child, void* UU(extra))
 {
@@ -395,8 +401,6 @@ ct_maybe_merge_child(struct flusher_advice *fa,
 
         FTNODE root_node = NULL;
         {
-            toku_ft_grab_treelock(h);
-
             uint32_t fullhash;
             CACHEKEY root;
             toku_calculate_root_offset_pointer(h, &root, &fullhash);
@@ -404,8 +408,6 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             fill_bfe_for_full_read(&bfe, h);
             toku_pin_ftnode_off_client_thread(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, 0, NULL, &root_node);
             toku_assert_entire_node_in_memory(root_node);
-
-            toku_ft_release_treelock(h);
         }
 
         (void) __sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED), 1);
@@ -1647,6 +1649,51 @@ update_cleaner_status(
         }
         STATUS_VALUE(FT_FLUSHER_CLEANER_TOTAL_BUFFER_WORKDONE) += workdone;
     }
+}
+
+static void
+dummy_update_status(
+    FTNODE UU(child),
+    int UU(dirtied),
+    void* UU(extra)
+    ) 
+{
+}
+
+static int
+dummy_pick_heaviest_child(FT UU(h),
+                    FTNODE UU(parent),
+                    void* UU(extra))
+{
+    assert(false);
+    return -1;
+}
+
+void toku_ft_split_child(
+    FT ft,
+    FTNODE node,
+    int childnum,
+    FTNODE child
+    )
+{
+    struct flusher_advice fa;
+    flusher_advice_init(
+        &fa,
+        dummy_pick_heaviest_child,
+        dont_destroy_basement_nodes,
+        never_recursively_flush,
+        default_merge_child,
+        dummy_update_status,
+        default_pick_child_after_split,
+        NULL
+        );
+    ft_split_child(
+        ft,
+        node,
+        childnum, // childnum to split
+        child,
+        &fa
+        );
 }
 
 int

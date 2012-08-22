@@ -142,6 +142,9 @@ bool
 always_recursively_flush(FTNODE child, void* extra);
 
 bool
+never_recursively_flush(FTNODE UU(child), void* UU(extra));
+
+bool
 dont_destroy_basement_nodes(void* extra);
 
 void

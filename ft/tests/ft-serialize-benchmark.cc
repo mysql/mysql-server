@@ -118,7 +118,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     brt->ft = brt_h;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->compare_fun = long_key_cmp;
-    toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
@@ -170,7 +169,6 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
 
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&brt_h->blocktable);
-    toku_ft_destroy_treelock(brt_h);
     toku_free(brt_h->h);
     toku_free(brt_h);
     toku_free(brt);
@@ -252,7 +250,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     brt->ft = brt_h;
     brt_h->panic = 0; brt_h->panic_string = 0;
     brt_h->compare_fun = long_key_cmp;
-    toku_ft_init_treelock(brt_h);
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
@@ -306,7 +303,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
 
     toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&brt_h->blocktable);
-    toku_ft_destroy_treelock(brt_h);
     toku_free(brt_h->h);
     toku_free(brt_h);
     toku_free(brt);

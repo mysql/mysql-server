@@ -188,7 +188,6 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     lazy_assert(translation_size_on_disk > 0);
 
     // initialize the tree lock
-    toku_ft_init_treelock(ft);
     toku_ft_init_reflock(ft);
 
     //Load translation table

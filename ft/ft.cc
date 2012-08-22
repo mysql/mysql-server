@@ -39,7 +39,6 @@ ft_destroy(FT ft) {
     toku_blocktable_destroy(&ft->blocktable);
     if (ft->descriptor.dbt.data) toku_free(ft->descriptor.dbt.data);
     if (ft->cmp_descriptor.dbt.data) toku_free(ft->cmp_descriptor.dbt.data);
-    toku_ft_destroy_treelock(ft);
     toku_ft_destroy_reflock(ft);
     toku_free(ft->h);
 }
@@ -67,26 +66,6 @@ void
 toku_ft_free (FT ft) {
     ft_destroy(ft);
     toku_free(ft);
-}
-
-void
-toku_ft_init_treelock(FT ft) {
-    toku_mutex_init(&ft->tree_lock, NULL);
-}
-
-void
-toku_ft_destroy_treelock(FT ft) {
-    toku_mutex_destroy(&ft->tree_lock);
-}
-
-void
-toku_ft_grab_treelock(FT ft) {
-    toku_mutex_lock(&ft->tree_lock);
-}
-
-void
-toku_ft_release_treelock(FT ft) {
-    toku_mutex_unlock(&ft->tree_lock);
 }
 
 void
@@ -475,7 +454,6 @@ toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
 
     ft->h = ft_header_new(options, make_blocknum(0), (txn ? txn->ancestor_txnid64 : TXNID_NONE));
 
-    toku_ft_init_treelock(ft);
     toku_ft_init_reflock(ft);
     toku_blocktable_create_new(&ft->blocktable);
     //Assign blocknum for root block, also dirty the header
