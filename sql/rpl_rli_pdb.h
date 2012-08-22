@@ -27,6 +27,10 @@ typedef struct st_db_worker_hash_entry
   uint  db_len;
   const char *db;
   Slave_worker *worker;
+  /*
+    The number of transaction pending on this database.
+    This should only be modified under the lock slave_worker_hash_lock.
+   */
   long usage;
   /*
     The list of temp tables belonging to @ db database is
