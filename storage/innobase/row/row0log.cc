@@ -1239,19 +1239,22 @@ row_log_table_apply_insert(
 		mrec, dup->index, offsets, log, heap, trx_id, &error);
 
 	ut_ad(error == DB_SUCCESS || !row);
+	/* Handling of duplicate key error requires storing
+	of offending key in a record buffer. */
+	ut_ad(error != DB_DUPLICATE_KEY);
+
+	if (error != DB_SUCCESS)
+		return(error);
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
 			thr, row, offsets_heap, heap, log->table, dup);
+		if (error != DB_SUCCESS) {
+			/* Report the erroneous row using the new
+			version of the table. */
+			innobase_row_to_mysql(dup->table, log->table, row);
+		}
 	}
-
-	if (error != DB_SUCCESS) {
-		/* Report the erroneous row using the old
-		version of the table. */
-		innobase_rec_to_mysql(
-			dup->table, dup->col_map, mrec, dup->index, offsets);
-	}
-
 	return(error);
 }
 
@@ -1482,9 +1485,12 @@ row_log_table_apply_update(
 		mrec, dup->index, offsets, log, heap, trx_id, &error);
 
 	ut_ad(error == DB_SUCCESS || !row);
+	/* Handling of duplicate key error requires storing
+	of offending key in a record buffer. */
+	ut_ad(error != DB_DUPLICATE_KEY);
 
 	if (!row) {
-		goto err_exit;
+		return(error);
 	}
 
 	mtr_start(&mtr);
@@ -1515,11 +1521,9 @@ insert:
 
 err_exit:
 		if (error != DB_SUCCESS) {
-			/* Report the erroneous row using the old
+			/* Report the erroneous row using the new
 			version of the table. */
-			innobase_rec_to_mysql(
-				dup->table, dup->col_map,
-				mrec, dup->index, offsets);
+			innobase_row_to_mysql(dup->table, log->table, row);
 		}
 
 		return(error);

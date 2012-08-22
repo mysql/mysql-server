@@ -697,11 +697,12 @@ ALTER TABLE child CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_1' in the foreign table 'child'
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_1	test/child	test/parent	1	6
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_1	a3	b	0
 SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
 NAME	POS
 ID	0
@@ -776,7 +777,7 @@ Checkpoint_group_size	10
 Checkpoint_group_bitmap	11
 a	0
 b	1
-a1	0
+a3	0
 a2	1
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 NAME
@@ -794,8 +795,10 @@ test/parent
 SHOW CREATE TABLE child;
 Table	Create Table
 child	CREATE TABLE `child` (
-  `a1` int(11) NOT NULL,
-  `a2` int(11) DEFAULT NULL
+  `a3` int(11) DEFAULT NULL,
+  `a2` int(11) DEFAULT NULL,
+  KEY `fk_1` (`a3`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`a3`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
@@ -803,7 +806,7 @@ ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_1' in the foreign table 'child'
+ERROR HY000: Failed to add the foreign key constraint on table 'child'. Incorrect options in FOREIGN KEY constraint 'test/fk_1'
 DROP TABLE parent;
 DROP TABLE child;
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL, c INT) ENGINE = InnoDB;

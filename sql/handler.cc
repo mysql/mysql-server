@@ -3388,7 +3388,19 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
+/**
+  Construct and emit duplicate key error message using information
+  from table's record buffer.
+
+  @param table    TABLE object which record buffer should be used as
+                  source for column values.
+  @param key      Key description.
+  @param msg      Error message template to which key value should be
+                  added.
+  @param errflag  Flags for my_error() call.
+*/
+
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 {
   /* Write the duplicated key in the error message */
   char key_buff[MAX_KEY_LENGTH];
@@ -3415,9 +3427,16 @@ void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
 }
 
 
-void handler::print_keydup_error(KEY *key, myf errflag)
+/**
+  Construct and emit duplicate key error message using information
+  from table's record buffer.
+
+  @sa print_keydup_error(table, key, msg, errflag).
+*/
+
+void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -3465,7 +3484,8 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
+      print_keydup_error(table,
+                         key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
                          errflag);
       DBUG_VOID_RETURN;
     }
