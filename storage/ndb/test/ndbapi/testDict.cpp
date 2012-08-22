@@ -776,6 +776,144 @@ int runUseTableUntilStopped3(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+/**
+ * This is a regression test for bug 14190114 
+ * "CLUSTER CRASH DUE TO NDBREQUIRE IN ./LOCALPROXY.HPP DBLQH (LINE: 234)".
+ * This bug occurs if there is a takeover (i.e. the master node crashes) 
+ * while an LQH block is executing a DROP_TAB_REQ signal. It only affects
+ * multi-threaded ndb.
+ */
+static int
+runDropTakeoverTest(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() == 1)
+  {
+    g_info << "Cannot do this test with just one datanode." << endl;
+    return NDBT_OK;
+  }
+
+  Ndb* const ndb = GETNDB(step);
+  NdbDictionary::Dictionary* const dict = ndb->getDictionary();
+
+  // First we create a table that is a copy of ctx->getTab().
+  NdbDictionary::Table copyTab(*ctx->getTab());
+  const char* copyName = "copyTab";
+
+  copyTab.setName(copyName);
+  if (dict->createTable(copyTab) != 0)
+  {
+    g_err << "Failed to create table " << copyName << endl
+          << dict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * Find the node id of the master node and another data node that is not 
+   * the master.
+   */
+  const int masterNodeId = restarter.getMasterNodeId();
+  const int nonMasterNodeId =
+    masterNodeId == restarter.getDbNodeId(0) ?
+    restarter.getDbNodeId(1) : 
+    restarter.getDbNodeId(0);
+
+  /**
+   * This error insert makes LQH resend the DROP_TAB_REQ to itself (with a
+   * delay) rather than executing it, until the error insert is reset.
+   * This makes it appear as if though the LQH block spends a long time 
+   * executing the DROP_TAB_REQ signal.
+   */
+  g_info << "Insert error 5076 in node " << nonMasterNodeId << endl;
+  require(restarter.insertErrorInNode(nonMasterNodeId, 5076) == 0);
+  /**
+   * This error insert makes the master node crash when one of its LQH 
+   * blocks tries to execute a DROP_TAB_REQ signal. This will then trigger
+   * a takeover.
+   */
+  g_info << "Insert error 5077 in node " << masterNodeId << endl;
+  require(restarter.insertErrorInNode(masterNodeId, 5077) == 0);
+
+  // This dropTable should fail, since the master node dies.
+  g_info << "Trying to drop table " << copyName << endl;
+  if (dict->dropTable(copyName) == 0)
+  {
+    g_err << "Unexpectedly managed to drop table " << copyName << endl;
+    return NDBT_FAILED;
+  }
+
+  /** 
+   * Check that only old master is dead. Bug 14190114 would cause other nodes
+   * to die as well.
+   */
+  const int deadNodeId = restarter.checkClusterAlive(&masterNodeId, 1);
+  if (deadNodeId != 0)
+  {
+    g_err << "NodeId " << deadNodeId << " is down." << endl;
+    return NDBT_FAILED;
+  }
+  
+  // Reset error insert.
+  g_info << "insert error 0 in node " << nonMasterNodeId << endl;
+  require(restarter.insertErrorInNode(nonMasterNodeId, 0) == 0);
+
+  // Verify that old master comes back up, and that no other node crashed.
+  g_info << "Waiting for all nodes to be up." << endl;
+  if (restarter.waitClusterStarted() != 0)
+  {
+    g_err << "One or more cluster nodes are not up." << endl;
+    return NDBT_FAILED;
+  }
+
+  /**
+   * The 'drop table' operation should have been rolled forward, since the
+   * node crash happened in the complete phase. Verify that the table is 
+   * gone.
+   */
+  g_info << "Verifying that table " << copyName << " was deleted." << endl;
+  if (dict->getTable(copyName) == NULL)
+  {
+    if (dict->getNdbError().code != 723) // 723 = no such table existed.
+    {
+      g_err << "dict->getTable() for " << copyName 
+            << " failed in unexpedted way:" << endl
+            << dict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    g_err << "Transaction dropping " << copyName << " was not rolled forward"
+          << endl;
+    return NDBT_FAILED;
+  }
+  
+  /** 
+   * Do another dictionary transaction, to verify that the cluster allows that.
+   */
+  NdbDictionary::Table extraTab(*ctx->getTab());
+  const char* extraName = "extraTab";
+
+  extraTab.setName(extraName);
+  g_info << "Trying to create table " << extraName << endl;
+  if (dict->createTable(extraTab) != 0)
+  {
+    g_err << "Failed to create table " << extraName << endl
+          << dict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  // Clean up by dropping extraTab.
+  g_info << "Trying to drop table " << extraName << endl;
+  if (dict->dropTable(extraName) != 0)
+  {
+    g_err << "Failed to drop table " << extraName << endl
+          << dict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
 
 int
 runCreateMaxTables(NDBT_Context* ctx, NDBT_Step* step)
@@ -9075,6 +9213,9 @@ TESTCASE("CreateAndDropDuring",
 	 "do this loop number of times\n"){
   STEP(runCreateAndDropDuring);
   STEP(runUseTableUntilStopped);
+}
+TESTCASE("DropWithTakeover","bug 14190114"){
+  INITIALIZER(runDropTakeoverTest);
 }
 TESTCASE("CreateInvalidTables", 
 	 "Try to create the invalid tables we have defined\n"){ 
