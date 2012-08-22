@@ -1262,4 +1262,21 @@ ib_trx_state_t
 ib_cfg_trx_level();
 /*==============*/
 
+/*****************************************************************//**
+Return configure value for background commit interval (in seconds)
+@return background commit interval (in seconds) */
+
+ib_ulint_t
+ib_cfg_bk_commit_interval();
+/*=======================*/
+
+/*****************************************************************//**
+Get a trx start time.
+@return trx start_time */
+
+ib_u64_t
+ib_trx_get_start_time(
+/*==================*/
+	ib_trx_t	ib_trx);	/*!< in: transaction */
+
 #endif /* api0api_h */

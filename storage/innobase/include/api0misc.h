@@ -44,6 +44,9 @@ extern my_bool                  ib_disable_row_lock;
 /** configure value for transaction isolation level */
 extern ulong			ib_trx_level_setting;
 
+/** configure value for background commit interval (in seconds) */
+extern ulong			ib_bk_commit_interval;
+
 /********************************************************************
 Handles user errors and lock waits detected by the database engine.
 @return	TRUE if it was a lock wait and we should continue running
