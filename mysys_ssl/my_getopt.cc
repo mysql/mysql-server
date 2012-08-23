@@ -737,6 +737,11 @@ static int setval(const struct my_option *opts, void *value, char *argument,
           }
           *(ulong*)value= arg;
         }
+        else if (type < 0)
+        {
+          res= EXIT_AMBIGUOUS_OPTION;
+          goto ret;
+        }
         else
           *(ulong*)value= type - 1;
       }
