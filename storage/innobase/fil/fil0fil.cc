@@ -5115,48 +5115,43 @@ fil_io(
 
 	space = fil_space_get_by_id(space_id);
 
-	if (!space) {
+	if (space == 0) {
 		mutex_exit(&fil_system->mutex);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: trying to do i/o"
-			" to a tablespace which does not exist.\n"
-			"InnoDB: i/o type %lu, space id %lu,"
-			" page no. %lu, i/o length %lu bytes\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to do i/o to a tablespace which does "
+			"not exist. i/o type %lu, space id %lu, "
+			"page no. %lu, i/o length %lu bytes",
 			(ulong) type, (ulong) space_id, (ulong) block_offset,
 			(ulong) len);
 
 		return(DB_TABLESPACE_DELETED);
 	}
 
-	ut_ad((mode != OS_AIO_IBUF) || (space->purpose == FIL_TABLESPACE));
+	ut_ad(mode != OS_AIO_IBUF || space->purpose == FIL_TABLESPACE);
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	for (;;) {
-		if (UNIV_UNLIKELY(node == NULL)) {
+		if (node == NULL) {
 			if (ignore_nonexistent_pages) {
 				mutex_exit(&fil_system->mutex);
 				return(DB_ERROR);
 			}
-			/* else */
 
 			fil_report_invalid_page_access(
 				block_offset, space_id, space->name,
 				byte_offset, len, type);
 
 			ut_error;
-		}
 
-		if (fil_is_user_tablespace_id(space->id) && node->size == 0) {
+		} else  if (fil_is_user_tablespace_id(space->id)
+			   && node->size == 0) {
+
 			/* We do not know the size of a single-table tablespace
 			before we open the file */
-
 			break;
-		}
-
-		if (node->size > block_offset) {
+		} else if (node->size > block_offset) {
 			/* Found! */
 			break;
 		} else {
