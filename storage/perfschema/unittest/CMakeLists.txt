@@ -1,5 +1,4 @@
-# Copyright (c) 2009, 2010 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,18 +10,18 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; if not, write to the Free Software Foundation,
-# 51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA
 
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/include/mysql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/sql
-                    ${CMAKE_SOURCE_DIR}/extra/yassl/include
+                    ${SSL_INCLUDE_DIRS}
                     ${CMAKE_SOURCE_DIR}/unittest/mytap
                     ${CMAKE_SOURCE_DIR}/storage/perfschema)
 
-ADD_DEFINITIONS(-DMYSQL_SERVER)
+ADD_DEFINITIONS(-DMYSQL_SERVER ${SSL_DEFINES})
 
 MACRO (PFS_ADD_TEST name)
   ADD_EXECUTABLE(${name}-t ${name}-t.cc)
@@ -45,10 +44,13 @@ FOREACH(testname ${tests})
 ENDFOREACH()
 
 IF(WIN32)
-  SET(MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.h)
+  SET(MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 ENDIF()
 
 # we need the server libs to test the blob parser
 ADD_EXECUTABLE(pfs_connect_attr-t pfs_connect_attr-t.cc ${MYSQLD_EXTRA_SOURCES})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema sql binlog rpl master slave sql mysys ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t
+  mytap perfschema sql binlog rpl master slave sql
+  mysys mysys_ssl)
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
 ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
