@@ -1536,7 +1536,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT a FROM t1 FORCE INDEX FOR JOIN (i2) 
 FORCE INDEX FOR GROUP BY (i2) GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	i2	4	NULL	145	Using index for group-by
+1	SIMPLE	t1	index	NULL	i2	9	NULL	144	Using index
 EXPLAIN SELECT a FROM t1 USE INDEX () IGNORE INDEX (i2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	144	NULL
@@ -2188,11 +2188,12 @@ CREATE TABLE t1(
 col1 int, 
 UNIQUE INDEX idx (col1)
 );
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+(11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 EXPLAIN SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 FROM t1 GROUP BY field1, field2;;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	idx	5	NULL	6	Using index for group-by
+1	SIMPLE	t1	range	NULL	idx	5	NULL	7	Using index for group-by
 FLUSH STATUS;
 SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 FROM t1 GROUP BY field1, field2;;
@@ -2207,6 +2208,16 @@ field1	field2
 8	8
 9	9
 10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 Variable_name	Value
 Sort_scan	0
@@ -2225,6 +2236,16 @@ field1	field2
 8	8
 9	9
 10	10
+11	11
+12	12
+13	13
+14	14
+15	15
+16	16
+17	17
+18	18
+19	19
+20	20
 SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
 FROM t1 as tbl1, t1 as tbl2 
 GROUP BY field1, field2 
@@ -2630,7 +2651,7 @@ a int,
 b varchar(1),
 KEY (b,a)
 );
-INSERT INTO t1 VALUES (1,NULL),(0,'a');
+INSERT INTO t1 VALUES (1,NULL),(0,'a'),(1,NULL),(0,'a');
 
 EXPLAIN SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
