@@ -1678,19 +1678,33 @@ get_store_key(THD *thd, Key_use *keyuse, table_map used_tables,
 				    key_part->length,
 				    keyuse->val);
   }
-  else if (keyuse->val->type() == Item::FIELD_ITEM ||
-           (keyuse->val->type() == Item::REF_ITEM &&
-            ((Item_ref*)keyuse->val)->ref_type() == Item_ref::OUTER_REF &&
-            (*(Item_ref**)((Item_ref*)keyuse->val)->ref)->ref_type() ==
-             Item_ref::DIRECT_REF && 
-            keyuse->val->real_item()->type() == Item::FIELD_ITEM))
+
+  Item_field *field_item= NULL;
+  if (keyuse->val->type() == Item::FIELD_ITEM)  
+    field_item= static_cast<Item_field*>(keyuse->val->real_item());
+  else if (keyuse->val->type() == Item::REF_ITEM)
+  {
+    Item_ref *item_ref= static_cast<Item_ref*>(keyuse->val);
+    if (item_ref->ref_type() == Item_ref::OUTER_REF)
+    {
+      if ((*item_ref->ref)->type() == Item::FIELD_ITEM)
+        field_item= static_cast<Item_field*>(item_ref->real_item());
+      else if ((*(Item_ref**)(item_ref)->ref)->ref_type()
+               == Item_ref::DIRECT_REF
+               && 
+               item_ref->real_item()->type() == Item::FIELD_ITEM)
+        field_item= static_cast<Item_field*>(item_ref->real_item());
+    }
+  }
+  if (field_item)
     return new store_key_field(thd,
-			       key_part->field,
-			       key_buff + maybe_null,
-			       maybe_null ? key_buff : 0,
-			       key_part->length,
-			       ((Item_field*) keyuse->val->real_item())->field,
-			       keyuse->val->full_name());
+                               key_part->field,
+                               key_buff + maybe_null,
+                               maybe_null ? key_buff : 0,
+                               key_part->length,
+                               field_item->field,
+                               keyuse->val->full_name());
+
   return new store_key_item(thd,
 			    key_part->field,
 			    key_buff + maybe_null,
@@ -5234,7 +5248,8 @@ bool JOIN::make_tmp_tables_info()
     ORDER_with_src order_arg= group_list ?  group_list : order;
     if (join_tab &&
         ordered_index_usage !=
-        (group_list ? ordered_index_group_by : ordered_index_order_by))
+        (group_list ? ordered_index_group_by : ordered_index_order_by) &&
+        join_tab[curr_tmp_table].type != JT_CONST) // Don't sort 1 row
     {
       // Sort either first non-const table or the last tmp table
       JOIN_TAB *sort_tab= &join_tab[curr_tmp_table];

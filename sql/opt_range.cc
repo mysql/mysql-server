@@ -11786,7 +11786,7 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
 
   DESCRIPTION
     This method computes the access cost of a TRP_GROUP_MIN_MAX instance and
-    the number of rows returned. It updates this->read_cost and this->records.
+    the number of rows returned.
 
   NOTES
     The cost computation distinguishes several cases:
@@ -11842,7 +11842,6 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
   double io_cost;
-  double cpu_cost= 0; /* TODO: CPU cost of index_read calls? */
   DBUG_ENTER("cost_group_min_max");
 
   table_records= table->file->stats.records;
@@ -11890,11 +11889,23 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
              (double) num_blocks;
 
   /*
-    TODO: If there is no WHERE clause and no other expressions, there should be
-    no CPU cost. We leave it here to make this cost comparable to that of index
-    scan as computed in SQL_SELECT::test_quick_select().
+    CPU cost must be comparable to that of an index scan as computed
+    in SQL_SELECT::test_quick_select(). When the groups are small,
+    e.g. for a unique index, using index scan will be cheaper since it
+    reads the next record without having to re-position to it on every
+    group. To make the CPU cost reflect this, we estimate the CPU cost
+    as the sum of:
+    1. Cost for evaluating the condition (similarly as for index scan).
+    2. Cost for navigating the index structure (assuming a b-tree).
+       Note: We only add the cost for one comparision per block. For a
+             b-tree the number of comparisons will be larger.
+       TODO: This cost should be provided by the storage engine.
   */
-  cpu_cost= num_groups * ROW_EVALUATE_COST;
+  const double tree_traversal_cost= 
+    ceil(log(static_cast<double>(table_records))/
+         log(static_cast<double>(keys_per_block))) * ROWID_COMPARE_COST; 
+
+  const double cpu_cost= num_groups * (tree_traversal_cost + ROW_EVALUATE_COST);
 
   *read_cost= io_cost + cpu_cost;
   *records= num_groups;
