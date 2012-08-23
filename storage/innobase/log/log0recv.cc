@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1149,18 +1150,22 @@ recv_parse_or_apply_log_rec_body(
 				ptr, end_ptr, block, index, mtr);
 		}
 		break;
-	case MLOG_PAGE_REORGANIZE: case MLOG_COMP_PAGE_REORGANIZE:
+	case MLOG_PAGE_REORGANIZE:
+	case MLOG_COMP_PAGE_REORGANIZE:
+	case MLOG_ZIP_PAGE_REORGANIZE:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
 
 		if (NULL != (ptr = mlog_parse_index(
 				     ptr, end_ptr,
-				     type == MLOG_COMP_PAGE_REORGANIZE,
+				     type != MLOG_PAGE_REORGANIZE,
 				     &index))) {
 			ut_a(!page
 			     || (ibool)!!page_is_comp(page)
 			     == dict_table_is_comp(index->table));
-			ptr = btr_parse_page_reorganize(ptr, end_ptr, index,
-							block, mtr);
+			ptr = btr_parse_page_reorganize(
+				ptr, end_ptr, index,
+				type == MLOG_ZIP_PAGE_REORGANIZE,
+				block, mtr);
 		}
 		break;
 	case MLOG_PAGE_CREATE: case MLOG_COMP_PAGE_CREATE:
@@ -1254,6 +1259,16 @@ recv_parse_or_apply_log_rec_body(
 		/* Allow anything in page_type when creating a page. */
 		ptr = page_zip_parse_compress(ptr, end_ptr,
 					      page, page_zip);
+		break;
+	case MLOG_ZIP_PAGE_COMPRESS_NO_DATA:
+		if (NULL != (ptr = mlog_parse_index(
+				ptr, end_ptr, TRUE, &index))) {
+
+			ut_a(!page || ((ibool)!!page_is_comp(page)
+				== dict_table_is_comp(index->table)));
+			ptr = page_zip_parse_compress_no_data(
+				ptr, end_ptr, page, page_zip, index);
+		}
 		break;
 	default:
 		ptr = NULL;
