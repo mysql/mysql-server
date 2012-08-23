@@ -1,9 +1,0 @@
-# Tests for PERFORMANCE_SCHEMA
-# Make sure mysql_upgrade does not destroy data in a 'performance_schema'
-# database.
-# 
-
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source ../include/pfs_upgrade.inc
-
