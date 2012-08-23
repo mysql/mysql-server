@@ -697,7 +697,7 @@ open_or_create_log_file(
 		    to 0 here, which causes our function to return 100;
 		    work around that AIX problem */
 		    && os_file_get_last_error(false) != 100
-#endif
+#endif /* UNIV_AIX */
 		    ) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Can't create or open '%s'", name);
@@ -767,8 +767,10 @@ open_or_create_log_file(
 	then we have a limit of 64TB on 32 bit systems */
 	ut_a(srv_log_file_size <= ULINT_MAX);
 
-	fil_node_create(name, (ulint) srv_log_file_size,
-			2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
+	fil_node_create(
+		name, (ulint) srv_log_file_size,
+		2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
+
 #ifdef UNIV_LOG_ARCHIVE
 	/* If this is the first log group, create the file space object
 	for archived logs.
@@ -848,7 +850,9 @@ open_or_create_data_files(
 
 		ut_a(dirnamelen + strlen(srv_data_file_names[i])
 		     < (sizeof name) - 1);
+
 		memcpy(name, srv_data_home, dirnamelen);
+
 		/* Add a path separator if needed. */
 		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
 			name[dirnamelen++] = SRV_PATH_SEPARATOR;
@@ -867,13 +871,12 @@ open_or_create_data_files(
 			/* First we try to create the file: if it already
 			exists, ret will get value FALSE */
 
-			files[i] = os_file_create(innodb_file_data_key,
-						  name, OS_FILE_CREATE,
-						  OS_FILE_NORMAL,
-						  OS_DATA_FILE, &ret);
+			files[i] = os_file_create(
+				innodb_file_data_key, name, OS_FILE_CREATE,
+				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
 			if (srv_read_only_mode && ret) {
-				goto skip_size_check;
+				goto size_check;
 			} else if (ret == FALSE
 				   && os_file_get_last_error(false)
 				   != OS_FILE_ALREADY_EXISTS
@@ -964,6 +967,7 @@ open_or_create_data_files(
 				goto skip_size_check;
 			}
 
+size_check:
 			size = os_file_get_size(files[i]);
 			ut_a(size != (os_offset_t) -1);
 			/* Round size downward to megabytes */
@@ -1217,7 +1221,6 @@ srv_undo_tablespace_open(
 
 	if (ret) {
 		os_offset_t	size;
-		os_offset_t	n_pages;
 
 		size = os_file_get_size(fh);
 		ut_a(size != (os_offset_t) -1);
@@ -1240,7 +1243,7 @@ srv_undo_tablespace_open(
 
 		ut_a(fil_validate());
 
-		n_pages = size / UNIV_PAGE_SIZE;
+		os_offset_t	n_pages = size / UNIV_PAGE_SIZE;
 
 		/* On 64 bit Windows ulint can be 32 bit and os_offset_t
 		is 64 bit. It is OK to cast the n_pages to ulint because
