@@ -1131,7 +1131,6 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  bool val_bool();
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL

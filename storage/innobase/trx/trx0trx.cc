@@ -992,7 +992,7 @@ trx_finalize_for_fts(
 /**********************************************************************//**
 If required, flushes the log to disk based on the value of
 innodb_flush_log_at_trx_commit. */
-static __attribute__((nonnull))
+static
 void
 trx_flush_log_if_needed_low(
 /*========================*/
