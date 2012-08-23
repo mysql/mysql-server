@@ -5234,7 +5234,8 @@ bool JOIN::make_tmp_tables_info()
     ORDER_with_src order_arg= group_list ?  group_list : order;
     if (join_tab &&
         ordered_index_usage !=
-        (group_list ? ordered_index_group_by : ordered_index_order_by))
+        (group_list ? ordered_index_group_by : ordered_index_order_by) &&
+        join_tab[curr_tmp_table].type != JT_CONST) // Don't sort 1 row
     {
       // Sort either first non-const table or the last tmp table
       JOIN_TAB *sort_tab= &join_tab[curr_tmp_table];
