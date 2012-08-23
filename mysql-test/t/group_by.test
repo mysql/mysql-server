@@ -1549,7 +1549,8 @@ CREATE TABLE t1(
  UNIQUE INDEX idx (col1)
 );
 
-INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+   (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 
 let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
            FROM t1 GROUP BY field1, field2;
@@ -1977,7 +1978,7 @@ CREATE TABLE t1 (
   KEY (b,a)
 );
 
-INSERT INTO t1 VALUES (1,NULL),(0,'a');
+INSERT INTO t1 VALUES (1,NULL),(0,'a'),(1,NULL),(0,'a');
 
 let $query=
   SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;
