@@ -1,0 +1,35 @@
+# Tests for PERFORMANCE_SCHEMA
+# Make sure mysql_upgrade does not destroy data in a 'performance_schema'
+# database.
+# 
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Some initial settings + Preemptive cleanup
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $err_file= $MYSQLTEST_VARDIR/tmp/pfs_upgrade_event.err;
+let $out_file= $MYSQLTEST_VARDIR/tmp/pfs_upgrade_event.out;
+--error 0,1
+--remove_file $out_file
+--error 0,1
+--remove_file $err_file
+
+--disable_warnings
+drop event if exists test.user_event;
+--enable_warnings
+
+--echo "Testing mysql_upgrade with EVENT performance_schema.user_event"
+
+create event test.user_event on schedule every 1 day do
+  select "not supposed to be here";
+
+update mysql.event set db='performance_schema' where name='user_event';
+
+--source suite/perfschema/include/upgrade_check.inc
+
+select name from mysql.event where db='performance_schema';
+
+update mysql.event set db='test' where name='user_event';
+drop event test.user_event;
+
