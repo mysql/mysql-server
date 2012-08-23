@@ -193,7 +193,9 @@ uint32 wt_success_stats;
 
 static my_atomic_rwlock_t cycle_stats_lock, wait_stats_lock, success_stats_lock;
 
+#ifdef HAVE_PSI_INTERFACE
 extern PSI_cond_key key_WT_RESOURCE_cond;
+#endif
 
 #ifdef SAFE_STATISTICS
 #define incr(VAR, LOCK)                           \
