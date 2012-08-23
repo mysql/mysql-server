@@ -3582,12 +3582,13 @@ void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t 
     m_high_size_watermark = (3 * _size_limit)/2; // 50% more
     
     m_size_reserved = unreservable_memory(_size_limit);
-    m_size_nonleaf = 0; 
     m_size_current = 0;
     m_size_evicting = 0;
-    m_size_leaf = 0;
-    m_size_rollback = 0;
-    m_size_cachepressure = 0;
+
+    m_size_nonleaf = create_partitioned_counter(); 
+    m_size_leaf = create_partitioned_counter();
+    m_size_rollback = create_partitioned_counter();
+    m_size_cachepressure = create_partitioned_counter();
 
     m_pl = _pl;
     m_kibbutz = _kibbutz;    
@@ -3624,6 +3625,15 @@ void evictor::destroy() {
     assert_zero(r);
     assert(!m_ev_thread_is_running);
 
+    destroy_partitioned_counter(m_size_nonleaf);
+    m_size_nonleaf = NULL;
+    destroy_partitioned_counter(m_size_leaf);
+    m_size_leaf = NULL;
+    destroy_partitioned_counter(m_size_rollback);
+    m_size_rollback = NULL;
+    destroy_partitioned_counter(m_size_cachepressure);    
+    m_size_cachepressure = NULL;
+
     toku_cond_destroy(&m_flow_control_cond);
     toku_cond_destroy(&m_ev_thread_cond);
     toku_mutex_destroy(&m_ev_thread_lock);
@@ -3636,10 +3646,10 @@ void evictor::destroy() {
 void evictor::add_pair_attr(PAIR_ATTR attr) {
     assert(attr.is_valid);
     add_to_size_current(attr.size);
-    (void) __sync_fetch_and_add(&m_size_nonleaf, attr.nonleaf_size);
-    (void) __sync_fetch_and_add(&m_size_leaf, attr.leaf_size);
-    (void) __sync_fetch_and_add(&m_size_rollback, attr.rollback_size);
-    (void) __sync_fetch_and_add(&m_size_cachepressure, attr.cache_pressure_size);
+    increment_partitioned_counter(m_size_nonleaf, attr.nonleaf_size);
+    increment_partitioned_counter(m_size_leaf, attr.leaf_size);
+    increment_partitioned_counter(m_size_rollback, attr.rollback_size);
+    increment_partitioned_counter(m_size_cachepressure, attr.cache_pressure_size);
 }
 
 //
@@ -3649,10 +3659,10 @@ void evictor::add_pair_attr(PAIR_ATTR attr) {
 void evictor::remove_pair_attr(PAIR_ATTR attr) {
     assert(attr.is_valid);
     remove_from_size_current(attr.size);
-    (void) __sync_fetch_and_sub(&m_size_nonleaf, attr.nonleaf_size);
-    (void) __sync_fetch_and_sub(&m_size_leaf, attr.leaf_size);
-    (void) __sync_fetch_and_sub(&m_size_rollback, attr.rollback_size);
-    (void) __sync_fetch_and_sub(&m_size_cachepressure, attr.cache_pressure_size);
+    increment_partitioned_counter(m_size_nonleaf, 0 - attr.nonleaf_size);
+    increment_partitioned_counter(m_size_leaf, 0 - attr.leaf_size);
+    increment_partitioned_counter(m_size_rollback, 0 - attr.rollback_size);
+    increment_partitioned_counter(m_size_cachepressure, 0 - attr.cache_pressure_size);
     assert(m_size_current >= 0);
 }
 
@@ -4141,10 +4151,10 @@ void evictor::fill_engine_status() {
     STATUS_VALUE(CT_SIZE_CURRENT)           = m_size_current;
     STATUS_VALUE(CT_SIZE_LIMIT)             = m_low_size_hysteresis;
     STATUS_VALUE(CT_SIZE_WRITING)           = m_size_evicting;
-    STATUS_VALUE(CT_SIZE_NONLEAF)           = m_size_nonleaf;
-    STATUS_VALUE(CT_SIZE_LEAF)              = m_size_leaf;
-    STATUS_VALUE(CT_SIZE_ROLLBACK)          = m_size_rollback;
-    STATUS_VALUE(CT_SIZE_CACHEPRESSURE)     = m_size_cachepressure;
+    STATUS_VALUE(CT_SIZE_NONLEAF) = read_partitioned_counter(m_size_nonleaf);
+    STATUS_VALUE(CT_SIZE_LEAF) = read_partitioned_counter(m_size_leaf);
+    STATUS_VALUE(CT_SIZE_ROLLBACK) = read_partitioned_counter(m_size_rollback);
+    STATUS_VALUE(CT_SIZE_CACHEPRESSURE) = read_partitioned_counter(m_size_cachepressure);
 }
 
 ////////////////////////////////////////////////////////////////////////////////

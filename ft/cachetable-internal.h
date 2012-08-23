@@ -12,6 +12,7 @@
 #include "nonblocking_mutex.h"
 #include "kibbutz.h"
 #include "background_job_manager.h"
+#include "partitioned_counter.h"
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -426,10 +427,10 @@ private:
     toku_cond_t m_flow_control_cond;
 
     // variables for engine status
-    int64_t m_size_nonleaf;
-    int64_t m_size_leaf;
-    int64_t m_size_rollback;
-    int64_t m_size_cachepressure;
+    PARTITIONED_COUNTER m_size_nonleaf;
+    PARTITIONED_COUNTER m_size_leaf;
+    PARTITIONED_COUNTER m_size_rollback;
+    PARTITIONED_COUNTER m_size_cachepressure;
     
     KIBBUTZ m_kibbutz;
 
