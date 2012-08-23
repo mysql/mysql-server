@@ -2859,10 +2859,8 @@ recv_init_crash_recovery(void)
 
 	recv_needed_recovery = TRUE;
 
-	ib_logf(IB_LOG_LEVEL_WARN,
-		"Database was notshut down normally! Starting crash "
-		"recovery.");
-
+	ib_logf(IB_LOG_LEVEL_WARN, "Database was not shutdown normally!");
+        ib_logf(IB_LOG_LEVEL_WARN, "Starting crash recovery.");
 	ib_logf(IB_LOG_LEVEL_WARN,
 		"Reading tablespace information from the .ibd files...");
 
@@ -2876,8 +2874,10 @@ recv_init_crash_recovery(void)
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Restoring possible half-written data pages from "
-			"the doublewrite buffer...");
+			"Restoring possible half-written data pages ");
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"from the doublewrite buffer...");
 
 		buf_dblwr_init_or_restore_pages(TRUE);
 	}
@@ -3146,19 +3146,25 @@ recv_recovery_from_checkpoint_start_func(
 
 			if (!recv_needed_recovery) {
 
-				ib_logf(IB_LOG_LEVEL_INFO,
+				ib_logf(IB_LOG_LEVEL_WARN,
 					"The log sequence number "
-					"in ibdata files does not match "
-					"the log sequence number "
+					"in ibdata files does ");
+
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"not match the log sequence number "
 					"in the ib_logfiles!");
 
 				if (!srv_read_only_mode) {
 					recv_init_crash_recovery();
 				} else {
+
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Can't initiate database "
-						"recovery because InnoDB is "
-						"running in read-only-mode.");
+						"recovery, running");
+
+				       	ib_logf(IB_LOG_LEVEL_ERROR,
+						"in read-only-mode.");
+
 					return(DB_READ_ONLY);
 				}
 			}

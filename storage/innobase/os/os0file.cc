@@ -3736,7 +3736,7 @@ static
 void
 os_aio_array_free(
 /*==============*/
-	os_aio_array_t*	array)	/*!< in, own: array to free */
+	os_aio_array_t*& array)	/*!< in, own: array to free */
 {
 #ifdef WIN_ASYNC_IO
 	ulint	i;
@@ -3763,6 +3763,8 @@ os_aio_array_free(
 
 	ut_free(array->slots);
 	ut_free(array);
+
+	array = 0;
 }
 
 /***********************************************************************
@@ -3783,7 +3785,6 @@ os_aio_init(
 	ulint	n_slots_sync)	/*<! in: number of slots in the sync aio
 				array */
 {
-	ulint	i;
 	ulint 	n_segments = 2 + n_read_segs + n_write_segs;
 
 	ut_ad(n_segments >= 4);
@@ -3795,62 +3796,65 @@ os_aio_init(
 	if (srv_use_native_aio
 	    && !os_aio_native_aio_supported()) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Warning: Linux Native AIO"
-			" disabled.\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Linux Native AIO disabled.");
+
 		srv_use_native_aio = FALSE;
 	}
 #endif /* LINUX_NATIVE_AIO */
 
-	for (i = 0; i < n_segments; i++) {
+	for (ulint i = 0; i < n_segments; ++i) {
 		srv_set_io_thread_op_info(i, "not started yet");
 	}
 
+	os_aio_read_array = os_aio_array_create(
+		n_read_segs * n_per_seg, n_read_segs);
 
-	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
-
-	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
-	if (os_aio_ibuf_array == NULL) {
-		goto err_exit;
-	}
-
-	srv_io_thread_function[0] = "insert buffer thread";
-
-	os_aio_log_array = os_aio_array_create(n_per_seg, 1);
-	if (os_aio_log_array == NULL) {
-		goto err_exit;
-	}
-
-	srv_io_thread_function[1] = "log thread";
-
-	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
-						n_read_segs);
 	if (os_aio_read_array == NULL) {
-		goto err_exit;
+		return(FALSE);
 	}
 
-	for (i = 2; i < 2 + n_read_segs; i++) {
+	for (ulint i = 2; i < 2 + n_read_segs; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_function[i] = "read thread";
 	}
 
-	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
-						 n_write_segs);
-	if (os_aio_write_array == NULL) {
-		goto err_exit;
+	os_aio_log_array = os_aio_array_create(n_per_seg, 1);
+
+	if (os_aio_log_array == NULL) {
+		return(FALSE);
 	}
 
-	for (i = 2 + n_read_segs; i < n_segments; i++) {
-		ut_a(i < SRV_MAX_N_IO_THREADS);
-		srv_io_thread_function[i] = "write thread";
-	}
+	srv_io_thread_function[1] = "log thread";
 
-	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
-	if (os_aio_sync_array == NULL) {
-		goto err_exit;
-	}
+	if (!srv_read_only_mode) {
 
+		os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
+
+		if (os_aio_ibuf_array == NULL) {
+			return(FALSE);
+		}
+
+		srv_io_thread_function[0] = "insert buffer thread";
+
+		os_aio_write_array = os_aio_array_create(
+			n_write_segs * n_per_seg, n_write_segs);
+
+		if (os_aio_write_array == NULL) {
+			return(FALSE);
+		}
+
+		for (ulint i = 2 + n_read_segs; i < n_segments; ++i) {
+			ut_a(i < SRV_MAX_N_IO_THREADS);
+			srv_io_thread_function[i] = "write thread";
+		}
+
+		os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
+
+		if (os_aio_sync_array == NULL) {
+			return(FALSE);
+		}
+	}
 
 	os_aio_n_segments = n_segments;
 
@@ -3859,16 +3863,13 @@ os_aio_init(
 	os_aio_segment_wait_events = static_cast<os_event_struct_t**>(
 		ut_malloc(n_segments * sizeof(void*)));
 
-	for (i = 0; i < n_segments; i++) {
+	for (ulint i = 0; i < n_segments; i++) {
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
 	}
 
-	os_last_printout = time(NULL);
+	os_last_printout = ut_time();
 
 	return(TRUE);
-
-err_exit:
-	return(FALSE);
 
 }
 
@@ -3879,20 +3880,25 @@ void
 os_aio_free(void)
 /*=============*/
 {
-	ulint	i;
+	if (os_aio_ibuf_array != 0) {
+		os_aio_array_free(os_aio_ibuf_array);
+	}
 
-	os_aio_array_free(os_aio_ibuf_array);
-	os_aio_ibuf_array = NULL;
-	os_aio_array_free(os_aio_log_array);
-	os_aio_log_array = NULL;
+	if (os_aio_log_array != 0) {
+		os_aio_array_free(os_aio_log_array);
+	}
+
 	os_aio_array_free(os_aio_read_array);
-	os_aio_read_array = NULL;
-	os_aio_array_free(os_aio_write_array);
-	os_aio_write_array = NULL;
-	os_aio_array_free(os_aio_sync_array);
-	os_aio_sync_array = NULL;
 
-	for (i = 0; i < os_aio_n_segments; i++) {
+	if (os_aio_write_array != 0) {
+		os_aio_array_free(os_aio_write_array);
+	}
+
+	if (os_aio_sync_array != 0) {
+		os_aio_array_free(os_aio_sync_array);
+	}
+
+	for (ulint i = 0; i < os_aio_n_segments; i++) {
 		os_event_free(os_aio_segment_wait_events[i]);
 	}
 
@@ -3928,14 +3934,20 @@ void
 os_aio_wake_all_threads_at_shutdown(void)
 /*=====================================*/
 {
-	ulint	i;
-
 #ifdef WIN_ASYNC_IO
 	/* This code wakes up all ai/o threads in Windows native aio */
 	os_aio_array_wake_win_aio_at_shutdown(os_aio_read_array);
-	os_aio_array_wake_win_aio_at_shutdown(os_aio_write_array);
-	os_aio_array_wake_win_aio_at_shutdown(os_aio_ibuf_array);
-	os_aio_array_wake_win_aio_at_shutdown(os_aio_log_array);
+	if (os_aio_write_array != 0) {
+		os_aio_array_wake_win_aio_at_shutdown(os_aio_write_array);
+	}
+
+	if (os_aio_ibuf_array != 0) {
+		os_aio_array_wake_win_aio_at_shutdown(os_aio_ibuf_array);
+	}
+
+	if (os_aio_log_array != 0) {
+		os_aio_array_wake_win_aio_at_shutdown(os_aio_log_array);
+	}
 
 #elif defined(LINUX_NATIVE_AIO)
 
@@ -3947,12 +3959,14 @@ os_aio_wake_all_threads_at_shutdown(void)
 	if (srv_use_native_aio) {
 		return;
 	}
+
 	/* Fall through to simulated AIO handler wakeup if we are
 	not using native AIO. */
-#endif
+#endif /* !WIN_ASYNC_AIO */
+
 	/* This loop wakes up all simulated ai/o threads */
 
-	for (i = 0; i < os_aio_n_segments; i++) {
+	for (ulint i = 0; i < os_aio_n_segments; i++) {
 
 		os_event_set(os_aio_segment_wait_events[i]);
 	}
@@ -3966,6 +3980,7 @@ void
 os_aio_wait_until_no_pending_writes(void)
 /*=====================================*/
 {
+	ut_ad(!srv_read_only_mode);
 	os_event_wait(os_aio_write_array->is_empty);
 }
 
@@ -3984,9 +3999,13 @@ os_aio_get_segment_no_from_slot(
 	ulint	seg_len;
 
 	if (array == os_aio_ibuf_array) {
+		ut_ad(!srv_read_only_mode);
+
 		segment = 0;
 
 	} else if (array == os_aio_log_array) {
+		ut_ad(!srv_read_only_mode);
+
 		segment = 1;
 
 	} else if (array == os_aio_read_array) {
@@ -3995,7 +4014,9 @@ os_aio_get_segment_no_from_slot(
 
 		segment = 2 + slot->pos / seg_len;
 	} else {
+		ut_ad(!srv_read_only_mode);
 		ut_a(array == os_aio_write_array);
+
 		seg_len = os_aio_write_array->n_slots
 			/ os_aio_write_array->n_segments;
 
@@ -4021,6 +4042,8 @@ os_aio_get_array_and_local_segment(
 	ut_a(global_segment < os_aio_n_segments);
 
 	if (global_segment == 0) {
+		ut_ad(!srv_read_only_mode);
+
 		*array = os_aio_ibuf_array;
 		segment = 0;
 
@@ -4033,6 +4056,8 @@ os_aio_get_array_and_local_segment(
 
 		segment = global_segment - 2;
 	} else {
+		ut_ad(!srv_read_only_mode);
+
 		*array = os_aio_write_array;
 
 		segment = global_segment - (os_aio_read_array->n_segments + 2);
@@ -4485,11 +4510,15 @@ os_aio_func(
 try_again:
 	switch (mode) {
 	case OS_AIO_NORMAL:
-		array = (type == OS_FILE_READ)
-			? os_aio_read_array
-			: os_aio_write_array;
+		if (type == OS_FILE_READ) {
+			array = os_aio_read_array;
+		} else {
+			ut_ad(!srv_read_only_mode);
+			array = os_aio_write_array;
+		}
 		break;
 	case OS_AIO_IBUF:
+		ut_ad(!srv_read_only_mode);
 		ut_ad(type == OS_FILE_READ);
 		/* Reduce probability of deadlock bugs in connection with ibuf:
 		do not let the ibuf i/o handler sleep */
@@ -4502,6 +4531,7 @@ try_again:
 		array = os_aio_log_array;
 		break;
 	case OS_AIO_SYNC:
+		ut_ad(!srv_read_only_mode);
 		array = os_aio_sync_array;
 
 #if defined(LINUX_NATIVE_AIO)
@@ -4537,6 +4567,7 @@ try_again:
 			}
 		}
 	} else if (type == OS_FILE_WRITE) {
+		ut_ad(!srv_read_only_mode);
 		if (srv_use_native_aio) {
 			os_n_file_writes++;
 #ifdef WIN_ASYNC_IO
@@ -4594,9 +4625,9 @@ err_exit:
 #endif /* LINUX_NATIVE_AIO || WIN_ASYNC_IO */
 	os_aio_array_free_slot(array, slot);
 
-	retry = os_file_handle_error(name,
-				     type == OS_FILE_READ
-				     ? "aio read" : "aio write");
+	retry = os_file_handle_error(
+		name, type == OS_FILE_READ ? "aio read" : "aio write");
+
 	if (retry) {
 
 		goto try_again;
@@ -5367,18 +5398,15 @@ recommended_sleep:
 
 /**********************************************************************//**
 Validates the consistency of an aio array.
-@return	TRUE if ok */
+@return	true if ok */
 static
-ibool
+bool
 os_aio_array_validate(
 /*==================*/
 	os_aio_array_t*	array)	/*!< in: aio wait array */
 {
-	os_aio_slot_t*	slot;
-	ulint		n_reserved	= 0;
 	ulint		i;
-
-	ut_a(array);
+	ulint		n_reserved	= 0;
 
 	os_mutex_enter(array->mutex);
 
@@ -5386,6 +5414,8 @@ os_aio_array_validate(
 	ut_a(array->n_segments > 0);
 
 	for (i = 0; i < array->n_slots; i++) {
+		os_aio_slot_t*	slot;
+
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		if (slot->reserved) {
@@ -5398,7 +5428,7 @@ os_aio_array_validate(
 
 	os_mutex_exit(array->mutex);
 
-	return(TRUE);
+	return(true);
 }
 
 /**********************************************************************//**
@@ -5410,10 +5440,22 @@ os_aio_validate(void)
 /*=================*/
 {
 	os_aio_array_validate(os_aio_read_array);
-	os_aio_array_validate(os_aio_write_array);
-	os_aio_array_validate(os_aio_ibuf_array);
-	os_aio_array_validate(os_aio_log_array);
-	os_aio_array_validate(os_aio_sync_array);
+
+	if (os_aio_write_array != 0) {
+		os_aio_array_validate(os_aio_write_array);
+	}
+
+	if (os_aio_ibuf_array != 0) {
+		os_aio_array_validate(os_aio_ibuf_array);
+	}
+
+	if (os_aio_log_array != 0) {
+		os_aio_array_validate(os_aio_log_array);
+	}
+
+	if (os_aio_sync_array != 0) {
+		os_aio_array_validate(os_aio_sync_array);
+	}
 
 	return(TRUE);
 }
@@ -5453,65 +5495,36 @@ os_aio_print_segment_info(
 }
 
 /**********************************************************************//**
-Prints info of the aio arrays. */
+Prints info about the aio array. */
 UNIV_INTERN
 void
-os_aio_print(
-/*=========*/
-	FILE*	file)	/*!< in: file where to print */
+os_aio_print_array(
+/*==============*/
+	FILE*		file,	/*!< in: file where to print */
+	os_aio_array_t*	array)	/*!< in: aio array to print */
 {
-	os_aio_array_t*	array;
-	os_aio_slot_t*	slot;
-	ulint		n_reserved;
-	ulint		n_res_seg[SRV_MAX_N_IO_THREADS];
-	time_t		current_time;
-	double		time_elapsed;
-	double		avg_bytes_read;
-	ulint		i;
-
-	for (i = 0; i < srv_n_file_io_threads; i++) {
-		fprintf(file, "I/O thread %lu state: %s (%s)", (ulong) i,
-			srv_io_thread_op_info[i],
-			srv_io_thread_function[i]);
-
-#ifndef __WIN__
-		if (os_aio_segment_wait_events[i]->is_set) {
-			fprintf(file, " ev set");
-		}
-#endif
-
-		fprintf(file, "\n");
-	}
-
-	fputs("Pending normal aio reads:", file);
-
-	array = os_aio_read_array;
-loop:
-	ut_a(array);
+	ulint			n_reserved = 0;
+	ulint			n_res_seg[SRV_MAX_N_IO_THREADS];
 
 	os_mutex_enter(array->mutex);
 
 	ut_a(array->n_slots > 0);
 	ut_a(array->n_segments > 0);
 
-	n_reserved = 0;
-
 	memset(n_res_seg, 0x0, sizeof(n_res_seg));
 
-	for (i = 0; i < array->n_slots; i++) {
-		ulint	seg_no;
+	for (ulint i = 0; i < array->n_slots; ++i) {
+		os_aio_slot_t*	slot;
+		ulint		seg_no;
 
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		seg_no = (i * array->n_segments) / array->n_slots;
+
 		if (slot->reserved) {
-			n_reserved++;
-			n_res_seg[seg_no]++;
-#if 0
-			fprintf(stderr, "Reserved slot, messages %p %p\n",
-				(void*) slot->message1,
-				(void*) slot->message2);
-#endif
+			++n_reserved;
+			++n_res_seg[seg_no];
+
 			ut_a(slot->len > 0);
 		}
 	}
@@ -5523,38 +5536,60 @@ loop:
 	os_aio_print_segment_info(file, n_res_seg, array);
 
 	os_mutex_exit(array->mutex);
+}
 
-	if (array == os_aio_read_array) {
+/**********************************************************************//**
+Prints info of the aio arrays. */
+UNIV_INTERN
+void
+os_aio_print(
+/*=========*/
+	FILE*	file)	/*!< in: file where to print */
+{
+	time_t		current_time;
+	double		time_elapsed;
+	double		avg_bytes_read;
+
+	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
+		fprintf(file, "I/O thread %lu state: %s (%s)", (ulong) i,
+			srv_io_thread_op_info[i],
+			srv_io_thread_function[i]);
+
+#ifndef __WIN__
+		if (os_aio_segment_wait_events[i]->is_set) {
+			fprintf(file, " ev set");
+		}
+#endif /* __WIN__ */
+
+		fprintf(file, "\n");
+	}
+
+	fputs("Pending normal aio reads:", file);
+
+	os_aio_print_array(file, os_aio_read_array);
+
+	if (os_aio_write_array != 0) {
 		fputs(", aio writes:", file);
-
-		array = os_aio_write_array;
-
-		goto loop;
+		os_aio_print_array(file, os_aio_write_array);
 	}
-
-	if (array == os_aio_write_array) {
+	
+	if (os_aio_ibuf_array != 0) {
 		fputs(",\n ibuf aio reads:", file);
-		array = os_aio_ibuf_array;
-
-		goto loop;
+		os_aio_print_array(file, os_aio_ibuf_array);
 	}
-
-	if (array == os_aio_ibuf_array) {
+	
+	if (os_aio_log_array != 0) {
 		fputs(", log i/o's:", file);
-		array = os_aio_log_array;
-
-		goto loop;
+		os_aio_print_array(file, os_aio_log_array);
 	}
-
-	if (array == os_aio_log_array) {
+	
+	if (os_aio_sync_array != 0) {
 		fputs(", sync i/o's:", file);
-		array = os_aio_sync_array;
-
-		goto loop;
+		os_aio_print_array(file, os_aio_sync_array);
 	}
 
 	putc('\n', file);
-	current_time = time(NULL);
+	current_time = ut_time();
 	time_elapsed = 0.001 + difftime(current_time, os_last_printout);
 
 	fprintf(file,
@@ -5562,7 +5597,8 @@ loop:
 		"%lu OS file reads, %lu OS file writes, %lu OS fsyncs\n",
 		(ulong) fil_n_pending_log_flushes,
 		(ulong) fil_n_pending_tablespace_flushes,
-		(ulong) os_n_file_reads, (ulong) os_n_file_writes,
+		(ulong) os_n_file_reads,
+		(ulong) os_n_file_writes,
 		(ulong) os_n_fsyncs);
 
 	if (os_file_n_pending_preads != 0 || os_file_n_pending_pwrites != 0) {
@@ -5634,21 +5670,29 @@ os_aio_all_slots_free(void)
 
 	os_mutex_exit(array->mutex);
 
-	array = os_aio_write_array;
+	if (!srv_read_only_mode) {
+		ut_a(os_aio_write_array == 0);
 
-	os_mutex_enter(array->mutex);
+		array = os_aio_write_array;
 
-	n_res += array->n_reserved;
+		os_mutex_enter(array->mutex);
 
-	os_mutex_exit(array->mutex);
+		n_res += array->n_reserved;
 
-	array = os_aio_ibuf_array;
+		os_mutex_exit(array->mutex);
 
-	os_mutex_enter(array->mutex);
+		ut_a(os_aio_ibuf_array == 0);
 
-	n_res += array->n_reserved;
+		array = os_aio_ibuf_array;
 
-	os_mutex_exit(array->mutex);
+		os_mutex_enter(array->mutex);
+
+		n_res += array->n_reserved;
+
+		os_mutex_exit(array->mutex);
+	}
+
+	ut_a(os_aio_log_array == 0);
 
 	array = os_aio_log_array;
 

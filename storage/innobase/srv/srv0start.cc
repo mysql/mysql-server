@@ -1838,16 +1838,23 @@ innobase_start_or_create_for_mysql(void)
 	we'll emit a message telling the user that this parameter
 	is now deprecated. */
 	if (srv_n_file_io_threads != 4) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Warning:"
-			" innodb_file_io_threads is deprecated."
-			" Please use innodb_read_io_threads and"
-			" innodb_write_io_threads instead\n");
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"innodb_file_io_threads is deprecated. Please use "
+			"innodb_read_io_threads and innodb_write_io_threads "
+			"instead");
 	}
 
 	/* Now overwrite the value on srv_n_file_io_threads */
-	srv_n_file_io_threads = 2 + srv_n_read_io_threads
-				+ srv_n_write_io_threads;
+	srv_n_file_io_threads = 2 + srv_n_read_io_threads;
+
+	if (!srv_read_only_mode) {
+		srv_n_file_io_threads += srv_n_write_io_threads;
+	} else {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Disabling background IO write threads.");
+
+		srv_n_write_io_threads = 0;
+	}
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
@@ -1867,10 +1874,8 @@ innobase_start_or_create_for_mysql(void)
 			 srv_n_write_io_threads,
 			 SRV_MAX_N_PENDING_SYNC_IOS)) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Fatal error: cannot initialize AIO"
-			" sub-system\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Fatal : Cannot initialize AIO sub-system");
 
 		return(DB_ERROR);
 	}
@@ -1928,7 +1933,14 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	for (i = 0; i < srv_n_file_io_threads; i++) {
+	/* Segment 0 is for the ibuf IO thread and segment 1 is used by
+	the log IO thread. */
+	ulint	first_thread =  srv_read_only_mode ? 2 : 1;
+
+	n[0] = n[1] = ULINT_UNDEFINED;
+
+	for (ulint i = first_thread; i < srv_n_file_io_threads; ++i) {
+
 		n[i] = i;
 
 		os_thread_create(io_handler_thread, n + i, thread_ids + i);
