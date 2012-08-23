@@ -2171,6 +2171,9 @@ innobase_start_or_create_for_mysql(void)
 	trx_sys_create();
 
 	if (create_new_db) {
+
+		ut_a(!srv_read_only_mode);
+
 		mtr_start(&mtr);
 
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
@@ -2190,16 +2193,20 @@ innobase_start_or_create_for_mysql(void)
 
 		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
 
-		dict_create();
+		err = dict_create();
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
 #ifdef UNIV_LOG_ARCHIVE
 	} else if (srv_archive_recovery) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Starting archive"
-			" recovery from a backup...\n");
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			" Starting archive recovery from a backup...");
+
 		err = recv_recovery_from_archive_start(
 			min_flushed_lsn, srv_archive_recovery_limit_lsn,
 			min_arch_log_no);
@@ -2210,7 +2217,11 @@ innobase_start_or_create_for_mysql(void)
 		/* Since ibuf init is in dict_boot, and ibuf is needed
 		in any disk i/o, first call dict_boot */
 
-		dict_boot();
+		err = dict_boot();
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 
 		ib_bh = trx_sys_init_at_db_start();
 
@@ -2269,7 +2280,11 @@ innobase_start_or_create_for_mysql(void)
 		to access space 0, and the insert buffer at this stage already
 		works for space 0. */
 
-		dict_boot();
+		err = dict_boot();
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
 
 		ib_bh = trx_sys_init_at_db_start();
 

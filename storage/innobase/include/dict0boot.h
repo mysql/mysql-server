@@ -89,17 +89,22 @@ dict_sys_write_row_id(
 	row_id_t	row_id);/*!< in: row id */
 /*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
-started. This function is also called when the data dictionary is created. */
+started. This function is also called when the data dictionary is created.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
-dict_boot(void);
+dberr_t
+dict_boot(void)
 /*===========*/
+	__attribute__((warn_unused_result));
+
 /*****************************************************************//**
-Creates and initializes the data dictionary at the server bootstrap. */
+Creates and initializes the data dictionary at the server bootstrap.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
-dict_create(void);
+dberr_t
+dict_create(void)
 /*=============*/
+	__attribute__((warn_unused_result));
 
 
 /* Space id and page no where the dictionary header resides */
