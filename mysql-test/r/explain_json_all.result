@@ -1577,7 +1577,8 @@ Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b));
-INSERT INTO t1 (a, b) VALUES (10,1),(10,2),(10,3),(20,4),(20,5),(20,6),(30,7),(30,8),(30,9);
+INSERT INTO t1 VALUES (10,1),(10,2),(10,3),(20,4),(20,5),(20,6),
+(30,7),(30,8),(30,9),(40,10),(40,11),(40,12),(40,13);
 EXPLAIN FORMAT=JSON SELECT a, MIN(b) AS b FROM t1 GROUP BY a ORDER BY b;
 EXPLAIN
 {
@@ -1593,8 +1594,8 @@ EXPLAIN
           "access_type": "range",
           "key": "PRIMARY",
           "key_length": "4",
-          "rows": 10,
-          "filtered": 90,
+          "rows": 7,
+          "filtered": 100,
           "using_index_for_group_by": true
         } /* table */
       } /* grouping_operation */
