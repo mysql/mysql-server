@@ -3,6 +3,7 @@
 Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
+Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -350,6 +351,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
 	{&ut_list_mutex_key, "ut_list_mutex", 0},
 	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
+	{&zip_pad_mutex_key, "zip_pad_mutex", 0},
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -15814,6 +15816,19 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   "Print all deadlocks to MySQL error log (off by default)",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(compression_failure_threshold_pct,
+  zip_failure_threshold_pct, PLUGIN_VAR_OPCMDARG,
+  "If the compression failure rate of a table is greater than this number"
+  " more padding is added to the pages to reduce the failures. A value of"
+  " zero implies no padding",
+  NULL, NULL, 5, 0, 100, 0);
+
+static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
+  zip_pad_max, PLUGIN_VAR_OPCMDARG,
+  "Percentage of empty space on a data page that can be reserved"
+  " to make the page compressible.",
+  NULL, NULL, 50, 0, 75, 0);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -15951,6 +15966,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
+  MYSQL_SYSVAR(compression_failure_threshold_pct),
+  MYSQL_SYSVAR(compression_pad_pct_max),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
 #endif /* UNIV_DEBUG */

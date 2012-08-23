@@ -1,6 +1,7 @@
 /***********************************************************************
 
 Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -302,6 +303,8 @@ enum monitor_id_value {
 	MONITOR_MODULE_PAGE,
 	MONITOR_PAGE_COMPRESS,
 	MONITOR_PAGE_DECOMPRESS,
+	MONITOR_PAD_INCREMENTS,
+	MONITOR_PAD_DECREMENTS,
 
 	/* Index related counters */
 	MONITOR_MODULE_INDEX,
