@@ -19,6 +19,57 @@
 #include <m_ctype.h>
 #include <stdarg.h>
 
+
+/**
+  Returns escaped string
+
+  @param cs         string charset
+  @param to         buffer where escaped string will be placed
+  @param end        end of buffer
+  @param par        string to escape
+  @param par_len    string length
+  @param quote_char character for quoting
+
+  @retval
+    position in buffer which points on the end of escaped string
+*/
+
+static char *backtick_string(char *to, char *end, char *par,
+                             size_t par_len, char quote_char)
+{
+  char *start= to;
+  char *par_end= par + par_len;
+  size_t buff_length= (size_t) (end - to);
+
+  if (buff_length <= par_len)
+    goto err;
+  *start++= quote_char;
+
+  for ( ; par < par_end; ++par)
+  {
+    char c= *par;
+    if (c == quote_char)
+    {
+      if (start + 1 >= end)
+        goto err;
+      *start++= quote_char;
+    }
+    if (start + 1 >= end)
+      goto err;
+    *start++= c;
+  }
+    
+  if (start + 1 >= end)
+    goto err;
+  *start++= quote_char;
+  return start;
+
+err:
+    *to='\0';
+  return to;
+}
+
+
 /*
   Limited snprintf() implementations
 
@@ -45,7 +96,7 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
 {
   char *start=to, *end=to+n-1;
   size_t length, width;
-  uint pre_zero, have_long;
+  uint pre_zero, have_long, escaped_arg;
 
   for (; *fmt ; fmt++)
   {
@@ -61,7 +112,7 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
     if (*fmt == '-')
       fmt++;
     length= width= 0;
-    pre_zero= have_long= 0;
+    pre_zero= have_long= escaped_arg= 0;
     if (*fmt == '*')
     {
       fmt++;
@@ -93,6 +144,11 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       fmt++;
       have_long= 1;
     }
+    if (*fmt == '`')
+    {
+      fmt++;
+      escaped_arg= 1;
+    }
     if (*fmt == 's')				/* String parameter */
     {
       reg2 char	*par = va_arg(ap, char *);
@@ -101,7 +157,10 @@ size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap)
       plen= (uint) strnlen(par, width);
       if (left_len <= plen)
 	plen = left_len - 1;
-      to=strnmov(to,par,plen);
+      if (escaped_arg)
+        to= backtick_string(to, end, par, plen, '`');
+      else
+        to= strnmov(to,par,plen);
       continue;
     }
     else if (*fmt == 'b')				/* Buffer parameter */
@@ -184,6 +243,70 @@ size_t my_snprintf(char* to, size_t n, const char* fmt, ...)
   va_end(args);
   return result;
 }
+
+/**
+  Writes output to the stream according to a format string.
+
+  @param stream     file to write to
+  @param format     string format
+  @param args       list of parameters
+
+  @retval
+    number of the characters written.
+*/
+
+int my_vfprintf(FILE *stream, const char* format, va_list args)
+{
+  char cvtbuf[1024];
+  int alloc= 0;
+  char *p= cvtbuf;
+  size_t cur_len= sizeof(cvtbuf);
+  int ret;
+
+  /*
+    We do not know how much buffer we need.
+    So start with a reasonably-sized stack-allocated buffer, and increase
+    it exponentially until it is big enough.
+  */
+  for (;;)
+  {
+    size_t new_len;
+    size_t actual= my_vsnprintf(p, cur_len, format, args);
+    if (actual < cur_len - 1)
+      break;
+    /*
+      Not enough space (or just enough with nothing to spare - but we cannot
+      distinguish this case from the return value). Allocate a bigger buffer
+      and try again.
+    */
+    if (alloc)
+      (*my_str_free)(p);
+    else
+      alloc= 1;
+    new_len= cur_len*2;
+    if (new_len < cur_len)
+      return 0;                                 /* Overflow */
+    cur_len= new_len;
+    p= (*my_str_malloc)(cur_len);
+    if (!p)
+      return 0;
+  }
+  ret= fprintf(stream, "%s", p);
+  if (alloc)
+    (*my_str_free)(p);
+  return ret;
+}
+
+int my_fprintf(FILE *stream, const char* format, ...)
+{
+  int result;
+  va_list args;
+  va_start(args, format);
+  result= my_vfprintf(stream, format, args);
+  va_end(args);
+  return result;
+}
+
 
 #ifdef MAIN
 #define OVERRUN_SENTRY  250
