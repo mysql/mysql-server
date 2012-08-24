@@ -1051,9 +1051,13 @@ static const char *require_quotes(const char *name, uint name_length)
   packet                target string
   name                  the identifier to be appended
   name_length           length of the appending identifier
+
+  RETURN VALUES
+    true                Error
+    false               Ok
 */
 
-void
+bool
 append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
@@ -1061,10 +1065,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   int q= get_quote_char_for_identifier(thd, name, length);
 
   if (q == EOF)
-  {
-    packet->append(name, length, packet->charset());
-    return;
-  }
+    return packet->append(name, length, packet->charset());
 
   /*
     The identifier must be quoted as it includes a quote character or
@@ -1073,7 +1074,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 
   VOID(packet->reserve(length*2 + 2));
   quote_char= (char) q;
-  packet->append(&quote_char, 1, system_charset_info);
+  if (packet->append(&quote_char, 1, system_charset_info))
+    return true;
 
   for (name_end= name+length ; name < name_end ; name+= length)
   {
@@ -1088,11 +1090,13 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
     */
     if (!length)
       length= 1;
-    if (length == 1 && chr == (uchar) quote_char)
-      packet->append(&quote_char, 1, system_charset_info);
-    packet->append(name, length, system_charset_info);
+    if (length == 1 && chr == (uchar) quote_char &&
+        packet->append(&quote_char, 1, system_charset_info))
+      return true;
+    if (packet->append(name, length, system_charset_info))
+      return true;
   }
-  packet->append(&quote_char, 1, system_charset_info);
+  return packet->append(&quote_char, 1, system_charset_info);
 }
 
 

@@ -1397,7 +1397,7 @@ bool append_escaped(String *to_str, String *from_str);
 /* sql_show.cc */
 bool mysqld_show_open_tables(THD *thd,const char *wild);
 bool mysqld_show_logs(THD *thd);
-void append_identifier(THD *thd, String *packet, const char *name,
+bool append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 #endif /* MYSQL_SERVER */
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS

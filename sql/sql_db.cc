@@ -613,7 +613,6 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];
-  char	 tmp_query[FN_REFLEN+16];
   long result= 1;
   int error= 0;
   MY_STAT stat_info;
@@ -720,17 +719,9 @@ not_silent:
     char *query;
     uint query_length;
 
-    if (!thd->query())                          // Only in replication
-    {
-      query= 	     tmp_query;
-      query_length= (uint) (strxmov(tmp_query,"create database `",
-                                    db, "`", NullS) - tmp_query);
-    }
-    else
-    {
-      query=        thd->query();
-      query_length= thd->query_length();
-    }
+    query=        thd->query();
+    query_length= thd->query_length();
+    DBUG_ASSERT(query);
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
                         query, query_length,
@@ -990,18 +981,11 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     const char *query;
     ulong query_length;
-    if (!thd->query())
-    {
-      /* The client used the old obsolete mysql_drop_db() call */
-      query= path;
-      query_length= (uint) (strxmov(path, "drop database `", db, "`",
-                                     NullS) - path);
-    }
-    else
-    {
-      query= thd->query();
-      query_length= thd->query_length();
-    }
+
+    query= thd->query();
+    query_length= thd->query_length();
+    DBUG_ASSERT(query);
+
     if (mysql_bin_log.is_open())
     {
       thd->clear_error();
@@ -1042,9 +1026,10 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     for (tbl= dropped_tables; tbl; tbl= tbl->next_local)
     {
       uint tbl_name_len;
+      char quoted_name[FN_REFLEN+3];
 
-      /* 3 for the quotes and the comma*/
-      tbl_name_len= strlen(tbl->table_name) + 3;
+      my_snprintf(quoted_name, sizeof(quoted_name), "%`s", tbl->table_name);
+      tbl_name_len= strlen(quoted_name) + 1; /* +1 for the comma */
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         /* These DDL methods and logging protected with LOCK_mysql_create_db */
@@ -1056,9 +1041,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
         query_pos= query_data_start;
       }
 
-      *query_pos++ = '`';
-      query_pos= strmov(query_pos,tbl->table_name);
-      *query_pos++ = '`';
+      query_pos= strmov(query_pos, quoted_name);
       *query_pos++ = ',';
     }
 
