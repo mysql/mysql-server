@@ -859,7 +859,7 @@ Item *negate_expression(THD *thd, Item *expr);
 
 /* log.cc */
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_error(const char *format, ...);
 void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
