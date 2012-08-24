@@ -38,7 +38,7 @@ BOOST_CXXFLAGS =	-frtti -fexceptions -fimplicit-templates
 #   it also makes an extra register available in many functions.
 #   It also makes debugging impossible on some machines.
 #   (automatically gets enabled anyway by -O* on some architectures)
-BOOST_CXXFLAGS+=	-O3 -fstrict-aliasing
+BOOST_CXXFLAGS+=	-O3 -fno-strict-aliasing
 BOOST_CXXFLAGS+=	-falign-loops
 if HAVE_FVISIBILITY_INLINES_HIDDEN
 BOOST_CXXFLAGS+=	-fvisibility-inlines-hidden
