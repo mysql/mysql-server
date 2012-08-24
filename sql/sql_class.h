@@ -225,7 +225,10 @@ public:
   const char *name;
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
-    :name(par_name), type(par_type) {}
+    :name(par_name), type(par_type)
+  {
+    DBUG_ASSERT(par_name != NULL);
+  }
   /**
     Used to make a clone of this object for ALTER/CREATE TABLE
     @sa comment for Key_part_spec::clone
