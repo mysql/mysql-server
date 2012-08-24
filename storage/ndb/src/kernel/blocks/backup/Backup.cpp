@@ -3885,15 +3885,18 @@ Backup::getFragmentInfo(Signal* signal,
       tabPtr.p->fragments.getPtr(fragPtr, fragNo);
       
       if(fragPtr.p->scanned == 0 && fragPtr.p->scanning == 0) {
-	jam();
+        jam();
         DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
         req->senderRef = reference();
-        req->senderData = ptr.i;
         req->tableId = tabPtr.p->tableId;
-        req->fragId = fragNo;
         req->scanCookie = tabPtr.p->m_scan_cookie;
-	sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-                   DihScanGetNodesReq::SignalLength, JBB);
+        req->fragCnt = 1;
+        req->fragItem[0].senderData = ptr.i;
+        req->fragItem[0].fragId = fragNo;
+        sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
+                   DihScanGetNodesReq::FixedSignalLength
+                   + DihScanGetNodesReq::FragItem::Length,
+                   JBB);
 	return;
       }//if
     }//for
@@ -3916,12 +3919,21 @@ Backup::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
 {
   jamEntry();
   
+  /**
+   * Assume only short CONFs with a single FragItem as we only do single
+   * fragment requests in DIH_SCAN_GET_NODES_REQ from Backup::getFragmentInfo.
+   */
+  ndbrequire(signal->getNoOfSections() == 0);
+  ndbassert(signal->getLength() ==
+            DihScanGetNodesConf::FixedSignalLength
+            + DihScanGetNodesConf::FragItem::Length);
+
   DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
-  const Uint32 senderData = conf->senderData;
-  const Uint32 nodeCount = conf->count;
   const Uint32 tableId = conf->tableId;
-  const Uint32 fragNo = conf->fragId;
-  const Uint32 instanceKey = conf->instanceKey;
+  const Uint32 senderData = conf->fragItem[0].senderData;
+  const Uint32 nodeCount = conf->fragItem[0].count;
+  const Uint32 fragNo = conf->fragItem[0].fragId;
+  const Uint32 instanceKey = conf->fragItem[0].instanceKey; 
 
   ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
   
@@ -3935,7 +3947,7 @@ Backup::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
   tabPtr.p->fragments.getPtr(fragPtr, fragNo);
   fragPtr.p->lqhInstanceKey = instanceKey;
   
-  fragPtr.p->node = conf->nodes[0];
+  fragPtr.p->node = conf->fragItem[0].nodes[0];
 
   getFragmentInfo(signal, ptr, tabPtr, fragNo + 1);
 }
