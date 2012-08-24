@@ -132,7 +132,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;

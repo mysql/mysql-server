@@ -24,6 +24,7 @@
 #include "sql_repl.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_show.h"
 
 class READ_INFO {
   File	file;
@@ -606,37 +607,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                bool transactional_table,
                                                int errcode)
 {
-  char                *load_data_query,
-                      *end,
-                      *fname_start,
-                      *fname_end,
-                      *p= NULL;
-  size_t               pl= 0;
+  char                *load_data_query;
+  my_off_t            fname_start,
+                      fname_end;
   List<Item>           fv;
   Item                *item, *val;
-  String               pfield, pfields;
   int                  n;
-  const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
-  String              string_buf;
+  const char          *qualify_db= NULL;
+  char                command_buffer[1024];
+  String              query_str(command_buffer, sizeof(command_buffer),
+                                system_charset_info);
 
-  if (!thd->db || strcmp(db_arg, thd->db)) 
-  {
-    /*
-      If used database differs from table's database, 
-      prefix table name with database name so that it 
-      becomes a FQ name.
-     */
-    string_buf.set_charset(system_charset_info);
-    string_buf.append(db_arg);
-    string_buf.append("`");
-    string_buf.append(".");
-    string_buf.append("`");
-    string_buf.append(table_name_arg);
-    tbl= string_buf.c_ptr_safe();
-  }
-
-  Load_log_event       lle(thd, ex, tdb, tbl, fv, duplicates,
+  Load_log_event       lle(thd, ex, tdb, table_name_arg, fv, duplicates,
                            ignore, transactional_table);
 
   /*
@@ -645,6 +628,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (thd->lex->local_file)
     lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
 
+  query_str.length(0);
+  if (!thd->db || strcmp(db_arg, thd->db)) 
+  {
+    /*
+      If used database differs from table's database, 
+      prefix table name with database name so that it 
+      becomes a FQ name.
+     */
+    qualify_db= db_arg;
+  }
+  lle.print_query(thd, FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+                  &query_str, &fname_start, &fname_end, qualify_db);
+
   /*
     prepare fields-list and SET if needed; print_query won't do that for us.
   */
@@ -652,23 +648,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   {
     List_iterator<Item>  li(thd->lex->field_list);
 
-    pfields.append(" (");
+    query_str.append(" (");
     n= 0;
 
     while ((item= li++))
     {
       if (n++)
-        pfields.append(", ");
+        query_str.append(", ");
       if (item->name)
-      {
-        pfields.append("`");
-        pfields.append(item->name);
-        pfields.append("`");
-      }
+        append_identifier(thd, &query_str, item->name, strlen(item->name));
       else
-        item->print(&pfields, QT_ORDINARY);
+        ((Item_user_var_as_out_param *)item)->print_for_load(thd, &query_str);
     }
-    pfields.append(")");
+    query_str.append(")");
   }
 
   if (!thd->lex->update_list.is_empty())
@@ -676,39 +668,26 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     List_iterator<Item> lu(thd->lex->update_list);
     List_iterator<Item> lv(thd->lex->value_list);
 
-    pfields.append(" SET ");
+    query_str.append(" SET ");
     n= 0;
 
     while ((item= lu++))
     {
       val= lv++;
       if (n++)
-        pfields.append(", ");
-      pfields.append("`");
-      pfields.append(item->name);
-      pfields.append("`");
-      pfields.append("=");
-      val->print(&pfields, QT_ORDINARY);
+        query_str.append(", ");
+      append_identifier(thd, &query_str, item->name, strlen(item->name));
+      query_str.append("=");
+      val->print(&query_str, QT_ORDINARY);
     }
   }
 
-  p= pfields.c_ptr_safe();
-  pl= strlen(p);
-
-  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
+  if (!(load_data_query= (char *)thd->strmake(query_str.ptr(), query_str.length())))
     return TRUE;
 
-  lle.print_query(FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
-                  load_data_query, &end,
-                  (char **)&fname_start, (char **)&fname_end);
-
-  strcpy(end, p);
-  end += pl;
-
   Execute_load_query_log_event
-    e(thd, load_data_query, end-load_data_query,
-      (uint) ((char*) fname_start - load_data_query - 1),
-      (uint) ((char*) fname_end - load_data_query),
+    e(thd, load_data_query, query_str.length(),
+      (uint) (fname_start - 1), (uint) fname_end,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);

@@ -806,6 +806,8 @@ extern size_t my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
+extern size_t my_b_write_backtick_quote(IO_CACHE *info, const char *str,
+                                        size_t len);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...);
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,

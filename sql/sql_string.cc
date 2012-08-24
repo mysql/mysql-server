@@ -1157,39 +1157,47 @@ outp:
 
 
 
-
-void String::print(String *str)
+/*
+  Append characters to a single-quoted string '...', escaping special
+  characters as necessary.
+  Does not add the enclosing quotes, this is left up to caller.
+*/
+void String::append_for_single_quote(const char *st, uint len)
 {
-  char *st= (char*)Ptr, *end= st+str_length;
+  const char *end= st+len;
   for (; st < end; st++)
   {
     uchar c= *st;
     switch (c)
     {
     case '\\':
-      str->append(STRING_WITH_LEN("\\\\"));
+      append(STRING_WITH_LEN("\\\\"));
       break;
     case '\0':
-      str->append(STRING_WITH_LEN("\\0"));
+      append(STRING_WITH_LEN("\\0"));
       break;
     case '\'':
-      str->append(STRING_WITH_LEN("\\'"));
+      append(STRING_WITH_LEN("\\'"));
       break;
     case '\n':
-      str->append(STRING_WITH_LEN("\\n"));
+      append(STRING_WITH_LEN("\\n"));
       break;
     case '\r':
-      str->append(STRING_WITH_LEN("\\r"));
+      append(STRING_WITH_LEN("\\r"));
       break;
     case '\032': // Ctrl-Z
-      str->append(STRING_WITH_LEN("\\Z"));
+      append(STRING_WITH_LEN("\\Z"));
       break;
     default:
-      str->append(c);
+      append(c);
     }
   }
 }
 
+void String::print(String *str)
+{
+  str->append_for_single_quote(Ptr, str_length);
+}
 
 /*
   Exchange state of this object and argument.
