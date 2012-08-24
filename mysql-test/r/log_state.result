@@ -199,7 +199,7 @@ SELECT @@general_log, @@log;
 1	1
 SET GLOBAL log = 0;
 Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
+Warning	1287	'@@log' is deprecated and will be removed in a future release. Please use '@@general_log' instead
 SHOW VARIABLES LIKE 'general_log';
 Variable_name	Value
 general_log	OFF
@@ -230,7 +230,7 @@ SELECT @@slow_query_log, @@log_slow_queries;
 0	0
 SET GLOBAL log_slow_queries = 0;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SHOW VARIABLES LIKE 'slow_query_log';
 Variable_name	Value
 slow_query_log	OFF
@@ -283,16 +283,16 @@ SET GLOBAL slow_query_log_file = @old_slow_query_log_file;
 deprecated:
 SET GLOBAL log = 0;
 Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
+Warning	1287	'@@log' is deprecated and will be removed in a future release. Please use '@@general_log' instead
 SET GLOBAL log_slow_queries = 0;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 SET GLOBAL log = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@log' is deprecated and will be removed in MySQL 7.0. Please use '@@general_log' instead
+Warning	1287	'@@log' is deprecated and will be removed in a future release. Please use '@@general_log' instead
 SET GLOBAL log_slow_queries = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@log_slow_queries' is deprecated and will be removed in MySQL 7.0. Please use '@@slow_query_log' instead
+Warning	1287	'@@log_slow_queries' is deprecated and will be removed in a future release. Please use '@@slow_query_log' instead
 not deprecated:
 SELECT @@global.general_log_file INTO @my_glf;
 SELECT @@global.slow_query_log_file INTO @my_sqlf;
