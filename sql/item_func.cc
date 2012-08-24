@@ -4913,7 +4913,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name.str,name.length);
+  append_identifier(current_thd, str, name.str, name.length);
   str->append(')');
 }
 
@@ -5011,10 +5011,10 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 }
 
 
-void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
+void Item_user_var_as_out_param::print_for_load(THD *thd, String *str)
 {
   str->append('@');
-  str->append(name.str,name.length);
+  append_identifier(thd, str, name.str, name.length);
 }
 
 

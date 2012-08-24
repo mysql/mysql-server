@@ -731,7 +731,7 @@ print_use_stmt(PRINT_EVENT_INFO* pinfo, const Query_log_event *ev)
     return;
 
   // In case of rewrite rule print USE statement for db_to
-  fprintf(result_file, "use %s%s\n", db_to, pinfo->delimiter);
+  my_fprintf(result_file, "use %`s%s\n", db_to, pinfo->delimiter);
 
   // Copy the *original* db to pinfo to suppress emiting
   // of USE stmts by log_event print-functions.
