@@ -2201,13 +2201,36 @@ static void network_init(void)
         bind to '0.0.0.0'.
       */
 
+      bool ipv6_available= false;
+
       if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai))
       {
+        /*
+          IPv6 might be available (the system might be able to resolve an IPv6
+          address, but not be able to create an IPv6-socket). Try to create a
+          dummy IPv6-socket. Do not instrument that socket by P_S.
+        */
+
+        MYSQL_SOCKET s= mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
+
+        ipv6_available= mysql_socket_getfd(s) != INVALID_SOCKET;
+
+        mysql_socket_close(s);
+      }
+
+      if (ipv6_available)
+      {
+        sql_print_information("IPv6 is available.");
+
+        // Address info (ai) for IPv6 address is already set.
+
         bind_address_str= ipv6_all_addresses;
       }
       else
       {
         sql_print_information("IPv6 is not available.");
+
+        // Retrieve address info (ai) for IPv4 address.
 
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai))
         {
