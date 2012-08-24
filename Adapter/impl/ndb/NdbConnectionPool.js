@@ -76,11 +76,11 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     ndbconn.connectAsync(self.properties.ndb_connect_retries,
                          self.properties.ndb_connect_delay,
                          self.properties.ndb_connect_verbose,
-                         function(rval) {
+                         function(err, rval) {
     udebug.log("connect() connectAsync internal callback/rval=" + rval);
     if(rval == 0) {
       assert(typeof ndbconn.wait_until_ready === 'function');
-      ready_cb = function(nnodes) {
+      ready_cb = function(err, nnodes) {
         udebug.log("connect() wait_until_ready internal callback/nnodes=" + nnodes);
         if(nnodes < 0) {
           // FIXME: what should be the type of err? a string? an error object?
@@ -133,12 +133,13 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, user_callback)
   assert(user_callback)
   udebug.log("NDB getDBSession");
 
-  var private_callback = function(sess) {
+  var private_callback = function(err, sess) {
     udebug.log("NDB getDBSession private_callback");
-    // TODO:  Check for errors & forward them to the user
+    udebug.log("Impl: " + sess);
+
     user_session = new ndbsession.DBSession();
     user_session.impl = sess;
-    user_callback(null, user_session);
+    user_callback(err, user_session);
 };
 
   var sessionImpl = adapter.impl.DBSession.create(this.ndbconn, db, private_callback);

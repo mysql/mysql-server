@@ -61,7 +61,6 @@ Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 Envelope NdbDictTableEnv("NdbDictionary::Table");
 Envelope NdbDictColumnEnv("NdbDictionary::Column");
 Envelope NdbDictIndexEnv("NdbDictionary::Index");
-Envelope RecordEnv("Record");
 
 Handle<Value> getColumnType(const NdbDictionary::Column *);
 Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
@@ -75,7 +74,7 @@ struct DBDictImpl {
   ** Called from DBSession.getDataDictionary() 
    **/
 Handle<Value> NewDBDictionaryImpl(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   PROHIBIT_CONSTRUCTOR_CALL();
@@ -110,7 +109,6 @@ public:
   
   /* UV_WORKER_THREAD part of listTables */
   void run() {
-    DEBUG_MARKER(UDEB_DEBUG);
     NdbDictionary::Dictionary * dict = arg0->sess->dict;
     return_val = dict->listObjects(list, NdbDictionary::Object::UserTable);
   }
@@ -121,7 +119,7 @@ public:
 
 
 void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   Handle<Value> cb_args[2];
   
   DEBUG_PRINT("RETURN VAL: %d", return_val);
@@ -159,7 +157,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
    arg2: user_callback
 */
 Handle<Value> listTables(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   // FIXME: This throws an assertion that never gets caught ...
@@ -204,7 +202,6 @@ public:
 
 
 void GetTableCall::run() {
-  DEBUG_MARKER(UDEB_DEBUG);
   NdbDictionary::Dictionary * dict = arg0->sess->dict;
   NdbDictionary::Dictionary::List idx_list;
   
@@ -226,7 +223,7 @@ void GetTableCall::run() {
 
 
 void GetTableCall::doAsyncCallback(Local<Object> ctx) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;  
 
   /* User callback arguments */
@@ -462,7 +459,7 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
    arg3: user_callback
 */
 Handle<Value> getTable(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   REQUIRE_ARGS_LENGTH(4);
   GetTableCall * ncallptr = new GetTableCall(args);
   ncallptr->runAsync();

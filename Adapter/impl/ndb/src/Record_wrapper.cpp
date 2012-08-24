@@ -36,9 +36,9 @@ Handle<Value> setNull_wrapper(const Arguments &);
 Handle<Value> setNotNull_wrapper(const Arguments &);
 Handle<Value> isNull_wrapper(const Arguments &);
 
-class RecordEnvelope : public Envelope {
+class RecordEnvelopeClass : public Envelope {
 public:
-  RecordEnvelope() : Envelope("Record") {
+  RecordEnvelopeClass() : Envelope("Record") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "getColumnOffset", getColumnOffset_wrapper);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getBufferSize", getBufferSize_wrapper);
     DEFINE_JS_FUNCTION(Envelope::stencil, "setNull", setNull_wrapper);
@@ -47,7 +47,7 @@ public:
   }
 };
 
-RecordEnvelope recordEnv;
+RecordEnvelopeClass RecordEnvelope;
 
 
 /****  CALL THIS FROM C++ CODE TO CREATE A WRAPPED RECORD OBJECT. 
@@ -55,14 +55,14 @@ RecordEnvelope recordEnv;
 Handle<Value> Record_Wrapper(Record *rec) {
   HandleScope scope;
   
-  Local<Object> js_record = recordEnv.newWrapper();
-  wrapPointerInObject(rec, recordEnv, js_record);
+  Local<Object> js_record = RecordEnvelope.newWrapper();
+  wrapPointerInObject(rec, RecordEnvelope, js_record);
   return scope.Close(js_record);
 }
 
 
 Handle<Value> getColumnOffset_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
@@ -78,7 +78,7 @@ Handle<Value> getColumnOffset_wrapper(const Arguments &args) {
 
 
 Handle<Value> getBufferSize_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);
@@ -125,7 +125,7 @@ Handle<Value> setNotNull_wrapper(const Arguments &args) {
 
 
 Handle<Value> isNull_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(2);

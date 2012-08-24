@@ -18,8 +18,12 @@
  02110-1301  USA
  */
 "use strict";
-var adapter = require("../build/Release/ndb/ndb_adapter.node"),
-    ndbdictionary = require("./NdbDictionary.js");
+var adapter       = require("../build/Release/ndb/ndb_adapter.node"),
+    ndbdictionary = require("./NdbDictionary.js"),
+    ndboperation  = require("./NdbOperation.js"),
+    dbtxhandler   = require("./NdbTransactionHandler.js"),
+    util          = require("util"),
+    proto = {};
 
 
 
@@ -29,8 +33,16 @@ Instances are actually constructed
 */
 exports.DBSession = function() { 
   udebug.log("DBSession constructor");
+  this.tx = null;
 };
 
+/* Private method ndbsession.getNdb(DBSession) */
+exports.getNdb = function(dbsession) {
+  udebug.log("ndbsession getNdb(DBSession)");
+  udebug.log("Session: " + util.inspect(dbsession, true, 2, true));
+  var ndb = dbsession.impl.getNdb();
+  udebug.log("Ndb: " + util.inspect(ndb, true, 2, true));
+};
 
 
 /** get data dictionary.
@@ -41,10 +53,32 @@ exports.DBSession = function() {
  * 
  *  @return DBDictionary
  */
-exports.DBSession.prototype.getDataDictionary = function() {
+proto.getDataDictionary = function() {
   udebug.log("DBSession getDataDictionary");
   var dict = new ndbdictionary.DBDictionary();
   dict.session = this;
   dict.impl = adapter.impl.DBDictionary.create(this.impl);
   return dict;
-}
+};
+
+proto.openTransaction = function() {
+  udebug.log("DBSession openTransaction");
+  this.tx = new dbtxhandler.DBTransactionHandler(this);
+  return this.tx;
+};
+
+proto.read = function(table, keys) {
+  udebug.log("DBSession read "+ table.name);
+  lockMode = "SHARED";
+  var op = ndboperation.getReadOperation(tx, table, keys, lockMode);
+  return op;
+};
+
+proto.insert = function(table, row) {
+  udebug.log("DBSession insert " + table.name);
+
+  var op = ndboperation.getInsertOperation(this.tx, table, row);
+  return op;
+};
+
+exports.DBSession.prototype = proto;
