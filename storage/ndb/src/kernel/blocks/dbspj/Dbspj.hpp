@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,6 +68,8 @@ private:
   void execDIH_SCAN_TAB_CONF(Signal*);
   void execDIH_SCAN_GET_NODES_REF(Signal*);
   void execDIH_SCAN_GET_NODES_CONF(Signal*);
+
+  void execSIGNAL_DROPPED_REP(Signal*);
 
   /**
    * Signals from LQH
@@ -296,7 +298,6 @@ public:
     Uint32 m_senderRef;  // TC (used for routing)
     Uint32 m_scan_cnt;
     Signal* m_start_signal; // Argument to first node in tree
-    SegmentedSectionPtr m_keyPtr;
 
     TreeNodeBitMask m_scans; // TreeNodes doing scans
 
@@ -1087,8 +1088,6 @@ private:
   void releaseRow(Ptr<Request>, RowRef ref);
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
-
-  void cleanupChildBranch(Ptr<Request>, Ptr<TreeNode>);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
 
   /**
@@ -1232,13 +1231,13 @@ private:
   void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
   void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
-  void scanIndex_send(Signal* signal,
-                      Ptr<Request> requestPtr,
-                      Ptr<TreeNode> treeNodePtr,
-                      Uint32 noOfFrags,
-                      Uint32 bs_bytes,
-                      Uint32 bs_rows,
-                      Uint32& batchRange);
+  Uint32 scanIndex_send(Signal* signal,
+                        Ptr<Request> requestPtr,
+                        Ptr<TreeNode> treeNodePtr,
+                        Uint32 noOfFrags,
+                        Uint32 bs_bytes,
+                        Uint32 bs_rows,
+                        Uint32& batchRange);
   void scanIndex_batchComplete(Signal* signal);
   Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
                             Uint32 fragId);
@@ -1264,11 +1263,18 @@ private:
   SLList<RowPage>::Head m_free_page_list;
   ArrayPool<RowPage> m_page_pool;
 
+  /* Random fault injection */
+
+#ifdef ERROR_INSERT
+  bool appendToSection(Uint32& firstSegmentIVal,
+                       const Uint32* src, Uint32 len);
+#endif
+
   /**
    * Scratch buffers...
    */
-  Uint32 m_buffer0[8192]; // 32k
-  Uint32 m_buffer1[8192]; // 32k
+  Uint32 m_buffer0[16*1024]; // 64k
+  Uint32 m_buffer1[16*1024]; // 64k
 };
 
 #endif
