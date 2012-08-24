@@ -1722,7 +1722,7 @@ bool mysql_show_binlog_events(THD* thd)
         description_event->checksum_alg= ev->checksum_alg;
 
       if (event_count >= limit_start &&
-	  ev->net_send(protocol, linfo.log_file_name, pos))
+	  ev->net_send(thd, protocol, linfo.log_file_name, pos))
       {
 	errmsg = "Net error";
 	delete ev;

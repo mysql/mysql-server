@@ -1015,14 +1015,15 @@ public:
   */
   static void init_show_field_list(List<Item>* field_list);
 #ifdef HAVE_REPLICATION
-  int net_send(Protocol *protocol, const char* log_name, my_off_t pos);
+  int net_send(THD *thd, Protocol *protocol, const char* log_name,
+               my_off_t pos);
 
   /*
     pack_info() is used by SHOW BINLOG EVENTS; as print() it prepares and sends
     a string to display to the user, so it resembles print().
   */
 
-  virtual void pack_info(Protocol *protocol);
+  virtual void pack_info(THD *thd, Protocol *protocol);
 
 #endif /* HAVE_REPLICATION */
   virtual const char* get_db()
@@ -1748,7 +1749,7 @@ public:
                   bool using_trans, bool suppress_use, int error);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print_query_header(IO_CACHE* file, PRINT_EVENT_INFO* print_event_info);
@@ -1878,7 +1879,7 @@ public:
 
 #ifndef MYSQL_CLIENT
   Slave_log_event(THD* thd_arg, Relay_log_info* rli);
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2111,9 +2112,11 @@ protected:
                      const Format_description_log_event* description_event);
 
 public:
-  uint get_query_buffer_length();
-  void print_query(bool need_db, const char *cs, char *buf, char **end,
-                   char **fn_start, char **fn_end);
+#ifndef MYSQL_CLIENT
+  void print_query(THD *thd, bool need_db, const char *cs, String *buf,
+                   my_off_t *fn_start, my_off_t *fn_end,
+                   const char *qualify_db);
+#endif
   ulong thread_id;
   ulong slave_proxy_id;
   uint32 table_name_len;
@@ -2161,7 +2164,7 @@ public:
                   Name_resolution_context *context);
   const char* get_db() { return db; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2260,7 +2263,7 @@ public:
 #ifndef MYSQL_CLIENT
   Start_log_event_v3();
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   Start_log_event_v3() {}
@@ -2421,7 +2424,7 @@ public:
     :Log_event(thd_arg,0,0), val(val_arg), type(type_arg)
   { cache_type= cache_type_arg; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2498,7 +2501,7 @@ class Rand_log_event: public Log_event
     :Log_event(thd_arg, 0, 0), seed1(seed1_arg), seed2(seed2_arg)
     { cache_type= cache_type_arg; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2543,7 +2546,7 @@ class Xid_log_event: public Log_event
   Xid_log_event(THD* thd_arg, my_xid x): Log_event(thd_arg, 0, 0), xid(x)
   { cache_type= EVENT_NO_CACHE; }
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2595,7 +2598,7 @@ public:
      val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
     deferred(false)
     { is_null= !val; cache_type= cache_type_arg; }
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
@@ -2733,7 +2736,7 @@ public:
 		   uint ident_len_arg,
 		   ulonglong pos_arg, uint flags);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2793,7 +2796,7 @@ public:
 			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2865,7 +2868,7 @@ public:
   Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
   virtual int get_create_or_append() const;
 #endif /* HAVE_REPLICATION */
 #else
@@ -2906,7 +2909,7 @@ public:
 #ifndef MYSQL_CLIENT
   Delete_file_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -2947,7 +2950,7 @@ public:
 #ifndef MYSQL_CLIENT
   Execute_load_log_event(THD* thd, const char* db_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3043,7 +3046,7 @@ public:
                                bool using_trans, bool suppress_use,
                                int errcode);
 #ifdef HAVE_REPLICATION
-  void pack_info(Protocol* protocol);
+  void pack_info(THD *thd, Protocol* protocol);
 #endif /* HAVE_REPLICATION */
 #else
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
@@ -3129,7 +3132,7 @@ public:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol*);
+  virtual void pack_info(THD *thd, Protocol*);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3543,7 +3546,7 @@ public:
 #endif
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual void pack_info(THD *thd, Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -3655,7 +3658,7 @@ public:
   flag_set get_flags(flag_set flags_arg) const { return m_flags & flags_arg; }
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
-  virtual void pack_info(Protocol *protocol);
+  virtual void pack_info(THD *thd, Protocol *protocol);
 #endif
 
 #ifdef MYSQL_CLIENT
@@ -4096,7 +4099,7 @@ public:
 #endif
 
 #ifndef MYSQL_CLIENT
-  void pack_info(Protocol*);
+  void pack_info(THD *thd, Protocol*);
 #endif
 
   Incident_log_event(const char *buf, uint event_len,

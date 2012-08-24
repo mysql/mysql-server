@@ -284,6 +284,40 @@ my_off_t my_b_filelength(IO_CACHE *info)
 }
 
 
+size_t
+my_b_write_backtick_quote(IO_CACHE *info, const char *str, size_t len)
+{
+  const uchar *start;
+  const uchar *p= (const uchar *)str;
+  const uchar *end= p + len;
+  size_t count;
+  size_t total= 0;
+
+  if (my_b_write(info, (uchar *)"`", 1))
+    return (size_t)-1;
+  ++total;
+  for (;;)
+  {
+    start= p;
+    while (p < end && *p != '`')
+      ++p;
+    count= p - start;
+    if (count && my_b_write(info, start, count))
+      return (size_t)-1;
+    total+= count;
+    if (p >= end)
+      break;
+    if (my_b_write(info, (uchar *)"``", 2))
+      return (size_t)-1;
+    total+= 2;
+    ++p;
+  }
+  if (my_b_write(info, (uchar *)"`", 1))
+    return (size_t)-1;
+  ++total;
+  return total;
+}
+
 /*
   Simple printf version.  Supports '%s', '%d', '%u', "%ld" and "%lu"
   Used for logging in MySQL
@@ -308,6 +342,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
   uint minimum_width_sign;
   uint precision; /* as yet unimplemented for anything but %b */
   my_bool is_zero_padded;
+  my_bool backtick_quoting;
 
   /*
     Store the location of the beginning of a format directive, for the
@@ -342,6 +377,7 @@ size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list args)
     fmt++;
 
     is_zero_padded= FALSE;
+    backtick_quoting= FALSE;
     minimum_width_sign= 1;
     minimum_width= 0;
     precision= 0;
@@ -354,6 +390,8 @@ process_flags:
         minimum_width_sign= -1; fmt++; goto process_flags;
       case '0':
         is_zero_padded= TRUE; fmt++; goto process_flags;
+      case '`':
+        backtick_quoting= TRUE; fmt++; goto process_flags;
       case '#':
         /** @todo Implement "#" conversion flag. */  fmt++; goto process_flags;
       case ' ':
@@ -397,9 +435,19 @@ process_flags:
       reg2 char *par = va_arg(args, char *);
       size_t length2 = strlen(par);
       /* TODO: implement precision */
-      out_length+= length2;
-      if (my_b_write(info, (uchar*) par, length2))
-	goto err;
+      if (backtick_quoting)
+      {
+        size_t total= my_b_write_backtick_quote(info, par, length2);
+        if (total == (size_t)-1)
+          goto err;
+        out_length+= total;
+      }
+      else
+      {
+        out_length+= length2;
+        if (my_b_write(info, (uchar*) par, length2))
+          goto err;
+      }
     }
     else if (*fmt == 'b')                       /* Sized buffer parameter, only precision makes sense */
     {

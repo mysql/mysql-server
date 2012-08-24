@@ -3543,16 +3543,16 @@ int select_create::write_to_binlog(bool is_trans, int errcode)
     if (thd->lex->create_select_in_comment)
       query.append(STRING_WITH_LEN("/*! "));
     if (thd->lex->ignore)
-      query.append(STRING_WITH_LEN("INSERT IGNORE INTO `"));
+      query.append(STRING_WITH_LEN("INSERT IGNORE INTO "));
     else if (thd->lex->duplicates == DUP_REPLACE)
-      query.append(STRING_WITH_LEN("REPLACE INTO `"));
+      query.append(STRING_WITH_LEN("REPLACE INTO "));
     else
-      query.append(STRING_WITH_LEN("INSERT INTO `"));
+      query.append(STRING_WITH_LEN("INSERT INTO "));
 
-    query.append(create_table->db, db_len);
-    query.append(STRING_WITH_LEN("`.`"));
-    query.append(create_info->alias, table_len);
-    query.append(STRING_WITH_LEN("` "));
+    append_identifier(thd, &query, create_table->db, db_len);
+    query.append(STRING_WITH_LEN("."));
+    append_identifier(thd, &query, create_info->alias, table_len);
+    query.append(STRING_WITH_LEN(" "));
 
     /*
       The insert items.

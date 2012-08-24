@@ -2012,7 +2012,7 @@ bool Old_rows_log_event::write_data_body(IO_CACHE*file)
 
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-void Old_rows_log_event::pack_info(Protocol *protocol)
+void Old_rows_log_event::pack_info(THD *thd, Protocol *protocol)
 {
   char buf[256];
   char const *const flagstr=

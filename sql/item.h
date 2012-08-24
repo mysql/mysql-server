@@ -620,6 +620,7 @@ public:
 #endif
   }		/*lint -e1509 */
   void set_name(const char *str, uint length, CHARSET_INFO *cs);
+  void set_name_no_truncate(const char *str, uint length, CHARSET_INFO *cs);
   void set_name_for_rollback(THD *thd, const char *str, uint length,
                              CHARSET_INFO *cs);
   void rename(char *new_name);

@@ -39,6 +39,7 @@
 
 #include <mysql/plugin.h>
 #include "debug_sync.h"
+#include "sql_show.h"
 
 /* max size of the log message */
 #define MAX_LOG_BUFFER_SIZE 1024
@@ -1794,9 +1795,8 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
 
   String log_query;
   if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append("`") ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-      log_query.append("`"))
+      append_identifier(thd, &log_query,
+                        thd->lex->ident.str, thd->lex->ident.length))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
   Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
@@ -1818,9 +1818,8 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   {
     String log_query;
     if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
-        log_query.append("`") ||
-        log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-        log_query.append("`"))
+        append_identifier(thd, &log_query,
+                          thd->lex->ident.str, thd->lex->ident.length))
       DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
     Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
