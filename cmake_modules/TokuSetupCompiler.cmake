@@ -39,6 +39,11 @@ endif (USE_GCOV)
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
+#####################################################
+## Xcode needs to have this set manually.
+## Other generators (makefiles) ignore this setting.
+set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
+
 ## adds a compiler flag if the compiler supports it
 macro(set_cflags_if_supported_named flag flagname)
   check_c_compiler_flag("${flag}" HAVE_C_${flagname})
@@ -86,10 +91,17 @@ set_cflags_if_supported(
   -Wlogical-op
   -Wmissing-format-attribute
   -Wno-error=missing-format-attribute
-  -Wpacked
   -fno-rtti
   -fno-exceptions
   )
+
+## Clang has stricter POD checks.  So, only enable this warning on our other builds (Linux + GCC)
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES Clang)
+  set_cflags_if_supported(
+    -Wpacked
+    )
+endif ()
+
 ## set_cflags_if_supported_named("-Weffc++" -Weffcpp)
 set_ldflags_if_supported(
   -Wno-error=strict-overflow
@@ -133,6 +145,9 @@ option(USE_VALGRIND "Do not pass NVALGRIND to the compiler, because valgrind wil
 if (NOT USE_VALGRIND)
   set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELEASE NVALGRIND=1)
 endif ()
+
+## We need to explicitly set this standard library for Xcode builds.
+add_definitions(-stdlib=libc++)
 
 if (CMAKE_CXX_COMPILER_ID MATCHES Intel)
   set(CMAKE_C_FLAGS "-std=c99 ${CMAKE_C_FLAGS}")
