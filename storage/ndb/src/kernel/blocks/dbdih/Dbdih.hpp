@@ -72,6 +72,11 @@
 #define ZREPLERROR2 307
 
 // --------------------------------------
+// Other DIH error codes
+// --------------------------------------
+#define ZLONG_MESSAGE_ERROR 312
+
+// --------------------------------------
 // Crash Codes
 // --------------------------------------
 #define ZCOULD_NOT_OCCUR_ERROR 300
