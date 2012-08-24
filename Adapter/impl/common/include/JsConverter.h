@@ -21,6 +21,7 @@
 #pragma once
 
 #include "JsWrapper.h"
+#include "v8_binder.h"
 
 using namespace v8;
 typedef Local<Value> jsvalue;
@@ -115,6 +116,7 @@ public:
 };
 
 
+/* const char * is JavaScript String */
 template <>
 class JsValueConverter <const char *> {
 private:
@@ -126,6 +128,14 @@ public:
 };
 
 
+/* char * is Node::Buffer */
+template <>
+class JsValueConverter <char *> {
+public: 
+  jsvalue jsval;
+  JsValueConverter(jsvalue v) : jsval(v)   {};
+  char * toC()  { return V8BINDER_UNWRAP_BUFFER(jsval);  };
+};
 
 
 /*****************************************************************
@@ -180,8 +190,9 @@ inline Local<Value> toJS<const bool *>(const bool * cbp) {
 
 /*****************************************************************
  isPointer() functions
+ Used in AsyncMethodCall.h: if(isPointer(return_val)) ... 
 ******************************************************************/
-template <typename T> bool isPointer(T typ)                { 
+template <typename T> bool isPointer(T typ)                {
   void * v = static_cast<void *> (typ);
   return true; 
 }
@@ -193,4 +204,4 @@ template <> inline bool isPointer(const char * typ)        { return false; }
 template <> inline bool isPointer(int64_t typ)             { return false; }
 template <> inline bool isPointer(unsigned long typ)       { return false; }
 template <> inline bool isPointer(const bool * typ)        { return false; }
-
+template <> inline bool isPointer(char * typ)              { return false; }
