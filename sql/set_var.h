@@ -79,7 +79,7 @@ protected:
   ptrdiff_t offset;     ///< offset to the value from global_system_variables
   on_check_function on_check;
   on_update_function on_update;
-  const char *deprecation_substitute;
+  const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
 
 public:
