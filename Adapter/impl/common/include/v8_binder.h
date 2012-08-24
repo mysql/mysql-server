@@ -40,7 +40,10 @@
 
 #define BUILDING_NODE_EXTENSION
 #include "node.h"
+#include "node_buffer.h"
 
 #define V8BINDER_LOADABLE_MODULE(A,B)  NODE_MODULE(A,B)
+#define V8BINDER_UNWRAP_BUFFER(JSVAL) node::Buffer::Data(JSVAL->ToObject())
+
 
 #endif

@@ -85,6 +85,8 @@ class AsyncMethodCall {
     virtual void doAsyncCallback(Local<Object>) = 0;
 
     /* Base Class Methods */
+    virtual void handleErrors(void) { }
+
     void runAsync() {
       uv_work_t * req = new uv_work_t;
       req->data = (void *) this;
@@ -107,6 +109,12 @@ public:
   AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback) :
     AsyncMethodCall(callback), error(0), return_val(0) {}
 
+  /* Destructor */
+  ~AsyncCall_Returning<RETURN_TYPE>() {
+    if(error) delete error;
+  }
+
+  /* Methods */
   Local<Value> jsReturnVal() {
     HandleScope scope;
 
@@ -149,12 +157,20 @@ class NativeMethodCall : public AsyncCall_Returning<R> {
 public:
   /* Member variables */
   C * native_obj;
+  NativeCodeError * (*errorHandler)(R, C *);
 
   /* Constructor */
   NativeMethodCall<R, C>(const Arguments &args, int callback_idx) :
-    AsyncCall_Returning<R>(args[callback_idx])  /*callback*/
+    AsyncCall_Returning<R>(args[callback_idx]),  /*callback*/
+    errorHandler(0)
   {
     native_obj = unwrapPointer<C *>(args.Holder());
+  }
+
+  /* Methods */
+  void handleErrors(void) {
+    if(errorHandler) AsyncCall_Returning<R>::error = 
+      errorHandler(AsyncCall_Returning<R>::return_val, native_obj);
   }
 };
 

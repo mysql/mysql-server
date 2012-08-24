@@ -31,8 +31,7 @@
 //    THROW_TYPE_ERROR("Requires " #N " arguments"); \
 //    return scope.Close(Undefined()); \
 //  }
-#define REQUIRE_ARGS_LENGTH(N) \
-  assert(args.Length() == N);
+#define REQUIRE_ARGS_LENGTH(N) assert(args.Length() == N);
 
 
 #define REQUIRE_MIN_ARGS(N) \
@@ -47,17 +46,20 @@
     return scope.Close(Undefined()); \
   }
 
-#define REQUIRE_CONSTRUCTOR_CALL() \
-  if(! args.IsConstructCall()) { \
-    THROW_ERROR("Must be called as a Constructor call"); \
-    return scope.Close(Undefined()); \
-  }
+// #define REQUIRE_CONSTRUCTOR_CALL() \
+//  if(! args.IsConstructCall()) { \
+//    THROW_ERROR("Must be called as a Constructor call"); \
+//    return scope.Close(Undefined()); \
+//  }
+#define REQUIRE_CONSTRUCTOR_CALL() assert(args.IsConstructCall()) 
 
-#define PROHIBIT_CONSTRUCTOR_CALL() \
-  if(args.IsConstructCall()) { \
-    THROW_ERROR("May not be used as a Constructor call"); \
-    return scope.Close(Undefined()); \
-  }
+
+// #define PROHIBIT_CONSTRUCTOR_CALL() \
+//  if(args.IsConstructCall()) { \
+//    THROW_ERROR("May not be used as a Constructor call"); \
+//    return scope.Close(Undefined()); \
+//  }
+#define PROHIBIT_CONSTRUCTOR_CALL() assert(! args.IsConstructCall())
 
 #define DEFINE_JS_FUNCTION(TARGET, NAME, FN) \
   TARGET->Set(String::NewSymbol(NAME), FunctionTemplate::New(FN)->GetFunction())
@@ -79,8 +81,15 @@
   TARGET->Set(String::NewSymbol(NAME), \
     Persistent<Function>::New(JSCLASS->GetFunction()));
 
-#define DEFINE_JS_CONSTANT(TARGET, constant)                         \
-  (TARGET)->Set(String::NewSymbol(#constant),                        \
-                Integer::New(constant),                              \
+#define DEFINE_JS_ACCESSOR(TARGET, property, getter)                 \
+  (TARGET)->SetAccessor(String::NewSymbol(property), getter)
+
+#define DEFINE_JS_INT(TARGET, name, value) \
+  (TARGET)->Set(String::NewSymbol(name), \
+                Integer::New(value), \
                 static_cast<PropertyAttribute>(ReadOnly|DontDelete))
 
+#define DEFINE_JS_CONSTANT(TARGET, constant) \
+   DEFINE_JS_INT(TARGET, #constant, constant)
+
+   

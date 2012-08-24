@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include <assert.h>
+
 #define UNIFIED_DEBUG 1
 
 /* Unified debugging library for C++ and JavaScript. 
