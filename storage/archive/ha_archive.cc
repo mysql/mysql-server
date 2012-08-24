@@ -277,7 +277,7 @@ int archive_discover(handlerton *hton, THD* thd, const char *db,
 
   build_table_filename(az_file, sizeof(az_file) - 1, db, name, ARZ, 0);
 
-  if (!(mysql_file_stat(arch_key_file_data, az_file, &file_stat, MYF(0))))
+  if (!(mysql_file_stat(/* arch_key_file_data */ 0, az_file, &file_stat, MYF(0))))
     goto err;
 
   if (!(azopen(&frm_stream, az_file, O_RDONLY|O_BINARY)))
@@ -727,7 +727,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     There is a chance that the file was "discovered". In this case
     just use whatever file is there.
   */
-  if (!(mysql_file_stat(arch_key_file_data, name_buff, &file_stat, MYF(0))))
+  if (!(mysql_file_stat(/* arch_key_file_data */ 0, name_buff, &file_stat, MYF(0))))
   {
     my_errno= 0;
     if (!(azopen(&create_stream, name_buff, O_CREAT|O_RDWR|O_BINARY)))
@@ -1622,7 +1622,7 @@ int ha_archive::info(uint flag)
   {
     MY_STAT file_stat;  // Stat information for the data file
 
-    (void) mysql_file_stat(arch_key_file_data, share->data_file_name, &file_stat, MYF(MY_WME));
+    (void) mysql_file_stat(/* arch_key_file_data */ 0, share->data_file_name, &file_stat, MYF(MY_WME));
 
     if (flag & HA_STATUS_TIME)
       stats.update_time= (ulong) file_stat.st_mtime;
