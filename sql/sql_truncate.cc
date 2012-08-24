@@ -24,6 +24,7 @@
 #include "sql_acl.h"     // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_truncate.h"
+#include "sql_show.h"
 
 
 /**
@@ -35,7 +36,8 @@
   @return TRUE on failure, FALSE otherwise.
 */
 
-static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
+static bool fk_info_append_fields(THD *thd, String *str,
+                                  List<LEX_STRING> *fields)
 {
   bool res= FALSE;
   LEX_STRING *field;
@@ -43,9 +45,8 @@ static bool fk_info_append_fields(String *str, List<LEX_STRING> *fields)
 
   while ((field= it++))
   {
-    res|= str->append("`");
-    res|= str->append(field);
-    res|= str->append("`, ");
+    res|= append_identifier(thd, str, field->str, field->length);
+    res|= str->append(", ");
   }
 
   str->chop();
@@ -76,20 +77,24 @@ static const char *fk_info_str(THD *thd, FOREIGN_KEY_INFO *fk_info)
     `db`.`tbl`, CONSTRAINT `id` FOREIGN KEY (`fk`) REFERENCES `db`.`tbl` (`fk`)
   */
 
-  res|= str.append('`');
-  res|= str.append(fk_info->foreign_db);
-  res|= str.append("`.`");
-  res|= str.append(fk_info->foreign_table);
-  res|= str.append("`, CONSTRAINT `");
-  res|= str.append(fk_info->foreign_id);
-  res|= str.append("` FOREIGN KEY (");
-  res|= fk_info_append_fields(&str, &fk_info->foreign_fields);
-  res|= str.append(") REFERENCES `");
-  res|= str.append(fk_info->referenced_db);
-  res|= str.append("`.`");
-  res|= str.append(fk_info->referenced_table);
-  res|= str.append("` (");
-  res|= fk_info_append_fields(&str, &fk_info->referenced_fields);
+  res|= append_identifier(thd, &str, fk_info->foreign_db->str,
+                          fk_info->foreign_db->length);
+  res|= str.append(".");
+  res|= append_identifier(thd, &str, fk_info->foreign_table->str,
+                          fk_info->foreign_table->length);
+  res|= str.append(", CONSTRAINT ");
+  res|= append_identifier(thd, &str, fk_info->foreign_id->str,
+                          fk_info->foreign_id->length);
+  res|= str.append(" FOREIGN KEY (");
+  res|= fk_info_append_fields(thd, &str, &fk_info->foreign_fields);
+  res|= str.append(") REFERENCES ");
+  res|= append_identifier(thd, &str, fk_info->referenced_db->str,
+                          fk_info->referenced_db->length);
+  res|= str.append(".");
+  res|= append_identifier(thd, &str, fk_info->referenced_table->str,
+                          fk_info->referenced_table->length);
+  res|= str.append(" (");
+  res|= fk_info_append_fields(thd, &str, &fk_info->referenced_fields);
   res|= str.append(')');
 
   return res ? NULL : thd->strmake(str.ptr(), str.length());

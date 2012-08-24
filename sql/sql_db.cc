@@ -544,7 +544,6 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];
-  char	 tmp_query[FN_REFLEN+16];
   long result= 1;
   int error= 0;
   MY_STAT stat_info;
@@ -622,17 +621,9 @@ not_silent:
     char *query;
     uint query_length;
 
-    if (!thd->query())                          // Only in replication
-    {
-      query= 	     tmp_query;
-      query_length= (uint) (strxmov(tmp_query,"create database `",
-                                    db, "`", NullS) - tmp_query);
-    }
-    else
-    {
-      query=        thd->query();
-      query_length= thd->query_length();
-    }
+    query=        thd->query();
+    query_length= thd->query_length();
+    DBUG_ASSERT(query);
 
     ha_binlog_log_query(thd, 0, LOGCOM_CREATE_DB,
                         query, query_length,
@@ -885,18 +876,11 @@ update_binlog:
   {
     const char *query;
     ulong query_length;
-    if (!thd->query())
-    {
-      /* The client used the old obsolete mysql_drop_db() call */
-      query= path;
-      query_length= (uint) (strxmov(path, "drop database `", db, "`",
-                                     NullS) - path);
-    }
-    else
-    {
-      query= thd->query();
-      query_length= thd->query_length();
-    }
+
+    query= thd->query();
+    query_length= thd->query_length();
+    DBUG_ASSERT(query);
+
     if (mysql_bin_log.is_open())
     {
       int errcode= query_error_code(thd, TRUE);
@@ -940,6 +924,7 @@ update_binlog:
     {
       uint tbl_name_len;
       bool exists;
+      char quoted_name[FN_REFLEN+3];
 
       // Only write drop table to the binlog for tables that no longer exist.
       if (check_if_table_exists(thd, tbl, &exists))
@@ -950,8 +935,8 @@ update_binlog:
       if (exists)
         continue;
 
-      /* 3 for the quotes and the comma*/
-      tbl_name_len= strlen(tbl->table_name) + 3;
+      my_snprintf(quoted_name, sizeof(quoted_name), "%`s", tbl->table_name);
+      tbl_name_len= strlen(quoted_name) + 1; /* +1 for the comma */
       if (query_pos + tbl_name_len + 1 >= query_end)
       {
         /*
@@ -966,9 +951,7 @@ update_binlog:
         query_pos= query_data_start;
       }
 
-      *query_pos++ = '`';
-      query_pos= strmov(query_pos,tbl->table_name);
-      *query_pos++ = '`';
+      query_pos= strmov(query_pos, quoted_name);
       *query_pos++ = ',';
     }
 

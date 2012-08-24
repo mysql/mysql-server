@@ -1295,7 +1295,9 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     DBUG_RETURN(0);
   }
 
-  char tmp_buf2[FN_REFLEN];
+  char tmp_buf2_mem[FN_REFLEN];
+  String tmp_buf2(tmp_buf2_mem, sizeof(tmp_buf2_mem), system_charset_info);
+  tmp_buf2.length(0);
   const char *type_str;
   switch (type)
   {
@@ -1304,17 +1306,24 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
     if (thd->lex->sql_command ==  SQLCOM_DROP_DB)
       DBUG_RETURN(0);
     /* redo the drop table query as is may contain several tables */
-    query= tmp_buf2;
-    query_length= (uint) (strxmov(tmp_buf2, "drop table `",
-                                  table_name, "`", NullS) - tmp_buf2);
+    tmp_buf2.append(STRING_WITH_LEN("drop table "));
+    append_identifier(thd, &tmp_buf2, table_name, strlen(table_name));
+    query= tmp_buf2.c_ptr_safe();
+    query_length= tmp_buf2.length();
     type_str= "drop table";
     break;
   case SOT_RENAME_TABLE:
     /* redo the rename table query as is may contain several tables */
-    query= tmp_buf2;
-    query_length= (uint) (strxmov(tmp_buf2, "rename table `",
-                                  db, ".", table_name, "` to `",
-                                  new_db, ".", new_table_name, "`", NullS) - tmp_buf2);
+    tmp_buf2.append(STRING_WITH_LEN("rename table "));
+    append_identifier(thd, &tmp_buf2, db, strlen(db));
+    tmp_buf2.append(STRING_WITH_LEN("."));
+    append_identifier(thd, &tmp_buf2, table_name, strlen(table_name));
+    tmp_buf2.append(STRING_WITH_LEN(" to "));
+    append_identifier(thd, &tmp_buf2, new_db, strlen(new_db));
+    tmp_buf2.append(STRING_WITH_LEN("."));
+    append_identifier(thd, &tmp_buf2, new_table_name, strlen(new_table_name));
+    query= tmp_buf2.c_ptr_safe();
+    query_length= tmp_buf2.length();
     type_str= "rename table";
     break;
   case SOT_CREATE_TABLE:

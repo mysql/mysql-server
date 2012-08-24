@@ -459,6 +459,7 @@ public:
     return FALSE;
   }
   void print(String *print);
+  void append_for_single_quote(const char *st, uint len);
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s);

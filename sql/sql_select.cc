@@ -16481,7 +16481,7 @@ int report_error(TABLE *table, int error)
       && !table->in_use->killed)
   {
     push_warning_printf(table->in_use, MYSQL_ERROR::WARN_LEVEL_WARN, error,
-                        "Got error %d when reading table `%s`.`%s`",
+                        "Got error %d when reading table %`s.%`s",
                         error, table->s->db.str, table->s->table_name.str);
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);

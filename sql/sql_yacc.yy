@@ -12144,7 +12144,7 @@ load_data_set_elem:
             if (lex->update_list.push_back($1) || 
                 lex->value_list.push_back($4))
                 MYSQL_YYABORT;
-            $4->set_name($3, (uint) ($5 - $3), YYTHD->charset());
+            $4->set_name_no_truncate($3, (uint) ($5 - $3), YYTHD->charset());
           }
         ;
 

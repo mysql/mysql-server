@@ -5443,10 +5443,10 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 }
 
 
-void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
+void Item_user_var_as_out_param::print_for_load(THD *thd, String *str)
 {
   str->append('@');
-  str->append(name.str,name.length);
+  append_identifier(thd, str, name.str, name.length);
 }
 
 

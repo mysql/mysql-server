@@ -34,7 +34,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 INSERT INTO t1 VALUES (1)
 /*!*/;
@@ -65,7 +65,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use foo/*!*/;
+use `foo`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 INSERT INTO t1 VALUES (1)
 /*!*/;

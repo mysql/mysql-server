@@ -35,7 +35,6 @@
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "log_event.h"
-#include "sql_db.h"                             // mysql_create_db
 #include <mysql.h>
 
 #define SLAVE_LIST_CHUNK 128

@@ -90,7 +90,7 @@ int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 
-void append_identifier(THD *thd, String *packet, const char *name,
+bool append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
 void mysqld_list_fields(THD *thd,TABLE_LIST *table, const char *wild);
 int mysqld_dump_create_info(THD *thd, TABLE_LIST *table_list, int fd);
