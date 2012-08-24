@@ -2188,6 +2188,24 @@ TESTCASE("ScanReadError5030",
   STEP(runScanReadErrorOneNode);
   FINALIZER(runClearTable);
 }
+TESTCASE("ScanReadError8095", 
+	 "Scan and insert error 8095. "\
+         "TC fails to send a DIH_SCAN_GET_NODES_REQ due to "\
+         "'out of LongMessageBuffers' -> terminate scan."){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 8095);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanReadError7234", 
+	 "Scan and insert error 7234. "\
+         "DIH fails to send a DIH_SCAN_GET_NODES_CONF due to "\
+         "'out of LongMessageBuffers' -> send DIH_SCAN_GET_NODES_REF."){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 7234);
+  STEP(runScanReadError);
+  FINALIZER(runClearTable);
+}
 TESTCASE("ScanReadRestart", 
 	 "Scan requirement:A scan should be able to start and "\
 	 "complete during node recovery and when one or more nodes "\
