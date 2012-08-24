@@ -103,6 +103,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   int error;
   ulong memory_available= thd->variables.sortbuff_size;
   ulong min_sort_memory;
+  ulong sort_buff_sz;
   uint maxbuffer;
   BUFFPEK *buffpek;
   ha_rows num_rows= HA_POS_ERROR;
@@ -193,19 +194,21 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
     goto err;
 
   min_sort_memory= max(MIN_SORT_MEMORY, param.sort_length * MERGEBUFF2);
+  set_if_bigger(min_sort_memory, sizeof(BUFFPEK*)*MERGEBUFF2);
   if (!table_sort.sort_keys)
   {
     while (memory_available >= min_sort_memory)
     {
       ulong keys= memory_available / (param.rec_length + sizeof(char*));
       table_sort.keys= (uint) min(num_rows, keys);
+      sort_buff_sz= table_sort.keys*(param.rec_length+sizeof(char*));
+      set_if_bigger(sort_buff_sz, param.rec_length * MERGEBUFF2);   
 
       DBUG_EXECUTE_IF("make_sort_keys_alloc_fail",
                       DBUG_SET("+d,simulate_out_of_memory"););
 
       if ((table_sort.sort_keys=
-           (uchar**) my_malloc(table_sort.keys*(param.rec_length+sizeof(char*)),
-                               MYF(0))))
+           (uchar**) my_malloc(sort_buff_sz, MYF(0))))
         break;
       ulong old_memory_available= memory_available;
       memory_available= memory_available/4*3;
@@ -1259,9 +1262,8 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
   to_start_filepos= my_b_tell(to_file);
   strpos= sort_buffer;
   org_max_rows=max_rows= param->max_rows;
-
-  /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount!=0);
+  
+  set_if_bigger(maxcount, 1);
   
   if (unique_buff)
   {

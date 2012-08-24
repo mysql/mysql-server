@@ -160,18 +160,18 @@
   3.2.1 Non-merged semi-joins and join optimization
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   For join optimization purposes, non-merged semi-join nests are similar to
-  base tables - they've got one JOIN_TAB, which can be accessed with one of
-  two methods:
+  base tables. Each such nest is represented by one one JOIN_TAB, which has 
+  two possible access strategies:
    - full table scan (representing SJ-Materialization-Scan strategy)
    - eq_ref-like table lookup (representing SJ-Materialization-Lookup)
 
   Unlike regular base tables, non-merged semi-joins have:
    - non-zero JOIN_TAB::startup_cost, and
    - join_tab->table->is_filled_at_execution()==TRUE, which means one
-     cannot do const table detection or range analysis or other table data-
-     dependent inferences
-  // instead, get_delayed_table_estimates() runs optimization on the nest so that 
-  // we get an idea about temptable size
+     cannot do const table detection, range analysis or other dataset-dependent
+     optimizations.
+     Instead, get_delayed_table_estimates() will run optimization for the
+     subquery and produce an E(materialized table size).
   
   3.2.2 Merged semi-joins and join optimization
   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

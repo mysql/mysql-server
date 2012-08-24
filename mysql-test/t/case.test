@@ -182,3 +182,13 @@ create table t1 (f1 time);
 insert t1 values ('00:00:00'),('00:01:00');
 select case t1.f1 when '00:00:00' then 1 end from t1;
 drop table t1;
+
+#
+# LP BUG#1001510
+# Bug #11764313 57135: CRASH IN ITEM_FUNC_CASE::FIND_ITEM WITH CASE WHEN
+# ELSE CLAUSE
+#
+
+CREATE TABLE t1(a YEAR);
+SELECT 1 FROM t1 WHERE a=1 AND CASE 1 WHEN a THEN 1 ELSE 1 END;
+DROP TABLE t1;
