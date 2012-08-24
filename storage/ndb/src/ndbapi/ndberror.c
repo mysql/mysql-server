@@ -201,6 +201,7 @@ ErrorBundle ErrorCodes[] = {
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)" },
   { 279,  DMEC, TR, "Out of transaction markers in transaction coordinator" },
+  { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
   { 418,  DMEC, TR, "Out of transaction buffers in LQH" },
   { 419,  DMEC, TR, "419" },
