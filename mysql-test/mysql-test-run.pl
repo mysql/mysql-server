@@ -2779,10 +2779,17 @@ sub ndbd_start {
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
   my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
+  if ($exe_ndbmtd)
+  { if ($ENV{MTR_NDBMTD})
+    {
+      # ndbmtd forced by env var MTR_NDBMTD
+      $exe= $exe_ndbmtd;
+    }
+    if (($exe_ndbmtd_counter++ % 2) == 0)
+    {
+      # Use ndbmtd every other time
+      $exe= $exe_ndbmtd;
+    }
   }
 
   my $path_ndbd_log= "$dir/ndbd.log";
