@@ -4845,7 +4845,7 @@ func_exit:
 	    && (ha_alter_info->create_info->used_fields
 		& HA_CREATE_USED_AUTO)) {
 
-		if (ctx != 0) {
+		if (ctx != 0 && altered_table->found_next_number_field != 0) {
 			ha_alter_info->create_info->auto_increment_value =
 				ctx->sequence.last();
 		}
