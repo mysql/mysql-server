@@ -43,6 +43,7 @@ var path = require("path"),
  * debug.level_meta()               // also debug the debug system
  *
  * debug.destination(<log_file>)    // direct output to log_file
+ * debug.close()                    // close log file
  *
  * debug.log(<message>)             // write debugging message (at DEBUG level)
  * debug.log_info(<message>)        // write message at INFO level
@@ -64,6 +65,10 @@ var path = require("path"),
 */
 exports.destination = function(filename) {
   impl.udeb_destination(filename);
+}
+
+exports.close = function() {
+  impl.udeb_close();
 }
 
 /* Turn debugging output on.

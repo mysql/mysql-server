@@ -1,1 +1,3 @@
 Adapter/impl/build
+*.DS_Store
+*.lock-wscript
