@@ -225,3 +225,7 @@ case t1.f1 when '00:00:00' then 1 end
 1
 NULL
 drop table t1;
+CREATE TABLE t1(a YEAR);
+SELECT 1 FROM t1 WHERE a=1 AND CASE 1 WHEN a THEN 1 ELSE 1 END;
+1
+DROP TABLE t1;
