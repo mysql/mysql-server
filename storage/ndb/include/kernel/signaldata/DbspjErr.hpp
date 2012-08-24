@@ -39,6 +39,7 @@ struct DbspjErr
     ,OutOfRowMemory = 20015
     ,NodeFailure = 20016
     ,InvalidTreeNodeCount = 20017
+    ,IndexFragNotFound = 20018
   };
 };
 
