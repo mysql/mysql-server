@@ -40,11 +40,11 @@ Handle<Value> get_message(Local<String>, const AccessorInfo &);
 class NdbErrorEnvelopeClass : public Envelope {
 public:
   NdbErrorEnvelopeClass() : Envelope("NdbError") {
-    DEFINE_JS_PROPERTY(Envelope::stencil, "status", get_status);
-    DEFINE_JS_PROPERTY(Envelope::stencil, "classification", get_classification);
-    DEFINE_JS_PROPERTY(Envelope::stencil, "code", get_code);
-    DEFINE_JS_PROPERTY(Envelope::stencil, "mysql_code", get_mysql_code);
-    DEFINE_JS_PROPERTY(Envelope::stencil, "message", get_message);
+    DEFINE_JS_ACCESSOR(Envelope::stencil, "status", get_status);
+    DEFINE_JS_ACCESSOR(Envelope::stencil, "classification", get_classification);
+    DEFINE_JS_ACCESSOR(Envelope::stencil, "code", get_code);
+    DEFINE_JS_ACCESSOR(Envelope::stencil, "mysql_code", get_mysql_code);
+    DEFINE_JS_ACCESSOR(Envelope::stencil, "message", get_message);
 }
 
   Local<Object> wrap(const NdbError &err) {
@@ -61,7 +61,6 @@ NdbErrorEnvelopeClass NdbErrorEnvelope;
 Handle<Value> NdbError_Wrapper(const NdbError &err) {
   return NdbErrorEnvelope.wrap(err);
 }
-
 
 #define MAP_CODE(CODE) \
   case NdbError::CODE: \

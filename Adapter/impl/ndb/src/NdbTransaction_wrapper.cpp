@@ -25,15 +25,19 @@
 #include "NativeMethodCall.h"
 #include "unified_debug.h"
 
+#include "NdbJsConverters.h"
+
 using namespace v8;
 
-Handle<Value> getTCNodeId_wrapper(const Arguments &args);
+Handle<Value> getTCNodeId(const Arguments &args);
+Handle<Value> execute(const Arguments &args);
 
 
 class NdbTransactionEnvelopeClass : public Envelope {
 public:
   NdbTransactionEnvelopeClass() : Envelope("NdbTransaction") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, "getConnectedNodeId", getTCNodeId_wrapper);    
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getConnectedNodeId", getTCNodeId); 
+    DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute); 
   }
 };
 
@@ -66,7 +70,7 @@ Handle<Value>  _wrapper(const Arguments &args) {
    Get nodeId of TC for this transaction
    IMMEDIATE
 */
-Handle<Value> getTCNodeId_wrapper(const Arguments &args) {
+Handle<Value> getTCNodeId(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
@@ -81,3 +85,32 @@ Handle<Value> getTCNodeId_wrapper(const Arguments &args) {
 
 //////////// ASYNC METHOD WRAPPERS
 
+Handle<Value> execute(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(4);
+
+  typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
+                              NdbOperation::AbortOption, int> NCALL;
+  NCALL * ncallptr = new NCALL(args);
+  ncallptr->method = & NdbTransaction::execute;
+  // todo: set error handler
+  ncallptr->runAsync();
+
+  return scope.Close(JS_VOID_RETURN);
+}
+
+
+void NdbTransaction_initOnLoad(Handle<Object> target) {
+  DEFINE_JS_INT(target, "NoCommit", NdbTransaction::NoCommit);
+  DEFINE_JS_INT(target, "Commit", NdbTransaction::Commit);
+  DEFINE_JS_INT(target, "DefaultAbortOption", NdbOperation::DefaultAbortOption);
+  DEFINE_JS_INT(target, "AbortOnError", NdbOperation::AbortOnError);
+  DEFINE_JS_INT(target, "AO_IgnoreError", NdbOperation::AO_IgnoreError);
+  DEFINE_JS_INT(target, "NotStarted", NdbTransaction::NotStarted);
+  DEFINE_JS_INT(target, "Started", NdbTransaction::Started);
+  DEFINE_JS_INT(target, "Committed", NdbTransaction::Committed);
+  DEFINE_JS_INT(target, "Aborted", NdbTransaction::Aborted);
+  DEFINE_JS_INT(target, "NeedAbort", NdbTransaction::NeedAbort);
+}

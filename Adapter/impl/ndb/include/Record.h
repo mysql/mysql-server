@@ -42,7 +42,7 @@ public:
   bool completeTableRecord(const NdbDictionary::Table *);
   bool completeIndexRecord(const NdbDictionary::Index *); 
   
-  NdbRecord * getNdbRecord() const;
+  const NdbRecord * getNdbRecord() const;
   uint32_t getNoOfColumns() const ;
   size_t getColumnOffset(int idx) const;
   size_t getBufferSize() const;
@@ -53,7 +53,7 @@ public:
 };
 
 
-inline NdbRecord * Record::getNdbRecord() const {
+inline const NdbRecord * Record::getNdbRecord() const {
   return ndb_record;
 }
 

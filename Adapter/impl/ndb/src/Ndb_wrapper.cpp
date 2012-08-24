@@ -26,6 +26,7 @@
 #include "unified_debug.h"
 #include "JsWrapper.h"
 #include "NdbWrapperErrors.h"
+#include "NdbWrappers.h"
 
 using namespace v8;
 
@@ -73,5 +74,17 @@ Handle<Value> startTransaction(const Arguments &args) {
   mcallptr->runAsync();
   
   return scope.Close(JS_VOID_RETURN);
+}
+
+
+Handle<Value> getNdbError(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  
+  REQUIRE_ARGS_LENGTH(0);
+
+  /* Special case due to const reference problems */
+  Ndb * ndb = unwrapPointer<Ndb *>(args.Holder());  
+  const NdbError & ref = ndb->getNdbError();
+  return NdbError_Wrapper(ref);
 }
 

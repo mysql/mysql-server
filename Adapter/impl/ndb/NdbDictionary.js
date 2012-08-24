@@ -18,7 +18,8 @@
  02110-1301  USA
  */
 "use strict";
-var adapter = require("../build/Release/ndb/ndb_adapter.node");
+var adapter = require("../build/Release/ndb/ndb_adapter.node"),
+    util    = require("util");
 
 
 /* Do-Nothing Constructor.  Instances are actually constructed 
@@ -49,8 +50,9 @@ exports.DBDictionary.prototype.listTables = function(databaseName, user_callback
   * getTable(databaseName, tableName, callback(error, DBTable));
   */
 exports.DBDictionary.prototype.getTable = function(dbname, tabname, user_callback) {
-  udebug.log("DBDictionary listTables");
-  assert(typeof adapter.impl.DBDictionary.listTables === 'function');
+  udebug.log("DBDictionary getTable");
+  assert(dbname && tabname && user_callback);
+  assert(typeof adapter.impl.DBDictionary.getTable === 'function');
   adapter.impl.DBDictionary.getTable(this.impl, dbname, tabname, user_callback);
 }
 

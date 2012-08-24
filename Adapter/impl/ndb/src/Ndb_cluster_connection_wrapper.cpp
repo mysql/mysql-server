@@ -32,7 +32,7 @@ Envelope NdbccEnvelope("Ndb_cluster_connection");
 /*  Ndb_cluster_connection(const char * connectstring = 0);
 */
 Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_CONSTRUCTOR_CALL();
@@ -50,7 +50,7 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
 /*   void set_name(const char *name);
 */
 Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
@@ -66,7 +66,7 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
 /* int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
 */
 Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
   
@@ -81,7 +81,7 @@ Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
 
 
 Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
   
@@ -103,7 +103,7 @@ Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
      ASYNC
 */
 Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   typedef NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> MCALL;
   
@@ -123,7 +123,7 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
     IMMEDIATE
 */
 Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
@@ -137,7 +137,7 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  

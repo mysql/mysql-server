@@ -24,6 +24,8 @@
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
 #include "unified_debug.h"
+#include "NdbWrappers.h"
+#include "NdbWrapperErrors.h"
 
 using namespace v8;
 
@@ -34,46 +36,27 @@ Envelope NdbSessionImplEnv("NdbSessionImpl");
    This is the background thread part of NewDBSessionImpl
 */
 ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
-  DEBUG_ENTER();
+  DEBUG_MARKER(UDEB_DEBUG);
   ndb_session * sess = new ndb_session;
     
   sess->ndb = new Ndb(conn, db);
   sess->dbname = db;
   sess->ndb->init();
 
-  DEBUG_PRINT("DBNAME: %s", sess->ndb->getDatabaseName());
-
   sess->dict = sess->ndb->getDictionary();    // get Dictionary
-  // sess->err = sess->ndb->getNdbError();        // get NdbError
-  // DEBUG_TRACE();
   
   DEBUG_LEAVE();
   return sess;
 }
 
 
-
-
-
-// FIXME:  This is declared as a native method on a wrapped Ndb *
-Handle<Value> startTransaction(const Arguments &args) {
+Handle<Value> getNdb(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
-  REQUIRE_ARGS_LENGTH(4);
-  
-  typedef NativeMethodCall_3_<NdbTransaction *, Ndb, 
-                              const NdbDictionary::Table *, 
-                              const char *, uint32_t> MCALL;
-
-  MCALL * mcallptr = new MCALL(args);
-  
-  mcallptr->envelope = & NdbSessionImplEnv;
-  mcallptr->method  = & Ndb::startTransaction;
-  mcallptr->runAsync();
-  
-  return scope.Close(JS_VOID_RETURN);
+  REQUIRE_ARGS_LENGTH(1);
+  ndb_session * sess = unwrapPointer<ndb_session *>(args[0]->ToObject());
+  return Ndb_Wrapper(sess->ndb);
 }
+
 
 
 
@@ -105,10 +88,12 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
 
 
 void DBSessionImpl_initOnLoad(Handle<Object> target) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   Persistent<Object> dbsession_obj = Persistent<Object>(Object::New());
   
   DEFINE_JS_FUNCTION(dbsession_obj, "create", NewDBSessionImpl);
+  DEFINE_JS_FUNCTION(dbsession_obj, "getNdb", getNdb);
   
   target->Set(Persistent<String>(String::NewSymbol("DBSession")), dbsession_obj);
 }

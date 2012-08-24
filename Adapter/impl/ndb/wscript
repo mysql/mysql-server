@@ -4,6 +4,7 @@ def configure(conf):
   conf.env.append_unique('CXXFLAGS', "-I%s" %conf.env.ndb_inc)
   conf.env.append_unique('CXXFLAGS', ndbapi_inc)
   conf.env.append_unique('CXXFLAGS', ["-I" + "../ndb/include"])
+  #conf.env.append_unique('CXXFLAGS', '-Wall')
   conf.env.append_unique("LIBPATH", conf.env.my_lib)
 
 
@@ -16,8 +17,16 @@ def build(ctx):
   obj.source = "src/node_module.cpp " + \
   "src/Ndb_init_wrapper.cpp " + \
   "src/Ndb_util_wrapper.cpp " +\
+  "src/Ndb_wrapper.cpp " +\
   "src/Ndb_cluster_connection_wrapper.cpp " + \
+  "src/NdbError_wrapper.cpp " +\
+  "src/NdbTransaction_wrapper.cpp " +\
   "src/DBSessionImpl.cpp " + \
   "src/DBDictionaryImpl.cpp " +\
   "src/Record.cpp " +\
-  "src/Record_wrapper.cpp"
+  "src/Operation.cpp " +\
+  "src/Operation_wrapper.cpp " +\
+  "src/DBOperationHelper.cpp " +\
+  "src/NdbOperation_wrapper.cpp " +\
+  "src/Record_wrapper.cpp " +\
+  ""

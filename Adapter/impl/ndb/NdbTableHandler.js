@@ -66,12 +66,4 @@ proto.setResultPrototype = function(proto_object) {
 };
 
 
-
-
-
-
-
-
-
-
 exports.DBTableHandler.prototype = proto;
