@@ -1029,6 +1029,7 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
   This function is called when:
   - Comparing items in the WHERE clause (when doing where optimization)
   - When trying to find an ORDER BY/GROUP BY item in the SELECT part
+  - When matching fields in multiple equality objects (Item_equal)
 */
 
 bool Item::eq(const Item *item, bool binary_cmp) const

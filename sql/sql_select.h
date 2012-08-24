@@ -548,7 +548,8 @@ public:
   st_join_table *first_inner;   /**< first inner table for including outerjoin*/
   bool           found;         /**< true after all matches or null complement*/
   bool           not_null_compl;/**< true before null complement is added    */
-  bool           materialized;  /**< true if materialized from derived/SJ    */
+  /// For a materializable derived or SJ table: true if has been materialized
+  bool           materialized;
   st_join_table *last_inner;    /**< last table table for embedding outer join*/
   st_join_table *first_upper;  /**< first inner table for embedding outer join*/
   st_join_table *first_unmatched; /**< used for optimization purposes only   */
@@ -585,7 +586,11 @@ public:
   */  
   READ_RECORD::Setup_func save_read_first_record;/* to save read_first_record */
   READ_RECORD::Read_func save_read_record;/* to save read_record.read_record */
-  /// Non-NULL if table is temporary table materialized from subquery
+  /**
+    Struct needed for materialization of semi-join. Set for a materialized
+    temporary table, and NULL for all other join_tabs (except when
+    materialization is in progress, @see join_materialize_semijoin()).
+  */
   Semijoin_mat_exec *sj_mat_exec;          
   double	worst_seeks;
   key_map	const_keys;			/**< Keys with constant part */
@@ -832,8 +837,10 @@ public:
     DBUG_ASSERT(first_sj_inner_tab->position->sj_strategy != SJ_OPT_NONE);
     return first_sj_inner_tab->position->sj_strategy;
   }
-
-  /// @returns (sub)query block id for an inner table of materialized semi-join
+  /**
+     @returns query block id for an inner table of materialized semi-join, and
+              0 for all other tables.
+  */
   uint sjm_query_block_id() const;
 
   bool and_with_condition(Item *tmp_cond, uint line);

@@ -72,7 +72,7 @@ public:
     - "tmp_tables" is 0, 1 or 2 and counts the maximum possible number of
       intermediate tables in post-processing (ie sorting and duplicate removal).
       Later, tmp_tables will be adjusted to the correct number of
-      intermediate tables.
+      intermediate tables, @see JOIN::make_tmp_tables_info.
     - The remaining tables (ie. tables - primary_tables - tmp_tables) are
       input tables to materialized semi-join operations.
     The tables are ordered as follows in the join_tab array:
@@ -80,11 +80,12 @@ public:
      2. non-const primary tables
      3. intermediate sort/group tables
      4. possible holes in array
-     5. materialized semi-join tables
+     5. semi-joined tables used with materialization strategy
   */
   uint     tables;         ///< Total number of tables in query block
   uint     primary_tables; ///< Number of primary input tables in query block
   uint     const_tables;   ///< Number of primary tables deemed constant
+  uint     tmp_tables;     ///< Number of temporary tables used by query
   uint     send_group_parts;
   /**
     Indicates that grouping will be performed on the result set during
@@ -391,11 +392,6 @@ public:
   List<Semijoin_mat_exec> sjm_exec_list;
   /* end of allocation caching storage */
 
-  /**
-    Number of tmp tables actually used by the query.
-    @see JOIN::make_tmp_tables_info
-  */
-  uint8 tmp_tables;
   /** TRUE <=> ref_pointer_array is set to items3. */
   bool set_group_rpa;
   /** Exec time only: TRUE <=> current group has been sent */
@@ -418,6 +414,7 @@ public:
     tables= 0;
     primary_tables= 0;
     const_tables= 0;
+    tmp_tables= 0;
     const_table_map= 0;
     join_list= 0;
     implicit_grouping= FALSE;
@@ -468,7 +465,6 @@ public:
     /* can help debugging (makes smaller test cases): */
     DBUG_EXECUTE_IF("no_const_tables",no_const_tables= TRUE;);
     first_select= sub_select;
-    tmp_tables= 0;
     set_group_rpa= false;
     group_sent= 0;
   }

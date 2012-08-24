@@ -2185,7 +2185,7 @@ typedef struct st_nested_join
   */
   table_map         sj_corr_tables;
   /**
-    Subquery block id if this struct is generated from a subquery transform.
+    Query block id if this struct is generated from a subquery transform.
   */
   uint query_block_id;
   /*

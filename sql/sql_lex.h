@@ -710,6 +710,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  /// List of semi-join nests generated for this query block
   List<TABLE_LIST> sj_nests;
   //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
   /*

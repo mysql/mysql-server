@@ -968,9 +968,9 @@ JOIN::optimize()
    * information it need for later execution of pushed queries.
    *
    * Currently pushed joins are only implemented by NDB.
-   * It only make sense to try pushing if > 1 tables.
+   * It only make sense to try pushing if > 1 non-const tables.
    */
-  if (primary_tables - const_tables > 1)
+  if (!plan_is_const() && !plan_is_single_table())
   {
     const AQP::Join_plan plan(this);
     if (ha_make_pushed_joins(thd, &plan))
@@ -2015,8 +2015,8 @@ static Item *eliminate_item_equal(Item *cond, COND_EQUAL *upper_levels,
     /*
       item_field should be compared with the head of the multiple equality
       list.
-      item_field may refer to a table that is within a semijoin
-      materialization nest. In that case, the join order may look like:
+      item_field may refer to a table that is within a semijoin materialization
+      nest. In that case, the order of the join_tab entries may look like:
 
         ot1 ot2 <subquery> ot5 SJM(it3 it4)
 
@@ -2877,7 +2877,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 
 /**
-  Update keyuse references and equalities after semi-join materialization
+  Update equalities and keyuse references after semi-join materialization
   strategy is chosen.
 
   @details
@@ -2889,34 +2889,42 @@ static void update_depend_map(JOIN *join, ORDER *order)
     multiple equality, replace the reference to the expression selected
     from the subquery with the corresponding column in the temporary table.
 
-    For the MaterializeScan semi-join strategy, all primary tables after the
-    materialized temporary table must be inspected for keyuse objects that point
-    to expressions from the subquery tables. These references must be replaced
-    with references to corresponding columns in the materialized temporary
-    table instead.
+    This is needed to properly reflect the equalities that involve injected
+    semi-join equalities when materialization strategy is chosen.
+    @see eliminate_item_equal() for how these equalities are used to generate
+    correct equality predicates.
 
-    This is needed to reflect the current join plan, and in particular to
-    generate correct equality predicates, @see eliminate_item_equal().
+    The MaterializeScan semi-join strategy requires some additional processing:
+    All primary tables after the materialized temporary table must be inspected
+    for keyuse objects that point to expressions from the subquery tables.
+    These references must be replaced with references to corresponding columns
+    in the materialized temporary table instead. Those primary tables using
+    ref access will thus be made to depend on the materialized temporary table
+    instead of the subquery tables.
+
+    Only the injected semi-join equalities need this treatment, other predicates
+    will be handled correctly by the regular item substitution process.
 
   @return False if success, true if error
 */
 
 bool JOIN::update_equalities_for_sjm()
 {
-  if (select_lex->sj_nests.is_empty())
-    return false;
-
   List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
   TABLE_LIST *sj_nest;
   while ((sj_nest= sj_list_it++))
   {
-    if (sj_nest->sj_mat_exec == NULL)
+    Semijoin_mat_exec *sjm_exec= sj_nest->sj_mat_exec;
+    if (sjm_exec == NULL)
       continue;
 
+    // This is a semi-join nest with materialization strategy chosen.
     DBUG_ASSERT(!sj_nest->outer_join_nest());
     /*
-      The table cannot actually be an outer join inner table yet, this is
-      just a preparatory step (ie sj_nest->outer_join_nest() is NULL)
+      A materialized semi-join nest cannot actually be an inner part of an
+      outer join yet, this is just a preparatory step,
+      ie sj_nest->outer_join_nest() is always NULL here.
+      @todo: Enable outer joining here later.
     */
     Item *cond= sj_nest->outer_join_nest() ?
                   sj_nest->outer_join_nest()->join_cond() :
@@ -2930,21 +2938,11 @@ bool JOIN::update_equalities_for_sjm()
                         (uchar *)sj_nest);
     if (cond == NULL)
       return true;
+
     cond->update_used_tables();
-  }
-
-  for (uint i= const_tables; i < primary_tables; i++)
-  {
-    JOIN_TAB *const mat_tab= join_tab + i;
-    Semijoin_mat_exec *const sjm_exec= mat_tab->sj_mat_exec;
-    if (sjm_exec == NULL)
-      continue;
-
-    TABLE_LIST *const sj_nest=
-      (join_tab + sjm_exec->inner_table_index)->emb_sj_nest;
 
     // Loop over all primary tables that follow the materialized table
-    for (uint j= i + 1; j < primary_tables; j++)
+    for (uint j= sjm_exec->mat_table_index + 1; j < primary_tables; j++)
     {
       JOIN_TAB *const tab= join_tab + j;
       for (Key_use *keyuse= tab->position->key;
