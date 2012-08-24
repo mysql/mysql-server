@@ -128,8 +128,8 @@ struct verify_message_tree_extra {
     bool messages_have_been_moved;
 };
 
-__attribute__((nonnull(3)))
-static int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e) __attribute__((nonnull(3)));
+int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
     int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;
@@ -156,12 +156,13 @@ done:
     return result;
 }
 
-static int error_on_iter(const int32_t &UU(offset), const uint32_t UU(idx), void *UU(e)) {
+int error_on_iter(const int32_t &UU(offset), const uint32_t UU(idx), void *UU(e));
+int error_on_iter(const int32_t &UU(offset), const uint32_t UU(idx), void *UU(e)) {
     return TOKUDB_NEEDS_REPAIR;
 }
 
-__attribute__((nonnull(3)))
-static int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
+int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e) __attribute__((nonnull(3)));
+int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct verify_message_tree_extra *const e)
 {
     int verbose = e->verbose;
     BLOCKNUM blocknum = e->blocknum;

@@ -19,7 +19,8 @@ void frwlock::init(toku_mutex_t *const mutex) {
     m_num_expensive_want_write = 0;
     
     toku_cond_init(&m_wait_read, nullptr);
-    m_queue_item_read = { .cond = &m_wait_read, .next = nullptr };
+    m_queue_item_read.cond = &m_wait_read;
+    m_queue_item_read.next = nullptr;
     m_wait_read_is_in_queue = false;
     m_current_writer_expensive = false;
     m_read_wait_expensive = false;

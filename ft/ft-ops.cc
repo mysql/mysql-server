@@ -3789,8 +3789,8 @@ struct store_fifo_offset_extra {
     int i;
 };
 
-__attribute__((nonnull(3)))
-static int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
+int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra) __attribute__((nonnull(3)));
+int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
 {
     extra->offsets[extra->i] = offset;
     extra->i++;
@@ -3802,8 +3802,8 @@ static int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), stru
  * figure out the MSN of each message, and compare those MSNs.  Returns 1,
  * 0, or -1 if a is larger than, equal to, or smaller than b.
  */
-static int
-fifo_offset_msn_cmp(FIFO &fifo, const int32_t &ao, const int32_t &bo)
+int fifo_offset_msn_cmp(FIFO &fifo, const int32_t &ao, const int32_t &bo);
+int fifo_offset_msn_cmp(FIFO &fifo, const int32_t &ao, const int32_t &bo)
 {
     const struct fifo_entry *a = toku_fifo_get_entry(fifo, ao);
     const struct fifo_entry *b = toku_fifo_get_entry(fifo, bo);
@@ -3868,8 +3868,8 @@ struct iterate_do_bn_apply_cmd_extra {
     STAT64INFO stats_to_update;
 };
 
-__attribute__((nonnull(3)))
-static int iterate_do_bn_apply_cmd(const int32_t &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
+int iterate_do_bn_apply_cmd(const int32_t &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e) __attribute__((nonnull(3)));
+int iterate_do_bn_apply_cmd(const int32_t &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_cmd_extra *const e)
 {
     NONLEAF_CHILDINFO bnc = BNC(e->ancestor, e->childnum);
     struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offset);
@@ -4225,8 +4225,8 @@ struct copy_to_stale_extra {
     NONLEAF_CHILDINFO bnc;
 };
 
-__attribute__((nonnull(3)))
-static int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
+int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra) __attribute__((nonnull(3)));
+int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
 {
     struct fifo_entry *entry = toku_fifo_get_entry(extra->bnc->buffer, offset);
     DBT keydbt;

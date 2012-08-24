@@ -59,7 +59,7 @@
 //typedef struct value *OMTVALUE; // A slight improvement over using void*.
 #include "omt-tmpl.h"
 typedef void *OMTVALUE;
-typedef struct toku::omt<OMTVALUE> *OMT;
+typedef toku::omt<OMTVALUE> *OMT;
 
 
 int toku_omt_create (OMT *omtp);

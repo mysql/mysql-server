@@ -78,7 +78,7 @@ private:
     queue_item *m_wait_tail;
 };
 
-static_assert(std::is_pod<frwlock>::value, "not pod");
+ENSURE_POD(frwlock);
 
 } // namespace toku
 
