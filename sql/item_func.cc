@@ -4082,11 +4082,20 @@ longlong Item_master_gtid_set_wait::val_int()
 
 #if defined(HAVE_REPLICATION)
   longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
-  if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout)) == -2)
+  if (active_mi && active_mi->rli)
   {
-    null_value = 1;
-    event_count=0;
+    if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout))
+         == -2)
+    {
+      null_value = 1;
+      event_count=0;
+    }
   }
+  else
+    /*
+      Replication has not been set up, we should return NULL;
+     */
+    null_value = 1;
 #endif
 
   return event_count;
