@@ -1,3 +1,3 @@
 use test;
-drop table tbl1;
-drop table tbl2;
+drop table if exists tbl1;
+drop table if exists tbl2;
