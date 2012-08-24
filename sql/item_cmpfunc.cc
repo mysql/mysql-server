@@ -6374,7 +6374,7 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
       It's a field from a materialized semijoin. We can substitute it only
       with a field from the same semijoin.
 
-      Example: suppose we have a join order:
+      Example: suppose we have a join_tab order:
 
        ot1 ot2 <subquery> ot3 SJM(it1  it2  it3)
 
@@ -6414,14 +6414,14 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
       The field is not in a materialized semijoin nest. We can return
       the first field in the multiple equality.
 
-      Example: suppose we have a join order with MaterializeLookup:
+      Example: suppose we have a join_tab order with MaterializeLookup:
 
         ot1 ot2 <subquery> SJM(it1 it2)
 
       Here we should always pick the first field in the multiple equality,
       as this will be present before all other dependent fields.
 
-      Example: suppose we have a join order with MaterializeScan:
+      Example: suppose we have a join_tab order with MaterializeScan:
 
         <subquery> ot1 ot2 SJM(it1 it2)
 

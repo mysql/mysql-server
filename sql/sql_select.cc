@@ -1299,6 +1299,7 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
 
   @details
     - create join->join_tab array and copy from existing JOIN_TABs in join order
+    - create helper structs for materialized semi-join handling
     - finalize semi-join strategy choices
     - Number of intermediate tables "tmp_tables" is calculated.
     - "tables" and "primary_tables" are recalculated.
@@ -1337,9 +1338,10 @@ bool JOIN::get_best_combination()
     Rearrange queries with materialized semi-join nests so that the semi-join
     nest is replaced with a reference to a materialized temporary table and all
     materialized subquery tables are placed after the intermediate tables.
-    After the following loop, "outer_target" is the position of first
-    materialized temporary table (if there is one) and "inner_target" is
-    the position of the first subquery table (if any).
+    After the following loop, "inner_target" is the position of the first
+    subquery table (if any). "outer_target" is the position of first outer
+    table, and will later be used to track the position of any materialized
+    temporary tables. 
   */
   uint outer_target= 0;                   
   uint inner_target= primary_tables + tmp_tables;
@@ -2545,13 +2547,13 @@ no_join_cache:
 
 
 /**
-  Setup the materialized table for one semi-join nest
+  Setup the materialized table for a semi-join nest
 
   @param tab       join_tab for the materialized semi-join table
   @param tableno   table number of materialized table
   @param inner_pos information about the first inner table of the subquery
   @param sjm_pos   information about the materialized semi-join table,
-                   to be filled in with data.
+                   to be filled with data.
 
   @details
     Setup execution structures for one semi-join materialization nest:
@@ -2568,7 +2570,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
                                     POSITION *sjm_pos)
 {
   DBUG_ENTER("JOIN::setup_materialized_table");
-  TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
+  const TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec;
   const uint field_count= sjm_exec->subq_exprs->elements;
@@ -2596,10 +2598,10 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   if (!(table= create_tmp_table(thd, &sjm_exec->table_param, 
                                 *sjm_exec->subq_exprs, NULL, 
                                 true /* distinct */, 
-                                true /*save_sum_fields*/,
+                                true /* save_sum_fields */,
                                 thd->variables.option_bits |
                                 TMP_TABLE_ALL_COLUMNS, 
-                                HA_POS_ERROR /*rows_limit */, 
+                                HA_POS_ERROR /* rows_limit */, 
                                 name)))
     DBUG_RETURN(true); /* purecov: inspected */
   sjm_exec->table= table;
