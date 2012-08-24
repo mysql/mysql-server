@@ -1900,7 +1900,8 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 
   mysql_mutex_lock(&LOCK_plugin);
-  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)) ||
+      plugin->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_DYING))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     goto err;
