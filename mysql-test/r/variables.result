@@ -545,7 +545,7 @@ Warning	1292	Truncated incorrect read_buffer_size value: '100'
 set read_rnd_buffer_size=100;
 set global rpl_recovery_rank=100;
 Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@rpl_recovery_rank' is deprecated and will be removed in a future release.
 set global server_id=100;
 set global slow_launch_time=100;
 set sort_buffer_size=100;
@@ -1068,7 +1068,7 @@ set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 Warnings:
-Warning	1287	The syntax '@@rpl_recovery_rank' is deprecated and will be removed in MySQL 7.0.
+Warning	1287	'@@rpl_recovery_rank' is deprecated and will be removed in a future release.
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
