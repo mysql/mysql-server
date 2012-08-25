@@ -90,7 +90,11 @@ void udeb_trace(const char *, int);
 void udeb_switch(int);
 int uni_dbg(void);
 
+#ifdef COMPILING_UNIFIED_DEBUG
+static int uni_debug;
+#else
 extern int uni_debug;
+#endif 
 
 inline void unified_debug_on(void)                 { udeb_switch(1);           }
 inline void unified_debug_off(void)                { udeb_switch(0);           }
