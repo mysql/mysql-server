@@ -5,57 +5,57 @@ SELECT @start_value;
 '#--------------------FN_DYNVARS_026_01------------------------#'
 SET @@global.delayed_queue_size = 100;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SET @@global.delayed_queue_size = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1000
 '#---------------------FN_DYNVARS_026_02-------------------------#'
 SET @@global.delayed_queue_size = @start_value;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size = 1000;
 @@global.delayed_queue_size = 1000
 1
 '#--------------------FN_DYNVARS_026_03------------------------#'
 SET @@global.delayed_queue_size = 10000;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 10000
 SET @@global.delayed_queue_size = 4294967295;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 4294967295
 SET @@global.delayed_queue_size = 1;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1
 '#--------------------FN_DYNVARS_026_04-------------------------#'
 SET @@global.delayed_queue_size = 0;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_queue_size value: '0'
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1
 SET @@global.delayed_queue_size = -1024;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_queue_size value: '-1024'
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1
 SET @@global.delayed_queue_size = 42949672950;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_queue_size value: '42949672950'
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
@@ -89,13 +89,13 @@ WHERE VARIABLE_NAME='delayed_queue_size';
 '#---------------------FN_DYNVARS_026_07----------------------#'
 SET @@global.delayed_queue_size = TRUE;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1
 SET @@global.delayed_queue_size = FALSE;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_queue_size value: '0'
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
@@ -103,7 +103,7 @@ SELECT @@global.delayed_queue_size;
 '#---------------------FN_DYNVARS_026_08----------------------#'
 SET @@global.delayed_queue_size = 1;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@delayed_queue_size = @@global.delayed_queue_size;
 @@delayed_queue_size = @@global.delayed_queue_size
 1
@@ -125,7 +125,7 @@ SELECT delayed_queue_size = @@session.delayed_queue_size;
 ERROR 42S22: Unknown column 'delayed_queue_size' in 'field list'
 SET @@global.delayed_queue_size = @start_value;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_queue_size;
 @@global.delayed_queue_size
 1000

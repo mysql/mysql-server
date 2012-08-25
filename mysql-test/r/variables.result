@@ -482,13 +482,13 @@ select @@delay_key_write;
 ON
 set global delayed_insert_limit=100;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 set global delayed_insert_timeout=100;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_timeout' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 set global delayed_queue_size=100;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 set global flush=1;
 set global flush_time=100;
 set insert_id=1;
@@ -521,7 +521,7 @@ set global max_connect_errors=100;
 set global max_connections=100;
 set global max_delayed_threads=100;
 Warnings:
-Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
 set max_heap_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
@@ -1046,10 +1046,10 @@ set join_buffer_size=@save_join_buffer_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_timeout' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 set global delayed_queue_size        =@my_delayed_queue_size;
 Warnings:
-Warning	1287	The syntax '@@delayed_queue_size' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
@@ -1060,11 +1060,11 @@ set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
 set global max_delayed_threads       =@my_max_delayed_threads;
 Warnings:
-Warning	1287	The syntax '@@max_delayed_threads' is deprecated and will be removed in MySQL .
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
 set global max_heap_table_size       =@my_max_heap_table_size;
 set global max_insert_delayed_threads=@my_max_insert_delayed_threads;
 Warnings:
-Warning	1287	The syntax '@@max_insert_delayed_threads' is deprecated and will be removed in MySQL .
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 set global max_join_size             =@my_max_join_size;
 set global max_user_connections      =default;
 set global max_write_lock_count      =default;

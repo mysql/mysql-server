@@ -429,20 +429,25 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	prebuilt->trx->will_lock++;
 
-	/* Other check viz. full-text or add-index are checking for
-	alter table option which are explicity specified by user
-	for altering. Here we are checking for implicit feasibility
-	of table for altering and so this check can't be clubbed
-	in same category like fts or add-index and so separate if */
-	if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
-		online = false;
-	}
-
 	if (!online) {
 		/* We already determined that only a non-locking
 		operation is possible. */
-	} else if (innobase_need_rebuild(ha_alter_info)
-		   && innobase_fulltext_exist(altered_table->s)) {
+	} else if (((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ADD_PK_INDEX)
+		    || innobase_need_rebuild(ha_alter_info))
+		   && (innobase_fulltext_exist(altered_table->s)
+		       || (prebuilt->table->flags2
+			   & DICT_TF2_FTS_HAS_DOC_ID))) {
+		/* Refuse to rebuild the table online, if
+		fulltext indexes are to survive the rebuild,
+		or if the table contains a hidden FTS_DOC_ID column. */
+		online = false;
+	} else if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
+		/* Refuse online ALTER TABLE (even dropping or
+		creating secondary indexes) if there are FOREIGN KEY
+		constraints with ON...CASCADE or ON...SET NULL
+		options. This limitation should be removed when WL#6049
+		(meta-data locking for FOREIGN KEY checks) is implemented. */
 		online = false;
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX)) {
@@ -1687,8 +1692,8 @@ innobase_create_key_defs(
 			/*!< in: MySQL table that is being altered */
 	ulint&				n_add,
 			/*!< in/out: number of indexes to be created */
-	unsigned&			n_fts_add,
-			/*!< in/out: number of FTS indexes to be created */
+	ulint&				n_fts_add,
+			/*!< out: number of FTS indexes to be created */
 	bool				got_default_clust,
 			/*!< in: whether the table lacks a primary key */
 	ulint&				fts_doc_id_col,
@@ -1718,6 +1723,7 @@ innobase_create_key_defs(
 	new_primary = n_add > 0
 		&& !my_strcasecmp(system_charset_info,
 				  key_info[*add].name, "PRIMARY");
+	n_fts_add = 0;
 
 	/* If there is a UNIQUE INDEX consisting entirely of NOT NULL
 	columns and if the index does not contain column prefix(es)
@@ -1787,10 +1793,6 @@ innobase_create_key_defs(
 created_clustered:
 		n_add = 1;
 
-		if (rebuild) {
-			n_fts_add = 0;
-		}
-
 		for (ulint i = 0; i < ha_alter_info->key_count; i++) {
 			if (i == primary_key_number) {
 				continue;
@@ -1800,12 +1802,41 @@ created_clustered:
 				altered_table, key_info, i, TRUE, FALSE,
 				indexdef, heap);
 
-			if (rebuild && (indexdef->ind_type & DICT_FTS)) {
+			if (indexdef->ind_type & DICT_FTS) {
 				n_fts_add++;
 			}
 
 			indexdef++;
 			n_add++;
+		}
+
+		if (n_fts_add > 0) {
+			if (!add_fts_doc_id
+			    && !innobase_fts_check_doc_id_col(
+				    NULL, altered_table,
+				    &fts_doc_id_col)) {
+				fts_doc_id_col = altered_table->s->fields;
+				add_fts_doc_id = true;
+			}
+
+			if (!add_fts_doc_idx) {
+				fts_doc_id_index_enum	ret;
+				ulint			doc_col_no;
+
+				ret = innobase_fts_check_doc_id_index(
+					NULL, altered_table, &doc_col_no);
+
+				/* This should have been checked before */
+				ut_ad(ret != FTS_INCORRECT_DOC_ID_INDEX);
+
+				if (ret == FTS_NOT_EXIST_DOC_ID_INDEX) {
+					add_fts_doc_idx = true;
+				} else {
+					ut_ad(ret == FTS_EXIST_DOC_ID_INDEX);
+					ut_ad(doc_col_no == ULINT_UNDEFINED
+					      || doc_col_no == fts_doc_id_col);
+				}
+			}
 		}
 	} else {
 		/* Create definitions for added secondary indexes. */
@@ -1813,36 +1844,13 @@ created_clustered:
 		for (ulint i = 0; i < n_add; i++) {
 			innobase_create_index_def(
 				altered_table, key_info, add[i], FALSE, FALSE,
-				indexdef++, heap);
-		}
-	}
+				indexdef, heap);
 
-	if (rebuild && n_fts_add > 0) {
-		if (!add_fts_doc_id && (fts_doc_id_col == ULINT_UNDEFINED)
-		    && !innobase_fts_check_doc_id_col(
-					NULL, altered_table,
-					&fts_doc_id_col)) {
-			fts_doc_id_col = altered_table->s->fields;
-			add_fts_doc_id = true;
-		}
-
-		if (!add_fts_doc_idx) {
-			fts_doc_id_index_enum	ret;
-			ulint			doc_col_no;
-
-			ret = innobase_fts_check_doc_id_index(
-				NULL, altered_table, &doc_col_no);
-
-			/* This should have been checked before */
-			ut_ad(ret != FTS_INCORRECT_DOC_ID_INDEX);
-
-			if (ret == FTS_NOT_EXIST_DOC_ID_INDEX) {
-				add_fts_doc_idx = true;
-			} else {
-				ut_ad(ret == FTS_EXIST_DOC_ID_INDEX);
-				ut_ad(doc_col_no == fts_doc_id_col
-				      || doc_col_no == ULINT_UNDEFINED);
+			if (indexdef->ind_type & DICT_FTS) {
+				n_fts_add++;
 			}
+
+			indexdef++;
 		}
 	}
 
@@ -2422,7 +2430,6 @@ while preparing ALTER TABLE.
 @param n_drop_index	Number of indexes to drop
 @param drop_foreign	Foreign key constraints to be dropped, or NULL
 @param n_drop_foreign	Number of foreign key constraints to drop
-@param num_fts_index	Number of full-text indexes to create
 @param fts_doc_id_col	The column number of FTS_DOC_ID
 @param add_autoinc_col	The number of an added AUTO_INCREMENT column,
 			or ULINT_UNDEFINED if none was added
@@ -2451,7 +2458,6 @@ prepare_inplace_alter_table_dict(
 	ulint			n_drop_foreign,
 	dict_foreign_t**	add_foreign,
 	ulint			n_add_foreign,
-	unsigned		num_fts_index,
 	ulint			fts_doc_id_col,
 	ulint			add_autoinc_col,
 	ulonglong		autoinc_col_max_value,
@@ -2471,39 +2477,16 @@ prepare_inplace_alter_table_dict(
 	THD*			user_thd	= user_trx->mysql_thd;
 	const ulint*		col_map		= NULL;
 	dtuple_t*		add_cols	= NULL;
-
-	const bool locked =
-		num_fts_index > 0
-		|| (innobase_need_rebuild(ha_alter_info)
-		    && innobase_fulltext_exist(altered_table->s))
-		|| (add_autoinc_col != ULINT_UNDEFINED)
-		|| innobase_fk_cscd_setnull_exist(user_table)
-		|| ha_alter_info->alter_info->requested_lock
-		== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
-		|| ha_alter_info->alter_info->requested_lock
-		== Alter_info::ALTER_TABLE_LOCK_SHARED;
+	ulint			num_fts_index;
 
 	DBUG_ENTER("prepare_inplace_alter_table_dict");
 	DBUG_ASSERT((add_autoinc_col != ULINT_UNDEFINED)
 		    == (autoinc_col_max_value > 0));
 	DBUG_ASSERT(!n_drop_index == !drop_index);
 	DBUG_ASSERT(!n_drop_foreign == !drop_foreign);
-	DBUG_ASSERT(num_fts_index <= 1);
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_id_idx);
 	DBUG_ASSERT(!add_fts_doc_id_idx
 		    || innobase_fulltext_exist(altered_table->s));
-
-#ifndef DBUG_OFF
-	switch (ha_alter_info->alter_info->requested_lock) {
-	case Alter_info::ALTER_TABLE_LOCK_NONE:
-		DBUG_ASSERT(!locked);
-		break;
-	case Alter_info::ALTER_TABLE_LOCK_DEFAULT:
-	case Alter_info::ALTER_TABLE_LOCK_SHARED:
-	case Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE:
-		break;
-	}
-#endif /* !DBUG_OFF */
 
 	trx_start_if_not_started_xa(user_trx);
 
@@ -2530,9 +2513,25 @@ prepare_inplace_alter_table_dict(
 
 	new_clustered = DICT_CLUSTERED & index_defs[0].ind_type;
 
+	const bool locked =
+		!ha_alter_info->online
+		|| add_autoinc_col != ULINT_UNDEFINED
+		|| num_fts_index > 0
+		|| (innobase_need_rebuild(ha_alter_info)
+		    && innobase_fulltext_exist(altered_table->s))
+		|| innobase_fk_cscd_setnull_exist(user_table);
+
 	if (num_fts_index > 1) {
-		ut_ad(new_clustered);
 		my_error(ER_INNODB_FT_LIMIT, MYF(0));
+		goto error_handled;
+	}
+
+	if (locked && ha_alter_info->online) {
+		/* This should have been blocked in
+		check_if_supported_inplace_alter(). */
+		ut_ad(0);
+		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+			 thd_query_string(user_thd)->str);
 		goto error_handled;
 	}
 
@@ -3062,7 +3061,6 @@ ha_innobase::prepare_inplace_alter_table(
 	ulint		flags;
 	ulint		flags2;
 	ulint		max_col_len;
-	ulint		num_fts_index;
 	ulint		add_autoinc_col_no	= ULINT_UNDEFINED;
 	ulonglong	autoinc_col_max_value	= 0;
 	ulint		fts_doc_col_no		= ULINT_UNDEFINED;
@@ -3489,25 +3487,37 @@ index_needed:
 		if (!innobase_get_foreign_key_info(
 			ha_alter_info, table_share, prebuilt->table,
 			add_fk, &n_add_fk, heap, prebuilt->trx)) {
+err_exit:
+			if (n_drop_index) {
+				row_mysql_lock_data_dictionary(prebuilt->trx);
 
-			goto err_exit;
+				/* Clear the to_be_dropped flags, which might
+				have been set at this point. */
+				for (ulint i = 0; i < n_drop_index; i++) {
+					DBUG_ASSERT(*drop_index[i]->name
+						    != TEMP_INDEX_PREFIX);
+					drop_index[i]->to_be_dropped = 0;
+				}
+
+				row_mysql_unlock_data_dictionary(prebuilt->trx);
+			}
+
+			if (heap) {
+				mem_heap_free(heap);
+			}
+			goto err_exit_no_heap;
 		}
 	}
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_INPLACE_CREATE)) {
 		if (heap) {
-			const bool locked
-				= ha_alter_info->alter_info->requested_lock
-				== Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE
-				|| ha_alter_info->alter_info->requested_lock
-				== Alter_info::ALTER_TABLE_LOCK_SHARED;
-
 			ha_alter_info->handler_ctx
 				= new ha_innobase_inplace_ctx(
 					prebuilt->trx, 0, 0, 0,
 					drop_index, n_drop_index,
 					drop_fk, n_drop_fk,
-					add_fk, n_add_fk, !locked,
+					add_fk, n_add_fk,
+					ha_alter_info->online,
 					heap, 0, indexed_table, 0,
 					ULINT_UNDEFINED, 0, 0, 0);
 		}
@@ -3518,49 +3528,10 @@ func_exit:
 		DBUG_RETURN(false);
 	}
 
-	/* See if we are creating any full-text indexes. */
-	num_fts_index = 0;
-
-	for (ulint i = 0; i < ha_alter_info->index_add_count; i++) {
-		const KEY* key = &ha_alter_info->key_info_buffer[
-			ha_alter_info->index_add_buffer[i]];
-
-		if (key->flags & HA_FULLTEXT) {
-			DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
-				      & ~(HA_FULLTEXT
-					  | HA_PACK_KEY
-					  | HA_BINARY_PACK_KEY)));
-			num_fts_index++;
-		}
-	}
-
-	if (num_fts_index > 1) {
-		my_error(ER_INNODB_FT_LIMIT, MYF(0));
-err_exit:
-		if (n_drop_index) {
-			row_mysql_lock_data_dictionary(prebuilt->trx);
-
-			/* Clear the to_be_dropped flags, which might
-			have been set at this point. */
-			for (ulint i = 0; i < n_drop_index; i++) {
-				DBUG_ASSERT(*drop_index[i]->name
-					    != TEMP_INDEX_PREFIX);
-				drop_index[i]->to_be_dropped = 0;
-			}
-
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
-		}
-
-		if (heap) {
-			mem_heap_free(heap);
-		}
-		goto err_exit_no_heap;
-	}
-
 	/* If we are to build a full-text search index, check whether
 	the table already has a DOC ID column.  If not, we will need to
 	add a Doc ID hidden column and rebuild the primary index */
-	if (num_fts_index) {
+	if (innobase_fulltext_exist(altered_table->s)) {
 		ulint	doc_col_no;
 
 		if (!innobase_fts_check_doc_id_col(
@@ -3590,7 +3561,11 @@ err_exit:
 			goto err_exit;
 		case FTS_EXIST_DOC_ID_INDEX:
 			DBUG_ASSERT(doc_col_no == fts_doc_col_no
-				    || doc_col_no == ULINT_UNDEFINED);
+				    || doc_col_no == ULINT_UNDEFINED
+				    || (ha_alter_info->handler_flags
+					& (Alter_inplace_info::ALTER_COLUMN_ORDER
+					   | Alter_inplace_info::DROP_COLUMN
+					   | Alter_inplace_info::ADD_COLUMN)));
 		}
 	}
 
@@ -3644,7 +3619,6 @@ found_col:
 			    flags, flags2,
 			    heap, drop_index, n_drop_index,
 			    drop_fk, n_drop_fk, add_fk, n_add_fk,
-			    num_fts_index,
 			    fts_doc_col_no, add_autoinc_col_no,
 			    autoinc_col_max_value, add_fts_doc_id,
 			    add_fts_doc_id_idx));
@@ -4884,7 +4858,7 @@ func_exit:
 	    && (ha_alter_info->create_info->used_fields
 		& HA_CREATE_USED_AUTO)) {
 
-		if (ctx != 0) {
+		if (ctx != 0 && altered_table->found_next_number_field != 0) {
 			ha_alter_info->create_info->auto_increment_value =
 				ctx->sequence.last();
 		}
