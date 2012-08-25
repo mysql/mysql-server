@@ -765,7 +765,9 @@ table_map Item_subselect::used_tables() const
 
 bool Item_subselect::const_item() const
 {
-  return thd->lex->context_analysis_only ? FALSE : const_item_cache;
+  return (thd->lex->context_analysis_only ?
+          FALSE :
+          forced_const || const_item_cache);
 }
 
 Item *Item_subselect::get_tmp_table_item(THD *thd_arg)
@@ -1484,6 +1486,10 @@ double Item_in_subselect::val_real()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  if (forced_const)
+    return value;
+  DBUG_ASSERT((engine->uncacheable() & ~UNCACHEABLE_EXPLAIN) ||
+              ! engine->is_executed());
   null_value= was_null= FALSE;
   if (exec())
   {
@@ -1504,6 +1510,10 @@ longlong Item_in_subselect::val_int()
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  if (forced_const)
+    return value;
+  DBUG_ASSERT((engine->uncacheable() & ~UNCACHEABLE_EXPLAIN) ||
+              ! engine->is_executed());
   null_value= was_null= FALSE;
   if (exec())
   {
@@ -1524,6 +1534,10 @@ String *Item_in_subselect::val_str(String *str)
   */
   DBUG_ASSERT(0);
   DBUG_ASSERT(fixed == 1);
+  if (forced_const)
+    goto value_is_ready;
+  DBUG_ASSERT((engine->uncacheable() & ~UNCACHEABLE_EXPLAIN) ||
+              ! engine->is_executed());
   null_value= was_null= FALSE;
   if (exec())
   {
@@ -1535,6 +1549,7 @@ String *Item_in_subselect::val_str(String *str)
     null_value= TRUE;
     return 0;
   }
+value_is_ready:
   str->set((ulonglong)value, &my_charset_bin);
   return str;
 }
@@ -1545,6 +1560,8 @@ bool Item_in_subselect::val_bool()
   DBUG_ASSERT(fixed == 1);
   if (forced_const)
     return value;
+  DBUG_ASSERT((engine->uncacheable() & ~UNCACHEABLE_EXPLAIN) ||
+              ! engine->is_executed());
   null_value= was_null= FALSE;
   if (exec())
   {
@@ -1563,6 +1580,10 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
     method should not be used
   */
   DBUG_ASSERT(0);
+  if (forced_const)
+    goto value_is_ready;
+  DBUG_ASSERT((engine->uncacheable() & ~UNCACHEABLE_EXPLAIN) ||
+              ! engine->is_executed());
   null_value= was_null= FALSE;
   DBUG_ASSERT(fixed == 1);
   if (exec())
@@ -1572,6 +1593,7 @@ my_decimal *Item_in_subselect::val_decimal(my_decimal *decimal_value)
   }
   if (was_null && !value)
     null_value= TRUE;
+value_is_ready:
   int2my_decimal(E_DEC_FATAL_ERROR, value, 0, decimal_value);
   return decimal_value;
 }
@@ -3117,6 +3139,8 @@ int subselect_single_select_engine::exec()
       tab->read_record.read_record= tab->save_read_record;
     }
     executed= 1;
+    if (!(uncacheable() & ~UNCACHEABLE_EXPLAIN))
+      item->make_const();
     thd->where= save_where;
     thd->lex->current_select= save_select;
     DBUG_RETURN(join->error || thd->is_fatal_error || thd->is_error());
