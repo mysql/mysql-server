@@ -12,6 +12,45 @@
  * 
 */
 
+/* Annotations object definitions */
+
+  /** TableMapping object
+   * A TableMapping describes the mapping of a domain object in the application
+   * to a table stored in the database.
+   * If the mapping is a default mapping, then each column is mapped to a field
+   * of the same name.
+   */
+  TableMapping = {
+    name                   :  "" ,  // Table name
+    database               :  "" ,  // Database name
+    autoIncrementBatchSize :  1  ,  // Auto-increment prefetch batch size
+    isDefaultMapping       : true,  // This mapping is a default mapping
+    fields                 : []     // array of FieldMapping objects
+  };
+
+
+  /** FieldMapping object
+   *  Describes the mapping of each field in a domain object to a column
+   *  in the database.
+   * 
+   *  actionOnNull describes the desired behavior when an object is written
+   *               to the database and this field is Null.  One of:
+   *               "NONE":    do not write this field to the database
+   *               "ERROR":   raise an error condition to the application
+   *               "DEFAULT": write the column's default value 
+   *  
+   *  column       Defaults to a column with the same name as the field.  
+   */
+  FieldMapping = {
+    fieldName     :  ""     ,  // Name of the field in the domain object
+    columnName    :  ""     ,  // Column name where this field is stored  
+    columnNumber  :  0      ,  // Column number in table 
+    actionOnNull  :  "NONE" ,  // One of NONE, ERROR, or DEFAULT
+    notPersistent : false   , // Boolean TRUE if this field should *not* be stored
+    converter     :  {}       // Converter class to use with this field  
+  };
+
+
 /* Annotations instance methods */
 {
 
@@ -37,41 +76,11 @@
    * Supply annotations to a prototype or token object.
    *
    * Annotations specify details of how the object is mapped to the database.
-   * The annotations object is a javascript object that contains optional
-   * properties and defaults:
-   *
-   * "table"                  : ""   the name of the table in the base.
-   * "schema"                 : ""   the name of the schema for the table
-   * "database"               : ""   the name of the database for the table
-   * "autoIncrementBatchSize" : 1    the batch size of the autoincrement
-   * "mapAllColumns"          : true map all columns in this table
-   *
-   * Another property of the annotations object is named "field" or "fields".
-   *
-   * The field or fields property is either a field mapping object or an array,
-   * each element of which is a field mapping. 
-   * The field mapping object is a javascript object that contains
-   * properties and defaults:
-   *
-   * "name"          : no default
-   *
-   * "nullValue"     : "NONE" Behavior when this field contains a null value when
-   *                      persisting the object.
-   *                      One of "NONE", "EXCEPTION", or "DEFAULT"
-   *
-   * "column"        : "" Column name where this field is stored.  The default
-   *                      is a column with the same name as the field.
-   *
-   * "notPersistent" : "" Specify that a field is not to be persisted in the
-   *                      database.
-   *
-   * "converter"     : "" Specify the converter to use for this field.
-   *                      The default is to use the converter based on the SQL type.
    * 
    * @param token_object prototype object to annotate
    * @param annotations annotations object
    */
-  mapClass(Object token_object, Object objectAnnotations);
+  mapClass(Object token_object, TableMapping objectAnnotations);
 
   /** registerFieldConverter
    * IMMEDIATE
@@ -85,7 +94,7 @@
    * Register a converter for a column in a table
    *
    */
-  registerColumnConverter(String table, String column, Converter c);
+  registerColumnConverter(String table, String columnName, Converter c);
 
   /** registerTypeConverter 
    *  IMMEDIATE

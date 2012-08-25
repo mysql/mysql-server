@@ -1,70 +1,65 @@
 /* 
-   A DBTableHandler combines table information, from the data dictionary,
-   with user information about column selection, column name mapping in 
-   results, and data conversion handlers.
+   A DBTableHandler is a persistent metadata object that combines table 
+   information from the data dictionary with user-supplied information about 
+   column selection, column name mapping, and data conversion handlers.
 
-   It has the same life cycle as the DBConnectionPool that creates it.
+*/
 
-   By default, it will:
-     select all columns
+/* Related objects:
+
+   DBTable:       as defined in spi/DBDictionary spec.
+   TableMapping:  as defined in api/Annotations spec.
+   FieldMapping:  as defined in api/Annotations spec.
+*/
+
+
+/* DBTableHandler() constructor
+   IMMEDIATE
+
+   Create a DBTableHandler for a table and a mapping.
+
+   The DBTable may not be null.
+
+   If the TableMapping is null, default mapping behavior will be used.
+   Default mapping behavior is to:
+     select all columns when reading
      use default converters for all data types
-     perform no column name remapping
-
-  METHODS:
-    allColumns()
-    useMapping(mapping)
-    useColumns(column_def)
-    useMappedColumns(mapping)
-    registerConverter(column_name, converter_class)
-    setResultPrototype(proto_object)
+     perform no remapping between field names and column names
 */
+  DBTableHandler(DBTable, TableMapping);
 
 
-/* DBTableHandler.allColumns()
-   IMMEDIATE
+/************************************************
+   Methods for defining DBTableHandler behavior 
+ ************************************************/
+  /** registerFieldConverter
+   * IMMEDIATE
+   * Register a converter for a field in a domain object
+   *
+   */
+  registerFieldConverter(Object token_object, String field_name, Converter c);
 
-   Indicates that all columns should be used in the operation
-*/
-  useAllColumns();
+  /** registerColumnConverter
+   * IMMEDIATE
+   * Register a converter for a column in a table
+   *
+   */
+  registerColumnConverter(String table, String column, Converter c);
 
+  /** registerTypeConverter 
+   *  IMMEDIATE
+   *  Register a converter for a SQL data type 
+   *
+   *  @param type is as defined in DBDictionary for the storage SPI
+   */
+  registerTypeConverter(string typeName, Converter c);
 
-/* DBTableHandler.useMapping(Object mapping)
-   IMMEDIATE
-
-   Defines a column-name mapping for the table
-*/
-  useMapping(mapping);
-
-
-/* DBTableHandler.useColumns(Object column_def)
-   IMMEDIATE
-   
-   Declares that only the specific columns present in the column_def object
-   are to be read or written.  
-   If the column_def object is an array, then its elements represent column names.
-   If column_def is not an array, then its properties represent the column names.
-*/
-  useColumns(column_def);
-
-
-/* DBTableHandler.mappedColumns(Object mapping) 
-   IMMEDIATE
-
-   Convenience method; has two effects: 
-     A. Defines a column-name mapping for the table -- (useMapping)
-     B. Include only mapped columns -- (useColumn)
-*/
-  useMappedColumns(mapping);
-
-
-/* DBTableHandler.registerConverter(String column_name, Converter converter_class) 
-   IMMEDIATE
-
-   Declare that converter_class should be used for data type conversions
-   for column column_name.
-*/
-  registerConverter(column_name, converter_class);
-   
+  /** registerCharsetConverter
+   *  IMMEDIATE
+   *  Register a converter to/from Javascript String for a SQL charset
+   */
+  registerCharsetConverter(String charsetName, Converter c);
+}   
 
 /* DBTableHandler.setResultRowPrototype(Object proto_object)
    IMMEDIATE
@@ -73,4 +68,30 @@
    when creating a results object for a row read from the database.
 */
   setResultPrototype(proto_object);
+
+
+/************************************************
+      Methods for working with mapped objects 
+ ************************************************/
+
+/* Returns the number of fields mapped to columns in the table 
+*/
+getMappedFieldCount();
+
+/* Boolean: returns True if all columns are mapped
+*/
+allColumnsMapped();
+
+/* Returns an array in which each element is the column number of
+   a mapped column
+*/
+getMappedColumnNumbers();
+
+
+
+
+
+/* Given a DBOoperation and an object containing keys,
+   return  
+
 
