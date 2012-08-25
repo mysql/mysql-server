@@ -44,8 +44,8 @@ public:
 
   /* Constructor */
   NativeCFunctionCall_0_<R>(const Arguments &args) :
-  function(0),
-  AsyncCall_Returning<R>(args[0]) // callback
+  AsyncCall_Returning<R>(args[0]) /*callback*/ ,
+  function(0)
   { }
 
   /* Methods */
@@ -71,8 +71,8 @@ public:
 
   /* Constructor */
   NativeCFunctionCall_1_<R, A0>(const Arguments &args) :
-    function(0),
     AsyncCall_Returning<R>(args[1]), /* callback */
+    function(0),
     Call_1_<A0>(args)                                           { }
 
   /* Methods */
@@ -98,8 +98,8 @@ public:
 
   /* Constructor */
   NativeCFunctionCall_2_<R, A0, A1>(const Arguments &args) :
-    function(0),
     AsyncCall_Returning<R>(args[2]), // callback
+    function(0),
     Call_2_<A0, A1>(args)                                         { }
 
   /* Methods */
@@ -128,8 +128,8 @@ public:
 
   /* Constructor */
   NativeCFunctionCall_3_<R, A0, A1, A2>(const Arguments &args) :
-    function(0),
     AsyncCall_Returning<R>(args[3]), /* callback */
+    function(0),
     Call_3_<A0, A1, A2>(args)                                     { }
 
   /* Methods */
@@ -160,8 +160,8 @@ public:
 
   /* Constructor */
   NativeCFunctionCall_6_<R, A0, A1, A2, A3, A4, A5>(const Arguments &args) :
-    function(0),
     AsyncCall_Returning<R>(args[8]),  /* callback */
+    function(0),
     Call_6_<A0, A1, A2, A3, A4, A5>(args)                { }
 
   /* Methods */
@@ -195,8 +195,8 @@ public:
 
   /* Constructor */
   NativeCFunctionCall_8_<R, A0, A1, A2, A3, A4, A5, A6, A7>(const Arguments &args) :
-    function(0),
     AsyncCall_Returning<R>(args[8]),  /* callback */
+    function(0),
     Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args)                { }
 
   /* Methods */
@@ -230,8 +230,8 @@ public:
 
   /* Constructor */
   NativeCVoidFunctionCall_0_(const Arguments &args) :
-    function(0),
-    AsyncCall_Returning<int>(args[1]) /*callback*/                   { }
+    AsyncCall_Returning<int>(args[1]) /*callback*/,                   
+    function(0)                                                            { }
 
   /* Methods */
   void run() {

@@ -119,8 +119,8 @@ public:
 
   /* Constructor */
   NativeConstMethodCall_1_<R, C, A0>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 1),
+    method(0),
     Call_1_<A0>(args)                                                       {  }
 
   /* Methods */
@@ -176,8 +176,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_2_<R, C, A0, A1>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 2),
+    method(0),
     Call_2_<A0, A1>(args)                                                   {  }
 
   /* Methods */
@@ -203,8 +203,8 @@ public:
 
   /* Constructor */
   NativeConstMethodCall_2_<R, C, A0, A1>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R,C>(args, 2),
+    method(0),
     Call_2_<A0, A1>(args)                                                   {  }
 
   /* Methods */
@@ -231,8 +231,8 @@ public:
 
   /* Constructor */
   NativeConstVoidMethodCall_2_<C, A0, A1>(const Arguments &args) :
-    method(0),
     Call_2_<A0, A1>(args),
+    method(0),
     NativeMethodCall<int, C>(args, 2)                                       {  }
 
   /* Methods */
@@ -260,8 +260,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_3_<R, C, A0, A1, A2>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 3),
+    method(0),
     Call_3_<A0, A1, A2>(args)                                               {  }
 
   /* Methods */
@@ -293,8 +293,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_4_<R, C, A0, A1, A2, A3>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 4),
+    method(0),
     Call_4_<A0, A1, A2, A3>(args)                                           {  }
 
   /* Methods */
@@ -327,8 +327,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_5_<R, C, A0, A1, A2, A3, A4>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 5),
+    method(0),
     Call_5_<A0, A1, A2, A3, A4>(args)                                       {  }
 
   /* Methods */
@@ -363,8 +363,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_6_<R, C, A0, A1, A2, A3, A4, A5>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 6),
+    method(0),
     Call_6_<A0, A1, A2, A3, A4, A5>(args)                                   {  }
 
   /* Methods */
@@ -400,8 +400,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_7_<R, C, A0, A1, A2, A3, A4, A5, A6>(const Arguments &args) :
-    method(0),
     NativeMethodCall<R, C>(args, 7),
+    method(0),
     Call_7_<A0, A1, A2, A3, A4, A5, A6>(args)                               {  }
 
   /* Methods */
@@ -438,8 +438,8 @@ public:
 
   /* Constructor */
   NativeMethodCall_8_<R, C, A0, A1, A2, A3, A4, A5, A6, A7>(const Arguments &args) :
-    method(0),
     NativeMethodCall<C, R>(args, 8),
+    method(0),
     Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args)                           {  }
 
   /* Methods */

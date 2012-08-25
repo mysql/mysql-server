@@ -102,8 +102,8 @@ template <typename RETURN_TYPE>
 class AsyncCall_Returning : public AsyncMethodCall {
 public:
   /* Member variables */
-  RETURN_TYPE return_val;
   NativeCodeError *error;
+  RETURN_TYPE return_val;
 
   /* Constructor */
   AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback) :

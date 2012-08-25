@@ -5,7 +5,7 @@ blddir = 'Adapter/impl/build'
 VERSION = '0.35'
 
 def set_options(opt):
-  opt.tool_options('compiler_cxx')
+  opt.tool_options('compiler_cc compiler_cxx')
   opt.add_option('--mysql', action='store', default='/usr/local/mysql/')
 
 def configure(conf):
@@ -26,8 +26,10 @@ def configure(conf):
   conf.env.ndb_inc = ndb_inc
 
   conf.env.append_unique('CXXFLAGS', ["-I" + "../common/include"])
+  conf.env.append_unique('CXXFLAGS', ["-Wall"])
+  conf.env.append_unique('CFLAGS'  , ["-I" + "../common/include"])
     
-  conf.check_tool('compiler_cxx')
+  conf.check_tool('compiler_cc compiler_cxx')
   conf.check_tool('node_addon')
 
   conf.recurse("Adapter/impl/ndb")
