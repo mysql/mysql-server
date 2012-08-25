@@ -6222,6 +6222,9 @@ fts_init_index(
 	fts_get_doc_t*  get_doc = NULL;
 	ibool		has_fts = TRUE;
 	fts_cache_t*    cache = table->fts->cache;
+	bool		need_init = false;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* First check cache->get_docs is initialized */
 	if (!has_cache_lock) {
@@ -6237,6 +6240,8 @@ fts_init_index(
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
 		goto func_exit;
 	}
+
+	need_init = true;
 
 	start_doc = cache->synced_doc_id;
 
@@ -6272,9 +6277,6 @@ fts_init_index(
 		    & STOPWORD_NOT_INIT) {
 			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
 		}
-
-		/* Register the table with the optimize thread. */
-		fts_optimize_add_table(table);
 	}
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
@@ -6284,6 +6286,13 @@ fts_init_index(
 func_exit:
 	if (!has_cache_lock) {
 		rw_lock_x_unlock(&cache->lock);
+	}
+
+	if (need_init) {
+		mutex_enter(&dict_sys->mutex);
+		/* Register the table with the optimize thread. */
+		fts_optimize_add_table(table);
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	return(TRUE);

@@ -7146,6 +7146,41 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
   if (tree2->type == SEL_TREE::MAYBE)
     DBUG_RETURN(tree2);
 
+  /*
+    It is possible that a tree contains both 
+    a) simple range predicates (in tree->keys[]) and
+    b) index merge range predicates (in tree->merges)
+
+    If a tree has both, they represent equally *valid* range
+    predicate alternatives; both will return all relevant rows from
+    the table but one may return more unnecessary rows than the
+    other (additional rows will be filtered later). However, doing
+    an OR operation on trees with both types of predicates is too
+    complex at the time. We therefore remove the index merge
+    predicates (if we have both types) before OR'ing the trees.
+
+    TODO: enable tree_or() for trees with both simple and index
+    merge range predicates.
+  */
+  if (!tree1->merges.is_empty())
+  {
+    for (uint i= 0; i < param->keys; i++)
+      if (tree1->keys[i] != NULL && tree2->keys[i] != &null_element)
+      {
+        tree1->merges.empty();
+        break;
+      }
+  }
+  if (!tree2->merges.is_empty())
+  {
+    for (uint i= 0; i< param->keys; i++)
+      if (tree2->keys[i] != NULL && tree2->keys[i] != &null_element)
+      {
+        tree2->merges.empty();
+        break;
+      }
+  }
+
   SEL_TREE *result= 0;
   key_map  result_keys;
   if (sel_trees_can_be_ored(tree1, tree2, param))
