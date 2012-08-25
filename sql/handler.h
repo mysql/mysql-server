@@ -1278,6 +1278,8 @@ public:
 
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
+  /** true for online operation (LOCK=NONE) */
+  bool online;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
@@ -1295,7 +1297,8 @@ public:
     handler_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
-    ignore(ignore_arg)
+    ignore(ignore_arg),
+    online (false)
   {}
 
   ~Alter_inplace_info()

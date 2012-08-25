@@ -5,57 +5,57 @@ SELECT @start_value;
 '#--------------------FN_DYNVARS_024_01------------------------#'
 SET @@global.delayed_insert_limit = 100;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SET @@global.delayed_insert_limit = DEFAULT;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 100
 '#---------------------FN_DYNVARS_024_02-------------------------#'
 SET @@global.delayed_insert_limit = @start_value;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit = 100;
 @@global.delayed_insert_limit = 100
 1
 '#--------------------FN_DYNVARS_024_03------------------------#'
 SET @@global.delayed_insert_limit = 10000;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 10000
 SET @@global.delayed_insert_limit = 4294967295;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 4294967295
 SET @@global.delayed_insert_limit = 1;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 1
 '#--------------------FN_DYNVARS_024_04-------------------------#'
 SET @@global.delayed_insert_limit = 0;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_insert_limit value: '0'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 1
 SET @@global.delayed_insert_limit = -1024;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_insert_limit value: '-1024'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 1
 SET @@global.delayed_insert_limit = 42949672950;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 42949672950
@@ -90,13 +90,13 @@ VARIABLE_VALUE
 '#---------------------FN_DYNVARS_024_07----------------------#'
 SET @@global.delayed_insert_limit = TRUE;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 1
 SET @@global.delayed_insert_limit = FALSE;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 Warning	1292	Truncated incorrect delayed_insert_limit value: '0'
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
@@ -104,7 +104,7 @@ SELECT @@global.delayed_insert_limit;
 '#---------------------FN_DYNVARS_024_08----------------------#'
 SET @@global.delayed_insert_limit = 1;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@delayed_insert_limit = @@global.delayed_insert_limit;
 @@delayed_insert_limit = @@global.delayed_insert_limit
 1
@@ -126,7 +126,7 @@ SELECT delayed_insert_limit = @@session.delayed_insert_limit;
 ERROR 42S22: Unknown column 'delayed_insert_limit' in 'field list'
 SET @@global.delayed_insert_limit = @start_value;
 Warnings:
-Warning	1287	The syntax '@@delayed_insert_limit' is deprecated and will be removed in MySQL .
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 100

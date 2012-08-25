@@ -26,6 +26,10 @@ Created 2/2/1994 Heikki Tuuri
 #ifndef page0types_h
 #define page0types_h
 
+using namespace std;
+
+#include <map>
+
 #include "univ.i"
 #include "dict0types.h"
 #include "mtr0types.h"
@@ -93,13 +97,30 @@ struct page_zip_stat_struct {
 	ib_uint64_t	compressed_usec;
 	/** Duration of page decompressions in microseconds */
 	ib_uint64_t	decompressed_usec;
+	page_zip_stat_struct() :
+		/* Initialize members to 0 so that when we do
+		stlmap[key].compressed++ and element with "key" does not
+		exist it gets inserted with zeroed members. */
+		compressed(0),
+		compressed_ok(0),
+		decompressed(0),
+		compressed_usec(0),
+		decompressed_usec(0)
+	{ }
 };
 
-/** Compression statistics */
-typedef struct page_zip_stat_struct page_zip_stat_t;
+/** Compression statistics types */
+typedef struct page_zip_stat_struct		page_zip_stat_t;
+typedef map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_struct::ssize - 1 */
-extern page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+extern page_zip_stat_t				page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+/** Statistics on compression, indexed by dict_index_t::id */
+extern page_zip_stat_per_index_t		page_zip_stat_per_index;
+extern ib_mutex_t				page_zip_stat_per_index_mutex;
+#ifdef HAVE_PSI_INTERFACE
+extern mysql_pfs_key_t				page_zip_stat_per_index_mutex_key;
+#endif /* HAVE_PSI_INTERFACE */
 
 /**********************************************************************//**
 Write the "deleted" flag of a record on a compressed page.  The flag must

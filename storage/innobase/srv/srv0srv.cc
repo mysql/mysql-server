@@ -310,6 +310,9 @@ UNIV_INTERN ulint	srv_force_recovery	= 0;
 
 UNIV_INTERN my_bool	srv_print_all_deadlocks = FALSE;
 
+/** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
+UNIV_INTERN my_bool	srv_cmp_per_index_enabled = FALSE;
+
 /* If the following is set to 1 then we do not run purge and insert buffer
 merge to completion before shutdown. If it is set to 2, do not even flush the
 buffer pool to data files at the shutdown: we effectively 'crash'
@@ -932,6 +935,17 @@ srv_init(void)
 	srv_buf_dump_event = os_event_create("buf_dump_event");
 
 	UT_LIST_INIT(srv_sys->tasks);
+
+	/* page_zip_stat_per_index_mutex is acquired from:
+	1. page_zip_compress() (after SYNC_FSP)
+	2. page_zip_decompress()
+	3. i_s_cmp_per_index_fill_low() (where SYNC_DICT is acquired)
+	4. innodb_cmp_per_index_update(), no other latches
+	since we do not acquire any other latches while holding this mutex,
+	it can have very low level. We pick SYNC_ANY_LATCH for it. */
+	mutex_create(page_zip_stat_per_index_mutex_key,
+		     &page_zip_stat_per_index_mutex,
+		     SYNC_ANY_LATCH);
 
 	/* Create dummy indexes for infimum and supremum records */
 
