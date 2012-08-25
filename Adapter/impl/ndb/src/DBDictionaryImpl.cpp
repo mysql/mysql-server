@@ -82,9 +82,7 @@ Handle<Value> NewDBDictionaryImpl(const Arguments &args) {
 
   Local<Object> dict_obj = NdbDictionaryImplEnv.newWrapper();
  
-  JsValueConverter<ndb_session *> arg0(args[0]);
-  ndb_session * my_sess = arg0.toC();
-  
+  JsValueConverter<ndb_session *> arg0(args[0]);  
   DBDictImpl *self = new DBDictImpl;
   self->sess = arg0.toC();
 
@@ -141,7 +139,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
     DEBUG_PRINT("arg1/nmatch/list.count: %s/%d/%d", arg1,nmatch,list.count);
 
     Local<Array> cb_list = Array::New(nmatch);
-    for(unsigned i = 0; i < nmatch ; i++) {
+    for(unsigned int i = 0; i < nmatch ; i++) {
       cb_list->Set(i, String::New(list.elements[stack[i]].name));
     }
     cb_args[1] = cb_list;
@@ -212,7 +210,7 @@ void GetTableCall::run() {
     if(return_val != -1) {
       n_index = idx_list.count;
       indexes = new const NdbDictionary::Index *[idx_list.count];
-      for(int i = 0 ; i < idx_list.count ; i++) {
+      for(unsigned int i = 0 ; i < idx_list.count ; i++) {
         indexes[i] = dict->getIndex(idx_list.elements[i].name, arg2);
       }
     }

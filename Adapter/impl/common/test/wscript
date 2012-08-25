@@ -1,5 +1,5 @@
 def build(bld):
   mapr = bld.new_task_gen('cxx', 'shlib', 'node_addon')
   mapr.target = 'mapper'
-  mapr.source = 'c-api.c api-mapper.cc'
+  mapr.source = 'c-api.cc api-mapper.cc'
 
