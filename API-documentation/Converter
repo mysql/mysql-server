@@ -1,3 +1,4 @@
+// Notes 8 Aug.:  How does a user get the offset and length?
 
 /*   
    Converter classes convert between JavaScript types and MySQL types.
@@ -31,10 +32,15 @@
 
 
 Converter.prototype = {
-  "readFromString" : function(object, string) {},
-  "writeToString"  : function(object, string) {},
-  "readFromBuffer" : function(object, Buffer, offset, length) {},
-  "writeToBuffer"  : function(object, Buffer, offset, length) {}
+  // returns JS value
+  "readFromString" : function(string) { return null; },  
+
+   // returns length written 
+  "writeToString"  : function(object, string) { return 0; },
+  
+  // returns JS value
+  "readFromBuffer" : function(Buffer, offset, length) { return null; },
+  
+  // returns length written  
+  "writeToBuffer"  : function(object, Buffer, offset, length) { return 0; }
 };
-
-

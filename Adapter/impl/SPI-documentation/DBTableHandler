@@ -6,7 +6,6 @@
 */
 
 /* Related objects:
-
    DBTable:       as defined in spi/DBDictionary spec.
    TableMapping:  as defined in api/Annotations spec.
    FieldMapping:  as defined in api/Annotations spec.
@@ -32,36 +31,22 @@
 /************************************************
    Methods for defining DBTableHandler behavior 
  ************************************************/
-  /** registerFieldConverter
-   * IMMEDIATE
-   * Register a converter for a field in a domain object
-   *
-   */
-  registerFieldConverter(Object token_object, String field_name, Converter c);
 
-  /** registerColumnConverter
-   * IMMEDIATE
-   * Register a converter for a column in a table
-   *
-   */
-  registerColumnConverter(String table, String column, Converter c);
+/* registerFieldConverter(String fieldname, Converter converter)
+  IMMEDIATE
+  Register a converter for a field in a domain object 
+*/
+  registerFieldConverter(fieldName, converter );
 
-  /** registerTypeConverter 
-   *  IMMEDIATE
-   *  Register a converter for a SQL data type 
-   *
-   *  @param type is as defined in DBDictionary for the storage SPI
-   */
-  registerTypeConverter(string typeName, Converter c);
 
-  /** registerCharsetConverter
-   *  IMMEDIATE
-   *  Register a converter to/from Javascript String for a SQL charset
-   */
-  registerCharsetConverter(String charsetName, Converter c);
-}   
+/* registerColumnConverter(String columnName, Converter converter)
+  IMMEDIATE
+  Register a converter for a column in a table
+*/
+  registerColumnConverter(columnName, converter);
 
-/* DBTableHandler.setResultRowPrototype(Object proto_object)
+
+/* DBTableHandler.setResultPrototype(Object proto_object)
    IMMEDIATE
 
    Declare that proto_object should be used as a prototype 
@@ -74,24 +59,27 @@
       Methods for working with mapped objects 
  ************************************************/
 
-/* Returns the number of fields mapped to columns in the table 
+/* getMappedFieldCount()
+   IMMEDIATE 
+     
+   Returns the number of fields mapped to columns in the table 
 */
-getMappedFieldCount();
+  getMappedFieldCount();
 
-/* Boolean: returns True if all columns are mapped
+
+/* allColumnsMapped()
+   IMMEDIATE   
+
+   Boolean: returns True if all columns are mapped
 */
-allColumnsMapped();
+  allColumnsMapped();
 
-/* Returns an array in which each element is the column number of
-   a mapped column
+
+/* DBIndex chooseIndex(Object keys)
+   IMMEDIATE
+
+   Given an ject containing keys as defined in API Context.find(),
+   return the index to use as an access path for the operation
 */
-getMappedColumnNumbers();
-
-
-
-
-
-/* Given a DBOoperation and an object containing keys,
-   return  
-
+  chooseIndex(keys);
 
