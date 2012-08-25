@@ -26,10 +26,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#define COMPILING_UNIFIED_DEBUG 1
 #include "unified_debug.h"
 
 /* These static variables are initialized to zero */
-int uni_debug;
 int udeb_mode;    // initially UDEB_ALL, i.e. zero
 int udeb_level = UDEB_DEBUG;
 int debug_fd = STDERR_FILENO;
