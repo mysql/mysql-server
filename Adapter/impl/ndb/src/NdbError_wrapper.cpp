@@ -76,6 +76,7 @@ Handle<Value> get_status(Local<String> property, const AccessorInfo &info) {
     MAP_CODE(PermanentError);
     MAP_CODE(UnknownResult);  
   }
+  return String::New("-unknown-");
 }
 
 
@@ -102,6 +103,7 @@ Handle<Value> get_classification(Local<String> property, const AccessorInfo &inf
     MAP_CODE(SchemaObjectExists);
     MAP_CODE(InternalTemporary);
   }
+  return String::New("-unknown-");
 }
 
 

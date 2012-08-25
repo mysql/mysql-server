@@ -187,13 +187,21 @@ inline Local<Value> toJS<const bool *>(const bool * cbp) {
 }
 
 
-
 /*****************************************************************
  isPointer() functions
  Used in AsyncMethodCall.h: if(isPointer(return_val)) ... 
+
+ The top generic method (the one that returns true) 
+ contains a compile-time safety check.
 ******************************************************************/
+#ifdef __GNUC__
+#define UNUSED __attribute__((unused))
+#else
+#define UNUSED
+#endif
 template <typename T> bool isPointer(T typ)                {
-  void * v = static_cast<void *> (typ);
+  UNUSED void * v;
+  v = static_cast<void *> (typ);
   return true; 
 }
 

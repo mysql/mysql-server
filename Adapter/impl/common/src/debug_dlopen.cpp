@@ -38,8 +38,6 @@
 
 using namespace v8;
 
-#define DO_PREFLIGHT 0
-
 Handle<Value> dlopen_wrapper(const Arguments &args) {
   HandleScope scope;
   
