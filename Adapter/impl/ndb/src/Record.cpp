@@ -21,7 +21,7 @@
 #include <assert.h>
 #include <unistd.h>
 
-#include <Ndbapi.hpp>
+#include <NdbApi.hpp>
 #include <v8.h>
 
 #include "Record.h"
@@ -82,7 +82,7 @@ void Record::build_null_bitmap() {
      Do this even if there are no nullable columns.
   */
   start_of_nullmap = rec_size;
-  for(int n = 0 ; n < ncolumns ; n++)
+  for(unsigned int n = 0 ; n < ncolumns ; n++)
     specs[n].nullbit_byte_offset += start_of_nullmap;
   
   /* Then adjust the total record size */

@@ -197,13 +197,13 @@ inline int index_read(unsigned int bit_number) {
   return bit_index[byte] & mask;
 }
 
-inline int index_set(unsigned int bit_number) {
+inline void index_set(unsigned int bit_number) {
   unsigned short byte = bit_number / 8;
   unsigned char  mask = 1 << ( bit_number % 8);
   bit_index[byte] |= mask;
 }
 
-inline int index_clear(unsigned int bit_number) {
+inline void index_clear(unsigned int bit_number) {
   unsigned short byte = bit_number / 8;
   unsigned char  mask = ((1 << ( bit_number % 8)) ^ 0xFF);
   bit_index[byte] &= mask;

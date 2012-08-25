@@ -18,13 +18,13 @@
  02110-1301  USA
  */
 
-#include "Ndbapi.hpp"
+#include "NdbApi.hpp"
 
 typedef struct ndb_session_t {
   Ndb                          * ndb;
   const char                   * dbname;
   NdbDictionary::Dictionary    * dict;
-  NdbError                     & err;
+  NdbError                     * err;
 } ndb_session;
 
 

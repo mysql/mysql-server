@@ -22,7 +22,7 @@
 
 #include <v8.h>
 
-#include "Ndbapi.hpp"
+#include "NdbApi.hpp"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
 #include "DBSessionImpl.h"

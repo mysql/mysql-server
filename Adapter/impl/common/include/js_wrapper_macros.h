@@ -26,11 +26,12 @@
 #define THROW_TYPE_ERROR(MESSAGE) \
   ThrowException(Exception::TypeError(String::New(MESSAGE)))
   
-//#define REQUIRE_ARGS_LENGTH(N) \
-//  if(args.Length() != N) { \
-//    THROW_TYPE_ERROR("Requires " #N " arguments"); \
-//    return scope.Close(Undefined()); \
-//  }
+/*#define REQUIRE_ARGS_LENGTH(N) \
+  if(args.Length() != N) { \
+    THROW_TYPE_ERROR("Requires " #N " arguments"); \
+    return scope.Close(Undefined()); \
+  }
+*/
 #define REQUIRE_ARGS_LENGTH(N) assert(args.Length() == N);
 
 
@@ -46,19 +47,21 @@
     return scope.Close(Undefined()); \
   }
 
-// #define REQUIRE_CONSTRUCTOR_CALL() \
-//  if(! args.IsConstructCall()) { \
-//    THROW_ERROR("Must be called as a Constructor call"); \
-//    return scope.Close(Undefined()); \
-//  }
+/* #define REQUIRE_CONSTRUCTOR_CALL() \
+  if(! args.IsConstructCall()) { \
+    THROW_ERROR("Must be called as a Constructor call"); \
+    return scope.Close(Undefined()); \
+  }
+*/
 #define REQUIRE_CONSTRUCTOR_CALL() assert(args.IsConstructCall()) 
 
 
-// #define PROHIBIT_CONSTRUCTOR_CALL() \
-//  if(args.IsConstructCall()) { \
-//    THROW_ERROR("May not be used as a Constructor call"); \
-//    return scope.Close(Undefined()); \
-//  }
+/* #define PROHIBIT_CONSTRUCTOR_CALL() \
+  if(args.IsConstructCall()) { \
+    THROW_ERROR("May not be used as a Constructor call"); \
+    return scope.Close(Undefined()); \
+  }
+*/
 #define PROHIBIT_CONSTRUCTOR_CALL() assert(! args.IsConstructCall())
 
 #define DEFINE_JS_FUNCTION(TARGET, NAME, FN) \
