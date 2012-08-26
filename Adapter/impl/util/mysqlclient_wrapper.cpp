@@ -104,7 +104,3 @@ void mysqlclient_initOnLoad(Handle<Object> target) {
 
 V8BINDER_LOADABLE_MODULE(mysqlclient, mysqlclient_initOnLoad)
 
-
-
-  
-  

@@ -32,4 +32,4 @@ class Circle {
 inline double Circle::area() {
   return 3.14159264 * radius * radius;
 }
-  
+

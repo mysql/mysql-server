@@ -146,7 +146,9 @@ public:
 // pointer types
 template <typename T> Local<Value> toJS(T cptr) {
   /* This can't be done.  Use wrapPointerInObject() instead. */
+  HandleScope scope;
   assert(0);
+  return scope.Close(Null());
 }
 
 // int

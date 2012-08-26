@@ -91,7 +91,7 @@ void udeb_switch(int);
 int uni_dbg(void);
 
 #ifdef COMPILING_UNIFIED_DEBUG
-static int uni_debug;
+int uni_debug;
 #else
 extern int uni_debug;
 #endif 
