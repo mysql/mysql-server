@@ -195,22 +195,20 @@ start_again:
 		return;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Doublewrite buffer not found:"
-		" creating new\n");
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Doublewrite buffer not found: creating new");
 
 	if (buf_pool_get_curr_size()
 	    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 		+ FSP_EXTENT_SIZE / 2 + 100)
 	       * UNIV_PAGE_SIZE)) {
-		fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer:"
-			" you must\n"
-			"InnoDB: increase your buffer pool size.\n"
-			"InnoDB: Cannot continue operation.\n");
 
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot create doublewrite buffer: you must "
+			"increase your buffer pool size. Cannot continue "
+			"operation.");
+
+		exit(EXIT_FAILURE);
 	}
 
 	block2 = fseg_create(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
@@ -223,16 +221,15 @@ start_again:
 	buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 
 	if (block2 == NULL) {
-		fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer:"
-			" you must\n"
-			"InnoDB: increase your tablespace size.\n"
-			"InnoDB: Cannot continue operation.\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot create doublewrite buffer: you must "
+			"increase your tablespace size. "
+			"Cannot continue operation.");
 
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
 
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	fseg_header = doublewrite + TRX_SYS_DOUBLEWRITE_FSEG;
@@ -243,15 +240,12 @@ start_again:
 		new_block = fseg_alloc_free_page(
 			fseg_header, prev_page_no + 1, FSP_UP, &mtr);
 		if (new_block == NULL) {
-			fprintf(stderr,
-				"InnoDB: Cannot create doublewrite"
-				" buffer: you must\n"
-				"InnoDB: increase your"
-				" tablespace size.\n"
-				"InnoDB: Cannot continue operation.\n"
-				);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot create doublewrite buffer: you must "
+				"increase your tablespace size. "
+				"Cannot continue operation.");
 
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		/* We read the allocated pages to the buffer pool;
@@ -331,8 +325,7 @@ start_again:
 	/* Remove doublewrite pages from LRU */
 	buf_pool_invalidate();
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Doublewrite buffer created\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "Doublewrite buffer created");
 
 	goto start_again;
 }
