@@ -3340,8 +3340,6 @@ void
 recv_recovery_rollback_active(void)
 /*===============================*/
 {
-	int		i;
-
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
 	themselves before we switch the latching order checks on */
@@ -3353,7 +3351,9 @@ recv_recovery_rollback_active(void)
 	/* We can't start any (DDL) transactions if UNDO logging
 	has been disabled, additionally disable ROLLBACK of recovered
 	user transactions. */
-	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
+	    && !srv_read_only_mode) {
+
 		/* Drop partially created indexes. */
 		row_merge_drop_temp_indexes();
 		/* Drop temporary tables. */
@@ -3368,7 +3368,7 @@ recv_recovery_rollback_active(void)
 		/* Rollback the uncommitted transactions which have no user
 		session */
 
-		os_thread_create(trx_rollback_or_clean_all_recovered, &i, NULL);
+		os_thread_create(trx_rollback_or_clean_all_recovered, 0, 0);
 	}
 }
 
