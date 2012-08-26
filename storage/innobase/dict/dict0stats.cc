@@ -3136,6 +3136,8 @@ dict_stats_update(
 
 		dict_table_t*	t;
 
+		ut_ad(!srv_read_only_mode);
+
 		/* Create a dummy table object with the same name and
 		indexes, suitable for fetching the stats into it. */
 		t = dict_stats_table_clone_create(table);
