@@ -929,9 +929,8 @@ trx_sys_create_rsegs(
 		}
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: %lu rollback segment(s) are active.\n",
-		n_used);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"%lu rollback segment(s) are active.\n", n_used);
 
 	return(n_used);
 }
