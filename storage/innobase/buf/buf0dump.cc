@@ -578,6 +578,8 @@ DECLARE_THREAD(buf_dump_thread)(
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
+	ut_ad(!srv_read_only_mode);
+
 	srv_buf_dump_thread_active = TRUE;
 
 	buf_dump_status(STATUS_INFO, "not started");
