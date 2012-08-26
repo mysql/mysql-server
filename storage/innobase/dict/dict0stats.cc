@@ -3024,17 +3024,19 @@ dict_stats_update(
 			ut_format_name(table->name, TRUE, buf, sizeof(buf)));
 		dict_stats_empty_table(table);
 		return(DB_TABLESPACE_DELETED);
-	}
-
-	/* If we have set a high innodb_force_recovery level, do not calculate
-	statistics, as a badly corrupted index can cause a crash in it. */
-	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+	} else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+		/* If we have set a high innodb_force_recovery level, do
+		not calculate statistics, as a badly corrupted index can
+		cause a crash in it. */
 		dict_stats_empty_table(table);
 		return(DB_SUCCESS);
 	}
 
 	switch (stats_upd_option) {
 	case DICT_STATS_RECALC_PERSISTENT:
+
+		ut_ad(!srv_read_only_mode);
+
 		/* Persistent recalculation requested, called from
 		1) ANALYZE TABLE, or
 		2) the auto recalculation background thread, or
@@ -3172,7 +3174,6 @@ dict_stats_update(
 						table,
 						DICT_STATS_RECALC_PERSISTENT));
 			}
-			/* else */
 
 			ut_format_name(table->name, TRUE, buf, sizeof(buf));
 			ut_print_timestamp(stderr);
