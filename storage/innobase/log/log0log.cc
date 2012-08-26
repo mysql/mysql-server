@@ -3096,10 +3096,8 @@ logs_empty_and_mark_files_at_shutdown(void)
 	const char*		thread_name;
 	ibool			server_busy;
 
-	if (srv_print_verbose_log) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Starting shutdown...\n");
-	}
+	ib_logf(IB_LOG_LEVEL_INFO,"Starting shutdown...");
+
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
 
@@ -3355,9 +3353,12 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	srv_thread_type	type = srv_get_active_thread_type();
+       	ut_a(type == SRV_NONE);
 
-	ut_a(buf_all_freed());
+	bool	freed = buf_all_freed();
+	ut_a(freed);
+
 	ut_a(lsn == log_sys->lsn);
 
 	if (lsn < srv_start_lsn) {
@@ -3379,9 +3380,12 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	type = srv_get_active_thread_type();
+	ut_a(type == SRV_NONE);
 
-	ut_a(buf_all_freed());
+	freed = buf_all_freed();
+	ut_a(freed);
+
 	ut_a(lsn == log_sys->lsn);
 }
 
