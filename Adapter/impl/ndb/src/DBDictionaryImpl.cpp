@@ -130,7 +130,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
     /* ListObjects has returned tables in all databases; 
        we need to filter here on database name. */
     int stack[list.count];
-    int nmatch = 0;
+    unsigned int nmatch = 0;
     for(unsigned i = 0; i < list.count ; i++) {
       if(strcmp(arg1, list.elements[i].database) == 0) {
         stack[nmatch++] = i;
