@@ -3396,7 +3396,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
       }
       *ptr_ev= NULL; // announcing the event is passed to w-worker
 
-      if (log_warnings > 1 && rli->mts_events_assigned % 1024 == 1)
+      if (log_warnings > 1 &&
+          rli->is_parallel_exec() && rli->mts_events_assigned % 1024 == 1)
       {
         time_t my_now= my_time(0);
 
@@ -5084,6 +5085,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->curr_group_seen_begin= rli->curr_group_seen_gtid= false;
   rli->curr_group_isolated= FALSE;
   rli->checkpoint_seqno= 0;
+  rli->mts_last_online_stat= my_time(0);
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   /*
     dyn memory to consume by Coordinator per event
