@@ -8999,9 +8999,11 @@ Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
   if (!value_cached && !cache_value())
     return TYPE_ERR_BAD_VALUE;               // Fatal: couldn't cache the value
+  if (null_value)
+    return set_field_to_null_with_conversions(field, no_conversions);
   const type_conversion_status res= Item_cache::save_in_field(field,
                                                               no_conversions);
-  if (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
+  if (is_varbinary && field->type() == MYSQL_TYPE_STRING && value != NULL &&
       value->length() < field->field_length)
     return TYPE_WARN_OUT_OF_RANGE;
   return res;
