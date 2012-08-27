@@ -1037,9 +1037,9 @@ skip_size_check:
 				min_flushed_lsn, max_flushed_lsn);
 
 			/* The first file of the system tablespace must
-			have space ID = 0.  The FSP_SPACE_ID field in files
-			greater than ibdata1 are unreliable. */
-			ut_a(one_opened || space == 0);
+			have space ID = TRX_SYS_SPACE.  The FSP_SPACE_ID
+			field in files greater than ibdata1 are unreliable. */
+			ut_a(one_opened || space == TRX_SYS_SPACE);
 
 			/* Check the flags for the first system tablespace
 			file only. */
@@ -1048,7 +1048,7 @@ skip_size_check:
 			       != fsp_flags_get_page_size(flags)) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Data file '%s' uses page size %lu,"
+					"Data file \"%s\" uses page size %lu,"
 					"but the start-up parameter "
 					"is --innodb-page-size=%lu",
 					name,
@@ -1930,7 +1930,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_buf_pool_size <= 5 * 1024 * 1024) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"Small buffer pool size (%luM), the flst_validate() "
 			"debug function can cause a deadlock if the "
 			"buffer pool fills up.",
@@ -2606,7 +2606,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (srv_force_recovery > 0) {
-		ib_logf(IB_LOG_LEVEL_WARN,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"!!! innodb_force_recovery is set to %lu !!!",
 			(ulong) srv_force_recovery);
 	}

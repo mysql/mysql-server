@@ -131,9 +131,7 @@ if ( $default_page_size != $other_page_size )
    --source include/search_pattern_in_file.inc
 }
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".
-let SEARCH_PATTERN= InnoDB: Error: data file ..ibdata1 uses page size $start_page_size,;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: but the start-up parameter is innodb-page-size=$other_page_size;
+let SEARCH_PATTERN=InnoDB: Data file "..ibdata1" uses page size $start_page_size,;
 --source include/search_pattern_in_file.inc
 # Finally InnoDB becomes an Unknown/unsupported storage engine
 let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
@@ -150,9 +148,7 @@ if ( $default_page_size != $other_page_size )
    let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
    --source include/search_pattern_in_file.inc
 }
-let SEARCH_PATTERN= InnoDB: Error: data file ..ibdata1 uses page size $start_page_size,;
---source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: but the start-up parameter is innodb-page-size=$other_page_size;
+let SEARCH_PATTERN=InnoDB: Data file "..ibdata1" uses page size $start_page_size,;
 --source include/search_pattern_in_file.inc
 # Finally InnoDB becomes an Unknown/unsupported storage engine
 let SEARCH_PATTERN= \[ERROR\] Unknown/unsupported storage engine: InnoDB;
