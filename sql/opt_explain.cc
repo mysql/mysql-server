@@ -601,7 +601,10 @@ bool Explain::explain_subqueries(select_result *result)
       This must be after mysql_explain_unit() so that JOIN::optimize() has run
       and had a chance to choose materialization.
     */
-    if (fmt->is_hierarchical() && context == CTX_WHERE &&
+    if (fmt->is_hierarchical() && 
+        (context == CTX_WHERE || context == CTX_HAVING ||
+         context == CTX_SELECT_LIST ||
+         context == CTX_GROUP_BY_SQ || context == CTX_ORDER_BY_SQ) &&
         unit->item &&
         (unit->item->get_engine_for_explain()->engine_type() ==
          subselect_engine::HASH_SJ_ENGINE))
