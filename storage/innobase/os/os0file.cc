@@ -1437,22 +1437,21 @@ os_file_create_simple_no_error_handling_func(
 
 	file = ::open(name, create_flag, os_innodb_umask);
 
-	if (file == -1) {
-		*success = FALSE;
+	*success = file == -1 ? FALSE : TRUE;
+
 #ifdef USE_FILE_LOCK
-	} else if (!srv_read_only_mode
-		   && *success
-		   && access_type == OS_FILE_READ_WRITE
-		   && os_file_lock(file, name)) {
+	if (!srv_read_only_mode
+	    && *success
+	    && access_type == OS_FILE_READ_WRITE
+	    && os_file_lock(file, name)) {
 
 		*success = FALSE;
 		close(file);
 		file = -1;
 
-#endif /* USE_FILE_LOCK */
-	} else {
-		*success = TRUE;
 	}
+#endif /* USE_FILE_LOCK */
+
 #endif /* __WIN__ */
 
 	return(file);

@@ -1394,7 +1394,6 @@ fil_space_free(
 {
 	fil_space_t*	space;
 	fil_space_t*	fnamespace;
-	fil_node_t*	fil_node;
 
 	ut_ad(mutex_own(&fil_system->mutex));
 
@@ -1433,12 +1432,11 @@ fil_space_free(
 	ut_a(space->magic_n == FIL_SPACE_MAGIC_N);
 	ut_a(0 == space->n_pending_flushes);
 
-	fil_node = UT_LIST_GET_FIRST(space->chain);
+	for (fil_node_t* fil_node = UT_LIST_GET_FIRST(space->chain);
+	     fil_node != NULL;
+	     fil_node = UT_LIST_GET_FIRST(space->chain)) {
 
-	while (fil_node != NULL) {
 		fil_node_free(fil_node, fil_system, space);
-
-		fil_node = UT_LIST_GET_FIRST(space->chain);
 	}
 
 	ut_a(0 == UT_LIST_GET_LEN(space->chain));
