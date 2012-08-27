@@ -876,9 +876,18 @@ open_or_create_data_files(
 				innodb_file_data_key, name, OS_FILE_CREATE,
 				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 
-			if (srv_read_only_mode && ret) {
-				goto size_check;
-			} else if (ret == FALSE
+			if (srv_read_only_mode) {
+
+				if (ret) {
+					goto size_check;
+				}
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Opening %s failed!", name);
+
+				return(DB_ERROR);
+
+			} else if (!ret
 				   && os_file_get_last_error(false)
 				   != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
@@ -906,10 +915,10 @@ open_or_create_data_files(
 			srv_start_raw_disk_in_use = TRUE;
 			srv_created_new_raw = TRUE;
 
-			files[i] = os_file_create(innodb_file_data_key,
-						  name, OS_FILE_OPEN_RAW,
-						  OS_FILE_NORMAL,
-						  OS_DATA_FILE, &ret);
+			files[i] = os_file_create(
+				innodb_file_data_key, name, OS_FILE_OPEN_RAW,
+				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+
 			if (!ret) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Error in opening %s", name);

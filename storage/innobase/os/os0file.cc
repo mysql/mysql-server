@@ -1481,32 +1481,30 @@ os_file_set_nocache(
 	/* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)
 	if (directio(fd, DIRECTIO_ON) == -1) {
-		int	errno_save;
-		errno_save = errno;
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Failed to set DIRECTIO_ON "
-			"on file %s: %s: %s, continuing anyway\n",
+		int	errno_save = errno;
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Failed to set DIRECTIO_ON on file %s: %s: %s, "
+			"continuing anyway.",
 			file_name, operation_name, strerror(errno_save));
 	}
 #elif defined(O_DIRECT)
 	if (fcntl(fd, F_SETFL, O_DIRECT) == -1) {
-		int	errno_save;
-		errno_save = errno;
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Failed to set O_DIRECT "
-			"on file %s: %s: %s, continuing anyway\n",
+		int	errno_save = errno;
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Failed to set O_DIRECT on file %s: %s: %s, "
+			"continuing anyway",
 			file_name, operation_name, strerror(errno_save));
+
 		if (errno_save == EINVAL) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: O_DIRECT is known to result in "
-				"'Invalid argument' on Linux on tmpfs, "
-				"see MySQL Bug#26662\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"O_DIRECT is known to result in 'Invalid "
+				"argument' on Linux on tmpfs, see MySQL "
+				"Bug#26662");
 		}
 	}
-#endif
+#endif /* defined(UNIV_SOLARIS) && defined(DIRECTIO_ON) */
 }
 
 /****************************************************************//**
@@ -1724,7 +1722,7 @@ os_file_create_func(
 #endif /* O_SYNC */
 
 	do {
-		file = open(name, create_flag, os_innodb_umask);
+		file = ::open(name, create_flag, os_innodb_umask);
 
 		if (file == -1) {
 			const char*	operation;
@@ -1751,10 +1749,10 @@ os_file_create_func(
 	/* We disable OS caching (O_DIRECT) only on data files */
 
 	if (!srv_read_only_mode
+	    && *success
 	    && type != OS_LOG_FILE
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
-		|| srv_unix_file_flush_method
-		   == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
+		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
 		os_file_set_nocache(file, name, mode_str);
 	}
