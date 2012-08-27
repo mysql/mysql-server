@@ -60,11 +60,14 @@ Created 10/21/1995 Heikki Tuuri
 #include <libaio.h>
 #endif
 
-/* Insert buffer segment id */
-#define IO_IBUF_SEGMENT		0
+/** Insert buffer segment id */
+static const ulint IO_IBUF_SEGMENT = 0;
 
 /** Log segment id */
-#define IO_LOG_SEGMENT		1
+static const ulint IO_LOG_SEGMENT = 1;
+
+/** Number of retries for partial I/O's */
+static const ulint NUM_RETRIES_ON_PARTIAL_IO = 10;
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -140,6 +143,7 @@ array but also submits the requests. The helper thread then collects
 the completed IO request and calls completion routine on it.
 
 **********************************************************************/
+
 
 /** Flag: enable debug printout for asynchronous i/o */
 UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
@@ -2306,6 +2310,89 @@ os_file_flush_func(
 
 #ifndef __WIN__
 /*******************************************************************//**
+Does a syncronous read or write depending upon the type specified
+In case of partial reads/writes the function tries
+NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
+@return number of bytes read/written, -1  if error */
+static __attribute__((nonnull, warn_unused_result))
+ssize_t
+os_file_io(
+/*==========*/
+	os_file_t	file,	/*!< in: handle to a file */
+	void*	        buf,	/*!< in: buffer where to read/write */
+	ulint		n,	/*!< in: number of bytes to read/write */
+	off_t	        offset,	/*!< in: file offset from where to read/write */
+	ulint		type)   /*!< in: type for read or write */
+{
+	ssize_t bytes_returned = 0;
+	ssize_t n_bytes;
+
+	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
+		if (type == OS_FILE_READ ) {
+#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+			n_bytes = pread(file, buf, n, offset);
+#else
+			off_t ret_offset;
+			ret_offset = lseek(file, offset, SEEK_SET);
+	                if (ret_offset < 0) {
+				bytes_returned = -1;
+				return(bytes_returned);
+			}
+			n_bytes = read(file, buf, (ssize_t) n);
+#endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
+	        } else {
+			ut_ad(type == OS_FILE_WRITE);
+#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
+			n_bytes = pwrite(file, buf, n, offset);
+#else
+			off_t ret_offset;
+			ret_offset = lseek(file, offset, SEEK_SET);
+			if (ret_offset < 0) {
+				bytes_returned = -1;
+				return(bytes_returned);
+			}
+			n_bytes = write(file, buf, (ssize_t) n);
+#endif /* HAVE_PWRITE && !HAVE_BROKEN_PREAD */
+		}
+
+                if ((ulint) n_bytes == n) {
+                        bytes_returned += n_bytes;
+                        return(bytes_returned);
+                } else if (n_bytes > 0 && (ulint) n_bytes < n) {
+                        /* For partial read/write scenario */
+			if(type == OS_FILE_READ) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"InnoDB: %lu bytes should have"
+					" been read. Only %lu bytes"
+                                        " read. Retrying again to read"
+					" the remaining bytes.\n",
+                                        (ulong) n,(ulong) n_bytes);
+                        } else {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"InnoDB: %lu bytes should have"
+					" been written. Only %lu bytes"
+                                        " written. Retrying again to "
+					" write the remaining bytes.\n",
+                                        (ulong) n,(ulong) n_bytes);
+                        }
+
+                        buf = (uchar*) buf + (ulint) n_bytes;
+                        n -=  (ulint) n_bytes;
+                        offset += n_bytes;
+                        bytes_returned += (ulint) n_bytes;
+
+                } else {
+			break;
+                }
+	}
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"InnoDB: Retry attempts for %s"
+		" partial data failed.\n",
+		type == OS_FILE_READ ? "reading" : "writing");
+	return(bytes_returned);
+}
+
+/*******************************************************************//**
 Does a synchronous read operation in Posix.
 @return	number of bytes read, -1 if error */
 static __attribute__((nonnull, warn_unused_result))
@@ -2318,9 +2405,7 @@ os_file_pread(
 	os_offset_t	offset)	/*!< in: file offset from where to read */
 {
 	off_t	offs;
-#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
-	ssize_t	n_bytes;
-#endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
+        ssize_t read_bytes;
 
 	ut_ad(n);
 
@@ -2336,7 +2421,6 @@ os_file_pread(
 	}
 
 	os_n_file_reads++;
-
 #if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
 #if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
@@ -2350,7 +2434,7 @@ os_file_pread(
 	os_mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
 
-	n_bytes = pread(file, buf, n, offs);
+	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
 #if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
 	(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
@@ -2364,11 +2448,9 @@ os_file_pread(
 	os_mutex_exit(os_file_count_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD == 8 */
 
-	return(n_bytes);
+	return(read_bytes);
 #else
 	{
-		off_t	ret_offset;
-		ssize_t	ret;
 #ifndef UNIV_HOTBACKUP
 		ulint	i;
 #endif /* !UNIV_HOTBACKUP */
@@ -2389,13 +2471,8 @@ os_file_pread(
 		os_mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-		ret_offset = lseek(file, offs, SEEK_SET);
-
-		if (ret_offset < 0) {
-			ret = -1;
-		} else {
-			ret = read(file, buf, (ssize_t) n);
-		}
+	        read_bytes = os_file_io(file, buf, n, offs,
+					OS_FILE_READ);
 
 #ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -2411,7 +2488,7 @@ os_file_pread(
 		os_mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD_SIZE == 8 */
 
-		return(ret);
+		return(read_bytes);
 	}
 #endif
 }
@@ -2428,9 +2505,8 @@ os_file_pwrite(
 	ulint		n,	/*!< in: number of bytes to write */
 	os_offset_t	offset)	/*!< in: file offset where to write */
 {
-	ssize_t	ret;
 	off_t	offs;
-
+        ssize_t written_bytes;
 	ut_ad(n);
 	ut_ad(!srv_read_only_mode);
 
@@ -2460,7 +2536,8 @@ os_file_pwrite(
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-	ret = pwrite(file, buf, (ssize_t) n, offs);
+	written_bytes = os_file_io(file, (void*) buf, n, offs,
+				   OS_FILE_WRITE);
 
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
@@ -2474,10 +2551,9 @@ os_file_pwrite(
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-	return(ret);
+	return(written_bytes);
 #else
 	{
-		off_t	ret_offset;
 # ifndef UNIV_HOTBACKUP
 		ulint	i;
 # endif /* !UNIV_HOTBACKUP */
@@ -2494,17 +2570,9 @@ os_file_pwrite(
 		os_mutex_enter(os_file_seek_mutexes[i]);
 # endif /* UNIV_HOTBACKUP */
 
-		ret_offset = lseek(file, offs, SEEK_SET);
+		written_bytes = os_file_io(file, (void*) buf, n, offs,
+					   OS_FILE_WRITE);
 
-		if (ret_offset < 0) {
-			ret = -1;
-
-			goto func_exit;
-		}
-
-		ret = write(file, buf, (ssize_t) n);
-
-func_exit:
 # ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
 # endif /* !UNIV_HOTBACKUP */
@@ -2514,7 +2582,7 @@ func_exit:
 		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
 		os_mutex_exit(os_file_count_mutex);
 
-		return(ret);
+		return(written_bytes);
 	}
 #endif
 }
@@ -2628,10 +2696,16 @@ error_handling:
 #endif
 	retry = os_file_handle_error(NULL, "read");
 
-	if (retry) {
+        if (retry) {
+#ifndef __WIN__
+		if (ret > 0 && (ulint) ret < n) {
+			buf = (uchar*) buf + (ulint) ret;
+			offset += (ulint) ret;
+			n -= (ulint) ret;
+		}
+#endif
 		goto try_again;
 	}
-
 	fprintf(stderr,
 		"InnoDB: Fatal error: cannot read from file."
 		" OS error number %lu.\n",
@@ -2751,7 +2825,14 @@ error_handling:
 #endif
 	retry = os_file_handle_error_no_exit(NULL, "read", FALSE);
 
-	if (retry) {
+        if (retry) {
+#ifndef __WIN__
+		if(ret > 0 && (ulint) ret < n) {
+			buf = (uchar*) buf + (ulint) ret;
+			offset += ret;
+			n -= (ulint) ret;
+		}
+#endif
 		goto try_again;
 	}
 
@@ -4964,13 +5045,14 @@ os_aio_linux_handle(
 	ulint		i;
 	ibool		ret = FALSE;
 
-	/* Should never be doing Sync IO here. */
+        /* Should never be doing Sync IO here. */
 	ut_a(global_seg != ULINT_UNDEFINED);
 
 	/* Find the array and the local segment. */
 	segment = os_aio_get_array_and_local_segment(&array, global_seg);
 	n = array->n_slots / array->n_segments;
 
+wait_for_event:
 	/* Loop until we have found a completed request. */
 	for (;;) {
 		ibool	any_reserved = FALSE;
@@ -5032,6 +5114,42 @@ found:
 	if (slot->ret == 0 && slot->n_bytes == (long) slot->len) {
 
 		ret = TRUE;
+        } else if ((slot->ret == 0) && (slot->n_bytes > 0)
+		   &&  (slot->n_bytes < (long) slot->len)) {
+		/* Partial read or write scenario */
+		int submit_ret;
+		struct iocb*    iocb;
+		slot->buf = (byte*)slot->buf + slot->n_bytes;
+		slot->offset = slot->offset + slot->n_bytes;
+		slot->len = slot->len - slot->n_bytes;
+		/* Resetting the bytes read/written */
+		slot->n_bytes = 0;
+		slot->io_already_done = FALSE;
+		iocb = &(slot->control);
+
+		if (slot->type == OS_FILE_READ) {
+			io_prep_pread(&slot->control, slot->file, slot->buf,
+				      slot->len, (off_t) slot->offset);
+		} else {
+			ut_a(slot->type == OS_FILE_WRITE);
+			io_prep_pwrite(&slot->control, slot->file, slot->buf,
+				       slot->len, (off_t) slot->offset);
+		}
+		/* Resubmit an I/O request */
+		submit_ret = io_submit(array->aio_ctx[segment], 1, &iocb);
+		if (submit_ret < 0 ) {
+			/* Aborting in case of submit failure */
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"InnoDB: Error: Native Linux AIO"
+                                " interface. io_submit() call failed"
+				" when resubmitting a partial I/O"
+                                " request on the file %s.\n",
+				slot->name);
+		} else {
+			ret = FALSE;
+			os_mutex_exit(array->mutex);
+			goto wait_for_event;
+		}
 	} else {
 		errno = -slot->ret;
 
