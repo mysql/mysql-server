@@ -1485,9 +1485,7 @@ srv_start_wait_for_purge_to_start()
 			break;
 
 		case PURGE_STATE_INIT:
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for the background threads to "
-				"start");
+			ib_logf(IB_LOG_LEVEL_INFO, "Waiting for purge start");
 
 			os_thread_sleep(50000);
 			break;
