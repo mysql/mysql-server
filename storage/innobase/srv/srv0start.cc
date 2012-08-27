@@ -2602,7 +2602,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_print_verbose_log) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Version %s started; " "log sequence number "LSN_PF"",
+			"%s started; " "log sequence number " LSN_PF "",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 

@@ -722,7 +722,7 @@ trx_sys_file_format_max_check(
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Highest supported file format is %s.\n",
+		"Highest supported file format is %s.",
 		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
 
 	if (format_id > UNIV_FORMAT_MAX) {
@@ -927,7 +927,7 @@ trx_sys_create_rsegs(
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"%lu rollback segment(s) are active.\n", n_used);
+		"%lu rollback segment(s) are active.", n_used);
 
 	return(n_used);
 }
