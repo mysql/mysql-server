@@ -721,21 +721,18 @@ trx_sys_file_format_max_check(
 		format_id = UNIV_FORMAT_MIN;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: highest supported file format is %s.\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Highest supported file format is %s.\n",
 		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
 
 	if (format_id > UNIV_FORMAT_MAX) {
 
 		ut_a(format_id < FILE_FORMAT_NAME_N);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: %s: the system tablespace is in a file "
-			"format that this version doesn't support - %s\n",
-			((max_format_id <= UNIV_FORMAT_MAX)
-				? "Error" : "Warning"),
+		ib_logf(max_format_id <= UNIV_FORMAT_MAX
+			? IB_LOG_LEVEL_ERROR : IB_LOG_LEVEL_WARN,
+			"The system tablespace is in a file "
+			"format that this version doesn't support - %s.",
 			trx_sys_file_format_id_to_name(format_id));
 
 		if (max_format_id <= UNIV_FORMAT_MAX) {
