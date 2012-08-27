@@ -9111,9 +9111,14 @@ DROP FUNCTION f1;
 --echo # ------------------------------------------------------------------
 
 --echo #
---echo # LP bug#993459 Execution of PS for a query with GROUP BY
+--echo # lp:993459 Execution of PS for a query with GROUP BY
 --echo # returns wrong result (see also mysql bug#13805127)
 --echo #
+
+--echo
+--echo # Bug#13805127: Stored program cache produces wrong result in same THD
+--echo
+
 delimiter |;
 
 CREATE PROCEDURE p1(x INT UNSIGNED)
@@ -9147,7 +9152,7 @@ CALL p1(1);
 DROP PROCEDURE p1; 
 
 --echo #
---echo # LP bug#1002157 : testing stored function
+--echo # lp:1002157 : testing stored function
 --echo # bug#62125        result for null incorrectly yields 1292 warning.
 --echo #
 

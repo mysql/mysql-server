@@ -4295,6 +4295,16 @@ bool event_checksum_test(uchar *buf, ulong event_len, uint8 alg);
 uint8 get_checksum_alg(const char* buf, ulong len);
 extern TYPELIB binlog_checksum_typelib;
 
+#ifndef MYSQL_CLIENT
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
+#endif
+
 /**
   @} (end of group Replication)
 */

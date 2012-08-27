@@ -11904,9 +11904,9 @@ static int compare_fields_by_table_order(Item *field1,
   bool outer_ref= 0;
   Item_field *f1= (Item_field *) (field1->real_item());
   Item_field *f2= (Item_field *) (field2->real_item());
-  if (f1->const_item())
+  if (field1->const_item() || f1->const_item())
     return 1;
-  if (f2->const_item())
+  if (field2->const_item() || f2->const_item())
     return -1;
   if (f2->used_tables() & OUTER_REF_TABLE_BIT)
   {  

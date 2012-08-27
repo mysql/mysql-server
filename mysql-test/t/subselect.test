@@ -5576,7 +5576,28 @@ SELECT MIN(a) AS min_a, a FROM t1 WHERE 1=2 HAVING a NOT IN ( SELECT a from t1 U
 drop table t1;
 
 --echo #
---echo # LP BUG#944706 Query with impossible or constant subquery in WHERE or HAVING is not
+--echo # MDEV-367: Different results with and without subquery_cache on
+--echo # a query with a constant NOT IN condition
+--echo #
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2),(3);
+
+set @mdev367_optimizer_switch = @@optimizer_switch;
+
+set optimizer_switch = 'subquery_cache=on';
+SELECT * FROM t1 WHERE ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) OR a > 100;
+SELECT *, ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) FROM t1;
+set optimizer_switch=@mdev367_optimizer_switch;
+ 
+set optimizer_switch = 'subquery_cache=off';
+SELECT * FROM t1 WHERE ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) OR a > 100;
+SELECT *, ( 3, 3 ) NOT IN ( SELECT NULL, NULL ) FROM t1;
+set optimizer_switch=@mdev367_optimizer_switch;
+
+DROP TABLE t1;
+
+--echo #
+--echo # lp:944706 Query with impossible or constant subquery in WHERE or HAVING is not
 --echo # precomputed and thus not part of optimization
 --echo #
 
@@ -5721,5 +5742,3 @@ set global userstat=@tmp_mdev410;
 
 DROP TABLE t1,t2,t3,t4;
 
---echo # return optimizer switch changed in the beginning of this test
-set optimizer_switch=@subselect_tmp;

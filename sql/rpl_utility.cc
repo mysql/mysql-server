@@ -15,11 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "rpl_utility.h"
-
-#ifndef MYSQL_CLIENT
-#include "unireg.h"                      // REQUIRED by later includes
-#include "rpl_rli.h"
 #include "log_event.h"
+
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+#include "rpl_rli.h"
 #include "sql_select.h"
 
 /**
@@ -954,7 +953,6 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
                 target_table->s->table_name.str);
   DBUG_RETURN(conv_table);
 }
-
 #endif /* MYSQL_CLIENT */
 
 table_def::table_def(unsigned char *types, ulong size,
@@ -1114,7 +1112,6 @@ bool event_checksum_test(uchar *event_buf, ulong event_len, uint8 alg)
   }
   return DBUG_EVALUATE_IF("simulate_checksum_test_failure", TRUE, res);
 }
-
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 

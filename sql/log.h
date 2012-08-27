@@ -863,7 +863,7 @@ int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);
 
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args);
-void sql_print_error(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
+void sql_print_error(const char *format, ...);
 void sql_print_warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 void sql_print_information(const char *format, ...)
   ATTRIBUTE_FORMAT(printf, 1, 2);
