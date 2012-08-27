@@ -2932,23 +2932,25 @@ EXPLAIN
       "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t11`.`a` from `test`.`t11` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": true,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "4",
             "rows": 1,
-            "attached_condition": "((`test`.`t1`.`a` = `materialized-subquery`.`a`))"
-          },
-          "query_block": {
-            "select_id": 2,
-            "table": {
-              "table_name": "t11",
-              "access_type": "ALL",
-              "rows": 8,
-              "filtered": 100
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 2,
+                "table": {
+                  "table_name": "t11",
+                  "access_type": "ALL",
+                  "rows": 8,
+                  "filtered": 100
+                }
+              }
             }
           }
         }
@@ -3025,23 +3027,25 @@ EXPLAIN
       "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": true,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "5",
             "rows": 1,
-            "attached_condition": "((`x`.`a` = `materialized-subquery`.`a`))"
-          },
-          "query_block": {
-            "select_id": 3,
-            "table": {
-              "table_name": "t1",
-              "access_type": "ALL",
-              "rows": 20,
-              "filtered": 100
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 3,
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "ALL",
+                  "rows": 20,
+                  "filtered": 100
+                }
+              }
             }
           }
         }
@@ -3277,23 +3281,25 @@ EXPLAIN
           "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "5",
                 "rows": 1,
-                "attached_condition": "((`test`.`t3`.`a` = `materialized-subquery`.`a`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "table": {
-                  "table_name": "t2",
-                  "access_type": "ALL",
-                  "rows": 10,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "table": {
+                      "table_name": "t2",
+                      "access_type": "ALL",
+                      "rows": 10,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -6255,30 +6261,32 @@ EXPLAIN
           }
         },
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": true,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "3",
             "rows": 1,
-            "attached_condition": "((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))"
-          },
-          "query_block": {
-            "select_id": 2,
-            "table": {
-              "table_name": "t1",
-              "access_type": "range",
-              "possible_keys": [
-                "Population",
-                "Country"
-              ],
-              "key": "Population",
-              "key_length": "4",
-              "rows": 1,
-              "filtered": 100,
-              "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 2,
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "range",
+                  "possible_keys": [
+                    "Population",
+                    "Country"
+                  ],
+                  "key": "Population",
+                  "key_length": "4",
+                  "rows": 1,
+                  "filtered": 100,
+                  "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
+                }
+              }
             }
           }
         }
@@ -8010,47 +8018,49 @@ EXPLAIN
               "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
               "attached_subqueries": [
                 {
-                  "using_temporary_table": true,
-                  "dependent": false,
-                  "cacheable": true,
                   "table": {
+                    "table_name": "<materialized_subquery>",
                     "access_type": "eq_ref",
                     "key": "<auto_key>",
                     "key_length": "8",
                     "rows": 1,
-                    "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))"
-                  },
-                  "query_block": {
-                    "select_id": 3,
-                    "nested_loop": [
-                      {
-                        "table": {
-                          "table_name": "parent1",
-                          "access_type": "ALL",
-                          "possible_keys": [
-                            "col_int_key"
-                          ],
-                          "rows": 11,
-                          "filtered": 100
-                        }
-                      },
-                      {
-                        "table": {
-                          "table_name": "parent2",
-                          "access_type": "index",
-                          "possible_keys": [
-                            "col_int_key"
-                          ],
-                          "key": "col_int_key",
-                          "key_length": "4",
-                          "rows": 1,
-                          "filtered": 100,
-                          "using_index": true,
-                          "using_join_buffer": "Block Nested Loop",
-                          "attached_condition": "<if>(is_not_null_compl(parent2), (`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`), true)"
-                        }
+                    "materialized_from_subquery": {
+                      "using_temporary_table": true,
+                      "dependent": true,
+                      "cacheable": false,
+                      "query_block": {
+                        "select_id": 3,
+                        "nested_loop": [
+                          {
+                            "table": {
+                              "table_name": "parent1",
+                              "access_type": "ALL",
+                              "possible_keys": [
+                                "col_int_key"
+                              ],
+                              "rows": 11,
+                              "filtered": 100
+                            }
+                          },
+                          {
+                            "table": {
+                              "table_name": "parent2",
+                              "access_type": "index",
+                              "possible_keys": [
+                                "col_int_key"
+                              ],
+                              "key": "col_int_key",
+                              "key_length": "4",
+                              "rows": 1,
+                              "filtered": 100,
+                              "using_index": true,
+                              "using_join_buffer": "Block Nested Loop",
+                              "attached_condition": "<if>(is_not_null_compl(parent2), (`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`), true)"
+                            }
+                          }
+                        ]
                       }
-                    ]
+                    }
                   }
                 }
               ]
@@ -9778,23 +9788,25 @@ EXPLAIN
           "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (select `test`.`t3`.`vc` from `test`.`t2` `t3` where 1 ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on <auto_key> where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "4",
                 "rows": 1,
-                "attached_condition": "((`test`.`t2`.`vc` = `materialized-subquery`.`vc`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "table": {
-                  "table_name": "t3",
-                  "access_type": "ALL",
-                  "rows": 6,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "table": {
+                      "table_name": "t3",
+                      "access_type": "ALL",
+                      "rows": 6,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -9911,26 +9923,28 @@ EXPLAIN
           "attached_condition": "<in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` where 1 ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
                 "rows": 1,
-                "attached_condition": "((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`))"
-              },
-              "query_block": {
-                "select_id": 3,
-                "table": {
-                  "table_name": "derived2",
-                  "access_type": "ALL",
-                  "possible_keys": [
-                    "col_varchar_key"
-                  ],
-                  "rows": 7,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 3,
+                    "table": {
+                      "table_name": "derived2",
+                      "access_type": "ALL",
+                      "possible_keys": [
+                        "col_varchar_key"
+                      ],
+                      "rows": 7,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -10023,26 +10037,28 @@ EXPLAIN
           "attached_condition": "<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
                 "rows": 1,
-                "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "table": {
-                  "table_name": "t2",
-                  "access_type": "ALL",
-                  "possible_keys": [
-                    "col_int_key"
-                  ],
-                  "rows": 20,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "table": {
+                      "table_name": "t2",
+                      "access_type": "ALL",
+                      "possible_keys": [
+                        "col_int_key"
+                      ],
+                      "rows": 20,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -10211,38 +10227,40 @@ EXPLAIN
           "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
                 "rows": 1,
-                "attached_condition": "((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "nested_loop": [
-                  {
-                    "table": {
-                      "table_name": "sq2_alias1",
-                      "access_type": "ALL",
-                      "rows": 20,
-                      "filtered": 100
-                    }
-                  },
-                  {
-                    "table": {
-                      "table_name": "sq2_alias2",
-                      "access_type": "ALL",
-                      "rows": 20,
-                      "filtered": 100,
-                      "using_join_buffer": "Block Nested Loop",
-                      "attached_condition": "(`test`.`sq2_alias2`.`col_int_key` < 2)"
-                    }
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "nested_loop": [
+                      {
+                        "table": {
+                          "table_name": "sq2_alias1",
+                          "access_type": "ALL",
+                          "rows": 20,
+                          "filtered": 100
+                        }
+                      },
+                      {
+                        "table": {
+                          "table_name": "sq2_alias2",
+                          "access_type": "ALL",
+                          "rows": 20,
+                          "filtered": 100,
+                          "using_join_buffer": "Block Nested Loop",
+                          "attached_condition": "(`test`.`sq2_alias2`.`col_int_key` < 2)"
+                        }
+                      }
+                    ]
                   }
-                ]
+                }
               }
             }
           ]

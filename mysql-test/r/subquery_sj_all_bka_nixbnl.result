@@ -3056,7 +3056,6 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery3>",
-          "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
@@ -3065,6 +3064,7 @@ EXPLAIN
           ],
           "rows": 1,
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "table": {
                 "table_name": "t1",
@@ -3288,10 +3288,10 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery2>",
-          "using_temporary_table": true,
           "access_type": "ALL",
           "attached_condition": "(((`<subquery2>`.`a` < 10) or (`<subquery2>`.`a` > 30)) and (`<subquery2>`.`a` is not null))",
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "table": {
                 "table_name": "t2",
@@ -8145,7 +8145,6 @@ EXPLAIN
               {
                 "table": {
                   "table_name": "<subquery3>",
-                  "using_temporary_table": true,
                   "access_type": "eq_ref",
                   "key": "<auto_key>",
                   "key_length": "8",
@@ -8155,6 +8154,7 @@ EXPLAIN
                   ],
                   "rows": 1,
                   "materialized_from_subquery": {
+                    "using_temporary_table": true,
                     "query_block": {
                       "nested_loop": [
                         {
@@ -9928,7 +9928,6 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery2>",
-          "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "4",
@@ -9937,6 +9936,7 @@ EXPLAIN
           ],
           "rows": 1,
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "table": {
                 "table_name": "t3",
@@ -10051,10 +10051,10 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery3>",
-          "using_temporary_table": true,
           "access_type": "ALL",
           "attached_condition": "((`<subquery3>`.`col_varchar_key` = `<subquery3>`.`col_varchar_nokey`) and (`<subquery3>`.`col_varchar_nokey` is not null))",
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "table": {
                 "table_name": "derived2",
@@ -10174,7 +10174,6 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery2>",
-          "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "8",
@@ -10184,6 +10183,7 @@ EXPLAIN
           ],
           "rows": 1,
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "table": {
                 "table_name": "t2",
@@ -10351,10 +10351,10 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery2>",
-          "using_temporary_table": true,
           "access_type": "ALL",
           "attached_condition": "(`<subquery2>`.`col_varchar_nokey` = `<subquery2>`.`col_varchar_key`)",
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
