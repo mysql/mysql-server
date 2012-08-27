@@ -45,4 +45,7 @@ or 0x1EDC6F41 without the high-order bit) */
 typedef ib_uint32_t (*ib_ut_crc32_t)(const byte* ptr, ulint len);
 
 extern ib_ut_crc32_t	ut_crc32;
+
+extern bool	ut_crc32_sse2_enabled;
+
 #endif /* ut0crc32_h */
