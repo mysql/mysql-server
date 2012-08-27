@@ -3031,8 +3031,7 @@ fts_optimize_thread(
 
 	ib_vector_free(tables);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: FTS optimize thread exiting.\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "FTS optimize thread exiting.");
 
 	ib_wqueue_free(wq);
 
