@@ -2136,8 +2136,8 @@ innobase_copy_frm_flags_from_create_info(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table)) {
-		/* Temp tables do not use persistent stats */
+	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+		/* Temp tables do not use persistent stats. */
 		ps_on = FALSE;
 		ps_off = TRUE;
 	} else {
@@ -2172,7 +2172,7 @@ innobase_copy_frm_flags_from_table_share(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table)) {
+	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
 		/* Temp tables do not use persistent stats */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -6430,9 +6430,7 @@ ha_innobase::write_row(
 	DBUG_ENTER("ha_innobase::write_row");
 
 	if (srv_read_only_mode) {
-		ib_senderrf(ha_thd(),
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-
+		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (prebuilt->trx != trx) {
 		sql_print_error("The transaction object for the table handle "
@@ -6969,8 +6967,7 @@ ha_innobase::update_row(
 	ut_a(prebuilt->trx == trx);
 
 	if (srv_read_only_mode) {
-		ib_senderrf(ha_thd(),
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
@@ -7102,8 +7099,7 @@ ha_innobase::delete_row(
 	ut_a(prebuilt->trx == trx);
 
 	if (srv_read_only_mode) {
-		ib_senderrf(ha_thd(),
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
@@ -9362,8 +9358,6 @@ ha_innobase::create(
 
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
 	} else if (srv_read_only_mode) {
-		ib_senderrf(ha_thd(),
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -9580,8 +9574,8 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_open_on_name(norm_name, FALSE, FALSE,
-						 DICT_ERR_IGNORE_NONE);
+	innobase_table = dict_table_open_on_name(
+		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -9678,8 +9672,6 @@ ha_innobase::discard_or_import_tablespace(
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
 	if (srv_read_only_mode) {
-		ib_senderrf(prebuilt->trx->mysql_thd,
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -9774,8 +9766,6 @@ ha_innobase::truncate()
 	DBUG_ENTER("ha_innobase::truncate");
 
 	if (srv_read_only_mode) {
-		ib_senderrf(ha_thd(),
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -9831,7 +9821,7 @@ ha_innobase::delete_table(
 	dberr_t	err;
 	trx_t*	parent_trx;
 	trx_t*	trx;
-	THD	*thd = ha_thd();
+	THD*	thd = ha_thd();
 	char	norm_name[FN_REFLEN];
 
 	DBUG_ENTER("ha_innobase::delete_table");
@@ -9850,8 +9840,6 @@ ha_innobase::delete_table(
 	normalize_table_name(norm_name, name);
 
 	if (srv_read_only_mode) {
-		ib_senderrf(trx->mysql_thd,
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
@@ -10145,8 +10133,7 @@ ha_innobase::rename_table(
 	DBUG_ENTER("ha_innobase::rename_table");
 
 	if (srv_read_only_mode) {
-		ib_senderrf(trx->mysql_thd,
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
@@ -10692,6 +10679,9 @@ ha_innobase::info_low(
 			prebuilt->trx->op_info = "updating table statistics";
 
 			if (dict_stats_is_persistent_enabled(ib_table)) {
+
+				ut_ad(!srv_read_only_mode);
+
 				if (is_analyze) {
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {
@@ -11165,7 +11155,8 @@ ha_innobase::check(
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -11304,7 +11295,8 @@ ha_innobase::check(
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {

@@ -593,6 +593,12 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
+/*********************************************************************//**
+Resets the info describing an i/o thread current state. */
+UNIV_INTERN
+void
+srv_reset_io_thread_op_info();
+/*========================*/
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
@@ -863,6 +869,7 @@ struct srv_slot_struct{
 # define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
+# define srv_reset_io_thread_op_info()		((void) 0)
 # define srv_is_being_started			0
 # define srv_win_file_flush_method		SRV_WIN_IO_UNBUFFERED
 # define srv_unix_file_flush_method		SRV_UNIX_O_DSYNC
