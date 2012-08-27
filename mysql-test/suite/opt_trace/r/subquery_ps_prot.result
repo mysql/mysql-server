@@ -1277,14 +1277,14 @@ field4,field5,field6	{
                       "considered_access_paths": [
                         {
                           "access_type": "ref",
-                          "index": "auto_key0",
+                          "index": "<auto_key0>",
                           "rows": 0.3,
                           "cost": 0.96,
                           "chosen": true
                         },
                         {
                           "access_type": "ref",
-                          "index": "auto_key1",
+                          "index": "<auto_key1>",
                           "rows": 0.3,
                           "cost": 0.96,
                           "chosen": false
@@ -1313,14 +1313,14 @@ field4,field5,field6	{
                   "considered_access_paths": [
                     {
                       "access_type": "ref",
-                      "index": "auto_key0",
+                      "index": "<auto_key0>",
                       "rows": 0.3,
                       "cost": 0.36,
                       "chosen": true
                     },
                     {
                       "access_type": "ref",
-                      "index": "auto_key1",
+                      "index": "<auto_key1>",
                       "rows": 0.3,
                       "cost": 0.36,
                       "chosen": false
