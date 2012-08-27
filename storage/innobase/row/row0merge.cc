@@ -2172,6 +2172,23 @@ row_merge_sort(
 }
 
 /*************************************************************//**
+Set blob fields empty */
+static __attribute__((nonnull))
+void
+row_merge_set_blob_empty(
+/*=====================*/
+	dtuple_t*	tuple)	/*!< in/out: data tuple */
+{
+	for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
+		dfield_t*	field = dtuple_get_nth_field(tuple, i);
+
+		if (dfield_is_ext(field)) {
+			dfield_set_data(field, NULL, 0);
+		}
+	}
+}
+
+/*************************************************************//**
 Copy externally stored columns to the data tuple. */
 static __attribute__((nonnull))
 void
@@ -2297,12 +2314,6 @@ row_merge_insert_index_tuples(
 					if (error != DB_SUCCESS) {
 						break;
 					}
-
-					if (row_merge_skip_rec(
-						    mrec, index, old_index,
-						    offsets)) {
-						continue;
-					}
 				}
 			}
 
@@ -2331,18 +2342,23 @@ row_merge_insert_index_tuples(
 					rw_lock_s_lock(&old_index->lock);
 
 					if (row_merge_skip_rec(
-						    mrec, index, old_index,
-						    offsets)) {
-						// Rollback: skip the record.
-						rw_lock_s_unlock(
-							&old_index->lock);
-						continue;
+						mrec, index, old_index,
+						offsets)) {
+						/* The row and BLOB could
+						already be freed. They
+						will be deleted by
+						row_undo_ins_remove_clust_rec
+						when rolling back a fresh
+						insert. So, no need to retrieve
+						BLOB.*/
+						row_merge_set_blob_empty(dtuple);
+					} else {
+						row_merge_copy_blobs(
+							mrec, offsets,
+							dict_table_zip_size(
+								old_table),
+							dtuple, tuple_heap);
 					}
-
-					row_merge_copy_blobs(
-						mrec, offsets,
-						dict_table_zip_size(old_table),
-						dtuple, tuple_heap);
 
 					rw_lock_s_unlock(&old_index->lock);
 				} else {
@@ -3480,6 +3496,8 @@ row_merge_build_indexes(
 
 		goto func_exit;
 	}
+
+	DEBUG_SYNC_C("row_merge_after_scan");
 
 	/* Now we have files containing index entries ready for
 	sorting and inserting. */

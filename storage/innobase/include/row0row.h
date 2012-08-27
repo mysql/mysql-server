@@ -80,13 +80,14 @@ UNIV_INTERN
 dtuple_t*
 row_build_index_entry_low(
 /*======================*/
-	const dtuple_t*	row,	/*!< in: row which should be
-				inserted or purged */
-	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
-				or NULL */
-	dict_index_t*	index,	/*!< in: index on the table */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the index entry is allocated */
+	const dtuple_t*		row,	/*!< in: row which should be
+					inserted or purged */
+	const row_ext_t*	ext,	/*!< in: externally stored column
+					prefixes, or NULL */
+	dict_index_t*		index,	/*!< in: index on the table */
+	mem_heap_t*		heap)	/*!< in: memory heap from which
+					the memory for the index entry
+					is allocated */
 	__attribute__((warn_unused_result, nonnull(1,3,4)));
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -98,13 +99,14 @@ UNIV_INLINE
 dtuple_t*
 row_build_index_entry(
 /*==================*/
-	const dtuple_t*	row,	/*!< in: row which should be
-				inserted or purged */
-	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
-				or NULL */
-	dict_index_t*	index,	/*!< in: index on the table */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the index entry is allocated */
+	const dtuple_t*		row,	/*!< in: row which should be
+					inserted or purged */
+	const row_ext_t*	ext,	/*!< in: externally stored column
+					prefixes, or NULL */
+	dict_index_t*		index,	/*!< in: index on the table */
+	mem_heap_t*		heap)	/*!< in: memory heap from which
+					the memory for the index entry
+					is allocated */
 	__attribute__((warn_unused_result, nonnull(1,3,4)));
 /*******************************************************************//**
 An inverse function to row_build_index_entry. Builds a row from a
