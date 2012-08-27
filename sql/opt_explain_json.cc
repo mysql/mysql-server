@@ -719,7 +719,6 @@ public:
 
   virtual bool format_derived(Opt_trace_context *json)
   {
-    DBUG_ASSERT(derived_select_number == 0 || derived_from.elements != 0);
     if (derived_from.elements == 0)
       return false;
     else if (derived_from.elements == 1)
@@ -878,7 +877,7 @@ public:
 
   virtual bool find_and_set_derived(context *subquery)
   {
-    if (derived_select_number == subquery->id())
+    if (query_block_id == subquery->id())
     {
       derived_from.push_back(subquery);
       return true;
@@ -1334,6 +1333,10 @@ private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
     DBUG_ASSERT(!col_join_type.is_empty());
+
+    if (!col_table_name.is_empty())
+      obj->add_utf8(K_TABLE_NAME, col_table_name.str);
+
     obj->add(K_USING_TMP_TABLE, true);
     obj->add_alnum(K_ACCESS_TYPE, col_join_type.str);
 
@@ -1342,6 +1345,8 @@ private:
 
     if (!col_key_len.is_empty())
       obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
+
+    add_string_array(json, K_REF, col_ref);
 
     if (!col_rows.is_empty())
       obj->add(K_ROWS, col_rows.value);

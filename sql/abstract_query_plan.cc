@@ -497,8 +497,8 @@ namespace AQP
      A 'simple' order/group by contain only column references to
      the first non-const table
     */
-    if (join_tab == join->join_tab+join->const_tables &&  // First non-const table
-        join->const_tables < join->tables)                // There are more tables
+    if (join_tab == join->join_tab+join->const_tables &&// First non-const table
+        !join->plan_is_const())                         // There are more tables
     {
       if (join->need_tmp)
         return false;

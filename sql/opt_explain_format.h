@@ -340,7 +340,7 @@ public:
   mem_root_str col_attached_condition; ///< former "Using where"
 
   /* For structured EXPLAIN in CTX_JOIN_TAB context: */
-  uint derived_select_number; ///< "derived" subquery id
+  uint query_block_id; ///< query block id for materialized subqueries
 
   /**
     List of "derived" subquery trees
@@ -354,7 +354,7 @@ public:
   bool is_delete; //< DELETE modified this table
 
   qep_row() :
-    derived_select_number(0),
+    query_block_id(0),
     is_dependent(false),
     is_cacheable(true),
     using_temporary(false),
@@ -384,7 +384,7 @@ public:
       Not needed (we call cleanup() for structured EXPLAIN only,
       just for the consistency).
     */
-    derived_select_number= 0;
+    query_block_id= 0;
     derived_from.empty();
     is_dependent= false;
     is_cacheable= true;
