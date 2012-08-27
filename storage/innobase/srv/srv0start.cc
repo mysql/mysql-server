@@ -71,7 +71,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "buf0rea.h"
 # include "dict0boot.h"
 # include "dict0load.h"
-# include "dict0stats_bg.h" /* dict_stats_thread*(), dict_stats_event */
+# include "dict0stats_bg.h"
 # include "que0que.h"
 # include "usr0sess.h"
 # include "lock0lock.h"
@@ -88,8 +88,9 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
-# include "zlib.h" /* for ZLIB_VERSION */
+# include "os0sync.h"
+# include "zlib.h"
+# include "ut0crc32.h"
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN lsn_t	srv_start_lsn;
@@ -1475,10 +1476,9 @@ srv_start_wait_for_purge_to_start()
 			break;
 
 		case PURGE_STATE_INIT:
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: "
+			ib_logf(IB_LOG_LEVEL_INFO,
 				"Waiting for the background threads to "
-				"start\n");
+				"start");
 
 			os_thread_sleep(50000);
 			break;
@@ -1614,30 +1614,33 @@ innobase_start_or_create_for_mysql(void)
 		" InnoDB: !!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!\n");
 #endif
 
-	if (UNIV_LIKELY(srv_use_sys_malloc)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: The InnoDB memory heap is disabled\n");
+	if (srv_use_sys_malloc) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"The InnoDB memory heap is disabled");
 	}
 
 #if defined(COMPILER_HINTS_ENABLED)
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Compiler hints enabled.\n");
+	ib_logf(IB_LOG_LEVEL_INFO,
+		" InnoDB: Compiler hints enabled.");
 #endif /* defined(COMPILER_HINTS_ENABLED) */
 
-	ut_print_timestamp(stderr);
-	fputs(" InnoDB: " IB_ATOMICS_STARTUP_MSG "\n", stderr);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"" IB_ATOMICS_STARTUP_MSG "");
 
-	ut_print_timestamp(stderr);
-	fputs(" InnoDB: Compressed tables use zlib " ZLIB_VERSION
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
 #endif /* UNIV_ZIP_DEBUG */
-	      "\n" , stderr);
+	      );
 #ifdef UNIV_ZIP_COPY
-	ut_print_timestamp(stderr);
-	fputs(" InnoDB: and extra copying\n", stderr);
+	ib_logf(IB_LOG_LEVEL_INFO, "and extra copying");
 #endif /* UNIV_ZIP_COPY */
+
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"CPU %s crc32 instructions",
+		ut_crc32_sse2_enabled ? "supports" : "does not support");
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1697,17 +1700,15 @@ innobase_start_or_create_for_mysql(void)
 #elif defined(LINUX_NATIVE_AIO)
 
 	if (srv_use_native_aio) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Using Linux native AIO\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Using Linux native AIO\n");
 	}
 #else
 	/* Currently native AIO is supported only on windows and linux
 	and that also when the support is compiled in. In all other
 	cases, we ignore the setting of innodb_use_native_aio. */
 	srv_use_native_aio = FALSE;
-
-#endif
+#endif /* __WIN__ */
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
@@ -1745,12 +1746,10 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-#endif
+#endif /* __WIN__ */
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Unrecognized value %s for"
-			" innodb_flush_method\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unrecognized value %s for innodb_flush_method",
 			srv_file_flush_method_str);
 		return(DB_ERROR);
 	}
@@ -1775,9 +1774,11 @@ innobase_start_or_create_for_mysql(void)
 		srv_max_n_threads = 10000;
 	} else {
 		srv_buf_pool_instances = 1;
-		srv_max_n_threads = 1000;	/* saves several MB of memory,
-						especially in 64-bit
-						computers */
+
+		/* Saves several MB of memory, especially in
+		64-bit computers */
+
+		srv_max_n_threads = 1000;
 	}
 
 	srv_boot();
@@ -1848,9 +1849,11 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Now overwrite the value on srv_n_file_io_threads */
-	srv_n_file_io_threads = 2 + srv_n_read_io_threads;
+	srv_n_file_io_threads =  srv_n_read_io_threads;
 
 	if (!srv_read_only_mode) {
+		/* Add the log and ibuf IO threads. */
+		srv_n_file_io_threads += 2;
 		srv_n_file_io_threads += srv_n_write_io_threads;
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -1885,35 +1888,33 @@ innobase_start_or_create_for_mysql(void)
 
 	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
 
-	/* Print time to initialize the buffer pool */
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Initializing buffer pool, size =");
+	double	size;
+	char	unit;
 
 	if (srv_buf_pool_size >= 1024 * 1024 * 1024) {
-		fprintf(stderr,
-			" %.1fG\n",
-			((double) srv_buf_pool_size) / (1024 * 1024 * 1024));
+		size = ((double) srv_buf_pool_size) / (1024 * 1024 * 1024);
+		unit = 'G';
 	} else {
-		fprintf(stderr,
-			" %.1fM\n",
-			((double) srv_buf_pool_size) / (1024 * 1024));
+		size = ((double) srv_buf_pool_size) / (1024 * 1024);
+		unit = 'M';
 	}
+
+	/* Print time to initialize the buffer pool */
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Initializing buffer pool, size = %.1f%c", size, unit);
 
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Completed initialization of buffer pool\n");
-
 	if (err != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Fatal error: cannot allocate memory"
-			" for the buffer pool\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Fatal error: cannot allocate memory"
+			" for the buffer pool");
 
 		return(DB_ERROR);
 	}
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Completed initialization of buffer pool");
 
 #ifdef UNIV_DEBUG
 	/* We have observed deadlocks with a 5MB buffer pool but
@@ -1921,13 +1922,13 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_buf_pool_size <= 5 * 1024 * 1024) {
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Warning: Small buffer pool size "
-			"(%luM), the flst_validate() debug function "
-			"can cause a deadlock if the buffer pool fills up.\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Small buffer pool size (%luM), the flst_validate() "
+			"debug function can cause a deadlock if the "
+			"buffer pool fills up.",
 			srv_buf_pool_size / 1024 / 1024);
 	}
-#endif
+#endif /* UNIV_DEBUG */
 
 	fsp_init();
 	log_init();
@@ -1936,13 +1937,7 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	/* Segment 0 is for the ibuf IO thread and segment 1 is used by
-	the log IO thread. */
-	ulint	first_thread =  srv_read_only_mode ? 2 : 1;
-
-	n[0] = n[1] = ULINT_UNDEFINED;
-
-	for (ulint i = first_thread; i < srv_n_file_io_threads; ++i) {
+	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
 
 		n[i] = i;
 
@@ -1967,10 +1962,8 @@ innobase_start_or_create_for_mysql(void)
 		bytes, then we have a limit of 512 GB. If that limit is to
 		be raised, then log_block_convert_lsn_to_no() must be
 		modified. */
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: combined size of log files"
-			" must be < 512 GB\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Combined size of log files must be < 512 GB");
 
 		return(DB_ERROR);
 	}
@@ -2105,7 +2098,9 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Initialize objects used by dict stats gathering thread, which
 	can also be used by recovery if it tries to drop some table */
-	dict_stats_thread_init();
+	if (!srv_read_only_mode) {
+		dict_stats_thread_init();
+	}
 
 	if (log_created && !create_new_db
 #ifdef UNIV_LOG_ARCHIVE
@@ -2407,20 +2402,23 @@ innobase_start_or_create_for_mysql(void)
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
-	/* Create the thread which watches the timeouts for lock waits */
-	os_thread_create(
-		lock_wait_timeout_thread,
-		NULL, thread_ids + 2 + SRV_MAX_N_IO_THREADS);
+	if (!srv_read_only_mode) {
+		/* Create the thread which watches the timeouts
+		for lock waits */
+		os_thread_create(
+			lock_wait_timeout_thread,
+			NULL, thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
-	/* Create the thread which warns of long semaphore waits */
-	os_thread_create(
-		srv_error_monitor_thread,
-		NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+		/* Create the thread which warns of long semaphore waits */
+		os_thread_create(
+			srv_error_monitor_thread,
+			NULL, thread_ids + 3 + SRV_MAX_N_IO_THREADS);
 
-	/* Create the thread which prints InnoDB monitor info */
-	os_thread_create(
-		srv_monitor_thread,
-		NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+		/* Create the thread which prints InnoDB monitor info */
+		os_thread_create(
+			srv_monitor_thread,
+			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+	}
 
 	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
 	err = dict_create_or_check_foreign_constraint_tables();
@@ -2621,17 +2619,18 @@ innobase_start_or_create_for_mysql(void)
 		ibuf_update_max_tablespace_id();
 	}
 
-	/* Create the buffer pool dump/load thread */
-	os_thread_create(buf_dump_thread, NULL, NULL);
+	if (!srv_read_only_mode) {
+		/* Create the buffer pool dump/load thread */
+		os_thread_create(buf_dump_thread, NULL, NULL);
 
-	/* Create the dict stats gathering thread */
-	os_thread_create(dict_stats_thread, NULL, NULL);
+		/* Create the dict stats gathering thread */
+		os_thread_create(dict_stats_thread, NULL, NULL);
+
+		/* Create the thread that will optimize the FTS sub-system. */
+		fts_optimize_init();
+	}
 
 	srv_was_started = TRUE;
-
-	/* Create the thread that will optimize the FTS sub-system
-	in a separate background thread. */
-	fts_optimize_init();
 
 	return(DB_SUCCESS);
 }
@@ -2675,22 +2674,23 @@ innobase_shutdown_for_mysql(void)
 /*=============================*/
 {
 	ulint	i;
+
 	if (!srv_was_started) {
 		if (srv_is_being_started) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Warning: shutting down"
-				" a not properly started\n"
-				"InnoDB: or created database!\n");
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Shutting downa not properly started, "
+				"or created database!");
 		}
 
 		return(DB_SUCCESS);
 	}
 
-	/* Shutdown the FTS optimize sub system. */
-	fts_optimize_start_shutdown();
+	if (!srv_read_only_mode) {
+		/* Shutdown the FTS optimize sub system. */
+		fts_optimize_start_shutdown();
 
-	fts_optimize_end();
+		fts_optimize_end();
+	}
 
 	/* 1. Flush the buffer pool to disk, write the current lsn to
 	the tablespace header(s), and copy all log data to archive.
@@ -2700,10 +2700,9 @@ innobase_shutdown_for_mysql(void)
 	logs_empty_and_mark_files_at_shutdown();
 
 	if (srv_conc_get_active_threads() != 0) {
-		fprintf(stderr,
-			"InnoDB: Warning: query counter shows %ld queries"
-			" still\n"
-			"InnoDB: inside InnoDB at shutdown\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Query counter shows %ld queries still "
+			"inside InnoDB at shutdown",
 			srv_conc_get_active_threads());
 	}
 
@@ -2719,17 +2718,19 @@ innobase_shutdown_for_mysql(void)
 		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
 		HERE OR EARLIER */
 
-		/* a. Let the lock timeout thread exit */
-		os_event_set(lock_sys->timeout_event);
+		if (!srv_read_only_mode) {
+			/* a. Let the lock timeout thread exit */
+			os_event_set(lock_sys->timeout_event);
 
-		/* b. srv error monitor thread exits automatically, no need
-		to do anything here */
+			/* b. srv error monitor thread exits automatically,
+			no need to do anything here */
 
-		/* c. We wake the master thread so that it exits */
-		srv_wake_master_thread();
+			/* c. We wake the master thread so that it exits */
+			srv_wake_master_thread();
 
-		/* d. Wakeup purge threads. */
-		srv_purge_wakeup();
+			/* d. Wakeup purge threads. */
+			srv_purge_wakeup();
+		}
 
 		/* e. Exit the i/o threads */
 
@@ -2763,9 +2764,9 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	if (i == 1000) {
-		fprintf(stderr,
-			"InnoDB: Warning: %lu threads created by InnoDB"
-			" had not exited at shutdown!\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"%lu threads created by InnoDB"
+			" had not exited at shutdown!",
 			(ulong) os_thread_count);
 	}
 
@@ -2777,6 +2778,7 @@ innobase_shutdown_for_mysql(void)
 			mem_free(srv_monitor_file_name);
 		}
 	}
+
 	if (srv_dict_tmpfile) {
 		fclose(srv_dict_tmpfile);
 		srv_dict_tmpfile = 0;
@@ -2787,7 +2789,9 @@ innobase_shutdown_for_mysql(void)
 		srv_misc_tmpfile = 0;
 	}
 
-	dict_stats_thread_deinit();
+	if (!srv_read_only_mode) {
+		dict_stats_thread_deinit();
+	}
 
 	/* This must be disabled before closing the buffer pool
 	and closing the data dictionary.  */
@@ -2840,11 +2844,10 @@ innobase_shutdown_for_mysql(void)
 	    || os_event_count != 0
 	    || os_mutex_count != 0
 	    || os_fast_mutex_count != 0) {
-		fprintf(stderr,
-			"InnoDB: Warning: some resources were not"
-			" cleaned up in shutdown:\n"
-			"InnoDB: threads %lu, events %lu,"
-			" os_mutexes %lu, os_fast_mutexes %lu\n",
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Some resources were not cleaned up in shutdown: "
+			"threads %lu, events %lu, os_mutexes %lu, "
+			"os_fast_mutexes %lu",
 			(ulong) os_thread_count, (ulong) os_event_count,
 			(ulong) os_mutex_count, (ulong) os_fast_mutex_count);
 	}
@@ -2854,10 +2857,8 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	if (srv_print_verbose_log) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Shutdown completed;"
-			" log sequence number " LSN_PF "\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Shutdown completed; log sequence number " LSN_PF "",
 			srv_shutdown_lsn);
 	}
 
