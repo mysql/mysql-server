@@ -601,11 +601,16 @@ bool Explain::explain_subqueries(select_result *result)
       This must be after mysql_explain_unit() so that JOIN::optimize() has run
       and had a chance to choose materialization.
     */
-    if (fmt->is_hierarchical() && context == CTX_WHERE &&
+    if (fmt->is_hierarchical() && 
+        (context == CTX_WHERE || context == CTX_HAVING ||
+         context == CTX_SELECT_LIST ||
+         context == CTX_GROUP_BY_SQ || context == CTX_ORDER_BY_SQ) &&
         unit->item &&
         (unit->item->get_engine_for_explain()->engine_type() ==
          subselect_engine::HASH_SJ_ENGINE))
     {
+      fmt->entry()->is_materialized_from_subquery= true;
+      fmt->entry()->col_table_name.set_const("<materialized_subquery>");
       fmt->entry()->using_temporary= true;
       fmt->entry()->col_join_type.set_const(join_type_str[JT_EQ_REF]);
       fmt->entry()->col_key.set_const("<auto_key>");
@@ -625,15 +630,12 @@ bool Explain::explain_subqueries(select_result *result)
         return true;
 
       fmt->entry()->col_rows.set(1);
-
-      Item * const cond= engine->get_cond_for_explain();
-      if (cond)
-      {
-        Lazy_condition *c= new Lazy_condition(cond);
-        if (c == NULL)
-          return true;
-        fmt->entry()->col_attached_condition.set(c);
-      }
+      /*
+       The value to look up depends on the outer value, so the materialized
+       subquery is dependent and not cacheable:
+      */
+      fmt->entry()->is_dependent= true;
+      fmt->entry()->is_cacheable= false;
     }
 
     if (fmt->end_context(context))
