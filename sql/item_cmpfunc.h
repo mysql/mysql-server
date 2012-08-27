@@ -602,7 +602,7 @@ class Item_func_eq :public Item_bool_rowready_func2
 {
 public:
   Item_func_eq(Item *a,Item *b) :
-    Item_bool_rowready_func2(a,b), in_equality_no(UINT_MAX)
+    Item_bool_rowready_func2(a,b)
   {}
   longlong val_int();
   enum Functype functype() const { return EQ_FUNC; }
@@ -610,14 +610,8 @@ public:
   cond_result eq_cmp_result() const { return COND_TRUE; }
   const char *func_name() const { return "="; }
   Item *negated_item();
-  /* 
-    - If this equality is created from the subquery's IN-equality:
-      number of the item it was created from, e.g. for
-       (a,b) IN (SELECT c,d ...)  a=c will have in_equality_no=0, 
-       and b=d will have in_equality_no=1.
-    - Otherwise, UINT_MAX
-  */
-  uint in_equality_no;
+  virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
+  virtual Item* equality_substitution_transformer(uchar *arg);
 };
 
 class Item_func_equal :public Item_bool_rowready_func2
@@ -1692,6 +1686,8 @@ public:
   bool subst_argument_checker(uchar **arg) { return TRUE; }
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t);
+
+  virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
 };
 
 
@@ -1821,7 +1817,10 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   const CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
-  friend bool setup_sj_materialization(struct st_join_table *tab);
+
+  virtual bool equality_substitution_analyzer(uchar **arg) { return true; }
+
+  virtual Item* equality_substitution_transformer(uchar *arg);
 }; 
 
 class COND_EQUAL: public Sql_alloc
