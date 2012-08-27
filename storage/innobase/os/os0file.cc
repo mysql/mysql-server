@@ -72,12 +72,11 @@ my_umask */
 
 #ifndef __WIN__
 /** Umask for creating files */
-UNIV_INTERN ulint	os_innodb_umask
-			= S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+UNIV_INTERN ulint	os_innodb_umask = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 #else
 /** Umask for creating files */
-UNIV_INTERN ulint	os_innodb_umask		= 0;
-#endif
+UNIV_INTERN ulint	os_innodb_umask	= 0;
+#endif /* __WIN__ */
 
 #ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
@@ -1277,15 +1276,7 @@ os_file_create_simple_func(
 	}
 
 	do {
-		if (create_mode == OS_FILE_CREATE
-		    && !srv_read_only_mode) {
-
-			file = open(
-				name, create_flag,
-				S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
-		} else {
-			file = open(name, create_flag);
-		}
+		file = ::open(name, create_flag, os_innodb_umask);
 
 		if (file == -1) {
 			*success = FALSE;
@@ -1440,7 +1431,7 @@ os_file_create_simple_no_error_handling_func(
 		return((os_file_t) -1);
 	}
 
-	file = open(name, create_flag);
+	file = ::open(name, create_flag, os_innodb_umask);
 
 	if (file == -1) {
 		*success = FALSE;
@@ -3152,7 +3143,7 @@ os_file_get_status(
 
 			access = !srv_read_only_mode ? O_RDWR : O_RDONLY;
 
-			fh = open(path, access);
+			fh = ::open(path, access, os_innodb_umask);
 
 			if (fh == -1) {
 				stat_info->rw_perm = false;
