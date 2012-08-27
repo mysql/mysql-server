@@ -4471,36 +4471,27 @@ struct st_table_ref;
 
 /**
   Executor structure for the materialized semi-join info, which contains
+   - Description of expressions selected from subquery
    - The sj-materialization temporary table
-   - Members needed to make index lookup or a full scan of the temptable.
 */
 class Semijoin_mat_exec : public Sql_alloc
 {
 public:
-  Semijoin_mat_exec(uint table_count, bool is_scan)
-    :table_count(table_count), is_scan(is_scan),
-    materialized(FALSE), table_param(), table_cols(),
-    table(NULL), tab_ref(NULL), in_equality(NULL),
-    join_cond(NULL), copy_field(NULL), copy_field_count(0)
+  Semijoin_mat_exec(bool is_scan, uint table_count, uint mat_table_index,
+                    uint inner_table_index, List<Item> *const subq_exprs)
+    :is_scan(is_scan), table_count(table_count),
+     mat_table_index(mat_table_index), inner_table_index(inner_table_index),
+    subq_exprs(subq_exprs), table_param(), table(NULL)
   {}
-private:
-  // Nobody deletes me apparently ...
   ~Semijoin_mat_exec()
-  {
-    delete [] copy_field;
-  }
-public:
-  const uint table_count;       // Number of tables in the sj-nest
-  const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
-  bool materialized;            // TRUE <=> materialization has been performed
-  TMP_TABLE_PARAM table_param;  // The temptable and its related info
-  List<Item> table_cols;        // List of columns describing temp. table
-  TABLE *table;                 // Reference to temporary table
-  struct st_table_ref *tab_ref; // Structure used to make index lookups
-  Item *in_equality;            // See create_subquery_equalities()
-  Item *join_cond;              // See comments in make_join_select()
-  Copy_field *copy_field;       // Needed for materialization scan
-  uint copy_field_count;        // Number of columns to copy back
+  {}
+  const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
+  const uint table_count;       ///< Number of tables in the sj-nest
+  const uint mat_table_index;   ///< Index in join_tab for materialized table
+  const uint inner_table_index; ///< Index in join_tab for first inner table
+  List<Item> *const subq_exprs; ///< List of expressions describing temp. table
+  TMP_TABLE_PARAM table_param;  ///< The temptable and its related info
+  TABLE *table;                 ///< Reference to temporary table
 };
 
 

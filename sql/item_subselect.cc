@@ -2375,7 +2375,7 @@ bool Item_in_subselect::init_left_expr_cache()
     Item::result_field. In the case end_[send | write]_group result_field is
     one row behind field.
   */
-  end_select= outer_join->join_tab[outer_join->tables-1].next_select;
+  end_select= outer_join->join_tab[outer_join->primary_tables-1].next_select;
   if (end_select == end_send_group || end_select == end_write_group)
     use_result_field= TRUE;
 
@@ -2678,7 +2678,7 @@ bool subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint i=join->const_tables ; i < join->tables ; i++)
+      for (uint i= join->const_tables; i < join->primary_tables; i++)
       {
         JOIN_TAB *tab=join->join_tab+i;
         if (tab && tab->keyuse)
@@ -2989,7 +2989,7 @@ bool subselect_indexsubquery_engine::exec()
   item_in->value= false;
   table->status= 0;
 
-  if (tl && tl->uses_materialization() && !tl->materialized)
+  if (tl && tl->uses_materialization() && !tab->materialized)
   {
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
@@ -3000,6 +3000,8 @@ bool subselect_indexsubquery_engine::exec()
                                   mysql_derived_cleanup);
     if (err)
       DBUG_RETURN(1);
+
+    tab->materialized= true;
   }
 
   if (check_null)

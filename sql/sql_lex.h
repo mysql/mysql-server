@@ -710,6 +710,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  /// List of semi-join nests generated for this query block
   List<TABLE_LIST> sj_nests;
   //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
   /*
@@ -729,6 +730,7 @@ public:
     SLT_SUBQUERY,
     SLT_UNION,
     SLT_UNION_RESULT,
+    SLT_MATERIALIZED,
   // Total:
     SLT_total ///< fake type, total number of all valid types
   // Don't insert new types below this line!
