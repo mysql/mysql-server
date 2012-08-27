@@ -374,9 +374,12 @@ private:
     }
     else if (using_temporary)
     {
-      obj->add(K_USING_TMP_TABLE, true);
-      obj->add(K_DEPENDENT, dependent());
-      obj->add(K_CACHEABLE, cacheable());
+      if (!is_materialized_from_subquery)
+      {
+        obj->add(K_USING_TMP_TABLE, true);
+        obj->add(K_DEPENDENT, dependent());
+        obj->add(K_CACHEABLE, cacheable());
+      }
 
       {
         Opt_trace_object tmp_table(json, K_TABLE);
@@ -395,6 +398,9 @@ private:
         if (is_materialized_from_subquery)
         {
           Opt_trace_object materialized(json, K_MATERIALIZED_FROM_SUBQUERY);
+          obj->add(K_USING_TMP_TABLE, true);
+          obj->add(K_DEPENDENT, dependent());
+          obj->add(K_CACHEABLE, cacheable());
           return format_query_block(json);
         }
       }
@@ -1352,7 +1358,6 @@ private:
     if (!col_table_name.is_empty())
       obj->add_utf8(K_TABLE_NAME, col_table_name.str);
 
-    obj->add(K_USING_TMP_TABLE, true);
     obj->add_alnum(K_ACCESS_TYPE, col_join_type.str);
 
     if (!col_key.is_empty())
@@ -1379,6 +1384,7 @@ private:
       return true;
 
     Opt_trace_object m(json, K_MATERIALIZED_FROM_SUBQUERY);
+    obj->add(K_USING_TMP_TABLE, true);
     Opt_trace_object q(json, K_QUERY_BLOCK);
     return format_nested_loop(json);
   }
