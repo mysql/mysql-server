@@ -9738,7 +9738,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   else
   {
     unique->reset();
-    filesort_free_buffers(head, true);
+    filesort_free_buffers(head, false);
   }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
