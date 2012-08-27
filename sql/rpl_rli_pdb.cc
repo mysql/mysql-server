@@ -165,8 +165,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   
   wq_overrun_cnt= 0;
   // overrun level is symmetric to underrun (as underrun to the full queue)
-  overrun_level= (ulong) ((100 - rli->mts_worker_underrun_level) * jobs.size)
-    / 100.0;
+  overrun_level=
+    (ulong) (((100 - rli->mts_worker_underrun_level) * jobs.size) / 100.0);
 
   DBUG_RETURN(0);
 }
