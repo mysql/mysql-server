@@ -2976,7 +2976,7 @@ skip_second_rename:
 				 &mtr);
 		mtr_commit(&mtr);
 	}
-#endif
+#endif /* !UNIV_HOTBACKUP */
 
 	mem_free(new_path);
 	mem_free(old_path);
@@ -3481,7 +3481,8 @@ fil_open_single_table_tablespace(
 		return(DB_CORRUPTION);
 	}
 
-	/* If the tablespace was relocated, we do not compare the DATA_DIR flag */
+	/* If the tablespace was relocated, we do not
+	compare the DATA_DIR flag */
 	ulint mod_flags = flags & ~FSP_FLAGS_MASK_DATA_DIR;
 
 	memset(&def, 0, sizeof(def));
@@ -3507,7 +3508,8 @@ fil_open_single_table_tablespace(
 		tablename, &remote.filepath, &remote.file);
 	remote.success = link_file_found;
 	if (remote.success) {
-		validate = true;	/* possibility of multiple files. */
+		/* possibility of multiple files. */
+		validate = true;
 		tablespaces_found++;
 
 		/* A link file was found. MySQL does not allow a DATA
@@ -3533,7 +3535,8 @@ fil_open_single_table_tablespace(
 			innodb_file_data_key, dict.filepath, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, &dict.success);
 		if (dict.success) {
-			validate = true;	/* possibility of multiple files. */
+			/* possibility of multiple files. */
+			validate = true;
 			tablespaces_found++;
 		}
 	}
@@ -4010,7 +4013,8 @@ will_not_choose:
 		}
 
 		exit(1);
-		/* Exit here with a core dump, stack, etc. if MTR could handle it. */
+		/* Exit here with a core dump, stack, etc. if
+		MTR could handle it. */
 		/* ulint will_not_choose = 0; */
 		/* ut_a(will_not_choose); */
 	}
@@ -4035,7 +4039,7 @@ will_not_choose:
 	}
 
 	/* At this point, only one tablespace is open */
-	ut_a((def.success && !remote.success) || (!def.success && remote.success));
+	ut_a(def.success == !remote.success);
 
 	fsp_open_info*	fsp = def.success ? &def : &remote;
 
@@ -4072,7 +4076,7 @@ will_not_choose:
 #else
 		fsp->id = ULINT_UNDEFINED;
 		fsp->flags = 0;
-#endif
+#endif /* !UNIV_HOTBACKUP */
 	}
 
 #ifdef UNIV_HOTBACKUP
@@ -4092,7 +4096,11 @@ will_not_choose:
 		os_file_close(fsp->file);
 
 		new_path = fil_make_ibbackup_old_name(fsp->filepath);
-		ut_a(os_file_rename(innodb_file_data_key, fsp->filepath, new_path));
+
+		bool	success = os_file_rename(
+			innodb_file_data_key, fsp->filepath, new_path));
+
+		ut_a(success);
 
 		mem_free(tablename);
 		mem_free(fsp->filepath);
@@ -4130,7 +4138,10 @@ will_not_choose:
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_a(os_file_rename(innodb_file_data_key, fsp->filepath, new_path));
+		bool	success = os_file_rename(
+			innodb_file_data_key, fsp->filepath, new_path);
+
+		ut_a(success);
 
 		mem_free(tablename);
 		mem_free(fsp->filepath);
@@ -4139,7 +4150,7 @@ will_not_choose:
 		return;
 	}
 	mutex_exit(&fil_system->mutex);
-#endif
+#endif /* UNIV_HOTBACKUP */
 	ibool file_space_create_success = fil_space_create(
 		tablename, fsp->id, fsp->flags, FIL_TABLESPACE);
 

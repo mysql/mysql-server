@@ -2859,9 +2859,9 @@ recv_init_crash_recovery(void)
 
 	recv_needed_recovery = TRUE;
 
-	ib_logf(IB_LOG_LEVEL_WARN, "Database was not shutdown normally!");
-        ib_logf(IB_LOG_LEVEL_WARN, "Starting crash recovery.");
-	ib_logf(IB_LOG_LEVEL_WARN,
+	ib_logf(IB_LOG_LEVEL_INFO, "Database was not shutdown normally!");
+        ib_logf(IB_LOG_LEVEL_INFO, "Starting crash recovery.");
+	ib_logf(IB_LOG_LEVEL_INFO,
 		"Reading tablespace information from the .ibd files...");
 
 	fil_load_single_table_tablespaces();
@@ -2873,10 +2873,10 @@ recv_init_crash_recovery(void)
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"Restoring possible half-written data pages ");
 
-		ib_logf(IB_LOG_LEVEL_WARN,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"from the doublewrite buffer...");
 
 		buf_dblwr_init_or_restore_pages(TRUE);
@@ -3128,7 +3128,7 @@ recv_recovery_from_checkpoint_start_func(
 			if (checkpoint_lsn < max_flushed_lsn) {
 
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"WARNING! The log sequence number "
+					"The log sequence number "
 					"in the ibdata files is higher "
 					"than the log sequence number "
 					"in the ib_logfiles! Are you sure "
@@ -3146,11 +3146,11 @@ recv_recovery_from_checkpoint_start_func(
 
 			if (!recv_needed_recovery) {
 
-				ib_logf(IB_LOG_LEVEL_WARN,
+				ib_logf(IB_LOG_LEVEL_INFO,
 					"The log sequence number "
 					"in ibdata files does ");
 
-				ib_logf(IB_LOG_LEVEL_WARN,
+				ib_logf(IB_LOG_LEVEL_INFO,
 					"not match the log sequence number "
 					"in the ib_logfiles!");
 

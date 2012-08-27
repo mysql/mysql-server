@@ -529,9 +529,10 @@ buf_dblwr_init_or_restore_pages(
 				       zip_size, page_no, 0,
 				       zip_size ? zip_size : UNIV_PAGE_SIZE,
 				       page, NULL);
-				fprintf(stderr,
-					"InnoDB: Recovered the page from"
-					" the doublewrite buffer.\n");
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Recovered the page from"
+					" the doublewrite buffer.");
 			}
 		}
 
