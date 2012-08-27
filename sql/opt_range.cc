@@ -4365,7 +4365,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   {
     Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
-    bool is_interrupted= test(join && join->tables != 1);
+    const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
     const double sweep_total_cost= sweep_cost.total_cost();
@@ -4511,7 +4511,7 @@ skip_to_ror_scan:
   {
     Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
-    bool is_interrupted= test(join && join->tables != 1);
+    const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
     roru_total_cost= roru_index_costs +
@@ -5102,7 +5102,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   {
     Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex.join;
-    bool is_interrupted= test(join && join->tables == 1);
+    const bool is_interrupted= join && join->tables == 1;
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
@@ -10981,7 +10981,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   /* Perform few 'cheap' tests whether this access method is applicable. */
   if (!join)
     cause= "no_join";
-  else if (join->tables != 1)   /* The query must reference one table. */
+  else if (join->primary_tables != 1)  /* Query must reference one table. */
     cause= "not_single_table";
   else if (join->select_lex->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
     cause= "rollup";

@@ -7247,7 +7247,6 @@ static bool do_fill_table(THD *thd,
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
-  JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
@@ -7257,8 +7256,9 @@ bool get_schema_tables_result(JOIN *join,
   if (!join->join_tab)
     DBUG_RETURN(result);
 
-  for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
-  {  
+  for (uint i= 0; i < join->tables; i++)
+  {
+    JOIN_TAB *const tab= join->join_tab + i;
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
 

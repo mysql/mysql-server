@@ -9547,7 +9547,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	11	NULL
 1	PRIMARY	sq2_alias1	ALL	NULL	NULL	NULL	NULL	15	Using where
 1	PRIMARY	sq2_alias2	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	Using where; FirstMatch(alias2)
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	4	test.alias2.col_varchar_key	2	NULL
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	NULL
 1	PRIMARY	<derived7>	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(<derived2>); Using join buffer (Block Nested Loop)
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -9672,7 +9672,7 @@ FROM t1 AS subquery3_t1
 )
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	const	1	Using where
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	const	1	Using where
 1	PRIMARY	subquery3_t1	ref	col_varchar_key	col_varchar_key	4	table1.col_varchar_nokey	0	Using index; FirstMatch(<derived2>)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	FirstMatch(subquery3_t1); Using join buffer (Block Nested Loop)
 1	PRIMARY	table2	index	NULL	PRIMARY	4	NULL	1	Using index; Using join buffer (Block Nested Loop)
@@ -9945,9 +9945,9 @@ EXPLAIN
                 "table_name": "derived1",
                 "access_type": "ref",
                 "possible_keys": [
-                  "auto_key0"
+                  "<auto_key0>"
                 ],
-                "key": "auto_key0",
+                "key": "<auto_key0>",
                 "key_length": "4",
                 "ref": [
                   "test.derived2.col_varchar_nokey"
