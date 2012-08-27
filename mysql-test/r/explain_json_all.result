@@ -270,28 +270,30 @@ EXPLAIN
       "attached_subqueries": [
         {
           "using_temporary_table": true,
-          "dependent": false,
+          "dependent": true,
           "cacheable": false,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "5",
             "rows": 1,
-            "attached_condition": "((`test`.`t1`.`i` = `materialized-subquery`.`i`))"
-          } /* table */,
-          "query_block": {
-            "select_id": 3,
-            "ordering_operation": {
-              "using_filesort": false,
-              "table": {
-                "table_name": "t4",
-                "access_type": "system",
-                "rows": 0,
-                "filtered": 0,
-                "const_row_not_found": true
-              } /* table */
-            } /* ordering_operation */
-          } /* query_block */
+            "materialized_from_subquery": {
+              "query_block": {
+                "select_id": 3,
+                "ordering_operation": {
+                  "using_filesort": false,
+                  "table": {
+                    "table_name": "t4",
+                    "access_type": "system",
+                    "rows": 0,
+                    "filtered": 0,
+                    "const_row_not_found": true
+                  } /* table */
+                } /* ordering_operation */
+              } /* query_block */
+            } /* materialized_from_subquery */
+          } /* table */
         },
         {
           "dependent": true,

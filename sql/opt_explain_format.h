@@ -350,6 +350,7 @@ public:
   bool is_dependent;
   bool is_cacheable;
   bool using_temporary;
+  bool is_materialized_from_subquery;
   bool is_update; //< UPDATE modified this table
   bool is_delete; //< DELETE modified this table
 
@@ -358,6 +359,7 @@ public:
     is_dependent(false),
     is_cacheable(true),
     using_temporary(false),
+    is_materialized_from_subquery(false),
     is_update(false),
     is_delete(false)
   {}
@@ -389,6 +391,7 @@ public:
     is_dependent= false;
     is_cacheable= true;
     using_temporary= false;
+    is_materialized_from_subquery= false;
     is_update= false;
     is_delete= false;
   }
