@@ -139,7 +139,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
   for (table_ptr= select_lex->leaf_tables;
        table_ptr;
        table_ptr= table_ptr->next_leaf)
-    tables++;
+    primary_tables++;           // Count the primary input tables of the query
+
+  tables= primary_tables;       // This is currently the total number of tables
 
   /*
     Item and Item_field CTORs will both increment some counters

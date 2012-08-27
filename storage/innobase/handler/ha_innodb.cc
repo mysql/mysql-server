@@ -1944,7 +1944,10 @@ innobase_next_autoinc(
 	}
 
 	/* Check for overflow. Current can be > max_value if the value is
-	in reality a negative value. */
+	in reality a negative value.The visual studio compilers converts
+	large double values automatically into unsigned long long datatype
+	maximum value */
+
 	if (block >= max_value
 	    || offset > max_value
 	    || current >= max_value

@@ -331,8 +331,21 @@ public:
 
   virtual qep_row *entry() { return this; }
 
-  virtual bool cacheable() { return subquery->cacheable(); }
-  virtual bool dependent() { return subquery->dependent(); }
+  /*
+    Materialized subquery statuses of dependency on the outer query and
+    cacheability may differ from the source subquery, for example, if
+    we "push down" the outer look up value for SJ.
+    Thus, for materialized subqueries return direct is_cacheable and
+    is_dependent values instead of source subquery statuses:
+  */
+  virtual bool cacheable()
+  {
+    return is_materialized_from_subquery ? is_cacheable : subquery->cacheable();
+  }
+  virtual bool dependent()
+  {
+    return is_materialized_from_subquery ? is_dependent : subquery->dependent();
+  }
 
   virtual bool format(Opt_trace_context *json)
   {
@@ -361,13 +374,18 @@ private:
     }
     else if (using_temporary)
     {
-      obj->add(K_USING_TMP_TABLE, true);
-      obj->add(K_DEPENDENT, dependent());
-      obj->add(K_CACHEABLE, cacheable());
+      if (!is_materialized_from_subquery)
+      {
+        obj->add(K_USING_TMP_TABLE, true);
+        obj->add(K_DEPENDENT, dependent());
+        obj->add(K_CACHEABLE, cacheable());
+      }
 
       {
         Opt_trace_object tmp_table(json, K_TABLE);
 
+        if (!col_table_name.is_empty())
+          obj->add_utf8(K_TABLE_NAME, col_table_name.str);
         if (!col_join_type.is_empty())
           tmp_table.add_alnum(K_ACCESS_TYPE, col_join_type.str);
         if (!col_key.is_empty())
@@ -376,24 +394,17 @@ private:
           obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
         if (!col_rows.is_empty())
           tmp_table.add(K_ROWS, col_rows.value);
-        /*
-          Currently K-REF/col_ref is not shown; it would always be "func", since
-          {subquery,semijoin} materialization use store_key_item; using
-          get_store_key() instead would allow "const" and outer column's name,
-          if applicable.
-          The looked up expression can anyway be inferred from the condition:
-        */
-        if (!col_attached_condition.is_empty())
-          obj->add_utf8(K_ATTACHED_CONDITION, col_attached_condition.str);
-        if (format_where(json))
-          return true;
+
+        if (is_materialized_from_subquery)
+        {
+          Opt_trace_object materialized(json, K_MATERIALIZED_FROM_SUBQUERY);
+          obj->add(K_USING_TMP_TABLE, true);
+          obj->add(K_DEPENDENT, dependent());
+          obj->add(K_CACHEABLE, cacheable());
+          return format_query_block(json);
+        }
       }
-
-      if (subquery->is_query_block())
-        return subquery->format(json);
-
-      Opt_trace_object query_block(json, K_QUERY_BLOCK);
-      return subquery->format(json);
+      return format_query_block(json);
     }
     else
     {
@@ -402,6 +413,16 @@ private:
       return subquery->format(json);
     }
   }
+
+  bool format_query_block(Opt_trace_context *json)
+  {
+    if (subquery->is_query_block())
+      return subquery->format(json);
+
+    Opt_trace_object query_block(json, K_QUERY_BLOCK);
+    return subquery->format(json);
+  }
+
 
 public:
   virtual void set_child(context *child)
@@ -719,7 +740,6 @@ public:
 
   virtual bool format_derived(Opt_trace_context *json)
   {
-    DBUG_ASSERT(derived_select_number == 0 || derived_from.elements != 0);
     if (derived_from.elements == 0)
       return false;
     else if (derived_from.elements == 1)
@@ -878,7 +898,7 @@ public:
 
   virtual bool find_and_set_derived(context *subquery)
   {
-    if (derived_select_number == subquery->id())
+    if (query_block_id == subquery->id())
     {
       derived_from.push_back(subquery);
       return true;
@@ -1334,7 +1354,10 @@ private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
     DBUG_ASSERT(!col_join_type.is_empty());
-    obj->add(K_USING_TMP_TABLE, true);
+
+    if (!col_table_name.is_empty())
+      obj->add_utf8(K_TABLE_NAME, col_table_name.str);
+
     obj->add_alnum(K_ACCESS_TYPE, col_join_type.str);
 
     if (!col_key.is_empty())
@@ -1342,6 +1365,8 @@ private:
 
     if (!col_key_len.is_empty())
       obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
+
+    add_string_array(json, K_REF, col_ref);
 
     if (!col_rows.is_empty())
       obj->add(K_ROWS, col_rows.value);
@@ -1359,6 +1384,7 @@ private:
       return true;
 
     Opt_trace_object m(json, K_MATERIALIZED_FROM_SUBQUERY);
+    obj->add(K_USING_TMP_TABLE, true);
     Opt_trace_object q(json, K_QUERY_BLOCK);
     return format_nested_loop(json);
   }
