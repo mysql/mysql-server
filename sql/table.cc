@@ -5511,6 +5511,11 @@ Item_subselect *TABLE_LIST::containing_subselect()
   return (select_lex ? select_lex->master_unit()->item : 0);
 }
 
+uint TABLE_LIST::query_block_id() const
+{
+  return derived ? derived->first_select()->select_number : 0;
+}
+
 /*
   Compiles the tagged hints list and fills up the bitmasks.
 
@@ -5722,6 +5727,14 @@ void init_mdl_requests(TABLE_LIST *table_list)
 }
 
 
+
+///  @returns true if materializable table contains one or zero rows
+bool TABLE_LIST::materializable_is_const() const
+{
+  DBUG_ASSERT(uses_materialization());
+  return get_unit()->get_result()->estimated_rowcount <= 1;
+}
+
 /**
   @brief
   Retrieve number of rows in the table
@@ -5739,7 +5752,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (uses_materialization() && !materialized)
+  if (uses_materialization())
     table->file->stats.records= derived->get_result()->estimated_rowcount;
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -5948,8 +5961,8 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling the
-  TABLE::add_tmp_key to actually add keys. A name "auto_key" with a
-  sequential number is given to each key to ease debugging.
+  TABLE::add_tmp_key to actually add keys. A name <auto_keyN>, where N is a
+  sequential number, is given to each key to ease debugging.
   @see add_derived_key
 
   @return TRUE  an error occur.
@@ -5974,7 +5987,7 @@ bool TABLE_LIST::generate_keys()
   derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
   while ((entry= it++))
   {
-    sprintf(buf, "auto_key%i", key++);
+    sprintf(buf, "<auto_key%i>", key++);
     if (table->add_tmp_key(&entry->used_fields,
                            table->in_use->strdup(buf)))
       return TRUE;
@@ -6034,7 +6047,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
   @return 0                    when it's not a derived table/view.
 */
 
-st_select_lex_unit *TABLE_LIST::get_unit()
+st_select_lex_unit *TABLE_LIST::get_unit() const
 {
   return (view ? &view->unit : derived);
 }

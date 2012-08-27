@@ -130,7 +130,8 @@ const char *st_select_lex::type_str[SLT_total]=
   "DERIVED",
   "SUBQUERY",
   "UNION",
-  "UNION RESULT"
+  "UNION RESULT",
+  "MATERIALIZED"
 };
 
 
