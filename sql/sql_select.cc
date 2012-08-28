@@ -10543,7 +10543,7 @@ void JOIN::join_free()
     Optimization: if not EXPLAIN and we are done with the JOIN,
     free all tables.
   */
-  bool full= !(select_lex->uncacheable);
+  bool full= !(select_lex->uncacheable) &&  !(thd->lex->describe);
   bool can_unlock= full;
   DBUG_ENTER("JOIN::join_free");
 
