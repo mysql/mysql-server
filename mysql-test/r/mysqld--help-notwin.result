@@ -415,7 +415,9 @@ The following options may be given as the first argument:
  Don't write queries to slow log that examine fewer rows
  than that
  --multi-range-count=# 
- Number of key ranges to request at once
+ Number of key ranges to request at once. This variable
+ has no effect, and is deprecated. It will be removed in a
+ future release.
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
