@@ -114,16 +114,16 @@ to mark invalid states.
 
 NOTE: Do not change the order or value of these, fts_trx_row_get_new_state
 depends on them being exactly as they are. */
-typedef enum {
+enum fts_row_state {
 	FTS_INSERT = 0,
 	FTS_MODIFY,
 	FTS_DELETE,
 	FTS_NOTHING,
 	FTS_INVALID
-} fts_row_state;
+};
 
 /** The FTS table types. */
-enum fts_table_type_enum {
+enum fts_table_type_t {
 	FTS_INDEX_TABLE,		/*!< FTS auxiliary table that is
 					specific to a particular FTS index
 					on a table */
@@ -132,21 +132,11 @@ enum fts_table_type_enum {
 					for all FTS index on a table */
 };
 
-typedef struct fts_struct fts_t;
-typedef struct fts_doc_struct fts_doc_t;
-typedef struct fts_trx_struct fts_trx_t;
-typedef struct fts_table_struct fts_table_t;
-typedef struct fts_cache_struct fts_cache_t;
-typedef struct fts_token_struct fts_token_t;
-typedef struct fts_string_struct fts_string_t;
-typedef	struct fts_result_struct fts_result_t;
-typedef struct fts_ranking_struct fts_ranking_t;
-typedef struct fts_trx_row_struct fts_trx_row_t;
-typedef struct fts_doc_ids_struct fts_doc_ids_t;
-typedef enum fts_table_type_enum fts_table_type_t;
-typedef struct fts_trx_table_struct fts_trx_table_t;
-typedef	struct fts_savepoint_struct fts_savepoint_t;
-typedef struct fts_index_cache_struct fts_index_cache_t;
+struct fts_doc_t;
+struct fts_cache_t;
+struct fts_token_t;
+struct fts_doc_ids_t;
+struct fts_index_cache_t;
 
 
 /** Initialize the "fts_table" for internal query into FTS auxiliary
@@ -172,7 +162,7 @@ do {								\
 
 /** Information about changes in a single transaction affecting
 the FTS system. */
-struct fts_trx_struct {
+struct fts_trx_t {
 	trx_t*		trx;		/*!< InnoDB transaction */
 
 	ib_vector_t*	savepoints;	/*!< Active savepoints, must have at
@@ -184,7 +174,7 @@ struct fts_trx_struct {
 };
 
 /** Information required for transaction savepoint handling. */
-struct fts_savepoint_struct {
+struct fts_savepoint_t {
 	char*		name;		/*!< First entry is always NULL, the
 					default instance. Otherwise the name
 					of the savepoint */
@@ -193,7 +183,7 @@ struct fts_savepoint_struct {
 };
 
 /** Information about changed rows in a transaction for a single table. */
-struct fts_trx_table_struct {
+struct fts_trx_table_t {
 	dict_table_t*	table;		/*!< table */
 
 	fts_trx_t*	fts_trx;	/*!< link to parent */
@@ -209,7 +199,7 @@ struct fts_trx_table_struct {
 };
 
 /** Information about one changed row in a transaction. */
-struct fts_trx_row_struct {
+struct fts_trx_row_t {
 	doc_id_t	doc_id;		/*!< Id of the ins/upd/del document */
 
 	fts_row_state	state;		/*!< state of the row */
@@ -220,7 +210,7 @@ struct fts_trx_row_struct {
 /** List of document ids that were added during a transaction. This
 list is passed on to a background 'Add' thread and OPTIMIZE, so it
 needs its own memory heap. */
-struct fts_doc_ids_struct {
+struct fts_doc_ids_t {
 	ib_vector_t*	doc_ids;	/*!< document ids (each element is
 					of type doc_id_t). */
 
@@ -237,7 +227,7 @@ as our in-memory format. This typedef is a single such character. */
 typedef unsigned short ib_uc_t;
 
 /** An UTF-16 ro UTF-8 string. */
-struct fts_string_struct {
+struct fts_string_t {
 	byte*		f_str;		/*!< string, not necessary terminated in
 					any way */
 	ulint		f_len;		/*!< Length of the string in bytes */
@@ -245,7 +235,7 @@ struct fts_string_struct {
 };
 
 /** Query ranked doc ids. */
-struct fts_ranking_struct {
+struct fts_ranking_t {
 	doc_id_t	doc_id;		/*!< Document id */
 
 	fts_rank_t	rank;		/*!< Rank is between 0 .. 1 */
@@ -256,7 +246,7 @@ struct fts_ranking_struct {
 };
 
 /** Query result. */
-struct fts_result_struct {
+struct fts_result_t {
 	ib_rbt_node_t*	current;	/*!< Current element */
 
 	ib_rbt_t*	rankings_by_id;	/*!< RB tree of type fts_ranking_t
@@ -268,7 +258,7 @@ struct fts_result_struct {
 /** This is used to generate the FTS auxiliary table name, we need the
 table id and the index id to generate the column specific FTS auxiliary
 table name. */
-struct fts_table_struct {
+struct fts_table_t {
 	const char*	parent;		/*!< Parent table name, this is
 					required only for the database
 					name */
@@ -311,7 +301,7 @@ enum	fts_status {
 typedef	enum fts_status	fts_status_t;
 
 /** The state of the FTS sub system. */
-struct fts_struct {
+struct fts_t {
 					/*!< mutex protecting bg_threads* and
 					fts_add_wq. */
 	ib_mutex_t		bg_threads_mutex;
@@ -339,10 +329,10 @@ struct fts_struct {
 
 	ib_vector_t*	indexes;	/*!< Vector of FTS indexes, this is
 					mainly for caching purposes. */
-	mem_heap_t*	fts_heap;	/*!< heap for fts_struct allocation */
+	mem_heap_t*	fts_heap;	/*!< heap for fts_t allocation */
 };
 
-typedef struct fts_stopword_struct	fts_stopword_t;
+struct fts_stopword_t;
 
 /** status bits for fts_stopword_t status field. */
 #define STOPWORD_NOT_INIT               0x1

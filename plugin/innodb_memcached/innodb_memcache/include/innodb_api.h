@@ -255,7 +255,8 @@ innodb_reset_conn(
 						with a connection */
 	bool			has_lock,	/*!< in: has lock on
 						connection */
-	bool			commit);	/*!< in: commit or abort trx */
+	bool			commit,		/*!< in: commit or abort trx */
+	bool			has_binlog);	/*!< in: binlog enabled */
 
 /**********************************************************************//**
 This function verifies the table configuration information on an opened

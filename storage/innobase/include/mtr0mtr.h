@@ -364,15 +364,14 @@ mtr_memo_push(
 	void*	object,	/*!< in: object */
 	ulint	type);	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
 
-/* Type definition of a mini-transaction memo stack slot. */
-typedef	struct mtr_memo_slot_struct	mtr_memo_slot_t;
-struct mtr_memo_slot_struct{
+/** Mini-transaction memo stack slot. */
+struct mtr_memo_slot_t{
 	ulint	type;	/*!< type of the stored object (MTR_MEMO_S_LOCK, ...) */
 	void*	object;	/*!< pointer to the object */
 };
 
 /* Mini-transaction handle and buffer */
-struct mtr_struct{
+struct mtr_t{
 #ifdef UNIV_DEBUG
 	ulint		state;	/*!< MTR_ACTIVE, MTR_COMMITTING, MTR_COMMITTED */
 #endif

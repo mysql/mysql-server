@@ -30,17 +30,14 @@ Created 6/9/1994 Heikki Tuuri
 #include "os0file.h"
 #include "ut0lst.h"
 
-/** Memory area header */
-typedef struct mem_area_struct	mem_area_t;
 /** Memory pool */
-typedef struct mem_pool_struct	mem_pool_t;
+struct mem_pool_t;
 
 /** The common memory pool */
 extern mem_pool_t*	mem_comm_pool;
 
 /** Memory area header */
-
-struct mem_area_struct{
+struct mem_area_t{
 	ulint		size_and_free;	/*!< memory area size is obtained by
 					anding with ~MEM_AREA_FREE; area in
 					a free list if ANDing with
@@ -50,7 +47,7 @@ struct mem_area_struct{
 };
 
 /** Each memory area takes this many extra bytes for control information */
-#define MEM_AREA_EXTRA_SIZE	(ut_calc_align(sizeof(struct mem_area_struct),\
+#define MEM_AREA_EXTRA_SIZE	(ut_calc_align(sizeof(struct mem_area_t),\
 			UNIV_MEM_ALIGNMENT))
 
 /********************************************************************//**

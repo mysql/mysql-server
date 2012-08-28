@@ -94,7 +94,8 @@ SHOW CREATE TABLE t1;
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces ORDER BY name;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles

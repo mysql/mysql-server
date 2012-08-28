@@ -79,25 +79,21 @@ do {								\
 } while (0)
 
 /** A row of INFORMATION_SCHEMA.innodb_locks */
-typedef struct i_s_locks_row_struct	i_s_locks_row_t;
-/** A row of INFORMATION_SCHEMA.innodb_trx */
-typedef struct i_s_trx_row_struct i_s_trx_row_t;
-/** A row of INFORMATION_SCHEMA.innodb_lock_waits */
-typedef struct i_s_lock_waits_row_struct i_s_lock_waits_row_t;
+struct i_s_locks_row_t;
 
 /** Objects of trx_i_s_cache_t::locks_hash */
-typedef struct i_s_hash_chain_struct	i_s_hash_chain_t;
+struct i_s_hash_chain_t;
 
 /** Objects of this type are added to the hash table
 trx_i_s_cache_t::locks_hash */
-struct i_s_hash_chain_struct {
+struct i_s_hash_chain_t {
 	i_s_locks_row_t*	value;	/*!< row of
 					INFORMATION_SCHEMA.innodb_locks*/
 	i_s_hash_chain_t*	next;	/*!< next item in the hash chain */
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_locks row */
-struct i_s_locks_row_struct {
+struct i_s_locks_row_t {
 	trx_id_t	lock_trx_id;	/*!< transaction identifier */
 	const char*	lock_mode;	/*!< lock mode from
 					lock_get_mode_str() */
@@ -128,16 +124,16 @@ struct i_s_locks_row_struct {
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_trx row */
-struct i_s_trx_row_struct {
+struct i_s_trx_row_t {
 	trx_id_t		trx_id;		/*!< transaction identifier */
 	const char*		trx_state;	/*!< transaction state from
 						trx_get_que_state_str() */
-	ib_time_t		trx_started;	/*!< trx_struct::start_time */
+	ib_time_t		trx_started;	/*!< trx_t::start_time */
 	const i_s_locks_row_t*	requested_lock_row;
 					/*!< pointer to a row
 					in innodb_locks if trx
 					is waiting, or NULL */
-	ib_time_t	trx_wait_started; /*!< trx_struct::wait_started */
+	ib_time_t	trx_wait_started; /*!< trx_t::wait_started */
 	ullint		trx_weight;	/*!< TRX_WEIGHT() */
 	ulint		trx_mysql_thread_id; /*!< thd_get_thread_id() */
 	const char*	trx_query;	/*!< MySQL statement being
@@ -145,36 +141,34 @@ struct i_s_trx_row_struct {
 	struct charset_info_st*	trx_query_cs;
 					/*!< charset encode the MySQL
 					statement */
-	const char*	trx_operation_state; /*!< trx_struct::op_info */
+	const char*	trx_operation_state; /*!< trx_t::op_info */
 	ulint		trx_tables_in_use;/*!< n_mysql_tables_in_use in
-					 trx_struct */
+					 trx_t */
 	ulint		trx_tables_locked;
 					/*!< mysql_n_tables_locked in
-					trx_struct */
+					trx_t */
 	ulint		trx_lock_structs;/*!< list len of trx_locks in
-					trx_struct */
+					trx_t */
 	ulint		trx_lock_memory_bytes;
 					/*!< mem_heap_get_size(
 					trx->lock_heap) */
 	ulint		trx_rows_locked;/*!< lock_number_of_rows_locked() */
-	ullint		trx_rows_modified;/*!< trx_struct::undo_no */
+	ullint		trx_rows_modified;/*!< trx_t::undo_no */
 	ulint		trx_concurrency_tickets;
 					/*!< n_tickets_to_enter_innodb in
-					trx_struct */
+					trx_t */
 	const char*	trx_isolation_level;
-					/*!< isolation_level in trx_struct*/
+					/*!< isolation_level in trx_t */
 	ibool		trx_unique_checks;
-					/*!< check_unique_secondary in
-					trx_struct*/
+					/*!< check_unique_secondary in trx_t*/
 	ibool		trx_foreign_key_checks;
-					/*!< check_foreigns in trx_struct */
+					/*!< check_foreigns in trx_t */
 	const char*	trx_foreign_key_error;
-					/*!< detailed_error in trx_struct */
+					/*!< detailed_error in trx_t */
 	ibool		trx_has_search_latch;
-					/*!< has_search_latch in trx_struct */
+					/*!< has_search_latch in trx_t */
 	ulint		trx_search_latch_timeout;
-					/*!< search_latch_timeout in
-					trx_struct */
+					/*!< search_latch_timeout in trx_t */
 	ulint		trx_is_read_only;
 					/*!< trx_t::read_only */
 	ulint		trx_is_autocommit_non_locking;
@@ -183,13 +177,13 @@ struct i_s_trx_row_struct {
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
-struct i_s_lock_waits_row_struct {
+struct i_s_lock_waits_row_t {
 	const i_s_locks_row_t*	requested_lock_row;	/*!< requested lock */
 	const i_s_locks_row_t*	blocking_lock_row;	/*!< blocking lock */
 };
 
 /** Cache of INFORMATION_SCHEMA table data */
-typedef struct trx_i_s_cache_struct	trx_i_s_cache_t;
+struct trx_i_s_cache_t;
 
 /** Auxiliary enum used by functions that need to select one of the
 INFORMATION_SCHEMA tables */
