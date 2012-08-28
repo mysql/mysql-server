@@ -5873,7 +5873,7 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
     field->table->max_keys++;
   }
   /* Don't create keys longer than REF access can use. */
-  if (entry->used_fields.bits_set() <= MAX_REF_PARTS)
+  if (entry->used_fields.bits_set() < MAX_REF_PARTS)
   {
     field->part_of_key.set_bit(key - 1);
     field->flags|= PART_KEY_FLAG;
