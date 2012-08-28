@@ -198,7 +198,8 @@ innodb_api_begin(
 			}
 
 			/* Create a "Fake" THD if binlog is enabled */
-			if (conn_data && engine->enable_binlog) {
+			if (conn_data && (engine->enable_binlog
+					  || engine->enable_mdl)) {
 				if (!conn_data->thd) {
 					conn_data->thd = handler_create_thd(
 						engine->enable_binlog);
@@ -970,12 +971,14 @@ innodb_api_insert(
 	/* Set expiration time */
 	SET_EXP_TIME(exp);
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
 
 	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
 				 key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
-				 cursor_data->mysql_tbl);
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_insert_row(cursor_data->crsr, tpl);
@@ -1039,12 +1042,14 @@ innodb_api_update(
 		handler_store_record(cursor_data->mysql_tbl);
 	}
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
 
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
-				 cursor_data->mysql_tbl);
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -1202,11 +1207,14 @@ innodb_api_link(
 		exp += time;
 	}
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
+
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
 				 new_cas, exp, flags, column_used,
-				 cursor_data->mysql_tbl);
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -1243,7 +1251,8 @@ innodb_api_arithmetic(
 	int			delta,	/*!< in: value to add or subtract */
 	bool			increment, /*!< in: increment or decrement */
 	uint64_t*		cas,	/*!< out: cas */
-	rel_time_t		exp_time, /*!< in: expire time */
+	rel_time_t		exp_time __attribute__((unused)),
+					/*!< in: expire time */
 	bool			create,	/*!< in: whether to create new entry
 					if not found */
 	uint64_t		initial,/*!< in: initialize value */
@@ -1357,7 +1366,8 @@ create_new_value:
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
@@ -1366,7 +1376,9 @@ create_new_value:
 				 *cas,
 				 result.col_value[MCI_COL_EXP].value_int,
 				 result.col_value[MCI_COL_FLAG].value_int,
-				 column_used, cursor_data->mysql_tbl);
+				 column_used,
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err != DB_SUCCESS) {
 		ib_cb_tuple_delete(new_tpl);
@@ -1559,7 +1571,8 @@ innodb_reset_conn(
 						with a connection */
 	bool			has_lock,	/*!< in: has lock on
 						connection */
-	bool			commit)		/*!< in: commit or abort trx */
+	bool			commit,		/*!< in: commit or abort trx */
+	bool			has_binlog)	/*!< in: binlog enabled */
 {
 	bool	commit_trx = false;
 
@@ -1606,14 +1619,16 @@ innodb_reset_conn(
 			ib_cb_cursor_commit_trx(
 				ib_crsr, conn_data->crsr_trx);
 
-			if (conn_data->thd && conn_data->mysql_tbl) {
+			if (has_binlog && conn_data->thd
+			    && conn_data->mysql_tbl) {
 				handler_binlog_commit(conn_data->thd,
 						      conn_data->mysql_tbl);
 			}
 		} else {
 			ib_cb_trx_rollback(conn_data->crsr_trx);
 
-			if (conn_data->thd && conn_data->mysql_tbl) {
+			if (has_binlog && conn_data->thd
+			    && conn_data->mysql_tbl) {
 				handler_binlog_rollback(conn_data->thd,
 							conn_data->mysql_tbl);
 			}
@@ -1685,7 +1700,8 @@ innodb_api_cursor_reset(
 	    || conn_data->n_writes_since_commit >= engine->write_batch_size
 	    || (op_type == CONN_OP_FLUSH) || !commit) {
 		commit_trx = innodb_reset_conn(
-			conn_data, op_type == CONN_OP_FLUSH, commit);
+			conn_data, op_type == CONN_OP_FLUSH, commit,
+			engine->enable_binlog);
 	}
 
 	if (!commit_trx) {
