@@ -179,7 +179,7 @@ eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should
 
 --let $yes_tx_before= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
 
-let $i=50;
+let $i=10;
 --let $acks_to_wait= 0
 echo [ insert records to table ];
 disable_query_log;
@@ -278,7 +278,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 
 # Semi-sync status on master is now OFF, so all these transactions
 # will be replicated asynchronously.
-let $i=50;
+let $i=10;
 disable_query_log;
 while ($i)
 {
