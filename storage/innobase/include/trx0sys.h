@@ -600,7 +600,7 @@ identifier is added to this 64-bit constant. */
 
 #ifndef UNIV_HOTBACKUP
 /** The transaction system central memory data structure. */
-struct trx_sys_struct{
+struct trx_sys_t{
 
 	ib_mutex_t		mutex;		/*!< mutex protecting most fields in
 					this structure except when noted

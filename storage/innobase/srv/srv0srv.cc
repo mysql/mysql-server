@@ -295,7 +295,7 @@ UNIV_INTERN ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 UNIV_INTERN srv_stats_t	srv_stats;
 
 /* structure to pass status variables to MySQL */
-UNIV_INTERN export_struc export_vars;
+UNIV_INTERN export_var_t export_vars;
 
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
@@ -540,23 +540,19 @@ suspending the master thread and utility threads when they have nothing
 to do.  The thread table can be seen as an analogue to the process table
 in a traditional Unix implementation. */
 
-/** The server system */
-typedef struct srv_sys_struct	srv_sys_t;
-
 /** The server system struct */
-struct srv_sys_struct{
-	ib_mutex_t		tasks_mutex;		/*!< variable protecting the
+struct srv_sys_t{
+	ib_mutex_t	tasks_mutex;		/*!< variable protecting the
 						tasks queue */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;			/*!< task queue */
 
-	ib_mutex_t		mutex;			/*!< variable protecting the
-
+	ib_mutex_t	mutex;			/*!< variable protecting the
 						fields below. */
 	ulint		n_sys_threads;		/*!< size of the sys_threads
 						array */
 
-	srv_table_t*	sys_threads;		/*!< server thread table */
+	srv_slot_t*	sys_threads;		/*!< server thread table */
 
 	ulint		n_threads_active[SRV_MASTER + 1];
 						/*!< number of threads active

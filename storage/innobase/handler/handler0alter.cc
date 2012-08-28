@@ -1355,7 +1355,7 @@ innobase_create_index_field_def(
 						if a new clustered index is
 						not being created */
 	const KEY_PART_INFO*	key_part,	/*!< in: MySQL key definition */
-	merge_index_field_t*	index_field)	/*!< out: index field
+	index_field_t*		index_field)	/*!< out: index field
 						definition for key_part */
 {
 	const Field*	field;
@@ -1406,7 +1406,7 @@ innobase_create_index_def(
 						on the table */
 	bool			key_clustered,	/*!< in: true if this is
 						the new clustered index */
-	merge_index_def_t*	index,		/*!< out: index definition */
+	index_def_t*		index,		/*!< out: index definition */
 	mem_heap_t*		heap)		/*!< in: heap where memory
 						is allocated */
 {
@@ -1419,7 +1419,7 @@ innobase_create_index_def(
 	DBUG_ENTER("innobase_create_index_def");
 	DBUG_ASSERT(!key_clustered || new_clustered);
 
-	index->fields = static_cast<merge_index_field_t*>(
+	index->fields = static_cast<index_field_t*>(
 		mem_heap_alloc(heap, n_fields * sizeof *index->fields));
 
 	index->ind_type = 0;
@@ -1678,7 +1678,7 @@ ENDIF
 
 @return	key definitions */
 static __attribute__((nonnull, warn_unused_result, malloc))
-merge_index_def_t*
+index_def_t*
 innobase_create_key_defs(
 /*=====================*/
 	mem_heap_t*			heap,
@@ -1703,8 +1703,8 @@ innobase_create_key_defs(
 			/*!< in: whether we need to add new DOC ID
 			index for FTS index */
 {
-	merge_index_def_t*	indexdef;
-	merge_index_def_t*	indexdefs;
+	index_def_t*		indexdef;
+	index_def_t*		indexdefs;
 	bool			new_primary;
 	const uint*const	add
 		= ha_alter_info->index_add_buffer;
@@ -1754,7 +1754,7 @@ innobase_create_key_defs(
 		|| innobase_need_rebuild(ha_alter_info);
 	/* Reserve one more space if new_primary is true, and we might
 	need to add the FTS_DOC_ID_INDEX */
-	indexdef = indexdefs = static_cast<merge_index_def_t*>(
+	indexdef = indexdefs = static_cast<index_def_t*>(
 		mem_heap_alloc(
 			heap, sizeof *indexdef
 			* (ha_alter_info->key_count
@@ -1769,7 +1769,7 @@ innobase_create_key_defs(
 			primary_key_number = *add;
 		} else if (got_default_clust) {
 			/* Create the GEN_CLUST_INDEX */
-			merge_index_def_t*	index = indexdef++;
+			index_def_t*	index = indexdef++;
 
 			index->fields = NULL;
 			index->n_fields = 0;
@@ -1855,9 +1855,9 @@ created_clustered:
 	DBUG_ASSERT(indexdefs + n_add == indexdef);
 
 	if (add_fts_doc_idx) {
-		merge_index_def_t*	index = indexdef++;
+		index_def_t*	index = indexdef++;
 
-		index->fields = static_cast<merge_index_field_t*>(
+		index->fields = static_cast<index_field_t*>(
 			mem_heap_alloc(heap, sizeof *index->fields));
 		index->n_fields = 1;
 		index->fields->col_no = fts_doc_id_col;
@@ -2467,7 +2467,7 @@ prepare_inplace_alter_table_dict(
 	dict_index_t**		add_index;	/* indexes to be created */
 	ulint*			add_key_nums;	/* MySQL key numbers */
 	ulint			n_add_index;
-	merge_index_def_t*	index_defs;	/* index definitions */
+	index_def_t*		index_defs;	/* index definitions */
 	dict_index_t*		fts_index	= NULL;
 	dict_table_t*		indexed_table	= user_table;
 	ulint			new_clustered	= 0;
@@ -2858,7 +2858,7 @@ prepare_inplace_alter_table_dict(
 	if (fts_index) {
 		/* Ensure that the dictionary operation mode will
 		not change while creating the auxiliary tables. */
-		enum trx_dict_op	op = trx_get_dict_operation(trx);
+		trx_dict_op_t	op = trx_get_dict_operation(trx);
 
 #ifdef UNIV_DEBUG
 		switch (op) {

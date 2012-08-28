@@ -151,10 +151,7 @@ UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
-typedef struct os_aio_slot_struct	os_aio_slot_t;
-
-/** The asynchronous i/o array slot structure */
-struct os_aio_slot_struct{
+struct os_aio_slot_t{
 	ibool		is_read;	/*!< TRUE if a read operation */
 	ulint		pos;		/*!< index of the slot in the aio
 					array */
@@ -190,10 +187,7 @@ struct os_aio_slot_struct{
 };
 
 /** The asynchronous i/o array structure */
-typedef struct os_aio_array_struct	os_aio_array_t;
-
-/** The asynchronous i/o array structure */
-struct os_aio_array_struct{
+struct os_aio_array_t{
 	os_ib_mutex_t	mutex;	/*!< the mutex protecting the aio array */
 	os_event_t	not_full;
 				/*!< The event which is set to the
@@ -3793,8 +3787,8 @@ os_aio_init(
 
 	os_aio_validate();
 
-	os_aio_segment_wait_events = static_cast<os_event_struct_t**>(
-		ut_malloc(n_segments * sizeof(void*)));
+	os_aio_segment_wait_events = static_cast<os_event_t*>(
+		ut_malloc(n_segments * sizeof *os_aio_segment_wait_events));
 
 	for (i = 0; i < n_segments; i++) {
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
@@ -4372,7 +4366,7 @@ os_aio_func(
 	ibool		retval;
 	BOOL		ret		= TRUE;
 	DWORD		len		= (DWORD) n;
-	struct fil_node_struct * dummy_mess1;
+	struct fil_node_t* dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
 #endif /* WIN_ASYNC_IO */

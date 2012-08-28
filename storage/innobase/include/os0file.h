@@ -44,7 +44,7 @@ Created 10/21/1995 Heikki Tuuri
 #endif
 
 /** File node of a tablespace or the log data space */
-typedef	struct fil_node_struct	fil_node_t;
+struct fil_node_t;
 
 extern ibool	os_has_said_disk_full;
 /** Flag: enable debug printout for asynchronous i/o */
@@ -102,7 +102,7 @@ log. */
 #define OS_FILE_LOG_BLOCK_SIZE		512
 
 /** Options for os_file_create_func @{ */
-typedef enum os_file_create_enum {
+enum os_file_create_t {
 	OS_FILE_OPEN = 51,		/*!< to open an existing file (if
 					doesn't exist, error) */
 	OS_FILE_CREATE,			/*!< to create new file (if
@@ -122,7 +122,7 @@ typedef enum os_file_create_enum {
 					the log unless it is a fatal error,
 					this flag is only used if
 					ON_ERROR_NO_EXIT is set */
-} os_file_create_t;
+};
 
 #define OS_FILE_READ_ONLY		333
 #define	OS_FILE_READ_WRITE		444
@@ -345,13 +345,12 @@ to original un-instrumented file I/O APIs */
 
 /* File types for directory entry data type */
 
-enum os_file_type_enum{
+enum os_file_type_t {
 	OS_FILE_TYPE_UNKNOWN = 0,
 	OS_FILE_TYPE_FILE,			/* regular file */
 	OS_FILE_TYPE_DIR,			/* directory */
 	OS_FILE_TYPE_LINK			/* symbolic link */
 };
-typedef enum os_file_type_enum	  os_file_type_t;
 
 /* Maximum path string length in bytes when referring to tables with in the
 './databasename/tablename.ibd' path format; we can allocate at least 2 buffers
