@@ -152,7 +152,9 @@ object_type	object_schema	object_name	count_star
 TABLE	test	t1	0
 TABLE	test	t2	0
 TABLE	test	t3	0
-"================== con1 connected =================="
+select concat(current_user(), " is connected") as status;
+status
+user1@localhost is connected
 "================== Step 2 =================="
 call dump_thread();
 username	event_name	count_star
@@ -301,7 +303,9 @@ object_type	object_schema	object_name	count_star
 TABLE	test	t1	10
 TABLE	test	t2	0
 TABLE	test	t3	14
-"================== con2 connected =================="
+select concat(current_user(), " is connected") as status;
+status
+user2@localhost is connected
 "================== Step 4 =================="
 call dump_thread();
 username	event_name	count_star
@@ -467,7 +471,9 @@ object_type	object_schema	object_name	count_star
 TABLE	test	t1	10
 TABLE	test	t2	0
 TABLE	test	t3	14
-"================== con3 connected =================="
+select concat(current_user(), " is connected") as status;
+status
+user3@localhost is connected
 "================== Step 6 =================="
 call dump_thread();
 username	event_name	count_star
@@ -650,7 +656,9 @@ object_type	object_schema	object_name	count_star
 TABLE	test	t1	20
 TABLE	test	t2	0
 TABLE	test	t3	28
-"================== con4 connected =================="
+select concat(current_user(), " is connected") as status;
+status
+user4@localhost is connected
 "================== Step 8 =================="
 call dump_thread();
 username	event_name	count_star
