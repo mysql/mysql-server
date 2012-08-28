@@ -151,7 +151,7 @@ trx_rseg_get_n_undo_tablespaces(
 #define TRX_RSEG_MAX_N_TRXS	(TRX_RSEG_N_SLOTS / 2)
 
 /* The rollback segment memory object */
-struct trx_rseg_struct{
+struct trx_rseg_t{
 	/*--------------------------------------------------------*/
 	ulint		id;	/*!< rollback segment id == the index of
 				its slot in the trx system file copy */
@@ -192,12 +192,10 @@ struct trx_rseg_struct{
 };
 
 /** For prioritising the rollback segments for purge. */
-struct rseg_queue_struct {
+struct rseg_queue_t {
         trx_id_t	trx_no;         /*!< trx_rseg_t::last_trx_no */
         trx_rseg_t*     rseg;           /*!< Rollback segment */
 };
-
-typedef struct rseg_queue_struct rseg_queue_t;
 
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/

@@ -29,7 +29,7 @@ Created 2007/03/16/03 Sunny Bains
 #include "mem0mem.h"
 
 /* The type of AST Node */
-enum fts_ast_type_enum {
+enum fts_ast_type_t {
 	FTS_AST_OPER,				/*!< Operator */
 	FTS_AST_NUMB,				/*!< Number */
 	FTS_AST_TERM,				/*!< Term (or word) */
@@ -39,7 +39,7 @@ enum fts_ast_type_enum {
 };
 
 /* The FTS query operators that we support */
-enum fts_ast_oper_enum {
+enum fts_ast_oper_t {
 	FTS_NONE,				/*!< No operator */
 
 	FTS_IGNORE,				/*!< Ignore rows that contain
@@ -66,17 +66,10 @@ enum fts_ast_oper_enum {
 						fts_ast_visit() */
 };
 
-/* Enum types used by the FTS parser */
-typedef enum fts_ast_type_enum fts_ast_type_t;
-typedef enum fts_ast_oper_enum fts_ast_oper_t;
-
 /* Data types used by the FTS parser */
-typedef struct fts_lexer_struct fts_lexer_t;
-typedef struct fts_ast_text_struct fts_ast_text_t;
-typedef struct fts_ast_term_struct fts_ast_term_t;
-typedef struct fts_ast_node_struct fts_ast_node_t;
-typedef struct fts_ast_list_struct fts_ast_list_t;
-typedef struct fts_ast_state_struct fts_ast_state_t;
+struct fts_lexer_t;
+struct fts_ast_node_t;
+struct fts_ast_state_t;
 
 typedef ulint (*fts_ast_callback)(fts_ast_oper_t, fts_ast_node_t*, void*);
 
@@ -235,26 +228,26 @@ fts_lexer_free(
 	__attribute__((nonnull));
 
 /* Query term type */
-struct fts_ast_term_struct {
+struct fts_ast_term_t {
 	byte*		ptr;			/*!< Pointer to term string.*/
 	ibool		wildcard;		/*!< TRUE if wild card set.*/
 };
 
 /* Query text type */
-struct fts_ast_text_struct {
+struct fts_ast_text_t {
 	byte*		ptr;			/*!< Pointer to term string.*/
 	ulint		distance;		/*!< > 0 if proximity distance
 						set */
 };
 
 /* The list of nodes in an expr list */
-struct fts_ast_list_struct {
+struct fts_ast_list_t {
 	fts_ast_node_t*	head;			/*!< Children list head */
 	fts_ast_node_t*	tail;			/*!< Children list tail */
 };
 
 /* FTS AST node to store the term, text, operator and sub-expressions.*/
-struct fts_ast_node_struct {
+struct fts_ast_node_t {
 	fts_ast_type_t	type;			/*!< The type of node */
 	fts_ast_text_t	text;			/*!< Text node */
 	fts_ast_term_t	term;			/*!< Term node */
@@ -267,7 +260,7 @@ struct fts_ast_node_struct {
 };
 
 /* To track state during parsing */
-struct fts_ast_state_struct {
+struct fts_ast_state_t {
 	mem_heap_t*	heap;			/*!< Heap to use for alloc */
 	fts_ast_node_t*	root;			/*!< If all goes OK, then this
 						will point to the root.*/
