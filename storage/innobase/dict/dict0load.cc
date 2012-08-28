@@ -1094,8 +1094,8 @@ loop:
 
 			/* filepath can be NULL in this call. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, true, space_id,
-				dict_tf_to_fsp_flags(flags),
+				false, srv_read_only_mode ? false : true,
+				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
 			if (err != DB_SUCCESS) {

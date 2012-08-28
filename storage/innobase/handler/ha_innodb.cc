@@ -3352,7 +3352,9 @@ innobase_flush_logs(
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	log_buffer_flush_to_disk();
+	if (!srv_read_only_mode) {
+		log_buffer_flush_to_disk();
+	}
 
 	DBUG_RETURN(result);
 }
