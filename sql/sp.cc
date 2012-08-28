@@ -1429,6 +1429,7 @@ public:
                         MYSQL_ERROR ** cond_hdl)
   {
     if (sql_errno == ER_NO_SUCH_TABLE ||
+        sql_errno == ER_NO_SUCH_TABLE_IN_ENGINE ||
         sql_errno == ER_CANNOT_LOAD_FROM_TABLE ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE ||
         sql_errno == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED)

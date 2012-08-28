@@ -70,7 +70,7 @@ No_such_table_error_handler::handle_condition(THD *,
                                               MYSQL_ERROR ** cond_hdl)
 {
   *cond_hdl= NULL;
-  if (sql_errno == ER_NO_SUCH_TABLE)
+  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_NO_SUCH_TABLE_IN_ENGINE)
   {
     m_handled_errors++;
     return TRUE;
@@ -144,7 +144,9 @@ Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  MYSQL_ERROR ** cond_hdl)
 {
   *cond_hdl= NULL;
-  if (sql_errno == ER_NO_SUCH_TABLE || sql_errno == ER_WRONG_MRG_TABLE)
+  if (sql_errno == ER_NO_SUCH_TABLE ||
+      sql_errno == ER_NO_SUCH_TABLE_IN_ENGINE ||
+      sql_errno == ER_WRONG_MRG_TABLE)
   {
     m_handled_errors= true;
     return TRUE;
@@ -717,7 +719,9 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
 
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
-  if (share || (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE))
+  if (share ||
+      (thd->is_error() && thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE_IN_ENGINE))
     DBUG_RETURN(share);
 
   *error= 0;

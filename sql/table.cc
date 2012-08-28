@@ -4393,7 +4393,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
   There are currently two mechanisms at work that handle errors for views,
   this one and a more general mechanism based on an Internal_error_handler,
   see Show_create_error_handler. The latter handles errors encountered during
-  execution of SHOW CREATE VIEW, while the machanism using this method is
+  execution of SHOW CREATE VIEW, while the mechanism using this method is
   handles SELECT from views. The two methods should not clash.
 
   @param[in,out]  thd     thread handler

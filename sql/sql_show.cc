@@ -660,6 +660,7 @@ public:
       break;
 
     case ER_NO_SUCH_TABLE:
+    case ER_NO_SUCH_TABLE_IN_ENGINE:
       /* Established behavior: warn if underlying tables are missing. */
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
                           ER_VIEW_INVALID,

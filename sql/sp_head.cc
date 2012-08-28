@@ -3032,6 +3032,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   if (!res || !thd->is_error() ||
       (thd->stmt_da->sql_errno() != ER_CANT_REOPEN_TABLE &&
        thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->stmt_da->sql_errno() != ER_NO_SUCH_TABLE_IN_ENGINE &&
        thd->stmt_da->sql_errno() != ER_UPDATE_TABLE_USED))
     thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 

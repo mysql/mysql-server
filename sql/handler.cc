@@ -3009,7 +3009,7 @@ void handler::print_error(int error, myf errflag)
     textno=ER_TABLE_DEF_CHANGED;
     break;
   case HA_ERR_NO_SUCH_TABLE:
-    my_error(ER_NO_SUCH_TABLE, errflag, table_share->db.str,
+    my_error(ER_NO_SUCH_TABLE_IN_ENGINE, errflag, table_share->db.str,
              table_share->table_name.str);
     DBUG_VOID_RETURN;
   case HA_ERR_RBR_LOGGING_FAILED:

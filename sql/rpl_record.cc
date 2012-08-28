@@ -314,7 +314,7 @@ unpack_row(Relay_log_info const *rli,
         if (!pack_ptr)
         {
           rli->report(ERROR_LEVEL, ER_SLAVE_CORRUPT_EVENT,
-                      "Could not read field %`s of table %`s.%`s",
+                      "Could not read field '%s' of table '%s.%s'",
                       f->field_name, table->s->db.str,
                       table->s->table_name.str);
           DBUG_RETURN(ER_SLAVE_CORRUPT_EVENT);
