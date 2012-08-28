@@ -40,7 +40,7 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 // Forward declaration
-struct trx_struct;
+struct trx_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -64,12 +64,8 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 
 #define	FIL_ADDR_SIZE	6	/* address size is 6 bytes */
 
-/** A struct for storing a space address FIL_ADDR, when it is used
-in C program data structures. */
-
-typedef struct fil_addr_struct	fil_addr_t;
 /** File space address */
-struct fil_addr_struct{
+struct fil_addr_t{
 	ulint	page;		/*!< page number within a space */
 	ulint	boffset;	/*!< byte offset within the page */
 };
@@ -434,8 +430,8 @@ UNIV_INTERN
 dberr_t
 fil_close_tablespace(
 /*=================*/
-	trx_struct*	trx,	/*!< in/out: Transaction covering the close */
-	ulint		id);	/*!< in: space id */
+	trx_t*	trx,	/*!< in/out: Transaction covering the close */
+	ulint	id);	/*!< in: space id */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
@@ -937,7 +933,7 @@ fil_get_space_id_for_table(
 	const char*	name);	/*!< in: table name in the standard
 				'databasename/tablename' format */
 
-typedef	struct fil_space_struct	fil_space_t;
+struct fil_space_t;
 
 #endif /* !UNIV_INNOCHECKSUM */
 

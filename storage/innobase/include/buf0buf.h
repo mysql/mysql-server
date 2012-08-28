@@ -100,7 +100,7 @@ extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
 #define BUF_NO_CHECKSUM_MAGIC 0xDEADBEEFUL
 
 /** @brief States of a control block
-@see buf_page_struct
+@see buf_page_t
 
 The enumeration values must be 0..7. */
 enum buf_page_state {
@@ -130,7 +130,7 @@ enum buf_page_state {
 
 /** This structure defines information we will fetch from each buffer pool. It
 will be used to print table IO stats */
-struct buf_pool_info_struct{
+struct buf_pool_info_t{
 	/* General buffer pool info */
 	ulint	pool_unique_id;		/*!< Buffer Pool ID */
 	ulint	pool_size;		/*!< Buffer Pool size in pages */
@@ -200,8 +200,6 @@ struct buf_pool_info_struct{
 					pages decompressed in current
 					interval */
 };
-
-typedef struct buf_pool_info_struct	buf_pool_info_t;
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
@@ -1404,10 +1402,10 @@ for compressed and uncompressed frames */
 /** Number of bits used for buffer page states. */
 #define BUF_PAGE_STATE_BITS	3
 
-struct buf_page_struct{
+struct buf_page_t{
 	/** @name General fields
 	None of these bit-fields must be modified without holding
-	buf_page_get_mutex() [buf_block_struct::mutex or
+	buf_page_get_mutex() [buf_block_t::mutex or
 	buf_pool->zip_mutex], since they can be stored in the same
 	machine word.  Some of these fields are additionally protected
 	by buf_pool->mutex. */
@@ -1538,7 +1536,7 @@ struct buf_page_struct{
 	/* @} */
 	/** @name LRU replacement algorithm fields
 	These fields are protected by buf_pool->mutex only (not
-	buf_pool->zip_mutex or buf_block_struct::mutex). */
+	buf_pool->zip_mutex or buf_block_t::mutex). */
 	/* @{ */
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
@@ -1567,14 +1565,14 @@ struct buf_page_struct{
 					/*!< this is set to TRUE when
 					fsp frees a page in buffer pool;
 					protected by buf_pool->zip_mutex
-					or buf_block_struct::mutex. */
+					or buf_block_t::mutex. */
 # endif /* UNIV_DEBUG_FILE_ACCESSES || UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 };
 
 /** The buffer control block structure */
 
-struct buf_block_struct{
+struct buf_block_t{
 
 	/** @name General fields */
 	/* @{ */
@@ -1657,8 +1655,8 @@ struct buf_block_struct{
 	/** @name Hash search fields
 	These 5 fields may only be modified when we have
 	an x-latch on btr_search_latch AND
-	- we are holding an s-latch or x-latch on buf_block_struct::lock or
-	- we know that buf_block_struct::buf_fix_count == 0.
+	- we are holding an s-latch or x-latch on buf_block_t::lock or
+	- we know that buf_block_t::buf_fix_count == 0.
 
 	An exception to this is when we init or create a page
 	in the buffer pool in buf0buf.cc.
@@ -1717,7 +1715,7 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 /* @} */
 
 /** @brief The buffer pool statistics structure. */
-struct buf_pool_stat_struct{
+struct buf_pool_stat_t{
 	ulint	n_page_gets;	/*!< number of page gets performed;
 				also successful searches through
 				the adaptive hash index are
@@ -1744,7 +1742,7 @@ struct buf_pool_stat_struct{
 };
 
 /** Statistics of buddy blocks of a given size. */
-struct buf_buddy_stat_struct {
+struct buf_buddy_stat_t {
 	/** Number of blocks allocated from the buddy system. */
 	ulint		used;
 	/** Number of blocks relocated by the buddy system. */
@@ -1758,7 +1756,7 @@ struct buf_buddy_stat_struct {
 NOTE! The definition appears here only for other modules of this
 directory (buf) to see it. Do not use from outside! */
 
-struct buf_pool_struct{
+struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */

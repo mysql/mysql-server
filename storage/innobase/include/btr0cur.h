@@ -707,8 +707,7 @@ limit, merging it to a neighbor is tried */
 /** A slot in the path array. We store here info on a search path down the
 tree. Each slot contains data on a single level of the tree. */
 
-typedef struct btr_path_struct	btr_path_t;
-struct btr_path_struct{
+struct btr_path_t{
 	ulint	nth_rec;	/*!< index of the record
 				where the page cursor stopped on
 				this level (index in alphabetical
@@ -745,7 +744,7 @@ enum btr_cur_method {
 
 /** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
-struct btr_cur_struct {
+struct btr_cur_t {
 	dict_index_t*	index;		/*!< index where positioned */
 	page_cur_t	page_cur;	/*!< page cursor */
 	purge_node_t*	purge_node;	/*!< purge node, for BTR_DELETE */

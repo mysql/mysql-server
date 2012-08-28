@@ -29,8 +29,8 @@ Created 4/6/2006 Osku Salerma
 #include "univ.i"
 #include "mem0mem.h"
 
-typedef struct ib_alloc_struct ib_alloc_t;
-typedef struct ib_vector_struct ib_vector_t;
+struct ib_alloc_t;
+struct ib_vector_t;
 
 typedef void* (*ib_mem_alloc_t)(
 					/* out: Pointer to allocated memory */
@@ -64,7 +64,7 @@ freeing it when done with the vector.
 
 /********************************************************************
 Create a new vector with the given initial size. */
-
+UNIV_INTERN
 ib_vector_t*
 ib_vector_create(
 /*=============*/
@@ -124,7 +124,7 @@ ib_vector_size(
 
 /********************************************************************
 Increase the size of the vector. */
-
+UNIV_INTERN
 void
 ib_vector_resize(
 /*=============*/
@@ -311,7 +311,7 @@ ib_ut_allocator_free(
 	ib_alloc_t*	ib_ut_alloc);	/* in: alloc instace to free */
 
 /* Allocator used by ib_vector_t. */
-struct ib_alloc_struct {
+struct ib_alloc_t {
 	ib_mem_alloc_t	mem_malloc;	/* For allocating memory */
 	ib_mem_free_t	mem_release;	/* For freeing memory */
 	ib_mem_resize_t	mem_resize;	/* For resizing memory */
@@ -320,7 +320,7 @@ struct ib_alloc_struct {
 };
 
 /* See comment at beginning of file. */
-struct ib_vector_struct {
+struct ib_vector_t {
 	ib_alloc_t*	allocator;	/* Allocator, because one size
 					doesn't fit all */
 	void*		data;		/* data elements */
