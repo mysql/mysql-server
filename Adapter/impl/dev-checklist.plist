@@ -7,7 +7,7 @@
 	<key>Wrap or reimplement CharsetMap</key>
 	<false/>
 	<key>Implement ndb/DBDcitionary</key>
-	<false/>
+	<true/>
 	<key>waf: --mysql-source=/path for building with 7.1/7.2</key>
 	<false/>
 	<key>Support gyp alongside waf</key>
@@ -15,8 +15,6 @@
 	<key>implement mysql/DBDictionary</key>
 	<false/>
 	<key>Mapped NdbError object</key>
-	<false/>
-	<key>Split main ndb binary into several top level objects</key>
 	<false/>
 	<key>Unified C/JS Debug framework</key>
 	<dict>
@@ -27,6 +25,8 @@
 		<key>Support in waf</key>
 		<true/>
 		<key>Flush &amp; close debug file descriptor</key>
+		<false/>
+		<key>Flush-on-write option</key>
 		<false/>
 		<key>Support 3 levels: info, debug, &amp; detail</key>
 		<true/>

@@ -38,7 +38,8 @@ OperationStates = [
   "DEFINED",             // opcode, table, and required keys/values are present
   "PLANNED",             // access path has been chosen
   "NO_INDEX",            // no index access path is available for this operation
-  "CANCELLED",           // transaction was rolled back before operation started   
+  "CANCELLED",           // transaction was rolled back before operation started
+  "PREPARED",            // local preparation of the operation is complete
   "EXECUTING",           // operation has been sent to database
   "COMPLETED"            // operation is complete and result is available
 ];   

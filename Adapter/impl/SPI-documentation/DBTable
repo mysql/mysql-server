@@ -1,40 +1,3 @@
-/* DBDictionary 
-   Data Dictionary API.
-
-   METHODS:
-     listTables()
-     getTable()
-     registerTypeConverter()
-   OBJECT DEFINITIONS:
-     DBTable 
-     DBColumn
-     DBIndex
-     ColumnType 
-*/
-
-
-/* listTables(databaseName, callback(error, array))
-   ASYNC
-   List all tables in the schema   
-*/
-  listTables(databaseName, callback);
-
-    
-/* getTable(databaseName, tableName, callback(error, DBTable));
-   ASYNC
-   Fetch metadata for a table
-*/
-  getTable(databaseName, tableName, callback);
-
-
-/* registerTypeConverter(ColumnType typeName, Converter converterClass) 
-   IMMEDIATE
-
-   Declare that converterClass should be used for data type conversions
-   for type typeName
-*/
-   registerTypeConverter(typeName, converterClass);
-
 
 
 /* DBTable Object represents a table.
@@ -76,6 +39,16 @@ DBColumn = {
   charsetNumber    : 0     ,  //  internal number of charset
   charsetName      : ""    ,  //  name of charset
 };
+
+
+/* Method on DBColumn
+   Converter getConverter() 
+   IMMEDIATE
+   Return converter for column. 
+   This will either be the dictionary's default Converter class for the column,
+   or the type converter that has been registered with the DBConnectionPool.
+*/
+  getConverter();
 
 
 /* DBIndex represents a table index.  

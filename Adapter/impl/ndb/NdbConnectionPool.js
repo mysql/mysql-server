@@ -18,11 +18,20 @@
  02110-1301  USA
  */
 
+"use strict";
+
+/* jslint --node --white --vars --plusplus */
+/*global udebug, exports */
+
+
 var common = require("../build/Release/common/common_library.node"),
     adapter = require("../build/Release/ndb/ndb_adapter.node"),
     ndbsession = require("./NdbSession.js"),
-    ndbtablehandler = require("./NdbTableHandler.js");
-var ndb_is_initialized = false;
+    ndbtablehandler = require("./NdbTableHandler.js"),
+    assert = require("assert");
+    
+var ndb_is_initialized = false,
+    proto;
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
@@ -32,21 +41,41 @@ function initialize_ndb() {
   }
 }
 
-/* Constructor 
-*/
+
+/* Load-Time Function Asserts */
+
+assert(typeof adapter.ndbapi.Ndb_cluster_connection === 'function');
+assert(typeof adapter.impl.DBSession.create === 'function');
+assert(typeof adapter.impl.DBDictionary.listTables === 'function');
+assert(typeof adapter.impl.DBDictionary.getTable === 'function');
+
+
+/* DBConnectionPool constructor.
+   IMMEDIATE.
+   Does not perform any IO. 
+   Throws an exception if the Properties object is invalid.
+*/   
 exports.DBConnectionPool = function(props) {
-  "use strict";
   udebug.log("DBConnectionPool constructor");
+
+  initialize_ndb();
   
   this.properties = props;
-  this.ndbconn = null;
-  this.is_connected = false;
-  
-  initialize_ndb();
-
   this.ndbconn = new adapter.ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
   this.ndbconn.set_name("nodejs");
 };
+
+/* DBConnectionPool prototype 
+*/
+proto = {
+  properties           : null,
+  ndbconn              : null,
+  is_connected         : false,
+  dict_sess            : null,
+  dictionary           : null
+};
+
+exports.DBConnectionPool.prototype = proto;
 
 
 /* Blocking connect.  
@@ -54,100 +83,145 @@ exports.DBConnectionPool = function(props) {
    Returns true on success and false on error.
    FIXME:  NEEDS wait_until_ready() and node_id()
 */
-exports.DBConnectionPool.prototype.connectSync = function() {
-  var r = this.ndbconn.connectSync(this.properties.ndb_connect_retries,
-                                   this.properties.ndb_connect_delay,
-                                   this.properties.ndb_connect_verbose);
-  if(r == 0) is_connected = true;
-
-  return is_connected;
+proto.connectSync = function() {
+  var r;
+  throw new Error("connectSync() is not implemented"); 
+  r = this.ndbconn.connectSync(this.properties.ndb_connect_retries,
+                               this.properties.ndb_connect_delay,
+                               this.properties.ndb_connect_verbose);
+  if(r === 0) {
+    this.is_connected = true;
+  }
+ 
+  return this.is_connected;
 };
 
 
 /* Async connect 
 */
-exports.DBConnectionPool.prototype.connect = function(user_callback) {
-  "use strict";
-  var self = this;
-  var ndbconn = this.ndbconn;
-  var err = null;
-  var ready_cb;
-  
-    ndbconn.connectAsync(self.properties.ndb_connect_retries,
-                         self.properties.ndb_connect_delay,
-                         self.properties.ndb_connect_verbose,
-                         function(err, rval) {
-    udebug.log("connect() connectAsync internal callback/rval=" + rval);
-    if(rval == 0) {
-      assert(typeof ndbconn.wait_until_ready === 'function');
-      ready_cb = function(err, nnodes) {
-        udebug.log("connect() wait_until_ready internal callback/nnodes=" + nnodes);
-        if(nnodes < 0) {
-          // FIXME: what should be the type of err? a string? an error object?
-          err = "Timeout waiting for cluster to become ready."
-        }
-        else {
-          self.is_connected = true;
-          if(nnodes > 0) {
-            // FIXME: How to log a console warning?
-            console.log("Warning: only " + nnodes + " data nodes are running.");
-          }
-          console.log("Connected to cluster as node id: " + ndbconn.node_id());
-         }
-         user_callback(err, self);
+proto.connect = function(user_callback) {
+  var self = this,
+      err = null;
+
+  function onGotDictionarySession(cb_err, dsess) {
+    // Got the dictionary.  Next step is the user's callback.
+    if(cb_err) {
+      user_callback(cb_err, null);
+    }
+    else {
+      self.dict_sess = dsess;
+      self.dictionary = self.dict_sess.impl;
+      user_callback(null, self);
+    }
+  }
+
+  function onReady(cb_err, nnodes) {
+    // Cluster is ready.  Next step is to get the dictionary session
+    udebug.log("connect() wait_until_ready internal callback/nnodes=" + nnodes);
+    if(nnodes < 0) {
+      err = new Error("Timeout waiting for cluster to become ready.");
+      user_callback(err, self);
+    }
+    else {
+      self.is_connected = true;
+      if(nnodes > 0) {             // FIXME: How to log a console warning?
+        console.log("Warning: only " + nnodes + " data nodes are running.");
       }
-      ndbconn.wait_until_ready(1, 1, ready_cb);
+      console.log("Connected to cluster as node id: " + self.ndbconn.node_id());
+     }
+     self.getDBSession(0, onGotDictionarySession);
+  }
+  
+  function onConnected(cb_err, rval) {
+    // Connected to NDB.  Next step is wait_until_ready().
+    udebug.log("connect() connectAsync internal callback/rval=" + rval);
+    if(rval === 0) {
+      assert(typeof self.ndbconn.wait_until_ready === 'function');
+      self.ndbconn.wait_until_ready(1, 1, onReady);
     }
     else {
       err = new Error('NDB Connect failed ' + rval);       
       user_callback(err, self);
     }
-  });
-}
+  }
+  
+  // Fist step is to connect to the cluster
+  self.ndbconn.connectAsync(self.properties.ndb_connect_retries,
+                            self.properties.ndb_connect_delay,
+                            self.properties.ndb_connect_verbose,
+                            onConnected);
+};
 
 
 /* DBConnection.isConnected() method.
    IMMEDIATE.
    Returns bool true/false
  */
-exports.DBConnectionPool.prototype.isConnected = function() {
-  return is_connected;
+proto.isConnected = function() {
+  return this.is_connected;
 };
 
 
-exports.DBConnectionPool.prototype.closeSync = function() {
+/* closeSync()
+   SYNCHRONOUS.
+*/
+proto.closeSync = function() {
+  // FIXME Delete NDB objects
   this.ndbconn.delete();
-}
+};
 
 
 /* getDBSession().
    ASYNC.
    Creates and opens a new DBSession.
    Users's callback receives (error, DBSession)
-
-   TODO: Figure out opening of Session and SessionImpl ... 
 */
-exports.DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
-  var db = this.properties.database;
-  assert(this.ndbconn);
-  assert(user_callback)
+proto.getDBSession = function(index, user_callback) {
   udebug.log("NDB getDBSession");
+  assert(this.ndbconn);
+  assert(user_callback);
+  var db   = this.properties.database,
+      self = this;
 
-  var private_callback = function(err, sess) {
+  function private_callback(err, sessImpl) {
+    var user_session;
+    
     udebug.log("NDB getDBSession private_callback");
-    udebug.log("Impl: " + sess);
+    udebug.log("Impl: " + sessImpl);
 
-    user_session = new ndbsession.DBSession();
-    user_session.impl = sess;
-    user_callback(err, user_session);
+    if(err) {
+      user_callback(err, null);
+    }
+    else {  
+      user_session = ndbsession.getDBSession(self, sessImpl);
+      user_callback(null, user_session);
+    }
+  }
+
+  adapter.impl.DBSession.create(this.ndbconn, db, private_callback);
 };
 
-  var sessionImpl = adapter.impl.DBSession.create(this.ndbconn, db, private_callback);
-}
+
+/** List all tables in the schema
+  * ASYNC
+  * 
+  * listTables(databaseName, callback(error, array));
+  */
+proto.listTables = function(databaseName, user_callback) {
+  udebug.log("DBDictionary listTables");
+  assert(databaseName && user_callback);
+  adapter.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
+};
 
 
-exports.DBConnectionPool.prototype.createDBTableHandler = function(dbtable) {
-  
-  
+/** Fetch metadata for a table
+  * ASYNC
+  * 
+  * getTable(databaseName, tableName, callback(error, DBTable));
+  */
+proto.getTable = function(dbname, tabname, user_callback) {
+  udebug.log("DBDictionary getTable");
+  assert(dbname && tabname && user_callback);
+  adapter.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
+};
 
-}

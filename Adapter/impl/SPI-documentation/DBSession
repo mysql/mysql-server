@@ -1,23 +1,22 @@
 /* DBSession
    Represents a single user's session (e.g., a single HTTP request).
    METHODS:
-      getDataDictinary()
+      getConnectionPool()
       read(table, keys)
       insert(table, row)
       update(table, keys, row)
       write(table, row)
       delete(table, keys)
       openTransaction()
+      setLockMode()
+      close()
 */
 
-
-/*  DBDictionary getDataDictionary(); 
+/*  getConnectionPool() 
     IMMEDIATE
-    Get data dictionary.
-    
-    RETURNS the DBDictionary object associated with the parent DBConnectionPool.
+    RETURNS the DBConnectionPool from which this DBSession was created.
 */
-  getDataDictionary();
+  getConnectionPool()
 
 
 /*  DBOperation read(DBTableHandler table, Object ResolvedKeys)
@@ -29,7 +28,7 @@
   read(tableHandler, keys);
 
 
-/* DBOperation insert(DBTableHandler table, Array row)
+/* DBOperation insert(DBTableHandler table, Object row)
    IMMEDIATE
    Define an operation which when executed will insert a row
  
@@ -38,7 +37,7 @@
   insert(tableHandler, row);
 
 
-/* DBOperation update(DBTableHandler table, Array key, Array row)
+/* DBOperation update(DBTableHandler table, Object key, Object row)
    IMMEDIATE
    Define an operation which when executed will update a row
   
@@ -47,7 +46,7 @@
   update(tableHandler, keys, row);
 
 
-/* DBOperation write(DBTableHandler table, Array key, Array row)
+/* DBOperation write(DBTableHandler table, Object key, Object row)
    IMMEDIATE
    Define an operation which when executed will update or insert
  
@@ -56,7 +55,7 @@
   write(tableHandler, keys, row);
 
 
-/* DBOperation delete(DBTableHandler table, Array primaryKey)
+/* DBOperation delete(DBTableHandler table, Object primaryKey)
    IMMEDIATE 
    Define an operation which when executed will delete a row
  
@@ -67,11 +66,6 @@
 
 /* DBTransactionHandler openTransaction()
    IMMEDIATE
-
-   This is a deffered operation. 
-   An actual transaction begins with a "BEGIN WORK" SQL statement (mysql)
-   or an Ndb::startTransaction() call (NDBAPI); those calls are deferred 
-   until execute time.  
 
    RETURNS a DBTransactionHandler
 */

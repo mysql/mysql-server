@@ -13,6 +13,7 @@
 
 
 DBTransactionHandler = { 
+  session        :  {}   ,   // DBSession object holding this transaction
   success        : true  ,   // boolean indicating whether the transaction succeeded
   state          :  ""   ,   // a TransactionStatusCode
   operations     :  []   ,   // ordered array of DBOperation objects
@@ -28,7 +29,7 @@ DBTransactionHandler = {
    Executes all of the DBOperations that have been added to the 
    transaction's list -- see DBTransactionHandler.addOperation().
 */
-  execute(int execmode, callback);
+  execute(execmode, callback);
 
 
 /* setPartitionKey(TableHandler Table, Array partitionKey)
