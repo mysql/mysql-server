@@ -8050,6 +8050,15 @@ remove_const(JOIN *join,ORDER *first_order, Item *cond,
       trace_one_item.add("duplicate_item", true);
       continue;
     }
+    else if (order->in_field_list && order->item[0]->has_subquery())
+      /*
+        If the order item is a subquery that is also in the field
+        list, a temp table should be used to avoid evaluating the
+        subquery for each row both when a) creating a sort index and
+        b) getting the value.
+          Example: "SELECT (SELECT ... ) as a ... GROUP BY a;"
+       */
+      *simple_order= false;
     else
     {
       if (order_tables & (RAND_TABLE_BIT | OUTER_REF_TABLE_BIT))
