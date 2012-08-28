@@ -48,7 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0fts.h"
 
 /* Forward declaration. */
-typedef struct ib_rbt_struct ib_rbt_t;
+struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -378,7 +378,7 @@ dict_mem_referenced_table_name_lookup_set(
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
 /** Data structure for a column in a table */
-struct dict_col_struct{
+struct dict_col_t{
 	/*----------------------*/
 	/** The following are copied from dtype_t,
 	so that all bit-fields can be packed tightly. */
@@ -454,7 +454,7 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 #define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
-struct dict_field_struct{
+struct dict_field_t{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
@@ -524,7 +524,7 @@ struct zip_pad_info_t {
 
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
-struct dict_index_struct{
+struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
 	const char*	name;	/*!< index name */
@@ -622,7 +622,7 @@ struct dict_index_struct{
 #endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
-/** Value of dict_index_struct::magic_n */
+/** Value of dict_index_t::magic_n */
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
 };
@@ -650,7 +650,7 @@ enum online_index_status {
 /** Data structure for a foreign key constraint; an example:
 FOREIGN KEY (A, B) REFERENCES TABLE2 (C, D).  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_foreign_create(). */
-struct dict_foreign_struct{
+struct dict_foreign_t{
 	mem_heap_t*	heap;		/*!< this object is allocated from
 					this memory heap */
 	char*		id;		/*!< id of the constraint as a
@@ -703,7 +703,7 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
-struct dict_table_struct{
+struct dict_table_t{
 	table_id_t	id;	/*!< id of the table */
 	mem_heap_t*	heap;	/*!< memory heap */
 	char*		name;	/*!< table name */
@@ -959,7 +959,7 @@ struct dict_table_struct{
 
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
-/** Value of dict_table_struct::magic_n */
+/** Value of dict_table_t::magic_n */
 # define DICT_TABLE_MAGIC_N	76333786
 #endif /* UNIV_DEBUG */
 };

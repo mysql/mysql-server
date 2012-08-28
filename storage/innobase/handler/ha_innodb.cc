@@ -16170,7 +16170,7 @@ innobase_undo_logs_init_default_max()
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-typedef struct innobase_convert_name_test_struct {
+struct innobase_convert_name_test_t {
 	char*		buf;
 	ulint		buflen;
 	const char*	id;
@@ -16179,7 +16179,7 @@ typedef struct innobase_convert_name_test_struct {
 	ibool		file_id;
 
 	const char*	expected;
-} innobase_convert_name_test_t;
+};
 
 void
 test_innobase_convert_name()

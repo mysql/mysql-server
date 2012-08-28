@@ -59,9 +59,6 @@ UNIV_INTERN ulong	fts_min_token_size;
 ib_time_t elapsed_time = 0;
 ulint n_nodes = 0;
 
-typedef struct fts_schema_struct fts_schema_t;
-typedef struct fts_sys_table_struct fts_sys_table_t;
-
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
@@ -138,7 +135,7 @@ const char *fts_default_stopword[] =
 };
 
 /** For storing table info when checking for orphaned tables. */
-struct fts_sys_table_struct {
+struct fts_sys_table_t {
 	table_id_t	id;		/*!< Table id */
 	table_id_t	parent_id;	/*!< Parent table id */
 	table_id_t	index_id;	/*!< Table FT index id */

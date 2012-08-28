@@ -352,7 +352,7 @@ page_delete_rec(
 
 /** Index page cursor */
 
-struct page_cur_struct{
+struct page_cur_t{
 	byte*		rec;	/*!< pointer to a record on page */
 	buf_block_t*	block;	/*!< pointer to the block containing rec */
 };
