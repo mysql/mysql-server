@@ -480,6 +480,7 @@ void lex_start(THD *thd)
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
+  lex->is_change_password= false;
   DBUG_VOID_RETURN;
 }
 

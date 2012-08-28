@@ -27,8 +27,8 @@ Created 5/7/1996 Heikki Tuuri
 #define lock0types_h
 
 #define lock_t ib_lock_t
-typedef struct lock_struct	lock_t;
-typedef struct lock_sys_struct	lock_sys_t;
+struct lock_t;
+struct lock_sys_t;
 
 /* Basic lock modes */
 enum lock_mode {

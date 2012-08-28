@@ -3309,7 +3309,7 @@ row_merge_create_index(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
 	dict_table_t*		table,	/*!< in: the index is on this table */
-	const merge_index_def_t*index_def)
+	const index_def_t*	index_def)
 					/*!< in: the index definition */
 {
 	dict_index_t*	index;
@@ -3329,7 +3329,7 @@ row_merge_create_index(
 	ut_a(index);
 
 	for (i = 0; i < n_fields; i++) {
-		merge_index_field_t*	ifield = &index_def->fields[i];
+		index_field_t*	ifield = &index_def->fields[i];
 
 		dict_mem_index_add_field(
 			index, dict_table_get_col_name(table, ifield->col_no),

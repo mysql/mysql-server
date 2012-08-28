@@ -137,7 +137,7 @@ UNIV_INTERN mysql_pfs_key_t	fil_space_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 /** File node of a tablespace or the log data space */
-struct fil_node_struct {
+struct fil_node_t {
 	fil_space_t*	space;	/*!< backpointer to the space where this node
 				belongs */
 	char*		name;	/*!< path to the file */
@@ -171,11 +171,11 @@ struct fil_node_struct {
 	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
 };
 
-/** Value of fil_node_struct::magic_n */
+/** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
 /** Tablespace or log data space: let us call them by a common name space */
-struct fil_space_struct {
+struct fil_space_t {
 	char*		name;	/*!< space name = the path to the first file in
 				it */
 	ulint		id;	/*!< space id */
@@ -244,17 +244,13 @@ struct fil_space_struct {
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
-/** Value of fil_space_struct::magic_n */
+/** Value of fil_space_t::magic_n */
 #define	FIL_SPACE_MAGIC_N	89472
-
-/** The tablespace memory cache */
-typedef	struct fil_system_struct	fil_system_t;
 
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
 the ib_logfiles form a 'space' and it is handled here */
-
-struct fil_system_struct {
+struct fil_system_t {
 #ifndef UNIV_HOTBACKUP
 	ib_mutex_t		mutex;		/*!< The mutex protecting the cache */
 #endif /* !UNIV_HOTBACKUP */
