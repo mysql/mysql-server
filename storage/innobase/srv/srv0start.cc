@@ -2405,7 +2405,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
 		/* Can only happen if force recovery is set. */
-		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
+		ut_a(srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO
+		     || srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
