@@ -269,29 +269,31 @@ EXPLAIN
       "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
       "attached_subqueries": [
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": false,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "5",
             "rows": 1,
-            "attached_condition": "((`test`.`t1`.`i` = `materialized-subquery`.`i`))"
-          } /* table */,
-          "query_block": {
-            "select_id": 3,
-            "ordering_operation": {
-              "using_filesort": false,
-              "table": {
-                "table_name": "t4",
-                "access_type": "system",
-                "rows": 0,
-                "filtered": 0,
-                "const_row_not_found": true
-              } /* table */
-            } /* ordering_operation */
-          } /* query_block */
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 3,
+                "ordering_operation": {
+                  "using_filesort": false,
+                  "table": {
+                    "table_name": "t4",
+                    "access_type": "system",
+                    "rows": 0,
+                    "filtered": 0,
+                    "const_row_not_found": true
+                  } /* table */
+                } /* ordering_operation */
+              } /* query_block */
+            } /* materialized_from_subquery */
+          } /* table */
         },
         {
           "dependent": true,
@@ -818,7 +820,6 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery3>",
-          "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
@@ -827,6 +828,7 @@ EXPLAIN
           ] /* ref */,
           "rows": 1,
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
@@ -1022,7 +1024,6 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery2>",
-          "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
@@ -1031,6 +1032,7 @@ EXPLAIN
           ] /* ref */,
           "rows": 1,
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
@@ -1065,7 +1067,6 @@ EXPLAIN
       {
         "table": {
           "table_name": "<subquery3>",
-          "using_temporary_table": true,
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
@@ -1074,6 +1075,7 @@ EXPLAIN
           ] /* ref */,
           "rows": 1,
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
