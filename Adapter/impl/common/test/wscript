@@ -2,4 +2,8 @@ def build(bld):
   mapr = bld.new_task_gen('cxx', 'shlib', 'node_addon')
   mapr.target = 'mapper'
   mapr.source = 'c-api.cc api-mapper.cc'
+  
+  outermapper = bld.new_task_gen('cxx', 'shlib', 'node_addon')
+  outermapper.target = 'outermapper'
+  outermapper.source = 'outer-mapper.cc'
 

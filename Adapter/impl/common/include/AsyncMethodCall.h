@@ -76,7 +76,7 @@ class AsyncMethodCall {
     }
 
     /* Destructor */
-    ~AsyncMethodCall() {
+    virtual ~AsyncMethodCall() {
       callback.Dispose();
     }
 
@@ -110,7 +110,7 @@ public:
     AsyncMethodCall(callback), error(0), return_val(0) {}
 
   /* Destructor */
-  ~AsyncCall_Returning<RETURN_TYPE>() {
+  virtual ~AsyncCall_Returning<RETURN_TYPE>() {
     if(error) delete error;
   }
 

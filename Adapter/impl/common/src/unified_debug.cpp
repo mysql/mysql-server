@@ -26,8 +26,15 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define COMPILING_UNIFIED_DEBUG 1
+#include "adapter_global.h"
+
+/* Undefine UNIFIED_DEBUG here so macros are not expanded 
+   and uni_debug is not declared as an extern
+*/
+int uni_debug;
+#undef UNIFIED_DEBUG
 #include "unified_debug.h"
+
 
 /* These static variables are initialized to zero */
 int udeb_mode;    // initially UDEB_ALL, i.e. zero

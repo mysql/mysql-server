@@ -84,9 +84,11 @@ template <typename PTR>
 PTR unwrapPointer(Local<Object> obj) {
   PTR ptr;
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
-  Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
   ptr = static_cast<PTR>(obj->GetPointerFromInternalField(1));
+#ifdef UNIFIED_DEBUG
+  Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
   DEBUG_PRINT_DETAIL("Unwrapping %s: %p", env->classname, ptr);
+#endif
   return ptr;
 }
 
@@ -101,6 +103,7 @@ public:
   const char * message;
 
   NativeCodeError(const char * msg) : message(msg) {}
+  virtual ~NativeCodeError() {}
   
   virtual Local<Value> toJS() {
     HandleScope scope;

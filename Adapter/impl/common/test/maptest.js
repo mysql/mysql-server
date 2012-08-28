@@ -1,6 +1,7 @@
 console.log("line 1");
 var udebug = require("../../../api/unified_debug.js");
 var mapper = require("../../build/Release/common/test/mapper.node");
+var dmapper = require("../../build/Release/common/test/outermapper.node");
 
 udebug.on();
 udebug.all_files();
@@ -30,4 +31,6 @@ var d = c;
 console.dir(d);
 console.log("d area: %d", d.area());
 
+var x = dmapper.doubleminus(4);
+console.log("doubleminus 4: %d", x);
 

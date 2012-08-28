@@ -18,24 +18,10 @@
  02110-1301  USA
  */
 
-#include <v8.h>
 
-#include "adapter_global.h"
-#include "v8_binder.h"
-#include "js_wrapper_macros.h"
-#include "JsConverter.h"
+#ifndef ADAPTER_GLOBAL_H
+#define ADAPTER_GLOBAL_H
 
-using namespace v8;
+#define UNIFIED_DEBUG 1
 
-typedef void LOADER_FUNCTION(Handle<Object>);
-
-extern LOADER_FUNCTION dlopen_initOnLoad;
-extern LOADER_FUNCTION udebug_initOnLoad;
-
-
-void initCommon(Handle<Object> target) {
-  udebug_initOnLoad(target);
-}
-
-
-V8BINDER_LOADABLE_MODULE(common_library, initCommon)
+#endif 

@@ -20,9 +20,9 @@
 
 #include <stdio.h>
 
+#include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "v8_binder.h"
-
 #include "unified_debug.h"
 
 using namespace v8;
@@ -35,11 +35,13 @@ using namespace v8;
 
 Handle<Value> js_udeb_switch(const Arguments &args) {
   HandleScope scope;
-  
+
+#ifdef UNIFIED_DEBUG  
   REQUIRE_ARGS_LENGTH(1);
   
   int i = args[0]->ToInt32()->Value();
   udeb_switch(i);
+#endif
   
   return scope.Close(Null());
 }
@@ -48,6 +50,7 @@ Handle<Value> js_udeb_switch(const Arguments &args) {
 Handle<Value> js_udeb_print(const Arguments &args) {
   HandleScope scope;
   
+#ifdef UNIFIED_DEBUG  
   REQUIRE_ARGS_LENGTH(3);
 
   if(uni_dbg()) {
@@ -57,6 +60,7 @@ Handle<Value> js_udeb_print(const Arguments &args) {
     
     udeb_print(*source_file, level, *message);
   }
+#endif
   return scope.Close(Null());
 }
 
@@ -64,6 +68,7 @@ Handle<Value> js_udeb_print(const Arguments &args) {
 Handle<Value> js_udeb_select(const Arguments &args) {
   HandleScope scope;
   
+#ifdef UNIFIED_DEBUG  
   REQUIRE_ARGS_LENGTH(1);
 
   int i = args[0]->ToInt32()->Value();
@@ -77,7 +82,8 @@ Handle<Value> js_udeb_select(const Arguments &args) {
     default:
       break;
   }
-  
+
+#endif
   return scope.Close(Null());
 }
 
@@ -85,6 +91,7 @@ Handle<Value> js_udeb_select(const Arguments &args) {
 Handle<Value> js_udeb_add_drop(const Arguments &args) {
   HandleScope scope;
   
+#ifdef UNIFIED_DEBUG  
   REQUIRE_ARGS_LENGTH(2);
 
   String::AsciiValue source_file(args[0]);
@@ -92,6 +99,7 @@ Handle<Value> js_udeb_add_drop(const Arguments &args) {
 
   assert((i == 1) || (i == 2));
   udeb_select(*source_file, i);
+#endif
 
   return scope.Close(Null());
 }
@@ -100,18 +108,22 @@ Handle<Value> js_udeb_add_drop(const Arguments &args) {
 Handle<Value> js_udeb_destination(const Arguments &args) {
   HandleScope scope;
   
+#ifdef UNIFIED_DEBUG  
   REQUIRE_ARGS_LENGTH(1);
   String::AsciiValue log_file(args[0]);
   
   unified_debug_destination(*log_file);
+#endif
     
   return scope.Close(Null());
 }
 
 
 Handle<Value> js_udeb_close(const Arguments &args) {  
+#ifdef UNIFIED_DEBUG  
   REQUIRE_ARGS_LENGTH(0);  
   unified_debug_close();
+#endif
   return Null();
 }
 

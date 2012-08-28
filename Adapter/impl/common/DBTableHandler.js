@@ -25,7 +25,7 @@
 */
 
 /* jslint --node --white --vars --plusplus */
-/* global udebug, debug, module, exports */
+/*global udebug, debug, module, exports */
 
 "use strict";
 
@@ -48,6 +48,7 @@ TableMapping.prototype = {
 function FieldMapping(dbcolumn) {
   this.columnName = dbcolumn.name;
   this.columnNumber = dbcolumn.columnNumber;
+  this.converter = dbcolumn.getConverter();
 }
 
 FieldMapping.prototype = {
@@ -226,6 +227,41 @@ proto.chooseIndex = function(keys) {
   return null;
 };
 
-  
+/* Return the property of obj corresponding to fieldNumber */
+proto.get = function(obj, fieldNumber) { 
+  var f = this.mapping.fields[fieldNumber];
+  return obj[f.fieldName];
+};
+
+/* Set field to value */
+proto.set = function(obj, fieldNumber, value) {
+  var f = this.mapping.fields[fieldNumber];
+  obj[f.fieldName] = value;
+};
+
+/* Writes to buffer and returns length written */
+proto.writeFieldToBuffer = function(obj, fieldNumber, buffer, offset, length) {
+  var f = this.mapping.fields[fieldNumber];
+  return f.converter.writeToBuffer(obj[f.fieldName], buffer, offset, length);
+};
+
+/* Writes to string and returns length written */
+proto.writeFieldToString = function(obj, fieldNumber, string) {
+  var f = this.mapping.fields[fieldNumber];
+  return f.converter.writeToString(obj[f.fieldName], string);
+};
+
+/* Sets field in obj */
+proto.readBufferToField = function(obj, fieldNumber, buffer, offset, length) {
+  var f = this.mapping.fields[fieldNumber];
+  obj[f.fieldName] = f.converter.readFromBuffer(buffer, offset, length);
+};
+
+/* Sets field in obj */
+proto.readStringToField = function(obj, fieldNumber, string) {
+  var f = this.mapping.fields[fieldNumber];
+  obj[f.fieldName] = f.converter.readFromString(string);
+};
+
 
 exports.DBTableHandler.prototype = proto;
