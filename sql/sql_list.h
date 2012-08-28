@@ -585,6 +585,9 @@ public:
   inline void empty() { first= &last; last.prev= &first; }
   base_ilist() { empty(); }
   inline bool is_empty() {  return first == &last; }
+  // Returns true if p is the last "real" object in the list,
+  // i.e. p->next points to the sentinel.
+  inline bool is_last(ilink *p) { return p->next == NULL || p->next == &last; }
   inline void append(ilink *a)
   {
     first->prev= &a->next;
@@ -660,6 +663,7 @@ class I_List :private base_ilist
 {
 public:
   I_List() :base_ilist()	{}
+  inline bool is_last(T *p)     { return base_ilist::is_last(p); }
   inline void empty()		{ base_ilist::empty(); }
   inline bool is_empty()        { return base_ilist::is_empty(); } 
   inline void append(T* a)	{ base_ilist::append(a); }
