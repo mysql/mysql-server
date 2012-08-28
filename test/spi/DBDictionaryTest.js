@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+"use strict";
+
 /*global path, fs, assert,
          driver_dir, suites_dir, adapter_dir, build_dir,
          spi_module, api_module, udebug_module,
@@ -32,64 +34,55 @@ try {
 
 var spi = require(spi_module);
 
-var t1 = new harness.ConcurrentSubTest("getDataDictionary");
-var t2 = new harness.ConcurrentSubTest("listTables");
-var t3 = new harness.ConcurrentTest("getTable");
+var t1 = new harness.ConcurrentSubTest("listTables");
+var t2 = new harness.ConcurrentTest("getTable");
 
-t3.run = function() {  
+
+t2.run = function() {  
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
-      x_conn = null,
-      x_session = null,
-      connect_cb, test1_cb, test2_cb;
-    
-  this.teardown = function() {
-    // FIXME
-    // session.close() does not exist in the spi?
-    // if(x_session !== null) x_session.close(); 
+      conn = null,
+      session = null;
 
-    // WARNING -- "Deleting Ndb_cluster_connection with Ndb-object not deleted"
-    if(x_conn !== null) {
-      x_conn.closeSync();
+  function onTable(err, tab) {
+    udebug.log("DBDictionaryTest onTable");
+    // TODO: Test specific properties of the table object
+    if(tab && ! err) { t2.pass(); }
+    else             { t2.fail("getTable error"); }
+  }
+
+  function onList(err, table_list) {
+    udebug.log("DBDictionaryTest onList");
+    var count = 0;
+
+    function countTables(tableName) {
+      if (tableName === 'tbl1') {  count++;  }
+      if (tableName === 'tbl2') {  count++;  }
     }
-  };
+    table_list.forEach(countTables);
+    
+    udebug.log("DBDictionaryTest onList count = " + count);
 
-  connect_cb = function(err, connection) {
-    x_conn = connection; // for teardown
+    t1.errorIfNotEqual("Error return", err, undefined);
+    t1.errorIfNotEqual("Bad table count", count, 2);
+    t1.failOnError();
 
-    test1_cb = function(err, sess) {
-      x_session = sess;   // for teardown
-      var dict = sess.getDataDictionary();
-      if(typeof dict !== 'object') {
-        t1.fail(); t2.fail(); return;
-      }
-      t1.pass();     // succesfully got a DBDictionary object
+    session.getConnectionPool().getTable("test", "tbl2", onTable);
+  }
+
+  function onSession(err, sess) {
+    udebug.log("DBDictionaryTest onSession");
+    session = sess;   // for teardown
+    session.getConnectionPool().listTables("test", onList);
+  }
+    
+  function onConnect(err, connection) {
+    udebug.log("DBDictionaryTest onConnect");
+    conn = connection; // for teardown
+    conn.getDBSession(0, onSession);
+  }
   
-      test2_cb = function(error, table_list) {
-        t2.errorIfNotEqual("Error return", error, undefined);
-        var count = 0;
-        table_list.forEach(function(tableName) {
-          if (tableName == 'tbl1') ++count;
-          if (tableName == 'tbl2') ++count;
-        }
-          );
-        t2.errorIfNotEqual("Bad table count", count, 2);
-        t2.failOnError();
-        
-        dict.getTable("test","tbl2", function(err, tab) {
-          // TODO: Test specific properties of the table object
-          if(tab) t3.pass();
-          else t3.fail("getTable error");
-        });
-      };
-      dict.listTables("test", test2_cb);
+  provider.connect(properties, onConnect);
+};
 
-    };
-    // fixme:  what is the "index" argument supposed to do?
-    connection.getDBSession(0, test1_cb);
-  };
-
-  provider.connect(properties, connect_cb);
-}
-
-exports.tests = [ t1, t2, t3];
+exports.tests = [ t1, t2];

@@ -19,7 +19,8 @@
  */
 "use strict";
 var adapter = require("../build/Release/ndb/ndb_adapter.node"),
-    proto   = {};
+    assert = require("assert"),
+    proto;
 
 
 var OperationCodes = [

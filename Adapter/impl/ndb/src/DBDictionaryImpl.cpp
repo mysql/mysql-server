@@ -58,7 +58,6 @@ using namespace v8;
  *   The DBIndex objects for SECONDARY indexes wrap an NdbDictionary::Index,
  *    -- but DBIndex for PK does *not* wrap any native object!
 */
-Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 Envelope NdbDictTableEnv("NdbDictionary::Table");
 Envelope NdbDictColumnEnv("NdbDictionary::Column");
 Envelope NdbDictIndexEnv("NdbDictionary::Index");
@@ -67,35 +66,10 @@ Handle<Value> getColumnType(const NdbDictionary::Column *);
 Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
 
 
-struct DBDictImpl {
-  ndb_session *sess;
-};
-
-/*** NewDBDictionaryImpl implements DBDictionary.create()
-  ** Called from DBSession.getDataDictionary() 
-   **/
-Handle<Value> NewDBDictionaryImpl(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-  
-  PROHIBIT_CONSTRUCTOR_CALL();
-  REQUIRE_ARGS_LENGTH(1);
-
-  Local<Object> dict_obj = NdbDictionaryImplEnv.newWrapper();
- 
-  JsValueConverter<ndb_session *> arg0(args[0]);  
-  DBDictImpl *self = new DBDictImpl;
-  self->sess = arg0.toC();
-
-  wrapPointerInObject(self, NdbDictionaryImplEnv, dict_obj);
-  return dict_obj;
-}
-
-
 /*** DBDictionary.listTables()
   **
    **/
-class ListTablesCall : public NativeCFunctionCall_2_<int, DBDictImpl *, const char *> 
+class ListTablesCall : public NativeCFunctionCall_2_<int, ndb_session *, const char *> 
 {
 private:
   NdbDictionary::Dictionary::List list;
@@ -103,12 +77,12 @@ private:
 public:
   /* Constructor */
   ListTablesCall(const Arguments &args) : 
-    NativeCFunctionCall_2_<int, DBDictImpl *, const char *>(args), 
+    NativeCFunctionCall_2_<int, ndb_session *, const char *>(args), 
     list() {  }
   
   /* UV_WORKER_THREAD part of listTables */
   void run() {
-    NdbDictionary::Dictionary * dict = arg0->sess->dict;
+    NdbDictionary::Dictionary * dict = arg0->dict;
     return_val = dict->listObjects(list, NdbDictionary::Object::UserTable);
   }
 
@@ -123,7 +97,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
   
   DEBUG_PRINT("RETURN VAL: %d", return_val);
   if(return_val == -1) {
-    cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
+    cb_args[0] = String::New(arg0->dict->getNdbError().message);
     cb_args[1] = Null();
   }
   else {
@@ -174,7 +148,7 @@ Handle<Value> listTables(const Arguments &args) {
 /*** DBDictionary.getTable()
   **
    **/
-class GetTableCall : public NativeCFunctionCall_3_<int, DBDictImpl *, 
+class GetTableCall : public NativeCFunctionCall_3_<int, ndb_session *, 
                                                    const char *, const char *> 
 {
 private:
@@ -189,7 +163,7 @@ private:
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
-    NativeCFunctionCall_3_<int, DBDictImpl *, const char *, const char *>(args), 
+    NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(args), 
     ndb_table(0), indexes(0), n_index(0) {  }
   
   /* UV_WORKER_THREAD part of listTables */
@@ -201,7 +175,7 @@ public:
 
 
 void GetTableCall::run() {
-  NdbDictionary::Dictionary * dict = arg0->sess->dict;
+  NdbDictionary::Dictionary * dict = arg0->dict;
   NdbDictionary::Dictionary::List idx_list;
   
   // TODO: Set database name? 
@@ -270,7 +244,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     
   
     // Table Record (implementation artifact; not part of spec)
-    Record * rec = new Record(arg0->sess->dict, ndb_table->getNoOfColumns());
+    Record * rec = new Record(arg0->dict, ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
       rec->addColumn(ndb_table->getColumn(i));      
     }
@@ -282,7 +256,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     cb_args[1] = table;
   }
   else {
-    cb_args[0] = String::New(arg0->sess->dict->getNdbError().message);
+    cb_args[0] = String::New(arg0->dict->getNdbError().message);
   }
   
   callback->Call(ctx, 2, cb_args);
@@ -311,7 +285,7 @@ Handle<Object> GetTableCall::buildDBIndex_PK() {
      Build the "columns" array and the "record" object, then set both.
   */  
   int ncol = ndb_table->getNoOfPrimaryKeys();
-  Record * pk_record = new Record(arg0->sess->dict, ncol);
+  Record * pk_record = new Record(arg0->dict, ncol);
   Local<Array> idx_columns = Array::New(ncol);
   for(int i = 0 ; i < ncol ; i++) {
     const char * col_name = ndb_table->getPrimaryKey(i);
@@ -347,7 +321,7 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   */  
   int ncol = idx->getNoOfColumns();
   Local<Array> idx_columns = Array::New(ncol);
-  Record * idx_record = new Record(arg0->sess->dict, ncol);
+  Record * idx_record = new Record(arg0->dict, ncol);
   for(int i = 0 ; i < ncol ; i++) {    
     idx_columns->Set(i, v8::Int32::New(idx->getColumn(i)->getColumnNo()));
     idx_record->addColumn(ndb_table->getColumn(idx->getColumn(i)->getName()));
@@ -537,7 +511,6 @@ void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   Persistent<Object> dbdict_obj = Persistent<Object>(Object::New());
 
-  DEFINE_JS_FUNCTION(dbdict_obj, "create", NewDBDictionaryImpl);
   DEFINE_JS_FUNCTION(dbdict_obj, "listTables", listTables);
   DEFINE_JS_FUNCTION(dbdict_obj, "getTable", getTable);
 

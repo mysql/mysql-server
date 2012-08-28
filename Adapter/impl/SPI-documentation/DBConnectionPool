@@ -84,19 +84,33 @@ DBConnectionPool(Properties connectionProperties);
    getDBSession(function(error, DBSession) callback);
 
 
-/* DBConnectionPool.getDataDictionary() method.
-   ASYNC.
-   Opens a new DBDictionary object.  
-   May implicitly fetch or open a SessionHandler
+/* listTables(databaseName, callback(error, array))
+   ASYNC
+   List all tables in the schema   
 */
-   getDataDictionary(function(error, DBDictionary) callback);
+  listTables(databaseName, callback);
+
+    
+/* getTable(databaseName, tableName, callback(error, DBTable));
+   ASYNC
+   Fetch metadata for a table
+*/
+  getTable(databaseName, tableName, callback);
 
 
-/* DBConnectionPool.createDBTableHandler() 
+/* registerTypeConverter 
    IMMEDIATE
-   Create a DBTableHandler for a table.
-   A DBTableHandler is a persistent metadata object that combines table 
-   information from the data dictionary with user information about column 
-   selection, column name mapping, and data conversion. 
+   Register a converter for a SQL data type 
+ 
+   @param type is as defined in DBDictionary for the storage SPI
 */
-  createDBTableHandler(DBTable);
+  registerTypeConverter(string typeName, Converter c);
+
+
+/* registerCharsetConverter
+   IMMEDIATE
+   Register a converter to/from Javascript String for a SQL charset
+*/
+  registerCharsetConverter(String charsetName, Converter c);
+  
+}   

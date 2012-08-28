@@ -18,67 +18,80 @@
  02110-1301  USA
  */
 "use strict";
+
+/* jslint --node --white --vars --plusplus */
+/*global udebug, debug, module, exports */
+
 var adapter       = require("../build/Release/ndb/ndb_adapter.node"),
-    ndbdictionary = require("./NdbDictionary.js"),
     ndboperation  = require("./NdbOperation.js"),
     dbtxhandler   = require("./NdbTransactionHandler.js"),
     util          = require("util"),
-    proto = {};
+    assert        = require("assert"),
+    DBSession;
+
+/*** Methods exported by this module but not in the public DBSession SPI ***/
 
 
-
-/* Private Constructor
-Instances are actually constructed 
-   by NdbConnectionPool.getSessionHandler().
+/* getDBSession(sessionImpl) 
+   Called from NdbConnectionPool.js to create a DBSession object
 */
-exports.DBSession = function() { 
-  udebug.log("DBSession constructor");
-  this.tx = null;
+exports.getDBSession = function(pool, impl) {
+  udebug.log("ndbsession getDBSession(connectionPool, sessionImpl)");
+  var dbSess = new DBSession();
+  dbSess.parentPool = pool;
+  dbSess.impl = impl;
+  return dbSess;
 };
 
-/* Private method ndbsession.getNdb(DBSession) */
+
+/* getNdb(DBSession) 
+*/
 exports.getNdb = function(dbsession) {
   udebug.log("ndbsession getNdb(DBSession)");
-  udebug.log("Session: " + util.inspect(dbsession, true, 2, true));
-  var ndb = dbsession.impl.getNdb();
-  udebug.log("Ndb: " + util.inspect(ndb, true, 2, true));
+  return dbsession.impl.getNdb();
 };
 
 
-/** get data dictionary.
- *  IMMEDIATE
- *  Immediately returns a DBDictionary object.  The underlying 
- *  local data dictionary may be empty, or may contain cached entries from
- *  earlier calls.
- * 
- *  @return DBDictionary
- */
-proto.getDataDictionary = function() {
-  udebug.log("DBSession getDataDictionary");
-  var dict = new ndbdictionary.DBDictionary();
-  dict.session = this;
-  dict.impl = adapter.impl.DBDictionary.create(this.impl);
-  return dict;
+/* DBSession Simple Constructor
+*/
+DBSession = function() { 
+  udebug.log("DBSession constructor");
 };
 
-proto.openTransaction = function() {
+/* DBSession prototype 
+*/
+DBSession.prototype = {
+  impl           : null,
+  tx             : null,
+  parentPool     : null,
+};
+
+
+DBSession.prototype.getConnectionPool = function() {
+  return this.parentPool;
+}
+
+
+DBSession.prototype.openTransaction = function() {
   udebug.log("DBSession openTransaction");
   this.tx = new dbtxhandler.DBTransactionHandler(this);
   return this.tx;
 };
 
-proto.read = function(table, keys) {
+
+DBSession.prototype.read = function(table, keys) {
   udebug.log("DBSession read "+ table.name);
-  lockMode = "SHARED";
-  var op = ndboperation.getReadOperation(tx, table, keys, lockMode);
+  var lockMode = "SHARED";
+  var op = ndboperation.getReadOperation(this.tx, table, keys, lockMode);
   return op;
 };
 
-proto.insert = function(table, row) {
+
+DBSession.prototype.insert = function(table, row) {
   udebug.log("DBSession insert " + table.name);
 
   var op = ndboperation.getInsertOperation(this.tx, table, row);
   return op;
 };
 
-exports.DBSession.prototype = proto;
+
