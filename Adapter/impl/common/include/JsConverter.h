@@ -45,6 +45,9 @@ public:
     DEBUG_ASSERT(obj->InternalFieldCount() == 2);
     native_object = unwrapPointer<T>(obj);
   }
+
+  virtual ~JsValueConverter() {}
+
   virtual T toC() { 
     return native_object;
   }

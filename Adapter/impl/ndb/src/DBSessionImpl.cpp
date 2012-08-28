@@ -20,6 +20,7 @@
 
 #include <v8.h>
 
+#include "adapter_global.h"
 #include "DBSessionImpl.h"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"

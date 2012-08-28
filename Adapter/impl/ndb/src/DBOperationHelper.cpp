@@ -22,6 +22,7 @@
 
 #include "v8.h"
 
+#include "adapter_global.h"
 #include "Operation.h"
 #include "JsWrapper.h"
 #include "v8_binder.h"

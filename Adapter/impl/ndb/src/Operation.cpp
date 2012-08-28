@@ -22,6 +22,7 @@
 #include <NdbApi.hpp>
 #include <v8.h>
 
+#include "adapter_global.h"
 #include "Operation.h"
 
 Operation::Operation() : row_buffer(0), key_buffer(0),

@@ -22,6 +22,7 @@
 
 #include <v8.h>
 
+#include "adapter_global.h"
 #include "NdbApi.hpp"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"

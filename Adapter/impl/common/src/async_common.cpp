@@ -21,6 +21,7 @@
 #include <v8.h>
 #include "v8_binder.h"
 
+#include "adapter_global.h"
 #include "AsyncMethodCall.h"
 #include "async_common.h"
 #include "unified_debug.h"

@@ -22,8 +22,6 @@
 
 #include <assert.h>
 
-#define UNIFIED_DEBUG 1
-
 /* Unified debugging library for C++ and JavaScript. 
    JavaScript code can control debugging output. 
    C++ and JavaScript can both create messages.
@@ -90,12 +88,6 @@ void udeb_trace(const char *, int);
 void udeb_switch(int);
 int uni_dbg(void);
 
-#ifdef COMPILING_UNIFIED_DEBUG
-int uni_debug;
-#else
-extern int uni_debug;
-#endif 
-
 inline void unified_debug_on(void)                 { udeb_switch(1);           }
 inline void unified_debug_off(void)                { udeb_switch(0);           }
 inline void unified_debug_log_level(int i)         { udeb_switch(i);           }
@@ -113,6 +105,7 @@ END_FUNCTIONS_WITH_C_LINKAGE
    There is also a macro wrapper for the C++ marker.
 */   
 #ifdef UNIFIED_DEBUG
+extern int uni_debug;
 
 #define DEBUG_ENTER()    if(uni_debug) udeb_enter(UDEB_DEBUG, __FILE__, __func__, __LINE__)
 #define DEBUG_PRINT(...) if(uni_debug) udeb_print(__FILE__, UDEB_DEBUG, __VA_ARGS__)
@@ -120,21 +113,8 @@ END_FUNCTIONS_WITH_C_LINKAGE
 #define DEBUG_PRINT_INFO(...) if(uni_debug) udeb_print(__FILE__, UDEB_INFO, __VA_ARGS__)
 #define DEBUG_TRACE()    if(uni_debug) udeb_trace(__FILE__, __LINE__)
 #define DEBUG_LEAVE()    if(uni_debug) udeb_leave(UDEB_DEBUG, __FILE__, __func__)
-#define DEBUG_MARKER(l)  u_DebugMarker _dm( __FILE__, __func__, __LINE__, l)
+#define DEBUG_MARKER(lvl)  u_DebugMarker _dm( __FILE__, __func__, __LINE__, lvl)
 #define DEBUG_ASSERT(x) assert(x)
-
-#else
-
-#define DEBUG_PRINT(...)
-#define DEBUG_PRINT_INFO(...)
-#define DEBUG_PRINT_DETAIL(...)
-#define DEBUG_ENTER()
-#define DEBUG_TRACE()
-#define DEBUG_LEAVE()
-#define DEBUG_MARKER()
-#define DEBUG_ASSERT(x)
-
-#endif
 
 /* For a C++ API, you can declare a DEBUG_MARKER() on the stack in any scope.
    Its constructor will write a message when the scope is entered, 
@@ -151,6 +131,19 @@ public:
     }
   ~u_DebugMarker()          { if(uni_debug) udeb_leave(level, sfile, sfunc); }
 };
+#endif
+
+#else
+
+#define DEBUG_PRINT(...)
+#define DEBUG_PRINT_INFO(...)
+#define DEBUG_PRINT_DETAIL(...)
+#define DEBUG_ENTER()
+#define DEBUG_TRACE()
+#define DEBUG_LEAVE()
+#define DEBUG_MARKER(lvl)
+#define DEBUG_ASSERT(x)
+
 #endif
 
 

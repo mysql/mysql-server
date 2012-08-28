@@ -24,6 +24,7 @@
 #include <NdbApi.hpp>
 #include <v8.h>
 
+#include "adapter_global.h"
 #include "Record.h"
 
 Record::Record(NdbDictionary::Dictionary *d, int ncol) : 
