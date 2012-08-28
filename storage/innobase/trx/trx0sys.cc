@@ -880,7 +880,7 @@ trx_sys_create_rsegs(
 	ut_a(n_spaces < TRX_SYS_N_RSEGS);
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		return(ULINT_UNDEFINED);
 	}
 
