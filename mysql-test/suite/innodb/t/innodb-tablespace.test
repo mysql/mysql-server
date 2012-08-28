@@ -94,7 +94,8 @@ SHOW CREATE TABLE t1;
 SELECT name,n_cols,file_format,row_format
        FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 --replace_regex /emp#P#/emp#p#/
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -105,9 +106,11 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo #
 DROP TABLE t1;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
 
@@ -122,9 +125,11 @@ SELECT * FROM t1;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SHOW CREATE TABLE t1;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
@@ -140,9 +145,11 @@ TRUNCATE TABLE t1;
 INSERT INTO t1 VALUES (3, "Truncate the table, then insert");
 SELECT * FROM t1;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
@@ -158,9 +165,11 @@ RENAME TABLE t1 TO t2;
 INSERT INTO t2 VALUES (4, "Rename the table, then insert");
 SELECT * FROM t2;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
@@ -176,9 +185,11 @@ CREATE TABLE t3 LIKE t2;
 INSERT INTO t3 VALUES (5, "CREATE TABLE LIKE");
 SELECT * FROM t3;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 --replace_result ./ MYSQLD_DATADIR/ $MYSQLD_DATADIR MYSQLD_DATADIR  $MYSQL_TMP_DIR MYSQL_TMP_DIR
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
@@ -190,9 +201,11 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --echo #
 DROP TABLE t2, t3;
 SELECT name,n_cols,file_format,row_format
-       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 SELECT name,file_format,row_format
-       FROM information_schema.innodb_sys_tablespaces;
+       FROM information_schema.innodb_sys_tablespaces
+       ORDER BY name;
 SELECT path FROM information_schema.innodb_sys_datafiles
        WHERE path LIKE '%test%' ORDER BY space;
 --echo ---- MYSQLD_DATADIR/test
