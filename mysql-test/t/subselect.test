@@ -5742,3 +5742,17 @@ set global userstat=@tmp_mdev410;
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # MDEV-430: Server crashes in select_describe on EXPLAIN with 
+--echo #    materialization+semijoin, 2 nested subqueries, aggregate functions
+--echo #
+CREATE TABLE t1 (a INT, KEY(a));
+INSERT INTO t1 VALUES (1),(8);
+
+CREATE TABLE t2 (b INT, KEY(b));
+INSERT INTO t2 VALUES (45),(17),(20);
+
+EXPLAIN SELECT * FROM t1 WHERE EXISTS ( SELECT a FROM t1, t2 WHERE b = a GROUP BY a HAVING a <> 1 ) ;
+
+DROP TABLE t1,t2;
+
