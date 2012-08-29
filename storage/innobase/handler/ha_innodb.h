@@ -227,8 +227,13 @@ class ha_innobase: public handler
 
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 	@retval HA_ALTER_INPLACE_NO_LOCK	Supported
-	@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires lock
-	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
+	@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+						Supported, but requires lock
+						during main phase and exclusive
+						lock during prepare phase.
+	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
+						Supported, prepare phase
+						requires exclusive lock.
 	*/
 	enum_alter_inplace_result check_if_supported_inplace_alter(
 		TABLE*			altered_table,

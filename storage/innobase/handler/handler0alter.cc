@@ -246,11 +246,12 @@ by ALTER TABLE and holding data used during in-place alter.
 
 @retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 @retval HA_ALTER_INPLACE_NO_LOCK	Supported
-@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires lock
+@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE Supported, but requires
+lock during main phase and exclusive lock during prepare phase.
 @retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE	Supported, prepare phase
-(any transactions that have modified the table must commit or roll back
-first, and no transactions can start modifying the table while
-prepare_inplace_alter_table() is executing)
+requires exclusive lock (any transactions that have accessed the table
+must commit or roll back first, and no transactions can access the table
+while prepare_inplace_alter_table() is executing)
 */
 UNIV_INTERN
 enum_alter_inplace_result
@@ -472,7 +473,7 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	DBUG_RETURN(online
 		    ? HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
-		    : HA_ALTER_INPLACE_SHARED_LOCK);
+		    : HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE);
 }
 
 /*************************************************************//**
