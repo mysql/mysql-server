@@ -12227,8 +12227,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
 {
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT");
-  if (head->file->inited) 
-    head->file->ha_index_end();
+  if (head->file->inited)
+    /*
+      We may have used this object for index access during
+      create_sort_index() and then switched to rnd access for the rest
+      of execution. Since we don't do cleanup until now, we must call
+      ha_*_end() for whatever is the current access method.
+    */
+    head->file->ha_index_or_rnd_end();
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
   free_root(&alloc,MYF(0));
