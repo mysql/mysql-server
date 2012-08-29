@@ -4965,14 +4965,8 @@ bool JOIN::make_tmp_tables_info()
         if (!plan_is_const())        // No need to sort a single row
         {
           JOIN_TAB *sort_tab= &join_tab[curr_tmp_table - 1];
-          explain_flags.set(group_list.src, ESP_USING_FILESORT);
-
-          // Sort prev tmp table for group
-          sort_tab->filesort= new (thd->mem_root) Filesort(group_list,
-                                                           HA_POS_ERROR, NULL);
-          if (!sort_tab->filesort)
+          if (add_sorting_to_table(sort_tab, &group_list))
             DBUG_RETURN(true);
-          sort_tab->read_first_record= join_init_read_record;
         }
 
         if (make_group_fields(this, this))
@@ -5188,7 +5182,6 @@ bool JOIN::make_tmp_tables_info()
       sort_tab->filesort->limit=
         (has_group_by || (primary_tables > curr_tmp_table + 1)) ?
          m_select_limit : unit->select_limit_cnt;
-      sort_tab->read_first_record= join_init_read_record;
     }
     if (!plan_is_const() &&
         !join_tab[const_tables].table->sort.io_cache)
@@ -5240,6 +5233,7 @@ JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order)
     tab->select= NULL;
     tab->set_condition(NULL, __LINE__);
   }
+  tab->read_first_record= join_init_read_record;
   return false;
 }
 
