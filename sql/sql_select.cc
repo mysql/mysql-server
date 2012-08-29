@@ -4174,6 +4174,15 @@ check_reverse_order:
         tab->read_first_record= join_read_last_key;
         tab->read_record.read_record= join_read_prev_same;
         tab->read_record.unlock_row= rr_unlock_row;
+
+        /*
+          The current implementation of join_read_prev_same() does not
+          work well in combination with ICP and can lead to increased
+          execution time. Setting changed_key to the current key
+          (based on that we change the access order for the key) will
+          ensure that a pushed index condition will be cancelled.
+        */
+        changed_key= tab->ref.key;
       }
     }
     else if (select && select->quick)
