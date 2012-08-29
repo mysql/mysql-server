@@ -15167,10 +15167,12 @@ Find and retrieve the size of the current result
 ulonglong
 innobase_fts_count_matches(
 /*=======================*/
-		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
+	FT_INFO_EXT* fts_hdl)	/*!< in: FTS handler */
 {
-	if (((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id != NULL) {
-		return rbt_size(((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id);
+	NEW_FT_INFO*	handle = (NEW_FT_INFO *) fts_hdl;
+
+	if (handle->ft_result->rankings_by_id != 0) {
+		return rbt_size(handle->ft_result->rankings_by_id);
 	} else {
 		return(0);
 	}
@@ -15210,7 +15212,7 @@ buffer_pool_dump_now(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save) {
+	if (*(my_bool*) save && !srv_read_only_mode) {
 		buf_dump_start();
 	}
 }
