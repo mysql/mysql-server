@@ -11536,6 +11536,7 @@ mysql_declare_plugin_end;
 int check_password_strength(String *password)
 {
   int res= 0;
+  DBUG_ASSERT(password != NULL);
   plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
   if (plugin)
@@ -11554,6 +11555,7 @@ void check_password_policy(String *password)
 {
   plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
+  DBUG_ASSERT(password != NULL);
   if (plugin)
   {
     st_mysql_validate_password *password_validate=

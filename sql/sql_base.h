@@ -60,7 +60,8 @@ enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
                                   IGNORE_EXCEPT_NON_UNIQUE};
 
 enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
-                                 TDC_RT_REMOVE_UNUSED};
+                                 TDC_RT_REMOVE_UNUSED,
+                                 TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE};
 
 /* bits for last argument to remove_table_from_cache() */
 #define RTFC_NO_FLAG                0x0000
@@ -280,7 +281,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
                          bool wait_for_refresh, ulong timeout);
 bool close_cached_connection_tables(THD *thd, LEX_STRING *connect_string);
 void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                               bool remove_from_locked_tables);
+                               bool remove_from_locked_tables,
+                               TABLE *skip_table);
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
