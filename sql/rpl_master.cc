@@ -615,6 +615,14 @@ static int send_heartbeat_event(NET* net, String* packet,
   DBUG_RETURN(0);
 }
 
+
+#define CHECK_PACKET_SIZE(sz)                  \
+  do {                                         \
+    if (packet_length < sz)                    \
+      goto malformed_packet;                   \
+  } while (0)
+
+
 /**
   Processes the command COM_BINLOG_DUMP.
 
@@ -622,10 +630,10 @@ static int send_heartbeat_event(NET* net, String* packet,
   @param packet is the stream of bytes that has encoded the
                 the data requested by a slave.
 
-  @return true if the thread needs to terminate, false
-          otherwise.
+  @return On success, this function never returns. On failure, this
+  function returns true.
 */
-bool com_binlog_dump(THD *thd, char *packet)
+bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
 {
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
@@ -637,6 +645,7 @@ bool com_binlog_dump(THD *thd, char *packet)
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
+  CHECK_PACKET_SIZE(4 + 2 + 4);
   /* This should be changed to an 8 byte integer. However, this would break
      compatibility and due to this reason will not be changed. However, the
      fix is done in the new protocol. @see com_binlog_dump_gtid().
@@ -656,6 +665,10 @@ bool com_binlog_dump(THD *thd, char *packet)
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
   DBUG_RETURN(true);
+
+malformed_packet:
+  my_error(ER_MALFORMED_PACKET, MYF(0));
+  DBUG_RETURN(true);
 }
 
 /**
@@ -665,10 +678,10 @@ bool com_binlog_dump(THD *thd, char *packet)
   @param packet is the stream of bytes that has encoded the
                 the data requested by a slave.
 
-  @return true if the thread needs to terminate, false
-          otherwise.
+  @return On success, this function never returns. On failure, this
+  function returns true.
 */
-bool com_binlog_dump_gtid(THD *thd, char *packet)
+bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
 {
   DBUG_ENTER("com_binlog_dump_gtid");
   /*
@@ -691,11 +704,16 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
+  CHECK_PACKET_SIZE(::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
+                    ::BINLOG_NAME_SIZE_INFO_SIZE);
   flags = uint2korr(ptr_buffer);
   ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
   thd->server_id= uint4korr(ptr_buffer);
   ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
   name_size= uint4korr(ptr_buffer);
+  CHECK_PACKET_SIZE(::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
+                    ::BINLOG_NAME_SIZE_INFO_SIZE + name_size +
+                    ::BINLOG_POS_INFO_SIZE);
   ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
   strncpy(name, (const char *) ptr_buffer, name_size);
   ptr_buffer+= name_size;
@@ -706,14 +724,21 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   DBUG_PRINT("info", ("master_slave_proto=%d", is_master_slave_proto(flags, BINLOG_THROUGH_GTID)));
   if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
   {
+    CHECK_PACKET_SIZE(::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
+                      ::BINLOG_NAME_SIZE_INFO_SIZE + name_size +
+                      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE);
     data_size= uint4korr(ptr_buffer);
     ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    CHECK_PACKET_SIZE(::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
+                      ::BINLOG_NAME_SIZE_INFO_SIZE + name_size +
+                      ::BINLOG_POS_INFO_SIZE + ::BINLOG_DATA_SIZE_INFO_SIZE +
+                      data_size);
 
     if (mysql_bin_log.is_open())
     {
       if (slave_gtid_done.add_gtid_encoding(ptr_buffer, data_size) !=
           RETURN_STATUS_OK)
-        DBUG_RETURN(false);
+        DBUG_RETURN(true);
       gtid_string= slave_gtid_done.to_string();
     }
   }
@@ -729,6 +754,10 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
+  DBUG_RETURN(true);
+
+malformed_packet:
+  my_error(ER_MALFORMED_PACKET, MYF(0));
   DBUG_RETURN(true);
 }
 
