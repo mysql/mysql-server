@@ -341,9 +341,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   {
     uint days;
     days= calc_daynr(l_time->year,1,1) +  yearday - 1;
-    if (days <= 0 || days > MAX_DAY_NUMBER)
+    if (get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day))
       goto err;
-    get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
 
   if (week_number >= 0 && weekday)
@@ -388,9 +387,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
              (weekday - 1);
     }
 
-    if (days <= 0 || days > MAX_DAY_NUMBER)
+    if (get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day))
       goto err;
-    get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
 
   if (l_time->month > 12 || l_time->day > 31 || l_time->hour > 23 || 
@@ -1385,13 +1383,16 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   if ((null_value=args[0]->null_value))
     return 1;
   bzero(ltime, sizeof(MYSQL_TIME));
-  get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
 
-  if ((null_value= ((fuzzy_date & TIME_NO_ZERO_DATE) && ltime->year == 0)))
-    return TRUE;
+  if (get_date_from_daynr((long) value, &ltime->year, &ltime->month,
+                          &ltime->day))
+    return (null_value= 1);
+
+  if ((fuzzy_date & TIME_NO_ZERO_DATE) && ltime->year == 0)
+    return (null_value= 1);
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return 0;
+  return (null_value= 0);
 }
 
 
@@ -2388,14 +2389,12 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
     year= year_2000_handling(year);
 
   days= calc_daynr(year,1,1) + daynr - 1;
-  /* Day number from year 0 to 9999-12-31 */
-  if (days >= 0 && days <= MAX_DAY_NUMBER)
-  {
-    bzero(ltime, sizeof(*ltime));
-    ltime->time_type= MYSQL_TIMESTAMP_DATE;
-    get_date_from_daynr(days, &ltime->year, &ltime->month, &ltime->day);
-    return (null_value= 0);
-  }
+  if (get_date_from_daynr(days, &ltime->year, &ltime->month, &ltime->day))
+    goto err;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
+  ltime->neg= 0;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  return (null_value= 0);
 
 err:
   return (null_value= 1);
@@ -2489,8 +2488,8 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
   if (!is_time)
   {
-    get_date_from_daynr(days,&ltime->year,&ltime->month,&ltime->day);
-    if (!ltime->day)
+    if (get_date_from_daynr(days,&ltime->year,&ltime->month,&ltime->day) ||
+        !ltime->day)
       return (null_value= 1);
     return (null_value= 0);
   }

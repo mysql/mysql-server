@@ -2445,7 +2445,7 @@ void free_field_buffers_larger_than(TABLE *table, uint32 size);
 int set_zone(int nr,int min_zone,int max_zone);
 ulong convert_period_to_month(ulong period);
 ulong convert_month_to_period(ulong month);
-void get_date_from_daynr(long daynr,uint *year, uint *month,
+bool get_date_from_daynr(long daynr,uint *year, uint *month,
 			 uint *day);
 my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, uint *error);
 bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
