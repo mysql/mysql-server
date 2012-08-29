@@ -1718,7 +1718,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        start_recinfo,
                        share->uniques, &uniquedef,
                        &create_info,
-                       HA_CREATE_TMP_TABLE | 
+                       HA_CREATE_TMP_TABLE | HA_CREATE_INTERNAL_TABLE |
                        ((share->db_create_options & HA_OPTION_PACK_RECORD) ?
                         HA_PACK_RECORD : 0)
                        )))
