@@ -217,10 +217,8 @@ static uint tokudb_alter_table_flags(uint flags);
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
-static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
-                        const char *name,
-                        uchar **frmblob, 
-                        size_t *frmlen);
+static int tokudb_discover(handlerton *hton, THD* thd, const char *db, const char *name, uchar **frmblob, size_t *frmlen);
+static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const char *name, bool translate_name,uchar **frmblob, size_t *frmlen);
 handlerton *tokudb_hton;
 
 const char *ha_tokudb_ext = ".tokudb";
@@ -352,7 +350,9 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
 
     tokudb_hton->discover = tokudb_discover;
-    
+#if defined(MYSQL_HANDLERTON_INCLUDE_DISCOVER2)
+    tokudb_hton->discover2 = tokudb_discover2;
+#endif
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
 #if TOKU_INCLUDE_XA
@@ -999,11 +999,12 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     TOKUDB_DBUG_RETURN(error);
 }
 
-static int tokudb_discover(handlerton *hton, THD* thd, const char *db, 
-                           const char *name,
-                           uchar **frmblob, 
-                           size_t *frmlen)
-{
+static int tokudb_discover(handlerton *hton, THD* thd, const char *db, const char *name, uchar **frmblob, size_t *frmlen) {
+    return tokudb_discover2(hton, thd, db, name, true, frmblob, frmlen);
+}
+
+static int tokudb_discover2(handlerton *hton, THD* thd, const char *db, const char *name, bool translate_name,
+                            uchar **frmblob, size_t *frmlen) {
     TOKUDB_DBUG_ENTER("tokudb_discover");
     int error;
     DB* status_db = NULL;
@@ -1017,7 +1018,7 @@ static int tokudb_discover(handlerton *hton, THD* thd, const char *db,
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
-    build_table_filename(path, sizeof(path) - 1, db, name, "", 0);
+    build_table_filename(path, sizeof(path) - 1, db, name, "", translate_name ? 0 : FN_IS_TMP);
     error = open_status_dictionary(&status_db, path, txn);
     if (error) { goto cleanup; }
 
