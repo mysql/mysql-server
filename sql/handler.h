@@ -64,6 +64,7 @@ enum enum_alter_inplace_result {
   HA_ALTER_ERROR,
   HA_ALTER_INPLACE_NOT_SUPPORTED,
   HA_ALTER_INPLACE_EXCLUSIVE_LOCK,
+  HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_SHARED_LOCK,
   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_NO_LOCK
@@ -2691,8 +2692,9 @@ public:
    *) As the first step, we acquire a lock corresponding to the concurrency
       level which was returned by handler::check_if_supported_inplace_alter()
       and requested by the user. This lock is held for most of the
-      duration of in-place ALTER (if HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
-      was returned we acquire a write lock for duration of the next step only).
+      duration of in-place ALTER (if HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+      or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE were returned we acquire an
+      exclusive lock for duration of the next step only).
    *) After that we call handler::ha_prepare_inplace_alter_table() to give the
       storage engine a chance to update its internal structures with a higher
       lock level than the one that will be used for the main step of algorithm.
@@ -2735,11 +2737,15 @@ public:
     @retval   HA_ALTER_ERROR                  Unexpected error.
     @retval   HA_ALTER_INPLACE_NOT_SUPPORTED  Not supported, must use copy.
     @retval   HA_ALTER_INPLACE_EXCLUSIVE_LOCK Supported, but requires X lock.
+    @retval   HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+                                              Supported, but requires SNW lock
+                                              during main phase. Prepare phase
+                                              requires X lock.
     @retval   HA_ALTER_INPLACE_SHARED_LOCK    Supported, but requires SNW lock.
     @retval   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
                                               Supported, concurrent reads/writes
                                               allowed. However, prepare phase
-                                              requires SNW lock.
+                                              requires X lock.
     @retval   HA_ALTER_INPLACE_NO_LOCK        Supported, concurrent
                                               reads/writes allowed.
 
@@ -2796,8 +2802,9 @@ protected:
  /**
     Allows the storage engine to update internal structures with concurrent
     writes blocked. If check_if_supported_inplace_alter() returns
-    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE, this function is called with
-    writes blocked, otherwise the same level of locking as for
+    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE or
+    HA_ALTER_INPLACE_SHARED_AFTER_PREPARE, this function is called with
+    exclusive lock otherwise the same level of locking as for
     inplace_alter_table() will be used.
 
     @note Storage engines are responsible for reporting any errors by
