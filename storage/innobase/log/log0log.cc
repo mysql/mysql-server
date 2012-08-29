@@ -3121,9 +3121,8 @@ loop:
 		threads check will be done later. */
 
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %s to exit\n",
-				thread_name);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %s to exit", thread_name);
 			count = 0;
 		}
 
@@ -3140,9 +3139,8 @@ loop:
 	if (total_trx > 0) {
 
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %lu "
-				"active transactions to finish\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %lu active transactions to finish",
 				(ulong) total_trx);
 
 			count = 0;
@@ -3187,9 +3185,9 @@ loop:
 				break;
 			}
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %s "
-				"to be suspended\n", thread_type);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %s to be suspended\n",
+				thread_type);
 			count = 0;
 		}
 
@@ -3205,10 +3203,9 @@ loop:
 		++count;
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Waiting for page_cleaner to "
-				"finish flushing of buffer pool\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for page_cleaner to "
+				"finish flushing of buffer pool");
 			count = 0;
 		}
 	}
@@ -3223,10 +3220,9 @@ loop:
 
 	if (server_busy) {
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Pending checkpoint_writes: %lu\n"
-				" InnoDB: Pending log flush writes: %lu\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Pending checkpoint_writes: %lu. "
+				"Pending log flush writes: %lu",
 				(ulong) log_sys->n_pending_checkpoint_writes,
 				(ulong) log_sys->n_pending_writes);
 			count = 0;
@@ -3238,9 +3234,8 @@ loop:
 
 	if (pending_io) {
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %lu buffer page "
-				"I/Os to complete\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %lu buffer page I/Os to complete",
 				(ulong) pending_io);
 			count = 0;
 		}
@@ -3252,37 +3247,44 @@ loop:
 	log_archive_all();
 #endif /* UNIV_LOG_ARCHIVE */
 	if (srv_fast_shutdown == 2) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: MySQL has requested a very fast shutdown"
-			" without flushing "
-			"the InnoDB buffer pool to data files."
-			" At the next mysqld startup "
-			"InnoDB will do a crash recovery!\n");
+		if (!srv_read_only_mode) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"MySQL has requested a very fast shutdown "
+				"without flushing the InnoDB buffer pool to "
+				"data files. At the next mysqld startup "
+				"InnoDB will do a crash recovery!");
 
-		/* In this fastest shutdown we do not flush the buffer pool:
-		it is essentially a 'crash' of the InnoDB server. Make sure
-		that the log is all flushed to disk, so that we can recover
-		all committed transactions in a crash recovery. We must not
-		write the lsn stamps to the data files, since at a startup
-		InnoDB deduces from the stamps if the previous shutdown was
-		clean. */
+			/* In this fastest shutdown we do not flush the
+			buffer pool:
 
-		log_buffer_flush_to_disk();
+			it is essentially a 'crash' of the InnoDB server.
+			Make sure that the log is all flushed to disk, so
+			that we can recover all committed transactions in
+			a crash recovery. We must not write the lsn stamps
+			to the data files, since at a startup InnoDB deduces
+			from the stamps if the previous shutdown was clean. */
 
-		/* Check that the background threads stay suspended */
-		thread_name = srv_any_background_threads_are_active();
-		if (thread_name != NULL) {
-			fprintf(stderr,
-				"InnoDB: Warning: background thread %s"
-				" woke up during shutdown\n", thread_name);
-			goto loop;
+			log_buffer_flush_to_disk();
+
+			/* Check that the background threads stay suspended */
+			thread_name = srv_any_background_threads_are_active();
+
+			if (thread_name != NULL) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Background thread %s woke up "
+					"during shutdown", thread_name);
+				goto loop;
+			}
 		}
 
 		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+
 		fil_close_all_files();
+
 		thread_name = srv_any_background_threads_are_active();
+
 		ut_a(!thread_name);
+
 		return;
 	}
 
@@ -3324,9 +3326,9 @@ loop:
 	/* Check that the background threads stay suspended */
 	thread_name = srv_any_background_threads_are_active();
 	if (thread_name != NULL) {
-		fprintf(stderr,
-			"InnoDB: Warning: background thread %s"
-			" woke up during shutdown\n", thread_name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Background thread %s woke up during shutdown",
+			thread_name);
 
 		goto loop;
 	}
@@ -3344,9 +3346,8 @@ loop:
 	if (!buf_all_freed()) {
 
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for dirty buffer "
-				"pages to be flushed\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for dirty buffer pages to be flushed");
 			count = 0;
 		}
 
@@ -3365,10 +3366,9 @@ loop:
 	ut_a(lsn == log_sys->lsn);
 
 	if (lsn < srv_start_lsn) {
-		fprintf(stderr,
-			"InnoDB: Error: log sequence number"
-			" at shutdown " LSN_PF "\n"
-			"InnoDB: is lower than at startup " LSN_PF "!\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Log sequence number at shutdown " LSN_PF " "
+			"is lower than at startup " LSN_PF "!",
 			lsn, srv_start_lsn);
 	}
 
