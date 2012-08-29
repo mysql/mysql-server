@@ -2258,6 +2258,16 @@ join_read_prev_same(READ_RECORD *info)
   TABLE *table= info->table;
   JOIN_TAB *tab=table->reginfo.join_tab;
 
+  /*
+    Using ha_index_prev() for reading records from the table can cause
+    performance issues if used in combination with ICP. The ICP code
+    in the storage engine does not know when to stop reading from the
+    index and a call to ha_index_prev() might cause the storage engine
+    to read to the beginning of the index if no qualifying record is
+    found.
+  */
+  DBUG_ASSERT(table->file->pushed_idx_cond == NULL);
+
   if ((error= table->file->ha_index_prev(table->record[0])))
     return report_error(table, error);
   if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,

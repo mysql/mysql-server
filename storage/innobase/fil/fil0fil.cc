@@ -5226,7 +5226,7 @@ fil_io(
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
 		     offset, len, node, message);
-#endif
+#endif /* UNIV_HOTBACKUP */
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {
