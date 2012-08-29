@@ -4597,17 +4597,24 @@ try_again:
 		}
 		break;
 	case OS_AIO_IBUF:
-		ut_ad(!srv_read_only_mode);
 		ut_ad(type == OS_FILE_READ);
 		/* Reduce probability of deadlock bugs in connection with ibuf:
 		do not let the ibuf i/o handler sleep */
 
 		wake_later = FALSE;
 
-		array = os_aio_ibuf_array;
+		if (srv_read_only_mode) {
+			array = os_aio_read_array;
+		} else {
+			array = os_aio_ibuf_array;
+		}
 		break;
 	case OS_AIO_LOG:
-		array = os_aio_log_array;
+		if (srv_read_only_mode) {
+			array = os_aio_read_array;
+		} else {
+			array = os_aio_log_array;
+		}
 		break;
 	case OS_AIO_SYNC:
 		ut_ad(!srv_read_only_mode);
