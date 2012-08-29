@@ -7483,6 +7483,9 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
       CHECK(restarter.dumpStateAllNodes(&dump2, 1) == 0);
       NdbSleep_MilliSleep(SAFTY); // Hope that snapshot has arrived
 
+      int dump3[] = {DumpStateOrd::DihAddFragFailCleanedUp, org->getTableId()};
+      CHECK(restarter.dumpStateAllNodes(dump3, 2) == 0);
+
       const NdbDictionary::Table* check = pDic->getTable(tab.getName());
 
       CHECK2((check->getObjectId() == org->getObjectId() &&
