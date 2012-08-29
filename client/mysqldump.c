@@ -4180,6 +4180,7 @@ static int dump_all_databases()
     if (dump_all_tables_in_db(row[0]))
       result=1;
   }
+  mysql_free_result(tableres);
   if (seen_views)
   {
     if (mysql_query(mysql, "SHOW DATABASES") ||
@@ -4202,6 +4203,7 @@ static int dump_all_databases()
       if (dump_all_views_in_db(row[0]))
         result=1;
     }
+    mysql_free_result(tableres);
   }
   return result;
 }
@@ -4330,8 +4332,6 @@ static int init_dumping(char *database, int init_func(char*))
       check_io(md_result_file);
     }
   }
-  if (extended_insert)
-    init_dynamic_string_checked(&extended_row, "", 1024, 1024);
   return 0;
 } /* init_dumping */
 
@@ -5607,6 +5607,9 @@ int main(int argc, char **argv)
 
   if (opt_alltspcs)
     dump_all_tablespaces();
+
+  if (extended_insert)
+    init_dynamic_string_checked(&extended_row, "", 1024, 1024);
 
   if (opt_alldbs)
   {
