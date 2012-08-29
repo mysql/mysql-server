@@ -359,7 +359,7 @@ int mysql_update(THD *thd,
   table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
 
   select= make_select(table, 0, 0, conds, 0, &error);
-  if (error || !limit ||
+  if (error || !limit || thd->is_error() ||
       (select && select->check_quick(thd, safe_update, limit)))
   {
     delete select;
