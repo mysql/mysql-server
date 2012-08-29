@@ -751,7 +751,7 @@ longlong Item_func_to_days::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE))
     return 0;
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
 }
@@ -1932,7 +1932,7 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 {
   INTERVAL interval;
 
-  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE | TIME_FUZZY_DATE) ||
+  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE | TIME_FUZZY_DATE | TIME_NO_ZERO_IN_DATE) ||
       get_interval_value(args[1], int_type, &value, &interval))
     return (null_value=1);
 
