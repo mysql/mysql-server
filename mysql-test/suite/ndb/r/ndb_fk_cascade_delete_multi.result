@@ -82,6 +82,8 @@ id	value	parent	left_child	right_child
 4	2-leaf	1	NULL	NULL
 5	4-leaf	2	NULL	NULL
 6	6-leaf	2	NULL	NULL
+alter table tree add constraint fk_parent foreign key (parent) references tree(id) on update restrict on delete cascade;
+alter table tree add constraint fk_left foreign key (left_child) references tree(id) on update restrict on delete cascade;
 begin;
 delete from tree where value = '5-inner';
 select * from tree order by 1;
