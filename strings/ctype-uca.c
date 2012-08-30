@@ -19798,6 +19798,7 @@ my_uca_scanner_contraction_find(my_uca_scanner *scanner, my_wc_t *wc)
   size_t clen= 1;
   int flag;
   const uchar *s, *beg[MY_UCA_MAX_CONTRACTION];
+  memset(beg, 0, sizeof(beg));
 
   /* Scan all contraction candidates */
   for (s= scanner->sbeg, flag= MY_UCA_CNT_MID1;
