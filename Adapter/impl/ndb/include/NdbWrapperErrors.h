@@ -20,6 +20,8 @@
 
 #pragma once
 
+#include "NdbWrappers.h"
+
 class NdbNativeCodeError : public NativeCodeError {
 public:
   const NdbError & ndberr;
@@ -29,8 +31,9 @@ public:
     HandleScope scope;
     Local<String> JSMsg = String::New(ndberr.message);
     Local<Object> Obj = Exception::Error(JSMsg)->ToObject();
+    Obj->Set(String::NewSymbol("ndb_error"), NdbError_Wrapper(ndberr));
 
-    return Obj;
+    return scope.Close(Obj);
   }
 };
 

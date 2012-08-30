@@ -137,7 +137,10 @@ class JsValueConverter <char *> {
 public: 
   jsvalue jsval;
   JsValueConverter(jsvalue v) : jsval(v)   {};
-  char * toC()  { return V8BINDER_UNWRAP_BUFFER(jsval);  };
+  char * toC()  { 
+    DEBUG_PRINT_DETAIL("Unwrapping Node buffer");
+    return V8BINDER_UNWRAP_BUFFER(jsval);  
+  };
 };
 
 

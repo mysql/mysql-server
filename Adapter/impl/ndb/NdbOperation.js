@@ -18,6 +18,9 @@
  02110-1301  USA
  */
 "use strict";
+
+/*global udebug */
+
 var adapter = require("../build/Release/ndb/ndb_adapter.node"),
     assert = require("assert"),
     proto;
@@ -51,7 +54,7 @@ var LockModes = [
 
 
 var DBOperation = function(opcode, tx, tableHandler) {
-  assert(OperationCodes.indexOf(opcode) != -1);
+  assert(OperationCodes.indexOf(opcode) !== -1);
   assert(tx);
 
   this.opcode = opcode;
@@ -67,90 +70,44 @@ var DBOperation = function(opcode, tx, tableHandler) {
   tx.addOperation(this);
 };
 
-// NOTE, THIS IS COMMON.
-function chooseIndexForOperation(op) {
-  var idx;
-  assert(op.state == OperationStates[1]);   // DEFINED
-  
-  // FOR NOW, WE WILL JUST CHOOSE THE PK (FIXME)
-  idx = op.tableHandler.indexes[0];
-  op.state = OperationStates[2];   // PLANNED
-  return idx;
-}
-
-function IntConverter() {};
-
-IntConverter.prototype.writeToBuffer = function(obj, buffer, offset, length) {
-  buffer.writeInt32LE(obj, offset);
-}
-
-IntConverter.prototype.readFromBuffer = function(buffer, offset, length) {
-  return buffer.readInt32LE(offset);
-}
-
-function getConverterForColumn(op, column_id) {
-  udebug.log("DBOperation getConverterForColumn");
-  // FIXME
-  return new IntConverter;
-}
-
 
 function encodeKeyBuffer(op) {
-  udebug.log("DBOperation encodeKeyBuffer " + op.state);
-  var key_buffer_size = op.index.record.getBufferSize();
-  op.buffers.key = new Buffer(key_buffer_size);
-
-  if(Array.isArray(keys)) {
-    for(var i = 0 ; i < keys.length ; i ++) {
-      // Set to not null
-      op.index.record.setNotNull(i);
-
-      // Call the Converter for the key column (FIXME)
-      var cvt = getConverterForColumn(op, 1);
-      var offset = op.index.record.getColumnOffset(i);
-      
-      // No length?
-      cvt.writeToBuffer(keys[i], op.buffers.key, offset) 
-    }
-  }
-  else {
-    /* keys is an object map */
-    assert(false);
-  }  
 }
 
 function encodeRowBuffer(op) {
-  var row_buffer_size = op.tableHandler.record.getBufferSize();
-  udebug.log("DBOperation encodeRowBuffer size: " + row_buffer_size);
+  var record, row_buffer_size, i, nfields, value, offset;
+  // FIXME: Get the mapped record, not the table record
+  record = op.tableHandler.dbTable.record;
+  row_buffer_size = record.getBufferSize();
+  udebug.log("NdbOperation encodeRowBuffer size: " + row_buffer_size);
   op.buffers.row = new Buffer(row_buffer_size);
+  nfields = op.tableHandler.getMappedFieldCount();
   
-  if(Array.isArray(op.row)) {
-    for(var i = 0 ; i < op.row.length ; i++) {
-     if(op.row[i]) op.tableHandler.record.setNotNull(i, op.buffers.row);
-      else         op.tableHandler.record.setNull(i, op.buffers.row);
-      
-      var cvt = getConverterForColumn(op, i);
-      var offset = op.tableHandler.record.getColumnOffset(i);
-      cvt.writeToBuffer(op.row[i], op.buffers.row, offset);
+  for(i = 0 ; i < nfields ; i++) {  
+    value = op.tableHandler.get(op.row, i);
+    offset = record.getColumnOffset(i);
+    udebug.log("NdbOperation encodeRowBuffer "+ i +"/"+ value +" @"+ offset);
+    if(value === null) {
+      record.setNull(i, op.buffers.row);
     }
+    op.tableHandler.writeFieldToBuffer(op.row, i, op.buffers.row, offset);
+    udebug.log("NdbOperation encodeRowBuffer "+ i +" " +
+      (record.isNull(i, op.buffers.row) ? "null" : "not null"));
   }
-  else {
-    udebug.log("dying");
-    assert(false);
-  }
-  udebug.log("leaving NdbOperation encodeRowBuffer");
 }
 
 
 var getReadOperation = function(tx, tableHandler, keys, lockMode) {
   udebug.log("DBOperation getReadOperation");
-  assert(LockModes.indexOf(lockMode) != -1);
+  assert(LockModes.indexOf(lockMode) !== -1);
   var op = new DBOperation("read", tx, tableHandler);
   op.keys = keys;
   op.lockMode = lockMode;
-  if(keys) op.state = OperationStates[1];  // DEFINED
+  if(keys) {
+    op.state = OperationStates[1];  // DEFINED
+  }
   
-  op.index = chooseIndexForOperation(tableHandler, keys);
+  op.index = tableHandler.chooseIndex(keys);
 
   var row_buffer_size = op.tableHandler.record.getBufferSize();
   op.buffers.row = new Buffer(row_buffer_size);
@@ -164,7 +121,9 @@ var getInsertOperation = function(tx, tableHandler, row) {
   udebug.log("DBOperation getInsertOperation");
   var op = new DBOperation("insert", tx, tableHandler);
   op.row = row;
-  if(row) op.state = OperationStates[1];  // DEFINED
+  if(row) {
+    op.state = OperationStates[1];  // DEFINED
+  }
   
   encodeRowBuffer(op);
   

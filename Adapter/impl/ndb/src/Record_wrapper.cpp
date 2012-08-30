@@ -93,7 +93,6 @@ Handle<Value> getBufferSize_wrapper(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-// TODO:  the "char *" arg is a Buffer.  Verify that this works.
 Handle<Value> setNull_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;

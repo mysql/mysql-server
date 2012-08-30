@@ -37,6 +37,7 @@
 */
    
 Handle<Value> DBOperationHelper(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
 
   Operation *op = new Operation;
@@ -98,9 +99,6 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
   
   return scope.Close(Operation_Wrapper(op));
 }
-
-
-
 
 
 void DBOperationHelper_initOnLoad(Handle<Object> target) {

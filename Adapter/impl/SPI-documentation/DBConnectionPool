@@ -98,6 +98,13 @@ DBConnectionPool(Properties connectionProperties);
   getTable(databaseName, tableName, callback);
 
 
+/* createDBTableHandler(dbTable, apiMapping)
+   IMMEDIATE
+   Creates and returns a DBTableHandler for table and mapping
+*/
+  createDBTableHandler(dbTable, apiMapping);
+
+
 /* registerTypeConverter 
    IMMEDIATE
    Register a converter for a SQL data type 
@@ -113,4 +120,9 @@ DBConnectionPool(Properties connectionProperties);
 */
   registerCharsetConverter(String charsetName, Converter c);
   
-}   
+
+/* getConverter 
+   IMMEDIATE
+   Fetch the converter for a column
+*/
+   getConverter(dbColumn);  

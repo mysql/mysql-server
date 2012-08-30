@@ -27,7 +27,8 @@
 var common = require("../build/Release/common/common_library.node"),
     adapter = require("../build/Release/ndb/ndb_adapter.node"),
     ndbsession = require("./NdbSession.js"),
-    ndbtablehandler = require("./NdbTableHandler.js"),
+    dbtablehandler = require("../common/DBTableHandler.js"),
+    converters = require("./NdbTypeConverters.js"),
     assert = require("assert");
     
 var ndb_is_initialized = false,
@@ -56,7 +57,7 @@ assert(typeof adapter.impl.DBDictionary.getTable === 'function');
    Throws an exception if the Properties object is invalid.
 */   
 exports.DBConnectionPool = function(props) {
-  udebug.log("DBConnectionPool constructor");
+  udebug.log("NdbConnectionPool constructor");
 
   initialize_ndb();
   
@@ -65,14 +66,16 @@ exports.DBConnectionPool = function(props) {
   this.ndbconn.set_name("nodejs");
 };
 
-/* DBConnectionPool prototype 
+/* NdbConnectionPool prototype 
 */
 proto = {
   properties           : null,
   ndbconn              : null,
   is_connected         : false,
   dict_sess            : null,
-  dictionary           : null
+  dictionary           : null,
+  
+  
 };
 
 exports.DBConnectionPool.prototype = proto;
@@ -100,6 +103,7 @@ proto.connectSync = function() {
 /* Async connect 
 */
 proto.connect = function(user_callback) {
+  udebug.log("NdbConnectionPool connect");
   var self = this,
       err = null;
 
@@ -177,7 +181,7 @@ proto.closeSync = function() {
    Users's callback receives (error, DBSession)
 */
 proto.getDBSession = function(index, user_callback) {
-  udebug.log("NDB getDBSession");
+  udebug.log("NdbConnectionPool getDBSession");
   assert(this.ndbconn);
   assert(user_callback);
   var db   = this.properties.database,
@@ -208,7 +212,7 @@ proto.getDBSession = function(index, user_callback) {
   * listTables(databaseName, callback(error, array));
   */
 proto.listTables = function(databaseName, user_callback) {
-  udebug.log("DBDictionary listTables");
+  udebug.log("NdbConnectionPool listTables");
   assert(databaseName && user_callback);
   adapter.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
 };
@@ -220,8 +224,33 @@ proto.listTables = function(databaseName, user_callback) {
   * getTable(databaseName, tableName, callback(error, DBTable));
   */
 proto.getTable = function(dbname, tabname, user_callback) {
-  udebug.log("DBDictionary getTable");
+  udebug.log("NdbConnectionPool getTable");
   assert(dbname && tabname && user_callback);
   adapter.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
+};
+
+
+/* createDBTableHandler(dbTable, apiMapping)
+   IMMEDIATE
+   Creates and returns a DBTableHandler for table and mapping
+*/
+proto.createDBTableHandler = function(dbTable, apiMapping) { 
+  udebug.log("NdbConnectionPool createDBTableHandler " + dbTable.name);
+  var handler;
+  handler = new dbtablehandler.DBTableHandler(this, dbTable, apiMapping);
+  /* TODO: If the mapping is not a default mapping, then the DBTableHandler
+     needs to be annotated with some Records */
+  return handler;
+};
+
+/* getConverter 
+   IMMEDIATE
+   Fetch the converter for a column
+   FIXME:  KEEP MAPS OF DEFAULT & REGISTERED CONVERTERS
+*/
+proto.getConverter = function(dbcolumn) {
+  udebug.log("NdbConnectionPool getConverter " + dbcolumn.name);
+  var r = converters.defaultForType[dbcolumn.columnType];
+  return r;
 };
 

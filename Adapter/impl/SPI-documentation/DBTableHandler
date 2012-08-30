@@ -36,7 +36,7 @@
   IMMEDIATE
   Register a converter for a field in a domain object 
 */
-  registerFieldConverter(fieldName, converter );
+  registerFieldConverter(fieldName, converter);
 
 
 /* registerColumnConverter(String columnName, Converter converter)
@@ -78,7 +78,7 @@
 /* DBIndex chooseIndex(Object keys)
    IMMEDIATE
 
-   Given an ject containing keys as defined in API Context.find(),
+   Given an object containing keys as defined in API Context.find(),
    return the index to use as an access path for the operation
 */
   chooseIndex(keys);
