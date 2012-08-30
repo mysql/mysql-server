@@ -1544,7 +1544,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       thd->lex->allow_sum_func= save_allow_sum_func; 
       /* we added aggregate function => we have to change statistic */
       count_field_types(select_lex, &join->tmp_table_param, join->all_fields, 
-                        0);
+                        false, false);
 
       subs= new Item_singlerow_subselect(select_lex);
     }
