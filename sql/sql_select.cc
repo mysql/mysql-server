@@ -1702,18 +1702,26 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
         j->ref.key_copy[part_no]= key;
       else
       {
-        /* key is const, copy value now and possibly skip it while ::exec() */
-        enum store_key::store_key_result result= key->copy();
+        /*
+          key is const, copy value now and possibly skip it while ::exec().
 
-        /* Depending on 'result' it should be reevaluated in ::exec(), if either:
-         *  1) '::copy()' failed, in case we reevaluate - and refail in 
-         *       JOIN::exec() where the error can be handled.
-         *  2)  Constant evaluated to NULL value which we might need to 
-         *      handle as a special case during JOIN::exec()
-         *      (As in : 'Full scan on NULL key')
-         */
-        if (result!=store_key::STORE_KEY_OK  ||    // 1)
-            key->null_key)                         // 2)
+          Note:
+            Result check of store_key::copy() is unnecessary,
+            it could be an error returned by store_key::copy() method
+            but stored value is not null and default value could be used
+            in this case. Methods which used for storing the value
+            should be responsible for proper null value setting
+            in case of an error. Thus it's enough to check key->null_key
+            value only.
+        */
+        (void) key->copy();
+        /*
+          It should be reevaluated in ::exec() if
+          constant evaluated to NULL value which we might need to 
+          handle as a special case during JOIN::exec()
+          (As in : 'Full scan on NULL key')
+        */
+        if (key->null_key)
           j->ref.key_copy[part_no]= key; // Reevaluate in JOIN::exec()
         else
           j->ref.key_copy[part_no]= NULL;
@@ -4165,6 +4173,15 @@ check_reverse_order:
         tab->read_first_record= join_read_last_key;
         tab->read_record.read_record= join_read_prev_same;
         tab->read_record.unlock_row= rr_unlock_row;
+
+        /*
+          The current implementation of join_read_prev_same() does not
+          work well in combination with ICP and can lead to increased
+          execution time. Setting changed_key to the current key
+          (based on that we change the access order for the key) will
+          ensure that a pushed index condition will be cancelled.
+        */
+        changed_key= tab->ref.key;
       }
     }
     else if (select && select->quick)

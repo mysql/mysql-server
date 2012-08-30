@@ -40,9 +40,7 @@ those functions in lock/ */
 #include "ut0lst.h"
 
 /** A table lock */
-typedef struct lock_table_struct	lock_table_t;
-/** A table lock */
-struct lock_table_struct {
+struct lock_table_t {
 	dict_table_t*	table;		/*!< database table in dictionary
 					cache */
 	UT_LIST_NODE_T(lock_t)
@@ -51,9 +49,7 @@ struct lock_table_struct {
 };
 
 /** Record lock for a page */
-typedef struct lock_rec_struct		lock_rec_t;
-/** Record lock for a page */
-struct lock_rec_struct {
+struct lock_rec_t {
 	ulint	space;			/*!< space id */
 	ulint	page_no;		/*!< page number */
 	ulint	n_bits;			/*!< number of bits in the lock
@@ -63,7 +59,7 @@ struct lock_rec_struct {
 };
 
 /** Lock struct; protected by lock_sys->mutex */
-struct lock_struct {
+struct lock_t {
 	trx_t*		trx;		/*!< transaction owning the
 					lock */
 	UT_LIST_NODE_T(lock_t)

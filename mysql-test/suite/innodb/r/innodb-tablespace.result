@@ -100,12 +100,13 @@ FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
 test/t1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -117,15 +118,17 @@ MYSQL_TMP_DIR/alt_dir/test/t1.ibd
 #
 DROP TABLE t1;
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 name	n_cols	file_format	row_format
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
@@ -146,16 +149,18 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 name	n_cols	file_format	row_format
 test/t1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -176,16 +181,18 @@ SELECT * FROM t1;
 a	b
 3	Truncate the table, then insert
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 name	n_cols	file_format	row_format
 test/t1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t1	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -207,16 +214,18 @@ a	b
 3	Truncate the table, then insert
 4	Rename the table, then insert
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 name	n_cols	file_format	row_format
 test/t2	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
@@ -237,17 +246,19 @@ SELECT * FROM t3;
 a	b
 5	CREATE TABLE LIKE
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 name	n_cols	file_format	row_format
 test/t2	5	Antelope	Compact
 test/t3	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 test/t2	Antelope	Compact or Redundant
 test/t3	Antelope	Compact or Redundant
@@ -266,15 +277,17 @@ t3.ibd
 #
 DROP TABLE t2, t3;
 SELECT name,n_cols,file_format,row_format
-FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%'
+       ORDER BY name;
 name	n_cols	file_format	row_format
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
-mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/innodb_index_stats	Antelope	Compact or Redundant
-mysql/slave_relay_log_info	Antelope	Compact or Redundant
+mysql/innodb_table_stats	Antelope	Compact or Redundant
 mysql/slave_master_info	Antelope	Compact or Redundant
+mysql/slave_relay_log_info	Antelope	Compact or Redundant
 mysql/slave_worker_info	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;

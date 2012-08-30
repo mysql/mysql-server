@@ -1502,10 +1502,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP_GTID:
-    error= com_binlog_dump_gtid(thd, packet);
+    error= com_binlog_dump_gtid(thd, packet, packet_length);
     break;
   case COM_BINLOG_DUMP:
-    error= com_binlog_dump(thd, packet);
+    error= com_binlog_dump(thd, packet, packet_length);
     break;
 #endif
   case COM_REFRESH:
