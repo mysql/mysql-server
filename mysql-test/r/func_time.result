@@ -1897,3 +1897,5 @@ cast(greatest(cast("0-0-0" as date), cast("10:20:05" as time)) as datetime(6))
 select microsecond('12:00:00.123456'), microsecond('2009-12-31 23:59:59.000010');
 microsecond('12:00:00.123456')	microsecond('2009-12-31 23:59:59.000010')
 123456	10
+select now(258);
+ERROR 42000: Too big precision 258 specified for 'now'. Maximum is 6.
