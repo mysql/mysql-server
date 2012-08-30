@@ -587,8 +587,8 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     {
       char fk_full_name[FN_LEN + 1];
       const char * name = fk_split_name(fk_full_name, fk.getName());
-      f_key_info.forein_id = thd_make_lex_string(thd, 0, name,
-                                                 (uint)strlen(name), 1);
+      f_key_info.foreign_id = thd_make_lex_string(thd, 0, name,
+                                                  (uint)strlen(name), 1);
     }
 
     for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
