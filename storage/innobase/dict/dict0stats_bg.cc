@@ -31,7 +31,7 @@ using namespace std;
 #include "dict0dict.h" /* dict_table_open_on_id() */
 #include "dict0stats.h" /* DICT_STATS_RECALC_PERSISTENT */
 #include "dict0stats_bg.h"
-#include "dict0mem.h" /* dict_table_struct */
+#include "dict0mem.h" /* dict_table_t */
 #include "dict0types.h" /* table_id_t */
 #include "ha0storage.h" /* ha_storage_* */
 #include "os0thread.h" /* DECLARE_THREAD, os_thread_*, mysql_pfs_key_t */

@@ -48,9 +48,9 @@ typedef	ib_uint64_t		lsn_t;
 #define LSN_PF			UINT64PF
 
 /** Redo log buffer */
-typedef struct log_struct	log_t;
+struct log_t;
 /** Redo log group */
-typedef struct log_group_struct	log_group_t;
+struct log_group_t;
 
 #ifdef UNIV_DEBUG
 /** Flag: write to log file? */
@@ -67,7 +67,7 @@ extern	ibool	log_debug_writes;
 #define LOG_WAIT_ONE_GROUP	92
 #define	LOG_WAIT_ALL_GROUPS	93
 /* @} */
-/** Maximum number of log groups in log_group_struct::checkpoint_buf */
+/** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
 /*******************************************************************//**
@@ -704,7 +704,7 @@ extern log_t*	log_sys;
 
 /** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil. */
-struct log_group_struct{
+struct log_group_t{
 	/* The following fields are protected by log_sys->mutex */
 	ulint		id;		/*!< log group id */
 	ulint		n_files;	/*!< number of files in the group */
@@ -756,7 +756,7 @@ struct log_group_struct{
 };
 
 /** Redo log buffer */
-struct log_struct{
+struct log_t{
 	byte		pad[64];	/*!< padding to prevent other memory
 					update hotspots from residing on the
 					same memory cache line */

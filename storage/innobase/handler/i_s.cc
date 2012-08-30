@@ -58,13 +58,11 @@ Created July 18, 2007 Vasil Dimov
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
-struct buffer_page_desc_str_struct{
+struct buf_page_desc_t{
 	const char*	type_str;	/*!< String explain the page
 					type/state */
 	ulint		type_value;	/*!< Page type or page state */
 };
-
-typedef struct buffer_page_desc_str_struct	buf_page_desc_str_t;
 
 /** Any states greater than FIL_PAGE_TYPE_LAST would be treated as unknown. */
 #define	I_S_PAGE_TYPE_UNKNOWN		(FIL_PAGE_TYPE_LAST + 1)
@@ -74,7 +72,7 @@ in i_s_page_type[] array */
 #define I_S_PAGE_TYPE_INDEX		1
 
 /** Name string for File Page Types */
-static buf_page_desc_str_t	i_s_page_type[] = {
+static buf_page_desc_t	i_s_page_type[] = {
 	{"ALLOCATED", FIL_PAGE_TYPE_ALLOCATED},
 	{"INDEX", FIL_PAGE_INDEX},
 	{"UNDO_LOG", FIL_PAGE_UNDO_LOG},
@@ -99,7 +97,7 @@ static buf_page_desc_str_t	i_s_page_type[] = {
 /** This structure defines information we will fetch from pages
 currently cached in the buffer pool. It will be used to populate
 table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE */
-struct buffer_page_info_struct{
+struct buf_page_info_t{
 	ulint		block_id;	/*!< Buffer Pool block ID */
 	unsigned	space_id:32;	/*!< Tablespace ID */
 	unsigned	page_num:32;	/*!< Page number/offset */
@@ -131,8 +129,6 @@ struct buffer_page_info_struct{
 					the oldest modification */
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
-
-typedef struct buffer_page_info_struct	buf_page_info_t;
 
 /** maximum number of buffer page info we would cache. */
 #define MAX_BUF_INFO_CACHED		10000
