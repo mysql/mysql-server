@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source have_ndb_fk.inc
 
 # test uses mysqldump, hence not in embedded
 -- source include/not_embedded.inc
