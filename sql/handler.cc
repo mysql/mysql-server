@@ -6550,6 +6550,7 @@ int handler::read_range_first(const key_range *start_key,
     save_end_range= *end_key;
     key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
 				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+    range_scan_direction= RANGE_SCAN_ASC;
   }
   range_key_part= table->key_info[active_index].key_part;
 
@@ -6626,6 +6627,20 @@ int handler::read_range_next()
 }
 
 
+void handler::set_end_range(const key_range* range,
+                            enum_range_scan_direction direction)
+{
+  DBUG_ASSERT(range != NULL);
+
+  save_end_range= *range;
+  end_range= &save_end_range;
+  range_key_part= table->key_info[active_index].key_part;
+  key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
+                                (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  range_scan_direction= direction;
+}
+
+
 /**
   Compare if found key (in row) is over max-value.
 
@@ -6654,11 +6669,26 @@ int handler::compare_key(key_range *range)
 
 
 /*
-  Same as compare_key() but doesn't check have in_range_check_pushed_down.
-  This is used by index condition pushdown implementation.
+  Compare if a found key (in row) is within the range.
+
+  This function is similar to compare_key() but checks the range scan
+  direction to determine if this is a descending scan. This function
+  is used by the index condition pushdown implementation to determine
+  if the read record is within the range scan.
+
+  @param range Range to compare to row. May be NULL for no range.
+
+  @seealso
+    handler::compare_key()
+
+  @return Returns whether the key is within the range
+
+    - 0   : Key is equal to range or 'range' == 0 (no range)
+    - -1  : Key is within the current range
+    - 1   : Key is outside the current range
 */
 
-int handler::compare_key2(key_range *range)
+int handler::compare_key_icp(const key_range *range) const
 {
   int cmp;
   if (!range)
@@ -6666,6 +6696,8 @@ int handler::compare_key2(key_range *range)
   cmp= key_cmp(range_key_part, range->key, range->length);
   if (!cmp)
     cmp= key_compare_result_on_equal;
+  if (range_scan_direction == RANGE_SCAN_DESC)
+    cmp= -cmp;
   return cmp;
 }
 
