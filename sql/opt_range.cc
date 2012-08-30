@@ -6128,7 +6128,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
   */
-  if (cond->const_item() && !cond->is_expensive())
+  if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 
