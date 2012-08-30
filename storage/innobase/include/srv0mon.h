@@ -56,7 +56,7 @@ fill in counter information as described in "monitor_info_t" and
 create the internal counter ID in "monitor_id_t". */
 
 /** Structure containing the actual values of a monitor counter. */
-struct monitor_value_struct {
+struct monitor_value_t {
 	ib_time_t	mon_start_time;	/*!< Start time of monitoring  */
 	ib_time_t	mon_stop_time;	/*!< Stop time of monitoring */
 	ib_time_t	mon_reset_time;	/*!< Time counter resetted */
@@ -71,11 +71,9 @@ struct monitor_value_struct {
 	monitor_running_t mon_status;	/* whether monitor still running */
 };
 
-typedef struct monitor_value_struct	monitor_value_t;
-
 /** Follwoing defines are possible values for "monitor_type" field in
 "struct monitor_info" */
-enum monitor_type_value {
+enum monitor_type_t {
 	MONITOR_NONE = 0,	/*!< No monitoring */
 	MONITOR_MODULE = 1,	/*!< This is a monitor module type,
 				not a counter */
@@ -98,8 +96,6 @@ enum monitor_type_value {
 				metrics table */
 };
 
-typedef enum monitor_type_value	monitor_type_t;
-
 /** Counter minimum value is initialized to be max value of
  mon_type_t (ib_int64_t) */
 #define	MIN_RESERVED		((mon_type_t) (IB_ULONGLONG_MAX >> 1))
@@ -118,7 +114,7 @@ name shall start with MONITOR_OVLD
 Please refer to "innodb_counter_info" in srv/srv0mon.cc for detail
 information for each monitor counter */
 
-enum monitor_id_value {
+enum monitor_id_t {
 	/* This is to identify the default value set by the metrics
 	control global variables */
 	MONITOR_DEFAULT_START = 0,
@@ -388,8 +384,6 @@ enum monitor_id_value {
 	NUM_MONITOR
 };
 
-typedef enum monitor_id_value		monitor_id_t;
-
 /** This informs the monitor control system to turn
 on/off and reset monitor counters through wild card match */
 #define	MONITOR_WILDCARD_MATCH		(NUM_MONITOR + 1)
@@ -399,7 +393,7 @@ on/off and reset monitor counters through wild card match */
 
 /** struct monitor_info describes the basic/static information
 about each monitor counter. */
-struct monitor_info_struct {
+struct monitor_info_t {
 	const char*	monitor_name;	/*!< Monitor name */
 	const char*	monitor_module;	/*!< Sub Module the monitor
 					belongs to */
@@ -413,12 +407,10 @@ struct monitor_info_struct {
 					monitor_id_t */
 };
 
-typedef struct monitor_info_struct	monitor_info_t;
-
 /** Following are the "set_option" values allowed for
 srv_mon_process_existing_counter() and srv_mon_process_existing_counter()
 functions. To turn on/off/reset the monitor counters. */
-enum mon_set_option {
+enum mon_option_t {
 	MONITOR_TURN_ON = 1,		/*!< Turn on the counter */
 	MONITOR_TURN_OFF,		/*!< Turn off the counter */
 	MONITOR_RESET_VALUE,		/*!< Reset current values */
@@ -427,8 +419,6 @@ enum mon_set_option {
 					srv_mon_process_existing_counter()
 					function */
 };
-
-typedef enum mon_set_option		mon_option_t;
 
 /** Number of bit in a ulint datatype */
 #define	NUM_BITS_ULINT	(sizeof(ulint) * CHAR_BIT)

@@ -27,14 +27,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Structure defines translation table between mysql index and innodb
 index structures */
-typedef struct innodb_idx_translate_struct {
+struct innodb_idx_translate_t {
 	ulint		index_count;	/*!< number of valid index entries
 					in the index_mapping array */
 	ulint		array_size;	/*!< array size of index_mapping */
 	dict_index_t**	index_mapping;	/*!< index pointer array directly
 					maps to index in Innodb from MySQL
 					array index */
-} innodb_idx_translate_t;
+};
 
 
 /** InnoDB table share */
@@ -53,15 +53,8 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
-/** InnoDB B-tree index */
-struct dict_index_struct;
-/** Prebuilt structures in an Innobase table handle used within MySQL */
-struct row_prebuilt_struct;
-
-/** InnoDB B-tree index */
-typedef struct dict_index_struct dict_index_t;
-/** Prebuilt structures in an Innobase table handle used within MySQL */
-typedef struct row_prebuilt_struct row_prebuilt_t;
+/** Prebuilt structures in an InnoDB table handle used within MySQL */
+struct row_prebuilt_t;
 
 /** The class defining a handle to an Innodb table */
 class ha_innobase: public handler
@@ -444,7 +437,7 @@ void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
 __attribute__((nonnull));
 } /* extern "C" */
 
-typedef struct trx_struct trx_t;
+struct trx_t;
 
 extern const struct _ft_vft ft_vft_result;
 

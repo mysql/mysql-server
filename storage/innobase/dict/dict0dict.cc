@@ -84,7 +84,7 @@ backround operations purge, rollback, foreign key checks reserve this
 in S-mode; we cannot trust that MySQL protects implicit or background
 operations a table drop since MySQL does not know of them; therefore
 we need this; NOTE: a transaction which reserves this must keep book
-on the mode in trx_struct::dict_operation_lock_mode */
+on the mode in trx_t::dict_operation_lock_mode */
 UNIV_INTERN rw_lock_t	dict_operation_lock;
 
 /** Percentage of compression failures that are allowed in a single
