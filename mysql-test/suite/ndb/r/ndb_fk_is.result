@@ -16,7 +16,7 @@ customer_id int not null,
 primary key(no),
 index (product_category, product_id),
 foreign key (product_category, product_id) references product(category, id)
-on update cascade on delete restrict,
+on update restrict on delete cascade,
 index (customer_id),
 foreign key (customer_id) references customer(id))
 engine=ndb;
@@ -25,11 +25,11 @@ from information_schema.table_constraints
 where table_schema = 'test'
 order by table_name, constraint_name;
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
-NULL	test	FK_9_14	test	customer	FOREIGN KEY
-NULL	test	PRIMARY	test	customer	PRIMARY KEY
-NULL	test	FK_7_13	test	product	FOREIGN KEY
-NULL	test	PRIMARY	test	product	PRIMARY KEY
-NULL	test	FK_7_13	test	product_order	FOREIGN KEY
-NULL	test	FK_9_14	test	product_order	FOREIGN KEY
-NULL	test	PRIMARY	test	product_order	PRIMARY KEY
+def	test	FK_12_17	test	customer	FOREIGN KEY
+def	test	PRIMARY	test	customer	PRIMARY KEY
+def	test	FK_10_16	test	product	FOREIGN KEY
+def	test	PRIMARY	test	product	PRIMARY KEY
+def	test	FK_10_16	test	product_order	FOREIGN KEY
+def	test	FK_12_17	test	product_order	FOREIGN KEY
+def	test	PRIMARY	test	product_order	PRIMARY KEY
 drop table product, customer, product_order;
