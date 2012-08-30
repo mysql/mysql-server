@@ -5390,6 +5390,7 @@ int ha_partition::read_range_first(const key_range *start_key,
     key_compare_result_on_equal=
       ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
        (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+    range_scan_direction= RANGE_SCAN_ASC;
   }
 
   range_key_part= m_curr_key_info[0]->key_part;
