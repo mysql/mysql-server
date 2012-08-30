@@ -796,8 +796,8 @@ zip_reorganize:
 			/* Before copying, "ret" was the predecessor
 			of the predefined supremum record.  If it was
 			the predefined infimum record, then it would
-			still be the infimum.  Thus, the assertion
-			ut_a(ret_pos > 0) would fail here. */
+			still be the infimum, and we would have
+			ret_pos == 0. */
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
@@ -1052,6 +1052,7 @@ page_delete_rec_list_end(
 
 		n_owned = rec_get_n_owned_new(rec2) - count;
 		slot_index = page_dir_find_owner_slot(rec2);
+		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	} else {
 		rec_t*	rec2	= rec;
@@ -1067,6 +1068,7 @@ page_delete_rec_list_end(
 
 		n_owned = rec_get_n_owned_old(rec2) - count;
 		slot_index = page_dir_find_owner_slot(rec2);
+		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	}
 
@@ -1470,6 +1472,10 @@ page_rec_get_nth_const(
 	ulint			i;
 	ulint			n_owned;
 	const rec_t*		rec;
+
+	if (nth == 0) {
+		return(page_get_infimum_rec(page));
+	}
 
 	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
