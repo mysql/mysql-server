@@ -267,6 +267,7 @@ SET(SERVER_TESTS
   item
   item_func_now_local
   join_tab_sort
+  make_sortkey
   my_decimal
   opt_range
   opt_trace
