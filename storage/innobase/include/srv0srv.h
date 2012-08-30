@@ -424,16 +424,7 @@ extern ulong srv_sync_array_size;
 extern my_bool srv_print_all_deadlocks;
 
 /** Status variables to be passed to MySQL */
-typedef struct export_var_struct export_struc;
-
-/** Thread slot in the thread table */
-typedef struct srv_slot_struct	srv_slot_t;
-
-/** Thread table is an array of slots */
-typedef srv_slot_t	srv_table_t;
-
-/** Status variables to be passed to MySQL */
-extern export_struc export_vars;
+extern struct export_var_t export_vars;
 
 /** Global counters */
 extern srv_stats_t	srv_stats;
@@ -768,7 +759,7 @@ srv_purge_wakeup(void);
 /*==================*/
 
 /** Status variables to be passed to MySQL */
-struct export_var_struct{
+struct export_var_t{
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
 	ulint innodb_data_pending_writes;	/*!< Pending writes */
 	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
@@ -828,7 +819,7 @@ struct export_var_struct{
 };
 
 /** Thread slot in the thread table.  */
-struct srv_slot_struct{
+struct srv_slot_t{
 	srv_thread_type type;			/*!< thread type: user,
 						utility etc. */
 	ibool		in_use;			/*!< TRUE if this slot
