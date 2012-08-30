@@ -100,9 +100,3 @@ int
 toku_builtin_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
-
-int
-toku_dont_call_this_compare_fun (DB *db __attribute__((__unused__)), const DBT *a __attribute__((__unused__)), const DBT*b __attribute__((__unused__))) {
-    assert(0);
-    return 0;
-}
