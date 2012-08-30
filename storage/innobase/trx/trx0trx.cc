@@ -146,10 +146,6 @@ trx_create(void)
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
 
-	/* Avoid calling ut_time() too frequently. Set the time here
-	for new transactions. */
-	trx->start_time = ut_time();
-
 	return(trx);
 }
 
@@ -694,7 +690,6 @@ trx_start_low(
 	trx_t*	trx)		/*!< in: transaction */
 {
 	ut_ad(trx->rseg == NULL);
-	ut_ad(trx->start_time != 0);
 
 	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
@@ -764,11 +759,7 @@ trx_start_low(
 
 	mutex_exit(&trx_sys->mutex);
 
-	/* Avoid making an unnecessary system call, we reuse the start_time
-	for every 32  starts. */
-	if (!(trx->id % 32)) {
-		trx->start_time = ut_time();
-	}
+	trx->start_time = ut_time();
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
