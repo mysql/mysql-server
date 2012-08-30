@@ -446,24 +446,6 @@ ha_ndbcluster::is_fk_defined_on_table_or_index(uint index)
   return FALSE;
 }
 
-int
-ha_ndbcluster::get_foreign_key_list(THD *thd,
-                                    List<FOREIGN_KEY_INFO> * f_key_list)
-{
-  DBUG_ENTER("ha_ndbcluster::get_foreign_key_list");
-  Ndb *ndb= get_ndb(thd);
-  if (ndb == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  /**
-   * TODO
-   */
-
-  DBUG_RETURN(0);
-}
-
 uint
 ha_ndbcluster::referenced_by_foreign_key()
 {
@@ -562,6 +544,170 @@ fk_split_name(char dst[], const char * src, bool index = false)
   }
   strcpy(dstptr, src);
   return dstptr;
+}
+
+int
+ha_ndbcluster::get_foreign_key_list(THD *thd,
+                                    List<FOREIGN_KEY_INFO> * f_key_list)
+{
+  DBUG_ENTER("ha_ndbcluster::get_foreign_key_list");
+  if (thd == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  if (m_table == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  Ndb *ndb= get_ndb(thd);
+  if (ndb == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  NDBDICT *dict= ndb->getDictionary();
+  NDBDICT::List obj_list;
+  dict->listDependentObjects(obj_list, *m_table);
+  for (unsigned i = 0; i < obj_list.count; i++)
+  {
+    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+      continue;
+
+    FOREIGN_KEY_INFO f_key_info;
+
+    NdbDictionary::ForeignKey fk;
+    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
+    if (res != 0)
+    {
+      DBUG_RETURN(1); // TODO suitable error code
+    }
+
+    {
+      char fk_full_name[FN_LEN + 1];
+      const char * name = fk_split_name(fk_full_name, fk.getName());
+      f_key_info.forein_id = thd_make_lex_string(thd, 0, name,
+                                                 (uint)strlen(name), 1);
+    }
+
+    for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
+    {
+      const NdbDictionary::Column * col =
+        m_table->getColumn(fk.getParentColumnNo(i));
+      if (col == 0)
+      {
+        DBUG_RETURN(1); // TODO suitable error code
+      }
+      LEX_STRING * name = thd_make_lex_string(thd, 0,
+                                              col->getName(),
+                                              (uint)strlen(col->getName()), 1);
+      f_key_info.foreign_fields.push_back(name);
+    }
+
+    {
+      char child_db_and_name[FN_LEN + 1];
+      const char * child_name = fk_split_name(child_db_and_name,
+                                              fk.getChildTable());
+      f_key_info.referenced_db =
+        thd_make_lex_string(thd, 0, child_db_and_name,
+                            (uint)strlen(child_db_and_name),
+                            1);
+
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, child_db_and_name);
+      Ndb_table_guard child_tab(dict, child_name);
+      if (child_tab.get_table() == 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      for (unsigned i = 0; i < fk.getChildColumnCount(); i++)
+      {
+        const NdbDictionary::Column * col =
+          child_tab.get_table()->getColumn(fk.getChildColumnNo(i));
+        if (col == 0)
+        {
+          DBUG_RETURN(1); // TODO suitable error code
+        }
+        LEX_STRING * name =
+          thd_make_lex_string(thd, 0, col->getName(),
+                              (uint)strlen(col->getName()), 1);
+        f_key_info.referenced_fields.push_back(name);
+      }
+    }
+
+    {
+      const char *update_method = 0;
+      switch(fk.getOnUpdateAction()){
+      case NdbDictionary::ForeignKey::NoAction:
+        update_method = "NO ACTION";
+        break;
+      case NdbDictionary::ForeignKey::Restrict:
+        update_method = "RESTRICT";
+        break;
+      case NdbDictionary::ForeignKey::Cascade:
+        update_method = "CASCADE";
+        break;
+      case NdbDictionary::ForeignKey::SetNull:
+        update_method = "SET NULL";
+        break;
+      case NdbDictionary::ForeignKey::SetDefault:
+        update_method = "SET DEFAULT";
+        break;
+      }
+      f_key_info.update_method =
+        thd_make_lex_string(thd, 0, update_method,
+                            (uint)strlen(update_method),
+                            1);
+    }
+
+    {
+      const char *delete_method = "";
+      switch(fk.getOnDeleteAction()){
+      case NdbDictionary::ForeignKey::NoAction:
+        delete_method = "NO ACTION";
+        break;
+      case NdbDictionary::ForeignKey::Restrict:
+        delete_method = "RESTRICT";
+        break;
+      case NdbDictionary::ForeignKey::Cascade:
+        delete_method = "CASCADE";
+        break;
+      case NdbDictionary::ForeignKey::SetNull:
+        delete_method = "SET NULL";
+        break;
+      case NdbDictionary::ForeignKey::SetDefault:
+        delete_method = "SET DEFAULT";
+        break;
+      }
+      f_key_info.delete_method =
+        thd_make_lex_string(thd, 0, delete_method,
+                            (uint)strlen(delete_method),
+                            1);
+    }
+
+    if (fk.getChildIndex() != 0)
+    {
+      f_key_info.referenced_key_name =
+        thd_make_lex_string(thd, 0, fk.getChildIndex(),
+                            (uint)strlen(fk.getChildIndex()),
+                            1);
+    }
+    else
+    {
+      f_key_info.referenced_key_name = 0;
+    }
+
+    List<LEX_STRING> foreign_fields;
+    List<LEX_STRING> referenced_fields;
+
+    FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
+      thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
+    f_key_list->push_back(pf_key_info);
+  }
+
+  DBUG_RETURN(0);
 }
 
 static
