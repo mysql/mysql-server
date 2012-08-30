@@ -3229,6 +3229,8 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 longlong Item_func_validate_password_strength::val_int()
 {
   String *field= args[0]->val_str(&value);
+  if ((null_value= args[0]->null_value))
+    return 0;
   return (check_password_strength(field));
 }
 
