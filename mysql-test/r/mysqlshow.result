@@ -116,27 +116,29 @@ Database: information_schema
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
-| INNODB_CMPMEM                         |
-| INNODB_CMPMEM_RESET                   |
+| INNODB_FT_BEING_DELETED               |
 | INNODB_CMP_RESET                      |
-| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_CMP_PER_INDEX                  |
+| INNODB_CMPMEM_RESET                   |
 | INNODB_FT_DELETED                     |
-| INNODB_FT_DEFAULT_STOPWORD            |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_FT_CONFIG                      |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_FT_INSERTED                    |
+| INNODB_CMPMEM                         |
 | INNODB_SYS_INDEXES                    |
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
-| INNODB_FT_INDEX_CACHE                 |
+| INNODB_CMP_PER_INDEX_RESET            |
 | INNODB_BUFFER_PAGE                    |
-| INNODB_FT_BEING_DELETED               |
+| INNODB_FT_DEFAULT_STOPWORD            |
 | INNODB_FT_INDEX_TABLE                 |
-| INNODB_METRICS                        |
+| INNODB_FT_INDEX_CACHE                 |
 | INNODB_SYS_TABLESPACES                |
-| INNODB_FT_INSERTED                    |
+| INNODB_METRICS                        |
 | INNODB_SYS_FOREIGN_COLS               |
-| INNODB_SYS_COLUMNS                    |
+| INNODB_FT_CONFIG                      |
 | INNODB_BUFFER_POOL_STATS              |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_SYS_FOREIGN                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -179,27 +181,29 @@ Database: INFORMATION_SCHEMA
 | INNODB_LOCK_WAITS                     |
 | INNODB_SYS_TABLESTATS                 |
 | INNODB_CMP                            |
-| INNODB_CMPMEM                         |
-| INNODB_CMPMEM_RESET                   |
+| INNODB_FT_BEING_DELETED               |
 | INNODB_CMP_RESET                      |
-| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_CMP_PER_INDEX                  |
+| INNODB_CMPMEM_RESET                   |
 | INNODB_FT_DELETED                     |
-| INNODB_FT_DEFAULT_STOPWORD            |
-| INNODB_SYS_FOREIGN                    |
-| INNODB_FT_CONFIG                      |
+| INNODB_BUFFER_PAGE_LRU                |
+| INNODB_FT_INSERTED                    |
+| INNODB_CMPMEM                         |
 | INNODB_SYS_INDEXES                    |
 | INNODB_SYS_TABLES                     |
 | INNODB_SYS_FIELDS                     |
-| INNODB_FT_INDEX_CACHE                 |
+| INNODB_CMP_PER_INDEX_RESET            |
 | INNODB_BUFFER_PAGE                    |
-| INNODB_FT_BEING_DELETED               |
+| INNODB_FT_DEFAULT_STOPWORD            |
 | INNODB_FT_INDEX_TABLE                 |
-| INNODB_METRICS                        |
+| INNODB_FT_INDEX_CACHE                 |
 | INNODB_SYS_TABLESPACES                |
-| INNODB_FT_INSERTED                    |
+| INNODB_METRICS                        |
 | INNODB_SYS_FOREIGN_COLS               |
-| INNODB_SYS_COLUMNS                    |
+| INNODB_FT_CONFIG                      |
 | INNODB_BUFFER_POOL_STATS              |
+| INNODB_SYS_COLUMNS                    |
+| INNODB_SYS_FOREIGN                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

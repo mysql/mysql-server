@@ -423,6 +423,8 @@ extern ulong srv_sync_array_size;
 /* print all user-level transactions deadlocks to mysqld stderr */
 extern my_bool srv_print_all_deadlocks;
 
+extern my_bool	srv_cmp_per_index_enabled;
+
 /** Status variables to be passed to MySQL */
 extern struct export_var_t export_vars;
 

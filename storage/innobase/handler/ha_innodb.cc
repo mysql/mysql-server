@@ -320,6 +320,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_MEM_DEBUG */
 	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
 	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
+	{&page_zip_stat_per_index_mutex_key, "page_zip_stat_per_index_mutex", 0},
 	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
 	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
 	{&rseg_mutex_key, "rseg_mutex", 0},
@@ -14106,6 +14107,30 @@ innodb_adaptive_hash_index_update(
 }
 
 /****************************************************************//**
+Update the system variable innodb_cmp_per_index using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_cmp_per_index_update(
+/*========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* Reset the stats whenever we enable the table
+	INFORMATION_SCHEMA.innodb_cmp_per_index. */
+	if (!srv_cmp_per_index_enabled && *(my_bool*) save) {
+		page_zip_reset_stat_per_index();
+	}
+
+	srv_cmp_per_index_enabled = !!(*(my_bool*) save);
+}
+
+/****************************************************************//**
 Update the system variable innodb_old_blocks_pct using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
@@ -15907,6 +15932,12 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   " to make the page compressible.",
   NULL, NULL, 50, 0, 75, 0);
 
+static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable INFORMATION_SCHEMA.innodb_cmp_per_index, "
+  "may have negative impact on performance (off by default)",
+  NULL, innodb_cmp_per_index_update, FALSE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -16041,6 +16072,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
@@ -16077,6 +16109,8 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
+i_s_innodb_cmp_per_index,
+i_s_innodb_cmp_per_index_reset,
 i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,

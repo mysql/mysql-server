@@ -496,6 +496,14 @@ page_zip_parse_compress_no_data(
 	dict_index_t* index)		/*!< in: index */
 	__attribute__((nonnull(1,2)));
 
+/**********************************************************************//**
+Reset the counters used for filling
+INFORMATION_SCHEMA.innodb_cmp_per_index. */
+UNIV_INLINE
+void
+page_zip_reset_stat_per_index();
+/*===========================*/
+
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.
 When we IMPORT a tablespace the blocks and accompanying frames are allocted
