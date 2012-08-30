@@ -16367,7 +16367,7 @@ innobase_index_cond(
 	DBUG_ASSERT(h->pushed_idx_cond);
 	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
 
-	if (h->end_range && h->compare_key2(h->end_range) > 0) {
+	if (h->end_range && h->compare_key_icp(h->end_range) > 0) {
 
 		/* caller should return HA_ERR_END_OF_FILE already */
 		DBUG_RETURN(ICP_OUT_OF_RANGE);
