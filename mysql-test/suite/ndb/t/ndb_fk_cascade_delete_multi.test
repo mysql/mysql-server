@@ -1,8 +1,4 @@
-# Does not work on Windows until we got rid of create_fk and drop_fk
--- source include/not_windows.inc
-
 -- source include/have_ndb.inc
--- source find_ndb_fk_tools.inc
 
 create table emp (
   id int primary key auto_increment,
