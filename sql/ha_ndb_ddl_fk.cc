@@ -668,6 +668,17 @@ ha_ndbcluster::get_foreign_key_create_info()
       }
     }
 
+    if (! (strcmp(child_db_and_name, m_dbname) == 0 &&
+           strcmp(childtab->getName(), m_tabname) == 0))
+    {
+      /**
+       * this was on parent table (fk are shown on child table in SQL)
+       */
+      assert(strcmp(parent_db_and_name, m_dbname) == 0);
+      assert(strcmp(parenttab->getName(), m_tabname) == 0);
+      continue;
+    }
+
     fk_string.append(",");
     fk_string.append("\n ");
     fk_string.append("CONSTRAINT `");
