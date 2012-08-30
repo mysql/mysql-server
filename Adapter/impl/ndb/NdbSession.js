@@ -68,8 +68,9 @@ DBSession.prototype = {
 
 
 DBSession.prototype.getConnectionPool = function() {
+  udebug.log("DBSession getConnectionPool");
   return this.parentPool;
-}
+};
 
 
 DBSession.prototype.openTransaction = function() {
@@ -87,10 +88,10 @@ DBSession.prototype.read = function(table, keys) {
 };
 
 
-DBSession.prototype.insert = function(table, row) {
-  udebug.log("DBSession insert " + table.name);
+DBSession.prototype.insert = function(tableHandler, row) {
+  udebug.log("DBSession insert " + tableHandler.dbTable.name);
 
-  var op = ndboperation.getInsertOperation(this.tx, table, row);
+  var op = ndboperation.getInsertOperation(this.tx, tableHandler, row);
   return op;
 };
 

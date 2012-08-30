@@ -29,6 +29,10 @@
   };
 
 
+  // FIXME
+  // The object as implemented in Annotations.js 
+  // and the object as implemented in DBTableHandler.js are not quite the same
+
   /** FieldMapping object
    *  Describes the mapping of each field in a domain object to a column
    *  in the database.

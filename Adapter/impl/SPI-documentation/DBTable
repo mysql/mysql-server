@@ -41,16 +41,6 @@ DBColumn = {
 };
 
 
-/* Method on DBColumn
-   Converter getConverter() 
-   IMMEDIATE
-   Return converter for column. 
-   This will either be the dictionary's default Converter class for the column,
-   or the type converter that has been registered with the DBConnectionPool.
-*/
-  getConverter();
-
-
 /* DBIndex represents a table index.  
 
    The "indexes" array of DBTable will hold one DBIndex per table index. 

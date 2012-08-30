@@ -45,6 +45,7 @@ Handle<Value> scanIndex(const Arguments &);
 class OperationEnvelopeClass : public Envelope {
 public:
   OperationEnvelopeClass() : Envelope("Operation") {
+//   DEFINE_JS_FUNCTION(Envelope::stencil, "useColumn", useColumn);
    DEFINE_JS_FUNCTION(Envelope::stencil, "readTuple", readTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "readCurrentTuple", readCurrentTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "writeTuple", writeTuple);

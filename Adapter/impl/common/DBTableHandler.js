@@ -29,7 +29,11 @@
 
 "use strict";
 
+var assert = require("assert");
+
+
 function TableMapping(dbtable) { 
+  udebug.log("DBTableHandler TableMapping constructor " + dbtable.name);
   this.name = dbtable.name;
   this.database = dbtable.database;
 }
@@ -42,13 +46,31 @@ TableMapping.prototype = {
   fields                 : []      // array of FieldMapping objects
 };
 
+TableMapping.prototype.merge = function(apiMapping) {
+  udebug.log("DBTableHandler TableMapping merge");
+  var x;
+  
+  for(x in apiMapping) {
+    if(apiMapping.hasOwnProperty(x)) {
+      switch(x) {
+        case "autoIncrementBatchSize":
+          this[x] = apiMapping[x];
+          break;
+        default:
+          break;
+      }
+    }
+  }
+};
+
 /* Constructor and Prototype for FieldMapping.
    Copied from the API Documentation for Annotations
 */
-function FieldMapping(dbcolumn) {
+function FieldMapping(dbconnpool, dbcolumn) {
+  udebug.log("DBTableHandler FieldMapping constructor: " + dbcolumn.name);
   this.columnName = dbcolumn.name;
   this.columnNumber = dbcolumn.columnNumber;
-  this.converter = dbcolumn.getConverter();
+  this.converter = dbconnpool.getConverter(dbcolumn);
 }
 
 FieldMapping.prototype = {
@@ -60,14 +82,74 @@ FieldMapping.prototype = {
   converter     :  {}        // Converter class to use with this field  
 };
 
+FieldMapping.prototype.merge = function(mappedField) {
+  udebug.log("DBTableHandler FieldMapping merge");
+  var x;
 
-function createDefaultMapping(dbtable) {
+  for(x in mappedField) {
+    if(mappedField.hasOwnProperty(x)) {
+      switch(x) {
+        case "actionOnNull":
+        case "converter":
+          this[x] = mappedField[x];
+          break;
+        default:
+          break;
+      }
+    }
+  }
+};
+
+
+function getColumnByName(dbTable, colName) {
+  udebug.log("DBTableHandler getColumnByName " + colName);
+  var i, col;
+  
+  for(i = 0 ; i < dbTable.columns.length ; i++) {
+    col = dbTable.columns[i];
+    if(col.name === colName) {
+      return col;
+    }
+  }
+  udebug.log("DBTableHandler getColumnByName " + colName + " NOT FOUND.");
+  return null;
+}
+
+
+function createDefaultMapping(dbconnpool, dbtable) {
+  udebug.log("DBTableHandler createDefaultMapping for table " + dbtable.name);
   var mapping = new TableMapping(dbtable);
   var i;
   for(i = 0 ; i < dbtable.columns.length ; i++) {
-    mapping.fields[i] = new FieldMapping(dbtable.columns[i]);
+    mapping.fields[i] = new FieldMapping(dbconnpool, dbtable.columns[i]);
     mapping.fields[i].fieldName = dbtable.columns[i].name;
   }
+  return mapping;
+}
+
+
+// TODO: Figure out error handling if the API Mapping is invalid
+
+function resolveApiMapping(connPool, dbTable, apiMapping) {
+  udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name);
+  var mapping, field, apiField, col, i;
+
+  mapping = new TableMapping(dbTable);
+  mapping.isDefaultMapping = false;
+  mapping.merge(apiMapping);
+    
+  for(i = 0 ; i < apiMapping.fields.length ; i++) {
+    apiField = apiMapping.fields[i]; 
+    if(! apiField.notPersistent) {
+      col = getColumnByName(dbTable, field.columnName);
+      /* TODO: check for null */
+      field = new FieldMapping(connPool, col);
+      field.merge(apiField);
+      mapping.fields.push(field);      
+    }
+  }
+  
+  return mapping;
 }
 
 
@@ -84,16 +166,20 @@ function createDefaultMapping(dbtable) {
      use default converters for all data types
      perform no remapping between field names and column names
 */
-exports.DBTableHandler = function (dbtable, tablemapping) {
+exports.DBTableHandler = function (dbconnpool, dbtable, tablemapping) {
+  udebug.log("DBTableHandler constructor");
+  assert(arguments.length === 3);
   var i;
   var f;
-  if(typeof tablemapping === 'null') {
-    udebug.log("Creating default mapping for table " + dbtable.name);
-    tablemapping = createDefaultMapping(dbtable);
+  if(tablemapping === null) {     // Create a default mapping
+    this.mapping = createDefaultMapping(dbconnpool, dbtable);
+  }
+  else {                                   // Resolve the API Mapping
+    this.mapping = resolveApiMapping(dbconnpool, dbtable, tablemapping);
   }
    
+  this.connectionPool = dbconnpool;
   this.dbTable = dbtable;
-  this.mapping = tablemapping;
 
   /* Build Convenience Maps: 
        Only *persistent* fields are included in the maps
@@ -107,15 +193,17 @@ exports.DBTableHandler = function (dbtable, tablemapping) {
       this.columnNumberToFieldMap[f.columnNumber] = f;   // Array
     }
   }
+  udebug.log("DBTableHandler new completed");
 };
 
 var proto = {
-  "dbTable"             : {},
-  "mapping"             : {},
-  "newObjectPrototype"  : {},
-  "fieldNameMap"        : {},
-  "colNameToFieldMap"   : {},
-  "colNumberToFieldMap" : []
+  connectionPool         : {},
+  dbTable                : {},
+  mapping                : {},
+  newObjectPrototype     : {},
+  fieldNameMap           : {},
+  columnNameToFieldMap   : {},
+  columnNumberToFieldMap : []
 };
 
 /* DBTableHandler.setResultPrototype(Object proto_object)
@@ -230,6 +318,7 @@ proto.chooseIndex = function(keys) {
 /* Return the property of obj corresponding to fieldNumber */
 proto.get = function(obj, fieldNumber) { 
   var f = this.mapping.fields[fieldNumber];
+  udebug.log("DBTableHandler get " + fieldNumber +" "+ f.fieldName);
   return obj[f.fieldName];
 };
 

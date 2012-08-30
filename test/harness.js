@@ -124,7 +124,6 @@ Test.prototype.pass = function() {
 };
 
 Test.prototype.fail = function(message) {
-  debugger;
   this.failed = true;
   if (message) {
     this.appendErrorMessage(message);

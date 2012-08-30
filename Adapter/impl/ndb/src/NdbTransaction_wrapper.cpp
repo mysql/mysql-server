@@ -27,6 +27,7 @@
 #include "unified_debug.h"
 
 #include "NdbJsConverters.h"
+#include "NdbWrapperErrors.h"
 
 using namespace v8;
 
@@ -87,7 +88,7 @@ Handle<Value> getTCNodeId(const Arguments &args) {
 //////////// ASYNC METHOD WRAPPERS
 
 Handle<Value> execute(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(4);
@@ -96,6 +97,8 @@ Handle<Value> execute(const Arguments &args) {
                               NdbOperation::AbortOption, int> NCALL;
   NCALL * ncallptr = new NCALL(args);
   ncallptr->method = & NdbTransaction::execute;
+  ncallptr->envelope = & NdbTransactionEnvelope;
+  ncallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
   // todo: set error handler
   ncallptr->runAsync();
 

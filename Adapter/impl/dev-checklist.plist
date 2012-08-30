@@ -15,6 +15,10 @@
 	<key>implement mysql/DBDictionary</key>
 	<false/>
 	<key>Mapped NdbError object</key>
+	<true/>
+	<key>Need actual converters in NdbTypeConverters.js</key>
+	<false/>
+	<key>Need actual handling of masked fields in Operation</key>
 	<false/>
 	<key>Unified C/JS Debug framework</key>
 	<dict>
