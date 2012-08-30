@@ -2838,7 +2838,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
       bytes_written+= description_event_for_queue->data_written;
     }
     if (flush_io_cache(&log_file) ||
-        my_sync(log_file.file, MYF(MY_WME)))
+        my_sync(log_file.file, MYF(MY_WME|MY_SYNC_FILESIZE)))
       goto err;
     pthread_mutex_lock(&LOCK_commit_ordered);
     strmake(last_commit_pos_file, log_file_name,
@@ -2864,7 +2864,7 @@ bool MYSQL_BIN_LOG::open(const char *log_name,
                      strlen(log_file_name)) ||
           my_b_write(&index_file, (uchar*) "\n", 1) ||
           flush_io_cache(&index_file) ||
-          my_sync(index_file.file, MYF(MY_WME)))
+          my_sync(index_file.file, MYF(MY_WME|MY_SYNC_FILESIZE)))
         goto err;
 
 #ifdef HAVE_REPLICATION
@@ -2956,7 +2956,7 @@ static bool copy_up_file_and_fill(IO_CACHE *index_file, my_off_t offset)
   }
   /* The following will either truncate the file or fill the end with \n' */
   if (my_chsize(file, offset - init_offset, '\n', MYF(MY_WME)) ||
-      my_sync(file, MYF(MY_WME)))
+      my_sync(file, MYF(MY_WME|MY_SYNC_FILESIZE)))
     goto err;
 
   /* Reset data in old index cache */
@@ -3549,7 +3549,7 @@ int MYSQL_BIN_LOG::sync_purge_index_file()
   DBUG_ENTER("MYSQL_BIN_LOG::sync_purge_index_file");
 
   if ((error= flush_io_cache(&purge_index_file)) ||
-      (error= my_sync(purge_index_file.file, MYF(MY_WME))))
+      (error= my_sync(purge_index_file.file, MYF(MY_WME|MY_SYNC_FILESIZE))))
     DBUG_RETURN(error);
 
   DBUG_RETURN(error);
@@ -4139,7 +4139,7 @@ bool MYSQL_BIN_LOG::flush_and_sync()
   if (++sync_binlog_counter >= sync_binlog_period && sync_binlog_period)
   {
     sync_binlog_counter= 0;
-    err=my_sync(fd, MYF(MY_WME));
+    err=my_sync(fd, MYF(MY_WME|MY_SYNC_FILESIZE));
 #ifndef DBUG_OFF
     if (opt_binlog_dbug_fsync_sleep > 0)
       my_sleep(opt_binlog_dbug_fsync_sleep);

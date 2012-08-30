@@ -70,6 +70,7 @@ extern int NEAR my_errno;		/* Last error in mysys */
 #define MY_THREADSAFE 2048      /* my_seek(): lock fd mutex */
 #define MY_SYNC       4096      /* my_copy(): sync dst file */
 #define MY_SYNC_DIR   32768     /* my_create/delete/rename: sync directory */
+#define MY_SYNC_FILESIZE 65536  /* my_sync(): safe sync when file is extended */
 
 #define MY_CHECK_ERROR	1	/* Params to my_end; Check open-close */
 #define MY_GIVE_INFO	2	/* Give time info about process*/

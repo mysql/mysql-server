@@ -39,6 +39,13 @@ ulong my_sync_count;                           /* Count number of sync calls */
     (which is correct behaviour, if we know that the other thread synced the
     file before closing)
 
+    MY_SYNC_FILESIZE is useful when syncing a file after it has been extended.
+    On Linux, fdatasync() on ext3/ext4 file systems does not properly flush
+    to disk the inode data required to preserve the added data across a crash
+    (this looks to be a bug). But when a file is extended, inode data will most
+    likely need flushing in any case, so passing MY_SYNC_FILESIZE as flags
+    is not likely to be any slower, and will be crash safe on Linux ext3/ext4.
+
   RETURN
     0 ok
     -1 error
@@ -67,8 +74,12 @@ int my_sync(File fd, myf my_flags)
     DBUG_PRINT("info",("fcntl(F_FULLFSYNC) failed, falling back"));
 #endif
 #if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
-    res= fdatasync(fd);
-#elif defined(HAVE_FSYNC)
+    if (!(my_flags & MY_SYNC_FILESIZE))
+      res= fdatasync(fd);
+    else
+    {
+#endif
+#if defined(HAVE_FSYNC)
     res= fsync(fd);
     if (res == -1 && errno == ENOLCK)
       res= 0;                                   /* Result Bug in Old FreeBSD */
@@ -77,6 +88,9 @@ int my_sync(File fd, myf my_flags)
 #else
 #error Cannot find a way to sync a file, durability in danger
     res= 0;					/* No sync (strange OS) */
+#endif
+#if defined(HAVE_FDATASYNC) && HAVE_DECL_FDATASYNC
+    }
 #endif
   } while (res == -1 && errno == EINTR);
 
