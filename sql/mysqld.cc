@@ -2026,13 +2026,19 @@ static struct passwd *check_user(const char *user)
     if (!(tmp_user_info= getpwuid(atoi(user))))
       goto err;
   }
+
   return tmp_user_info;
   /* purecov: end */
 
 err:
   sql_print_error("Fatal error: Can't change to run as user '%s' ;  Please check that the user exists!\n",user);
   unireg_abort(1);
+#endif
+  return NULL;
+}
 
+static inline void allow_coredumps()
+{
 #ifdef PR_SET_DUMPABLE
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
@@ -2040,10 +2046,8 @@ err:
     (void) prctl(PR_SET_DUMPABLE, 1);
   }
 #endif
-
-#endif
-  return NULL;
 }
+
 
 static void set_user(const char *user, struct passwd *user_info_arg)
 {
@@ -2071,6 +2075,7 @@ static void set_user(const char *user, struct passwd *user_info_arg)
     sql_perror("setuid");
     unireg_abort(1);
   }
+  allow_coredumps();
 #endif
   /* purecov: end */
 }
@@ -2090,6 +2095,7 @@ static void set_effective_user(struct passwd *user_info_arg)
     sql_perror("setreuid");
     unireg_abort(1);
   }
+  allow_coredumps();
 #endif
 }
 
