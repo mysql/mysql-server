@@ -657,7 +657,9 @@ os_file_handle_error_cond_exit(
 				"operation.\n");
 
 			fflush(stderr);
-			ut_error;
+
+			ut_ad(0);  /* Report call stack, etc only in debug code. */
+			exit(1);
 		}
 	}
 
