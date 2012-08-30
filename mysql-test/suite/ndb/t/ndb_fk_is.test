@@ -20,7 +20,7 @@ create table product_order (
   primary key(no),
   index (product_category, product_id),
   foreign key (product_category, product_id) references product(category, id)
-    on update cascade on delete restrict,
+    on update restrict on delete cascade,
   index (customer_id),
   foreign key (customer_id) references customer(id))
 engine=ndb;
