@@ -2603,7 +2603,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   */
   sjm_exec->table_param.init();
   count_field_types(select_lex, &sjm_exec->table_param,
-                    *sjm_exec->subq_exprs, false);
+                    *sjm_exec->subq_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long= true;
 
   char buffer[NAME_LEN];
@@ -3805,6 +3805,12 @@ public:
     - sergeyp: Results of all index merge selects actually are ordered 
     by clustered PK values.
 
+  @note
+  This function may change tmp_table_param.precomputed_group_by. This
+  affects how create_tmp_table() treats aggregation functions, so
+  count_field_types() must be called again to make sure this is taken
+  into consideration.
+
   @retval
     0    We have to use filesort to do the sorting
   @retval
@@ -4257,12 +4263,27 @@ fix_ICP:
 
 
 /**
-  Update join with count of the different type of fields.
+  Update TMP_TABLE_PARAM with count of the different type of fields.
+
+  This function counts the number of fields, functions and sum
+  functions (items with type SUM_FUNC_ITEM) for use by
+  create_tmp_table() and stores it in the TMP_TABLE_PARAM object. It
+  also resets and calculates the quick_group property, which may have
+  to be reverted if this function is called after deciding to use
+  ROLLUP (see JOIN::rollup_init()).
+
+  @param select_lex           SELECT_LEX of query
+  @param param                Description of temp table
+  @param fields               List of fields to count
+  @param reset_with_sum_func  Whether to reset with_sum_func of func items
+  @param save_sum_fields      Count in the way create_tmp_table() expects when
+                              given the same parameter.
 */
 
 void
 count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
-                  List<Item> &fields, bool reset_with_sum_func)
+                  List<Item> &fields, bool reset_with_sum_func,
+                  bool save_sum_fields)
 {
   List_iterator<Item> li(fields);
   Item *field;
@@ -4270,6 +4291,13 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
   param->field_count=param->sum_func_count=param->func_count=
     param->hidden_field_count=0;
   param->quick_group=1;
+  /*
+    Loose index scan guarantees that all grouping is done and MIN/MAX
+    functions are computed, so create_tmp_table() treats this as if
+    save_sum_fields is set.
+  */
+  save_sum_fields|= param->precomputed_group_by;
+
   while ((field=li++))
   {
     Item::Type real_type= field->real_item()->type();
@@ -4296,6 +4324,24 @@ count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param,
           }
         }
         param->func_count++;
+      }
+      else if (save_sum_fields)
+      {
+        /*
+          Count the way create_tmp_table() does if asked to preserve
+          Item_sum_* functions in fields list.
+
+          Item field is an Item_sum_* or a reference to such an
+          item. We need to distinguish between these two cases since
+          they are treated differently by create_tmp_table().
+        */
+        if (field->type() == Item::SUM_FUNC_ITEM) // An Item_sum_*
+          param->field_count++;
+        else // A reference to an Item_sum_*
+        {
+          param->func_count++;
+          param->sum_func_count++;
+        }
       }
     }
     else
@@ -4792,6 +4838,13 @@ bool JOIN::change_result(select_result *res)
        require tmp table.  The Filesort object for it is created here - in
        JOIN::create_intermediate_table.  Filesort for the second case is
        created here, in JOIN::make_tmp_tables_info.
+
+  @note
+  This function may change tmp_table_param.precomputed_group_by. This
+  affects how create_tmp_table() treats aggregation functions, so
+  count_field_types() must be called again to make sure this is taken
+  into consideration.
+
   @returns
   false - Ok
   true  - Error
@@ -4947,7 +5000,7 @@ bool JOIN::make_tmp_tables_info()
       
       calc_group_buffer(this, group_list);
       count_field_types(select_lex, &tmp_table_param, tmp_all_fields1,
-                        select_distinct && !group_list);
+                        select_distinct && !group_list, false);
       tmp_table_param.hidden_field_count= 
         tmp_all_fields1.elements - tmp_fields_list1.elements;
       
@@ -5075,7 +5128,8 @@ bool JOIN::make_tmp_tables_info()
       DBUG_ASSERT(!join_tab[curr_tmp_table].table->group); 
     }
     calc_group_buffer(this, group_list);
-    count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false);
+    count_field_types(select_lex, &tmp_table_param, *curr_all_fields, false,
+                      false);
   }
 
   if (group || implicit_grouping || tmp_table_param.sum_func_count)
