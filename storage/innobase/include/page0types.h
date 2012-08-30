@@ -97,7 +97,7 @@ struct page_zip_stat_t {
 	ib_uint64_t	compressed_usec;
 	/** Duration of page decompressions in microseconds */
 	ib_uint64_t	decompressed_usec;
-	page_zip_stat_struct() :
+	page_zip_stat_t() :
 		/* Initialize members to 0 so that when we do
 		stlmap[key].compressed++ and element with "key" does not
 		exist it gets inserted with zeroed members. */
@@ -110,7 +110,6 @@ struct page_zip_stat_t {
 };
 
 /** Compression statistics types */
-typedef struct page_zip_stat_struct		page_zip_stat_t;
 typedef map<index_id_t, page_zip_stat_t>	page_zip_stat_per_index_t;
 
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
