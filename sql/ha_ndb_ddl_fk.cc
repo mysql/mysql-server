@@ -152,6 +152,35 @@ found:
 
   return best_matching_index; // NOTE: also returns reference
 }
+ 
+static
+void
+setDbName(Ndb* ndb, const char * name)
+{
+  if (name && strlen(name) != 0)
+  {
+    ndb->setDatabaseName(name);
+  }
+}
+
+struct Ndb_db_guard
+{
+  Ndb_db_guard(Ndb* ndb) {
+    this->ndb = ndb;
+    strcpy(save_db, ndb->getDatabaseName());
+  }
+
+  void restore() {
+    ndb->setDatabaseName(save_db);
+  }
+
+  ~Ndb_db_guard() {
+    ndb->setDatabaseName(save_db);
+  }
+private:
+  Ndb* ndb;
+  char save_db[FN_REFLEN + 1];
+};
 
 /**
  * ndbapi want's c-strings (null terminated)
@@ -198,9 +227,6 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
   const int er_default= ER_CANNOT_ADD_FOREIGN;
   char tmpbuf[FN_REFLEN];
 
-  /**
-   * TODO handle databases too...
-   */
   assert(thd->lex != 0);
   Key * key= 0;
   List_iterator<Key> key_iterator(thd->lex->alter_info.key_list);
@@ -256,10 +282,31 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
       DBUG_RETURN(er_default); // TODO suitable error code
     }
 
+    Ndb_db_guard db_guard(ndb); // save db
+
+    char parent_db[FN_REFLEN];
     char parent_name[FN_REFLEN];
-    my_snprintf(parent_name, sizeof(parent_name), "%*s",
-                (int)fk->ref_table->table.length,
-                fk->ref_table->table.str);
+    if (fk->ref_table->db.length != 0 && fk->ref_table->db.str != 0)
+    {
+      my_snprintf(parent_db, sizeof(parent_db), "%*s",
+                  (int)fk->ref_table->db.length,
+                  fk->ref_table->db.str);
+    }
+    else
+    {
+      parent_db[0]= 0;
+    }
+    if (fk->ref_table->table.length != 0 && fk->ref_table->table.str != 0)
+    {
+      my_snprintf(parent_name, sizeof(parent_name), "%*s",
+                  (int)fk->ref_table->table.length,
+                  fk->ref_table->table.str);
+    }
+    else
+    {
+      parent_name[0]= 0;
+    }
+    setDbName(ndb, parent_db);
     Ndb_table_guard parent_tab(dict, parent_name);
     if (parent_tab.get_table() == 0)
     {
@@ -290,6 +337,8 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
                                                       parent_tab.get_table(),
                                                       parentcols,
                                                       parent_primary_key);
+
+    db_guard.restore(); // restore db
 
     if (!parent_primary_key && parent_index == 0)
     {
@@ -595,10 +644,10 @@ ha_ndbcluster::get_foreign_key_create_info()
     const NDBTAB * childtab= 0;
     const NDBTAB * parenttab= 0;
 
+    char parent_db_and_name[FN_LEN + 1];
     {
-      char db_and_name[FN_LEN + 1];
-      const char * name = fk_split_name(db_and_name, fk.getParentTable());
-      ndb->setDatabaseName(db_and_name);
+      const char * name = fk_split_name(parent_db_and_name,fk.getParentTable());
+      setDbName(ndb, parent_db_and_name);
       parenttab= dict->getTableGlobal(name);
       if (parenttab == 0)
       {
@@ -607,10 +656,10 @@ ha_ndbcluster::get_foreign_key_create_info()
       }
     }
 
+    char child_db_and_name[FN_LEN + 1];
     {
-      char db_and_name[FN_LEN + 1];
-      const char * name = fk_split_name(db_and_name, fk.getChildTable());
-      ndb->setDatabaseName(db_and_name);
+      const char * name = fk_split_name(child_db_and_name, fk.getChildTable());
+      setDbName(ndb, child_db_and_name);
       childtab= dict->getTableGlobal(name);
       if (childtab == 0)
       {
@@ -646,6 +695,11 @@ ha_ndbcluster::get_foreign_key_create_info()
     }
 
     fk_string.append(") REFERENCES `");
+    if (strcmp(parent_db_and_name, child_db_and_name) != 0)
+    {
+      fk_string.append(parent_db_and_name);
+      fk_string.append("`.`");
+    }
     fk_string.append(parenttab->getName());
     fk_string.append("` (");
 
@@ -746,6 +800,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
     DBUG_RETURN(0);
   }
 
+  Ndb_db_guard db_guard(ndb);
   const char * src_db = thd->lex->select_lex.table_list.first->db;
   const char * src_tab = thd->lex->select_lex.table_list.first->table_name;
 
@@ -757,6 +812,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
   assert(thd->lex != 0);
   NDBDICT* dict = ndb->getDictionary();
+  setDbName(ndb, src_db);
   Ndb_table_guard srctab(dict, src_tab);
   if (srctab.get_table() == 0)
   {
@@ -766,12 +822,14 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
     DBUG_RETURN(0);
   }
 
+  db_guard.restore();
   Ndb_table_guard dsttab(dict, _dsttab->getName());
   if (dsttab.get_table() == 0)
   {
     ERR_RETURN(dict->getNdbError());
   }
 
+  setDbName(ndb, src_db);
   NDBDICT::List obj_list;
   dict->listDependentObjects(obj_list, *srctab.get_table());
   for (unsigned i = 0; i < obj_list.count; i++)
@@ -820,6 +878,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       {
         char db_and_name[FN_LEN + 1];
         const char * name= fk_split_name(db_and_name, fk.getParentTable());
+        setDbName(ndb, db_and_name);
         Ndb_table_guard org_parent(dict, name);
         if (org_parent.get_table() == 0)
         {
@@ -831,6 +890,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
       {
         char db_and_name[FN_LEN + 1];
         const char * name= fk_split_name(db_and_name, fk.getChildTable());
+        setDbName(ndb, db_and_name);
         Ndb_table_guard org_child(dict, name);
         if (org_child.get_table() == 0)
         {
@@ -858,6 +918,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         if (fk.getParentIndex() != 0)
         {
           name = fk_split_name(db_and_name, fk.getParentIndex(), true);
+          setDbName(ndb, db_and_name);
           const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
           if (idx == 0)
           {
@@ -892,6 +953,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
         if (fk.getChildIndex() != 0)
         {
           name = fk_split_name(db_and_name, fk.getChildIndex(), true);
+          setDbName(ndb, db_and_name);
           const NDBINDEX * idx = dict->getIndexGlobal(name,*dsttab.get_table());
           if (idx == 0)
           {
@@ -918,6 +980,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
                   childObjectId,
                   name);
       fk.setName(new_name);
+      setDbName(ndb, db_and_name);
       if (dict->createForeignKey(fk) != 0)
       {
         ERR_RETURN(dict->getNdbError());
