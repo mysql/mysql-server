@@ -15,8 +15,8 @@
 
 #include "threaded_stress_test_helpers.h"
 
-// The intent of this test is to measure the throughput of the test infrastructure executing a nop
-// on multiple threads.
+// The intent of this test is to measure how fast a single thread can 
+// commit and create transactions when there exist N transactions.
 
 DB_TXN** txns;
 int num_txns;
