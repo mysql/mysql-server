@@ -1,3 +1,9 @@
+2012-08-29	The InnoDB Team
+
+	* btr/btr0btr.c, page/page0cur.c, page/page0page.c:
+	Fix Bug#14554000 CRASH IN PAGE_REC_GET_NTH_CONST(NTH=0)
+	DURING COMPRESSED PAGE SPLIT
+
 2012-08-16	The InnoDB Team
 
 	* btr/btr0cur.c:
