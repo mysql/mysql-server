@@ -362,6 +362,7 @@ JOIN::optimize()
     error= 0;
     if (make_tmp_tables_info())
       DBUG_RETURN(1);
+    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
     DBUG_RETURN(0);
   }
   error= -1;					// Error is sent to client
@@ -388,7 +389,7 @@ JOIN::optimize()
       recalculate the number of fields and functions. However,
       JOIN::rollup_init() has set quick_group=0, and we must not undo that.
     */
-    count_field_types(select_lex, &tmp_table_param, all_fields, false);
+    count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
     tmp_table_param.quick_group= 0; // Can't create groups in tmp table
   }
   else
@@ -627,6 +628,7 @@ JOIN::optimize()
         test_if_skip_sort_order(tab, order, m_select_limit,
                                 true,           // no_changes
                                 &tab->table->keys_in_use_for_order_by);
+      count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
     }
     ORDER *o;
     if ((o= create_distinct_group(thd, ref_ptrs,
@@ -639,7 +641,7 @@ JOIN::optimize()
         test_if_skip_sort_order(tab, group_list, m_select_limit,
                                 true,         // no_changes
                                 &tab->table->keys_in_use_for_group_by);
-      count_field_types(select_lex, &tmp_table_param, all_fields, 0);
+      count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
 	  (order && !skip_sort_order))
@@ -1000,6 +1002,7 @@ JOIN::optimize()
 
   if (make_tmp_tables_info())
     DBUG_RETURN(1);
+  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
 
   error= 0;
   DBUG_RETURN(0);
