@@ -3039,15 +3039,15 @@ void
 fts_optimize_init(void)
 /*===================*/
 {
-	if (!srv_read_only_mode) {
-		/* For now we only support one optimize thread. */
-		ut_a(fts_optimize_wq == NULL);
+	ut_ad(!srv_read_only_mode);
 
-		fts_optimize_wq = ib_wqueue_create();
-		ut_a(fts_optimize_wq != NULL);
+	/* For now we only support one optimize thread. */
+	ut_a(fts_optimize_wq == NULL);
 
-		os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
-	}
+	fts_optimize_wq = ib_wqueue_create();
+	ut_a(fts_optimize_wq != NULL);
+
+	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
 }
 
 /**********************************************************************//**
@@ -3068,23 +3068,23 @@ void
 fts_optimize_start_shutdown(void)
 /*=============================*/
 {
-	if (!srv_read_only_mode) {
-		fts_msg_t*	msg;
-		os_event_t	event;
+	ut_ad(!srv_read_only_mode);
 
-		/* We tell the OPTIMIZE thread to switch to state done, we
-		can't delete the work queue here because the add thread needs
-		deregister the FTS tables. */
-		event = os_event_create(NULL);
+	fts_msg_t*	msg;
+	os_event_t	event;
 
-		msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
-		msg->ptr = event;
+	/* We tell the OPTIMIZE thread to switch to state done, we
+	can't delete the work queue here because the add thread needs
+	deregister the FTS tables. */
+	event = os_event_create(NULL);
 
-		ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
+	msg->ptr = event;
 
-		os_event_wait(event);
-		os_event_free(event);
-	}
+	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
+
+	os_event_wait(event);
+	os_event_free(event);
 }
 
 /**********************************************************************//**
@@ -3094,6 +3094,8 @@ void
 fts_optimize_end(void)
 /*==================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	// FIXME: Potential race condition here: We should wait for
 	// the optimize thread to confirm shutdown.
 	fts_optimize_wq = NULL;

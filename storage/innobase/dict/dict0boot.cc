@@ -457,7 +457,9 @@ dict_boot(void)
 
 	if (srv_read_only_mode && !ibuf_is_empty()) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR, "Change buffer not empty!");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Change buffer must be empty when --innodb-read-only "
+			"is set!");
 
 		err = DB_ERROR;
 	} else {
