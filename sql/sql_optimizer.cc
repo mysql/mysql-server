@@ -945,8 +945,17 @@ JOIN::optimize()
           }
         }
 
+	/*
+	  If we are going to use semi-join LooseScan, it will depend
+	  on the selected index scan to be used.  If index is not used
+	  for the GROUP BY, we risk that sorting is put on the LooseScan
+	  table.  In order to avoid this, force use of temporary table.
+	  TODO: Explain the quick_group part of the test below.
+	 */
         if ((ordered_index_usage != ordered_index_group_by) &&
-            tmp_table_param.quick_group)
+            (tmp_table_param.quick_group || 
+	     (tab->emb_sj_nest && 
+	      tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)))
         {
           need_tmp=1;
           simple_order= simple_group= false; // Force tmp table without sort
