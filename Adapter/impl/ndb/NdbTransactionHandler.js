@@ -68,7 +68,6 @@ proto.execute = function(execmode, callback) {
 
   function onCompleteTx(err, result) {
     udebug.log("DBTransactionHandler execute onCompleteTx: " + result);
-console.dir(err.ndb_error);
     txhandler.callback(err, null);
   }
 
@@ -80,18 +79,11 @@ console.dir(err.ndb_error);
 
     // Prepare the operations 
     for(i = 0 ; i < txhandler.operations.length; i++) {
-      op = txhandler.operations[i];
-      helper = adapter.impl.DBOperationHelper(
-        { row_record : op.tableHandler.dbTable.record ,
-          row_buffer : op.buffers.row 
-        });
-      udebug.log("Got helper");
-      
-      helper.insertTuple(ndbtx);   // fixme
-      op.state = "PREPARED";
+      txhandler.operations[i].prepare(ndbtx);
     }
 
     // execute(ExecFlag, AbortOption, ForceSend, callback)
+    udebug.log("NdbTransactionHandler execute ready to execute.");
     ndbtx.execute(exec_flag, adapter.ndbapi.AbortOnError, 0, onCompleteTx);
   }
 

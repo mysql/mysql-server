@@ -20,6 +20,10 @@
 
 // TODO:  DBServiceProviderTest needs to run before DBConnectionPoolTest.
 
+/*global spi_module, harness */
+
+"use strict";
+
 var spi = require(spi_module);
 var service = spi.getDBServiceProvider(global.adapter);
 
@@ -35,7 +39,7 @@ t2.run = function() {
   var properties = service.getDefaultConnectionProperties();
   var key = service.getFactoryKey(properties);
   return true; // test is complete
-}
+};
 
 
 var t3 = new harness.SerialTest("connectSync");
@@ -44,6 +48,6 @@ t3.run = function() {
   var connection = service.connectSync(properties);
   connection.closeSync();
   return true; // test is complete
-}
+};
 
 module.exports.tests = [t1, t2, t3];

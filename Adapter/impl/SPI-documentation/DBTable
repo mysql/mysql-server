@@ -55,7 +55,7 @@ DBIndex = {
   isPrimaryKey     : true  ,  // true for PK; otherwise undefined
   isUnique         : true  ,  // true or false
   isOrdered        : true  ,  // true or false; can scan if true
-  columnNumbers    : []    ,  // an ordered array of column numbers
+  columns          : []    ,  // an ordered array of column numbers
 };
 
 

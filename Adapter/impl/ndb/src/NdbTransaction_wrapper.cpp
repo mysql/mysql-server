@@ -35,6 +35,18 @@ Handle<Value> getTCNodeId(const Arguments &args);
 Handle<Value> execute(const Arguments &args);
 
 
+
+
+
+/* TODO:  Map tx->close() here.
+          Call it in NdbTransactionHandler.js
+*/
+
+
+
+
+          
+
 class NdbTransactionEnvelopeClass : public Envelope {
 public:
   NdbTransactionEnvelopeClass() : Envelope("NdbTransaction") {

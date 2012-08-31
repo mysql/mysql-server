@@ -18,6 +18,8 @@
  02110-1301  USA
 */
 
+"use strict";
+
 var ndbconnection = require("./NdbConnectionPool.js");
 
 var NdbDefaultConnectionProperties = {  
@@ -48,13 +50,13 @@ exports.connectSync = function(properties) {
 exports.connect = function(properties, user_callback) {
   var dbconn = new ndbconnection.DBConnectionPool(properties);
   dbconn.connect(user_callback);
-}
+};
 
 
 exports.getFactoryKey = function(properties) {
   var key = properties.implementation + "://" + properties.ndb_connectstring;
   return key;
-}
+};
 
 
 exports.getNativeCodeModules = function() {
@@ -63,4 +65,5 @@ exports.getNativeCodeModules = function() {
       "impl/build/Release/ndb/ndb_adapter.node"
     ];
   return modulelist;
-}
+};
+

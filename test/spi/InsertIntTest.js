@@ -34,10 +34,15 @@ try {
 
 var spi = require(spi_module);
 
-var t = new harness.ConcurrentTest("InsertInt");
+var t1 = new harness.SerialTest("InsertInt");
+var t2 = new harness.SerialTest("DeleteIntPK");
 
 function do_insert_op(session, table) {
   udebug.log("InsertIntTest.js do_insert_op");
+  /* Pass the variables on to the next test */
+  t2.session = session;
+  t2.table = table;
+
   var tx = session.openTransaction();
   var thandler = session.getConnectionPool().createDBTableHandler(table, null);
   
@@ -46,27 +51,28 @@ function do_insert_op(session, table) {
 
   udebug.log("ready to commit");
   tx.execute("Commit", function(err, tx) {
-    if(err) { t.fail("Execute/commit failed: " + err);  }
-    else    { t.pass(); }
+    if(err) { t1.fail("Execute/commit failed: " + err);  }
+    else    { t1.pass(); }
   });
 }
 
-t.run = function() {  
+t1.run = function() {  
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       connection = null,
-      session = null;
+      session = null,
+      test = this;
 
   function onTable(err, table) {
     udebug.log("InsertIntTest.js onTable");
-    if(err) {   t.fail(err);    }
+    if(err) {   test.fail(err);    }
     else    {   do_insert_op(session, table);  }
   }
 
   function onSession(err, sess) {
     udebug.log("InsertIntTest.js onSession");
     session = sess;
-    if(err) {   t.fail(err);   }
+    if(err) {   test.fail(err);   }
     else    {   session.getConnectionPool().getTable("test", "tbl1", onTable); }
   }
 
@@ -79,4 +85,20 @@ t.run = function() {
   provider.connect(properties, onConnect);
 };
 
-exports.tests = [ t ];
+
+t2.run = function do_delete_op() {
+  udebug.log("InsertIntTest.js do_delete_op");
+  var tx = this.session.openTransaction();
+  var thandler = this.session.getConnectionPool().createDBTableHandler(this.table, null);
+  
+  var row = { i: 13 };
+  var op = this.session.delete(thandler, row);
+  
+  udebug.log("ready to commit");
+  tx.execute("Commit", function(err, tx) {
+    if(err) { t2.fail("Execute/commit failed: " + err); }
+    else    { t2.pass(); }
+  });
+};
+
+exports.tests = [ t1,t2 ];

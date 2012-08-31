@@ -75,11 +75,16 @@
   allColumnsMapped();
 
 
-/* DBIndex chooseIndex(Object keys)
+/* DBIndexHandler getIndexHandler(Object keys)
    IMMEDIATE
 
    Given an object containing keys as defined in API Context.find(),
-   return the index to use as an access path for the operation
+   choose an index to use as an access path for the operation,
+   and return a DBIndexHandler for that index.
+   
+   DBIndexHandler implements this subset of DBTableHandler methods:
+      getMappedFieldCount()
+      get()
+      writeFieldToBuffer()
 */
-  chooseIndex(keys);
-
+  getIndexHandler(keys);

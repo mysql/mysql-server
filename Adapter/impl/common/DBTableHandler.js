@@ -166,7 +166,7 @@ function resolveApiMapping(connPool, dbTable, apiMapping) {
      use default converters for all data types
      perform no remapping between field names and column names
 */
-exports.DBTableHandler = function (dbconnpool, dbtable, tablemapping) {
+function DBTableHandler(dbconnpool, dbtable, tablemapping) {
   udebug.log("DBTableHandler constructor");
   assert(arguments.length === 3);
   var i;
@@ -194,7 +194,7 @@ exports.DBTableHandler = function (dbconnpool, dbtable, tablemapping) {
     }
   }
   udebug.log("DBTableHandler new completed");
-};
+}
 
 var proto = {
   connectionPool         : {},
@@ -205,6 +205,10 @@ var proto = {
   columnNameToFieldMap   : {},
   columnNumberToFieldMap : []
 };
+
+
+DBTableHandler.prototype = proto;     // Connect prototype to constructor
+
 
 /* DBTableHandler.setResultPrototype(Object proto_object)
    IMMEDIATE
@@ -257,12 +261,10 @@ proto.allColumnsMapped = function() {
   return (this.dbTable.columns.length === this.columnNumberToFieldMap.length);
 };
 
-/* DBIndex chooseIndexForOperation(DBOperation op, Object keys)
-   IMMEDIATE
-   Given a DBOoperation and an object containing keys,
-   return the index to use as an access path for the operation
 
-From API Context.find():
+/* DBIndex chooseIndex(dbTableHandler, keys) 
+ Returns the index to use as an access path.
+ From API Context.find():
    * The parameter "keys" may be of any type. Keys must uniquely identify
    * a single row in the database. If keys is a simple type
    * (number or string), then the parameter type must be the 
@@ -270,15 +272,15 @@ From API Context.find():
    * Otherwise, properties are taken
    * from the parameter and matched against property names in the
    * mapping.
-
 */
-proto.chooseIndex = function(keys) {
-  var idxs = this.dbTable.indexes;
+function chooseIndex(self, keys) {
+debugger;
+  var idxs = self.dbTable.indexes;
   var keyFields;
-  var i, j, nmatches;
+  var i, j, f, nmatches;
   
   if(typeof keys === 'number' || typeof keys === 'string') {
-    if(idxs[0].length === 1) {
+    if(idxs[0].columnNumbers.length === 1) {
       return idxs[0];   // primary key
     }
   }
@@ -287,11 +289,14 @@ proto.chooseIndex = function(keys) {
      keyFields = Object.keys(keys);
 
     /* First look for a unique index.  All columns must match. */
-    for(i = 0 ; i < idxs.length ; i++) {     
+    for(i = 0 ; i < idxs.length ; i++) {
+debugger;
       if(idxs[i].isUnique && idxs[i].columnNumbers.length === keyFields.length) {
+         // Each key field resolves to a column, which must be in the index
          nmatches = 0;
          for(j = 0 ; j < keyFields.length ; j++) {
-          if(this.fieldNameMap[keys[keyFields[j]]]) {
+          f = self.fieldNameMap[keyFields[j]];
+          if(idxs[i].columnNumbers.indexOf(f.columnNumber) != -1) {
             nmatches++;
           }
         }
@@ -305,7 +310,8 @@ proto.chooseIndex = function(keys) {
     /* Return the first suitable index we find (which might not be the best) */
     for(i = 0 ; i < idxs.length ; i++) {
       if(idxs[i].isOrdered && idxs[i].columnNumbers.length >= keyFields.length) {
-        if(this.fieldNameMap[keys[keyFields[0]]]) {
+        // FIXME: This code may be incorrect
+        if(self.fieldNameMap[keys[keyFields[0]]]) {
           return idxs[i];  // this is an ordered index scan
         }
       }
@@ -313,7 +319,7 @@ proto.chooseIndex = function(keys) {
   }
 
   return null;
-};
+}
 
 /* Return the property of obj corresponding to fieldNumber */
 proto.get = function(obj, fieldNumber) { 
@@ -328,22 +334,21 @@ proto.set = function(obj, fieldNumber, value) {
   obj[f.fieldName] = value;
 };
 
-/* Writes to buffer and returns length written */
-proto.writeFieldToBuffer = function(obj, fieldNumber, buffer, offset, length) {
+proto.writeFieldToBuffer = function(obj, fieldNumber, buffer, offset) {
   var f = this.mapping.fields[fieldNumber];
-  return f.converter.writeToBuffer(obj[f.fieldName], buffer, offset, length);
+  udebug.log("DBTableHandler writeFieldToBuffer @"+ offset);
+  return f.converter.writeToBuffer(obj[f.fieldName], buffer, offset);
 };
 
-/* Writes to string and returns length written */
 proto.writeFieldToString = function(obj, fieldNumber, string) {
   var f = this.mapping.fields[fieldNumber];
   return f.converter.writeToString(obj[f.fieldName], string);
 };
 
 /* Sets field in obj */
-proto.readBufferToField = function(obj, fieldNumber, buffer, offset, length) {
+proto.readBufferToField = function(obj, fieldNumber, buffer, offset) {
   var f = this.mapping.fields[fieldNumber];
-  obj[f.fieldName] = f.converter.readFromBuffer(buffer, offset, length);
+  obj[f.fieldName] = f.converter.readFromBuffer(buffer, offset);
 };
 
 /* Sets field in obj */
@@ -353,4 +358,43 @@ proto.readStringToField = function(obj, fieldNumber, string) {
 };
 
 
-exports.DBTableHandler.prototype = proto;
+/* DBIndexHandler constructor */
+function DBIndexHandler(dbTableHandler, dbIndex) {
+  var i;
+
+  this.tableHandler = dbTableHandler;
+  this.dbIndex = dbIndex;
+  
+  for(i = 0 ; i < dbIndex.columnNumbers.length ; i++) {
+    this.mapping.fields[i] = 
+      dbTableHandler.columnNumberToFieldMap[dbIndex.columnNumbers[i]];
+  }  
+}
+
+DBIndexHandler.prototype = {
+  tableHandler        : null,
+  dbIndex             : null,
+  mapping             : { fields : [] },
+  getMappedFieldCount : function() { return this.dbIndex.columnNumbers.length;},
+  get                 : proto.get,                    // inherited
+  writeFieldToBuffer  : proto.writeFieldToBuffer      // inherited
+};
+
+
+/* DBIndexHandler getIndexHandler(Object keys)
+   IMMEDIATE
+
+   Given an object containing keys as defined in API Context.find(),
+   choose an index to use as an access path for the operation,
+   and return a DBIndexHandler for that index.
+*/
+proto.getIndexHandler = function(keys) {
+  var idx = chooseIndex(this, keys);
+  var handler = null;
+  if(idx) {
+    handler = new DBIndexHandler(this, idx);
+  }
+  return handler;
+};
+
+exports.DBTableHandler = DBTableHandler;

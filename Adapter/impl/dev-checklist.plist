@@ -20,6 +20,12 @@
 	<false/>
 	<key>Need actual handling of masked fields in Operation</key>
 	<false/>
+	<key>The Converter concept is inadequate</key>
+	<false/>
+	<key>Tt doesn&apos;t separate user-conversion of a data type</key>
+	<false/>
+	<key>from NDB encoding of storage</key>
+	<false/>
 	<key>Unified C/JS Debug framework</key>
 	<dict>
 		<key>Turn debugging on/off from JavaScript</key>

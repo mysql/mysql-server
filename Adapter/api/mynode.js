@@ -18,6 +18,9 @@
  02110-1301  USA
 */
 
+"use strict";
+/*global udebug */
+
 try {
   require("../impl/build/Release/common/common_library");
 } catch (err) {
@@ -33,6 +36,8 @@ var sessionfactory = require("./SessionFactory.js");
 
 /** connections is a hash of connectionKey to Connection */
 var connections = {};
+
+var deleteFactory;
 
 /** Connection contains a hash of database to SessionFactory */
 var Connection = function(dbConnectionPool) {
@@ -55,23 +60,24 @@ exports.ConnectionProperties = function(name) {
   return sp.getDefaultConnectionProperties();
 };
 
-
 exports.connect = function(properties, annotations, user_callback, extra1, extra2, extra3, extra4) {
   var mynode = this;
   var sp = spi.getDBServiceProvider(properties.implementation);
   var connectionKey = sp.getFactoryKey(properties);
   var database = properties.database;
   var connection = connections[connectionKey];
+  var factory;
   
   var createFactory = function(dbConnectionPool) {
-    if (debug) console.log('mynode.connect createFactory creating factory for ' + connectionKey + ' database ' + database);
+    var newFactory;
+    udebug.log('mynode.connect createFactory creating factory for ' + connectionKey + ' database ' + database);
     newFactory = new sessionfactory.SessionFactory(connectionKey, dbConnectionPool, properties, annotations, deleteFactory);
     return newFactory;
   };
   
   var dbConnectionPoolCreated_callback = function(error, dbConnectionPool) {
     if(! error) {
-      if (debug) console.log('mynode.connect dbConnectionPoolCreated creating factory for ' + connectionKey + ' database ' + database);
+      udebug.log('mynode.connect dbConnectionPoolCreated creating factory for ' + connectionKey + ' database ' + database);
       var connection = new Connection(dbConnectionPool);
       connections[connectionKey] = connection;
       
@@ -82,16 +88,16 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
     user_callback(error, factory); //todo: extra parameters
   };
 
-  if(typeof(connection) == 'undefined') {
+  if(typeof(connection) === 'undefined') {
     // there is no connection yet using this connection key    
-    if (debug) console.log('mynode.connect connection does not exist; creating factory for ' + connectionKey + ' database ' + database);
+    udebug.log('mynode.connect connection does not exist; creating factory for ' + connectionKey + ' database ' + database);
     sp.connect(properties, dbConnectionPoolCreated_callback);
   } else {
     // there is a connection, but is there a SessionFactory for this database?
     factory = connection.factories[database];
-    if (typeof(factory) == 'undefined') {
+    if (typeof(factory) === 'undefined') {
       // create a SessionFactory for the existing dbConnectionPool
-      if (debug) console.log('mynode.connect creating factory with existing ' + connectionKey + ' database ' + database);
+      udebug.log('mynode.connect creating factory with existing ' + connectionKey + ' database ' + database);
       factory = createFactory();
       connection.factories[database] = factory;
       connection.count++;
@@ -125,7 +131,7 @@ exports.getOpenSessionFactories = function() {
 
 /** deleteFactory is called only from SessionFactory.close() */
 deleteFactory = function(key, database) {
-  if (debug) console.log('mynode.deleteFactory for key ' + key + ' database ' + database);
+  udebug.log('mynode.deleteFactory for key ' + key + ' database ' + database);
   var connection = connections[key];
   var factory = connection.factories[database];
   var dbConnectionPool = factory.dbConnectionPool;
@@ -133,7 +139,7 @@ deleteFactory = function(key, database) {
   delete connection.factories[database];
   if (--connection.count == 0) {
     // no more factories in this connection
-    if (debug) console.log('mynode.deleteFactory closing dbConnectionPool for key ' + key + ' database ' + database);
+    udebug.log('mynode.deleteFactory closing dbConnectionPool for key ' + key + ' database ' + database);
     if (dbConnectionPool != null) {
       dbConnectionPool.closeSync();
       dbConnectionPool = null;

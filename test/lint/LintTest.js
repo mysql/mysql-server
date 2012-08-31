@@ -18,49 +18,82 @@
  02110-1301  USA
  */
 
-var linter;
-var skipTests = false;
-try {
-  linter = require("jslint/lib/linter");
-}
-catch(e) {
-  skipTests = true;
-}
+/*global fs,util,harness,path,adapter_dir,suites_dir */
+
+"use strict";
+
+var linter, skipTests;
+
+try      { skipTests = false; linter = require("jslint/lib/linter"); }
+catch(e) { skipTests = true; }
 
 var lintOptions = {
   "vars"      : true,     // allow multiple var declarations
   "plusplus"  : true,     // ++ operators
   "white"     : true,     // misc. white space
-  "stupid"    : true      // sync methods
+  "stupid"    : true,     // sync methods
+  "node"      : true      // node.js globals
 };
 
-function runLintTest() {
-  if(skipTests) {
-    return this.skip("jslint not avaliable");
-  }
 
-  var e, i;
-  var data = fs.readFileSync(this.sourceFile, "utf8");  
-  var result = linter.lint(data, lintOptions);
-
-  if(! result.ok) { 
-    for (i = 0; i < result.errors.length; i += 1) {
-      e = result.errors[i];
-      if (e) { this.appendErrorMessage('  Line ' + e.line + ': ' + e.reason); }
-    }
-  }
-  return true;
-}
-
-function LintTest(sourceFile) {
+function lintTest(basePath, sourceFile) {
   var t = new harness.SerialTest(path.basename(sourceFile));
-  t.sourceFile = path.join(adapter_dir, sourceFile);
-  t.run = runLintTest;
+  t.sourceFile = path.join(basePath, sourceFile);
+
+  t.run = function runLintTest() {
+    if(skipTests) { return this.skip("jslint not avaliable"); }
+
+    var e, i, n=0;
+    var data = fs.readFileSync(this.sourceFile, "utf8");  
+    var result = linter.lint(data, lintOptions);
+
+    if(! result.ok) {
+      console.log("Errors for "+ this.name +":");
+      for (i = 0; i < result.errors.length; i += 1) {
+        e = result.errors[i];
+        if(e) {
+          n += 1;
+          console.log(' * Line %d[%d]: %s', e.line, e.character, e.reason);
+        }
+      }    
+      this.appendErrorMessage(util.format("%d jslint error%s", n, n===1 ? '':'s'));
+    }
+    return true;
+  };
+  
   return t;
 }
 
 exports.tests = [];
-exports.tests.push(new LintTest("impl/common/DBTableHandler.js"));
+
+function checkSource(file) {
+  exports.tests.push(lintTest(adapter_dir, file));
+}
+
+function checkTest(file) {
+  exports.tests.push(lintTest(suites_dir, file));
+}
+
+// ****** SOURCES FILES TO CHECK ********** //
+
+checkSource("impl/common/DBTableHandler.js");
+checkSource("impl/ndb/ndb_service_provider.js");
+checkSource("impl/ndb/NdbConnectionPool.js");
+checkSource("impl/ndb/NdbSession.js");
+checkSource("impl/ndb/NdbOperation.js");
+checkSource("impl/ndb/NdbTransactionHandler.js");
+checkSource("impl/ndb/NdbTypeConverters.js");
+
+checkSource("api/unified_debug.js");
+// checkSource("api/mynode.js");
 
 
+// ****** TEST FILES TO CHECK ********** //
+checkTest("lint/LintTest.js");
 
+checkTest("spi/SmokeTest.js");
+checkTest("spi/DBServiceProviderTest.js");
+checkTest("spi/DBConnectionPoolTest.js");
+checkTest("spi/DBDictionaryTest.js");
+checkTest("spi/InsertIntTest.js");
+checkTest("spi/ClearSmokeTest.js");

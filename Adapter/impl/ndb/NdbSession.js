@@ -96,3 +96,9 @@ DBSession.prototype.insert = function(tableHandler, row) {
 };
 
 
+DBSession.prototype.delete = function(tableHandler, row) {
+  udebug.log("DBSession delete " + tableHandler.dbTable.name);
+  
+  var op = ndboperation.getDeleteOperation(this.tx, tableHandler, row);
+  return op;
+};

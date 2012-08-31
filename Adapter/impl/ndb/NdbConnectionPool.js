@@ -250,7 +250,7 @@ proto.createDBTableHandler = function(dbTable, apiMapping) {
 */
 proto.getConverter = function(dbcolumn) {
   udebug.log("NdbConnectionPool getConverter " + dbcolumn.name);
-  var r = converters.defaultForType[dbcolumn.columnType];
+  var r = converters.defaultForType[dbcolumn.ndbTypeId];
   return r;
 };
 

@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
 */
+"use strict";
 
 var path = require("path"),
     impl = require("../impl/build/Release/common/common_library");
@@ -65,43 +66,43 @@ var path = require("path"),
 */
 exports.destination = function(filename) {
   impl.udeb_destination(filename);
-}
+};
 
 exports.close = function() {
   impl.udeb_close();
-}
+};
 
 /* Turn debugging output on.
 */
 exports.on = function() {
   impl.udeb_switch(1);
   exports.log("unified debug enabled");
-}
+};
 
 /* Turn debugging output off.
 */
 exports.off = function() {
   exports.log("unified debug disabled");
   impl.udeb_switch(0);
-}
+};
 
 /* Set the logging level
 */
 exports.level_info = function() {
   impl.udeb_switch(impl.UDEB_INFO);
-}
+};
 
 exports.level_debug = function() {
   impl.udeb_switch(impl.UDEB_DEBUG);
-}
+};
 
 exports.level_detail = function() {
   impl.udeb_switch(impl.UDEB_DETAIL);
-}
+};
 
 exports.level_meta = function() {
   impl.udeb_switch(impl.UDEB_META);
-}
+};
 
 
 /* Write a message to the debugging destination.
@@ -111,7 +112,7 @@ exports.level_meta = function() {
 */
 exports.log_debug = function(message) {
   impl.udeb_print(path.basename(module.parent.filename), impl.UDEB_DEBUG, message);
-}
+};
 
 /* By default, log at DEBUG level
 */
@@ -121,42 +122,42 @@ exports.log = exports.log_debug;
 */
 exports.log_info = function(message) {
   impl.udeb_print(path.basename(module.parent.filename), impl.UDEB_INFO, message);
-}
+};
 
 /* Write a message at DETAIL level
 */
 exports.log_detail = function(message) {
   impl.udeb_print(path.basename(module.parent.filename), impl.UDEB_DETAIL, message);
-}
+};
 
 /* Enable debugging output from all source files.
    This is the default.
 */
 exports.all_files = function() {
   impl.udeb_select(0);
-}
+};
 
 /* Enable debugging output only from specifically selected source files.
    Files from which output is desired must be added to the target list.
 */
 exports.none_but_selected = function() {
   impl.udeb_select(5);
-}
+};
 
 /* Enable debugging from all source files -except- those on the target list.
 */
 exports.all_but_selected = function() {
   impl.udeb_select(4);
-}
+};
 
 /* Add a source file to the target list.
 */
 exports.add_file = function(source_file_name) {
   impl.udeb_add_drop(source_file_name, 1);
-}
+};
 
 /* Remove a source file from the target list.
 */
 exports.drop_file = function(source_file_name) {
   impl.udeb_add_drop(source_file_name, 2);
-}
+};
