@@ -12432,9 +12432,19 @@ show_param:
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
         | PROFILES_SYM
-          { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "SHOW PROFILES", "Performance Schema");
+            Lex->sql_command = SQLCOM_SHOW_PROFILES;
+          }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
-          { 
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "SHOW PROFILE", "Performance Schema");
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_PROFILE;
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)

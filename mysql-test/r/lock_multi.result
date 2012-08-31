@@ -73,15 +73,14 @@ a	int(11)	YES		NULL
 unlock tables;
 drop table t1;
 USE mysql;
-LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+LOCK TABLES columns_priv WRITE, db WRITE, user WRITE;
 FLUSH TABLES;
 USE mysql;
 SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
-OPTIMIZE TABLES columns_priv, db, host, user;
+OPTIMIZE TABLES columns_priv, db, user;
 Table	Op	Msg_type	Msg_text
 mysql.columns_priv	optimize	status	OK
 mysql.db	optimize	status	OK
-mysql.host	optimize	status	OK
 mysql.user	optimize	status	OK
 UNLOCK TABLES;
 Select_priv

@@ -261,6 +261,9 @@ public:
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list);
+static my_bool check_if_option_is_deprecated(int optid,
+                                             const struct my_option *opt,
+                                             char *argument);
 static int test_plugin_options(MEM_ROOT *, struct st_plugin_int *,
                                int *, char **);
 static bool register_builtin(struct st_mysql_plugin *, struct st_plugin_int *,
@@ -3330,7 +3333,8 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     /* support --skip-plugin-foo syntax */
     options[0].name= plugin_name_ptr;
     options[1].name= plugin_name_with_prefix_ptr;
-    options[0].id= options[1].id= 0;
+    options[0].id= 0;
+    options[1].id= -1;
     options[0].var_type= options[1].var_type= GET_ENUM;
     options[0].arg_type= options[1].arg_type= OPT_ARG;
     options[0].def_value= options[1].def_value= 1; /* ON */
@@ -3517,6 +3521,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
 
     char *option_name_ptr;
     options[1]= options[0];
+    options[1].id= -1;
     options[1].name= option_name_ptr= (char*) alloc_root(mem_root,
                                                         plugin_dash.length +
                                                         optnamelen + 1);
@@ -3559,6 +3564,34 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
   DBUG_RETURN(opts);
 }
+
+
+/**
+  Check option being used and raise deprecation warning if required.
+
+  @param optid ID of the option that was passed through command line
+  @param opt List of options
+  @argument Status of the option : Enable or Disable
+
+  A deprecation warning will be raised if --plugin-xxx type of option
+  is used.
+
+  @return Always returns success as purpose of the function is to raise
+  warning only.
+  @retval 0 Success
+*/
+
+static my_bool check_if_option_is_deprecated(int optid,
+                                             const struct my_option *opt,
+                                             char *argument __attribute__((unused)))
+{
+  if (optid == -1)
+  {
+    WARN_DEPRECATED(NULL, opt->name, (opt->name + strlen("plugin-")));
+  }
+  return 0;
+}
+
 
 /**
   Create and register system variables supplied from the plugin and
@@ -3634,7 +3667,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
         tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
       opts[0].def_value= opts[1].def_value= plugin_load_option;
 
-    error= handle_options(argc, &argv, opts, NULL);
+    error= handle_options(argc, &argv, opts, check_if_option_is_deprecated);
     (*argc)++; /* add back one for the program name */
 
     if (error)
