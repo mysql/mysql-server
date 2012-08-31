@@ -361,9 +361,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   {
     uint days;
     days= calc_daynr(l_time->year,1,1) +  yearday - 1;
-    if (days <= 0 || days > MAX_DAY_NUMBER)
+    if (get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day))
       goto err;
-    get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
 
   if (week_number >= 0 && weekday)
@@ -408,9 +407,8 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
              (weekday - 1);
     }
 
-    if (days <= 0 || days > MAX_DAY_NUMBER)
+    if (get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day))
       goto err;
-    get_date_from_daynr(days,&l_time->year,&l_time->month,&l_time->day);
   }
 
   if (l_time->month > 12 || l_time->day > 31 || l_time->hour > 23 || 
@@ -768,7 +766,7 @@ longlong Item_func_to_days::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE))
     return 0;
   return (longlong) calc_daynr(ltime.year,ltime.month,ltime.day);
 }
@@ -808,7 +806,7 @@ longlong Item_func_to_seconds::val_int()
   MYSQL_TIME ltime;
   longlong seconds;
   longlong days;
-  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE))
+  if (get_arg0_date(&ltime, TIME_NO_ZERO_DATE | TIME_NO_ZERO_IN_DATE))
     return 0;
   seconds= ltime.hour * 3600L + ltime.minute * 60 + ltime.second;
   seconds=ltime.neg ? -seconds : seconds;
@@ -1501,10 +1499,11 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   if ((fuzzy_date & TIME_NO_ZERO_DATE) && value == 0)
     return (null_value= 1);
   bzero(ltime, sizeof(MYSQL_TIME));
-  get_date_from_daynr((long) value, &ltime->year, &ltime->month, &ltime->day);
+  if (get_date_from_daynr((long) value, &ltime->year, &ltime->month,
+                          &ltime->day))
+    return (null_value= 1);
 
-  if ((fuzzy_date & TIME_NO_ZERO_DATE) &&
-       (ltime->year == 0 || ltime->month == 0 || ltime->day == 0))
+  if ((fuzzy_date & TIME_NO_ZERO_DATE) && ltime->year == 0)
     return (null_value= 1);
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
@@ -2043,7 +2042,7 @@ bool Item_date_add_interval::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 {
   INTERVAL interval;
 
-  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE | TIME_FUZZY_DATE) ||
+  if (args[0]->get_date(ltime, TIME_NO_ZERO_DATE | TIME_FUZZY_DATE | TIME_NO_ZERO_IN_DATE) ||
       get_interval_value(args[1], int_type, &interval))
     return (null_value=1);
 
@@ -2514,14 +2513,12 @@ bool Item_func_makedate::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
     year= year_2000_handling(year);
 
   days= calc_daynr(year,1,1) + daynr - 1;
-  /* Day number from year 0 to 9999-12-31 */
-  if (days >= 0 && days <= MAX_DAY_NUMBER)
-  {
-    bzero(ltime, sizeof(*ltime));
-    ltime->time_type= MYSQL_TIMESTAMP_DATE;
-    get_date_from_daynr(days, &ltime->year, &ltime->month, &ltime->day);
-    return (null_value= 0);
-  }
+  if (get_date_from_daynr(days, &ltime->year, &ltime->month, &ltime->day))
+    goto err;
+  ltime->time_type= MYSQL_TIMESTAMP_DATE;
+  ltime->neg= 0;
+  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  return (null_value= 0);
 
 err:
   return (null_value= 1);
@@ -2615,8 +2612,8 @@ bool Item_func_add_time::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
 
   if (!is_time)
   {
-    get_date_from_daynr(days,&ltime->year,&ltime->month,&ltime->day);
-    if (!ltime->day)
+    if (get_date_from_daynr(days,&ltime->year,&ltime->month,&ltime->day) ||
+        !ltime->day)
       return (null_value= 1);
     return (null_value= 0);
   }

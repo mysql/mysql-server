@@ -618,8 +618,8 @@ public:
     calls.
   */
   uint name_length;                     /* Length of name */
+  uint decimals;
   int8 marker;
-  uint8 decimals;
   bool maybe_null;			/* If item may be null */
   bool in_rollup;                       /* If used in GROUP BY list
                                            of a query with ROLLUP */ 

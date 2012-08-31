@@ -5677,7 +5677,7 @@ bool Field_newdate::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
   if (!tmp)
     return fuzzydate & TIME_NO_ZERO_DATE;
   if (!ltime->month || !ltime->day)
-    return !(fuzzydate & TIME_FUZZY_DATE);
+    return fuzzydate & TIME_NO_ZERO_IN_DATE;
   return 0;
 }
 

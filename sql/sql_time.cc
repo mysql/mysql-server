@@ -25,9 +25,9 @@
 #include <m_ctype.h>
 
 
-	/* Some functions to calculate dates */
+#define MAX_DAY_NUMBER 3652424L
 
-#ifndef TESTTIME
+	/* Some functions to calculate dates */
 
 /*
   Name description of interval names used in statements.
@@ -147,46 +147,42 @@ uint calc_week(MYSQL_TIME *l_time, uint week_behaviour, uint *year)
 	/* Change a daynr to year, month and day */
 	/* Daynr 0 is returned as date 00.00.00 */
 
-void get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
+bool get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
 			 uint *ret_day)
 {
   uint year,temp,leap_day,day_of_year,days_in_year;
   uchar *month_pos;
   DBUG_ENTER("get_date_from_daynr");
 
-  if (daynr <= 365L || daynr >= 3652500)
-  {						/* Fix if wrong daynr */
-    *ret_year= *ret_month = *ret_day =0;
-  }
-  else
+  if (daynr < 365 || daynr > MAX_DAY_NUMBER)
+    DBUG_RETURN(1);
+
+  year= (uint) (daynr*100 / 36525L);
+  temp=(((year-1)/100+1)*3)/4;
+  day_of_year=(uint) (daynr - (long) year * 365L) - (year-1)/4 +temp;
+  while (day_of_year > (days_in_year= calc_days_in_year(year)))
   {
-    year= (uint) (daynr*100 / 36525L);
-    temp=(((year-1)/100+1)*3)/4;
-    day_of_year=(uint) (daynr - (long) year * 365L) - (year-1)/4 +temp;
-    while (day_of_year > (days_in_year= calc_days_in_year(year)))
-    {
-      day_of_year-=days_in_year;
-      (year)++;
-    }
-    leap_day=0;
-    if (days_in_year == 366)
-    {
-      if (day_of_year > 31+28)
-      {
-	day_of_year--;
-	if (day_of_year == 31+28)
-	  leap_day=1;		/* Handle leapyears leapday */
-      }
-    }
-    *ret_month=1;
-    for (month_pos= days_in_month ;
-	 day_of_year > (uint) *month_pos ;
-	 day_of_year-= *(month_pos++), (*ret_month)++)
-      ;
-    *ret_year=year;
-    *ret_day=day_of_year+leap_day;
+    day_of_year-=days_in_year;
+    (year)++;
   }
-  DBUG_VOID_RETURN;
+  leap_day=0;
+  if (days_in_year == 366)
+  {
+    if (day_of_year > 31+28)
+    {
+      day_of_year--;
+      if (day_of_year == 31+28)
+        leap_day=1;		/* Handle leapyears leapday */
+    }
+  }
+  *ret_month=1;
+  for (month_pos= days_in_month ;
+       day_of_year > (uint) *month_pos ;
+       day_of_year-= *(month_pos++), (*ret_month)++)
+    ;
+  *ret_year=year;
+  *ret_day=day_of_year+leap_day;
+  DBUG_RETURN(0);
 }
 
 	/* Functions to handle periods */
@@ -842,7 +838,6 @@ void make_truncated_value_warning(THD *thd,
 
 
 /* Daynumber from year 0 to 9999-12-31 */
-#define MAX_DAY_NUMBER 3652424L
 #define COMBINE(X)                                                      \
                (((((X)->day * 24LL + (X)->hour) * 60LL +                \
                    (X)->minute) * 60LL + (X)->second)*1000000LL +       \
@@ -909,19 +904,18 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type,
     daynr= usec;
 
     /* Day number from year 0 to 9999-12-31 */
-    if ((ulonglong) daynr > MAX_DAY_NUMBER)
+    if (get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
+                            &ltime->day))
       goto invalid_date;
-    get_date_from_daynr((long) daynr, &ltime->year, &ltime->month,
-                        &ltime->day);
     break;
   }
   case INTERVAL_WEEK:
     period= (calc_daynr(ltime->year,ltime->month,ltime->day) +
              sign * (long) interval.day);
     /* Daynumber from year 0 to 9999-12-31 */
-    if ((ulong) period > MAX_DAY_NUMBER)
+    if (get_date_from_daynr((long) period,&ltime->year,&ltime->month,
+                            &ltime->day))
       goto invalid_date;
-    get_date_from_daynr((long) period,&ltime->year,&ltime->month,&ltime->day);
     break;
   case INTERVAL_YEAR:
     ltime->year+= sign * (long) interval.year;
@@ -1071,4 +1065,3 @@ int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
   return 0;
 }
 
-#endif
