@@ -847,7 +847,7 @@ static uchar* acl_entry_get_key(acl_entry *entry, size_t *length,
 #define AUTH_PACKET_HEADER_SIZE_PROTO_41    32
 #define AUTH_PACKET_HEADER_SIZE_PROTO_40    5  
 
-static DYNAMIC_ARRAY acl_hosts, acl_users, acl_dbs, acl_proxy_users;
+static DYNAMIC_ARRAY acl_users, acl_dbs, acl_proxy_users;
 static MEM_ROOT global_acl_memory, memex;
 static bool initialized=0;
 static bool allow_all_hosts=1;
@@ -1008,64 +1008,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   acl_cache->clear(1);				// Clear locked hostname cache
 
   init_sql_alloc(&global_acl_memory, ACL_ALLOC_BLOCK_SIZE, 0);
-  if (init_read_record(&read_record_info, thd, table= tables[0].table,
-                       NULL, 1, 1, FALSE))
-    goto end;
-  table->use_all_columns();
-  (void) my_init_dynamic_array(&acl_hosts,sizeof(ACL_HOST),20,50);
-  while (!(read_record_info.read_record(&read_record_info)))
-  {
-    /* Reading record from mysql.host table */
-    ACL_HOST acl_host;
-    acl_host.host.update_hostname(get_field(&global_acl_memory,
-                                            table->field[0]));
-    acl_host.db= get_field(&global_acl_memory, table->field[1]);
-    if (lower_case_table_names && acl_host.db)
-    {
-      /*
-        convert db to lower case and give a warning if the db wasn't
-        already in lower case
-      */
-      (void) strmov(tmp_name, acl_host.db);
-      my_casedn_str(files_charset_info, acl_host.db);
-      if (strcmp(acl_host.db, tmp_name) != 0)
-        sql_print_warning("'host' entry '%s|%s' had database in mixed "
-                          "case that has been forced to lowercase because "
-                          "lower_case_table_names is set. It will not be "
-                          "possible to remove this privilege using REVOKE.",
-                          acl_host.host.get_host() ? acl_host.host.get_host() : "",
-                          acl_host.db ? acl_host.db : "");
-    }
-    acl_host.access= get_access(table,2);
-    acl_host.access= fix_rights_for_db(acl_host.access);
-    acl_host.sort=	 get_sort(2,acl_host.host.get_host(),acl_host.db);
-    if (check_no_resolve && hostname_requires_resolving(acl_host.host.get_host()))
-    {
-      sql_print_warning("'host' entry '%s|%s' "
-		      "ignored in --skip-name-resolve mode.",
-			acl_host.host.get_host() ? acl_host.host.get_host() : "",
-			acl_host.db ? acl_host.db : "");
-      continue;
-    }
-#ifndef TO_BE_REMOVED
-    if (table->s->fields == 8)
-    {						// Without grant
-      if (acl_host.access & CREATE_ACL)
-	acl_host.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL;
-    }
-#endif
-    (void) push_dynamic(&acl_hosts,(uchar*) &acl_host);
-  } // END reading records from mysql.host
-  
-  my_qsort((uchar*) dynamic_element(&acl_hosts,0,ACL_HOST*),acl_hosts.elements,
-	   sizeof(ACL_HOST),(qsort_cmp) acl_compare);
-  end_read_record(&read_record_info);
-  freeze_size(&acl_hosts);
-
   /*
     Prepare reading from the mysql.user table
   */
-  if (init_read_record(&read_record_info, thd, table=tables[1].table,
+  if (init_read_record(&read_record_info, thd, table=tables[0].table,
                        NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
@@ -1327,7 +1273,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   /*
     Prepare reading from the mysql.db table
   */
-  if (init_read_record(&read_record_info, thd, table=tables[2].table,
+  if (init_read_record(&read_record_info, thd, table=tables[1].table,
                        NULL, 1, 1, FALSE))
     goto end;
   table->use_all_columns();
@@ -1394,9 +1340,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   /* Prepare to read records from the mysql.proxies_priv table */
   (void) my_init_dynamic_array(&acl_proxy_users, sizeof(ACL_PROXY_USER), 
                                50, 100);
-  if (tables[3].table)
+  if (tables[2].table)
   {
-    if (init_read_record(&read_record_info, thd, table= tables[3].table,
+    if (init_read_record(&read_record_info, thd, table= tables[2].table,
                          NULL, 1, 1, FALSE))
       goto end;
     table->use_all_columns();
@@ -1440,7 +1386,6 @@ end:
 void acl_free(bool end)
 {
   free_root(&global_acl_memory,MYF(0));
-  delete_dynamic(&acl_hosts);
   delete_dynamic(&acl_users);
   delete_dynamic(&acl_dbs);
   delete_dynamic(&acl_wild_hosts);
@@ -1552,8 +1497,8 @@ static bool acl_trans_commit_and_close_tables(THD *thd)
 
 my_bool acl_reload(THD *thd)
 {
-  TABLE_LIST tables[4];
-  DYNAMIC_ARRAY old_acl_hosts, old_acl_users, old_acl_dbs, old_acl_proxy_users;
+  TABLE_LIST tables[3];
+  DYNAMIC_ARRAY old_acl_users, old_acl_dbs, old_acl_proxy_users;
   MEM_ROOT old_mem;
   bool old_initialized;
   my_bool return_val= TRUE;
@@ -1564,20 +1509,16 @@ my_bool acl_reload(THD *thd)
     obtaining acl_cache->lock mutex.
   */
   tables[0].init_one_table(C_STRING_WITH_LEN("mysql"),
-                           C_STRING_WITH_LEN("host"), "host", TL_READ);
-  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("user"), "user", TL_READ);
-  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[1].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("db"), "db", TL_READ);
-  tables[3].init_one_table(C_STRING_WITH_LEN("mysql"),
+  tables[2].init_one_table(C_STRING_WITH_LEN("mysql"),
                            C_STRING_WITH_LEN("proxies_priv"), 
                            "proxies_priv", TL_READ);
   tables[0].next_local= tables[0].next_global= tables + 1;
   tables[1].next_local= tables[1].next_global= tables + 2;
-  tables[2].next_local= tables[2].next_global= tables + 3;
-  tables[0].open_type= tables[1].open_type= tables[2].open_type= 
-  tables[3].open_type= OT_BASE_ONLY;
-  tables[3].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
+  tables[0].open_type= tables[1].open_type= tables[2].open_type= OT_BASE_ONLY;
+  tables[2].open_strategy= TABLE_LIST::OPEN_IF_EXISTS;
 
   if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
@@ -1596,7 +1537,6 @@ my_bool acl_reload(THD *thd)
   if ((old_initialized=initialized))
     mysql_mutex_lock(&acl_cache->lock);
 
-  old_acl_hosts= acl_hosts;
   old_acl_users= acl_users;
   old_acl_proxy_users= acl_proxy_users;
   old_acl_dbs= acl_dbs;
@@ -1608,7 +1548,6 @@ my_bool acl_reload(THD *thd)
   {					// Error. Revert to old list
     DBUG_PRINT("error",("Reverting to old privileges"));
     acl_free();				/* purecov: inspected */
-    acl_hosts= old_acl_hosts;
     acl_users= old_acl_users;
     acl_proxy_users= old_acl_proxy_users;
     acl_dbs= old_acl_dbs;
@@ -1618,7 +1557,6 @@ my_bool acl_reload(THD *thd)
   else
   {
     free_root(&old_mem,MYF(0));
-    delete_dynamic(&old_acl_hosts);
     delete_dynamic(&old_acl_users);
     delete_dynamic(&old_acl_proxy_users);
     delete_dynamic(&old_acl_dbs);
@@ -2078,22 +2016,6 @@ ulong acl_get(const char *host, const char *ip,
   if (!db_access)
     goto exit;					// Can't be better
 
-  /*
-    No host specified for user. Get hostdata from host table
-  */
-  host_access=0;				// Host must be found
-  for (i=0 ; i < acl_hosts.elements ; i++)
-  {
-    ACL_HOST *acl_host=dynamic_element(&acl_hosts,i,ACL_HOST*);
-    if (acl_host->host.compare_hostname(host,ip))
-    {
-      if (!acl_host->db || !wild_compare(db,acl_host->db,db_is_pattern))
-      {
-	host_access=acl_host->access;		// Fully specified. Take it
-	break;
-      }
-    }
-  }
 exit:
   /* Save entry in cache for quick retrieval */
   if (!db_is_pattern &&
