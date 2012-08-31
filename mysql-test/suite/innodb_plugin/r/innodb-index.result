@@ -1096,7 +1096,7 @@ PRIMARY KEY (b(10), a), INDEX (c(10))
 INSERT INTO bug12547647 VALUES (5,repeat('khdfo5AlOq',1900),repeat('g',7731));
 COMMIT;
 UPDATE bug12547647 SET c = REPEAT('b',16928);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 DROP TABLE bug12547647;
 SET @r=REPEAT('a',500);
 CREATE TABLE t1(a INT,
