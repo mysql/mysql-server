@@ -151,6 +151,7 @@ Test.prototype.failOnError = function() {
 Test.prototype.skip = function(message) {
   this.skipped = true;
   this.result.skip(this, message);
+  return true;
 }
 
 Test.prototype.isTest = function() { return true; };
