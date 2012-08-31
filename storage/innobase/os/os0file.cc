@@ -1186,7 +1186,7 @@ os_file_create_simple_func(
 	} else if (srv_read_only_mode) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"READ ONLY mode set. Unable to "
+			"read only mode set. Unable to "
 			"open file '%s' in RW mode, trying RO mode", name);
 
 		access = GENERIC_READ;
@@ -3463,7 +3463,7 @@ os_file_create_subdirs_if_needed(
 	if (srv_read_only_mode) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"READ ONLY mode set. Can't create subdirectories '%s'",
+			"read only mode set. Can't create subdirectories '%s'",
 			path);
 
 		return(FALSE);
@@ -3751,8 +3751,8 @@ os_aio_array_create(
 
 	os_event_set(array->is_empty);
 
-	array->n_slots		= n;
-	array->n_segments	= n_segments;
+	array->n_slots = n;
+	array->n_segments = n_segments;
 
 	array->slots = static_cast<os_aio_slot_t*>(
 		ut_malloc(n * sizeof(*array->slots)));
@@ -3881,8 +3881,6 @@ os_aio_init(
 	ulint	n_slots_sync)	/*<! in: number of slots in the sync aio
 				array */
 {
-	ulint 	n_segments = 0;
-
 	os_io_init_simple();
 
 #if defined(LINUX_NATIVE_AIO)
@@ -3914,7 +3912,7 @@ os_aio_init(
 		srv_io_thread_function[i] = "read thread";
 	}
 
-	n_segments += n_read_segs;
+	ulint	n_segments = n_read_segs;
 
 	if (!srv_read_only_mode) {
 
@@ -3957,8 +3955,6 @@ os_aio_init(
 		if (os_aio_sync_array == NULL) {
 			return(FALSE);
 		}
-
-		++n_segments;
 
 		ut_ad(n_segments >= 4);
 	} else {

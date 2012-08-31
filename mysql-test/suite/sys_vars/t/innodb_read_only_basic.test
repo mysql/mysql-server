@@ -3,7 +3,7 @@
 # Can only be set from the command line.
 # show the global and session values;
 
---echo Valid values are 'ON' and 'OFF' 
+--echo Valid values are 'ON' and 'OFF'
 select @@global.innodb_read_only;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.innodb_read_only;
