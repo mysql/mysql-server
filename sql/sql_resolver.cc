@@ -322,7 +322,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
     goto err;					/* purecov: inspected */
 
   /* Init join struct */
-  count_field_types(select_lex, &tmp_table_param, all_fields, 0);
+  count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
   this->group= group_list != 0;
   unit= unit_arg;
 
