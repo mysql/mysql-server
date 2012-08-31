@@ -16000,7 +16000,7 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   " to make the page compressible.",
   NULL, NULL, 50, 0, 75, 0);
 
-static MYSQL_SYSVAR_BOOL(read_only_mode, srv_read_only_mode,
+static MYSQL_SYSVAR_BOOL(read_only, srv_read_only_mode,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Start InnoDB in read only mode (off by default)",
   NULL, NULL, FALSE);
@@ -16128,7 +16128,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
-  MYSQL_SYSVAR(read_only_mode),
+  MYSQL_SYSVAR(read_only),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(io_capacity_max),
   MYSQL_SYSVAR(monitor_enable),
