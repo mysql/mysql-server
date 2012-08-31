@@ -21549,11 +21549,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         length= (longlong10_to_str(key_len, keylen_str_buf, 10) - 
                  keylen_str_buf);
         tmp3.append(keylen_str_buf, length, cs);
-/*<<<<<<< TREE
-      }
-      if ((is_hj || tab->type==JT_RANGE || tab->type == JT_INDEX_MERGE) &&
-          tab->select && tab->select->quick)
-=======*/
       }         
       if (tab->type != JT_CONST && tab->select && tab->select->quick)
         tab->select->quick->add_keys_and_lengths(&tmp2, &tmp3);
