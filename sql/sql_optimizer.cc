@@ -3734,7 +3734,7 @@ const_table_extraction_done:
     DBUG_RETURN(true);
 
   DBUG_EXECUTE_IF("bug13820776_1", thd->killed= THD::KILL_QUERY;);
-  if (thd->killed)
+  if (thd->killed || thd->is_error())
     DBUG_RETURN(true);
 
   if (join->decide_subquery_strategy())
