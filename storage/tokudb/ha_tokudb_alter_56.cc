@@ -210,19 +210,19 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     } 
-#ifndef MARIADB_BASE_VERSION
     else if (only_flags(handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION)) {
         HA_CREATE_INFO *create_info = ha_alter_info->create_info;
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
-        } else
+        } 
         // alter row_format
-        if (only_flags(create_info->used_fields, HA_CREATE_USED_ROW_FORMAT)) {
+#ifndef MARIADB_BASE_VERSION
+        else if (only_flags(create_info->used_fields, HA_CREATE_USED_ROW_FORMAT)) {
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
-    }
 #endif
+    }
 
     // turn not supported into error if the slow alter table (copy) is disabled
     if (result == HA_ALTER_INPLACE_NOT_SUPPORTED && get_disable_slow_alter(thd)) {
