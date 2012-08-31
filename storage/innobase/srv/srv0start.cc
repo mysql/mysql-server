@@ -1527,7 +1527,7 @@ innobase_start_or_create_for_mysql(void)
 	ib_bh_t*	ib_bh;
 
 	if (srv_read_only_mode) {
-		ib_logf(IB_LOG_LEVEL_INFO, "Started in READ ONLY mode");
+		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
 
 #ifdef HAVE_DARWIN_THREADS

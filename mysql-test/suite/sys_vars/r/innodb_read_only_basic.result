@@ -1,4 +1,4 @@
-Valid values are 'ON' and 'OFF' 
+Valid values are 'ON' and 'OFF'
 select @@global.innodb_read_only;
 @@global.innodb_read_only
 0
