@@ -178,7 +178,7 @@ DROP USER test_user1, test_user2;
 --echo # The 'invalid' login file should not cause
 --echo # any problem.
 --echo #
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2>&1
+--exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2> /dev/null
 
 --echo ###############################
 --echo # Dropping the test login file
