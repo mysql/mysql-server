@@ -339,7 +339,7 @@ ulint
 os_get_os_version(void)
 /*===================*/
 {
-	OSVERSIONINFO	  os_info;
+	OSVERSIONINFO	os_info;
 
 	os_info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
 
@@ -355,11 +355,11 @@ os_get_os_version(void)
 		case 4:
 			return OS_WINNT;
 		case 5:
-			return (os_info.dwMinorVersion == 0) ? OS_WIN2000
-							     : OS_WINXP;
+			return (os_info.dwMinorVersion == 0)
+				? OS_WIN2000 : OS_WINXP;
 		case 6:
-			return (os_info.dwMinorVersion == 0) ? OS_WINVISTA
-							     : OS_WIN7;
+			return (os_info.dwMinorVersion == 0)
+				? OS_WINVISTA : OS_WIN7;
 		default:
 			return OS_WIN7;
 		}
@@ -1603,7 +1603,7 @@ os_file_create_func(
 
 #ifdef UNIV_NON_BUFFERED_IO
 	// TODO: Create a bug, this looks wrong. The flush log
-	// parameter is dynamic. 
+	// parameter is dynamic.
 	if (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2) {
 
 		/* Do not use unbuffered i/o for the log files because
@@ -2288,10 +2288,7 @@ os_file_flush_func(
 		return(TRUE);
 	}
 
-	ut_print_timestamp(stderr);
-
-	fprintf(stderr,
-		" InnoDB: Error: the OS said file flush did not succeed\n");
+	ib_logf(IB_LOG_LEVEL_ERROR, "The OS said file flush did not succeed");
 
 	os_file_handle_error(NULL, "flush");
 
@@ -2314,9 +2311,9 @@ ssize_t
 os_file_io(
 /*==========*/
 	os_file_t	file,	/*!< in: handle to a file */
-	void*	        buf,	/*!< in: buffer where to read/write */
+	void*		buf,	/*!< in: buffer where to read/write */
 	ulint		n,	/*!< in: number of bytes to read/write */
-	off_t	        offset,	/*!< in: file offset from where to read/write */
+	off_t		offset,	/*!< in: file offset from where to read/write */
 	ulint		type)   /*!< in: type for read or write */
 {
 	ssize_t bytes_returned = 0;
@@ -2329,13 +2326,13 @@ os_file_io(
 #else
 			off_t ret_offset;
 			ret_offset = lseek(file, offset, SEEK_SET);
-	                if (ret_offset < 0) {
+			if (ret_offset < 0) {
 				bytes_returned = -1;
 				return(bytes_returned);
 			}
 			n_bytes = read(file, buf, (ssize_t) n);
 #endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
-	        } else {
+		} else {
 			ut_ad(type == OS_FILE_WRITE);
 #if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
 			n_bytes = pwrite(file, buf, n, offset);
@@ -2350,40 +2347,41 @@ os_file_io(
 #endif /* HAVE_PWRITE && !HAVE_BROKEN_PREAD */
 		}
 
-                if ((ulint) n_bytes == n) {
-                        bytes_returned += n_bytes;
-                        return(bytes_returned);
-                } else if (n_bytes > 0 && (ulint) n_bytes < n) {
-                        /* For partial read/write scenario */
+		if ((ulint) n_bytes == n) {
+			bytes_returned += n_bytes;
+			return(bytes_returned);
+		} else if (n_bytes > 0 && (ulint) n_bytes < n) {
+			/* For partial read/write scenario */
 			if(type == OS_FILE_READ) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"InnoDB: %lu bytes should have"
 					" been read. Only %lu bytes"
-                                        " read. Retrying again to read"
-					" the remaining bytes.\n",
-                                        (ulong) n,(ulong) n_bytes);
-                        } else {
+					" read. Retrying again to read"
+					" the remaining bytes.",
+					(ulong) n,(ulong) n_bytes);
+			} else {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"InnoDB: %lu bytes should have"
 					" been written. Only %lu bytes"
-                                        " written. Retrying again to "
-					" write the remaining bytes.\n",
-                                        (ulong) n,(ulong) n_bytes);
-                        }
+					" written. Retrying again to "
+					" write the remaining bytes.",
+					(ulong) n,(ulong) n_bytes);
+			}
 
-                        buf = (uchar*) buf + (ulint) n_bytes;
-                        n -=  (ulint) n_bytes;
-                        offset += n_bytes;
-                        bytes_returned += (ulint) n_bytes;
+			buf = (uchar*) buf + (ulint) n_bytes;
+			n -=  (ulint) n_bytes;
+			offset += n_bytes;
+			bytes_returned += (ulint) n_bytes;
 
-                } else {
+		} else {
 			break;
-                }
+		}
 	}
+
 	ib_logf(IB_LOG_LEVEL_WARN,
-		"InnoDB: Retry attempts for %s"
-		" partial data failed.\n",
+		"Retry attempts for %s partial data failed.",
 		type == OS_FILE_READ ? "reading" : "writing");
+
 	return(bytes_returned);
 }
 
@@ -2399,8 +2397,8 @@ os_file_pread(
 	ulint		n,	/*!< in: number of bytes to read */
 	os_offset_t	offset)	/*!< in: file offset from where to read */
 {
-	off_t	offs;
-        ssize_t read_bytes;
+	off_t		offs;
+	ssize_t		read_bytes;
 
 	ut_ad(n);
 
@@ -2466,8 +2464,7 @@ os_file_pread(
 		os_mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	        read_bytes = os_file_io(file, buf, n, offs,
-					OS_FILE_READ);
+		read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
 #ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -2485,7 +2482,7 @@ os_file_pread(
 
 		return(read_bytes);
 	}
-#endif
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /*******************************************************************//**
@@ -2500,8 +2497,9 @@ os_file_pwrite(
 	ulint		n,	/*!< in: number of bytes to write */
 	os_offset_t	offset)	/*!< in: file offset where to write */
 {
-	off_t	offs;
-        ssize_t written_bytes;
+	off_t		offs;
+	ssize_t		written_bytes;
+
 	ut_ad(n);
 	ut_ad(!srv_read_only_mode);
 
@@ -2531,8 +2529,8 @@ os_file_pwrite(
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_WRITES);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD < 8 */
 
-	written_bytes = os_file_io(file, (void*) buf, n, offs,
-				   OS_FILE_WRITE);
+	written_bytes = os_file_io(
+		file, (void*) buf, n, offs, OS_FILE_WRITE);
 
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
@@ -2565,8 +2563,8 @@ os_file_pwrite(
 		os_mutex_enter(os_file_seek_mutexes[i]);
 # endif /* UNIV_HOTBACKUP */
 
-		written_bytes = os_file_io(file, (void*) buf, n, offs,
-					   OS_FILE_WRITE);
+		written_bytes = os_file_io(
+			file, (void*) buf, n, offs, OS_FILE_WRITE);
 
 # ifndef UNIV_HOTBACKUP
 		os_mutex_exit(os_file_seek_mutexes[i]);
@@ -2691,7 +2689,7 @@ error_handling:
 #endif
 	retry = os_file_handle_error(NULL, "read");
 
-        if (retry) {
+	if (retry) {
 #ifndef __WIN__
 		if (ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
@@ -2820,14 +2818,14 @@ error_handling:
 #endif
 	retry = os_file_handle_error_no_exit(NULL, "read", FALSE);
 
-        if (retry) {
+	if (retry) {
 #ifndef __WIN__
 		if(ret > 0 && (ulint) ret < n) {
 			buf = (uchar*) buf + (ulint) ret;
 			offset += ret;
 			n -= (ulint) ret;
 		}
-#endif
+#endif /* __WIN__ */
 		goto try_again;
 	}
 
@@ -3160,12 +3158,14 @@ os_file_get_status(
 	} else if (_S_IFREG & statinfo.st_mode) {
 
 		DWORD	access = GENERIC_READ;
-       
+
 		if (!srv_read_only_mode) {
 			access |= GENERIC_WRITE;
 		}
 
 		stat_info->type = OS_FILE_TYPE_FILE;
+
+		/* Check if we can open it in read-only mode. */
 
 		if (check_rw_perm) {
 			HANDLE	fh;
@@ -3237,7 +3237,7 @@ os_file_get_status(
 	stat_info->ctime = statinfo.st_ctime;
 	stat_info->atime = statinfo.st_atime;
 	stat_info->mtime = statinfo.st_mtime;
-	stat_info->size	 = statinfo.st_size;
+	stat_info->size  = statinfo.st_size;
 
 	return(DB_SUCCESS);
 }
@@ -5074,7 +5074,7 @@ os_aio_linux_handle(
 	ulint		i;
 	ibool		ret = FALSE;
 
-        /* Should never be doing Sync IO here. */
+	/* Should never be doing Sync IO here. */
 	ut_a(global_seg != ULINT_UNDEFINED);
 
 	/* Find the array and the local segment. */
@@ -5143,7 +5143,7 @@ found:
 	if (slot->ret == 0 && slot->n_bytes == (long) slot->len) {
 
 		ret = TRUE;
-        } else if ((slot->ret == 0) && (slot->n_bytes > 0)
+	} else if ((slot->ret == 0) && (slot->n_bytes > 0)
 		   &&  (slot->n_bytes < (long) slot->len)) {
 		/* Partial read or write scenario */
 		int submit_ret;
@@ -5170,9 +5170,9 @@ found:
 			/* Aborting in case of submit failure */
 			ib_logf(IB_LOG_LEVEL_FATAL,
 				"InnoDB: Error: Native Linux AIO"
-                                " interface. io_submit() call failed"
+				" interface. io_submit() call failed"
 				" when resubmitting a partial I/O"
-                                " request on the file %s.\n",
+				" request on the file %s.\n",
 				slot->name);
 		} else {
 			ret = FALSE;
@@ -5712,17 +5712,17 @@ os_aio_print(
 		fputs(", aio writes:", file);
 		os_aio_print_array(file, os_aio_write_array);
 	}
-	
+
 	if (os_aio_ibuf_array != 0) {
 		fputs(",\n ibuf aio reads:", file);
 		os_aio_print_array(file, os_aio_ibuf_array);
 	}
-	
+
 	if (os_aio_log_array != 0) {
 		fputs(", log i/o's:", file);
 		os_aio_print_array(file, os_aio_log_array);
 	}
-	
+
 	if (os_aio_sync_array != 0) {
 		fputs(", sync i/o's:", file);
 		os_aio_print_array(file, os_aio_sync_array);

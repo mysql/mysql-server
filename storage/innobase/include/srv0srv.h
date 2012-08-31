@@ -589,7 +589,7 @@ Resets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
 srv_reset_io_thread_op_info();
-/*========================*/
+/*=========================*/
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
