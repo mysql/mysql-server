@@ -980,7 +980,14 @@ write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p, bool checkpoint_pending)
 static void
 write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
 {
-    p->value_rwlock.write_lock(true); // grab an exclusive lock on the pair
+    // Grab an exclusive lock on the pair.
+    // If we grab an expensive lock, then other threads will return
+    // TRY_AGAIN rather than waiting.  In production, the only time
+    // another thread will check if grabbing a lock is expensive is when
+    // we have a clone_callback (FTNODEs), so the act of checkpointing
+    // will be cheap.  Also, much of the time we'll just be clearing
+    // pending bits and that's definitely cheap. (see #5427)
+    p->value_rwlock.write_lock(false);
     if (p->dirty && p->checkpoint_pending) {
         if (p->clone_callback) {
             nb_mutex_lock(&p->disk_nb_mutex, &p->mutex);
