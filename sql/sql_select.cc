@@ -4694,7 +4694,9 @@ bool JOIN::rollup_make_fields(List<Item> &fields_arg, List<Item> &sel_fields,
 	      This is an element that is used by the GROUP BY and should be
 	      set to NULL in this level
 	    */
-            Item_null_result *null_item= new (thd->mem_root) Item_null_result();
+            Item_null_result *null_item=
+              new (thd->mem_root) Item_null_result(item->field_type(),
+                                                   item->result_type());
             if (!null_item)
               return 1;
 	    item->maybe_null= 1;		// Value will be null sometimes
