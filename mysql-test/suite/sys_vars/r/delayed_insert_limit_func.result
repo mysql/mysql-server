@@ -3,6 +3,8 @@
 Creating connection con0
 Creating connection con1
 SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a VARCHAR(100),b VARCHAR(100),c VARCHAR(100));
 CREATE VIEW v1 as select * from t1;
 '#--------------------FN_DYNVARS_25_01-------------------------#'

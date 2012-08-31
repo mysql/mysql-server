@@ -3775,6 +3775,11 @@ innobase_online_rebuild_log_free(
 {
 	dict_index_t* clust_index = dict_table_get_first_index(table);
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
 	rw_lock_x_lock(&clust_index->lock);
 
 	if (clust_index->online_log) {
