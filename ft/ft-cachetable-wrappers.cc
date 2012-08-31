@@ -171,7 +171,31 @@ try_again_for_write_lock:
                 invariant(needed_lock_type != PL_READ);
                 toku_apply_ancestors_messages_to_node(brt, node, ancestors, bounds, msgs_applied);
             } else {
-                toku_ft_bn_update_max_msn(node, max_msn_in_path);
+                // At this point, we aren't going to run
+                // toku_apply_ancestors_messages_to_node but that doesn't
+                // mean max_msn_applied shouldn't be updated if possible
+                // (this saves the CPU work involved in
+                // toku_ft_leaf_needs_ancestors_messages).
+                //
+                // We still have a read lock, so we have not resolved
+                // checkpointing.  If the node is pending and dirty, we
+                // can't modify anything, including max_msn, until we
+                // resolve checkpointing.  If we do, the node might get
+                // written out that way as part of a checkpoint with a
+                // root that was already written out with a smaller
+                // max_msn.  During recovery, we would then inject a
+                // message based on the root's max_msn, and that message
+                // would get filtered by the leaf because it had too high
+                // a max_msn value. (see #5407)
+                //
+                // So for simplicity we only update the max_msn if the
+                // node is clean.  That way, in order for the node to get
+                // written out, it would have to be dirtied.  That
+                // requires a write lock, and a write lock requires you to
+                // resolve checkpointing.
+                if (!node->dirty) {
+                    toku_ft_bn_update_max_msn(node, max_msn_in_path);
+                }
             }
             invariant(needed_lock_type != PL_READ || !*msgs_applied);
         }
