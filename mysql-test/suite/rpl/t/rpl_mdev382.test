@@ -64,8 +64,8 @@ set sql_quote_show_create = 1;
 connection master;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 set sql_mode = 'ANSI_QUOTES';
-CREATE DATABASE "db1`; SELECT 'oops!'";
-use "db1`; SELECT 'oops!'";
+CREATE DATABASE "db1`; select 'oops!'";
+use "db1`; select 'oops!'";
 CREATE TABLE t1 (a INT PRIMARY KEY) engine=MyISAM;
 INSERT INTO t1 VALUES (1);
 set sql_mode = '';
@@ -88,7 +88,7 @@ use test;
 'fo\\o','bar'
 EOF
 
-use `db1``; SELECT 'oops!'`;
+use `db1``; select 'oops!'`;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 set timestamp=1000000000;
 CREATE TABLE `t``1` (`a``1` VARCHAR(4) PRIMARY KEY, `b``2` VARCHAR(3),
@@ -105,11 +105,11 @@ truncate `t``1`;
 use test;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/f''le.txt'
-  INTO TABLE `db1``; SELECT 'oops!'`.`t``1`
+  INTO TABLE `db1``; select 'oops!'`.`t``1`
   FIELDS TERMINATED BY ',' ESCAPED BY '\\\\' ENCLOSED BY ''''
   LINES TERMINATED BY '\\n'
   (`a``1`, `b``2`) SET `c``3` = concat('|', "b""a'z", "!");
-SELECT * FROM `db1``; SELECT 'oops!'`.`t``1`;
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 --source include/show_binlog_events.inc
@@ -119,10 +119,10 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 sync_slave_with_master;
 connection slave;
-SELECT * FROM `db1``; SELECT 'oops!'`.`t``1`;
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 connection master;
 
-DROP TABLE `db1``; SELECT 'oops!'`.`t``1`;
+DROP TABLE `db1``; select 'oops!'`.`t``1`;
 --remove_file $load_file
 
 connection master;
@@ -158,7 +158,7 @@ DROP TABLE t1;
 
 
 --echo *** Test user variables whose names require correct quoting ***
-use `db1``; SELECT 'oops!'`;
+use `db1``; select 'oops!'`;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
 CREATE TABLE t1 (a1 BIGINT PRIMARY KEY, a2 BIGINT, a3 BIGINT, a4 BIGINT UNSIGNED, b DOUBLE, c DECIMAL(65,10), d VARCHAR(100));
 INSERT INTO t1 VALUES (-9223372036854775808,42,9223372036854775807,18446744073709551615,-1234560123456789e110, -1234501234567890123456789012345678901234567890123456789.0123456789, REPEAT("x", 100));
@@ -172,13 +172,13 @@ let $pos2= query_get_value(SHOW MASTER STATUS, Position, 1);
 
 sync_slave_with_master;
 connection slave;
-SELECT * FROM `db1``; SELECT 'oops!'`.t1 ORDER BY a1;
+SELECT * FROM `db1``; select 'oops!'`.t1 ORDER BY a1;
 
 connection master;
 DROP TABLE t1;
 
 --echo *** Test correct quoting in foreign key error message ***
-use `db1``; SELECT 'oops!'`;
+use `db1``; select 'oops!'`;
 CREATE TABLE `t``1` ( `a``` INT PRIMARY KEY) ENGINE=innodb;
 CREATE TABLE `t``2` ( `b``` INT PRIMARY KEY, `c``` INT NOT NULL,
     FOREIGN KEY fk (`c```) REFERENCES `t``1`(`a```)) ENGINE=innodb;
@@ -197,9 +197,9 @@ connection slave;
 --source include/stop_slave.inc
 
 connection master;
-CREATE TABLE `db1``; SELECT 'oops!'`.`t``1` (`a``` INT PRIMARY KEY) ENGINE=heap;
-INSERT INTO `db1``; SELECT 'oops!'`.`t``1` VALUES (1), (2), (5);
-SELECT * FROM `db1``; SELECT 'oops!'`.`t``1` ORDER BY 1;
+CREATE TABLE `db1``; select 'oops!'`.`t``1` (`a``` INT PRIMARY KEY) ENGINE=heap;
+INSERT INTO `db1``; select 'oops!'`.`t``1` VALUES (1), (2), (5);
+SELECT * FROM `db1``; select 'oops!'`.`t``1` ORDER BY 1;
 
 # Restart the master mysqld.
 # This will cause an implicit truncation of the memory-based table, which will
@@ -230,7 +230,7 @@ set timestamp=1000000000;
 --echo # The table should be empty on the master.
 let $binlog_file= master-bin.000002;
 let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
-SELECT * FROM `db1``; SELECT 'oops!'`.`t``1`;
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 
 --echo # The DELETE statement should be correctly quoted
 --source include/show_binlog_events.inc
@@ -242,16 +242,16 @@ connection master;
 sync_slave_with_master;
 connection slave;
 --echo # The table should be empty on the slave also.
-SELECT * FROM `db1``; SELECT 'oops!'`.`t``1`;
+SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 
 connection master;
-DROP TABLE `db1``; SELECT 'oops!'`.`t``1`;
+DROP TABLE `db1``; select 'oops!'`.`t``1`;
 sync_slave_with_master;
 
 
 connection master;
 use test;
-DROP DATABASE `db1``; SELECT 'oops!'`;
+DROP DATABASE `db1``; select 'oops!'`;
 
 --echo *** Test correct quoting of mysqlbinlog --rewrite-db option ***
 CREATE TABLE t1 (a INT PRIMARY KEY);
