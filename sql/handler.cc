@@ -6543,15 +6543,8 @@ int handler::read_range_first(const key_range *start_key,
   DBUG_ENTER("handler::read_range_first");
 
   eq_range= eq_range_arg;
-  end_range= 0;
-  if (end_key)
-  {
-    end_range= &save_end_range;
-    save_end_range= *end_key;
-    key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
-				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
-    range_scan_direction= RANGE_SCAN_ASC;
-  }
+  set_end_range(end_key, RANGE_SCAN_ASC);
+
   range_key_part= table->key_info[active_index].key_part;
 
   if (!start_key)			// Read first record
@@ -6630,13 +6623,17 @@ int handler::read_range_next()
 void handler::set_end_range(const key_range* range,
                             enum_range_scan_direction direction)
 {
-  DBUG_ASSERT(range != NULL);
+  if (range)
+  {
+    save_end_range= *range;
+    end_range= &save_end_range;
+    range_key_part= table->key_info[active_index].key_part;
+    key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
+                                  (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  }
+  else
+    end_range= NULL;
 
-  save_end_range= *range;
-  end_range= &save_end_range;
-  range_key_part= table->key_info[active_index].key_part;
-  key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
-                                (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
   range_scan_direction= direction;
 }
 
