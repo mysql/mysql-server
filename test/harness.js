@@ -46,6 +46,7 @@ function Test(name, phase) {
   this.index = 0;
   this.failed = false;
   this.has_proxy = false;
+  this.skipped = false;
 };
 
 function SmokeTest(name) {
@@ -100,13 +101,15 @@ Test.prototype.test = function(result) {
       return;
     }
     // fail if any error messages have been reported
-    if (this.errorMessages == '') {
-      if (debug) console.log(this.name + ' result.pass');
-      result.pass(this);
-    } else {
-      this.failed = true;
-      if (debug) console.log(this.name + ' result.fail');
-      result.fail(this);
+    if(! this.skipped) {
+      if (this.errorMessages == '') {
+        if (debug) console.log(this.name + ' result.pass');
+        result.pass(this);
+      } else {
+        this.failed = true;
+        if (debug) console.log(this.name + ' result.fail');
+        result.fail(this);
+      }
     }
   }
   catch(e) {
@@ -143,6 +146,11 @@ Test.prototype.failOnError = function() {
   } else {
     this.pass();
   }
+}
+
+Test.prototype.skip = function(message) {
+  this.skipped = true;
+  this.result.skip(this, message);
 }
 
 Test.prototype.isTest = function() { return true; };
@@ -429,6 +437,11 @@ Listener.prototype.pass = function(t) {
   console.log("[pass]", t.fullName() );
 };
 
+Listener.prototype.skip = function(t, message) {
+  this.skipped++;
+  console.log("[skipped]", t.fullName(), "\t", message);
+};
+
 Listener.prototype.fail = function(t, e) {
   this.ended++;
   var message = e.toString();
@@ -448,6 +461,7 @@ function Result(driver) {
   this.driver = driver;
   this.passed = [];
   this.failed = [];
+  this.skipped = [];
 }
 
 Result.prototype.pass = function(t) {
@@ -462,6 +476,11 @@ Result.prototype.fail = function(t, e) {
   this.driver.testCompleted(t);
 };
 
+Result.prototype.skip = function(t, reason) {
+  this.skipped.push(t.name);
+  this.listener.skip(t, reason);
+  this.driver.testCompleted(t);
+};
 
 /* SQL DDL Utilities
 */

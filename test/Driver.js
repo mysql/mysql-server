@@ -79,8 +79,9 @@ Driver.prototype.reportResultsAndExit = function() {
     if (debug) console.log('Driver.reportResultsAndExit closing ' + sessionFactory.key);
     sessionFactory.close();
   });
-  console.log("Passed: ", result.passed.length);
-  console.log("Failed: ", result.failed.length);
+  console.log("Passed:  ", result.passed.length);
+  console.log("Failed:  ", result.failed.length);
+  console.log("Skipped: ", result.skipped.length);
   if(debug) udebug.close();
   process.exit(result.failed.length > 0);  
 };
