@@ -2,9 +2,6 @@ set @name="This is a very long string, that mustn't find room in a system field 
 create table test_db select * from mysql.db;
 delete from test_db;
 insert into test_db (Host,Db,User) values (@name,@name,@name);
-create table test_host select * from mysql.host;
-delete from test_host;
-insert into test_host (Host,Db) values (@name,@name);
 create table test_user select * from mysql.user;
 delete from test_user;
 insert into test_user (Host,User) values (@name,@name);
@@ -19,28 +16,24 @@ delete from test_columns_priv;
 insert into test_columns_priv (Host,Db,User,Table_name,Column_name) values (@name,@name,@name,@name,@name);
 select
 if(isnull(test_db.Host),'WRONG!!!','ok') as test_db_Host,
-if(isnull(test_host.Host),'WRONG!!!','ok') as test_host_Host,
 if(isnull(test_user.Host),'WRONG!!!','ok') as test_user_Host,
 if(isnull(test_tables_priv.Host),'WRONG!!!','ok') as test_tables_priv_Host,
 if(isnull(test_columns_priv.Host),'WRONG!!!','ok') as test_columns_priv_Host
 from      test_db
-left join test_host         on test_db.Host=test_host.Host
 left join test_user         on test_db.Host=test_user.Host
 left join test_tables_priv  on test_db.Host=test_tables_priv.Host
 left join test_columns_priv on test_db.Host=test_columns_priv.Host;
-test_db_Host	test_host_Host	test_user_Host	test_tables_priv_Host	test_columns_priv_Host
-ok	ok	ok	ok	ok
+test_db_Host	test_user_Host	test_tables_priv_Host	test_columns_priv_Host
+ok	ok	ok	ok
 select
 if(isnull(test_db.Db),'WRONG!!!','ok') as test_db_Db,
-if(isnull(test_host.Db),'WRONG!!!','ok') as test_host_Db,
 if(isnull(test_tables_priv.Db),'WRONG!!!','ok') as test_tables_priv_Db,
 if(isnull(test_columns_priv.Db),'WRONG!!!','ok') as est_columns_priv_Db
 from      test_db
-left join test_host         on test_db.Db=test_host.Db
 left join test_tables_priv  on test_db.Db=test_tables_priv.Db
 left join test_columns_priv on test_db.Db=test_columns_priv.Db;
-test_db_Db	test_host_Db	test_tables_priv_Db	est_columns_priv_Db
-ok	ok	ok	ok
+test_db_Db	test_tables_priv_Db	est_columns_priv_Db
+ok	ok	ok
 select
 if(isnull(test_db.User),'WRONG!!!','ok') as test_db_User,
 if(isnull(test_user.User),'WRONG!!!','ok') as test_user_User,
@@ -62,6 +55,5 @@ ok	ok
 drop table test_columns_priv;
 drop table test_tables_priv;
 drop table test_func;
-drop table test_host;
 drop table test_user;
 drop table test_db;
