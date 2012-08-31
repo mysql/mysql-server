@@ -495,6 +495,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   PFS_user *m_user;
   PFS_account *m_account;
 
+  /** Reset session connect attributes */
+  void reset_session_connect_attrs();
+
   /** a buffer for the connection attributes */
   char *m_session_connect_attrs;
   /** length used by @c m_connect_attrs */
