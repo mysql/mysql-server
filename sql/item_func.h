@@ -1114,7 +1114,7 @@ public:
   Item_func_validate_password_strength(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "validate_password_strength"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 

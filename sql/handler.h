@@ -1778,6 +1778,20 @@ public:
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
+  
+  /*
+    The direction of the current range or index scan. This is used by
+    the ICP implementation to determine if it has reached the end
+    of the current range.
+  */
+  enum enum_range_scan_direction {
+    RANGE_SCAN_ASC,
+    RANGE_SCAN_DESC
+  };
+protected:
+  enum_range_scan_direction range_scan_direction;
+
+public:
   /* 
     TRUE <=> the engine guarantees that returned records are within the range
     being scanned.
@@ -1863,7 +1877,8 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), end_range(NULL), in_range_check_pushed_down(false),
+    ref(0), end_range(NULL), range_scan_direction(RANGE_SCAN_ASC),
+    in_range_check_pushed_down(false),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -2203,8 +2218,19 @@ public:
                                const key_range *end_key,
                                bool eq_range, bool sorted);
   virtual int read_range_next();
+
+  /**
+    Set the end position for a range scan. This is used for checking
+    for when to end the range scan and by the ICP code to determine
+    that the next record is within the current range.
+
+    @param range     The end value for the range scan
+    @param direction Direction of the range scan
+  */
+  void set_end_range(const key_range* range,
+                     enum_range_scan_direction direction);
   int compare_key(key_range *range);
-  int compare_key2(key_range *range);
+  int compare_key_icp(const key_range *range) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
