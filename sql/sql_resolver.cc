@@ -1446,6 +1446,7 @@ bool JOIN::rollup_init()
 {
   uint i,j;
   Item **ref_array;
+  ORDER *group_tmp;
 
   tmp_table_param.quick_group= 0;	// Can't create groups in tmp table
   rollup.state= ROLLUP::STATE_INITED;
@@ -1476,13 +1477,17 @@ bool JOIN::rollup_init()
     Prepare space for field list for the different levels
     These will be filled up in rollup_make_fields()
   */
+  group_tmp= group_list;
   for (i= 0 ; i < send_group_parts ; i++)
   {
-    rollup.null_items[i]= new (thd->mem_root) Item_null_result();
+    rollup.null_items[i]=
+      new (thd->mem_root) Item_null_result((*group_tmp->item)->field_type(),
+                                           (*group_tmp->item)->result_type());
     List<Item> *rollup_fields= &rollup.fields[i];
     rollup_fields->empty();
     rollup.ref_pointer_arrays[i]= Ref_ptr_array(ref_array, all_fields.elements);
     ref_array+= all_fields.elements;
+    group_tmp= group_tmp->next;
   }
   for (i= 0 ; i < send_group_parts; i++)
   {
@@ -1493,7 +1498,6 @@ bool JOIN::rollup_init()
   Item *item;
   while ((item= it++))
   {
-    ORDER *group_tmp;
     bool found_in_group= 0;
 
     for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
