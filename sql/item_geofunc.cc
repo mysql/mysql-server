@@ -1693,7 +1693,8 @@ count_distance:
     for (dist_point= collector.get_first(); dist_point; dist_point= dist_point->get_next())
     {
       /* We only check vertices of object 2 */
-      if (dist_point->shape < obj2_si)
+      if (dist_point->type != Gcalc_heap::nt_shape_node ||
+          dist_point->shape < obj2_si)
         continue;
 
       /* if we have an edge to check */

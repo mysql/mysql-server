@@ -8858,7 +8858,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
                        item->max_length, item->decimals));
   fld_type= Field::field_type_merge(fld_type, get_real_type(item));
   {
-    int item_decimals= item->decimals;
+    uint item_decimals= item->decimals;
     /* fix variable decimals which always is NOT_FIXED_DEC */
     if (Field::result_merge_type(fld_type) == INT_RESULT)
       item_decimals= 0;
