@@ -158,8 +158,8 @@ copy_toku_blob(uchar* to_ptr, uchar* from_ptr, uint32_t len_bytes, bool skip) {
     return (length + len_bytes);
 }
 
-int 
-tokudb_update_fun(
+static int 
+tokudb_hcad_update_fun(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -588,3 +588,29 @@ cleanup:
     my_free(new_val_data, MYF(MY_ALLOW_ZERO_PTR));
     return error;    
 }
+
+int 
+tokudb_update_fun(
+    DB* db,
+    const DBT *key,
+    const DBT *old_val, 
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val, void *set_extra),
+    void *set_extra
+    ) 
+{
+    uchar *extra_pos = (uchar *)extra->data;
+    uchar operation = extra_pos[0];
+    int error = 0;
+    switch (operation) {
+    case UP_COL_ADD_OR_DROP:
+        error = tokudb_hcad_update_fun(db, key, old_val, extra, set_val, set_extra);
+        break;
+    default:
+        error = EINVAL;
+        break;
+    }
+    return error;
+}
+
+
