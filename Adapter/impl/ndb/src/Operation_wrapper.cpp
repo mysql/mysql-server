@@ -38,6 +38,7 @@ Handle<Value> readCurrentTuple(const Arguments &);
 Handle<Value> writeTuple(const Arguments &);
 Handle<Value> insertTuple(const Arguments &);
 Handle<Value> updateTuple(const Arguments &);
+Handle<Value> deleteTuple(const Arguments &);
 Handle<Value> scanTable(const Arguments &);
 Handle<Value> scanIndex(const Arguments &);
 
@@ -50,6 +51,7 @@ public:
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "readCurrentTuple", readCurrentTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "writeTuple", writeTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "insertTuple", insertTuple);
+   DEFINE_JS_FUNCTION(Envelope::stencil, "deleteTuple", deleteTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "updateTuple", updateTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "scanTable", scanTable);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "scanIndex", scanIndex);   
@@ -97,4 +99,20 @@ Handle<Value> insertTuple(const Arguments &args) {
   const NdbOperation * ndbop = op->insertTuple(tx);
   return scope.Close(NdbOperation_Wrapper(ndbop));
 }
+
+
+Handle<Value> deleteTuple(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(1);
+  Operation * op = unwrapPointer<Operation *>(args.Holder());
+  JsValueConverter<NdbTransaction *> arg0c(args[0]);
+  NdbTransaction * tx = arg0c.toC();
+  const NdbOperation * ndbop = op->deleteTuple(tx);
+  return scope.Close(NdbOperation_Wrapper(ndbop));
+}
+
+
+  
 

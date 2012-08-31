@@ -20,13 +20,7 @@
 
 "use strict";
 
-/*global path, fs, assert,
-         driver_dir, suites_dir, adapter_dir, build_dir,
-         spi_module, api_module, udebug_module,
-         harness, mynode, udebug, debug,
-         adapter, test_conn_properties,
-         module, exports
-*/
+/*global spi_module, harness, udebug */
 
 try {
   require("./suite_config.js");

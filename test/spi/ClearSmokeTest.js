@@ -18,6 +18,9 @@
  02110-1301  USA
  */
 
+"use strict";
+/*global harness */
+
 var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {

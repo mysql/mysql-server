@@ -1,13 +1,15 @@
 
 var path = require("path"),
     fs = require("fs"),
-    assert = require("assert");
+    assert = require("assert"),
+    util = require("util");
 
 var parent = path.dirname(__dirname);
 
 global.path            = path;
 global.fs              = fs;
 global.assert          = assert;
+global.util            = util;
 
 global.driver_dir      = __dirname;
 global.suites_dir      = driver_dir;

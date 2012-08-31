@@ -18,6 +18,9 @@
  02110-1301  USA
  */
 
+"use strict";
+/*global spi_module, harness, assert */
+
 try {
   require("./suite_config.js");
 } catch(e) {} 
@@ -59,8 +62,8 @@ t3.run = function() {
     // if(x_session !== null) x_session.close(); 
 
     // WARNING -- "Deleting Ndb_cluster_connection with Ndb-object not deleted"
-    if(x_conn !== null) x_conn.closeSync();
-  }
+    if(x_conn !== null) { x_conn.closeSync(); }
+  };
 
   var tcb1 = function(err, connection) {
     if(err) {
@@ -72,17 +75,18 @@ t3.run = function() {
     }
     x_conn = connection; // for teardown  
     var tcb2 = function(err, dbsessionhandler) {
-      if(err) t3.fail(err);
+      if(err) {
+        t3.fail(err);
+      }
       else {
         t3.pass();
         x_session = dbsessionhandler;   // for teardown
       }
-    }
+    }; 
     connection.getDBSession(0, tcb2);
- 
-  }
+  };
   provider.connect(properties, tcb1);
-}
+};
 
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/

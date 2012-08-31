@@ -102,13 +102,13 @@ Test.prototype.test = function(result) {
     }
     // fail if any error messages have been reported
     if(! this.skipped) {
-      if (this.errorMessages == '') {
+      if (this.errorMessages === '') {
         if (debug) console.log(this.name + ' result.pass');
         result.pass(this);
       } else {
         this.failed = true;
         if (debug) console.log(this.name + ' result.fail');
-        result.fail(this);
+        result.fail(this, this.errorMessages);
       }
     }
   }
@@ -444,14 +444,18 @@ Listener.prototype.skip = function(t, message) {
 };
 
 Listener.prototype.fail = function(t, e) {
+  var message = "";
   this.ended++;
-  var message = e.toString();
-  if (typeof(e.message) !== 'undefined') {
-    message = e.message;
-  } 
+  if(e) {
+    message = e.toString();
+    if (typeof(e.message) !== 'undefined') {
+      message = e.message;
+    } 
+  }
   if ((this.printStackTraces || debug) && typeof(e.stack) !== 'undefined') {
     message = e.stack;
   }
+  
   console.log("[FAIL]", t.fullName(), "\t", message);
 };
 

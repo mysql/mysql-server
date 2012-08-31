@@ -282,7 +282,7 @@ Handle<Object> GetTableCall::buildDBIndex_PK() {
   obj->Set(String::NewSymbol("isOrdered"),    Boolean::New(false), ReadOnly);
 
   /* Loop over the columns of the key. 
-     Build the "columns" array and the "record" object, then set both.
+     Build the "columnNumbers" array and the "record" object, then set both.
   */  
   int ncol = ndb_table->getNoOfPrimaryKeys();
   Record * pk_record = new Record(arg0->dict, ncol);
@@ -295,7 +295,7 @@ Handle<Object> GetTableCall::buildDBIndex_PK() {
   }
   pk_record->completeTableRecord(ndb_table);
 
-  obj->Set(String::NewSymbol("columns"), idx_columns);
+  obj->Set(String::NewSymbol("columnNumbers"), idx_columns);
   obj->Set(String::NewSymbol("record"), Record_Wrapper(pk_record), ReadOnly);
  
   return scope.Close(obj);
@@ -328,7 +328,7 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   }
   idx_record->completeIndexRecord(idx);
   obj->Set(String::NewSymbol("record"), Record_Wrapper(idx_record), ReadOnly);
-  obj->Set(String::NewSymbol("columns"), idx_columns);
+  obj->Set(String::NewSymbol("columnNumbers"), idx_columns);
   
   return scope.Close(obj);
 }
@@ -377,6 +377,13 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
   obj->Set(String::NewSymbol("columnSpace"),
            v8::Int32::New(col->getSizeInBytes()),
            ReadOnly);
+
+  /* Implementation-specific properties */
+  
+  obj->Set(String::NewSymbol("ndbTypeId"),
+           v8::Int32::New(static_cast<int>(col->getType())),
+           ReadOnly);
+
   
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
@@ -445,37 +452,37 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
 
   /* Based on ndb_constants.h */
   const char * typenames[NDB_TYPE_MAX] = {
-    "",
-    "TINYINT",        // TINY INT
-    "TINYINT",        // TINY UNSIGNED
-    "SMALLINT",       // SMALL INT
-    "SMALLINT",       // SMALL UNSIGNED
-    "MEDIUMINT",      // MEDIIUM INT
-    "MEDIUMINT",      // MEDIUM UNSIGNED
-    "INT",            // INT
-    "INT",            // UNSIGNED
-    "BIGINT",         // BIGINT
-    "BIGINT",         // BIG UNSIGNED
-    "FLOAT",
-    "DOUBLE",    
+    "",               // 0
+    "TINYINT",        // 1  TINY INT
+    "TINYINT",        // 2  TINY UNSIGNED
+    "SMALLINT",       // 3  SMALL INT
+    "SMALLINT",       // 4  SMALL UNSIGNED
+    "MEDIUMINT",      // 5  MEDIIUM INT
+    "MEDIUMINT",      // 6  MEDIUM UNSIGNED
+    "INT",            // 7  INT
+    "INT",            // 8  UNSIGNED
+    "BIGINT",         // 9  BIGINT
+    "BIGINT",         // 10 BIG UNSIGNED
+    "FLOAT",          // 11
+    "DOUBLE",         // 12
     "",               // OLDDECIMAL
-    "CHAR",
-    "VARCHAR",
-    "BINARY",
-    "VARBINARY",
-    "DATETIME",
-    "DATE",
-    "BLOB",
-    "TEXT",           // TEXT
-    "BIT",
-    "VARCHAR",        // LONGVARCHAR
-    "VARBINARY",      // LONGVARBINARY
-    "TIME",
-    "YEAR",
-    "TIMESTAMP",
-    "",               // OLDDECIMAL UNSIGNED
-    "DECIMAL",        // DECIMAL
-    "DECIMAL"         // DECIMAL UNSIGNED 
+    "CHAR",           // 14
+    "VARCHAR",        // 15
+    "BINARY",         // 16
+    "VARBINARY",      // 17
+    "DATETIME",       // 18
+    "DATE",           // 19
+    "BLOB",           // 20
+    "TEXT",           // 21 TEXT
+    "BIT",            // 22 
+    "VARCHAR",        // 23 LONGVARCHAR
+    "VARBINARY",      // 24 LONGVARBINARY
+    "TIME",           // 25
+    "YEAR",           // 26
+    "TIMESTAMP",      // 27
+    "",               // 28 OLDDECIMAL UNSIGNED
+    "DECIMAL",        // 29 DECIMAL
+    "DECIMAL"         // 30 DECIMAL UNSIGNED 
   };
 
   const char * name = typenames[col->getType()];
