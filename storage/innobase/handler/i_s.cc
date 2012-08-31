@@ -1764,13 +1764,13 @@ i_s_cmp_per_index_fill_low(
 			iter->second.compressed_ok);
 
 		fields[IDX_COMPRESS_TIME]->store(
-			iter->second.compressed_usec / 1000000);
+			(long) (iter->second.compressed_usec / 1000000));
 
 		fields[IDX_UNCOMPRESS_OPS]->store(
 			iter->second.decompressed);
 
 		fields[IDX_UNCOMPRESS_TIME]->store(
-			iter->second.decompressed_usec / 1000000);
+			(long) (iter->second.decompressed_usec / 1000000));
 
 		if (schema_table_store_record(thd, table)) {
 			status = 1;
@@ -2068,8 +2068,8 @@ i_s_cmpmem_fill_low(
 			table->field[3]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
 				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
 				: 0);
-			table->field[4]->store((longlong)
-			buddy_stat->relocated, true);
+			table->field[4]->store(
+				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
 				(ulong) (buddy_stat->relocated_usec / 1000000));
 
