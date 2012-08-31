@@ -4382,38 +4382,43 @@ os_aio_simulated_wake_handler_thread(
 	ulint	global_segment)	/*!< in: the number of the segment in the aio
 				arrays */
 {
-	ulint	segment;
-
 	os_aio_array_t*	array;
+	ulint		segment;
 
 	ut_ad(!srv_use_native_aio);
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
-	ulint	lower = array->n_slots / array->n_segments;
-	ulint	upper = lower * segment;
+	ulint	n = array->n_slots / array->n_segments;
+
+	segment *= n;
 
 	/* Look through n slots after the segment * n'th slot */
 
 	os_mutex_enter(array->mutex);
 
-	for (ulint i = lower; i < upper; ++i) {
+	for (ulint i = 0; i < n; ++i) {
 		const os_aio_slot_t*	slot;
 
-		slot = os_aio_array_get_nth_slot(array, i);
+		slot = os_aio_array_get_nth_slot(array, segment + i);
 
 		if (slot->reserved) {
+
 			/* Found an i/o request */
 
-			break;
+			os_mutex_exit(array->mutex);
+
+			os_event_t	event;
+
+			event = os_aio_segment_wait_events[global_segment];
+
+			os_event_set(event);
+
+			return;
 		}
 	}
 
 	os_mutex_exit(array->mutex);
-
-	if (segment < array->n_slots) {
-		os_event_set(os_aio_segment_wait_events[global_segment]);
-	}
 }
 
 /**********************************************************************//**
@@ -4423,8 +4428,6 @@ void
 os_aio_simulated_wake_handler_threads(void)
 /*=======================================*/
 {
-	ulint	i;
-
 	if (srv_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
 
@@ -4433,7 +4436,7 @@ os_aio_simulated_wake_handler_threads(void)
 
 	os_aio_recommend_sleep_for_read_threads	= FALSE;
 
-	for (i = 0; i < os_aio_n_segments; i++) {
+	for (ulint i = 0; i < os_aio_n_segments; i++) {
 		os_aio_simulated_wake_handler_thread(i);
 	}
 }
