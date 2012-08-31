@@ -24,7 +24,6 @@ cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
 int cursor_by_thread_connect_attr::rnd_next(void)
 {
   PFS_thread *thread;
-  PFS_thread *current_thread= PFS_thread::get_current_thread();
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.has_more_thread();
@@ -32,7 +31,7 @@ int cursor_by_thread_connect_attr::rnd_next(void)
   {
     thread= &thread_array[m_pos.m_index_1];
 
-    if (thread->m_lock.is_populated() && thread_fits(thread, current_thread))
+    if (thread->m_lock.is_populated())
     {
       make_row(thread, m_pos.m_index_2);
       if (m_row_exists)
@@ -49,14 +48,12 @@ int cursor_by_thread_connect_attr::rnd_next(void)
 int cursor_by_thread_connect_attr::rnd_pos(const void *pos)
 {
   PFS_thread *thread;
-  PFS_thread *current_thread= PFS_thread::get_current_thread();
 
   set_position(pos);
   DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
   thread= &thread_array[m_pos.m_index_1];
-  if (!thread->m_lock.is_populated() ||
-      !thread_fits(thread, current_thread))
+  if (!thread->m_lock.is_populated())
     return HA_ERR_RECORD_DELETED;
 
   make_row(thread, m_pos.m_index_2);
