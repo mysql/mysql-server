@@ -389,6 +389,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
   DBUG_PRINT("info", ("pos: %lu", (ulong) pos));
 
   *errmsg=0;
+  const char* errmsg_fmt= 0;
+  static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
   mysql_mutex_t *log_lock= relay_log.get_log_lock();
 
   if (need_data_lock)
@@ -428,7 +430,10 @@ int Relay_log_info::init_relay_log_pos(const char* log,
 
   if (log && relay_log.find_log_pos(&linfo, log, 1))
   {
-    *errmsg="Could not find target log during relay log initialization";
+    errmsg_fmt= "Could not find target log file mentioned in \
+relay log info in the index file '%s' during relay log initialization";
+    sprintf(errmsg_buff, errmsg_fmt, relay_log.get_index_fname());
+    *errmsg= errmsg_buff;
     goto err;
   }
 
