@@ -6128,7 +6128,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
   */
-  if (cond->const_item() && !cond->is_expensive())
+  if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 
@@ -10441,9 +10441,11 @@ int QUICK_SELECT_DESC::get_next()
 
   /* The max key is handled as follows:
    *   - if there is NO_MAX_RANGE, start at the end and move backwards
-   *   - if it is an EQ_RANGE, which means that max key covers the entire
-   *     key, go directly to the key and read through it (sorting backwards is
-   *     same as sorting forwards)
+   *   - if it is an EQ_RANGE (which means that max key covers the entire
+   *     key) and the query does not use any hidden key fields that are
+   *     not considered when the range optimzier sets EQ_RANGE (e.g. the 
+   *     primary key added by InnoDB), then go directly to the key and 
+   *     read through it (sorting backwards is same as sorting forwards).
    *   - if it is NEAR_MAX, go to the key or next, step back once, and
    *     move backwards
    *   - otherwise (not NEAR_MAX == include the key), go after the key,
@@ -10472,6 +10474,24 @@ int QUICK_SELECT_DESC::get_next()
     if (!(last_range= rev_it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
 
+    // Case where we can avoid descending scan, see comment above
+    const bool eqrange_all_keyparts= (last_range->flag & EQ_RANGE) && 
+                          (used_key_parts <= head->key_info[index].key_parts);
+
+    /*
+      If we have pushed an index condition (ICP) and this quick select
+      will use ha_index_prev() to read data, we need to let the
+      handler know where to end the scan in order to avoid that the
+      ICP implemention continues to read past the range boundary.
+    */
+    if (file->pushed_idx_cond && !eqrange_all_keyparts)
+    {
+      key_range min_range;
+      last_range->make_min_endpoint(&min_range);
+      if(min_range.length > 0)
+        file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+    }
+
     if (last_range->flag & NO_MAX_RANGE)        // Read last record
     {
       int local_error;
@@ -10483,8 +10503,7 @@ int QUICK_SELECT_DESC::get_next()
       continue;
     }
 
-    if (last_range->flag & EQ_RANGE &&
-        used_key_parts <= head->key_info[index].key_parts)
+    if (eqrange_all_keyparts)
 
     {
       result= file->ha_index_read_map(record, last_range->max_key,

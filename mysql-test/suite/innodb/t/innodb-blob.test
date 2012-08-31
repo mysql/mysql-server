@@ -70,6 +70,7 @@ SELECT a FROM t1;
 
 # Request a crash, and restart the server.
 SET DEBUG='+d,crash_commit_before';
+# Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 INSERT INTO t2 VALUES (42);
@@ -81,7 +82,6 @@ connection default;
 --error 2013
 reap;
 
-# Write file to make mysql-test-run.pl restart the server
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -150,6 +150,7 @@ WHERE state = 'debug sync point: before_row_upd_extern';
 
 # Request a crash, and restart the server.
 SET DEBUG='+d,crash_commit_before';
+# Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 COMMIT;
@@ -160,7 +161,6 @@ connection default;
 --error 2013
 reap;
 
-# Write file to make mysql-test-run.pl restart the server
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -194,6 +194,7 @@ WHERE state = 'debug sync point: after_row_upd_extern';
 
 # Request a crash, and restart the server.
 SET DEBUG='+d,crash_commit_before';
+# Write file to make mysql-test-run.pl restart the server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 COMMIT;
@@ -204,7 +205,6 @@ connection default;
 --error 2013
 reap;
 
-# Write file to make mysql-test-run.pl restart the server
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

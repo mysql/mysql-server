@@ -15294,7 +15294,7 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
     "magic number when reading; "
   "Files updated when this option is set to crc32 or strict_crc32 will "
   "not be readable by MySQL versions older than 5.6.3",
-  NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
+  NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
@@ -16440,7 +16440,7 @@ innobase_index_cond(
 	DBUG_ASSERT(h->pushed_idx_cond);
 	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
 
-	if (h->end_range && h->compare_key2(h->end_range) > 0) {
+	if (h->end_range && h->compare_key_icp(h->end_range) > 0) {
 
 		/* caller should return HA_ERR_END_OF_FILE already */
 		DBUG_RETURN(ICP_OUT_OF_RANGE);
