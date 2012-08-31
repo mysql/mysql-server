@@ -24,7 +24,7 @@ ENDIF()
 # We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
 # In order to get correct symbol visibility, these files
 # must be compiled with "-fvisibility=hidden"
-IF(HAVE_VISIBILITY_HIDDEN)
+IF(WITH_SSL STREQUAL "bundled" AND HAVE_VISIBILITY_HIDDEN)
   SET_SOURCE_FILES_PROPERTIES(
     crypt_genhash_impl.cc
     my_aes.cc
