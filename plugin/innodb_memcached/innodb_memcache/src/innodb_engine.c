@@ -1217,6 +1217,9 @@ innodb_get(
 	const char*		option_delimiter;
 	size_t			key_len = nkey;
 	int			lock_mode;
+	char			table_name[MAX_TABLE_NAME_LEN
+					   + MAX_DATABASE_NAME_LEN];
+	bool			report_table_switch = false;
 
 	if (meta_info->get_option == META_CACHE_OPT_DISABLE) {
 		return(ENGINE_KEY_ENOENT);
@@ -1235,8 +1238,11 @@ innodb_get(
 		}
 	}
 
+	/* Check if we need to switch table mapping */
 	err_ret = check_key_name_for_map_switch(handle, cookie, key, &key_len);
 
+	/* If specified new table map does not exist, or table does not
+	qualify for InnoDB memcached, return error */
 	if (err_ret != ENGINE_SUCCESS) {
 		goto err_exit;
 	}
@@ -1244,6 +1250,30 @@ innodb_get(
 	/* If only the new mapping name is provided, and no key value,
 	return here */
 	if (key_len <= 0) {
+		/* If this is a command in the form of "get @@new_table_map",
+		for the purpose of switching to the specified table with
+		the table map name, if the switch is successful, we will
+		return the table name as result */
+		if (nkey > 0) {
+			char*	name = meta_info->col_info[
+					CONTAINER_TABLE].col_name;
+			char*	dbname = meta_info->col_info[
+					CONTAINER_DB].col_name;
+#ifdef __WIN__
+			sprintf(table_name, "%s\%s", dbname, name);
+#else
+			snprintf(table_name, sizeof(table_name),
+				 "%s/%s", dbname, name);
+#endif
+			memset(&result, 0, sizeof(result));
+
+			result.col_value[MCI_COL_VALUE].value_str = table_name;
+			result.col_value[MCI_COL_VALUE].value_len = strlen(table_name);
+			report_table_switch = true;
+
+			goto search_done;
+		}
+
 		err_ret = ENGINE_KEY_ENOENT;
 		goto err_exit;
 	}
@@ -1267,6 +1297,8 @@ innodb_get(
 		err_ret = ENGINE_KEY_ENOENT;
 		goto func_exit;
 	}
+
+search_done:
 
 	/* Only if expiration field is enabled, and the value is not zero,
 	we will check whether the item is expired */
@@ -1358,7 +1390,10 @@ innodb_get(
 
 func_exit:
 
-	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_READ, true);
+	if (!report_table_switch) {
+		innodb_api_cursor_reset(innodb_eng, conn_data,
+					CONN_OP_READ, true);
+	}
 
 err_exit:
 	return(err_ret);
