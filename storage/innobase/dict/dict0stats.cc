@@ -425,9 +425,9 @@ dict_stats_table_clone_create(
 
 		idx->type = index->type;
 
-		idx->to_be_dropped = index->to_be_dropped;
+		idx->to_be_dropped = 0;
 
-		idx->online_status = index->online_status;
+		idx->online_status = ONLINE_INDEX_COMPLETE;
 
 		idx->n_uniq = index->n_uniq;
 
