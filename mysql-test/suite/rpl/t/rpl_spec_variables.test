@@ -220,12 +220,12 @@ DROP TABLE IF EXISTS t1,t2;
 --echo * storage_engine *
 
 --connection master
-SET @restore_master_storage_engine=@@global.storage_engine;
+SET @restore_master_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=InnoDB;
 SET @@session.default_storage_engine=InnoDB;
 
 --connection slave
-SET @restore_slave_storage_engine=@@global.storage_engine;
+SET @restore_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=Memory;
 SET @@session.default_storage_engine=Memory;
 

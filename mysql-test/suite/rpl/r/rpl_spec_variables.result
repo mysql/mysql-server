@@ -143,10 +143,10 @@ COUNT(*)<2000 AND COUNT(*)>0
 DROP TABLE IF EXISTS t1,t2;
 
 * storage_engine *
-SET @restore_master_storage_engine=@@global.storage_engine;
+SET @restore_master_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=InnoDB;
 SET @@session.default_storage_engine=InnoDB;
-SET @restore_slave_storage_engine=@@global.storage_engine;
+SET @restore_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=Memory;
 SET @@session.default_storage_engine=Memory;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));

@@ -1,4 +1,4 @@
-call mtr.add_suppression("Can't open and lock privilege tables: Table 'host' was not locked with LOCK TABLES");
+call mtr.add_suppression("Can't open and lock privilege tables: Table 'user' was not locked with LOCK TABLES");
 SHOW VARIABLES like 'slave_skip_errors';
 Variable_name	Value
 slave_skip_errors	OFF
@@ -15,7 +15,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (c1 INT);
 LOCK TABLES t1 READ;
 FLUSH PRIVILEGES;
-ERROR HY000: Table 'host' was not locked with LOCK TABLES
+ERROR HY000: Table 'user' was not locked with LOCK TABLES
 UNLOCK TABLES;
 DROP TABLE t1;
 #
