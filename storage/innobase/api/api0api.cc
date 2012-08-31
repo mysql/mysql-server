@@ -3812,7 +3812,7 @@ ib_cfg_get_cfg()
 	int	cfg_status;
 
 	cfg_status = (ib_binlog_enabled) ? IB_CFG_BINLOG_ENABLED : 0;
-	
+
 	if (ib_mdl_enabled) {
 		cfg_status |= IB_CFG_MDL_ENABLED;
 	}

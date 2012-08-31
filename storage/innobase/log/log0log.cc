@@ -3358,7 +3358,7 @@ loop:
 
 	/* Make some checks that the server really is quiet */
 	srv_thread_type	type = srv_get_active_thread_type();
-       	ut_a(type == SRV_NONE);
+	ut_a(type == SRV_NONE);
 
 	bool	freed = buf_all_freed();
 	ut_a(freed);

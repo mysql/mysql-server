@@ -2860,7 +2860,7 @@ recv_init_crash_recovery(void)
 	recv_needed_recovery = TRUE;
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Database was not shutdown normally!");
-        ib_logf(IB_LOG_LEVEL_INFO, "Starting crash recovery.");
+	ib_logf(IB_LOG_LEVEL_INFO, "Starting crash recovery.");
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Reading tablespace information from the .ibd files...");
 
