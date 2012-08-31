@@ -787,7 +787,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p2001-01-01	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
+1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	pNULL,p0001-01-01,p1001-01-01,p2001-01-01	range	a	a	4	NULL	4	Using where; Using index
@@ -1116,7 +1116,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
+1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	4	Using where; Using index
@@ -1445,7 +1445,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p2001-01-01,pNULL	index	a	a	4	NULL	4	Using where; Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a = '1999-02-31';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using where; Using index
+1	SIMPLE	t1	pNULL	ref	a	a	4	const	1	Using index
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a BETWEEN '0000-00-00' AND '1002-00-00';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	p0001-01-01,pNULL,p0000-01-02,p1001-01-01	range	a	a	4	NULL	4	Using where; Using index

@@ -1430,7 +1430,6 @@ typedef struct st_select_check {
 extern const char *join_type_str[];
 
 /* Extern functions in sql_select.cc */
-bool store_val_in_field(Field *field, Item *val, enum_check_fields check_flag);
 void count_field_types(SELECT_LEX *select_lex, TMP_TABLE_PARAM *param, 
                        List<Item> &fields, bool reset_with_sum_func);
 bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
@@ -1504,6 +1503,7 @@ public:
     enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
     ulonglong sql_mode= thd->variables.sql_mode;
     thd->variables.sql_mode&= ~(MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE);
+    thd->variables.sql_mode|= MODE_INVALID_DATES;
 
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 

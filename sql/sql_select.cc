@@ -8028,37 +8028,6 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 }
 
 /**
-  This function is only called for const items on fields which are keys.
-
-  @return
-    returns 1 if there was some conversion made when the field was stored.
-*/
-
-bool
-store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
-{
-  bool error;
-  TABLE *table= field->table;
-  THD *thd= table->in_use;
-  ha_rows cuted_fields=thd->cuted_fields;
-  my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
-                                                   table->write_set);
-
-  /*
-    we should restore old value of count_cuted_fields because
-    store_val_in_field can be called from mysql_insert 
-    with select_insert, which make count_cuted_fields= 1
-   */
-  enum_check_fields old_count_cuted_fields= thd->count_cuted_fields;
-  thd->count_cuted_fields= check_flag;
-  error= item->save_in_field(field, 1);
-  thd->count_cuted_fields= old_count_cuted_fields;
-  dbug_tmp_restore_column_map(table->write_set, old_map);
-  return error || cuted_fields != thd->cuted_fields;
-}
-
-
-/**
   @details Initialize a JOIN as a query execution plan
   that accesses a single table via a table scan.
 
@@ -17698,7 +17667,7 @@ bool test_if_ref(Item *root_cond, Item_field *left_item,Item *right_item)
 	    field->real_type() != MYSQL_TYPE_VARCHAR &&
 	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
 	{
-	  return !store_val_in_field(field, right_item, CHECK_FIELD_WARN);
+	  return !right_item->save_in_field_no_warnings(field, 1);
 	}
       }
     }
