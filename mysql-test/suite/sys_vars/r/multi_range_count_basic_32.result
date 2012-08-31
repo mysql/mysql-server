@@ -1,8 +1,12 @@
 SET @start_global_value = @@global.multi_range_count;
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @start_global_value;
 @start_global_value
 256
 SET @start_session_value = @@session.multi_range_count;
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @start_session_value;
 @start_session_value
 256
@@ -16,6 +20,8 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 256
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 200;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -25,6 +31,8 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 256
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_090_02-------------------------#'
 SET @@global.multi_range_count = DEFAULT;
 Warnings:
@@ -32,12 +40,16 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@global.multi_range_count = 256;
 @@global.multi_range_count = 256
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = DEFAULT;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@session.multi_range_count = 256;
 @@session.multi_range_count = 256
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_090_03-------------------------#'
 SET @@global.multi_range_count = 1;
 Warnings:
@@ -45,30 +57,40 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 60020;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 60020
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 65535;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 65535
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 4294967295;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 4294967294;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967294
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_090_04-------------------------#'
 SET @@session.multi_range_count = 1;
 Warnings:
@@ -76,30 +98,40 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 50050;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 50050
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 65535;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 65535
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 4294967295;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 4294967294;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967294
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_05-----------------------#'
 SET @@global.multi_range_count = 0;
 Warnings:
@@ -108,6 +140,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '0'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 4294967296;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -115,6 +149,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = -1024;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -122,6 +158,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '-1024'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 429496729500;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -129,16 +167,22 @@ Warning	1292	Truncated incorrect multi_range_count value: '429496729500'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'multi_range_count'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = test;
 ERROR 42000: Incorrect argument type to variable 'multi_range_count'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 0;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -146,6 +190,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '0'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 4294967296;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -153,6 +199,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '4294967296'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = -1;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -160,6 +208,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '-1'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = 65530.34.;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
 SET @@session.multi_range_count = 4294967295021;
@@ -169,24 +219,32 @@ Warning	1292	Truncated incorrect multi_range_count value: '4294967295021'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.multi_range_count = test;
 ERROR 42000: Incorrect argument type to variable 'multi_range_count'
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 4294967295
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_06-----------------------#'
 SELECT @@global.multi_range_count = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='multi_range_count';
 @@global.multi_range_count = VARIABLE_VALUE
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_07-----------------------#'
 SELECT @@session.multi_range_count = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='multi_range_count';
 @@session.multi_range_count = VARIABLE_VALUE
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#------------------FN_DYNVARS_090_08-----------------------#'
 SET @@global.multi_range_count = TRUE;
 Warnings:
@@ -194,6 +252,8 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@global.multi_range_count = FALSE;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
@@ -201,6 +261,8 @@ Warning	1292	Truncated incorrect multi_range_count value: '0'
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_090_09----------------------#'
 SET @@global.multi_range_count = 10;
 Warnings:
@@ -208,6 +270,9 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@multi_range_count = @@global.multi_range_count;
 @@multi_range_count = @@global.multi_range_count
 0
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_090_10----------------------#'
 SET @@multi_range_count = 100;
 Warnings:
@@ -215,9 +280,15 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@multi_range_count = @@local.multi_range_count;
 @@multi_range_count = @@local.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@local.multi_range_count = @@session.multi_range_count;
 @@local.multi_range_count = @@session.multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_090_11----------------------#'
 SET multi_range_count = 1;
 Warnings:
@@ -225,6 +296,8 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@multi_range_count;
 @@multi_range_count
 1
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT local.multi_range_count;
 ERROR 42S02: Unknown table 'local' in field list
 SELECT session.multi_range_count;
@@ -237,9 +310,13 @@ Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future
 SELECT @@global.multi_range_count;
 @@global.multi_range_count
 256
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SET @@session.multi_range_count = @start_session_value;
 Warnings:
 Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.
 SELECT @@session.multi_range_count;
 @@session.multi_range_count
 256
+Warnings:
+Warning	1287	'@@multi_range_count' is deprecated and will be removed in a future release.

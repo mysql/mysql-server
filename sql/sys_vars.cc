@@ -1866,7 +1866,8 @@ static Sys_var_ulong Sys_max_tmp_tables(
        "max_tmp_tables",
        "Maximum number of temporary tables a client can keep open at a time",
        SESSION_VAR(max_tmp_tables), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1));
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_write_lock_count(
        "max_write_lock_count",
@@ -3083,19 +3084,25 @@ static Sys_var_charptr Sys_date_format(
        "date_format", "The DATE format (ignored)",
        READ_ONLY GLOBAL_VAR(global_date_format.format.str),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].date_format));
+       DEFAULT(known_date_time_formats[ISO_FORMAT].date_format),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_charptr Sys_datetime_format(
        "datetime_format", "The DATETIME format (ignored)",
        READ_ONLY GLOBAL_VAR(global_datetime_format.format.str),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format));
+       DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_charptr Sys_time_format(
        "time_format", "The TIME format (ignored)",
        READ_ONLY GLOBAL_VAR(global_time_format.format.str),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].time_format));
+       DEFAULT(known_date_time_formats[ISO_FORMAT].time_format),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
 {

@@ -1422,7 +1422,7 @@ row_log_table_apply_delete(
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in: new table definition */
+	dict_table_t*		new_table,	/*!< in: rebuilt table */
 	const row_ext_t*	save_ext)	/*!< in: saved external field
 						info, or NULL */
 {
@@ -1501,11 +1501,8 @@ all_done:
 		}
 	}
 
-	/* We cannot invoke innobase_rec_to_mysql() to convert an
-	erroneous mrec to a MySQL row if a PRIMARY KEY is being created.
-	Error messages on delete should not need the row, though. Only
-	messages about duplicates or failed conversions use the row. */
-	return(row_log_table_apply_delete_low(&pcur, offsets, save_ext, heap, &mtr));
+	return(row_log_table_apply_delete_low(&pcur, offsets, save_ext,
+					      heap, &mtr));
 }
 
 /******************************************************//**

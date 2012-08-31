@@ -1760,25 +1760,6 @@ public:
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
 
-protected:
-  /*
-    Storage space for the end range value. Should only be accessed using
-    the end_range pointer. The content is invalid when end_range is NULL.
-  */
-  key_range save_end_range;
-
-public:  
-  /*
-    End value for a range scan. If this is NULL the range scan has no
-    end value. Should also be NULL when there is no ongoing range scan.
-    Used by the read_range() functions and also evaluated by pushed
-    index conditions.
-  */
-  key_range *end_range;
-  KEY_PART_INFO *range_key_part;
-  int key_compare_result_on_equal;
-  bool eq_range;
-  
   /*
     The direction of the current range or index scan. This is used by
     the ICP implementation to determine if it has reached the end
@@ -1788,16 +1769,32 @@ public:
     RANGE_SCAN_ASC,
     RANGE_SCAN_DESC
   };
-protected:
+private:
+  /*
+    Storage space for the end range value. Should only be accessed using
+    the end_range pointer. The content is invalid when end_range is NULL.
+  */
+  key_range save_end_range;
   enum_range_scan_direction range_scan_direction;
+  int key_compare_result_on_equal;
 
-public:
+protected:
+  KEY_PART_INFO *range_key_part;
+  bool eq_range;
   /* 
     TRUE <=> the engine guarantees that returned records are within the range
     being scanned.
   */
   bool in_range_check_pushed_down;
 
+public:  
+  /*
+    End value for a range scan. If this is NULL the range scan has no
+    end value. Should also be NULL when there is no ongoing range scan.
+    Used by the read_range() functions and also evaluated by pushed
+    index conditions.
+  */
+  key_range *end_range;
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
@@ -1877,8 +1874,8 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), end_range(NULL), range_scan_direction(RANGE_SCAN_ASC),
-    in_range_check_pushed_down(false),
+    ref(0), range_scan_direction(RANGE_SCAN_ASC),
+    in_range_check_pushed_down(false), end_range(NULL),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),

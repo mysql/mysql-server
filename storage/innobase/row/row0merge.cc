@@ -1151,37 +1151,6 @@ row_merge_write_eof(
 	return(&block[0]);
 }
 
-/*************************************************************//**
-Check if a row should be skipped during online table rebuild.
-@return true if the record should be skipped */
-static __attribute__((nonnull, warn_unused_result))
-bool
-row_merge_skip_rec(
-/*===============*/
-	const rec_t*		rec,	/*!< in: clustered index record
-					or merge record */
-	const dict_index_t*	index,	/*!< in: clustered index of rec */
-	const dict_index_t*	oindex,	/*!< in: clustered index
-					in the old table */
-	const ulint*		offsets)/*!< in: rec_get_offsets(rec) */
-{
-	ulint		trx_id_offset;
-	const byte*	trx_id;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_index_is_clust(oindex));
-	ut_ad(dict_index_is_online_ddl(oindex));
-
-	trx_id_offset = index->trx_id_offset;
-	if (!trx_id_offset) {
-		trx_id_offset = row_get_trx_id_offset(index, offsets);
-	}
-
-	trx_id = rec + trx_id_offset;
-
-	return(row_log_table_is_rollback(oindex, trx_read_trx_id(trx_id)));
-}
-
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1480,8 +1449,9 @@ end_of_index:
 		}
 
 		if (online && new_table != old_table
-		    && row_merge_skip_rec(
-			    rec, clust_index, clust_index, offsets)) {
+		    && row_log_table_is_rollback(
+			    clust_index,
+			    row_get_rec_trx_id(rec, clust_index, offsets))) {
 			continue;
 		}
 
@@ -2305,16 +2275,14 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
-			if (dict_index_is_clust(index)) {
-				const dict_index_t*	old_index
-					= dict_table_get_first_index(
-						old_table);
-				if (dict_index_is_online_ddl(old_index)) {
-					error = row_log_table_get_error(
-						old_index);
-					if (error != DB_SUCCESS) {
-						break;
-					}
+			dict_index_t*	old_index
+				= dict_table_get_first_index(old_table);
+
+			if (dict_index_is_clust(index)
+			    && dict_index_is_online_ddl(old_index)) {
+				error = row_log_table_get_error(old_index);
+				if (error != DB_SUCCESS) {
+					break;
 				}
 			}
 
@@ -2330,49 +2298,55 @@ row_merge_insert_index_tuples(
 						     REC_INFO_DELETED_FLAG);
 			}
 
-			if (n_ext) {
-				dict_index_t*	old_index
-					= dict_table_get_first_index(
-						old_table);
+			if (!n_ext) {
+				/* There are no externally stored columns. */
+			} else if (!dict_index_is_online_ddl(old_index)) {
+				ut_ad(dict_index_is_clust(index));
+				ut_ad(!del_marks);
+				/* Modifications to the table are
+				blocked while we are not rebuilding it
+				or creating indexes. Off-page columns
+				can be fetched safely. */
+				row_merge_copy_blobs(
+					mrec, offsets,
+					dict_table_zip_size(old_table),
+					dtuple, tuple_heap);
+			} else {
+				ut_ad(dict_index_is_clust(index));
 
-				if (dict_index_is_online_ddl(old_index)) {
-					/* Copy the off-page columns while
-					holding old_index->lock, so
-					that they cannot be freed by
-					a rollback of a fresh insert. */
-					rw_lock_s_lock(&old_index->lock);
+				ulint	offset = index->trx_id_offset;
 
-					if (row_merge_skip_rec(
-						mrec, index, old_index,
-						offsets)) {
-						/* The row and BLOB could
-						already be freed. They
-						will be deleted by
-						row_undo_ins_remove_clust_rec
-						when rolling back a fresh
-						insert. So, no need to retrieve
-						BLOB.*/
-						row_merge_set_blob_empty(dtuple);
-					} else {
-						row_merge_copy_blobs(
-							mrec, offsets,
-							dict_table_zip_size(
-								old_table),
-							dtuple, tuple_heap);
-					}
+				if (!offset) {
+					offset = row_get_trx_id_offset(
+						index, offsets);
+				}
 
-					rw_lock_s_unlock(&old_index->lock);
+				/* Copy the off-page columns while
+				holding old_index->lock, so
+				that they cannot be freed by
+				a rollback of a fresh insert. */
+				rw_lock_s_lock(&old_index->lock);
+
+				if (row_log_table_is_rollback(
+					    old_index,
+					    trx_read_trx_id(mrec + offset))) {
+					/* The row and BLOB could
+					already be freed. They
+					will be deleted by
+					row_undo_ins_remove_clust_rec
+					when rolling back a fresh
+					insert. So, no need to retrieve
+					the off-page column. */
+					row_merge_set_blob_empty(
+						dtuple);
 				} else {
-					/* TODO: Is this safe when creating
-					a secondary index online? We are not
-					suspending purge or preventing the
-					rollback of inserts. Thus, the data
-					could have been freed. */
 					row_merge_copy_blobs(
 						mrec, offsets,
 						dict_table_zip_size(old_table),
 						dtuple, tuple_heap);
 				}
+
+				rw_lock_s_unlock(&old_index->lock);
 			}
 
 			ut_ad(dtuple_validate(dtuple));
