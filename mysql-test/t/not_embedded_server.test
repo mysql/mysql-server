@@ -6,7 +6,7 @@
 
 # End of 4.1 tests
 
-call mtr.add_suppression("Can't open and lock privilege tables: Table 'host' was not locked with LOCK TABLES");
+call mtr.add_suppression("Can't open and lock privilege tables: Table 'user' was not locked with LOCK TABLES");
 
 #
 # Bug#43835: SHOW VARIABLES does not include 0 for slave_skip_errors
