@@ -3094,7 +3094,9 @@ innobase_change_buffering_inited_ok:
 		innobase_buffer_pool_instances = 8;
 #ifdef _WIN32
 		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
-			innobase_buffer_pool_instances = innobase_buffer_pool_size / (128 * 1024 * 1024);
+			innobase_buffer_pool_instances
+				= (long) (innobase_buffer_pool_size
+				/ (128 * 1024 * 1024));
 		}
 #endif
 }
