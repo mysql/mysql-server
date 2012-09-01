@@ -97,6 +97,6 @@ checkTest("spi/SmokeTest.js");
 checkTest("spi/DBServiceProviderTest.js");
 checkTest("spi/DBConnectionPoolTest.js");
 checkTest("spi/DBDictionaryTest.js");
-checkTest("spi/InsertIntTest.js");
+checkTest("spi/InsertAndDeleteIntTest.js");
 checkTest("spi/ClearSmokeTest.js");
 

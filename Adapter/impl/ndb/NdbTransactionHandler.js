@@ -17,9 +17,10 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
-"use strict";
 
 /*global udebug */
+
+"use strict";
 
 var adapter    = require("../build/Release/ndb/ndb_adapter.node"),
     ndbsession = require("./NdbSession.js"), 
@@ -40,25 +41,49 @@ TransactionStatusCodes[adapter.ndbapi.NeedAbort]  = "NeedAbort";
 
 
 function DBTransactionHandler(dbsession) {
-  udebug.log("DBTransactionHandler constructor");
+  udebug.log("NdbTransactionHandler constructor");
   this.session = dbsession;
 }
 
 proto = {
+  session    : null,
   success    : null,
   state      : TransactionStatusCodes[0],
   operations : [],
   error      : {},
-  callback   : {}
+  callback   : {},
+  ndbtx      : null
 };
 
 proto.addOperation = function(op) {
-  udebug.log("DBTransactionHandler addOperation " + op.opcode);
   this.operations.push(op);
+  udebug.log("NdbTransactionHandler addOperation", 
+              this.operations.length, op.opcode);
 };
 
+/* close()
+   ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
+*/
+proto.close = function() {
+  udebug.log("NdbTransactionHandler close");
+  function onClose(err, i) {
+    /* NdbTransaction::close() returns void.  i == 1. */
+    udebug.log("NdbTransactionHandler close onClose");
+  }  
+
+  this.ndbtx.close(onClose);
+};
+
+
+/* execute(TransactionExecuteMode mode, 
+           function(error, DBTransactionHandler) callback);
+   ASYNC
+   
+   Executes all of the DBOperations that have been added to the 
+   transaction's list -- see DBTransactionHandler.addOperation().
+*/
 proto.execute = function(execmode, callback) {
-  udebug.log("DBTransactionHandler execute " + execmode);
+  udebug.log("NdbTransactionHandler execute " + execmode);
 
   var txhandler = this;
   var exec_flag = TransactionExecuteModes[execmode];
@@ -67,12 +92,21 @@ proto.execute = function(execmode, callback) {
   this.callback = callback;
 
   function onCompleteTx(err, result) {
-    udebug.log("DBTransactionHandler execute onCompleteTx: " + result);
-    txhandler.callback(err, null);
+    udebug.log("NdbTransactionHandler execute onCompleteTx");
+
+    /* TODO: attach results to their operations */
+    txhandler.callback(err, txhandler);
   }
 
   function onStartTx(err, ndbtx) {
     var op, helper, i;
+    if(err) {
+      udebug.log("NdbTransactionHandler execute onStartTx [ERROR].");
+      txhandler.callback(err, txhandler);
+      return;
+    }
+
+    txhandler.ndbtx = ndbtx; 
     udebug.log("NdbTransactionHandler execute onStartTx.  TC node: " +
                 ndbtx.getConnectedNodeId() + " exec_flag: " + exec_flag
                 + " operations: " + txhandler.operations.length);

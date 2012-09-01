@@ -18,9 +18,10 @@
  02110-1301  USA
  */
 
+/*global path, fs, assert, util, harness, udebug, mynode, driver_dir */
+
 "use strict";
 
-/*global path, fs, assert, util, harness, udebug_module, mynode, driver_dir */
 require("./test_config.js");
 
 
@@ -119,6 +120,7 @@ for(i = 2; i < process.argv.length ; i++) {
   case '--debug':
   case '-d':
     udebug.on();
+    udebug.level_debug();
     driver.result.listener.printStackTraces = true;
     break;
   case '--help':

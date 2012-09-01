@@ -18,20 +18,17 @@
  02110-1301  USA
 */
 
-/* Constructor and Prototype for TableMapping.
-   Copied from the API Documentation for Annotations.
-   FIXME Note that the prototypes (but not the constructors) could be moved
-   into api/Annotations.js
-*/
-
-/* jslint --node --white --vars --plusplus */
-/*global udebug, debug, module, exports */
+/*global udebug */
 
 "use strict";
 
 var assert = require("assert");
 
-
+/* Constructor and Prototype for TableMapping.
+   Copied from the API Documentation for Annotations.
+   FIXME Note that the prototypes (but not the constructors) could be moved
+   into api/Annotations.js
+*/
 function TableMapping(dbtable) { 
   udebug.log("DBTableHandler TableMapping constructor " + dbtable.name);
   this.name = dbtable.name;
@@ -274,7 +271,6 @@ proto.allColumnsMapped = function() {
    * mapping.
 */
 function chooseIndex(self, keys) {
-debugger;
   var idxs = self.dbTable.indexes;
   var keyFields;
   var i, j, f, nmatches;
@@ -290,13 +286,12 @@ debugger;
 
     /* First look for a unique index.  All columns must match. */
     for(i = 0 ; i < idxs.length ; i++) {
-debugger;
       if(idxs[i].isUnique && idxs[i].columnNumbers.length === keyFields.length) {
          // Each key field resolves to a column, which must be in the index
          nmatches = 0;
          for(j = 0 ; j < keyFields.length ; j++) {
           f = self.fieldNameMap[keyFields[j]];
-          if(idxs[i].columnNumbers.indexOf(f.columnNumber) != -1) {
+          if(idxs[i].columnNumbers.indexOf(f.columnNumber) >= 0) {
             nmatches++;
           }
         }

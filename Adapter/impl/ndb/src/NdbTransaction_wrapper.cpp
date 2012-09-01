@@ -33,7 +33,7 @@ using namespace v8;
 
 Handle<Value> getTCNodeId(const Arguments &args);
 Handle<Value> execute(const Arguments &args);
-
+Handle<Value> close(const Arguments &args);
 
 
 
@@ -52,6 +52,7 @@ public:
   NdbTransactionEnvelopeClass() : Envelope("NdbTransaction") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "getConnectedNodeId", getTCNodeId); 
     DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute); 
+    DEFINE_JS_FUNCTION(Envelope::stencil, "close", close);
   }
 };
 
@@ -111,9 +112,23 @@ Handle<Value> execute(const Arguments &args) {
   ncallptr->method = & NdbTransaction::execute;
   ncallptr->envelope = & NdbTransactionEnvelope;
   ncallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
-  // todo: set error handler
   ncallptr->runAsync();
 
+  return scope.Close(JS_VOID_RETURN);
+}
+
+Handle<Value> close(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(1);
+  
+  typedef NativeVoidMethodCall_0_<NdbTransaction> NCALL;
+  NCALL * ncallptr = new NCALL(args);
+  ncallptr->method = & NdbTransaction::close;
+  ncallptr->envelope = & NdbTransactionEnvelope;
+  ncallptr->runAsync();
+  
   return scope.Close(JS_VOID_RETURN);
 }
 

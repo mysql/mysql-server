@@ -20,7 +20,7 @@
 
 "use strict";
 
-/*global spi_module, harness, udebug */
+/*global udebug, spi_module, harness */
 
 try {
   require("./suite_config.js");

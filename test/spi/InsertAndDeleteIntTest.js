@@ -18,13 +18,7 @@
  02110-1301  USA
  */
 
-/*global path, fs, assert,
-         driver_dir, suites_dir, adapter_dir, build_dir,
-         spi_module, api_module, udebug_module,
-         harness, mynode, udebug, debug,
-         adapter, test_conn_properties,
-         module, exports
-*/
+/*global udebug, path, fs, assert, spi_module, harness */
 
 "use strict";
 
@@ -33,15 +27,12 @@ try {
 } catch(e) {} 
 
 var spi = require(spi_module);
-
-udebug.level_detail();
-
 var session = null;
 var table = null;
 
 var t1 = new harness.SerialTest("InsertInt");
 
-t1.setup = function setup_tests(testObj) {
+t1.prepare = function prepare(testObj) {
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       connection = null,
@@ -53,25 +44,25 @@ t1.setup = function setup_tests(testObj) {
   }
 
   function onTable(err, dbTable) {
-    udebug.log("InsertIntTest.js setup_tests onTable");
-    table = dbTable;
+    udebug.log("InsertIntTest.js prepare onTable");
+    table = dbTable;  // set global
     if(err) {  test.fail(err);               }
     else    {  test.runTestMethod(testObj);  }
   }
 
   function onSession(err, sess) {
-    udebug.log("InsertIntTest.js setup_tests onSession");
-    session = sess;
+    udebug.log("InsertIntTest.js prepare onSession");
+    session = sess; // set global
     if(err) {   test.fail(err);   }
     else    {   session.getConnectionPool().getTable("test", "tbl1", onTable); }
   }
 
   function onConnect(err, conn) {
-    udebug.log("InsertIntTest.js setup_tests onConnect");
+    udebug.log("InsertIntTest.js prepare onConnect");
     connection = conn;
     connection.getDBSession(0, onSession);
   }
-    
+  
   provider.connect(properties, onConnect);
 };
 
@@ -94,14 +85,14 @@ t1.runTestMethod = function do_insert_op(dataObj) {
 
 t1.run = function() {
   var insertObj = { i : 13, j: 15 };
-  this.setup(insertObj);
+  this.prepare(insertObj);
 };
 
 
 //// DELETE TEST
 
 var t2 = new harness.SerialTest("DeleteIntPK");
-t2.setup = t1.setup;
+t2.prepare = t1.prepare;
 
 t2.runTestMethod = function do_delete_op(keyObj) {
   udebug.log("InsertIntTest.js do_delete_op");
@@ -121,9 +112,9 @@ t2.runTestMethod = function do_delete_op(keyObj) {
 
 t2.run = function() {
   var deleteKey = { i : 13 };
-  this.setup(deleteKey);
+  this.prepare(deleteKey);
 };
 
 
-exports.tests = [ t2 ];
+exports.tests = [ t1, t2 ];
 

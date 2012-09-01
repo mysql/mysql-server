@@ -17,6 +17,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+
+/*global udebug */
+
 "use strict";
 
 var adapter = require("../build/Release/ndb/ndb_adapter.node"),

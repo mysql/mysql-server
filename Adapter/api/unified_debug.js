@@ -21,8 +21,7 @@
 
 var path = require("path"),
     util = require("util"),
-    impl = require("../impl/build/Release/common/common_library"),
-    udeb_on = 0;
+    impl = require("../impl/build/Release/common/common_library");
 
 /* This is a common internal run-time debugging package for C and JavaScript. 
  * In the spirit of Fred Fish's dbug package, which is widely used in the 
@@ -68,6 +67,8 @@ var path = require("path"),
     This function will append debugging output to an existing file,
     creating it if necessary.
 */
+var udeb_on = 0;
+
 exports.destination = function(filename) {
   impl.udeb_destination(filename);
 };
