@@ -19,8 +19,6 @@
  */
 "use strict";
 
-/*global udebug */
-
 var adapter = require("../build/Release/ndb/ndb_adapter.node"),
     assert = require("assert"),
     proto;

@@ -20,15 +20,12 @@
 
 "use strict";
 
-/* jslint --node --white --vars --plusplus */
-/*global udebug, exports */
-
-
 var common = require("../build/Release/common/common_library.node"),
     adapter = require("../build/Release/ndb/ndb_adapter.node"),
     ndbsession = require("./NdbSession.js"),
     dbtablehandler = require("../common/DBTableHandler.js"),
     converters = require("./NdbTypeConverters.js"),
+    udebug = require("../../api/unified_debug.js"),
     assert = require("assert");
     
 var ndb_is_initialized = false,
@@ -191,7 +188,6 @@ proto.getDBSession = function(index, user_callback) {
     var user_session;
     
     udebug.log("NDB getDBSession private_callback");
-    udebug.log("Impl: " + sessImpl);
 
     if(err) {
       user_callback(err, null);
