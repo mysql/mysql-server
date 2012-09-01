@@ -18,12 +18,12 @@
  02110-1301  USA
  */
 
-/* This test harness is documented in the README file.
-*/
-
-/*global udebug_module, fs, path, util, assert, suites_dir */
+/*global udebug, fs, path, util, assert, suites_dir */
 
 "use strict";
+
+/* This test harness is documented in the README file.
+*/
 
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;

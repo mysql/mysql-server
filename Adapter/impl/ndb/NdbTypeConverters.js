@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+/*global udebug */
+
 "use strict";
 
 function makeBufferConverter(type) {

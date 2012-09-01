@@ -49,6 +49,6 @@ void main_thd_complete(uv_work_t *req) {
   delete req;
 
   /* exceptions */
-  //if(try_catch.HasCaught())
-  //  FatalException(try_catch);
+  if(try_catch.HasCaught())
+    FatalException(try_catch);
 }

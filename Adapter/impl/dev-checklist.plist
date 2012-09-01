@@ -26,6 +26,8 @@
 	<false/>
 	<key>from NDB encoding of storage</key>
 	<false/>
+	<key>udebug -- use util.format, always take argument lists - avoid concatenation</key>
+	<string></string>
 	<key>Unified C/JS Debug framework</key>
 	<dict>
 		<key>Turn debugging on/off from JavaScript</key>
@@ -51,6 +53,13 @@
 		<false/>
 		<key>Each Session has an actual database</key>
 		<false/>
+	</dict>
+	<key>Bugs</key>
+	<dict>
+		<key>Assert on startup without an available cluster</key>
+		<false/>
+		<key>New item</key>
+		<string></string>
 	</dict>
 </dict>
 </plist>

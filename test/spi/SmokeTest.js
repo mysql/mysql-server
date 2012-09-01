@@ -23,13 +23,11 @@
     This tests the loading of required compiled code in shared library files.
  */
 
-/*global path, fs, assert,
-         driver_dir, suites_dir, adapter_dir, build_dir,
-         spi_module, api_module, udebug_module,
-         harness, mynode, udebug, debug,
-         adapter, test_conn_properties,
-         module, exports
+/*global path, fs, assert, spi_module, udebug,
+         harness, build_dir, adapter_dir
 */
+
+"use strict";
 
 try {
   require("./suite_config.js");
@@ -39,7 +37,6 @@ try {
 var test = new harness.SmokeTest("LoadModule");
 
 function test_load_modules(modules) {
-  "use strict";
   var response, i, oks = 0, modulepath = "", db;
   var dbpath = path.join(build_dir, "common", "debug_dlopen.node");
 
@@ -67,7 +64,6 @@ function test_load_modules(modules) {
  
 
 test.run = function() {
-  "use strict";
   var spi = require(spi_module);
   var service = spi.getDBServiceProvider(global.adapter);
   var modules = service.getNativeCodeModules();
