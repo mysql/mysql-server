@@ -29,6 +29,30 @@
  * for non-const methods.
  */
 
+/** Template class with:
+ * wrapped class C
+ * no arguments & void return
+ */
+template <typename C> 
+class NativeVoidMethodCall_0_ : public NativeMethodCall<int, C> {
+public:
+  /* Member variables */
+  C * native_obj;
+  void (C::*method)(void); 
+  
+  /* Constructor */
+  NativeVoidMethodCall_0_<C>(const Arguments &args) :
+    NativeMethodCall<int, C>(args, 1),
+    method(0)
+  {  }
+  
+  /* Methods */
+  void run() {
+    assert(method);
+    ((NativeMethodCall<int, C>::native_obj)->*(method))();
+  }
+};
+
 
 /** Template class with:
  * wrapped class C
