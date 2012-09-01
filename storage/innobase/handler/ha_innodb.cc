@@ -1008,11 +1008,23 @@ convert_error_code_to_mysql(
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
-	case DB_TOO_BIG_RECORD:
-		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(flags
-						      & DICT_TF_COMPACT) / 2);
+	case DB_TOO_BIG_RECORD: {
+		/* If prefix is true then a 768-byte prefix is stored
+		locally for BLOB fields. Refer to dict_table_get_format() */
+		bool prefix = ((flags & DICT_TF_FORMAT_MASK)
+		 	       >> DICT_TF_FORMAT_SHIFT) < UNIV_FORMAT_B;
+		my_printf_error(ER_TOO_BIG_ROWSIZE,
+			"Row size too large (> %lu). Changing some columns "
+			"to TEXT or BLOB %smay help. In current row "
+			"format, BLOB prefix of %d bytes is stored inline.",
+			MYF(0),
+			page_get_free_space_of_empty(flags &
+				DICT_TF_COMPACT) / 2,
+			prefix ? "or using ROW_FORMAT=DYNAMIC "
+			"or ROW_FORMAT=COMPRESSED ": "",
+			prefix ? DICT_MAX_FIXED_COL_LEN : 0);
 		return(HA_ERR_TO_BIG_ROW);
+	}
 
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
