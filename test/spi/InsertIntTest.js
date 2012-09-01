@@ -34,50 +34,40 @@ try {
 
 var spi = require(spi_module);
 
+udebug.level_detail();
+
+var session = null;
+var table = null;
+
 var t1 = new harness.SerialTest("InsertInt");
-var t2 = new harness.SerialTest("DeleteIntPK");
 
-function do_insert_op(session, table) {
-  udebug.log("InsertIntTest.js do_insert_op");
-  /* Pass the variables on to the next test */
-  t2.session = session;
-  t2.table = table;
-
-  var tx = session.openTransaction();
-  var thandler = session.getConnectionPool().createDBTableHandler(table, null);
-  
-  var row = { i: 13 , j: 14 };
-  var op = session.insert(thandler, row);
-
-  udebug.log("ready to commit");
-  tx.execute("Commit", function(err, tx) {
-    if(err) { t1.fail("Execute/commit failed: " + err);  }
-    else    { t1.pass(); }
-  });
-}
-
-t1.run = function() {  
+t1.setup = function setup_tests(testObj) {
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       connection = null,
-      session = null,
       test = this;
 
-  function onTable(err, table) {
-    udebug.log("InsertIntTest.js onTable");
-    if(err) {   test.fail(err);    }
-    else    {   do_insert_op(session, table);  }
+  if(session && table) {  // already set up
+    this.runTestMethod(testObj);
+    return;
+  }
+
+  function onTable(err, dbTable) {
+    udebug.log("InsertIntTest.js setup_tests onTable");
+    table = dbTable;
+    if(err) {  test.fail(err);               }
+    else    {  test.runTestMethod(testObj);  }
   }
 
   function onSession(err, sess) {
-    udebug.log("InsertIntTest.js onSession");
+    udebug.log("InsertIntTest.js setup_tests onSession");
     session = sess;
     if(err) {   test.fail(err);   }
     else    {   session.getConnectionPool().getTable("test", "tbl1", onTable); }
   }
 
   function onConnect(err, conn) {
-    udebug.log("InsertIntTest.js onConnect");
+    udebug.log("InsertIntTest.js setup_tests onConnect");
     connection = conn;
     connection.getDBSession(0, onSession);
   }
@@ -85,20 +75,55 @@ t1.run = function() {
   provider.connect(properties, onConnect);
 };
 
+t1.runTestMethod = function do_insert_op(dataObj) {
+  udebug.log("InsertIntTest.js do_insert_op");
 
-t2.run = function do_delete_op() {
-  udebug.log("InsertIntTest.js do_delete_op");
-  var tx = this.session.openTransaction();
-  var thandler = this.session.getConnectionPool().createDBTableHandler(this.table, null);
+  var tx = session.openTransaction();
+  var thandler = session.getConnectionPool().createDBTableHandler(table, null);
+  var test = this;
   
-  var row = { i: 13 };
-  var op = this.session.delete(thandler, row);
+  var op = session.insert(thandler, dataObj);
+
+  udebug.log("ready to commit");
+  tx.execute("Commit", function(err, tx) {
+    tx.close();
+    if(err) { test.fail("Execute/commit failed: " + err);  }
+    else    { test.pass(); }
+  });  
+};
+
+t1.run = function() {
+  var insertObj = { i : 13, j: 15 };
+  this.setup(insertObj);
+};
+
+
+//// DELETE TEST
+
+var t2 = new harness.SerialTest("DeleteIntPK");
+t2.setup = t1.setup;
+
+t2.runTestMethod = function do_delete_op(keyObj) {
+  udebug.log("InsertIntTest.js do_delete_op");
+  var tx = session.openTransaction();
+  var thandler = session.getConnectionPool().createDBTableHandler(table, null);
+  var test = this;
+
+  var op = session.delete(thandler, keyObj);
   
   udebug.log("ready to commit");
   tx.execute("Commit", function(err, tx) {
-    if(err) { t2.fail("Execute/commit failed: " + err); }
-    else    { t2.pass(); }
+    tx.close();
+    if(err) { test.fail("Execute/commit failed: " + err); }
+    else    { test.pass(); }
   });
 };
 
-exports.tests = [ t1,t2 ];
+t2.run = function() {
+  var deleteKey = { i : 13 };
+  this.setup(deleteKey);
+};
+
+
+exports.tests = [ t2 ];
+

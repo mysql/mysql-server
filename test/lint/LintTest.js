@@ -91,9 +91,12 @@ checkSource("api/unified_debug.js");
 // ****** TEST FILES TO CHECK ********** //
 checkTest("lint/LintTest.js");
 
+checkTest("Driver.js");
+checkTest("harness.js");
 checkTest("spi/SmokeTest.js");
 checkTest("spi/DBServiceProviderTest.js");
 checkTest("spi/DBConnectionPoolTest.js");
 checkTest("spi/DBDictionaryTest.js");
 checkTest("spi/InsertIntTest.js");
 checkTest("spi/ClearSmokeTest.js");
+
