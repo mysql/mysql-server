@@ -16,55 +16,55 @@
     IMMEDIATE
     RETURNS the DBConnectionPool from which this DBSession was created.
 */
-  getConnectionPool()
+  getConnectionPool();
 
 
-/*  DBOperation read(DBTableHandler table, Object ResolvedKeys)
-    IMMEDIATE
-    Define an operation which when executed will fetch a row
-   
-    RETURNS a DBOperation structure
+/* read(DBTableHandler table, Object ResolvedKeys)
+   IMMEDIATE
+   Define an operation which when executed will fetch a row
+
+   RETURNS a DBOperation 
 */
   read(tableHandler, keys);
 
 
-/* DBOperation insert(DBTableHandler table, Object row)
+/* insert(DBTableHandler table, Object row)
    IMMEDIATE
    Define an operation which when executed will insert a row
  
-   RETURNS a DBOperation structure
+   RETURNS a DBOperation 
 */
   insert(tableHandler, row);
 
 
-/* DBOperation update(DBTableHandler table, Object key, Object row)
+/* update(DBTableHandler table, Object key, Object row)
    IMMEDIATE
    Define an operation which when executed will update a row
   
-   RETURNS a DBOperation structure
+   RETURNS a DBOperation 
 */
   update(tableHandler, keys, row);
 
 
-/* DBOperation write(DBTableHandler table, Object key, Object row)
+/* write(DBTableHandler table, Object key, Object row)
    IMMEDIATE
    Define an operation which when executed will update or insert
  
-   RETURNS a DBOperation structure
+   RETURNS a DBOperation 
 */
   write(tableHandler, keys, row);
 
 
-/* DBOperation delete(DBTableHandler table, Object primaryKey)
+/* delete(DBTableHandler table, Object primaryKey)
    IMMEDIATE 
    Define an operation which when executed will delete a row
  
-   RETURNS a DBOperation structure
+   RETURNS a DBOperation 
 */  
   delete(tableHandler, keys);
 
 
-/* DBTransactionHandler openTransaction()
+/* openTransaction()
    IMMEDIATE
 
    RETURNS a DBTransactionHandler
@@ -85,5 +85,5 @@
 /* close DBSession
    ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
 */
-  void close();
+  close();
 
