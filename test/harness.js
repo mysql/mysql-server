@@ -21,7 +21,7 @@
 /* This test harness is documented in the README file.
 */
 
-/*global udebug, fs, path, util, assert, suites_dir */
+/*global udebug_module, fs, path, util, assert, suites_dir */
 
 "use strict";
 
@@ -78,7 +78,7 @@ ClearSmokeTest.prototype = new Test();
 
 
 Test.prototype.test = function(result) {
-  udebug.log('test starting: ', this.name);
+  udebug.log('test starting:', this.name);
   this.result = result;
   result.listener.startTest(this);
   this.setup();
@@ -91,26 +91,26 @@ Test.prototype.test = function(result) {
   }
 
   try {
-    udebug.log('test.run: ', this.name);
+    udebug.log_detail('test.run:', this.name);
     if (!this.run()) {
-      udebug.log(this.name, ' started.');
+      udebug.log_detail(this.name, 'started.');
       // async test must call Test.pass or Test.fail when done
       return;
     }
     // fail if any error messages have been reported
     if(! this.skipped) {
       if (this.errorMessages === '') {
-        udebug.log(this.name, ' result.pass');
+        udebug.log(this.name, 'result.pass');
         result.pass(this);
       } else {
         this.failed = true;
-        udebug.log(this.name, ' result.fail');
+        udebug.log(this.name, 'result.fail');
         result.fail(this, this.errorMessages);
       }
     }
   }
   catch(e) {
-    udebug.log('result.fail');
+    udebug.log_detail('result.fail');
     this.failed = true;
     result.fail(this, e);
   }
@@ -158,7 +158,7 @@ Test.prototype.teardown = function() {};
 Test.prototype.fullName = function() {
   var n = "";
   if(this.suite)    { n = n + this.suite.name + " "; }
-  if(this.filename) { n = n + path.relative(suites_dir, this.filename) + " "; }
+  if(this.filename) { n = n + path.basename(this.filename) + " "; }
   return n + this.name;
 };
 
@@ -199,13 +199,13 @@ function Suite(name, path) {
   this.clearSmokeTest = {};
   this.suite = {};
   this.numberOfRunningConcurrentTests = 0;
-  udebug.log('creating Suite for ', name, ' ', path);
+  udebug.log('Creating Suite for', name, path);
 }
 
 Suite.prototype.addTest = function(filename, test) {
-  udebug.log('Suite ', this.name, ' adding test ', test.name,
-             ' from file ', filename);
-  test.filename = filename;    /// shorten the filename here
+  this.filename = path.relative(suites_dir, filename);
+  udebug.log('Suite', this.name, 'adding test', test.name, 'from', this.filename);
+  test.filename = filename;
   test.suite = this;
   this.tests.push(test);
   return test;
@@ -244,7 +244,7 @@ Suite.prototype.createTests = function() {
     }
   }
 
-  udebug.log('Suite ', this.name, ' found ', this.tests.length, ' tests.');
+  udebug.log('Suite', this.name, 'found', this.tests.length, 'tests.');
 
   this.tests.sort(function(a,b) {
     if(a.phase < b.phase)  { return -1; }
@@ -264,26 +264,26 @@ Suite.prototype.createTests = function() {
         suite.concurrentTests.push(t);
         if (suite.firstConcurrentTestIndex === -1) {
           suite.firstConcurrentTestIndex = t.index;
-          udebug.log('Suite.createTests firstConcurrentTestIndex: ', suite.firstConcurrentTestIndex);
+          udebug.log_detail('Suite.createTests firstConcurrentTestIndex:', suite.firstConcurrentTestIndex);
         }
         break;
       case 2:
         suite.serialTests.push(t);
         if (suite.firstSerialTestIndex === -1) {
           suite.firstSerialTestIndex = t.index;
-          udebug.log('Suite.createTests firstSerialTestIndex: ', suite.firstSerialTestIndex);
+          udebug.log_detail('Suite.createTests firstSerialTestIndex:', suite.firstSerialTestIndex);
         }
         break;
       case 3:
         suite.clearSmokeTest = t;
         break;
     }
-    udebug.log('createTests sorted test case ', t.name, ' ', t.phase, ' ', t.index);
+    udebug.log_detail('createTests sorted test case', t.name, ' ', t.phase, ' ', t.index);
     });
   suite.numberOfConcurrentTests = suite.concurrentTests.length;
-  udebug.log('numberOfConcurrentTests for ', suite.name, ' is ', suite.numberOfConcurrentTests);
+  udebug.log('numberOfConcurrentTests for', suite.name, 'is', suite.numberOfConcurrentTests);
   suite.numberOfSerialTests = suite.serialTests.length;
-  udebug.log('numberOfSerialTests for ', suite.name, ' is ', suite.numberOfSerialTests);
+  udebug.log('numberOfSerialTests for', suite.name, 'is', suite.numberOfSerialTests);
 };
 
 
@@ -319,12 +319,13 @@ Suite.prototype.runTests = function(result) {
 
 
 Suite.prototype.startConcurrentTests = function(result) {
-  udebug.log('Suite.startConcurrentTests');
+  var self = this;
+  udebug.log_detail('Suite.startConcurrentTests');
   if (this.firstConcurrentTestIndex !== -1) {
     this.concurrentTests.forEach(function(testCase) {
       udebug.log('Suite.startConcurrentTests starting ', testCase.name);
       testCase.test(result);
-      this.numberOfConcurrentTestsStarted++;
+      self.numberOfConcurrentTestsStarted++;
     });
     return false;    
   } 
@@ -371,15 +372,15 @@ Suite.prototype.startNextSerialTest = function(index, result) {
 Suite.prototype.testCompleted = function(testCase) {
   var tc, index;
 
-  udebug.log('Suite.testCompleted for testCase ', testCase.name, ' phase ', 
-             testCase.phase);
+  udebug.log_detail('Suite.testCompleted for testCase', testCase.name, 'phase', 
+                    testCase.phase);
   var result = testCase.result;
   switch (testCase.phase) {
     case 0:     // the smoke test completed
       if (testCase.failed) {        // if the smoke test failed, we are done
         return true;          
       } 
-      udebug.log('Suite.testCompleted; starting concurrent tests');
+      udebug.log_detail('Suite.testCompleted; starting concurrent tests');
       return this.startConcurrentTests(result);
 
     case 1:     // one of the concurrent tests completed
@@ -499,13 +500,13 @@ var runSQL = function(sqlPath, source, callback) {
 
 SQL.create =  function(suite, callback) {
   var sqlPath = path.join(suite.path, 'create.sql');
-  udebug.log("createSQL path: " + sqlPath);
+  udebug.log_detail("createSQL path: " + sqlPath);
   runSQL(sqlPath, 'createSQL', callback);
 };
 
 SQL.drop = function(suite, callback) {
   var sqlPath = path.join(suite.path, 'drop.sql');
-  udebug.log("dropSQL path: " + sqlPath);
+  udebug.log_detail("dropSQL path: " + sqlPath);
   runSQL(sqlPath, 'dropSQL', callback);
 };
 

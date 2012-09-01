@@ -20,7 +20,7 @@
 
 "use strict";
 
-/*global path, fs, assert, util, harness, udebug, mynode, driver_dir */
+/*global path, fs, assert, util, harness, udebug_module, mynode, driver_dir */
 require("./test_config.js");
 
 
@@ -38,8 +38,9 @@ Driver.prototype.findSuites = function(directory) {
   var files, f, i, st;
   
   if(this.fileToRun) {
-    var pathname = path.join(directory, this.fileToRun);
-    this.suites.push(new harness.Suite("file", pathname));
+    var suitename = path.dirname(this.fileToRun);
+    var pathname = path.join(directory, this.fileToRun);    
+    this.suites.push(new harness.Suite(suitename, pathname));
   }
   else { 
     /* Read the test directory, building list of suites */
@@ -48,7 +49,7 @@ Driver.prototype.findSuites = function(directory) {
       f = files[i];
       st = fs.statSync(path.join(directory, f));
       if (st.isDirectory() && this.isSuiteToRun(f)) {
-        udebug.log('Driver.findSuites found directory ', f);
+        udebug.log('Driver.findSuites found directory', f);
         this.suites.push(new harness.Suite(f, path.join(directory, f)));
       }
     }
@@ -63,9 +64,8 @@ Driver.prototype.isSuiteToRun = function(directoryName) {
 };
 
 Driver.prototype.testCompleted = function(testCase) {
-  udebug.log('Driver.testCompleted: ', testCase.name);
   var suite = testCase.suite;
-  udebug.log('Driver.testCompleted suite for ' + suite.name);
+  udebug.log('Driver.testCompleted Test:', testCase.name, 'Suite:', suite.name);
   if (suite.testCompleted(testCase)) {
     // this suite is done; remove it from the list of running suites
     if (--this.numberOfRunningSuites === 0) {
@@ -79,7 +79,7 @@ Driver.prototype.reportResultsAndExit = function() {
   // close all session factories
   var sessionFactories = mynode.getOpenSessionFactories();
   sessionFactories.forEach(function(sessionFactory) {
-    udebug.log('Driver.reportResultsAndExit closing ' + sessionFactory.key);
+    udebug.log('Driver.reportResultsAndExit closing' + sessionFactory.key);
     sessionFactory.close();
   });
   console.log("Passed:  ", this.result.passed.length);
@@ -133,7 +133,7 @@ for(i = 2; i < process.argv.length ; i++) {
     i++;  // next argument
     pair = process.argv[i].split('=');
     if(pair.length === 2) {
-      udebug.log("Setting global: " + pair[0] + "=" + pair[1]);
+      udebug.log("Setting global:", pair[0], "=", pair[1]);
       global[pair[0]] = pair[1];
     }
     else {
@@ -176,17 +176,17 @@ if (exit) {
 
 
 driver.findSuites(driver_dir);
-udebug.log('suites found ', driver.suites.length);
+udebug.log('suites found', driver.suites.length);
 
 driver.suites.forEach(function(suite) {
-  udebug.log('createTests for ' + suite.name);
+  udebug.log('createTests for' + suite.name);
   suite.createTests();
 });
 
 // now run tests
 driver.numberOfRunningSuites = 0;
 driver.suites.forEach(function(suite) {
-  udebug.log('main running tests for ' + suite.name);
+  udebug.log('main running tests for', suite.name);
   if (suite.runTests(driver.result)) {
     driver.numberOfRunningSuites++;
   }
@@ -199,10 +199,10 @@ if (driver.numberOfRunningSuites === 0) {
 
 // set a timeout to prevent process from waiting forever
 if(timeoutMillis > 0) {
-  udebug.log('Setting timeout of ' + timeoutMillis);
+  udebug.log('Setting timeout of', timeoutMillis);
   setTimeout(function() {
     var nwait = driver.result.listener.started - driver.result.listener.ended;
     var tests = (nwait === 1 ? " test." : " tests.");
-    console.log('TIMEOUT: still waiting for ' + nwait + tests);
+    console.log('TIMEOUT: still waiting for', nwait, tests);
   }, timeoutMillis);
 }
