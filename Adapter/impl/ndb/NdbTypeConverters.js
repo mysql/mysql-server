@@ -20,10 +20,6 @@
 
 "use strict";
 
-/* jslint --node --white --vars --plusplus */
-/*global udebug, exports */
-
-
 function makeBufferConverter(type) {
   var rd_func = "read" + type + "LE";
   var wr_func = "write" + type + "LE";

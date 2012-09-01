@@ -19,9 +19,6 @@
  */
 "use strict";
 
-/* jslint --node --white --vars --plusplus */
-/*global udebug, debug, module, exports */
-
 var adapter       = require("../build/Release/ndb/ndb_adapter.node"),
     ndboperation  = require("./NdbOperation.js"),
     dbtxhandler   = require("./NdbTransactionHandler.js"),
@@ -66,20 +63,36 @@ DBSession.prototype = {
   parentPool     : null,
 };
 
-
+/*  getConnectionPool() 
+    IMMEDIATE
+    RETURNS the DBConnectionPool from which this DBSession was created.
+*/
 DBSession.prototype.getConnectionPool = function() {
   udebug.log("DBSession getConnectionPool");
   return this.parentPool;
 };
 
 
+/* DBTransactionHandler openTransaction()
+   IMMEDIATE
+
+   RETURNS a DBTransactionHandler
+*/
 DBSession.prototype.openTransaction = function() {
   udebug.log("DBSession openTransaction");
+  
+  delete this.tx;  
   this.tx = new dbtxhandler.DBTransactionHandler(this);
   return this.tx;
 };
 
 
+/* read(DBTableHandler table, Object ResolvedKeys)
+   IMMEDIATE
+   Define an operation which when executed will fetch a row
+   
+   RETURNS a DBOperation 
+*/
 DBSession.prototype.read = function(table, keys) {
   udebug.log("DBSession read "+ table.name);
   var lockMode = "SHARED";
@@ -88,6 +101,12 @@ DBSession.prototype.read = function(table, keys) {
 };
 
 
+/* insert(DBTableHandler table, Object row)
+   IMMEDIATE
+   Define an operation which when executed will insert a row
+ 
+   RETURNS a DBOperation 
+*/
 DBSession.prototype.insert = function(tableHandler, row) {
   udebug.log("DBSession insert " + tableHandler.dbTable.name);
 
@@ -96,6 +115,12 @@ DBSession.prototype.insert = function(tableHandler, row) {
 };
 
 
+/* delete(DBTableHandler table, Object primaryKey)
+   IMMEDIATE 
+   Define an operation which when executed will delete a row
+ 
+   RETURNS a DBOperation 
+*/  
 DBSession.prototype.delete = function(tableHandler, row) {
   udebug.log("DBSession delete " + tableHandler.dbTable.name);
   
