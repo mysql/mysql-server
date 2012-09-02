@@ -185,6 +185,10 @@ void table_session_connect::make_row(PFS_thread *pfs, uint ordinal)
   if (unlikely(safe_class == NULL))
     return;
 
+  /* Filtering threads must be done under the protection of the optimistic lock. */
+  if (! thread_fits(pfs))
+    return;
+
   /* populate the row */
   if (read_nth_attr(pfs->m_session_connect_attrs,
                     pfs->m_session_connect_attrs_length,
@@ -257,8 +261,7 @@ int table_session_connect::read_row_values(TABLE *table,
 }
 
 bool
-table_session_connect::thread_fits(PFS_thread *thread,
-                                 PFS_thread *current_thread)
+table_session_connect::thread_fits(PFS_thread *thread)
 {
   return true;
 }

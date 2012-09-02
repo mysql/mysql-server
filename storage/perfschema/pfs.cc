@@ -3958,7 +3958,8 @@ static void end_file_open_wait_and_bind_to_descriptor_v1
       file_handle_array[index]= pfs_file;
     else
     {
-      release_file(pfs_file);
+      if (pfs_file != NULL)
+        release_file(pfs_file);
       file_handle_lost++;
     }
   }
