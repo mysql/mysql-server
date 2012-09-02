@@ -103,5 +103,3 @@ void mysqlclient_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "myqsl_query", mysql_query_wrapper);  
 }
 
-V8BINDER_LOADABLE_MODULE(mysqlclient, mysqlclient_initOnLoad)
-

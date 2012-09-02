@@ -18,24 +18,49 @@
  02110-1301  USA
  */
 
-#include <v8.h>
+
+/***** 
+ *
+ *
+ *   dlopen() a file and return any errors from the loader.
+ * 
+ *   We do this because Node.js loses the error messages.
+ *   This is implemented in a way that minimizes the load-time dependencies 
+ *   of this module itself.
+ *   
+ ****/
+
+
+#include <dlfcn.h>
 
 #include "adapter_global.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
-#include "JsConverter.h"
 
 using namespace v8;
 
-typedef void LOADER_FUNCTION(Handle<Object>);
+Handle<Value> dlopen_wrapper(const Arguments &args) {
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(1);
 
-extern LOADER_FUNCTION dlopen_initOnLoad;
-extern LOADER_FUNCTION udebug_initOnLoad;
-
-
-void initCommon(Handle<Object> target) {
-  udebug_initOnLoad(target);
+  v8::String::AsciiValue pathname(args[0]);
+  Local<String> result;
+  
+  if(dlopen(*pathname, RTLD_LAZY) == NULL) {
+    result = String::New(dlerror());
+  }
+  else {
+    result = String::New("OK");
+  }
+  
+  return scope.Close(result);
 }
 
 
-V8BINDER_LOADABLE_MODULE(common_library, initCommon)
+void dlopen_initOnLoad(Handle<Object> target) {
+  DEFINE_JS_FUNCTION(target, "debug_dlopen", dlopen_wrapper);
+}
+
+V8BINDER_LOADABLE_MODULE(debug_dlopen, dlopen_initOnLoad)
+
