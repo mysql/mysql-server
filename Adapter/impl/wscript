@@ -11,7 +11,7 @@ def build(ctx):
   obj = ctx.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "ndb_adapter"
   obj.rpath = ctx.env.my_lib
-  obj.lib = "ndbclient"
+  obj.lib = [ "ndbclient" , "mysqlclient"]
   
   obj.source = \
   "src/node_module.cpp " +\

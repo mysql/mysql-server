@@ -18,10 +18,11 @@
  02110-1301  USA
  */
 
-var path = require("path");
+require("../adapter_config.js");
 
 exports.getDBServiceProvider = function(impl_name) {
-  var module = path.join(__dirname, impl_name, impl_name + "_service_provider.js");
+  var module = path.join(adapter_dir, "impl", impl_name,
+                         impl_name + "_service_provider.js");
   var spi = require(module);
   return spi;
 };

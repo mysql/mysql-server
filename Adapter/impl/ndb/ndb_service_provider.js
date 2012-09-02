@@ -61,8 +61,7 @@ exports.getFactoryKey = function(properties) {
 
 exports.getNativeCodeModules = function() {
   var modulelist = 
-    [ "impl/build/Release/common/common_library.node" ,
-      "impl/build/Release/ndb/ndb_adapter.node"
+    [ "ndb_adapter.node"
     ];
   return modulelist;
 };

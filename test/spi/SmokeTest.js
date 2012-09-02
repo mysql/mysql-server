@@ -36,50 +36,23 @@ try {
 
 var test = new harness.SmokeTest("LoadModule");
 
-function test_load_modules(modules) {
-  var response, i, oks = 0, modulepath = "", db;
-  var dbpath = path.join(build_dir, "common", "debug_dlopen.node");
-
-  try {
-    db = require(dbpath);
-  } catch (e) {
-    console.log(e.stack);
-    test.appendErrorMessage(e.message);
-    test.fail();
-    return false;
-  }
-
-  for (i = 0 ; i < modules.length ; i++) {
-    modulepath = path.join(adapter_dir, modules[i]);
-    response = db.debug_dlopen(modulepath);
-    if(response === "OK") {
-      oks++;
-    }
-    else {
-      test.appendErrorMessage(response);
-    }
-  }
-  return (modules.length === oks) ? true : false;
-}
- 
-
 test.run = function() {
-  var spi = require(spi_module);
-  var service = spi.getDBServiceProvider(global.adapter);
-  var modules = service.getNativeCodeModules();
-  var test = this;
+  var spi = require(spi_module),
+      service = spi.getDBServiceProvider(global.adapter),
+      modules = service.getNativeCodeModules(),
+      test = this,
+      i;
+
+  /* Test loading the required native code modules */
+  for (i = 0 ; i < modules.length ; i++) {
+    require(path.join(build_dir, modules[i]));
+  }
 
   /* Create SQL if there is a file */
   harness.SQL.create(this.suite, function() {
-  
-    /* Test loading the required native code modules */
-    if(test_load_modules(modules) === false) {
-      test.fail();
-      return;
-    }
-
     test.pass();
   });
+  
 };
 
 exports.tests = [test];

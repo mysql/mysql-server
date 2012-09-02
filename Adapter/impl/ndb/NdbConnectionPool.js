@@ -20,21 +20,18 @@
 
 "use strict";
 
-var common = require("../build/Release/common/common_library.node"),
-    adapter = require("../build/Release/ndb/ndb_adapter.node"),
-    ndbsession = require("./NdbSession.js"),
+var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
+    ndbsession     = require("./NdbSession.js"),
     dbtablehandler = require("../common/DBTableHandler.js"),
-    converters = require("./NdbTypeConverters.js"),
-    udebug = require("../../api/unified_debug.js"),
-    assert = require("assert");
+    converters     = require("./NdbTypeConverters.js");
     
 var ndb_is_initialized = false,
     proto;
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
-    adapter.ndbapi.ndb_init();                       // ndb_init()
-    adapter.ndbapi.util.CharsetMap_init();           // CharsetMap::init()
+    adapter.ndb.ndbapi.ndb_init();                       // ndb_init()
+    adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
     ndb_is_initialized = true;
   }
 }
@@ -42,10 +39,10 @@ function initialize_ndb() {
 
 /* Load-Time Function Asserts */
 
-assert(typeof adapter.ndbapi.Ndb_cluster_connection === 'function');
-assert(typeof adapter.impl.DBSession.create === 'function');
-assert(typeof adapter.impl.DBDictionary.listTables === 'function');
-assert(typeof adapter.impl.DBDictionary.getTable === 'function');
+assert(typeof adapter.ndb.ndbapi.Ndb_cluster_connection === 'function');
+assert(typeof adapter.ndb.impl.DBSession.create === 'function');
+assert(typeof adapter.ndb.impl.DBDictionary.listTables === 'function');
+assert(typeof adapter.ndb.impl.DBDictionary.getTable === 'function');
 
 
 /* DBConnectionPool constructor.
@@ -59,7 +56,8 @@ exports.DBConnectionPool = function(props) {
   initialize_ndb();
   
   this.properties = props;
-  this.ndbconn = new adapter.ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
+  this.ndbconn = 
+    new adapter.ndb.ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
   this.ndbconn.set_name("nodejs");
 };
 
@@ -198,7 +196,7 @@ proto.getDBSession = function(index, user_callback) {
     }
   }
 
-  adapter.impl.DBSession.create(this.ndbconn, db, private_callback);
+  adapter.ndb.impl.DBSession.create(this.ndbconn, db, private_callback);
 };
 
 
@@ -210,7 +208,7 @@ proto.getDBSession = function(index, user_callback) {
 proto.listTables = function(databaseName, user_callback) {
   udebug.log("NdbConnectionPool listTables");
   assert(databaseName && user_callback);
-  adapter.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
+  adapter.ndb.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
 };
 
 
@@ -222,7 +220,7 @@ proto.listTables = function(databaseName, user_callback) {
 proto.getTable = function(dbname, tabname, user_callback) {
   udebug.log("NdbConnectionPool getTable");
   assert(dbname && tabname && user_callback);
-  adapter.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
+  adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
 };
 
 

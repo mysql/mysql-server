@@ -13,8 +13,6 @@ passing the location of an installed mysql tree. For example:
 
 This will create the binary artifacts under Adapter/impl/build/Release/
 
-Be sure to include the trailing "/" in the configure command.
-
 If you have built a previous version of the project, "node-waf clean"
 and "node-waf distclean" might be needed for cleaning up.
 

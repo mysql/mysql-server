@@ -10,4 +10,8 @@ def build(bld):
   outermapper.target = 'outermapper'
   outermapper.source = 'outer-mapper.cc'
 
-# fixme  "src/debug_dlopen.cpp " +\
+  dlopen = bld.new_task_gen('cxx', 'shlib', 'node_addon')
+  dlopen.target = 'debug_dlopen'
+  dlopen.source = 'debug_dlopen.cpp'
+
+

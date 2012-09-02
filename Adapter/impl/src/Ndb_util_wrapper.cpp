@@ -192,24 +192,21 @@ Handle<Value>  decimal_bin2str_wrapper(const Arguments &args) {
 
 void Ndb_util_initOnLoad(Handle<Object> target) {
   HandleScope scope;
-  Persistent<Object> util_obj = Persistent<Object>(Object::New());
   Local<FunctionTemplate> JSCharsetMap;
 
-  target->Set(Persistent<String>(String::NewSymbol("util")), util_obj);
+  DEFINE_JS_FUNCTION(target, "decimal_str2bin", decimal_str2bin_wrapper);
+  DEFINE_JS_FUNCTION(target, "decimal_bin2str", decimal_bin2str_wrapper);
 
-  DEFINE_JS_FUNCTION(util_obj, "decimal_str2bin", decimal_str2bin_wrapper);
-  DEFINE_JS_FUNCTION(util_obj, "decimal_bin2str", decimal_bin2str_wrapper);
+  DEFINE_JS_CONSTANT(target, E_DEC_OK);
+  DEFINE_JS_CONSTANT(target, E_DEC_TRUNCATED);
+  DEFINE_JS_CONSTANT(target, E_DEC_OVERFLOW);
+  DEFINE_JS_CONSTANT(target, E_DEC_BAD_NUM);
+  DEFINE_JS_CONSTANT(target, E_DEC_OOM);
+  DEFINE_JS_CONSTANT(target, E_DEC_BAD_PREC);
+  DEFINE_JS_CONSTANT(target, E_DEC_BAD_SCALE);
 
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_OK);
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_TRUNCATED);
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_OVERFLOW);
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_BAD_NUM);
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_OOM);
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_BAD_PREC);
-  DEFINE_JS_CONSTANT(util_obj, E_DEC_BAD_SCALE);
-
-  DEFINE_JS_FUNCTION(util_obj, "CharsetMap_init", CharsetMap_init_wrapper);
-  DEFINE_JS_FUNCTION(util_obj, "CharsetMap_unload", CharsetMap_unload_wrapper);
+  DEFINE_JS_FUNCTION(target, "CharsetMap_init", CharsetMap_init_wrapper);
+  DEFINE_JS_FUNCTION(target, "CharsetMap_unload", CharsetMap_unload_wrapper);
 
   DEFINE_JS_CLASS(JSCharsetMap, "CharsetMap", CharsetMap_new_wrapper);
   DEFINE_JS_METHOD(JSCharsetMap, "getName", CharsetMap_getName);
