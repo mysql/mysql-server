@@ -33,10 +33,12 @@ extern LOADER_FUNCTION Ndb_init_initOnLoad;
 extern LOADER_FUNCTION Ndb_util_initOnLoad;
 extern LOADER_FUNCTION Ndb_cluster_connection_initOnLoad;
 extern LOADER_FUNCTION NdbTransaction_initOnLoad;
-
 extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
 extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
 extern LOADER_FUNCTION DBOperationHelper_initOnLoad;
+extern LOADER_FUNCTION dlopen_initOnLoad;
+extern LOADER_FUNCTION udebug_initOnLoad;
+extern LOADER_FUNCTION mysqlclient_initOnLoad;
 
 
 void init_ndbapi(Handle<Object> target) {
@@ -51,6 +53,10 @@ void init_impl(Handle<Object> target) {
   DBSessionImpl_initOnLoad(target);
   DBDictionaryImpl_initOnLoad(target);
   DBOperationHelper_initOnLoad(target);
+}
+
+void initCommon(Handle<Object> target) {
+  udebug_initOnLoad(target);
 }
 
 
