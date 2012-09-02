@@ -24,20 +24,12 @@ def configure(conf):
   conf.env.my_lib = my_lib
   conf.env.my_inc = my_inc
   conf.env.ndb_inc = ndb_inc
-
-  conf.env.append_unique('CXXFLAGS', ["-I" + "../common/include"])
-  conf.env.append_unique('CXXFLAGS', ["-Wall"])
-  conf.env.append_unique('CFLAGS'  , ["-I" + "../common/include"])
     
   conf.check_tool('compiler_cxx')
   conf.check_tool('node_addon')
 
-  conf.recurse("Adapter/impl/ndb")
-  conf.recurse("Adapter/impl/common")
-  conf.recurse("Adapter/impl/util")
+  conf.recurse("Adapter/impl/")
 
 def build(ctx):
-  ctx.recurse("Adapter/impl/ndb")
-  ctx.recurse("Adapter/impl/common")
-  ctx.recurse("Adapter/impl/util")
+  ctx.recurse("Adapter/impl/")
 
