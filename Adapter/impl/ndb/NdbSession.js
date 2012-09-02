@@ -22,11 +22,11 @@
 
 "use strict";
 
-var adapter       = require("../build/Release/ndb/ndb_adapter.node"),
-    ndboperation  = require("./NdbOperation.js"),
-    dbtxhandler   = require("./NdbTransactionHandler.js"),
-    util          = require("util"),
-    assert        = require("assert"),
+var adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
+    ndboperation   = require("./NdbOperation.js"),
+    dbtxhandler    = require("./NdbTransactionHandler.js"),
+    util           = require("util"),
+    assert         = require("assert"),
     DBSession;
 
 /*** Methods exported by this module but not in the public DBSession SPI ***/

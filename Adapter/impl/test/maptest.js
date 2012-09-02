@@ -1,7 +1,7 @@
 console.log("line 1");
-var udebug = require("../../../api/unified_debug.js");
-var mapper = require("../../build/Release/common/test/mapper.node");
-var dmapper = require("../../build/Release/common/test/outermapper.node");
+var udebug = require("../../api/unified_debug.js");
+var mapper = require("../build/Release/test/mapper.node");
+var dmapper = require("../build/Release/test/outermapper.node");
 
 udebug.on();
 udebug.all_files();
@@ -16,7 +16,7 @@ console.dir(p);
 // process.exit();
 
 console.log("line 10");
-console.log("quardrant: %d", p.quadrant());
+console.log("quadrant: %d", p.quadrant());
 
 console.log("line 13");
 var c = new mapper.Circle(p, 2.5);

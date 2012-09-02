@@ -22,8 +22,7 @@
 
 "use strict";
 
-var adapter = require("../build/Release/ndb/ndb_adapter.node"),
-    assert = require("assert"),
+var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     proto;
 
 

@@ -16,17 +16,18 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
- */
+*/
 
+global.path            = require("path");
+global.fs              = require("fs");
+global.assert          = require("assert");
+global.util            = require("util");
 
-/* returns true if obj only contains members that are defined in dom.
-   False if obj contains members not present in dom.
-*/   
-exports.isSubset = function(obj, dom) {
-  for(var k in obj) 
-    if(obj.hasOwnProperty(k) && ! dom.hasOwnProperty(k)) 
-      return false;
-  return true;
-};
+global.adapter_dir     = __dirname;
+
+global.build_dir       = path.join(adapter_dir, "impl", "build", "Release");
+global.spi_module      = path.join(adapter_dir, "impl", "SPI.js");
+global.api_module      = path.join(adapter_dir, "api", "mynode.js");
+global.udebug_module   = path.join(adapter_dir, "api", "unified_debug.js");
 
 

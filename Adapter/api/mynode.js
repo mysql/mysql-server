@@ -21,15 +21,6 @@
 "use strict";
 /*global udebug */
 
-try {
-  require("../impl/build/Release/common/common_library");
-} catch (err) {
-  console.log('Error: MySQL Connector for JavaScript has not been built properly.');
-  console.log('[missing module Adapter/impl/build/Release/common/common_library.node]');
-  console.log('Please see README for information on how to build.');
-  process.exit(1);
-}
-
 var spi = require("../impl/SPI.js");
 var annotations = require("./Annotations.js");
 var sessionfactory = require("./SessionFactory.js");

@@ -36,7 +36,6 @@ extern LOADER_FUNCTION NdbTransaction_initOnLoad;
 extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
 extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
 extern LOADER_FUNCTION DBOperationHelper_initOnLoad;
-extern LOADER_FUNCTION dlopen_initOnLoad;
 extern LOADER_FUNCTION udebug_initOnLoad;
 extern LOADER_FUNCTION mysqlclient_initOnLoad;
 
@@ -44,7 +43,6 @@ extern LOADER_FUNCTION mysqlclient_initOnLoad;
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
   Ndb_init_initOnLoad(target);
-  Ndb_util_initOnLoad(target);
   NdbTransaction_initOnLoad(target);
 }
 
@@ -55,21 +53,29 @@ void init_impl(Handle<Object> target) {
   DBOperationHelper_initOnLoad(target);
 }
 
-void initCommon(Handle<Object> target) {
-  udebug_initOnLoad(target);
-}
-
 
 void initModule(Handle<Object> target) {
   HandleScope scope;
+  Persistent<Object> ndb_obj    = Persistent<Object>(Object::New());
   Persistent<Object> ndbapi_obj = Persistent<Object>(Object::New());
   Persistent<Object> impl_obj   = Persistent<Object>(Object::New());
-
+  Persistent<Object> util_obj   = Persistent<Object>(Object::New());  
+  Persistent<Object> debug_obj   = Persistent<Object>(Object::New());
+  Persistent<Object> mysql_obj   = Persistent<Object>(Object::New());
+  
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);
-  
-  target->Set(Persistent<String>(String::NewSymbol("ndbapi")), ndbapi_obj);
-  target->Set(Persistent<String>(String::NewSymbol("impl")), impl_obj);
+  udebug_initOnLoad(debug_obj);
+  mysqlclient_initOnLoad(mysql_obj);
+  Ndb_util_initOnLoad(util_obj);
+
+  target->Set(Persistent<String>(String::NewSymbol("debug")), debug_obj);
+  target->Set(Persistent<String>(String::NewSymbol("mysqlclient")), mysql_obj);
+  target->Set(Persistent<String>(String::NewSymbol("ndb")), ndb_obj);
+
+  ndb_obj->Set(Persistent<String>(String::NewSymbol("ndbapi")), ndbapi_obj);
+  ndb_obj->Set(Persistent<String>(String::NewSymbol("impl")), impl_obj);
+  ndb_obj->Set(Persistent<String>(String::NewSymbol("util")), util_obj);
 }
 
 V8BINDER_LOADABLE_MODULE(ndb_adapter, initModule)

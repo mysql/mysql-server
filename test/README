@@ -39,6 +39,7 @@ Synchronous tests must return true from the run function. They are
 considered to pass if the errorMessages string is empty, and considered 
 to fail if the errorMessages string is not empty. An error may be appended
 to the errorMessages string by calling the function appendErrorMessage().
+A synchronous test that throws an exception is also considered to fail.
 
 Asynchronous tests need not return anything from the run function and must
 not return true. They must call the pass or fail function when they complete.

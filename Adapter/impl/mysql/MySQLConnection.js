@@ -54,4 +54,7 @@ exports.DBSession.prototype.getDataDictionary = function() {
   return new dictionary.DataDictionary(this.pooledConnection);
 };
 
+exports.DBSession.prototype.getConnectionPool = function() {
+  return this.pool;
+};
 
