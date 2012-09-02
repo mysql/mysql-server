@@ -1,6 +1,8 @@
 #
 # MDEV-375 Server crashes in THD::print_aborted_warning with log_warnings > 3
 #
+--source include/not_embedded.inc
+
 SET GLOBAL log_warnings=4;
 SET GLOBAL max_connections=2;
 
