@@ -7040,12 +7040,13 @@ uint ha_partition::get_biggest_used_partition(uint *part_index)
 double ha_partition::scan_time()
 {
   double scan_time= 0;
-  handler **file;
+  uint i;
   DBUG_ENTER("ha_partition::scan_time");
 
-  for (file= m_file; *file; file++)
-    if (bitmap_is_set(&(m_part_info->read_partitions), (file - m_file)))
-      scan_time+= (*file)->scan_time();
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+    scan_time+= m_file[i]->scan_time();
   DBUG_RETURN(scan_time);
 }
 
