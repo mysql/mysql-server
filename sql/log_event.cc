@@ -1990,8 +1990,12 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       pos= buff;
       pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
       end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
-      for (i=0; i < end; i++)
-        pos+= sprintf(pos, "%09d.", dec.buf[i]);
+      /*Print integral part, decimal point, fractional part*/
+      for (i= 0; i < ROUND_UP(dec.intg); i ++)
+        pos+= sprintf(pos, "%09d", dec.buf[i]);
+      pos+= sprintf(pos, "%s", ".");
+      for (i= ROUND_UP(dec.intg); i < end; i ++)
+        pos+= sprintf(pos, "%09d", dec.buf[i]);
       pos+= sprintf(pos, "%09d", dec.buf[i]);
       my_b_printf(file, "%s", buff);
       my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
