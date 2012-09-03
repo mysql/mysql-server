@@ -112,6 +112,7 @@ mysqlslap/mysqlslap.c : .*
 yassl/.* : C4005: 'WIN32_LEAN_AND_MEAN' : macro redefinition
 mytap/tap.c : C4028: formal parameter .* different from declaration
 .*/readline.cc : C4101: 'input_file_stat' : unreferenced local variable
+mysqltest/mysqltest.cc: C4146: unary minus operator applied to unsigned type, result still unsigned
 
 #
 .*/sys_vars.h             : .*C4244.* conversion .* possible loss of data
@@ -160,6 +161,7 @@ my_print_defaults/my_print_defaults.c : .*C4090.*
 myisamchk/myisamchk.c                 : .*C4090.*
 mysqlimport/mysqlimport.c             : .*C4090.*
 mysqlcheck/mysqlcheck.c               : .*C4090.*
+tests/mysql_client_fw.c               : .*C4090.*
 
 #
 # Bundled memcached and libevent
