@@ -1324,7 +1324,7 @@ main(int argc, const char** argv)
   ndb_init();
   NDBT_TESTSUITE_INSTANCE(testRedo);
   testRedo.setCreateTable(false);
-  myRandom48Init(NdbTick_CurrentMillisecond());
+  myRandom48Init((long)NdbTick_CurrentMillisecond());
   g_msgmutex = NdbMutex_Create();
   require(g_msgmutex != 0);
   int ret = testRedo.execute(argc, argv);
