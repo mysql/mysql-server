@@ -49,7 +49,7 @@ Created 9/20/1997 Heikki Tuuri
 # include "srv0start.h"
 # include "trx0roll.h"
 # include "row0merge.h"
-# include "sync0sync.h"
+# include "sync0mutex.h"
 #else /* !UNIV_HOTBACKUP */
 
 /** This is set to FALSE if the backup was originally taken with the
@@ -183,7 +183,7 @@ recv_sys_create(void)
 
 	recv_sys = static_cast<recv_sys_t*>(mem_zalloc(sizeof(*recv_sys)));
 
-	mutex_create(recv_sys_mutex_key, &recv_sys->mutex, SYNC_RECV);
+	mutex_create("recv_sys", &recv_sys->mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -3309,7 +3309,8 @@ recv_recovery_from_checkpoint_finish(void)
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_debug_free();
-#endif
+#endif /* UNIV_LOG_DEBUG */
+
 	/* Roll back any recovered data dictionary transactions, so
 	that the data dictionary tables will be free of any locks.
 	The data dictionary latch should guarantee that there is at
@@ -3334,8 +3335,10 @@ recv_recovery_rollback_active(void)
 	os_thread_sleep(1000000);
 
 	/* Switch latching order checks on in sync0sync.cc */
-	sync_order_checks_on = TRUE;
-#endif
+	// FIXME
+	//sync_order_checks_on = TRUE;
+#endif /* UNIV_SYNC_DEBUG */
+
 	/* We can't start any (DDL) transactions if UNDO logging
 	has been disabled, additionally disable ROLLBACK of recovered
 	user transactions. */

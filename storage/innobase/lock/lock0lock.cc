@@ -603,21 +603,9 @@ lock_sys_create(
 
 	lock_sys->last_slot = lock_sys->waiting_threads;
 
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	lockPolicy(SYNC_LOCK_SYS, lock_sys_mutex_key);
-#else
-	CheckedPolicy	lockPolicy(SYNC_LOCK_SYS);
-#endif /* UNIV_PFS_MUTEX */
+	mutex_create("lock_sys", &lock_sys->mutex);
 
-	new (&lock_sys->mutex) LockMutex(lockPolicy);
-
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	waitPolicy(SYNC_LOCK_WAIT_SYS, lock_sys_wait_mutex_key);
-#else
-	CheckedPolicy	waitPolicy(SYNC_LOCK_WAIT_SYS);
-#endif /* UNIV_PFS_MUTEX */
-
-	new (&lock_sys->wait_mutex) LockMutex(waitPolicy);
+	mutex_create("lock_sys_wait", &lock_sys->wait_mutex);
 
 	lock_sys->timeout_event = os_event_create(NULL);
 
@@ -1657,7 +1645,7 @@ lock_sec_rec_some_has_impl(
 	const page_t*	page = page_align(rec);
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!trx_sys->mutex.is_owned());
+	ut_ad(!mutex_own(&trx_sys->mutex));
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -5376,7 +5364,7 @@ lock_table_queue_validate(
 	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -5570,7 +5558,7 @@ loop:
 	holding a space->latch.  Deadlocks are possible due to
 	latching order violation when UNIV_DEBUG is defined while
 	UNIV_SYNC_DEBUG is not. */
-	if (!sync_thread_levels_contains(SYNC_FSP))
+	if (!sync_check_find(SYNC_FSP))
 # endif /* UNIV_SYNC_DEBUG */
 	for (i = nth_bit; i < lock_rec_get_n_bits(lock); i++) {
 
@@ -5580,11 +5568,7 @@ loop:
 			ut_a(rec);
 			offsets = rec_get_offsets(rec, lock->index, offsets,
 						  ULINT_UNDEFINED, &heap);
-#if 0
-			fprintf(stderr,
-				"Validating %u %u\n",
-				block->page.space, block->page.offset);
-#endif
+
 			/* If this thread is holding the file space
 			latch (fil_space_t::latch), the following
 			check WILL break the latching order and may
@@ -5626,7 +5610,7 @@ lock_validate_table_locks(
 	const trx_t*	trx;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -5668,7 +5652,7 @@ lock_rec_validate(
 					(space, page_no) */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	for (const lock_t* lock = static_cast<const lock_t*>(
 			HASH_GET_FIRST(lock_sys->rec_hash, start));
@@ -6813,7 +6797,7 @@ lock_table_locks_lookup(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);

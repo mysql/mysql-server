@@ -5114,9 +5114,7 @@ void
 row_mysql_init(void)
 /*================*/
 {
-	mutex_create(
-		row_drop_list_mutex_key,
-		&row_drop_list_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create("row_drop_list", &row_drop_list_mutex);
 
 	UT_LIST_INIT(row_mysql_drop_list);
 

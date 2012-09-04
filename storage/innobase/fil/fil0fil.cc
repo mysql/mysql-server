@@ -1633,8 +1633,7 @@ fil_init(
 	fil_system = static_cast<fil_system_t*>(
 		mem_zalloc(sizeof(fil_system_t)));
 
-	mutex_create(fil_system_mutex_key,
-		     &fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create("fil_system", &fil_system->mutex);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -5589,11 +5588,6 @@ void
 fil_close(void)
 /*===========*/
 {
-#ifndef UNIV_HOTBACKUP
-	/* The mutex should already have been freed. */
-	ut_ad(fil_system->mutex.magic_n == 0);
-#endif /* !UNIV_HOTBACKUP */
-
 	hash_table_free(fil_system->spaces);
 
 	hash_table_free(fil_system->name_hash);
@@ -5824,13 +5818,7 @@ fil_tablespace_iterate(
 
 	block = reinterpret_cast<buf_block_t*>(mem_zalloc(sizeof(*block)));
 
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	policy(SYNC_BUF_BLOCK, buffer_block_mutex_key);
-#else
-	CheckedPolicy	policy(SYNC_BUF_BLOCK);
-#endif /* UNIV_PFS_MUTEX */
-
-	new(&block->mutex) SpinMutex(policy);
+	mutex_create("buf_block_mutex", &block->mutex);
 
 	/* Allocate a page to read in the tablespace header, so that we
 	can determine the page size and zip_size (if it is compressed).

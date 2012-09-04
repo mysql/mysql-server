@@ -681,7 +681,7 @@ trx_rollback_resurrected(
 	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
 			TRUE=roll back all non-PREPARED transactions */
 {
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* The trx->is_recovered flag and trx->state are set
 	atomically under the protection of the trx->mutex (and

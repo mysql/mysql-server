@@ -99,8 +99,7 @@ dict_mem_table_create(
 	table->autoinc_lock = static_cast<ib_lock_t*>(
 		mem_heap_alloc(heap, lock_get_size()));
 
-	mutex_create(autoinc_mutex_key,
-		     &table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
+	mutex_create("autoinc", &table->autoinc_mutex);
 
 	table->autoinc = 0;
 

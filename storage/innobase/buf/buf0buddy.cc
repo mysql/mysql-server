@@ -171,7 +171,7 @@ buf_buddy_block_free(
 	buf_block_t*	block;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_pool->zip_mutex.is_owned());
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_a(!ut_align_offset(buf, UNIV_PAGE_SIZE));
 
 	HASH_SEARCH(hash, buf_pool->zip_hash, fold, buf_page_t*, bpage,
@@ -208,7 +208,7 @@ buf_buddy_block_register(
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 	const ulint	fold = BUF_POOL_ZIP_FOLD(block);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_pool->zip_mutex.is_owned());
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_READY_FOR_USE);
 
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
@@ -283,7 +283,7 @@ buf_buddy_alloc_low(
 
 	ut_ad(lru);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_pool->zip_mutex.is_owned());
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
 
 	if (i < BUF_BUDDY_SIZES) {
@@ -339,7 +339,7 @@ buf_buddy_relocate(
 	ulint		page_no;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_pool->zip_mutex.is_owned());
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(!ut_align_offset(src, size));
 	ut_ad(!ut_align_offset(dst, size));
 	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
@@ -396,7 +396,7 @@ buf_buddy_relocate(
 
 	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
-	block_mutex->enter();
+	mutex_enter(block_mutex);
 
 	if (buf_page_can_relocate(bpage)) {
 		/* Relocate the compressed page. */
@@ -404,7 +404,7 @@ buf_buddy_relocate(
 		ut_a(bpage->zip.data == src);
 		memcpy(dst, src, size);
 		bpage->zip.data = (page_zip_t*) dst;
-		block_mutex->exit();
+		mutex_exit(block_mutex);
 		UNIV_MEM_INVALID(src, size);
 		{
 			buf_buddy_stat_t*	buddy_stat
@@ -416,7 +416,7 @@ buf_buddy_relocate(
 		return(TRUE);
 	}
 
-	block_mutex->exit();
+	mutex_exit(block_mutex);
 
 	return(FALSE);
 }
@@ -437,7 +437,7 @@ buf_buddy_free_low(
 	buf_page_t*	buddy;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(!buf_pool->zip_mutex.is_owned());
+	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 	ut_ad(i <= BUF_BUDDY_SIZES);
 	ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
 	ut_ad(buf_pool->buddy_stat[i].used > 0);

@@ -99,7 +99,7 @@ trx_create(void)
 
 	trx = static_cast<trx_t*>(mem_zalloc(sizeof(*trx)));
 
-	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
+	mutex_create("trx", &trx->mutex);
 
 	trx->magic_n = TRX_MAGIC_N;
 
@@ -116,7 +116,7 @@ trx_create(void)
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
 
-	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
+	mutex_create("trx_undo", &trx->undo_mutex);
 
 	trx->error_state = DB_SUCCESS;
 
@@ -295,7 +295,7 @@ trx_free_prepared(
 /*==============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
 	ut_a(trx->magic_n == TRX_MAGIC_N);
@@ -1535,7 +1535,7 @@ trx_print_low(
 	ibool		newline;
 	const char*	op_info;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	fprintf(f, "TRANSACTION " TRX_ID_FMT, trx->id);
 
@@ -1649,7 +1649,7 @@ trx_print_latched(
 					or 0 to use the default max length */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	trx_print_low(f, trx, max_query_len,
 		      lock_number_of_rows_locked(&trx->lock),
@@ -1696,7 +1696,7 @@ trx_assert_started(
 /*===============*/
 	const trx_t*	trx)	/*!< in: transaction */
 {
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* Non-locking autocommits should not hold any locks and this
 	function is only called from the locking code. */
@@ -1961,7 +1961,7 @@ trx_get_trx_by_xid_low(
 {
 	trx_t*		trx;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
 	     trx != NULL;
