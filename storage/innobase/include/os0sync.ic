@@ -48,7 +48,7 @@ os_fast_mutex_trylock(
 	FreeBSD, Solaris, AIX, Tru64 Unix, HP-UX-11.0 return 0 on success. */
 
 	return((ulint) pthread_mutex_trylock(mutex));
-#endif
+#endif /* __WIN__ */
 }
 
 #ifdef UNIV_PFS_MUTEX
@@ -69,7 +69,7 @@ pfs_os_fast_mutex_init(
 	fast_mutex->pfs_psi = PSI_MUTEX_CALL(init_mutex)(key, &fast_mutex->mutex);
 #else
 	fast_mutex->pfs_psi = NULL;
-#endif
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 	os_fast_mutex_init_func(&fast_mutex->mutex);
 }
@@ -87,7 +87,7 @@ pfs_os_fast_mutex_free(
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 	if (fast_mutex->pfs_psi != NULL)
 		PSI_MUTEX_CALL(destroy_mutex)(fast_mutex->pfs_psi);
-#endif
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 	fast_mutex->pfs_psi = NULL;
 
 	os_fast_mutex_free_func(&fast_mutex->mutex);
@@ -112,7 +112,8 @@ pfs_os_fast_mutex_lock(
 		PSI_mutex_locker* 	locker;
 		PSI_mutex_locker_state	state;
 
-		locker = PSI_MUTEX_CALL(start_mutex_wait)(&state, fast_mutex->pfs_psi,
+		locker = PSI_MUTEX_CALL(start_mutex_wait)(
+			&state, fast_mutex->pfs_psi,
 			PSI_MUTEX_LOCK, file_name, line);
 
 		os_fast_mutex_lock_func(&fast_mutex->mutex);
@@ -121,7 +122,7 @@ pfs_os_fast_mutex_lock(
 			PSI_MUTEX_CALL(end_mutex_wait)(locker, 0);
 	}
 	else
-#endif
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 	{
 		os_fast_mutex_lock_func(&fast_mutex->mutex);
 	}
@@ -142,7 +143,7 @@ pfs_os_fast_mutex_unlock(
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 	if (fast_mutex->pfs_psi != NULL)
 		PSI_MUTEX_CALL(unlock_mutex)(fast_mutex->pfs_psi);
-#endif
+#endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 	os_fast_mutex_unlock_func(&fast_mutex->mutex);
 }
@@ -171,7 +172,7 @@ win_cmp_and_xchg_lint(
 	return(InterlockedCompareExchange64(ptr, new_val, old_val));
 # else
 	return(InterlockedCompareExchange(ptr, new_val, old_val));
-# endif
+# endif /* _WIN64 */
 }
 
 /**********************************************************//**
@@ -188,7 +189,7 @@ win_xchg_and_add(
 	return(InterlockedExchangeAdd64(ptr, val));
 #else
 	return(InterlockedExchangeAdd(ptr, val));
-#endif
+#endif /* _WIN64 */
 }
 
 /**********************************************************//**

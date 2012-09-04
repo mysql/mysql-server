@@ -35,6 +35,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0flu.h"
 #include "buf0lru.h"
 #include "buf0rea.h"
+#include "sync0check.h"
 
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
@@ -460,7 +461,7 @@ buf_page_set_io_fix(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 #endif
-	ut_ad(buf_page_get_mutex(bpage)->is_owned());
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	bpage->io_fix = io_fix;
 	ut_ad(buf_page_get_io_fix(bpage) == io_fix);
@@ -497,7 +498,7 @@ buf_page_set_sticky(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 #endif
-	ut_ad(buf_page_get_mutex(bpage)->is_owned());
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 
 	bpage->io_fix = BUF_IO_PIN;
@@ -515,7 +516,7 @@ buf_page_unset_sticky(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 #endif
-	ut_ad(buf_page_get_mutex(bpage)->is_owned());
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_PIN);
 
 	bpage->io_fix = BUF_IO_NONE;
@@ -534,7 +535,7 @@ buf_page_can_relocate(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 #endif
-	ut_ad(buf_page_get_mutex(bpage)->is_owned());
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 
@@ -946,7 +947,7 @@ buf_page_get_newest_modification(
 	lsn_t		lsn;
 	BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 
-	block_mutex->enter();
+	mutex_enter(block_mutex);
 
 	if (buf_page_in_file(bpage)) {
 		lsn = bpage->newest_modification;
@@ -954,7 +955,7 @@ buf_page_get_newest_modification(
 		lsn = 0;
 	}
 
-	block_mutex->exit();
+	mutex_exit(block_mutex);
 
 	return(lsn);
 }
@@ -1365,9 +1366,9 @@ buf_block_dbg_add_level(
 /*====================*/
 	buf_block_t*	block,	/*!< in: buffer page
 				where we have acquired latch */
-	ulint		level)	/*!< in: latching order level */
+	latch_level_t	level)	/*!< in: latching order level */
 {
-	sync_thread_add_level(&block->lock, level, FALSE);
+	sync_check_lock(block->lock, level);
 }
 #endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**

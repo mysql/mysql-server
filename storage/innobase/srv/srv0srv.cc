@@ -46,7 +46,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "os0proc.h"
 #include "mem0mem.h"
 #include "mem0pool.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "que0que.h"
 #include "log0recv.h"
 #include "pars0pars.h"
@@ -890,11 +890,10 @@ srv_init(void)
 	ulint			n_sys_threads;
 
 #ifndef HAVE_ATOMIC_BUILTINS
-	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
+	mutex_create("server", &server_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
-	mutex_create(srv_innodb_monitor_mutex_key,
-		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create("srv_innodb_monitor", &srv_innodb_monitor_mutex);
 
 	/* Number of purge threads + master thread */
 	n_sys_threads = srv_n_purge_threads + 1;
@@ -903,10 +902,9 @@ srv_init(void)
 
 	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
 
-	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
+	mutex_create("srv_sys", &srv_sys->mutex);
 
-	mutex_create(srv_sys_tasks_mutex_key,
-		     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
+	mutex_create("srv_sys_tasks", &srv_sys->tasks_mutex);
 
 	srv_sys->n_sys_threads = n_sys_threads;
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
@@ -973,7 +971,7 @@ srv_general_init(void)
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
 	os_sync_init();
-	sync_init();
+	sync_check_init();
 	mem_init(srv_mem_pool_size);
 	que_init();
 	row_mysql_init();
@@ -1108,10 +1106,11 @@ srv_printf_innodb_monitor(
 	fputs("----------\n"
 	      "SEMAPHORES\n"
 	      "----------\n", file);
-	sync_print(file);
+	// FIXME:
+	//sync_check_print(file);
 
 	/* Conceptually, srv_innodb_monitor_mutex has a very high latching
-	order level in sync0sync.h, while dict_foreign_err_mutex has a very
+	order level in sync0mutex.h, while dict_foreign_err_mutex has a very
 	low level 135. Therefore we can reserve the latter mutex here without
 	a danger of a deadlock of threads. */
 

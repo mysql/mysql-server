@@ -38,7 +38,8 @@ Created 9/11/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "mem0mem.h"
 #include "srv0srv.h"
-#include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+#include "os0sync.h"
+#include "sync0check.h"
 #include "ha_prototypes.h"
 
 /*
@@ -211,7 +212,7 @@ rw_lock_create_func(
 	rw_lock_t*	lock,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
 # ifdef UNIV_SYNC_DEBUG
-	ulint		level,		/*!< in: level */
+	latch_level_t	level,		/*!< in: level */
 # endif /* UNIV_SYNC_DEBUG */
 	const char*	cmutex_name,	/*!< in: mutex name */
 #endif /* UNIV_DEBUG */
@@ -246,6 +247,10 @@ rw_lock_create_func(
 	/* Silence Valgrind when UNIV_DEBUG_VALGRIND is not enabled. */
 	memset((void*) &lock->writer_thread, 0, sizeof lock->writer_thread);
 	UNIV_MEM_INVALID(&lock->writer_thread, sizeof lock->writer_thread);
+
+#ifdef UNIV_DEBUG
+	lock->m_rw_lock = true;
+#endif /* UNIV_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
 	UT_LIST_INIT(lock->debug_list);
@@ -351,7 +356,7 @@ rw_lock_validate(
 /******************************************************************//**
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
 locked in exclusive mode, or there is an exclusive lock request waiting,
-the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+the function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting
 for the lock, before suspending the thread. */
 UNIV_INTERN
 void
@@ -379,7 +384,7 @@ rw_lock_s_lock_spin(
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
-	while (i < SYNC_SPIN_ROUNDS && lock->lock_word <= 0) {
+	while (i < srv_n_spin_wait_rounds && lock->lock_word <= 0) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
@@ -387,7 +392,7 @@ lock_loop:
 		i++;
 	}
 
-	if (i == SYNC_SPIN_ROUNDS) {
+	if (i == srv_n_spin_wait_rounds) {
 		os_thread_yield();
 	}
 
@@ -398,7 +403,7 @@ lock_loop:
 		return; /* Success */
 	} else {
 
-		if (i < SYNC_SPIN_ROUNDS) {
+		if (i < srv_n_spin_wait_rounds) {
 			goto lock_loop;
 		}
 
@@ -481,7 +486,7 @@ rw_lock_x_lock_wait(
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
-		if(i < SYNC_SPIN_ROUNDS) {
+		if(i < srv_n_spin_wait_rounds) {
 			i++;
 			continue;
 		}
@@ -561,7 +566,8 @@ rw_lock_x_lock_low(
 		os_thread_id_t	thread_id = os_thread_get_curr_id();
 
 		/* Decrement failed: relock or failed lock */
-		if (!pass && lock->recursive
+		if (!pass
+		    && lock->recursive
 		    && os_thread_eq(lock->writer_thread, thread_id)) {
 			/* Relock */
 			lock->lock_word -= X_LOCK_DECR;
@@ -583,7 +589,7 @@ rw_lock_x_lock_low(
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread. If the rw-lock is locked
 in shared or exclusive mode, or there is an exclusive lock request waiting,
-the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+the function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting
 for the lock before suspending the thread. If the same thread has an x-lock
 on the rw-lock, locking succeed, with the following exception: if pass != 0,
 only a single x-lock may be taken on the lock. NOTE: If the same thread has
@@ -633,7 +639,7 @@ lock_loop:
 		}
 
 		/* Spin waiting for the lock_word to become free */
-		while (i < SYNC_SPIN_ROUNDS
+		while (i < srv_n_spin_wait_rounds
 		       && lock->lock_word <= 0) {
 			if (srv_spin_wait_delay) {
 				ut_delay(ut_rnd_interval(0,
@@ -642,7 +648,7 @@ lock_loop:
 
 			i++;
 		}
-		if (i == SYNC_SPIN_ROUNDS) {
+		if (i == srv_n_spin_wait_rounds) {
 			os_thread_yield();
 		} else {
 			goto lock_loop;
@@ -751,10 +757,13 @@ rw_lock_add_debug_info(
 
 	rw_lock_debug_mutex_exit();
 
-	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
-		sync_thread_add_level(lock, lock->level,
-				      lock_type == RW_LOCK_EX
-				      && lock->lock_word < 0);
+	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
+
+		if (lock_type == RW_LOCK_EX && lock->lock_word < 0) {
+			sync_check_lock(*lock);
+		} else {
+			sync_check_relock(*lock);
+		}
 	}
 }
 
@@ -772,20 +781,21 @@ rw_lock_remove_debug_info(
 
 	ut_ad(lock);
 
-	if ((pass == 0) && (lock_type != RW_LOCK_WAIT_EX)) {
-		sync_thread_reset_level(lock);
+	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
+		sync_check_unlock(*lock);
 	}
 
 	rw_lock_debug_mutex_enter();
 
-	info = UT_LIST_GET_FIRST(lock->debug_list);
+	for (info = UT_LIST_GET_FIRST(lock->debug_list);
+	     info != 0;
+	     info = UT_LIST_GET_NEXT(list, info)) {
 
-	while (info != NULL) {
-		if ((pass == info->pass)
-		    && ((pass != 0)
+		if (pass == info->pass
+		    && (pass != 0
 			|| os_thread_eq(info->thread_id,
 					os_thread_get_curr_id()))
-		    && (info->lock_type == lock_type)) {
+		    && info->lock_type == lock_type) {
 
 			/* Found! */
 			UT_LIST_REMOVE(list, lock->debug_list, info);
@@ -795,8 +805,6 @@ rw_lock_remove_debug_info(
 
 			return;
 		}
-
-		info = UT_LIST_GET_NEXT(list, info);
 	}
 
 	ut_error;

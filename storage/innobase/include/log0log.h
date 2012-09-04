@@ -37,18 +37,20 @@ Created 12/9/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "ut0lst.h"
 #ifndef UNIV_HOTBACKUP
-#include "ib_mutex.h"
+#include "sync0mutex.h"
 #include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
 /* Type used for all log sequence number storage and arithmetics */
 typedef	ib_uint64_t		lsn_t;
+
 #define LSN_MAX			IB_UINT64_MAX
 
 #define LSN_PF			UINT64PF
 
 /** Redo log buffer */
 typedef struct log_struct	log_t;
+
 /** Redo log group */
 typedef struct log_group_struct	log_group_t;
 

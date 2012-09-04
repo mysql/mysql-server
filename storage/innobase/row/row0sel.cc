@@ -1976,9 +1976,8 @@ stop_for_a_while:
 
 	mtr_commit(&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+        ut_ad(sync_check_iterate(dict_sync_check(true)));
+
 	err = DB_SUCCESS;
 	goto func_exit;
 
@@ -1996,9 +1995,7 @@ commit_mtr_for_a_while:
 
 	mtr_has_extra_clust_latch = FALSE;
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+        ut_ad(sync_check_iterate(dict_sync_check(true)));
 
 	goto table_loop;
 
@@ -2013,9 +2010,7 @@ lock_wait_or_error:
 
 	mtr_commit(&mtr);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+        ut_ad(sync_check_iterate(dict_sync_check(true)));
 
 func_exit:
 	if (search_latch_locked) {
@@ -3697,9 +3692,7 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 
@@ -5151,9 +5144,7 @@ func_exit:
 		}
 	}
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
 

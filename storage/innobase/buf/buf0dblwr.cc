@@ -128,8 +128,7 @@ buf_dblwr_init(
 	ut_a(srv_doublewrite_batch_size > 0
 	     && srv_doublewrite_batch_size < buf_size);
 
-	mutex_create(buf_dblwr_mutex_key,
-		     &buf_dblwr->mutex, SYNC_DOUBLEWRITE);
+	mutex_create("buf_dblwr", &buf_dblwr->mutex);
 
 	buf_dblwr->first_free = 0;
 	buf_dblwr->s_reserved = 0;

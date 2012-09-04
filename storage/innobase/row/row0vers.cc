@@ -267,7 +267,7 @@ row_vers_impl_x_locked(
 	mtr_t		mtr;
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!trx_sys->mutex.is_owned());
+	ut_ad(!mutex_own(&trx_sys->mutex));
 
 	mtr_start(&mtr);
 

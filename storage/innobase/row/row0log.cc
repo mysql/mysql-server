@@ -2388,8 +2388,7 @@ row_log_allocate(
 	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
 	log->size = size;
 	log->fd = row_merge_file_create_low();
-	mutex_create(index_online_log_key, &log->mutex,
-		     SYNC_INDEX_ONLINE_LOG);
+	mutex_create("index_online_log", &log->mutex);
 	log->trx_rb = NULL;
 	log->table = table;
 	log->same_pk = same_pk;

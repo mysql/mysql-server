@@ -66,7 +66,7 @@ buf_read_page_handle_error(
 
 	/* First unfix and release lock on the bpage */
 	buf_pool_mutex_enter(buf_pool);
-	buf_page_get_mutex(bpage)->enter();
+	mutex_enter(buf_page_get_mutex(bpage));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
 	ut_ad(bpage->buf_fix_count == 0);
 
@@ -79,7 +79,7 @@ buf_read_page_handle_error(
 			BUF_IO_READ);
 	}
 
-	buf_page_get_mutex(bpage)->exit();
+	mutex_exit(buf_page_get_mutex(bpage));
 
 	/* remove the block from LRU list */
 	buf_LRU_free_one_page(bpage);

@@ -33,7 +33,7 @@ Created 9/11/1995 Heikki Tuuri
 /******************************************************************//**
 Lock an rw-lock in shared mode for the current thread. If the rw-lock is
 locked in exclusive mode, or there is an exclusive lock request waiting,
-the function spins a preset time (controlled by SYNC_SPIN_ROUNDS),
+the function spins a preset time (controlled by srv_n_spin_wait_rounds),
 waiting for the lock before suspending the thread. */
 UNIV_INTERN
 void
@@ -328,7 +328,7 @@ rw_lock_s_lock_low(
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in shared mode for the current thread. If the rw-lock is locked
 in exclusive mode, or there is an exclusive lock request waiting, the
-function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting for
+function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting for
 the lock, before suspending the thread. */
 UNIV_INLINE
 void
@@ -527,9 +527,7 @@ pfs_rw_lock_create_func(
 					performance schema */
 	rw_lock_t*	lock,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
-#  ifdef UNIV_SYNC_DEBUG
-	ulint		level,		/*!< in: level */
-#  endif /* UNIV_SYNC_DEBUG */
+	latch_level_t	level,		/*!< in: level */
 	const char*	cmutex_name,	/*!< in: mutex name */
 # endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */

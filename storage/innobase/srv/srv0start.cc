@@ -66,7 +66,7 @@ Created 2/16/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "buf0flu.h"
 # include "buf0rea.h"
 # include "dict0boot.h"
@@ -1723,8 +1723,7 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_boot();
 
-	mutex_create(srv_monitor_file_mutex_key,
-		     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create("srv_monitor_file", &srv_monitor_file_mutex);
 
 	if (srv_innodb_status) {
 
@@ -1749,16 +1748,15 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	mutex_create(srv_dict_tmpfile_mutex_key,
-		     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+	mutex_create("srv_dict_tmpfile", &srv_dict_tmpfile_mutex);
 
 	srv_dict_tmpfile = os_file_create_tmpfile();
+
 	if (!srv_dict_tmpfile) {
 		return(DB_ERROR);
 	}
 
-	mutex_create(srv_misc_tmpfile_mutex_key,
-		     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+	mutex_create("srv_misc_tmpfile", &srv_misc_tmpfile_mutex);
 
 	srv_misc_tmpfile = os_file_create_tmpfile();
 	if (!srv_misc_tmpfile) {
@@ -2704,7 +2702,7 @@ innobase_shutdown_for_mysql(void)
 	que_close();
 	row_mysql_close();
 	srv_mon_free();
-	sync_close();
+	sync_check_close();
 	srv_free();
 	fil_close();
 

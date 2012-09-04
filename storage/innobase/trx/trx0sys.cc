@@ -151,7 +151,7 @@ trx_in_trx_list(
 	trx_list = in_trx->read_only
 		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_assert_started(in_trx));
 
@@ -177,7 +177,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	mtr_start(&mtr);
 
@@ -588,16 +588,7 @@ trx_sys_create(void)
 
 	trx_sys = static_cast<trx_sys_t*>(mem_zalloc(sizeof(*trx_sys)));
 
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	policy(SYNC_TRX_SYS, trx_sys_mutex_key);
-#else
-	CheckedPolicy	policy(SYNC_TRX_SYS);
-#endif /* UNIV_PFS_MUTEX */
-
-	TrxSysMutex*	m = new(&trx_sys->mutex) TrxSysMutex(policy);
-
-	// Shutup the compiler
-	ut_a(m != 0);
+	mutex_create("trx_sys", &trx_sys->mutex);
 }
 
 /*****************************************************************//**
@@ -854,8 +845,7 @@ void
 trx_sys_file_format_init(void)
 /*==========================*/
 {
-	mutex_create(file_format_max_mutex_key,
-		     &file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
+	mutex_create("file_format_max", &file_format_max.mutex);
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
@@ -1285,7 +1275,7 @@ trx_sys_validate_trx_list_low(
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_ad(trx_list == &trx_sys->ro_trx_list
 	      || trx_list == &trx_sys->rw_trx_list);
@@ -1311,7 +1301,7 @@ ibool
 trx_sys_validate_trx_list(void)
 /*===========================*/
 {
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	ut_a(trx_sys_validate_trx_list_low(&trx_sys->ro_trx_list));
 	ut_a(trx_sys_validate_trx_list_low(&trx_sys->rw_trx_list));

@@ -41,24 +41,19 @@ of cells is chosen to be a prime number slightly bigger than n.
 @return	own: created table */
 UNIV_INTERN
 hash_table_t*
-ha_create_func(
-/*===========*/
-	ulint	n,		/*!< in: number of array cells */
-#ifdef UNIV_SYNC_DEBUG
-	ulint	sync_level,	/*!< in: level of the mutexes or rw_locks
-				in the latching order: this is used in the
-				 debug version */
-#endif /* UNIV_SYNC_DEBUG */
-	ulint	n_sync_obj,	/*!< in: number of mutexes or rw_locks
-				to protect the hash table: must be a
-				power of 2, or 0 */
-	ulint	type)		/*!< in: type of datastructure for which
+ha_create(
+/*======*/
+	ulint		n,	/*!< in: number of array cells */
+	const char*	name,	/*!< in: mutex name */
+	ulint		n_sync_obj,
+				/*!< in: number of mutexes to protect the
+				hash table: must be a power of 2, or 0 */
+	ulint		type)	/*!< in: type of datastructure for which
 				the memory heap is going to be used e.g.:
 				MEM_HEAP_FOR_BTR_SEARCH or
 				MEM_HEAP_FOR_PAGE_HASH */
 {
 	hash_table_t*	table;
-	ulint		i;
 
 	ut_a(type == MEM_HEAP_FOR_BTR_SEARCH
 	     || type == MEM_HEAP_FOR_PAGE_HASH);
@@ -80,17 +75,17 @@ ha_create_func(
 	if (type == MEM_HEAP_FOR_PAGE_HASH) {
 		/* We create a hash table protected by rw_locks for
 		buf_pool->page_hash. */
-		hash_create_sync_obj(table, HASH_TABLE_SYNC_RW_LOCK,
-				     n_sync_obj, sync_level);
+		hash_create_sync_obj(
+			table, HASH_TABLE_SYNC_RW_LOCK, name, n_sync_obj);
 	} else {
-		hash_create_sync_obj(table, HASH_TABLE_SYNC_MUTEX,
-				     n_sync_obj, sync_level);
+		hash_create_sync_obj(
+			table, HASH_TABLE_SYNC_MUTEX, name, n_sync_obj);
 	}
 
 	table->heaps = static_cast<mem_heap_t**>(
 		mem_alloc(n_sync_obj * sizeof(void*)));
 
-	for (i = 0; i < n_sync_obj; i++) {
+	for (ulint i = 0; i < n_sync_obj; i++) {
 		table->heaps[i] = mem_heap_create_typed(4096, type);
 		ut_a(table->heaps[i]);
 	}

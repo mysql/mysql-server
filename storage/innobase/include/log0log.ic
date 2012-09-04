@@ -449,10 +449,7 @@ void
 log_free_check(void)
 /*================*/
 {
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(sync_thread_levels_empty_except_dict());
-#endif /* UNIV_SYNC_DEBUG */
+        ut_ad(sync_check_iterate(dict_sync_check(true)));
 
 	if (log_sys->check_flush_or_checkpoint) {
 

@@ -38,7 +38,7 @@ Created 11/29/1995 Heikki Tuuri
 #ifdef UNIV_HOTBACKUP
 # include "fut0lst.h"
 #else /* UNIV_HOTBACKUP */
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "fut0fut.h"
 # include "srv0srv.h"
 # include "ibuf0ibuf.h"

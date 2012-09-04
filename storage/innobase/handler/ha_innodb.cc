@@ -69,7 +69,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0cur.h"
 #include "btr0btr.h"
 #include "fsp0fsp.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "fil0fil.h"
 #include "trx0xa.h"
 #include "row0merge.h"
@@ -319,8 +319,8 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
 #  endif /* UNIV_MEM_DEBUG */
 	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
-	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
 	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
+	{&recalc_pool_mutex_key, "recalc_pool_mutex"},
 	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
 	{&rseg_mutex_key, "rseg_mutex", 0},
 #  ifdef UNIV_SYNC_DEBUG
@@ -1133,9 +1133,7 @@ innobase_srv_conc_exit_innodb(
 /*==========================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb
@@ -1153,9 +1151,7 @@ innobase_srv_conc_force_exit_innodb(
 /*================================*/
 	trx_t*	trx)	/*!< in: transaction handle */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb) {
@@ -2344,7 +2340,7 @@ Why a deadlock of threads is not possible: the query cache calls this function
 at the start of a SELECT processing. Then the calling thread cannot be
 holding any InnoDB semaphores. The calling thread is holding the
 query cache mutex, and this function will reserve the InnoDB trx_sys->mutex.
-Thus, the 'rank' in sync0sync.h of the MySQL query cache mutex is above
+Thus, the 'rank' in sync0mutex.h of the MySQL query cache mutex is above
 the InnoDB trx_sys->mutex.
 @return TRUE if permitted, FALSE if not; note that the value FALSE
 does not mean we should invalidate the query cache: invalidation is
@@ -2378,7 +2374,7 @@ innobase_query_caching_of_table_permitted(
 		return((my_bool)FALSE);
 	}
 
-	if (UNIV_UNLIKELY(trx->has_search_latch)) {
+	if (trx->has_search_latch) {
 		sql_print_error("The calling thread is holding the adaptive "
 				"search, latch though calling "
 				"innobase_query_caching_of_table_permitted.");
@@ -2461,7 +2457,7 @@ innobase_invalidate_query_cache(
 	ulint		full_name_len)	/*!< in: full name length where
 					also the null chars count */
 {
-	/* Note that the sync0sync.h rank of the query cache mutex is just
+	/* Note that the sync0mutex.h rank of the query cache mutex is just
 	above the InnoDB trx_sys_t->lock. The caller of this function must
 	not have latches of a lower rank. */
 
@@ -12288,6 +12284,8 @@ innodb_mutex_show_status(
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
+	// FIXME
+#if 0
 	mutex_enter(&mutex_list_mutex);
 
 	for (mutex = UT_LIST_GET_FIRST(mutex_list); mutex != NULL;
@@ -12335,6 +12333,7 @@ innodb_mutex_show_status(
 	}
 
 	mutex_exit(&mutex_list_mutex);
+#endif // FIXME
 
 	mutex_enter(&rw_lock_list_mutex);
 
