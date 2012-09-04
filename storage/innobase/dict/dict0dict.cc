@@ -71,6 +71,8 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "ut0ut.h" /* ut_format_name() */
 #include "m_string.h"
 #include "my_sys.h"
+#include "mysqld.h" /* system_charset_info */
+#include "strfunc.h" /* strconvert() */
 
 #include <ctype.h>
 
@@ -5910,6 +5912,71 @@ dict_table_schema_check(
 	return(DB_SUCCESS);
 }
 /* @} */
+
+/*********************************************************************//**
+Converts a database and table name from filesystem encoding
+(e.g. d@i1b/a@q1b@1Kc, same format as used in dict_table_t::name) in two
+strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
+at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
+UNIV_INTERN
+void
+dict_fs2utf8(
+/*=========*/
+	const char*	db_and_table,	/*!< in: database and table names,
+					e.g. d@i1b/a@q1b@1Kc */
+	char*		db_utf8,	/*!< out: database name, e.g. dцb */
+	size_t		db_utf8_size,	/*!< in: dbname_utf8 size */
+	char*		table_utf8,	/*!< out: table name, e.g. aюbØc */
+	size_t		table_utf8_size)/*!< in: table_utf8 size */
+{
+	char	db[MAX_DATABASE_NAME_LEN + 1];
+	ulint	db_len;
+	uint	errors;
+
+	db_len = dict_get_db_name_len(db_and_table);
+
+	ut_a(db_len <= sizeof(db));
+
+	memcpy(db, db_and_table, db_len);
+	db[db_len] = '\0';
+
+	strconvert(
+		&my_charset_filename, db,
+		system_charset_info, db_utf8, db_utf8_size,
+		&errors);
+
+	/* convert each # to @0023 in table name and store the result in buf */
+	const char*	table = dict_remove_db_name(db_and_table);
+	const char*	table_p;
+	char		buf[MAX_TABLE_NAME_LEN * 5 + 1];
+	char*		buf_p;
+	for (table_p = table, buf_p = buf; table_p[0] != '\0'; table_p++) {
+		if (table_p[0] != '#') {
+			buf_p[0] = table_p[0];
+			buf_p++;
+		} else {
+			buf_p[0] = '@';
+			buf_p[1] = '0';
+			buf_p[2] = '0';
+			buf_p[3] = '2';
+			buf_p[4] = '3';
+			buf_p += 5;
+		}
+		ut_a((size_t) (buf_p - buf) < sizeof(buf));
+	}
+	buf_p[0] = '\0';
+
+	errors = 0;
+	strconvert(
+		&my_charset_filename, buf,
+		system_charset_info, table_utf8, table_utf8_size,
+		&errors);
+
+	if (errors != 0) {
+		ut_snprintf(table_utf8, table_utf8_size, "%s%s",
+			    srv_mysql50_table_name_prefix, table);
+	}
+}
 
 /**********************************************************************//**
 Closes the data dictionary module. */
