@@ -3848,7 +3848,11 @@ rollback_inplace_alter_table(
 
 		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
 
+		/* Free the table->fts only if there is no FTS_DOC_ID
+		in the table */
 		if (prebuilt->table->fts
+		    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
+					     DICT_TF2_FTS_HAS_DOC_ID)
 		    && !innobase_fulltext_exist(table_share)) {
 			fts_free(prebuilt->table);
 		}
