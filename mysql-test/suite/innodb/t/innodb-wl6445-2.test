@@ -82,20 +82,52 @@ FLUSH TABLES t1;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
 
+#------------------------------------------------------------------------------
+# Testcase covers
+# a) Create table/data , 
+# b) remove write permission of ibdata , ib_logfile0  
+# c) try to restart server without --innodb-read-only mode 
+#------------------------------------------------------------------------------
+#  Note : write permission is already removed in previous case so we just
+#         start server without --innodb-read-only option
+# Write file to make mysql-test-run.pl expect the "crash", but don't start
+# it until it's told to
+# We let our server restart attempts write to the file $error_log.
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+--error 0,1
+--remove_file $error_log
+# $error_log has to be processed by include/search_pattern_in_file.inc which
+# contains Perl code requiring that the environment variable SEARCH_FILE points
+# to this file.
+let SEARCH_FILE= $error_log;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--echo #    Try to restart the server without --innodb-read-only after removing
+--echo #    write permissions of system tablespace. Server should not start.
+--echo #    This confirms server is not automatically started in read-only mode.
+#----------------------------------------------------------------------------------
+# Detailed explanations of what happens are placed nearby the checks.
+--error 1
+--exec $MYSQLD_CMD --loose-console > $error_log 2>&1
+
+# We get depending on the platform either "./ibdata1" or ".\ibdata1".
+let SEARCH_PATTERN=InnoDB: The system tablespace must be writable;
+--source include/search_pattern_in_file.inc
+
 
 #------------------------------------------------------------------------------
 #clenaup
 #------------------------------------------------------------------------------
 #
-# Write file to make mysql-test-run.pl expect the "crash", but don't start
-# it until it's told to
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
---source include/wait_until_disconnected.inc
 # Do something while server is down
 --exec chmod 0644 $MYSQLD_DATADIR/ibdata1
 --exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
 --exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
+--error 0,1
+--remove_file $error_log
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
