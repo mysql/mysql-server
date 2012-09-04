@@ -268,8 +268,10 @@ static LF_SLIST *lsearch(LF_SLIST * volatile *head, CHARSET_INFO *cs,
   int res= lfind(head, cs, hashnr, key, keylen, &cursor, pins);
   if (res)
     _lf_pin(pins, 2, cursor.curr);
-  _lf_unpin(pins, 0);
+  else
+    _lf_unpin(pins, 2);
   _lf_unpin(pins, 1);
+  _lf_unpin(pins, 0);
   return res ? cursor.curr : 0;
 }
 
