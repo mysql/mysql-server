@@ -47,6 +47,11 @@ t2.run = function() {
 
   function onList(err, table_list) {
     udebug.log("DBDictionaryTest onList");
+    if (err) {
+      t1.fail(err);
+      t2.fail(err);
+      return;
+    }
     var count = 0;
 
     function countTables(tableName) {
@@ -57,7 +62,6 @@ t2.run = function() {
     
     udebug.log("DBDictionaryTest onList count = " + count);
 
-    t1.errorIfNotEqual("Error return", err, undefined);
     t1.errorIfNotEqual("Bad table count", count, 2);
     t1.failOnError();
 
