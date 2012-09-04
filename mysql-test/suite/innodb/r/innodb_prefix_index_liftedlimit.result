@@ -676,7 +676,7 @@ CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8',
 col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,
 PRIMARY KEY (col_1_varchar(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
-ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE worklog5743 (
 col_1_varbinary VARBINARY (4000) ,
 col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8',
