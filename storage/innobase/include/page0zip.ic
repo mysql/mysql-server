@@ -32,6 +32,7 @@ Created June 2005 by Marko Makela
 #include "page0zip.h"
 #include "mtr0log.h"
 #include "page0page.h"
+#include "srv0srv.h"
 
 /* The format of compressed pages is as follows.
 
@@ -441,6 +442,23 @@ page_zip_parse_compress_no_data(
 	}
 
 	return(ptr + 1);
+}
+
+/**********************************************************************//**
+Reset the counters used for filling
+INFORMATION_SCHEMA.innodb_cmp_per_index. */
+UNIV_INLINE
+void
+page_zip_reset_stat_per_index()
+/*===========================*/
+{
+	mutex_enter(&page_zip_stat_per_index_mutex);
+
+	page_zip_stat_per_index.erase(
+		page_zip_stat_per_index.begin(),
+		page_zip_stat_per_index.end());
+
+	mutex_exit(&page_zip_stat_per_index_mutex);
 }
 
 #ifdef UNIV_MATERIALIZE

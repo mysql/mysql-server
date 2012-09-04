@@ -319,6 +319,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
 #  endif /* UNIV_MEM_DEBUG */
 	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
+	{&page_zip_stat_per_index_mutex_key, "page_zip_stat_per_index_mutex", 0},
 	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
 	{&recalc_pool_mutex_key, "recalc_pool_mutex"},
 	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
@@ -465,7 +466,9 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_tuple_get_n_user_cols,
 	(ib_cb_t) ib_cursor_set_lock_mode,
 	(ib_cb_t) ib_cursor_clear_trx,
-	(ib_cb_t) ib_get_idx_field_name
+	(ib_cb_t) ib_get_idx_field_name,
+	(ib_cb_t) ib_trx_get_start_time,
+	(ib_cb_t) ib_cfg_bk_commit_interval
 };
 
 /*************************************************************//**
@@ -1415,11 +1418,22 @@ convert_error_code_to_mysql(
 	case DB_TABLESPACE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
-	case DB_TOO_BIG_RECORD:
-		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(flags
-						      & DICT_TF_COMPACT) / 2);
+	case DB_TOO_BIG_RECORD: {
+		/* If prefix is true then a 768-byte prefix is stored
+		locally for BLOB fields. Refer to dict_table_get_format() */
+		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
+		my_printf_error(ER_TOO_BIG_ROWSIZE,
+			"Row size too large (> %lu). Changing some columns "
+			"to TEXT or BLOB %smay help. In current row "
+			"format, BLOB prefix of %d bytes is stored inline.",
+			MYF(0),
+			page_get_free_space_of_empty(flags &
+				DICT_TF_COMPACT) / 2,
+			prefix ? "or using ROW_FORMAT=DYNAMIC "
+			"or ROW_FORMAT=COMPRESSED ": "",
+			prefix ? DICT_MAX_FIXED_COL_LEN : 0);
 		return(HA_ERR_TO_BIG_ROW);
+	}
 
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
@@ -1936,7 +1950,10 @@ innobase_next_autoinc(
 	}
 
 	/* Check for overflow. Current can be > max_value if the value is
-	in reality a negative value. */
+	in reality a negative value.The visual studio compilers converts
+	large double values automatically into unsigned long long datatype
+	maximum value */
+
 	if (block >= max_value
 	    || offset > max_value
 	    || current >= max_value
@@ -3083,7 +3100,9 @@ innobase_change_buffering_inited_ok:
 		innobase_buffer_pool_instances = 8;
 #ifdef _WIN32
 		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
-			innobase_buffer_pool_instances = innobase_buffer_pool_size / (128 * 1024 * 1024);
+			innobase_buffer_pool_instances
+				= (long) (innobase_buffer_pool_size
+				/ (128 * 1024 * 1024));
 		}
 #endif
 }
@@ -14100,6 +14119,30 @@ innodb_adaptive_hash_index_update(
 }
 
 /****************************************************************//**
+Update the system variable innodb_cmp_per_index using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_cmp_per_index_update(
+/*========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* Reset the stats whenever we enable the table
+	INFORMATION_SCHEMA.innodb_cmp_per_index. */
+	if (!srv_cmp_per_index_enabled && *(my_bool*) save) {
+		page_zip_reset_stat_per_index();
+	}
+
+	srv_cmp_per_index_enabled = !!(*(my_bool*) save);
+}
+
+/****************************************************************//**
 Update the system variable innodb_old_blocks_pct using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
@@ -15195,7 +15238,7 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
     "magic number when reading; "
   "Files updated when this option is set to crc32 or strict_crc32 will "
   "not be readable by MySQL versions older than 5.6.3",
-  NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
+  NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
@@ -15799,11 +15842,19 @@ static MYSQL_SYSVAR_BOOL(api_disable_rowlock, ib_disable_row_lock,
 
 static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use.",
+  "InnoDB API transaction isolation level",
   NULL, NULL,
   0,		/* Default setting */
   0,		/* Minimum value */
   3, 0);	/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(api_bk_commit_interval, ib_bk_commit_interval,
+  PLUGIN_VAR_OPCMDARG,
+  "Background commit interval in seconds",
+  NULL, NULL,
+  5,		/* Default setting */
+  1,		/* Minimum value */
+  1024 * 1024 * 1024, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
@@ -15893,6 +15944,12 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   " to make the page compressible.",
   NULL, NULL, 50, 0, 75, 0);
 
+static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable INFORMATION_SCHEMA.innodb_cmp_per_index, "
+  "may have negative impact on performance (off by default)",
+  NULL, innodb_cmp_per_index_update, FALSE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -15903,6 +15960,7 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(api_trx_level),
+  MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
@@ -16026,6 +16084,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
@@ -16062,6 +16121,8 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
+i_s_innodb_cmp_per_index,
+i_s_innodb_cmp_per_index_reset,
 i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
@@ -16120,7 +16181,7 @@ innobase_undo_logs_init_default_max()
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-typedef struct innobase_convert_name_test_struct {
+struct innobase_convert_name_test_t {
 	char*		buf;
 	ulint		buflen;
 	const char*	id;
@@ -16129,7 +16190,7 @@ typedef struct innobase_convert_name_test_struct {
 	ibool		file_id;
 
 	const char*	expected;
-} innobase_convert_name_test_t;
+};
 
 void
 test_innobase_convert_name()
@@ -16317,7 +16378,7 @@ innobase_index_cond(
 	DBUG_ASSERT(h->pushed_idx_cond);
 	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
 
-	if (h->end_range && h->compare_key2(h->end_range) > 0) {
+	if (h->end_range && h->compare_key_icp(h->end_range) > 0) {
 
 		/* caller should return HA_ERR_END_OF_FILE already */
 		DBUG_RETURN(ICP_OUT_OF_RANGE);

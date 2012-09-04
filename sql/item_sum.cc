@@ -747,7 +747,7 @@ bool Aggregator_distinct::setup(THD *thd)
     }
     if (always_null)
       return FALSE;
-    count_field_types(select_lex, tmp_table_param, list, 0);
+    count_field_types(select_lex, tmp_table_param, list, false, false);
     tmp_table_param->force_copy_fields= item_sum->has_force_copy_fields();
     DBUG_ASSERT(table == 0);
     /*
@@ -3400,7 +3400,7 @@ bool Item_func_group_concat::setup(THD *thd)
                   context->table_list, list, all_fields, *order))
     DBUG_RETURN(TRUE);
 
-  count_field_types(select_lex, tmp_table_param, all_fields, 0);
+  count_field_types(select_lex, tmp_table_param, all_fields, false, true);
   tmp_table_param->force_copy_fields= force_copy_fields;
   DBUG_ASSERT(table == 0);
   if (order_or_distinct)

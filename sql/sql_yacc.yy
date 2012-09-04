@@ -989,10 +989,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 162 shift/reduce conflicts.
+  Currently there are 161 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 162
+%expect 161
 
 /*
    Comments for TOKENS.
@@ -7771,7 +7771,7 @@ alter_list_item:
             lex->alter_info.drop_list.push_back(ad);
             lex->alter_info.flags|= Alter_info::ALTER_DROP_COLUMN;
           }
-        | DROP FOREIGN KEY_SYM opt_ident
+        | DROP FOREIGN KEY_SYM field_ident
           {
             LEX *lex=Lex;
             Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4.str);
@@ -12432,9 +12432,19 @@ show_param:
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
         | PROFILES_SYM
-          { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "SHOW PROFILES", "Performance Schema");
+            Lex->sql_command = SQLCOM_SHOW_PROFILES;
+          }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
-          { 
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "SHOW PROFILE", "Performance Schema");
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_PROFILE;
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)

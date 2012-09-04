@@ -67,10 +67,7 @@ Created 9/17/2000 Heikki Tuuri
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
 
 /** Chain node of the list of tables to drop in the background. */
-typedef struct row_mysql_drop_struct	row_mysql_drop_t;
-
-/** Chain node of the list of tables to drop in the background. */
-struct row_mysql_drop_struct{
+struct row_mysql_drop_t{
 	char*				table_name;	/*!< table name */
 	UT_LIST_NODE_T(row_mysql_drop_t)row_mysql_drop_list;
 							/*!< list chain node */
@@ -1945,6 +1942,8 @@ row_update_cascade_for_mysql(
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
+
+	DEBUG_SYNC_C("foreign_constraint_update_cascade");
 
 	row_upd_step(thr);
 

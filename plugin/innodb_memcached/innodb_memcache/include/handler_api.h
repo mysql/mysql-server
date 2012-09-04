@@ -67,14 +67,32 @@ Wrapper of function binlog_log_row() to binlog an operation on a row */
 void
 handler_binlog_row(
 /*===============*/
+	void*		my_thd,		/*!< in: THD* */
 	void*		my_table,	/*!< in: Table metadata */
 	int		mode);		/*!< in: type of DML */
 
 /**********************************************************************//**
-Flush binlog from cache to binlog file */
+This is used to temporarily switch to another session, so that
+POSIX thread looks like session attached to */
 void
-handler_binlog_flush(
-/*=================*/
+handler_thd_attach(
+/*===============*/
+	void*	my_thd,			/*!< in: THD* */
+	void**	original_thd);		/*!< out: the current THD */
+
+/**********************************************************************//**
+Commit and flush binlog from cache to binlog file */
+void
+handler_binlog_commit(
+/*==================*/
+	void*		my_thd,		/*!< in: THD* */
+	void*		my_table);	/*!< in: TABLE structure */
+
+/**********************************************************************//**
+Rollback a transaction */
+void
+handler_binlog_rollback(
+/*====================*/
 	void*		my_thd,		/*!< in: THD* */
 	void*		my_table);	/*!< in: TABLE structure */
 

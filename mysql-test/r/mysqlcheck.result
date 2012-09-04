@@ -13,7 +13,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.host                                         OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
@@ -46,7 +45,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.host                                         OK
 mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK
@@ -87,7 +85,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.host                                         OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
@@ -118,7 +115,6 @@ mysql.help_category                                Table is already up to date
 mysql.help_keyword                                 Table is already up to date
 mysql.help_relation                                Table is already up to date
 mysql.help_topic                                   Table is already up to date
-mysql.host                                         Table is already up to date
 mysql.innodb_index_stats
 note     : Table does not support optimize, doing recreate + analyze instead
 status   : OK

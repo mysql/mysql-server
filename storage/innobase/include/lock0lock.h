@@ -855,9 +855,7 @@ lock_table_get_n_locks(
 /* @} */
 
 /** Lock operation struct */
-typedef struct lock_op_struct	lock_op_t;
-/** Lock operation struct */
-struct lock_op_struct{
+struct lock_op_t{
 	dict_table_t*	table;	/*!< table to be locked */
 	enum lock_mode	mode;	/*!< lock mode */
 };
@@ -865,7 +863,7 @@ struct lock_op_struct{
 typedef Mutex LockMutex;
 
 /** The lock system struct */
-struct lock_sys_struct{
+struct lock_sys_t{
 	LockMutex	mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record

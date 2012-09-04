@@ -2,8 +2,10 @@
 
 # Verify that the protocol isn't violated if we ask for profiling info
 # before profiling has recorded anything.
+--disable_warnings
 show profiles;
 show profile all;
+--enable_warnings
 
 # default is OFF
 show session variables like 'profil%';
@@ -57,8 +59,10 @@ select max(x) from (select sum(a) as x from t1 group by b) as teeone;
 select '012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890012345678900123456789001234567890' as big_string;
 
 --enable_result_log
+--disable_warnings
 --replace_column 2 #
 show profiles;
+--enable_warnings
 
 --disable_result_log
 ###--replace_column 2 # 3 # 4 #
@@ -111,6 +115,7 @@ insert into t1 values (1), (2), (3);
 insert into t2 values (1), (2), (3);
 insert into t3 values (1), (2), (3);
 
+--disable_warnings
 --replace_column 2 #
 show profiles;
 
@@ -132,6 +137,7 @@ set session profiling = OFF;
 select sum(id) from t1;
 --replace_column 2 #
 show profiles;
+--enable_warnings
 
 ##  Verify that the various juggling of THD contexts doesn't affect profiling.
 
@@ -151,7 +157,6 @@ create table profile_log (how_many int);
 drop procedure if exists p1;
 drop procedure if exists p2;
 drop procedure if exists p3;
---enable_warnings
 
 delimiter //;
 create procedure p1 () 
@@ -176,6 +181,7 @@ begin
   show profile; 
 end//
 delimiter ;//
+--enable_warnings
 
 --disable_result_log
 --echo first call to p1
