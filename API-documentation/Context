@@ -50,7 +50,6 @@
    * @param callback function to be called when operation has completed,with parameters:
    * err: the node.js Error object)
    * instance: the domain model object or null if not found
-   * context: the context (either the Session or Batch object)
    * @return undefined
    */
   find(Object mapping, Object keys, Function(Object error, Object instance[, ...]) callback[, ...]);
@@ -72,7 +71,6 @@
    * @param callback function to be called when operation has completed,with parameters:
    * err: the node.js Error object)
    * instance: the domain model object
-   * context: the context (either the Session or Batch object)
    * @return undefined
    */
   load(Object instance, Function(Object error, Object instance[, ...]) callback[, ...]);
@@ -89,7 +87,6 @@
    * @param callback function to be called when operation has completed,with parameters:
    * err: the node.js Error object)
    * instance: the domain model object
-   * context: the context (either the Session or Batch object)
    * @return undefined
    * 
    */
@@ -104,7 +101,6 @@
    * @param callback function to be called when operation has completed,with parameters:
    * err: the node.js Error object)
    * instance: the domain model object
-   * context: the context (either the Session or Batch object)
    * @return undefined
    */
   remove(Object instance, Function(Object error[, ...]) callback[, ...]);
@@ -119,7 +115,6 @@
    * @param callback function to be called when operation has completed,with parameters:
    * err: the node.js Error object)
    * instance: the domain model object
-   * context: the context (either the Session or Batch object)
    * @return undefined
    */
   update(Object instance, Function(Object error[, ...]) callback[, ...]);
@@ -133,7 +128,6 @@
    * @param callback function to be called when operation has completed,with parameters:
    * err: the node.js Error object)
    * instance: the domain model object
-   * context: the context (either the Session or Batch object)
    * @return undefined
    */
   save(Object instance, Function(Object error[, ...]) callback[, ...]);
