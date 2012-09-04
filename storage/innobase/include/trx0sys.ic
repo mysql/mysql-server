@@ -245,7 +245,7 @@ trx_get_rw_trx_by_id(
 	ulint		len;
 	trx_t*		first;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	len = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
@@ -308,7 +308,7 @@ trx_rw_min_trx_id_low(void)
 	trx_id_t	id;
 	const trx_t*	trx;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
 
@@ -384,7 +384,7 @@ trx_rw_is_active_low(
 {
 	trx_t*		trx;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	if (trx_id < trx_rw_min_trx_id_low()) {
 
@@ -445,7 +445,7 @@ trx_id_t
 trx_sys_get_new_trx_id(void)
 /*========================*/
 {
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -475,7 +475,7 @@ trx_sys_get_max_trx_id(void)
 	trx_id_t	max_trx_id;
 #endif
 
-	ut_ad(!trx_sys->mutex.is_owned());
+	ut_ad(!mutex_own(&trx_sys->mutex));
 
 #if UNIV_WORD_SIZE < DATA_TRX_ID_LEN
 	/* Avoid torn reads. */

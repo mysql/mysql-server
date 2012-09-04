@@ -23,23 +23,22 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
-#include <vector>
-using namespace std;
-
 #include "univ.i"
 
-#include "dict0dict.h" /* dict_table_open_on_id() */
-#include "dict0stats.h" /* DICT_STATS_RECALC_PERSISTENT */
+#include "dict0dict.h"
+#include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "dict0mem.h" /* dict_table_struct */
-#include "dict0types.h" /* table_id_t */
-#include "ha0storage.h" /* ha_storage_* */
-#include "os0thread.h" /* DECLARE_THREAD, os_thread_*, mysql_pfs_key_t */
-#include "os0sync.h" /* os_event_t, os_event_create() */
-#include "row0mysql.h" /* row_mysql_lock_data_dictionary() */
-#include "srv0srv.h" /* srv_dict_stats_thread_active */
-#include "srv0start.h" /* SRV_SHUTDOWN_NONE */
-#include "sync0sync.h" /* mutex_create() */
+#include "dict0mem.h"
+#include "dict0types.h"
+#include "ha0storage.h"
+#include "os0thread.h"
+#include "os0sync.h"
+#include "row0mysql.h"
+#include "srv0srv.h"
+#include "srv0start.h"
+#include "sync0mutex.h"
+
+#include <vector>
 
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
@@ -51,17 +50,18 @@ UNIV_INTERN os_event_t		dict_stats_event = NULL;
 
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
+
 #ifdef HAVE_PSI_INTERFACE
-static mysql_pfs_key_t		recalc_pool_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	recalc_pool_mutex_key;
 #endif /* HAVE_PSI_INTERFACE */
 
 /** The number of tables that can be added to "recalc_pool" before
 it is enlarged */
 #define RECALC_POOL_INITIAL_SLOTS	128
 
-/** The multitude of tables whose stats are to be automatically
-recalculated - an STL vector */
-typedef vector<table_id_t>	recalc_pool_t;
+/** The tables whose stats are to be automatically recalculated. */
+typedef std::vector<table_id_t>	recalc_pool_t;
+
 static recalc_pool_t		recalc_pool;
 
 typedef recalc_pool_t::iterator	recalc_pool_iterator_t;
@@ -238,8 +238,8 @@ dict_stats_thread_init()
 	   and dict_operation_lock (SYNC_DICT_OPERATION) have been locked
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
-	mutex_create(recalc_pool_mutex_key, &recalc_pool_mutex,
-		     SYNC_STATS_AUTO_RECALC);
+
+	mutex_create("recalc_pool", &recalc_pool_mutex);
 
 	dict_stats_recalc_pool_init();
 }

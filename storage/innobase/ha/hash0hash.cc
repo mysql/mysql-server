@@ -349,16 +349,12 @@ Creates a sync object array to protect a hash table.
 hash table. */
 UNIV_INTERN
 void
-hash_create_sync_obj_func(
-/*======================*/
+hash_create_sync_obj(
+/*=================*/
 	hash_table_t*		table,	/*!< in: hash table */
 	enum hash_table_sync_t	type,	/*!< in: HASH_TABLE_SYNC_MUTEX
 					or HASH_TABLE_SYNC_RW_LOCK */
-#ifdef UNIV_SYNC_DEBUG
-	ulint			sync_level,/*!< in: latching order level
-					of the mutexes: used in the
-					debug version */
-#endif /* UNIV_SYNC_DEBUG */
+	const char*		name,/*!< in: mutex/rw_lock name */
 	ulint			n_sync_obj)/*!< in: number of sync objects,
 					must be a power of 2 */
 {
@@ -377,22 +373,27 @@ hash_create_sync_obj_func(
 			mem_alloc(n_sync_obj * sizeof(ib_mutex_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
-			mutex_create(hash_table_mutex_key,
-			     table->sync_obj.mutexes + i, sync_level);
+			mutex_create(name, table->sync_obj.mutexes + i);
 		}
 
 		break;
 
-	case HASH_TABLE_SYNC_RW_LOCK:
+	case HASH_TABLE_SYNC_RW_LOCK: {
+
+		latch_level_t	level = sync_latch_get_level(name);
+
+		ut_a(level != SYNC_UNKNOWN);
+
 		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
 			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_rw_lock_key,
-			     table->sync_obj.rw_locks + i, sync_level);
+			     table->sync_obj.rw_locks + i, level);
 		}
 
 		break;
+	}
 
 	case HASH_TABLE_SYNC_NONE:
 		ut_error;

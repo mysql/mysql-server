@@ -27,8 +27,6 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0arr_h
 
 #include "univ.i"
-#include "ut0lst.h"
-#include "ut0mem.h"
 #include "os0thread.h"
 
 // Forward declarations
@@ -48,6 +46,7 @@ sync_array_reserve_cell(
 	const char*	file,	/*!< in: file where requested */
 	ulint		line,	/*!< in: line where requested */
 	ulint*		index); /*!< out: index of the reserved cell */
+
 /******************************************************************//**
 This function should be called when a thread starts to wait on
 a wait array cell. In the debug version this function checks
@@ -59,6 +58,7 @@ sync_array_wait_event(
 /*==================*/
 	sync_array_t*	arr,	/*!< in: wait array */
 	ulint		index);	 /*!< in: index of the reserved cell */
+
 /******************************************************************//**
 Frees the cell. NOTE! sync_array_wait_event frees the cell
 automatically! */
@@ -68,6 +68,7 @@ sync_array_free_cell(
 /*=================*/
 	sync_array_t*	arr,	/*!< in: wait array */
 	ulint		index);	/*!< in: index of the cell in array */
+
 /**********************************************************************//**
 Note that one of the wait objects was signalled. */
 UNIV_INTERN
@@ -83,6 +84,7 @@ UNIV_INTERN
 void
 sync_arr_wake_threads_if_sema_free();
 /*====================================*/
+
 /**********************************************************************//**
 Prints warnings of long semaphore waits to stderr.
 @return	TRUE if fatal semaphore wait threshold was exceeded */
@@ -93,6 +95,7 @@ sync_array_print_long_waits(
 	os_thread_id_t*	waiter,	/*!< out: longest waiting thread */
 	const void**	sema)	/*!< out: longest-waited-for semaphore */
 	__attribute__((nonnull));
+
 /********************************************************************//**
 Validates the integrity of the wait array. Checks
 that the number of reserved cells equals the count variable. */
@@ -101,6 +104,7 @@ void
 sync_array_validate(
 /*================*/
 	sync_array_t*	arr);	/*!< in: sync wait array */
+
 /**********************************************************************//**
 Prints info of the wait array. */
 UNIV_INTERN
@@ -116,6 +120,7 @@ void
 sync_array_init(
 /*============*/
 	ulint		n_threads);	/*!< in: Number of slots to create */
+
 /**********************************************************************//**
 Close sync array wait sub-system. */
 UNIV_INTERN
@@ -132,6 +137,6 @@ sync_array_get();
 
 #ifndef UNIV_NONINL
 #include "sync0arr.ic"
-#endif
+#endif /* UNIV_NOINL */
 
-#endif
+#endif /* sync0arr_h */

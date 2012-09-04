@@ -36,27 +36,12 @@ Created 2012/08/15 Sunny Bains
 #include "sync0mutex.ic"
 #endif /* UNIV_NOINL */
 
-#include "ut0rnd.h"
-#include "os0sync.h"
 #include "srv0srv.h"
-#include "os0thread.h"
 #include "ut0counter.h"
 
 /*
 	REASONS FOR IMPLEMENTING THE SPIN LOCK MUTEX
 	============================================
-
-Semaphore operations in operating systems are slow: Solaris on a 1993 Sparc
-takes 3 microseconds (us) for a lock-unlock pair and Windows NT on a 1995
-Pentium takes 20 microseconds for a lock-unlock pair. Therefore, we have to
-implement our own efficient spin lock mutex. Future operating systems may
-provide efficient spin locks, but we cannot count on that.
-
-Another reason for implementing a spin lock is that on multiprocessor systems
-it can be more efficient for a processor to run a loop waiting for the
-semaphore to be released than to switch to a different thread. A thread switch
-takes 25 us on both platforms mentioned above. See Gray and Reuter's book
-Transaction processing for background.
 
 How long should the spin loop last before suspending the thread? On a
 uniprocessor, spinning does not help at all, because if the thread owning the
@@ -166,183 +151,22 @@ Q.E.D. */
 
 /* Number of spin waits on mutexes: for performance monitoring */
 
+typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> mutex_counter_t;
+
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
-UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>
-						mutex_spin_round_count;
+UNIV_INTERN mutex_counter_t	mutex_spin_round_count;
 
 /** The number of mutex_spin_wait() calls.  Intended for
 performance monitoring. */
-UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>
-						mutex_spin_wait_count;
+UNIV_INTERN mutex_counter_t	mutex_spin_wait_count;
 
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
-UNIV_INTERN ib_counter_t<ib_int64_t, IB_N_SLOTS>
-						mutex_os_wait_count;
-
-/** The number of mutex_exit() calls. Intended for performance
-monitoring. */
-UNIV_INTERN ib_int64_t				mutex_exit_count;
+UNIV_INTERN mutex_counter_t	mutex_os_wait_count;
 
 /** Mutex protecting sync_thread_level_arrays */
-extern ib_mutex_t				sync_thread_mutex;
-
-/******************************************************************//**
-Creates, or rather, initializes a mutex object in a specified memory
-location (which must be appropriately aligned). The mutex is initialized
-in the reset state. Explicit freeing of the mutex with mutex_free is
-necessary only if the memory block containing it is freed. */
-UNIV_INTERN
-void
-mutex_create_func(
-/*==============*/
-	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
-#ifdef UNIV_DEBUG
-	const char*	cmutex_name,	/*!< in: mutex name */
-# ifdef UNIV_SYNC_DEBUG
-	ulint		level,		/*!< in: level */
-# endif /* UNIV_SYNC_DEBUG */
-#endif /* UNIV_DEBUG */
-	const char*	cfile_name,	/*!< in: file name where created */
-	ulint		cline)		/*!< in: file line where created */
-{
-#if defined(HAVE_ATOMIC_BUILTINS)
-	mutex_reset_lock_word(mutex);
-#else
-	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &mutex->os_fast_mutex);
-	mutex->lock_word = 0;
-#endif
-	mutex->event = os_event_create(NULL);
-	mutex_set_waiters(mutex, 0);
-#ifdef UNIV_DEBUG
-	mutex->magic_n = MUTEX_MAGIC_N;
-#endif /* UNIV_DEBUG */
-#ifdef UNIV_SYNC_DEBUG
-	mutex->line = 0;
-	mutex->file_name = "not yet reserved";
-	mutex->level = level;
-#endif /* UNIV_SYNC_DEBUG */
-	mutex->cfile_name = cfile_name;
-	mutex->cline = cline;
-	mutex->count_os_wait = 0;
-
-	/* Check that lock_word is aligned; this is important on Intel */
-	ut_ad(((ulint)(&(mutex->lock_word))) % 4 == 0);
-
-	/* NOTE! The very first mutexes are not put to the mutex list */
-
-	if ((mutex == &mutex_list_mutex)
-#ifdef UNIV_SYNC_DEBUG
-	    || (mutex == &sync_thread_mutex)
-#endif /* UNIV_SYNC_DEBUG */
-	    ) {
-
-		return;
-	}
-
-	mutex_enter(&mutex_list_mutex);
-
-	ut_ad(UT_LIST_GET_LEN(mutex_list) == 0
-	      || UT_LIST_GET_FIRST(mutex_list)->magic_n == MUTEX_MAGIC_N);
-
-	UT_LIST_ADD_FIRST(list, mutex_list, mutex);
-
-	mutex_exit(&mutex_list_mutex);
-}
-
-/******************************************************************//**
-NOTE! Use the corresponding macro mutex_free(), not directly this function!
-Calling this function is obligatory only if the memory buffer containing
-the mutex is freed. Removes a mutex object from the mutex list. The mutex
-is checked to be in the reset state. */
-UNIV_INTERN
-void
-mutex_free_func(
-/*============*/
-	ib_mutex_t*	mutex)	/*!< in: mutex */
-{
-	ut_ad(mutex_validate(mutex));
-	ut_a(mutex_get_lock_word(mutex) == 0);
-	ut_a(mutex_get_waiters(mutex) == 0);
-
-#ifdef UNIV_MEM_DEBUG
-	if (mutex == &mem_hash_mutex) {
-		ut_ad(UT_LIST_GET_LEN(mutex_list) == 1);
-		ut_ad(UT_LIST_GET_FIRST(mutex_list) == &mem_hash_mutex);
-		UT_LIST_REMOVE(list, mutex_list, mutex);
-		goto func_exit;
-	}
-#endif /* UNIV_MEM_DEBUG */
-
-	if (mutex != &mutex_list_mutex
-#ifdef UNIV_SYNC_DEBUG
-	    && mutex != &sync_thread_mutex
-#endif /* UNIV_SYNC_DEBUG */
-	    ) {
-
-		mutex_enter(&mutex_list_mutex);
-
-		ut_ad(!UT_LIST_GET_PREV(list, mutex)
-		      || UT_LIST_GET_PREV(list, mutex)->magic_n
-		      == MUTEX_MAGIC_N);
-		ut_ad(!UT_LIST_GET_NEXT(list, mutex)
-		      || UT_LIST_GET_NEXT(list, mutex)->magic_n
-		      == MUTEX_MAGIC_N);
-
-		UT_LIST_REMOVE(list, mutex_list, mutex);
-
-		mutex_exit(&mutex_list_mutex);
-	}
-
-	os_event_free(mutex->event);
-#ifdef UNIV_MEM_DEBUG
-func_exit:
-#endif /* UNIV_MEM_DEBUG */
-#if !defined(HAVE_ATOMIC_BUILTINS)
-	os_fast_mutex_free(&(mutex->os_fast_mutex));
-#endif
-	/* If we free the mutex protecting the mutex list (freeing is
-	not necessary), we have to reset the magic number AFTER removing
-	it from the list. */
-#ifdef UNIV_DEBUG
-	mutex->magic_n = 0;
-#endif /* UNIV_DEBUG */
-	return;
-}
-
-#ifdef UNIV_DEBUG
-/******************************************************************//**
-Checks that the mutex has been initialized.
-@return	TRUE */
-UNIV_INTERN
-ibool
-mutex_validate(
-/*===========*/
-	const ib_mutex_t*	mutex)	/*!< in: mutex */
-{
-	ut_a(mutex);
-	ut_a(mutex->magic_n == MUTEX_MAGIC_N);
-
-	return(TRUE);
-}
-
-/******************************************************************//**
-Checks that the current thread owns the mutex. Works only in the debug
-version.
-@return	TRUE if owns */
-UNIV_INTERN
-ibool
-mutex_own(
-/*======*/
-	const ib_mutex_t*	mutex)	/*!< in: mutex */
-{
-	ut_ad(mutex_validate(mutex));
-
-	return(mutex_get_lock_word(mutex) == 1
-	       && os_thread_eq(mutex->thread_id, os_thread_get_curr_id()));
-}
-#endif /* UNIV_DEBUG */
+extern ib_mutex_t		sync_thread_mutex;
 
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
@@ -353,6 +177,7 @@ mutex_list_print_info(
 /*==================*/
 	FILE*	file)		/*!< in: file where to print */
 {
+#if 0
 	ulint	count		= 0;
 
 	fprintf(stderr,
@@ -368,7 +193,7 @@ mutex_list_print_info(
 
 		++count;
 
-		if (mutex_get_lock_word(mutex) != 0) {
+		if (mutex_get_state(mutex) != MUTEX_STATE_UNLOCKED) {
 
 			ulint		line;
 			os_thread_id_t	thread_id;
@@ -388,40 +213,10 @@ mutex_list_print_info(
 	fprintf(file, "Total number of mutexes %ld\n", count);
 
 	mutex_exit(&mutex_list_mutex);
+#endif // FIXME
 }
 
-/******************************************************************//**
-Counts currently reserved mutexes. Works only in the debug version.
-@return	number of reserved mutexes */
-UNIV_INTERN
-ulint
-mutex_n_reserved()
-/*==============*/
-{
-	ulint	count	= 0;
-
-	mutex_enter(&mutex_list_mutex);
-
-	for (const ib_mutex_t* mutex = UT_LIST_GET_FIRST(mutex_list);
-	     mutex != NULL;
-	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
-
-		if (mutex_get_lock_word(mutex) != 0) {
-
-			++count;
-		}
-	}
-
-	mutex_exit(&mutex_list_mutex);
-
-	ut_a(count >= 1);
-
-	/* Subtract one, because this function itself was holding
-	one mutex (mutex_list_mutex) */
-
-	return(count - 1);
-}
-
+#if 0
 /******************************************************************//**
 Sets the debug information for a reserved mutex. */
 UNIV_INTERN
@@ -435,7 +230,7 @@ mutex_set_debug_info(
 	ut_ad(line > 0);
 	ut_ad(file_name);
 
-	sync_thread_add_level(mutex, mutex->level, FALSE);
+	sync_check_lock(mutex, mutex->level);
 
 	mutex->line = line;
 	mutex->file_name = file_name;
@@ -456,7 +251,10 @@ mutex_get_debug_info(
 	*file_name = mutex->file_name;
 	*thread_id = mutex->thread_id;
 }
+
 #endif /* UNIV_SYNC_DEBUG */
+
+#endif // FIXME
 
 /******************************************************************//**
 @return total number of spin rounds since startup. */
@@ -487,3 +285,4 @@ mutex_os_wait_count_get()
 {
 	return(mutex_os_wait_count);
 }
+

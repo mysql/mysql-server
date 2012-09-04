@@ -734,11 +734,9 @@ log_init(void)
 {
 	log_sys = static_cast<log_t*>(mem_alloc(sizeof(log_t)));
 
-	mutex_create(log_sys_mutex_key, &log_sys->mutex, SYNC_LOG);
+	mutex_create("log_sys", &log_sys->mutex);
 
-	mutex_create(log_flush_order_mutex_key,
-		     &log_sys->log_flush_order_mutex,
-		     SYNC_LOG_FLUSH_ORDER);
+	mutex_create("log_flush_order", &log_sys->log_flush_order_mutex);
 
 	mutex_enter(&(log_sys->mutex));
 

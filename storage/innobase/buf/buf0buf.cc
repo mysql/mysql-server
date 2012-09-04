@@ -972,13 +972,8 @@ buf_block_init(
 	since buffer block mutex/rwlock will be registered later in
 	pfs_register_buffer_block() */
 
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	policy(SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
-#else
-	CheckedPolicy	policy(SYNC_BUF_BLOCK);
-#endif /* UNIV_PFS_MUTEX */
-
-	new(&block->mutex) BPageMutex(policy);
+	// FIXME: HANDLE PFS_NOT_INSTRUMENTED
+	mutex_create("buf_block_mutex", &block->mutex);
 
 	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
 
@@ -990,13 +985,7 @@ buf_block_init(
 
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	policy(SYNC_BUF_BLOCK, buffer_block_mutex_key);
-#else
-	CheckedPolicy	policy(SYNC_BUF_BLOCK);
-#endif /* UNIV_PFS_MUTEX */
-
-	new(&block->mutex) BPageMutex(policy);
+	mutex_create("buf_block_mutex", &block->mutex);
 
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
 
@@ -1238,16 +1227,9 @@ buf_pool_init_instance(
 
 	/* 1. Initialize general fields
 	------------------------------- */
-	mutex_create(buf_pool_mutex_key,
-		     &buf_pool->mutex, SYNC_BUF_POOL);
+	mutex_create("buf_pool", &buf_pool->mutex);
 
-#ifdef UNIV_PFS_MUTEX
-	CheckedPolicy	policy(SYNC_BUF_BLOCK, buf_pool_zip_mutex_key);
-#else
-	CheckedPolicy	policy(SYNC_BUF_BLOCK);
-#endif /* UNIV_PFS_MUTEX */
-
-	new(&buf_pool->zip_mutex) BPageMutex(policy);
+	mutex_create("buf_pool_zip", &buf_pool->zip_mutex);
 
 	buf_pool_mutex_enter(buf_pool);
 
@@ -1280,10 +1262,9 @@ buf_pool_init_instance(
 		ut_a(srv_n_page_hash_locks != 0);
 		ut_a(srv_n_page_hash_locks <= MAX_PAGE_HASH_LOCKS);
 
-		buf_pool->page_hash = ha_create(2 * buf_pool->curr_size,
-						srv_n_page_hash_locks,
-						MEM_HEAP_FOR_PAGE_HASH,
-						SYNC_BUF_PAGE_HASH);
+		buf_pool->page_hash = ha_create(
+			2 * buf_pool->curr_size, "hash_table_rw_lock",
+			srv_n_page_hash_locks, MEM_HEAP_FOR_PAGE_HASH);
 
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
@@ -1292,8 +1273,7 @@ buf_pool_init_instance(
 	/* 2. Initialize flushing fields
 	-------------------------------- */
 
-	mutex_create(flush_list_mutex_key, &buf_pool->flush_list_mutex,
-		     SYNC_BUF_FLUSH_LIST);
+	mutex_create("flush_list", &buf_pool->flush_list_mutex);
 
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
 		buf_pool->no_flush[i] = os_event_create(NULL);
@@ -1483,7 +1463,7 @@ buf_relocate(
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_hash_lock_held_x(buf_pool, bpage));
-	ut_ad(buf_page_get_mutex(bpage)->is_owned());
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
 	ut_ad(bpage->in_LRU_list);
@@ -1762,10 +1742,10 @@ buf_pool_watch_unset(
 	if (!buf_pool_watch_is_sentinel(buf_pool, bpage)) {
 		BPageMutex* block_mutex = buf_page_get_mutex(bpage);
 
-		block_mutex->enter();
+		mutex_enter(block_mutex);
 		ut_a(bpage->buf_fix_count > 0);
 		bpage->buf_fix_count--;
-		block_mutex->exit();
+		mutex_exit(block_mutex);
 	} else {
 		ut_a(bpage->buf_fix_count > 0);
 
@@ -1911,12 +1891,12 @@ buf_page_set_file_page_was_freed(
 	if (bpage) {
 		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
-		block_mutex->enter();
+		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
 		/* bpage->file_page_was_freed can already hold
 		when this code is invoked from dict_drop_index_tree() */
 		bpage->file_page_was_freed = TRUE;
-		block_mutex->exit();
+		mutex_exit(block_mutex);
 	}
 
 	return(bpage);
@@ -1944,10 +1924,10 @@ buf_page_reset_file_page_was_freed(
 	if (bpage) {
 		BPageMutex*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
-		block_mutex->enter();
+		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
 		bpage->file_page_was_freed = FALSE;
-		block_mutex->exit();
+		mutex_exit(block_mutex);
 	}
 
 	return(bpage);
@@ -2055,7 +2035,7 @@ err_exit:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		block_mutex = &buf_pool->zip_mutex;
-		block_mutex->enter();
+		mutex_enter(block_mutex);
 		bpage->buf_fix_count++;
 		goto got_block;
 	case BUF_BLOCK_FILE_PAGE:
@@ -2069,7 +2049,7 @@ err_exit:
 		}
 
 		block_mutex = &((buf_block_t*) bpage)->mutex;
-		block_mutex->enter();
+		mutex_enter(block_mutex);
 		buf_block_buf_fix_inc((buf_block_t*) bpage,
 				      __FILE__, __LINE__);
 		goto got_block;
@@ -2086,7 +2066,7 @@ got_block:
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(!bpage->file_page_was_freed);
 #endif
-	block_mutex->exit();
+	mutex_exit(block_mutex);
 
 	buf_page_set_accessed_make_young(bpage, access_time);
 
@@ -2103,9 +2083,9 @@ got_block:
 		for (;;) {
 			enum buf_io_fix	io_fix;
 
-			block_mutex->enter();
+			mutex_enter(block_mutex);
 			io_fix = buf_page_get_io_fix(bpage);
-			block_mutex->exit();
+			mutex_exit(block_mutex);
 
 			if (io_fix == BUF_IO_READ) {
 
@@ -2530,7 +2510,7 @@ loop:
 				acquire block_mutex to make sure that
 				no state change takes place. */
 				block_mutex = buf_page_get_mutex(&block->page);
-				block_mutex->enter();
+				mutex_enter(block_mutex);
 
 				/* Now safe to release page_hash mutex */
 				rw_lock_x_unlock(hash_lock);
@@ -2587,14 +2567,14 @@ loop:
 	/* We can release hash_lock after we acquire block_mutex to
 	make sure that no state change takes place. */
 	block_mutex = buf_page_get_mutex(&block->page);
-	block_mutex->enter();
+	mutex_enter(block_mutex);
 
 	/* Now safe to release page_hash mutex */
 	rw_lock_s_unlock(hash_lock);
 
 got_block:
 	ut_ad(page_zip_get_size(&block->page.zip) == zip_size);
-	ut_ad(block_mutex->is_owned());
+	ut_ad(mutex_own(block_mutex));
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
@@ -2604,7 +2584,7 @@ got_block:
 		/* The page is being read to buffer pool,
 		but we cannot wait around for the read to
 		complete. */
-		block_mutex->exit();
+		mutex_exit(block_mutex);
 
 		return(NULL);
 	}
@@ -2624,7 +2604,7 @@ got_block:
 			/* This condition often occurs when the buffer
 			is not buffer-fixed, but I/O-fixed by
 			buf_page_init_for_read(). */
-			block_mutex->exit();
+			mutex_exit(block_mutex);
 wait_until_unfixed:
 			/* The block is buffer-fixed or I/O-fixed.
 			Try again later. */
@@ -2634,7 +2614,7 @@ wait_until_unfixed:
 		}
 
 		/* Allocate an uncompressed page. */
-		block_mutex->exit();
+		mutex_exit(block_mutex);
 		block = buf_LRU_get_free_block(buf_pool);
 		ut_a(block);
 
@@ -2820,7 +2800,7 @@ wait_until_unfixed:
 				/* The page entered the buffer
 				pool for some reason. Try to
 				evict it again. */
-				block_mutex->enter();
+				mutex_enter(block_mutex);
 				rw_lock_x_unlock(hash_lock);
 
 				goto got_block;
@@ -3890,7 +3870,7 @@ buf_mark_space_corrupt(
 
 	/* First unfix and release lock on the bpage */
 	buf_pool_mutex_enter(buf_pool);
-	buf_page_get_mutex(bpage)->enter();
+	mutex_enter(buf_page_get_mutex(bpage));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
 	ut_ad(bpage->buf_fix_count == 0);
 
@@ -3903,7 +3883,7 @@ buf_mark_space_corrupt(
 			BUF_IO_READ);
 	}
 
-	buf_page_get_mutex(bpage)->exit();
+	mutex_exit(buf_page_get_mutex(bpage));
 
 	/* Find the table with specified space id, and mark it corrupted */
 	if (dict_set_corrupted_by_space(space)) {
@@ -4093,7 +4073,7 @@ corrupt:
 	}
 
 	buf_pool_mutex_enter(buf_pool);
-	buf_page_get_mutex(bpage)->enter();
+	mutex_enter(buf_page_get_mutex(bpage));
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	if (io_type == BUF_IO_WRITE || uncompressed) {
@@ -4157,7 +4137,7 @@ corrupt:
 	}
 #endif /* UNIV_DEBUG */
 
-	buf_page_get_mutex(bpage)->exit();
+	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
 
 	return(true);

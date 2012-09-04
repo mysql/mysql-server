@@ -193,7 +193,7 @@ trx_rseg_mem_create(
 	rseg->zip_size = zip_size;
 	rseg->page_no = page_no;
 
-	mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_RSEG);
+	mutex_create("rseg", &rseg->mutex);
 
 	/* const_cast<trx_rseg_t*>() because this function is
 	like a constructor.  */

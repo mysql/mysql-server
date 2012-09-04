@@ -24,7 +24,7 @@ Created 11/26/1995 Heikki Tuuri
 *******************************************************/
 
 #ifndef UNIV_HOTBACKUP
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "mach0data.h"

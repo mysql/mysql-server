@@ -167,20 +167,21 @@ btr_search_sys_create(
 	/* We allocate the search latch from dynamic memory:
 	see above at the global variable definition */
 
-	btr_search_latch_temp = (rw_lock_t*) mem_alloc(sizeof(rw_lock_t));
+	btr_search_latch_temp = reinterpret_cast<rw_lock_t*>(
+		mem_alloc(sizeof(rw_lock_t)));
 
-	rw_lock_create(btr_search_latch_key, &btr_search_latch,
-		       SYNC_SEARCH_SYS);
+	rw_lock_create(
+		btr_search_latch_key, &btr_search_latch, SYNC_SEARCH_SYS);
 
-	btr_search_sys = (btr_search_sys_t*)
-		mem_alloc(sizeof(btr_search_sys_t));
+	btr_search_sys = reinterpret_cast<btr_search_sys_t*>(
+		mem_alloc(sizeof(btr_search_sys_t)));
 
-	btr_search_sys->hash_index = ha_create(hash_size, 0,
-					MEM_HEAP_FOR_BTR_SEARCH, 0);
+	btr_search_sys->hash_index = ha_create(
+		hash_size, "hash_table_mutex", 0, MEM_HEAP_FOR_BTR_SEARCH);
+
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	btr_search_sys->hash_index->adaptive = TRUE;
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-
 }
 
 /*****************************************************************//**

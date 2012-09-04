@@ -37,8 +37,9 @@ Created 9/11/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0lst.h"
 #include "ut0counter.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "os0sync.h"
+#include "ib_mutex.h"
 
 /* The following undef is to prevent a name conflict with a macro
 in MySQL: */
@@ -96,56 +97,35 @@ of concurrent read locks before the rw_lock breaks. The current value of
 #define X_LOCK_DECR		0x00100000
 
 typedef struct rw_lock_struct		rw_lock_t;
+
 #ifdef UNIV_SYNC_DEBUG
 typedef struct rw_lock_debug_struct	rw_lock_debug_t;
 #endif /* UNIV_SYNC_DEBUG */
 
 typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
 
-extern rw_lock_list_t	rw_lock_list;
-extern ib_mutex_t		rw_lock_list_mutex;
+extern rw_lock_list_t			rw_lock_list;
+extern ib_mutex_t			rw_lock_list_mutex;
 
 #ifdef UNIV_SYNC_DEBUG
 /* The global mutex which protects debug info lists of all rw-locks.
 To modify the debug info list of an rw-lock, this mutex has to be
 
 acquired in addition to the mutex protecting the lock. */
-extern ib_mutex_t		rw_lock_debug_mutex;
-extern os_event_t	rw_lock_debug_event;	/*!< If deadlock detection does
-					not get immediately the mutex it
-					may wait for this event */
-extern ibool		rw_lock_debug_waiters;	/*!< This is set to TRUE, if
-					there may be waiters for the event */
+extern ib_mutex_t			rw_lock_debug_mutex;
+
+/** If deadlock detection does not get immediately the mutex it
+may wait for this event */
+
+extern os_event_t			rw_lock_debug_event;
+
+/*!< This is set to TRUE, if there may be waiters for the event */
+extern ibool				rw_lock_debug_waiters;
+
 #endif /* UNIV_SYNC_DEBUG */
 
 /** Counters for RW locks. */
 extern rw_lock_stats_t	rw_lock_stats;
-
-#ifdef UNIV_PFS_RWLOCK
-/* Following are rwlock keys used to register with MySQL
-performance schema */
-# ifdef UNIV_LOG_ARCHIVE
-extern	mysql_pfs_key_t	archive_lock_key;
-# endif /* UNIV_LOG_ARCHIVE */
-extern	mysql_pfs_key_t btr_search_latch_key;
-extern	mysql_pfs_key_t	buf_block_lock_key;
-# ifdef UNIV_SYNC_DEBUG
-extern	mysql_pfs_key_t	buf_block_debug_latch_key;
-# endif /* UNIV_SYNC_DEBUG */
-extern	mysql_pfs_key_t	dict_operation_lock_key;
-extern	mysql_pfs_key_t	checkpoint_lock_key;
-extern	mysql_pfs_key_t	fil_space_latch_key;
-extern	mysql_pfs_key_t	fts_cache_rw_lock_key;
-extern	mysql_pfs_key_t	fts_cache_init_rw_lock_key;
-extern	mysql_pfs_key_t	trx_i_s_cache_lock_key;
-extern	mysql_pfs_key_t	trx_purge_latch_key;
-extern	mysql_pfs_key_t	index_tree_rw_lock_key;
-extern	mysql_pfs_key_t	index_online_log_key;
-extern	mysql_pfs_key_t	dict_table_stats_latch_key;
-extern  mysql_pfs_key_t trx_sys_rw_lock_key;
-extern  mysql_pfs_key_t hash_table_rw_lock_key;
-#endif /* UNIV_PFS_RWLOCK */
-
 
 #ifndef UNIV_PFS_RWLOCK
 /******************************************************************//**
@@ -291,9 +271,7 @@ rw_lock_create_func(
 /*================*/
 	rw_lock_t*	lock,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
-# ifdef UNIV_SYNC_DEBUG
-	ulint		level,		/*!< in: level */
-# endif /* UNIV_SYNC_DEBUG */
+	latch_level_t	level,		/*!< in: level */
 	const char*	cmutex_name,	/*!< in: mutex name */
 #endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */
@@ -337,7 +315,7 @@ NOTE! Use the corresponding macro, not directly this function, except if
 you supply the file name and line number. Lock an rw-lock in shared mode
 for the current thread. If the rw-lock is locked in exclusive mode, or
 there is an exclusive lock request waiting, the function spins a preset
-time (controlled by SYNC_SPIN_ROUNDS), waiting for the lock, before
+time (controlled by srv_n_spin_wait_rounds), waiting for the lock, before
 suspending the thread. */
 UNIV_INLINE
 void
@@ -376,7 +354,7 @@ rw_lock_s_unlock_func(
 NOTE! Use the corresponding macro, not directly this function! Lock an
 rw-lock in exclusive mode for the current thread. If the rw-lock is locked
 in shared or exclusive mode, or there is an exclusive lock request waiting,
-the function spins a preset time (controlled by SYNC_SPIN_ROUNDS), waiting
+the function spins a preset time (controlled by srv_n_spin_wait_rounds), waiting
 for the lock, before suspending the thread. If the same thread has an x-lock
 on the rw-lock, locking succeed, with the following exception: if pass != 0,
 only a single x-lock may be taken on the lock. NOTE: If the same thread has
@@ -568,7 +546,12 @@ shared locks are allowed. To prevent starving of a writer blocked by
 readers, a writer may queue for x-lock by decrementing lock_word: no
 new readers will be let in while the thread waits for readers to
 exit. */
-struct rw_lock_struct {
+struct rw_lock_struct
+#ifdef UNIV_DEBUG
+	// FIXME: Get rid of this inheritance 
+	: public latch_t
+#endif /* UNIV_DEBUG */
+{
 	volatile lint	lock_word;
 				/*!< Holds the state of the lock. */
 	volatile ulint	waiters;/*!< 1: there are waiters */
@@ -593,7 +576,7 @@ struct rw_lock_struct {
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	ib_mutex_t	mutex;		/*!< The mutex protecting rw_lock_struct */
+	ib_mutex_t	mutex;	/*!< The mutex protecting rw_lock_t */
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	UT_LIST_NODE_T(rw_lock_t) list;
@@ -603,7 +586,7 @@ struct rw_lock_struct {
 	UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
 				/*!< In the debug version: pointer to the debug
 				info list of the lock */
-	ulint	level;		/*!< Level in the global latching order. */
+	latch_level_t	level;	/*!< Level in the global latching order. */
 #endif /* UNIV_SYNC_DEBUG */
 #ifdef UNIV_PFS_RWLOCK
 	struct PSI_rwlock *pfs_psi;/*!< The instrumentation hook */
@@ -625,7 +608,7 @@ struct rw_lock_struct {
 	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
 #ifdef UNIV_DEBUG
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
-/** Value of rw_lock_struct::magic_n */
+/** Value of rw_lock_t::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
 #endif /* UNIV_DEBUG */
 };
@@ -685,9 +668,7 @@ pfs_rw_lock_create_func(
 					performance schema */
 	rw_lock_t*	lock,		/*!< in: rw lock */
 #ifdef UNIV_DEBUG
-# ifdef UNIV_SYNC_DEBUG
-	ulint		level,		/*!< in: level */
-# endif /* UNIV_SYNC_DEBUG */
+	latch_level_t	level,		/*!< in: level */
 	const char*	cmutex_name,	/*!< in: mutex name */
 #endif /* UNIV_DEBUG */
 	const char*	cfile_name,	/*!< in: file name where created */

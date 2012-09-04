@@ -214,7 +214,7 @@ read_view_clone(
 	read_view_t*	clone;
 	read_view_t*	new_view;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* Allocate space for two views. */
 
@@ -253,7 +253,7 @@ read_view_add(
 	read_view_t*	elem;
 	read_view_t*	prev_elem;
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 	ut_ad(read_view_validate(view));
 
 	/* Find the correct slot for insertion. */
@@ -285,7 +285,7 @@ struct	CreateView {
 
 	void	operator()(const trx_t* trx)
 	{
-		ut_ad(trx_sys->mutex.is_owned());
+		ut_ad(mutex_own(&trx_sys->mutex));
 		ut_ad(trx->in_rw_trx_list);
 
 		/* trx->state cannot change from or to NOT_STARTED
@@ -336,7 +336,7 @@ read_view_open_now_low(
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	view = read_view_create_low(n_trx, heap);
 

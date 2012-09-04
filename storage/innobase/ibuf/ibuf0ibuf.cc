@@ -53,7 +53,7 @@ UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "row0upd.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "dict0boot.h"
 #include "fut0lst.h"
 #include "lock0lock.h"
@@ -524,15 +524,11 @@ ibuf_init_at_db_start(void)
 	ibuf->max_size = ((buf_pool_get_curr_size() / UNIV_PAGE_SIZE)
 			  * CHANGE_BUFFER_DEFAULT_SIZE) / 100;
 
-	mutex_create(ibuf_pessimistic_insert_mutex_key,
-		     &ibuf_pessimistic_insert_mutex,
-		     SYNC_IBUF_PESS_INSERT_MUTEX);
+	mutex_create("ibuf", &ibuf_mutex);
 
-	mutex_create(ibuf_mutex_key,
-		     &ibuf_mutex, SYNC_IBUF_MUTEX);
+	mutex_create("ibuf_bitmap", &ibuf_bitmap_mutex);
 
-	mutex_create(ibuf_bitmap_mutex_key,
-		     &ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
+	mutex_create("ibuf_pessimistic_insert", &ibuf_pessimistic_insert_mutex);
 
 	mtr_start(&mtr);
 

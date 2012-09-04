@@ -38,7 +38,7 @@ Created 2011/04/18 Sunny Bains
 *******************************************************/
 
 #include "srv0srv.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "trx0trx.h"
 
 #include "mysql/plugin.h"
@@ -467,9 +467,8 @@ retry:
 	release this thread */
 
 	ut_ad(!trx->has_search_latch);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+
 	trx->op_info = "waiting in InnoDB queue";
 
 	thd_wait_begin(trx->mysql_thd, THD_WAIT_USER_LOCK);
@@ -507,9 +506,7 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 
 #ifdef HAVE_ATOMIC_BUILTINS
 	srv_conc_enter_innodb_with_atomics(trx);
@@ -528,9 +525,7 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 
 	if (!srv_thread_concurrency) {
 
@@ -574,9 +569,7 @@ srv_conc_force_exit_innodb(
 	srv_conc_exit_innodb_without_atomics(trx);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
-#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
 }
 
 /*********************************************************************//**

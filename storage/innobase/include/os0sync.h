@@ -97,10 +97,10 @@ struct os_event_struct {
 /** Operating system mutex */
 typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
-typedef os_mutex_str_t*		os_ib_mutex_t;
+typedef os_mutex_str_t*		os_mutex_t;
 
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
-extern os_ib_mutex_t	os_sync_mutex;
+extern os_mutex_t	os_sync_mutex;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
@@ -210,7 +210,7 @@ Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
 @return	the mutex handle */
 UNIV_INTERN
-os_ib_mutex_t
+os_mutex_t
 os_mutex_create(void);
 /*=================*/
 /**********************************************************//**
@@ -219,21 +219,21 @@ UNIV_INTERN
 void
 os_mutex_enter(
 /*===========*/
-	os_ib_mutex_t	mutex);	/*!< in: mutex to acquire */
+	os_mutex_t	mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Releases ownership of a mutex. */
 UNIV_INTERN
 void
 os_mutex_exit(
 /*==========*/
-	os_ib_mutex_t	mutex);	/*!< in: mutex to release */
+	os_mutex_t	mutex);	/*!< in: mutex to release */
 /**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN
 void
 os_mutex_free(
 /*==========*/
-	os_ib_mutex_t	mutex);	/*!< in: mutex to free */
+	os_mutex_t	mutex);	/*!< in: mutex to free */
 /**********************************************************//**
 Acquires ownership of a fast mutex. Currently in Windows this is the same
 as os_fast_mutex_lock!
@@ -369,6 +369,13 @@ Atomic compare-and-swap and increment for InnoDB. */
 # endif
 
 /**********************************************************//**
+Returns old value,  ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+
+# define os_val_compare_and_swap_ulint(ptr, old_val, new_val) \
+	__sync_val_compare_and_swap(ptr, old_val, new_val)
+
+/**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
@@ -443,6 +450,13 @@ intrinsics and running on Solaris >= 10 use Solaris atomics */
 # include <atomic.h>
 
 /**********************************************************//**
+Returns old value, ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+
+# define os_val_compare_and_swap_ulint(ptr, old_val, new_val) \
+	(atomic_cas_ulong(ptr, old_val, new_val) == old_val)
+
+/**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
@@ -510,7 +524,7 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 # ifndef _WIN32
 #  define HAVE_ATOMIC_BUILTINS_64
-# endif
+# endif /* _WIN32 */
 
 /**********************************************************//**
 Atomic compare and exchange of signed integers (both 32 and 64 bit).
@@ -557,6 +571,13 @@ win_cmp_and_xchg_dword(
 	volatile DWORD*	ptr,		/*!< in/out: source/destination */
 	DWORD		new_val,	/*!< in: exchange value */
 	DWORD		old_val);	/*!< in: value to compare to */
+
+/**********************************************************//**
+Returns old value, ptr is pointer to target, old_val is value to
+compare to, new_val is the value to swap in. */
+
+# define os_val_compare_and_swap_ulint(ptr, old_val, new_val) \
+	win_cmp_and_xchg_ulint(ptr, new_val, old_val)
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -621,12 +642,34 @@ clobbered */
 # define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use InnoDB's own implementation"
 #endif
+
 #ifdef HAVE_ATOMIC_BUILTINS
-#define os_atomic_inc_ulint(m,v,d)	os_atomic_increment_ulint(v, d)
-#define os_atomic_dec_ulint(m,v,d)	os_atomic_decrement_ulint(v, d)
+# define os_atomic_inc_ulint(m,v,d)	os_atomic_increment_ulint(v, d)
+# define os_atomic_dec_ulint(m,v,d)	os_atomic_decrement_ulint(v, d)
+# define TAS(l, n)			os_atomic_test_and_set_ulint((l), (n))
+# define CAS(l, o, n)		os_val_compare_and_swap_ulint((l), (o), (n))
+
+/** The new syntax allows the following and we should use it when it
+is available on platforms that we support.
+
+	enum class mutex_state_t : lock_word_t { ... };
+*/
+
+/** Mutex states. */
+enum mute_state_t {
+	/** Mutex is free */
+	MUTEX_STATE_UNLOCKED = 0,
+
+	/* Mutex is acquired by some thread. */
+	MUTEX_STATE_LOCKED = 1,
+
+	/** Mutex is contended and there are threads waiting on the lock. */
+	MUTEX_STATE_WAITERS = 2
+};
+
 #else
-#define os_atomic_inc_ulint(m,v,d)	os_atomic_inc_ulint_func(m, v, d)
-#define os_atomic_dec_ulint(m,v,d)	os_atomic_dec_ulint_func(m, v, d)
+# define os_atomic_inc_ulint(m,v,d)	os_atomic_inc_ulint_func(m, v, d)
+# define os_atomic_dec_ulint(m,v,d)	os_atomic_dec_ulint_func(m, v, d)
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 /**********************************************************//**

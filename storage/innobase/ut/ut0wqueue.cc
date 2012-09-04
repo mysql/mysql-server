@@ -18,7 +18,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0list.h"
 #include "mem0mem.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "sync0mutex.h"
 #include "ut0wqueue.h"
 
@@ -48,7 +48,8 @@ ib_wqueue_create(void)
 
 	/* Function ib_wqueue_create() has not been used anywhere,
 	not necessary to instrument this mutex */
-	mutex_create(PFS_NOT_INSTRUMENTED, &wq->mutex, SYNC_WORK_QUEUE);
+
+	mutex_create("work_queue", &wq->mutex);
 
 	wq->items = ib_list_create();
 	wq->event = os_event_create(NULL);

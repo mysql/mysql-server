@@ -29,7 +29,7 @@ Created 5/12/1997 Heikki Tuuri
 #endif
 
 #include "srv0srv.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "ut0mem.h"
 #include "ut0lst.h"
 #include "ut0byte.h"
@@ -231,7 +231,7 @@ mem_pool_create(
 	pool->buf = static_cast<byte*>(ut_malloc_low(size, TRUE));
 	pool->size = size;
 
-	mutex_create(mem_pool_mutex_key, &pool->mutex, SYNC_MEM_POOL);
+	mutex_create("mem_pool", &pool->mutex);
 
 	/* Initialize the free lists */
 

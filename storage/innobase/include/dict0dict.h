@@ -44,7 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "row0types.h"
 
 #ifndef UNIV_HOTBACKUP
-# include "sync0sync.h"
+# include "sync0mutex.h"
 # include "sync0rw.h"
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */

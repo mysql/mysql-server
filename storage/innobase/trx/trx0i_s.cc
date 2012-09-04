@@ -51,7 +51,7 @@ Created July 17, 2007 Vasil Dimov
 #include "row0row.h"
 #include "srv0srv.h"
 #include "sync0rw.h"
-#include "sync0sync.h"
+#include "sync0mutex.h"
 #include "sync0types.h"
 #include "trx0i_s.h"
 #include "trx0sys.h"
@@ -1360,7 +1360,7 @@ fetch_data_into_cache(
 	trx_i_s_cache_t*	cache)	/*!< in/out: cache */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(trx_sys->mutex.is_owned());
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	trx_i_s_cache_clear(cache);
 
@@ -1440,8 +1440,7 @@ trx_i_s_cache_init(
 
 	cache->last_read = 0;
 
-	mutex_create(cache_last_read_mutex_key,
-		     &cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
+	mutex_create("cache_last_read", &cache->last_read_mutex);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));
