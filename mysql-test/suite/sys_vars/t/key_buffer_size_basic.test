@@ -69,10 +69,23 @@ SELECT @@global.key_buffer_size;
 
 --Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size = -1;
+SELECT @@global.key_buffer_size;
+
 --Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size = 4;
+SELECT @@global.key_buffer_size;
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = 10000.01;
+SELECT @@global.key_buffer_size;
+
+SET @@global.key_buffer_size = 4294967296;
+SELECT @@global.key_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = ' ';
+SELECT @@global.key_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = " ";
 SELECT @@global.key_buffer_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR

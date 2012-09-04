@@ -124,6 +124,9 @@ SELECT @@global.max_length_for_sort_data;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_length_for_sort_data = test;
 SELECT @@global.max_length_for_sort_data;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_length_for_sort_data = ' ';
+SELECT @@global.max_length_for_sort_data;
 
 SET @@session.max_length_for_sort_data = 8388610;
 SELECT @@session.max_length_for_sort_data;
@@ -139,6 +142,9 @@ SET @@session.max_length_for_sort_data = 10737418241;
 SELECT @@session.max_length_for_sort_data;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_length_for_sort_data = test;
+SELECT @@session.max_length_for_sort_data;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_length_for_sort_data = ' ';
 SELECT @@session.max_length_for_sort_data;
 
 

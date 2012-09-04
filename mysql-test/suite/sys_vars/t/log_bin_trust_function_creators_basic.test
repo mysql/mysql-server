@@ -1,4 +1,4 @@
-############## mysql-test\t\log_bin_trust_function_creators_basic.test ########
+ #############mysql-test\t\log_bin_trust_function_creators_basic.test ########
 #                                                                             #
 # Variable Name: log_bin_trust_function_creators                              #
 # Scope: GLOBAL | SESSION                                                     #
@@ -46,7 +46,6 @@ SELECT @start_global_value;
 SET @@global.log_bin_trust_function_creators = TRUE;
 SET @@global.log_bin_trust_function_creators = DEFAULT;
 SELECT @@global.log_bin_trust_function_creators;
-
 
 --echo '#--------------------FN_DYNVARS_063_02-------------------------#'
 ###############################################################################
@@ -111,7 +110,7 @@ SET @@global.log_bin_trust_function_creators = 65530.34;
 SET @@global.log_bin_trust_function_creators = test;
 
 --echo '#------------------FN_DYNVARS_063_06-----------------------#'
-###############################################################################
+##############################################################################
 #   Check if the value in GLOBAL & SESSION Tables matches value in variable   #
 ###############################################################################
 

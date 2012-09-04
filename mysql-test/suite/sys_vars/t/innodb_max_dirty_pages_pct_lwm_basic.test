@@ -95,11 +95,18 @@ SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 
 SET @@global.innodb_max_dirty_pages_pct_lwm = @pct_start_value + 1;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_dirty_pages_pct_lwm = 1.1;
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 
 SET @@global.innodb_max_dirty_pages_pct_lwm = 100;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
-
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_dirty_pages_pct_lwm = " ";
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_dirty_pages_pct_lwm = ' ';
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 #########################################################################

@@ -57,11 +57,26 @@ Warning	1210	Setting innodb_max_dirty_page_pct_lwm to 75
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
 75
+SET @@global.innodb_max_dirty_pages_pct_lwm = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+@@global.innodb_max_dirty_pages_pct_lwm
+75
 SET @@global.innodb_max_dirty_pages_pct_lwm = 100;
 Warnings:
 Warning	1292	Truncated incorrect innodb_max_dirty_pages_pct_lwm value: '100'
 Warning	1210	innodb_max_dirty_pages_pct_lwm cannot be set higher than innodb_max_dirty_pages_pct.
 Warning	1210	Setting innodb_max_dirty_page_pct_lwm to 75
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+@@global.innodb_max_dirty_pages_pct_lwm
+75
+SET @@global.innodb_max_dirty_pages_pct_lwm = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+@@global.innodb_max_dirty_pages_pct_lwm
+75
+SET @@global.innodb_max_dirty_pages_pct_lwm = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct_lwm'
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 @@global.innodb_max_dirty_pages_pct_lwm
 75

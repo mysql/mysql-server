@@ -85,6 +85,11 @@ ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 62
+SET @@global.optimizer_search_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+62
 SET @@session.optimizer_search_depth = 64;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '64'
@@ -106,6 +111,11 @@ SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 62
 SET @@session.optimizer_search_depth = test;
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+62
+SET @@session.optimizer_search_depth = ' ';
 ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth

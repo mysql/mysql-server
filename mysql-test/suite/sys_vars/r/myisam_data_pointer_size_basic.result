@@ -80,6 +80,11 @@ ERROR 42000: Incorrect argument type to variable 'myisam_data_pointer_size'
 SELECT @@global.myisam_data_pointer_size;
 @@global.myisam_data_pointer_size
 7
+SET @@global.myisam_data_pointer_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'myisam_data_pointer_size'
+SELECT @@global.myisam_data_pointer_size;
+@@global.myisam_data_pointer_size
+7
 '#------------------FN_DYNVARS_093_06-----------------------#'
 SET @@global.myisam_data_pointer_size = 3;
 SELECT @@global.myisam_data_pointer_size = VARIABLE_VALUE 

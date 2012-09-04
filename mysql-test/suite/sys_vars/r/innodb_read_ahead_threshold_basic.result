@@ -35,12 +35,26 @@ VARIABLE_NAME	VARIABLE_VALUE
 INNODB_READ_AHEAD_THRESHOLD	10
 set session innodb_read_ahead_threshold=1;
 ERROR HY000: Variable 'innodb_read_ahead_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_read_ahead_threshold=DEFAULT;
+select @@global.innodb_read_ahead_threshold;
+@@global.innodb_read_ahead_threshold
+56
 set global innodb_read_ahead_threshold=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_read_ahead_threshold'
 set global innodb_read_ahead_threshold=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_read_ahead_threshold'
 set global innodb_read_ahead_threshold="foo";
 ERROR 42000: Incorrect argument type to variable 'innodb_read_ahead_threshold'
+set global innodb_read_ahead_threshold=' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_read_ahead_threshold'
+select @@global.innodb_read_ahead_threshold;
+@@global.innodb_read_ahead_threshold
+56
+set global innodb_read_ahead_threshold=" ";
+ERROR 42000: Incorrect argument type to variable 'innodb_read_ahead_threshold'
+select @@global.innodb_read_ahead_threshold;
+@@global.innodb_read_ahead_threshold
+56
 set global innodb_read_ahead_threshold=-7;
 Warnings:
 Warning	1292	Truncated incorrect innodb_read_ahead_threshold value: '-7'
