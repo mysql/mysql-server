@@ -95,7 +95,7 @@ nolock_wrap(lf_dynarray_iterate, int,
 */
 
 #define LF_PINBOX_PINS 4
-#define LF_PURGATORY_SIZE 10
+#define LF_PURGATORY_SIZE 100
 
 typedef void lf_pinbox_free_func(void *, void *, void*);
 

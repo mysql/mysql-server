@@ -271,7 +271,7 @@ static int ptr_cmp(void **a, void **b)
 void _lf_pinbox_free(LF_PINS *pins, void *addr)
 {
   add_to_purgatory(pins, addr);
-  if (pins->purgatory_count % LF_PURGATORY_SIZE)
+  if (pins->purgatory_count % LF_PURGATORY_SIZE == 0)
     _lf_pinbox_real_free(pins);
 }
 
