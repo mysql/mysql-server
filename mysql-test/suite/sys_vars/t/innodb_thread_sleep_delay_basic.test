@@ -32,6 +32,12 @@ select * from information_schema.session_variables where variable_name='innodb_t
 set session innodb_thread_sleep_delay=1;
 
 #
+# show the default value
+# 
+set global innodb_thread_sleep_delay=DEFAULT;
+select @@global.innodb_thread_sleep_delay;
+
+#
 # incorrect types
 #
 --error ER_WRONG_TYPE_FOR_VAR

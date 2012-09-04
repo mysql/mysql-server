@@ -20,6 +20,20 @@ select @@global.flush_time;
 set session flush_time=1;
 
 #
+#check the default value  
+#
+
+SET global flush_time = DEFAULT;
+SELECT @@global.flush_time;
+
+#
+# invalid values
+#
+
+SET @@global.flush_time = -1024;
+SELECT @@global.flush_time;
+
+
 # incorrect types
 #
 --error ER_WRONG_TYPE_FOR_VAR
@@ -28,6 +42,10 @@ set global flush_time=1.1;
 set global flush_time=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 set global flush_time="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global flush_time=" ";
+
+
 
 #
 # min/max values

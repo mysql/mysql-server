@@ -71,6 +71,11 @@ Warning	1292	Truncated incorrect lock_wait_timeout value: '31536001'
 SELECT @@global.lock_wait_timeout;
 @@global.lock_wait_timeout
 31536000
+SET @@global.lock_wait_timeout = 65532.01;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
 SET @@global.lock_wait_timeout = ON;
 ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
 SELECT @@global.lock_wait_timeout;
@@ -82,6 +87,16 @@ SELECT @@global.lock_wait_timeout;
 @@global.lock_wait_timeout
 31536000
 SET @@global.lock_wait_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@global.lock_wait_timeout = " ";
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@global.lock_wait_timeout = ' ';
 ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
 SELECT @@global.lock_wait_timeout;
 @@global.lock_wait_timeout
@@ -104,6 +119,11 @@ Warning	1292	Truncated incorrect lock_wait_timeout value: '31537000'
 SELECT @@session.lock_wait_timeout;
 @@session.lock_wait_timeout
 31536000
+SET @@session.lock_wait_timeout = 65532.01;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
 SET @@session.lock_wait_timeout = ON;
 ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
 SELECT @@session.lock_wait_timeout;
@@ -115,6 +135,11 @@ SELECT @@session.lock_wait_timeout;
 @@session.lock_wait_timeout
 31536000
 SET @@session.lock_wait_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = ' ';
 ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
 SELECT @@session.lock_wait_timeout;
 @@session.lock_wait_timeout

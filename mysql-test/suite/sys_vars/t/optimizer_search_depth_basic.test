@@ -109,6 +109,9 @@ SELECT @@global.optimizer_search_depth;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.optimizer_search_depth = test;
 SELECT @@global.optimizer_search_depth;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.optimizer_search_depth = ' ';
+SELECT @@global.optimizer_search_depth;
 
 SET @@session.optimizer_search_depth = 64;
 SELECT @@session.optimizer_search_depth;
@@ -121,6 +124,10 @@ SELECT @@session.optimizer_search_depth;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.optimizer_search_depth = test;
+SELECT @@session.optimizer_search_depth;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.optimizer_search_depth = ' ';
 SELECT @@session.optimizer_search_depth;
 
 

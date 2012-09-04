@@ -80,6 +80,11 @@ ERROR 42000: Incorrect argument type to variable 'max_user_connections'
 SELECT @@global.max_user_connections;
 @@global.max_user_connections
 4294967295
+SET @@global.max_user_connections = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_user_connections'
+SELECT @@global.max_user_connections;
+@@global.max_user_connections
+4294967295
 '#------------------FN_DYNVARS_087_06-----------------------#'
 SELECT @@global.max_user_connections = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 

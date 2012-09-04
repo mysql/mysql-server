@@ -127,6 +127,14 @@ SELECT @@session.div_precision_increment;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.div_precision_increment = 65530.30;
 SELECT @@session.div_precision_increment;
+SELECT @@global.div_precision_increment;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.div_precision_increment = " ";
+SELECT @@global.div_precision_increment;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.div_precision_increment = " ";
+SELECT @@session.div_precision_increment;
+
 
 
 --echo '#------------------FN_DYNVARS_027_06-----------------------#'

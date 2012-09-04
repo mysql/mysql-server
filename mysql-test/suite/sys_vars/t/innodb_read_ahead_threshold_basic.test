@@ -30,6 +30,11 @@ select * from information_schema.global_variables where variable_name='innodb_re
 select * from information_schema.session_variables where variable_name='innodb_read_ahead_threshold';
 --error ER_GLOBAL_VARIABLE
 set session innodb_read_ahead_threshold=1;
+#
+# check the default value
+#
+set global innodb_read_ahead_threshold=DEFAULT;
+select @@global.innodb_read_ahead_threshold;
 
 #
 # incorrect types
@@ -40,6 +45,12 @@ set global innodb_read_ahead_threshold=1.1;
 set global innodb_read_ahead_threshold=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_read_ahead_threshold="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_read_ahead_threshold=' ';
+select @@global.innodb_read_ahead_threshold;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_read_ahead_threshold=" ";
+select @@global.innodb_read_ahead_threshold;
 
 set global innodb_read_ahead_threshold=-7;
 select @@global.innodb_read_ahead_threshold;

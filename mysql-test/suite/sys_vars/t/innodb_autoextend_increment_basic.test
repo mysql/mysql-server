@@ -94,6 +94,9 @@ SET @@global.innodb_autoextend_increment  = 1001;
 SELECT @@global.innodb_autoextend_increment;
 
 
+SET @@global.innodb_autoextend_increment  = 2000 ;
+SELECT @@global.innodb_autoextend_increment;
+
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 #########################################################################
 #     Check if the value in GLOBAL Table matches value in variable      #
