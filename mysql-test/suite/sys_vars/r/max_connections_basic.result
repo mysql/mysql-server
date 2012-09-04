@@ -80,6 +80,11 @@ ERROR 42000: Incorrect argument type to variable 'max_connections'
 SELECT @@global.max_connections;
 @@global.max_connections
 100000
+SET @@global.max_connections = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_connections'
+SELECT @@global.max_connections;
+@@global.max_connections
+100000
 '#-------------------FN_DYNVARS_074_05----------------------------#'
 SET @@session.max_connections = 4096;
 ERROR HY000: Variable 'max_connections' is a GLOBAL variable and should be set with SET GLOBAL

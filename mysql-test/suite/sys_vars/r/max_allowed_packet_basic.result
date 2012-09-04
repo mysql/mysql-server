@@ -112,6 +112,11 @@ ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073741824
+SET @@global.max_allowed_packet = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1073741824
 SET @@session.max_allowed_packet = 0;
 ERROR HY000: SESSION variable 'max_allowed_packet' is read-only. Use SET GLOBAL to assign the value
 SELECT @@session.max_allowed_packet;
@@ -135,6 +140,11 @@ SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet
 4194304
 SET @@session.max_allowed_packet = test;
+ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
+SELECT @@session.max_allowed_packet;
+@@session.max_allowed_packet
+4194304
+SET @@session.max_allowed_packet = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet

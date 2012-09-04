@@ -133,6 +133,19 @@ ERROR 42000: Incorrect argument type to variable 'div_precision_increment'
 SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
 30
+SELECT @@global.div_precision_increment;
+@@global.div_precision_increment
+30
+SET @@global.div_precision_increment = " ";
+ERROR 42000: Incorrect argument type to variable 'div_precision_increment'
+SELECT @@global.div_precision_increment;
+@@global.div_precision_increment
+30
+SET @@session.div_precision_increment = " ";
+ERROR 42000: Incorrect argument type to variable 'div_precision_increment'
+SELECT @@session.div_precision_increment;
+@@session.div_precision_increment
+30
 '#------------------FN_DYNVARS_027_06-----------------------#'
 SELECT @@global.div_precision_increment = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 

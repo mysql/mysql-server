@@ -56,6 +56,27 @@ Warning	1292	Truncated incorrect innodb_flush_log_at_trx_commit value: '1001'
 SELECT @@global.innodb_flush_log_at_trx_commit;
 @@global.innodb_flush_log_at_trx_commit
 2
+SET @@global.innodb_flush_log_at_trx_commit = 100156787;
+Warnings:
+Warning	1292	Truncated incorrect innodb_flush_log_at_trx_commit value: '100156787'
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+2
+SET @@global.innodb_flush_log_at_trx_commit = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_trx_commit'
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+2
+SET @@global.innodb_flush_log_at_trx_commit = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_trx_commit'
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+2
+SET @@global.innodb_flush_log_at_trx_commit = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_trx_commit'
+SELECT @@global.innodb_flush_log_at_trx_commit;
+@@global.innodb_flush_log_at_trx_commit
+2
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_flush_log_at_trx_commit =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

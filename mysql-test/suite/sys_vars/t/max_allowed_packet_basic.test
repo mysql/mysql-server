@@ -125,7 +125,9 @@ SELECT @@global.max_allowed_packet;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_allowed_packet = test;
 SELECT @@global.max_allowed_packet;
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_allowed_packet = ' ';
+SELECT @@global.max_allowed_packet;
 --Error ER_VARIABLE_IS_READONLY
 SET @@session.max_allowed_packet = 0;
 SELECT @@session.max_allowed_packet;
@@ -143,6 +145,9 @@ SELECT @@session.max_allowed_packet;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_allowed_packet = test;
+SELECT @@session.max_allowed_packet;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_allowed_packet = ' ';
 SELECT @@session.max_allowed_packet;
 
 

@@ -34,6 +34,11 @@ SELECT * FROM information_schema.session_variables
 where variable_name='innodb_sync_array_size';
 --error ER_GLOBAL_VARIABLE
 SET session innodb_sync_array_size=1;
+#
+#show the default value
+#
+set global innodb_sync_array_size=DEFAULT;
+select @@global.innodb_sync_array_size;
 
 #
 # incorrect types
@@ -44,6 +49,8 @@ SET global innodb_sync_array_size=1.1;
 SET global innodb_sync_array_size=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 SET global innodb_sync_array_size="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_sync_array_size=' ';
 
 SET global innodb_sync_array_size=-7;
 SELECT @@global.innodb_sync_array_size;

@@ -123,6 +123,10 @@ SELECT @@global.max_delayed_threads;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_delayed_threads = test;
 SELECT @@global.max_delayed_threads;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_delayed_threads = ' ';
+SELECT @@global.max_delayed_threads;
+
 SET @@session.max_delayed_threads = 16385;
 SELECT @@session.max_delayed_threads;
 SET @@session.max_delayed_threads = -1;
@@ -131,12 +135,14 @@ SET @@session.max_delayed_threads = -2;
 SELECT @@session.max_delayed_threads;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_delayed_threads = 65530.34;
+SELECT @@session.max_delayed_threads;
 SET @@session.max_delayed_threads = 10737418241;
 SELECT @@session.max_delayed_threads;
-
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_delayed_threads = test;
+SELECT @@session.max_delayed_threads;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_delayed_threads = ' ';
 SELECT @@session.max_delayed_threads;
 
 

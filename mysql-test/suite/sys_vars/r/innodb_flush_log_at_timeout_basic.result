@@ -56,6 +56,21 @@ Warning	1292	Truncated incorrect innodb_flush_log_at_timeout value: '2701'
 SELECT @@global.innodb_flush_log_at_timeout;
 @@global.innodb_flush_log_at_timeout
 2700
+SET @@global.innodb_flush_log_at_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SET @@global.innodb_flush_log_at_timeout = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
+SET @@global.innodb_flush_log_at_timeout = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_flush_log_at_timeout'
+SELECT @@global.innodb_flush_log_at_timeout;
+@@global.innodb_flush_log_at_timeout
+2700
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_flush_log_at_timeout =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

@@ -80,6 +80,11 @@ ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
 1048576
+SET @@global.max_prepared_stmt_count = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
+SELECT @@global.max_prepared_stmt_count;
+@@global.max_prepared_stmt_count
+1048576
 '#-------------------FN_DYNVARS_081_05----------------------------#'
 SET @@session.max_prepared_stmt_count = 4096;
 ERROR HY000: Variable 'max_prepared_stmt_count' is a GLOBAL variable and should be set with SET GLOBAL
