@@ -80,12 +80,13 @@ class ha_innobase: public handler
 
 	uchar*		upd_buf;	/*!< buffer used in updates */
 	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
-	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
-	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val1[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
+	uchar		srch_key_val2[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
 					/*!< buffers used in converting
 					search key values from MySQL format
-					to InnoDB format. "+ 2" for the two
-					bytes where the length is stored */
+					to InnoDB format. For each column
+					2 bytes are used to store length,
+					hence MAX_REF_PARTS*2. */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
