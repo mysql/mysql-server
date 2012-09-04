@@ -51,6 +51,9 @@ FLUSH LOGS;
 FLUSH TABLES t1;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
+#    Try to restart the server without --innodb-read-only after removing
+#    write permissions of system tablespace. Server should not start.
+#    This confirms server is not automatically started in read-only mode.
 USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
 SET GLOBAL INNODB_FILE_FORMAT=Antelope;
