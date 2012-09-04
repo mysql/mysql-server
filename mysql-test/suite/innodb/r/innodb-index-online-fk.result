@@ -114,6 +114,95 @@ test/fk_3	a1	a	0
 test/fk_3	a2	b	1
 test/fk_4	a1	a	0
 test/fk_4	a2	b	1
+SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+NAME	POS
+ID	0
+FOR_NAME	1
+REF_NAME	2
+N_COLS	3
+ID	0
+POS	1
+FOR_COL_NAME	2
+REF_COL_NAME	3
+SPACE	0
+NAME	1
+FLAGS	2
+SPACE	0
+PATH	1
+database_name	0
+table_name	1
+last_update	2
+n_rows	3
+clustered_index_size	4
+sum_of_other_index_sizes	5
+database_name	0
+table_name	1
+index_name	2
+last_update	3
+stat_name	4
+stat_value	5
+sample_size	6
+stat_description	7
+Number_of_lines	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Sql_delay	5
+Number_of_workers	6
+Id	7
+Number_of_lines	0
+Master_log_name	1
+Master_log_pos	2
+Host	3
+User_name	4
+User_password	5
+Port	6
+Connect_retry	7
+Enabled_ssl	8
+Ssl_ca	9
+Ssl_capath	10
+Ssl_cert	11
+Ssl_cipher	12
+Ssl_key	13
+Ssl_verify_server_cert	14
+Heartbeat	15
+Bind	16
+Ignored_server_ids	17
+Uuid	18
+Retry_count	19
+Ssl_crl	20
+Ssl_crlpath	21
+Enabled_auto_position	22
+Id	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Checkpoint_relay_log_name	5
+Checkpoint_relay_log_pos	6
+Checkpoint_master_log_name	7
+Checkpoint_master_log_pos	8
+Checkpoint_seqno	9
+Checkpoint_group_size	10
+Checkpoint_group_bitmap	11
+a	0
+b	1
+a1	0
+a2	1
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
+NAME
+SYS_DATAFILES
+SYS_FOREIGN
+SYS_FOREIGN_COLS
+SYS_TABLESPACES
+mysql/innodb_index_stats
+mysql/innodb_table_stats
+mysql/slave_master_info
+mysql/slave_relay_log_info
+mysql/slave_worker_info
+test/child
+test/parent
 INSERT INTO child VALUES(5,4);
 SET foreign_key_checks = 1;
 INSERT INTO child VALUES(6,5);
@@ -284,10 +373,214 @@ INSERT INTO parent VALUES(10,20),(20,30);
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 CREATE INDEX tb ON child(a2);
 SET foreign_key_checks = 0;
+SET DEBUG = '+d,innodb_test_cannot_add_fk_system';
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
+ERROR HY000: Failed to add the foreign key constraint 'test/fk_1' to system tables
+SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+NAME	POS
+ID	0
+FOR_NAME	1
+REF_NAME	2
+N_COLS	3
+ID	0
+POS	1
+FOR_COL_NAME	2
+REF_COL_NAME	3
+SPACE	0
+NAME	1
+FLAGS	2
+SPACE	0
+PATH	1
+database_name	0
+table_name	1
+last_update	2
+n_rows	3
+clustered_index_size	4
+sum_of_other_index_sizes	5
+database_name	0
+table_name	1
+index_name	2
+last_update	3
+stat_name	4
+stat_value	5
+sample_size	6
+stat_description	7
+Number_of_lines	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Sql_delay	5
+Number_of_workers	6
+Id	7
+Number_of_lines	0
+Master_log_name	1
+Master_log_pos	2
+Host	3
+User_name	4
+User_password	5
+Port	6
+Connect_retry	7
+Enabled_ssl	8
+Ssl_ca	9
+Ssl_capath	10
+Ssl_cert	11
+Ssl_cipher	12
+Ssl_key	13
+Ssl_verify_server_cert	14
+Heartbeat	15
+Bind	16
+Ignored_server_ids	17
+Uuid	18
+Retry_count	19
+Ssl_crl	20
+Ssl_crlpath	21
+Enabled_auto_position	22
+Id	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Checkpoint_relay_log_name	5
+Checkpoint_relay_log_pos	6
+Checkpoint_master_log_name	7
+Checkpoint_master_log_pos	8
+Checkpoint_seqno	9
+Checkpoint_group_size	10
+Checkpoint_group_bitmap	11
+a	0
+b	1
+a1	0
+a2	1
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
+NAME
+SYS_DATAFILES
+SYS_FOREIGN
+SYS_FOREIGN_COLS
+SYS_TABLESPACES
+mysql/innodb_index_stats
+mysql/innodb_table_stats
+mysql/slave_master_info
+mysql/slave_relay_log_info
+mysql/slave_worker_info
+test/child
+test/parent
+ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_1	test/child	test/parent	1	6
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_1	a2	b	0
+SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+NAME	POS
+ID	0
+FOR_NAME	1
+REF_NAME	2
+N_COLS	3
+ID	0
+POS	1
+FOR_COL_NAME	2
+REF_COL_NAME	3
+SPACE	0
+NAME	1
+FLAGS	2
+SPACE	0
+PATH	1
+database_name	0
+table_name	1
+last_update	2
+n_rows	3
+clustered_index_size	4
+sum_of_other_index_sizes	5
+database_name	0
+table_name	1
+index_name	2
+last_update	3
+stat_name	4
+stat_value	5
+sample_size	6
+stat_description	7
+Number_of_lines	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Sql_delay	5
+Number_of_workers	6
+Id	7
+Number_of_lines	0
+Master_log_name	1
+Master_log_pos	2
+Host	3
+User_name	4
+User_password	5
+Port	6
+Connect_retry	7
+Enabled_ssl	8
+Ssl_ca	9
+Ssl_capath	10
+Ssl_cert	11
+Ssl_cipher	12
+Ssl_key	13
+Ssl_verify_server_cert	14
+Heartbeat	15
+Bind	16
+Ignored_server_ids	17
+Uuid	18
+Retry_count	19
+Ssl_crl	20
+Ssl_crlpath	21
+Enabled_auto_position	22
+Id	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Checkpoint_relay_log_name	5
+Checkpoint_relay_log_pos	6
+Checkpoint_master_log_name	7
+Checkpoint_master_log_pos	8
+Checkpoint_seqno	9
+Checkpoint_group_size	10
+Checkpoint_group_bitmap	11
+a	0
+b	1
+a3	0
+a2	1
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
+NAME
+SYS_DATAFILES
+SYS_FOREIGN
+SYS_FOREIGN_COLS
+SYS_TABLESPACES
+mysql/innodb_index_stats
+mysql/innodb_table_stats
+mysql/slave_master_info
+mysql/slave_relay_log_info
+mysql/slave_worker_info
+test/child
+test/parent
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a3` int(11) NOT NULL DEFAULT '0',
+  `a2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a3`),
+  KEY `tb` (`a2`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child ADD PRIMARY KEY idx (a1),
@@ -300,13 +593,362 @@ test/fk_1	test/child	test/parent	1	6
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	0
+SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+NAME	POS
+ID	0
+FOR_NAME	1
+REF_NAME	2
+N_COLS	3
+ID	0
+POS	1
+FOR_COL_NAME	2
+REF_COL_NAME	3
+SPACE	0
+NAME	1
+FLAGS	2
+SPACE	0
+PATH	1
+database_name	0
+table_name	1
+last_update	2
+n_rows	3
+clustered_index_size	4
+sum_of_other_index_sizes	5
+database_name	0
+table_name	1
+index_name	2
+last_update	3
+stat_name	4
+stat_value	5
+sample_size	6
+stat_description	7
+Number_of_lines	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Sql_delay	5
+Number_of_workers	6
+Id	7
+Number_of_lines	0
+Master_log_name	1
+Master_log_pos	2
+Host	3
+User_name	4
+User_password	5
+Port	6
+Connect_retry	7
+Enabled_ssl	8
+Ssl_ca	9
+Ssl_capath	10
+Ssl_cert	11
+Ssl_cipher	12
+Ssl_key	13
+Ssl_verify_server_cert	14
+Heartbeat	15
+Bind	16
+Ignored_server_ids	17
+Uuid	18
+Retry_count	19
+Ssl_crl	20
+Ssl_crlpath	21
+Enabled_auto_position	22
+Id	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Checkpoint_relay_log_name	5
+Checkpoint_relay_log_pos	6
+Checkpoint_master_log_name	7
+Checkpoint_master_log_pos	8
+Checkpoint_seqno	9
+Checkpoint_group_size	10
+Checkpoint_group_bitmap	11
+a	0
+b	1
+a1	0
+a2	1
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
+NAME
+SYS_DATAFILES
+SYS_FOREIGN
+SYS_FOREIGN_COLS
+SYS_TABLESPACES
+mysql/innodb_index_stats
+mysql/innodb_table_stats
+mysql/slave_master_info
+mysql/slave_relay_log_info
+mysql/slave_worker_info
+test/child
+test/parent
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a1` int(11) NOT NULL,
+  `a2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a1`),
+  KEY `fk_1` (`a2`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`a2`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE child;
+CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
+ALTER TABLE child CHANGE a1 a3 INT,
+ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+SELECT * from information_schema.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_1	test/child	test/parent	1	6
+SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_1	a3	b	0
+SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+NAME	POS
+ID	0
+FOR_NAME	1
+REF_NAME	2
+N_COLS	3
+ID	0
+POS	1
+FOR_COL_NAME	2
+REF_COL_NAME	3
+SPACE	0
+NAME	1
+FLAGS	2
+SPACE	0
+PATH	1
+database_name	0
+table_name	1
+last_update	2
+n_rows	3
+clustered_index_size	4
+sum_of_other_index_sizes	5
+database_name	0
+table_name	1
+index_name	2
+last_update	3
+stat_name	4
+stat_value	5
+sample_size	6
+stat_description	7
+Number_of_lines	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Sql_delay	5
+Number_of_workers	6
+Id	7
+Number_of_lines	0
+Master_log_name	1
+Master_log_pos	2
+Host	3
+User_name	4
+User_password	5
+Port	6
+Connect_retry	7
+Enabled_ssl	8
+Ssl_ca	9
+Ssl_capath	10
+Ssl_cert	11
+Ssl_cipher	12
+Ssl_key	13
+Ssl_verify_server_cert	14
+Heartbeat	15
+Bind	16
+Ignored_server_ids	17
+Uuid	18
+Retry_count	19
+Ssl_crl	20
+Ssl_crlpath	21
+Enabled_auto_position	22
+Id	0
+Relay_log_name	1
+Relay_log_pos	2
+Master_log_name	3
+Master_log_pos	4
+Checkpoint_relay_log_name	5
+Checkpoint_relay_log_pos	6
+Checkpoint_master_log_name	7
+Checkpoint_master_log_pos	8
+Checkpoint_seqno	9
+Checkpoint_group_size	10
+Checkpoint_group_bitmap	11
+a	0
+b	1
+a3	0
+a2	1
+SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
+NAME
+SYS_DATAFILES
+SYS_FOREIGN
+SYS_FOREIGN_COLS
+SYS_TABLESPACES
+mysql/innodb_index_stats
+mysql/innodb_table_stats
+mysql/slave_master_info
+mysql/slave_relay_log_info
+mysql/slave_worker_info
+test/child
+test/parent
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a3` int(11) DEFAULT NULL,
+  `a2` int(11) DEFAULT NULL,
+  KEY `fk_1` (`a3`),
+  CONSTRAINT `fk_1` FOREIGN KEY (`a3`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE child;
 CREATE TABLE child (a1 INT NOT NULL, a2 INT) ENGINE = InnoDB;
 ALTER TABLE child ADD PRIMARY KEY idx (a3), CHANGE a1 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
-ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_1' in the foreign table 'child'
+ERROR HY000: Failed to add the foreign key constraint on table 'child'. Incorrect options in FOREIGN KEY constraint 'test/fk_1'
+DROP TABLE parent;
+DROP TABLE child;
+CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL, c INT) ENGINE = InnoDB;
+INSERT INTO parent VALUES(1,2,3),(2,3,4);
+CREATE INDEX tb ON parent(b);
+CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
+CREATE INDEX tb ON child(a2);
+ALTER TABLE child
+ADD CONSTRAINT fk_a FOREIGN KEY (a2) REFERENCES parent(b)
+ON DELETE SET NULL ON UPDATE CASCADE,
+ALGORITHM = INPLACE;
+ALTER TABLE child
+ADD CONSTRAINT fk_b FOREIGN KEY (a1) REFERENCES parent(a),
+ALGORITHM = INPLACE;
+ALTER TABLE child CHANGE a2 a2_new INT, CHANGE a1 a1_new INT;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a1_new` int(11) DEFAULT NULL,
+  `a2_new` int(11) DEFAULT NULL,
+  `a3` int(11) DEFAULT NULL,
+  KEY `tb` (`a2_new`),
+  KEY `fk_b` (`a1_new`),
+  CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * from information_schema.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_a	test/child	test/parent	1	6
+test/fk_b	test/child	test/parent	1	0
+SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_a	a2_new	b	0
+test/fk_b	a1_new	a	0
+ALTER TABLE child
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(c),
+ALGORITHM = INPLACE;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_new_3' in the referenced table 'parent'
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a1_new` int(11) DEFAULT NULL,
+  `a2_new` int(11) DEFAULT NULL,
+  `a3` int(11) DEFAULT NULL,
+  KEY `tb` (`a2_new`),
+  KEY `fk_b` (`a1_new`),
+  CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * from information_schema.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_a	test/child	test/parent	1	6
+test/fk_b	test/child	test/parent	1	0
+SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_a	a2_new	b	0
+test/fk_b	a1_new	a	0
+ALTER TABLE child
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1_new) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2_new) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(a),
+ALGORITHM = INPLACE;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a1_new` int(11) DEFAULT NULL,
+  `a2_new` int(11) DEFAULT NULL,
+  `a3` int(11) DEFAULT NULL,
+  KEY `tb` (`a2_new`),
+  KEY `fk_new_1` (`a1_new`),
+  KEY `fk_new_3` (`a3`),
+  CONSTRAINT `fk_a` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`b`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_b` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_new_1` FOREIGN KEY (`a1_new`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk_new_2` FOREIGN KEY (`a2_new`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * from information_schema.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_a	test/child	test/parent	1	6
+test/fk_b	test/child	test/parent	1	0
+test/fk_new_1	test/child	test/parent	1	0
+test/fk_new_2	test/child	test/parent	1	0
+test/fk_new_3	test/child	test/parent	1	0
+SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_a	a2_new	b	0
+test/fk_b	a1_new	a	0
+test/fk_new_1	a1_new	b	0
+test/fk_new_2	a2_new	a	0
+test/fk_new_3	a3	a	0
+DROP TABLE child;
+CREATE TABLE child (a1 INT NOT NULL, a2 INT, a3 INT) ENGINE = InnoDB;
+CREATE INDEX tb ON child(a2);
+ALTER TABLE child ADD PRIMARY KEY idx (a1),
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(c),
+ALGORITHM = INPLACE;
+ERROR HY000: Failed to add the foreign key constaint. Missing index for constraint 'fk_new_3' in the referenced table 'parent'
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a1` int(11) NOT NULL,
+  `a2` int(11) DEFAULT NULL,
+  `a3` int(11) DEFAULT NULL,
+  KEY `tb` (`a2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * from information_schema.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+ALTER TABLE child ADD PRIMARY KEY idx (a1),
+ADD CONSTRAINT fk_new_1 FOREIGN KEY (a1) REFERENCES parent(b),
+ADD CONSTRAINT fk_new_2 FOREIGN KEY (a2) REFERENCES parent(a),
+ADD CONSTRAINT fk_new_3 FOREIGN KEY (a3) REFERENCES parent(a),
+ALGORITHM = INPLACE;
+SHOW CREATE TABLE child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a1` int(11) NOT NULL,
+  `a2` int(11) DEFAULT NULL,
+  `a3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a1`),
+  KEY `tb` (`a2`),
+  KEY `fk_new_3` (`a3`),
+  CONSTRAINT `fk_new_1` FOREIGN KEY (`a1`) REFERENCES `parent` (`b`),
+  CONSTRAINT `fk_new_2` FOREIGN KEY (`a2`) REFERENCES `parent` (`a`),
+  CONSTRAINT `fk_new_3` FOREIGN KEY (`a3`) REFERENCES `parent` (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT * from information_schema.INNODB_SYS_FOREIGN;
+ID	FOR_NAME	REF_NAME	N_COLS	TYPE
+test/fk_new_1	test/child	test/parent	1	0
+test/fk_new_2	test/child	test/parent	1	0
+test/fk_new_3	test/child	test/parent	1	0
+SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
+ID	FOR_COL_NAME	REF_COL_NAME	POS
+test/fk_new_1	a1	b	0
+test/fk_new_2	a2	a	0
+test/fk_new_3	a3	a	0
 SET foreign_key_checks = 1;
 DROP TABLE child;
 DROP TABLE parent;

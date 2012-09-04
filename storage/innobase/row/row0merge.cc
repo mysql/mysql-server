@@ -539,38 +539,11 @@ row_merge_dup_report(
 	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
 	const dfield_t*		entry)	/*!< in: duplicate index entry */
 {
-	mrec_buf_t* 		buf;
-	const dtuple_t*		tuple;
-	dtuple_t		tuple_store;
-	const rec_t*		rec;
-	const dict_index_t*	index	= dup->index;
-	ulint			n_fields= dict_index_get_n_fields(index);
-	mem_heap_t*		heap;
-	ulint*			offsets;
-	ulint			n_ext;
-
-	if (dup->n_dup++) {
+	if (!dup->n_dup++) {
 		/* Only report the first duplicate record,
 		but count all duplicate records. */
-		return;
+		innobase_fields_to_mysql(dup->table, dup->index, entry);
 	}
-
-	/* Convert the tuple to a record and then to MySQL format. */
-	heap = mem_heap_create((1 + REC_OFFS_HEADER_SIZE + n_fields)
-			       * sizeof *offsets
-			       + sizeof *buf);
-
-	buf = static_cast<mrec_buf_t*>(mem_heap_alloc(heap, sizeof *buf));
-
-	tuple = dtuple_from_fields(&tuple_store, entry, n_fields);
-	n_ext = dict_index_is_clust(index) ? dtuple_get_n_ext(tuple) : 0;
-
-	rec = rec_convert_dtuple_to_rec(*buf, index, tuple, n_ext);
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
-
-	innobase_rec_to_mysql(dup->table, dup->col_map, rec, index, offsets);
-
-	mem_heap_free(heap);
 }
 
 /*************************************************************//**
@@ -1178,37 +1151,6 @@ row_merge_write_eof(
 	return(&block[0]);
 }
 
-/*************************************************************//**
-Check if a row should be skipped during online table rebuild.
-@return true if the record should be skipped */
-static __attribute__((nonnull, warn_unused_result))
-bool
-row_merge_skip_rec(
-/*===============*/
-	const rec_t*		rec,	/*!< in: clustered index record
-					or merge record */
-	const dict_index_t*	index,	/*!< in: clustered index of rec */
-	const dict_index_t*	oindex,	/*!< in: clustered index
-					in the old table */
-	const ulint*		offsets)/*!< in: rec_get_offsets(rec) */
-{
-	ulint		trx_id_offset;
-	const byte*	trx_id;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_index_is_clust(oindex));
-	ut_ad(dict_index_is_online_ddl(oindex));
-
-	trx_id_offset = index->trx_id_offset;
-	if (!trx_id_offset) {
-		trx_id_offset = row_get_trx_id_offset(index, offsets);
-	}
-
-	trx_id = rec + trx_id_offset;
-
-	return(row_log_table_is_rollback(oindex, trx_read_trx_id(trx_id)));
-}
-
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1507,8 +1449,9 @@ end_of_index:
 		}
 
 		if (online && new_table != old_table
-		    && row_merge_skip_rec(
-			    rec, clust_index, clust_index, offsets)) {
+		    && row_log_table_is_rollback(
+			    clust_index,
+			    row_get_rec_trx_id(rec, clust_index, offsets))) {
 			continue;
 		}
 
@@ -1606,11 +1549,13 @@ end_of_index:
 				}
 
 			case DATA_FLOAT:
-				mach_float_write(b, value);
+				mach_float_write(
+					b, static_cast<float>(value));
 				break;
 
 			case DATA_DOUBLE:
-				mach_double_write(b, value);
+				mach_double_write(
+					b, static_cast<double>(value));
 				break;
 
 			default:
@@ -1895,7 +1840,7 @@ corrupt:
 	while (mrec0 && mrec1) {
 		switch (cmp_rec_rec_simple(
 				mrec0, mrec1, offsets0, offsets1,
-				dup->index, dup->table, dup->col_map)) {
+				dup->index, dup->table)) {
 		case 0:
 			mem_heap_free(heap);
 			return(DB_DUPLICATE_KEY);
@@ -2197,6 +2142,23 @@ row_merge_sort(
 }
 
 /*************************************************************//**
+Set blob fields empty */
+static __attribute__((nonnull))
+void
+row_merge_set_blob_empty(
+/*=====================*/
+	dtuple_t*	tuple)	/*!< in/out: data tuple */
+{
+	for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
+		dfield_t*	field = dtuple_get_nth_field(tuple, i);
+
+		if (dfield_is_ext(field)) {
+			dfield_set_data(field, NULL, 0);
+		}
+	}
+}
+
+/*************************************************************//**
 Copy externally stored columns to the data tuple. */
 static __attribute__((nonnull))
 void
@@ -2312,22 +2274,14 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
-			if (dict_index_is_clust(index)) {
-				const dict_index_t*	old_index
-					= dict_table_get_first_index(
-						old_table);
-				if (dict_index_is_online_ddl(old_index)) {
-					error = row_log_table_get_error(
-						old_index);
-					if (error != DB_SUCCESS) {
-						break;
-					}
+			dict_index_t*	old_index
+				= dict_table_get_first_index(old_table);
 
-					if (row_merge_skip_rec(
-						    mrec, index, old_index,
-						    offsets)) {
-						continue;
-					}
+			if (dict_index_is_clust(index)
+			    && dict_index_is_online_ddl(old_index)) {
+				error = row_log_table_get_error(old_index);
+				if (error != DB_SUCCESS) {
+					break;
 				}
 			}
 
@@ -2343,44 +2297,55 @@ row_merge_insert_index_tuples(
 						     REC_INFO_DELETED_FLAG);
 			}
 
-			if (n_ext) {
-				dict_index_t*	old_index
-					= dict_table_get_first_index(
-						old_table);
+			if (!n_ext) {
+				/* There are no externally stored columns. */
+			} else if (!dict_index_is_online_ddl(old_index)) {
+				ut_ad(dict_index_is_clust(index));
+				ut_ad(!del_marks);
+				/* Modifications to the table are
+				blocked while we are not rebuilding it
+				or creating indexes. Off-page columns
+				can be fetched safely. */
+				row_merge_copy_blobs(
+					mrec, offsets,
+					dict_table_zip_size(old_table),
+					dtuple, tuple_heap);
+			} else {
+				ut_ad(dict_index_is_clust(index));
 
-				if (dict_index_is_online_ddl(old_index)) {
-					/* Copy the off-page columns while
-					holding old_index->lock, so
-					that they cannot be freed by
-					a rollback of a fresh insert. */
-					rw_lock_s_lock(&old_index->lock);
+				ulint	offset = index->trx_id_offset;
 
-					if (row_merge_skip_rec(
-						    mrec, index, old_index,
-						    offsets)) {
-						// Rollback: skip the record.
-						rw_lock_s_unlock(
-							&old_index->lock);
-						continue;
-					}
+				if (!offset) {
+					offset = row_get_trx_id_offset(
+						index, offsets);
+				}
 
-					row_merge_copy_blobs(
-						mrec, offsets,
-						dict_table_zip_size(old_table),
-						dtuple, tuple_heap);
+				/* Copy the off-page columns while
+				holding old_index->lock, so
+				that they cannot be freed by
+				a rollback of a fresh insert. */
+				rw_lock_s_lock(&old_index->lock);
 
-					rw_lock_s_unlock(&old_index->lock);
+				if (row_log_table_is_rollback(
+					    old_index,
+					    trx_read_trx_id(mrec + offset))) {
+					/* The row and BLOB could
+					already be freed. They
+					will be deleted by
+					row_undo_ins_remove_clust_rec
+					when rolling back a fresh
+					insert. So, no need to retrieve
+					the off-page column. */
+					row_merge_set_blob_empty(
+						dtuple);
 				} else {
-					/* TODO: Is this safe when creating
-					a secondary index online? We are not
-					suspending purge or preventing the
-					rollback of inserts. Thus, the data
-					could have been freed. */
 					row_merge_copy_blobs(
 						mrec, offsets,
 						dict_table_zip_size(old_table),
 						dtuple, tuple_heap);
 				}
+
+				rw_lock_s_unlock(&old_index->lock);
 			}
 
 			ut_ad(dtuple_validate(dtuple));
@@ -3309,7 +3274,7 @@ row_merge_create_index(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
 	dict_table_t*		table,	/*!< in: the index is on this table */
-	const merge_index_def_t*index_def)
+	const index_def_t*	index_def)
 					/*!< in: the index definition */
 {
 	dict_index_t*	index;
@@ -3327,7 +3292,7 @@ row_merge_create_index(
 	ut_a(index);
 
 	for (i = 0; i < n_fields; i++) {
-		merge_index_field_t*	ifield = &index_def->fields[i];
+		index_field_t*	ifield = &index_def->fields[i];
 
 		dict_mem_index_add_field(
 			index, dict_table_get_col_name(table, ifield->col_no),
@@ -3505,6 +3470,8 @@ row_merge_build_indexes(
 
 		goto func_exit;
 	}
+
+	DEBUG_SYNC_C("row_merge_after_scan");
 
 	/* Now we have files containing index entries ready for
 	sorting and inserting. */

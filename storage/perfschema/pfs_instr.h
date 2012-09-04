@@ -495,6 +495,9 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   PFS_user *m_user;
   PFS_account *m_account;
 
+  /** Reset session connect attributes */
+  void reset_session_connect_attrs();
+
   /** a buffer for the connection attributes */
   char *m_session_connect_attrs;
   /** length used by @c m_connect_attrs */
@@ -530,7 +533,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
 void destroy_thread(PFS_thread *pfs);
 
 PFS_file* find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
-                              const char *filename, uint len);
+                              const char *filename, uint len, bool create);
 
 void release_file(PFS_file *pfs);
 void destroy_file(PFS_thread *thread, PFS_file *pfs);

@@ -3229,6 +3229,8 @@ void Item_func_locate::print(String *str, enum_query_type query_type)
 longlong Item_func_validate_password_strength::val_int()
 {
   String *field= args[0]->val_str(&value);
+  if ((null_value= args[0]->null_value))
+    return 0;
   return (check_password_strength(field));
 }
 
@@ -4082,11 +4084,20 @@ longlong Item_master_gtid_set_wait::val_int()
 
 #if defined(HAVE_REPLICATION)
   longlong timeout = (arg_count== 2) ? args[1]->val_int() : 0;
-  if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout)) == -2)
+  if (active_mi && active_mi->rli)
   {
-    null_value = 1;
-    event_count=0;
+    if ((event_count = active_mi->rli->wait_for_gtid_set(thd, gtid, timeout))
+         == -2)
+    {
+      null_value = 1;
+      event_count=0;
+    }
   }
+  else
+    /*
+      Replication has not been set up, we should return NULL;
+     */
+    null_value = 1;
 #endif
 
   return event_count;
@@ -6434,6 +6445,8 @@ Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 
   set_if_smaller(component_name->length, MAX_SYS_VAR_LENGTH);
+  
+  var->do_deprecated_warning(thd);
 
   return new Item_func_get_system_var(var, var_type, component_name,
                                       NULL, 0);

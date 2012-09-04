@@ -1429,8 +1429,12 @@ public:
      @return argument if this is an Item_field
      @return this otherwise.
   */
-  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; };
-  
+  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; }
+
+  virtual bool equality_substitution_analyzer(uchar **arg) { return false; }
+
+  virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
+
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -2325,17 +2329,34 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
+/**
+  An item representing NULL values for use with ROLLUP.
+
+  When grouping WITH ROLLUP, Item_null_result items are created to
+  represent NULL values in the grouping columns of the ROLLUP rows. To
+  avoid type problems during execution, these objects are created with
+  the same field and result types as the fields of the columns they
+  belong to.
+ */
 class Item_null_result :public Item_null
 {
+  /** Field type for this NULL value */
+  enum_field_types fld_type;
+  /** Result type for this NULL value */
+  Item_result res_type;
+
 public:
   Field *result_field;
-  Item_null_result() : Item_null(), result_field(0) {}
+  Item_null_result(enum_field_types fld_type, Item_result res_type)
+    : Item_null(), fld_type(fld_type), res_type(res_type), result_field(0) {}
   bool is_result_field() { return result_field != 0; }
   void save_in_result_field(bool no_conversions)
   {
     save_in_field(result_field, no_conversions);
   }
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  enum_field_types field_type() const { return fld_type; }
+  Item_result result_type() const { return res_type; }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -3340,6 +3361,7 @@ public:
   resolved is a grouping one. After it has been fixed the ref field will point
   to either an Item_ref or an Item_direct_ref object which will be used to
   access the field.
+  The ref field may also point to an Item_field instance.
   See also comments for the fix_inner_refs() and the
   Item_field::fix_outer_field() functions.
 */

@@ -29,8 +29,10 @@ Created 9/5/1995 Heikki Tuuri
 #include "univ.i"
 #include "os0thread.h"
 
-// Forward declarations
+/** Synchronization wait array cell */
 struct sync_cell_t;
+
+/** Synchronization wait array */
 struct sync_array_t;
 
 /******************************************************************//**

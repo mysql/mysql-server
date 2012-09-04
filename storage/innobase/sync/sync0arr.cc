@@ -83,7 +83,7 @@ is released. The suspending is implemented using an operating system
 event semaphore. */
 
 struct sync_cell_t {
-	sync_object_t	latch;	/*!< pointer to the object the
+	sync_object_t	latch;		/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
 	sync_object_t	old_latch;/*<! the latest wait object */

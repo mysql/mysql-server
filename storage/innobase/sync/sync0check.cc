@@ -241,7 +241,7 @@ struct SyncCheck {
 	/**
 	Iterate over a thread's latches.
 	@return true if the functor returns true. */
-	bool for_each(sync_check_functor_t& functor) UNIV_NOTHROW
+	bool for_each(const sync_check_functor_t& functor) UNIV_NOTHROW
 	{
 		mutex_enter(&m_mutex);
 
@@ -1244,7 +1244,7 @@ Iterate over the thread's latches.
 @param functor - called for each element. */
 UNIV_INTERN
 bool
-sync_check_iterate(sync_check_functor_t& functor)
+sync_check_iterate(const sync_check_functor_t& functor)
 {
 	return(syncCheck.for_each(functor));
 }

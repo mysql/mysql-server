@@ -166,7 +166,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto end;
-    close_all_tables_for_name(thd, table_list->table->s, FALSE);
+    close_all_tables_for_name(thd, table_list->table->s, false, NULL);
     table_list->table= 0;
   }
   /*

@@ -6417,8 +6417,8 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
 ER_PATH_LENGTH
   eng "The path specified for %.64s is too long."
 ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  
-  eng "The syntax '%s' is deprecated and will be removed in MySQL %s."
-  ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
+  eng "'%s' is deprecated and will be removed in a future release."
+  ger "'%s' ist veraltet und wird in einer zukünftigen Version entfernt werden."
 
 ER_WRONG_NATIVE_TABLE_STRUCTURE
         eng "Native table '%-.64s'.'%-.64s' has the wrong structure"
@@ -6930,6 +6930,9 @@ ER_FK_COLUMN_CANNOT_CHANGE_CHILD
 
 ER_FK_CANNOT_DELETE_PARENT
   eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
+
+ER_MALFORMED_PACKET
+  eng "Malformed communication packet."
 
 #
 #  End of 5.6 error messages.

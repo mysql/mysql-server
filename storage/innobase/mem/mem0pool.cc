@@ -100,7 +100,7 @@ pool, and after that its locks will grow into the buffer pool. */
 
 /** Data structure for a memory pool. The space is allocated using the buddy
 algorithm, where free list i contains areas of size 2 to power i. */
-struct mem_pool_struct{
+struct mem_pool_t{
 	byte*		buf;		/*!< memory pool */
 	ulint		size;		/*!< memory common pool size */
 	ulint		reserved;	/*!< amount of currently allocated
@@ -116,7 +116,7 @@ struct mem_pool_struct{
 UNIV_INTERN mem_pool_t*	mem_comm_pool	= NULL;
 
 #ifdef UNIV_PFS_MUTEX
-/* Key to register mutex in mem_pool_struct with performance schema */
+/* Key to register mutex in mem_pool_t with performance schema */
 UNIV_INTERN mysql_pfs_key_t	mem_pool_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 

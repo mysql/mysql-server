@@ -169,6 +169,7 @@ sync_thread_add_level(). */
 
 enum latch_level_t {
 	SYNC_UNKNOWN = 0,
+
 	SYNC_MUTEX = 1,
 
 	RW_LOCK_WAIT_EX,

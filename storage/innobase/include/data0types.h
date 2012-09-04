@@ -27,10 +27,10 @@ Created 9/21/2000 Heikki Tuuri
 #define data0types_h
 
 /* SQL data field struct */
-typedef struct dfield_struct	dfield_t;
+struct dfield_t;
 
 /* SQL data tuple struct */
-typedef struct dtuple_struct	dtuple_t;
+struct dtuple_t;
 
 #endif
 

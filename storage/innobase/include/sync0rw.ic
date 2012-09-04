@@ -128,7 +128,7 @@ rw_lock_get_writer(
 		/* return NOT_LOCKED in s-lock state, like the writer
 		member of the old lock implementation. */
 		return(RW_LOCK_NOT_LOCKED);
-	} else if (((-lock_word) % X_LOCK_DECR) == 0) {
+	} else if ((lock_word == 0) || (lock_word <= -X_LOCK_DECR)) {
 		return(RW_LOCK_EX);
 	} else {
 		ut_ad(lock_word > -X_LOCK_DECR);
@@ -178,11 +178,10 @@ rw_lock_get_x_lock_count(
 	const rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 	lint lock_copy = lock->lock_word;
-	/* If there is a reader, lock_word is not divisible by X_LOCK_DECR */
-	if (lock_copy > 0 || (-lock_copy) % X_LOCK_DECR != 0) {
+	if ((lock_copy != 0) && (lock_copy > -X_LOCK_DECR)) {
 		return(0);
 	}
-	return(((-lock_copy) / X_LOCK_DECR) + 1);
+	return((lock_copy == 0) ? 1 : (2 - (lock_copy + X_LOCK_DECR)));
 }
 
 /******************************************************************//**
@@ -406,10 +405,11 @@ rw_lock_x_lock_func_nowait(
 		/* Relock: this lock_word modification is safe since no other
 		threads can modify (lock, unlock, or reserve) lock_word while
 		there is an exclusive writer and this is the writer thread. */
-		lock->lock_word -= X_LOCK_DECR;
-
-		/* Recursive x-locks must be multiples of X_LOCK_DECR. */
-		ut_ad(((-lock->lock_word) % X_LOCK_DECR) == 0);
+		if (lock->lock_word == 0) {
+			lock->lock_word = -X_LOCK_DECR;
+		} else {
+			lock->lock_word--;
+		}
 
 		/* Watch for too many recursive locks */
 		ut_ad(lock->lock_word < 0);
@@ -442,7 +442,9 @@ rw_lock_s_unlock_func(
 #endif
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
-	ut_ad((lock->lock_word % X_LOCK_DECR) != 0);
+	ut_ad(lock->lock_word > -X_LOCK_DECR);
+	ut_ad(lock->lock_word != 0);
+	ut_ad(lock->lock_word < X_LOCK_DECR);
 
 #ifdef UNIV_SYNC_DEBUG
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
@@ -478,7 +480,7 @@ rw_lock_x_unlock_func(
 #endif
 	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
-	ut_ad((lock->lock_word % X_LOCK_DECR) == 0);
+	ut_ad(lock->lock_word == 0 || lock->lock_word <= -X_LOCK_DECR);
 
 	/* lock->recursive flag also indicates if lock->writer_thread is
 	valid or stale. If we are the last of the recursive callers
@@ -495,7 +497,17 @@ rw_lock_x_unlock_func(
 	rw_lock_remove_debug_info(lock, pass, RW_LOCK_EX);
 #endif
 
-	if (rw_lock_lock_word_incr(lock, X_LOCK_DECR) == X_LOCK_DECR) {
+	ulint x_lock_incr;
+	if (lock->lock_word == 0) {
+		x_lock_incr = X_LOCK_DECR;
+	} else if (lock->lock_word == -X_LOCK_DECR) {
+		x_lock_incr = X_LOCK_DECR;
+	} else {
+		ut_ad(lock->lock_word < -X_LOCK_DECR);
+		x_lock_incr = 1;
+	}
+
+	if (rw_lock_lock_word_incr(lock, x_lock_incr) == X_LOCK_DECR) {
 		/* Lock is now free. May have to signal read/write waiters.
 		We do not need to signal wait_ex waiters, since they cannot
 		exist when there is a writer. */

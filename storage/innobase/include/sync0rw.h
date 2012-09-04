@@ -96,10 +96,10 @@ of concurrent read locks before the rw_lock breaks. The current value of
 0x00100000 allows 1,048,575 concurrent readers and 2047 recursive writers.*/
 #define X_LOCK_DECR		0x00100000
 
-typedef struct rw_lock_struct		rw_lock_t;
+struct rw_lock_t;
 
 #ifdef UNIV_SYNC_DEBUG
-typedef struct rw_lock_debug_struct	rw_lock_debug_t;
+struct rw_lock_debug_t;
 #endif /* UNIV_SYNC_DEBUG */
 
 typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
@@ -546,7 +546,7 @@ shared locks are allowed. To prevent starving of a writer blocked by
 readers, a writer may queue for x-lock by decrementing lock_word: no
 new readers will be let in while the thread waits for readers to
 exit. */
-struct rw_lock_struct
+struct rw_lock_t
 #ifdef UNIV_DEBUG
 	// FIXME: Get rid of this inheritance 
 	: public latch_t
@@ -588,14 +588,19 @@ struct rw_lock_struct
 				info list of the lock */
 	latch_level_t	level;	/*!< Level in the global latching order. */
 #endif /* UNIV_SYNC_DEBUG */
+
 #ifdef UNIV_PFS_RWLOCK
 	struct PSI_rwlock *pfs_psi;/*!< The instrumentation hook */
-#endif
-	ulint count_os_wait;	/*!< Count of os_waits. May not be accurate */
+#endif /* UNIV_PFS_RWLOCK */
+	ulint		count_os_wait;
+				/*!< Count of os_waits. May not be accurate */
 	const char*	cfile_name;/*!< File name where lock created */
-        /* last s-lock file/line is not guaranteed to be correct */
-	const char*	last_s_file_name;/*!< File name where last s-locked */
-	const char*	last_x_file_name;/*!< File name where last x-locked */
+
+        /** last s-lock file/line is not guaranteed to be correct */
+	const char*	last_s_file_name;
+				/*!< File name where last s-locked */
+	const char*	last_x_file_name;
+				/*!< File name where last x-locked */
 	ibool		writer_is_wait_ex;
 				/*!< This is TRUE if the writer field is
 				RW_LOCK_WAIT_EX; this field is located far
@@ -603,20 +608,24 @@ struct rw_lock_struct
 				are at the start of this struct, thus we can
 				peek this field without causing much memory
 				bus traffic */
-	unsigned	cline:14;	/*!< Line where created */
-	unsigned	last_s_line:14;	/*!< Line number where last time s-locked */
-	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
+	unsigned	cline:14;
+				/*!< Line where created */
+	unsigned	last_s_line:14;
+				/*!< Line number where last time s-locked */
+	unsigned	last_x_line:14;
+				/*!< Line number where last time x-locked */
 #ifdef UNIV_DEBUG
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
 /** Value of rw_lock_t::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
 #endif /* UNIV_DEBUG */
+
 };
 
 #ifdef UNIV_SYNC_DEBUG
 /** The structure for storing debug info of an rw-lock.  All access to this
 structure must be protected by rw_lock_debug_mutex_enter(). */
-struct	rw_lock_debug_struct {
+struct	rw_lock_debug_t {
 
 	os_thread_id_t thread_id;  /*!< The thread id of the thread which
 				locked the rw-lock */

@@ -1318,7 +1318,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? slave_max_allowed_packet:~(ulong)0;
+  uint max_allowed_packet= thd ? slave_max_allowed_packet : ~0U;
 #endif
 
   ulong const max_size=
@@ -1990,8 +1990,12 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       pos= buff;
       pos+= sprintf(buff, "%s", dec.sign() ? "-" : "");
       end= ROUND_UP(dec.frac) + ROUND_UP(dec.intg)-1;
-      for (i=0; i < end; i++)
-        pos+= sprintf(pos, "%09d.", dec.buf[i]);
+      /*Print integral part, decimal point, fractional part*/
+      for (i= 0; i < ROUND_UP(dec.intg); i ++)
+        pos+= sprintf(pos, "%09d", dec.buf[i]);
+      pos+= sprintf(pos, "%s", ".");
+      for (i= ROUND_UP(dec.intg); i < end; i ++)
+        pos+= sprintf(pos, "%09d", dec.buf[i]);
       pos+= sprintf(pos, "%09d", dec.buf[i]);
       my_b_printf(file, "%s", buff);
       my_snprintf(typestr, typestr_length, "DECIMAL(%d,%d)",
@@ -2756,7 +2760,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
       DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
-      DBUG_ASSERT(mts_assigned_partitions[i]->usage > 0);
+      DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
 
       i++;
     } while (it++);

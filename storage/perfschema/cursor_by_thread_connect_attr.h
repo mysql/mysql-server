@@ -67,7 +67,6 @@ public:
 
 protected:
   virtual void make_row(PFS_thread *thread, uint ordinal)= 0;
-  virtual bool thread_fits(PFS_thread *thread, PFS_thread *current_thread)= 0;
   /** True if row exists */
   bool m_row_exists;
 

@@ -39,7 +39,7 @@ constant per ha_storage's lifetime. */
 #define HA_STORAGE_DEFAULT_HASH_CELLS	4096
 
 /** Hash storage */
-typedef struct ha_storage_struct	ha_storage_t;
+struct ha_storage_t;
 
 /*******************************************************************//**
 Creates a hash storage. If any of the parameters is 0, then a default
