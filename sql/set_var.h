@@ -79,7 +79,7 @@ protected:
   ptrdiff_t offset;     ///< offset to the value from global_system_variables
   on_check_function on_check;
   on_update_function on_update;
-  const char *deprecation_substitute;
+  const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
 
 public:
@@ -135,6 +135,7 @@ public:
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
       (array->push_back(option), false);
   }
+  void do_deprecated_warning(THD *thd);
 
 private:
   virtual bool do_check(THD *thd, set_var *var) = 0;
@@ -148,7 +149,6 @@ private:
   virtual void global_save_default(THD *thd, set_var *var) = 0;
   virtual bool session_update(THD *thd, set_var *var) = 0;
   virtual bool global_update(THD *thd, set_var *var) = 0;
-  void do_deprecated_warning(THD *thd);
 protected:
   /**
     A pointer to a value of the variable for SHOW.

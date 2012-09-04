@@ -28,6 +28,7 @@ SET DEBUG_SYNC = 'write_row_noreplace SIGNAL have_handle WAIT_FOR go_ahead';
 --send
 INSERT INTO t1 VALUES(1,2,3);
 
+--echo # Establish session con1 (user=root)
 connect (con1,localhost,root,,);
 connection con1;
 
@@ -39,11 +40,13 @@ SET lock_wait_timeout = 1;
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 SET DEBUG_SYNC = 'now SIGNAL go_ahead';
 
+--echo # session default
 connection default;
 --error ER_DUP_ENTRY
 reap;
 eval $innodb_metrics_select;
 
+--echo # session con1
 connection con1;
 SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter_rebuild';
 --error ER_OUT_OF_RESOURCES
@@ -55,12 +58,14 @@ ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 SET SESSION DEBUG = '-d,innodb_OOM_inplace_alter';
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 
+--echo # session default
 connection default;
 SHOW CREATE TABLE t1;
 # Insert a duplicate entry (4) for the upcoming UNIQUE INDEX(c2).
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 
+--echo # session con1
 connection con1;
 # This DEBUG_SYNC should not kick in yet, because the duplicate key will be
 # detected before we get a chance to apply the online log.
@@ -69,13 +74,21 @@ SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL scanned WAIT_FOR insert_don
 # because the transaction inserting (7,4,2) is still active.
 --error ER_LOCK_WAIT_TIMEOUT
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
+
+--echo # session default
 connection default;
 COMMIT;
+
+--echo # session con1
 connection con1;
 --error ER_DUP_ENTRY
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2);
+
+--echo # session default
 connection default;
 DELETE FROM t1 WHERE c1 = 7;
+
+--echo # session con1
 connection con1;
 ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ROW_FORMAT=COMPACT,
 LOCK = SHARED, ALGORITHM = INPLACE;
@@ -93,6 +106,8 @@ SHOW CREATE TABLE t1;
 # Now the previous DEBUG_SYNC should kick in.
 --send
 ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1);
+
+--echo # session default
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR scanned';
 eval $innodb_metrics_select;
@@ -102,6 +117,7 @@ BEGIN;
 INSERT INTO t1 VALUES(4,7,2);
 SET DEBUG_SYNC = 'now SIGNAL insert_done';
 
+--echo # session con1
 connection con1;
 # Because the modification log will be applied in order and we did
 # not roll back before the log apply, there will be a duplicate key
@@ -109,9 +125,11 @@ connection con1;
 --error ER_DUP_ENTRY
 reap;
 
+--echo # session default
 connection default;
 ROLLBACK;
 
+--echo # session con1
 connection con1;
 SHOW CREATE TABLE t1;
 # Now, rebuild the table without any concurrent DML, while no duplicate exists.
@@ -120,6 +138,7 @@ ALTER TABLE t1 DROP PRIMARY KEY, ADD UNIQUE INDEX(c2), ALGORITHM = INPLACE;
 ALTER TABLE t1 DROP INDEX c2, ADD PRIMARY KEY(c1), ALGORITHM = INPLACE;
 eval $innodb_metrics_select;
 
+--echo # session default
 connection default;
 --error ER_DUP_ENTRY
 INSERT INTO t1 VALUES(6,3,1);
@@ -130,6 +149,7 @@ BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 ROLLBACK;
 
+--echo # session con1
 connection con1;
 let $ID= `SELECT @id := CONNECTION_ID()`;
 --error ER_QUERY_INTERRUPTED
@@ -139,6 +159,7 @@ SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt WAIT_FOR kill_done'
 --send
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 
+--echo # session default
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt';
 eval $innodb_metrics_select;
@@ -146,11 +167,13 @@ let $ignore= `SELECT @id := $ID`;
 KILL QUERY @id;
 SET DEBUG_SYNC = 'now SIGNAL kill_done';
 
+--echo # session con1
 connection con1;
 --error ER_QUERY_INTERRUPTED
 reap;
 eval $innodb_metrics_select;
 
+--echo # session default
 connection default;
 CHECK TABLE t1;
 INSERT INTO t1 SELECT  5 + c1, c2, c3 FROM t1;
@@ -162,6 +185,7 @@ INSERT INTO t1 SELECT 40 + c1, c2, c3 FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c2 > 3;
 ANALYZE TABLE t1;
 
+--echo # session con1
 connection con1;
 SHOW CREATE TABLE t1;
 
@@ -177,6 +201,7 @@ ALTER TABLE t1 ROW_FORMAT=COMPACT, ALGORITHM = INPLACE;
 # Generate some log (delete-mark, delete-unmark, insert etc.)
 # while the index creation is blocked. Some of this may run
 # in parallel with the clustered index scan.
+--echo # session default
 connection default;
 INSERT INTO t1 SELECT  80 + c1, c2, c3 FROM t1;
 INSERT INTO t1 SELECT 160 + c1, c2, c3 FROM t1;
@@ -204,6 +229,7 @@ eval $innodb_metrics_select;
 # Release con1.
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
 
+--echo # session con1
 connection con1;
 # If the following fails with the wrong error, it probably means that
 # you should rerun with a larger mtr --debug-sync-timeout.
@@ -224,12 +250,13 @@ ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c1,c22f,c4(5)),
 CHANGE c2 c22f INT, CHANGE c3 c3 TEXT NULL, CHANGE c1 c1 INT AFTER c22f,
 ADD COLUMN c4 VARCHAR(6) DEFAULT 'Online';
 
+--echo # session default
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR rebuilt3';
 # Generate some log (delete-mark, delete-unmark, insert etc.)
 eval $innodb_metrics_select;
 BEGIN;
-INSERT INTO t1 SELECT 320 + c1, c2, c3 FROM t1 WHERE c1 > 160;
+INSERT INTO t1 SELECT 320 + c1, c2, c3 FROM t1 WHERE c1 > 240;
 DELETE FROM t1 WHERE c1 > 320;
 ROLLBACK;
 BEGIN;
@@ -240,6 +267,7 @@ eval $innodb_metrics_select;
 # Release con1.
 SET DEBUG_SYNC = 'now SIGNAL dml3_done';
 
+--echo # session con1
 connection con1;
 reap;
 eval $innodb_metrics_select;
@@ -266,6 +294,7 @@ SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_
 ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f,
 ADD COLUMN c5 CHAR(5) DEFAULT 'tired' FIRST;
 
+--echo # session default
 connection default;
 
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created0';
@@ -274,16 +303,18 @@ INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','YLETV2');
 INSERT INTO t1 VALUES(33101,347,NULL,'');
 SET DEBUG_SYNC = 'now SIGNAL ins_done0';
 
+--echo # session con1
 connection con1;
 --error ER_INVALID_USE_OF_NULL
 reap;
 
+--echo # session default
 connection default;
 ROLLBACK;
+
+--echo # session con1
 connection con1;
-
 ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
-
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created WAIT_FOR ins_done';
 --send
 ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c22f,
@@ -291,41 +322,41 @@ ADD COLUMN c6 VARCHAR(1000) DEFAULT
 'I love tracking down hard-to-reproduce bugs.',
 ADD PRIMARY KEY c3p5(c3(5), c6(2));
 
+--echo # session default
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
-
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
 --error ER_BAD_NULL_ERROR
 INSERT INTO t1 VALUES(347,33101,NULL,'');
 --send
 INSERT INTO t1 VALUES(347,33101,'Pikku kakkosen posti','');
 
+--echo # session con1
 connection con1;
 --error ER_LOCK_WAIT_TIMEOUT
 reap;
 SET DEBUG_SYNC = 'now SIGNAL ddl_timed_out';
-
 eval $innodb_metrics_select;
 
+--echo # session default
 connection default;
 reap;
 SELECT COUNT(*) FROM t1;
-
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT;
 SELECT * FROM t1 LIMIT 10;
 
+--echo # session con1
 connection con1;
 ALTER TABLE t1 DISCARD TABLESPACE;
-
+--echo # Disconnect session con1
 disconnect con1;
+
+--echo # session default
 connection default;
-
 SHOW CREATE TABLE t1;
-
 SET DEBUG_SYNC = 'RESET';
 SET DEBUG = '';
 SET GLOBAL innodb_monitor_disable = module_ddl;
-
 DROP TABLE t1;
 
 # Check that all connections opened by test cases in this file are really

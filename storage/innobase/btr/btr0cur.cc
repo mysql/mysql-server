@@ -71,13 +71,13 @@ Created 10/16/1994 Heikki Tuuri
 #include "zlib.h"
 
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
-typedef enum btr_op_enum {
+enum btr_op_t {
 	BTR_NO_OP = 0,			/*!< Not buffered */
 	BTR_INSERT_OP,			/*!< Insert, do not ignore UNIQUE */
 	BTR_INSERT_IGNORE_UNIQUE_OP,	/*!< Insert, ignoring UNIQUE */
 	BTR_DELETE_OP,			/*!< Purge a delete-marked record */
 	BTR_DELMARK_OP			/*!< Mark a record for deletion */
-} btr_op_t;
+};
 
 #ifdef UNIV_DEBUG
 /** If the following is set to TRUE, this module prints a lot of

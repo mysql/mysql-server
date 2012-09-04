@@ -2560,12 +2560,6 @@ bool Optimize_table_order::fix_semijoin_strategies()
 
   DBUG_ASSERT(remaining_tables == (join->all_table_map&~join->const_table_map));
 
-  // sjm is no longer needed, trash it. To reuse it, reset its members!
-  List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest= sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
-
   DBUG_RETURN(FALSE);
 }
 

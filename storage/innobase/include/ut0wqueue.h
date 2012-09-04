@@ -35,6 +35,7 @@ processing.
 #include "univ.i"
 
 // Forward declaration
+struct ib_list_t;
 struct ib_wqueue_t;
 
 /****************************************************************//**
@@ -51,7 +52,7 @@ UNIV_INTERN
 void
 ib_wqueue_free(
 /*===========*/
-	ib_wqueue_t*	wq);	/*!< in: work queue */
+	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /****************************************************************//**
 Add a work item to the queue. */
@@ -59,10 +60,10 @@ UNIV_INTERN
 void
 ib_wqueue_add(
 /*==========*/
-	ib_wqueue_t*	wq,	/*!< in: work queue */
-	void*		item,	/*!< in: work item */
-	mem_heap_t*	heap);	/*!< in: memory heap to use for allocating the
-				list node */
+	ib_wqueue_t*	wq,		/*!< in: work queue */
+	void*		item,		/*!< in: work item */
+	mem_heap_t*	heap);		/*!< in: memory heap to use for
+					allocating the list node */
 
 /********************************************************************
 Check if queue is empty. */
@@ -81,7 +82,7 @@ UNIV_INTERN
 void*
 ib_wqueue_wait(
 /*===========*/
-	ib_wqueue_t*	wq);	/*!< in: work queue */
+	ib_wqueue_t*	wq);		/*!< in: work queue */
 
 /********************************************************************
 Wait for a work item to appear in the queue for specified time. */
@@ -93,4 +94,4 @@ ib_wqueue_timedwait(
 	ib_wqueue_t*	wq,		/* in: work queue */
 	ib_time_t	wait_in_usecs); /* in: wait time in micro seconds */
 
-#endif
+#endif /* IB_WORK_QUEUE_H */

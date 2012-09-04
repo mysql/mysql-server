@@ -729,13 +729,13 @@ row_ins_foreign_trx_print(
 /*======================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	ulint	n_lock_rec;
-	ulint	n_lock_struct;
+	ulint	n_rec_locks;
+	ulint	n_trx_locks;
 	ulint	heap_size;
 
 	lock_mutex_enter();
-	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
-	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 	lock_mutex_exit();
 
@@ -747,7 +747,7 @@ row_ins_foreign_trx_print(
 	fputs(" Transaction:\n", dict_foreign_err_file);
 
 	trx_print_low(dict_foreign_err_file, trx, 600,
-		      n_lock_rec, n_lock_struct, heap_size);
+		      n_rec_locks, n_trx_locks, heap_size);
 
 	trx_sys->mutex.exit();
 
@@ -2334,17 +2334,13 @@ err_exit:
 				goto err_exit;
 			}
 
-			if (flags & BTR_CREATE_FLAG) {
-				err = btr_cur_optimistic_insert(
-					flags, &cursor,
-					&offsets, &offsets_heap,
-					entry, &insert_rec, &big_rec,
-					n_ext, thr, &mtr);
-				if (err == DB_FAIL) {
-					goto pessimistic_insert;
-				}
-			} else {
-pessimistic_insert:
+			err = btr_cur_optimistic_insert(
+				flags, &cursor,
+				&offsets, &offsets_heap,
+				entry, &insert_rec, &big_rec,
+				n_ext, thr, &mtr);
+
+			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
 					flags, &cursor,
 					&offsets, &offsets_heap,
@@ -2533,17 +2529,15 @@ row_ins_sec_index_entry_low(
 			if (buf_LRU_buf_pool_running_out()) {
 
 				err = DB_LOCK_TABLE_FULL;
-			} else if (flags & BTR_CREATE_FLAG) {
-				err = btr_cur_optimistic_insert(
-					flags, &cursor,
-					&offsets, &offsets_heap,
-					entry, &insert_rec,
-					&big_rec, 0, thr, &mtr);
-				if (err == DB_FAIL) {
-					goto pessimistic_insert;
-				}
-			} else {
-pessimistic_insert:
+				goto func_exit;
+			}
+
+			err = btr_cur_optimistic_insert(
+				flags, &cursor,
+				&offsets, &offsets_heap,
+				entry, &insert_rec,
+				&big_rec, 0, thr, &mtr);
+			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
 					flags, &cursor,
 					&offsets, &offsets_heap,

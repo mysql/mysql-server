@@ -40,7 +40,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "pars0types.h" /* pars_info_t */
 #include "que0que.h" /* que_eval_sql() */
 #include "rem0cmp.h" /* REC_MAX_N_FIELDS,cmp_rec_rec_with_match() */
-#include "row0sel.h" /* sel_node_struct */
+#include "row0sel.h" /* sel_node_t */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
@@ -425,9 +425,9 @@ dict_stats_table_clone_create(
 
 		idx->type = index->type;
 
-		idx->to_be_dropped = index->to_be_dropped;
+		idx->to_be_dropped = 0;
 
-		idx->online_status = index->online_status;
+		idx->online_status = ONLINE_INDEX_COMPLETE;
 
 		idx->n_uniq = index->n_uniq;
 
@@ -1325,14 +1325,14 @@ dict_stats_analyze_index_level(
 /* @} */
 
 /* aux enum for controlling the behavior of dict_stats_scan_page() @{ */
-typedef enum page_scan_method_enum {
+enum page_scan_method_t {
 	COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED,/* scan all records on
 				the given page and count the number of
 				distinct ones, also ignore delete marked
 				records */
 	QUIT_ON_FIRST_NON_BORING/* quit when the first record that differs
 				from its right neighbor is found */
-} page_scan_method_t;
+};
 /* @} */
 
 /*********************************************************************//**
@@ -2574,11 +2574,11 @@ dict_stats_fetch_table_stats_step(
 
 /** Aux struct used to pass a table and a boolean to
 dict_stats_fetch_index_stats_step(). */
-typedef struct index_fetch_struct {
+struct index_fetch_t {
 	dict_table_t*	table;	/*!< table whose indexes are to be modified */
 	bool		stats_were_modified; /*!< will be set to true if at
 				least one index stats were modified */
-} index_fetch_t;
+};
 
 /*********************************************************************//**
 Called for the rows that are selected by
