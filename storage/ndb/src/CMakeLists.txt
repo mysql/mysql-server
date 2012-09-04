@@ -64,12 +64,50 @@ SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
-IF (NOT MSVC)
-  # Turn off cmake's transitive link behaviour, the shared
-  # ndbclient is self contained
-  # (not yet on Windows)
-  TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES)
+IF(NOT MSVC)
+  # Turn off cmake's transitive link behaviour so that the shared
+  # ndbclient library contains everything except functions from
+  # system libs
+  SET(NDBCLIENT_SYSTEM_LIBS)
+  FOREACH(lib ${NDBCLIENT_SO_LIBS})
+    SET(deps ${${lib}_LIB_DEPENDS})
+    FOREACH(dep_lib ${deps})
+    SET(ignore_dep_lib)
+
+      # The list of dependent libs contains keywords used for debug vs optimized
+      # builds, ignore them 
+      IF(dep_lib MATCHES "general" OR
+         dep_lib MATCHES "debug" OR
+         dep_lib MATCHES "optimized")
+        # MESSAGE(STATUS "Ignoring keyword ${dep_lib}")
+        SET(ignore_dep_lib 1)
+      ENDIF()
+
+      # Ignore libs already in NDBCLIENT_SO_LIBS list
+      LIST(FIND NDBCLIENT_SO_LIBS ${dep_lib} dep_lib_found)
+      IF(dep_lib_found GREATER -1)
+        # MESSAGE(STATUS "Ignoring lib ${dep_lib} since it's already in NDBCLIENT_SO_LIBS")
+        SET(ignore_dep_lib 1)
+      ENDIF()
+
+      # Ignore libs where locations is known(this means it's built locally)
+      GET_TARGET_PROPERTY(dep_lib_location ${dep_lib} LOCATION)
+      IF(dep_lib_location)
+        # MESSAGE(STATUS "Ignoring ${dep_lib} since location is known")
+        SET(ignore_dep_lib 1)
+      ENDIF()
+
+      IF(NOT ignore_dep_lib)
+        LIST(APPEND NDBCLIENT_SYSTEM_LIBS ${dep_lib})
+      ENDIF()
+
+    ENDFOREACH()
+  ENDFOREACH()
+  MESSAGE(STATUS "System libs used by ndbclient_so: ${NDBCLIENT_SYSTEM_LIBS}")
+  TARGET_LINK_LIBRARIES(ndbclient_so LINK_INTERFACE_LIBRARIES
+    ${NDBCLIENT_SYSTEM_LIBS})
 ENDIF()
+
 SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES
   OUTPUT_NAME "ndbclient"
   SOVERSION ${NDB_SHARED_LIB_VERSION})
