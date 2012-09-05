@@ -18,6 +18,10 @@
  02110-1301  USA
  */
 
+"use strict";
+
+var userContext = require('../impl/common/UserContext.js');
+
 function Session(index, sessionFactory, dbSession) {
   this.index = index;
   this.sessionFactory = sessionFactory;
@@ -28,45 +32,59 @@ function Session(index, sessionFactory, dbSession) {
 
 exports.Session = Session;
 
+exports.Session.prototype.getTableMetadata = function() {
+  var context = new userContext.UserContext(arguments, 4, 2, this, this.sessionFactory);
+  // delegate to context's getTableMetadata for execution
+  context.getTableMetadata();
+};
+
+
+exports.Session.prototype.listTables = function() {
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  // delegate to context's getTableMetadata for execution
+  context.listTables();
+};
+
+
 exports.Session.prototype.find = function() {
-  this.assertOpen();
-  // delegate to db session's method with the same arguments we were passed
-  this.dbSession.find.apply(this.dbSession, arguments);
+  var context = new userContext.UserContext(arguments, 3, 2, this, this.sessionFactory);
+  // delegate to context's find function for execution
+  context.find();
 };
 
 
 exports.Session.prototype.load = function() {
-  this.assertOpen();
-  // delegate to db session's method with the same arguments we were passed
-  this.dbSession.load.apply(this.dbSession, arguments);
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  // delegate to context's load function for execution
+  context.load();
 };
 
 
 exports.Session.prototype.persist = function() {
-  this.assertOpen();
-  // delegate to db session's method with the same arguments we were passed
-  this.dbSession.persist.apply(this.dbSession, arguments);
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  // delegate to context's persist function for execution
+  context.persist();
 };
 
 
 exports.Session.prototype.remove = function() {
-  this.assertOpen();
-  // delegate to db session's method with the same arguments we were passed
-  this.dbSession.remove.apply(this.dbSession, arguments);
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  // delegate to context's remove function for execution
+  context.remove();
 };
 
 
 exports.Session.prototype.update = function() {
-  this.assertOpen();
-  // delegate to db session's method with the same arguments we were passed
-  this.dbSession.update.apply(this.dbSession, arguments);
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  // delegate to context's update function for execution
+  context.update();
 };
 
 
 exports.Session.prototype.save = function() {
-  this.assertOpen();
-  // delegate to db session's method with the same arguments we were passed
-  this.dbSession.save.apply(this.dbSession, arguments);
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  // delegate to context's save function for execution
+  context.save();
 };
 
 
@@ -87,10 +105,5 @@ exports.Session.prototype.isBatch = function() {
 
 exports.Session.prototype.isClosed = function() {
   return this.closed;
-};
-
-
-Session.prototype.assertOpen = function() {
-  if (this.closed) throw new Error('Error: Session is closed');
 };
 
