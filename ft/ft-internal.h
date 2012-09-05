@@ -139,11 +139,11 @@ int toku_bnc_flush_to_child(
     FTNODE child
     );
 bool
-toku_ft_nonleaf_is_gorged(FTNODE node);
+toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
 
 enum reactivity get_nonleaf_reactivity (FTNODE node);
-enum reactivity get_node_reactivity (FTNODE node);
+enum reactivity get_node_reactivity (FTNODE node, uint32_t nodesize);
 
 
 // data of an available partition of a leaf ftnode
@@ -232,7 +232,6 @@ struct   __attribute__((__packed__)) ftnode_partition {
 
 struct ftnode {
     MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
-    unsigned int nodesize;
     unsigned int flags;
     BLOCKNUM thisnodename;   // Which block number is this node?
     int    layout_version; // What version of the data structure?
@@ -851,7 +850,7 @@ void toku_create_new_ftnode (FT_HANDLE t, FTNODE *result, int height, int n_chil
 
 // Effect: Fill in N as an empty ftnode.
 void toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_children, 
-                                    int layout_version, unsigned int nodesize, unsigned int flags);
+                                    int layout_version, unsigned int flags);
 
 unsigned int toku_ftnode_which_child(FTNODE node, const DBT *k,
                                       DESCRIPTOR desc, ft_compare_func cmp)

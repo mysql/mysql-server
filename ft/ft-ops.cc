@@ -244,15 +244,15 @@ get_leaf_num_entries(FTNODE node) {
 }
 
 static enum reactivity
-get_leaf_reactivity (FTNODE node) {
+get_leaf_reactivity (FTNODE node, uint32_t nodesize) {
     enum reactivity re = RE_STABLE;
     toku_assert_entire_node_in_memory(node);
     assert(node->height==0);
     unsigned int size = toku_serialize_ftnode_size(node);
-    if (size > node->nodesize && get_leaf_num_entries(node) > 1) {
+    if (size > nodesize && get_leaf_num_entries(node) > 1) {
         re = RE_FISSIBLE;
     }
-    else if ((size*4) < node->nodesize && !BLB_SEQINSERT(node, node->n_children-1)) {
+    else if ((size*4) < nodesize && !BLB_SEQINSERT(node, node->n_children-1)) {
         re = RE_FUSIBLE;
     }
     return re;
@@ -268,10 +268,10 @@ get_nonleaf_reactivity (FTNODE node) {
 }
 
 enum reactivity
-get_node_reactivity (FTNODE node) {
+get_node_reactivity (FTNODE node, uint32_t nodesize) {
     toku_assert_entire_node_in_memory(node);
     if (node->height==0)
-        return get_leaf_reactivity(node);
+        return get_leaf_reactivity(node, nodesize);
     else
         return get_nonleaf_reactivity(node);
 }
@@ -284,7 +284,7 @@ toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc)
 
 // return true if the size of the buffers plus the amount of work done is large enough.   (But return false if there is nothing to be flushed (the buffers empty)).
 bool
-toku_ft_nonleaf_is_gorged (FTNODE node) {
+toku_ft_nonleaf_is_gorged (FTNODE node, uint32_t nodesize) {
     uint64_t size = toku_serialize_ftnode_size(node);
 
     bool buffers_are_empty = true;
@@ -293,7 +293,7 @@ toku_ft_nonleaf_is_gorged (FTNODE node) {
     // the nonleaf node is gorged if the following holds true:
     //  - the buffers are non-empty
     //  - the total workdone by the buffers PLUS the size of the buffers
-    //     is greater than node->nodesize (which as of Maxwell should be
+    //     is greater than nodesize (which as of Maxwell should be
     //     4MB)
     //
     assert(node->height > 0);
@@ -306,7 +306,7 @@ toku_ft_nonleaf_is_gorged (FTNODE node) {
             break;
         }
     }
-    return ((size > node->nodesize)
+    return ((size > nodesize)
             &&
             (!buffers_are_empty));
 }
@@ -662,7 +662,6 @@ void toku_ftnode_clone_callback(
     }
 
     cloned_node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_on_disk;
-    cloned_node->nodesize = node->nodesize;
     cloned_node->flags = node->flags;
     cloned_node->thisnodename = node->thisnodename;
     cloned_node->layout_version = node->layout_version;
@@ -1234,7 +1233,7 @@ void toku_ftnode_free (FTNODE *nodep) {
 }
 
 void
-toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_children, int layout_version, unsigned int nodesize, unsigned int flags)
+toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_children, int layout_version, unsigned int flags)
 // Effect: Fill in N as an empty ftnode.
 {
     assert(layout_version != 0);
@@ -1246,7 +1245,6 @@ toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_c
         STATUS_VALUE(FT_CREATE_NONLEAF)++;
 
     n->max_msn_applied_to_node_on_disk = ZERO_MSN;    // correct value for root node, harmless for others
-    n->nodesize = nodesize;
     n->flags = flags;
     n->thisnodename = nodename;
     n->layout_version               = layout_version;
@@ -1312,7 +1310,6 @@ ft_init_new_root(FT ft, FTNODE oldroot, FTNODE *newrootp)
         new_height, 
         1, 
         ft->h->layout_version, 
-        ft->h->nodesize, 
         ft->h->flags
         );
     MSN msna = oldroot->max_msn_applied_to_node_on_disk;
@@ -2092,7 +2089,7 @@ static void
 ft_process_maybe_reactive_root (FT ft, FTNODE *nodep) {
     FTNODE node = *nodep;
     toku_assert_entire_node_in_memory(node);
-    enum reactivity re = get_node_reactivity(node);
+    enum reactivity re = get_node_reactivity(node, ft->h->nodesize);
     switch (re) {
     case RE_STABLE:
         return;
@@ -2556,7 +2553,7 @@ toku_ft_root_put_cmd (FT ft, FT_MSG_S * cmd)
 
     // if we call flush_some_child, then that function unpins the root
     // otherwise, we unpin ourselves
-    if (node->height > 0 && toku_ft_nonleaf_is_gorged(node)) {
+    if (node->height > 0 && toku_ft_nonleaf_is_gorged(node, ft->h->nodesize)) {
         flush_node_on_background_thread(ft, node);
     }
     else {
@@ -5478,8 +5475,8 @@ toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const
     assert(node->fullhash==fullhash);
     fprintf(file, "%*sNode=%p\n", depth, "", node);
 
-    fprintf(file, "%*sNode %" PRId64 " nodesize=%u height=%d n_children=%d  keyrange=%s %s\n",
-            depth, "", blocknum.b, node->nodesize, node->height, node->n_children, (char*)(lorange ? lorange->data : 0), (char*)(hirange ? hirange->data : 0));
+    fprintf(file, "%*sNode %" PRId64 " height=%d n_children=%d  keyrange=%s %s\n",
+            depth, "", blocknum.b, node->height, node->n_children, (char*)(lorange ? lorange->data : 0), (char*)(hirange ? hirange->data : 0));
     {
         int i;
         for (i=0; i+1< node->n_children; i++) {

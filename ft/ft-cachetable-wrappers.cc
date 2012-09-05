@@ -84,7 +84,6 @@ create_new_ftnode_with_dep_nodes(
         &fullhash,
         result);
 
-    assert(ft->h->nodesize > 0);
     assert(ft->h->basementnodesize > 0);
     if (height == 0) {
         assert(n_children > 0);
@@ -96,10 +95,8 @@ create_new_ftnode_with_dep_nodes(
         height,
         n_children,
         ft->h->layout_version,
-        ft->h->nodesize,
         ft->h->flags);
 
-    assert((*result)->nodesize > 0);
     (*result)->fullhash = fullhash;
 }
 

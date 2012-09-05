@@ -81,7 +81,6 @@ insert_dummy_value(FTNODE node, int bn, long k)
 static void
 setup_ftnode_header(struct ftnode *node)
 {
-    node->nodesize = nodesize;
     node->flags = 0x11223344;
     node->thisnodename.b = 20;
     node->layout_version = FT_LAYOUT_VERSION;

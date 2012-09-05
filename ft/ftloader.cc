@@ -2113,7 +2113,7 @@ static void putbuf_int64 (struct dbuf *dbuf, long long v) {
     putbuf_int32(dbuf, v&0xFFFFFFFF);
 }
 
-static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum, TXNID xid, uint32_t target_nodesize) {
+static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc), int64_t lblocknum, TXNID xid, uint32_t UU(target_nodesize)) {
     invariant(lblocknum < out->n_translations_limit);
 
     struct leaf_buf *XMALLOC(lbuf);
@@ -2132,7 +2132,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     }
 
     FTNODE XMALLOC(node);
-    toku_initialize_empty_ftnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, FT_LAYOUT_VERSION, target_nodesize, 0);
+    toku_initialize_empty_ftnode(node, lbuf->blocknum, 0 /*height*/, 1 /*basement nodes*/, FT_LAYOUT_VERSION, 0);
     BP_STATE(node, 0) = PT_AVAIL;
     lbuf->node = node;
 
@@ -2900,7 +2900,7 @@ static int setup_nonleaf_block (int n_children,
 
 static void write_nonleaf_node (FTLOADER bl, struct dbout *out, int64_t blocknum_of_new_node, int n_children,
                                 DBT *pivots, /* must free this array, as well as the things it points t */
-                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method)
+                                struct subtree_info *subtree_info, int height, const DESCRIPTOR UU(desc), uint32_t UU(target_nodesize), uint32_t target_basementnodesize, enum toku_compression_method target_compression_method)
 {
     //Nodes do not currently touch descriptors
     invariant(height > 0);
@@ -2909,7 +2909,7 @@ static void write_nonleaf_node (FTLOADER bl, struct dbout *out, int64_t blocknum
 
     FTNODE XMALLOC(node);
     toku_initialize_empty_ftnode(node, make_blocknum(blocknum_of_new_node), height, n_children,
-                                  FT_LAYOUT_VERSION, target_nodesize, 0);
+                                  FT_LAYOUT_VERSION, 0);
     node->totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
         toku_clone_dbt(&node->childkeys[i], pivots[i]);
