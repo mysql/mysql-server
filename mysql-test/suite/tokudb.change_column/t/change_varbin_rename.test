@@ -1,0 +1,35 @@
+# test that varbinary changed with column rename work
+
+--disable_warnings
+DROP TABLE IF EXISTS t;
+--enable_warnings
+
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
+
+CREATE TABLE t (a VARBINARY(100), b VARBINARY(256)) ENGINE=TokuDB;
+
+# varbinary shrink with column rename is not supported
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN a aa VARBINARY(1);
+
+# varbinary expand with column rename is supported
+ALTER TABLE t CHANGE COLUMN a aa VARBINARY(255);
+
+# varbinary column rename is supported
+ALTER TABLE t CHANGE COLUMN aa a VARBINARY(255);
+
+# varbinary shrink woth column rename is not supported
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b bb VARBINARY(255);
+
+# varbinary expand with column rename is supported
+ALTER TABLE t CHANGE COLUMN b bb VARBINARY(1024);
+
+# varbinary column rename is supported
+ALTER TABLE t CHANGE COLUMN bb b VARBINARY(1024);
+
+# varbinary shrink with column rename is not supported
+--error ER_UNSUPPORTED_EXTENSION
+ALTER TABLE t CHANGE COLUMN b bb VARBINARY(256);
+
+DROP TABLE t;
