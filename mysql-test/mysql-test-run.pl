@@ -5460,7 +5460,7 @@ sub envsubst {
       return "";
     }
   }
-  else 
+  else
   {
     if ( ! defined $ENV{$string} )
     {
