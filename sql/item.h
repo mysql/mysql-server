@@ -3161,20 +3161,29 @@ class Item_direct_view_ref :public Item_direct_ref
 {
   Item_equal *item_equal;
   TABLE_LIST *view;
+  TABLE *null_ref_table;
+
+  bool check_null_ref()
+  {
+    if (null_ref_table == NULL)
+    {
+      null_ref_table= view->get_real_join_table();
+    }
+    if (null_ref_table->null_row)
+    {
+      null_value= 1;
+      return TRUE;
+    }
+    return FALSE;
+  }
 public:
   Item_direct_view_ref(Name_resolution_context *context_arg, Item **item,
                        const char *table_name_arg,
                        const char *field_name_arg,
                        TABLE_LIST *view_arg)
     :Item_direct_ref(context_arg, item, table_name_arg, field_name_arg),
-    item_equal(0), view(view_arg) {}
-  /* Constructor need to process subselect with temporary tables (see Item) */
-  Item_direct_view_ref(THD *thd, Item_direct_ref *item)
-    :Item_direct_ref(thd, item), item_equal(0) {}
-  Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
-                       const char *field_name_arg)
-    :Item_direct_ref(view_arg, item, field_name_arg), item_equal(0)
-  {}
+    item_equal(0), view(view_arg),
+    null_ref_table(NULL) {}
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -3204,6 +3213,79 @@ public:
     if (view_arg == view)
       view_arg->view_used_tables|= (*ref)->used_tables();
     return 0;
+  }
+  void save_val(Field *to)
+  {
+    if (check_null_ref())
+      to->set_null();
+    else
+      Item_direct_ref::save_val(to);
+  }
+  double val_real()
+  {
+    if (check_null_ref())
+      return 0;
+    else
+      return Item_direct_ref::val_real();
+  }
+  longlong val_int()
+  {
+    if (check_null_ref())
+      return 0;
+    else
+      return Item_direct_ref::val_int();
+  }
+  String *val_str(String* tmp)
+  {
+    if (check_null_ref())
+      return NULL;
+    else
+      return Item_direct_ref::val_str(tmp);
+  }
+  my_decimal *val_decimal(my_decimal *tmp)
+  {
+    if (check_null_ref())
+      return NULL;
+    else
+      return Item_direct_ref::val_decimal(tmp);
+  }
+  bool val_bool()
+  {
+    if (check_null_ref())
+      return 0;
+    else
+      return Item_direct_ref::val_bool();
+  }
+  bool is_null()
+  {
+    if (check_null_ref())
+      return 1;
+    else
+      return Item_direct_ref::is_null();
+  }
+  bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
+  {
+    if (check_null_ref())
+    {
+      bzero((char*) ltime,sizeof(*ltime));
+      return 1;
+    }
+    return Item_direct_ref::get_date(ltime, fuzzydate);
+  }
+  bool send(Protocol *protocol, String *buffer);
+  void save_org_in_field(Field *field)
+  {
+    if (check_null_ref())
+      field->set_null();
+    else
+      Item_direct_ref::save_val(field);
+  }
+  void save_in_result_field(bool no_conversions)
+  {
+    if (check_null_ref())
+      result_field->set_null();
+    else
+      Item_direct_ref::save_in_result_field(no_conversions);
   }
 };
 

@@ -1687,7 +1687,6 @@ SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
 WHERE t.b AND t.c = t1.a;
 b	c	a
-8	c	c
 EXPLAIN EXTENDED
 SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
@@ -1702,7 +1701,6 @@ SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
 WHERE t.b <> 0 AND t.c = t1.a;
 b	c	a
-8	c	c
 INSERT INTO t3 VALUES (100), (200);
 EXPLAIN EXTENDED
 SELECT t.b, t.c, t1.a
@@ -1718,7 +1716,7 @@ SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
 WHERE t.b AND t.c = t1.a;
 b	c	a
-8	c	c
+NULL	NULL	c
 EXPLAIN EXTENDED
 SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
@@ -1733,7 +1731,7 @@ SELECT t.b, t.c, t1.a
 FROM t1, (SELECT t2.b, t2.c FROM t3 RIGHT JOIN t2 ON t2.a = t3.b) AS t
 WHERE t.b <> 0 AND t.c = t1.a;
 b	c	a
-8	c	c
+NULL	NULL	c
 SET optimizer_switch=@save_optimizer_switch;
 DROP TABLE t1,t2,t3;
 #

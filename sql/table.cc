@@ -4949,6 +4949,28 @@ void TABLE_LIST::set_check_materialized()
   }
 }
 
+TABLE *TABLE_LIST::get_real_join_table()
+{
+  TABLE_LIST *tbl= this;
+  while (tbl->table == NULL || tbl->table->reginfo.join_tab == NULL)
+  {
+    if (tbl->view == NULL && tbl->derived == NULL)
+      break;
+    /* we do not support merging of union yet */
+    DBUG_ASSERT(tbl->view == NULL ||
+               tbl->view->select_lex.next_select() == NULL);
+    DBUG_ASSERT(tbl->derived == NULL ||
+               tbl->derived->first_select()->next_select() == NULL);
+
+    if (tbl->table)
+      table= tbl->table;
+    tbl= (tbl->view != NULL ?
+          tbl->view->select_lex.get_table_list() :
+          tbl->derived->first_select()->get_table_list());
+  }
+  return tbl->table;
+}
+
 
 Natural_join_column::Natural_join_column(Field_translator *field_param,
                                          TABLE_LIST *tab)

@@ -7759,6 +7759,13 @@ Item* Item_cache_wrapper::get_tmp_table_item(THD *thd_arg)
 }
 
 
+bool Item_direct_view_ref::send(Protocol *protocol, String *buffer)
+{
+  if (check_null_ref())
+    return protocol->store_null();
+  return Item_direct_ref::send(protocol, buffer);
+}
+
 /**
   Prepare referenced field then call usual Item_direct_ref::fix_fields .
 
@@ -7773,6 +7780,7 @@ Item* Item_cache_wrapper::get_tmp_table_item(THD *thd_arg)
 
 bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 {
+  DBUG_ASSERT(1);
   /* view fild reference must be defined */
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
@@ -9285,7 +9293,7 @@ bool Item_type_holder::join_types(THD *thd, Item *item)
                        item->max_length, item->decimals));
   fld_type= Field::field_type_merge(fld_type, get_real_type(item));
   {
-    int item_decimals= item->decimals;
+    uint item_decimals= item->decimals;
     /* fix variable decimals which always is NOT_FIXED_DEC */
     if (Field::result_merge_type(fld_type) == INT_RESULT)
       item_decimals= 0;

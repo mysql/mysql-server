@@ -4626,6 +4626,36 @@ select * from t1;
 drop view v2,v1;
 drop table t1;
 
+--echo #
+--echo # MDEV-486 LP BUG#1010116 Incorrect query results in
+--echo # view and derived tables
+--echo #
+
+SELECT
+`Derived1`.`id`,
+`Derived2`.`Val1`
+FROM (select 30631 as `id`) AS `Derived1` LEFT OUTER JOIN (SELECT
+2 as `id`,
+1 AS `Val1`
+FROM (select 30631 as `id`) AS `Derived3`) AS `Derived2` ON `Derived1`.`id` = `Derived2`.`id`;
+
+create table t1 ( id int );
+insert into t1 values (30631);
+create table t2 ( id int );
+insert into t2 values (30631);
+create algorithm=MERGE view v2 as select 2 as id, 1 as val1 from t2;
+select t1.*, v2.* from t1 left join v2 on t1.id = v2.id;
+drop view v2;
+drop table t1,t2;
+
+create table t1 ( id int );
+insert into t1 values (30631);
+create table t2 ( id int );
+insert into t2 values (30631);
+create algorithm=MERGE view v2 as select 2 as id, id is null as bbb, id as iddqd, 1 as val1 from t2;
+select t1.*, v2.* from t1 left join v2 on t1.id = v2.id;
+drop view v2;
+drop table t1,t2;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

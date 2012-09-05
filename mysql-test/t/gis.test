@@ -1293,6 +1293,21 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 #WHERE lakes.name = 'Blue Lake'; 
 
 DROP DATABASE gis_ogs;
+
+--echo #
+--echo # BUG #1043845 st_distance() results are incorrect depending on variable order
+--echo #
+
+select st_distance(geomfromtext('LINESTRING(-95.9673005697771 36.13509598461,
+                                            -95.9673057475387 36.1344478941074,
+                                            -95.9673063519371 36.134484524621,
+                                            -95.9673049102515 36.1343976584193)'),
+  geomfromtext('point(-95.96269500000000000000 36.14181833333330000000)')) ;
+select st_distance(geomfromtext('point(-95.96269500000000000000 36.14181833333330000000)'),
+  geomfromtext('LINESTRING(-95.9673005697771 36.13509598461,
+                           -95.9673057475387 36.1344478941074,
+                           -95.9673063519371 36.134484524621,
+                           -95.9673049102515 36.1343976584193) ')) ;
 USE test;
 
 
@@ -1344,4 +1359,3 @@ SELECT 1 FROM g1 WHERE a >= ANY
 DROP TABLE g1;
 
 --echo End of 5.5 tests
-

@@ -1929,6 +1929,7 @@ struct TABLE_LIST
   TABLE_LIST *find_underlying_table(TABLE *table);
   TABLE_LIST *first_leaf_for_name_resolution();
   TABLE_LIST *last_leaf_for_name_resolution();
+  TABLE *get_real_join_table();
   bool is_leaf_for_name_resolution();
   inline TABLE_LIST *top_table()
     { return belong_to_view ? belong_to_view : this; }
