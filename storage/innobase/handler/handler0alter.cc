@@ -3031,6 +3031,84 @@ err_exit:
 	DBUG_RETURN(true);
 }
 
+/* Check whether an index is needed for the foreign key constraint.
+If so, if it is dropped, is there an equivalent index can play its role.
+@return true if the index is needed and can't be dropped */
+static __attribute__((warn_unused_result))
+bool
+innobase_check_foreign_key_index(
+/*=============================*/
+	Alter_inplace_info*	ha_alter_info,	/*!< in: Structure describing
+						changes to be done by ALTER
+						TABLE */
+	dict_index_t*		index,		/*!< in: index to check */
+	dict_table_t*		indexed_table,	/*!< in: table that owns the
+						foreign keys */
+	trx_t*			trx,		/*!< in/out: transaction */
+	dict_foreign_t**	drop_fk,	/*!< in: Foreign key constraints
+						to drop */
+	ulint			n_drop_fk)	/*!< in: Number of foreign keys
+						to drop */
+{
+	dict_foreign_t*	foreign;
+
+	ut_ad(!index->to_be_dropped);
+
+	/* Check if the index is referenced. */
+	foreign = dict_table_get_referenced_constraint(indexed_table, index);
+
+	ut_ad(!foreign || indexed_table
+	      == foreign->referenced_table);
+
+	if (foreign
+	    && !dict_foreign_find_index(
+		    indexed_table,
+		    foreign->referenced_col_names,
+		    foreign->n_fields, index,
+		    /*check_charsets=*/TRUE,
+		    /*check_null=*/FALSE)
+	    && !innobase_find_equiv_index(
+		    foreign->referenced_col_names,
+		    foreign->n_fields,
+		    ha_alter_info->key_info_buffer,
+		    ha_alter_info->index_add_buffer,
+		    ha_alter_info->index_add_count)
+	    ) {
+		trx->error_info = index;
+		return(true);
+	}
+
+	/* Check if this index references some
+	other table */
+	foreign = dict_table_get_foreign_constraint(
+		indexed_table, index);
+
+	ut_ad(!foreign || indexed_table
+	      == foreign->foreign_table);
+
+	if (foreign
+	    && !innobase_dropping_foreign(
+		    foreign, drop_fk, n_drop_fk)
+	    && !dict_foreign_find_index(
+		    indexed_table,
+		    foreign->foreign_col_names,
+		    foreign->n_fields, index,
+		    /*check_charsets=*/TRUE,
+		    /*check_null=*/FALSE)
+	    && !innobase_find_equiv_index(
+		    foreign->foreign_col_names,
+		    foreign->n_fields,
+		    ha_alter_info->key_info_buffer,
+		    ha_alter_info->index_add_buffer,
+		    ha_alter_info->index_add_count)
+	    ) {
+		trx->error_info = index;
+		return(true);
+	}
+
+	return(false);
+}
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked. Invoked before inplace_alter_table().
 
@@ -3303,6 +3381,8 @@ found_fk:
 	}
 
 	if (ha_alter_info->index_drop_count) {
+		dict_index_t*	drop_primary = NULL;
+
 		DBUG_ASSERT(ha_alter_info->handler_flags
 			    & (Alter_inplace_info::DROP_INDEX
 			       | Alter_inplace_info::DROP_UNIQUE_INDEX
@@ -3334,6 +3414,8 @@ found_fk:
 				ut_ad(!index->to_be_dropped);
 				if (!dict_index_is_clust(index)) {
 					drop_index[n_drop_index++] = index;
+				} else {
+					drop_primary = index;
 				}
 			}
 		}
@@ -3384,67 +3466,29 @@ check_if_can_drop_indexes:
 
 		if (prebuilt->trx->check_foreigns) {
 			for (uint i = 0; i < n_drop_index; i++) {
-				dict_index_t*	index = drop_index[i];
-				dict_foreign_t*	foreign;
+			     dict_index_t*	index = drop_index[i];
 
-				ut_ad(!index->to_be_dropped);
-
-				/* Check if the index is referenced. */
-				foreign = dict_table_get_referenced_constraint(
-					indexed_table, index);
-
-				ut_ad(!foreign || indexed_table
-				      == foreign->referenced_table);
-
-				if (foreign
-				    && !dict_foreign_find_index(
-					    indexed_table,
-					    foreign->referenced_col_names,
-					    foreign->n_fields, index,
-					    /*check_charsets=*/TRUE,
-					    /*check_null=*/FALSE)
-				    && !innobase_find_equiv_index(
-					    foreign->referenced_col_names,
-					    foreign->n_fields,
-					    ha_alter_info->key_info_buffer,
-					    ha_alter_info->index_add_buffer,
-					    ha_alter_info->index_add_count)
-				    ) {
-index_needed:
+				if (innobase_check_foreign_key_index(
+					ha_alter_info, index, indexed_table,
+					prebuilt->trx, drop_fk, n_drop_fk)) {
+					row_mysql_unlock_data_dictionary(
+						prebuilt->trx);
 					prebuilt->trx->error_info = index;
 					print_error(HA_ERR_DROP_INDEX_FK,
 						    MYF(0));
-					row_mysql_unlock_data_dictionary(
-						prebuilt->trx);
 					goto err_exit;
 				}
+			}
 
-				/* Check if this index references some
-				other table */
-				foreign = dict_table_get_foreign_constraint(
-					indexed_table, index);
-
-				ut_ad(!foreign || indexed_table
-				      == foreign->foreign_table);
-
-				if (foreign
-				    && !innobase_dropping_foreign(
-					    foreign, drop_fk, n_drop_fk)
-				    && !dict_foreign_find_index(
-					    indexed_table,
-					    foreign->foreign_col_names,
-					    foreign->n_fields, index,
-					    /*check_charsets=*/TRUE,
-					    /*check_null=*/FALSE)
-				    && !innobase_find_equiv_index(
-					    foreign->foreign_col_names,
-					    foreign->n_fields,
-					    ha_alter_info->key_info_buffer,
-					    ha_alter_info->index_add_buffer,
-					    ha_alter_info->index_add_count)
-				    ) {
-					goto index_needed;
-				}
+			/* If a primary index is dropped, need to check
+			any depending foreign constraints get affected */
+			if (drop_primary
+			    && innobase_check_foreign_key_index(
+				ha_alter_info, drop_primary, indexed_table,
+				prebuilt->trx, drop_fk, n_drop_fk)) {
+				row_mysql_unlock_data_dictionary(prebuilt->trx);
+				print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
+				goto err_exit;
 			}
 		}
 
