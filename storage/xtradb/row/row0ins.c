@@ -1281,7 +1281,8 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL || check_table->ibd_file_missing) {
+	if (check_table == NULL || check_table->ibd_file_missing
+	    || check_index == NULL) {
 		if (check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 
@@ -1315,9 +1316,6 @@ run_again:
 
 		goto exit_func;
 	}
-
-	ut_a(check_table);
-	ut_a(check_index);
 
 	if (check_table != table) {
 		/* We already have a LOCK_IX on table, but not necessarily

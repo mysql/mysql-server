@@ -49,6 +49,7 @@ extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
 #include "trx0rseg.h" /* for trx_rseg_struct */
+#include "trx0undo.h" /* for trx_undo_struct */
 #include "trx0sys.h" /* for trx_sys */
 #include "dict0dict.h" /* for dict_sys */
 #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
@@ -4436,4 +4437,293 @@ UNIV_INTERN struct st_maria_plugin	i_s_innodb_buffer_pool_pages_blob_maria =
   NULL,
   NULL,
   INNODB_VERSION_STR, MariaDB_PLUGIN_MATURITY_STABLE
+};
+
+
+static ST_FIELD_INFO	i_s_innodb_undo_logs_fields_info[] =
+{
+#define IDX_USEG_TRX_ID 0
+	{STRUCT_FLD(field_name,		"trx_id"),
+	 STRUCT_FLD(field_length,	TRX_ID_MAX_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_USEG_RSEG_ID 1
+	{STRUCT_FLD(field_name,		"rseg_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_USEG_USEG_ID 2
+	{STRUCT_FLD(field_name,		"useg_id"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_USEG_TYPE 3
+#define USEG_TYPE_MAX_LEN 256
+	{STRUCT_FLD(field_name,		"type"),
+	 STRUCT_FLD(field_length,	USEG_TYPE_MAX_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+	 
+ #define IDX_USEG_STATE 4
+ #define USEG_STATE_MAX_LEN 256
+	{STRUCT_FLD(field_name,		"state"),
+	 STRUCT_FLD(field_length,	USEG_STATE_MAX_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+	 
+#define IDX_USEG_SIZE 5
+	{STRUCT_FLD(field_name,		"size"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+static
+int
+i_s_innodb_undo_logs_fill_store(
+/*=================*/
+	THD*		thd,	/* in: thread */
+	TABLE*		table,	/* in/out: table to fill */
+	trx_undo_t*	useg)	/* in: useg to fill from */
+{
+	char		trx_id[TRX_ID_MAX_LEN + 1];
+
+	DBUG_ENTER("i_s_innodb_undo_logs_fill_store");
+
+	switch (useg->type) {
+	case TRX_UNDO_INSERT:
+		OK(field_store_string(table->field[IDX_USEG_TYPE], "INSERT"));		
+		break;
+	case TRX_UNDO_UPDATE:
+		OK(field_store_string(table->field[IDX_USEG_TYPE], "UPDATE"));		
+		break;
+	default:
+		OK(field_store_string(table->field[IDX_USEG_TYPE], "UNKNOWN"));		
+		break;
+	}
+
+	ut_snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, useg->trx_id);
+
+	switch (useg->state) {
+	case TRX_UNDO_ACTIVE:
+		OK(field_store_string(table->field[IDX_USEG_TRX_ID], trx_id));
+		OK(field_store_string(table->field[IDX_USEG_STATE], "ACTIVE"));		
+		break;
+	case TRX_UNDO_CACHED:
+		OK(field_store_string(table->field[IDX_USEG_TRX_ID], NULL));
+		OK(field_store_string(table->field[IDX_USEG_STATE], "CACHED"));		
+		break;
+	case TRX_UNDO_TO_FREE:
+		OK(field_store_string(table->field[IDX_USEG_TRX_ID], NULL));
+		OK(field_store_string(table->field[IDX_USEG_STATE], "TO_FREE"));		
+		break;
+	case TRX_UNDO_TO_PURGE:
+		OK(field_store_string(table->field[IDX_USEG_TRX_ID], NULL));
+		OK(field_store_string(table->field[IDX_USEG_STATE], "TO_PURGE"));		
+		break;
+	case TRX_UNDO_PREPARED:
+		OK(field_store_string(table->field[IDX_USEG_TRX_ID], trx_id));
+		OK(field_store_string(table->field[IDX_USEG_STATE], "PREPARED"));		
+		break;
+	default:
+		OK(field_store_string(table->field[IDX_USEG_TRX_ID], trx_id));
+		OK(field_store_string(table->field[IDX_USEG_STATE], "UNKNOWN"));		
+		break;
+	}
+
+	table->field[IDX_USEG_RSEG_ID]->store(useg->rseg->id);
+	table->field[IDX_USEG_USEG_ID]->store(useg->id);
+	table->field[IDX_USEG_SIZE]->store(useg->size);
+	if (schema_table_store_record(thd, table)) {
+		DBUG_RETURN(1);
+	}
+	DBUG_RETURN(0);
+}
+static
+int
+i_s_innodb_undo_logs_fill(
+/*=================*/
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+	trx_rseg_t*	rseg;
+	trx_undo_t*	useg;
+
+	DBUG_ENTER("i_s_innodb_undo_logs_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
+	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+	while (rseg && status == 0) {
+		mutex_enter(&(rseg->mutex));
+		useg = UT_LIST_GET_FIRST(rseg->update_undo_list);
+		while (useg && status == 0) {
+			status = i_s_innodb_undo_logs_fill_store(thd, table, useg);
+			useg = UT_LIST_GET_NEXT(undo_list, useg);
+		}
+
+		useg = UT_LIST_GET_FIRST(rseg->update_undo_cached);
+		while (useg && status == 0) {
+			status = i_s_innodb_undo_logs_fill_store(thd, table, useg);
+			useg = UT_LIST_GET_NEXT(undo_list, useg);
+		}
+
+		useg = UT_LIST_GET_FIRST(rseg->insert_undo_list);
+		while (useg && status == 0) {
+			status = i_s_innodb_undo_logs_fill_store(thd, table, useg);
+			useg = UT_LIST_GET_NEXT(undo_list, useg);
+		}
+
+		useg = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+		while (useg && status == 0) {
+			status = i_s_innodb_undo_logs_fill_store(thd, table, useg);
+			useg = UT_LIST_GET_NEXT(undo_list, useg);
+		}
+		mutex_exit(&(rseg->mutex));
+		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
+	}
+
+	DBUG_RETURN(status);
+}
+
+static
+int
+i_s_innodb_undo_logs_init(
+/*=================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_innodb_undo_logs_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_undo_logs_fields_info;
+	schema->fill_table = i_s_innodb_undo_logs_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_undo_logs =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_UNDO_LOGS"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, "Percona"),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB rollback undo segment information"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_undo_logs_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+UNIV_INTERN struct st_maria_plugin	i_s_innodb_undo_logs_maria =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_UNDO_LOGS"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, "Percona"),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB rollback undo segment information"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_undo_logs_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+        INNODB_VERSION_STR, MariaDB_PLUGIN_MATURITY_STABLE
 };

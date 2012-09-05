@@ -1,0 +1,24 @@
+SELECT @@global.innodb_merge_sort_block_size;
+@@global.innodb_merge_sort_block_size
+1048576
+SELECT @@session.innodb_merge_sort_block_size;
+@@session.innodb_merge_sort_block_size
+1048576
+SET @old_global=@@global.innodb_merge_sort_block_size;
+SET @old_session=@@session.innodb_merge_sort_block_size;
+SET @@global.innodb_merge_sort_block_size = 2*1024*1024;
+SET @@session.innodb_merge_sort_block_size = 4*1024*1024;
+SELECT @@global.innodb_merge_sort_block_size;
+@@global.innodb_merge_sort_block_size
+2097152
+SELECT @@session.innodb_merge_sort_block_size;
+@@session.innodb_merge_sort_block_size
+4194304
+SET @@global.innodb_merge_sort_block_size = 1024*1024*1024+1;
+Warnings:
+Warning	1292	Truncated incorrect innodb_merge_sort_block_size value: '1073741825'
+SELECT @@global.innodb_merge_sort_block_size;
+@@global.innodb_merge_sort_block_size
+1073741824
+SET @@global.innodb_merge_sort_block_size=@old_global;
+SET @@session.innodb_merge_sort_block_size=@old_session;

@@ -867,8 +867,10 @@ fil_node_close_file(
 	ut_a(node->open);
 	ut_a(node->n_pending == 0 || node->space->is_being_deleted);
 	ut_a(node->n_pending_flushes == 0);
+#ifndef UNIV_HOTBACKUP
 	ut_a(node->modification_counter == node->flush_counter
 	     || srv_fast_shutdown == 2);
+#endif /* !UNIV_HOTBACKUP */
 
 	ret = os_file_close(node->handle);
 	ut_a(ret);

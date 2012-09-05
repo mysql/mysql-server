@@ -89,8 +89,9 @@ rounded to a power of 2.
 
 When not creating a PRIMARY KEY that contains column prefixes, this
 can be set as small as UNIV_PAGE_SIZE / 2.  See the comment above
-ut_ad(data_size < sizeof(row_merge_block_t)). */
-typedef byte	row_merge_block_t[1048576];
+ut_ad(data_size < sizeof(row_merge_block_t)).
+1MB is the default merge-sort block size for innodb */
+typedef byte* row_merge_block_t;
 
 /** @brief Secondary buffer for I/O operations of merge records.
 
@@ -184,7 +185,6 @@ row_merge_buf_create_low(
 	row_merge_buf_t*	buf;
 
 	ut_ad(max_tuples > 0);
-	ut_ad(max_tuples <= sizeof(row_merge_block_t));
 	ut_ad(max_tuples < buf_size);
 
 	buf = mem_heap_zalloc(heap, buf_size);
@@ -205,19 +205,19 @@ static
 row_merge_buf_t*
 row_merge_buf_create(
 /*=================*/
-	dict_index_t*	index)	/*!< in: secondary index */
+	dict_index_t*	index,		/*!< in: secondary index */
+	ulint		block_size)	/*!< in: merge block buffer size */
 {
 	row_merge_buf_t*	buf;
 	ulint			max_tuples;
 	ulint			buf_size;
 	mem_heap_t*		heap;
 
-	max_tuples = sizeof(row_merge_block_t)
-		/ ut_max(1, dict_index_get_min_size(index));
+	max_tuples = block_size / ut_max(1, dict_index_get_min_size(index));
 
 	buf_size = (sizeof *buf) + (max_tuples - 1) * sizeof *buf->tuples;
 
-	heap = mem_heap_create(buf_size + sizeof(row_merge_block_t));
+	heap = mem_heap_create(buf_size + block_size);
 
 	buf = row_merge_buf_create_low(heap, index, max_tuples, buf_size);
 
@@ -265,8 +265,10 @@ row_merge_buf_add(
 /*==============*/
 	row_merge_buf_t*	buf,	/*!< in/out: sort buffer */
 	const dtuple_t*		row,	/*!< in: row in clustered index */
-	const row_ext_t*	ext)	/*!< in: cache of externally stored
+	const row_ext_t*	ext,	/*!< in: cache of externally stored
 					column prefixes, or NULL */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	ulint			i;
 	ulint			n_fields;
@@ -391,10 +393,10 @@ row_merge_buf_add(
 	page_zip_rec_needs_ext() limit.  However, no further columns
 	will be moved to external storage until the record is inserted
 	to the clustered index B-tree. */
-	ut_ad(data_size < sizeof(row_merge_block_t));
+	ut_ad(data_size < block_size);
 
 	/* Reserve one byte for the end marker of row_merge_block_t. */
-	if (buf->total_size + data_size >= sizeof(row_merge_block_t) - 1) {
+	if (buf->total_size + data_size >= block_size - 1) {
 		return(FALSE);
 	}
 
@@ -700,9 +702,11 @@ row_merge_read(
 	ulint			offset,	/*!< in: offset where to read
 					in number of row_merge_block_t
 					elements */
-	row_merge_block_t*	buf)	/*!< out: data */
+	row_merge_block_t	buf,	/*!< out: data */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
-	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
+	ib_uint64_t	ofs = ((ib_uint64_t) offset) * block_size;
 	ibool		success;
 
 #ifdef UNIV_DEBUG
@@ -715,7 +719,7 @@ row_merge_read(
 	success = os_file_read_no_error_handling(OS_FILE_FROM_FD(fd), buf,
 						 (ulint) (ofs & 0xFFFFFFFF),
 						 (ulint) (ofs >> 32),
-						 sizeof *buf);
+						 block_size);
 #ifdef POSIX_FADV_DONTNEED
 	/* Each block is read exactly once.  Free up the file cache. */
 	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
@@ -740,16 +744,17 @@ row_merge_write(
 	int		fd,	/*!< in: file descriptor */
 	ulint		offset,	/*!< in: offset where to write,
 				in number of row_merge_block_t elements */
-	const void*	buf)	/*!< in: data */
+	const void*	buf,	/*!< in: data */
+	ulint		block_size)
+				/*!< in: merge block buffer size */
 {
-	size_t		buf_len = sizeof(row_merge_block_t);
-	ib_uint64_t	ofs = buf_len * (ib_uint64_t) offset;
+	ib_uint64_t	ofs = block_size * (ib_uint64_t) offset;
 	ibool		ret;
 
 	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
 			    (ulint) (ofs & 0xFFFFFFFF),
 			    (ulint) (ofs >> 32),
-			    buf_len);
+			    block_size);
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
@@ -761,7 +766,7 @@ row_merge_write(
 #ifdef POSIX_FADV_DONTNEED
 	/* The block will be needed on the next merge pass,
 	but it can be evicted from the file cache meanwhile. */
-	posix_fadvise(fd, ofs, buf_len, POSIX_FADV_DONTNEED);
+	posix_fadvise(fd, ofs, block_size, POSIX_FADV_DONTNEED);
 #endif /* POSIX_FADV_DONTNEED */
 
 	return(UNIV_LIKELY(ret));
@@ -783,7 +788,9 @@ row_merge_read_rec(
 	const mrec_t**		mrec,	/*!< out: pointer to merge record,
 					or NULL on end of list
 					(non-NULL on I/O error) */
-	ulint*			offsets)/*!< out: offsets of mrec */
+	ulint*			offsets,/*!< out: offsets of mrec */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	ulint	extra_size;
 	ulint	data_size;
@@ -820,7 +827,8 @@ row_merge_read_rec(
 		/* Read another byte of extra_size. */
 
 		if (UNIV_UNLIKELY(b >= block[1])) {
-			if (!row_merge_read(fd, ++(*foffs), block)) {
+			if (!row_merge_read(fd, ++(*foffs), block[0],
+					    block_size)) {
 err_exit:
 				/* Signal I/O error. */
 				*mrec = b;
@@ -849,7 +857,8 @@ err_exit:
 
 		memcpy(*buf, b, avail_size);
 
-		if (!row_merge_read(fd, ++(*foffs), block)) {
+		if (!row_merge_read(fd, ++(*foffs), block[0],
+				    block_size)) {
 
 			goto err_exit;
 		}
@@ -870,7 +879,7 @@ err_exit:
 		/* These overflows should be impossible given that
 		records are much smaller than either buffer, and
 		the record starts near the beginning of each buffer. */
-		ut_a(extra_size + data_size < sizeof *buf);
+		ut_a(extra_size + data_size < block_size);
 		ut_a(b + data_size < block[1]);
 
 		/* Copy the data bytes. */
@@ -885,7 +894,7 @@ err_exit:
 	rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
 
 	data_size = rec_offs_data_size(offsets);
-	ut_ad(extra_size + data_size < sizeof *buf);
+	ut_ad(extra_size + data_size < block_size);
 
 	b += extra_size + data_size;
 
@@ -910,7 +919,8 @@ err_exit:
 	offsets[3] = (ulint) index;
 #endif /* UNIV_DEBUG */
 
-	if (!row_merge_read(fd, ++(*foffs), block)) {
+	if (!row_merge_read(fd, ++(*foffs), block[0],
+			    block_size)) {
 
 		goto err_exit;
 	}
@@ -992,7 +1002,9 @@ row_merge_write_rec(
 	int			fd,	/*!< in: file descriptor */
 	ulint*			foffs,	/*!< in/out: file offset */
 	const mrec_t*		mrec,	/*!< in: record to write */
-	const ulint*		offsets)/*!< in: offsets of mrec */
+	const ulint*		offsets,/*!< in: offsets of mrec */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	ulint	extra_size;
 	ulint	size;
@@ -1027,11 +1039,12 @@ row_merge_write_rec(
 		record to the head of the new block. */
 		memcpy(b, buf[0], avail_size);
 
-		if (!row_merge_write(fd, (*foffs)++, block)) {
+		if (!row_merge_write(fd, (*foffs)++, block[0],
+				     block_size)) {
 			return(NULL);
 		}
 
-		UNIV_MEM_INVALID(block[0], sizeof block[0]);
+		UNIV_MEM_INVALID(block[0], block_size);
 
 		/* Copy the rest. */
 		b = block[0];
@@ -1056,7 +1069,9 @@ row_merge_write_eof(
 	row_merge_block_t*	block,	/*!< in/out: file buffer */
 	byte*			b,	/*!< in: pointer to end of block */
 	int			fd,	/*!< in: file descriptor */
-	ulint*			foffs)	/*!< in/out: file offset */
+	ulint*			foffs,	/*!< in/out: file offset */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	ut_ad(block);
 	ut_ad(b >= block[0]);
@@ -1071,18 +1086,19 @@ row_merge_write_eof(
 
 	*b++ = 0;
 	UNIV_MEM_ASSERT_RW(block[0], b - block[0]);
-	UNIV_MEM_ASSERT_W(block[0], sizeof block[0]);
+	UNIV_MEM_ASSERT_W(block[0], block_size);
 #ifdef UNIV_DEBUG_VALGRIND
 	/* The rest of the block is uninitialized.  Initialize it
 	to avoid bogus warnings. */
 	memset(b, 0xff, block[1] - b);
 #endif /* UNIV_DEBUG_VALGRIND */
 
-	if (!row_merge_write(fd, (*foffs)++, block)) {
+	if (!row_merge_write(fd, (*foffs)++, block[0],
+			     block_size)) {
 		return(NULL);
 	}
 
-	UNIV_MEM_INVALID(block[0], sizeof block[0]);
+	UNIV_MEM_INVALID(block[0], block_size);
 	return(block[0]);
 }
 
@@ -1140,7 +1156,9 @@ row_merge_read_clustered_index(
 	dict_index_t**		index,	/*!< in: indexes to be created */
 	merge_file_t*		files,	/*!< in: temporary files */
 	ulint			n_index,/*!< in: number of indexes to create */
-	row_merge_block_t*	block)	/*!< in/out: file buffer */
+	row_merge_block_t*	block,	/*!< in/out: file buffer */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -1168,7 +1186,7 @@ row_merge_read_clustered_index(
 	merge_buf = mem_alloc(n_index * sizeof *merge_buf);
 
 	for (i = 0; i < n_index; i++) {
-		merge_buf[i] = row_merge_buf_create(index[i]);
+		merge_buf[i] = row_merge_buf_create(index[i], block_size);
 	}
 
 	mtr_start(&mtr);
@@ -1300,7 +1318,8 @@ row_merge_read_clustered_index(
 			const dict_index_t*	index	= buf->index;
 
 			if (UNIV_LIKELY
-			    (row && row_merge_buf_add(buf, row, ext))) {
+			    (row && row_merge_buf_add(buf, row, ext,
+						      block_size))) {
 				file->n_rec++;
 				continue;
 			}
@@ -1335,12 +1354,12 @@ err_exit:
 			row_merge_buf_write(buf, file, block);
 
 			if (!row_merge_write(file->fd, file->offset++,
-					     block)) {
+					     block[0], block_size)) {
 				err = DB_OUT_OF_FILE_SPACE;
 				goto err_exit;
 			}
 
-			UNIV_MEM_INVALID(block[0], sizeof block[0]);
+			UNIV_MEM_INVALID(block[0], block_size);
 			merge_buf[i] = row_merge_buf_empty(buf);
 
 			if (UNIV_LIKELY(row != NULL)) {
@@ -1349,7 +1368,8 @@ err_exit:
 				and emptied. */
 
 				if (UNIV_UNLIKELY
-				    (!row_merge_buf_add(buf, row, ext))) {
+				    (!row_merge_buf_add(buf, row, ext,
+							block_size))) {
 					/* An empty buffer should have enough
 					room for at least one record. */
 					ut_error;
@@ -1393,14 +1413,16 @@ func_exit:
 	do {								\
 		b2 = row_merge_write_rec(&block[2], &buf[2], b2,	\
 					 of->fd, &of->offset,		\
-					 mrec##N, offsets##N);		\
+					 mrec##N, offsets##N,		\
+					 block_size);			\
 		if (UNIV_UNLIKELY(!b2 || ++of->n_rec > file->n_rec)) {	\
 			goto corrupt;					\
 		}							\
 		b##N = row_merge_read_rec(&block[N], &buf[N],		\
 					  b##N, index,			\
 					  file->fd, foffs##N,		\
-					  &mrec##N, offsets##N);	\
+					  &mrec##N, offsets##N,		\
+					  block_size);			\
 		if (UNIV_UNLIKELY(!b##N)) {				\
 			if (mrec##N) {					\
 				goto corrupt;				\
@@ -1425,9 +1447,11 @@ row_merge_blocks(
 	ulint*			foffs1,	/*!< in/out: offset of second
 					source list in the file */
 	merge_file_t*		of,	/*!< in/out: output file */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
+	struct TABLE*		table,	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -1457,8 +1481,10 @@ row_merge_blocks(
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
 
-	if (!row_merge_read(file->fd, *foffs0, &block[0])
-	    || !row_merge_read(file->fd, *foffs1, &block[1])) {
+	if (!row_merge_read(file->fd, *foffs0, block[0],
+			    block_size)
+	    || !row_merge_read(file->fd, *foffs1, block[1],
+			       block_size)) {
 corrupt:
 		mem_heap_free(heap);
 		return(DB_CORRUPTION);
@@ -1469,9 +1495,9 @@ corrupt:
 	b2 = block[2];
 
 	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, file->fd,
-				foffs0, &mrec0, offsets0);
+				foffs0, &mrec0, offsets0, block_size);
 	b1 = row_merge_read_rec(&block[1], &buf[1], b1, index, file->fd,
-				foffs1, &mrec1, offsets1);
+				foffs1, &mrec1, offsets1, block_size);
 	if (UNIV_UNLIKELY(!b0 && mrec0)
 	    || UNIV_UNLIKELY(!b1 && mrec1)) {
 
@@ -1521,7 +1547,8 @@ done0:
 done1:
 
 	mem_heap_free(heap);
-	b2 = row_merge_write_eof(&block[2], b2, of->fd, &of->offset);
+	b2 = row_merge_write_eof(&block[2], b2, of->fd, &of->offset,
+				 block_size);
 	return(b2 ? DB_SUCCESS : DB_CORRUPTION);
 }
 
@@ -1536,7 +1563,9 @@ row_merge_blocks_copy(
 	const merge_file_t*	file,	/*!< in: input file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	ulint*			foffs0,	/*!< in/out: input file offset */
-	merge_file_t*		of)	/*!< in/out: output file */
+	merge_file_t*		of,	/*!< in/out: output file */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
@@ -1563,7 +1592,7 @@ row_merge_blocks_copy(
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
 
-	if (!row_merge_read(file->fd, *foffs0, &block[0])) {
+	if (!row_merge_read(file->fd, *foffs0, block[0], block_size)) {
 corrupt:
 		mem_heap_free(heap);
 		return(FALSE);
@@ -1573,7 +1602,7 @@ corrupt:
 	b2 = block[2];
 
 	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, file->fd,
-				foffs0, &mrec0, offsets0);
+				foffs0, &mrec0, offsets0, block_size);
 	if (UNIV_UNLIKELY(!b0 && mrec0)) {
 
 		goto corrupt;
@@ -1592,8 +1621,8 @@ done0:
 	(*foffs0)++;
 
 	mem_heap_free(heap);
-	return(row_merge_write_eof(&block[2], b2, of->fd, &of->offset)
-	       != NULL);
+	return(row_merge_write_eof(&block[2], b2, of->fd, &of->offset,
+				   block_size) != NULL);
 }
 
 /*************************************************************//**
@@ -1614,9 +1643,10 @@ row_merge(
 					if applicable */
 	ulint*			num_run,/*!< in/out: Number of runs remain
 					to be merged */
-	ulint*			run_offset) /*!< in/out: Array contains the
+	ulint*			run_offset, /*!< in/out: Array contains the
 					first offset number for each merge
 					run */
+	ulint			block_size) /*!< in: merge block buffer size */
 {
 	ulint		foffs0;	/*!< first input offset */
 	ulint		foffs1;	/*!< second input offset */
@@ -1627,7 +1657,7 @@ row_merge(
 	ulint		n_run	= 0;
 				/*!< num of runs generated from this merge */
 
-	UNIV_MEM_ASSERT_W(block[0], 3 * sizeof block[0]);
+	UNIV_MEM_ASSERT_W(block[0], 3 * block_size);
 
 	ut_ad(ihalf < file->offset);
 
@@ -1659,7 +1689,8 @@ row_merge(
 		run_offset[n_run++] = of.offset;
 
 		error = row_merge_blocks(index, file, block,
-					 &foffs0, &foffs1, &of, table);
+					 &foffs0, &foffs1, &of, table,
+					 block_size);
 
 		if (error != DB_SUCCESS) {
 			return(error);
@@ -1677,7 +1708,8 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		if (!row_merge_blocks_copy(index, file, block, &foffs0, &of)) {
+		if (!row_merge_blocks_copy(index, file, block, &foffs0, &of,
+					   block_size)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -1692,7 +1724,8 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		if (!row_merge_blocks_copy(index, file, block, &foffs1, &of)) {
+		if (!row_merge_blocks_copy(index, file, block, &foffs1, &of,
+					   block_size)) {
 			return(DB_CORRUPTION);
 		}
 	}
@@ -1721,7 +1754,7 @@ row_merge(
 	*tmpfd = file->fd;
 	*file = of;
 
-	UNIV_MEM_INVALID(block[0], 3 * sizeof block[0]);
+	UNIV_MEM_INVALID(block[0], 3 * block_size);
 
 	return(DB_SUCCESS);
 }
@@ -1739,9 +1772,11 @@ row_merge_sort(
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
+	struct TABLE*		table,	/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
+	ulint			block_size)
+					/*!< in: merge block buffer size */
 {
 	ulint	half = file->offset / 2;
 	ulint	num_runs;
@@ -1770,7 +1805,7 @@ row_merge_sort(
 	/* Merge the runs until we have one big run */
 	do {
 		error = row_merge(trx, index, file, block, tmpfd,
-				  table, &num_runs, run_offset);
+				  table, &num_runs, run_offset, block_size);
 
 		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 
@@ -1841,7 +1876,9 @@ row_merge_insert_index_tuples(
 	ulint			zip_size,/*!< in: compressed page size of
 					 the old table, or 0 if uncompressed */
 	int			fd,	/*!< in: file descriptor */
-	row_merge_block_t*	block)	/*!< in/out: file buffer */
+	row_merge_block_t*	block,	/*!< in/out: file buffer */
+	ulint			block_size)
+					/*! in: merge block buffer size */
 {
 	const byte*		b;
 	que_thr_t*		thr;
@@ -1880,7 +1917,7 @@ row_merge_insert_index_tuples(
 
 	b = *block;
 
-	if (!row_merge_read(fd, foffs, block)) {
+	if (!row_merge_read(fd, foffs, block[0], block_size)) {
 		error = DB_CORRUPTION;
 	} else {
 		mrec_buf_t*	buf = mem_heap_alloc(graph_heap, sizeof *buf);
@@ -1891,7 +1928,8 @@ row_merge_insert_index_tuples(
 			ulint		n_ext;
 
 			b = row_merge_read_rec(block, buf, b, index,
-					       fd, &foffs, &mrec, offsets);
+					       fd, &foffs, &mrec, offsets,
+					       block_size);
 			if (UNIV_UNLIKELY(!b)) {
 				/* End of list, or I/O error */
 				if (mrec) {
@@ -2656,11 +2694,16 @@ row_merge_build_indexes(
 					if applicable */
 {
 	merge_file_t*		merge_files;
-	row_merge_block_t*	block;
+	/* Some code uses block[1] as the synonym for block + block_size.  So
+	we initialize block[3] to the address boundary of block[2], even
+	though space for 3 only buffers is allocated. */
+	row_merge_block_t	block[4];
 	ulint			block_size;
 	ulint			i;
 	ulint			error;
 	int			tmpfd;
+	ulint			merge_sort_block_size;
+	void*			block_mem;
 
 	ut_ad(trx);
 	ut_ad(old_table);
@@ -2668,14 +2711,21 @@ row_merge_build_indexes(
 	ut_ad(indexes);
 	ut_ad(n_indexes);
 
+	merge_sort_block_size = thd_merge_sort_block_size(trx->mysql_thd);
+
 	trx_start_if_not_started(trx);
 
 	/* Allocate memory for merge file data structure and initialize
 	fields */
 
 	merge_files = mem_alloc(n_indexes * sizeof *merge_files);
-	block_size = 3 * sizeof *block;
-	block = os_mem_alloc_large(&block_size);
+	block_size = 3 * merge_sort_block_size;
+	block_mem = os_mem_alloc_large(&block_size);
+
+	for (i = 0; i < UT_ARR_SIZE(block); i++) {
+		block[i] = (row_merge_block_t ) ((byte *) block_mem +
+			i * merge_sort_block_size);
+	}
 
 	for (i = 0; i < n_indexes; i++) {
 
@@ -2693,7 +2743,7 @@ row_merge_build_indexes(
 
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, indexes,
-		merge_files, n_indexes, block);
+		merge_files, n_indexes, block, merge_sort_block_size);
 
 	if (error != DB_SUCCESS) {
 
@@ -2705,13 +2755,15 @@ row_merge_build_indexes(
 
 	for (i = 0; i < n_indexes; i++) {
 		error = row_merge_sort(trx, indexes[i], &merge_files[i],
-				       block, &tmpfd, table);
+				       block, &tmpfd, table,
+				       merge_sort_block_size);
 
 		if (error == DB_SUCCESS) {
 			error = row_merge_insert_index_tuples(
 				trx, indexes[i], new_table,
 				dict_table_zip_size(old_table),
-				merge_files[i].fd, block);
+				merge_files[i].fd, block,
+				merge_sort_block_size);
 		}
 
 		/* Close the temporary file to free up space. */
@@ -2731,7 +2783,7 @@ func_exit:
 	}
 
 	mem_free(merge_files);
-	os_mem_free_large(block, block_size);
+	os_mem_free_large(block_mem, block_size);
 
 	return(error);
 }

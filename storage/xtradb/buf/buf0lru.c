@@ -374,7 +374,7 @@ next_page:
 
 /******************************************************************//**
 While flushing (or removing dirty) pages from a tablespace we don't
-want to hog the CPU and resources. Release the buffer pool and block
+want to hog the CPU and resources. Release the LRU list and block
 mutex and try to force a context switch. Then reacquire the same mutexes.
 The current page is "fixed" before the release of the mutexes and then
 "unfixed" again once we have reacquired the mutexes. */
@@ -387,7 +387,7 @@ buf_flush_yield(
 {
 	mutex_t*	block_mutex;
 
-	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(buf_page_in_file(bpage));
 
 	block_mutex = buf_page_get_mutex(bpage);
@@ -399,13 +399,13 @@ buf_flush_yield(
 	buf_page_set_sticky(bpage);
 
 	/* Now it is safe to release the buf_pool->mutex. */
-	buf_pool_mutex_exit(buf_pool);
+	mutex_exit(&buf_pool->LRU_list_mutex);
 
 	mutex_exit(block_mutex);
 	/* Try and force a context switch. */
 	os_thread_yield();
 
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
 
 	mutex_enter(block_mutex);
 	/* "Unfix" the block now that we have both the
@@ -415,9 +415,9 @@ buf_flush_yield(
 }
 
 /******************************************************************//**
-If we have hogged the resources for too long then release the buffer
-pool and flush list mutex and do a thread yield. Set the current page
-to "sticky" so that it is not relocated during the yield.
+If we have hogged the resources for too long then release the LRU list
+and flush list mutex and do a thread yield. Set the current page to
+"sticky" so that it is not relocated during the yield.
 @return TRUE if yielded */
 static
 ibool
@@ -439,7 +439,7 @@ buf_flush_try_yield(
 
 		buf_flush_list_mutex_exit(buf_pool);
 
-		/* Release the buffer pool and block mutex
+		/* Release the LRU list and block mutex
 		to give the other threads a go. */
 
 		buf_flush_yield(buf_pool, bpage);
@@ -472,7 +472,7 @@ buf_flush_or_remove_page(
 	mutex_t*	block_mutex;
 	ibool		processed = FALSE;
 
-	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
 
 	block_mutex = buf_page_get_mutex(bpage);
@@ -595,11 +595,11 @@ buf_flush_dirty_pages(
 	ibool	all_freed;
 
 	do {
-		buf_pool_mutex_enter(buf_pool);
+		mutex_enter(&buf_pool->LRU_list_mutex);
 
 		all_freed = buf_flush_or_remove_pages(buf_pool, id);
 
-		buf_pool_mutex_exit(buf_pool);
+		mutex_exit(&buf_pool->LRU_list_mutex);
 
 		ut_ad(buf_flush_validate(buf_pool));
 
@@ -659,8 +659,16 @@ scan_again:
 			goto next_page;
 		} else {
 
-			block_mutex = buf_page_get_mutex(bpage);
-			mutex_enter(block_mutex);
+			block_mutex = buf_page_get_mutex_enter(bpage);
+
+			if (!block_mutex) {
+				/* It may be impossible case...
+				   Something wrong, so will be scan_again */
+
+				all_freed = FALSE;
+				goto next_page;
+			}
+
 
 			if (bpage->buf_fix_count > 0) {
 
@@ -694,7 +702,8 @@ scan_again:
 			ulint	page_no;
 			ulint	zip_size;
 
-			buf_pool_mutex_exit(buf_pool);
+			mutex_exit(&buf_pool->LRU_list_mutex);
+			rw_lock_x_unlock(&buf_pool->page_hash_latch);
 
 			zip_size = buf_page_get_zip_size(bpage);
 			page_no = buf_page_get_page_no(bpage);
@@ -2370,9 +2379,23 @@ buf_LRU_free_one_page(
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
 {
+#ifdef UNIV_DEBUG
+	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+#endif
+	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+
+	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(block_mutex));
+
 	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
 	    != BUF_BLOCK_ZIP_FREE) {
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage, TRUE);
+	} else {
+		/* The block_mutex should have been released by
+		buf_LRU_block_remove_hashed_page() when it returns
+		BUF_BLOCK_ZIP_FREE. */
+		ut_ad(block_mutex == &buf_pool->zip_mutex);
+		mutex_enter(block_mutex);
 	}
 }
 

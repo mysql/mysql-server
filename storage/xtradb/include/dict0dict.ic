@@ -491,6 +491,7 @@ dict_table_zip_size(
 	return(dict_table_flags_to_zip_size(table->flags));
 }
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
 accessing index trees while InnoDB is updating internal metadata for
@@ -533,6 +534,7 @@ dict_table_x_unlock_indexes(
 		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
 including fields added by the dictionary system.
