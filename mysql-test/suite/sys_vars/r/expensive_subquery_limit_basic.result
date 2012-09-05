@@ -1,0 +1,52 @@
+SET @start_global_value = @@global.expensive_subquery_limit;
+SELECT @start_global_value;
+@start_global_value
+100
+select @@global.expensive_subquery_limit;
+@@global.expensive_subquery_limit
+100
+select @@session.expensive_subquery_limit;
+@@session.expensive_subquery_limit
+100
+show global variables like 'expensive_subquery_limit';
+Variable_name	Value
+expensive_subquery_limit	100
+show session variables like 'expensive_subquery_limit';
+Variable_name	Value
+expensive_subquery_limit	100
+select * from information_schema.global_variables where variable_name='expensive_subquery_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+EXPENSIVE_SUBQUERY_LIMIT	100
+select * from information_schema.session_variables where variable_name='expensive_subquery_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+EXPENSIVE_SUBQUERY_LIMIT	100
+set global expensive_subquery_limit=10;
+set session expensive_subquery_limit=20;
+select @@global.expensive_subquery_limit;
+@@global.expensive_subquery_limit
+10
+select @@session.expensive_subquery_limit;
+@@session.expensive_subquery_limit
+20
+show global variables like 'expensive_subquery_limit';
+Variable_name	Value
+expensive_subquery_limit	10
+show session variables like 'expensive_subquery_limit';
+Variable_name	Value
+expensive_subquery_limit	20
+select * from information_schema.global_variables where variable_name='expensive_subquery_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+EXPENSIVE_SUBQUERY_LIMIT	10
+select * from information_schema.session_variables where variable_name='expensive_subquery_limit';
+VARIABLE_NAME	VARIABLE_VALUE
+EXPENSIVE_SUBQUERY_LIMIT	20
+set global expensive_subquery_limit=1.1;
+ERROR 42000: Incorrect argument type to variable 'expensive_subquery_limit'
+set global expensive_subquery_limit=1e1;
+ERROR 42000: Incorrect argument type to variable 'expensive_subquery_limit'
+set global expensive_subquery_limit="foo";
+ERROR 42000: Incorrect argument type to variable 'expensive_subquery_limit'
+SET @@global.expensive_subquery_limit = @start_global_value;
+SELECT @@global.expensive_subquery_limit;
+@@global.expensive_subquery_limit
+100

@@ -1,0 +1,38 @@
+SET @start_global_value = @@global.expensive_subquery_limit;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.expensive_subquery_limit;
+select @@session.expensive_subquery_limit;
+show global variables like 'expensive_subquery_limit';
+show session variables like 'expensive_subquery_limit';
+select * from information_schema.global_variables where variable_name='expensive_subquery_limit';
+select * from information_schema.session_variables where variable_name='expensive_subquery_limit';
+
+#
+# show that it's writable
+#
+set global expensive_subquery_limit=10;
+set session expensive_subquery_limit=20;
+select @@global.expensive_subquery_limit;
+select @@session.expensive_subquery_limit;
+show global variables like 'expensive_subquery_limit';
+show session variables like 'expensive_subquery_limit';
+select * from information_schema.global_variables where variable_name='expensive_subquery_limit';
+select * from information_schema.session_variables where variable_name='expensive_subquery_limit';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global expensive_subquery_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global expensive_subquery_limit=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global expensive_subquery_limit="foo";
+
+SET @@global.expensive_subquery_limit = @start_global_value;
+SELECT @@global.expensive_subquery_limit;
+
