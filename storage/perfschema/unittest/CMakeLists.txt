@@ -54,3 +54,6 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t
   mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
 ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
+
+# On windows, pfs_connect_attr-t may depend on openssl dlls.
+COPY_OPENSSL_DLLS(copy_openssl_pfs_unittest)
