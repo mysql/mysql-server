@@ -34,6 +34,7 @@ try {
 
 var spi = require(spi_module);
 
+var commonTableHandler = require("../../Adapter/impl/common/DBTableHandler.js");
 var t1 = new harness.SerialTest("InsertInt");
 var t2 = new harness.SerialTest("DeleteIntPK");
 
@@ -44,7 +45,8 @@ function do_insert_op(session, table) {
   t2.table = table;
 
   var tx = session.openTransaction();
-  var thandler = session.getConnectionPool().createDBTableHandler(table, null);
+  var dbConnectionPool = session.getConnectionPool();
+  var thandler = new commonTableHandler.DBTableHandler(dbConnectionPool, table, null);
   
   var row = { i: 13 , j: 14 };
   var op = session.insert(thandler, row);
@@ -73,7 +75,7 @@ t1.run = function() {
     udebug.log("InsertIntTest.js onSession");
     session = sess;
     if(err) {   test.fail(err);   }
-    else    {   session.getConnectionPool().getTable("test", "tbl1", onTable); }
+    else    {   session.getConnectionPool().getTableMetadata("test", "tbl1", null, onTable); }
   }
 
   function onConnect(err, conn) {

@@ -20,6 +20,10 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
+"use strict";
+
+/*global udebug, exports */
+
 var util = require('util');
 
 exports.DataDictionary = function(pooledConnection) {
@@ -27,12 +31,12 @@ exports.DataDictionary = function(pooledConnection) {
 };
 
 exports.DataDictionary.prototype.listTables = function(databaseName, user_callback) {
-  callback = user_callback;
-  showTables_callback = function(err, rows) {
+  var callback = user_callback;
+  var showTables_callback = function(err, rows) {
     if (err) {
       callback(err);
     } else {
-      result = [];
+      var result = [];
       var propertyName = 'Tables_in_' + databaseName;
       rows.forEach(function(row) {
         result.push(row[propertyName]);
@@ -45,26 +49,27 @@ exports.DataDictionary.prototype.listTables = function(databaseName, user_callba
 };
 
 
-exports.DataDictionary.prototype.getTable = function(databaseName, tableName, user_callback) {
+exports.DataDictionary.prototype.getTableMetadata = function(databaseName, tableName, user_callback) {
 
   // get precision from columnSize e.g. 10,2
   var getPrecision = function(columnSize) {
     var precision = columnSize.split(',')[0];
-    return parseInt(precision);
+    return parseInt(precision, 10);
   };
 
   // get scale from columnSize e.g. 10,2
   var getScale = function(columnSize) {
     var scale = columnSize.split(',')[1];
-    return parseInt(scale);
+    return parseInt(scale, 10);
   };
 
   var decodeIndexColumnNames = function(columnNames) {
     var columnNamesSplit = columnNames.split('`');
     var indexColumnNames = [];
+    var k;
     udebug.log_detail('MySQLDictionary.decodeIndexColumnNames columnNamesSplit: '
         + columnNamesSplit.length + ' ' + columnNamesSplit);
-    for (var k = 1; k < columnNamesSplit.length; k += 2) {
+    for (k = 1; k < columnNamesSplit.length; k += 2) {
       indexColumnNames.push(columnNamesSplit[k]);
     }
     udebug.log_detail('MySQLDictionary.decodeIndexColumnNames indexColumnNames: ' + indexColumnNames);
@@ -73,11 +78,12 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
 
   var convertColumnNamesToNumbers = function(columnNames, columns) {
     var result = [];
-    for (var i = 0; i < columnNames.length; ++i) {
+    var i, j;
+    for (i = 0; i < columnNames.length; ++i) {
       udebug.log_detail('MySQLDictionary.convertColumnNamesToNumbers looking for: ' + columnNames[i]
               + ' in ' + JSON.stringify(columns));
-      for (var j = 0; j < columns.length; ++j) {
-        if (columnNames[i] == columns[j]['name']) {
+      for (j = 0; j < columns.length; ++j) {
+        if (columnNames[i] == columns[j].name) {
           result.push(j);
           break;
         }
@@ -97,8 +103,9 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
     
     // split lines by '\n'
     var lines = statement.split('\n');
+    var i;
     // first line has table name which we ignore because we already know it
-    for (var i = 1; i < lines.length; ++i) {
+    for (i = 1; i < lines.length; ++i) {
       var line = lines[i];
       udebug.log_detail('\nMySQLDictionary.parseCreateTable: ' + line);
       var tokens = line.split(' ');
@@ -160,6 +167,7 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
           usingHash = -1 != tokens[++j].indexOf('HASH');
         }
         if (usingHash) {
+          // TODO create two index objects for unique btree index
           // only HASH
         } else {
           // btree or both
@@ -261,14 +269,14 @@ exports.DataDictionary.prototype.getTable = function(databaseName, tableName, us
     return result;
   };
 
-  callback = user_callback;
-  showCreateTable_callback = function(err, rows) {
+  var callback = user_callback;
+  var showCreateTable_callback = function(err, rows) {
     var result;
     if (err) {
       callback(err);
     } else {
       udebug.log(rows);
-      row = rows[0];
+      var row = rows[0];
       // result of show create table is of the form:
       // [ { Table: 'tbl1',
       // 'Create Table': 'CREATE TABLE `tbl1` (\n  `i` int(11) NOT NULL,\n  `j` int(11) DEFAULT NULL,\n  PRIMARY KEY (`i`)\n) ENGINE=ndbcluster DEFAULT CHARSET=latin1' } ]

@@ -77,6 +77,13 @@ function checkTest(file) {
 // ****** SOURCES FILES TO CHECK ********** //
 
 checkSource("impl/common/DBTableHandler.js");
+checkSource("impl/common/UserContext.js");
+
+checkSource("impl/mysql/mysql_service_provider.js");
+checkSource("impl/mysql/MySQLConnectionPool.js");
+checkSource("impl/mysql/MySQLConnection.js");
+//checkSource("impl/mysql/MySQLDictionary.js");
+
 checkSource("impl/ndb/ndb_service_provider.js");
 checkSource("impl/ndb/NdbConnectionPool.js");
 checkSource("impl/ndb/NdbSession.js");
@@ -85,6 +92,8 @@ checkSource("impl/ndb/NdbTransactionHandler.js");
 checkSource("impl/ndb/NdbTypeConverters.js");
 
 checkSource("api/unified_debug.js");
+checkSource("api/SessionFactory.js");
+checkSource("api/Session.js");
 // checkSource("api/mynode.js");
 
 

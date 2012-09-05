@@ -65,13 +65,13 @@ t2.run = function() {
     t1.errorIfNotEqual("Bad table count", count, 2);
     t1.failOnError();
 
-    session.getConnectionPool().getTable("test", "tbl2", onTable);
+    session.getConnectionPool().getTableMetadata("test", "tbl2", null, onTable);
   }
 
   function onSession(err, sess) {
     udebug.log("DBDictionaryTest onSession");
     session = sess;   // for teardown
-    session.getConnectionPool().listTables("test", onList);
+    session.getConnectionPool().listTables("test", null, onList);
   }
     
   function onConnect(err, connection) {
