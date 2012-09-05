@@ -114,82 +114,10 @@ test/fk_3	a1	a	0
 test/fk_3	a2	b	1
 test/fk_4	a1	a	0
 test/fk_4	a2	b	1
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS ORDER BY NAME, POS;
-NAME	POS
-a	0
-a1	0
-a2	1
-b	1
-Bind	16
-Checkpoint_group_bitmap	11
-Checkpoint_group_size	10
-Checkpoint_master_log_name	7
-Checkpoint_master_log_pos	8
-Checkpoint_relay_log_name	5
-Checkpoint_relay_log_pos	6
-Checkpoint_seqno	9
-clustered_index_size	4
-Connect_retry	7
-database_name	0
-database_name	0
-Enabled_auto_position	22
-Enabled_ssl	8
-FLAGS	2
-FOR_COL_NAME	2
-FOR_NAME	1
-Heartbeat	15
-Host	3
-ID	0
-ID	0
-Id	0
-Id	7
-Ignored_server_ids	17
-index_name	2
-last_update	2
-last_update	3
-Master_log_name	1
-Master_log_name	3
-Master_log_name	3
-Master_log_pos	2
-Master_log_pos	4
-Master_log_pos	4
-NAME	1
-Number_of_lines	0
-Number_of_lines	0
-Number_of_workers	6
-N_COLS	3
-n_rows	3
-PATH	1
-Port	6
-POS	1
-REF_COL_NAME	3
-REF_NAME	2
-Relay_log_name	1
-Relay_log_name	1
-Relay_log_pos	2
-Relay_log_pos	2
-Retry_count	19
-sample_size	6
-SPACE	0
-SPACE	0
-Sql_delay	5
-Ssl_ca	9
-Ssl_capath	10
-Ssl_cert	11
-Ssl_cipher	12
-Ssl_crl	20
-Ssl_crlpath	21
-Ssl_key	13
-Ssl_verify_server_cert	14
-stat_description	7
-stat_name	4
-stat_value	5
-sum_of_other_index_sizes	5
-table_name	1
-table_name	1
-User_name	4
-User_password	5
-Uuid	18
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+name	name
+test/child	a1
+test/child	a2
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 NAME
 SYS_DATAFILES
@@ -384,82 +312,10 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS ORDER BY NAME, POS;
-NAME	POS
-a	0
-a1	0
-a2	1
-b	1
-Bind	16
-Checkpoint_group_bitmap	11
-Checkpoint_group_size	10
-Checkpoint_master_log_name	7
-Checkpoint_master_log_pos	8
-Checkpoint_relay_log_name	5
-Checkpoint_relay_log_pos	6
-Checkpoint_seqno	9
-clustered_index_size	4
-Connect_retry	7
-database_name	0
-database_name	0
-Enabled_auto_position	22
-Enabled_ssl	8
-FLAGS	2
-FOR_COL_NAME	2
-FOR_NAME	1
-Heartbeat	15
-Host	3
-ID	0
-ID	0
-Id	0
-Id	7
-Ignored_server_ids	17
-index_name	2
-last_update	2
-last_update	3
-Master_log_name	1
-Master_log_name	3
-Master_log_name	3
-Master_log_pos	2
-Master_log_pos	4
-Master_log_pos	4
-NAME	1
-Number_of_lines	0
-Number_of_lines	0
-Number_of_workers	6
-N_COLS	3
-n_rows	3
-PATH	1
-Port	6
-POS	1
-REF_COL_NAME	3
-REF_NAME	2
-Relay_log_name	1
-Relay_log_name	1
-Relay_log_pos	2
-Relay_log_pos	2
-Retry_count	19
-sample_size	6
-SPACE	0
-SPACE	0
-Sql_delay	5
-Ssl_ca	9
-Ssl_capath	10
-Ssl_cert	11
-Ssl_cipher	12
-Ssl_crl	20
-Ssl_crlpath	21
-Ssl_key	13
-Ssl_verify_server_cert	14
-stat_description	7
-stat_name	4
-stat_value	5
-sum_of_other_index_sizes	5
-table_name	1
-table_name	1
-User_name	4
-User_password	5
-Uuid	18
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+name	name
+test/child	a1
+test/child	a2
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 NAME
 SYS_DATAFILES
@@ -483,82 +339,10 @@ test/fk_1	test/child	test/parent	1	6
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	0
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS ORDER BY NAME, POS;
-NAME	POS
-a	0
-a2	1
-a3	0
-b	1
-Bind	16
-Checkpoint_group_bitmap	11
-Checkpoint_group_size	10
-Checkpoint_master_log_name	7
-Checkpoint_master_log_pos	8
-Checkpoint_relay_log_name	5
-Checkpoint_relay_log_pos	6
-Checkpoint_seqno	9
-clustered_index_size	4
-Connect_retry	7
-database_name	0
-database_name	0
-Enabled_auto_position	22
-Enabled_ssl	8
-FLAGS	2
-FOR_COL_NAME	2
-FOR_NAME	1
-Heartbeat	15
-Host	3
-ID	0
-ID	0
-Id	0
-Id	7
-Ignored_server_ids	17
-index_name	2
-last_update	2
-last_update	3
-Master_log_name	1
-Master_log_name	3
-Master_log_name	3
-Master_log_pos	2
-Master_log_pos	4
-Master_log_pos	4
-NAME	1
-Number_of_lines	0
-Number_of_lines	0
-Number_of_workers	6
-N_COLS	3
-n_rows	3
-PATH	1
-Port	6
-POS	1
-REF_COL_NAME	3
-REF_NAME	2
-Relay_log_name	1
-Relay_log_name	1
-Relay_log_pos	2
-Relay_log_pos	2
-Retry_count	19
-sample_size	6
-SPACE	0
-SPACE	0
-Sql_delay	5
-Ssl_ca	9
-Ssl_capath	10
-Ssl_cert	11
-Ssl_cipher	12
-Ssl_crl	20
-Ssl_crlpath	21
-Ssl_key	13
-Ssl_verify_server_cert	14
-stat_description	7
-stat_name	4
-stat_value	5
-sum_of_other_index_sizes	5
-table_name	1
-table_name	1
-User_name	4
-User_password	5
-Uuid	18
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+name	name
+test/child	a2
+test/child	a3
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 NAME
 SYS_DATAFILES
@@ -593,82 +377,10 @@ test/fk_1	test/child	test/parent	1	6
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a2	b	0
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS ORDER BY NAME, POS;
-NAME	POS
-a	0
-a1	0
-a2	1
-b	1
-Bind	16
-Checkpoint_group_bitmap	11
-Checkpoint_group_size	10
-Checkpoint_master_log_name	7
-Checkpoint_master_log_pos	8
-Checkpoint_relay_log_name	5
-Checkpoint_relay_log_pos	6
-Checkpoint_seqno	9
-clustered_index_size	4
-Connect_retry	7
-database_name	0
-database_name	0
-Enabled_auto_position	22
-Enabled_ssl	8
-FLAGS	2
-FOR_COL_NAME	2
-FOR_NAME	1
-Heartbeat	15
-Host	3
-ID	0
-ID	0
-Id	0
-Id	7
-Ignored_server_ids	17
-index_name	2
-last_update	2
-last_update	3
-Master_log_name	1
-Master_log_name	3
-Master_log_name	3
-Master_log_pos	2
-Master_log_pos	4
-Master_log_pos	4
-NAME	1
-Number_of_lines	0
-Number_of_lines	0
-Number_of_workers	6
-N_COLS	3
-n_rows	3
-PATH	1
-Port	6
-POS	1
-REF_COL_NAME	3
-REF_NAME	2
-Relay_log_name	1
-Relay_log_name	1
-Relay_log_pos	2
-Relay_log_pos	2
-Retry_count	19
-sample_size	6
-SPACE	0
-SPACE	0
-Sql_delay	5
-Ssl_ca	9
-Ssl_capath	10
-Ssl_cert	11
-Ssl_cipher	12
-Ssl_crl	20
-Ssl_crlpath	21
-Ssl_key	13
-Ssl_verify_server_cert	14
-stat_description	7
-stat_name	4
-stat_value	5
-sum_of_other_index_sizes	5
-table_name	1
-table_name	1
-User_name	4
-User_password	5
-Uuid	18
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+name	name
+test/child	a1
+test/child	a2
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 NAME
 SYS_DATAFILES
@@ -703,82 +415,10 @@ test/fk_1	test/child	test/parent	1	6
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
 ID	FOR_COL_NAME	REF_COL_NAME	POS
 test/fk_1	a3	b	0
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS ORDER BY NAME, POS;
-NAME	POS
-a	0
-a2	1
-a3	0
-b	1
-Bind	16
-Checkpoint_group_bitmap	11
-Checkpoint_group_size	10
-Checkpoint_master_log_name	7
-Checkpoint_master_log_pos	8
-Checkpoint_relay_log_name	5
-Checkpoint_relay_log_pos	6
-Checkpoint_seqno	9
-clustered_index_size	4
-Connect_retry	7
-database_name	0
-database_name	0
-Enabled_auto_position	22
-Enabled_ssl	8
-FLAGS	2
-FOR_COL_NAME	2
-FOR_NAME	1
-Heartbeat	15
-Host	3
-ID	0
-ID	0
-Id	0
-Id	7
-Ignored_server_ids	17
-index_name	2
-last_update	2
-last_update	3
-Master_log_name	1
-Master_log_name	3
-Master_log_name	3
-Master_log_pos	2
-Master_log_pos	4
-Master_log_pos	4
-NAME	1
-Number_of_lines	0
-Number_of_lines	0
-Number_of_workers	6
-N_COLS	3
-n_rows	3
-PATH	1
-Port	6
-POS	1
-REF_COL_NAME	3
-REF_NAME	2
-Relay_log_name	1
-Relay_log_name	1
-Relay_log_pos	2
-Relay_log_pos	2
-Retry_count	19
-sample_size	6
-SPACE	0
-SPACE	0
-Sql_delay	5
-Ssl_ca	9
-Ssl_capath	10
-Ssl_cert	11
-Ssl_cipher	12
-Ssl_crl	20
-Ssl_crlpath	21
-Ssl_key	13
-Ssl_verify_server_cert	14
-stat_description	7
-stat_name	4
-stat_value	5
-sum_of_other_index_sizes	5
-table_name	1
-table_name	1
-User_name	4
-User_password	5
-Uuid	18
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
+name	name
+test/child	a2
+test/child	a3
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 NAME
 SYS_DATAFILES
