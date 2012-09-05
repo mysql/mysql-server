@@ -43,6 +43,7 @@ extern struct st_mysql_plugin   i_s_innodb_sys_fields;
 extern struct st_mysql_plugin   i_s_innodb_sys_foreign;
 extern struct st_mysql_plugin   i_s_innodb_sys_foreign_cols;
 extern struct st_mysql_plugin	i_s_innodb_rseg;
+extern struct st_mysql_plugin	i_s_innodb_undo_logs;
 extern struct st_mysql_plugin	i_s_innodb_sys_stats;
 extern struct st_mysql_plugin	i_s_innodb_table_stats;
 extern struct st_mysql_plugin	i_s_innodb_index_stats;
