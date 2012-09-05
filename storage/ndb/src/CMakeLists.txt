@@ -64,7 +64,31 @@ SET(NDB_SHARED_LIB_VERSION "${major}.${minor}.${build}")
 
 ADD_LIBRARY(ndbclient_so SHARED ndbclient_exports.cpp)
 TARGET_LINK_LIBRARIES(ndbclient_so ${NDBCLIENT_SO_LIBS})
-IF(NOT MSVC)
+
+IF(MSVC)
+  # Add a PREBUILD command which creates a module definition file
+  # for all the symbols which should be exported from ndbclient_so
+  # PROBLEM: Fails to get the full path to mysys, strings etc since those
+  # targets haven't been added yet -> defer this step to build time?
+  FOREACH (lib ${NDBCLIENT_SO_LIBS})
+    GET_TARGET_PROPERTY(loc ${lib} LOCATION)
+    FILE(TO_NATIVE_PATH ${loc} loc)
+    SET (lib_locations ${lib_locations} ${loc})
+  ENDFOREACH ()
+  
+  SET(_PLATFORM x86)
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    SET(_PLATFORM  x64)
+  ENDIF()
+  ADD_CUSTOM_COMMAND(TARGET ndbclient_so PRE_BUILD
+    COMMAND cscript ARGS //nologo ${PROJECT_SOURCE_DIR}/win/create_def_file.js
+                         ${_PLATFORM}  ${lib_locations} > ndbclient_exports.def
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+	
+  # Modify link flags to use the generated module definition file
+  GET_TARGET_PROPERTY(ndbclient_so_link_flags ndbclient_so LINK_FLAGS)
+  SET_TARGET_PROPERTIES(ndbclient_so PROPERTIES LINK_FLAGS "${ndbclient_link_flags} /DEF:ndbclient_exports.def")
+ELSE()
   # Turn off cmake's transitive link behaviour so that the shared
   # ndbclient library contains everything except functions from
   # system libs
@@ -83,14 +107,16 @@ IF(NOT MSVC)
         SET(ignore_dep_lib 1)
       ENDIF()
 
-      # Ignore libs already in NDBCLIENT_SO_LIBS list
+      # Ignore libs already in NDBCLIENT_SO_LIBS list, manily used
+      # to ignore mysys, strings etc. since those targets have not
+      # been added yet
       LIST(FIND NDBCLIENT_SO_LIBS ${dep_lib} dep_lib_found)
       IF(dep_lib_found GREATER -1)
         # MESSAGE(STATUS "Ignoring lib ${dep_lib} since it's already in NDBCLIENT_SO_LIBS")
         SET(ignore_dep_lib 1)
       ENDIF()
 
-      # Ignore libs where locations is known(this means it's built locally)
+      # Ignore libs where location is known(this means it's built locally)
       GET_TARGET_PROPERTY(dep_lib_location ${dep_lib} LOCATION)
       IF(dep_lib_location)
         # MESSAGE(STATUS "Ignoring ${dep_lib} since location is known")
