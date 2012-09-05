@@ -530,7 +530,9 @@ public:
     int alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    int alter_table_change_varchar_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    int setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *kc_info);
  public:
 #endif
 #if TOKU_INCLUDE_ALTER_55

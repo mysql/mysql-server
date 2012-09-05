@@ -1,14 +1,16 @@
 
+// update functions
 #define UP_COL_ADD_OR_DROP 0
+#define EXPAND_VARCHAR_OFFSETS 1
 
+// add or drop column operations
 #define COL_DROP 0xaa
 #define COL_ADD 0xbb
 
+// add or drop column types
 #define COL_FIXED 0xcc
 #define COL_VAR 0xdd
 #define COL_BLOB 0xee
-
-
 
 #define STATIC_ROW_MUTATOR_SIZE 1+8+2+8+8+8
 
@@ -589,6 +591,92 @@ cleanup:
     return error;    
 }
 
+// Decode the expand varchar offsets message and expand the varchar offsets array in the old
+// val to a new val.  Call the set_val callback with the new val.
+static int 
+tokudb_expand_varchar_offsets(
+    DB* db,
+    const DBT *key,
+    const DBT *old_val, 
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val, void *set_extra),
+    void *set_extra
+    ) 
+{
+    int error = 0;
+    uchar *extra_pos = (uchar *)extra->data;
+
+    // decode the operation
+    uchar operation = extra_pos[0];
+    assert(operation == EXPAND_VARCHAR_OFFSETS);
+    extra_pos += sizeof operation;
+
+    // decode the offset start
+    uint32_t offset_start;
+    memcpy(&offset_start, extra_pos, sizeof offset_start);
+    extra_pos += sizeof offset_start;
+
+    // decode the number of offsets
+    uint32_t offset_end;
+    memcpy(&offset_end, extra_pos, sizeof offset_end);
+    extra_pos += sizeof offset_end;
+
+    uint32_t number_of_offsets = offset_end - offset_start;
+    
+    assert(extra_pos == (uchar *)extra->data + extra->size);
+    assert(offset_start < old_val->size);
+    assert(offset_start + number_of_offsets < old_val->size);
+
+    DBT new_val = {};
+
+    if (old_val != NULL) {
+        // compute the new val from the old val
+
+        uchar *old_val_ptr = (uchar *)old_val->data;
+
+        // allocate space for the new val's data
+        uchar *new_val_ptr = (uchar *)my_malloc(number_of_offsets + old_val->size, MYF(MY_FAE));
+        if (!new_val_ptr) {
+            error = ENOMEM;
+            goto cleanup;
+        }
+        new_val.data = new_val_ptr;
+        
+        // copy up to the start of the varchar offset
+        memcpy(new_val_ptr, old_val_ptr, offset_start);
+        new_val_ptr += offset_start;
+        old_val_ptr += offset_start;
+        
+        // we just need to expand each offset from 1 to 2 bytes
+        for (uint32_t i = 0; i < number_of_offsets; i++) {
+            uint16_t new_offset = *old_val_ptr;
+            int2store(new_val_ptr, new_offset);
+            new_val_ptr += 2;
+            old_val_ptr += 1;
+        }
+        
+        // copy the rest of the row
+        size_t n = old_val->size - (old_val_ptr - (uchar *)old_val->data);
+        memcpy(new_val_ptr, old_val_ptr, n);
+        new_val_ptr += n;
+        old_val_ptr += n;
+        new_val.size = new_val_ptr - (uchar *)new_val.data;
+
+        assert(new_val_ptr == (uchar *)new_val.data + new_val.size);
+        assert(old_val_ptr == (uchar *)old_val->data + old_val->size);
+
+        // set the new val
+        set_val(&new_val, set_extra);
+    }
+
+    error = 0;
+
+cleanup:
+    my_free(new_val.data, MYF(MY_ALLOW_ZERO_PTR));        
+
+    return error;
+}
+
 int 
 tokudb_update_fun(
     DB* db,
@@ -606,11 +694,12 @@ tokudb_update_fun(
     case UP_COL_ADD_OR_DROP:
         error = tokudb_hcad_update_fun(db, key, old_val, extra, set_val, set_extra);
         break;
+    case EXPAND_VARCHAR_OFFSETS:
+        error = tokudb_expand_varchar_offsets(db, key, old_val, extra, set_val, set_extra);
+        break;
     default:
         error = EINVAL;
         break;
     }
     return error;
 }
-
-
