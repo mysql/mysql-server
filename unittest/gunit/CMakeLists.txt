@@ -312,3 +312,6 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
+
+## Most executables depend on libeay32.dll (through mysys_ssl).
+COPY_OPENSSL_DLLS(copy_openssl_gunit)
