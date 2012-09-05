@@ -634,11 +634,15 @@ fil_space_for_table_exists_in_mem(
 					data dictionary, so that
 					we can print a warning about orphaned
 					tablespaces */
-	ibool		print_error_if_does_not_exist);
+	ibool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
 					memory */
+	bool		adjust_space,	/*!< in: whether to adjust space id
+					when find table space mismatch */
+	mem_heap_t*	heap,		/*!< in: heap memory */
+	table_id_t	table_id);	/*!< in: table id */
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
