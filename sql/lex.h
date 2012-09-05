@@ -302,6 +302,7 @@ static SYMBOL symbols[] = {
   { "KILL",		SYM(KILL_SYM)},
   { "LANGUAGE",         SYM(LANGUAGE_SYM)},
   { "LAST",		SYM(LAST_SYM)},
+  { "LAST_VALUE",	SYM(LAST_VALUE)},
   { "LEADING",		SYM(LEADING)},
   { "LEAVE",            SYM(LEAVE_SYM)},
   { "LEAVES",		SYM(LEAVES)},

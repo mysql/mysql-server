@@ -1,0 +1,73 @@
+drop table if exists t1;
+drop database if exists mysqltest;
+CREATE TABLE t1 (a INT, b INT, c INT, d INT);
+INSERT INTO t1 VALUES (1,3,0,NULL),(2,2,0,NULL),(3,4,0,NULL),(4,2,0,NULL);
+SELECT * FROM t1;
+a	b	c	d
+1	3	0	NULL
+2	2	0	NULL
+3	4	0	NULL
+4	2	0	NULL
+UPDATE t1 SET c=LAST_VALUE(@last_a:=a,@last_b:=b,@last_c:=c,1), d=4211 WHERE c=0 ORDER BY b DESC LIMIT 1;
+SELECT @last_a, @last_b, @last_c;
+@last_a	@last_b	@last_c
+3	4	0
+SELECT * FROM t1;
+a	b	c	d
+1	3	0	NULL
+2	2	0	NULL
+3	4	1	4211
+4	2	0	NULL
+DROP TABLE t1;
+SELECT LAST_VALUE(@last_a:=1,@last_b:=1);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					LAST_VALUE(@last_a:=1,@last_b:=1)	8	1	1	N	32897	0	63
+LAST_VALUE(@last_a:=1,@last_b:=1)
+1
+select @last_b;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@last_b	8	20	1	Y	32896	0	63
+@last_b
+1
+SELECT LAST_VALUE(@last_a:=1,@last_b:=1.0);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					LAST_VALUE(@last_a:=1,@last_b:=1.0)	246	4	3	N	32897	1	63
+LAST_VALUE(@last_a:=1,@last_b:=1.0)
+1.0
+select @last_b;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@last_b	246	83	3	Y	32896	30	63
+@last_b
+1.0
+SELECT LAST_VALUE(@last_a:=1,@last_b:="hello");
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					LAST_VALUE(@last_a:=1,@last_b:="hello")	253	5	5	N	1	31	8
+LAST_VALUE(@last_a:=1,@last_b:="hello")
+hello
+select @last_b;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@last_b	250	16777215	5	Y	0	31	8
+@last_b
+hello
+SELECT date(LAST_VALUE(@last_a:=1,@last_b:="2001-02-03"));
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					date(LAST_VALUE(@last_a:=1,@last_b:="2001-02-03"))	10	10	10	Y	128	0	63
+date(LAST_VALUE(@last_a:=1,@last_b:="2001-02-03"))
+2001-02-03
+select @last_b;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@last_b	250	16777215	10	Y	0	31	8
+@last_b
+2001-02-03
+SELECT LAST_VALUE(@last_a:=1,@last_b:="2001-02-03",NULL);
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					LAST_VALUE(@last_a:=1,@last_b:="2001-02-03",NULL)	6	0	0	Y	32896	0	63
+LAST_VALUE(@last_a:=1,@last_b:="2001-02-03",NULL)
+NULL
+select @last_b;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					@last_b	250	16777215	10	Y	0	31	8
+@last_b
+2001-02-03
+SELECT LAST_VALUE();
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near ')' at line 1

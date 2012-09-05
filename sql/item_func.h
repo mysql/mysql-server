@@ -2003,6 +2003,27 @@ public:
   }
 };
 
+
+class Item_func_last_value :public Item_func
+{
+protected:
+  Item *last_value;
+public:
+  Item_func_last_value(List<Item> &list) :Item_func(list) {}
+  double val_real();
+  longlong val_int();
+  String *val_str(String *);
+  my_decimal *val_decimal(my_decimal *);
+  void fix_length_and_dec();
+  enum Item_result result_type () const { return last_value->result_type(); }
+  const char *func_name() const { return "last_value"; }
+  table_map not_null_tables() const { return 0; }
+  enum_field_types field_type() const { return last_value->field_type(); }
+  bool const_item() const { return 0; }
+  void evaluate_sideeffects();
+};
+
+
 Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
                      LEX_STRING component);
 extern bool check_reserved_words(LEX_STRING *name);
