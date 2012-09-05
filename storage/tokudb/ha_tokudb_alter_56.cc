@@ -12,6 +12,8 @@
 #include "ha_tokudb_alter_common.cc"
 #include <sql_array.h>
 
+// The tokudb alter context contains the alter state that is set in the check if supported method and used
+// later when the alter operation is executed.
 class tokudb_alter_ctx : public inplace_alter_handler_ctx {
 public:
     tokudb_alter_ctx() {
@@ -116,13 +118,11 @@ find_changed_fields(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_a
     }
 }
 
-static bool 
-change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
+static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
 
-static bool 
-change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
+static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
 
-// The ha_alter_info->handler_flags can not be trusted.  This function maps the bogus bits.
+// The ha_alter_info->handler_flags can not be trusted.  This function maps the bogus handler flags to something we like.
 static ulong
 fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     ulong handler_flags = ha_alter_info->handler_flags;
@@ -173,7 +173,7 @@ fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alt
     return handler_flags;
 }
 
-// require that there is no intersection of add and drop names.
+// Require that there is no intersection of add and drop names.
 static bool
 is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
     for (uint d = 0; d < ha_alter_info->index_drop_count; d++) {
@@ -188,8 +188,7 @@ is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
     return true;
 }
 
-// true if some bit in mask is set and no bit in ~mask is set
-// otherwise false
+// Return true if some bit in mask is set and no bit in ~mask is set, otherwise return false.
 static bool
 only_flags(ulong bits, ulong mask) {
     return (bits & mask) != 0 && (bits & ~mask) == 0;
@@ -342,6 +341,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     DBUG_RETURN(result);
 }
 
+// Prepare for the alter operations. Currently, there is nothing to prepare.
 bool 
 ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("prepare_inplace_alter_table");
@@ -349,6 +349,7 @@ ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info 
     DBUG_RETURN(result);
 }
 
+// Execute the alter operations.
 bool 
 ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("inplace_alter_table");
@@ -597,8 +598,7 @@ ha_tokudb::alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_in
     return error;
 }
 
-// Handle change column varchar expansion.
-// For all clustered keys, broadcast an update message to readjust the varchar offsets.
+// Handle change column varchar expansion.  For all clustered keys, broadcast an update message to readjust the varchar offsets.
 int
 ha_tokudb::alter_table_change_varchar_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
@@ -639,9 +639,9 @@ ha_tokudb::alter_table_change_varchar_column(TABLE *altered_table, Alter_inplace
     return error;
 }
 
-// Implement the handler commit inplace alter table method
-// If commit then write the new frm data to the status using the alter transaction
-// If abort then abort the alter transaction and try to rollback the non-transactional changes
+// Commit or abort the alter operations.
+// If commit then write the new frm data to the status using the alter transaction.
+// If abort then abort the alter transaction and try to rollback the non-transactional changes.
 bool 
 ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit) {
     TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
@@ -703,6 +703,7 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     DBUG_RETURN(result);
 }
 
+// Setup the altered table's key and col info.
 int
 ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info) {
     int error = allocate_key_and_col_info(altered_table->s, altered_kc_info);
