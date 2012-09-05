@@ -7339,6 +7339,7 @@ Item* Item_cache_wrapper::get_tmp_table_item(THD *thd_arg)
 
 bool Item_direct_view_ref::fix_fields(THD *thd, Item **reference)
 {
+  DBUG_ASSERT(1);
   /* view fild reference must be defined */
   DBUG_ASSERT(*ref);
   /* (*ref)->check_cols() will be made in Item_direct_ref::fix_fields */
