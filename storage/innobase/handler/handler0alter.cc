@@ -1912,29 +1912,6 @@ innobase_check_column_length(
 	return(false);
 }
 
-/*******************************************************************//**
-Adjust a temporary tablename.
-@return	temporary tablename suitable for InnoDB use */
-static __attribute__((nonnull, warn_unused_result))
-char*
-innobase_create_temporary_tablename(
-/*================================*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	const char*	dbtab,	/*!< in: database/table name */
-	table_id_t	id)	/*!< in: InnoDB table id */
-{
-	const char*	dbend	= strchr(dbtab, '/');
-	ut_ad(dbend);
-	size_t		dblen	= dbend - dbtab + 1;
-	size_t		size = tmp_file_prefix_length + 4 + 9 + 9 + dblen;
-
-	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
-	memcpy(name, dbtab, dblen);
-	ut_snprintf(name + dblen, size - dblen,
-		    tmp_file_prefix "-ib" UINT64PF, id);
-	return(name);
-}
-
 struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 {
 	/** Dummy query graph */
@@ -2591,7 +2568,7 @@ prepare_inplace_alter_table_dict(
 	to drop the original table and rebuild all indexes. */
 
 	if (new_clustered) {
-		char*	new_table_name = innobase_create_temporary_tablename(
+		char*	new_table_name = dict_mem_create_temporary_tablename(
 			heap, indexed_table->name, indexed_table->id);
 		ulint	n_cols;
 
@@ -2616,6 +2593,13 @@ prepare_inplace_alter_table_dict(
 
 		/* Create the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
+		indexed_table = dict_load_table(
+			new_table_name, TRUE, DICT_ERR_IGNORE_NONE);
+
+		if (indexed_table) {
+			row_merge_drop_table(trx, indexed_table, true);
+		}
 
 		/* The initial space id 0 may be overridden later. */
 		indexed_table = dict_mem_table_create(
@@ -4573,13 +4557,19 @@ undo_add_fk:
 		now rename the old table as a temporary table,
 		rename the new temporary table as the old
 		table and drop the old table. */
-		tmp_name = innobase_create_temporary_tablename(
+		tmp_name = dict_mem_create_temporary_tablename(
 			ctx->heap, ctx->indexed_table->name,
 			ctx->indexed_table->id);
+
+		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
+				DBUG_SUICIDE(););
 
 		error = row_merge_rename_tables(
 			prebuilt->table, ctx->indexed_table,
 			tmp_name, trx);
+
+		DBUG_EXECUTE_IF("ib_ddl_crash_after_rename",
+				DBUG_SUICIDE(););
 
 		/* n_ref_count must be 1, because purge cannot
 		be executing on this very table as we are
@@ -4590,7 +4580,15 @@ undo_add_fk:
 			dict_table_t*	old_table;
 		case DB_SUCCESS:
 			old_table = prebuilt->table;
+
+			DBUG_EXECUTE_IF("ib_ddl_crash_before_commit",
+					DBUG_SUICIDE(););
+
 			trx_commit_for_mysql(prebuilt->trx);
+
+			DBUG_EXECUTE_IF("ib_ddl_crash_after_commit",
+					DBUG_SUICIDE(););
+
 			if (fk_trx) {
 				ut_ad(fk_trx != trx);
 				trx_commit_for_mysql(fk_trx);
