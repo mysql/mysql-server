@@ -321,9 +321,7 @@ a`
 # The DELETE statement should be correctly quoted
 show binlog events in 'master-bin.000002' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	#	Query	#	#	BEGIN
-master-bin.000002	#	Query	#	#	use `test`; DELETE FROM `db1``; select 'oops!'`.`t``1`
-master-bin.000002	#	Query	#	#	COMMIT
+master-bin.000002	#	Query	#	#	DELETE FROM `db1``; select 'oops!'`.`t``1`
 include/start_slave.inc
 # The table should be empty on the slave also.
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
