@@ -31,10 +31,10 @@ ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
 # session con1
-SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter_rebuild';
+SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter';
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION DEBUG = '-d,innodb_OOM_prepare_inplace_alter_rebuild';
+SET SESSION DEBUG = '-d,innodb_OOM_prepare_inplace_alter';
 SET SESSION DEBUG = '+d,innodb_OOM_inplace_alter';
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
