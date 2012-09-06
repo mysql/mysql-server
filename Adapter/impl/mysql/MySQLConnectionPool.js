@@ -144,7 +144,7 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   } else {
     // create a new connection
     var connected_callback = function(err) {      
-      var newDBSession = new connection.DBSession(pooledConnection);
+      var newDBSession = new mysqlConnection.DBSession(pooledConnection);
       newDBSession.pool = connectionPool;
       connectionPool.openConnections[index] = newDBSession;
       udebug.log('MySQLConnectionPool.getDBSession '

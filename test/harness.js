@@ -426,9 +426,6 @@ Listener.prototype.startTest = function(t) {
   this.started++;
 };
 
-Listener.prototype.endTest = function(t) { 
-};
-
 Listener.prototype.pass = function(t) {
   this.ended++;
   console.log("[pass]", t.fullName() );

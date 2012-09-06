@@ -203,9 +203,10 @@ proto.getDBSession = function(index, user_callback) {
 /** List all tables in the schema
   * ASYNC
   * 
-  * listTables(databaseName, callback(error, array));
+  * listTables(databaseName, dbSession, callback(error, array));
   */
-proto.listTables = function(databaseName, user_callback) {
+proto.listTables = function(databaseName, dbSession, user_callback) {
+// FIXME: Pay attention to the user's dbsession
   udebug.log("NdbConnectionPool listTables");
   assert(databaseName && user_callback);
   adapter.ndb.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
@@ -215,9 +216,10 @@ proto.listTables = function(databaseName, user_callback) {
 /** Fetch metadata for a table
   * ASYNC
   * 
-  * getTable(databaseName, tableName, callback(error, TableMetadata));
+  * getTableMetadata(databaseName, tableName, dbSession, callback(error, TableMetadata));
   */
-proto.getTable = function(dbname, tabname, user_callback) {
+proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
+// FIXME: Pay attention to the user's dbsession
   udebug.log("NdbConnectionPool getTable");
   assert(dbname && tabname && user_callback);
   adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
