@@ -71,8 +71,9 @@ keep the global wait array for the sake of diagnostics and also to avoid
 infinite wait The error_monitor thread scans the global wait array to signal
 any waiting threads who have missed the signal. */
 
-typedef TTASWaitMutex<DefaultPolicy> WaitMutex;
+typedef Mutex::MutexType WaitMutex;
 
+/** The latch types that use the sync array. */
 union sync_object_t {
 	rw_lock_t*	lock;		/*!< RW lock instance */
 	WaitMutex*	mutex;		/*!< Mutex instance */
@@ -431,26 +432,24 @@ sync_array_cell_print(
 		difftime(time(NULL), cell->reservation_time));
 
 	if (type == SYNC_MUTEX) {
-		WaitMutex*	mutex;
+		WaitMutex*	mutex = cell->old_latch.mutex;
+		WaitMutex::MutexPolicy&	policy = mutex->m_policy;
 
-		mutex = cell->old_latch.mutex;
-
-#if 0
 		fprintf(file,
 			"Mutex at %p created file %s line %lu, lock var %lu\n"
-#ifdef UNIV_SYNC_DEBUG
+#ifdef UNIV_DEBUG
 			"Last time reserved in file %s line %lu"
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */
 			"\n",
-			(void*) mutex, innobase_basename(mutex->cfile_name),
-			(ulong) mutex->cline,
-			(ulong) mutex->lock_word
-#ifdef UNIV_SYNC_DEBUG
-			,mutex->file_name, (ulong) mutex->line
-#endif /* UNIV_SYNC_DEBUG */
+			(void*) mutex,
+			innobase_basename(policy.m_cfile_name),
+			(ulong) policy.m_cline,
+			(ulong) mutex->state()
+#ifdef UNIV_DEBUG
+			,policy.m_file_name,
+			(ulong) policy.m_line
+#endif /* UNIV_DEBUG */
 		       );
-#endif // FIXME
-
 	} else if (type == RW_LOCK_EX
 		   || type == RW_LOCK_WAIT_EX
 		   || type == RW_LOCK_SHARED) {
@@ -605,13 +604,11 @@ sync_array_detect_deadlock(
 
 		return(false); /* No deadlock here */
 	} else if (cell->request_type == SYNC_MUTEX) {
-		WaitMutex*	mutex;
+		WaitMutex*	mutex = cell->latch.mutex;
+		WaitMutex::MutexPolicy&	policy = mutex->m_policy;
 
-		mutex = cell->latch.mutex;
-
-#if 0
 		if (mutex->state() != MUTEX_STATE_UNLOCKED) {
-			thread = mutex->thread_id;
+			thread = policy.m_thread_id;
 
 			/* Note that mutex->thread_id above may be
 			also OS_THREAD_ID_UNDEFINED, because the
@@ -628,15 +625,15 @@ sync_array_detect_deadlock(
 					"Mutex %p owned by thread "
 					"%lu file %s line %lu\n",
 					mutex,
-					(ulong) os_thread_pf(mutex->thread_id),
-					mutex->file_name, (ulong) mutex->line);
+					(ulong) os_thread_pf(thread),
+					policy.m_file_name,
+					(ulong) policy.m_line);
 
 				sync_array_cell_print(stderr, cell);
 
-				return(TRUE);
+				return(true);
 			}
 		}
-#endif // FIXME
 
 		return(false); /* No deadlock */
 
@@ -1053,9 +1050,6 @@ sync_array_init(
 	ulint		n_threads)		/*!< in: Number of slots to
 						create in all arrays */
 {
-	ulint		i;
-	ulint		n_slots;
-
 	ut_a(sync_wait_array == NULL);
 	ut_a(srv_sync_array_size > 0);
 	ut_a(n_threads > srv_sync_array_size);
@@ -1069,9 +1063,9 @@ sync_array_init(
 	sync_wait_array = static_cast<sync_array_t**>(
 		ut_malloc(sizeof(*sync_wait_array) * sync_array_size));
 
-	n_slots = 1 + (n_threads - 1) / sync_array_size;
+	ulint	n_slots = 1 + (n_threads - 1) / sync_array_size;
 
-	for (i = 0; i < sync_array_size; ++i) {
+	for (ulint i = 0; i < sync_array_size; ++i) {
 
 		sync_wait_array[i] = sync_array_create(n_slots);
 	}
@@ -1102,9 +1096,7 @@ sync_array_print(
 /*=============*/
 	FILE*		file)		/*!< in/out: Print to this stream */
 {
-	ulint		i;
-
-	for (i = 0; i < sync_array_size; ++i) {
+	for (ulint i = 0; i < sync_array_size; ++i) {
 		sync_array_print_info(file, sync_wait_array[i]);
 	}
 

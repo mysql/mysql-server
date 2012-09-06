@@ -26,15 +26,24 @@ Created 2012-08-21 Sunny Bains.
 #include "sync0mutex.h"
 #include "sync0check.h"
 
+template <typename Mutex>
+void TrackPolicy<Mutex>::print(FILE* stream) const
+{
+	fprintf(stream,
+		"Mutex \"%s\" created at %s %lu",
+		m_name, basename(m_cfile_name), m_cline);
+}
+
 #ifdef UNIV_DEBUG
 
 template <typename Mutex>
 void DebugPolicy<Mutex>::init(
+	const Mutex&	mutex,
 	const char*	name,
 	const char*	filename,
 	ulint		line) UNIV_NOTHROW
 {
-	TrackPolicy<Mutex>::init(name, filename, line);
+	TrackPolicy<Mutex>::init(mutex, name, filename, line);
 
 	m_magic_n = MUTEX_MAGIC_N;
 
@@ -50,9 +59,14 @@ template <typename Mutex>
 void DebugPolicy<Mutex>::enter(const Mutex& mutex) UNIV_NOTHROW
 {
 	ut_ad(!is_owned());
+	ut_ad(m_latch.m_mutex == 0 || m_latch.m_mutex == &mutex);
+
+	if (m_latch.m_mutex == 0) {
+		m_latch.m_mutex = &mutex;
+	}
 
 	/* Check latch order violation. */
-	sync_check_lock(m_latch);
+	sync_check_lock(&m_latch);
 }
 
 template <typename Mutex>
@@ -71,7 +85,7 @@ void DebugPolicy<Mutex>::release(const Mutex& mutex) UNIV_NOTHROW
 
 	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
 
-	sync_check_unlock(m_latch);
+	sync_check_unlock(&m_latch);
 }
 
 #endif /* UNIV_DEBUG */

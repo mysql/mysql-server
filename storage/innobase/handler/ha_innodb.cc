@@ -12280,11 +12280,8 @@ innodb_mutex_show_status(
 {
 	char		buf1[IO_SIZE];
 	char		buf2[IO_SIZE];
-	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
-	ulint		block_mutex_oswait_count = 0;
 	ulint		block_lock_oswait_count = 0;
-	ib_mutex_t*	block_mutex = NULL;
 	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
 	ulint		rw_lock_count= 0;
@@ -12303,57 +12300,66 @@ innodb_mutex_show_status(
 	DBUG_ENTER("innodb_mutex_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	// FIXME
 #if 0
+	ib_mutex_t*	block_mutex = NULL;
+	ulint		block_mutex_oswait_count = 0;
+
 	mutex_enter(&mutex_list_mutex);
 
-	for (mutex = UT_LIST_GET_FIRST(mutex_list); mutex != NULL;
+	for (const ib_mutex_t* mutex = UT_LIST_GET_FIRST(mutex_list);
+	     mutex != 0;
 	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
+
 		if (mutex->count_os_wait == 0) {
 			continue;
-		}
+		} else if (buf_pool_is_block_mutex(mutex)) {
 
-		if (buf_pool_is_block_mutex(mutex)) {
 			block_mutex = mutex;
 			block_mutex_oswait_count += mutex->count_os_wait;
 			continue;
 		}
 
-		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-				     innobase_basename(mutex->cfile_name),
-				     (ulong) mutex->cline);
-		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
-				     (ulong) mutex->count_os_wait);
+		buf1len= (uint) my_snprintf(
+			buf1, sizeof(buf1), "%s:%lu",
+			innobase_basename(mutex->cfile_name),
+			(ulong) mutex->cline);
+
+		buf2len= (uint) my_snprintf(
+			buf2, sizeof(buf2), "os_waits=%lu",
+			(ulong) mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
 			       buf2, buf2len)) {
+
 			mutex_exit(&mutex_list_mutex);
+
 			DBUG_RETURN(1);
 		}
 	}
 
 	if (block_mutex) {
-		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
-					     "combined %s:%lu",
-					     innobase_basename(
-						block_mutex->cfile_name),
-					     (ulong) block_mutex->cline);
-		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
-					     "os_waits=%lu",
-					     (ulong) block_mutex_oswait_count);
+		buf1len = (uint) my_snprintf(
+			buf1, sizeof buf1, "combined %s:%lu",
+			innobase_basename(block_mutex->cfile_name),
+			(ulong) block_mutex->cline);
+
+		buf2len = (uint) my_snprintf(
+			buf2, sizeof buf2, "os_waits=%lu",
+			(ulong) block_mutex_oswait_count);
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
 			       buf2, buf2len)) {
+
 			mutex_exit(&mutex_list_mutex);
+
 			DBUG_RETURN(1);
 		}
 	}
 
 	mutex_exit(&mutex_list_mutex);
-#endif // FIXME
-
+#endif
 	mutex_enter(&rw_lock_list_mutex);
 
 	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;

@@ -766,9 +766,9 @@ rw_lock_add_debug_info(
 	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
 
 		if (lock_type == RW_LOCK_EX && lock->lock_word < 0) {
-			sync_check_lock(*lock);
+			sync_check_lock(lock);
 		} else {
-			sync_check_relock(*lock);
+			sync_check_relock(lock);
 		}
 	}
 }
@@ -788,7 +788,7 @@ rw_lock_remove_debug_info(
 	ut_ad(lock);
 
 	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
-		sync_check_unlock(*lock);
+		sync_check_unlock(lock);
 	}
 
 	rw_lock_debug_mutex_enter();
@@ -947,47 +947,6 @@ rw_lock_list_print_info(
 	mutex_exit(&rw_lock_list_mutex);
 }
 
-/***************************************************************//**
-Prints debug info of an rw-lock. */
-UNIV_INTERN
-void
-rw_lock_print(
-/*==========*/
-	rw_lock_t*	lock)	/*!< in: rw-lock */
-{
-	rw_lock_debug_t* info;
-
-	fprintf(stderr,
-		"-------------\n"
-		"RW-LATCH INFO\n"
-		"RW-LATCH: %p ", (void*) lock);
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	/* We used to acquire lock->mutex here, but it would cause a
-	recursive call to sync_thread_add_level() if UNIV_SYNC_DEBUG
-	is defined.  Since this function is only invoked from
-	sync_thread_levels_g(), let us choose the smaller evil:
-	performing dirty reads instead of causing bogus deadlocks or
-	assertion failures. */
-#endif
-	if (lock->lock_word != X_LOCK_DECR) {
-
-		if (rw_lock_get_waiters(lock)) {
-			fputs(" Waiters for the lock exist\n", stderr);
-		} else {
-			putc('\n', stderr);
-		}
-
-		rw_lock_debug_mutex_enter();
-		info = UT_LIST_GET_FIRST(lock->debug_list);
-		while (info != NULL) {
-			rw_lock_debug_print(stderr, info);
-			info = UT_LIST_GET_NEXT(list, info);
-		}
-		rw_lock_debug_mutex_exit();
-	}
-}
-
 /*********************************************************************//**
 Prints info of a debug struct. */
 UNIV_INTERN
@@ -995,28 +954,28 @@ void
 rw_lock_debug_print(
 /*================*/
 	FILE*			f,	/*!< in: output stream */
-	rw_lock_debug_t*	info)	/*!< in: debug struct */
+	const rw_lock_debug_t*	info)	/*!< in: debug struct */
 {
-	ulint	rwt;
-
-	rwt	  = info->lock_type;
+	ulint	rwt = info->lock_type;
 
 	fprintf(f, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
-		fputs("S-LOCK", f);
+		fprintf(f, "S-LOCK");
 	} else if (rwt == RW_LOCK_EX) {
-		fputs("X-LOCK", f);
+		fprintf(f, "X-LOCK");
 	} else if (rwt == RW_LOCK_WAIT_EX) {
-		fputs("WAIT X-LOCK", f);
+		fprintf(f, "WAIT X-LOCK");
 	} else {
 		ut_error;
 	}
+
 	if (info->pass != 0) {
 		fprintf(f, " pass value %lu", (ulong) info->pass);
 	}
-	putc('\n', f);
+
+	fprintf(f, "\n");
 }
 
 /***************************************************************//**
@@ -1048,4 +1007,46 @@ rw_lock_n_locked(void)
 
 	return(count);
 }
+
+/**
+Print the rw-lock information. */
+UNIV_INTERN
+void
+rw_lock_t::print(FILE* stream) const
+{
+	fprintf(stream,
+		"-------------\n"
+		"RW-LATCH INFO\n"
+		"RW-LATCH: %p ", (void*) this);
+
+#ifndef INNODB_RW_LOCKS_USE_ATOMICS
+	/* We used to acquire lock->mutex here, but it would cause a
+	recursive call to sync_thread_add_level() if UNIV_SYNC_DEBUG
+	is defined.  Since this function is only invoked from
+	sync_thread_levels_g(), let us choose the smaller evil:
+	performing dirty reads instead of causing bogus deadlocks or
+	assertion failures. */
+#endif /* INNODB_RW_LOCKS_USE_ATOMICS */
+
+	if (lock_word != X_LOCK_DECR) {
+
+		if (rw_lock_get_waiters(this)) {
+			fprintf(stream, " Waiters for the lock exist\n");
+		} else {
+			fprintf(stream, "\n");
+		}
+
+		rw_lock_debug_mutex_enter();
+
+		for (const rw_lock_debug_t* dbg = UT_LIST_GET_FIRST(debug_list);
+		     dbg !=0;
+		     dbg = UT_LIST_GET_NEXT(list, dbg)) {
+
+			rw_lock_debug_print(stream, dbg);
+		}
+
+		rw_lock_debug_mutex_exit();
+	}
+}
+
 #endif /* UNIV_SYNC_DEBUG */

@@ -151,23 +151,6 @@ Q.E.D. */
 
 /* Number of spin waits on mutexes: for performance monitoring */
 
-typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> mutex_counter_t;
-
-/** The number of iterations in the mutex_spin_wait() spin loop.
-Intended for performance monitoring. */
-UNIV_INTERN mutex_counter_t	mutex_spin_round_count;
-
-/** The number of mutex_spin_wait() calls.  Intended for
-performance monitoring. */
-UNIV_INTERN mutex_counter_t	mutex_spin_wait_count;
-
-/** The number of OS waits in mutex_spin_wait().  Intended for
-performance monitoring. */
-UNIV_INTERN mutex_counter_t	mutex_os_wait_count;
-
-/** Mutex protecting sync_thread_level_arrays */
-extern ib_mutex_t		sync_thread_mutex;
-
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Prints debug info of currently reserved mutexes. */
@@ -215,44 +198,6 @@ mutex_list_print_info(
 	mutex_exit(&mutex_list_mutex);
 #endif // FIXME
 }
-
-#if 0
-/******************************************************************//**
-Sets the debug information for a reserved mutex. */
-UNIV_INTERN
-void
-mutex_set_debug_info(
-/*=================*/
-	ib_mutex_t*	mutex,		/*!< in/out: mutex */
-	const char*	file_name,	/*!< in: file where requested */
-	ulint		line)		/*!< in: line where requested */
-{
-	ut_ad(line > 0);
-	ut_ad(file_name);
-
-	sync_check_lock(mutex, mutex->level);
-
-	mutex->line = line;
-	mutex->file_name = file_name;
-}
-
-/******************************************************************//**
-Gets the debug information for a reserved mutex. */
-UNIV_INTERN
-void
-mutex_get_debug_info(
-/*=================*/
-	const ib_mutex_t*	mutex,		/*!< in: mutex */
-	const char**		file_name,	/*!< out: where it was locked */
-	ulint*			line,		/*!< out: where it was locked */
-	os_thread_id_t*		thread_id)	/*!< out: owner thread id */
-{
-	*line = mutex->line;
-	*file_name = mutex->file_name;
-	*thread_id = mutex->thread_id;
-}
-
-#endif /* UNIV_SYNC_DEBUG */
 
 #endif // FIXME
 

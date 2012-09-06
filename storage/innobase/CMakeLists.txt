@@ -385,6 +385,7 @@ SET(INNOBASE_SOURCES
 	sync/sync0mutex.cc
 	sync/sync0rw.cc
 	sync/sync0check.cc
+	sync/sync0sync.cc
 	trx/trx0i_s.cc
 	trx/trx0purge.cc
 	trx/trx0rec.cc

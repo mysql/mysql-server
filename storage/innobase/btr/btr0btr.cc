@@ -776,7 +776,7 @@ btr_height_get(
         /* Release the S latch on the root page. */
         mtr_memo_release(mtr, root_block, MTR_MEMO_PAGE_S_FIX);
 
-	ut_d(sync_check_unlock(root_block->lock));
+	ut_d(sync_check_unlock(&root_block->lock));
 
 	return(height);
 }
