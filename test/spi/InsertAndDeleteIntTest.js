@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug, path, fs, assert, spi_module, harness */
+/*global udebug, path, fs, assert, spi_module, harness, adapter_dir */
 
 "use strict";
 
@@ -27,40 +27,19 @@ try {
 } catch(e) {} 
 
 var spi = require(spi_module);
-var session = null;
+var dbt = require(path.join(spi_dir, "common", "DBTableHandler.js"));
+var dbSession = null;
 var table = null;
 
-var commonTableHandler = require("../../Adapter/impl/common/DBTableHandler.js");
 var t1 = new harness.SerialTest("InsertInt");
-var t2 = new harness.SerialTest("DeleteIntPK");
 
-function do_insert_op(session, table) {
-  udebug.log("InsertIntTest.js do_insert_op");
-  /* Pass the variables on to the next test */
-  t2.session = session;
-  t2.table = table;
-
-  var tx = session.openTransaction();
-  var dbConnectionPool = session.getConnectionPool();
-  var thandler = new commonTableHandler.DBTableHandler(dbConnectionPool, table, null);
-  
-  var row = { i: 13 , j: 14 };
-  var op = session.insert(thandler, row);
-
-  udebug.log("ready to commit");
-  tx.execute("Commit", function(err, tx) {
-    if(err) { t1.fail("Execute/commit failed: " + err);  }
-    else    { t1.pass(); }
-  });
-}
-
-t1.run = function() {  
+t1.prepare = function prepare(testObj) {
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       connection = null,
       test = this;
 
-  if(session && table) {  // already set up
+  if(dbSession && table) {  // already set up
     this.runTestMethod(testObj);
     return;
   }
@@ -74,9 +53,9 @@ t1.run = function() {
 
   function onSession(err, sess) {
     udebug.log("InsertIntTest.js prepare onSession");
-    session = sess; // set global
+    dbSession = sess; // set global
     if(err) {   test.fail(err);   }
-    else    {   session.getConnectionPool().getTableMetadata("test", "tbl1", null, onTable); }
+    else    {   dbSession.getConnectionPool().getTableMetadata("test", "tbl1", null, onTable); }
   }
 
   function onConnect(err, conn) {
@@ -91,11 +70,11 @@ t1.run = function() {
 t1.runTestMethod = function do_insert_op(dataObj) {
   udebug.log("InsertIntTest.js do_insert_op");
 
-  var tx = session.openTransaction();
-  var thandler = session.getConnectionPool().createDBTableHandler(table, null);
+  var tx = dbSession.openTransaction();
+  var thandler = new dbt.DBTableHandler(table, null);
   var test = this;
   
-  var op = session.buildInsertOperation(thandler, dataObj);
+  var op = dbSession.buildInsertOperation(thandler, dataObj);
 
   udebug.log("ready to commit");
   tx.execute("Commit", function(err, tx) {
@@ -118,11 +97,11 @@ t2.prepare = t1.prepare;
 
 t2.runTestMethod = function do_delete_op(keyObj) {
   udebug.log("InsertIntTest.js do_delete_op");
-  var tx = session.openTransaction();
-  var thandler = session.getConnectionPool().createDBTableHandler(table, null);
+  var tx = dbSession.openTransaction();
+  var thandler = new dbt.DBTableHandler(table, null);
   var test = this;
 
-  var op = session.buildDeleteOperation(thandler, keyObj);
+  var op = dbSession.buildDeleteOperation(thandler, keyObj);
   
   udebug.log("ready to commit");
   tx.execute("Commit", function(err, tx) {

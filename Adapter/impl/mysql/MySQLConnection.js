@@ -66,8 +66,3 @@ exports.DBSession.prototype.closeSync = function() {
 exports.DBSession.prototype.getConnectionPool = function() {
   return this.connectionPool;
 };
-
-exports.DBSession.prototype.getConnectionPool = function() {
-  return this.pool;
-};
-
