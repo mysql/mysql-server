@@ -2390,6 +2390,38 @@ found_col:
 	DBUG_RETURN(col_map);
 }
 
+/** Drop newly create FTS index related auxiliary table during
+FIC create index process, before fts_add_index is called
+@param table    table that was being rebuilt online
+@param trx	transaction
+@return		DB_SUCCESS if successful, otherwise last error code
+*/
+static
+dberr_t
+innobase_drop_fts_index_table(
+/*==========================*/
+        dict_table_t*   table,
+	trx_t*		trx)
+{
+	dberr_t		ret_err = DB_SUCCESS;
+
+	for (dict_index_t* index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		if (index->type & DICT_FTS) {
+			dberr_t	err;
+
+			err = fts_drop_index_tables(trx, index);
+
+			if (err != DB_SUCCESS) {
+				ret_err = err;
+			}
+		}
+	}
+
+	return(ret_err);
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -2818,14 +2850,15 @@ prepare_inplace_alter_table_dict(
 
 	ut_ad(new_clustered == (indexed_table != user_table));
 
+	DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
+			error = DB_OUT_OF_MEMORY;
+			goto error_handling;);
+
 	if (new_clustered && !locked) {
 		/* Allocate a log for online table rebuild. */
 		dict_index_t* clust_index = dict_table_get_first_index(
 			user_table);
 
-		DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter_rebuild",
-				error = DB_OUT_OF_MEMORY;
-				goto error_handling;);
 		rw_lock_x_lock(&clust_index->lock);
 		bool ok = row_log_allocate(
 			clust_index, indexed_table,
@@ -2869,6 +2902,10 @@ op_ok:
 
 		error = fts_create_index_tables(trx, fts_index);
 
+		DBUG_EXECUTE_IF("innodb_test_fail_after_fts_index_table",
+				error = DB_LOCK_WAIT_TIMEOUT;
+				goto error_handling;);
+
 		if (error != DB_SUCCESS) {
 			goto error_handling;
 		}
@@ -2879,6 +2916,11 @@ op_ok:
 		    || ib_vector_size(indexed_table->fts->indexes) == 0) {
 			error = fts_create_common_tables(
 				trx, indexed_table, user_table->name, TRUE);
+
+			DBUG_EXECUTE_IF("innodb_test_fail_after_fts_common_table",
+					error = DB_LOCK_WAIT_TIMEOUT;
+					goto error_handling;);
+
 			if (error != DB_SUCCESS) {
 				goto error_handling;
 			}
@@ -2957,6 +2999,12 @@ error_handled:
 
 	if (new_clustered) {
 		if (indexed_table != user_table) {
+
+			if (DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS)) {
+				innobase_drop_fts_index_table(
+					indexed_table, trx);
+			}
+
 			dict_table_close(indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, indexed_table, true);
 
@@ -3856,6 +3904,23 @@ rollback_inplace_alter_table(
 		/* DML threads can access ctx->indexed_table via the
 		online rebuild log. Free it first. */
 		innobase_online_rebuild_log_free(prebuilt->table);
+
+		/* Since the FTS index specific auxiliary tables has
+		not yet registered with "table->fts" by fts_add_index(),
+		we will need explicitly delete them here */
+		if (DICT_TF2_FLAG_IS_SET(ctx->indexed_table, DICT_TF2_FTS)) {
+
+			err = innobase_drop_fts_index_table(
+				ctx->indexed_table, ctx->trx);
+
+			if (err != DB_SUCCESS) {
+				my_error_innodb(
+					err, table_share->table_name.str,
+					flags);
+				fail = true;
+			}
+		}
+
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
 		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, true);
