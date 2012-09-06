@@ -210,7 +210,7 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->checkpointing_kibbutz = toku_kibbutz_create(checkpointing_nworkers);
     // must be done after creating ct_kibbutz
     ct->ev.init(size_limit, &ct->list, ct->ct_kibbutz, EVICTION_PERIOD);
-    ct->cp.init(ct, logger, &ct->cf_list);
+    ct->cp.init(ct, logger, &ct->ev, &ct->cf_list);
     ct->cl.init(1, &ct->list, ct); // by default, start with one iteration
     ct->env_dir = toku_xstrdup(".");
     *result = ct;
@@ -4167,10 +4167,12 @@ ENSURE_POD(checkpointer);
 // Sets the cachetable reference in this checkpointer class, this is temporary.
 //
 void checkpointer::init(CACHETABLE _ct, 
-                        TOKULOGGER _logger, 
+                        TOKULOGGER _logger,
+                        evictor *_ev,
                         cachefile_list *files) {
     m_ct = _ct;
     m_logger = _logger;
+    m_ev = _ev;
     m_cf_list = files;
     bjm_init(&m_checkpoint_clones_bjm);
     
@@ -4426,7 +4428,7 @@ void checkpointer::checkpoint_pending_pairs() {
         // if still pending, clear the pending bit and write out the node
         pair_lock(p);
         m_ct->list.read_list_unlock();
-        write_pair_for_checkpoint_thread(&m_ct->ev, p);
+        write_pair_for_checkpoint_thread(m_ev, p);
         pair_unlock(p);
         m_ct->list.read_list_lock();
     }
