@@ -32,7 +32,8 @@ var lintOptions = {
   "plusplus"  : true,     // ++ operators
   "white"     : true,     // misc. white space
   "stupid"    : true,     // sync methods
-  "node"      : true      // node.js globals
+  "node"      : true,     // node.js globals
+  "nomen"     : true,     // allow dangling underscore
 };
 
 

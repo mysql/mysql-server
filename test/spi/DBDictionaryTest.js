@@ -36,7 +36,7 @@ t2.run = function() {
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       conn = null,
-      session = null;
+      dbSession = null;
 
   function onTable(err, tab) {
     udebug.log("DBDictionaryTest onTable");
@@ -65,13 +65,13 @@ t2.run = function() {
     t1.errorIfNotEqual("Bad table count", count, 2);
     t1.failOnError();
 
-    session.getConnectionPool().getTableMetadata("test", "tbl2", null, onTable);
+    dbSession.getConnectionPool().getTableMetadata("test", "tbl2", null, onTable);
   }
 
   function onSession(err, sess) {
     udebug.log("DBDictionaryTest onSession");
-    session = sess;   // for teardown
-    session.getConnectionPool().listTables("test", null, onList);
+    dbSession = sess;   // for teardown
+    dbSession.getConnectionPool().listTables("test", null, onList);
   }
     
   function onConnect(err, connection) {
