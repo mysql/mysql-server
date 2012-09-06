@@ -9,6 +9,7 @@ SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
 CREATE TABLE t (a VARCHAR(100), b VARCHAR(256)) ENGINE=TokuDB;
 
 # varchar shrink with column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN a aa VARCHAR(1);
 
@@ -19,6 +20,7 @@ ALTER TABLE t CHANGE COLUMN a aa VARCHAR(255);
 ALTER TABLE t CHANGE COLUMN aa a VARCHAR(255);
 
 # varchar shrink woth column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN b bb VARCHAR(255);
 
@@ -29,6 +31,7 @@ ALTER TABLE t CHANGE COLUMN b bb VARCHAR(1024);
 ALTER TABLE t CHANGE COLUMN bb b VARCHAR(1024);
 
 # varchar shrink with column rename is not supported
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN b bb VARCHAR(256);
 

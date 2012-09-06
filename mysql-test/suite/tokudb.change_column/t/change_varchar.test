@@ -29,6 +29,7 @@ while ($i <= 1024)
 let $i=1023;
 while ($i > 0)
 {
+    --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
     --error ER_UNSUPPORTED_EXTENSION
     EVAL ALTER TABLE t CHANGE COLUMN a a VARCHAR($i);
     dec $i;
