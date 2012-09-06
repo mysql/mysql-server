@@ -1,3 +1,18 @@
+######## suite/innodb/t/innodb-wl6445-2                     ##########
+#                                                                    #
+# Testcase for worklog WL#6445: InnoDB should be able to work with   #
+# read-only tables
+# All sub-test in this file focus on changinf file permission and    #
+# restarting server in read only. It verifies necessary operations   #
+# are blocked                                                        #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2011-09-06 Implemented this test as part of WL#6445                #
+#                                                                    #
+######################################################################
+
+
 # Not supported in embedded
 --source include/not_embedded.inc
 
@@ -36,6 +51,7 @@ CREATE DATABASE testdb_wl6445;
 # b) remove write permission of ibdata , ib_logfile0  
 # c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
+--echo case # 1
 
 SET GLOBAL innodb_file_per_table = 1;
 SET GLOBAL innodb_file_format = `Barracuda`;
@@ -49,8 +65,8 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 --exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
-# Write file to make mysql-test-run.pl expect the "crash", but don't start
-# it until it's told to
+
+
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
@@ -62,16 +78,16 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
 USE testdb_wl6445;
 SELECT i FROM t1 ORDER BY i;
---ERROR 1036
+--ERROR ER_OPEN_AS_READONLY
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
---ERROR 1036
+--ERROR ER_OPEN_AS_READONLY
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
---error 1036
+--ERROR ER_OPEN_AS_READONLY
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
---error 1036
+--ERROR ER_OPEN_AS_READONLY
 UPDATE t1 SET i = i+1;
 
 # Fix in next revision - known ( no data returned)
@@ -90,8 +106,9 @@ UNLOCK TABLES;
 #------------------------------------------------------------------------------
 #  Note : write permission is already removed in previous case so we just
 #         start server without --innodb-read-only option
-# Write file to make mysql-test-run.pl expect the "crash", but don't start
-# it until it's told to
+
+--echo case # 2
+
 # We let our server restart attempts write to the file $error_log.
 let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
 --error 0,1
