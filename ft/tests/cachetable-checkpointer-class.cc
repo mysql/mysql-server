@@ -339,6 +339,7 @@ void checkpointer_test::test_end_checkpoint() {
         assert(pp);
         m_cp.m_ct->list.evict(pp);
     }
+    m_cp.destroy();
     int r = ctbl.list.destroy();
     assert_zero(r);
 }
