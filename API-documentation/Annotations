@@ -25,7 +25,7 @@
     database               :  "" ,  // Database name
     autoIncrementBatchSize :  1  ,  // Auto-increment prefetch batch size
     isDefaultMapping       : true,  // This mapping is a default mapping
-    fields                 : []     // array of FieldMapping objects
+    fields                 : {}     // array of FieldMapping objects
   };
 
 
@@ -93,13 +93,6 @@
    */
   registerFieldConverter(Object token_object, String field_name, Converter c);
 
-  /** registerColumnConverter
-   * IMMEDIATE
-   * Register a converter for a column in a table
-   *
-   */
-  registerColumnConverter(String table, String columnName, Converter c);
-
   /** registerTypeConverter 
    *  IMMEDIATE
    *  Register a converter for a SQL data type 
@@ -107,10 +100,4 @@
    *  @param type is as defined in DBDictionary for the storage SPI
    */
   registerTypeConverter(string typeName, Converter c);
-
-  /** registerCharsetConverter
-   *  IMMEDIATE
-   *  Register a converter to/from Javascript String for a SQL charset
-   */
-  registerCharsetConverter(String charsetName, Converter c);
 }

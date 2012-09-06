@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug */
+/*global udebug, path, build_dir */
 
 "use strict";
 
@@ -86,47 +86,49 @@ DBSession.prototype.openTransaction = function() {
   
   delete this.tx;  
   this.tx = new dbtxhandler.DBTransactionHandler(this);
+  udebug.log("DBSession openTransaction ops length:", this.tx.operations.length);
+  
   return this.tx;
 };
 
 
-/* read(DBTableHandler table, Object ResolvedKeys)
+/* buildReadOperation(DBTableHandler table, Object ResolvedKeys)
    IMMEDIATE
    Define an operation which when executed will fetch a row
    
    RETURNS a DBOperation 
 */
-DBSession.prototype.read = function(table, keys) {
-  udebug.log("DBSession read "+ table.name);
+DBSession.prototype.buildReadOperation = function(table, keys) {
+  udebug.log("DBSession buildReadOperation "+ table.name);
   var lockMode = "SHARED";
-  var op = ndboperation.getReadOperation(this.tx, table, keys, lockMode);
+  var op = ndboperation.newReadOperation(this.tx, table, keys, lockMode);
   return op;
 };
 
 
-/* insert(DBTableHandler table, Object row)
+/* buildInsertOperation(DBTableHandler table, Object row)
    IMMEDIATE
    Define an operation which when executed will insert a row
  
    RETURNS a DBOperation 
 */
-DBSession.prototype.insert = function(tableHandler, row) {
-  udebug.log("DBSession insert " + tableHandler.dbTable.name);
+DBSession.prototype.buildInsertOperation = function(tableHandler, row) {
+  udebug.log("DBSession buildInsertOperation " + tableHandler.dbTable.name);
 
-  var op = ndboperation.getInsertOperation(this.tx, tableHandler, row);
+  var op = ndboperation.newInsertOperation(this.tx, tableHandler, row);
   return op;
 };
 
 
-/* delete(DBTableHandler table, Object primaryKey)
+/* buildDeleteOperation(DBTableHandler table, Object primaryKey)
    IMMEDIATE 
    Define an operation which when executed will delete a row
  
    RETURNS a DBOperation 
 */  
-DBSession.prototype.delete = function(tableHandler, row) {
-  udebug.log("DBSession delete " + tableHandler.dbTable.name);
+DBSession.prototype.buildDeleteOperation = function(tableHandler, row) {
+  udebug.log("DBSession buildDeleteOperation " + tableHandler.dbTable.name);
   
-  var op = ndboperation.getDeleteOperation(this.tx, tableHandler, row);
+  var op = ndboperation.newDeleteOperation(this.tx, tableHandler, row);
   return op;
 };

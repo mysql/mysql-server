@@ -6,9 +6,9 @@
 */
 
 /* Related objects:
-   DBTable:       as defined in spi/DBDictionary spec.
-   TableMapping:  as defined in api/Annotations spec.
-   FieldMapping:  as defined in api/Annotations spec.
+   TableMetadata: as defined in api/TableMetadata
+   TableMapping:  as defined in api/Annotations 
+   FieldMapping:  as defined in api/Annotations 
 */
 
 
@@ -17,7 +17,7 @@
 
    Create a DBTableHandler for a table and a mapping.
 
-   The DBTable may not be null.
+   The TableMetadata may not be null.
 
    If the TableMapping is null, default mapping behavior will be used.
    Default mapping behavior is to:
@@ -25,7 +25,7 @@
      use default converters for all data types
      perform no remapping between field names and column names
 */
-  DBTableHandler(DBTable, TableMapping);
+  DBTableHandler(tableMetadata, TableMapping);
 
 
 /************************************************
@@ -37,13 +37,6 @@
   Register a converter for a field in a domain object 
 */
   registerFieldConverter(fieldName, converter);
-
-
-/* registerColumnConverter(String columnName, Converter converter)
-  IMMEDIATE
-  Register a converter for a column in a table
-*/
-  registerColumnConverter(columnName, converter);
 
 
 /* DBTableHandler.setResultPrototype(Object proto_object)
@@ -75,6 +68,45 @@
   allColumnsMapped();
 
 
+/* getColumnMetadata() 
+   IMMEDIATE 
+   
+   Returns an array containing ColumnMetadata objects in field order
+*/   
+  getColumnMetadata();
+
+  
+/* get()
+   IMMEDIATE
+   
+   Return the property of obj corresponding to fieldNumber 
+*/
+  get(obj, fieldNumber);
+
+
+/* getFields(domainObject)
+   IMMEDIATE 
+   
+   Returns an array containing the properties of domainObject in field order
+*/
+  getFields(obj);
+
+
+/* set() 
+   IMMEDIATE
+  
+   Set property of object, corresponding to fieldNumber, to value 
+*/
+  set(obj, fieldNumber, value);
+
+/* setFields()
+   IMMEDIATE
+   
+   Set all mapped fields in object according to an ordered array of field values
+*/
+  setFields(obj, values);
+  
+
 /* DBIndexHandler getIndexHandler(Object keys)
    IMMEDIATE
 
@@ -85,6 +117,6 @@
    DBIndexHandler implements this subset of DBTableHandler methods:
       getMappedFieldCount()
       get()
-      writeFieldToBuffer()
+      getFields()
 */
   getIndexHandler(keys);

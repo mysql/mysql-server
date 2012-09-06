@@ -18,14 +18,14 @@
  02110-1301  USA
  */
 
+/*global path, build_dir, assert, udebug */
+
 "use strict";
 
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndbsession     = require("./NdbSession.js"),
     dbtablehandler = require("../common/DBTableHandler.js"),
-    converters     = require("./NdbTypeConverters.js");
-    
-var ndb_is_initialized = false,
+    ndb_is_initialized = false,
     proto;
 
 function initialize_ndb() {
@@ -215,7 +215,7 @@ proto.listTables = function(databaseName, user_callback) {
 /** Fetch metadata for a table
   * ASYNC
   * 
-  * getTable(databaseName, tableName, callback(error, DBTable));
+  * getTable(databaseName, tableName, callback(error, TableMetadata));
   */
 proto.getTable = function(dbname, tabname, user_callback) {
   udebug.log("NdbConnectionPool getTable");
@@ -224,14 +224,14 @@ proto.getTable = function(dbname, tabname, user_callback) {
 };
 
 
-/* createDBTableHandler(dbTable, apiMapping)
+/* createDBTableHandler(tableMetadata, apiMapping)
    IMMEDIATE
    Creates and returns a DBTableHandler for table and mapping
 */
-proto.createDBTableHandler = function(dbTable, apiMapping) { 
-  udebug.log("NdbConnectionPool createDBTableHandler " + dbTable.name);
+proto.createDBTableHandler = function(tableMetadata, apiMapping) { 
+  udebug.log("NdbConnectionPool createDBTableHandler " + tableMetadata.name);
   var handler;
-  handler = new dbtablehandler.DBTableHandler(this, dbTable, apiMapping);
+  handler = new dbtablehandler.DBTableHandler(tableMetadata, apiMapping);
   /* TODO: If the mapping is not a default mapping, then the DBTableHandler
      needs to be annotated with some Records */
   return handler;
@@ -242,9 +242,9 @@ proto.createDBTableHandler = function(dbTable, apiMapping) {
    Fetch the converter for a column
    FIXME:  KEEP MAPS OF DEFAULT & REGISTERED CONVERTERS
 */
-proto.getConverter = function(dbcolumn) {
-  udebug.log("NdbConnectionPool getConverter " + dbcolumn.name);
-  var r = converters.defaultForType[dbcolumn.ndbTypeId];
-  return r;
-};
+//proto.getConverter = function(dbcolumn) {
+//  udebug.log("NdbConnectionPool getConverter " + dbcolumn.name);
+//  var r = converters.defaultForType[dbcolumn.ndbTypeId];
+//  return r;
+//};
 

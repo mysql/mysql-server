@@ -16,7 +16,7 @@ DBTransactionHandler = {
   session        :  {}   ,   // DBSession object holding this transaction
   success        : true  ,   // boolean indicating whether the transaction succeeded
   state          :  ""   ,   // a TransactionStatusCode
-  operations     :  []   ,   // ordered array of DBOperation objects
+  operations     :  {}   ,   // ordered array of DBOperation objects
   error          :  {}   ,   // a DBOperationError applying to the transaction
   callback       :  {}   ,   // callback function for transaction completion
 }

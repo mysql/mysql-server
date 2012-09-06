@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug */
+/*global udebug, path, build_dir */
 
 "use strict";
 
@@ -43,13 +43,14 @@ TransactionStatusCodes[adapter.ndbapi.NeedAbort]  = "NeedAbort";
 function DBTransactionHandler(dbsession) {
   udebug.log("NdbTransactionHandler constructor");
   this.session = dbsession;
+  this.operations = [];
 }
 
 proto = {
   session    : null,
   success    : null,
   state      : TransactionStatusCodes[0],
-  operations : [],
+  operations : {},
   error      : {},
   callback   : {},
   ndbtx      : null

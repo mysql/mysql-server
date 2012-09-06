@@ -18,57 +18,28 @@
  02110-1301  USA
  */
 
-/*global udebug */
+/*global udebug, path, build_dir, spi_doc_dir, assert */
 
 "use strict";
 
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
-    proto;
-
-
-var OperationCodes = [
-  "read",
-  "insert",
-  "update",
-  "write",
-  "delete"
-];
-
-var OperationStates = [ 
-  "INITIALIZED",         // State of a newly-created operation
-  "DEFINED",             // opcode, table, and required keys/values are present
-  "PLANNED",             // access path has been chosen
-  "NO_INDEX",            // no index access path is available for this operation
-  "CANCELLED",           // transaction was rolled back before operation started   
-  "PREPARED",            // local preparation of the operation is complete
-  "EXECUTING",           // operation has been sent to database
-  "COMPLETED"            // operation is complete and result is available
-];  
-
-var LockModes = [ 
-  "EXCLUSIVE",           // Read with an exclusive lock
-  "SHARED",              // Read with a shared-read lock
-  "SHARED_RELEASED",     // Read with a shared-read lock and release immediately  
-  "COMMITTED"            // Read committed values (no locking)
-];
-
+    encoders      = require("./NdbTypeEncoders.js").defaultForType,
+    doc           = require(path.join(spi_doc_dir, "DBOperation"));
 
 var DBOperation = function(opcode, tx, tableHandler) {
-  assert(OperationCodes.indexOf(opcode) !== -1);
+  assert(doc.OperationCodes.indexOf(opcode) !== -1);
   assert(tx);
+  assert(tableHandler);
 
   this.opcode = opcode;
   this.transaction = tx;
-  this.keys = {};
-  this.values = {};
   this.tableHandler = tableHandler;
-  this.lockMode = null;
-  this.index = null;
-  this.state = OperationStates[0];
-  this.result = null;
-  this.buffers = {};
+  this.state = doc.OperationStates[0];  // INITIALIZED
+
   tx.addOperation(this);
 };
+
+DBOperation.prototype = doc.DBOperation;
 
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
@@ -104,61 +75,72 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 
 function encodeKeyBuffer(op) {
   udebug.log("NdbOperation encodeKeyBuffer");
-  var i, offset;
+  var i, offset, value, encoder, record, nfields, col;
   var indexHandler = op.tableHandler.getIndexHandler(op.keys);
-  if(! indexHandler) {
+  if(indexHandler) {
+    op.index = indexHandler.dbIndex;
+    op.state = "PLANNED";    
+  }
+  else {
+    udebug.log("NdbOperation encodeKeyBuffer NO_INDEX");
     op.state = "NO_INDEX";
     return;
   }
-  op.state = "PLANNED";
-  op.index = indexHandler.dbIndex;
-  var record = op.index.record;
-  var key_buffer_size = record.getBufferSize();
-  op.buffers.key = new Buffer(key_buffer_size);
-  var nfields = indexHandler.getMappedFieldCount();
-  
+
+  record = op.index.record;
+  op.buffers.key = new Buffer(record.getBufferSize());
+
+  nfields = indexHandler.getMappedFieldCount();
+  col = indexHandler.getColumnMetadata();
   for(i = 0 ; i < nfields ; i++) {
-    if(indexHandler.get(op.keys, i) === null) {
-      udebug.log("NdbOperation encodeKeyBuffer "+i+" NULL.");
-      record.setNull(i, op.buffers.key);
+    value = indexHandler.get(op.keys, i);  
+    if(value) {
+      offset = record.getColumnOffset(i);
+      encoder = encoders[col[i].ndbTypeId];
+      encoder.write(col[i], value, op.buffers.key, offset);
     }
     else {
-      offset = record.getColumnOffset(i);
-      indexHandler.writeFieldToBuffer(op.keys, i, op.buffers.key, offset);
+      udebug.log("NdbOperation encodeKeyBuffer "+i+" NULL.");
+      record.setNull(i, op.buffers.key);
     }
   }
 }
 
 function encodeRowBuffer(op) {
   udebug.log("NdbOperation encodeRowBuffer");
-  var i, offset;
+  var i, offset, encoder, value;
   // FIXME: Get the mapped record, not the table record
   var record = op.tableHandler.dbTable.record;
   var row_buffer_size = record.getBufferSize();
   var nfields = op.tableHandler.getMappedFieldCount();
+  udebug.log("NdbOperation encodeRowBuffer nfields", nfields);
+  var col = op.tableHandler.getColumnMetadata();
+  
   op.buffers.row = new Buffer(row_buffer_size);
   
   for(i = 0 ; i < nfields ; i++) {  
-    if(op.tableHandler.get(op.row, i) === null) {
-      udebug.log("NdbOperation encodeRowBuffer "+ i + " NULL.");
-      record.setNull(i, op.buffers.row);
+    value = op.tableHandler.get(op.row, i);
+    if(value) {
+      offset = record.getColumnOffset(i);
+      encoder = encoders[col[i].ndbTypeId];
+      encoder.write(col[i], value, op.buffers.row, offset);
     }
     else {
-      offset = record.getColumnOffset(i);
-      op.tableHandler.writeFieldToBuffer(op.row, i, op.buffers.row, offset);
+      udebug.log("NdbOperation encodeRowBuffer "+ i + " NULL.");
+      record.setNull(i, op.buffers.row);
     }
   }
 }
 
 
-var getReadOperation = function(tx, tableHandler, keys, lockMode) {
+var newReadOperation = function(tx, tableHandler, keys, lockMode) {
   udebug.log("NdbOperation getReadOperation");
-  assert(LockModes.indexOf(lockMode) !== -1);
+  assert(doc.LockModes.indexOf(lockMode) !== -1);
   var op = new DBOperation("read", tx, tableHandler);
   op.keys = keys;
   op.lockMode = lockMode;
   if(keys) {
-    op.state = OperationStates[1];  // DEFINED
+    op.state = doc.OperationStates[1];  // DEFINED
   }
   
   op.index = tableHandler.chooseIndex(keys);
@@ -172,12 +154,12 @@ var getReadOperation = function(tx, tableHandler, keys, lockMode) {
 };
 
 
-function getInsertOperation(tx, tableHandler, row) {
+function newInsertOperation(tx, tableHandler, row) {
   udebug.log("NdbOperation getInsertOperation");
   var op = new DBOperation("insert", tx, tableHandler);
   op.row = row;
   if(row) {
-    op.state = OperationStates[1];  // DEFINED
+    op.state = doc.OperationStates[1];  // DEFINED
   }
   
   encodeRowBuffer(op);
@@ -186,12 +168,12 @@ function getInsertOperation(tx, tableHandler, row) {
 }
 
 
-function getDeleteOperation(tx, tableHandler, keys) {
-  udebug.log("NdbOperation getDeleteOperation");
+function newDeleteOperation(tx, tableHandler, keys) {
+  udebug.log("NdbOperation newDeleteOperation");
   var op = new DBOperation("delete", tx, tableHandler);
   op.keys = keys;
   if(keys) { 
-    op.state = OperationStates[1]; // DEFINED
+    op.state = doc.OperationStates[1]; // DEFINED
   }
   encodeKeyBuffer(op);
   return op;
@@ -199,6 +181,6 @@ function getDeleteOperation(tx, tableHandler, keys) {
 
 
 exports.DBOperation = DBOperation;
-exports.getReadOperation = getReadOperation;
-exports.getInsertOperation = getInsertOperation;
-exports.getDeleteOperation = getDeleteOperation;
+exports.newReadOperation   = newReadOperation;
+exports.newInsertOperation = newInsertOperation;
+exports.newDeleteOperation = newDeleteOperation;

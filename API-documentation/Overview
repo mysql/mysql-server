@@ -10,9 +10,7 @@ Annotations:
   mapClass()
   mapField()
   registerFieldConverter()
-  registerColumnConverter()
   registerTypeConverter()
-  registerCharsetConverter()
   
 Converter:
   a converter implements either readFromString() + writeToString()

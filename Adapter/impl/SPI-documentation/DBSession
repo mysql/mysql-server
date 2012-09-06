@@ -19,49 +19,49 @@
   getConnectionPool();
 
 
-/* read(DBTableHandler table, Object ResolvedKeys)
+/* buildReadOperation(DBTableHandler table, Object ResolvedKeys)
    IMMEDIATE
    Define an operation which when executed will fetch a row
 
    RETURNS a DBOperation 
 */
-  read(tableHandler, keys);
+  buildReadOperation(tableHandler, keys);
 
 
-/* insert(DBTableHandler table, Object row)
+/* buildInsertOperation(DBTableHandler table, Object row)
    IMMEDIATE
    Define an operation which when executed will insert a row
  
    RETURNS a DBOperation 
 */
-  insert(tableHandler, row);
+  buildInsertOperation(tableHandler, row);
 
 
-/* update(DBTableHandler table, Object key, Object row)
+/* buildUpdateOperation(DBTableHandler table, Object key, Object row)
    IMMEDIATE
    Define an operation which when executed will update a row
   
    RETURNS a DBOperation 
 */
-  update(tableHandler, keys, row);
+  buildUpdateOperation(tableHandler, keys, row);
 
 
-/* write(DBTableHandler table, Object key, Object row)
+/* buildWriteOperation(DBTableHandler table, Object key, Object row)
    IMMEDIATE
    Define an operation which when executed will update or insert
  
    RETURNS a DBOperation 
 */
-  write(tableHandler, keys, row);
+  buildWriteOperation(tableHandler, keys, row);
 
 
-/* delete(DBTableHandler table, Object primaryKey)
+/* buildDeleteOperation(DBTableHandler table, Object primaryKey)
    IMMEDIATE 
    Define an operation which when executed will delete a row
  
    RETURNS a DBOperation 
 */  
-  delete(tableHandler, keys);
+  buildDeleteOperation(tableHandler, keys);
 
 
 /* openTransaction()
