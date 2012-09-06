@@ -18,7 +18,11 @@
  02110-1301  USA
  */
 
+"use strict";
+
 var session = require("./Session.js");
+
+var userContext = require('../impl/common/UserContext.js');
 
 var SessionFactory = function(key, dbConnectionPool, properties, annotations, delete_callback) {
   this.key = key;
@@ -32,29 +36,22 @@ var SessionFactory = function(key, dbConnectionPool, properties, annotations, de
 
 //openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool
-SessionFactory.prototype.openSession = function(annotations, user_callback, extra1, extra2, extra3, extra4) {
-  var callback = user_callback; // save user_callback for use inside dbSessionCreated_callback
-  callback_arguments = arguments;
-  // allocate a new session slot in sessions
-  for (var i = 0; i < this.sessions.length; ++i) {
-    if (this.sessions[i] == null) break;
-  }
-  this.sessions[i] = {'placeholder':true, 'index':i};
-  var sessions = this.sessions;
-  var sessionFactory = this;
-
-  var dbSessionCreated_callback = function(err, dbSession) {
-    var newSession = new session.Session(i, sessionFactory, dbSession);
-    sessions[i] = newSession;
-    callback_arguments[0] = err;
-    callback_arguments[1] = newSession;
-    // TODO: use user_callback.apply to return extra arguments but what is "this" for the apply function?
-    callback(err, newSession, extra1, extra2, extra3, extra4);  // todo: extra user parameters
-  };
-  var newDBSession = this.dbConnectionPool.getDBSession(i, dbSessionCreated_callback);
-
+SessionFactory.prototype.openSession = function() {
+  var context = new userContext.UserContext(arguments, 2, 2, null, this);
+  // delegate to context for execution
+  context.openSession();
 };
 
+
+/** Get metadata for a table.
+ * @param tableName the name of the table
+ * @param callback
+ */
+SessionFactory.prototype.getTableMetadata = function() {
+  var context = new userContext.UserContext(arguments, 2, 2, null, this);
+  // delegate to context for execution
+  context.getTableMetadata();
+};
 
 SessionFactory.prototype.close = function() {
   // TODO: close all sessions first

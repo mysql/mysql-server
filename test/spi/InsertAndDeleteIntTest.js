@@ -30,9 +30,31 @@ var spi = require(spi_module);
 var session = null;
 var table = null;
 
+var commonTableHandler = require("../../Adapter/impl/common/DBTableHandler.js");
 var t1 = new harness.SerialTest("InsertInt");
+var t2 = new harness.SerialTest("DeleteIntPK");
 
-t1.prepare = function prepare(testObj) {
+function do_insert_op(session, table) {
+  udebug.log("InsertIntTest.js do_insert_op");
+  /* Pass the variables on to the next test */
+  t2.session = session;
+  t2.table = table;
+
+  var tx = session.openTransaction();
+  var dbConnectionPool = session.getConnectionPool();
+  var thandler = new commonTableHandler.DBTableHandler(dbConnectionPool, table, null);
+  
+  var row = { i: 13 , j: 14 };
+  var op = session.insert(thandler, row);
+
+  udebug.log("ready to commit");
+  tx.execute("Commit", function(err, tx) {
+    if(err) { t1.fail("Execute/commit failed: " + err);  }
+    else    { t1.pass(); }
+  });
+}
+
+t1.run = function() {  
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
       connection = null,
@@ -54,7 +76,7 @@ t1.prepare = function prepare(testObj) {
     udebug.log("InsertIntTest.js prepare onSession");
     session = sess; // set global
     if(err) {   test.fail(err);   }
-    else    {   session.getConnectionPool().getTable("test", "tbl1", onTable); }
+    else    {   session.getConnectionPool().getTableMetadata("test", "tbl1", null, onTable); }
   }
 
   function onConnect(err, conn) {
