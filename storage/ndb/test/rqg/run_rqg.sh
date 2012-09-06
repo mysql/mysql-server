@@ -20,7 +20,7 @@ set -e
 base="`dirname $0`"
 source "$base"/parseargs.sh
 
-ecp="set engine_condition_pushdown=on;"
+ecp="set optimizer_switch = 'engine_condition_pushdown=on';"
 
 check_query(){
     file=$1
