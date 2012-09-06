@@ -377,6 +377,17 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
+/*******************************************************************//**
+Create a temporary tablename.
+@return temporary tablename suitable for InnoDB use */
+UNIV_INTERN __attribute__((nonnull, warn_unused_result))
+char*
+dict_mem_create_temporary_tablename(
+/*================================*/
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const char*	dbtab,	/*!< in: database/table name */
+	table_id_t	id);	/*!< in: InnoDB table id */
+
 /** Data structure for a column in a table */
 struct dict_col_t{
 	/*----------------------*/
