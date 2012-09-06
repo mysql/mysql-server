@@ -30,6 +30,7 @@ Created 9/5/1995 Heikki Tuuri
 typedef LONG	lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
 #else
+// FIXME: For SYS_futex this should be an int
 typedef ulint	lock_word_t;
 #endif /* HAVE_WINDOES_ATOMICS */
 
@@ -266,15 +267,23 @@ enum latch_level_t {
 
 /** All (ordered) latches, used in debugging, must derive from this class. */
 struct latch_t {
-	latch_t(latch_level_t level = SYNC_UNKNOWN) : m_level(level) { }
+	latch_t(latch_level_t level = SYNC_UNKNOWN)
+		:
+		m_level(level),
+       		m_rw_lock(false) { }
+
+	bool is_rw_lock() const
+	{
+		return(m_rw_lock);
+	}
+
+	virtual void print(FILE* stream) const = 0;
 
 	/** The order or level of the latch */
 	latch_level_t	m_level;
 
 	/* true if it is a rw-lock */
 	bool		m_rw_lock;
-
-	//virtual print(Writer&) = 0;
 };
 
 /** Subclass this to iterate over a thread's latches. */

@@ -22,7 +22,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/sync0mutex.h
+@file include/sync0check.h
 Debug checks for latches, header file
 
 Created 2012-08-21 Sunny Bains
@@ -57,30 +57,27 @@ Check if it is OK to acquire the latch.
 @param latch - latch type */
 UNIV_INTERN
 void
-sync_check_lock(const latch_t& latch);
+sync_check_lock(const latch_t* latch);
 
 /**
 Check if it is OK to acquire the latch. 
 @param latch - latch type */
 UNIV_INTERN
 void
-sync_check_lock(const latch_t& latch, latch_level_t level);
+sync_check_lock(const latch_t* latch, latch_level_t level);
 
 /**
 Check if it is OK to re-acquire the lock. */
 UNIV_INTERN
 void
-sync_check_relock(const latch_t& latch);
+sync_check_relock(const latch_t* latch);
 
 /**
 Removes a latch from the thread level array if it is found there.
-@param latch - to unlock
-@return TRUE if found in the array; it is no error if the latch is
-not found, as we presently are not able to determine the level for
-every latch reservation the program does */
+@param latch - to unlock */
 UNIV_INTERN
-bool
-sync_check_unlock(const latch_t& latch);
+void
+sync_check_unlock(const latch_t* latch);
 
 /**
 Checks if the level array for the current thread contains a

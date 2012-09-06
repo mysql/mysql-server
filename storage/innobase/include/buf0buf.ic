@@ -1368,7 +1368,7 @@ buf_block_dbg_add_level(
 				where we have acquired latch */
 	latch_level_t	level)	/*!< in: latching order level */
 {
-	sync_check_lock(block->lock, level);
+	sync_check_lock(&block->lock, level);
 }
 #endif /* UNIV_SYNC_DEBUG */
 /********************************************************************//**

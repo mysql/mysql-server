@@ -1117,8 +1117,8 @@ srv_printf_innodb_monitor(
 	fputs("----------\n"
 	      "SEMAPHORES\n"
 	      "----------\n", file);
-	// FIXME:
-	//sync_check_print(file);
+
+	sync_print(file);
 
 	/* Conceptually, srv_innodb_monitor_mutex has a very high latching
 	order level in sync0mutex.h, while dict_foreign_err_mutex has a very

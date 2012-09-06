@@ -53,7 +53,7 @@ TTASWaitMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
 	in mutex_exit, the waiters field is first set to zero
 	and then the event is set to the signaled state. */
 
-	waiters_exist();
+	set_waiters();
 
 	/* Try to reserve still a few times. */
 
@@ -113,7 +113,7 @@ void PolicyMutex<MutexImpl>::init(
 	const char*	filename,
 	ulint line)
 {
-	m_impl.m_policy.init(name, filename, line);
+	m_impl.m_policy.init(m_impl, name, filename, line);
 
 #ifdef UNIV_PFS_MUTEX
 	mysql_pfs_key_t	key = sync_latch_get_pfs_key(name);

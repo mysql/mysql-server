@@ -484,14 +484,6 @@ rw_lock_is_locked(
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type);	/*!< in: lock type: RW_LOCK_SHARED,
 					RW_LOCK_EX */
-#ifdef UNIV_SYNC_DEBUG
-/***************************************************************//**
-Prints debug info of an rw-lock. */
-UNIV_INTERN
-void
-rw_lock_print(
-/*==========*/
-	rw_lock_t*	lock);	/*!< in: rw-lock */
 /***************************************************************//**
 Prints debug info of currently locked rw-locks. */
 UNIV_INTERN
@@ -510,6 +502,7 @@ rw_lock_n_locked(void);
 
 /*#####################################################################*/
 
+#ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 Acquires the debug mutex. We cannot use the mutex defined in sync0sync,
 because the debug mutex is also acquired in sync0arr while holding the OS
@@ -533,7 +526,7 @@ void
 rw_lock_debug_print(
 /*================*/
 	FILE*			f,	/*!< in: output stream */
-	rw_lock_debug_t*	info);	/*!< in: debug struct */
+	const rw_lock_debug_t*	info);	/*!< in: debug struct */
 #endif /* UNIV_SYNC_DEBUG */
 
 /* NOTE! The structure appears here only for the compiler to know its size.
@@ -618,6 +611,8 @@ struct rw_lock_t
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
 /** Value of rw_lock_t::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
+
+	virtual void print(FILE* stream) const;
 #endif /* UNIV_DEBUG */
 
 };
