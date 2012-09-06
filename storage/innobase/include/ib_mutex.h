@@ -247,12 +247,11 @@ private:
 			/* Use FUTEX_WAIT_PRIVATE because our mutexes are
 			not shared between processes. */
 
-			int	ret = syscall(
-				SYS_futex, &m_lock_word,
-			      	FUTEX_WAIT_PRIVATE, MUTEX_STATE_WAITERS,
+			syscall(SYS_futex, &m_lock_word,
+				FUTEX_WAIT_PRIVATE, MUTEX_STATE_WAITERS,
 				0, 0, 0);
 
-			ut_a(ret == 0);
+		// FIXME: Do we care about the return value?
 
 		} while (!set_waiters());
 	}
@@ -260,34 +259,14 @@ private:
 	/** Wakeup a waiting thread */
 	void signal() UNIV_NOTHROW
 	{
-		const ulint	max_spins = srv_n_spin_wait_rounds;
-
-		/* We avoid a system call by first checking if some
-		thread that is not yet waiting in the futex queue
-		can grab the lock. */
-
-		for (ulint i = 0; i <= max_spins; ++i) {
-
-			/* Set the lock state to MUTEX_STATE_WAITERS,
-			there may be waiters because the lock is contended. */
-
-			if (is_locked() && try_set_waiters()) {
-
-				return;
-			}
-
-			UT_RELAX_CPU();
-		}
-	
 		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
 		not shared between processes. */
 
-		int	ret = syscall(
-			SYS_futex, &m_lock_word,
+		syscall(SYS_futex, &m_lock_word,
 			FUTEX_WAKE_PRIVATE, MUTEX_STATE_LOCKED,
 			0, 0, 0);
 
-		ut_a(ret == 0);
+		// FIXME: Do we care about the return value?
 	}
 
 private:
@@ -434,6 +413,8 @@ struct TTASWaitMutex {
 
 	TTASWaitMutex() UNIV_NOTHROW
 		:
+		m_event(),
+		m_waiters(),
 		m_lock_word(MUTEX_STATE_UNLOCKED)
 	{
 		/* Check that lock_word is aligned. */
@@ -643,6 +624,9 @@ private:
 	TTASWaitMutex(const TTASWaitMutex&);
 	TTASWaitMutex& operator=(const TTASWaitMutex&);
 
+	/** Used by sync0arr.cc for the wait queue */
+	os_event_t		m_event;
+
 	/** Set to 0 or 1. 1 if there are (or may be) threads waiting
 	in the global wait array for this mutex to be released. */
 	ulint   		m_waiters;
@@ -650,9 +634,6 @@ private:
 	/** lock_word is the target of the atomic test-and-set instruction
 	when atomic operations are enabled. */
 	volatile lock_word_t	m_lock_word;
-
-	/** Used by sync0arr.cc for the wait queue */
-	os_event_t		m_event;
 
 public:
 	/** Policy data */
