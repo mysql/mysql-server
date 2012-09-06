@@ -61,7 +61,7 @@ Driver.prototype.isSuiteToRun = function(directoryName) {
   if(directoryName === 'lib') {
     return false;
   }
-  return (this.suitesToRun && this.suitesToRun.indexOf(directoryName) > -1);
+  return (this.suitesToRun === "" || this.suitesToRun.indexOf(directoryName) > -1);
 };
 
 Driver.prototype.testCompleted = function(testCase) {
