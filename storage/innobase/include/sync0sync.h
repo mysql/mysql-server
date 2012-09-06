@@ -35,6 +35,7 @@ Created 9/5/1995 Heikki Tuuri
 #define sync0sync_h
 
 #include "univ.i"
+#include "ut0counter.h"
 
 #if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
 
@@ -181,5 +182,28 @@ os_atomic_inc_ulint_func(
 }
 
 #endif /* !HAVE_ATOMIC_BUILTINS */
+
+/**
+Prints info of the sync system. */
+UNIV_INTERN
+void
+sync_print(
+/*=======*/
+	FILE*	file);				/*!< in/out: where to print */
+
+/* Number of spin waits on mutexes: for performance monitoring */
+typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> mutex_counter_t;
+
+/** The number of OS waits in mutex_spin_wait().  Intended for
+performance monitoring. */
+extern mutex_counter_t	mutex_os_wait_count;
+
+/** The number of mutex_spin_wait() calls.  Intended for
+performance monitoring. */
+extern mutex_counter_t	mutex_spin_wait_count;
+
+/** The number of iterations in the mutex_spin_wait() spin loop.
+Intended for performance monitoring. */
+extern mutex_counter_t	mutex_spin_round_count;
 
 #endif /* !sync0sync_h */

@@ -34,7 +34,8 @@ struct POSIXMutex {
 
 	typedef Policy<POSIXMutex> MutexPolicy;
 
-	POSIXMutex() UNIV_NOTHROW {
+	POSIXMutex() UNIV_NOTHROW
+	{
 		int	ret;
 
 		ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
@@ -136,46 +137,55 @@ struct Futex {
 	/** Acquire the mutex. */
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
-		lock_word_t	lock;
-		const ulint	max_spins = srv_n_spin_wait_rounds;
+		lock_word_t	lock = MutexPolicy::trylock_poll(*this);
 
-		/* Spin and try to take the lock */
+		/* If there were no waiters when this lock tried
+		to acquire the mutex then set the waiters flag now. */
 
-		for (ulint i = 0; i <= max_spins; ++i) {
+		if (lock != MUTEX_STATE_UNLOCKED) {
 
-			lock = CAS(&m_lock_word,
-				   MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED);
+			/* When this thread set the waiters flag it is
+			possible that the mutex had already been released
+			by then. In this case the thread can assume it
+			was granted the mutex. */
 
-			if (lock == MUTEX_STATE_UNLOCKED) {
+			if (lock == MUTEX_STATE_LOCKED && set_waiters()) {
 				return;
 			}
-		
-			UT_RELAX_CPU();
-		}
 
-		wait(lock);
+			wait();
+		}
 	}
 
 	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
-		/* If there are threads waiting then we have to wake them up. */
+		/* If there are threads waiting then we have to wake
+		them up. Reset the lock state to unlocked so that waiting
+		threads can test for success. */
 
 		if (m_lock_word == MUTEX_STATE_WAITERS) {
 
 			m_lock_word = MUTEX_STATE_UNLOCKED;
 
-		} else if (TAS(&m_lock_word, MUTEX_STATE_UNLOCKED)
-			   == MUTEX_STATE_LOCKED) {
-
-			/* No waiters, set as unlocked. */
+		} else if (unlock() == MUTEX_STATE_LOCKED) {
+			/* No threads waiting, no need to signal a wakeup. */
 			return;
 		}
 
 		signal();
 	}
 
-	/** Try and lock the mutex, return 0 on SUCCESS and 1 on failure. */
+	/** Try and lock the mutex.
+	@return the old state of the mutex */
+	lock_word_t trylock() UNIV_NOTHROW
+	{	
+		return(CAS(&m_lock_word,
+			    MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED));
+	}
+
+	/** Try and lock the mutex.
+	@return true if successful */
 	bool try_lock() UNIV_NOTHROW
 	{
 		return(trylock() == MUTEX_STATE_UNLOCKED);
@@ -206,22 +216,36 @@ private:
 		return(*(lock_word_t*) p);
 	}
 
-	/** Try and lock the mutex.
-	@return the old state of the mutex */
-	lock_word_t trylock() UNIV_NOTHROW
-	{	
+	/** Release the mutex.
+	@return the new state of the mutex */
+	lock_word_t unlock() UNIV_NOTHROW
+	{
+		return(TAS(&m_lock_word, MUTEX_STATE_UNLOCKED));
+	}
+
+	/** Note that there are threads waiting and need to be woken up.
+	@return true if state was MUTEX_STATE_UNLOCKED (ie. granted) */
+	bool set_waiters() UNIV_NOTHROW
+	{
+		return(TAS(&m_lock_word, MUTEX_STATE_WAITERS)
+		       == MUTEX_STATE_UNLOCKED);
+	}
+
+	/** Set the waiters flag, only if the mutex is locked
+	@return true if succesful. */
+	bool try_set_waiters() UNIV_NOTHROW
+	{
 		return(CAS(&m_lock_word,
-			    MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED));
+			   MUTEX_STATE_LOCKED, MUTEX_STATE_WAITERS)
+		       == MUTEX_STATE_LOCKED);
 	}
 
 	/** Wait if the lock is contended. */
-	void wait(lock_word_t lock) UNIV_NOTHROW
+	void wait() UNIV_NOTHROW
 	{
-		if (lock == MUTEX_STATE_LOCKED) {
-			lock = TAS(&m_lock_word, MUTEX_STATE_WAITERS);
-		}
-
-		while (lock != MUTEX_STATE_UNLOCKED) {
+		do {
+			/* Use FUTEX_WAIT_PRIVATE because our mutexes are
+			not shared between processes. */
 
 			int	ret = syscall(
 				SYS_futex, &m_lock_word,
@@ -230,8 +254,7 @@ private:
 
 			ut_a(ret == 0);
 
-			lock = TAS(&m_lock_word, MUTEX_STATE_WAITERS);
-		}
+		} while (!set_waiters());
 	}
 
 	/** Wakeup a waiting thread */
@@ -239,15 +262,16 @@ private:
 	{
 		const ulint	max_spins = srv_n_spin_wait_rounds;
 
+		/* We avoid a system call by first checking if some
+		thread that is not yet waiting in the futex queue
+		can grab the lock. */
+
 		for (ulint i = 0; i <= max_spins; ++i) {
 
-			/* Set the lock state to MUTEX_STATE_WAITERS because
+			/* Set the lock state to MUTEX_STATE_WAITERS,
 			there may be waiters because the lock is contended. */
 
-			if (m_lock_word > MUTEX_STATE_UNLOCKED
-		            && CAS(&m_lock_word,
-				   MUTEX_STATE_LOCKED,
-				   MUTEX_STATE_WAITERS)) {
+			if (is_locked() && try_set_waiters()) {
 
 				return;
 			}
@@ -255,6 +279,9 @@ private:
 			UT_RELAX_CPU();
 		}
 	
+		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
+		not shared between processes. */
+
 		int	ret = syscall(
 			SYS_futex, &m_lock_word,
 			FUTEX_WAKE_PRIVATE, MUTEX_STATE_LOCKED,
@@ -343,13 +370,13 @@ struct TTASMutex {
 		return(*(lock_word_t*) p);
 	}
 
-#ifdef UNIV_DEBUG
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
 		return(state() != MUTEX_STATE_UNLOCKED);
 	}
 
+#ifdef UNIV_DEBUG
 	/** @return true if the calling thread owns the mutex. */
 	bool is_owned() const UNIV_NOTHROW
 	{
@@ -365,7 +392,7 @@ private:
 		/* The Test, Test again And Set (TTAS) loop. */
 
 		for (;;) {
-			MutexPolicy::poll(*this);
+			MutexPolicy::test_poll(*this);
 
 			/* Test again and set */
 			switch (CAS(&m_lock_word,
@@ -418,7 +445,9 @@ struct TTASWaitMutex {
 	~TTASWaitMutex()
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
+
 		os_event_free(m_event);
+		m_event = 0;
 	}
  
  	/** Try and lock the mutex. Note: POSIX returns 0 on success.
@@ -451,7 +480,6 @@ struct TTASWaitMutex {
 	}
 
  	/** Acquire the mutex. */
-
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
 		/* Note that we do not peek at the value of m_lock_word
@@ -465,7 +493,6 @@ struct TTASWaitMutex {
 
 	/**
 	@return the lock state. */
-
 	lock_word_t state() const UNIV_NOTHROW
 	{
 		/** Try and force a memory read. */
@@ -476,14 +503,12 @@ struct TTASWaitMutex {
 
 	/** The event that the mutex will wait in sync0arr.cc 
 	@return even instance */
-
 	os_event_t event() UNIV_NOTHROW
 	{
 		return(m_event);
 	}
 
 	/** @return true if locked by some thread */
-
 	bool is_locked() const UNIV_NOTHROW
 	{
 		return(state() != MUTEX_STATE_UNLOCKED);
@@ -491,7 +516,6 @@ struct TTASWaitMutex {
 
 #ifdef UNIV_DEBUG
 	/** @return true if the calling thread owns the mutex. */
-
 	bool is_owned() const UNIV_NOTHROW
 	{
 		return(is_locked() && m_policy.is_owned());
@@ -535,14 +559,12 @@ private:
 	/**
 	Wait in the sync array.
 	@return true if the mutex acquisition was successful. */
-
 	bool wait(const char* file_name, ulint line) UNIV_NOTHROW;
 
 	/**
 	Reserves a mutex for the current thread. If the mutex is reserved,
 	the function spins a preset time (controlled by srv_n_spin_wait_rounds),
        	waiting for the mutex before suspending the thread. */
-
 	void spin_and_wait(const char* file_name, ulint line) UNIV_NOTHROW
 	{
 		ulint	n_spins = 0;
@@ -567,7 +589,6 @@ private:
 
 	/**
 	@return the value of the m_waiters flag */
-
 	volatile ulint* waiters() UNIV_NOTHROW
 	{
 		/* Declared volatile in the hope that the value is
@@ -584,14 +605,12 @@ private:
 	}
 
 	/* Note that there are threads waiting on the mutex */
-
-	void waiters_exist() UNIV_NOTHROW
+	void set_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 1;
 	}
 
 	/* Note that there are no threads waiting on the mutex */
-
 	void clear_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 0;
@@ -600,7 +619,6 @@ private:
 	/**
 	Try and acquire the lock using TestAndSet.
 	@return	true if lock succeeded */
-
 	bool tas_lock() UNIV_NOTHROW
 	{
 		return(os_atomic_test_and_set_ulint(
@@ -611,7 +629,6 @@ private:
 	/** In theory __sync_lock_release should be used to release the lock.
 	Unfortunately, it does not work properly alone. The workaround is
 	that more conservative __sync_lock_test_and_set is used instead. */
-
 	void tas_unlock() UNIV_NOTHROW
 	{
 		os_atomic_test_and_set_ulint(
@@ -619,7 +636,6 @@ private:
 	}
 
 	/** Wakeup any waiting thread(s). */
-
 	void signal() UNIV_NOTHROW;
 
 private:
@@ -629,16 +645,13 @@ private:
 
 	/** Set to 0 or 1. 1 if there are (or may be) threads waiting
 	in the global wait array for this mutex to be released. */
-
 	ulint   		m_waiters;
 
 	/** lock_word is the target of the atomic test-and-set instruction
 	when atomic operations are enabled. */
-
 	volatile lock_word_t	m_lock_word;
 
 	/** Used by sync0arr.cc for the wait queue */
-
 	os_event_t		m_event;
 
 public:
@@ -651,14 +664,13 @@ public:
 template <typename MutexImpl>
 struct PolicyMutex
 {
-
+	typedef MutexImpl MutexType;
 	typedef typename MutexImpl::MutexPolicy Policy;
 
 	PolicyMutex() UNIV_NOTHROW : m_impl() { }
 	~PolicyMutex() { }
 
 	/** Release the mutex. */
-
 	void exit() UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
@@ -673,7 +685,6 @@ struct PolicyMutex
 	/** Acquire the mutex.
 	@name - filename where locked
 	@line - line number where locked */
-
 	void enter(const char* name = 0, ulint line = 0) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
@@ -692,7 +703,6 @@ struct PolicyMutex
 	}
 
 	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
-
 	int trylock(const char* name = 0, ulint line = 0) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
@@ -715,8 +725,8 @@ struct PolicyMutex
 	}
 
 #ifdef UNIV_DEBUG
-	/** @return true if the thread owns the mutex. */
 
+	/** @return true if the thread owns the mutex. */
 	bool is_owned() const UNIV_NOTHROW
 	{
 		return(m_impl.is_owned());
@@ -729,7 +739,6 @@ struct PolicyMutex
 	@param name - mutex name
 	@param filename - file where created
 	@param line - line number in file where created */
-
 	void init(const char* name, const char* filename, ulint line)
 		UNIV_NOTHROW;
 
@@ -742,10 +751,10 @@ struct PolicyMutex
 
 private:
 #ifdef UNIV_PFS_MUTEX
+
 	/** Performance schema monitoring.
 	@param name - file name where locked
 	@param line - line number in file where locked */
-
 	PSI_mutex_locker* pfs_begin(const char* name, ulint line) UNIV_NOTHROW
 	{
 		if (m_ptr != 0) {
@@ -761,7 +770,6 @@ private:
 
 	/** Performance schema monitoring
 	@param ret - 0 for success and 1 for failure */
-
 	void pfs_end(PSI_mutex_locker* locker, int ret) UNIV_NOTHROW
 	{
 		if (locker != 0) {
@@ -770,7 +778,6 @@ private:
 	}
 
 	/** Performance schema monitoring - register mutex release */
-
 	void pfs_exit()
 	{
 		if (m_ptr != 0) {
@@ -781,7 +788,6 @@ private:
 	/** Performance schema monitoring - register mutex
 	@param key - Performance Schema key.
 	@param ptr - pointer to memory */
-
 	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
 	{
 		ut_ad(m_ptr == 0);
@@ -789,7 +795,6 @@ private:
 	}
 
 	/** Performance schema monitoring - deregister */
-
 	void pfs_del()
 	{
 		if (m_ptr != 0) {
@@ -799,12 +804,10 @@ private:
 	}
 
 	/** The performance schema instrumentation hook. */
-
 	PSI_mutex*		m_ptr;
 #endif /* UNIV_PFS_MUTEX */
 
 	/** The mutex implementation */
-
 	MutexImpl		m_impl;
 };
 
@@ -815,8 +818,8 @@ typedef PolicyMutex<Futex<DefaultPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PolicyMutex<POSIXMutex<DefaultPolicy> > SysMutex;
-typedef PolicyMutex<DefaultPolicy> <TTASMutex> SpinMutex;
-typedef PolicyMutex<DefaultPolicy> <TTASWaitMutex> Mutex;
+typedef PolicyMutex<TTASMutex<DefaultPolicy> > SpinMutex;
+typedef PolicyMutex<TTASWaitMutex<TrackPolicy> > Mutex;
 
 #else
 

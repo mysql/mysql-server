@@ -537,12 +537,15 @@ os_event_free(
 	os_event_t	event)	/*!< in: event to free */
 
 {
-	ut_a(event);
+	if (event == 0) {
+		return;
+	}
+
 #ifdef __WIN__
 	if(!srv_use_native_conditions){
 		ut_a(CloseHandle(event->handle));
 	} else /*Windows with condition variables */
-#endif
+#endif /* __WIN__ */
 	{
 		os_fast_mutex_free(&(event->os_mutex));
 

@@ -37,8 +37,34 @@ it doesn't occupy any space. No vptrs etc. */
 template <typename Mutex>
 struct DefaultPolicy {
 
+	/** Poll waiting for mutex to be unlocked.
+	@return value of lock word before locking. */
+	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
+	{
+		lock_word_t	lock;
+		ulint		delay;
+
+		delay = ut_rnd_interval(0, srv_spin_wait_delay) * 10;
+
+		for (ulint i = 0; i <= srv_n_spin_wait_rounds; ++i) {
+
+			if ((lock = mutex.trylock()) == MUTEX_STATE_UNLOCKED) {
+
+				return(lock);
+
+			} else if (srv_spin_wait_delay > 0) {
+
+				for (ulint j = 0; j < delay; ++j) {
+					UT_RELAX_CPU();
+				}
+			}
+		}
+
+		return(lock);
+	}
+
 	/** Poll waiting for mutex to be unlocked */
-	static void poll(const Mutex& mutex) UNIV_NOTHROW
+	static void test_poll(const Mutex& mutex) UNIV_NOTHROW
 	{
 		ulint	delay = ut_rnd_interval(0, srv_spin_wait_delay) * 10;
 
@@ -61,7 +87,9 @@ struct DefaultPolicy {
 	void locked(const Mutex&) UNIV_NOTHROW { }
 	void release(const Mutex&) UNIV_NOTHROW { }
 
-	void init(const char*, const char*, ulint) UNIV_NOTHROW { }
+	void init(
+		const Mutex&,
+		const char*, const char*, ulint) UNIV_NOTHROW { }
 };
 
 /** For observing Mutex events. */
@@ -84,24 +112,31 @@ struct TrackPolicy : public Observer<Mutex> {
 		m_cline(ULINT_UNDEFINED),
 		m_cfile_name(0) { }
 
-	void init(const char* name, const char* filename, ulint line)
-		UNIV_NOTHROW
+	void init(const Mutex&	mutex,
+		  const char*	name,
+		  const char*	filename,
+		  ulint line) UNIV_NOTHROW
 	{
 		m_name = name;
 		m_cline = line;
 		m_cfile_name = filename;
 	}
 
-	static void poll(const Mutex& mutex) UNIV_NOTHROW
+	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
 	{
-		DefaultPolicy<Mutex>::poll(mutex);
+		return(DefaultPolicy<Mutex>::trylock_poll(mutex));
 	}
 
-	virtual void enter(const Mutex&) UNIV_NOTHROW { /* No op */}
+	static void test_poll(const Mutex& mutex) UNIV_NOTHROW
+	{
+		DefaultPolicy<Mutex>::test_poll(mutex);
+	}
 
-	virtual void locked(const Mutex&) UNIV_NOTHROW { /* No op */}
+	virtual void enter(const Mutex&) UNIV_NOTHROW { }
+	virtual void locked(const Mutex&) UNIV_NOTHROW { }
+	virtual void release(const Mutex&) UNIV_NOTHROW { }
 
-	virtual void release(const Mutex&) UNIV_NOTHROW { /* No op */}
+	void print(FILE* stream) const;
 
 	/** Name of the mutex */
 	const char*		m_name;
@@ -121,6 +156,18 @@ struct TrackPolicy : public Observer<Mutex> {
 template <typename Mutex>
 struct DebugPolicy : public TrackPolicy<Mutex> {
 
+	struct DebugLatch : public latch_t {
+
+		DebugLatch() : m_mutex(0) { } 
+
+		virtual void print(FILE* stream) const
+		{
+			m_mutex->m_policy.print(stream);
+		}
+
+		const Mutex*	m_mutex;
+	};
+
 	DebugPolicy()
 		:
 		m_thread_id(os_thread_id_t(ULINT_UNDEFINED)),
@@ -139,14 +186,37 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 		return(os_thread_eq(m_thread_id, os_thread_get_curr_id()));
 	}
 
-	void init(const char* name, const char* filename, ulint line)
-		UNIV_NOTHROW;
+	virtual void init(
+		const Mutex&	mutex,
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW;
 
 	virtual void enter(const Mutex&) UNIV_NOTHROW;
 
 	virtual void locked(const Mutex&) UNIV_NOTHROW;
 
 	virtual void release(const Mutex&) UNIV_NOTHROW;
+
+	void print(FILE* stream) const
+	{
+		TrackPolicy<Mutex>::print(stream);
+
+		if (os_thread_pf(m_thread_id) != ULINT_UNDEFINED) {
+
+			fprintf(stream,
+				"Locked mutex: "
+				"addr %p thread %ld file %s line %ld",
+				(void*) m_latch.m_mutex,
+				os_thread_pf(m_thread_id),
+				m_file_name,
+				m_line);
+		} else {
+			fprintf(stream,"Not locked");
+		}
+
+		fprintf(stream, "\n");
+	}
 
 	/** Owning thread id, or ULINT_UNDEFINED. NOTE: os_thread_id can be
 	any type even a pointer. */
@@ -161,8 +231,11 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	/** Magic number to check for memory corruption. */
 	ulint			m_magic_n;
 
+	/** true if the mutex is currently locked */
+	bool			m_locked;
+
 	/** Latching information required by the latch ordering checks. */
-	latch_t			m_latch;
+	DebugLatch		m_latch;
 };
 
 #endif /* UNIV_DEBUG */
