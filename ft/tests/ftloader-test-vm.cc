@@ -33,6 +33,9 @@ static void test_cachetable_reservation (long size) {
         assert(r0 <= (size - unreservable_part)*0.5);
         assert(r1 <= (size - unreservable_part - r0)*0.5);
         assert(r2 <= (size - unreservable_part - r0 -1)*0.5);
+        toku_cachetable_release_reserved_memory(ct, r0);
+        toku_cachetable_release_reserved_memory(ct, r1);
+        toku_cachetable_release_reserved_memory(ct, r2);
     }
     {
         int r = toku_cachetable_close(&ct);
