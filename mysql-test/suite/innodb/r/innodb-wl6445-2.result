@@ -12,6 +12,7 @@ SELECT @@innodb_large_prefix;
 1
 DROP DATABASE IF EXISTS testdb_wl6445;
 CREATE DATABASE testdb_wl6445;
+case # 1
 SET GLOBAL innodb_file_per_table = 1;
 SET GLOBAL innodb_file_format = `Barracuda`;
 USE testdb_wl6445;
@@ -51,6 +52,7 @@ FLUSH LOGS;
 FLUSH TABLES t1;
 FLUSH TABLES WITH READ LOCK;
 UNLOCK TABLES;
+case # 2
 #    Try to restart the server without --innodb-read-only after removing
 #    write permissions of system tablespace. Server should not start.
 #    This confirms server is not automatically started in read-only mode.
