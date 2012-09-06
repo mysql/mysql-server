@@ -2,13 +2,13 @@ DROP TABLE IF EXISTS t;
 SET SESSION TOKUDB_DISABLE_SLOW_ALTER=ON;
 CREATE TABLE t (a VARCHAR(100), b VARCHAR(256)) ENGINE=TokuDB;
 ALTER TABLE t CHANGE COLUMN a aa VARCHAR(1);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this MariaDB version
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a aa VARCHAR(255);
 ALTER TABLE t CHANGE COLUMN aa a VARCHAR(255);
 ALTER TABLE t CHANGE COLUMN b bb VARCHAR(255);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this MariaDB version
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN b bb VARCHAR(1024);
 ALTER TABLE t CHANGE COLUMN bb b VARCHAR(1024);
 ALTER TABLE t CHANGE COLUMN b bb VARCHAR(256);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this MariaDB version
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
