@@ -21,6 +21,7 @@ def build(ctx):
   "src/unified_debug_v8.cpp " +\
   \
   "src/Record.cpp " +\
+  "src/Recode.cpp " +\
   "src/Operation.cpp " +\
   "src/DBOperationHelper.cpp " +\
   "src/DBSessionImpl.cpp " + \

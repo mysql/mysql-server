@@ -2,25 +2,27 @@
    It contains read-only user-visible fields.
    
    OBJECT DEFINITIONS:
-     DBOperation
-     OperationCode
-     OperationState
-     LockMode
-     DBResult
-     DBOperationError
 */
+
+var   DBOperation,          // DBOperation structure prototype
+      OperationCodes,       // Array of defined opcodes
+      OperationStates,      // Array of defined operation states
+      LockModes,            // Array of defined lock modes
+      DBResult,             // DBResult structure prototype
+      DBOperationError;     // DBOperationError structure prototype
+
 
 DBOperation = {
   opcode          : ""    ,  // the OperationCode
   transaction     : {}    ,  // pointer to the operation's transaction
-  keys            : []    ,  // array or map containing key fields
-  values          : []    ,  // array or map containing row values
+  keys            : {}    ,  // array or map containing key fields
+  values          : {}    ,  // array or map containing row values
   tableHandler    : {}    ,  // the DBTableHandler used for this operation
   lockMode        : ""    ,  // LockMode used for a read operation
-  index           : {}    ,  // the DBIndex used for this operation
+  index           : {}    ,  // the IndexMetadata used for this operation
   state           : ""    ,  // the current OperationState
   result          : {}    ,  // DBResult object containing the result of the op
-  buffers         : []    ,  // array containing any buffers used internally
+  buffers         : {}    ,  // contains any buffers used internally
 };
 
 
@@ -67,7 +69,14 @@ DBResult = {
 
 
 DBOperationError = {
-  code           : 0     ,   // MySQL Error Code number (Required)
-  ... /* Other adapter-specific properties which may be present */
+  code           : 0    // MySQL Error Code number (Required)
+  /* ...  Other adapter-specific properties which may be present */
 };
+
+
+exports.DBOperation = DBOperation;
+exports.OperationCodes = OperationCodes;
+exports.OperationStates = OperationStates;
+exports.LockModes = LockModes;
+exports.DBOperationError = DBOperationError;
 

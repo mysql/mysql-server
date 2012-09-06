@@ -53,10 +53,10 @@ using namespace v8;
  * A note on getTable():
  *   In addition to the user-visible fields, the returned value wraps some 
  *   NdbDictionary objects.
- *   The DBTable wraps an NdbDictionary::Table
- *   The DBColumn objects each wrap an NdbDictionary::Column
- *   The DBIndex objects for SECONDARY indexes wrap an NdbDictionary::Index,
- *    -- but DBIndex for PK does *not* wrap any native object!
+ *   The TableMetadata wraps an NdbDictionary::Table
+ *   The ColumnMetadata objects each wrap an NdbDictionary::Column
+ *   The IndexMetadta objects for SECONDARY indexes wrap an NdbDictionary::Index,
+ *    -- but IndexMetadta for PK does *not* wrap any native object!
 */
 Envelope NdbDictTableEnv("NdbDictionary::Table");
 Envelope NdbDictColumnEnv("NdbDictionary::Column");
@@ -204,14 +204,13 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   cb_args[0] = Null();
   cb_args[1] = Null();
   
-  /* DBTable = {
-      database      : ""    ,  // Database name
-      name          : ""    ,  // Table Name
-      columns       : []    ,  // an array of DBColumn objects
-      primaryKey    : {}    ,  // a DBIndex object
-      secondaryIndexes: []  ,  // an array of DBIndex objects 
-      userData      : ""       // Data stored in the DBTable by the ORM layer
-    }
+  /* TableMetadata = {
+      database         : ""    ,  // Database name
+      name             : ""    ,  // Table Name
+      columns          : []    ,  // ordered array of DBColumn objects
+      indexes          : []    ,  // array of DBIndex objects 
+      partitionKey     : []    ,  // ordered array of column numbers in the partition key
+    };
   */    
   if(ndb_table && ! return_val) {
 

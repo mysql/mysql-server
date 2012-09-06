@@ -73,7 +73,7 @@ t1.runTestMethod = function do_insert_op(dataObj) {
   var thandler = session.getConnectionPool().createDBTableHandler(table, null);
   var test = this;
   
-  var op = session.insert(thandler, dataObj);
+  var op = session.buildInsertOperation(thandler, dataObj);
 
   udebug.log("ready to commit");
   tx.execute("Commit", function(err, tx) {
@@ -100,7 +100,7 @@ t2.runTestMethod = function do_delete_op(keyObj) {
   var thandler = session.getConnectionPool().createDBTableHandler(table, null);
   var test = this;
 
-  var op = session.delete(thandler, keyObj);
+  var op = session.buildDeleteOperation(thandler, keyObj);
   
   udebug.log("ready to commit");
   tx.execute("Commit", function(err, tx) {
@@ -116,5 +116,5 @@ t2.run = function() {
 };
 
 
-exports.tests = [ t1, t2 ];
+exports.tests = [ t1, t2  ];
 

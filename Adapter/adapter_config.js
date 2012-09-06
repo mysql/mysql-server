@@ -26,6 +26,7 @@ global.util            = require("util");
 global.adapter_dir     = __dirname;
 
 global.build_dir       = path.join(adapter_dir, "impl", "build", "Release");
+global.spi_doc_dir     = path.join(adapter_dir, "impl", "SPI-documentation");
 global.spi_module      = path.join(adapter_dir, "impl", "SPI.js");
 global.api_module      = path.join(adapter_dir, "api", "mynode.js");
 global.udebug_module   = path.join(adapter_dir, "api", "unified_debug.js");

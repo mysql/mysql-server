@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global fs,util,harness,path,adapter_dir,suites_dir */
+/*global fs,util,harness,path,adapter_dir,suites_dir,spi_doc_dir */
 
 "use strict";
 
@@ -74,6 +74,10 @@ function checkTest(file) {
   exports.tests.push(lintTest(suites_dir, file));
 }
 
+function checkSpiDoc(file) {
+  exports.tests.push(lintTest(spi_doc_dir, file));
+}
+
 // ****** SOURCES FILES TO CHECK ********** //
 
 checkSource("impl/common/DBTableHandler.js");
@@ -82,11 +86,12 @@ checkSource("impl/ndb/NdbConnectionPool.js");
 checkSource("impl/ndb/NdbSession.js");
 checkSource("impl/ndb/NdbOperation.js");
 checkSource("impl/ndb/NdbTransactionHandler.js");
-checkSource("impl/ndb/NdbTypeConverters.js");
+checkSource("impl/ndb/NdbTypeEncoders.js");
+
+checkSpiDoc("DBOperation");
 
 checkSource("api/unified_debug.js");
 // checkSource("api/mynode.js");
-
 
 // ****** TEST FILES TO CHECK ********** //
 checkTest("lint/LintTest.js");

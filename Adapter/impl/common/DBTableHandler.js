@@ -18,6 +18,7 @@
  02110-1301  USA
 */
 
+
 /*global udebug */
 
 "use strict";
@@ -33,6 +34,7 @@ function TableMapping(dbtable) {
   udebug.log("DBTableHandler TableMapping constructor " + dbtable.name);
   this.name = dbtable.name;
   this.database = dbtable.database;
+  this.fields = [];
 }
 
 TableMapping.prototype = {
@@ -40,7 +42,7 @@ TableMapping.prototype = {
   database               :  ""  ,  // Database name
   autoIncrementBatchSize :  1   ,  // Auto-increment prefetch batch size
   isDefaultMapping       : true ,  // This mapping is a default mapping
-  fields                 : []      // array of FieldMapping objects
+  fields                 :  {}     // array of FieldMapping objects
 };
 
 TableMapping.prototype.merge = function(apiMapping) {
@@ -63,11 +65,10 @@ TableMapping.prototype.merge = function(apiMapping) {
 /* Constructor and Prototype for FieldMapping.
    Copied from the API Documentation for Annotations
 */
-function FieldMapping(dbconnpool, dbcolumn) {
+function FieldMapping(dbcolumn) {
   udebug.log("DBTableHandler FieldMapping constructor: " + dbcolumn.name);
   this.columnName = dbcolumn.name;
   this.columnNumber = dbcolumn.columnNumber;
-  this.converter = dbconnpool.getConverter(dbcolumn);
 }
 
 FieldMapping.prototype = {
@@ -113,12 +114,12 @@ function getColumnByName(dbTable, colName) {
 }
 
 
-function createDefaultMapping(dbconnpool, dbtable) {
+function createDefaultMapping(dbtable) {
   udebug.log("DBTableHandler createDefaultMapping for table " + dbtable.name);
   var mapping = new TableMapping(dbtable);
   var i;
   for(i = 0 ; i < dbtable.columns.length ; i++) {
-    mapping.fields[i] = new FieldMapping(dbconnpool, dbtable.columns[i]);
+    mapping.fields[i] = new FieldMapping(dbtable.columns[i]);
     mapping.fields[i].fieldName = dbtable.columns[i].name;
   }
   return mapping;
@@ -127,7 +128,7 @@ function createDefaultMapping(dbconnpool, dbtable) {
 
 // TODO: Figure out error handling if the API Mapping is invalid
 
-function resolveApiMapping(connPool, dbTable, apiMapping) {
+function resolveApiMapping(dbTable, apiMapping) {
   udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name);
   var mapping, field, apiField, col, i;
 
@@ -140,7 +141,7 @@ function resolveApiMapping(connPool, dbTable, apiMapping) {
     if(! apiField.notPersistent) {
       col = getColumnByName(dbTable, field.columnName);
       /* TODO: check for null */
-      field = new FieldMapping(connPool, col);
+      field = new FieldMapping(col);
       field.merge(apiField);
       mapping.fields.push(field);      
     }
@@ -155,7 +156,7 @@ function resolveApiMapping(connPool, dbTable, apiMapping) {
 
    Create a DBTableHandler for a table and a mapping.
 
-   The DBTable may not be null.
+   The TableMetadata may not be null.
 
    If the TableMapping is null, default mapping behavior will be used.
    Default mapping behavior is to:
@@ -163,44 +164,46 @@ function resolveApiMapping(connPool, dbTable, apiMapping) {
      use default converters for all data types
      perform no remapping between field names and column names
 */
-function DBTableHandler(dbconnpool, dbtable, tablemapping) {
+function DBTableHandler(dbtable, tablemapping) {
   udebug.log("DBTableHandler constructor");
-  assert(arguments.length === 3);
-  var i;
-  var f;
+  assert(arguments.length === 2);
+  var i, f;
   if(tablemapping === null) {     // Create a default mapping
-    this.mapping = createDefaultMapping(dbconnpool, dbtable);
+    this.mapping = createDefaultMapping(dbtable);
   }
   else {                                   // Resolve the API Mapping
-    this.mapping = resolveApiMapping(dbconnpool, dbtable, tablemapping);
+    this.mapping = resolveApiMapping(dbtable, tablemapping);
   }
    
-  this.connectionPool = dbconnpool;
   this.dbTable = dbtable;
 
   /* Build Convenience Maps: 
        Only *persistent* fields are included in the maps
-       Field Name to Field, Column Name to Field, Column Number To Field
   */
+  this.columnNumberToFieldMap = [];   // new array 
+  this.colMetadata = [];              // new array
   for(i = 0 ; i < this.mapping.fields.length ; i++) {
     f = this.mapping.fields[i];
     if(! f.notPersistent) {
-      this.fieldNameMap[f.fieldName] = f;  // Object
-      this.columnNameToFieldMap[f.columnName] = f;  // Object 
-      this.columnNumberToFieldMap[f.columnNumber] = f;   // Array
+      var colNo = f.columnNumber;
+      this.fieldNameMap[f.fieldName] = f;             // Field Name to Field
+      this.columnNameToFieldMap[f.columnName] = f;    // Column Name to Field
+      this.columnNumberToFieldMap[colNo] = f;         // Col Number to Field
+      this.colMetadata[i] = dbtable.columns[colNo];   // Field Number to Column
     }
   }
+
   udebug.log("DBTableHandler new completed");
 }
 
 var proto = {
-  connectionPool         : {},
   dbTable                : {},
   mapping                : {},
   newObjectPrototype     : {},
   fieldNameMap           : {},
   columnNameToFieldMap   : {},
-  columnNumberToFieldMap : []
+  columnNumberToFieldMap : {},
+  colMetadata            : {}
 };
 
 
@@ -230,22 +233,12 @@ proto.registerFieldConverter = function(fieldName, converter) {
 };
 
 
-/* registerColumnConverter(String columnName, Converter converter)
-  IMMEDIATE
-  Register a converter for a column in a table
-*/
-proto.registerColumnConverter = function(columnName, converter) {
-  var f = this.colNameToFieldMap[columnName];
-  if(f) {
-    f.converter = converter;
-  }
-};
-
 /* getMappedFieldCount()
    IMMEDIATE   
    Returns the number of fields mapped to columns in the table 
 */
 proto.getMappedFieldCount = function() {
+  udebug.log("DBTableHandler.js getMappedFieldCount");
   return this.columnNumberToFieldMap.length;
 };
 
@@ -258,8 +251,18 @@ proto.allColumnsMapped = function() {
   return (this.dbTable.columns.length === this.columnNumberToFieldMap.length);
 };
 
+/* getColumnMetadata() 
+   IMMEDIATE 
+   
+   Returns an array containing ColumnMetadata objects in field order
+*/   
+proto.getColumnMetadata = function() {
+  return this.colMetadata;
+};
 
-/* DBIndex chooseIndex(dbTableHandler, keys) 
+
+
+/* IndexMetadata chooseIndex(dbTableHandler, keys) 
  Returns the index to use as an access path.
  From API Context.find():
    * The parameter "keys" may be of any type. Keys must uniquely identify
@@ -323,56 +326,62 @@ proto.get = function(obj, fieldNumber) {
   return obj[f.fieldName];
 };
 
+
+/* Return an array of values in field order */
+proto.getFields = function(obj) {
+  var i, fields;
+  for(i = 0; i < this.getMappedFieldCount() ; i ++) {
+    fields[i] = this.get(obj, i);
+  }
+  return fields;
+};
+
+
 /* Set field to value */
 proto.set = function(obj, fieldNumber, value) {
   var f = this.mapping.fields[fieldNumber];
   obj[f.fieldName] = value;
 };
 
-proto.writeFieldToBuffer = function(obj, fieldNumber, buffer, offset) {
-  var f = this.mapping.fields[fieldNumber];
-  udebug.log("DBTableHandler writeFieldToBuffer @"+ offset);
-  return f.converter.writeToBuffer(obj[f.fieldName], buffer, offset);
-};
 
-proto.writeFieldToString = function(obj, fieldNumber, string) {
-  var f = this.mapping.fields[fieldNumber];
-  return f.converter.writeToString(obj[f.fieldName], string);
-};
-
-/* Sets field in obj */
-proto.readBufferToField = function(obj, fieldNumber, buffer, offset) {
-  var f = this.mapping.fields[fieldNumber];
-  obj[f.fieldName] = f.converter.readFromBuffer(buffer, offset);
-};
-
-/* Sets field in obj */
-proto.readStringToField = function(obj, fieldNumber, string) {
-  var f = this.mapping.fields[fieldNumber];
-  obj[f.fieldName] = f.converter.readFromString(string);
-};
-
-
-/* DBIndexHandler constructor */
-function DBIndexHandler(dbTableHandler, dbIndex) {
+/* Set all member values of object according to an ordered array of fields 
+*/
+proto.setFields = function(obj, values) {
   var i;
+  for(i = 0; i < this.getMappedFieldCount() ; i ++) {
+    if(values[i]) {
+      this.set(obj, i, values[i]);
+    }
+  }
+};
 
-  this.tableHandler = dbTableHandler;
+
+/* DBIndexHandler constructor and prototype */
+function DBIndexHandler(parent, dbIndex) {
+  udebug.log("DBIndexHandler constructor");
+  var i, colNo;
+
+  this.tableHandler = parent;
   this.dbIndex = dbIndex;
-  
+    
   for(i = 0 ; i < dbIndex.columnNumbers.length ; i++) {
-    this.mapping.fields[i] = 
-      dbTableHandler.columnNumberToFieldMap[dbIndex.columnNumbers[i]];
-  }  
+    colNo = dbIndex.columnNumbers[i];
+    this.mapping.fields[i] = parent.columnNumberToFieldMap[colNo];
+    this.colMetadata[i] = parent.dbTable.columns[colNo];
+  }
+  udebug.log("DBIndexHandler constructor done");
 }
+
 
 DBIndexHandler.prototype = {
   tableHandler        : null,
   dbIndex             : null,
-  mapping             : { fields : [] },
+  mapping             : { fields : {} },
+  colMetadata         : {},
   getMappedFieldCount : function() { return this.dbIndex.columnNumbers.length;},
   get                 : proto.get,                    // inherited
-  writeFieldToBuffer  : proto.writeFieldToBuffer      // inherited
+  getFields           : proto.getFields,              // inherited
+  getColumnMetadata   : proto.getColumnMetadata       // inherited
 };
 
 
@@ -384,6 +393,7 @@ DBIndexHandler.prototype = {
    and return a DBIndexHandler for that index.
 */
 proto.getIndexHandler = function(keys) {
+  udebug.log("DBTableHandler getIndexHandler");
   var idx = chooseIndex(this, keys);
   var handler = null;
   if(idx) {

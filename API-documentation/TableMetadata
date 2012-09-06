@@ -1,21 +1,21 @@
 
 
-/* DBTable Object represents a table.
+/* TableMetadata object represents a table.
    This is the object returned in the getTable() callback.
    indexes[0] will *ALWAYS* represent the intrinsic primary key.
 */
-DBTable = {
+TableMetadata = {
   database         : ""    ,  // Database name
   name             : ""    ,  // Table Name
-  columns          : []    ,  // ordered array of DBColumn objects
-  indexes          : []    ,  // array of DBIndex objects 
-  partitionKey     : []    ,  // ordered array of column numbers in the partition key
+  columns          : {}    ,  // ordered array of ColumnMetadata objects
+  indexes          : {}    ,  // array of IndexMetadata objects 
+  partitionKey     : {}    ,  // ordered array of column numbers in the partition key
 };
 
 
-/* DBColumn object represents a column.
+/* ColumnMetadata object represents a column.
 */
-DBColumn = {
+ColumnMetadata = {
   /* Required Properties */
   name             : ""    ,  // column name
   columnNumber     : -1    ,  // position of column in table, and in columns array
@@ -34,6 +34,9 @@ DBColumn = {
   precision        : 0     ,  //  DECIMAL precision
 
   /* Group B: Non-numeric */
+
+// FIXME: distinguish length in bytes vs. length in characters
+
   length           : 0     ,  //  CHAR or VARCHAR length
   isBinary         : false ,  //  true for BLOB/BINARY/VARBINARY
   charsetNumber    : 0     ,  //  internal number of charset
@@ -41,16 +44,17 @@ DBColumn = {
 };
 
 
-/* DBIndex represents a table index.  
+/* IndexMetadata represents a table index.  
 
-   The "indexes" array of DBTable will hold one DBIndex per table index. 
+   The "indexes" array of TableMetadata will hold one IndexMetadata 
+   per table index. 
 
    An NDB primary key might be viewed through the NDBAPI adapter as two indexes 
    (one unique, the other ordered), but through a MySQL adapter as a single 
    index that is both unique and ordered.  We tolerate this discrepency and note 
    that the code in Adapter/api must treat the two descriptions as equivalent. 
 */
-DBIndex = {
+IndexMetadata = {
   name             : ""    ,  // Index name; undefined for PK 
   isPrimaryKey     : true  ,  // true for PK; otherwise undefined
   isUnique         : true  ,  // true or false
