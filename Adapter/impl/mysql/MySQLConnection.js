@@ -19,13 +19,27 @@
 */
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
+
+"use strict";
+
 var mysql = require("mysql");
-var dictionary = require('./MySQLDictionary');
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract */
-exports.DBSession = function(pooledConnection) {
+exports.DBSession = function(pooledConnection, connectionPool) {
   this.pooledConnection = pooledConnection;
+  this.connectionPool = connectionPool;
 };
+
+exports.DBSession.prototype.TransactionHandler = function() {
+  this.isOpen = true;
+};
+
+
+exports.DBSession.prototype.openTransaction = function() {
+  this.transactionHandler = new this.TransactionHandler();
+  return this.transactionHandler;
+};
+
 
 // TODO proper extra parameter handling
 exports.DBSession.prototype.find = function(from, key, callback, extra1, extra2, extra3, extra4) {
@@ -48,10 +62,9 @@ exports.DBSession.prototype.closeSync = function() {
   }
 };
 
-//TODO
 
-exports.DBSession.prototype.getDataDictionary = function() {
-  return new dictionary.DataDictionary(this.pooledConnection);
+exports.DBSession.prototype.getConnectionPool = function() {
+  return this.connectionPool;
 };
 
 exports.DBSession.prototype.getConnectionPool = function() {

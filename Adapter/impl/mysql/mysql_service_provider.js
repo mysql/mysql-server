@@ -18,6 +18,8 @@
  02110-1301  USA
 */
 
+"use strict";
+
 var mysqlconnection = require("./MysqlConnectionPool.js");
 
 var MysqlDefaultConnectionProperties = {  
@@ -48,7 +50,9 @@ exports.connectSync = function(properties) {
 
 exports.getFactoryKey = function(properties) {
   var socket = properties.mysql_socket;
-  if (!socket) socket = properties.mysql_host + ':' + properties.mysql_port;
+  if (!socket) {
+    socket = properties.mysql_host + ':' + properties.mysql_port;
+  }
   // TODO: hash user and password to avoid security issue
   var key = properties.implementation + "://" + socket + 
     "+" + properties.mysql_user + "<" + properties.mysql_password + ">";
@@ -71,4 +75,4 @@ exports.connect = function(properties, sessionFactory_callback) {
 
 exports.getNativeCodeModules = function() {
   return [];
-}
+};

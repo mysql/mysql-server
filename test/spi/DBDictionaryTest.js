@@ -47,9 +47,10 @@ t2.run = function() {
 
   function onList(err, table_list) {
     udebug.log("DBDictionaryTest onList");
-    if(err) {
+    if (err) {
       t1.fail(err);
       t2.fail(err);
+      return;
     }
 
     var count = 0;
@@ -61,17 +62,16 @@ t2.run = function() {
     table_list.forEach(countTables);
     
     udebug.log("DBDictionaryTest onList count = " + count);
-  
     t1.errorIfNotEqual("Bad table count", count, 2);
     t1.failOnError();
 
-    session.getConnectionPool().getTable("test", "tbl2", onTable);
+    session.getConnectionPool().getTableMetadata("test", "tbl2", null, onTable);
   }
 
   function onSession(err, sess) {
     udebug.log("DBDictionaryTest onSession");
     session = sess;   // for teardown
-    session.getConnectionPool().listTables("test", onList);
+    session.getConnectionPool().listTables("test", null, onList);
   }
     
   function onConnect(err, connection) {

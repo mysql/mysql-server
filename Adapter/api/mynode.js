@@ -111,6 +111,7 @@ exports.openSession = function(properties, annotations, user_callback, extra1, e
 
 exports.getOpenSessionFactories = function() {
   var result = [];
+  var x, y;
   for (x in connections) {
     for (y in connections[x].factories) {
       var factory = connections[x].factories[y];
