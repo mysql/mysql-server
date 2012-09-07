@@ -1614,11 +1614,7 @@ write_buffers:
 						err = DB_DUPLICATE_KEY;
 						trx->error_key_num
 							= key_numbers[i];
-						if (row) {
-							goto func_exit;
-						} else {
-							goto all_done;
-						}
+						break;
 					}
 				} else {
 					row_merge_buf_sort(buf, NULL);
@@ -1654,7 +1650,7 @@ write_buffers:
 					     block)) {
 				err = DB_OUT_OF_FILE_SPACE;
 				trx->error_key_num = i;
-				goto func_exit;
+				break;
 			}
 
 			UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
@@ -1681,6 +1677,10 @@ write_buffers:
 
 		if (row == NULL) {
 			goto all_done;
+		}
+
+		if (err != DB_SUCCESS) {
+			goto func_exit;
 		}
 
 		mem_heap_empty(row_heap);
