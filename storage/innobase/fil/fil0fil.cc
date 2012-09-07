@@ -25,6 +25,9 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 
+#include <debug_sync.h>
+#include <my_dbug.h>
+
 #include "mem0mem.h"
 #include "hash0hash.h"
 #include "os0file.h"
@@ -41,6 +44,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "page0page.h"
 #include "page0zip.h"
 #include "trx0sys.h"
+#include "row0mysql.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
@@ -4451,11 +4455,15 @@ fil_space_for_table_exists_in_mem(
 					data dictionary, so that
 					we can print a warning about orphaned
 					tablespaces */
-	ibool		print_error_if_does_not_exist)
+	ibool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
 					memory */
+	bool		adjust_space,	/*!< in: whether to adjust space id
+					when find table space mismatch */
+	mem_heap_t*	heap,		/*!< in: heap memory */
+	table_id_t	table_id)	/*!< in: table id */
 {
 	fil_space_t*	fnamespace;
 	fil_space_t*	space;
@@ -4479,6 +4487,47 @@ fil_space_for_table_exists_in_mem(
 			space->mark = TRUE;
 		}
 
+		mutex_exit(&fil_system->mutex);
+
+		return(TRUE);
+	}
+
+	/* Info from "fnamespace" comes from the ibd file itself, it can
+	be different from data obtained from System tables since it is
+	not transactional. If adjust_space is set, and the mismatching
+	space are between a user table and its temp table, we shall
+	adjust the ibd file name according to system table info */
+	if (adjust_space
+	    && space != NULL
+	    && row_is_mysql_tmp_table_name(space->name)
+	    && !row_is_mysql_tmp_table_name(name)) {
+
+		mutex_exit(&fil_system->mutex);
+
+		DBUG_EXECUTE_IF("ib_crash_before_adjust_fil_space",
+				DBUG_SUICIDE(););
+
+		if (fnamespace) {
+			char*	tmp_name;
+
+			tmp_name = dict_mem_create_temporary_tablename(
+				heap, name, table_id);
+
+			fil_rename_tablespace(fnamespace->name, fnamespace->id,
+					      tmp_name, NULL);
+		}
+
+		DBUG_EXECUTE_IF("ib_crash_after_adjust_one_fil_space",
+				DBUG_SUICIDE(););
+
+		fil_rename_tablespace(space->name, id, name, NULL);
+
+		DBUG_EXECUTE_IF("ib_crash_after_adjust_fil_space",
+				DBUG_SUICIDE(););
+
+		mutex_enter(&fil_system->mutex);
+		fnamespace = fil_space_get_by_name(name);
+		ut_ad(space == fnamespace);
 		mutex_exit(&fil_system->mutex);
 
 		return(TRUE);
