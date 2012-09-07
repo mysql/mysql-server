@@ -84,9 +84,6 @@ void mutex_destroy(
 {
 	// Cleanup
 	mutex->destroy();
-
-	// We used placement new above, call the destructor.
-	mutex->~Mutex();
 }
 
 #ifdef UNIV_SYNC_DEBUG
