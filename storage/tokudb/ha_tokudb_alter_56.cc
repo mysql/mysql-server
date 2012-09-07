@@ -696,7 +696,7 @@ ha_tokudb::alter_table_expand_varchar_columns(TABLE *altered_table, Alter_inplac
                 break;
             }
             uchar *expand_ptr = (uchar *)expand.data;
-            expand_ptr[0] = TOKU_OP_EXPAND_VARCHAR_OFFSETS;
+            expand_ptr[0] = UPDATE_OP_EXPAND_VARCHAR_OFFSETS;
             expand_ptr += sizeof (uchar);
         
             memcpy(expand_ptr, &offset_start, sizeof offset_start);
@@ -846,14 +846,14 @@ ha_tokudb::alter_table_expand_fixed_column(TABLE *altered_table, Alter_inplace_i
             expand.size = 1+4+4+4+4;
             switch (old_field_type) {
             case toku_type_int:
-                operation = TOKU_OP_EXPAND_INT_TYPE;
+                operation = UPDATE_OP_EXPAND_INT;
                 expand.size += 1;
                 break;
             case toku_type_fixstring:
-                operation = TOKU_OP_EXPAND_CHAR_TYPE;
+                operation = UPDATE_OP_EXPAND_CHAR;
                 break;
             case toku_type_fixbinary:
-                operation = TOKU_OP_EXPAND_BINARY_TYPE;
+                operation = UPDATE_OP_EXPAND_BINARY;
                 break;
             default:
                 assert(0);
@@ -886,13 +886,13 @@ ha_tokudb::alter_table_expand_fixed_column(TABLE *altered_table, Alter_inplace_i
             expand_ptr += sizeof new_length;
 
             switch (operation) {
-            case TOKU_OP_EXPAND_INT_TYPE:
+            case UPDATE_OP_EXPAND_INT:
                 assert(is_unsigned(old_field) == is_unsigned(new_field));
                 expand_ptr[0] = is_unsigned(old_field);
                 expand_ptr += sizeof (uchar);
                 break;
-            case TOKU_OP_EXPAND_CHAR_TYPE:
-            case TOKU_OP_EXPAND_BINARY_TYPE:
+            case UPDATE_OP_EXPAND_CHAR:
+            case UPDATE_OP_EXPAND_BINARY:
                 break;
             default:
                 assert(0);

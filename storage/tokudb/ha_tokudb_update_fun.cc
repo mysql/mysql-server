@@ -1,15 +1,15 @@
 // update operation codes.  these codes get stuffed into update messages, so they can not change.
 enum {
-    TOKU_OP_COL_ADD_OR_DROP = 0,
-    TOKU_OP_EXPAND_VARCHAR_OFFSETS = 1,
-    TOKU_OP_EXPAND_INT_TYPE = 2,
-    TOKU_OP_EXPAND_CHAR_TYPE = 3,
-    TOKU_OP_EXPAND_BINARY_TYPE = 4,
-    TOKU_OP_ADD_INT = 5,
-    TOKU_OP_SUB_INT = 6,
+    UPDATE_OP_COL_ADD_OR_DROP = 0,
+    UPDATE_OP_EXPAND_VARCHAR_OFFSETS = 1,
+    UPDATE_OP_EXPAND_INT = 2,
+    UPDATE_OP_EXPAND_CHAR = 3,
+    UPDATE_OP_EXPAND_BINARY = 4,
+    UPDATE_OP_ADD_INT = 5,
+    UPDATE_OP_SUB_INT = 6,
 };
     
-#define UP_COL_ADD_OR_DROP TOKU_OP_COL_ADD_OR_DROP
+#define UP_COL_ADD_OR_DROP UPDATE_OP_COL_ADD_OR_DROP
 
 // add or drop column sub-operations
 #define COL_DROP 0xaa
@@ -58,19 +58,19 @@ enum {
 //  at most, 4 0's
 // So, upperbound is num_blobs(1+4+1+4) = num_columns*10
 
-// operation     1  == TOKU_OP_EXPAND_VARCHAR_OFFSETS
+// operation     1  == UPDATE_OP_EXPAND_VARCHAR_OFFSETS
 // offset_start  4  starting offset of the variable length field offsets 
 // offset end    4  ending offset of the variable length field offsets  
 
-// operation     1  == TOKU_OP_EXPAND_INT_TYPE, TOKU_OP_EXPAND_CHAR_TYPE, TOKU_OP_EXPAND_BINARY_TYPE
+// operation     1  == UPDATE_OP_EXPAND_INT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
 // old offset    4
 // old length    4
 // new offset    4
 // new length    4
-// if operation == TOKU_OP_EXPAND_INT_TYPE
+// if operation == UPDATE_OP_EXPAND_INT
 //     is unsigned   1
 
-// operation     1 == TOKU_OP_INT_ADD or TOKU_OP_INT_SUB
+// operation     1 == UPDATE_OP_INT_ADD or UPDATE_OP_INT_SUB
 // offset        4 starting offset of the int type field
 // length        4 length of the int type field
 // value         4 value to add or subtract (common use case is increment or decrement by 1)
@@ -632,7 +632,7 @@ tokudb_expand_varchar_offsets(
 
     // decode the operation
     uchar operation = extra_pos[0];
-    assert(operation == TOKU_OP_EXPAND_VARCHAR_OFFSETS);
+    assert(operation == UPDATE_OP_EXPAND_VARCHAR_OFFSETS);
     extra_pos += sizeof operation;
 
     // decode the offset start
@@ -702,6 +702,8 @@ cleanup:
     return error;
 }
 
+// Given a description of a fixed length field and the old value of a row, build a new value for the row and 
+// update it in the fractal tree.
 static int 
 tokudb_expand_field(
     DB* db,
@@ -716,9 +718,9 @@ tokudb_expand_field(
     uchar *extra_pos = (uchar *)extra->data;
 
     uchar operation = extra_pos[0];
-    assert(operation == TOKU_OP_EXPAND_INT_TYPE ||
-           operation == TOKU_OP_EXPAND_CHAR_TYPE ||
-           operation == TOKU_OP_EXPAND_BINARY_TYPE);
+    assert(operation == UPDATE_OP_EXPAND_INT ||
+           operation == UPDATE_OP_EXPAND_CHAR ||
+           operation == UPDATE_OP_EXPAND_BINARY);
     extra_pos += sizeof operation;
 
     uint32_t old_offset;
@@ -739,13 +741,13 @@ tokudb_expand_field(
 
     uchar is_unsigned; // for int expansion
     switch (operation) {
-    case TOKU_OP_EXPAND_INT_TYPE:
+    case UPDATE_OP_EXPAND_INT:
         is_unsigned = extra_pos[0];
         extra_pos += sizeof is_unsigned;
         assert(is_unsigned == 0 || is_unsigned == 1);
         break;
-    case TOKU_OP_EXPAND_CHAR_TYPE:
-    case TOKU_OP_EXPAND_BINARY_TYPE:
+    case UPDATE_OP_EXPAND_CHAR:
+    case UPDATE_OP_EXPAND_BINARY:
         break;
     default:
         assert(0);
@@ -778,7 +780,7 @@ tokudb_expand_field(
         
         // read the old field, expand it, write to the new offset
         switch (operation) {
-        case TOKU_OP_EXPAND_INT_TYPE:
+        case UPDATE_OP_EXPAND_INT:
             if (is_unsigned) {
                 memset(new_val_ptr, 0, new_length);
             } else {
@@ -791,9 +793,14 @@ tokudb_expand_field(
             new_val_ptr += new_length;
             old_val_ptr += old_length;
             break;
-        case TOKU_OP_EXPAND_CHAR_TYPE:
-        case TOKU_OP_EXPAND_BINARY_TYPE:
-            memset(new_val_ptr, ' ', new_length);
+        case UPDATE_OP_EXPAND_CHAR:
+            memset(new_val_ptr, ' ', new_length); // expand the field with the char pad
+            memcpy(new_val_ptr, old_val_ptr, old_length);
+            new_val_ptr += new_length;
+            old_val_ptr += old_length;
+            break;
+        case UPDATE_OP_EXPAND_BINARY:
+            memset(new_val_ptr, 0, new_length); // expand the field with the binary pad
             memcpy(new_val_ptr, old_val_ptr, old_length);
             new_val_ptr += new_length;
             old_val_ptr += old_length;
@@ -838,15 +845,15 @@ tokudb_update_fun(
     uchar operation = extra_pos[0];
     int error = 0;
     switch (operation) {
-    case TOKU_OP_COL_ADD_OR_DROP:
+    case UPDATE_OP_COL_ADD_OR_DROP:
         error = tokudb_hcad_update_fun(db, key, old_val, extra, set_val, set_extra);
         break;
-    case TOKU_OP_EXPAND_VARCHAR_OFFSETS:
+    case UPDATE_OP_EXPAND_VARCHAR_OFFSETS:
         error = tokudb_expand_varchar_offsets(db, key, old_val, extra, set_val, set_extra);
         break;
-    case TOKU_OP_EXPAND_INT_TYPE:
-    case TOKU_OP_EXPAND_CHAR_TYPE:
-    case TOKU_OP_EXPAND_BINARY_TYPE:
+    case UPDATE_OP_EXPAND_INT:
+    case UPDATE_OP_EXPAND_CHAR:
+    case UPDATE_OP_EXPAND_BINARY:
         error = tokudb_expand_field(db, key, old_val, extra, set_val, set_extra);
         break;
     default:
