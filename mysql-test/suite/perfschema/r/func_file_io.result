@@ -1,6 +1,7 @@
 UPDATE performance_schema.setup_instruments SET enabled = 'NO', timed = 'YES';
 UPDATE performance_schema.setup_instruments SET enabled = 'YES'
 WHERE name LIKE 'wait/io/file/%';
+flush status;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
 ENGINE=MyISAM;
@@ -113,3 +114,19 @@ WHERE p.PROCESSLIST_ID = 1
 GROUP BY h.EVENT_NAME
 HAVING TOTAL_WAIT > 0;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES';
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
