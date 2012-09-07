@@ -9241,6 +9241,13 @@ loop:
     signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
     return;
   }
+  if (ERROR_INSERTED_CLEAR(7240))
+  {
+    thrjam(jambuf);
+    conf->zero= 1; //Indicate error;
+    signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
+    return;
+  }
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
   Uint32 sig2 = (nodeCount - 1) + 

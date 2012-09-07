@@ -116,6 +116,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int lookupFaults[] = {
+      7240,        // DIGETNODESREQ returns error 
       17001, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
       17013, // Simulate DbspjErr::InvalidRequest
@@ -209,6 +210,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int scanFaults[] = {
+      7240,        // DIGETNODESREQ returns error 
       17002, 17004, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
       17013, // Simulate DbspjErr::InvalidRequest
