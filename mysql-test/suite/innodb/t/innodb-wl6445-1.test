@@ -634,8 +634,10 @@ INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',2
 UPDATE t1 SET i = i + 20;
 --ERROR ER_OPEN_AS_READONLY
 DELETE FROM t1;
-
-
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
 
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -655,6 +657,8 @@ SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 DELETE FROM t1;
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 
 
 #------------------------------------------------------------------------------
@@ -672,6 +676,8 @@ CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 USE testdb_wl6445;
+DROP USER 'test5_2'@'localhost';
+DROP USER 'test5'@'localhost';
 DROP DATABASE testdb_wl6445;
 
 

@@ -1275,6 +1275,10 @@ UPDATE t1 SET i = i + 20;
 ERROR HY000: Table 't1' is read only
 DELETE FROM t1;
 ERROR HY000: Table 't1' is read only
+CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+ERROR HY000: Table 't2' is read only
+CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
 USE testdb_wl6445;
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
@@ -1304,7 +1308,11 @@ DELETE FROM t1;
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 i	LEFT(j,20)
 CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
 USE testdb_wl6445;
+DROP USER 'test5_2'@'localhost';
+DROP USER 'test5'@'localhost';
 DROP DATABASE testdb_wl6445;
 case # 6
 DROP DATABASE IF EXISTS testdb_wl6445;
