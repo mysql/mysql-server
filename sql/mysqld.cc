@@ -360,7 +360,7 @@ static DYNAMIC_ARRAY all_options;
 
 /* Global variables */
 
-bool opt_bin_log, opt_ignore_builtin_innodb= 0;
+bool opt_bin_log, opt_bin_log_used=0, opt_ignore_builtin_innodb= 0;
 my_bool opt_log, opt_slow_log, debug_assert_if_crashed_table= 0, opt_help= 0, opt_abort;
 ulonglong log_output_options;
 my_bool opt_userstat_running;
@@ -579,7 +579,7 @@ char mysql_real_data_home[FN_REFLEN],
      lc_messages_dir[FN_REFLEN], reg_ext[FN_EXTLEN],
      mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file;
-char *lc_messages_dir_ptr, *log_error_file_ptr;
+char *lc_messages_dir_ptr= lc_messages_dir, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 int mysql_unpacked_real_data_home_len;
 uint mysql_real_data_home_len, mysql_data_home_len= 1;
@@ -4172,14 +4172,15 @@ static int init_server_components()
     unireg_abort(1);
 
   /* need to configure logging before initializing storage engines */
-  if (opt_log_slave_updates && !opt_bin_log)
+  if (!opt_bin_log_used)
   {
-    sql_print_warning("You need to use --log-bin to make "
-                    "--log-slave-updates work.");
+    if (opt_log_slave_updates)
+      sql_print_warning("You need to use --log-bin to make "
+                        "--log-slave-updates work.");
+    if (binlog_format_used)
+      sql_print_warning("You need to use --log-bin to make "
+                        "--binlog-format work.");
   }
-  if (!opt_bin_log && binlog_format_used)
-    sql_print_warning("You need to use --log-bin to make "
-                      "--binlog-format work.");
 
   /* Check that we have not let the format to unspecified at this point */
   DBUG_ASSERT((uint)global_system_variables.binlog_format <=
@@ -6226,7 +6227,7 @@ struct my_option my_long_options[]=
   {"language", 'L',
    "Client error messages in given language. May be given as a full path. "
    "Deprecated. Use --lc-messages-dir instead.",
-   &lc_messages_dir_ptr, &lc_messages_dir_ptr, 0,
+   0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0,
    "Set the language used for the error messages.",
@@ -7218,7 +7219,7 @@ static int mysql_init_variables(void)
   myisam_test_invalid_symlink= test_if_data_home_dir;
 #endif
   opt_log= opt_slow_log= 0;
-  opt_bin_log= 0;
+  opt_bin_log= opt_bin_log_used= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_skip_name_resolve= 0;
   opt_ignore_builtin_innodb= 0;
@@ -7270,7 +7271,6 @@ static int mysql_init_variables(void)
   mysql_home_ptr= mysql_home;
   pidfile_name_ptr= pidfile_name;
   log_error_file_ptr= log_error_file;
-  lc_messages_dir_ptr= lc_messages_dir;
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;	/* Increments on each reload */
@@ -7459,7 +7459,6 @@ mysqld_get_one_option(int optid,
     break;
   case 'L':
     strmake(lc_messages_dir, argument, sizeof(lc_messages_dir)-1);
-    lc_messages_dir_ptr= lc_messages_dir;
     break;
   case OPT_BINLOG_FORMAT:
     binlog_format_used= true;
@@ -7488,6 +7487,7 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_BIN_LOG:
     opt_bin_log= test(argument != disabled_my_option);
+    opt_bin_log_used= 1;
     break;
   case (int) OPT_LOG_BASENAME:
   {

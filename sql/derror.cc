@@ -177,8 +177,8 @@ bool read_texts(const char *file_name, const char *language,
                                O_RDONLY | O_SHARE | O_BINARY,
                                MYF(0))) < 0)
       goto err;
-    sql_print_error("An old style --language value with language specific part detected: %s", lc_messages_dir);
-    sql_print_error("Use --lc-messages-dir without language specific part instead.");
+    sql_print_warning("An old style --language or -lc-message-dir value with language specific part detected: %s", lc_messages_dir);
+    sql_print_warning("Use --lc-messages-dir without language specific part instead.");
   }
 
   funktpos=1;
