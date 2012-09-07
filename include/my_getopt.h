@@ -64,7 +64,7 @@ struct my_option
                                            is created, but a long option still
                                            can be identified uniquely in the
                                            my_get_one_option() callback.
-                                           If an opton needs neither special
+                                           If an option needs neither special
                                            treatment in the my_get_one_option()
                                            nor one-letter short equivalent
                                            use id=0.
