@@ -119,7 +119,7 @@ static enum enum_remote_proto {
 static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
-static my_bool force_opt= 0, short_form= 0;
+static my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
@@ -781,6 +781,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   print_event_info->short_form= short_form;
+  print_event_info->idempotent_mode= idempotent_mode;
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -1256,9 +1257,12 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server.", &host, &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
-   &dirname_for_local_load, &dirname_for_local_load, 0,
-   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"idempotent", 'i', "Notify the server to use idempotent mode before "
+   "applying Row Events", &idempotent_mode, &idempotent_mode, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in "
+   "the specified directory.",&dirname_for_local_load, &dirname_for_local_load,
+   0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"offset", 'o', "Skip the first N entries.", &offset, &offset,
    0, GET_ULL, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p', "Password to connect to remote server.",
