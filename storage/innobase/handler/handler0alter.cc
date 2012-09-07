@@ -3860,6 +3860,32 @@ innobase_online_rebuild_log_free(
 	rw_lock_x_unlock(&clust_index->lock);
 }
 
+/** Rollback a secondary index creation, drop the indexes with
+temparary index prefix
+@param prebuilt		the prebuilt struct
+@param table_share	the TABLE_SHARE
+@param trx		the transaction
+*/
+static
+void
+innobase_rollback_sec_index(
+/*========================*/
+	row_prebuilt_t*		prebuilt,
+	const TABLE_SHARE*	table_share,
+	trx_t*			trx)
+{
+	row_merge_drop_indexes(trx, prebuilt->table, FALSE);
+
+	/* Free the table->fts only if there is no FTS_DOC_ID
+	in the table */
+	if (prebuilt->table->fts
+	    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
+				     DICT_TF2_FTS_HAS_DOC_ID)
+	    && !innobase_fulltext_exist(table_share)) {
+		fts_free(prebuilt->table);
+	}
+}
+
 /** Roll back the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the storage engine. Note that the
 allowed level of concurrency during this operation will be the same as
@@ -3939,16 +3965,7 @@ rollback_inplace_alter_table(
 
 		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
-		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
-
-		/* Free the table->fts only if there is no FTS_DOC_ID
-		in the table */
-		if (prebuilt->table->fts
-		    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
-					     DICT_TF2_FTS_HAS_DOC_ID)
-		    && !innobase_fulltext_exist(table_share)) {
-			fts_free(prebuilt->table);
-		}
+		innobase_rollback_sec_index(prebuilt, table_share, ctx->trx);
 	}
 
 	trx_commit_for_mysql(ctx->trx);
@@ -4439,13 +4456,13 @@ ha_innobase::commit_inplace_alter_table(
 		ulint		highest_id_so_far;
 		dberr_t		error;
 
-		/* If it runs concurrently with create clustered index
-		or index rebuild, we will need a separate trx to do
-		the system table change, since in the case of failure
-		rebuild index/create clustered index will need to commit the
-		drop new table change, while FK needs to rollback the
-		metadata change */
-		if (new_clustered) {
+		/* If it runs concurrently with create index or table
+		rebuild, we will need a separate trx to do the system
+		table change, since in the case of failure to rebuild/create
+		index, it will need to commit the trx that drops the newly
+		created table/index, while for FK, it needs to rollback
+		the metadata change */
+		if (new_clustered || ctx->num_to_add) {
 			fk_trx = innobase_trx_allocate(user_thd);
 
 			trx_start_for_ddl(fk_trx, TRX_DICT_OP_INDEX);
@@ -4534,6 +4551,15 @@ undo_add_fk:
 
 			if (new_clustered) {
 				goto drop_new_clustered;
+			} else if (ctx->num_to_add > 0) {
+				ut_ad(trx != fk_trx);
+
+				innobase_rollback_sec_index(
+					prebuilt, table_share, trx);
+				innobase_undo_add_fk(ctx, fk_table);
+				trx_rollback_for_mysql(fk_trx);
+
+				goto trx_commit;
 			} else {
 				goto trx_rollback;
 			}
@@ -4735,6 +4761,15 @@ drop_new_clustered:
 					"InnoDB: rename index to drop: %lu\n",
 					(ulong) error);
 				DBUG_ASSERT(0);
+			}
+		}
+
+		/* Commit of rollback add foreign constraint operations */
+		if (fk_trx && fk_trx != trx) {
+			if (err == 0) {
+				trx_commit_for_mysql(fk_trx);
+			} else {
+				trx_rollback_for_mysql(fk_trx);
 			}
 		}
 	}
