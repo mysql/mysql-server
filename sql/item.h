@@ -3056,6 +3056,12 @@ public:
     else
       Item_direct_ref::save_in_result_field(no_conversions);
   }
+
+  void cleanup()
+  {
+    null_ref_table= NULL;
+    Item_direct_ref::cleanup();
+  }
 };
 
 
