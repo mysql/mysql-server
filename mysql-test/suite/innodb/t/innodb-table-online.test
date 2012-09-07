@@ -48,10 +48,10 @@ eval $innodb_metrics_select;
 
 --echo # session con1
 connection con1;
-SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter_rebuild';
+SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter';
 --error ER_OUT_OF_RESOURCES
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
-SET SESSION DEBUG = '-d,innodb_OOM_prepare_inplace_alter_rebuild';
+SET SESSION DEBUG = '-d,innodb_OOM_prepare_inplace_alter';
 SET SESSION DEBUG = '+d,innodb_OOM_inplace_alter';
 --error ER_OUT_OF_RESOURCES
 ALTER TABLE t1 ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
