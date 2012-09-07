@@ -3,6 +3,7 @@ UPDATE performance_schema.setup_instruments SET enabled = 'YES'
 WHERE name LIKE 'wait/io/file/%';
 update performance_schema.threads SET instrumented = 'YES'
   WHERE PROCESSLIST_ID=connection_id();
+flush status;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
 ENGINE=MyISAM;
@@ -128,3 +129,28 @@ GROUP BY p.processlist_user, h.operation
 HAVING BYTES > 0
 ORDER BY p.processlist_user, h.operation;
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_digest_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
+Performance_schema_socket_classes_lost	0
+Performance_schema_socket_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
