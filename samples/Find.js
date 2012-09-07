@@ -22,25 +22,13 @@
 
 var mynode = require('../Adapter/api/mynode.js');
 
-// create a database properties object
-var dbProperties = {  
-    "implementation" : "ndb",
-    "database" : "test",
-    "ndb_connectstring" : "localhost:1186",
-    "ndb_connect_retries" : 4, 
-    "ndb_connect_delay" : 5,
-    "ndb_connect_verbose" : 0,
-    "ndb_connect_timeout_before" : 30,
-    "ndb_connect_timeout_after" : 20
-};
-
 //dump the values of the object
 var onData = function(err, data) {
   if (err) {
     console.log(err);
     exit;
   }
-  JSON.stringify(data);
+  console.log(JSON.stringify(data));
   exit;
 };
 
@@ -51,6 +39,20 @@ var onConnect = function(err, session) {
     exit;
   }
   session.find('t_basic', 0, onData);
+};
+
+// *** program starts here ***
+
+//create a database properties object
+var dbProperties = {  
+    "implementation" : "ndb",
+    "database" : "test",
+    "ndb_connectstring" : "localhost:1186",
+    "ndb_connect_retries" : 4, 
+    "ndb_connect_delay" : 5,
+    "ndb_connect_verbose" : 0,
+    "ndb_connect_timeout_before" : 30,
+    "ndb_connect_timeout_after" : 20
 };
 
 // connect to the database
