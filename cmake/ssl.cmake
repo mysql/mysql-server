@@ -175,3 +175,23 @@ MACRO (MYSQL_CHECK_SSL)
       "Wrong option for WITH_SSL. Valid values are : "${WITH_SSL_DOC})
   ENDIF()
 ENDMACRO()
+
+
+# Many executables will depend on libeay32.dll and ssleay32.dll at runtime.
+# In order to ensure we find the right version(s), we copy them into
+# the same directory as the executables.
+MACRO (COPY_OPENSSL_DLLS target_name)
+  IF (WIN32 AND WITH_SSL_PATH)
+    GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
+    GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARIES}" NAME_WE)
+    ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
+          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}.dll"
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
+          "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}.dll"
+      )
+    ADD_CUSTOM_TARGET(${target_name} ALL)
+  ENDIF()
+ENDMACRO()
