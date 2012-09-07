@@ -52,6 +52,13 @@ struct POSIXMutex {
 		ut_a(ret == 0);
 	}
 
+	void destroy()
+	{
+		ut_ad(!m_locked);
+
+		/* The destructor can be called at shutdown. */
+	}
+
 	/** Release the muytex. */
 	void exit() UNIV_NOTHROW
 	{
@@ -131,6 +138,12 @@ struct Futex {
 
 	~Futex()
 	{
+		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
+	}
+
+	void destroy()
+	{
+		/* The destructor can be called at shutdown. */
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
 
@@ -296,6 +309,12 @@ struct TTASMutex {
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
  
+	void destroy()
+	{
+		/* The destructor can be called at shutdown. */
+		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
+	}
+
  	/** Try and lock the mutex. Note: POSIX returns 0 on success.
 	@return true on success */
 	bool try_lock() UNIV_NOTHROW
@@ -425,12 +444,19 @@ struct TTASWaitMutex {
  
 	~TTASWaitMutex()
 	{
+		ut_a(m_event = 0);
+		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
+	}
+ 
+	void destroy()
+	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 
+		/* We have to free the event before InnoDB shutsdown. */
 		os_event_free(m_event);
 		m_event = 0;
 	}
- 
+
  	/** Try and lock the mutex. Note: POSIX returns 0 on success.
 	@return true on success */
 	bool try_lock() UNIV_NOTHROW
@@ -723,11 +749,14 @@ struct PolicyMutex
 	void init(const char* name, const char* filename, ulint line)
 		UNIV_NOTHROW;
 
+	/** Free resources (if any) */
 	void destroy() UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
 		pfs_del();
 #endif /* UNIV_PFS_MUTEX */
+
+		m_impl.destroy();
 	}	
 
 private:
