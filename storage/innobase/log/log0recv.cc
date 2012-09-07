@@ -2702,11 +2702,21 @@ recv_scan_log_recs(
 			if (recv_log_scan_is_startup_type
 			    && !recv_needed_recovery) {
 
-				fprintf(stderr,
-					"InnoDB: Log scan progressed"
-					" past the checkpoint lsn " LSN_PF "\n",
-					recv_sys->scanned_lsn);
-				recv_init_crash_recovery();
+				if (!srv_read_only_mode) {
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Log scan progressed past the "
+						"checkpoint lsn " LSN_PF "",
+						recv_sys->scanned_lsn);
+
+					recv_init_crash_recovery();
+				} else {
+
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Recovery skipped, "
+						"--innodb-read-only set!");
+
+					return(TRUE);
+				}
 			}
 #endif /* !UNIV_HOTBACKUP */
 
