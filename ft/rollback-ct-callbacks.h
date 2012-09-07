@@ -28,6 +28,8 @@ int toku_rollback_pe_callback (
     ) ;
 bool toku_rollback_pf_req_callback(void* UU(ftnode_pv), void* UU(read_extraargs)) ;
 int toku_rollback_pf_callback(void* UU(ftnode_pv),  void* UU(disk_data), void* UU(read_extraargs), int UU(fd), PAIR_ATTR* UU(sizep));
+void toku_rollback_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
+
 int toku_rollback_cleaner_callback (
     void* UU(ftnode_pv),
     BLOCKNUM UU(blocknum),
@@ -41,7 +43,7 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(FT 
     wc.pe_est_callback = toku_rollback_pe_est_callback;
     wc.pe_callback = toku_rollback_pe_callback;
     wc.cleaner_callback = toku_rollback_cleaner_callback;
-    wc.clone_callback = NULL;
+    wc.clone_callback = toku_rollback_clone_callback;
     wc.write_extraargs = h;
     return wc;
 }

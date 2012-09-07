@@ -26,16 +26,24 @@ rollback_log_destroy(ROLLBACK_LOG_NODE log) {
 // On success return nbytes.
 void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
                                           void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
-                                          bool write_me, bool keep_me, bool for_checkpoint, bool UU(is_clone)) {
+                                          bool write_me, bool keep_me, bool for_checkpoint, bool is_clone) {
     int r;
-    ROLLBACK_LOG_NODE  CAST_FROM_VOIDP(log, rollback_v);
+    ROLLBACK_LOG_NODE log = nullptr;
+    SERIALIZED_ROLLBACK_LOG_NODE serialized = nullptr;
+    if (is_clone) {
+        CAST_FROM_VOIDP(serialized, rollback_v);
+        invariant(serialized->blocknum.b == logname.b);
+    }
+    else {
+        CAST_FROM_VOIDP(log, rollback_v);
+        invariant(log->blocknum.b == logname.b);
+    }
     FT CAST_FROM_VOIDP(h, extraargs);
 
-    assert(log->blocknum.b==logname.b);
     if (write_me && !h->panic) {
         assert(h->cf == cachefile);
 
-        r = toku_serialize_rollback_log_to(fd, log->blocknum, log, h, for_checkpoint);
+        r = toku_serialize_rollback_log_to(fd, log, serialized, is_clone, h, for_checkpoint);
         if (r) {
             if (h->panic==0) {
                 char *e = strerror(r);
@@ -49,7 +57,12 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
     }
     *new_size = size;
     if (!keep_me) {
-        rollback_log_destroy(log);
+        if (is_clone) {
+            toku_serialized_rollback_log_destroy(serialized);
+        }
+        else {
+            rollback_log_destroy(log);
+        }
     }
 }
 
@@ -117,5 +130,22 @@ int toku_rollback_cleaner_callback (
 {
     assert(false);
     return 0;
+}
+
+void toku_rollback_clone_callback(
+    void* value_data,
+    void** cloned_value_data,
+    PAIR_ATTR* new_attr,
+    bool UU(for_checkpoint),
+    void* UU(write_extraargs)
+    )
+{
+    ROLLBACK_LOG_NODE CAST_FROM_VOIDP(log, value_data);
+    SERIALIZED_ROLLBACK_LOG_NODE XMALLOC(serialized);
+
+    toku_serialize_rollback_log_to_memory_uncompressed(log, serialized);
+
+    new_attr->is_valid = false;
+    *cloned_value_data = serialized;
 }
 

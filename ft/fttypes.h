@@ -252,6 +252,7 @@ typedef void (*remove_ft_ref_callback)(FT, void*);
 
 typedef struct memarena *MEMARENA;
 typedef struct rollback_log_node *ROLLBACK_LOG_NODE;
+typedef struct serialized_rollback_log_node *SERIALIZED_ROLLBACK_LOG_NODE;
 
 //
 // Types of snapshots that can be taken by a tokutxn
