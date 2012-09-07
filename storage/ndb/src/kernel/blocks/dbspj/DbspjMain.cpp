@@ -3991,7 +3991,6 @@ Dbspj::computePartitionHash(Signal* signal,
 Uint32
 Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 {
-  Uint32 err;
   DiGetNodesReq * req = (DiGetNodesReq *)&signal->theData[0];
   req->tableId = tableId;
   req->hashValue = dst.hashInfo[1];
@@ -4009,7 +4008,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 #endif
 
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
-  err = signal->theData[0];
+  const Uint32 err = signal->theData[0] ? signal->theData[1] : 0;
   Uint32 Tdata2 = conf->reqinfo;
   Uint32 nodeId = conf->nodes[0];
   Uint32 instanceKey = (Tdata2 >> 24) & 127;
