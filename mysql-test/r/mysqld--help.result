@@ -923,7 +923,6 @@ key-cache-age-threshold 300
 key-cache-block-size 1024
 key-cache-division-limit 100
 key-cache-segments 0
-language MYSQL_SHAREDIR/
 large-pages FALSE
 lc-messages en_US
 lc-messages-dir MYSQL_SHAREDIR/

@@ -1425,6 +1425,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
 
+  thd_proc_info(thd, "updating status");
   /* Finalize server status flags after executing a command. */
   thd->update_server_status();
   thd->protocol->end_statement();

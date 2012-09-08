@@ -42,7 +42,7 @@
         cond_wait(mythd, abstime, msg, SCHED_FUNC, __LINE__)
 
 extern pthread_attr_t connection_attrib;
-
+extern ulong event_executed;
 
 Event_db_repository *Event_worker_thread::db_repository;
 
@@ -557,7 +557,8 @@ Event_scheduler::execute_top(Event_queue_element_for_exec *event_name)
                                 event_name)))
     goto error;
 
-  ++started_events;
+  started_events++;
+  executed_events++;                            // For SHOW STATUS
 
   DBUG_PRINT("info", ("Event is in THD: 0x%lx", (long) new_thd));
   DBUG_RETURN(FALSE);

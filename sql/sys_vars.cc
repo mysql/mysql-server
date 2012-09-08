@@ -3578,22 +3578,25 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
 
   if (!locale->errmsgs->errmsgs)
   {
+    bool res;
     mysql_mutex_lock(&LOCK_error_messages);
-    if (!locale->errmsgs->errmsgs &&
-        read_texts(ERRMSG_FILE, locale->errmsgs->language,
-                   &locale->errmsgs->errmsgs,
-                   ER_ERROR_LAST - ER_ERROR_FIRST + 1))
+    res= (!locale->errmsgs->errmsgs &&
+          read_texts(ERRMSG_FILE, locale->errmsgs->language,
+                     &locale->errmsgs->errmsgs,
+                     ER_ERROR_LAST - ER_ERROR_FIRST + 1));
+    mysql_mutex_unlock(&LOCK_error_messages);
+    if (res)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
                           locale->name);
-      mysql_mutex_unlock(&LOCK_error_messages);
       return true;
     }
-    mysql_mutex_unlock(&LOCK_error_messages);
   }
+  status_var_increment(thd->status_var.feature_locale);
   return false;
 }
+
 static Sys_var_struct Sys_lc_messages(
        "lc_messages", "Set the language used for the error messages",
        SESSION_VAR(lc_messages), NO_CMD_LINE,

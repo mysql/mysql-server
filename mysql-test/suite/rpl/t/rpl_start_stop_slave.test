@@ -21,6 +21,16 @@
 connection slave;
 --let $connection_id=`SELECT id FROM information_schema.processlist where state LIKE 'Waiting for master to send event'`
 
+if(!$connection_id)
+{
+  # Something went wrong (timing)
+  # Show process list so that we can debug. In this case we will abort with
+  # wrong result
+  -- echo "Could not find connect id. Dumping process list for debugging"
+  SELECT * FROM information_schema.processlist;
+  exit;
+}
+
 set @time_before_kill := (select CURRENT_TIMESTAMP);
 
 --echo [Time before the query]

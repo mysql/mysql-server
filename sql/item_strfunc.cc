@@ -3774,6 +3774,7 @@ bool Item_func_dyncol_create::fix_fields(THD *thd, Item **ref)
                                             (arg_count / 2));
   nums= (uint *) alloc_root(thd->mem_root,
                             sizeof(uint) * (arg_count / 2));
+  status_var_increment(thd->status_var.feature_dynamic_columns);
   return res || vals == 0 || nums == 0;
 }
 

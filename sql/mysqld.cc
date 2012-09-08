@@ -482,6 +482,7 @@ ulonglong binlog_stmt_cache_size=0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulonglong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
+ulong executed_events=0;
 query_id_t global_query_id;
 my_atomic_rwlock_t global_query_id_lock;
 my_atomic_rwlock_t thread_running_lock;
@@ -6948,6 +6949,16 @@ SHOW_VAR status_vars[]= {
   {"Delayed_insert_threads",   (char*) &delayed_insert_threads, SHOW_LONG_NOFLUSH},
   {"Delayed_writes",           (char*) &delayed_insert_writes,  SHOW_LONG},
   {"Empty_queries",            (char*) offsetof(STATUS_VAR, empty_queries), SHOW_LONG_STATUS},
+  {"Executed_events",          (char*) &executed_events, SHOW_LONG_NOFLUSH },
+  {"Executed_triggers",        (char*) offsetof(STATUS_VAR, executed_triggers), SHOW_LONG_STATUS},
+  {"Feature_dynamic_columns",  (char*) offsetof(STATUS_VAR, feature_dynamic_columns), SHOW_LONG_STATUS},
+  {"Feature_fulltext",         (char*) offsetof(STATUS_VAR, feature_fulltext), SHOW_LONG_STATUS},
+  {"Feature_gis",              (char*) offsetof(STATUS_VAR, feature_gis), SHOW_LONG_STATUS},
+  {"Feature_locale",           (char*) offsetof(STATUS_VAR, feature_locale), SHOW_LONG_STATUS},
+  {"Feature_subquery",         (char*) offsetof(STATUS_VAR, feature_subquery), SHOW_LONG_STATUS},
+  {"Feature_timezone",         (char*) offsetof(STATUS_VAR, feature_timezone), SHOW_LONG_STATUS},
+  {"Feature_trigger",         (char*) offsetof(STATUS_VAR, feature_trigger), SHOW_LONG_STATUS},
+  {"Feature_xml",             (char*) offsetof(STATUS_VAR, feature_xml), SHOW_LONG_STATUS},
   {"Flush_commands",           (char*) &refresh_version,        SHOW_LONG_NOFLUSH},
   {"Handler_commit",           (char*) offsetof(STATUS_VAR, ha_commit_count), SHOW_LONG_STATUS},
   {"Handler_delete",           (char*) offsetof(STATUS_VAR, ha_delete_count), SHOW_LONG_STATUS},
@@ -6987,6 +6998,7 @@ SHOW_VAR status_vars[]= {
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONG_STATUS},
+  {"Opened_views",            (char*) offsetof(STATUS_VAR, opened_views), SHOW_LONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
   {"Rows_sent",                (char*) offsetof(STATUS_VAR, rows_sent), SHOW_LONGLONG_STATUS},
   {"Rows_read",                (char*) offsetof(STATUS_VAR, rows_read), SHOW_LONGLONG_STATUS},
@@ -7274,6 +7286,7 @@ static int mysql_init_variables(void)
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
   refresh_version= 1L;	/* Increments on each reload */
+  executed_events= 0;
   global_query_id= thread_id= 1L;
   my_atomic_rwlock_init(&global_query_id_lock);
   my_atomic_rwlock_init(&thread_running_lock);

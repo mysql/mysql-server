@@ -2329,7 +2329,6 @@ my_tz_find(THD *thd, const String *name)
 
   if (!str_to_offset(name->ptr(), name->length(), &offset))
   {
-
     if (!(result_tz= (Time_zone_offset *)my_hash_search(&offset_tzs,
                                                         (const uchar *)&offset,
                                                         sizeof(long))))
@@ -2370,6 +2369,9 @@ my_tz_find(THD *thd, const String *name)
   }
 
   mysql_mutex_unlock(&tz_LOCK);
+
+  if (result_tz && result_tz != my_tz_SYSTEM && result_tz != my_tz_UTC)
+    status_var_increment(thd->status_var.feature_timezone);
 
   DBUG_RETURN(result_tz);
 }

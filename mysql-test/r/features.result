@@ -1,0 +1,140 @@
+drop table if exists t1;
+show status like "feature%";
+Variable_name	Value
+Feature_dynamic_columns	0
+Feature_fulltext	0
+Feature_gis	0
+Feature_locale	0
+Feature_subquery	0
+Feature_timezone	0
+Feature_trigger	0
+Feature_xml	0
+#
+# Feature GIS
+#
+CREATE TABLE t1 (g POINT);
+SHOW FIELDS FROM t1;
+Field	Type	Null	Key	Default	Extra
+g	point	YES		NULL	
+INSERT INTO t1 VALUES
+(PointFromText('POINT(10 10)')),
+(PointFromText('POINT(20 10)')),
+(PointFromText('POINT(20 20)')),
+(PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
+drop table t1;
+show status like "feature_gis";
+Variable_name	Value
+Feature_gis	3
+#
+# Feature dynamic columns
+#
+set @a= COLUMN_CREATE(1, 1212 AS int);
+set @b= column_add(@a, 2, 1212 as integer);
+select column_get(@b, 2 as integer);
+column_get(@b, 2 as integer)
+1212
+show status like "feature_dynamic_columns";
+Variable_name	Value
+Feature_dynamic_columns	2
+#
+# Feature fulltext
+#
+CREATE TABLE t1 (a VARCHAR(200), b TEXT, FULLTEXT (a,b)) engine=myisam;
+INSERT INTO t1 VALUES('MySQL has now support', 'for full-text search'),
+('Full-text indexes', 'are called collections'),
+('Only MyISAM tables','support collections'),
+('Function MATCH ... AGAINST()','is used to do a search'),
+('Full-text search in MySQL', 'implements vector space model');
+select * from t1 where MATCH(a,b) AGAINST ("collections");
+a	b
+Only MyISAM tables	support collections
+Full-text indexes	are called collections
+select * from t1 where MATCH(a,b) AGAINST ("indexes");
+a	b
+Full-text indexes	are called collections
+drop table t1;
+show status like "feature_fulltext";
+Variable_name	Value
+Feature_fulltext	2
+#
+# Feature locale
+#
+SET lc_messages=sr_RS;
+SET lc_messages=en_US;
+show status like "feature_locale";
+Variable_name	Value
+Feature_locale	2
+#
+# Feature subquery
+#
+select (select 2);
+(select 2)
+2
+SELECT (SELECT 1) UNION SELECT (SELECT 2);
+(SELECT 1)
+1
+2
+create table t1 (a int);
+insert into t1 values (2);
+select (select a from t1 where t1.a=t2.a), a from t1 as t2;
+(select a from t1 where t1.a=t2.a)	a
+2	2
+drop table t1;
+show status like "feature_subquery";
+Variable_name	Value
+Feature_subquery	4
+#
+# Feature timezone
+#
+SELECT FROM_UNIXTIME(unix_timestamp()) > "1970-01-01";
+FROM_UNIXTIME(unix_timestamp()) > "1970-01-01"
+1
+set time_zone="+03:00";
+SELECT FROM_UNIXTIME(unix_timestamp()) > "1970-01-01";
+FROM_UNIXTIME(unix_timestamp()) > "1970-01-01"
+1
+set time_zone= @@global.time_zone;
+show status like "feature_timezone";
+Variable_name	Value
+Feature_timezone	1
+#
+# Feature triggers
+#
+create table t1 (i int);
+# let us test some very simple trigger
+create trigger trg before insert on t1 for each row set @a:=1;
+set @a:=0;
+select @a;
+@a
+0
+insert into t1 values (1),(2);
+select @a;
+@a
+1
+SHOW TRIGGERS IN test like 't1';
+Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
+trg	INSERT	t1	set @a:=1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+drop trigger trg;
+drop table t1;
+show status like "%trigger%";
+Variable_name	Value
+Com_create_trigger	1
+Com_drop_trigger	1
+Com_show_create_trigger	0
+Com_show_triggers	1
+Executed_triggers	2
+Feature_trigger	2
+#
+# Feature xml
+#
+SET @xml='<a aa1="aa1" aa2="aa2">a1<b ba1="ba1">b1<c>c1</c>b2</b>a2</a>';
+SELECT extractValue(@xml,'/a');
+extractValue(@xml,'/a')
+a1 a2
+select updatexml('<div><div><span>1</span><span>2</span></div></div>',
+'/','<tr><td>1</td><td>2</td></tr>') as upd1;
+upd1
+<tr><td>1</td><td>2</td></tr>
+show status like "feature_xml";
+Variable_name	Value
+Feature_xml	2

@@ -220,6 +220,8 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   uint8 uncacheable;
   bool res;
 
+  status_var_increment(thd->status_var.feature_subquery);
+
   DBUG_ASSERT(fixed == 0);
   engine->set_thd((thd= thd_param));
   if (!done_first_fix_fields)

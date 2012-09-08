@@ -1334,6 +1334,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
                   triggers->definitions_list.elements);
 
       table->triggers= triggers;
+      status_var_increment(thd->status_var.feature_trigger);
 
       /*
         TODO: This could be avoided if there is no triggers
@@ -2115,6 +2116,8 @@ bool Table_triggers_list::process_triggers(THD *thd,
 
   if (sp_trigger == NULL)
     return FALSE;
+
+  status_var_increment(thd->status_var.executed_triggers);
 
   if (old_row_is_record1)
   {

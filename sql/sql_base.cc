@@ -9421,6 +9421,7 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
       if (mysql_make_view(thd, parser, table_desc,
                           (prgflag & OPEN_VIEW_NO_PARSE)))
         goto err;
+      status_var_increment(thd->status_var.opened_views);
     }
     else
     {

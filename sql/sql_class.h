@@ -620,25 +620,17 @@ typedef struct system_status_var
   ulong ha_savepoint_count;
   ulong ha_savepoint_rollback_count;
 
-#if 0
-  /* KEY_CACHE parts. These are copies of the original */
-  ulong key_blocks_changed;
-  ulong key_blocks_used;
-  ulong key_cache_r_requests;
-  ulong key_cache_read;
-  ulong key_cache_w_requests;
-  ulong key_cache_write;
-  /* END OF KEY_CACHE parts */
-#endif
-
   ulong net_big_packet_count;
   ulong opened_tables;
   ulong opened_shares;
+  ulong opened_views;               /* +1 opening a view */
+
   ulong select_full_join_count;
   ulong select_full_range_join_count;
   ulong select_range_count;
   ulong select_range_check_count;
   ulong select_scan_count;
+  ulong executed_triggers;
   ulong long_query_count;
   ulong filesort_merge_passes;
   ulong filesort_range_count;
@@ -652,6 +644,16 @@ typedef struct system_status_var
   ulong com_stmt_fetch;
   ulong com_stmt_reset;
   ulong com_stmt_close;
+
+  /* Features used */
+  ulong feature_dynamic_columns;    /* +1 when creating a dynamic column */
+  ulong feature_fulltext;	    /* +1 when MATCH is used */
+  ulong feature_gis;                /* +1 opening a table with GIS features */
+  ulong feature_locale;		    /* +1 when LOCALE is set */
+  ulong feature_subquery;	    /* +1 when subqueries are used */
+  ulong feature_timezone;	    /* +1 when XPATH is used */
+  ulong feature_trigger;	    /* +1 opening a table with triggers */
+  ulong feature_xml;		    /* +1 when XPATH is used */
 
   ulong empty_queries;
   ulong access_denied_errors;

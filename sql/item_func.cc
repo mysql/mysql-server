@@ -6046,6 +6046,8 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   Item *UNINIT_VAR(item);                        // Safe as arg_count is > 1
 
+  status_var_increment(thd->status_var.feature_fulltext);
+
   maybe_null=1;
   join_key=0;
 
