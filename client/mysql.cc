@@ -897,6 +897,7 @@ static COMMANDS commands[] = {
   { "LAST_INSERT_ID", 0, 0, 0, ""},
   { "ISSIMPLE", 0, 0, 0, ""},
   { "LAST_DAY", 0, 0, 0, ""},
+  { "LAST_VALUE", 0, 0, 0, ""},
   { "LCASE", 0, 0, 0, ""},
   { "LEAST", 0, 0, 0, ""},
   { "LENGTH", 0, 0, 0, ""},

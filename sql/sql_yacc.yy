@@ -1064,6 +1064,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  KILL_SYM
 %token  LANGUAGE_SYM                  /* SQL-2003-R */
 %token  LAST_SYM                      /* SQL-2003-N */
+%token  LAST_VALUE
 %token  LE                            /* OPERATOR */
 %token  LEADING                       /* SQL-2003-R */
 %token  LEAVES
@@ -8890,6 +8891,12 @@ function_call_conflict:
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
+        | LAST_VALUE '(' expr_list ')'
+          {
+            $$= new (YYTHD->mem_root) Item_func_last_value(* $3);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
         | MICROSECOND_SYM '(' expr ')'
           {
             $$= new (YYTHD->mem_root) Item_func_microsecond($3);
@@ -13088,6 +13095,7 @@ keyword_sp:
         | ISSUER_SYM               {}
         | INSERT_METHOD            {}
         | KEY_BLOCK_SIZE           {}
+        | LAST_VALUE               {}
         | LAST_SYM                 {}
         | LEAVES                   {}
         | LESS_SYM                 {}
