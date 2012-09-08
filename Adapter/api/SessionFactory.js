@@ -31,6 +31,7 @@ var SessionFactory = function(key, dbConnectionPool, properties, annotations, de
   this.annotations = annotations;
   this.delete_callback = delete_callback;
   this.sessions = [];
+  this.tableHandlers = {};
 };
 
 
@@ -52,6 +53,7 @@ SessionFactory.prototype.getTableMetadata = function() {
   // delegate to context for execution
   context.getTableMetadata();
 };
+
 
 SessionFactory.prototype.close = function() {
   // TODO: close all sessions first
