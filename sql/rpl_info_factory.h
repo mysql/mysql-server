@@ -52,6 +52,7 @@ private:
     uint n_fields;
     char name[FN_REFLEN];
     char pattern[FN_REFLEN];
+    bool name_indexed; // whether file name should include instance number
   } struct_file_data;
 
   typedef struct
@@ -85,8 +86,10 @@ private:
   static enum_return_check check_src_repository(Rpl_info *info,
                                                 Rpl_info_handler **handler_src);
   static bool check_error_repository(Rpl_info *info,
-                                     Rpl_info_handler **handler_src,
-                                     Rpl_info_handler **handler_dst,
+                                     Rpl_info_handler *handler_src,
+                                     Rpl_info_handler *handler_dst,
+                                     enum_return_check err_src,
+                                     enum_return_check err_dst,
                                      const char **msg);
   static bool init_repositories(Rpl_info *info,
                                 Rpl_info_handler **handler_src,
@@ -95,7 +98,7 @@ private:
   static bool scan_repositories(uint* found_instances,
                                 uint* found_rep_option,
                                 const struct_table_data table_data,
-                                const struct_file_data file_data);
+                                const struct_file_data file_data, const char **msg);
 };
 
 #endif

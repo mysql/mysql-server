@@ -330,6 +330,7 @@ int init_slave()
   if ((error= Rpl_info_factory::create_coordinators(opt_mi_repository_id, &active_mi,
                                                     opt_rli_repository_id, &rli)))
   {
+    sql_print_error("Failed to create or recover replication info repository.");
     error= 1;
     goto err;
   }
@@ -372,6 +373,10 @@ int init_slave()
 
 err:
   mysql_mutex_unlock(&LOCK_active_mi);
+  if (error)
+    sql_print_information("Check error log for additional messages. "
+                          "You will not be able to start replication until "
+                          "the issue is resolved and the server restarted.");
   DBUG_RETURN(error);
 }
 
