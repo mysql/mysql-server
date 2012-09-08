@@ -652,7 +652,8 @@ tokudb_expand_varchar_offsets(
     assert(offset_start < old_val->size);
     assert(offset_start + number_of_offsets < old_val->size);
 
-    DBT new_val = {};
+    DBT new_val;
+    memset(&new_val, 0, sizeof(new_val));
 
     if (old_val != NULL) {
         // compute the new val from the old val
@@ -759,7 +760,8 @@ tokudb_expand_field(
     assert(new_length >= old_length); // expand only
     assert(old_offset + old_length <= old_val->size); // old field within the old val
 
-    DBT new_val = {};
+    DBT new_val;
+    memset(&new_val, 0, sizeof(new_val));
 
     if (old_val != NULL) {
         // compute the new val from the old val
