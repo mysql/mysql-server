@@ -21,6 +21,7 @@
 "use strict";
 
 var assert = require("assert");
+var commonDBTableHandler = require("./DBTableHandler.js");
 
 var apiSession = require("../../api/Session.js");
 
@@ -93,13 +94,97 @@ exports.UserContext.prototype.listTables = function() {
   this.session_factory.dbConnectionPool.listTables(databaseName, dbSession, listTablesOnTableList);
 };
 
+/** Get the table handler for a table name or prototype.
+ */
+var getTableHandler = function(tableNameOrPrototype, session, onTableHandler) {
+
+  var TableHandlerFactory = function(tableName, sessionFactory, dbSession, onTableHandler) {
+    this.tableName = tableName;
+    this.sessionFactory = sessionFactory;
+    this.dbSession = dbSession;
+    this.onTableHandler = onTableHandler;
+    
+    this.createTableHandler = function() {
+      var tableHandlerFactory = this;
+      
+      var onTableMetadata = function(err, tableMetadata) {
+        if (err) {
+          tableHandlerFactory.onTableHandler(err, null);
+        } else {
+          // we have the table metadata; now create the table handler
+          var tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, null);
+          // put the table handler into the session factory
+          tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
+          tableHandlerFactory.onTableHandler(null, tableHandler);
+        }
+      };
+      
+      // start of createTableHandler
+      
+      // get the table metadata from the db connection pool
+      // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
+      var dbName = this.sessionFactory.properties.database;
+      this.sessionFactory.dbConnectionPool.getTableMetadata(dbName, tableNameOrPrototype, session.dbSession,
+          onTableMetadata);
+    };
+  };
+    
+  // start of getTableHandler 
+  
+  if (typeof(tableNameOrPrototype) === 'string') {
+    // parameter is a table name; look up in table name hash
+    var tableHandler = session.sessionFactory.tableHandlers[tableNameOrPrototype];
+    if (typeof(tableHandler) === 'undefined') {
+      // create a new table handler for a table
+      // create a closure to create the table handler
+      var tableHandlerFactory = new TableHandlerFactory(
+          tableNameOrPrototype, session.sessionFactory, session.dbSession, onTableHandler);
+      tableHandlerFactory.createTableHandler();
+    } else {
+      // send back the tableHandler
+      onTableHandler(null, tableHandler);
+    }
+  } else {
+    // parameter is a prototype; it must have been annotated already
+    if (typeof(tableNameOrPrototype.mynode) === 'undefined') {
+      var err = new Error('User exception: prototype must have been annotated.');
+      onTableHandler(err, null);
+    } else {
+      // prototype has been annotated; return the table handler
+      onTableHandler(null, tableNameOrPrototype.mynode.handler);
+    }
+  }
+};
+
 
 /** Find the object by key.
  * 
  */
 exports.UserContext.prototype.find = function() {
-  var err = new Error('unimplemented function UserContext.find');
-  this.applyCallback(err, 'this is the user Session object');
+  var userContext = this;
+  var tableHandler;
+
+  function findOnTableHandler(err, dbTableHandler) {
+    var keys, index, op;
+    if (err) {
+      userContext.applyCallback(err, null);
+    } else {
+      keys = userContext.user_arguments[1];
+      index = dbTableHandler.getIndexHandler(keys);
+      if (index === null) {
+        var err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
+        userContext.applyCallback(err, null);
+      } else {
+        var err = new Error('UserContext.find using index ' + index.dbIndex.name + ' to be continued...');
+        userContext.applyCallback(err, 'this is the user Session object');      
+      }
+    }
+  }
+
+  // find starts here
+  // session.find(prototypeOrTableName, key, callback)
+  // get DBTableHandler for prototype/tableName
+  getTableHandler(userContext.user_arguments[0], userContext.session, findOnTableHandler);
 };
 
 
@@ -107,8 +192,24 @@ exports.UserContext.prototype.find = function() {
  * 
  */
 exports.UserContext.prototype.persist = function() {
-  var err = new Error('unimplemented function UserContext.persist');
-  this.applyCallback(err, 'this is the object that was persisted');
+  var userContext = this;
+  var tableHandler;
+  function persistOnTableHandler(err, dbTableHandler) {
+    var op;
+    if (err) {
+      userContext.applyCallback(err, null);
+    } else {
+    op = userContext.session.dbSession.buildInsertOperation(dbTableHandler, userContext.user_arguments[1]);
+    var err = new Error('UserContext.persist will continue after a brief intermission...');
+    this.applyCallback(err, null);
+    // now what
+    }
+  }
+
+  // persist starts here
+  // persist(object, callback)
+  // get DBTableHandler for prototype/tableName
+  getTableHandler(userContext.user_arguments[0], userContext.session, persistOnTableHandler);
 };
 
 /** Open a session. Allocate a slot in the session factory sessions array.

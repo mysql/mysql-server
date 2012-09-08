@@ -134,18 +134,18 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   // get a connection from the pool
   var pooledConnection = null;
   var connectionPool = this;
+  var newDBSession = null;
 
   if (this.pooledConnections.length > 0) {
     // pop a connection from the pool
     pooledConnection = connectionPool.pooledConnections.pop();
-    var newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
+    newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
     connectionPool.openConnections[index] = newDBSession;
     callback(null, newDBSession);
   } else {
     // create a new connection
-    var connected_callback = function(err) {      
-      var newDBSession = new mysqlConnection.DBSession(pooledConnection);
-      newDBSession.pool = connectionPool;
+    var connected_callback = function(err) {
+      newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
       connectionPool.openConnections[index] = newDBSession;
       udebug.log('MySQLConnectionPool.getDBSession '
           + ' pooledConnections: ' + connectionPool.pooledConnections.length
@@ -159,6 +159,7 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
 };
 
 exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tableName, dbSession, user_callback) {
+
   var TableMetadataHandler = function() {
     this.databaseName = arguments[0];
     this.tableName = arguments[1];
@@ -171,20 +172,20 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
       var dictionary;
 
       var metadataHandlerOnTableMetadata = function(err, tableMetadata) {
-        console.log('getTableMetadataHandler.metadataHandlerOnTableMetadata');
+        udebug.log_detail('getTableMetadataHandler.metadataHandlerOnTableMetadata');
         // put back the pooledConnection
         metadataHandler.dbConnectionPool.pooledConnections.push(pooledConnection);
         metadataHandler.user_callback(err, tableMetadata);
       };
 
       var metadataHandlerOnConnect = function() {
-        console.log('getTableMetadataHandler.metadataHandlerOnConnect');
+        udebug.log_detail('getTableMetadataHandler.metadataHandlerOnConnect');
 
         dictionary = new mysqlDictionary.DataDictionary(pooledConnection);
         dictionary.getTableMetadata(metadataHandler.databaseName, metadataHandler.tableName, 
             metadataHandlerOnTableMetadata);
       };
-      console.log('getTableMetadataHandler.getTableMetadata');
+      udebug.log_detail('getTableMetadataHandler.getTableMetadata');
       if (this.dbConnectionPool.pooledConnections.length > 0) {
         // pop a connection from the pool
         pooledConnection = this.dbConnectionPool.pooledConnections.pop();
@@ -226,7 +227,7 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
       var listTablesHandler = this;
 
       var listTablesHandlerOnTableList = function(err, tableList) {
-        console.log('listTablesHandler.listTablesHandlerOnTableList');
+        udebug.log_detail('listTablesHandler.listTablesHandlerOnTableList');
         // put back the pooledConnection
         listTablesHandler.dbConnectionPool.pooledConnections.push(listTablesHandler.pooledConnection);
         listTablesHandler.user_callback(err, tableList);
@@ -234,13 +235,13 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
 
       var listTablesHandlerOnConnect = function() {
         var dictionary;
-        console.log('listTablesHandler.listTablesHandlerOnConnect');
+        udebug.log_detail('listTablesHandler.listTablesHandlerOnConnect');
 
         dictionary = new mysqlDictionary.DataDictionary(listTablesHandler.pooledConnection);
         dictionary.listTables(listTablesHandler.databaseName, listTablesHandlerOnTableList);
       };
 
-      console.log('listTablesHandler.listTables');
+      udebug.log_detail('listTablesHandler.listTables');
       if (listTablesHandler.dbConnectionPool.pooledConnections.length > 0) {
         var dictionary;
         // pop a connection from the pool

@@ -73,7 +73,7 @@ Annotations.prototype.mapClass = function(proto, mapping) {
               field = fields[i];
               for(fprop in field) {
                 if (field.hasOwnProperty(fprop)) {
-                  switch(x) {
+                  switch(fprop) {
                     case 'name':
                     case 'nullValue':
                     case 'column':
@@ -82,7 +82,7 @@ Annotations.prototype.mapClass = function(proto, mapping) {
                       break;
 
                     default:
-                      throw new Error('bad property ' + x);
+                      throw new Error('bad property in fields ' + fprop);
                   }
                 }
               }
