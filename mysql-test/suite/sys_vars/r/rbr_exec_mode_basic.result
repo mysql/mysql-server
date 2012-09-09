@@ -1,0 +1,74 @@
+set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
+set @saved_global_rbr_exec_mode = @@global.rbr_exec_mode;
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+SET global rbr_exec_mode=DEFAULT;
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+SET global rbr_exec_mode='IDEMPOTENT';
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+IDEMPOTENT
+SET global rbr_exec_mode='STRICT';
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET session rbr_exec_mode=DEFAULT;
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET session rbr_exec_mode='IDEMPOTENT';
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+IDEMPOTENT
+SET session rbr_exec_mode='STRICT';
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET session rbr_exec_mode='STIRCT';
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'STIRCT'
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET session rbr_exec_mode='';
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of ''
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET session rbr_exec_mode='1';
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of '1'
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET session rbr_exec_mode=NULL;
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'NULL'
+SELECT @@session.rbr_exec_mode;
+@@session.rbr_exec_mode
+STRICT
+SET global rbr_exec_mode='STIRCT';
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'STIRCT'
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+SET global rbr_exec_mode='';
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of ''
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+SET global rbr_exec_mode='1';
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of '1'
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+SET global rbr_exec_mode=NULL;
+ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'NULL'
+SELECT @@global.rbr_exec_mode;
+@@global.rbr_exec_mode
+STRICT
+set session rbr_exec_mode = @saved_session_rbr_exec_mode;
+set global rbr_exec_mode = @saved_global_rbr_exec_mode;

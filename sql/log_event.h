@@ -798,7 +798,6 @@ typedef struct st_print_event_info
 
 
   /* Settings on how to print the events */
-  bool idempotent_mode;
   bool short_form;
   enum_base64_output_mode base64_output_mode;
   /*

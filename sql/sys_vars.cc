@@ -2568,7 +2568,7 @@ static Sys_var_enum rbr_exec_mode(
        "Modes for how row events should be executed. Legal values "
        "are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, "
        "the server will not throw errors for operations that are idempotent. "
-       "In STRICT mode, server will throw errors for the operations that"
+       "In STRICT mode, server will throw errors for the operations that "
        "cause a conflict.",
        SESSION_VAR(rbr_exec_mode_options), CMD_LINE(REQUIRED_ARG),
        rbr_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));

@@ -678,6 +678,12 @@ The following options may be given as the first argument:
  --range-alloc-block-size=# 
  Allocation block size for storing ranges during
  optimization
+ --rbr-exec-mode=name 
+ Modes for how row events should be executed. Legal values
+ are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode,
+ the server will not throw errors for operations that are
+ idempotent. In STRICT mode, server will throw errors for
+ the operations that cause a conflict.
  --read-buffer-size=# 
  Each thread that does a sequential scan allocates a
  buffer of this size for each table it scans. If you do
@@ -1174,6 +1180,7 @@ query-cache-type ON
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
+rbr-exec-mode STRICT
 read-buffer-size 131072
 read-only FALSE
 read-rnd-buffer-size 262144

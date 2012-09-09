@@ -781,7 +781,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
   my_bool destroy_evt= TRUE;
   DBUG_ENTER("process_event");
   print_event_info->short_form= short_form;
-  print_event_info->idempotent_mode= idempotent_mode;
   Exit_status retval= OK_CONTINUE;
   IO_CACHE *const head= &print_event_info->head_cache;
 
@@ -2725,6 +2724,13 @@ int main(int argc, char** argv)
               "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
               "\n/*!40101 SET NAMES %s */;\n", charset);
   }
+  /*
+    In case '--idempotent' or '-i' options has been used, we will notify the
+    server to use idempotent mode for the following events.
+   */
+  if (idempotent_mode)
+    fprintf(result_file,
+            "/*!50700 SET @@SESSION.RBR_EXEC_MODE=IDEMPOTENT*/;\n\n");
 
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) ; )
