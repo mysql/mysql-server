@@ -530,7 +530,7 @@ public:
     int alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_add_or_drop_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
-    int alter_table_expand_varchar_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
+    int alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);

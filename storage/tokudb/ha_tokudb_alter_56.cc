@@ -141,34 +141,6 @@ fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alt
         }
     }
 
-    // Mysql thinks that varchar(100) is a different type than varchar(300) due to the size of the length field.
-    // Therefore, it encodes an alter varchar expansion as a ALTER_COLUMN_TYPE rather than an ALTER_COLUMN_EQUAL_PACK_LENGTH.
-    // Try to change ALTER_COLUMN_TYPE to ALTER_COLUMN_EQUAL_PACK_LENGTH
-    if (handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) {
-        bool change_it = false;
-        Dynamic_array<uint> changed_fields;
-        find_changed_fields(table, altered_table, ha_alter_info, changed_fields);
-        if (changed_fields.elements() > 0) {
-            change_it = true;
-            enum_field_types old_type, new_type;
-            for (int ai = 0; ai < changed_fields.elements(); ai++) {
-                uint i = changed_fields.at(ai);
-                Field *old_field = table->field[i];
-                old_type = old_field->real_type();
-                Field *new_field = altered_table->field[i];
-                new_type = new_field->real_type();
-                if (old_type != new_type)
-                    change_it = false;
-                if (old_type != MYSQL_TYPE_VARCHAR || old_field->binary() != new_field->binary() || old_field->charset() != new_field->charset())
-                    change_it = false;
-            }
-        }
-        if (change_it) {
-            handler_flags &= ~Alter_inplace_info::ALTER_COLUMN_TYPE;
-            handler_flags |= Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
-        }
-    }
-
     // always allow rename table + any other operation, so turn off the rename flag
     if (handler_flags & Alter_inplace_info::TOKU_ALTER_RENAME) {
         handler_flags &= ~Alter_inplace_info::TOKU_ALTER_RENAME;
@@ -393,7 +365,7 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
         }
     }
     if (error == 0 && ctx->expand_varchar_update_needed)
-        error = alter_table_expand_varchar_columns(altered_table, ha_alter_info);
+        error = alter_table_expand_varchar_offsets(altered_table, ha_alter_info);
 
     if (error == 0 && ctx->expand_fixed_update_needed)
         error = alter_table_expand_columns(altered_table, ha_alter_info);
@@ -675,9 +647,9 @@ ha_tokudb::setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *altered_kc_info
     return error;
 }
 
-// Handle change column varchar expansion.  For all clustered keys, broadcast an update message to readjust the varchar offsets.
+// Expand the varchr offset from 1 to 2 bytes.
 int
-ha_tokudb::alter_table_expand_varchar_columns(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
+ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     int error = 0;
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
@@ -738,26 +710,21 @@ field_in_key(TABLE *table, Field *field) {
     return false;
 }
 
-// Return true if all changed varchar field lengths can be changed inplace, otherwise return false
+// Return true if all changed varchar/varbinary field lengths can be changed inplace, otherwise return false
 static bool 
-change_varchar_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
-    for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
-        uint i = ctx->changed_fields.at(ai);
-        Field *old_field = table->field[i];
-        enum_field_types old_type = old_field->real_type();
-        Field *new_field = altered_table->field[i];
-        enum_field_types new_type = new_field->real_type();
-        if (old_type != MYSQL_TYPE_VARCHAR || new_type != MYSQL_TYPE_VARCHAR || old_field->binary() != new_field->binary() || old_field->charset() != new_field->charset())
-            return false;
-        if (old_field->max_display_length() > new_field->max_display_length()) 
-            return false;
-        if (field_in_key(table, old_field))
-            return false;
-        if (ctx->table_kc_info->num_offset_bytes > ctx->altered_table_kc_info->num_offset_bytes)
-            return false; // something is wrong
-        if (ctx->table_kc_info->num_offset_bytes < ctx->altered_table_kc_info->num_offset_bytes)
-            ctx->expand_varchar_update_needed = true; // sum of varchar lengths changed from 1 to 2
-    }
+change_varchar_length_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+    enum_field_types old_type = old_field->real_type();
+    enum_field_types new_type = new_field->real_type();
+    if (old_type != MYSQL_TYPE_VARCHAR || new_type != MYSQL_TYPE_VARCHAR || old_field->binary() != new_field->binary() || old_field->charset() != new_field->charset())
+        return false;
+    if (old_field->max_display_length() > new_field->max_display_length()) 
+        return false;
+    if (field_in_key(table, old_field))
+        return false;
+    if (ctx->table_kc_info->num_offset_bytes > ctx->altered_table_kc_info->num_offset_bytes)
+        return false; // something is wrong
+    if (ctx->table_kc_info->num_offset_bytes < ctx->altered_table_kc_info->num_offset_bytes)
+        ctx->expand_varchar_update_needed = true; // sum of varchar lengths changed from 1 to 2
     return true;
 }
 
@@ -767,21 +734,16 @@ change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_inf
     if (table->s->fields != altered_table->s->fields)
         return false;
 
-    enum_field_types old_type, new_type;
     for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
-        old_type = old_field->real_type();
         Field *new_field = altered_table->field[i];
-        new_type = new_field->real_type();
-        if (old_type != new_type)
+        // varchar(X) -> varchar(Y)
+        if (!change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;
     }
 
-    if (old_type == MYSQL_TYPE_VARCHAR)
-        return change_varchar_length_is_supported(table, altered_table, ha_alter_info, ctx);
-    else
-        return false;
+    return true;
 }
 
 static bool
@@ -789,7 +751,7 @@ is_sorted(Dynamic_array<uint> &a) {
     bool r = true;
     if (a.elements() > 0) {
         uint lastelement = a.at(0);
-        for (uint i = 1; i < a.elements(); i++)
+        for (int i = 1; i < a.elements(); i++)
             if (lastelement > a.at(i))
                 r = false;
     }
@@ -950,19 +912,25 @@ change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_
 
 // Return true if two field types can be changed inplace
 static bool
-change_type_is_supported(TABLE *table, TABLE *altered_table, Field *old_field, Field *new_field, tokudb_alter_ctx *ctx) {
+change_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     enum_field_types old_type = old_field->real_type();
     enum_field_types new_type = new_field->real_type();
     if (is_int_type(old_type)) {
+        // int and unsigned int expansion
         if (is_int_type(new_type) && is_unsigned(old_field) == is_unsigned(new_field))
             return change_fixed_length_is_supported(table, altered_table, old_field, new_field, ctx);
         else
             return false;
     } else if (old_type == MYSQL_TYPE_STRING) {
+        // char(X) -> char(Y) and binary(X) -> binary(Y) expansion
         if (new_type == MYSQL_TYPE_STRING && old_field->binary() == new_field->binary())
             return change_fixed_length_is_supported(table, altered_table, old_field, new_field, ctx);
         else
             return false;
+    } else if (old_type == MYSQL_TYPE_VARCHAR) {
+        // varchar(X) -> varchar(Y) and varbinary(X) -> varbinary(Y) expansion where X < 256 <= Y
+        // the ALTER_COLUMN_TYPE handler flag is set for these cases
+        return change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx);
     } else
         return false;
 }
@@ -976,7 +944,7 @@ change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info 
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
-        if (!change_type_is_supported(table, altered_table, old_field, new_field, ctx))
+        if (!change_type_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;            
     }
     return true;
