@@ -4142,9 +4142,6 @@ void Query_log_event::print_query_header(IO_CACHE* file,
     print_event_info->thread_id_printed= 1;
   }
 
-  if (print_event_info->idempotent_mode)
-    my_b_printf(file, "SET @@session.rbr_exec_mode=IDEMPOTENT%s\n",
-                print_event_info->delimiter);
   /*
     If flags2_inited==0, this is an event from 3.23 or 4.0; nothing to
     print (remember we don't produce mixed relay logs so there cannot be
