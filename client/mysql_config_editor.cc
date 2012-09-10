@@ -366,7 +366,6 @@ static my_bool check_and_create_login_file(void)
 
   const int access_flag= (O_RDWR | O_BINARY);
   const ushort create_mode= (S_IRUSR | S_IWUSR );
-  const ushort create_mode_all= (S_IRWXU | S_IRWXG | S_IRWXO);
 
   /* Get the login file name. */
   if (! my_default_get_login_file(my_login_file, sizeof(my_login_file)))
@@ -418,7 +417,7 @@ static my_bool check_and_create_login_file(void)
 #ifdef _WIN32
     if (1)
 #else
-    if (!(create_mode ^ (stat_info.st_mode & create_mode_all)))
+    if (!(stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO)))
 #endif
     {
       verbose_msg("File has the required permission.\nOpening the file.\n");

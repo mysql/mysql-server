@@ -291,6 +291,8 @@ func_exit:
 
 	mem_heap_free(heap);
 
+	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
+
 	return(err);
 }
 

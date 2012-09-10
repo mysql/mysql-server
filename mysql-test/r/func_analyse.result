@@ -297,12 +297,12 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	Using index
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 EXPLAIN SELECT * FROM t1, (SELECT * FROM t1) tt1 WHERE t1.a = tt1.a PROCEDURE ANALYSE();
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	5	test.t1.a	2	Using index
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	Using index
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	NULL
 CREATE TABLE t2 (i INT, j INT);
 # PROCEDURE ANALYSE ignores ROLLUP rows:

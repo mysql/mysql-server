@@ -45,16 +45,13 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0read.h"
 
 /** The file format tag structure with id and name. */
-struct file_format_struct {
+struct file_format_t {
 	ulint		id;		/*!< id of the file format */
 	const char*	name;		/*!< text representation of the
 					file format */
 	ib_mutex_t		mutex;		/*!< covers changes to the above
 					fields */
 };
-
-/** The file format tag */
-typedef struct file_format_struct	file_format_t;
 
 /** The transaction system */
 UNIV_INTERN trx_sys_t*		trx_sys		= NULL;

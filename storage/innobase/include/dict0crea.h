@@ -180,7 +180,7 @@ dict_create_add_foreign_to_dictionary(
 	__attribute__((nonnull, warn_unused_result));
 
 /* Table create node structure */
-struct tab_node_struct{
+struct tab_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_TABLE_CREATE */
 	dict_table_t*	table;	/*!< table to create, built as a memory data
 				structure with dict_mem_... functions */
@@ -209,7 +209,7 @@ struct tab_node_struct{
 
 /* Index create node struct */
 
-struct ind_node_struct{
+struct ind_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_INDEX_CREATE */
 	dict_index_t*	index;	/*!< index to create, built as a memory data
 				structure with dict_mem_... functions */

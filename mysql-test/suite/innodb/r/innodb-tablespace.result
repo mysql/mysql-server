@@ -100,7 +100,8 @@ FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
 name	n_cols	file_format	row_format
 test/t1	5	Antelope	Compact
 SELECT name,file_format,row_format
-FROM information_schema.innodb_sys_tablespaces ORDER BY name;
+FROM information_schema.innodb_sys_tablespaces
+ORDER BY name;
 name	file_format	row_format
 mysql/innodb_index_stats	Antelope	Compact or Redundant
 mysql/innodb_table_stats	Antelope	Compact or Redundant

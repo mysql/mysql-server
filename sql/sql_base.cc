@@ -976,7 +976,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
         result= TRUE;
         goto err_with_reopen;
       }
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, false, NULL);
     }
   }
 
@@ -1247,13 +1247,16 @@ static void close_open_tables(THD *thd)
                      In that case the documented behaviour is to
                      implicitly remove the table from LOCK TABLES
                      list.
+  @param[in] skip_table
+                     TABLE instance that should be kept open.
 
   @pre Must be called with an X MDL lock on the table.
 */
 
 void
 close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                          bool remove_from_locked_tables)
+                          bool remove_from_locked_tables,
+                          TABLE *skip_table)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= share->table_cache_key.length;
@@ -1268,7 +1271,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     TABLE *table= *prev;
 
     if (table->s->table_cache_key.length == key_length &&
-        !memcmp(table->s->table_cache_key.str, key, key_length))
+        !memcmp(table->s->table_cache_key.str, key, key_length) &&
+        table != skip_table)
     {
       thd->locked_tables_list.unlink_from_list(thd,
                                                table->pos_in_locked_tables,
@@ -1281,7 +1285,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       mysql_lock_remove(thd, thd->lock, table);
 
       /* Inform handler that table will be dropped after close */
-      if (table->db_stat) /* Not true for partitioned tables. */
+      if (table->db_stat && /* Not true for partitioned tables. */
+          skip_table == NULL)
         table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
       close_thread_table(thd, prev);
     }
@@ -1291,9 +1296,12 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       prev= &table->next;
     }
   }
-  /* Remove the table share from the cache. */
-  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
-                   FALSE);
+  if (skip_table == NULL)
+  {
+    /* Remove the table share from the cache. */
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
+                     FALSE);
+  }
 }
 
 
@@ -4992,9 +5000,7 @@ restart:
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
-      bool need_prelocking= FALSE;
       bool routine_modifies_data;
-      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
       /*
         Process elements of the prelocking set which are present there
         since parsing stage or were added to it by invocations of
@@ -5007,10 +5013,20 @@ restart:
       for (Sroutine_hash_entry *rt= *sroutine_to_open; rt;
            sroutine_to_open= &rt->next, rt= rt->next)
       {
+        bool need_prelocking= false;
+        TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+
         error= open_and_process_routine(thd, thd->lex, rt, prelocking_strategy,
                                         has_prelocking_list, &ot_ctx,
                                         &need_prelocking,
                                         &routine_modifies_data);
+
+
+        if (need_prelocking && ! thd->lex->requires_prelocking())
+          thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+        if (need_prelocking && ! *start)
+          *start= thd->lex->query_tables;
 
         if (error)
         {
@@ -5039,12 +5055,6 @@ restart:
         // Remember if any of SF modifies data.
         some_routine_modifies_data|= routine_modifies_data;
       }
-
-      if (need_prelocking && ! thd->lex->requires_prelocking())
-        thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
-
-      if (need_prelocking && ! *start)
-        *start= thd->lex->query_tables;
     }
   }
 
@@ -5339,6 +5349,12 @@ static bool check_lock_and_start_stmt(THD *thd,
   int error;
   thr_lock_type lock_type;
   DBUG_ENTER("check_lock_and_start_stmt");
+
+  /*
+    Prelocking placeholder is not set for TABLE_LIST that
+    are directly used by TOP level statement.
+  */
+  DBUG_ASSERT(table_list->prelocking_placeholder == false);
 
   /*
     TL_WRITE_DEFAULT, TL_READ_DEFAULT and TL_WRITE_CONCURRENT_DEFAULT
@@ -9139,6 +9155,15 @@ void tdc_flush_unused_tables()
                                                 instances (if there are no
                                                 used instances will also
                                                 remove TABLE_SHARE).
+                        TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE -
+                                                remove all TABLE instances
+                                                except those that belong to
+                                                this thread, but don't mark
+                                                TABLE_SHARE as old. There
+                                                should be no TABLE objects
+                                                used by other threads and
+                                                caller should have exclusive
+                                                metadata lock on the table.
    @param  db           Name of database
    @param  table_name   Name of table
    @param  has_lock     If TRUE, LOCK_open is already acquired
@@ -9182,11 +9207,15 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         TDC does not contain old shares which don't have any tables
         used.
       */
-      share->version= 0;
+      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
+        share->version= 0;
       table_cache_manager.free_table(thd, remove_type, share);
     }
     else
+    {
+      DBUG_ASSERT(remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE);
       (void) my_hash_delete(&table_def_cache, (uchar*) share);
+    }
   }
 
   if (! has_lock)
