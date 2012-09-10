@@ -282,7 +282,8 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         }
     } else
     // change column type
-    if (only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
+    if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) &&
+        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT + Alter_inplace_info::ALTER_COLUMN_NAME)) {
         find_changed_fields(table, altered_table, ha_alter_info, ctx->changed_fields);
         ctx->table_kc_info = &share->kc_info;
         ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
@@ -923,7 +924,7 @@ change_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE
             return false;
     } else if (old_type == MYSQL_TYPE_STRING) {
         // char(X) -> char(Y) and binary(X) -> binary(Y) expansion
-        if (new_type == MYSQL_TYPE_STRING && old_field->binary() == new_field->binary())
+        if (new_type == MYSQL_TYPE_STRING && old_field->binary() == new_field->binary() && old_field->charset() == new_field->charset())
             return change_fixed_length_is_supported(table, altered_table, old_field, new_field, ctx);
         else
             return false;
