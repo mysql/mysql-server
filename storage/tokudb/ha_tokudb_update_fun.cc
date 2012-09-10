@@ -1,4 +1,7 @@
-// update operation codes.  these codes get stuffed into update messages, so they can not change.
+// Update operation codes.  These codes get stuffed into update messages, so they can not change.
+// The operations are currently stored in a single byte in the update message, so only 256 operations
+// are supported.  When we need more, we can use the last (255) code to indicate that the operation code
+// is expanded beyond 1 byte.
 enum {
     UPDATE_OP_COL_ADD_OR_DROP = 0,
     UPDATE_OP_EXPAND_VARCHAR_OFFSETS = 1,
@@ -57,17 +60,20 @@ enum {
 //  at most, 4 0's
 // So, upperbound is num_blobs(1+4+1+4) = num_columns*10
 
+// The expand varchar offsets message is used to expand the size of an offset from 1 to 2 bytes.
 // operation     1  == UPDATE_OP_EXPAND_VARCHAR_OFFSETS
+// n_offsets     4  number of offsets
 // offset_start  4  starting offset of the variable length field offsets 
-// offset end    4  ending offset of the variable length field offsets  
 
-// operation     1  == UPDATE_OP_EXPAND_INT/UINT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
-// old offset    4
-// old length    4
-// new offset    4
-// new length    4
+// These expand messages are used to expand the size of a fixed length field.  
+// The field type is encoded in the operation code.
+// operation     1  == UPDATE_OP_EXPAND_INT, UPDATE_OP_EXPAND_UINT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
+// offset        4 starting offset of the field in the row's value
+// old length    4 the old length of the field's value
+// new length    4 the new length of the field's value
 
-// operation     1 == UPDATE_OP_INT/UINT_ADD/SUB
+// The int add and sub update messages are used to add or subtract a constant to or from an integer field.
+// operation     1 == UPDATE_OP_INT_ADD, UPDATE_OP_INT_SUB, UPDATE_OP_UINT_ADD, UPDATE_OP_UINT_SUB
 // offset        4 starting offset of the int type field
 // length        4 length of the int type field
 // value         4 value to add or subtract (common use case is increment or decrement by 1)
@@ -631,21 +637,17 @@ tokudb_expand_varchar_offsets(
     assert(operation == UPDATE_OP_EXPAND_VARCHAR_OFFSETS);
     extra_pos += sizeof operation;
 
+    // decode number of offsets
+    uint32_t number_of_offsets;
+    memcpy(&number_of_offsets, extra_pos, sizeof number_of_offsets);
+    extra_pos += sizeof number_of_offsets;
+
     // decode the offset start
     uint32_t offset_start;
     memcpy(&offset_start, extra_pos, sizeof offset_start);
     extra_pos += sizeof offset_start;
 
-    // decode the offset end
-    uint32_t offset_end;
-    memcpy(&offset_end, extra_pos, sizeof offset_end);
-    extra_pos += sizeof offset_end;
-
-    // number of variable fields is the diff of the offset end and start
-    uint32_t number_of_offsets = offset_end - offset_start;
-    
     assert(extra_pos == (uchar *)extra->data + extra->size);
-    assert(offset_start < old_val->size);
     assert(offset_start + number_of_offsets < old_val->size);
 
     DBT new_val;
@@ -719,26 +721,21 @@ tokudb_expand_field(
            operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY);
     extra_pos += sizeof operation;
 
-    uint32_t old_offset;
-    memcpy(&old_offset, extra_pos, sizeof old_offset);
-    extra_pos += sizeof old_offset;
+    uint32_t the_offset;
+    memcpy(&the_offset, extra_pos, sizeof the_offset);
+    extra_pos += sizeof the_offset;
 
     uint32_t old_length;
     memcpy(&old_length, extra_pos, sizeof old_length);
     extra_pos += sizeof old_length;
-
-    uint32_t new_offset;
-    memcpy(&new_offset, extra_pos, sizeof new_offset);
-    extra_pos += sizeof new_offset;
 
     uint32_t new_length;
     memcpy(&new_length, extra_pos, sizeof new_length);
     extra_pos += sizeof new_length;
 
     assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
-    assert(old_offset == new_offset); // only expand one field per update, so the offset must be the same
     assert(new_length >= old_length); // expand only
-    assert(old_offset + old_length <= old_val->size); // old field within the old val
+    assert(the_offset + old_length <= old_val->size); // old field within the old val
 
     DBT new_val;
     memset(&new_val, 0, sizeof(new_val));
@@ -756,9 +753,9 @@ tokudb_expand_field(
         new_val.data = new_val_ptr;
         
         // copy up to the old offset
-        memcpy(new_val_ptr, old_val_ptr, old_offset);
-        new_val_ptr += new_offset;
-        old_val_ptr += old_offset;
+        memcpy(new_val_ptr, old_val_ptr, the_offset);
+        new_val_ptr += the_offset;
+        old_val_ptr += the_offset;
         
         // read the old field, expand it, write to the new offset
         switch (operation) {
