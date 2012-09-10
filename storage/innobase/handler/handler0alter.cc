@@ -2390,6 +2390,38 @@ found_col:
 	DBUG_RETURN(col_map);
 }
 
+/** Drop newly create FTS index related auxiliary table during
+FIC create index process, before fts_add_index is called
+@param table    table that was being rebuilt online
+@param trx	transaction
+@return		DB_SUCCESS if successful, otherwise last error code
+*/
+static
+dberr_t
+innobase_drop_fts_index_table(
+/*==========================*/
+        dict_table_t*   table,
+	trx_t*		trx)
+{
+	dberr_t		ret_err = DB_SUCCESS;
+
+	for (dict_index_t* index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
+		if (index->type & DICT_FTS) {
+			dberr_t	err;
+
+			err = fts_drop_index_tables(trx, index);
+
+			if (err != DB_SUCCESS) {
+				ret_err = err;
+			}
+		}
+	}
+
+	return(ret_err);
+}
+
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -2818,14 +2850,15 @@ prepare_inplace_alter_table_dict(
 
 	ut_ad(new_clustered == (indexed_table != user_table));
 
+	DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter",
+			error = DB_OUT_OF_MEMORY;
+			goto error_handling;);
+
 	if (new_clustered && !locked) {
 		/* Allocate a log for online table rebuild. */
 		dict_index_t* clust_index = dict_table_get_first_index(
 			user_table);
 
-		DBUG_EXECUTE_IF("innodb_OOM_prepare_inplace_alter_rebuild",
-				error = DB_OUT_OF_MEMORY;
-				goto error_handling;);
 		rw_lock_x_lock(&clust_index->lock);
 		bool ok = row_log_allocate(
 			clust_index, indexed_table,
@@ -2869,6 +2902,10 @@ op_ok:
 
 		error = fts_create_index_tables(trx, fts_index);
 
+		DBUG_EXECUTE_IF("innodb_test_fail_after_fts_index_table",
+				error = DB_LOCK_WAIT_TIMEOUT;
+				goto error_handling;);
+
 		if (error != DB_SUCCESS) {
 			goto error_handling;
 		}
@@ -2879,6 +2916,11 @@ op_ok:
 		    || ib_vector_size(indexed_table->fts->indexes) == 0) {
 			error = fts_create_common_tables(
 				trx, indexed_table, user_table->name, TRUE);
+
+			DBUG_EXECUTE_IF("innodb_test_fail_after_fts_common_table",
+					error = DB_LOCK_WAIT_TIMEOUT;
+					goto error_handling;);
+
 			if (error != DB_SUCCESS) {
 				goto error_handling;
 			}
@@ -2957,6 +2999,12 @@ error_handled:
 
 	if (new_clustered) {
 		if (indexed_table != user_table) {
+
+			if (DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS)) {
+				innobase_drop_fts_index_table(
+					indexed_table, trx);
+			}
+
 			dict_table_close(indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, indexed_table, true);
 
@@ -3812,6 +3860,32 @@ innobase_online_rebuild_log_free(
 	rw_lock_x_unlock(&clust_index->lock);
 }
 
+/** Rollback a secondary index creation, drop the indexes with
+temparary index prefix
+@param prebuilt		the prebuilt struct
+@param table_share	the TABLE_SHARE
+@param trx		the transaction
+*/
+static
+void
+innobase_rollback_sec_index(
+/*========================*/
+	row_prebuilt_t*		prebuilt,
+	const TABLE_SHARE*	table_share,
+	trx_t*			trx)
+{
+	row_merge_drop_indexes(trx, prebuilt->table, FALSE);
+
+	/* Free the table->fts only if there is no FTS_DOC_ID
+	in the table */
+	if (prebuilt->table->fts
+	    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
+				     DICT_TF2_FTS_HAS_DOC_ID)
+	    && !innobase_fulltext_exist(table_share)) {
+		fts_free(prebuilt->table);
+	}
+}
+
 /** Roll back the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the storage engine. Note that the
 allowed level of concurrency during this operation will be the same as
@@ -3856,6 +3930,23 @@ rollback_inplace_alter_table(
 		/* DML threads can access ctx->indexed_table via the
 		online rebuild log. Free it first. */
 		innobase_online_rebuild_log_free(prebuilt->table);
+
+		/* Since the FTS index specific auxiliary tables has
+		not yet registered with "table->fts" by fts_add_index(),
+		we will need explicitly delete them here */
+		if (DICT_TF2_FLAG_IS_SET(ctx->indexed_table, DICT_TF2_FTS)) {
+
+			err = innobase_drop_fts_index_table(
+				ctx->indexed_table, ctx->trx);
+
+			if (err != DB_SUCCESS) {
+				my_error_innodb(
+					err, table_share->table_name.str,
+					flags);
+				fail = true;
+			}
+		}
+
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
 		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, true);
@@ -3874,16 +3965,7 @@ rollback_inplace_alter_table(
 
 		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
-		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
-
-		/* Free the table->fts only if there is no FTS_DOC_ID
-		in the table */
-		if (prebuilt->table->fts
-		    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
-					     DICT_TF2_FTS_HAS_DOC_ID)
-		    && !innobase_fulltext_exist(table_share)) {
-			fts_free(prebuilt->table);
-		}
+		innobase_rollback_sec_index(prebuilt, table_share, ctx->trx);
 	}
 
 	trx_commit_for_mysql(ctx->trx);
@@ -4374,13 +4456,13 @@ ha_innobase::commit_inplace_alter_table(
 		ulint		highest_id_so_far;
 		dberr_t		error;
 
-		/* If it runs concurrently with create clustered index
-		or index rebuild, we will need a separate trx to do
-		the system table change, since in the case of failure
-		rebuild index/create clustered index will need to commit the
-		drop new table change, while FK needs to rollback the
-		metadata change */
-		if (new_clustered) {
+		/* If it runs concurrently with create index or table
+		rebuild, we will need a separate trx to do the system
+		table change, since in the case of failure to rebuild/create
+		index, it will need to commit the trx that drops the newly
+		created table/index, while for FK, it needs to rollback
+		the metadata change */
+		if (new_clustered || ctx->num_to_add) {
 			fk_trx = innobase_trx_allocate(user_thd);
 
 			trx_start_for_ddl(fk_trx, TRX_DICT_OP_INDEX);
@@ -4469,6 +4551,15 @@ undo_add_fk:
 
 			if (new_clustered) {
 				goto drop_new_clustered;
+			} else if (ctx->num_to_add > 0) {
+				ut_ad(trx != fk_trx);
+
+				innobase_rollback_sec_index(
+					prebuilt, table_share, trx);
+				innobase_undo_add_fk(ctx, fk_table);
+				trx_rollback_for_mysql(fk_trx);
+
+				goto trx_commit;
 			} else {
 				goto trx_rollback;
 			}
@@ -4670,6 +4761,15 @@ drop_new_clustered:
 					"InnoDB: rename index to drop: %lu\n",
 					(ulong) error);
 				DBUG_ASSERT(0);
+			}
+		}
+
+		/* Commit of rollback add foreign constraint operations */
+		if (fk_trx && fk_trx != trx) {
+			if (err == 0) {
+				trx_commit_for_mysql(fk_trx);
+			} else {
+				trx_rollback_for_mysql(fk_trx);
 			}
 		}
 	}

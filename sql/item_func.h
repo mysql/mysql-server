@@ -1996,7 +1996,7 @@ public:
   Item_func_is_used_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
+  void fix_length_and_dec();
 };
 
 /* For type casts */
