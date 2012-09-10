@@ -45,7 +45,7 @@ exports.DBSession.prototype.TransactionHandler = function() {
 };
 
 
-exports.DBSession.prototype.openTransaction = function() {
+exports.DBSession.prototype.createTransaction = function() {
   this.transactionHandler = new this.TransactionHandler();
   return this.transactionHandler;
 };

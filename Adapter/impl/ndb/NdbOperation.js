@@ -26,17 +26,21 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation"));
 
+
+var DBResult = function() {};
+DBResult.prototype = doc.DBResult;
+
 var DBOperation = function(opcode, tx, tableHandler) {
   assert(doc.OperationCodes.indexOf(opcode) !== -1);
   assert(tx);
   assert(tableHandler);
 
-  this.opcode = opcode;
-  this.transaction = tx;
+  this.opcode       = opcode;
+  this.transaction  = tx;
   this.tableHandler = tableHandler;
-  this.state = doc.OperationStates[0];  // INITIALIZED
-
-  tx.addOperation(this);
+  this.buffers      = {};  
+  this.state        = doc.OperationStates[0];  // DEFINED
+  this.result       = new DBResult();
 };
 
 DBOperation.prototype = doc.DBOperation;
@@ -69,7 +73,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       break;
   }
 
-  this.state = "PREPARED";
+  this.state = doc.OperationStates[1];  // PREPARED
 };
 
 
@@ -79,11 +83,9 @@ function encodeKeyBuffer(op) {
   var indexHandler = op.tableHandler.getIndexHandler(op.keys);
   if(indexHandler) {
     op.index = indexHandler.dbIndex;
-    op.state = "PLANNED";    
   }
   else {
     udebug.log("NdbOperation encodeKeyBuffer NO_INDEX");
-    op.state = "NO_INDEX";
     return;
   }
 
@@ -133,37 +135,26 @@ function encodeRowBuffer(op) {
 }
 
 
-var newReadOperation = function(tx, tableHandler, keys, lockMode) {
+function newReadOperation(tx, tableHandler, keys, lockMode) {
   udebug.log("NdbOperation getReadOperation");
   assert(doc.LockModes.indexOf(lockMode) !== -1);
   var op = new DBOperation("read", tx, tableHandler);
+  op.lockMode = lockMode;
   op.keys = keys;
   op.lockMode = lockMode;
-  if(keys) {
-    op.state = doc.OperationStates[1];  // DEFINED
-  }
-  
   op.index = tableHandler.chooseIndex(keys);
-
-  var row_buffer_size = op.tableHandler.record.getBufferSize();
-  op.buffers.row = new Buffer(row_buffer_size);
-
-  encodeKeyBuffer(op);
-  
+  encodeKeyBuffer(op);  
+  /* The row buffer for a read must be allocated here, before execution */
+  op.buffers.row = new Buffer(op.tableHandler.record.getBufferSize());
   return op;
-};
+}
 
 
 function newInsertOperation(tx, tableHandler, row) {
-  udebug.log("NdbOperation getInsertOperation");
+  udebug.log("NdbOperation newInsertOperation");
   var op = new DBOperation("insert", tx, tableHandler);
   op.row = row;
-  if(row) {
-    op.state = doc.OperationStates[1];  // DEFINED
-  }
-  
-  encodeRowBuffer(op);
-  
+  encodeRowBuffer(op);  
   return op;
 }
 
@@ -172,9 +163,6 @@ function newDeleteOperation(tx, tableHandler, keys) {
   udebug.log("NdbOperation newDeleteOperation");
   var op = new DBOperation("delete", tx, tableHandler);
   op.keys = keys;
-  if(keys) { 
-    op.state = doc.OperationStates[1]; // DEFINED
-  }
   encodeKeyBuffer(op);
   return op;
 }

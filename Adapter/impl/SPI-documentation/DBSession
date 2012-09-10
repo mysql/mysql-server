@@ -7,7 +7,7 @@
       update(table, keys, row)
       write(table, row)
       delete(table, keys)
-      openTransaction()
+      createTransaction()
       setLockMode()
       close()
 */
@@ -19,57 +19,78 @@
   getConnectionPool();
 
 
-/* buildReadOperation(DBTableHandler table, Object ResolvedKeys)
+/* buildReadOperation(DBTableHandler table, 
+                      Object ResolvedKeys,
+                      DBTransactionHandler transaction,
+                      function(error, DBOperation) userCallback)
    IMMEDIATE
-   Define an operation which when executed will fetch a row
+   Define an operation which when executed will fetch a row.
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
 
    RETURNS a DBOperation 
 */
-  buildReadOperation(tableHandler, keys);
+  buildReadOperation(tableHandler, keys, transaction, callback);
 
 
-/* buildInsertOperation(DBTableHandler table, Object row)
+/* buildInsertOperation(DBTableHandler table, Object row,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
    IMMEDIATE
-   Define an operation which when executed will insert a row
+   Define an operation which when executed will insert a row.
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
  
    RETURNS a DBOperation 
 */
-  buildInsertOperation(tableHandler, row);
+  buildInsertOperation(tableHandler, row, transaction, callback);
 
 
-/* buildUpdateOperation(DBTableHandler table, Object key, Object row)
+/* buildUpdateOperation(DBTableHandler table, Object key, Object row,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will update a row
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
   
    RETURNS a DBOperation 
 */
-  buildUpdateOperation(tableHandler, keys, row);
+  buildUpdateOperation(tableHandler, keys, row, transaction, callback);
 
 
-/* buildWriteOperation(DBTableHandler table, Object key, Object row)
+/* buildWriteOperation(DBTableHandler table, Object key, Object row,
+                       DBTransactionHandler transaction,
+                       function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will update or insert
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
  
    RETURNS a DBOperation 
 */
-  buildWriteOperation(tableHandler, keys, row);
+  buildWriteOperation(tableHandler, keys, row, transaction, callback);
 
 
-/* buildDeleteOperation(DBTableHandler table, Object primaryKey)
+/* buildDeleteOperation(DBTableHandler table, Object primaryKey,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
    IMMEDIATE 
    Define an operation which when executed will delete a row
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
  
    RETURNS a DBOperation 
 */  
-  buildDeleteOperation(tableHandler, keys);
+  buildDeleteOperation(tableHandler, keys, transaction, callback);
 
 
-/* openTransaction()
+/* createTransaction()
    IMMEDIATE
 
    RETURNS a DBTransactionHandler
 */
-  openTransaction();
+  createTransaction();
 
 
 /* void setLockMode(LockMode lockmode)

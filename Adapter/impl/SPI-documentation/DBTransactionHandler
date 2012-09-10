@@ -1,35 +1,33 @@
 /* DBTransactionHandler represents a database transaction.
    METHODS:
-     addOperation(op)
      setPartitionKey(tableHandler, partitionKey)
      execute(execMode, callback)
      close()
         
   OBJECT DEFINITIONS:
      DBTransactionHandler
-     TransactionExecuteCode
-     TransactionStatusCode
+     DBTransactionStates
 */
+
+var DBTransactionHandler; // Standard members of DBTransactionHandler object
 
 
 DBTransactionHandler = { 
-  session        :  {}   ,   // DBSession object holding this transaction
-  success        : true  ,   // boolean indicating whether the transaction succeeded
-  state          :  ""   ,   // a TransactionStatusCode
-  operations     :  {}   ,   // ordered array of DBOperation objects
-  error          :  {}   ,   // a DBOperationError applying to the transaction
-  callback       :  {}   ,   // callback function for transaction completion
-}
+  dbSession          : null,  // DBSession link for this transaction
+  state              : null,  // DBTransactionState applying to the transaction
+  success            : null,  // Boolean inidcating success with no errors
+  error              : null,  // DBOperationError applying to the transaction
+  userCallback       : null,  // A higher-level callback function 
+  executedOperations : null,  // List of dbOperations already executed
+};
 
 
-/* execute(TransactionExecuteMode mode, 
-           function(error, DBTransactionHandler) callback);
-   ASYNC
-   
-   Executes all of the DBOperations that have been added to the 
-   transaction's list -- see DBTransactionHandler.addOperation().
-*/
-  execute(execmode, callback);
+DBTransactionStates = [ 
+  "DEFINED",      // No operations have been executed
+  "STARTED",      // Operations have been executed but not committed
+  "COMMITTED",    // Transaction has been committed
+  "ROLLEDBACK"    // Transaction has been rolled back
+];   
 
 
 /* setPartitionKey(TableHandler Table, Array partitionKey)
@@ -39,36 +37,52 @@ DBTransactionHandler = {
   Transaction Coordinator on the node that would be the primary node
   for a row with that key.
 */
-  setPartitionKey(tableHandler, partitionKey);
+  function setPartitionKey(tableHandler, partitionKey) {}
 
 
-/* addOperation(operation)
-   IMMEDIATE
-  
-   Add an operation to be performed when this transaction is executed.
-   RETURNS void
+/* execute(DBOperation[] dbOperationList,
+           function(error, DBTransactionHandler) callback)
+   ASYNC
+   
+   Executes the DBOperations in dbOperationList, without commiting.
 */
-  addOperation(op);
+  function execute(dbOperationList, callback) {}
+
+
+/* executeCommit(DBOperation[] dbOperationList,
+                 function(error, DBTransactionHandler) callback)
+   ASYNC
+   
+   Executes the DBOperations in dbOperationList and commit the transaction.
+*/
+  function executeCommit(dbOperationList, callback) {}
+
+
+/* commit(function(error, DBTransactionHandler) callback)
+   ASYNC 
+   
+   Commit work.
+*/
+  function commit(callback) {}
+
+
+/* rollback(function(error, DBTransactionHandler) callback)
+   ASYNC 
+   
+   Roll back all previously executed operations.
+*/
+  function rollback(callback) {}
 
 
 /* close()
    ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
 */
-  close();
+  function close() {}
 
 
-TransactionExecuteModes = [
-  "NoCommit",
-  "Commit",
-  "Rollback"
-];
 
-
-TransactionStatusCodes = [
-  "NotStarted",
-  "Started",
-  "Committed",
-  "Aborted",
-  "NeedAbort"
-];
+/* This documentation file is a valid JavaScript module and exports: 
+*/
+exports.DBTransactionHandler =  DBTransactionHandler;
+exports.DBTransactionStates  =  DBTransactionStates;
 

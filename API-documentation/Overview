@@ -54,7 +54,9 @@ Transaction:
 
 
 2) STORAGE SPI
-  
+
+
+/// FIXME THIS IS OUT OF DATE
 DBDictionary:
   listTables()
   getTable()
@@ -66,13 +68,12 @@ DBSession:
   write()
   delete()
   truncateTable()
-  openTransaction()
+  createTransaction()
   execute()
   setPartitionKey()
   setLockMode()
   
 DBTransactionHandler:
-  addOperation()
   getStatus()
   close()
   setUserData()

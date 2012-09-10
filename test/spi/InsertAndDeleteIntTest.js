@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug, path, fs, assert, spi_module, harness, adapter_dir */
+/*global udebug, path, fs, assert, spi_module, harness, adapter_dir, spi_dir */
 
 "use strict";
 
@@ -70,16 +70,15 @@ t1.prepare = function prepare(testObj) {
 t1.runTestMethod = function do_insert_op(dataObj) {
   udebug.log("InsertIntTest.js do_insert_op");
 
-  var tx = dbSession.openTransaction();
+  var tx = dbSession.createTransaction();
   var thandler = new dbt.DBTableHandler(table, null);
   var test = this;
   
-  var op = dbSession.buildInsertOperation(thandler, dataObj);
+  var op = dbSession.buildInsertOperation(thandler, dataObj, tx, null);
 
-  udebug.log("ready to commit");
-  tx.execute("Commit", function(err, tx) {
+  tx.executeCommit([ op ], function(err, tx) {
     tx.close();
-    if(err) { test.fail("Execute/commit failed: " + err);  }
+    if(err) { test.fail("ExecuteCommit failed: " + err);  }
     else    { test.pass(); }
   });  
 };
@@ -97,16 +96,15 @@ t2.prepare = t1.prepare;
 
 t2.runTestMethod = function do_delete_op(keyObj) {
   udebug.log("InsertIntTest.js do_delete_op");
-  var tx = dbSession.openTransaction();
+  var tx = dbSession.createTransaction();
   var thandler = new dbt.DBTableHandler(table, null);
   var test = this;
 
-  var op = dbSession.buildDeleteOperation(thandler, keyObj);
+  var op = dbSession.buildDeleteOperation(thandler, keyObj, tx, null);
   
-  udebug.log("ready to commit");
-  tx.execute("Commit", function(err, tx) {
+  tx.executeCommit([ op ], function(err, tx) {
     tx.close();
-    if(err) { test.fail("Execute/commit failed: " + err); }
+    if(err) { test.fail("ExecuteCommit failed: " + err); }
     else    { test.pass(); }
   });
 };

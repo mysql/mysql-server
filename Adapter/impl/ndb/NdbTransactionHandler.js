@@ -18,115 +18,172 @@
  02110-1301  USA
  */
 
-/*global udebug, path, build_dir */
+/*global udebug, path, build_dir, spi_doc_dir */
 
 "use strict";
 
-var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
-    ndbsession    = require("./NdbSession.js"),
-    proto;
-
-var TransactionExecuteModes = {
-  "NoCommit" : adapter.ndbapi.NoCommit ,
-  "Commit"   : adapter.ndbapi.Commit ,
-  "Rollback" : adapter.ndbapi.Rollback
-};
-
-var TransactionStatusCodes = [];
-TransactionStatusCodes[adapter.ndbapi.NotStarted] = "NotStarted";
-TransactionStatusCodes[adapter.ndbapi.Started]    = "Started";
-TransactionStatusCodes[adapter.ndbapi.Committed]  = "Committed";
-TransactionStatusCodes[adapter.ndbapi.Aborted]    = "Aborted";
-TransactionStatusCodes[adapter.ndbapi.NeedAbort]  = "NeedAbort";
+var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
+    ndbsession      = require("./NdbSession.js"),
+    dbOpDoc         = require(path.join(spi_doc_dir, "DBOperation")),
+    dbTxDoc         = require(path.join(spi_doc_dir, "DBTransactionHandler")),
+    proto           = dbTxDoc.DBTransactionHandler;
 
 
 function DBTransactionHandler(dbsession) {
   udebug.log("NdbTransactionHandler constructor");
-  this.session = dbsession;
-  this.operations = [];
+  this.dbSession          = dbsession;
+  this.ndbtx              = null;
+  this.state              = dbTxDoc.DBTransactionStates[0];  // DEFINED
+  this.executedOperations = [];
 }
 
-proto = {
-  session    : null,
-  success    : null,
-  state      : TransactionStatusCodes[0],
-  operations : {},
-  error      : {},
-  callback   : {},
-  ndbtx      : null
-};
+DBTransactionHandler.prototype = proto;
 
-proto.addOperation = function(op) {
-  this.operations.push(op);
-  udebug.log("NdbTransactionHandler addOperation", 
-              this.operations.length, op.opcode);
-};
 
 /* close()
    ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
 */
 proto.close = function() {
   udebug.log("NdbTransactionHandler close");
-  function onClose(err, i) {
+
+  delete this.executedOperations;
+  delete this.error;
+
+  function onNdbClose(err, i) {
     /* NdbTransaction::close() returns void.  i == 1. */
-    udebug.log("NdbTransactionHandler close onClose");
+    udebug.log("NdbTransactionHandler close onNdbClose");
   }  
 
-  this.ndbtx.close(onClose);
+  if(this.ndbtx) {
+    this.ndbtx.close(onNdbClose);
+  }
 };
 
 
-/* execute(TransactionExecuteMode mode, 
-           function(error, DBTransactionHandler) callback);
-   ASYNC
-   
-   Executes all of the DBOperations that have been added to the 
-   transaction's list -- see DBTransactionHandler.addOperation().
-*/
-proto.execute = function(execmode, callback) {
-  udebug.log("NdbTransactionHandler execute " + execmode);
-
-  var txhandler = this;
-  var exec_flag = TransactionExecuteModes[execmode];
-  var table = this.operations[0].tableHandler.dbTable;
-
-  this.callback = callback;
+/* Internal execute()
+*/ 
+function execute(self, execMode, dbOperationList, callback) {
+  udebug.log("NdbTransactionHandler execute");
+  var table = dbOperationList[0].tableHandler.dbTable;
 
   function onCompleteTx(err, result) {
     udebug.log("NdbTransactionHandler execute onCompleteTx");
 
+    // TODO: Update our own success and error objects
     /* TODO: attach results to their operations */
-    txhandler.callback(err, txhandler);
+    callback(err, self);
+  }
+
+  function prepareOperationsAndExecute() {
+    udebug.log("NdbTransactionHandler execute prepareOperationsAndExecute");
+    var i;
+    for(i = 0 ; i < dbOperationList.length; i++) {
+      dbOperationList[i].prepare(self.ndbtx);
+      self.executedOperations.push(dbOperationList[i]);
+    }
+    // TODO: Vary AbortOption based on execMode?
+    // execute(ExecFlag, AbortOption, ForceSend, callback)
+    self.ndbtx.execute(execMode, adapter.ndbapi.AO_IgnoreError, 0, onCompleteTx);
   }
 
   function onStartTx(err, ndbtx) {
-    var op, helper, i;
+    var op, helper;
     if(err) {
       udebug.log("NdbTransactionHandler execute onStartTx [ERROR].");
-      txhandler.callback(err, txhandler);
+      self.callback(err, self);
       return;
     }
 
-    txhandler.ndbtx = ndbtx; 
-    udebug.log("NdbTransactionHandler execute onStartTx.  TC node: " +
-                ndbtx.getConnectedNodeId() + " exec_flag: " + exec_flag
-                + " operations: " + txhandler.operations.length);
-
-    // Prepare the operations 
-    for(i = 0 ; i < txhandler.operations.length; i++) {
-      txhandler.operations[i].prepare(ndbtx);
-    }
-
-    // execute(ExecFlag, AbortOption, ForceSend, callback)
-    udebug.log("NdbTransactionHandler execute ready to execute.");
-    ndbtx.execute(exec_flag, adapter.ndbapi.AbortOnError, 0, onCompleteTx);
+    self.ndbtx = ndbtx; 
+    self.state = dbTxDoc.DBTransactionStates[1]; // STARTED
+    udebug.log("NdbTransactionHandler execute onStartTx. " +
+               " TC node: " + ndbtx.getConnectedNodeId() +
+               " operations: " + dbOperationList.length);
+    prepareOperationsAndExecute();    
   }
 
-  // TODO: partitionKey
-  var ndb = adapter.impl.DBSession.getNdb(this.session.impl);
-  ndb.startTransaction(table, 0, 0, onStartTx);
+  if(self.state === "DEFINED") {
+    // TODO: partitionKey
+    var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
+    ndb.startTransaction(table, 0, 0, onStartTx);  
+  }
+  else {  /* Transaction has already been started */
+    assert(self.ndbtx);
+    prepareOperationsAndExecute();    
+  }
+}
+
+
+/* execute(DBOperation[] dbOperationList,
+           function(error, DBTransactionHandler) callback)
+   ASYNC
+   
+   Executes the DBOperations in dbOperationList, without commiting.
+*/
+proto.execute = function executeNoCommit(dbOperationList, userCallback) {
+  udebug.log("NdbTransactionHandler executeNoCommit"); 
+  execute(this, adapter.ndbapi.NoCommit, dbOperationList, userCallback);
 };
+
+
+/* executeCommit(DBOperation[] dbOperationList,
+                 function(error, DBTransactionHandler) callback)
+   ASYNC
+   
+   Executes the DBOperations in dbOperationList and commit the transaction.
+*/
+proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
+  udebug.log("NdbTransactionHandler executeCommit");
   
+  function onExecCommit(err, dbTxHandler) {
+    udebug.log("NdbTransactionHandler executeCommit onExecCommit");
+    dbTxHandler.state = dbTxDoc.DBTransactionStates[2]; // COMMITTED
+    userCallback(err, dbTxHandler);
+  }
+  
+  execute(this, adapter.ndbapi.Commit, dbOperationList, onExecCommit);
+};
+
+
+/* commit(function(error, DBTransactionHandler) callback)
+   ASYNC 
+   
+   Commit work.
+*/
+proto.commit = function commit(callback) {
+  udebug.log("NdbTransactionHandler commit");
+  var self = this;
+  
+  function onNdbCommit(err, result) {
+    // TODO: Update our own success and error objects
+    self.state = dbTxDoc.DBTransactionStates[2]; // COMMITTED
+    callback(err, self);
+  }
+  
+  self.ndbtx.execute(adapter.ndbapi.Commit, adapter.ndbapi.AbortOnError,
+                     0, onNdbCommit);
+};
+
+
+/* rollback(function(error, DBTransactionHandler) callback)
+   ASYNC 
+   
+   Roll back all previously executed operations.
+*/
+proto.rollback = function rollback(callback) {
+  udebug.log("NdbTransactionHandler rollback");
+  var self = this;
+  
+  function onNdbRollback(err, result) {
+    // TODO: Update our own success and error objects
+    callback(err, self);
+  }
+  
+  self.state = dbTxDoc.DBTransactionStates[3]; // ROLLEDBACK
+  self.ndbtx.execute(adapter.ndbapi.Rollback, adapter.ndbapi.DefaultAbortOption,
+                     0, onNdbRollback);
+};
+
 
 DBTransactionHandler.prototype = proto;
 exports.DBTransactionHandler = DBTransactionHandler;
