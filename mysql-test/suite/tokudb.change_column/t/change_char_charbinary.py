@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 
-# test that char(X) <-> binary(X) is not hot
+# test that char(X) <-> char(X) binary is not supported
 
 import sys
 def gen_test(n):
     print "CREATE TABLE t (a CHAR(%d));" % (n)
     print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
     print "--error ER_UNSUPPORTED_EXTENSION"
-    print "ALTER TABLE t CHANGE COLUMN a a BINARY(%d);" % (n)
+    print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) BINARY;" % (n)
     if n+1 < 256:
         print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
         print "--error ER_UNSUPPORTED_EXTENSION"
         print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d) BINARY;" % (n+1)
     print "DROP TABLE t;"
 
-    print "CREATE TABLE t (a BINARY(%d));" % (n)
+    print "CREATE TABLE t (a CHAR(%d) BINARY);" % (n)
     print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
     print "--error ER_UNSUPPORTED_EXTENSION"
     print "ALTER TABLE t CHANGE COLUMN a a CHAR(%d);" % (n)
