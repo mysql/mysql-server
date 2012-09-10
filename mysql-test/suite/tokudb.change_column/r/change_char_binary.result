@@ -1,0 +1,3071 @@
+DROP TABLE IF EXISTS t,tt;
+SET SESSION DEFAULT_STORAGE_ENGINE="TokuDB";
+SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;
+CREATE TABLE t (a CHAR(0));
+ALTER TABLE t CHANGE COLUMN a a CHAR(0) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(0) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(0);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(1);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(1));
+ALTER TABLE t CHANGE COLUMN a a CHAR(1) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(2) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(1) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(1);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(2));
+ALTER TABLE t CHANGE COLUMN a a CHAR(2) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(3) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(2) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(2);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(3);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(3));
+ALTER TABLE t CHANGE COLUMN a a CHAR(3) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(4) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(3) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(3);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(4);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(4));
+ALTER TABLE t CHANGE COLUMN a a CHAR(4) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(5) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(4) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(4);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(5);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(5));
+ALTER TABLE t CHANGE COLUMN a a CHAR(5) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(6) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(5) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(5);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(6);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(6));
+ALTER TABLE t CHANGE COLUMN a a CHAR(6) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(7) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(6) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(6);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(7);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(7));
+ALTER TABLE t CHANGE COLUMN a a CHAR(7) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(8) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(7) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(7);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(8);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(8));
+ALTER TABLE t CHANGE COLUMN a a CHAR(8) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(9) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(8) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(8);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(9);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(9));
+ALTER TABLE t CHANGE COLUMN a a CHAR(9) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(10) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(9) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(9);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(10);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(10));
+ALTER TABLE t CHANGE COLUMN a a CHAR(10) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(11) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(10) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(10);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(11);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(11));
+ALTER TABLE t CHANGE COLUMN a a CHAR(11) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(12) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(11) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(11);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(12);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(12));
+ALTER TABLE t CHANGE COLUMN a a CHAR(12) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(13) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(12) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(12);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(13);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(13));
+ALTER TABLE t CHANGE COLUMN a a CHAR(13) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(14) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(13) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(13);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(14);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(14));
+ALTER TABLE t CHANGE COLUMN a a CHAR(14) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(15) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(14) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(14);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(15);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(15));
+ALTER TABLE t CHANGE COLUMN a a CHAR(15) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(16) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(15) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(15);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(16);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(16));
+ALTER TABLE t CHANGE COLUMN a a CHAR(16) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(17) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(16) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(16);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(17);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(17));
+ALTER TABLE t CHANGE COLUMN a a CHAR(17) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(18) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(17) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(17);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(18);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(18));
+ALTER TABLE t CHANGE COLUMN a a CHAR(18) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(19) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(18) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(18);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(19);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(19));
+ALTER TABLE t CHANGE COLUMN a a CHAR(19) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(20) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(19) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(19);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(20);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(20));
+ALTER TABLE t CHANGE COLUMN a a CHAR(20) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(21) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(20) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(20);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(21);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(21));
+ALTER TABLE t CHANGE COLUMN a a CHAR(21) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(22) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(21) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(21);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(22);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(22));
+ALTER TABLE t CHANGE COLUMN a a CHAR(22) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(23) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(22) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(22);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(23);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(23));
+ALTER TABLE t CHANGE COLUMN a a CHAR(23) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(24) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(23) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(23);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(24);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(24));
+ALTER TABLE t CHANGE COLUMN a a CHAR(24) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(25) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(24) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(24);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(25);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(25));
+ALTER TABLE t CHANGE COLUMN a a CHAR(25) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(26) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(25) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(25);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(26);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(26));
+ALTER TABLE t CHANGE COLUMN a a CHAR(26) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(27) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(26) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(26);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(27);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(27));
+ALTER TABLE t CHANGE COLUMN a a CHAR(27) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(28) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(27) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(27);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(28);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(28));
+ALTER TABLE t CHANGE COLUMN a a CHAR(28) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(29) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(28) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(28);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(29);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(29));
+ALTER TABLE t CHANGE COLUMN a a CHAR(29) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(30) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(29) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(29);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(30);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(30));
+ALTER TABLE t CHANGE COLUMN a a CHAR(30) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(31) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(30) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(30);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(31);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(31));
+ALTER TABLE t CHANGE COLUMN a a CHAR(31) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(32) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(31) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(31);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(32);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(32));
+ALTER TABLE t CHANGE COLUMN a a CHAR(32) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(33) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(32) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(32);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(33);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(33));
+ALTER TABLE t CHANGE COLUMN a a CHAR(33) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(34) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(33) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(33);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(34);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(34));
+ALTER TABLE t CHANGE COLUMN a a CHAR(34) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(35) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(34) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(34);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(35);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(35));
+ALTER TABLE t CHANGE COLUMN a a CHAR(35) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(36) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(35) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(35);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(36);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(36));
+ALTER TABLE t CHANGE COLUMN a a CHAR(36) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(37) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(36) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(36);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(37);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(37));
+ALTER TABLE t CHANGE COLUMN a a CHAR(37) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(38) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(37) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(37);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(38);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(38));
+ALTER TABLE t CHANGE COLUMN a a CHAR(38) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(39) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(38) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(38);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(39);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(39));
+ALTER TABLE t CHANGE COLUMN a a CHAR(39) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(40) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(39) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(39);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(40);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(40));
+ALTER TABLE t CHANGE COLUMN a a CHAR(40) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(41) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(40) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(40);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(41);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(41));
+ALTER TABLE t CHANGE COLUMN a a CHAR(41) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(42) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(41) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(41);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(42);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(42));
+ALTER TABLE t CHANGE COLUMN a a CHAR(42) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(43) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(42) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(42);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(43);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(43));
+ALTER TABLE t CHANGE COLUMN a a CHAR(43) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(44) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(43) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(43);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(44);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(44));
+ALTER TABLE t CHANGE COLUMN a a CHAR(44) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(45) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(44) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(44);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(45);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(45));
+ALTER TABLE t CHANGE COLUMN a a CHAR(45) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(46) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(45) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(45);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(46);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(46));
+ALTER TABLE t CHANGE COLUMN a a CHAR(46) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(47) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(46) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(46);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(47);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(47));
+ALTER TABLE t CHANGE COLUMN a a CHAR(47) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(48) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(47) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(47);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(48);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(48));
+ALTER TABLE t CHANGE COLUMN a a CHAR(48) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(49) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(48) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(48);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(49);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(49));
+ALTER TABLE t CHANGE COLUMN a a CHAR(49) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(50) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(49) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(49);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(50);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(50));
+ALTER TABLE t CHANGE COLUMN a a CHAR(50) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(51) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(50) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(50);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(51);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(51));
+ALTER TABLE t CHANGE COLUMN a a CHAR(51) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(52) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(51) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(51);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(52);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(52));
+ALTER TABLE t CHANGE COLUMN a a CHAR(52) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(53) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(52) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(52);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(53);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(53));
+ALTER TABLE t CHANGE COLUMN a a CHAR(53) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(54) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(53) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(53);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(54);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(54));
+ALTER TABLE t CHANGE COLUMN a a CHAR(54) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(55) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(54) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(54);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(55);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(55));
+ALTER TABLE t CHANGE COLUMN a a CHAR(55) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(56) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(55) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(55);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(56);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(56));
+ALTER TABLE t CHANGE COLUMN a a CHAR(56) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(57) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(56) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(56);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(57);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(57));
+ALTER TABLE t CHANGE COLUMN a a CHAR(57) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(58) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(57) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(57);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(58);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(58));
+ALTER TABLE t CHANGE COLUMN a a CHAR(58) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(59) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(58) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(58);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(59);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(59));
+ALTER TABLE t CHANGE COLUMN a a CHAR(59) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(60) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(59) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(59);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(60);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(60));
+ALTER TABLE t CHANGE COLUMN a a CHAR(60) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(61) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(60) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(60);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(61);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(61));
+ALTER TABLE t CHANGE COLUMN a a CHAR(61) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(62) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(61) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(61);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(62);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(62));
+ALTER TABLE t CHANGE COLUMN a a CHAR(62) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(63) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(62) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(62);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(63);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(63));
+ALTER TABLE t CHANGE COLUMN a a CHAR(63) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(64) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(63) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(63);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(64);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(64));
+ALTER TABLE t CHANGE COLUMN a a CHAR(64) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(65) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(64) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(64);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(65);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(65));
+ALTER TABLE t CHANGE COLUMN a a CHAR(65) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(66) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(65) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(65);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(66);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(66));
+ALTER TABLE t CHANGE COLUMN a a CHAR(66) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(67) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(66) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(66);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(67);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(67));
+ALTER TABLE t CHANGE COLUMN a a CHAR(67) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(68) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(67) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(67);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(68);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(68));
+ALTER TABLE t CHANGE COLUMN a a CHAR(68) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(69) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(68) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(68);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(69);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(69));
+ALTER TABLE t CHANGE COLUMN a a CHAR(69) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(70) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(69) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(69);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(70);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(70));
+ALTER TABLE t CHANGE COLUMN a a CHAR(70) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(71) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(70) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(70);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(71);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(71));
+ALTER TABLE t CHANGE COLUMN a a CHAR(71) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(72) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(71) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(71);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(72);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(72));
+ALTER TABLE t CHANGE COLUMN a a CHAR(72) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(73) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(72) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(72);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(73);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(73));
+ALTER TABLE t CHANGE COLUMN a a CHAR(73) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(74) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(73) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(73);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(74);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(74));
+ALTER TABLE t CHANGE COLUMN a a CHAR(74) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(75) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(74) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(74);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(75);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(75));
+ALTER TABLE t CHANGE COLUMN a a CHAR(75) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(76) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(75) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(75);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(76);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(76));
+ALTER TABLE t CHANGE COLUMN a a CHAR(76) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(77) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(76) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(76);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(77);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(77));
+ALTER TABLE t CHANGE COLUMN a a CHAR(77) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(78) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(77) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(77);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(78);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(78));
+ALTER TABLE t CHANGE COLUMN a a CHAR(78) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(79) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(78) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(78);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(79);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(79));
+ALTER TABLE t CHANGE COLUMN a a CHAR(79) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(80) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(79) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(79);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(80);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(80));
+ALTER TABLE t CHANGE COLUMN a a CHAR(80) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(81) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(80) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(80);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(81);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(81));
+ALTER TABLE t CHANGE COLUMN a a CHAR(81) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(82) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(81) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(81);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(82);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(82));
+ALTER TABLE t CHANGE COLUMN a a CHAR(82) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(83) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(82) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(82);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(83);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(83));
+ALTER TABLE t CHANGE COLUMN a a CHAR(83) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(84) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(83) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(83);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(84);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(84));
+ALTER TABLE t CHANGE COLUMN a a CHAR(84) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(85) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(84) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(84);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(85);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(85));
+ALTER TABLE t CHANGE COLUMN a a CHAR(85) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(86) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(85) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(85);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(86);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(86));
+ALTER TABLE t CHANGE COLUMN a a CHAR(86) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(87) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(86) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(86);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(87);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(87));
+ALTER TABLE t CHANGE COLUMN a a CHAR(87) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(88) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(87) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(87);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(88);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(88));
+ALTER TABLE t CHANGE COLUMN a a CHAR(88) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(89) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(88) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(88);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(89);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(89));
+ALTER TABLE t CHANGE COLUMN a a CHAR(89) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(90) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(89) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(89);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(90);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(90));
+ALTER TABLE t CHANGE COLUMN a a CHAR(90) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(91) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(90) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(90);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(91);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(91));
+ALTER TABLE t CHANGE COLUMN a a CHAR(91) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(92) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(91) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(91);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(92);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(92));
+ALTER TABLE t CHANGE COLUMN a a CHAR(92) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(93) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(92) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(92);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(93);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(93));
+ALTER TABLE t CHANGE COLUMN a a CHAR(93) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(94) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(93) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(93);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(94);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(94));
+ALTER TABLE t CHANGE COLUMN a a CHAR(94) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(95) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(94) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(94);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(95);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(95));
+ALTER TABLE t CHANGE COLUMN a a CHAR(95) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(96) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(95) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(95);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(96);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(96));
+ALTER TABLE t CHANGE COLUMN a a CHAR(96) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(97) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(96) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(96);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(97);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(97));
+ALTER TABLE t CHANGE COLUMN a a CHAR(97) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(98) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(97) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(97);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(98);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(98));
+ALTER TABLE t CHANGE COLUMN a a CHAR(98) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(99) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(98) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(98);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(99);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(99));
+ALTER TABLE t CHANGE COLUMN a a CHAR(99) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(99) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(99);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(100);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(100));
+ALTER TABLE t CHANGE COLUMN a a CHAR(100) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(101) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(100) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(100);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(101);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(101));
+ALTER TABLE t CHANGE COLUMN a a CHAR(101) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(102) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(101) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(101);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(102);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(102));
+ALTER TABLE t CHANGE COLUMN a a CHAR(102) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(103) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(102) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(102);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(103);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(103));
+ALTER TABLE t CHANGE COLUMN a a CHAR(103) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(104) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(103) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(103);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(104);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(104));
+ALTER TABLE t CHANGE COLUMN a a CHAR(104) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(105) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(104) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(104);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(105);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(105));
+ALTER TABLE t CHANGE COLUMN a a CHAR(105) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(106) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(105) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(105);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(106);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(106));
+ALTER TABLE t CHANGE COLUMN a a CHAR(106) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(107) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(106) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(106);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(107);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(107));
+ALTER TABLE t CHANGE COLUMN a a CHAR(107) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(108) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(107) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(107);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(108);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(108));
+ALTER TABLE t CHANGE COLUMN a a CHAR(108) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(109) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(108) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(108);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(109);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(109));
+ALTER TABLE t CHANGE COLUMN a a CHAR(109) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(110) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(109) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(109);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(110);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(110));
+ALTER TABLE t CHANGE COLUMN a a CHAR(110) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(111) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(110) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(110);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(111);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(111));
+ALTER TABLE t CHANGE COLUMN a a CHAR(111) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(112) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(111) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(111);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(112);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(112));
+ALTER TABLE t CHANGE COLUMN a a CHAR(112) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(113) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(112) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(112);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(113);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(113));
+ALTER TABLE t CHANGE COLUMN a a CHAR(113) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(114) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(113) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(113);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(114);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(114));
+ALTER TABLE t CHANGE COLUMN a a CHAR(114) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(115) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(114) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(114);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(115);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(115));
+ALTER TABLE t CHANGE COLUMN a a CHAR(115) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(116) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(115) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(115);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(116);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(116));
+ALTER TABLE t CHANGE COLUMN a a CHAR(116) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(117) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(116) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(116);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(117);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(117));
+ALTER TABLE t CHANGE COLUMN a a CHAR(117) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(118) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(117) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(117);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(118);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(118));
+ALTER TABLE t CHANGE COLUMN a a CHAR(118) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(119) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(118) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(118);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(119);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(119));
+ALTER TABLE t CHANGE COLUMN a a CHAR(119) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(120) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(119) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(119);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(120);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(120));
+ALTER TABLE t CHANGE COLUMN a a CHAR(120) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(121) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(120) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(120);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(121);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(121));
+ALTER TABLE t CHANGE COLUMN a a CHAR(121) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(122) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(121) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(121);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(122);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(122));
+ALTER TABLE t CHANGE COLUMN a a CHAR(122) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(123) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(122) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(122);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(123);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(123));
+ALTER TABLE t CHANGE COLUMN a a CHAR(123) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(124) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(123) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(123);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(124);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(124));
+ALTER TABLE t CHANGE COLUMN a a CHAR(124) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(125) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(124) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(124);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(125);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(125));
+ALTER TABLE t CHANGE COLUMN a a CHAR(125) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(126) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(125) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(125);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(126);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(126));
+ALTER TABLE t CHANGE COLUMN a a CHAR(126) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(127) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(126) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(126);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(127);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(127));
+ALTER TABLE t CHANGE COLUMN a a CHAR(127) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(128) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(127) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(127);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(128);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(128));
+ALTER TABLE t CHANGE COLUMN a a CHAR(128) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(129) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(128) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(128);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(129);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(129));
+ALTER TABLE t CHANGE COLUMN a a CHAR(129) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(130) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(129) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(129);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(130);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(130));
+ALTER TABLE t CHANGE COLUMN a a CHAR(130) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(131) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(130) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(130);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(131);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(131));
+ALTER TABLE t CHANGE COLUMN a a CHAR(131) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(132) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(131) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(131);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(132);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(132));
+ALTER TABLE t CHANGE COLUMN a a CHAR(132) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(133) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(132) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(132);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(133);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(133));
+ALTER TABLE t CHANGE COLUMN a a CHAR(133) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(134) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(133) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(133);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(134);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(134));
+ALTER TABLE t CHANGE COLUMN a a CHAR(134) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(135) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(134) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(134);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(135);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(135));
+ALTER TABLE t CHANGE COLUMN a a CHAR(135) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(136) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(135) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(135);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(136);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(136));
+ALTER TABLE t CHANGE COLUMN a a CHAR(136) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(137) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(136) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(136);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(137);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(137));
+ALTER TABLE t CHANGE COLUMN a a CHAR(137) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(138) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(137) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(137);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(138);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(138));
+ALTER TABLE t CHANGE COLUMN a a CHAR(138) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(139) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(138) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(138);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(139);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(139));
+ALTER TABLE t CHANGE COLUMN a a CHAR(139) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(140) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(139) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(139);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(140);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(140));
+ALTER TABLE t CHANGE COLUMN a a CHAR(140) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(141) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(140) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(140);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(141);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(141));
+ALTER TABLE t CHANGE COLUMN a a CHAR(141) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(142) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(141) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(141);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(142);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(142));
+ALTER TABLE t CHANGE COLUMN a a CHAR(142) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(143) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(142) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(142);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(143);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(143));
+ALTER TABLE t CHANGE COLUMN a a CHAR(143) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(144) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(143) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(143);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(144);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(144));
+ALTER TABLE t CHANGE COLUMN a a CHAR(144) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(145) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(144) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(144);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(145);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(145));
+ALTER TABLE t CHANGE COLUMN a a CHAR(145) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(146) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(145) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(145);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(146);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(146));
+ALTER TABLE t CHANGE COLUMN a a CHAR(146) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(147) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(146) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(146);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(147);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(147));
+ALTER TABLE t CHANGE COLUMN a a CHAR(147) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(148) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(147) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(147);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(148);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(148));
+ALTER TABLE t CHANGE COLUMN a a CHAR(148) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(149) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(148) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(148);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(149);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(149));
+ALTER TABLE t CHANGE COLUMN a a CHAR(149) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(150) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(149) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(149);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(150);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(150));
+ALTER TABLE t CHANGE COLUMN a a CHAR(150) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(151) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(150) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(150);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(151);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(151));
+ALTER TABLE t CHANGE COLUMN a a CHAR(151) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(152) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(151) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(151);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(152);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(152));
+ALTER TABLE t CHANGE COLUMN a a CHAR(152) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(153) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(152) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(152);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(153);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(153));
+ALTER TABLE t CHANGE COLUMN a a CHAR(153) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(154) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(153) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(153);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(154);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(154));
+ALTER TABLE t CHANGE COLUMN a a CHAR(154) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(155) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(154) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(154);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(155);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(155));
+ALTER TABLE t CHANGE COLUMN a a CHAR(155) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(156) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(155) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(155);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(156);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(156));
+ALTER TABLE t CHANGE COLUMN a a CHAR(156) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(157) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(156) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(156);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(157);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(157));
+ALTER TABLE t CHANGE COLUMN a a CHAR(157) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(158) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(157) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(157);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(158);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(158));
+ALTER TABLE t CHANGE COLUMN a a CHAR(158) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(159) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(158) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(158);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(159);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(159));
+ALTER TABLE t CHANGE COLUMN a a CHAR(159) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(160) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(159) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(159);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(160);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(160));
+ALTER TABLE t CHANGE COLUMN a a CHAR(160) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(161) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(160) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(160);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(161);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(161));
+ALTER TABLE t CHANGE COLUMN a a CHAR(161) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(162) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(161) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(161);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(162);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(162));
+ALTER TABLE t CHANGE COLUMN a a CHAR(162) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(163) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(162) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(162);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(163);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(163));
+ALTER TABLE t CHANGE COLUMN a a CHAR(163) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(164) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(163) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(163);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(164);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(164));
+ALTER TABLE t CHANGE COLUMN a a CHAR(164) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(165) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(164) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(164);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(165);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(165));
+ALTER TABLE t CHANGE COLUMN a a CHAR(165) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(166) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(165) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(165);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(166);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(166));
+ALTER TABLE t CHANGE COLUMN a a CHAR(166) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(167) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(166) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(166);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(167);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(167));
+ALTER TABLE t CHANGE COLUMN a a CHAR(167) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(168) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(167) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(167);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(168);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(168));
+ALTER TABLE t CHANGE COLUMN a a CHAR(168) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(169) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(168) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(168);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(169);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(169));
+ALTER TABLE t CHANGE COLUMN a a CHAR(169) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(170) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(169) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(169);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(170);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(170));
+ALTER TABLE t CHANGE COLUMN a a CHAR(170) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(171) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(170) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(170);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(171);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(171));
+ALTER TABLE t CHANGE COLUMN a a CHAR(171) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(172) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(171) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(171);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(172);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(172));
+ALTER TABLE t CHANGE COLUMN a a CHAR(172) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(173) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(172) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(172);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(173);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(173));
+ALTER TABLE t CHANGE COLUMN a a CHAR(173) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(174) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(173) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(173);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(174);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(174));
+ALTER TABLE t CHANGE COLUMN a a CHAR(174) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(175) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(174) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(174);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(175);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(175));
+ALTER TABLE t CHANGE COLUMN a a CHAR(175) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(176) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(175) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(175);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(176);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(176));
+ALTER TABLE t CHANGE COLUMN a a CHAR(176) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(177) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(176) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(176);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(177);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(177));
+ALTER TABLE t CHANGE COLUMN a a CHAR(177) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(178) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(177) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(177);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(178);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(178));
+ALTER TABLE t CHANGE COLUMN a a CHAR(178) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(179) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(178) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(178);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(179);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(179));
+ALTER TABLE t CHANGE COLUMN a a CHAR(179) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(180) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(179) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(179);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(180);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(180));
+ALTER TABLE t CHANGE COLUMN a a CHAR(180) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(181) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(180) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(180);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(181);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(181));
+ALTER TABLE t CHANGE COLUMN a a CHAR(181) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(182) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(181) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(181);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(182);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(182));
+ALTER TABLE t CHANGE COLUMN a a CHAR(182) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(183) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(182) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(182);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(183);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(183));
+ALTER TABLE t CHANGE COLUMN a a CHAR(183) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(184) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(183) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(183);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(184);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(184));
+ALTER TABLE t CHANGE COLUMN a a CHAR(184) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(185) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(184) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(184);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(185);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(185));
+ALTER TABLE t CHANGE COLUMN a a CHAR(185) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(186) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(185) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(185);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(186);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(186));
+ALTER TABLE t CHANGE COLUMN a a CHAR(186) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(187) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(186) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(186);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(187);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(187));
+ALTER TABLE t CHANGE COLUMN a a CHAR(187) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(188) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(187) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(187);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(188);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(188));
+ALTER TABLE t CHANGE COLUMN a a CHAR(188) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(189) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(188) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(188);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(189);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(189));
+ALTER TABLE t CHANGE COLUMN a a CHAR(189) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(190) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(189) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(189);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(190);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(190));
+ALTER TABLE t CHANGE COLUMN a a CHAR(190) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(191) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(190) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(190);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(191);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(191));
+ALTER TABLE t CHANGE COLUMN a a CHAR(191) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(192) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(191) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(191);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(192);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(192));
+ALTER TABLE t CHANGE COLUMN a a CHAR(192) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(193) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(192) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(192);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(193);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(193));
+ALTER TABLE t CHANGE COLUMN a a CHAR(193) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(194) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(193) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(193);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(194);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(194));
+ALTER TABLE t CHANGE COLUMN a a CHAR(194) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(195) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(194) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(194);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(195);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(195));
+ALTER TABLE t CHANGE COLUMN a a CHAR(195) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(196) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(195) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(195);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(196);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(196));
+ALTER TABLE t CHANGE COLUMN a a CHAR(196) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(197) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(196) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(196);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(197);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(197));
+ALTER TABLE t CHANGE COLUMN a a CHAR(197) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(198) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(197) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(197);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(198);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(198));
+ALTER TABLE t CHANGE COLUMN a a CHAR(198) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(199) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(198) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(198);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(199);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(199));
+ALTER TABLE t CHANGE COLUMN a a CHAR(199) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(199) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(199);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(200);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(200));
+ALTER TABLE t CHANGE COLUMN a a CHAR(200) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(201) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(200) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(200);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(201);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(201));
+ALTER TABLE t CHANGE COLUMN a a CHAR(201) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(202) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(201) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(201);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(202);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(202));
+ALTER TABLE t CHANGE COLUMN a a CHAR(202) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(203) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(202) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(202);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(203);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(203));
+ALTER TABLE t CHANGE COLUMN a a CHAR(203) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(204) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(203) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(203);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(204);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(204));
+ALTER TABLE t CHANGE COLUMN a a CHAR(204) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(205) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(204) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(204);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(205);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(205));
+ALTER TABLE t CHANGE COLUMN a a CHAR(205) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(206) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(205) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(205);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(206);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(206));
+ALTER TABLE t CHANGE COLUMN a a CHAR(206) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(207) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(206) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(206);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(207);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(207));
+ALTER TABLE t CHANGE COLUMN a a CHAR(207) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(208) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(207) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(207);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(208);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(208));
+ALTER TABLE t CHANGE COLUMN a a CHAR(208) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(209) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(208) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(208);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(209);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(209));
+ALTER TABLE t CHANGE COLUMN a a CHAR(209) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(210) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(209) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(209);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(210);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(210));
+ALTER TABLE t CHANGE COLUMN a a CHAR(210) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(211) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(210) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(210);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(211);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(211));
+ALTER TABLE t CHANGE COLUMN a a CHAR(211) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(212) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(211) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(211);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(212);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(212));
+ALTER TABLE t CHANGE COLUMN a a CHAR(212) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(213) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(212) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(212);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(213);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(213));
+ALTER TABLE t CHANGE COLUMN a a CHAR(213) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(214) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(213) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(213);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(214);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(214));
+ALTER TABLE t CHANGE COLUMN a a CHAR(214) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(215) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(214) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(214);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(215);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(215));
+ALTER TABLE t CHANGE COLUMN a a CHAR(215) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(216) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(215) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(215);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(216);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(216));
+ALTER TABLE t CHANGE COLUMN a a CHAR(216) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(217) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(216) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(216);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(217);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(217));
+ALTER TABLE t CHANGE COLUMN a a CHAR(217) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(218) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(217) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(217);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(218);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(218));
+ALTER TABLE t CHANGE COLUMN a a CHAR(218) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(219) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(218) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(218);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(219);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(219));
+ALTER TABLE t CHANGE COLUMN a a CHAR(219) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(220) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(219) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(219);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(220);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(220));
+ALTER TABLE t CHANGE COLUMN a a CHAR(220) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(221) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(220) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(220);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(221);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(221));
+ALTER TABLE t CHANGE COLUMN a a CHAR(221) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(222) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(221) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(221);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(222);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(222));
+ALTER TABLE t CHANGE COLUMN a a CHAR(222) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(223) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(222) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(222);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(223);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(223));
+ALTER TABLE t CHANGE COLUMN a a CHAR(223) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(224) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(223) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(223);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(224);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(224));
+ALTER TABLE t CHANGE COLUMN a a CHAR(224) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(225) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(224) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(224);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(225);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(225));
+ALTER TABLE t CHANGE COLUMN a a CHAR(225) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(226) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(225) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(225);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(226);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(226));
+ALTER TABLE t CHANGE COLUMN a a CHAR(226) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(227) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(226) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(226);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(227);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(227));
+ALTER TABLE t CHANGE COLUMN a a CHAR(227) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(228) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(227) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(227);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(228);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(228));
+ALTER TABLE t CHANGE COLUMN a a CHAR(228) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(229) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(228) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(228);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(229);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(229));
+ALTER TABLE t CHANGE COLUMN a a CHAR(229) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(230) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(229) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(229);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(230);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(230));
+ALTER TABLE t CHANGE COLUMN a a CHAR(230) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(231) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(230) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(230);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(231);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(231));
+ALTER TABLE t CHANGE COLUMN a a CHAR(231) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(232) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(231) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(231);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(232);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(232));
+ALTER TABLE t CHANGE COLUMN a a CHAR(232) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(233) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(232) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(232);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(233);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(233));
+ALTER TABLE t CHANGE COLUMN a a CHAR(233) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(234) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(233) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(233);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(234);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(234));
+ALTER TABLE t CHANGE COLUMN a a CHAR(234) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(235) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(234) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(234);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(235);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(235));
+ALTER TABLE t CHANGE COLUMN a a CHAR(235) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(236) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(235) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(235);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(236);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(236));
+ALTER TABLE t CHANGE COLUMN a a CHAR(236) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(237) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(236) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(236);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(237);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(237));
+ALTER TABLE t CHANGE COLUMN a a CHAR(237) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(238) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(237) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(237);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(238);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(238));
+ALTER TABLE t CHANGE COLUMN a a CHAR(238) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(239) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(238) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(238);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(239);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(239));
+ALTER TABLE t CHANGE COLUMN a a CHAR(239) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(240) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(239) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(239);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(240);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(240));
+ALTER TABLE t CHANGE COLUMN a a CHAR(240) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(241) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(240) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(240);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(241);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(241));
+ALTER TABLE t CHANGE COLUMN a a CHAR(241) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(242) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(241) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(241);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(242);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(242));
+ALTER TABLE t CHANGE COLUMN a a CHAR(242) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(243) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(242) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(242);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(243);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(243));
+ALTER TABLE t CHANGE COLUMN a a CHAR(243) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(244) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(243) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(243);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(244);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(244));
+ALTER TABLE t CHANGE COLUMN a a CHAR(244) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(245) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(244) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(244);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(245);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(245));
+ALTER TABLE t CHANGE COLUMN a a CHAR(245) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(246) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(245) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(245);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(246);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(246));
+ALTER TABLE t CHANGE COLUMN a a CHAR(246) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(247) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(246) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(246);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(247);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(247));
+ALTER TABLE t CHANGE COLUMN a a CHAR(247) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(248) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(247) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(247);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(248);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(248));
+ALTER TABLE t CHANGE COLUMN a a CHAR(248) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(249) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(248) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(248);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(249);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(249));
+ALTER TABLE t CHANGE COLUMN a a CHAR(249) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(250) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(249) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(249);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(250);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(250));
+ALTER TABLE t CHANGE COLUMN a a CHAR(250) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(251) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(250) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(250);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(251);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(251));
+ALTER TABLE t CHANGE COLUMN a a CHAR(251) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(252) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(251) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(251);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(252);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(252));
+ALTER TABLE t CHANGE COLUMN a a CHAR(252) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(253) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(252) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(252);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(253);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(253));
+ALTER TABLE t CHANGE COLUMN a a CHAR(253) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(254) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(253) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(253);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(254);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(254));
+ALTER TABLE t CHANGE COLUMN a a CHAR(254) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(254) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(254);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN a a CHAR(255);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(255));
+ALTER TABLE t CHANGE COLUMN a a CHAR(255) BINARY;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
+CREATE TABLE t (a CHAR(255) BINARY);
+ALTER TABLE t CHANGE COLUMN a a CHAR(255);
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+DROP TABLE t;
