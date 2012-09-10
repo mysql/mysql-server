@@ -6486,6 +6486,13 @@ longlong Item_func_is_free_lock::val_int()
   return 0;
 }
 
+void Item_func_is_used_lock::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  unsigned_flag= 1;
+  maybe_null= 1;
+}
+
 longlong Item_func_is_used_lock::val_int()
 {
   DBUG_ASSERT(fixed == 1);
