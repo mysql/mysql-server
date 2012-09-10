@@ -26,12 +26,16 @@ class Fake_TABLE_SHARE : public TABLE_SHARE
 public:
   Fake_TABLE_SHARE(uint number_of_columns)
   {
+    static const char *fakepath= "fakepath";
     fields= number_of_columns;
     // fix if you plan to test with >32 columns.
     column_bitmap_size= sizeof(int);
     tmp_table= NO_TMP_TABLE;
     db_low_byte_first= true;
+    path.str= const_cast<char*>(fakepath);
+    path.length= strlen(path.str);
   }
+  ~Fake_TABLE_SHARE() {}
 };
 
 /*
@@ -48,6 +52,7 @@ class Fake_TABLE: public TABLE
   void inititalize()
   {
     s= &table_share;
+    file= NULL;
     in_use= current_thd;
     null_row= '\0';
     write_set= &write_set_struct;
@@ -90,6 +95,9 @@ public:
       which cannot have virtual member functions.
     */ 
   }
+
+  void set_handler(handler *h) { file= h; }
+  TABLE_SHARE *get_share() { return &table_share; }
 };
 
 #endif // FAKE_TABLE_H

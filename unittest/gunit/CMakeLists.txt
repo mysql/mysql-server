@@ -244,11 +244,11 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
-  my_fileutils
   mdl
   mdl_mytap
   my_bitmap
   my_error
+  my_fileutils
   my_regex
   sql_list
   sql_plist
@@ -264,6 +264,7 @@ SET(SERVER_TESTS
   delayable_insert_operation
   field
   get_diagnostics
+  handler
   item
   item_func_now_local
   join_tab_sort
