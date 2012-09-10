@@ -257,6 +257,9 @@ private:
                                        const uint32 *b);
   /** keep track of partitions to call ha_reset */
   MY_BITMAP m_partitions_to_reset;
+  /** partitions that returned HA_ERR_KEY_NOT_FOUND. */
+  MY_BITMAP m_key_not_found_partitions;
+  bool m_key_not_found;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -614,6 +617,7 @@ private:
   int handle_unordered_next(uchar * buf, bool next_same);
   int handle_unordered_scan_next_partition(uchar * buf);
   int handle_ordered_index_scan(uchar * buf, bool reverse_order);
+  int handle_ordered_index_scan_key_not_found();
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
   void return_top_record(uchar * buf);
