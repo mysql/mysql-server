@@ -250,7 +250,10 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab, int error);
 void copy_fields(TMP_TABLE_PARAM *param);
 bool copy_funcs(Item **func_ptr, const THD *thd);
 bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
-int report_error(TABLE *table, int error);
+
+/** Help function when we get some an error from the table handler. */
+int report_handler_error(TABLE *table, int error);
+
 int safe_index_read(JOIN_TAB *tab);
 SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
                                   SORT_FIELD *sortorder);
