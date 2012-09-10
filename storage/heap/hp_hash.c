@@ -348,6 +348,8 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
                                 seg->length/cs->mbmaxlen);
         set_if_smaller(length, char_length);
       }
+      else
+        set_if_smaller(length, seg->length);
       cs->coll->hash_sort(cs, pos+pack_length, length, &nr, &nr2);
     }
     else
@@ -593,6 +595,11 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
         char_length2= my_charpos(cs, pos2, pos2 + char_length2, char_length);
         set_if_smaller(char_length2, safe_length2);
       }
+      else
+      {
+        set_if_smaller(char_length1, seg->length);
+        set_if_smaller(char_length2, seg->length);
+      }
 
       if (cs->coll->strnncollsp(seg->charset,
                                 pos1, char_length1,
@@ -689,6 +696,8 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
         char_length2= my_charpos(cs, pos, pos + char_length_rec, char_length2);
         set_if_smaller(char_length_rec, char_length2);
       }
+      else
+        set_if_smaller(char_length_rec, seg->length);
 
       if (cs->coll->strnncollsp(seg->charset,
                                 (uchar*) pos, char_length_rec,

@@ -316,4 +316,17 @@ DELETE FROM t1 WHERE col_int_nokey = 5 ORDER BY col_int_key LIMIT 2;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #1002564: Wrong result for a lookup query from a heap table
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(10) NOT NULL, KEY i1 (c1(3))) ENGINE=MEMORY DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('foo1'), ('bar2'), ('baz3');
+explain SELECT * FROM t1 WHERE c1='bar2';
+SELECT * FROM t1 WHERE c1='bar2';
+ALTER TABLE t1 DROP KEY i1, ADD KEY il (c1(3)) using btree;
+explain SELECT * FROM t1 WHERE c1='bar2';
+SELECT * FROM t1 WHERE c1='bar2';
+DROP TABLE t1;
+
 --echo End of 5.5 tests
