@@ -2423,6 +2423,15 @@ join_materialize_semijoin(JOIN_TAB *tab)
   last->next_select= NULL;
   last->sj_mat_exec= NULL;
 
+#if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
+  // Fields of inner tables should not be read anymore:
+  for (JOIN_TAB *t= first; t <= last; t++)
+  {
+    TABLE *const inner_table= t->table;
+    TRASH(inner_table->record[0], inner_table->s->reclength);
+  }
+#endif
+
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
