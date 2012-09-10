@@ -28,6 +28,7 @@
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_info_factory.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -275,14 +276,29 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
 bool Relay_log_info::mts_finalize_recovery()
 {
   bool ret= false;
+  uint i;
+  uint repo_type= get_rpl_info_handler()->get_rpl_info_type();
 
   DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
 
-  for (uint i= 0; !ret && i < workers.elements; i++)
+  for (i= 0; !ret && i < workers.elements; i++)
   {
     Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
     ret= w->reset_recovery_info();
     DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
+  }
+  /*
+    The loop is traversed in the worker index descending order due
+    to specifics of the Worker table repository that does not like
+    even temporary holes. Therefore stale records are deleted
+    from the tail.
+  */
+  for (i= recovery_parallel_workers; i > workers.elements && !ret; i--)
+  {
+    Slave_worker *w=
+      Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
+    ret= w->remove_info();
+    delete w;
   }
   recovery_parallel_workers= slave_parallel_workers;
 
