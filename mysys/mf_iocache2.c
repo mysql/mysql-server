@@ -440,7 +440,7 @@ process_flags:
       /* TODO: implement precision */
       if (backtick_quoting)
       {
-        size_t total= my_b_write_backtick_quote(info, (uchar *) par, length2);
+        size_t total= my_b_write_backtick_quote(info, par, length2);
         if (total == (size_t)-1)
           goto err;
         out_length+= total;
