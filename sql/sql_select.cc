@@ -2686,6 +2686,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   if (!sjm_exec->is_scan)
   {
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
+    tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
     sjm_pos->set_prefix_costs(1.0, fanout);
