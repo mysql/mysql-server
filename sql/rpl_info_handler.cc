@@ -42,3 +42,17 @@ void Rpl_info_handler::set_sync_period(uint period)
 {
   sync_period= period; 
 }
+
+const char* Rpl_info_handler::get_rpl_info_type_str()
+{
+  switch(do_get_rpl_info_type())
+  {
+  case INFO_REPOSITORY_DUMMY:  return "DUMMY";
+  case INFO_REPOSITORY_FILE:   return "FILE";
+  case INFO_REPOSITORY_TABLE:  return "TABLE";
+  }
+
+  DBUG_ASSERT(0);
+  return "";
+}
+
