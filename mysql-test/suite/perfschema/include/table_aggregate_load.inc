@@ -48,16 +48,9 @@ execute dump_objects_summary;
 #
 
 connect (con1, localhost, user1, , );
-
-echo "================== con1 connected ==================";
+select concat(current_user(), " is connected") as status;
 
 --connection default
-
-# Wait for the connect to complete
-let $wait_condition=
-  select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user1';
---source include/wait_condition.inc
 
 echo "================== Step 2 ==================";
 call dump_thread();
@@ -116,16 +109,9 @@ execute dump_objects_summary;
 # select PROCESSLIST_USER, PROCESSLIST_HOST, INSTRUMENTED from performance_schema.threads;
 
 connect (con2, localhost, user2, , );
-
-echo "================== con2 connected ==================";
+select concat(current_user(), " is connected") as status;
 
 --connection default
-
-# Wait for the connect to complete
-let $wait_condition=
-  select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user2';
---source include/wait_condition.inc
 
 echo "================== Step 4 ==================";
 call dump_thread();
@@ -180,16 +166,9 @@ execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 connect (con3, localhost, user3, , );
-
-echo "================== con3 connected ==================";
+select concat(current_user(), " is connected") as status;
 
 --connection default
-
-# Wait for the connect to complete
-let $wait_condition=
-  select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user3';
---source include/wait_condition.inc
 
 echo "================== Step 6 ==================";
 call dump_thread();
@@ -244,16 +223,9 @@ execute dump_waits_table_lock;
 execute dump_objects_summary;
 
 connect (con4, localhost, user4, , );
-
-echo "================== con4 connected ==================";
+select concat(current_user(), " is connected") as status;
 
 --connection default
-
-# Wait for the connect to complete
-let $wait_condition=
-  select count(*) = 1 from performance_schema.threads
-  where `TYPE`='FOREGROUND' and PROCESSLIST_USER= 'user4';
---source include/wait_condition.inc
 
 echo "================== Step 8 ==================";
 call dump_thread();

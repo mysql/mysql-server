@@ -13,6 +13,15 @@ UPDATE performance_schema.setup_instruments SET enabled = 'YES'
 WHERE name LIKE 'wait/synch/mutex/%'
    OR name LIKE 'wait/synch/rwlock/%';
 
+# reset lost counters
+flush status;
+
+# Make sure objects are instrumented
+select NAME from performance_schema.mutex_instances
+  where NAME = 'wait/synch/mutex/sql/LOCK_open';
+select NAME from performance_schema.rwlock_instances
+  where NAME = 'wait/synch/rwlock/sql/LOCK_grant';
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -118,4 +127,7 @@ UPDATE performance_schema.setup_instruments SET enabled = 'YES';
 DROP TABLE t1;
 
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+
+# In case of failure, will indicate the root cause
+show status like "performance_schema%";
 

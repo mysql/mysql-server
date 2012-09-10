@@ -99,9 +99,9 @@ Master_info::Master_info(
                          PSI_mutex_key *param_key_info_data_cond,
                          PSI_mutex_key *param_key_info_start_cond,
                          PSI_mutex_key *param_key_info_stop_cond,
-                         PSI_mutex_key *param_key_info_sleep_cond
+                         PSI_mutex_key *param_key_info_sleep_cond,
 #endif
-                         ,uint param_id
+                         uint param_id
                         )
    :Rpl_info("I/O"
 #ifdef HAVE_PSI_INTERFACE

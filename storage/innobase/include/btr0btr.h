@@ -130,7 +130,7 @@ btr_corruption_report(
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 /** An index->blobs entry for keeping track of off-page column references */
-struct btr_blob_dbg_struct
+struct btr_blob_dbg_t
 {
 	unsigned	blob_page_no:32;	/*!< first BLOB page number */
 	unsigned	ref_page_no:32;		/*!< referring page number */

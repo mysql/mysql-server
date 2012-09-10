@@ -48,9 +48,8 @@ automatically freeing the list node when the item's heap is freed.
 
 #include "mem0mem.h"
 
-typedef struct ib_list_struct ib_list_t;
-typedef struct ib_list_node_struct ib_list_node_t;
-typedef struct ib_list_helper_struct ib_list_helper_t;
+struct ib_list_t;
+struct ib_list_node_t;
 
 /****************************************************************//**
 Create a new list using mem_alloc. Lists created with this function must be
@@ -152,7 +151,7 @@ ib_list_is_empty(
 	const ib_list_t*	list);	/* in: list */
 
 /* List. */
-struct ib_list_struct {
+struct ib_list_t {
 	ib_list_node_t*		first;		/*!< first node */
 	ib_list_node_t*		last;		/*!< last node */
 	ibool			is_heap_list;	/*!< TRUE if this list was
@@ -160,7 +159,7 @@ struct ib_list_struct {
 };
 
 /* A list node. */
-struct ib_list_node_struct {
+struct ib_list_node_t {
 	ib_list_node_t*		prev;		/*!< previous node */
 	ib_list_node_t*		next;		/*!< next node */
 	void*			data;		/*!< user data */
@@ -169,7 +168,7 @@ struct ib_list_node_struct {
 /* Quite often, the only additional piece of data you need is the per-item
 memory heap, so we have this generic struct available to use in those
 cases. */
-struct ib_list_helper_struct {
+struct ib_list_helper_t {
 	mem_heap_t*	heap;		/*!< memory heap */
 	void*		data;		/*!< user data */
 };

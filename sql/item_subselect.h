@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -190,9 +190,11 @@ class Item_singlerow_subselect :public Item_subselect
 {
 protected:
   Item_cache *value, **row;
+  bool no_rows;                              ///< @c no_rows_in_result
 public:
   Item_singlerow_subselect(st_select_lex *select_lex);
-  Item_singlerow_subselect() :Item_subselect(), value(0), row (0) {}
+  Item_singlerow_subselect() :
+    Item_subselect(), value(0), row (0), no_rows(false) {}
 
   virtual void cleanup();
   subs_type substype() { return SINGLEROW_SUBS; }
@@ -210,6 +212,13 @@ public:
   enum Item_result result_type() const;
   enum_field_types field_type() const;
   void fix_length_and_dec();
+
+  /*
+    Mark the subquery as having no rows.
+    If there are aggregate functions (in the outer query),
+    we need to generate a NULL row. @c return_zero_rows().
+  */
+  virtual void no_rows_in_result();
 
   uint cols();
   Item* element_index(uint i) { return reinterpret_cast<Item*>(row[i]); }
@@ -244,7 +253,7 @@ protected:
   bool was_values;  // Set if we have found at least one row
 public:
   Item_maxmin_subselect(THD *thd, Item_subselect *parent,
-			st_select_lex *select_lex, bool max);
+			st_select_lex *select_lex, bool max, bool ignore_nulls);
   virtual void print(String *str, enum_query_type query_type);
   virtual void cleanup();
   bool any_value() { return was_values; }
@@ -280,10 +289,10 @@ public:
     EXEC_MATERIALIZATION
   };
   enum_exec_method exec_method;
-  /**
-    Priority of this predicate in the convert-to-semi-join-nest process.
-  */
+  /// Priority of this predicate in the convert-to-semi-join-nest process.
   int sj_convert_priority;
+  /// True if this predicate is chosen for semi-join transformation
+  bool sj_chosen;
   /**
     Used by subquery optimizations to keep track about where this subquery
     predicate is located, and whether it is a candidate for transformation.
@@ -298,8 +307,8 @@ public:
 
   Item_exists_subselect(st_select_lex *select_lex);
   Item_exists_subselect()
-    :Item_subselect(), value(FALSE), exec_method(EXEC_UNSPECIFIED),
-     sj_convert_priority(0), embedding_join_nest(NULL)
+    :Item_subselect(), value(false), exec_method(EXEC_UNSPECIFIED),
+     sj_convert_priority(0), sj_chosen(false), embedding_join_nest(NULL)
   {}
   virtual trans_res select_transformer(JOIN *join)
   {

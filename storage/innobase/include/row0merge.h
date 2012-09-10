@@ -73,7 +73,7 @@ struct mtuple_t {
 };
 
 /** Buffer for sorting in main memory. */
-struct row_merge_buf_struct {
+struct row_merge_buf_t {
 	mem_heap_t*	heap;		/*!< memory heap where allocated */
 	dict_index_t*	index;		/*!< the index the tuples belong to */
 	ulint		total_size;	/*!< total amount of data bytes */
@@ -84,43 +84,30 @@ struct row_merge_buf_struct {
 					for sorting */
 };
 
-/** Buffer for sorting in main memory. */
-typedef struct row_merge_buf_struct	row_merge_buf_t;
-
 /** Information about temporary files used in merge sort */
-struct merge_file_struct {
+struct merge_file_t {
 	int		fd;		/*!< file descriptor */
 	ulint		offset;		/*!< file offset (end of file) */
 	ib_uint64_t	n_rec;		/*!< number of records in the file */
 };
 
-/** Information about temporary files used in merge sort */
-typedef struct merge_file_struct	merge_file_t;
-
 /** Index field definition */
-struct merge_index_field_struct {
+struct index_field_t {
 	ulint		col_no;		/*!< column offset */
 	ulint		prefix_len;	/*!< column prefix length, or 0
 					if indexing the whole column */
 };
 
-/** Index field definition */
-typedef struct merge_index_field_struct	merge_index_field_t;
-
 /** Definition of an index being created */
-struct merge_index_def_struct {
-	const char*		name;		/*!< index name */
-	ulint			ind_type;	/*!< 0, DICT_UNIQUE,
-						or DICT_CLUSTERED */
-	ulint			key_number;	/*!< MySQL key number,
-						or ULINT_UNDEFINED if none */
-	ulint			n_fields;	/*!< number of fields
-						in index */
-	merge_index_field_t*	fields;		/*!< field definitions */
+struct index_def_t {
+	const char*	name;		/*!< index name */
+	ulint		ind_type;	/*!< 0, DICT_UNIQUE,
+					or DICT_CLUSTERED */
+	ulint		key_number;	/*!< MySQL key number,
+					or ULINT_UNDEFINED if none */
+	ulint		n_fields;	/*!< number of fields in index */
+	index_field_t*	fields;		/*!< field definitions */
 };
-
-/** Definition of an index being created */
-typedef struct merge_index_def_struct	merge_index_def_t;
 
 /** Structure for reporting duplicate records. */
 struct row_merge_dup_t {
@@ -229,6 +216,7 @@ row_merge_rename_tables(
 	const char*	tmp_name,	/*!< in: new name for old_table */
 	trx_t*		trx)		/*!< in: transaction handle */
 	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
@@ -264,7 +252,7 @@ row_merge_create_index(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
 	dict_table_t*		table,	/*!< in: the index is on this table */
-	const merge_index_def_t*index_def);
+	const index_def_t*	index_def);
 					/*!< in: the index definition */
 /*********************************************************************//**
 Check if a transaction can use an index.

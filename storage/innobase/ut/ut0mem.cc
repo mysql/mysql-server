@@ -35,9 +35,6 @@ Created 5/11/1994 Heikki Tuuri
 
 #include <stdlib.h>
 
-/** This struct is placed first in every allocated memory block */
-typedef struct ut_mem_block_struct ut_mem_block_t;
-
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
 if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
@@ -52,14 +49,14 @@ UNIV_INTERN mysql_pfs_key_t	ut_list_mutex_key;
 #endif
 
 /** Dynamically allocated memory block */
-struct ut_mem_block_struct{
+struct ut_mem_block_t{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
 			/*!< mem block list node */
 	ulint	size;	/*!< size of allocated memory */
 	ulint	magic_n;/*!< magic number (UT_MEM_MAGIC_N) */
 };
 
-/** The value of ut_mem_block_struct::magic_n.  Used in detecting
+/** The value of ut_mem_block_t::magic_n.  Used in detecting
 memory corruption. */
 #define UT_MEM_MAGIC_N	1601650166
 

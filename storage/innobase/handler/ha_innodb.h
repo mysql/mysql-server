@@ -27,14 +27,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Structure defines translation table between mysql index and innodb
 index structures */
-typedef struct innodb_idx_translate_struct {
+struct innodb_idx_translate_t {
 	ulint		index_count;	/*!< number of valid index entries
 					in the index_mapping array */
 	ulint		array_size;	/*!< array size of index_mapping */
 	dict_index_t**	index_mapping;	/*!< index pointer array directly
 					maps to index in Innodb from MySQL
 					array index */
-} innodb_idx_translate_t;
+};
 
 
 /** InnoDB table share */
@@ -53,15 +53,8 @@ typedef struct st_innobase_share {
 } INNOBASE_SHARE;
 
 
-/** InnoDB B-tree index */
-struct dict_index_struct;
-/** Prebuilt structures in an Innobase table handle used within MySQL */
-struct row_prebuilt_struct;
-
-/** InnoDB B-tree index */
-typedef struct dict_index_struct dict_index_t;
-/** Prebuilt structures in an Innobase table handle used within MySQL */
-typedef struct row_prebuilt_struct row_prebuilt_t;
+/** Prebuilt structures in an InnoDB table handle used within MySQL */
+struct row_prebuilt_t;
 
 /** The class defining a handle to an Innodb table */
 class ha_innobase: public handler
@@ -78,12 +71,13 @@ class ha_innobase: public handler
 
 	uchar*		upd_buf;	/*!< buffer used in updates */
 	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
-	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
-	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val1[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
+	uchar		srch_key_val2[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
 					/*!< buffers used in converting
 					search key values from MySQL format
-					to InnoDB format. "+ 2" for the two
-					bytes where the length is stored */
+					to InnoDB format. For each column
+					2 bytes are used to store length,
+					hence MAX_REF_PARTS*2. */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
@@ -234,8 +228,13 @@ class ha_innobase: public handler
 
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED	Not supported
 	@retval HA_ALTER_INPLACE_NO_LOCK	Supported
-	@retval HA_ALTER_INPLACE_SHARED_LOCK	Supported, but requires lock
-	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE Supported, prepare phase
+	@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+						Supported, but requires lock
+						during main phase and exclusive
+						lock during prepare phase.
+	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
+						Supported, prepare phase
+						requires exclusive lock.
 	*/
 	enum_alter_inplace_result check_if_supported_inplace_alter(
 		TABLE*			altered_table,
@@ -439,7 +438,7 @@ void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
 __attribute__((nonnull));
 } /* extern "C" */
 
-typedef struct trx_struct trx_t;
+struct trx_t;
 
 extern const struct _ft_vft ft_vft_result;
 

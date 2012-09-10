@@ -1605,11 +1605,10 @@ C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg)
 {
   ha_myisam *h= (ha_myisam*)arg;
-  if (h->end_range)
-  {
-    if (h->compare_key2(h->end_range) > 0)
-      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
-  }
+
+  if (h->end_range && h->compare_key_icp(h->end_range) > 0)
+    return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
+
   return (ICP_RESULT) test(h->pushed_idx_cond->val_int());
 }
 

@@ -561,7 +561,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (result)
     goto end;
 
-  close_all_tables_for_name(thd, table->s, FALSE);
+  close_all_tables_for_name(thd, table->s, false, NULL);
   /*
     Reopen the table if we were under LOCK TABLES.
     Ignore the return value for now. It's better to
@@ -1722,7 +1722,7 @@ bool add_table_for_trigger(THD *thd,
   LEX *lex= thd->lex;
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
-  LEX_STRING tbl_name;
+  LEX_STRING tbl_name= { NULL, 0 };
 
   DBUG_ENTER("add_table_for_trigger");
 

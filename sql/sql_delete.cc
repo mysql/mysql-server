@@ -698,10 +698,9 @@ multi_delete::initialize_tables(JOIN *join)
 
 
   walk= delete_tables;
-  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
-       tab < end;
-       tab++)
+  for (uint i= 0; i < join->primary_tables; i++)
   {
+    JOIN_TAB *const tab= join->join_tab + i;
     if (tab->table->map & tables_to_delete_from)
     {
       /* We are going to delete from this table */

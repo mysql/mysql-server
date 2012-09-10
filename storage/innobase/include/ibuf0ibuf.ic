@@ -59,7 +59,7 @@ ibuf_mtr_commit(
 }
 
 /** Insert buffer struct */
-struct ibuf_struct{
+struct ibuf_t{
 	ulint		size;		/*!< current size of the ibuf index
 					tree, in pages */
 	ulint		max_size;	/*!< recommended maximum size of the

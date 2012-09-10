@@ -29,7 +29,7 @@ Created Jan 06, 2010 Vasil Dimov
 
 #include "btr0btr.h" /* btr_get_size() */
 #include "btr0cur.h" /* btr_estimate_number_of_different_key_vals() */
-#include "dict0dict.h" /* dict_table_get_first_index() */
+#include "dict0dict.h" /* dict_table_get_first_index(), dict_fs2utf8() */
 #include "dict0mem.h" /* DICT_TABLE_MAGIC_N */
 #include "dict0stats.h"
 #include "data0type.h" /* dtype_t */
@@ -40,7 +40,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "pars0types.h" /* pars_info_t */
 #include "que0que.h" /* que_eval_sql() */
 #include "rem0cmp.h" /* REC_MAX_N_FIELDS,cmp_rec_rec_with_match() */
-#include "row0sel.h" /* sel_node_struct */
+#include "row0sel.h" /* sel_node_t */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
 #include "trx0roll.h" /* trx_rollback_to_savepoint() */
@@ -425,9 +425,9 @@ dict_stats_table_clone_create(
 
 		idx->type = index->type;
 
-		idx->to_be_dropped = index->to_be_dropped;
+		idx->to_be_dropped = 0;
 
-		idx->online_status = index->online_status;
+		idx->online_status = ONLINE_INDEX_COMPLETE;
 
 		idx->n_uniq = index->n_uniq;
 
@@ -1324,14 +1324,14 @@ dict_stats_analyze_index_level(
 /* @} */
 
 /* aux enum for controlling the behavior of dict_stats_scan_page() @{ */
-typedef enum page_scan_method_enum {
+enum page_scan_method_t {
 	COUNT_ALL_NON_BORING_AND_SKIP_DEL_MARKED,/* scan all records on
 				the given page and count the number of
 				distinct ones, also ignore delete marked
 				records */
 	QUIT_ON_FIRST_NON_BORING/* quit when the first record that differs
 				from its right neighbor is found */
-} page_scan_method_t;
+};
 /* @} */
 
 /*********************************************************************//**
@@ -2188,6 +2188,7 @@ dict_stats_update_persistent(
 	return(DB_SUCCESS);
 }
 
+#include "mysql_com.h"
 /*********************************************************************//**
 Save an individual index's statistic into the persistent statistics
 storage.
@@ -2206,20 +2207,20 @@ dict_stats_save_index_stat(
 {
 	pars_info_t*	pinfo;
 	dberr_t		ret;
+	char		db_utf8[MAX_DB_UTF8_LEN];
+	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
+	dict_fs2utf8(index->table->name, db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
+
 	pinfo = pars_info_create();
-	UNIV_MEM_ASSERT_RW_ABORT(index->table->name, dict_get_db_name_len(index->table->name));
-	pars_info_add_literal(pinfo, "database_name", index->table->name,
-		dict_get_db_name_len(index->table->name),
-		DATA_VARCHAR, 0);
-	UNIV_MEM_ASSERT_RW_ABORT(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
-	pars_info_add_str_literal(pinfo, "table_name",
-		dict_remove_db_name(index->table->name));
+	pars_info_add_str_literal(pinfo, "database_name", db_utf8);
+	pars_info_add_str_literal(pinfo, "table_name", table_utf8);
 	UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name));
 	pars_info_add_str_literal(pinfo, "index_name", index->name);
 	UNIV_MEM_ASSERT_RW_ABORT(&last_update, 4);
@@ -2260,13 +2261,8 @@ dict_stats_save_index_stat(
 	if (ret == DB_DUPLICATE_KEY) {
 
 		pinfo = pars_info_create();
-		UNIV_MEM_ASSERT_RW_ABORT(index->table->name, dict_get_db_name_len(index->table->name));
-		pars_info_add_literal(pinfo, "database_name", index->table->name,
-			dict_get_db_name_len(index->table->name),
-			DATA_VARCHAR, 0);
-		UNIV_MEM_ASSERT_RW_ABORT(dict_remove_db_name(index->table->name), strlen(dict_remove_db_name(index->table->name)));
-		pars_info_add_str_literal(pinfo, "table_name",
-			dict_remove_db_name(index->table->name));
+		pars_info_add_str_literal(pinfo, "database_name", db_utf8);
+		pars_info_add_str_literal(pinfo, "table_name", table_utf8);
 		UNIV_MEM_ASSERT_RW_ABORT(index->name, strlen(index->name));
 		pars_info_add_str_literal(pinfo, "index_name", index->name);
 		UNIV_MEM_ASSERT_RW_ABORT(&last_update, 4);
@@ -2335,8 +2331,13 @@ dict_stats_save(
 	lint		now;
 	dberr_t		ret;
 	dict_table_t*	table;
+	char		db_utf8[MAX_DB_UTF8_LEN];
+	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
 	table = dict_stats_snapshot_create(table_orig);
+
+	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
 
 	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
@@ -2348,10 +2349,8 @@ dict_stats_save(
 
 #define PREPARE_PINFO_FOR_TABLE_SAVE(p, t, n)				\
 	do {								\
-	pars_info_add_literal((p), "database_name", (t)->name,		\
-		dict_get_db_name_len((t)->name), DATA_VARCHAR, 0);	\
-	pars_info_add_str_literal((p), "table_name",			\
-		dict_remove_db_name((t)->name));			\
+	pars_info_add_str_literal((p), "database_name", db_utf8);	\
+	pars_info_add_str_literal((p), "table_name", table_utf8);	\
 	pars_info_add_int4_literal((p), "last_update", (n));		\
 	pars_info_add_ull_literal((p), "n_rows", (t)->stat_n_rows);	\
 	pars_info_add_ull_literal((p), "clustered_index_size",		\
@@ -2573,11 +2572,11 @@ dict_stats_fetch_table_stats_step(
 
 /** Aux struct used to pass a table and a boolean to
 dict_stats_fetch_index_stats_step(). */
-typedef struct index_fetch_struct {
+struct index_fetch_t {
 	dict_table_t*	table;	/*!< table whose indexes are to be modified */
 	bool		stats_were_modified; /*!< will be set to true if at
 				least one index stats were modified */
-} index_fetch_t;
+};
 
 /*********************************************************************//**
 Called for the rows that are selected by
@@ -2755,19 +2754,24 @@ dict_stats_fetch_index_stats_step(
 		    || num_ptr[0] < '0' || num_ptr[0] > '9'
 		    || num_ptr[1] < '0' || num_ptr[1] > '9') {
 
+			char	db_utf8[MAX_DB_UTF8_LEN];
+			char	table_utf8[MAX_TABLE_UTF8_LEN];
+
+			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+				     table_utf8, sizeof(table_utf8));
+
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Ignoring strange row from "
 				"%s WHERE "
-				"database_name = '%.*s' AND "
+				"database_name = '%s' AND "
 				"table_name = '%s' AND "
 				"index_name = '%s' AND "
 				"stat_name = '%.*s'; because stat_name "
 				"is malformed\n",
 				INDEX_STATS_NAME_PRINT,
-				(int) dict_get_db_name_len(table->name),
-				table->name,
-				dict_remove_db_name(table->name),
+				db_utf8,
+				table_utf8,
 				index->name,
 				(int) stat_name_len,
 				stat_name);
@@ -2783,20 +2787,25 @@ dict_stats_fetch_index_stats_step(
 
 		if (n_pfx == 0 || n_pfx > n_uniq) {
 
+			char	db_utf8[MAX_DB_UTF8_LEN];
+			char	table_utf8[MAX_TABLE_UTF8_LEN];
+
+			dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+				     table_utf8, sizeof(table_utf8));
+
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
 				" InnoDB: Ignoring strange row from "
 				"%s WHERE "
-				"database_name = '%.*s' AND "
+				"database_name = '%s' AND "
 				"table_name = '%s' AND "
 				"index_name = '%s' AND "
 				"stat_name = '%.*s'; because stat_name is "
 				"out of range, the index has %lu unique "
 				"columns\n",
 				INDEX_STATS_NAME_PRINT,
-				(int) dict_get_db_name_len(table->name),
-				table->name,
-				dict_remove_db_name(table->name),
+				db_utf8,
+				table_utf8,
 				index->name,
 				(int) stat_name_len,
 				stat_name,
@@ -2842,6 +2851,8 @@ dict_stats_fetch_from_ps(
 	trx_t*		trx;
 	pars_info_t*	pinfo;
 	dberr_t		ret;
+	char		db_utf8[MAX_DB_UTF8_LEN];
+	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
@@ -2861,14 +2872,14 @@ dict_stats_fetch_from_ps(
 
 	trx_start_internal(trx);
 
+	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
+
 	pinfo = pars_info_create();
 
-	pars_info_add_literal(pinfo, "database_name", table->name,
-			      dict_get_db_name_len(table->name),
-			      DATA_VARCHAR, 0);
+	pars_info_add_str_literal(pinfo, "database_name", db_utf8);
 
-	pars_info_add_str_literal(pinfo, "table_name",
-				  dict_remove_db_name(table->name));
+	pars_info_add_str_literal(pinfo, "table_name", table_utf8);
 
 	pars_info_bind_function(pinfo,
 			       "fetch_table_stats_step",
@@ -3237,14 +3248,14 @@ UNIV_INTERN
 dberr_t
 dict_stats_drop_index(
 /*==================*/
-	const char*	tname,	/*!< in: table name, e.g. 'db/table' */
+	const char*	db_and_table,/*!< in: db and table, e.g. 'db/table' */
 	const char*	iname,	/*!< in: index name */
 	char*		errstr, /*!< out: error message if != DB_SUCCESS
 				is returned */
 	ulint		errstr_sz)/*!< in: size of the errstr buffer */
 {
-	char		database_name[MAX_DATABASE_NAME_LEN + 1];
-	const char*	table_name;
+	char		db_utf8[MAX_DB_UTF8_LEN];
+	char		table_utf8[MAX_TABLE_UTF8_LEN];
 	pars_info_t*	pinfo;
 	dberr_t		ret;
 
@@ -3252,21 +3263,19 @@ dict_stats_drop_index(
 
 	/* skip indexes whose table names do not contain a database name
 	e.g. if we are dropping an index from SYS_TABLES */
-	if (strchr(tname, '/') == NULL) {
+	if (strchr(db_and_table, '/') == NULL) {
 
 		return(DB_SUCCESS);
 	}
 
-	ut_snprintf(database_name, sizeof(database_name), "%.*s",
-		    (int) dict_get_db_name_len(tname), tname);
-
-	table_name = dict_remove_db_name(tname);
+	dict_fs2utf8(db_and_table, db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
 
 	pinfo = pars_info_create();
 
-	pars_info_add_str_literal(pinfo, "database_name", database_name);
+	pars_info_add_str_literal(pinfo, "database_name", db_utf8);
 
-	pars_info_add_str_literal(pinfo, "table_name", table_name);
+	pars_info_add_str_literal(pinfo, "table_name", table_utf8);
 
 	pars_info_add_str_literal(pinfo, "index_name", iname);
 
@@ -3305,8 +3314,8 @@ dict_stats_drop_index(
 			     : ""),
 			    ut_strerr(ret),
 			    INDEX_STATS_NAME_PRINT,
-			    database_name,
-			    table_name,
+			    db_utf8,
+			    table_utf8,
 			    iname);
 
 		ut_print_timestamp(stderr);
@@ -3407,13 +3416,13 @@ UNIV_INTERN
 dberr_t
 dict_stats_drop_table(
 /*==================*/
-	const char*	table_name,	/*!< in: table name, e.g. 'db/table' */
+	const char*	db_and_table,	/*!< in: db and table, e.g. 'db/table' */
 	char*		errstr,		/*!< out: error message
 					if != DB_SUCCESS is returned */
 	ulint		errstr_sz)	/*!< in: size of errstr buffer */
 {
-	char		database_name[MAX_DATABASE_NAME_LEN + 1];
-	const char*	table_name_strip; /* without leading db name */
+	char		db_utf8[MAX_DB_UTF8_LEN];
+	char		table_utf8[MAX_TABLE_UTF8_LEN];
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -3423,30 +3432,25 @@ dict_stats_drop_table(
 
 	/* skip tables that do not contain a database name
 	e.g. if we are dropping SYS_TABLES */
-	if (strchr(table_name, '/') == NULL) {
+	if (strchr(db_and_table, '/') == NULL) {
 
 		return(DB_SUCCESS);
 	}
 
 	/* skip innodb_table_stats and innodb_index_stats themselves */
-	if (strcmp(table_name, TABLE_STATS_NAME) == 0
-	    || strcmp(table_name, INDEX_STATS_NAME) == 0) {
+	if (strcmp(db_and_table, TABLE_STATS_NAME) == 0
+	    || strcmp(db_and_table, INDEX_STATS_NAME) == 0) {
 
 		return(DB_SUCCESS);
 	}
 
-	ut_snprintf(database_name, sizeof(database_name), "%.*s",
-		    (int) dict_get_db_name_len(table_name),
-		    table_name);
+	dict_fs2utf8(db_and_table, db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
 
-	table_name_strip = dict_remove_db_name(table_name);
-
-	ret = dict_stats_delete_from_table_stats(database_name,
-						 table_name_strip);
+	ret = dict_stats_delete_from_table_stats(db_utf8, table_utf8);
 
 	if (ret == DB_SUCCESS) {
-		ret = dict_stats_delete_from_index_stats(database_name,
-							 table_name_strip);
+		ret = dict_stats_delete_from_index_stats(db_utf8, table_utf8);
 	}
 
 	if (ret == DB_STATS_DO_NOT_EXIST) {
@@ -3467,14 +3471,14 @@ dict_stats_drop_table(
 			    "database_name = '%s' AND "
 			    "table_name = '%s';",
 
-			    database_name, table_name_strip,
+			    db_utf8, table_utf8,
 			    ut_strerr(ret),
 
 			    INDEX_STATS_NAME_PRINT,
-			    database_name, table_name_strip,
+			    db_utf8, table_utf8,
 
 			    TABLE_STATS_NAME_PRINT,
-			    database_name, table_name_strip);
+			    db_utf8, table_utf8);
 	}
 
 	return(ret);
@@ -3493,10 +3497,10 @@ UNIV_INLINE
 dberr_t
 dict_stats_rename_in_table_stats(
 /*=============================*/
-	const char*	old_database_name,/*!< in: database name, e.g. 'olddb' */
-	const char*	old_table_name,	/*!< in: table name, e.g. 'oldtable' */
-	const char*	new_database_name,/*!< in: database name, e.g. 'newdb' */
-	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
+	const char*	old_dbname_utf8,/*!< in: database name, e.g. 'olddb' */
+	const char*	old_tablename_utf8,/*!< in: table name, e.g. 'oldtable' */
+	const char*	new_dbname_utf8,/*!< in: database name, e.g. 'newdb' */
+	const char*	new_tablename_utf8)/*!< in: table name, e.g. 'newtable' */
 {
 	pars_info_t*	pinfo;
 	dberr_t		ret;
@@ -3508,21 +3512,21 @@ dict_stats_rename_in_table_stats(
 
 	pinfo = pars_info_create();
 
-	pars_info_add_str_literal(pinfo, "old_database_name", old_database_name);
-	pars_info_add_str_literal(pinfo, "old_table_name", old_table_name);
-	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
-	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
+	pars_info_add_str_literal(pinfo, "old_dbname_utf8", old_dbname_utf8);
+	pars_info_add_str_literal(pinfo, "old_tablename_utf8", old_tablename_utf8);
+	pars_info_add_str_literal(pinfo, "new_dbname_utf8", new_dbname_utf8);
+	pars_info_add_str_literal(pinfo, "new_tablename_utf8", new_tablename_utf8);
 
 	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE RENAME_IN_TABLE_STATS () IS\n"
 		"BEGIN\n"
 		"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
-		"database_name = :new_database_name,\n"
-		"table_name = :new_table_name\n"
+		"database_name = :new_dbname_utf8,\n"
+		"table_name = :new_tablename_utf8\n"
 		"WHERE\n"
-		"database_name = :old_database_name AND\n"
-		"table_name = :old_table_name;\n"
+		"database_name = :old_dbname_utf8 AND\n"
+		"table_name = :old_tablename_utf8;\n"
 		"END;\n");
 
 	return(ret);
@@ -3541,10 +3545,10 @@ UNIV_INLINE
 dberr_t
 dict_stats_rename_in_index_stats(
 /*=============================*/
-	const char*	old_database_name,/*!< in: database name, e.g. 'olddb' */
-	const char*	old_table_name,	/*!< in: table name, e.g. 'oldtable' */
-	const char*	new_database_name,/*!< in: database name, e.g. 'newdb' */
-	const char*	new_table_name)	/*!< in: table name, e.g. 'newtable' */
+	const char*	old_dbname_utf8,/*!< in: database name, e.g. 'olddb' */
+	const char*	old_tablename_utf8,/*!< in: table name, e.g. 'oldtable' */
+	const char*	new_dbname_utf8,/*!< in: database name, e.g. 'newdb' */
+	const char*	new_tablename_utf8)/*!< in: table name, e.g. 'newtable' */
 {
 	pars_info_t*	pinfo;
 	dberr_t		ret;
@@ -3556,21 +3560,21 @@ dict_stats_rename_in_index_stats(
 
 	pinfo = pars_info_create();
 
-	pars_info_add_str_literal(pinfo, "old_database_name", old_database_name);
-	pars_info_add_str_literal(pinfo, "old_table_name", old_table_name);
-	pars_info_add_str_literal(pinfo, "new_database_name", new_database_name);
-	pars_info_add_str_literal(pinfo, "new_table_name", new_table_name);
+	pars_info_add_str_literal(pinfo, "old_dbname_utf8", old_dbname_utf8);
+	pars_info_add_str_literal(pinfo, "old_tablename_utf8", old_tablename_utf8);
+	pars_info_add_str_literal(pinfo, "new_dbname_utf8", new_dbname_utf8);
+	pars_info_add_str_literal(pinfo, "new_tablename_utf8", new_tablename_utf8);
 
 	ret = dict_stats_exec_sql(
 		pinfo,
 		"PROCEDURE RENAME_IN_INDEX_STATS () IS\n"
 		"BEGIN\n"
 		"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
-		"database_name = :new_database_name,\n"
-		"table_name = :new_table_name\n"
+		"database_name = :new_dbname_utf8,\n"
+		"table_name = :new_tablename_utf8\n"
 		"WHERE\n"
-		"database_name = :old_database_name AND\n"
-		"table_name = :old_table_name;\n"
+		"database_name = :old_dbname_utf8 AND\n"
+		"table_name = :old_tablename_utf8;\n"
 		"END;\n");
 
 	return(ret);
@@ -3592,10 +3596,10 @@ dict_stats_rename_table(
 					is returned */
 	size_t		errstr_sz)	/*!< in: errstr size */
 {
-	char		old_database_name[MAX_DATABASE_NAME_LEN + 1];
-	char		new_database_name[MAX_DATABASE_NAME_LEN + 1];
-	const char*	old_table_name; /* without leading db name */
-	const char*	new_table_name; /* without leading db name */
+	char		old_db_utf8[MAX_DB_UTF8_LEN];
+	char		new_db_utf8[MAX_DB_UTF8_LEN];
+	char		old_table_utf8[MAX_TABLE_UTF8_LEN];
+	char		new_table_utf8[MAX_TABLE_UTF8_LEN];
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -3612,15 +3616,11 @@ dict_stats_rename_table(
 		return(DB_SUCCESS);
 	}
 
-	ut_snprintf(old_database_name, sizeof(old_database_name), "%.*s",
-		    (int) dict_get_db_name_len(old_name), old_name);
+	dict_fs2utf8(old_name, old_db_utf8, sizeof(old_db_utf8),
+		     old_table_utf8, sizeof(old_table_utf8));
 
-	old_table_name = dict_remove_db_name(old_name);
-
-	ut_snprintf(new_database_name, sizeof(new_database_name), "%.*s",
-		    (int) dict_get_db_name_len(new_name), new_name);
-
-	new_table_name = dict_remove_db_name(new_name);
+	dict_fs2utf8(new_name, new_db_utf8, sizeof(new_db_utf8),
+		     new_table_utf8, sizeof(new_table_utf8));
 
 	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&dict_sys->mutex);
@@ -3630,12 +3630,12 @@ dict_stats_rename_table(
 		n_attempts++;
 
 		ret = dict_stats_rename_in_table_stats(
-			old_database_name, old_table_name,
-			new_database_name, new_table_name);
+			old_db_utf8, old_table_utf8,
+			new_db_utf8, new_table_utf8);
 
 		if (ret == DB_DUPLICATE_KEY) {
 			dict_stats_delete_from_table_stats(
-				new_database_name, new_table_name);
+				new_db_utf8, new_table_utf8);
 		}
 
 		if (ret == DB_STATS_DO_NOT_EXIST) {
@@ -3667,14 +3667,14 @@ dict_stats_rename_table(
 			    "database_name = '%s' AND "
 			    "table_name = '%s';",
 
-			    old_database_name, old_table_name,
-			    new_database_name, new_table_name,
+			    old_db_utf8, old_table_utf8,
+			    new_db_utf8, new_table_utf8,
 			    TABLE_STATS_NAME_PRINT,
 			    ut_strerr(ret),
 
 			    TABLE_STATS_NAME_PRINT,
-			    new_database_name, new_table_name,
-			    old_database_name, old_table_name);
+			    new_db_utf8, new_table_utf8,
+			    old_db_utf8, old_table_utf8);
 		mutex_exit(&dict_sys->mutex);
 		rw_lock_x_unlock(&dict_operation_lock);
 		return(ret);
@@ -3686,12 +3686,12 @@ dict_stats_rename_table(
 		n_attempts++;
 
 		ret = dict_stats_rename_in_index_stats(
-			old_database_name, old_table_name,
-			new_database_name, new_table_name);
+			old_db_utf8, old_table_utf8,
+			new_db_utf8, new_table_utf8);
 
 		if (ret == DB_DUPLICATE_KEY) {
 			dict_stats_delete_from_index_stats(
-				new_database_name, new_table_name);
+				new_db_utf8, new_table_utf8);
 		}
 
 		if (ret == DB_STATS_DO_NOT_EXIST) {
@@ -3726,14 +3726,14 @@ dict_stats_rename_table(
 			    "database_name = '%s' AND "
 			    "table_name = '%s';",
 
-			    old_database_name, old_table_name,
-			    new_database_name, new_table_name,
+			    old_db_utf8, old_table_utf8,
+			    new_db_utf8, new_table_utf8,
 			    INDEX_STATS_NAME_PRINT,
 			    ut_strerr(ret),
 
 			    INDEX_STATS_NAME_PRINT,
-			    new_database_name, new_table_name,
-			    old_database_name, old_table_name);
+			    new_db_utf8, new_table_utf8,
+			    old_db_utf8, old_table_utf8);
 	}
 
 	return(ret);

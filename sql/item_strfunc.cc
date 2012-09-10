@@ -1977,10 +1977,16 @@ String *Item_func_password::val_str_ascii(String *str)
   DBUG_ASSERT(fixed == 1);
 
   String *res= args[0]->val_str(str);
+
+  if (args[0]->null_value)
+    res= make_empty_result();
+
+  /* we treat NULLs as equal to empty string when calling the plugin */
   check_password_policy(res);
+
   null_value= 0;
   if (args[0]->null_value)  // PASSWORD(NULL) returns ''
-    return make_empty_result();
+    return res;
   
   if (m_recalculate_password)
     m_hashed_password_buffer_len= calculate_password(res,
@@ -2024,13 +2030,24 @@ char *Item_func_password::
 
 String *Item_func_old_password::val_str_ascii(String *str)
 {
+  String *res;
+
   DBUG_ASSERT(fixed == 1);
-  String *res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
+
+  res= args[0]->val_str(str);
+
+  if ((null_value= args[0]->null_value))
+    res= make_empty_result();
+ 
+  /* we treat NULLs as equal to empty string when calling the plugin */
   check_password_policy(res);
+
+  if (null_value)
+    return 0;
+
   if (res->length() == 0)
     return make_empty_result();
+
   my_make_scrambled_password_323(tmp_value, res->ptr(), res->length());
   str->set(tmp_value, SCRAMBLED_PASSWORD_CHAR_LENGTH_323, &my_charset_latin1);
   return str;

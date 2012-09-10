@@ -202,7 +202,7 @@ row_search_max_autoinc(
 	__attribute__((nonnull, warn_unused_result));
 
 /** A structure for caching column values for prefetched rows */
-struct sel_buf_struct{
+struct sel_buf_t{
 	byte*		data;	/*!< data, or NULL; if not NULL, this field
 				has allocated memory which must be explicitly
 				freed; can be != NULL even when len is
@@ -215,7 +215,7 @@ struct sel_buf_struct{
 };
 
 /** Query plan */
-struct plan_struct{
+struct plan_t{
 	dict_table_t*	table;		/*!< table struct in the dictionary
 					cache */
 	dict_index_t*	index;		/*!< table index used in the search */
@@ -301,7 +301,7 @@ enum sel_node_state {
 };
 
 /** Select statement node */
-struct sel_node_struct{
+struct sel_node_t{
 	que_common_t	common;		/*!< node type: QUE_NODE_SELECT */
 	enum sel_node_state
 			state;	/*!< node state */
@@ -354,7 +354,7 @@ struct sel_node_struct{
 };
 
 /** Fetch statement node */
-struct fetch_node_struct{
+struct fetch_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_FETCH */
 	sel_node_t*	cursor_def;	/*!< cursor definition */
 	sym_node_t*	into_list;	/*!< variables to set */
@@ -381,7 +381,7 @@ enum open_node_op {
 };
 
 /** Open or close cursor statement node */
-struct open_node_struct{
+struct open_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_OPEN */
 	enum open_node_op
 			op_type;	/*!< operation type: open or
@@ -390,7 +390,7 @@ struct open_node_struct{
 };
 
 /** Row printf statement node */
-struct row_printf_node_struct{
+struct row_printf_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_ROW_PRINTF */
 	sel_node_t*	sel_node;	/*!< select */
 };

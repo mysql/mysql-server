@@ -99,7 +99,7 @@ enum undo_exec {
 };
 
 /** Undo node structure */
-struct undo_node_struct{
+struct undo_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_UNDO */
 	enum undo_exec	state;	/*!< node execution state */
 	trx_t*		trx;	/*!< trx for which undo is done */

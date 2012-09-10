@@ -244,11 +244,11 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
-  my_fileutils
   mdl
   mdl_mytap
   my_bitmap
   my_error
+  my_fileutils
   my_regex
   sql_list
   sql_plist
@@ -264,9 +264,11 @@ SET(SERVER_TESTS
   delayable_insert_operation
   field
   get_diagnostics
+  handler
   item
   item_func_now_local
   join_tab_sort
+  make_sortkey
   my_decimal
   opt_range
   opt_trace
@@ -311,3 +313,6 @@ FOREACH(test ${SERVER_TESTS})
   ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
+
+## Most executables depend on libeay32.dll (through mysys_ssl).
+COPY_OPENSSL_DLLS(copy_openssl_gunit)
