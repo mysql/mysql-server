@@ -16,7 +16,8 @@ def gen_test(n):
             print "INSERT INTO tt SELECT * FROM t;"
         print "ALTER TABLE t CHANGE COLUMN a b CHAR(%d);" % (i)
         if i >= n:
-            print "SELECT * FROM t,tt where t.b = tt.a;"
+            print "ALTER TABLE t CHANGE COLUMN b a CHAR(%d);" % (i)
+            print "SELECT * FROM t,tt where t.a = tt.a;"
             print "DROP TABLE tt;"
     print "DROP TABLE t;"
 
