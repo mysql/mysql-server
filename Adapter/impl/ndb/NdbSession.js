@@ -76,59 +76,77 @@ DBSession.prototype.getConnectionPool = function() {
 };
 
 
-/* DBTransactionHandler openTransaction()
+/* DBTransactionHandler createTransaction()
    IMMEDIATE
 
    RETURNS a DBTransactionHandler
 */
-DBSession.prototype.openTransaction = function() {
-  udebug.log("DBSession openTransaction");
+DBSession.prototype.createTransaction = function() {
+  udebug.log("DBSession createTransaction");
   
   delete this.tx;  
   this.tx = new dbtxhandler.DBTransactionHandler(this);
-  udebug.log("DBSession openTransaction ops length:", this.tx.operations.length);
   
   return this.tx;
 };
 
 
-/* buildReadOperation(DBTableHandler table, Object ResolvedKeys)
+/* buildReadOperation(DBTableHandler table, 
+                      Object ResolvedKeys,
+                      DBTransactionHandler transaction,
+                      function(error, DBOperation) userCallback)
    IMMEDIATE
-   Define an operation which when executed will fetch a row
-   
+   Define an operation which when executed will fetch a row.
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
+
    RETURNS a DBOperation 
 */
-DBSession.prototype.buildReadOperation = function(table, keys) {
+DBSession.prototype.buildReadOperation = function(table, keys,
+                                                  tx, callback) {
   udebug.log("DBSession buildReadOperation "+ table.name);
   var lockMode = "SHARED";
-  var op = ndboperation.newReadOperation(this.tx, table, keys, lockMode);
+  var op = ndboperation.newReadOperation(tx, table, keys, lockMode);
+  op.userCallback = callback;
   return op;
 };
 
 
-/* buildInsertOperation(DBTableHandler table, Object row)
+/* buildInsertOperation(DBTableHandler table, Object row,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
    IMMEDIATE
-   Define an operation which when executed will insert a row
+   Define an operation which when executed will insert a row.
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
  
    RETURNS a DBOperation 
 */
-DBSession.prototype.buildInsertOperation = function(tableHandler, row) {
+DBSession.prototype.buildInsertOperation = function(tableHandler, row,
+                                                    tx, callback) {
   udebug.log("DBSession buildInsertOperation " + tableHandler.dbTable.name);
 
-  var op = ndboperation.newInsertOperation(this.tx, tableHandler, row);
+  var op = ndboperation.newInsertOperation(tx, tableHandler, row);
+  op.userCallback = callback;
   return op;
 };
 
 
-/* buildDeleteOperation(DBTableHandler table, Object primaryKey)
+/* buildDeleteOperation(DBTableHandler table, Object primaryKey,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
    IMMEDIATE 
    Define an operation which when executed will delete a row
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
  
    RETURNS a DBOperation 
-*/  
-DBSession.prototype.buildDeleteOperation = function(tableHandler, row) {
+*/ 
+DBSession.prototype.buildDeleteOperation = function(tableHandler, row,
+                                                    tx, callback) {
   udebug.log("DBSession buildDeleteOperation " + tableHandler.dbTable.name);
   
-  var op = ndboperation.newDeleteOperation(this.tx, tableHandler, row);
+  var op = ndboperation.newDeleteOperation(tx, tableHandler, row);
+  op.userCallback = callback;
   return op;
 };

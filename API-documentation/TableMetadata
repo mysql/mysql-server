@@ -34,10 +34,7 @@ ColumnMetadata = {
   precision        : 0     ,  //  DECIMAL precision
 
   /* Group B: Non-numeric */
-
-// FIXME: distinguish length in bytes vs. length in characters
-
-  length           : 0     ,  //  CHAR or VARCHAR length
+  length           : 0     ,  //  CHAR or VARCHAR length in characters
   isBinary         : false ,  //  true for BLOB/BINARY/VARBINARY
   charsetNumber    : 0     ,  //  internal number of charset
   charsetName      : ""    ,  //  name of charset
@@ -59,7 +56,7 @@ IndexMetadata = {
   isPrimaryKey     : true  ,  // true for PK; otherwise undefined
   isUnique         : true  ,  // true or false
   isOrdered        : true  ,  // true or false; can scan if true
-  columns          : []    ,  // an ordered array of column numbers
+  columns          : null  ,  // an ordered array of column numbers
 };
 
 

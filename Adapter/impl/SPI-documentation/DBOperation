@@ -4,6 +4,10 @@
    OBJECT DEFINITIONS:
 */
 
+//   DBSession.buildXXX takes additional transaction and callback
+//    The callback will receive(error, DBResult)
+
+
 var   DBOperation,          // DBOperation structure prototype
       OperationCodes,       // Array of defined opcodes
       OperationStates,      // Array of defined operation states
@@ -13,16 +17,16 @@ var   DBOperation,          // DBOperation structure prototype
 
 
 DBOperation = {
-  opcode          : ""    ,  // the OperationCode
-  transaction     : {}    ,  // pointer to the operation's transaction
-  keys            : {}    ,  // array or map containing key fields
-  values          : {}    ,  // array or map containing row values
-  tableHandler    : {}    ,  // the DBTableHandler used for this operation
-  lockMode        : ""    ,  // LockMode used for a read operation
-  index           : {}    ,  // the IndexMetadata used for this operation
-  state           : ""    ,  // the current OperationState
-  result          : {}    ,  // DBResult object containing the result of the op
-  buffers         : {}    ,  // contains any buffers used internally
+  opcode          : null ,  // the OperationCode
+  userCallback    : null ,  // a higher level callback
+  transaction     : null ,  // pointer to the operation's transaction
+  keys            : null ,  // array or map containing key fields
+  values          : null ,  // array or map containing row values
+  tableHandler    : null ,  // the DBTableHandler used for this operation
+  lockMode        : null ,  // LockMode used for a read operation
+  index           : null ,  // the IndexMetadata used for this operation
+  state           : null ,  // the current OperationState
+  result          : null ,  // DBResult object containing the result of the op
 };
 
 
@@ -36,11 +40,7 @@ OperationCodes = [
 
 
 OperationStates = [ 
-  "INITIALIZED",         // State of a newly-created operation
   "DEFINED",             // opcode, table, and required keys/values are present
-  "PLANNED",             // access path has been chosen
-  "NO_INDEX",            // no index access path is available for this operation
-  "CANCELLED",           // transaction was rolled back before operation started
   "PREPARED",            // local preparation of the operation is complete
   "EXECUTING",           // operation has been sent to database
   "COMPLETED"            // operation is complete and result is available
@@ -52,28 +52,30 @@ OperationStates = [
    for the operation.
 */   
 LockModes = [ 
-  "EXCLUSIVE",           // Read with an exclusive lock
-  "SHARED",              // Read with a shared-read lock
-  "SHARED_RELEASED",     // Read with a shared-read lock and release immediately  
-  "COMMITTED"            // Read committed values (no locking)
+  "EXCLUSIVE",         // Read with an exclusive lock
+  "SHARED",            // Read with a shared-read lock
+  "SHARED_RELEASED",   // Read with a shared-read lock and release quickly  
+  "COMMITTED"          // Read committed values (no locking)
 ];
 
 
 DBResult = { 
-  success        : true  ,   // boolean indicating whether the operation succeeded
-  error          : {}    ,   // a DBOperationError object  
-  row_count      : 0     ,   // number of rows read
-  value          : {}    ,   // Result value created according to the DBTableHandler
-  insert_id      : 0     ,   // value of AUTO-INCREMENT key on insert
+  success        : null ,  // boolean indicating whether the operation succeeded
+  error          : null ,  // a DBOperationError object  
+  value          : null ,  // Result value created according to the DBTableHandler
+  insert_id      : null ,  // value of AUTO-INCREMENT key on insert
 };
 
 
 DBOperationError = {
-  code           : 0    // MySQL Error Code number (Required)
+  code           : null,   // MySQL Error Code number (number)
+  message        : null    // Error message (string)
   /* ...  Other adapter-specific properties which may be present */
 };
 
 
+/* This documentation file is a valid JavaScript module and exports: 
+*/
 exports.DBOperation = DBOperation;
 exports.OperationCodes = OperationCodes;
 exports.OperationStates = OperationStates;

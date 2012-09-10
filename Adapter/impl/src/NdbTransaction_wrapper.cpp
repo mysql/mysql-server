@@ -136,6 +136,7 @@ Handle<Value> close(const Arguments &args) {
 void NdbTransaction_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(target, "NoCommit", NdbTransaction::NoCommit);
   DEFINE_JS_INT(target, "Commit", NdbTransaction::Commit);
+  DEFINE_JS_INT(target, "Rollback", NdbTransaction::Rollback);
   DEFINE_JS_INT(target, "DefaultAbortOption", NdbOperation::DefaultAbortOption);
   DEFINE_JS_INT(target, "AbortOnError", NdbOperation::AbortOnError);
   DEFINE_JS_INT(target, "AO_IgnoreError", NdbOperation::AO_IgnoreError);
