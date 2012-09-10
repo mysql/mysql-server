@@ -221,6 +221,8 @@ struct PSI_file_locker_state_v1
   uint m_flags;
   enum PSI_file_operation m_operation;
   struct PSI_file *m_file;
+  const char *m_name;
+  void *m_class;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
   ulonglong m_timer_start;
@@ -422,10 +424,10 @@ typedef struct PSI_table_locker* (*start_table_lock_wait_v1_t)
    ulong flags,
    const char *src_file, uint src_line);
 typedef void (*end_table_lock_wait_v1_t)(struct PSI_table_locker *locker);
-typedef struct PSI_file* (*start_file_open_wait_v1_t)
+typedef void (*start_file_open_wait_v1_t)
   (struct PSI_file_locker *locker, const char *src_file, uint src_line);
-typedef void (*end_file_open_wait_v1_t)(struct PSI_file_locker *locker,
-                                        void *result);
+typedef struct PSI_file* (*end_file_open_wait_v1_t)
+  (struct PSI_file_locker *locker, void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)
   (struct PSI_file_locker *locker, File file);
 typedef void (*start_file_wait_v1_t)
@@ -433,6 +435,10 @@ typedef void (*start_file_wait_v1_t)
    const char *src_file, uint src_line);
 typedef void (*end_file_wait_v1_t)
   (struct PSI_file_locker *locker, size_t count);
+typedef void (*start_file_close_wait_v1_t)
+  (struct PSI_file_locker *locker, const char *src_file, uint src_line);
+typedef void (*end_file_close_wait_v1_t)
+  (struct PSI_file_locker *locker, int rc);
 typedef void (*start_stage_v1_t)
   (PSI_stage_key key, const char *src_file, int src_line);
 typedef void (*end_stage_v1_t) (void);
@@ -571,6 +577,8 @@ struct PSI_v1
     end_file_open_wait_and_bind_to_descriptor;
   start_file_wait_v1_t start_file_wait;
   end_file_wait_v1_t end_file_wait;
+  start_file_close_wait_v1_t start_file_close_wait;
+  end_file_close_wait_v1_t end_file_close_wait;
   start_stage_v1_t start_stage;
   end_stage_v1_t end_stage;
   get_thread_statement_locker_v1_t get_thread_statement_locker;

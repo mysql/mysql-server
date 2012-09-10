@@ -194,7 +194,7 @@ btr_search_validate(void);
 #endif /* defined UNIV_AHI_DEBUG || defined UNIV_DEBUG */
 
 /** The search info struct in an index */
-struct btr_search_struct{
+struct btr_search_t{
 	ulint	ref_count;	/*!< Number of blocks in this index tree
 				that have search index built
 				i.e. block->index points to this index.
@@ -243,16 +243,13 @@ struct btr_search_struct{
 #endif /* UNIV_SEARCH_PERF_STAT */
 #ifdef UNIV_DEBUG
 	ulint	magic_n;	/*!< magic number @see BTR_SEARCH_MAGIC_N */
-/** value of btr_search_struct::magic_n, used in assertions */
+/** value of btr_search_t::magic_n, used in assertions */
 # define BTR_SEARCH_MAGIC_N	1112765
 #endif /* UNIV_DEBUG */
 };
 
 /** The hash index system */
-typedef struct btr_search_sys_struct	btr_search_sys_t;
-
-/** The hash index system */
-struct btr_search_sys_struct{
+struct btr_search_sys_t{
 	hash_table_t*	hash_index;	/*!< the adaptive hash index,
 					mapping dtuple_fold values
 					to rec_t pointers on index pages */

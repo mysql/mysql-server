@@ -2525,3 +2525,15 @@ test.t1	check	error	Size of indexfile is: 1024        Should be: 2048
 test.t1	check	warning	Size of datafile is: 14       Should be: 7
 test.t1	check	error	Corrupt
 DROP TABLE t1;
+#
+# Bug#14093521 SIMPLE SELECT..WHERE QUERY ON YEAR GIVES DIFFERENT ORDER BY TRANSFORMED RESULT
+#
+CREATE TABLE t1 (f1 year(4), key k1(f1)) ENGINE=MYISAM;
+INSERT INTO t1 VALUES(0000),(0000);
+SELECT * FROM t1 FORCE INDEX(k1) WHERE f1 = 'lhsi';
+f1
+0000
+0000
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'lhsi'
+DROP TABLE t1;

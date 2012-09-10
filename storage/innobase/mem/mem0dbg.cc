@@ -58,8 +58,7 @@ static ibool		mem_hash_initialized		= FALSE;
 
 /* The node of the list containing currently allocated memory heaps */
 
-typedef struct mem_hash_node_struct mem_hash_node_t;
-struct mem_hash_node_struct {
+struct mem_hash_node_t {
 	UT_LIST_NODE_T(mem_hash_node_t)
 				list;	/*!< hash list node */
 	mem_heap_t*		heap;	/*!< memory heap */

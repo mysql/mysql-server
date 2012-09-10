@@ -27,6 +27,10 @@ typedef struct st_db_worker_hash_entry
   uint  db_len;
   const char *db;
   Slave_worker *worker;
+  /*
+    The number of transaction pending on this database.
+    This should only be modified under the lock slave_worker_hash_lock.
+   */
   long usage;
   /*
     The list of temp tables belonging to @ db database is
@@ -317,8 +321,14 @@ public:
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
-  bool wq_overrun_set;   // W marks inself as incrementer of rli->mts_wq_excess_cnt
-
+  // W private counter to incrementer in step with  rli->mts_wq_excess_cnt
+  long wq_overrun_cnt; 
+  /*
+    number of events starting from which Worker queue is regarded as
+    close to full. The number of the excessive events yields a weight factor
+    to compute Coordinator's nap.
+  */
+  ulong overrun_level;
   /*
     Coordinates of the last CheckPoint (CP) this Worker has
     acknowledged; part of is persisent data

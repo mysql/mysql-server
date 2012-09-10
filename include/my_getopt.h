@@ -67,7 +67,11 @@ struct my_option
                                            If an opton needs neither special
                                            treatment in the my_get_one_option()
                                            nor one-letter short equivalent
-                                           use id=0
+                                           use id=0.
+                                           id=-1 is a special case and is used
+                                           to generate deprecation warnings for
+                                           plugin options. It should not be
+                                           used for anything else.
                                          */
   const char *comment;                  /**< option comment, for autom. --help.
                                            if it's NULL the option is not

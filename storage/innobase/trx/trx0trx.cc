@@ -146,10 +146,6 @@ trx_create(void)
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
 
-	/* Avoid calling ut_time() too frequently. Set the time here
-	for new transactions. */
-	trx->start_time = ut_time();
-
 	return(trx);
 }
 
@@ -696,7 +692,6 @@ trx_start_low(
 	bool	read_write)	/*!< in: true if read-write transaction */
 {
 	ut_ad(trx->rseg == NULL);
-	ut_ad(trx->start_time != 0);
 
 	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
@@ -785,11 +780,7 @@ trx_start_low(
 		}
 	}
 
-	/* Avoid making an unnecessary system call, we reuse the start_time
-	for every 32  starts. */
-	if (!(trx->id % 32)) {
-		trx->start_time = ut_time();
-	}
+	trx->start_time = ut_time();
 
 	MONITOR_INC(MONITOR_TRX_ACTIVE);
 }
@@ -1014,7 +1005,7 @@ trx_finalize_for_fts(
 /**********************************************************************//**
 If required, flushes the log to disk based on the value of
 innodb_flush_log_at_trx_commit. */
-static __attribute__((nonnull))
+static
 void
 trx_flush_log_if_needed_low(
 /*========================*/
@@ -1546,9 +1537,9 @@ trx_print_low(
 	ulint		max_query_len,
 			/*!< in: max query length to print,
 			or 0 to use the default max length */
-	ulint		n_lock_rec,
+	ulint		n_rec_locks,
 			/*!< in: lock_number_of_rows_locked(&trx->lock) */
-	ulint		n_lock_struct,
+	ulint		n_trx_locks,
 			/*!< in: length of trx->lock.trx_locks */
 	ulint		heap_size)
 			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
@@ -1627,14 +1618,14 @@ state_ok:
 		fprintf(f, "que state %lu ", (ulong) trx->lock.que_state);
 	}
 
-	if (n_lock_struct > 0 || heap_size > 400) {
+	if (n_trx_locks > 0 || heap_size > 400) {
 		newline = TRUE;
 
 		fprintf(f, "%lu lock struct(s), heap size %lu,"
 			" %lu row lock(s)",
-			(ulong) n_lock_struct,
+			(ulong) n_trx_locks,
 			(ulong) heap_size,
-			(ulong) n_lock_rec);
+			(ulong) n_rec_locks);
 	}
 
 	if (trx->has_search_latch) {
@@ -1690,19 +1681,19 @@ trx_print(
 	ulint		max_query_len)	/*!< in: max query length to print,
 					or 0 to use the default max length */
 {
-	ulint	n_lock_rec;
-	ulint	n_lock_struct;
+	ulint	n_rec_locks;
+	ulint	n_trx_locks;
 	ulint	heap_size;
 
 	lock_mutex_enter();
-	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
-	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 	lock_mutex_exit();
 
 	mutex_enter(&trx_sys->mutex);
 	trx_print_low(f, trx, max_query_len,
-		      n_lock_rec, n_lock_struct, heap_size);
+		      n_rec_locks, n_trx_locks, heap_size);
 	mutex_exit(&trx_sys->mutex);
 }
 

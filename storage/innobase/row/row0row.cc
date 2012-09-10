@@ -57,13 +57,14 @@ UNIV_INTERN
 dtuple_t*
 row_build_index_entry_low(
 /*======================*/
-	const dtuple_t*	row,	/*!< in: row which should be
-				inserted or purged */
-	row_ext_t*	ext,	/*!< in: externally stored column prefixes,
-				or NULL */
-	dict_index_t*	index,	/*!< in: index on the table */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the index entry is allocated */
+	const dtuple_t*		row,	/*!< in: row which should be
+					inserted or purged */
+	const row_ext_t*	ext,	/*!< in: externally stored column
+					prefixes, or NULL */
+	dict_index_t*		index,	/*!< in: index on the table */
+	mem_heap_t*		heap)	/*!< in: memory heap from which
+					the memory for the index entry
+					is allocated */
 {
 	dtuple_t*	entry;
 	ulint		entry_len;
@@ -364,9 +365,13 @@ row_build(
 	if (!ext) {
 		/* REDUNDANT and COMPACT formats store a local
 		768-byte prefix of each externally stored
-		column. No cache is needed. */
-		ut_ad(dict_table_get_format(index->table)
-		      < UNIV_FORMAT_B);
+		column. No cache is needed.
+
+		During online table rebuild,
+		row_log_table_apply_delete_low()
+		may use a cache that was set up by
+		row_log_table_delete(). */
+
 	} else if (j) {
 		*ext = row_ext_create(j, ext_cols, index->table->flags, row,
 				      heap);

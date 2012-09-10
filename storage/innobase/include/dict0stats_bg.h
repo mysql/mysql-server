@@ -35,6 +35,10 @@ Created Apr 26, 2012 Vasil Dimov
 /** Event to wake up the stats thread */
 extern os_event_t	dict_stats_event;
 
+#ifdef HAVE_PSI_INTERFACE
+extern mysql_pfs_key_t	dict_stats_recalc_pool_mutex_key;
+#endif /* HAVE_PSI_INTERFACE */
+
 /*****************************************************************//**
 Add a table to the recalc pool, which is processed by the
 background stats gathering thread. Only the table id is added to the

@@ -1,0 +1,94 @@
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SET GLOBAL innodb_file_format=Barracuda;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+CREATE TABLE t (
+a INT,
+b VARCHAR(512),
+c VARCHAR(16),
+PRIMARY KEY (a),
+INDEX (b(512)),
+INDEX (c(16))
+) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
+database_name	test
+table_name	t
+index_name	b
+compress_ops	1
+compress_ops_ok	1
+uncompress_ops	0
+database_name	test
+table_name	t
+index_name	c
+compress_ops	1
+compress_ops_ok	1
+uncompress_ops	0
+database_name	test
+table_name	t
+index_name	PRIMARY
+compress_ops	1
+compress_ops_ok	1
+uncompress_ops	0
+BEGIN;
+COMMIT;
+ALTER TABLE t DROP INDEX c;
+GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
+FLUSH PRIVILEGES;
+SELECT * FROM information_schema.innodb_cmp_per_index;
+ERROR 42000: Access denied; you need (at least one of) the PROCESS privilege(s) for this operation
+DROP USER 'tuser01'@'localhost';
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
+database_name	test
+table_name	t
+index_name	b
+compress_ops	42
+compress_ops_ok	42
+uncompress_ops	0
+database_name	test
+table_name	t
+index_name	PRIMARY
+compress_ops	50
+compress_ops_ok	50
+uncompress_ops	0
+database_name	unknown
+table_name	unknown
+index_name	index_id:idisnondeterministic
+compress_ops	1
+compress_ops_ok	1
+uncompress_ops	0
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SELECT COUNT(*) FROM t;
+COUNT(*)	128
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
+database_name	test
+table_name	t
+index_name	b
+compress_ops	0
+compress_ops_ok	0
+uncompress_ops	6
+DROP TABLE t;
+SET GLOBAL innodb_cmp_per_index_enabled=default;
+SET GLOBAL innodb_file_format=default;

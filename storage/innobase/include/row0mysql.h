@@ -41,7 +41,7 @@ struct SysIndexCallback;
 
 extern ibool row_rollback_on_timeout;
 
-typedef struct row_prebuilt_struct row_prebuilt_t;
+struct row_prebuilt_t;
 
 /*******************************************************************//**
 Frees the blob heap in prebuilt when no longer needed. */
@@ -298,6 +298,18 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 	__attribute__((nonnull));
+/*********************************************************************//**
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL.
+@return true if temporary table */
+UNIV_INTERN
+bool
+row_is_mysql_tmp_table_name(
+/*========================*/
+	const char*	name) __attribute__((warn_unused_result));
+				/*!< in: table name in the form
+				'database/tablename' */
+
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -588,8 +600,7 @@ row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
 Innobase and MySQL. */
 
-typedef struct mysql_row_templ_struct mysql_row_templ_t;
-struct mysql_row_templ_struct {
+struct mysql_row_templ_t {
 	ulint	col_no;			/*!< column number of the column */
 	ulint	rec_field_no;		/*!< field number of the column in an
 					Innobase record in the current index;
@@ -644,7 +655,7 @@ struct mysql_row_templ_struct {
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
-struct row_prebuilt_struct {
+struct row_prebuilt_t {
 	ulint		magic_n;	/*!< this magic number is set to
 					ROW_PREBUILT_ALLOCATED when created,
 					or ROW_PREBUILT_FREED when the

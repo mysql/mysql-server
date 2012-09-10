@@ -72,13 +72,11 @@ UNIV_INTERN ulong	srv_thread_concurrency	= 0;
 /** This mutex protects srv_conc data structures */
 static os_fast_mutex_t	srv_conc_mutex;
 
-/** Slot for a thread waiting in the concurrency control queue. */
-typedef struct srv_conc_slot_struct	srv_conc_slot_t;
-
 /** Concurrency list node */
-typedef UT_LIST_NODE_T(srv_conc_slot_t)	srv_conc_node_t;
+typedef UT_LIST_NODE_T(struct srv_conc_slot_t)	srv_conc_node_t;
 
-struct srv_conc_slot_struct{
+/** Slot for a thread waiting in the concurrency control queue. */
+struct srv_conc_slot_t{
 	os_event_t	event;		/*!< event to wait */
 	ibool		reserved;	/*!< TRUE if slot
 					reserved */
@@ -105,10 +103,8 @@ UNIV_INTERN mysql_pfs_key_t	srv_conc_mutex_key;
 
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
-typedef struct srv_conc_struct srv_conc_t;
-
 /** Variables tracking the active and waiting threads. */
-struct srv_conc_struct {
+struct srv_conc_t {
 	char		pad[64  - (sizeof(ulint) + sizeof(lint))];
 
 	/** Number of transactions that have declared_to_be_inside_innodb set.

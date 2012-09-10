@@ -3956,18 +3956,33 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
             ] /* considered_execution_plans */
           },
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "row_length": 5,
+                "key_length": 5,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t1`.`c1` = 1) and (`t2`.`c2` = 1) and (`t2`.`c2` = 1))",
+              "original_condition": "((`t1`.`c1` = 1) and (`t2`.`c2` = 1) and (`<subquery2>`.`c2` = 1) and (`t2`.`c2` = 1))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`c1` = 1)"
+                  "attached": "((`t1`.`c1` = 1) and (`t1`.`c1` is not null))"
                 },
                 {
                   "table": "`t2`",
                   "attached": "(`t2`.`c2` = 1)"
+                },
+                {
+                  "table": "``.`<subquery2>`",
+                  "attached": "(`<subquery2>`.`c2` = 1)"
                 },
                 {
                   "table": "`t2`",
@@ -3987,23 +4002,10 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                 "access_type": "table_scan"
               },
               {
+                "table": "``.`<subquery2>`"
+              },
+              {
                 "table": "`t2`",
-                "unknown_key_1": {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "row_length": 5,
-                      "key_length": 5,
-                      "unique_constraint": false,
-                      "location": "memory (heap)",
-                      "row_limit_estimate": 209715
-                    } /* tmp_table_info */
-                  } /* creating_tmp_table */
-                },
-                "creating_semijoin_materialization_conditions": {
-                  "evaluating_constant_semijoin_conditions": [
-                  ] /* evaluating_constant_semijoin_conditions */,
-                  "resulting_condition": "(`t2`.`c2` = `sj-materialize`.`c2`)"
-                } /* creating_semijoin_materialization_conditions */,
                 "access_type": "table_scan"
               }
             ] /* refine_plan */
@@ -7749,6 +7751,9 @@ freturn 3 ret@0	{
   "steps": [
   ] /* steps */
 }	0	0
+set @old_opt_switch=@@optimizer_switch;
+# Test was created when sj-mat-scan could not handle this query...
+set optimizer_switch="materialization=off";
 set optimizer_trace_offset=-60, optimizer_trace_limit=60|
 select * from t6 where d in (select f1() from t2 where s="c")|
 d
@@ -7901,34 +7906,6 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                 } /* table_scan */
               }
             ] /* rows_estimation */
-          },
-          {
-            "execution_plan_for_potential_materialization": {
-              "steps": [
-                {
-                  "considered_execution_plans": [
-                    {
-                      "plan_prefix": [
-                      ] /* plan_prefix */,
-                      "table": "`t2`",
-                      "best_access_path": {
-                        "considered_access_paths": [
-                          {
-                            "access_type": "scan",
-                            "rows": 3,
-                            "cost": 2.6212,
-                            "chosen": true
-                          }
-                        ] /* considered_access_paths */
-                      } /* best_access_path */,
-                      "cost_for_plan": 2.6212,
-                      "rows_for_plan": 3,
-                      "chosen": true
-                    }
-                  ] /* considered_execution_plans */
-                }
-              ] /* steps */
-            } /* execution_plan_for_potential_materialization */
           },
           {
             "considered_execution_plans": [
@@ -8623,12 +8600,17 @@ insert into t1 values("z",0)	{
   "steps": [
   ] /* steps */
 }	0	0
+set @@optimizer_switch=@old_opt_switch;
+# Stored procedures
 create procedure p1(arg char(1))
 begin
 declare res int;
 select d into res from t6 where d in (select f1() from t2 where s=arg);
 select d+1 into res from t6 where d=res+1;
 end|
+set @old_opt_switch=@@optimizer_switch;
+# Test was created when sj-mat-scan could not handle this query...
+set optimizer_switch="materialization=off";
 set optimizer_trace_offset=0, optimizer_trace_limit=100;
 call p1("c")|
 Warnings:
@@ -8758,34 +8740,6 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 } /* table_scan */
               }
             ] /* rows_estimation */
-          },
-          {
-            "execution_plan_for_potential_materialization": {
-              "steps": [
-                {
-                  "considered_execution_plans": [
-                    {
-                      "plan_prefix": [
-                      ] /* plan_prefix */,
-                      "table": "`t2`",
-                      "best_access_path": {
-                        "considered_access_paths": [
-                          {
-                            "access_type": "scan",
-                            "rows": 3,
-                            "cost": 2.6212,
-                            "chosen": true
-                          }
-                        ] /* considered_access_paths */
-                      } /* best_access_path */,
-                      "cost_for_plan": 2.6212,
-                      "rows_for_plan": 3,
-                      "chosen": true
-                    }
-                  ] /* considered_execution_plans */
-                }
-              ] /* steps */
-            } /* execution_plan_for_potential_materialization */
           },
           {
             "considered_execution_plans": [
@@ -9577,6 +9531,8 @@ select d+1 into res from t6 where d=res+1	{
     }
   ] /* steps */
 }	0	0
+set @@optimizer_switch=@old_opt_switch;
+# Triggers
 create trigger trg1 before insert on t2 for each row
 begin
 set new.s=f1();  
@@ -10741,6 +10697,10 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 "cost_for_plan": 3.4496,
                 "rows_for_plan": 7,
                 "semijoin_strategy_choice": [
+                  {
+                    "strategy": "MaterializeScan",
+                    "choice": "deferred"
+                  }
                 ] /* semijoin_strategy_choice */,
                 "pruned_by_heuristic": true
               },
@@ -10750,6 +10710,17 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
             ] /* considered_execution_plans */
           },
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "row_length": 5,
+                "key_length": 5,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 209715
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
             "attaching_conditions_to_tables": {
               "original_condition": "((`t6`.`d` = `f1`()) and (`t2`.`s` = arg@0))",
               "attached_conditions_computation": [
@@ -10757,6 +10728,10 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
               "attached_conditions_summary": [
                 {
                   "table": "`t6`",
+                  "attached": "(`t6`.`d` is not null)"
+                },
+                {
+                  "table": "``.`<subquery2>`",
                   "attached": "(`t6`.`d` = `f1`())"
                 },
                 {
@@ -10773,23 +10748,10 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
                 "access_type": "index_scan"
               },
               {
+                "table": "``.`<subquery2>`"
+              },
+              {
                 "table": "`t2`",
-                "unknown_key_1": {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "row_length": 5,
-                      "key_length": 5,
-                      "unique_constraint": false,
-                      "location": "memory (heap)",
-                      "row_limit_estimate": 209715
-                    } /* tmp_table_info */
-                  } /* creating_tmp_table */
-                },
-                "creating_semijoin_materialization_conditions": {
-                  "evaluating_constant_semijoin_conditions": [
-                  ] /* evaluating_constant_semijoin_conditions */,
-                  "resulting_condition": "(`t6`.`d` = `sj-materialize`.`f1()`)"
-                } /* creating_semijoin_materialization_conditions */,
                 "access_type": "table_scan"
               }
             ] /* refine_plan */
@@ -10804,282 +10766,6 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
         ] /* steps */
       } /* join_execution */
     }
-  ] /* steps */
-}	0	0
-set ret@0 NULL	{
-  "steps": [
-  ] /* steps */
-}	0	0
-insert into t1 values("z",0)	{
-  "steps": [
-  ] /* steps */
-}	0	0
-delete from t1 where id="z"	{
-  "steps": [
-    {
-      "condition_processing": {
-        "condition": "WHERE",
-        "original_condition": "(`t1`.`id` = 'z')",
-        "steps": [
-          {
-            "transformation": "equality_propagation",
-            "resulting_condition": "multiple equal('z', `t1`.`id`)"
-          },
-          {
-            "transformation": "constant_propagation",
-            "resulting_condition": "multiple equal('z', `t1`.`id`)"
-          },
-          {
-            "transformation": "trivial_condition_removal",
-            "resulting_condition": "multiple equal('z', `t1`.`id`)"
-          }
-        ] /* steps */
-      } /* condition_processing */
-    },
-    {
-      "table": "`t1`",
-      "range_analysis": {
-        "table_scan": {
-          "rows": 3,
-          "cost": 4.7154
-        } /* table_scan */
-      } /* range_analysis */
-    }
-  ] /* steps */
-}	0	0
-select sum(data) into ret from t1	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-          {
-            "table_dependencies": [
-              {
-                "table": "`t1`",
-                "row_may_be_null": false,
-                "map_bit": 0,
-                "depends_on_map_bits": [
-                ] /* depends_on_map_bits */
-              }
-            ] /* table_dependencies */
-          },
-          {
-            "rows_estimation": [
-              {
-                "table": "`t1`",
-                "table_scan": {
-                  "rows": 2,
-                  "cost": 2
-                } /* table_scan */
-              }
-            ] /* rows_estimation */
-          },
-          {
-            "considered_execution_plans": [
-              {
-                "plan_prefix": [
-                ] /* plan_prefix */,
-                "table": "`t1`",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "rows": 2,
-                      "cost": 2.4154,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.4154,
-                "rows_for_plan": 2,
-                "chosen": true
-              }
-            ] /* considered_execution_plans */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-                {
-                  "table": "`t1`",
-                  "attached": null
-                }
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-              {
-                "table": "`t1`",
-                "access_type": "table_scan"
-              }
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ] /* steps */
-      } /* join_execution */
-    }
-  ] /* steps */
-}	0	0
-freturn 3 ret@0	{
-  "steps": [
-  ] /* steps */
-}	0	0
-set ret@0 NULL	{
-  "steps": [
-  ] /* steps */
-}	0	0
-insert into t1 values("z",0)	{
-  "steps": [
-  ] /* steps */
-}	0	0
-delete from t1 where id="z"	{
-  "steps": [
-    {
-      "condition_processing": {
-        "condition": "WHERE",
-        "original_condition": "(`t1`.`id` = 'z')",
-        "steps": [
-          {
-            "transformation": "equality_propagation",
-            "resulting_condition": "multiple equal('z', `t1`.`id`)"
-          },
-          {
-            "transformation": "constant_propagation",
-            "resulting_condition": "multiple equal('z', `t1`.`id`)"
-          },
-          {
-            "transformation": "trivial_condition_removal",
-            "resulting_condition": "multiple equal('z', `t1`.`id`)"
-          }
-        ] /* steps */
-      } /* condition_processing */
-    },
-    {
-      "table": "`t1`",
-      "range_analysis": {
-        "table_scan": {
-          "rows": 3,
-          "cost": 4.7154
-        } /* table_scan */
-      } /* range_analysis */
-    }
-  ] /* steps */
-}	0	0
-select sum(data) into ret from t1	{
-  "steps": [
-    {
-      "join_preparation": {
-        "select#": 1,
-        "steps": [
-          {
-            "expanded_query": "/* select#1 */ select sum(`t1`.`data`) AS `sum(data)` from `t1`"
-          }
-        ] /* steps */
-      } /* join_preparation */
-    },
-    {
-      "join_optimization": {
-        "select#": 1,
-        "steps": [
-          {
-            "table_dependencies": [
-              {
-                "table": "`t1`",
-                "row_may_be_null": false,
-                "map_bit": 0,
-                "depends_on_map_bits": [
-                ] /* depends_on_map_bits */
-              }
-            ] /* table_dependencies */
-          },
-          {
-            "rows_estimation": [
-              {
-                "table": "`t1`",
-                "table_scan": {
-                  "rows": 2,
-                  "cost": 2
-                } /* table_scan */
-              }
-            ] /* rows_estimation */
-          },
-          {
-            "considered_execution_plans": [
-              {
-                "plan_prefix": [
-                ] /* plan_prefix */,
-                "table": "`t1`",
-                "best_access_path": {
-                  "considered_access_paths": [
-                    {
-                      "access_type": "scan",
-                      "rows": 2,
-                      "cost": 2.4154,
-                      "chosen": true
-                    }
-                  ] /* considered_access_paths */
-                } /* best_access_path */,
-                "cost_for_plan": 2.4154,
-                "rows_for_plan": 2,
-                "chosen": true
-              }
-            ] /* considered_execution_plans */
-          },
-          {
-            "attaching_conditions_to_tables": {
-              "original_condition": null,
-              "attached_conditions_computation": [
-              ] /* attached_conditions_computation */,
-              "attached_conditions_summary": [
-                {
-                  "table": "`t1`",
-                  "attached": null
-                }
-              ] /* attached_conditions_summary */
-            } /* attaching_conditions_to_tables */
-          },
-          {
-            "refine_plan": [
-              {
-                "table": "`t1`",
-                "access_type": "table_scan"
-              }
-            ] /* refine_plan */
-          }
-        ] /* steps */
-      } /* join_optimization */
-    },
-    {
-      "join_execution": {
-        "select#": 1,
-        "steps": [
-        ] /* steps */
-      } /* join_execution */
-    }
-  ] /* steps */
-}	0	0
-freturn 3 ret@0	{
-  "steps": [
   ] /* steps */
 }	0	0
 set ret@0 NULL	{
@@ -11553,7 +11239,7 @@ drop view v1;
 create view v1 as select * from t1 where id < "c" limit 2;
 explain select * from v1 where id="b";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	16	const	0	Using where
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	16	const	0	Using where
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -11746,7 +11432,7 @@ explain select * from v1 where id="b"	{
                   "considered_access_paths": [
                     {
                       "access_type": "ref",
-                      "index": "auto_key0",
+                      "index": "<auto_key0>",
                       "rows": 0.2,
                       "cost": 0.24,
                       "chosen": true
