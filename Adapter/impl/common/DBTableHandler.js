@@ -139,7 +139,7 @@ function resolveApiMapping(dbTable, apiMapping) {
   for(i = 0 ; i < apiMapping.fields.length ; i++) {
     apiField = apiMapping.fields[i]; 
     if(! apiField.notPersistent) {
-      col = getColumnByName(dbTable, field.columnName);
+      col = getColumnByName(dbTable, apiField.name);
       /* TODO: check for null */
       field = new FieldMapping(col);
       field.merge(apiField);
