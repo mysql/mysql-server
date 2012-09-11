@@ -62,7 +62,7 @@ Handle<Value> getNdb(const Arguments &args) {
 
 
 /* NewDBSessionImpl()
-   ASYNC
+   SYNC (2 args) / ASYNC (3 args)
    arg0: Ndb_cluster_connection
    arg1: Name of database
    arg2: callback
@@ -71,8 +71,10 @@ Handle<Value> getNdb(const Arguments &args) {
 Handle<Value>NewDBSessionImpl(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
+  Local<Value> ret;
   
-  REQUIRE_ARGS_LENGTH(3);
+  REQUIRE_MIN_ARGS(2);
+  REQUIRE_MAX_ARGS(3);
   
   typedef NativeCFunctionCall_2_<ndb_session *, Ndb_cluster_connection *, 
                                  const char *> NCALL;
@@ -81,11 +83,33 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
 
   ncallptr->envelope = & NdbSessionImplEnv;
   ncallptr->function = & ndb_session_new;
-  ncallptr->runAsync();
 
-  return scope.Close(JS_VOID_RETURN);
+  if(args.Length() == 3) {
+    ncallptr->runAsync();
+    ret = JS_VOID_RETURN;
+  }
+  else { 
+    ncallptr->run();
+    ret = ncallptr->jsReturnVal();
+    delete ncallptr;
+  }
+
+  return scope.Close(ret);
 }
 
+
+Handle<Value>DeleteDBSessionImpl(const Arguments &args) {
+  HandleScope scope;
+  
+  DEBUG_MARKER(UDEB_DEBUG);
+  REQUIRE_ARGS_LENGTH(1);
+  ndb_session * sess = unwrapPointer<ndb_session *>(args[0]->ToObject());
+
+  delete sess->ndb;
+  delete sess;
+  
+  return scope.Close(JS_VOID_RETURN);
+}
 
 
 void DBSessionImpl_initOnLoad(Handle<Object> target) {
@@ -95,6 +119,7 @@ void DBSessionImpl_initOnLoad(Handle<Object> target) {
   
   DEFINE_JS_FUNCTION(dbsession_obj, "create", NewDBSessionImpl);
   DEFINE_JS_FUNCTION(dbsession_obj, "getNdb", getNdb);
+  DEFINE_JS_FUNCTION(dbsession_obj, "destroy", DeleteDBSessionImpl);
   
   target->Set(Persistent<String>(String::NewSymbol("DBSession")), dbsession_obj);
 }

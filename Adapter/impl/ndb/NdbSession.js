@@ -27,7 +27,7 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     dbtxhandler    = require("./NdbTransactionHandler.js"),
     util           = require("util"),
     assert         = require("assert"),
-    DBSession;
+    NdbSession;
 
 /*** Methods exported by this module but not in the public DBSession SPI ***/
 
@@ -37,7 +37,7 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 */
 exports.getDBSession = function(pool, impl) {
   udebug.log("ndbsession getDBSession(connectionPool, sessionImpl)");
-  var dbSess = new DBSession();
+  var dbSess = new NdbSession();
   dbSess.parentPool = pool;
   dbSess.impl = impl;
   return dbSess;
@@ -54,13 +54,13 @@ exports.getNdb = function(dbsession) {
 
 /* DBSession Simple Constructor
 */
-DBSession = function() { 
-  udebug.log("DBSession constructor");
+NdbSession = function() { 
+  udebug.log("NdbSession constructor");
 };
 
-/* DBSession prototype 
+/* NdbSession prototype 
 */
-DBSession.prototype = {
+NdbSession.prototype = {
   impl           : null,
   tx             : null,
   parentPool     : null,
@@ -70,9 +70,20 @@ DBSession.prototype = {
     IMMEDIATE
     RETURNS the DBConnectionPool from which this DBSession was created.
 */
-DBSession.prototype.getConnectionPool = function() {
-  udebug.log("DBSession getConnectionPool");
+NdbSession.prototype.getConnectionPool = function() {
+  udebug.log("NdbSession getConnectionPool");
   return this.parentPool;
+};
+
+
+/* close() 
+   ASYNC. Optional callback.
+*/
+NdbSession.prototype.close = function(userCallback) {
+  adapter.ndb.impl.DBSession.destroy(this.impl);
+  if(userCallback) {
+    userCallback(null, null);
+  }
 };
 
 
@@ -81,8 +92,8 @@ DBSession.prototype.getConnectionPool = function() {
 
    RETURNS a DBTransactionHandler
 */
-DBSession.prototype.createTransaction = function() {
-  udebug.log("DBSession createTransaction");
+NdbSession.prototype.createTransaction = function() {
+  udebug.log("NdbSession createTransaction");
   
   delete this.tx;  
   this.tx = new dbtxhandler.DBTransactionHandler(this);
@@ -102,9 +113,9 @@ DBSession.prototype.createTransaction = function() {
 
    RETURNS a DBOperation 
 */
-DBSession.prototype.buildReadOperation = function(table, keys,
+NdbSession.prototype.buildReadOperation = function(table, keys,
                                                   tx, callback) {
-  udebug.log("DBSession buildReadOperation "+ table.name);
+  udebug.log("NdbSession buildReadOperation "+ table.name);
   var lockMode = "SHARED";
   var op = ndboperation.newReadOperation(tx, table, keys, lockMode);
   op.userCallback = callback;
@@ -122,9 +133,9 @@ DBSession.prototype.buildReadOperation = function(table, keys,
  
    RETURNS a DBOperation 
 */
-DBSession.prototype.buildInsertOperation = function(tableHandler, row,
+NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                                                     tx, callback) {
-  udebug.log("DBSession buildInsertOperation " + tableHandler.dbTable.name);
+  udebug.log("NdbSession buildInsertOperation " + tableHandler.dbTable.name);
 
   var op = ndboperation.newInsertOperation(tx, tableHandler, row);
   op.userCallback = callback;
@@ -142,9 +153,9 @@ DBSession.prototype.buildInsertOperation = function(tableHandler, row,
  
    RETURNS a DBOperation 
 */ 
-DBSession.prototype.buildDeleteOperation = function(tableHandler, row,
+NdbSession.prototype.buildDeleteOperation = function(tableHandler, row,
                                                     tx, callback) {
-  udebug.log("DBSession buildDeleteOperation " + tableHandler.dbTable.name);
+  udebug.log("NdbSession buildDeleteOperation " + tableHandler.dbTable.name);
   
   var op = ndboperation.newDeleteOperation(tx, tableHandler, row);
   op.userCallback = callback;

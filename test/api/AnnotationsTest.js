@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+
 domainClass = function(id, name, age, magic) {
   this.id = id;
   this.name = name;
@@ -65,4 +67,13 @@ t4.run = function() {
   return true; // test is complete
 };
 
-module.exports.tests = [t1,t2,t3,t4];
+var t5 = new harness.ConcurrentTest("PublicFunctions");
+t5.run = function() {
+  var annotations = new mynode.Annotations();  
+  var docFile = path.join(api_doc_dir, "Annotations");
+  var functionList = doc_parser.listFunctions(docFile);
+  var tester = new doc_parser.ClassTester(annotations);
+  tester.test(functionList, t5);
+}
+
+module.exports.tests = [t1,t2,t3,t4,t5];

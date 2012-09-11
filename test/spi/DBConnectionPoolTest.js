@@ -26,6 +26,7 @@ try {
 } catch(e) {} 
 
 var spi = require(spi_module);
+var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
 
 
 /**** Actually connect using the default properties.  
@@ -42,6 +43,16 @@ t1.run = function() {
 };
 
 
+var t4 = new harness.ConcurrentSubTest("PublicFunctions");
+
+function runSPIDocTest(dbConnection) {
+  var docFile = path.join(spi_doc_dir, "DBConnectionPool");
+  var functionList = doc_parser.listFunctions(docFile);
+  var tester = new doc_parser.ClassTester(dbConnection);
+  tester.test(functionList, t4);
+}
+
+
 /***** 
   t2:  get a connection
   t3:  get a session
@@ -50,6 +61,7 @@ t1.run = function() {
 var t2 = new harness.ConcurrentSubTest("connect");
 
 var t3 = new harness.ConcurrentTest("openDBSession");
+
 t3.run = function() {
   var provider = spi.getDBServiceProvider(global.adapter),
       properties = provider.getDefaultConnectionProperties(), 
@@ -57,11 +69,7 @@ t3.run = function() {
       x_session = null;
     
   this.teardown = function() {
-    // FIXME
-    // session.close() does not exist in the spi?
-    // if(x_session !== null) x_session.close(); 
-
-    // WARNING -- "Deleting Ndb_cluster_connection with Ndb-object not deleted"
+    if(x_session !== null) { x_session.close(); }
     if(x_conn !== null) { x_conn.closeSync(); }
   };
 
@@ -73,6 +81,8 @@ t3.run = function() {
     else {
       t2.pass();
     }
+    runSPIDocTest(connection);
+    
     x_conn = connection; // for teardown  
     var tcb2 = function(err, dbsessionhandler) {
       if(err) {
@@ -89,6 +99,8 @@ t3.run = function() {
 };
 
 
+
+
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t1, t2, t3];
+module.exports.tests = [t1, t2, t3, t4];
 
