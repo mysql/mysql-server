@@ -40,10 +40,10 @@ function DBTransactionHandler(dbsession) {
 DBTransactionHandler.prototype = proto;
 
 
-/* close()
-   ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
+/* close(callback)
+   ASYNC
 */
-proto.close = function() {
+proto.close = function(userCallback) {
   udebug.log("NdbTransactionHandler close");
 
   delete this.executedOperations;
@@ -52,6 +52,9 @@ proto.close = function() {
   function onNdbClose(err, i) {
     /* NdbTransaction::close() returns void.  i == 1. */
     udebug.log("NdbTransactionHandler close onNdbClose");
+    if(userCallback) {
+      userCallback(null, null);
+    }
   }  
 
   if(this.ndbtx) {

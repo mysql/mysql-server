@@ -74,10 +74,13 @@ DBTransactionStates = [
   function rollback(callback) {}
 
 
-/* close()
-   ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
-*/
-  function close() {}
+/* close(callback)
+   ASYNC
+
+   Close and free all resources. 
+   Callback is optional; if supplied, will receive (null, null).
+ */
+  function close(callback) {}
 
 
 

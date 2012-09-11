@@ -103,8 +103,11 @@
   setLockMode(mode)
 
 
-/* close DBSession
-   ASYNC, NO CALLBACK, EMITS 'close' EVENT ON COMPLETION
+/* close(callback) 
+   ASYNC
+   
+   Close DBSession and free all resources. 
+   Callback is optional; if supplied, will receive (null, null).
 */
-  close();
+  close(callback);
 
