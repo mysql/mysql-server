@@ -115,6 +115,7 @@ struct cli_args {
     bool warm_cache; // warm caches before running stress_table
     bool blackhole; // all message injects are no-ops. helps measure txn/logging/locktree overhead.
     bool prelocked_write; // use prelocked_write flag for insertions, avoiding the locktree
+    bool unique_checks; // use uniqueness checking during insert. makes it slow.
 };
 
 struct arg {
@@ -683,6 +684,13 @@ size_t_max(size_t a, size_t b) {
     return (a > b) ? a : b;
 }
 
+static int get_put_flags(struct cli_args *args) {
+    int flags = 0;
+    flags |= args->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+    flags |= args->unique_checks ? DB_NOOVERWRITE : 0;
+    return flags;
+}
+
 static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
     int r = 0;
     uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
@@ -704,7 +712,7 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);
         dbt_init(&val, valbuf, sizeof valbuf);
-        int flags = arg->cli->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+        int flags = get_put_flags(arg->cli);
         r = db->put(db, txn, &key, &val, flags);
         if (r != 0) {
             goto cleanup;
@@ -809,16 +817,18 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
         rand_key_key[0] = extra->current++;
+#if 0
         if (arg->cli->interleave) {
             rand_key_i[3] = arg->thread_idx;
         } else {
             rand_key_i[0] = arg->thread_idx;
         }
+#endif
         fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);
         dbt_init(&val, valbuf, sizeof valbuf);
-        int flags = arg->cli->prelocked_write ? DB_PRELOCKED_WRITE : 0;
+        int flags = get_put_flags(arg->cli);
         r = db->put(db, txn, &key, &val, flags);
         if (r != 0) {
             goto cleanup;
@@ -1679,7 +1689,8 @@ static struct cli_args UU() get_default_args(void) {
         .single_txn = false,
         .warm_cache = false,
         .blackhole = false,
-        .prelocked_write = false
+        .prelocked_write = false,
+        .unique_checks = false,
         };
     return DEFAULT_ARGS;
 }
@@ -2053,6 +2064,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("recover",     do_recover),
         BOOL_ARG("blackhole",     blackhole),
         BOOL_ARG("prelocked_write",     prelocked_write),
+        BOOL_ARG("unique_checks",     unique_checks),
 
         STRING_ARG("--envdir",    env_args.envdir),
         LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
