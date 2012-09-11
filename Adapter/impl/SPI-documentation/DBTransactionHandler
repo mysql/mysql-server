@@ -78,7 +78,7 @@ DBTransactionStates = [
    ASYNC
 
    Close and free all resources. 
-   Callback is optional; if supplied, will receive (null, null).
+   Callback is optional; if supplied, will receive (err).
  */
   function close(callback) {}
 

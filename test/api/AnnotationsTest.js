@@ -72,7 +72,7 @@ t5.run = function() {
   var annotations = new mynode.Annotations();  
   var docFile = path.join(api_doc_dir, "Annotations");
   var functionList = doc_parser.listFunctions(docFile);
-  var tester = new doc_parser.ClassTester(annotations);
+  var tester = new doc_parser.ClassTester(annotations, "Annotations");
   tester.test(functionList, t5);
 }
 

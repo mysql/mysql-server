@@ -59,7 +59,7 @@ var t4 = new harness.ConcurrentTest("PublicFunctions");
 t4.run = function() {
   var docFile = path.join(spi_doc_dir, "DBServiceProvider");
   var functionList = doc_parser.listFunctions(docFile);
-  var tester = new doc_parser.ClassTester(service);
+  var tester = new doc_parser.ClassTester(service, "DBServiceProvider");
   tester.test(functionList);
 
   return true;

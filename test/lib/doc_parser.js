@@ -121,8 +121,9 @@ function listFunctions(docFileName) {
   return scan(text);
 }
 
-function ClassTester(obj) {
+function ClassTester(obj, docClassName) {
   this.class = obj;
+  this.file = docClassName;
 }
 
 ClassTester.prototype.test = function(functionList, testCase) {
@@ -135,6 +136,7 @@ ClassTester.prototype.test = function(functionList, testCase) {
   while(name = functionList.pop()) {
     func = this.class[name];
     if(typeof func !== 'function') {
+      udebug.log("doc_parser.js MISSING FUNCTION", this.file, name);
       if(! firstMissing) { firstMissing = name; }
       missing += 1;
     }

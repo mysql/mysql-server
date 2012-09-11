@@ -129,7 +129,8 @@ function createDefaultMapping(dbtable) {
 // TODO: Figure out error handling if the API Mapping is invalid
 
 function resolveApiMapping(dbTable, apiMapping) {
-  udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name);
+  udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name +
+      ' mapping ' + JSON.stringify(apiMapping));
   var mapping, field, apiField, col, i;
 
   mapping = new TableMapping(dbTable);
@@ -139,7 +140,7 @@ function resolveApiMapping(dbTable, apiMapping) {
   for(i = 0 ; i < apiMapping.fields.length ; i++) {
     apiField = apiMapping.fields[i]; 
     if(! apiField.notPersistent) {
-      col = getColumnByName(dbTable, apiField.name);
+      col = getColumnByName(dbTable, apiField.name);  // WRONG!
       /* TODO: check for null */
       field = new FieldMapping(col);
       field.merge(apiField);
@@ -216,10 +217,10 @@ DBTableHandler.prototype = proto;     // Connect prototype to constructor
    Declare that proto_object should be used as a prototype 
    when creating a results object for a row read from the database.
 */
-
 proto.setResultPrototype = function(obj) {
   this.newObjectPrototype = obj;
 };
+
 
 /* registerFieldConverter(String fieldname, Converter converter)
   IMMEDIATE
@@ -293,6 +294,7 @@ function chooseIndex(self, keys) {
          // Each key field resolves to a column, which must be in the index
          nmatches = 0;
          for(j = 0 ; j < keyFields.length ; j++) {
+console.log(j, keyFields[j], self.fieldNameMap);
           f = self.fieldNameMap[keyFields[j]];
           if(idxs[i].columnNumbers.indexOf(f.columnNumber) >= 0) {
             nmatches++;

@@ -12,6 +12,7 @@
  * 
 */
 
+
 /* Annotations object definitions */
 
   /** TableMapping object
@@ -24,7 +25,8 @@
     name                   :  "" ,  // Table name
     database               :  "" ,  // Database name
     autoIncrementBatchSize :  1  ,  // Auto-increment prefetch batch size
-    isDefaultMapping       : true,  // This mapping is a default mapping
+    mapAllColumns          : true,  // Create a default FieldMapping for
+                                    // all columns not listed in fields[]
     fields                 : {}     // array of FieldMapping objects
   };
 
@@ -32,6 +34,9 @@
   // FIXME
   // The object as implemented in Annotations.js 
   // and the object as implemented in DBTableHandler.js are not quite the same
+
+  // FIXME
+  // columnNumber is obviously not part of an unresolved mapping
 
   /** FieldMapping object
    *  Describes the mapping of each field in a domain object to a column
@@ -46,10 +51,9 @@
    *  column       Defaults to a column with the same name as the field.  
    */
   FieldMapping = {
-    fieldName     :  ""     ,  // Name of the field in the domain object
-    columnName    :  ""     ,  // Column name where this field is stored  
-    columnNumber  :  0      ,  // Column number in table 
-    actionOnNull  :  "NONE" ,  // One of NONE, ERROR, or DEFAULT
+    fieldName     :  ""     , // Name of the field in the domain object
+    columnName    :  ""     , // Column name where this field is stored  
+    actionOnNull  :  "NONE" , // One of NONE, ERROR, or DEFAULT
     notPersistent : false   , // Boolean TRUE if this field should *not* be stored
     converter     :  {}       // Converter class to use with this field  
   };
@@ -58,12 +62,17 @@
 /* Annotations instance methods */
 {
 
+  /** newTableMapping(tableName) 
+   * 
+  
+
+
   /** Set strict mode. In strict mode, all property names must be valid and
    * have valid values. If a property is misspelled, an error is returned.
    *
    * @param flag default true.
    */
-  strict(boolean flag);
+  strict(flag);
 
   /** mapAllTables(boolean flag)
    * IMMEDIATE 
@@ -73,18 +82,24 @@
    * @param flag true to map all tables; false to map only tables specified
    * with mapClass().
    */
-  mapAllTables(boolean flag);
+  mapAllTables(flag);
 
-  /** mapClass
+  /** mapClass(Function constructorFunction, TableMapping tableMapping) 
    * IMMEDIATE 
-   * Supply annotations to a prototype or token object.
-   *
-   * Annotations specify details of how the object is mapped to the database.
    * 
-   * @param token_object prototype object to annotate
+   * Annotate a constructor with mapping metadata.
+   *
+   * mapClass() specifies that objects created from constructorFunction 
+   * will be mapped to the database according to tableMapping.
+   * 
+   * After the mapClass() call, constructorFunction.prototype() will contain
+   * a property called mynode,  
+   *
+   * 
+   * @param constructorFunction prototype object to annotate
    * @param annotations annotations object
    */
-  mapClass(Object token_object, TableMapping objectAnnotations);
+  mapClass(constructorFunction, tableMapping);
 
   /** registerFieldConverter
    * IMMEDIATE

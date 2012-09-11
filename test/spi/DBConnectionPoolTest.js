@@ -48,7 +48,7 @@ var t4 = new harness.ConcurrentSubTest("PublicFunctions");
 function runSPIDocTest(dbConnection) {
   var docFile = path.join(spi_doc_dir, "DBConnectionPool");
   var functionList = doc_parser.listFunctions(docFile);
-  var tester = new doc_parser.ClassTester(dbConnection);
+  var tester = new doc_parser.ClassTester(dbConnection, "DBConnectionPool");
   tester.test(functionList, t4);
 }
 
