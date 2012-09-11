@@ -39,7 +39,7 @@ Created 5/11/2006 Osku Salerma
 
 // Forward declarations
 class Field;
-typedef struct fts_string_struct fts_string_t;
+struct fts_string_t;
 
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.

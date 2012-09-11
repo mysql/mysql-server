@@ -1,9 +1,11 @@
+# Test for Bug 14006907 - FOREIGN KEY PROBLEMS AFTER DROP INDEX
 --source include/have_innodb.inc
 --source include/have_debug_sync.inc
 
 # Save the initial number of concurrent sessions.
 --source include/count_sessions.inc
 
+SET DEBUG_SYNC='RESET';
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 
 CREATE TABLE t2 (
@@ -20,7 +22,9 @@ SET DEBUG_SYNC = 'innodb_after_inplace_alter_table SIGNAL drop WAIT_FOR fk';
 --send
 DROP INDEX c2 ON t1;
 
+--echo # Establish session con1 (user=root)
 connect (con1,localhost,root,,);
+--echo # Session con1
 connection con1;
 
 SET DEBUG_SYNC = 'now WAIT_FOR drop';
@@ -32,8 +36,10 @@ ENGINE = InnoDB;
 SET DEBUG_SYNC = 'now SIGNAL fk';
 
 disconnect con1;
-connection default;
 
+--echo # Session default
+connection default;
+--echo /* reap */ DROP INDEX c2 ON t1;
 reap;
 
 --error ER_CANNOT_ADD_FOREIGN 
@@ -42,6 +48,7 @@ CREATE TABLE t2 (
  CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
 
+SET DEBUG_SYNC='RESET';
 DROP TABLE t1;
 
 # Check that all connections opened by test cases in this file are really

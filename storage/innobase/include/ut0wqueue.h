@@ -37,7 +37,7 @@ processing.
 #include "os0sync.h"
 #include "sync0types.h"
 
-typedef struct ib_wqueue_struct ib_wqueue_t;
+struct ib_wqueue_t;
 
 /****************************************************************//**
 Create a new work queue.
@@ -96,7 +96,7 @@ ib_wqueue_timedwait(
 	ib_time_t	wait_in_usecs); /* in: wait time in micro seconds */
 
 /* Work queue. */
-struct ib_wqueue_struct {
+struct ib_wqueue_t {
 	ib_mutex_t		mutex;	/*!< mutex protecting everything */
 	ib_list_t*	items;	/*!< work item list */
 	os_event_t	event;	/*!< event we use to signal additions to list */

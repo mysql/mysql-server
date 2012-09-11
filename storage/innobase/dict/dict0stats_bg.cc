@@ -31,7 +31,7 @@ using namespace std;
 #include "dict0dict.h" /* dict_table_open_on_id() */
 #include "dict0stats.h" /* DICT_STATS_RECALC_PERSISTENT */
 #include "dict0stats_bg.h"
-#include "dict0mem.h" /* dict_table_struct */
+#include "dict0mem.h" /* dict_table_t */
 #include "dict0types.h" /* table_id_t */
 #include "ha0storage.h" /* ha_storage_* */
 #include "os0thread.h" /* DECLARE_THREAD, os_thread_*, mysql_pfs_key_t */
@@ -52,7 +52,7 @@ UNIV_INTERN os_event_t		dict_stats_event = NULL;
 /** This mutex protects the "recalc_pool" variable. */
 static ib_mutex_t		recalc_pool_mutex;
 #ifdef HAVE_PSI_INTERFACE
-static mysql_pfs_key_t		recalc_pool_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	dict_stats_recalc_pool_mutex_key;
 #endif /* HAVE_PSI_INTERFACE */
 
 /** The number of tables that can be added to "recalc_pool" before
@@ -238,7 +238,7 @@ dict_stats_thread_init()
 	   and dict_operation_lock (SYNC_DICT_OPERATION) have been locked
 	   (thus a level <SYNC_DICT && <SYNC_DICT_OPERATION would do)
 	So we choose SYNC_STATS_AUTO_RECALC to be about below SYNC_DICT. */
-	mutex_create(recalc_pool_mutex_key, &recalc_pool_mutex,
+	mutex_create(dict_stats_recalc_pool_mutex_key, &recalc_pool_mutex,
 		     SYNC_STATS_AUTO_RECALC);
 
 	dict_stats_recalc_pool_init();

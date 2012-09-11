@@ -626,6 +626,7 @@ DROP TABLE worklog5743;
 # This is a case where dict_index_too_big_for_undo() is too conservative.
 # If it did not return error 1118, to commented code would work.
 # See bug#12953735.
+--replace_regex /> [0-9]*/> max_row_size/
 -- error ER_TOO_BIG_ROWSIZE
 CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8',
 col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,

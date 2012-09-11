@@ -31,9 +31,9 @@ Created 2012-02-08 by Sunny Bains
 #include "dict0types.h"
 
 // Forward declarations
-struct trx_struct;
-struct dict_table_struct;
-struct row_prebuilt_struct;
+struct trx_t;
+struct dict_table_t;
+struct row_prebuilt_t;
 
 /*****************************************************************//**
 Imports a tablespace. The space id in the .ibd file must match the space id
@@ -43,8 +43,8 @@ UNIV_INTERN
 dberr_t
 row_import_for_mysql(
 /*=================*/
-	dict_table_struct*	table,		/*!< in/out: table */
-	row_prebuilt_struct*	prebuilt)	/*!< in: prebuilt struct
+	dict_table_t*	table,		/*!< in/out: table */
+	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct
 						in MySQL */
 	__attribute__((nonnull, warn_unused_result));
 
@@ -55,7 +55,7 @@ UNIV_INTERN
 dberr_t
 row_import_update_discarded_flag(
 /*=============================*/
-	trx_struct*	trx,			/*!< in/out: transaction that
+	trx_t*		trx,			/*!< in/out: transaction that
 						covers the update */
 	table_id_t	table_id,		/*!< in: Table for which we want
 						to set the root table->flags2 */
@@ -74,9 +74,9 @@ UNIV_INTERN
 dberr_t
 row_import_update_index_root(
 /*=========================*/
-	trx_struct*		trx,		/*!< in/out: transaction that
+	trx_t*			trx,		/*!< in/out: transaction that
 						covers the update */
-	const dict_table_struct*table,		/*!< in: Table for which we want
+	const dict_table_t*	table,		/*!< in: Table for which we want
 						to set the root page_no */
 	bool			reset,		/*!< in: if true then set to
 						FIL_NUL */

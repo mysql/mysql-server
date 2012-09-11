@@ -65,7 +65,6 @@ static void copy_sum_funcs(Item_sum **func_ptr, Item_sum **end_ptr);
 static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
-static int join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
 static int join_read_next(READ_RECORD *info);
@@ -76,7 +75,6 @@ static int join_ft_read_first(JOIN_TAB *tab);
 static int join_ft_read_next(READ_RECORD *info);
 static int join_read_always_key_or_null(JOIN_TAB *tab);
 static int join_read_next_same_or_null(READ_RECORD *info);
-static int join_read_record_no_init(JOIN_TAB *tab);
 static int create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab);
 static bool remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
                                     ulong offset,Item *having);
@@ -392,7 +390,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 void
 JOIN::optimize_distinct()
 {
-  for (JOIN_TAB *last_join_tab= join_tab + tables - 1 ; ;)
+  for (JOIN_TAB *last_join_tab= join_tab + primary_tables - 1; ;)
   {
     if (select_lex->select_list_tables & last_join_tab->table->map)
       break;
@@ -601,20 +599,20 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 {
   int error;
   THD *thd= join->thd;
-  Semijoin_mat_exec *sjm= join_tab[-1].emb_sj_nest->sj_mat_exec;
+  Semijoin_mat_exec *sjm= join_tab[-1].sj_mat_exec;
   DBUG_ENTER("end_sj_materialize");
   if (!end_of_records)
   {
     TABLE *table= sjm->table;
 
-    List_iterator<Item> it(sjm->table_cols);
+    List_iterator<Item> it(*sjm->subq_exprs);
     Item *item;
     while ((item= it++))
     {
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, sjm->table_cols, 1, NULL);
+    fill_record(thd, table->field, *sjm->subq_exprs, 1, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))
@@ -867,7 +865,7 @@ do_select(JOIN *join)
   DBUG_ENTER("do_select");
 
   join->send_records=0;
-  if (join->tables == join->const_tables && !join->need_tmp)
+  if (join->plan_is_const() && !join->need_tmp)
   {
     Next_select_func end_select= setup_end_select_func(join, NULL);
     /*
@@ -904,14 +902,14 @@ do_select(JOIN *join)
       if (join->select_lex->master_unit()->item && join->const_tables)
         save_const_null_info(join, &save_nullinfo);
 
-      // Mark tables as containing only NULL values
-      join->clear();
-
       // Calculate aggregate functions for no rows
       List_iterator_fast<Item> it(*join->fields);
       Item *item;
       while ((item= it++))
         item->no_rows_in_result();
+
+      // Mark tables as containing only NULL values
+      join->clear();
 
       if (!join->having || join->having->val_int())
         rc= join->result->send_data(*join->fields);
@@ -930,7 +928,7 @@ do_select(JOIN *join)
   else
   {
     JOIN_TAB *join_tab= join->join_tab + join->const_tables;
-    DBUG_ASSERT(join->tables);
+    DBUG_ASSERT(join->primary_tables);
     error= join->first_select(join,join_tab,0);
     if (error >= NESTED_LOOP_OK)
       error= join->first_select(join,join_tab,1);
@@ -947,10 +945,10 @@ do_select(JOIN *join)
 
     // Take record count from first non constant table or from last tmp table
     if (join->tmp_tables > 0)
-      sort_tab= join_tab + join->tables + join->tmp_tables - 1;
+      sort_tab= join_tab + join->primary_tables + join->tmp_tables - 1;
     else
     {
-      DBUG_ASSERT(join->tables > const_tables);
+      DBUG_ASSERT(!join->plan_is_const());
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
@@ -986,156 +984,6 @@ do_select(JOIN *join)
   }
 #endif
   rc= join->thd->is_error() ? -1 : rc;
-  DBUG_RETURN(rc);
-}
-
-
-static int rr_sequential_and_unpack(READ_RECORD *info)
-{
-  int error;
-  if ((error= rr_sequential(info)))
-    return error;
-  
-  for (Copy_field *cp= info->copy_field; cp != info->copy_field_end; cp++)
-    (*cp->do_copy)(cp);
-
-  return error;
-}
-
-
-/*
-  Semi-join materialization join function
-
-  SYNOPSIS
-    sub_select_sjm()
-      join            The join
-      join_tab        The first table in the materialization nest
-      end_of_records  FALSE <=> This call is made to pass another record 
-                                combination
-                      TRUE  <=> EOF
-
-  DESCRIPTION
-    This is a join execution function that does materialization of a join
-    suborder before joining it to the rest of the join.
-
-    The table pointed by join_tab is the first of the materialized tables.
-    This function first creates the materialized table and then switches to
-    joining the materialized table with the rest of the join.
-
-    The materialized table can be accessed in two ways:
-     - index lookups
-     - full table scan
-
-  RETURN
-    One of enum_nested_loop_state values
-*/
-
-enum_nested_loop_state
-sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
-{
-  int res;
-  enum_nested_loop_state rc;
-
-  DBUG_ENTER("sub_select_sjm");
-
-  if (!join_tab->emb_sj_nest)
-  {
-    /*
-      We're handling GROUP BY/ORDER BY, this is the first table, and we've
-      actually executed the join already and now we're just reading the
-      result of the join from the temporary table.
-      Bypass to regular join handling.
-      Yes, it would be nicer if sub_select_sjm wasn't called at all in this
-      case but there's no easy way to arrange this.
-    */
-    rc= sub_select(join, join_tab, end_of_records);
-    DBUG_RETURN(rc);
-  }
-
-  Semijoin_mat_exec *const sjm= join_tab->emb_sj_nest->sj_mat_exec;
-
-  // Cache a pointer to the last of the materialized inner tables:
-  JOIN_TAB *const last_tab= join_tab + (sjm->table_count - 1);
-
-  if (end_of_records)
-  {
-    rc= (*last_tab->next_select)
-          (join, join_tab + sjm->table_count, end_of_records);
-    DBUG_RETURN(rc);
-  }
-  if (!sjm->materialized)
-  {
-    /*
-      Do the materialization. First, put end_sj_materialize after the last
-      inner table so we can catch record combinations of sj-inner tables.
-    */
-    const Next_select_func next_func= last_tab->next_select;
-    last_tab->next_select= end_sj_materialize;
-    /*
-      Now run the join for the inner tables. The first call is to run the
-      join, the second one is to signal EOF (this is essential for some
-      join strategies, e.g. it will make join buffering flush the records)
-    */
-    if ((rc= sub_select(join, join_tab, FALSE)) < 0 ||
-        (rc= sub_select(join, join_tab, TRUE/*EOF*/)) < 0)
-    {
-      last_tab->next_select= next_func;
-      DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
-    }
-    last_tab->next_select= next_func;
-
-    sjm->materialized= true;
-  }
-
-  if (sjm->is_scan)
-  {
-    /*
-      Perform a full scan over the materialized table.
-      Reuse the join tab of the last inner table for the materialized table.
-    */
-
-    // Save contents of join tab for possible repeated materializations:
-    const READ_RECORD saved_access= last_tab->read_record;
-    const READ_RECORD::Setup_func saved_rfr= last_tab->read_first_record;
-    st_join_table *const saved_last_inner= last_tab->last_inner;
-
-    // Initialize full scan
-    if (init_read_record(&last_tab->read_record, join->thd,
-                         sjm->table, NULL, TRUE, TRUE, FALSE))
-      DBUG_RETURN(NESTED_LOOP_ERROR);
-
-    last_tab->read_first_record= join_read_record_no_init;
-    last_tab->read_record.copy_field= sjm->copy_field;
-    last_tab->read_record.copy_field_end= sjm->copy_field +
-                                          sjm->copy_field_count;
-    last_tab->read_record.read_record= rr_sequential_and_unpack;
-    DBUG_ASSERT(last_tab->read_record.unlock_row == rr_unlock_row);
-
-    // Clear possible outer join information from earlier use of this join tab
-    last_tab->last_inner= NULL;
-    last_tab->first_unmatched= NULL;
-
-    Item *const save_cond= last_tab->condition();
-    last_tab->set_condition(sjm->join_cond, __LINE__);
-    rc= sub_select(join, last_tab, end_of_records);
-    end_read_record(&last_tab->read_record);
-
-    // Restore access method used for materialization
-    last_tab->set_condition(save_cond, __LINE__);
-    last_tab->read_record= saved_access;
-    last_tab->read_first_record= saved_rfr;
-    last_tab->last_inner= saved_last_inner;
-  }
-  else
-  {
-    /* Do index lookup in the materialized table */
-    if ((res= join_read_key2(join_tab, sjm->table, sjm->tab_ref)) == 1)
-      DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
-    if (res || !sjm->in_equality->val_int())
-      DBUG_RETURN(NESTED_LOOP_OK);
-    rc= (*last_tab->next_select)
-      (join, join_tab + sjm->table_count, end_of_records);
-  }
   DBUG_RETURN(rc);
 }
 
@@ -1424,7 +1272,8 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   @details This function is the place to do any work on the table that
   needs to be done before table can be scanned. Currently it
-  only materialized derived tables and binds buffer for current rowid.
+  only materialized derived tables and semi-joined subqueries and binds
+  buffer for current rowid.
 
   @returns false - Ok, true  - error
 */
@@ -1432,13 +1281,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 bool JOIN_TAB::prepare_scan()
 {
   // Check whether materialization is required.
-  if (!materialize_table ||
-      table->pos_in_table_list->materialized)
+  if (!materialize_table || materialized)
     return false;
 
   // Materialize table prior to reading it
   if ((*materialize_table)(this))
     return true;
+
+  materialized= true;
 
   // Bind to the rowid buffer managed by the TABLE object.
   if (copy_current_rowid)
@@ -1865,7 +1715,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
 
 /** Help function when we get some an error from the table handler. */
 
-int report_error(TABLE *table, int error)
+int report_handler_error(TABLE *table, int error)
 {
   if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
   {
@@ -1873,11 +1723,14 @@ int report_error(TABLE *table, int error)
     return -1;					// key not found; ok
   }
   /*
-    Locking reads can legally return also these errors, do not
-    print them to the .err log
+    Do not spam the error log with these temporary errors:
+       LOCK_DEADLOCK LOCK_WAIT_TIMEOUT TABLE_DEF_CHANGED
+    Also skip printing to error log if the current thread has been killed.
   */
-  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
-      && !table->in_use->killed)
+  if (error != HA_ERR_LOCK_DEADLOCK &&
+      error != HA_ERR_LOCK_WAIT_TIMEOUT &&
+      error != HA_ERR_TABLE_DEF_CHANGED &&
+      !table->in_use->killed)
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);
   table->file->print_error(error,MYF(0));
@@ -1893,7 +1746,7 @@ int safe_index_read(JOIN_TAB *tab)
                                             tab->ref.key_buff,
                                             make_prev_keypart_map(tab->ref.key_parts),
                                             HA_READ_KEY_EXACT)))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   return 0;
 }
 
@@ -2047,7 +1900,7 @@ join_read_system(JOIN_TAB *tab)
 					   table->s->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
-	return report_error(table, error);
+	return report_handler_error(table, error);
       mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
       return -1;
@@ -2079,6 +1932,9 @@ join_read_const(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_const");
 
+  if (tab->prepare_scan())
+    DBUG_RETURN(1);
+
   if (table->status & STATUS_GARBAGE)		// If first read
   {
     table->status= 0;
@@ -2098,7 +1954,7 @@ join_read_const(JOIN_TAB *tab)
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
-        const int ret= report_error(table, error);
+        const int ret= report_handler_error(table, error);
         DBUG_RETURN(ret);
       }
       DBUG_RETURN(-1);
@@ -2115,45 +1971,37 @@ join_read_const(JOIN_TAB *tab)
 }
 
 
-/*
-  eq_ref access method implementation: "read_first" function
+/**
+  Read row using unique key: eq_ref access method implementation
 
-  SYNOPSIS
-    join_read_key()
-      tab  JOIN_TAB of the accessed table
+  @details
+    This is the "read_first" function for the eq_ref access method.
+    The difference from ref access function is that it has a one-element
+    lookup cache (see cmp_buffer_with_ref)
 
-  DESCRIPTION
-    This is "read_fist" function for the eq_ref access method. The difference
-    from ref access function is that is that it has a one-element lookup 
-    cache (see cmp_buffer_with_ref)
+  @param tab   JOIN_TAB of the accessed table
 
-  RETURN
-    0  - Ok
-   -1  - Row not found 
-    1  - Error
+  @retval  0 - Ok
+  @retval -1 - Row not found 
+  @retval  1 - Error
 */
 
 static int
 join_read_key(JOIN_TAB *tab)
 {
-  return join_read_key2(tab, tab->table, &tab->ref);
-}
-
-
-/* 
-  eq_ref access handler but generalized a bit to support TABLE and TABLE_REF
-  not from the join_tab. See join_read_key for detailed synopsis.
-*/
-static int
-join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
-{
+  TABLE *const table= tab->table;
+  TABLE_REF *table_ref= &tab->ref;
   int error;
+
+  if (tab->prepare_scan())
+    return 1;
+
   if (!table->file->inited)
   {
     DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
     if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
     {
-      (void) report_error(table, error);
+      (void) report_handler_error(table, error);
       return 1;
     }
   }
@@ -2184,7 +2032,7 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
                                           make_prev_keypart_map(table_ref->key_parts),
                                           HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
 
     if (! error)
     {
@@ -2264,7 +2112,7 @@ join_read_linked_first(JOIN_TAB *tab)
                                       tab->ref.key_buff,
                                       make_prev_keypart_map(tab->ref.key_parts));
   if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
-    DBUG_RETURN(report_error(table, error));
+    DBUG_RETURN(report_handler_error(table, error));
 
   table->null_row=0;
   int rc= table->status ? -1 : 0;
@@ -2281,7 +2129,7 @@ join_read_linked_next(READ_RECORD *info)
   if (error)
   {
     if (unlikely(error != HA_ERR_END_OF_FILE))
-      DBUG_RETURN(report_error(table, error));
+      DBUG_RETURN(report_handler_error(table, error));
     table->status= STATUS_GARBAGE;
     DBUG_RETURN(-1);
   }
@@ -2320,7 +2168,7 @@ join_read_always_key(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
 
@@ -2340,7 +2188,7 @@ join_read_always_key(JOIN_TAB *tab)
                                              HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
     return -1; /* purecov: inspected */
   }
   return 0;
@@ -2361,7 +2209,7 @@ join_read_last_key(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
@@ -2371,7 +2219,7 @@ join_read_last_key(JOIN_TAB *tab)
                                               make_prev_keypart_map(tab->ref.key_parts))))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
     return -1; /* purecov: inspected */
   }
   return 0;
@@ -2398,7 +2246,7 @@ join_read_next_same(READ_RECORD *info)
                                               tab->ref.key_length)))
   {
     if (error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
     table->status= STATUS_GARBAGE;
     return -1;
   }
@@ -2413,8 +2261,18 @@ join_read_prev_same(READ_RECORD *info)
   TABLE *table= info->table;
   JOIN_TAB *tab=table->reginfo.join_tab;
 
+  /*
+    Using ha_index_prev() for reading records from the table can cause
+    performance issues if used in combination with ICP. The ICP code
+    in the storage engine does not know when to stop reading from the
+    index and a call to ha_index_prev() might cause the storage engine
+    to read to the beginning of the index if no qualifying record is
+    found.
+  */
+  DBUG_ASSERT(table->file->pushed_idx_cond == NULL);
+
   if ((error= table->file->ha_index_prev(table->record[0])))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
                       tab->ref.key_length))
   {
@@ -2498,7 +2356,7 @@ int join_init_read_record(JOIN_TAB *tab)
   if (tab->select && tab->select->quick && (error= tab->select->quick->reset()))
   {
     /* Ensures error status is propageted back to client */
-    report_error(tab->table, error);
+    report_handler_error(tab->table, error);
     return 1;
   }
   if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
@@ -2514,11 +2372,14 @@ int join_init_read_record(JOIN_TAB *tab)
 */
 
 int
-join_materialize_table(JOIN_TAB *tab)
+join_materialize_derived(JOIN_TAB *tab)
 {
   TABLE_LIST *derived= tab->table->pos_in_table_list;
-  DBUG_ASSERT(derived->uses_materialization() &&
-              !derived->materialized);
+  DBUG_ASSERT(derived->uses_materialization() && !tab->materialized);
+
+  if (derived->materializable_is_const()) // Has been materialized by optimizer
+    return NESTED_LOOP_OK;
+
   bool res= mysql_handle_single_derived(tab->table->in_use->lex,
                                         derived, &mysql_derived_materialize);
   if (!tab->table->in_use->lex->describe)
@@ -2527,6 +2388,52 @@ join_materialize_table(JOIN_TAB *tab)
   return res ? NESTED_LOOP_ERROR : NESTED_LOOP_OK;
 }
 
+
+
+/*
+  Helper function for materialization of a semi-joined subquery.
+
+  @param tab JOIN_TAB referencing a materialized semi-join table
+
+  @return Nested loop state
+*/
+
+int
+join_materialize_semijoin(JOIN_TAB *tab)
+{
+  DBUG_ENTER("join_materialize_semijoin");
+
+  Semijoin_mat_exec *const sjm= tab->sj_mat_exec;
+
+  JOIN_TAB *const first= tab->join->join_tab + sjm->inner_table_index;
+  JOIN_TAB *const last= first + (sjm->table_count - 1);
+  /*
+    Set up the end_sj_materialize function after the last inner table,
+    so that generated rows are inserted into the materialized table.
+  */
+  last->next_select= end_sj_materialize;
+  last->sj_mat_exec= sjm; // TODO: This violates comment for sj_mat_exec!
+
+  int rc;
+  if ((rc= sub_select(tab->join, first, false)) < 0)
+    DBUG_RETURN(rc);
+  if ((rc= sub_select(tab->join, first, true)) < 0)
+    DBUG_RETURN(rc);
+
+  last->next_select= NULL;
+  last->sj_mat_exec= NULL;
+
+#if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
+  // Fields of inner tables should not be read anymore:
+  for (JOIN_TAB *t= first; t <= last; t++)
+  {
+    TABLE *const inner_table= t->table;
+    TRASH(inner_table->record[0], inner_table->s->reclength);
+  }
+#endif
+
+  DBUG_RETURN(NESTED_LOOP_OK);
+}
 
 /*
   Helper function for sorting table with filesort.
@@ -2546,12 +2453,6 @@ JOIN_TAB::sort_table()
 }
 
 
-static int
-join_read_record_no_init(JOIN_TAB *tab)
-{
-  return (*tab->read_record.read_record)(&tab->read_record);
-}
-
 int
 join_read_first(JOIN_TAB *tab)
 {
@@ -2568,13 +2469,13 @@ join_read_first(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->index, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      report_error(table, error);
+      report_handler_error(table, error);
     return -1;
   }
   return 0;
@@ -2586,7 +2487,7 @@ join_read_next(READ_RECORD *info)
 {
   int error;
   if ((error= info->table->file->ha_index_next(info->record)))
-    return report_error(info->table, error);
+    return report_handler_error(info->table, error);
   return 0;
 }
 
@@ -2606,11 +2507,11 @@ join_read_last(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->index, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   return 0;
 }
 
@@ -2620,7 +2521,7 @@ join_read_prev(READ_RECORD *info)
 {
   int error;
   if ((error= info->table->file->ha_index_prev(info->record)))
-    return report_error(info->table, error);
+    return report_handler_error(info->table, error);
   return 0;
 }
 
@@ -2634,13 +2535,13 @@ join_ft_read_first(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   return 0;
 }
 
@@ -2649,7 +2550,7 @@ join_ft_read_next(READ_RECORD *info)
 {
   int error;
   if ((error= info->table->file->ft_read(info->table->record[0])))
-    return report_error(info->table, error);
+    return report_handler_error(info->table, error);
   return 0;
 }
 
@@ -2701,6 +2602,9 @@ join_read_next_same_or_null(READ_RECORD *info)
 void
 pick_table_access_method(JOIN_TAB *tab)
 {
+  // Must have an associated table
+  if (!tab->table)
+    return;
   /**
     Set up modified access function for pushed joins.
   */
@@ -2844,7 +2748,7 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       if (join->select_options & OPTION_FOUND_ROWS)
       {
 	JOIN_TAB *jt=join->join_tab;
-	if ((join->tables == 1) &&
+	if ((join->primary_tables == 1) &&
             !join->sort_and_group &&
             !join->send_group_parts &&
             !join->having &&
@@ -2933,15 +2837,15 @@ end_send_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
             if (join->select_lex->master_unit()->item && join->const_tables)
               save_const_null_info(join, &save_nullinfo);
 
-            // Mark tables as containing only NULL values
-            join->clear();
-
             // Calculate aggregate functions for no rows
             List_iterator_fast<Item> it(*fields);
             Item *item;
 
             while ((item= it++))
               item->no_rows_in_result();
+
+            // Mark tables as containing only NULL values
+            join->clear();
 	  }
 	  if (join->having && join->having->val_int() == 0)
 	    error= -1;				// Didn't satisfy having
@@ -3229,14 +3133,14 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
           if (join->select_lex->master_unit()->item && join->const_tables)
             save_const_null_info(join, &save_nullinfo);
 
-          // Mark tables as containing only NULL values
-          join->clear();
-
           // Calculate aggregate functions for no rows
           List_iterator_fast<Item> it(*(join_tab-1)->fields);
           Item *item;
           while ((item= it++))
             item->no_rows_in_result();
+
+          // Mark tables as containing only NULL values
+          join->clear();
         }
         copy_sum_funcs(join->sum_funcs,
                        join->sum_funcs_end[send_group_parts]);
@@ -3322,7 +3226,7 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
   DBUG_ENTER("create_sort_index");
 
   // One row, no need to sort. make_tmp_tables_info should already handle this.
-  DBUG_ASSERT(join->tables != join->const_tables && fsort);
+  DBUG_ASSERT(!join->plan_is_const() && fsort);
   table=  tab->table;
   select= fsort->select;
 

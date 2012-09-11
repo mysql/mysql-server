@@ -1504,10 +1504,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #ifndef EMBEDDED_LIBRARY
   case COM_BINLOG_DUMP_GTID:
-    error= com_binlog_dump_gtid(thd, packet);
+    error= com_binlog_dump_gtid(thd, packet, packet_length);
     break;
   case COM_BINLOG_DUMP:
-    error= com_binlog_dump(thd, packet);
+    error= com_binlog_dump(thd, packet, packet_length);
     break;
 #endif
   case COM_REFRESH:
@@ -1646,9 +1646,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   case COM_PROCESS_KILL:
   {
-    status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
-    ulong id=(ulong) uint4korr(packet);
-    sql_kill(thd,id,false);
+    if (thread_id & (~0xfffffffful))
+      my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
+    else
+    {
+      status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
+      ulong id=(ulong) uint4korr(packet);
+      sql_kill(thd,id,false);
+    }
     break;
   }
   case COM_SET_OPTION:
@@ -5973,13 +5978,27 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         writing to the general log, so rewriting still needs to happen because
         the other logs (binlog, slow query log, ...) can not be set to raw mode
         for security reasons.
+        Query-cache only handles SELECT, which we don't rewrite, so it's no
+        concern of ours.
+        We're not general-logging if we're the slave, or if we've already
+        done raw-logging earlier.
+        Sub-routines of mysql_rewrite_query() should try to only rewrite when
+        necessary (e.g. not do password obfuscation when query contains no
+        password), but we can optimize out even those necessary rewrites when
+        no logging happens at all. If rewriting does not happen here,
+        thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      mysql_rewrite_query(thd);
+      bool general= (opt_log && ! (opt_log_raw || thd->slave_thread));
 
-      if (thd->rewritten_query.length())
-        lex->safe_to_cache_query= false; // see comments below 
+      if (general || opt_slow_log || opt_bin_log)
+      {
+        mysql_rewrite_query(thd);
 
-      if (!thd->slave_thread && !opt_log_raw)
+        if (thd->rewritten_query.length())
+          lex->safe_to_cache_query= false; // see comments below
+      }
+
+      if (general)
       {
         if (thd->rewritten_query.length())
           general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
@@ -6079,7 +6098,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   else
   {
     /*
-      Query cache hit. We need to write the general log here.
+      Query cache hit. We need to write the general log here if
+      we haven't already logged the statement earlier due to --log-raw.
       Right now, we only cache SELECT results; if the cache ever
       becomes more generic, we should also cache the rewritten
       query-string together with the original query-string (which

@@ -44,25 +44,19 @@ Created 2007-03-20 Sunny Bains
 #define	FALSE		0
 #endif
 
-/* Red black tree typedefs */
-typedef struct ib_rbt_struct ib_rbt_t;
-typedef struct ib_rbt_node_struct ib_rbt_node_t;
-/* FIXME: Iterator is a better name than _bound_ */
-typedef struct ib_rbt_bound_struct ib_rbt_bound_t;
+struct ib_rbt_node_t;
 typedef void (*ib_rbt_print_node)(const ib_rbt_node_t* node);
 typedef int (*ib_rbt_compare)(const void* p1, const void* p2);
 typedef int (*ib_rbt_arg_compare)(const void*, const void* p1, const void* p2);
 
 /** Red black tree color types */
-enum ib_rbt_color_enum {
+enum ib_rbt_color_t {
 	IB_RBT_RED,
 	IB_RBT_BLACK
 };
 
-typedef enum ib_rbt_color_enum ib_rbt_color_t;
-
 /** Red black tree node */
-struct ib_rbt_node_struct {
+struct ib_rbt_node_t {
 	ib_rbt_color_t	color;			/* color of this node */
 
 	ib_rbt_node_t*	left;			/* points left child */
@@ -73,7 +67,7 @@ struct ib_rbt_node_struct {
 };
 
 /** Red black tree instance.*/
-struct	ib_rbt_struct {
+struct	ib_rbt_t {
 	ib_rbt_node_t*	nil;			/* Black colored node that is
 						used as a sentinel. This is
 						pre-allocated too.*/
@@ -94,7 +88,7 @@ struct	ib_rbt_struct {
 
 /** The result of searching for a key in the tree, this is useful for
 a speedy lookup and insert if key doesn't exist.*/
-struct ib_rbt_bound_struct {
+struct ib_rbt_bound_t {
 	const ib_rbt_node_t*
 			last;			/* Last node visited */
 

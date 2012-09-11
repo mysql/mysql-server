@@ -32,9 +32,9 @@ Created 9/5/1995 Heikki Tuuri
 #include "os0thread.h"
 
 /** Synchronization wait array cell */
-typedef struct sync_cell_struct		sync_cell_t;
+struct sync_cell_t;
 /** Synchronization wait array */
-typedef struct sync_array_struct	sync_array_t;
+struct sync_array_t;
 
 /******************************************************************//**
 Reserves a wait array cell for waiting for an object.
