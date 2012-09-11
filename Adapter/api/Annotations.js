@@ -50,9 +50,11 @@ Annotations.prototype.mapAllTables = function(value) {
 };
 
 /** Map tables */
-Annotations.prototype.mapClass = function(proto, mapping) {
+Annotations.prototype.mapClass = function(ctor, mapping) {
   var x, i, field, fprop;
-  
+  if (typeof(ctor) !== 'function') {
+    throw new Error('mapClass takes a constructor function and a mapping.');
+  }
   if(this.strictValue) {
     for(x in mapping) {
       if(mapping.hasOwnProperty(x)) {
@@ -97,8 +99,13 @@ Annotations.prototype.mapClass = function(proto, mapping) {
       }
     }
   }
-  
-  this.mappings.push(new Mapping(proto, mapping));
+
+  if (typeof(ctor.prototype.mynode) === 'undefined') {
+    ctor.prototype.mynode = {};
+  }
+  ctor.prototype.mynode.mapping = mapping;
+  ctor.prototype.mynode.constructor = ctor;
+  this.mappings.push(new Mapping(ctor, mapping));
 };
 
 
