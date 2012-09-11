@@ -31,8 +31,6 @@ function Annotations() {
 function Mapping(proto, mapping) {
   this.proto = proto;
   this.mapping = mapping;
-  this.proto.mynode = {};
-  this.proto.mynode.mapping = mapping;
 }
 
 /** In strict mode, all parameters of mapping functions must be valid */

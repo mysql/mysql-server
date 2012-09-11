@@ -30,7 +30,7 @@ var testInsert = function() {
   }
   var properties = mynode.ConnectionProperties(global.adapter);
   var annotations = mynode.Annotations();
-  annotations.mapClass(Employee.prototype,
+  annotations.mapClass(Employee,
       {'table' : 't_basic'});
   var session;
   mynode.openSession(properties, annotations, function(err, session) {

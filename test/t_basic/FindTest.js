@@ -23,7 +23,7 @@ t1 = new harness.ConcurrentTest("testFindDomainObjectPrimitive");
 t1.run = function() {
   var testCase = this;
   // use the domain object and primitive to find an instance
-  var from = global.t_basic.prototype;
+  var from = global.t_basic;
   var key = 0;
   fail_openSession(testCase, function(session) {
     // key and testCase are passed to fail_verify_t_basic as extra parameters
@@ -36,7 +36,7 @@ t2 = new harness.ConcurrentTest("testFindDomainObjectLiteral");
 t2.run = function() {
   var testCase = this;
   // use the domain object and literal to find an instance
-  var from = global.t_basic.prototype;
+  var from = global.t_basic;
   var key = {'id' : 0};
   fail_openSession(testCase, function(session) {
     // key and testCase are passed to fail_verify_t_basic as extra parameters
@@ -49,7 +49,7 @@ t3 = new harness.ConcurrentTest("testFindDomainObjectObject");
 t3.run = function() {
   var testCase = this;
   // use the domain object and key object to find an instance
-  var from = global.t_basic.prototype;
+  var from = global.t_basic;
   var key = new t_basic_key(0);
   fail_openSession(testCase, function(session) {
     // key and testCase are passed to fail_verify_t_basic as extra parameters
