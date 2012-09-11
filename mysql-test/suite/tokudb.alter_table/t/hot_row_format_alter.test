@@ -20,16 +20,22 @@ SELECT * FROM foo;
 #
 ALTER TABLE foo row_format=TOKUDB_LZMA;
 SHOW CREATE TABLE foo;
+select * from foo;
 ALTER TABLE foo row_format=TOKUDB_QUICKLZ;
 SHOW CREATE TABLE foo;
+select * from foo;
 ALTER TABLE foo row_format=TOKUDB_UNCOMPRESSED;
 SHOW CREATE TABLE foo;
+select * from foo;
 ALTER TABLE foo row_format=TOKUDB_ZLIB;
 SHOW CREATE TABLE foo;
+select * from foo;
 ALTER TABLE foo row_format=TOKUDB_FAST;
 SHOW CREATE TABLE foo;
+select * from foo;
 ALTER TABLE foo row_format=TOKUDB_SMALL;
 SHOW CREATE TABLE foo;
+select * from foo;
 
 #
 # Trying to change row format along with another 
