@@ -11962,6 +11962,17 @@ ha_innobase::external_lock(
 		}
 	}
 
+	/* Check for UPDATEs in read-only mode. */
+	if (srv_read_only_mode
+	    && (thd_sql_command(thd) == SQLCOM_UPDATE
+		|| thd_sql_command(thd) == SQLCOM_DELETE)) {
+
+		ib_senderrf(thd,
+			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
+
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -12671,8 +12682,17 @@ ha_innobase::store_lock(
 	const bool in_lock_tables = thd_in_lock_tables(thd);
 	const uint sql_command = thd_sql_command(thd);
 
-	/* Check for FLUSH TABLES ... WITH READ LOCK */
-	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
+	if (srv_read_only_mode
+	    && (sql_command == SQLCOM_UPDATE
+		|| sql_command == SQLCOM_DELETE)) {
+
+		ib_senderrf(trx->mysql_thd,
+			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+
+	} else if (sql_command == SQLCOM_FLUSH
+		   && lock_type == TL_READ_NO_INSERT) {
+
+		/* Check for FLUSH TABLES ... WITH READ LOCK */
 
 		/* Note: This call can fail, but there is no way to return
 		the error to the caller. We simply ignore it for now here
