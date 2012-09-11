@@ -98,33 +98,40 @@ exports.UserContext.prototype.listTables = function() {
  */
 var getTableHandler = function(tableNameOrPrototype, session, onTableHandler) {
 
-  var TableHandlerFactory = function(tableName, sessionFactory, dbSession, onTableHandler) {
+  var TableHandlerFactory = function(tableName, sessionFactory, dbSession, mapping, onTableHandler) {
     this.tableName = tableName;
     this.sessionFactory = sessionFactory;
     this.dbSession = dbSession;
     this.onTableHandler = onTableHandler;
+    this.mapping = mapping;
     
     this.createTableHandler = function() {
       var tableHandlerFactory = this;
+      var tableHandler;
+      var dbName;
       
       var onTableMetadata = function(err, tableMetadata) {
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
+          udebug.log('UserContext.TableHandlerFactory.onTableMetadata for ' + dbName + '.' + tableName);
           // we have the table metadata; now create the table handler
-          var tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, null);
-          // put the table handler into the session factory
-          tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
-          tableHandlerFactory.onTableHandler(null, tableHandler);
+          var tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, mapping);
+          if (mapping == null) {
+            // put the default table handler into the session factory
+            tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
+          }
         }
+        tableHandlerFactory.onTableHandler(null, tableHandler);
       };
       
       // start of createTableHandler
       
       // get the table metadata from the db connection pool
       // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-      var dbName = this.sessionFactory.properties.database;
-      this.sessionFactory.dbConnectionPool.getTableMetadata(dbName, tableNameOrPrototype, session.dbSession,
+      dbName = this.sessionFactory.properties.database;
+      udebug.log('UserContext.TableHandlerFactory.createTableHandler for ' + dbName + '.' + tableName);
+      this.sessionFactory.dbConnectionPool.getTableMetadata(dbName, tableName, session.dbSession,
           onTableMetadata);
     };
   };
@@ -132,14 +139,14 @@ var getTableHandler = function(tableNameOrPrototype, session, onTableHandler) {
   // start of getTableHandler 
   
   if (typeof(tableNameOrPrototype) === 'string') {
-    // parameter is a table name; look up in table name hash
+    // parameter is a table name; look up in table name to table handler hash
     var tableHandler = session.sessionFactory.tableHandlers[tableNameOrPrototype];
     if (typeof(tableHandler) === 'undefined') {
-      // create a new table handler for a table
+      // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       var tableHandlerFactory = new TableHandlerFactory(
-          tableNameOrPrototype, session.sessionFactory, session.dbSession, onTableHandler);
-      tableHandlerFactory.createTableHandler();
+          tableNameOrPrototype, session.sessionFactory, session.dbSession, null, onTableHandler);
+      tableHandlerFactory.createTableHandler(null);
     } else {
       // send back the tableHandler
       onTableHandler(null, tableHandler);
@@ -150,8 +157,17 @@ var getTableHandler = function(tableNameOrPrototype, session, onTableHandler) {
       var err = new Error('User exception: prototype must have been annotated.');
       onTableHandler(err, null);
     } else {
+      tableHandler = tableNameOrPrototype.mynode.tableHandler;
+      if (typeof(tableHandler) === 'undefined') {
+        // create the tableHandler
+        // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
+        var tableHandlerFactory = new TableHandlerFactory(
+            tableNameOrPrototype.mynode.mapping.table, session.sessionFactory, session.dbSession, tableNameOrPrototype.mynode.mapping, onTableHandler);
+        tableHandlerFactory.createTableHandler();
+      } else {
       // prototype has been annotated; return the table handler
-      onTableHandler(null, tableNameOrPrototype.mynode.handler);
+      onTableHandler(null, tableHandler);
+      }
     }
   }
 };

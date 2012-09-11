@@ -131,8 +131,16 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         var indexColumnNames = decodeIndexColumnNames(columnNames);
         udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY indexColumnNames: ' + indexColumnNames);
         var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
-        udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY indexColumnNumbers: ' + indexColumnNumbers);
+        udebug.log('MySQLDictionary.parseCreateTable PRIMARY indexColumnNumbers: ' + JSON.stringify(indexColumnNumbers));
         index['columnNumbers'] = indexColumnNumbers;
+        // mark primary key index columns with 'isInPrimaryKey'
+        for (var columnNumberIndex = 0; columnNumberIndex < indexColumnNumbers.length; ++columnNumberIndex) {
+          var columnNumber = indexColumnNumbers[columnNumberIndex];
+          var column = columns[columnNumber];
+          udebug.log('MySQLDictionary.parseCreateTable marking column ' + columnNumber 
+              + ' ' + columns[columnNumber].name);
+          column.isInPrimaryKey = true;
+        }
         indexes.push(index);
         break;
 

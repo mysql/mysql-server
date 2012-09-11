@@ -60,33 +60,114 @@ function getMetadata(dbTableHandler) {
     return;
   }
   udebug.log_detail('MySQLConnection.getMetadata with dbTableHandler ' + JSON.stringify(dbTableHandler));
+  dbTableHandler.mysql = {};
+  dbTableHandler.mysql.indexes = {};
+  dbTableHandler.mysql.deleteSQL = {};
+  dbTableHandler.mysql.selectSQL = {};
+  createInsertSQL(dbTableHandler);
+  var i, indexes, index;
+  // create a delete statement and select statement per index
+  indexes = dbTableHandler.dbTable.indexes;
+  for (i = 0; i < indexes.length; ++i) {
+    index = dbTableHandler.dbTable.indexes[i];
+    dbTableHandler.mysql.deleteSQL[index.name] = createDeleteSQL(dbTableHandler, index.name);
+    dbTableHandler.mysql.selectSQL[index.name] = createSelectSQL(dbTableHandler, index.name);
+  }
+}
+
+function createInsertSQL(dbTableHandler) {
   // create the insert SQL statement from the table metadata
-  var insertSQL = 'INSERT INTO ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + '(';
-  var valuesSQL = 'VALUES (';
-  // get the fields
-  var fields = dbTableHandler.mapping.fields;
-  udebug.log_detail('MySQLConnection.getMetadata with fields ' + typeof(fields) + ' ' + JSON.stringify(fields));
-  // loop over the fields and extract the column name
-  var separator = '';
-  var i;
-  for (i = 0; i < fields.length; ++i) {
-    var field = fields[i];
-    insertSQL += separator + field.columnName;
-    valuesSQL += separator + '?';
-    separator = ', ';
+  var insertSQL = 'INSERT INTO ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' (';
+  var valuesSQL = ' VALUES (';
+  var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
+  var columns = dbTableHandler.dbTable.columns;
+  udebug.log_detail('MySQLConnection.getMetadata with columns ' + JSON.stringify(columns));
+  // loop over the columns and extract the column name
+  var columnSeparator = '';
+  var duplicateSeparator = '';
+  var i, column;
+  for (i = 0; i < columns.length; ++i) {
+    column = columns[i];
+    insertSQL += columnSeparator + column.name;
+    valuesSQL += columnSeparator + '?';
+    udebug.log_detail('MySQLConnection.createInsertSQL with column ' + JSON.stringify(column));
+    if (!column.isInPrimaryKey) {
+      duplicateSQL += duplicateSeparator + column.name + ' = VALUES (' + column.name + ') ';
+      duplicateSeparator = ', '
+    }
+    columnSeparator = ', ';
   }
   valuesSQL += ')';
   insertSQL += ')' + valuesSQL;
-  udebug.log('MySQLConnection.getMetadata insertSQL: ' + insertSQL);
-  dbTableHandler.mysql = {};
   dbTableHandler.mysql.insertSQL = insertSQL;
+  dbTableHandler.mysql.duplicateSQL = insertSQL + duplicateSQL;
+  udebug.log('MySQLConnection.getMetadata insertSQL: ' + dbTableHandler.mysql.insertSQL);
+  udebug.log('MySQLConnection.getMetadata duplicateSQL: ' + dbTableHandler.mysql.duplicateSQL);
+  return insertSQL;
+}
+
+function createDeleteSQL(dbTableHandler, index) {
+  // create the delete SQL statement from the table metadata for the named index
+  var deleteSQL = 'DELETE FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
+  // find the index metadata from the dbTableHandler index section
+  // loop over the columns in the index and extract the column name
+  var indexMetadatas = dbTableHandler.dbTable.indexes;
+  var columns = dbTableHandler.dbTable.columns;
+  var separator = '';
+  var i, j, indexMetadata;
+  for (i = 0; i < indexMetadatas.length; ++i) {
+    if (indexMetadatas[i].name === index) {
+      indexMetadata = indexMetadatas[i];
+      udebug.log('MySQLConnection.createDeleteSQL indexMetadata: ' + JSON.stringify(indexMetadata));
+      for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
+        deleteSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ?';
+        separator = ' AND ';
+      }
+    }
+  }
+  udebug.log('MySQLConnection.getMetadata deleteSQL for ' + index + ': ' + deleteSQL);
+  return deleteSQL;
+}
+
+function createSelectSQL(dbTableHandler, index) {
+  // create the select SQL statement from the table metadata for the named index
+  var selectSQL = 'SELECT ';
+  var whereSQL =   ' FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
+  // loop over the column names in order
+  var columns = dbTableHandler.dbTable.columns;
+  var separator = '';
+  var i, j, field;
+  var fields = dbTableHandler.mapping.fields;
+  for (i = 0; i < fields.length; ++i) {
+    field = fields[i];
+    selectSQL += separator + field.columnName;
+    separator = ', ';
+  }
+
+  // loop over the index columns
+  // find the index metadata from the dbTableHandler index section
+  // loop over the columns in the index and extract the column name
+  var indexMetadatas = dbTableHandler.dbTable.indexes;
+  separator = '';
+  for (i = 0; i < indexMetadatas.length; ++i) {
+    if (indexMetadatas[i].name === index) {
+      var indexMetadata = indexMetadatas[i];
+      for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
+        whereSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ? ';
+        separator = ' AND ';
+      }
+    }
+  }
+  selectSQL += whereSQL;
+  udebug.log('MySQLConnection.getMetadata selectSQL for ' + index + ': ' + selectSQL);
+  return selectSQL;
 }
 
 exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object) {
   getMetadata(dbTableHandler);
   var insertSQL = dbTableHandler.mysql.insertSQL;
 //  var insertData = dbTableHandler.getInsertData(object);
-  return new InsertOperation(insertSQL, null);
+  return new InsertOperation(insertSQL, object);
 };
 
 

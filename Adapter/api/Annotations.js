@@ -31,6 +31,8 @@ function Annotations() {
 function Mapping(proto, mapping) {
   this.proto = proto;
   this.mapping = mapping;
+  this.proto.mynode = {};
+  this.proto.mynode.mapping = mapping;
 }
 
 /** In strict mode, all parameters of mapping functions must be valid */
@@ -65,7 +67,7 @@ Annotations.prototype.mapClass = function(proto, mapping) {
           case 'fields':
             // look inside the fields
             var fields = mapping[x];
-            if (typeof(fields) !== 'array') {
+            if (Object.prototype.toString.call( fields ) !== '[object Array]') {
               fields = [fields];
             }
             
