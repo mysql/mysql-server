@@ -17,6 +17,11 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_LZMA
+select * from foo;
+a	b
+1	11
+2	21
+3	32
 ALTER TABLE foo row_format=TOKUDB_QUICKLZ;
 SHOW CREATE TABLE foo;
 Table	Create Table
@@ -25,6 +30,11 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_QUICKLZ
+select * from foo;
+a	b
+1	11
+2	21
+3	32
 ALTER TABLE foo row_format=TOKUDB_UNCOMPRESSED;
 SHOW CREATE TABLE foo;
 Table	Create Table
@@ -33,6 +43,11 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_UNCOMPRESSED
+select * from foo;
+a	b
+1	11
+2	21
+3	32
 ALTER TABLE foo row_format=TOKUDB_ZLIB;
 SHOW CREATE TABLE foo;
 Table	Create Table
@@ -41,6 +56,11 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_ZLIB
+select * from foo;
+a	b
+1	11
+2	21
+3	32
 ALTER TABLE foo row_format=TOKUDB_FAST;
 SHOW CREATE TABLE foo;
 Table	Create Table
@@ -49,6 +69,11 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_FAST
+select * from foo;
+a	b
+1	11
+2	21
+3	32
 ALTER TABLE foo row_format=TOKUDB_SMALL;
 SHOW CREATE TABLE foo;
 Table	Create Table
@@ -57,6 +82,11 @@ foo	CREATE TABLE `foo` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=TokuDB AUTO_INCREMENT=4 DEFAULT CHARSET=latin1 ROW_FORMAT=TOKUDB_SMALL
+select * from foo;
+a	b
+1	11
+2	21
+3	32
 ALTER TABLE foo row_format=TOKUDB_LZMA, add column c int;
 ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
 ALTER TABLE foo row_format=TOKUDB_LZMA, drop column b;
