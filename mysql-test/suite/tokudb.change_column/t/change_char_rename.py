@@ -16,7 +16,9 @@ def gen_test(n):
             print "ALTER TABLE ti ENGINE=myisam;"
             print "INSERT INTO ti SELECT * FROM t;"
         print "ALTER TABLE t CHANGE COLUMN a b CHAR(%d);" % (i)
-        if i >= n:
+        if i < n:
+            pass
+        else:
             print "ALTER TABLE t CHANGE COLUMN b a CHAR(%d);" % (i)
             print "let $diff_tables=test.t, test.ti;"
             print "source include/diff_tables.inc;"
