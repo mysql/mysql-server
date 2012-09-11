@@ -179,6 +179,17 @@ exports.DBSession.prototype.closeSync = function() {
 };
 
 
+exports.DBSession.prototype.close = function(callback) {
+  if (this.pooledConnection) {
+    this.pooledConnection.end();
+    this.pooledConnection = null;
+  }
+  if (callback) {
+    callback(null, null);
+  }
+};
+
+
 exports.DBSession.prototype.getConnectionPool = function() {
   return this.connectionPool;
 };
