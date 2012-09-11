@@ -104,6 +104,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     // split lines by '\n'
     var lines = statement.split('\n');
     var i;
+    var columnNumber = 0;
     // first line has table name which we ignore because we already know it
     for (i = 1; i < lines.length; ++i) {
       var line = lines[i];
@@ -195,17 +196,18 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         var unsigned = false; // default if no 'unsigned' clause
         var column = {};
 
+        column.columnNumber = columnNumber++;
         // decode the column name
         var columnName = (token.split('`'))[1];
         udebug.log_detail('MySQLDictionary.parseCreateTable: columnName: ' + columnName);
-        column['name'] = columnName;
+        column.name = columnName;
         // analyze column type
         var columnTypeAndSize = tokens[++j];
         udebug.log_detail('MySQLDictionary.parseCreateTable: columnDefinition: ' + columnTypeAndSize);
         var columnTypeAndSizeSplit = columnTypeAndSize.split('(');
         var columnType = columnTypeAndSizeSplit[0];
         udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': columnType: ' + columnType);
-        column['columnType'] = columnType;
+        column.columnType = columnType;
         if (columnTypeAndSizeSplit.length > 1) {
           var columnSize = columnTypeAndSizeSplit[1].split(')')[0];
           udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': columnSize: ' + columnSize);
@@ -218,14 +220,14 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           ++j;
         }
         udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': unsigned: ' + unsigned);
-        column['isUnsigned'] = unsigned;
+        column.isUnsigned = unsigned;
 
         // check for character set
         if (tokens[j] == 'CHARACTER') {
           var charset = tokens[j + 2];
           udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': charset: ' + charset);
           j += 3; // skip 'CHARACTER SET charset'
-          column['charsetName'] = charset;
+          column.charsetName = charset;
           // check for collation
           if (tokens[j] == 'COLLATE') {
             var collation = tokens[j + 1];
@@ -239,7 +241,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           j += 2; // skip 'not null'
         }
         udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ' NOT NULL: ' + !nullable);
-        column['isNullable'] = nullable;
+        column.isNullable = nullable;
         if (tokens[j] == 'DEFAULT') {
           udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': DEFAULT: ' + tokens[j]);
         }
