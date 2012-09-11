@@ -129,7 +129,8 @@ function createDefaultMapping(dbtable) {
 // TODO: Figure out error handling if the API Mapping is invalid
 
 function resolveApiMapping(dbTable, apiMapping) {
-  udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name);
+  udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name +
+      ' mapping ' + JSON.stringify(apiMapping));
   var mapping, field, apiField, col, i;
 
   mapping = new TableMapping(dbTable);
