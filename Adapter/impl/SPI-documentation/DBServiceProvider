@@ -16,7 +16,7 @@
    RETURNS an object containing all of the valid properties 
    for this service provider, all set to their default values.
  */   
-  getDefaultConnectionProperties();
+  function getDefaultConnectionProperties() {};
 
 
 /* DBConnectionPool connectSync(Object properties);
@@ -24,14 +24,14 @@
    Blocking connect.  
    RETURNS a DBConnectionPool object
 */
-  connectSync(properties);
+  function connectSync(properties) {};
 
 
 /* connect(Object properties, Function(err, DBConnectionPool) callback)
    ASYNC.
    Async connect.
 */
-  connect(properties, callback);
+  function connect(properties, callback) {};
 
 
 /* String getFactoryKey(Object properties);
@@ -40,7 +40,7 @@
    based on connection properties.
    RETURNS the String key
 */
-  getFactoryKey(properties);
+  function getFactoryKey(properties) {};
 
 
 /* Array getNativeCodeModules();
@@ -51,4 +51,4 @@
    The array elements are in the order in which the files should be loaded.
    RETURNS the array.
 */
-  getNativeCodeModules();
+  function getNativeCodeModules() {};

@@ -63,60 +63,66 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
   return scope.Close(JS_VOID_RETURN);
 }
 
-
 /* int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
+   3 args SYNC / 4 args ASYNC
 */
-Handle<Value> Ndb_cluster_connection_connectSync(const Arguments &args) {
+Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
+  Local<Value> ret;
+  
+  REQUIRE_MIN_ARGS(3);
+  REQUIRE_MAX_ARGS(4);
+
   typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
-  
-  REQUIRE_ARGS_LENGTH(3);
-
-  MCALL mcall(args);
-  mcall.method = & Ndb_cluster_connection::connect;
-  mcall.run();
-      
-  return scope.Close(mcall.jsReturnVal());
-}
-
-
-Handle<Value>Ndb_cluster_connection_connectAsync(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-  typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
-  
-  REQUIRE_ARGS_LENGTH(4);
-  
   MCALL * mcallptr = new MCALL(args);
 
   mcallptr->method = & Ndb_cluster_connection::connect;
   mcallptr->envelope = & NdbccEnvelope;
-  mcallptr->runAsync();
 
-  return scope.Close(JS_VOID_RETURN);
+  if(args.Length() == 4) {
+    mcallptr->runAsync();
+    ret = JS_VOID_RETURN;
+  }
+  else {
+    mcallptr->run();
+    ret = mcallptr->jsReturnVal();
+    delete mcallptr;
+  }
+
+  return scope.Close(ret);
 }
 
 
 /*   int wait_until_ready(int timeout_for_first_alive,
                           int timeout_after_first_alive,
                           callback);
-     ASYNC
+     2 args SYNC / 3 args ASYNC
 */
 Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
+  Local<Value> ret;
+  
+  REQUIRE_MIN_ARGS(2);
+  REQUIRE_MAX_ARGS(3);
+  
   typedef NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> MCALL;
-  
-  REQUIRE_ARGS_LENGTH(3);
-  
   MCALL * mcallptr = new MCALL(args);
 
   mcallptr->method = & Ndb_cluster_connection::wait_until_ready;
   mcallptr->envelope = & NdbccEnvelope;
-  mcallptr->runAsync();
-    
-  return scope.Close(JS_VOID_RETURN);
+  if(args.Length() == 3) {
+    mcallptr->runAsync();
+    ret = JS_VOID_RETURN;
+  }
+  else {
+    mcallptr->run();
+    ret = mcallptr->jsReturnVal();
+    delete mcallptr;
+  };
+  
+  return scope.Close(ret);
 }
 
 
@@ -157,10 +163,8 @@ void Ndb_cluster_connection_initOnLoad(Handle<Object> target) {
                   Ndb_cluster_connection_new_wrapper);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "set_name",
                    Ndb_cluster_connection_set_name);
-  DEFINE_JS_METHOD(JSNdb_cluster_connection, "connectSync",
-                   Ndb_cluster_connection_connectSync);
-  DEFINE_JS_METHOD(JSNdb_cluster_connection, "connectAsync",
-                   Ndb_cluster_connection_connectAsync);
+  DEFINE_JS_METHOD(JSNdb_cluster_connection, "connect",
+                   Ndb_cluster_connection_connect);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "wait_until_ready",
                    Ndb_cluster_connection_wait_until_ready);
   DEFINE_JS_METHOD(JSNdb_cluster_connection, "node_id",

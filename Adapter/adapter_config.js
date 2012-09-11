@@ -24,11 +24,13 @@ global.assert          = require("assert");
 global.util            = require("util");
 
 global.adapter_dir     = __dirname;
+global.parent_dir      = path.dirname(adapter_dir);
 global.api_dir         = path.join(adapter_dir, "api");
 global.spi_dir         = path.join(adapter_dir, "impl");
-
 global.build_dir       = path.join(spi_dir, "build", "Release");
 global.spi_doc_dir     = path.join(spi_dir, "SPI-documentation");
+global.api_doc_dir     = path.join(parent_dir, "API-documentation");
+
 global.spi_module      = path.join(spi_dir, "SPI.js");
 global.api_module      = path.join(api_dir, "mynode.js");
 global.udebug_module   = path.join(api_dir, "unified_debug.js");

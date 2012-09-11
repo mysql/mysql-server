@@ -114,6 +114,11 @@ t2.run = function() {
   this.prepare(deleteKey);
 };
 
+t2.teardown = function() { 
+  if(dbSession) {
+    dbSession.close();
+  }
+}
 
 exports.tests = [ t1, t2  ];
 

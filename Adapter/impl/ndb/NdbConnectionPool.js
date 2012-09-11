@@ -69,8 +69,6 @@ proto = {
   is_connected         : false,
   dict_sess            : null,
   dictionary           : null,
-  
-  
 };
 
 exports.DBConnectionPool.prototype = proto;
@@ -79,18 +77,31 @@ exports.DBConnectionPool.prototype = proto;
 /* Blocking connect.  
    SYNC.
    Returns true on success and false on error.
-   FIXME:  NEEDS wait_until_ready() and node_id()
 */
 proto.connectSync = function() {
-  var r;
-  throw new Error("connectSync() is not implemented"); 
-  r = this.ndbconn.connectSync(this.properties.ndb_connect_retries,
-                               this.properties.ndb_connect_delay,
-                               this.properties.ndb_connect_verbose);
+  var r, nnodes;
+  var db = this.properties.database;
+  r = this.ndbconn.connect(this.properties.ndb_connect_retries,
+                           this.properties.ndb_connect_delay,
+                           this.properties.ndb_connect_verbose);
   if(r === 0) {
-    this.is_connected = true;
+    nnodes = this.ndbconn.wait_until_ready(1, 1);
+    if(nnodes < 0) {
+      throw new Error("Timeout waiting for cluster to become ready.");
+    }
+    else {
+      this.is_connected = true;
+      if(nnodes > 0) {
+        console.log("Warning: only " + nnodes + " data nodes are running.");
+      }
+      console.log("Connected to cluster as node id: " + this.ndbconn.node_id());
+    }
+
+    /* Get sessionImpl and session for dictionary use */
+    this.dictionary = adapter.ndb.impl.DBSession.create(this.ndbconn, db);  
+    this.dict_sess =  ndbsession.getDBSession(this, this.dictionary);
   }
- 
+    
   return this.is_connected;
 };
 
@@ -145,10 +156,10 @@ proto.connect = function(user_callback) {
   }
   
   // Fist step is to connect to the cluster
-  self.ndbconn.connectAsync(self.properties.ndb_connect_retries,
-                            self.properties.ndb_connect_delay,
-                            self.properties.ndb_connect_verbose,
-                            onConnected);
+  self.ndbconn.connect(self.properties.ndb_connect_retries,
+                       self.properties.ndb_connect_delay,
+                       self.properties.ndb_connect_verbose,
+                       onConnected);
 };
 
 
@@ -165,7 +176,7 @@ proto.isConnected = function() {
    SYNCHRONOUS.
 */
 proto.closeSync = function() {
-  // FIXME Delete NDB objects
+  adapter.ndb.impl.DBSession.destroy(this.dictionary);
   this.ndbconn.delete();
 };
 
@@ -238,15 +249,4 @@ proto.createDBTableHandler = function(tableMetadata, apiMapping) {
      needs to be annotated with some Records */
   return handler;
 };
-
-/* getConverter 
-   IMMEDIATE
-   Fetch the converter for a column
-   FIXME:  KEEP MAPS OF DEFAULT & REGISTERED CONVERTERS
-*/
-//proto.getConverter = function(dbcolumn) {
-//  udebug.log("NdbConnectionPool getConverter " + dbcolumn.name);
-//  var r = converters.defaultForType[dbcolumn.ndbTypeId];
-//  return r;
-//};
 

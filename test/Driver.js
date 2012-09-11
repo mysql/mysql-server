@@ -97,7 +97,7 @@ Driver.prototype.reportResultsAndExit = function() {
 
 var driver = new Driver();
 var exit = false;
-var timeoutMillis = 5000;
+var timeoutMillis = 8000;
 var val, values, i, pair;
 
 var usageMessage = 

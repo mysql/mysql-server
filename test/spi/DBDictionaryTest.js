@@ -38,6 +38,13 @@ t2.run = function() {
       conn = null,
       dbSession = null;
 
+  this.teardown = function() {
+    if(dbSession) {
+      dbSession.close();
+      conn.closeSync();
+    }
+  }
+
   function onTable(err, tab) {
     udebug.log("DBDictionaryTest onTable");
     // TODO: Test specific properties of the table object
