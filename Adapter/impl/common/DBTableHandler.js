@@ -194,7 +194,7 @@ function DBTableHandler(dbtable, tablemapping) {
     }
   }
 
-  udebug.log("DBTableHandler new completed");
+  udebug.log_detail("DBTableHandler: " + JSON.stringify(this));
 }
 
 var proto = {

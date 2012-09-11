@@ -25,7 +25,6 @@ global.suites_dir      = driver_dir;
 
 global.harness         = require(path.join(__dirname, "harness"));
 global.mynode          = require(api_module);
-global.udebug          = require(udebug_module);
 
 global.debug           = false;
 global.adapter         = "ndb";

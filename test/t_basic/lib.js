@@ -64,6 +64,20 @@ global.fail_verify_t_basic = function(err, instance, id, testCase) {
 global.fail_openSession = function(testCase, callback) {
   var properties = new mynode.ConnectionProperties(global.adapter);
   var annotations = new mynode.Annotations();
+  annotations.strict(true);
+  annotations.mapClass(global.t_basic, {
+    "table" : "t_basic",
+    "schema" : "def",
+    "database" : "test",
+    "autoIncrementBatchSize" : 1,
+    "fields" : [
+                {"name": "id", "column" : "id"},
+                {"name": "age", "column" : "age"},
+                {"name": "name", "column" : "name"},
+                {"name": "magic", "column" : "magic"}
+    ]
+    }
+  );
   mynode.openSession(properties, annotations, function(err, session) {
     if (err) {
       testCase.fail(err);
