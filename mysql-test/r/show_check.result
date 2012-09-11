@@ -805,8 +805,6 @@ show columns in t1;
 show slave hosts;
 show keys in t1;
 show storage engines;
-show authors;
-show contributors;
 show privileges;
 show count(*) warnings;
 show count(*) errors;
@@ -1271,7 +1269,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8
 drop table t1;
 End of 5.0 tests
-SHOW AUTHORS;
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
@@ -1568,3 +1565,12 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 t1_bi	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW BEGIN END	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP TEMPORARY TABLE t1;
 DROP TABLE t1;
+#
+# WL#6454: Deprecate SHOW AUTHORS and SHOW CONTRIBUTORS
+#
+# These statements were deprecated in 5.5 and removed in 5.6.
+# They should therefore give ER_PARSE_ERROR here.
+SHOW AUTHORS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'AUTHORS' at line 1
+SHOW CONTRIBUTORS;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CONTRIBUTORS' at line 1
