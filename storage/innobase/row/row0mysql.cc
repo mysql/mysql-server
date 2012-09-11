@@ -67,10 +67,7 @@ Created 9/17/2000 Heikki Tuuri
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
 
 /** Chain node of the list of tables to drop in the background. */
-typedef struct row_mysql_drop_struct	row_mysql_drop_t;
-
-/** Chain node of the list of tables to drop in the background. */
-struct row_mysql_drop_struct{
+struct row_mysql_drop_t{
 	char*				table_name;	/*!< table name */
 	UT_LIST_NODE_T(row_mysql_drop_t)row_mysql_drop_list;
 							/*!< list chain node */
@@ -1946,6 +1943,8 @@ row_update_cascade_for_mysql(
 run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
+
+	DEBUG_SYNC_C("foreign_constraint_update_cascade");
 
 	row_upd_step(thr);
 
@@ -4113,7 +4112,8 @@ check_next_foreign:
 		if (err == DB_SUCCESS && space_id > TRX_SYS_SPACE) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
-					space_id, tablename, FALSE, print_msg)) {
+					space_id, tablename, FALSE,
+					print_msg, false, NULL, 0)) {
 				/* This might happen if we are dropping a
 				discarded tablespace */
 				err = DB_SUCCESS;
@@ -4267,6 +4267,8 @@ row_mysql_drop_temp_tables(void)
 		ROW_FORMAT=REDUNDANT. */
 		rec = btr_pcur_get_rec(&pcur);
 		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_TABLES__NAME, &len);
+		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_TABLES__N_COLS, &len);
 		if (len != 4
 		    || !(mach_read_from_4(field) & DICT_N_COLS_COMPACT)) {
@@ -4407,7 +4409,14 @@ loop:
 						DICT_ERR_IGNORE_NONE);
 
 		ut_a(table);
-		ut_a(!table->can_be_evicted || table->ibd_file_missing);
+
+		/* There could be orphan temp table left from interupted
+		alter table rebuild operation */
+		if (row_is_mysql_tmp_table_name(table->name)) {
+			dict_table_close(table, TRUE, FALSE);
+		} else {
+			ut_a(!table->can_be_evicted || table->ibd_file_missing);
+		}
 
 		/* Wait until MySQL does not have any queries running on
 		the table */
@@ -4474,9 +4483,9 @@ loop:
 /*********************************************************************//**
 Checks if a table name contains the string "/#sql" which denotes temporary
 tables in MySQL.
-@return	TRUE if temporary table */
-static
-ibool
+@return	true if temporary table */
+UNIV_INTERN __attribute__((warn_unused_result))
+bool
 row_is_mysql_tmp_table_name(
 /*========================*/
 	const char*	name)	/*!< in: table name in the form

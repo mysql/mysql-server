@@ -796,7 +796,7 @@ void Item_subselect::print(String *str, enum_query_type query_type)
 
 
 Item_singlerow_subselect::Item_singlerow_subselect(st_select_lex *select_lex)
-  :Item_subselect(), value(0)
+  :Item_subselect(), value(0), no_rows(false)
 {
   DBUG_ENTER("Item_singlerow_subselect::Item_singlerow_subselect");
   init(select_lex, new select_singlerow_subselect(this));
@@ -827,13 +827,15 @@ Item_singlerow_subselect::invalidate_and_restore_select_lex()
 
 Item_maxmin_subselect::Item_maxmin_subselect(THD *thd_param,
                                              Item_subselect *parent,
-					     st_select_lex *select_lex,
-					     bool max_arg)
+                                             st_select_lex *select_lex,
+                                             bool max_arg,
+                                             bool ignore_nulls)
   :Item_singlerow_subselect(), was_values(false)
 {
   DBUG_ENTER("Item_maxmin_subselect::Item_maxmin_subselect");
   max= max_arg;
-  init(select_lex, new select_max_min_finder_subselect(this, max_arg));
+  init(select_lex, new select_max_min_finder_subselect(this, max_arg,
+                                                       ignore_nulls));
   max_columns= 1;
   maybe_null= 1;
   max_columns= 1;
@@ -981,6 +983,11 @@ void Item_singlerow_subselect::fix_length_and_dec()
     maybe_null= engine->may_be_null();
 }
 
+void Item_singlerow_subselect::no_rows_in_result()
+{
+  no_rows= true;
+}
+
 uint Item_singlerow_subselect::cols()
 {
   return engine->cols();
@@ -1017,7 +1024,7 @@ void Item_singlerow_subselect::bring_value()
 double Item_singlerow_subselect::val_real()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_real();
@@ -1032,7 +1039,7 @@ double Item_singlerow_subselect::val_real()
 longlong Item_singlerow_subselect::val_int()
 {
   DBUG_ASSERT(fixed == 1);
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_int();
@@ -1046,7 +1053,7 @@ longlong Item_singlerow_subselect::val_int()
 
 String *Item_singlerow_subselect::val_str(String *str)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_str(str);
@@ -1061,7 +1068,7 @@ String *Item_singlerow_subselect::val_str(String *str)
 
 my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_decimal(decimal_value);
@@ -1076,7 +1083,7 @@ my_decimal *Item_singlerow_subselect::val_decimal(my_decimal *decimal_value)
 
 bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= false;
     return value->get_date(ltime, fuzzydate);
@@ -1091,7 +1098,7 @@ bool Item_singlerow_subselect::get_date(MYSQL_TIME *ltime, uint fuzzydate)
 
 bool Item_singlerow_subselect::get_time(MYSQL_TIME *ltime)
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= false;
     return value->get_time(ltime);
@@ -1106,7 +1113,7 @@ bool Item_singlerow_subselect::get_time(MYSQL_TIME *ltime)
 
 bool Item_singlerow_subselect::val_bool()
 {
-  if (!exec() && !value->null_value)
+  if (!no_rows && !exec() && !value->null_value)
   {
     null_value= FALSE;
     return value->val_bool();
@@ -1124,7 +1131,6 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
      sj_convert_priority(0), embedding_join_nest(NULL)
 {
   DBUG_ENTER("Item_exists_subselect::Item_exists_subselect");
-  bool val_bool();
   init(select_lex, new select_exists_subselect(this));
   max_columns= UINT_MAX;
   null_value= FALSE; //can't be NULL
@@ -1421,6 +1427,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
 					    Comp_creator *func)
 {
   SELECT_LEX *select_lex= join->select_lex;
+  bool subquery_maybe_null= false;
   DBUG_ENTER("Item_in_subselect::single_value_transformer");
 
   /*
@@ -1437,6 +1444,19 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   THD * const thd= unit->thd;
 
   /*
+    Check the nullability of the subquery. The subquery should return
+    only one column, so we check the nullability of the first item in
+    SELECT_LEX::item_list. In case the subquery is a union, check the
+    nullability of the first item of each SELECT_LEX belonging to the
+    union.
+  */
+  for (SELECT_LEX* lex= select_lex->master_unit()->first_select();
+       lex != NULL && lex->master_unit() == select_lex->master_unit();
+       lex= lex->next_select())
+    if (lex->item_list.head()->maybe_null)
+      subquery_maybe_null= true;
+
+  /*
     If this is an ALL/ANY single-value subquery predicate, try to rewrite
     it with a MIN/MAX subquery.
 
@@ -1447,13 +1467,11 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     1. has a greater than/less than comparison operator, and
     2. is not correlated with the outer query, and
     3. UNKNOWN results are treated as FALSE, or can never be generated, and
-    4. is not an ALL query where expression from subquery is nullable
   */
   if (!func->eqne_op() &&                                             // 1
       !select_lex->master_unit()->uncacheable &&                      // 2
       (abort_on_null || (upper_item && upper_item->top_level()) ||    // 3
-       (!left_expr->maybe_null && !join->ref_ptrs[0]->maybe_null)) &&
-      !(substype() == ALL_SUBS && join->ref_ptrs[0]->maybe_null))     // 4
+       (!left_expr->maybe_null && !subquery_maybe_null)))
   {
     if (substitution)
     {
@@ -1464,9 +1482,10 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     Item *subs;
     if (!select_lex->group_list.elements &&
         !select_lex->having &&
-	!select_lex->with_sum_func &&
-	!(select_lex->next_select()) &&
-        select_lex->table_list.elements)
+        !select_lex->with_sum_func &&
+        !(select_lex->next_select()) &&
+        select_lex->table_list.elements &&
+        !(substype() == ALL_SUBS && subquery_maybe_null))
     {
       OPT_TRACE_TRANSFORM(&thd->opt_trace, oto0, oto1,
                           select_lex->select_number,
@@ -1525,7 +1544,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       thd->lex->allow_sum_func= save_allow_sum_func; 
       /* we added aggregate function => we have to change statistic */
       count_field_types(select_lex, &join->tmp_table_param, join->all_fields, 
-                        0);
+                        false, false);
 
       subs= new Item_singlerow_subselect(select_lex);
     }
@@ -1536,7 +1555,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
                           "> ALL/ANY (SELECT)", "MIN (SELECT)");
       oto1.add("chosen", true);
       Item_maxmin_subselect *item;
-      subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op());
+      subs= item= new Item_maxmin_subselect(thd, this, select_lex, func->l_op(),
+                                            substype()==ANY_SUBS);
       if (upper_item)
         upper_item->set_sub_test(item);
     }
@@ -2355,7 +2375,7 @@ bool Item_in_subselect::init_left_expr_cache()
     Item::result_field. In the case end_[send | write]_group result_field is
     one row behind field.
   */
-  end_select= outer_join->join_tab[outer_join->tables-1].next_select;
+  end_select= outer_join->join_tab[outer_join->primary_tables-1].next_select;
   if (end_select == end_send_group || end_select == end_write_group)
     use_result_field= TRUE;
 
@@ -2654,7 +2674,7 @@ bool subselect_single_select_engine::exec()
         pushed down into the subquery. Those optimizations are ref[_or_null]
         acceses. Change them to be full table scans.
       */
-      for (uint i=join->const_tables ; i < join->tables ; i++)
+      for (uint i= join->const_tables; i < join->primary_tables; i++)
       {
         JOIN_TAB *tab=join->join_tab+i;
         if (tab && tab->keyuse)
@@ -2748,13 +2768,13 @@ bool subselect_indexsubquery_engine::scan_table()
   if (table->file->inited &&
       (error= table->file->ha_index_end()))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
  
   if ((error= table->file->ha_rnd_init(1)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
   table->file->extra_opt(HA_EXTRA_CACHE,
@@ -2765,7 +2785,7 @@ bool subselect_indexsubquery_engine::scan_table()
     error=table->file->ha_rnd_next(table->record[0]);
     if (error && error != HA_ERR_END_OF_FILE)
     {
-      error= report_error(table, error);
+      error= report_handler_error(table, error);
       break;
     }
     /* No more rows */
@@ -2965,7 +2985,7 @@ bool subselect_indexsubquery_engine::exec()
   item_in->value= false;
   table->status= 0;
 
-  if (tl && tl->uses_materialization() && !tl->materialized)
+  if (tl && tl->uses_materialization() && !tab->materialized)
   {
     bool err= mysql_handle_single_derived(table->in_use->lex, tl,
                                           mysql_derived_create) ||
@@ -2976,6 +2996,8 @@ bool subselect_indexsubquery_engine::exec()
                                   mysql_derived_cleanup);
     if (err)
       DBUG_RETURN(1);
+
+    tab->materialized= true;
   }
 
   if (check_null)
@@ -3000,7 +3022,7 @@ bool subselect_indexsubquery_engine::exec()
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
   error= table->file->ha_index_read_map(table->record[0],
@@ -3009,7 +3031,7 @@ bool subselect_indexsubquery_engine::exec()
                                         HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    error= report_error(table, error);
+    error= report_handler_error(table, error);
   else
   {
     for (;;)
@@ -3040,7 +3062,7 @@ bool subselect_indexsubquery_engine::exec()
                                               tab->ref.key_length);
         if (error && error != HA_ERR_END_OF_FILE)
         {
-          error= report_error(table, error);
+          error= report_handler_error(table, error);
           break;
         }
       }

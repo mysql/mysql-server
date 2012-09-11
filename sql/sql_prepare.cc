@@ -2321,7 +2321,7 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
          (user_var_entry*)my_hash_search(&thd->user_vars,
                                          (uchar*)lex->prepared_stmt_code.str,
                                          lex->prepared_stmt_code.length))
-        && entry->value)
+        && entry->ptr())
     {
       my_bool is_var_null;
       var_value= entry->val_str(&is_var_null, &str, NOT_FIXED_DEC);

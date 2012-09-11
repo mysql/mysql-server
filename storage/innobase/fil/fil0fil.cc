@@ -25,6 +25,9 @@ Created 10/25/1995 Heikki Tuuri
 
 #include "fil0fil.h"
 
+#include <debug_sync.h>
+#include <my_dbug.h>
+
 #include "mem0mem.h"
 #include "hash0hash.h"
 #include "os0file.h"
@@ -41,6 +44,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "page0page.h"
 #include "page0zip.h"
 #include "trx0sys.h"
+#include "row0mysql.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
 # include "ibuf0ibuf.h"
@@ -137,7 +141,7 @@ UNIV_INTERN mysql_pfs_key_t	fil_space_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 /** File node of a tablespace or the log data space */
-struct fil_node_struct {
+struct fil_node_t {
 	fil_space_t*	space;	/*!< backpointer to the space where this node
 				belongs */
 	char*		name;	/*!< path to the file */
@@ -171,11 +175,11 @@ struct fil_node_struct {
 	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
 };
 
-/** Value of fil_node_struct::magic_n */
+/** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
 /** Tablespace or log data space: let us call them by a common name space */
-struct fil_space_struct {
+struct fil_space_t {
 	char*		name;	/*!< space name = the path to the first file in
 				it */
 	ulint		id;	/*!< space id */
@@ -236,24 +240,21 @@ struct fil_space_struct {
 	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
 				/*!< list of spaces with at least one unflushed
 				file we have written to */
-	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
-				currently in unflushed_spaces */
+	bool		is_in_unflushed_spaces;
+				/*!< true if this space is currently in
+				unflushed_spaces */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
-/** Value of fil_space_struct::magic_n */
+/** Value of fil_space_t::magic_n */
 #define	FIL_SPACE_MAGIC_N	89472
-
-/** The tablespace memory cache */
-typedef	struct fil_system_struct	fil_system_t;
 
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
 the ib_logfiles form a 'space' and it is handled here */
-
-struct fil_system_struct {
+struct fil_system_t {
 #ifndef UNIV_HOTBACKUP
 	ib_mutex_t		mutex;		/*!< The mutex protecting the cache */
 #endif /* !UNIV_HOTBACKUP */
@@ -312,6 +313,16 @@ static fil_system_t*	fil_system	= NULL;
 
 /** Determine if (i) is a user tablespace id or not. */
 # define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
+
+/** Determine if user has explicitly disabled fsync(). */
+#ifndef __WIN__
+# define fil_buffering_disabled(s)	\
+	((s)->purpose == FIL_TABLESPACE	\
+	 && srv_unix_file_flush_method	\
+	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
+#else /* __WIN__ */
+# define fil_buffering_disabled(s)	(0)
+#endif /* __WIN__ */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -580,9 +591,9 @@ fil_space_get_type(
 /**********************************************************************//**
 Checks if all the file nodes in a space are flushed. The caller must hold
 the fil_system mutex.
-@return	TRUE if all are flushed */
+@return	true if all are flushed */
 static
-ibool
+bool
 fil_space_is_flushed(
 /*=================*/
 	fil_space_t*	space)	/*!< in: space */
@@ -596,13 +607,14 @@ fil_space_is_flushed(
 	while (node) {
 		if (node->modification_counter > node->flush_counter) {
 
-			return(FALSE);
+			ut_ad(!fil_buffering_disabled(space));
+			return(false);
 		}
 
 		node = UT_LIST_GET_NEXT(chain, node);
 	}
 
-	return(TRUE);
+	return(true);
 }
 
 /*******************************************************************//**
@@ -959,6 +971,7 @@ fil_try_to_close_file_in_LRU(
 				", because mod_count %ld != fl_count %ld\n",
 				(long) node->modification_counter,
 				(long) node->flush_counter);
+
 		}
 
 		if (node->being_extended) {
@@ -1131,10 +1144,15 @@ fil_node_free(
 
 		node->modification_counter = node->flush_counter;
 
-		if (space->is_in_unflushed_spaces
-		    && fil_space_is_flushed(space)) {
+		if (fil_buffering_disabled(space)) {
 
-			space->is_in_unflushed_spaces = FALSE;
+			ut_ad(!space->is_in_unflushed_spaces);
+			ut_ad(fil_space_is_flushed(space));
+
+		} else if (space->is_in_unflushed_spaces
+			   && fil_space_is_flushed(space)) {
+
+			space->is_in_unflushed_spaces = false;
 
 			UT_LIST_REMOVE(system->unflushed_spaces, space);
 		}
@@ -1290,7 +1308,7 @@ fil_space_create(
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
-	space->is_in_unflushed_spaces = FALSE;
+	space->is_in_unflushed_spaces = false;
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
 
@@ -1401,7 +1419,9 @@ fil_space_free(
 		    ut_fold_string(space->name), space);
 
 	if (space->is_in_unflushed_spaces) {
-		space->is_in_unflushed_spaces = FALSE;
+
+		ut_ad(!fil_buffering_disabled(space));
+		space->is_in_unflushed_spaces = false;
 
 		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
@@ -4424,11 +4444,15 @@ fil_space_for_table_exists_in_mem(
 					data dictionary, so that
 					we can print a warning about orphaned
 					tablespaces */
-	ibool		print_error_if_does_not_exist)
+	ibool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
 					memory */
+	bool		adjust_space,	/*!< in: whether to adjust space id
+					when find table space mismatch */
+	mem_heap_t*	heap,		/*!< in: heap memory */
+	table_id_t	table_id)	/*!< in: table id */
 {
 	fil_space_t*	fnamespace;
 	fil_space_t*	space;
@@ -4452,6 +4476,47 @@ fil_space_for_table_exists_in_mem(
 			space->mark = TRUE;
 		}
 
+		mutex_exit(&fil_system->mutex);
+
+		return(TRUE);
+	}
+
+	/* Info from "fnamespace" comes from the ibd file itself, it can
+	be different from data obtained from System tables since it is
+	not transactional. If adjust_space is set, and the mismatching
+	space are between a user table and its temp table, we shall
+	adjust the ibd file name according to system table info */
+	if (adjust_space
+	    && space != NULL
+	    && row_is_mysql_tmp_table_name(space->name)
+	    && !row_is_mysql_tmp_table_name(name)) {
+
+		mutex_exit(&fil_system->mutex);
+
+		DBUG_EXECUTE_IF("ib_crash_before_adjust_fil_space",
+				DBUG_SUICIDE(););
+
+		if (fnamespace) {
+			char*	tmp_name;
+
+			tmp_name = dict_mem_create_temporary_tablename(
+				heap, name, table_id);
+
+			fil_rename_tablespace(fnamespace->name, fnamespace->id,
+					      tmp_name, NULL);
+		}
+
+		DBUG_EXECUTE_IF("ib_crash_after_adjust_one_fil_space",
+				DBUG_SUICIDE(););
+
+		fil_rename_tablespace(space->name, id, name, NULL);
+
+		DBUG_EXECUTE_IF("ib_crash_after_adjust_fil_space",
+				DBUG_SUICIDE(););
+
+		mutex_enter(&fil_system->mutex);
+		fnamespace = fil_space_get_by_name(name);
+		ut_ad(space == fnamespace);
 		mutex_exit(&fil_system->mutex);
 
 		return(TRUE);
@@ -4936,9 +5001,18 @@ fil_node_complete_io(
 		system->modification_counter++;
 		node->modification_counter = system->modification_counter;
 
-		if (!node->space->is_in_unflushed_spaces) {
+		if (fil_buffering_disabled(node->space)) {
 
-			node->space->is_in_unflushed_spaces = TRUE;
+			/* We don't need to keep track of unflushed
+			changes as user has explicitly disabled
+			buffering. */
+			ut_ad(!node->space->is_in_unflushed_spaces);
+			node->flush_counter = node->modification_counter;
+
+		} else if (!node->space->is_in_unflushed_spaces) {
+
+			node->space->is_in_unflushed_spaces = true;
+
 			UT_LIST_ADD_FIRST(
 				system->unflushed_spaces, node->space);
 		}
@@ -5305,6 +5379,28 @@ fil_flush(
 		return;
 	}
 
+	if (fil_buffering_disabled(space)) {
+
+		/* No need to flush. User has explicitly disabled
+		buffering. */
+		ut_ad(!space->is_in_unflushed_spaces);
+		ut_ad(fil_space_is_flushed(space));
+		ut_ad(space->n_pending_flushes == 0);
+
+#ifdef UNIV_DEBUG
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+			ut_ad(node->modification_counter
+			      == node->flush_counter);
+			ut_ad(node->n_pending_flushes == 0);
+		}
+#endif /* UNIV_DEBUG */
+
+		mutex_exit(&fil_system->mutex);
+		return;
+	}
+
 	space->n_pending_flushes++;	/*!< prevent dropping of the space while
 					we are flushing */
 	node = UT_LIST_GET_FIRST(space->chain);
@@ -5371,7 +5467,7 @@ skip_flush:
 				if (space->is_in_unflushed_spaces
 				    && fil_space_is_flushed(space)) {
 
-					space->is_in_unflushed_spaces = FALSE;
+					space->is_in_unflushed_spaces = false;
 
 					UT_LIST_REMOVE(
 						fil_system->unflushed_spaces,

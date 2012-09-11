@@ -2093,7 +2093,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2223,7 +2223,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       restore_record(table, s->default_values);
       /* ID */
-      table->field[0]->store((longlong) tmp->thread_id, TRUE);
+
+      table->field[0]->store((ulonglong) tmp->thread_id, TRUE);
       /* USER */
       val= tmp_sctx->user ? tmp_sctx->user :
             (tmp->system_thread ? "system user" : "unauthenticated user");
@@ -3468,8 +3469,9 @@ end:
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
 
-  if (i_s_arena.free_list)
-    i_s_arena.free_items();
+  // Free items, before restoring backup_arena below.
+  DBUG_ASSERT(i_s_arena.free_list == NULL);
+  thd->free_items();
 
   /*
     For safety reset list of open temporary tables before closing
@@ -7247,7 +7249,6 @@ static bool do_fill_table(THD *thd,
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
-  JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
@@ -7257,8 +7258,9 @@ bool get_schema_tables_result(JOIN *join,
   if (!join->join_tab)
     DBUG_RETURN(result);
 
-  for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
-  {  
+  for (uint i= 0; i < join->tables; i++)
+  {
+    JOIN_TAB *const tab= join->join_tab + i;
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
 
@@ -7824,7 +7826,7 @@ ST_FIELD_INFO variables_fields_info[]=
 
 ST_FIELD_INFO processlist_fields_info[]=
 {
-  {"ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Id", SKIP_OPEN_TABLE},
+  {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", SKIP_OPEN_TABLE},
   {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host",
    SKIP_OPEN_TABLE},

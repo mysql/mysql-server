@@ -87,7 +87,9 @@ static ib_cb_t* innodb_memcached_api[] = {
 	(ib_cb_t*) &ib_cb_get_n_user_cols,
 	(ib_cb_t*) &ib_cb_cursor_set_lock,
 	(ib_cb_t*) &ib_cb_cursor_clear_trx,
-	(ib_cb_t*) &ib_cb_get_idx_field_name
+	(ib_cb_t*) &ib_cb_get_idx_field_name,
+	(ib_cb_t*) &ib_cb_trx_get_start_time,
+	(ib_cb_t*) &ib_cb_cfg_bk_commit_interval
 };
 
 /** Set expiration time. If the exp sent by client is larger than
@@ -156,7 +158,7 @@ innodb_api_begin(
 			return(err);
 		}
 
-		innodb_cb_cursor_lock(engine, *crsr, lock_mode);
+		err = innodb_cb_cursor_lock(engine, *crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
@@ -191,13 +193,14 @@ innodb_api_begin(
 					*crsr, meta_index->idx_name,
 					idx_crsr, &index_type, &index_id);
 
-				innodb_cb_cursor_lock(engine, *idx_crsr,
+				err = innodb_cb_cursor_lock(engine, *idx_crsr,
 						      lock_mode);
 			}
 
 			/* Create a "Fake" THD if binlog is enabled */
-			if (conn_data) {
-				if (engine->enable_binlog && !conn_data->thd) {
+			if (conn_data && (engine->enable_binlog
+					  || engine->enable_mdl)) {
+				if (!conn_data->thd) {
 					conn_data->thd = handler_create_thd(
 						engine->enable_binlog);
 
@@ -207,12 +210,20 @@ innodb_api_begin(
 						return(DB_ERROR);
 					}
 				}
+
+				if (!conn_data->mysql_tbl) {
+					conn_data->mysql_tbl =
+						handler_open_table(
+							conn_data->thd,
+							dbname,
+							name, HDL_WRITE);
+				}
 			}
 		}
 	} else {
 		ib_cb_cursor_new_trx(*crsr, ib_trx);
 
-		innodb_cb_cursor_lock(engine, *crsr, lock_mode);
+		err = innodb_cb_cursor_lock(engine, *crsr, lock_mode);
 
 		if (err != DB_SUCCESS) {
 			fprintf(stderr, " InnoDB_Memcached: Fail to lock"
@@ -227,8 +238,8 @@ innodb_api_begin(
 			/* set up secondary index cursor */
 			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
 				ib_cb_cursor_new_trx(*idx_crsr, ib_trx);
-				innodb_cb_cursor_lock(engine, *idx_crsr,
-						      lock_mode);
+				err = innodb_cb_cursor_lock(engine, *idx_crsr,
+							    lock_mode);
 			}
 		}
 	}
@@ -960,12 +971,14 @@ innodb_api_insert(
 	/* Set expiration time */
 	SET_EXP_TIME(exp);
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
 
 	err = innodb_api_set_tpl(tpl, NULL, meta_info, col_info, key, len,
 				 key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
-				 cursor_data->mysql_tbl);
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_insert_row(cursor_data->crsr, tpl);
@@ -975,10 +988,9 @@ innodb_api_insert(
 		*cas = new_cas;
 
 		if (engine->enable_binlog && cursor_data->mysql_tbl) {
-			handler_binlog_row(cursor_data->mysql_tbl,
+			handler_binlog_row(cursor_data->thd,
+					   cursor_data->mysql_tbl,
 					   HDL_INSERT);
-			handler_binlog_flush(cursor_data->thd,
-					     cursor_data->mysql_tbl);
 		}
 
 	}
@@ -1030,12 +1042,14 @@ innodb_api_update(
 		handler_store_record(cursor_data->mysql_tbl);
 	}
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
 
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info, key,
 				 len, key + len, val_len,
 				 new_cas, exp, flags, UPDATE_ALL_VAL_COL,
-				 cursor_data->mysql_tbl);
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -1047,10 +1061,9 @@ innodb_api_update(
 		if (engine->enable_binlog) {
 			assert(cursor_data->mysql_tbl);
 
-			handler_binlog_row(cursor_data->mysql_tbl,
+			handler_binlog_row(cursor_data->thd,
+					   cursor_data->mysql_tbl,
 					   HDL_UPDATE);
-			handler_binlog_flush(cursor_data->thd,
-                                             cursor_data->mysql_tbl);
 		}
 
 	}
@@ -1074,12 +1087,14 @@ innodb_api_delete(
 	ib_err_t	err = DB_SUCCESS;
 	ib_crsr_t	srch_crsr = cursor_data->crsr;
 	mci_item_t	result;
+	ib_tpl_t	tpl_delete;
 
 	/* First look for the record, and check whether it exists */
 	err = innodb_api_search(cursor_data, &srch_crsr, key, len,
-				&result, NULL, false);
+				&result, &tpl_delete, false);
 
 	if (err != DB_SUCCESS) {
+		ib_cb_tuple_delete(tpl_delete);
 		return(ENGINE_KEY_ENOENT);
 	}
 
@@ -1089,14 +1104,6 @@ innodb_api_delete(
 	if (engine->enable_binlog) {
 		meta_cfg_info_t* meta_info = cursor_data->conn_meta;
 		meta_column_t*	col_info = meta_info->col_info;
-
-		if (!cursor_data->mysql_tbl) {
-			cursor_data->mysql_tbl = handler_open_table(
-				cursor_data->thd,
-				meta_info->col_info[CONTAINER_DB].col_name,
-				meta_info->col_info[CONTAINER_TABLE].col_name,
-				HDL_WRITE);
-		}
 
 		assert(cursor_data->mysql_tbl);
 
@@ -1109,16 +1116,12 @@ innodb_api_delete(
 	/* Do the binlog of the row being deleted */
 	if (engine->enable_binlog) {
 		if (err == DB_SUCCESS) {
-			handler_binlog_row(cursor_data->mysql_tbl, HDL_DELETE);
-			handler_binlog_flush(cursor_data->thd,
-					     cursor_data->mysql_tbl);
+			handler_binlog_row(cursor_data->thd,
+					   cursor_data->mysql_tbl, HDL_DELETE);
 		}
-
-		handler_unlock_table(cursor_data->thd,
-				     cursor_data->mysql_tbl, HDL_READ);
-		cursor_data->mysql_tbl = NULL;
 	}
 
+	ib_cb_tuple_delete(tpl_delete);
 	return(err == DB_SUCCESS ? ENGINE_SUCCESS : ENGINE_KEY_ENOENT);
 }
 
@@ -1204,11 +1207,14 @@ innodb_api_link(
 		exp += time;
 	}
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
+
 	err = innodb_api_set_tpl(new_tpl, old_tpl, meta_info, col_info,
 				 key, len, append_buf, total_len,
 				 new_cas, exp, flags, column_used,
-				 cursor_data->mysql_tbl);
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err == DB_SUCCESS) {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
@@ -1223,10 +1229,9 @@ innodb_api_link(
 		*cas = new_cas;
 
 		if (engine->enable_binlog) {
-			handler_binlog_row(cursor_data->mysql_tbl,
+			handler_binlog_row(cursor_data->thd,
+					   cursor_data->mysql_tbl,
 					   HDL_UPDATE);
-			handler_binlog_flush(cursor_data->thd,
-					     cursor_data->mysql_tbl);
 		}
 	}
 
@@ -1246,7 +1251,8 @@ innodb_api_arithmetic(
 	int			delta,	/*!< in: value to add or subtract */
 	bool			increment, /*!< in: increment or decrement */
 	uint64_t*		cas,	/*!< out: cas */
-	rel_time_t		exp_time, /*!< in: expire time */
+	rel_time_t		exp_time __attribute__((unused)),
+					/*!< in: expire time */
 	bool			create,	/*!< in: whether to create new entry
 					if not found */
 	uint64_t		initial,/*!< in: initialize value */
@@ -1277,15 +1283,6 @@ innodb_api_arithmetic(
 	if (err != DB_SUCCESS && err != DB_RECORD_NOT_FOUND) {
 		ib_cb_tuple_delete(old_tpl);
 		goto func_exit;
-	}
-
-	if (engine->enable_binlog && !cursor_data->mysql_tbl
-	    && (err == DB_SUCCESS || create)) {
-		cursor_data->mysql_tbl = handler_open_table(
-			cursor_data->thd,
-			meta_info->col_info[CONTAINER_DB].col_name,
-			meta_info->col_info[CONTAINER_TABLE].col_name,
-			HDL_WRITE);
 	}
 
 	memset(value_buf, 0, 128);
@@ -1369,7 +1366,8 @@ create_new_value:
 
 	new_tpl = ib_cb_read_tuple_create(cursor_data->crsr);
 
-	assert(!cursor_data->mysql_tbl || engine->enable_binlog);
+	assert(!cursor_data->mysql_tbl || engine->enable_binlog
+	       || engine->enable_mdl);
 
 	/* The cas, exp and flags field are not changing, so use the
 	data from result */
@@ -1378,7 +1376,9 @@ create_new_value:
 				 *cas,
 				 result.col_value[MCI_COL_EXP].value_int,
 				 result.col_value[MCI_COL_FLAG].value_int,
-				 column_used, cursor_data->mysql_tbl);
+				 column_used,
+				 engine->enable_binlog
+				 ? cursor_data->mysql_tbl : NULL);
 
 	if (err != DB_SUCCESS) {
 		ib_cb_tuple_delete(new_tpl);
@@ -1391,18 +1391,16 @@ create_new_value:
 		*out_result = initial;
 
 		if (engine->enable_binlog) {
-			handler_binlog_row(cursor_data->mysql_tbl, HDL_INSERT);
-			handler_binlog_flush(cursor_data->thd,
-					     cursor_data->mysql_tbl);
+			handler_binlog_row(cursor_data->thd,
+					   cursor_data->mysql_tbl, HDL_INSERT);
 		}
 	} else {
 		err = ib_cb_update_row(srch_crsr, old_tpl, new_tpl);
 		*out_result = value;
 
 		if (engine->enable_binlog) {
-			handler_binlog_row(cursor_data->mysql_tbl, HDL_UPDATE);
-			handler_binlog_flush(cursor_data->thd,
-					     cursor_data->mysql_tbl);
+			handler_binlog_row(cursor_data->thd,
+					   cursor_data->mysql_tbl, HDL_UPDATE);
 		}
 	}
 
@@ -1410,11 +1408,6 @@ create_new_value:
 	ib_cb_tuple_delete(old_tpl);
 
 func_exit:
-	if (engine->enable_binlog && cursor_data->mysql_tbl) {
-		handler_unlock_table(cursor_data->thd,
-				     cursor_data->mysql_tbl, HDL_READ);
-		cursor_data->mysql_tbl = NULL;
-	}
 
 	if (ret == ENGINE_SUCCESS) {
 		ret = (err == DB_SUCCESS) ? ENGINE_SUCCESS : ENGINE_NOT_STORED;
@@ -1460,16 +1453,6 @@ innodb_api_store(
 	exit */
 	if (err != DB_SUCCESS && err != DB_RECORD_NOT_FOUND) {
 		goto func_exit;
-	}
-
-	if (engine->enable_binlog && !cursor_data->mysql_tbl) {
-		meta_cfg_info_t*	meta_info = cursor_data->conn_meta;
-
-		cursor_data->mysql_tbl = handler_open_table(
-			cursor_data->thd,
-			meta_info->col_info[CONTAINER_DB].col_name,
-			meta_info->col_info[CONTAINER_TABLE].col_name,
-			HDL_WRITE);
 	}
 
 	switch (op) {
@@ -1535,12 +1518,6 @@ innodb_api_store(
 func_exit:
 	ib_cb_tuple_delete(old_tpl);
 
-	if (engine->enable_binlog && cursor_data->mysql_tbl) {
-		handler_unlock_table(cursor_data->thd,
-				     cursor_data->mysql_tbl, HDL_READ);
-		cursor_data->mysql_tbl = NULL;
-	}
-
 	if (err == DB_SUCCESS && stored == ENGINE_NOT_STORED) {
 		stored = ENGINE_SUCCESS;
 	}
@@ -1555,6 +1532,8 @@ ENGINE_ERROR_CODE
 innodb_api_flush(
 /*=============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
+	innodb_conn_data_t*	conn_data,/*!< in/out: cursor affiliated
+					with a connection */
 	const char*		dbname,	/*!< in: database name */
 	const char*		name)	/*!< in: table name */
 {
@@ -1573,15 +1552,119 @@ innodb_api_flush(
 
 	/* If binlog is enabled, log the truncate table statement */
 	if (err == DB_SUCCESS && engine->enable_binlog) {
-		void*  thd = handler_create_thd(true);
+		void*  thd = conn_data->thd;
 
 		snprintf(table_name, sizeof(table_name), "%s.%s", dbname, name);
 		handler_binlog_truncate(thd, table_name);
-
-		handler_close_thd(thd);
 	}
 
 	return(err);
+}
+
+/*************************************************************//**
+Increment read and write counters, if they exceed the batch size,
+commit the transaction. */
+bool
+innodb_reset_conn(
+/*==============*/
+	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
+						with a connection */
+	bool			has_lock,	/*!< in: has lock on
+						connection */
+	bool			commit,		/*!< in: commit or abort trx */
+	bool			has_binlog)	/*!< in: binlog enabled */
+{
+	bool	commit_trx = false;
+
+	LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
+
+	if (conn_data->crsr) {
+		ib_cb_cursor_reset(conn_data->crsr);
+	}
+
+	if (conn_data->read_crsr) {
+		ib_cb_cursor_reset(conn_data->read_crsr);
+	}
+
+	if (conn_data->idx_crsr) {
+		ib_cb_cursor_reset(conn_data->idx_crsr);
+	}
+
+	if (conn_data->idx_read_crsr) {
+		ib_cb_cursor_reset(conn_data->idx_read_crsr);
+	}
+
+	if (conn_data->crsr_trx) {
+		ib_crsr_t		ib_crsr;
+		meta_cfg_info_t*	meta_info = conn_data->conn_meta;
+		meta_index_t*		meta_index = &meta_info->index_info;
+
+		if (meta_index->srch_use_idx == META_USE_SECONDARY) {
+			assert(conn_data->idx_crsr
+			       || conn_data->idx_read_crsr);
+
+			ib_crsr = conn_data->idx_crsr
+				  ? conn_data->idx_crsr
+				  : conn_data->idx_read_crsr;
+		} else {
+			assert(conn_data->crsr
+			       || conn_data->read_crsr);
+
+			ib_crsr = conn_data->crsr
+				  ? conn_data->crsr
+				  : conn_data->read_crsr;
+		}
+
+		if (commit) {
+			ib_cb_cursor_commit_trx(
+				ib_crsr, conn_data->crsr_trx);
+
+			if (has_binlog && conn_data->thd
+			    && conn_data->mysql_tbl) {
+				handler_binlog_commit(conn_data->thd,
+						      conn_data->mysql_tbl);
+			}
+		} else {
+			ib_cb_trx_rollback(conn_data->crsr_trx);
+
+			if (has_binlog && conn_data->thd
+			    && conn_data->mysql_tbl) {
+				handler_binlog_rollback(conn_data->thd,
+							conn_data->mysql_tbl);
+			}
+		}
+
+		conn_data->crsr_trx = NULL;
+
+		if (conn_data->crsr) {
+			ib_cb_cursor_clear_trx(
+				conn_data->crsr);
+		}
+
+		if (conn_data->read_crsr) {
+			ib_cb_cursor_clear_trx(
+				conn_data->read_crsr);
+		}
+
+		if (conn_data->idx_crsr) {
+			ib_cb_cursor_clear_trx(
+				conn_data->idx_crsr);
+		}
+
+		if (conn_data->idx_read_crsr) {
+			ib_cb_cursor_clear_trx(
+				conn_data->idx_read_crsr);
+		}
+
+		commit_trx = true;
+		conn_data->in_use = false;
+	}
+
+	conn_data->n_writes_since_commit = 0;
+	conn_data->n_reads_since_commit = 0;
+
+	UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn_data);
+	return(commit_trx);
 }
 
 /*************************************************************//**
@@ -1616,96 +1699,21 @@ innodb_api_cursor_reset(
 	if (conn_data->n_reads_since_commit >= engine->read_batch_size
 	    || conn_data->n_writes_since_commit >= engine->write_batch_size
 	    || (op_type == CONN_OP_FLUSH) || !commit) {
-		if (conn_data->crsr) {
-			ib_cb_cursor_reset(conn_data->crsr);
-		}
-
-		if (conn_data->read_crsr) {
-			ib_cb_cursor_reset(conn_data->read_crsr);
-		}
-
-		if (conn_data->idx_crsr) {
-			ib_cb_cursor_reset(conn_data->idx_crsr);
-		}
-
-		if (conn_data->idx_read_crsr) {
-			ib_cb_cursor_reset(conn_data->idx_read_crsr);
-		}
-
-		if (conn_data->crsr_trx) {
-			ib_crsr_t	ib_crsr;
-			meta_cfg_info_t* meta_info = conn_data->conn_meta;
-                        meta_index_t*	meta_index = &meta_info->index_info;
-
-			LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
-						engine);
-
-			if (meta_index->srch_use_idx == META_USE_SECONDARY) {
-				assert(conn_data->idx_crsr
-				       || conn_data->idx_read_crsr);
-
-				ib_crsr = conn_data->idx_crsr
-					  ? conn_data->idx_crsr
-					  : conn_data->idx_read_crsr;
-			} else {
-				assert(conn_data->crsr
-				       || conn_data->read_crsr);
-
-				ib_crsr = conn_data->crsr
-					  ? conn_data->crsr
-					  : conn_data->read_crsr;
-			}
-
-			if (commit) {
-				ib_cb_cursor_commit_trx(
-					ib_crsr, conn_data->crsr_trx);
-			} else {
-				ib_cb_trx_rollback(conn_data->crsr_trx);
-			}
-
-			conn_data->crsr_trx = NULL;
-
-			if (conn_data->crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->crsr);
-			}
-
-			if (conn_data->read_crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->read_crsr);
-			}
-
-			if (conn_data->idx_crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->idx_crsr);
-			}
-
-			if (conn_data->idx_read_crsr) {
-				ib_cb_cursor_clear_trx(
-					conn_data->idx_read_crsr);
-			}
-
-			commit_trx = true;
-			conn_data->in_use = false;
-
-			UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
-						  engine);
-		}
-
-		conn_data->n_writes_since_commit = 0;
-		conn_data->n_reads_since_commit = 0;
+		commit_trx = innodb_reset_conn(
+			conn_data, op_type == CONN_OP_FLUSH, commit,
+			engine->enable_binlog);
 	}
 
 	if (!commit_trx) {
-		LOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
-					engine);
+		LOCK_CURRENT_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+						conn_data);
 		if (op_type != CONN_OP_FLUSH) {
 			assert(conn_data->in_use);
 		}
 
 		conn_data->in_use = false;
-		UNLOCK_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
-					  engine);
+		UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(op_type == CONN_OP_FLUSH,
+						  conn_data);
 	}
 }
 

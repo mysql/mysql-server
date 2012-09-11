@@ -39,7 +39,7 @@ public:
   {}
 
 protected:
-  bool thread_fits(PFS_thread *thread, PFS_thread *current_thread);
+  virtual bool thread_fits(PFS_thread *thread);
 
 private:
   /** Table share lock. */

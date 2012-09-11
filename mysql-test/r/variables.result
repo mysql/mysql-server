@@ -1,7 +1,11 @@
 drop table if exists t1,t2;
 set @my_connect_timeout           =@@global.connect_timeout;
 set @my_delayed_insert_timeout    =@@global.delayed_insert_timeout;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 set @my_delayed_queue_size        =@@global.delayed_queue_size;
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 set @my_flush                     =@@global.flush;
 set @my_flush_time                =@@global.flush_time;
 set @my_key_buffer_size           =@@global.key_buffer_size;
@@ -11,8 +15,12 @@ set @my_max_binlog_size           =@@global.max_binlog_size;
 set @my_max_connect_errors        =@@global.max_connect_errors;
 set @my_max_connections           =@@global.max_connections;
 set @my_max_delayed_threads       =@@global.max_delayed_threads;
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
 set @my_max_heap_table_size       =@@global.max_heap_table_size;
 set @my_max_insert_delayed_threads=@@global.max_insert_delayed_threads;
+Warnings:
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 set @my_max_join_size             =@@global.max_join_size;
 set @my_myisam_data_pointer_size  =@@global.myisam_data_pointer_size;
 set @my_myisam_max_sort_file_size =@@global.myisam_max_sort_file_size;
@@ -481,8 +489,14 @@ select @@delay_key_write;
 @@delay_key_write
 ON
 set global delayed_insert_limit=100;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 set global delayed_insert_timeout=100;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 set global delayed_queue_size=100;
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 set global flush=1;
 set global flush_time=100;
 set insert_id=1;
@@ -514,12 +528,16 @@ Warning	1292	Truncated incorrect max_binlog_size value: '100'
 set global max_connect_errors=100;
 set global max_connections=100;
 set global max_delayed_threads=100;
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
 set max_heap_table_size=100;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '100'
 set max_join_size=100;
 set max_sort_length=100;
 set max_tmp_tables=100;
+Warnings:
+Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
 set global max_user_connections=100;
 select @@max_user_connections;
 @@max_user_connections
@@ -1037,7 +1055,11 @@ set @save_join_buffer_size=@@join_buffer_size;
 set join_buffer_size=@save_join_buffer_size;
 set global connect_timeout           =@my_connect_timeout;
 set global delayed_insert_timeout    =@my_delayed_insert_timeout;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 set global delayed_queue_size        =@my_delayed_queue_size;
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
 set global flush                     =@my_flush;
 set global flush_time                =@my_flush_time;
 set global key_buffer_size           =@my_key_buffer_size;
@@ -1047,8 +1069,12 @@ set global max_binlog_size           =@my_max_binlog_size;
 set global max_connect_errors        =@my_max_connect_errors;
 set global max_connections           =@my_max_connections;
 set global max_delayed_threads       =@my_max_delayed_threads;
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
 set global max_heap_table_size       =@my_max_heap_table_size;
 set global max_insert_delayed_threads=@my_max_insert_delayed_threads;
+Warnings:
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 set global max_join_size             =@my_max_join_size;
 set global max_user_connections      =default;
 set global max_write_lock_count      =default;

@@ -130,7 +130,8 @@ const char *st_select_lex::type_str[SLT_total]=
   "DERIVED",
   "SUBQUERY",
   "UNION",
-  "UNION RESULT"
+  "UNION RESULT",
+  "MATERIALIZED"
 };
 
 
@@ -451,6 +452,7 @@ void lex_start(THD *thd)
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
   lex->use_only_table_context= FALSE;
+  lex->contains_plaintext_password= false;
 
   lex->name.str= 0;
   lex->name.length= 0;
@@ -478,6 +480,7 @@ void lex_start(THD *thd)
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
+  lex->is_change_password= false;
   DBUG_VOID_RETURN;
 }
 

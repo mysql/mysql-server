@@ -573,7 +573,7 @@ public:
   /*
     MTS statistics: 
   */
-  ulong mts_events_assigned; // number of events (statements) scheduled
+  ulonglong mts_events_assigned; // number of events (statements) scheduled
   ulong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
@@ -590,6 +590,7 @@ public:
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
   DYNAMIC_ARRAY least_occupied_workers;
+  time_t mts_last_online_stat;
   /* end of MTS statistics */
 
   /* most of allocation in the coordinator rli is there */

@@ -807,7 +807,11 @@ bool trans_xa_commit(THD *thd)
     {
       DEBUG_SYNC(thd, "trans_xa_commit_after_acquire_commit_lock");
 
-      res= test(ha_commit_low(thd, /* all */ true));
+      if (tc_log)
+        res= test(tc_log->commit(thd, /* all */ true));
+      else
+        res= test(ha_commit_low(thd, /* all */ true));
+
       if (res)
         my_error(ER_XAER_RMERR, MYF(0));
     }

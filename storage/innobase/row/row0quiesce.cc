@@ -476,6 +476,34 @@ row_quiesce_write_cfg(
 }
 
 /*********************************************************************//**
+Check whether a table has an FTS index defined on it.
+@return true if an FTS index exists on the table */
+static
+bool
+row_quiesce_table_has_fts_index(
+/*============================*/
+	const dict_table_t*	table)	/*!< in: quiesce this table */
+{
+	bool			exists = false;
+
+	dict_mutex_enter_for_mysql();
+
+	for (const dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != 0;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		if (index->type & DICT_FTS) {
+			exists = true;
+			break;
+		}
+	}
+
+	dict_mutex_exit_for_mysql();
+
+	return(exists);
+}
+
+/*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
 UNIV_INTERN
 void
@@ -616,6 +644,24 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
+
+		return(DB_UNSUPPORTED);
+	} else if (row_quiesce_table_has_fts_index(table)) {
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_NOT_SUPPORTED_YET,
+			    "FLUSH TABLES on tables that have an FTS index");
+
+		return(DB_UNSUPPORTED);
+	} else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		/* If this flag is set then the table may not have any active
+		FTS indexes but it will still have the auxiliary tables. */
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_NOT_SUPPORTED_YET,
+			    "FLUSH TABLES on a table that had an FTS index, "
+			    "created on a hidden column, the "
+			    "auxiliary tables haven't been dropped as yet.");
 
 		return(DB_UNSUPPORTED);
 	}

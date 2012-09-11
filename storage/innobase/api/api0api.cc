@@ -68,6 +68,9 @@ my_bool ib_disable_row_lock = FALSE;
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
 
+/** configure variable for background commit interval in seconds */
+ulong ib_bk_commit_interval = 0;
+
 /** InnoDB tuple types. */
 enum ib_tuple_type_t{
 	TPL_TYPE_ROW,			/*!< Data row tuple */
@@ -83,36 +86,36 @@ enum ib_qry_type_t{
 };
 
 /** Query graph types. */
-typedef struct ib_qry_grph_struct {
+struct ib_qry_grph_t {
 	que_fork_t*	ins;		/*!< Innobase SQL query graph used
 					in inserts */
 	que_fork_t*	upd;		/*!< Innobase SQL query graph used
 					in updates or deletes */
 	que_fork_t*	sel;		/*!< dummy query graph used in
 					selects */
-} ib_qry_grph_t;
+};
 
 /** Query node types. */
-typedef struct ib_qry_node_struct {
+struct ib_qry_node_t {
 	ins_node_t*	ins;		/*!< Innobase SQL insert node
 					used to perform inserts to the table */
 	upd_node_t*	upd;		/*!< Innobase SQL update node
 					used to perform updates and deletes */
 	sel_node_t*	sel;		/*!< Innobase SQL select node
 					used to perform selects on the table */
-} ib_qry_node_t;
+};
 
 /** Query processing fields. */
-typedef struct ib_qry_proc_struct {
+struct ib_qry_proc_t {
 
 	ib_qry_node_t	node;		/*!< Query node*/
 
 	ib_qry_grph_t	grph;		/*!< Query graph */
-} ib_qry_proc_t;
+};
 
 /** Cursor instance for traversing tables/indexes. This will eventually
 become row_prebuilt_t. */
-typedef struct ib_cursor_struct {
+struct ib_cursor_t {
 	mem_heap_t*	heap;		/*!< Instance heap */
 
 	mem_heap_t*	query_heap;	/*!< Heap to use for query graphs */
@@ -124,10 +127,10 @@ typedef struct ib_cursor_struct {
 	row_prebuilt_t*	prebuilt;	/*!< For reading rows */
 
 	bool		valid_trx;	/*!< Valid transaction attached */
-} ib_cursor_t;
+};
 
 /** InnoDB table columns used during table and index schema creation. */
-typedef struct ib_col_struct {
+struct ib_col_t {
 	const char*	name;		/*!< Name of column */
 
 	ib_col_type_t	ib_col_type;	/*!< Main type of the column */
@@ -136,19 +139,19 @@ typedef struct ib_col_struct {
 
 	ib_col_attr_t	ib_col_attr;	/*!< Column attributes */
 
-} ib_col_t;
+};
 
 /** InnoDB index columns used during index and index schema creation. */
-typedef struct ib_key_col_struct {
+struct ib_key_col_t {
 	const char*	name;		/*!< Name of column */
 
 	ulint		prefix_len;	/*!< Column index prefix len or 0 */
-} ib_key_col_t;
+};
 
-typedef struct ib_table_def_struct ib_table_def_t;
+struct ib_table_def_t;
 
 /** InnoDB index schema used during index creation */
-typedef struct ib_index_def_struct {
+struct ib_index_def_t {
 	mem_heap_t*	heap;		/*!< Heap used to build this and all
 					its columns in the list */
 
@@ -167,10 +170,10 @@ typedef struct ib_index_def_struct {
 
 	trx_t*		usr_trx;	/*!< User transacton covering the
 					DDL operations */
-} ib_index_def_t;
+};
 
 /** InnoDB table schema used during table creation */
-struct ib_table_def_struct {
+struct ib_table_def_t {
 	mem_heap_t*	heap;		/*!< Heap used to build this and all
 					its columns in the list */
 	const char*	name;		/*!< Table name */
@@ -187,7 +190,7 @@ struct ib_table_def_struct {
 };
 
 /** InnoDB tuple used for key operations. */
-typedef struct ib_tuple_struct {
+struct ib_tuple_t {
 	mem_heap_t*		heap;	/*!< Heap used to build
 					this and for copying
 					the column values. */
@@ -199,11 +202,7 @@ typedef struct ib_tuple_struct {
 
 	dtuple_t*		ptr;	/*!< The internal tuple
 					instance */
-} ib_tuple_t;
-
-/** I can't see what merge has to do with creating an Index. */
-typedef merge_index_def_t index_def_t;
-typedef merge_index_field_t index_field_t;
+};
 
 /** The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -610,6 +609,18 @@ ib_trx_state(
 	return((ib_trx_state_t) trx->state);
 }
 
+/*****************************************************************//**
+Get a trx start time.
+@return	trx start_time */
+UNIV_INTERN
+ib_u64_t
+ib_trx_get_start_time(
+/*==================*/
+	ib_trx_t	ib_trx)		/*!< in: transaction */
+{
+	trx_t*		trx = (trx_t*) ib_trx;
+	return(static_cast<ib_u64_t>(trx->start_time));
+}
 /*****************************************************************//**
 Release the resources of the transaction.
 @return	DB_SUCCESS or err code */
@@ -3359,7 +3370,7 @@ ib_cursor_set_lock_mode(
 
 	if (ib_lck_mode == IB_LOCK_X) {
 		err = ib_cursor_lock(ib_crsr, IB_LOCK_IX);
-	} else {
+	} else if (ib_lck_mode == IB_LOCK_S) {
 		err = ib_cursor_lock(ib_crsr, IB_LOCK_IS);
 	}
 
@@ -3777,6 +3788,17 @@ ib_cfg_trx_level()
 /*==============*/
 {
 	return(static_cast<ib_trx_state_t>(ib_trx_level_setting));
+}
+
+/*****************************************************************//**
+Return configure value for background commit interval (in seconds)
+@return background commit interval (in seconds) */
+UNIV_INTERN
+ib_ulint_t
+ib_cfg_bk_commit_interval()
+/*=======================*/
+{
+	return(static_cast<ib_ulint_t>(ib_bk_commit_interval));
 }
 
 /*****************************************************************//**

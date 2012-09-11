@@ -127,8 +127,9 @@ void sys_var_end()
                    put your additional checks here
   @param on_update_func a function to be called at the end of sys_var::update,
                    any post-update activity should happen here
-  @param substitute if not 0 - what one should use instead when this
-                   deprecated variable
+  @param substitute If non-NULL, this variable is deprecated and the
+  string describes what one should use instead. If an empty string,
+  the variable is deprecated but no replacement is offered.
   @param parse_flag either PARSE_EARLY or PARSE_NORMAL
 */
 sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
@@ -143,6 +144,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   binlog_status(binlog_status_arg),
   flags(flags_arg), m_parse_flag(parse_flag), show_val_type(show_val_type_arg),
   guard(lock), offset(off), on_check(on_check_func), on_update(on_update_func),
+  deprecation_substitute(substitute),
   is_os_charset(FALSE)
 {
   /*
@@ -167,8 +169,6 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
   option.arg_type= getopt_arg_type;
   option.value= (uchar **)global_var_ptr();
   option.def_value= def_val;
-
-  deprecation_substitute= substitute;
 
   if (chain->last)
     chain->last->next= this;
@@ -210,7 +210,6 @@ uchar *sys_var::global_value_ptr(THD *thd, LEX_STRING *base)
 
 bool sys_var::check(THD *thd, set_var *var)
 {
-  do_deprecated_warning(thd);
   if ((var->value && do_check(thd, var))
       || (on_check && on_check(this, thd, var)))
   {
@@ -264,7 +263,7 @@ bool sys_var::set_default(THD *thd, enum_var_type type)
 
 void sys_var::do_deprecated_warning(THD *thd)
 {
-  if (deprecation_substitute)
+  if (deprecation_substitute != NULL)
   {
     char buf1[NAME_CHAR_LEN + 3];
     strxnmov(buf1, sizeof(buf1)-1, "@@", name.str, 0);
@@ -273,16 +272,15 @@ void sys_var::do_deprecated_warning(THD *thd)
        if deprecation_substitute is an empty string,
        there is no replacement for the syntax
     */
-    uint errmsg= deprecation_substitute[0]
-                        ? ER_WARN_DEPRECATED_SYNTAX
-                        : ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT;
+    uint errmsg= deprecation_substitute[0] == '\0'
+      ? ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT
+      : ER_WARN_DEPRECATED_SYNTAX;
     if (thd)
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
                           ER_WARN_DEPRECATED_SYNTAX, ER(errmsg),
                           buf1, deprecation_substitute);
     else
-      sql_print_warning(ER_DEFAULT(errmsg), buf1, 
-                        deprecation_substitute);
+      sql_print_warning(ER_DEFAULT(errmsg), buf1, deprecation_substitute);
   }
 }
 
@@ -599,6 +597,7 @@ err:
 
 int set_var::check(THD *thd)
 {
+  var->do_deprecated_warning(thd);
   if (var->is_readonly())
   {
     my_error(ER_INCORRECT_GLOBAL_LOCAL_VAR, MYF(0), var->name.str, "read only");

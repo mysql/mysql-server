@@ -54,6 +54,7 @@
 #include "transaction.h"
 #include "datadict.h"  // dd_frm_type()
 #include "sql_resolver.h"              // setup_order, fix_inner_refs
+#include "table_cache.h"
 #include <mysql/psi/mysql_table.h>
 
 #ifdef __WIN__
@@ -2325,7 +2326,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           error= -1;
           goto err;
         }
-        close_all_tables_for_name(thd, table->table->s, TRUE);
+        close_all_tables_for_name(thd, table->table->s, true, NULL);
         table->table= 0;
       }
 
@@ -5277,7 +5278,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     Adjust values of table-level and metadata which was set in parser
     for the case general ALTER TABLE.
   */
-  table_list->mdl_request.set_type(MDL_SHARED_WRITE);
+  table_list->mdl_request.set_type(MDL_EXCLUSIVE);
   table_list->lock_type= TL_WRITE;
   /* Do not open views. */
   table_list->required_type= FRMTYPE_TABLE;
@@ -6220,30 +6221,69 @@ static bool mysql_inplace_alter_table(THD *thd,
   MDL_ticket *mdl_ticket= table->mdl_ticket;
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   Alter_info *alter_info= ha_alter_info->alter_info;
+  bool reopen_tables= false;
 
   DBUG_ENTER("mysql_inplace_alter_table");
 
   /*
     Upgrade to EXCLUSIVE lock if:
     - This is requested by the storage engine
+    - Or the storage engine needs exclusive lock for just the prepare
+      phase
     - Or requested by the user
+
+    Note that we handle situation when storage engine needs exclusive
+    lock for prepare phase under LOCK TABLES in the same way as when
+    exclusive lock is required for duration of the whole statement.
   */
-  if ((inplace_supported == HA_ALTER_INPLACE_EXCLUSIVE_LOCK ||
-       alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE) &&
-      wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+  if (inplace_supported == HA_ALTER_INPLACE_EXCLUSIVE_LOCK ||
+      ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+        inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE) &&
+       (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)) ||
+       alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE)
   {
-    goto cleanup;
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+      goto cleanup;
+    /*
+      Get rid of all TABLE instances belonging to this thread
+      except one to be used for in-place ALTER TABLE.
+
+      This is mostly needed to satisfy InnoDB assumptions/asserts.
+    */
+    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(),
+                              table);
+    /*
+      If we are under LOCK TABLES we will need to reopen tables which we
+      just have closed in case of error.
+    */
+    reopen_tables= true;
+  }
+  else if (inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+           inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE)
+  {
+    /*
+      Storage engine has requested exclusive lock only for prepare phase
+      and we are not under LOCK TABLES.
+      Don't mark TABLE_SHARE as old in this case, as this won't allow opening
+      of table by other threads during main phase of in-place ALTER TABLE.
+    */
+    if (thd->mdl_context.upgrade_shared_lock(table->mdl_ticket, MDL_EXCLUSIVE,
+                                             thd->variables.lock_wait_timeout))
+      goto cleanup;
+
+    tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE,
+                     table->s->db.str, table->s->table_name.str,
+                     false);
   }
 
   /*
     Upgrade to SHARED_NO_WRITE lock if:
     - The storage engine needs writes blocked for the whole duration
-    - Or the storage engine needs writes blocked for just the prepare phase
     - Or this is requested by the user
     Note that under LOCK TABLES, we will already have SHARED_NO_READ_WRITE.
   */
   if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK ||
-       inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE ||
        alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED) &&
       thd->mdl_context.upgrade_shared_lock(table->mdl_ticket,
                                            MDL_SHARED_NO_WRITE,
@@ -6258,6 +6298,29 @@ static bool mysql_inplace_alter_table(THD *thd,
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_upgrade");
 
+  switch (inplace_supported) {
+  case HA_ALTER_ERROR:
+  case HA_ALTER_INPLACE_NOT_SUPPORTED:
+    DBUG_ASSERT(0);
+    // fall through
+  case HA_ALTER_INPLACE_NO_LOCK:
+  case HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE:
+    switch (alter_info->requested_lock) {
+    case Alter_info::ALTER_TABLE_LOCK_DEFAULT:
+    case Alter_info::ALTER_TABLE_LOCK_NONE:
+      ha_alter_info->online= true;
+      break;
+    case Alter_info::ALTER_TABLE_LOCK_SHARED:
+    case Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE:
+      break;
+    }
+    break;
+  case HA_ALTER_INPLACE_EXCLUSIVE_LOCK:
+  case HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE:
+  case HA_ALTER_INPLACE_SHARED_LOCK:
+    break;
+  }
+
   if (table->file->ha_prepare_inplace_alter_table(altered_table,
                                                   ha_alter_info))
   {
@@ -6265,20 +6328,26 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   /*
-    Downgrade to SHARED_UPGRADABLE if:
-    - The storage engine needed the prepare phase to have SNW lock.
-    - And the user requested both concurrent reads and writes using
-      LOCK_DEFAULT or LOCK_NONE (i.e. a weaker lock than SNW).
-    *Unless* we are in LOCK TABLES mode. In this case, downgrading from SNRW
-    to SU will break LOCK TABLES since it will allow reads/writes from other
-    connections.
+    Downgrade the lock if storage engine has told us that exclusive lock was
+    necessary only for prepare phase (unless we are not under LOCK TABLES) and
+    user has not explicitly requested exclusive lock.
   */
-  if ((inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE &&
-      (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_DEFAULT ||
-       alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_NONE)) &&
-      thd->locked_tables_mode != LTM_LOCK_TABLES &&
-      thd->locked_tables_mode != LTM_PRELOCKED_UNDER_LOCK_TABLES)
-    table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+  if ((inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+       inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE) &&
+      !(thd->locked_tables_mode == LTM_LOCK_TABLES ||
+        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
+      (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE))
+  {
+    /* If storage engine or user requested shared lock downgrade to SNW. */
+    if (inplace_supported == HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE ||
+        alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_SHARED)
+      table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_WRITE);
+    else
+    {
+      DBUG_ASSERT(inplace_supported == HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE);
+      table->mdl_ticket->downgrade_lock(MDL_SHARED_UPGRADABLE);
+    }
+  }
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
 
@@ -6309,7 +6378,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     goto rollback;
   }
 
-  close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed());
+  close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
   table_list->table= table= NULL;
   close_temporary_table(thd, altered_table, true, false);
 
@@ -6387,6 +6456,14 @@ static bool mysql_inplace_alter_table(THD *thd,
                                              ha_alter_info,
                                              false);
  cleanup:
+  if (reopen_tables)
+  {
+    /* Close the only table instance which is still around. */
+    close_all_tables_for_name(thd, table->s, alter_ctx->is_table_renamed(), NULL);
+    if (thd->locked_tables_list.reopen_tables(thd))
+      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+    /* QQ; do something about metadata locks ? */
+  }
   close_temporary_table(thd, altered_table, true, false);
   // Delete temporary .frm/.par
   (void) quick_rm_table(thd, create_info->db_type, alter_ctx->new_db,
@@ -7281,7 +7358,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       DBUG_RETURN(true);
-    close_all_tables_for_name(thd, table->s, true);
+    close_all_tables_for_name(thd, table->s, true, NULL);
 
     if (mysql_rename_table(old_db_type, alter_ctx->db, alter_ctx->table_name,
                            alter_ctx->new_db, alter_ctx->new_alias, 0))
@@ -7826,6 +7903,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     /* Set markers for fields in TABLE object for altered table. */
     update_altered_table(ha_alter_info, altered_table);
 
+    /*
+      Mark all columns in 'altered_table' as used to allow usage
+      of its record[0] buffer and Field objects during in-place
+      ALTER TABLE.
+    */
+    altered_table->column_bitmaps_set_no_signal(&altered_table->s->all_set,
+                                                &altered_table->s->all_set);
+
     if (ha_alter_info.handler_flags == 0)
     {
       /*
@@ -7870,6 +7955,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         goto err_new_table_cleanup;
       }
       break;
+    case HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE:
     case HA_ALTER_INPLACE_SHARED_LOCK:
       // If weaker lock was requested, report errror.
       if (alter_info->requested_lock ==
@@ -8105,7 +8191,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
     goto err_new_table_cleanup;
 
-  close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed());
+  close_all_tables_for_name(thd, table->s, alter_ctx.is_table_renamed(), NULL);
   table_list->table= table= NULL;                  /* Safety */
 
   /*
@@ -8541,9 +8627,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                 (to->key_info[0].key_part[0].field->flags &
                  AUTO_INCREMENT_FLAG))
               err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-            to->file->print_keydup_error(key_nr == MAX_KEY ?
-                                         NULL : &to->key_info[key_nr],
-                                         err_msg, MYF(0));
+            print_keydup_error(to, key_nr == MAX_KEY ? NULL :
+                                   &to->key_info[key_nr],
+                               err_msg, MYF(0));
           }
           else
             to->file->print_error(error, MYF(0));
