@@ -64,6 +64,7 @@ enum enum_alter_inplace_result {
   HA_ALTER_ERROR,
   HA_ALTER_INPLACE_NOT_SUPPORTED,
   HA_ALTER_INPLACE_EXCLUSIVE_LOCK,
+  HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_SHARED_LOCK,
   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_NO_LOCK
@@ -1278,6 +1279,8 @@ public:
 
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
+  /** true for online operation (LOCK=NONE) */
+  bool online;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
@@ -1295,7 +1298,8 @@ public:
     handler_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
-    ignore(ignore_arg)
+    ignore(ignore_arg),
+    online (false)
   {}
 
   ~Alter_inplace_info()
@@ -1756,12 +1760,32 @@ public:
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
 
-protected:
+  /*
+    The direction of the current range or index scan. This is used by
+    the ICP implementation to determine if it has reached the end
+    of the current range.
+  */
+  enum enum_range_scan_direction {
+    RANGE_SCAN_ASC,
+    RANGE_SCAN_DESC
+  };
+private:
   /*
     Storage space for the end range value. Should only be accessed using
     the end_range pointer. The content is invalid when end_range is NULL.
   */
   key_range save_end_range;
+  enum_range_scan_direction range_scan_direction;
+  int key_compare_result_on_equal;
+
+protected:
+  KEY_PART_INFO *range_key_part;
+  bool eq_range;
+  /* 
+    TRUE <=> the engine guarantees that returned records are within the range
+    being scanned.
+  */
+  bool in_range_check_pushed_down;
 
 public:  
   /*
@@ -1771,15 +1795,6 @@ public:
     index conditions.
   */
   key_range *end_range;
-  KEY_PART_INFO *range_key_part;
-  int key_compare_result_on_equal;
-  bool eq_range;
-  /* 
-    TRUE <=> the engine guarantees that returned records are within the range
-    being scanned.
-  */
-  bool in_range_check_pushed_down;
-
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
@@ -1859,7 +1874,8 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), end_range(NULL), in_range_check_pushed_down(false),
+    ref(0), range_scan_direction(RANGE_SCAN_ASC),
+    in_range_check_pushed_down(false), end_range(NULL),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -1968,8 +1984,6 @@ public:
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
-  void print_keydup_error(KEY *key, const char *msg, myf errflag);
-  void print_keydup_error(KEY *key, myf errflag);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
@@ -2201,8 +2215,19 @@ public:
                                const key_range *end_key,
                                bool eq_range, bool sorted);
   virtual int read_range_next();
+
+  /**
+    Set the end position for a range scan. This is used for checking
+    for when to end the range scan and by the ICP code to determine
+    that the next record is within the current range.
+
+    @param range     The end value for the range scan
+    @param direction Direction of the range scan
+  */
+  void set_end_range(const key_range* range,
+                     enum_range_scan_direction direction);
   int compare_key(key_range *range);
-  int compare_key2(key_range *range);
+  int compare_key_icp(const key_range *range) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
@@ -2690,8 +2715,9 @@ public:
    *) As the first step, we acquire a lock corresponding to the concurrency
       level which was returned by handler::check_if_supported_inplace_alter()
       and requested by the user. This lock is held for most of the
-      duration of in-place ALTER (if HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
-      was returned we acquire a write lock for duration of the next step only).
+      duration of in-place ALTER (if HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+      or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE were returned we acquire an
+      exclusive lock for duration of the next step only).
    *) After that we call handler::ha_prepare_inplace_alter_table() to give the
       storage engine a chance to update its internal structures with a higher
       lock level than the one that will be used for the main step of algorithm.
@@ -2734,11 +2760,15 @@ public:
     @retval   HA_ALTER_ERROR                  Unexpected error.
     @retval   HA_ALTER_INPLACE_NOT_SUPPORTED  Not supported, must use copy.
     @retval   HA_ALTER_INPLACE_EXCLUSIVE_LOCK Supported, but requires X lock.
+    @retval   HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+                                              Supported, but requires SNW lock
+                                              during main phase. Prepare phase
+                                              requires X lock.
     @retval   HA_ALTER_INPLACE_SHARED_LOCK    Supported, but requires SNW lock.
     @retval   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
                                               Supported, concurrent reads/writes
                                               allowed. However, prepare phase
-                                              requires SNW lock.
+                                              requires X lock.
     @retval   HA_ALTER_INPLACE_NO_LOCK        Supported, concurrent
                                               reads/writes allowed.
 
@@ -2795,8 +2825,9 @@ protected:
  /**
     Allows the storage engine to update internal structures with concurrent
     writes blocked. If check_if_supported_inplace_alter() returns
-    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE, this function is called with
-    writes blocked, otherwise the same level of locking as for
+    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE or
+    HA_ALTER_INPLACE_SHARED_AFTER_PREPARE, this function is called with
+    exclusive lock otherwise the same level of locking as for
     inplace_alter_table() will be used.
 
     @note Storage engines are responsible for reporting any errors by
@@ -3361,5 +3392,8 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
+
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
+void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
 #endif /* HANDLER_INCLUDED */

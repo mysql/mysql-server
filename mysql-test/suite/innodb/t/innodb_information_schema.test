@@ -1,4 +1,4 @@
-# 
+#
 # Test that user data is correctly "visualized" in
 # INFORMATION_SCHEMA.innodb_locks.lock_data
 #
@@ -69,7 +69,7 @@ INSERT INTO ```t'\"_str` VALUES
 INSERT INTO ```t'\"_str` VALUES
 ('4', 'abc', 0x00616263, 0x61626300, 0x61006263, 0x6100626300, 0x610062630000);
 
---source include/count_sessions.inc
+-- source include/count_sessions.inc
 
 -- connect (con_lock,localhost,root,,)
 -- connect (con_min_trylock,localhost,root,,)
@@ -149,12 +149,12 @@ if (!$success)
 SELECT lock_mode, lock_type, lock_table, lock_index, lock_rec, lock_data
 FROM INFORMATION_SCHEMA.INNODB_LOCKS ORDER BY lock_data;
 
-SELECT lock_table,COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
+SELECT lock_table, COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
 GROUP BY lock_table;
 
 set @save_sql_mode = @@sql_mode;
 SET SQL_MODE='ANSI_QUOTES';
-SELECT lock_table,COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
+SELECT lock_table, COUNT(*) FROM INFORMATION_SCHEMA.INNODB_LOCKS
 GROUP BY lock_table;
 SET @@sql_mode=@save_sql_mode;
 -- disable_result_log
@@ -177,7 +177,7 @@ COMMIT;
 
 DROP TABLE t_min, t_max, ```t'\"_str`;
 
---source include/wait_until_count_sessions.inc
+-- source include/wait_until_count_sessions.inc
 
 #
 # Test that transaction data is correctly "visualized" in
@@ -222,7 +222,7 @@ SELECT * FROM t1 FOR UPDATE;
 let $wait_timeout= 300;
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX;
---source include/wait_condition.inc
+-- source include/wait_condition.inc
 -- disable_query_log
 
 -- connection con_verify_innodb_trx
@@ -244,7 +244,7 @@ INSERT INTO t1 VALUES (6,12);
 let $wait_timeout= 300;
 let $wait_condition=
   SELECT trx_unique_checks = 0 FROM INFORMATION_SCHEMA.INNODB_TRX;
---source include/wait_condition.inc
+-- source include/wait_condition.inc
 -- disable_query_log
 
 -- connection con_verify_innodb_trx
@@ -264,7 +264,7 @@ INSERT INTO t2 VALUES (4,10);
 let $wait_timeout= 300;
 let $wait_condition=
   SELECT trx_unique_checks  = 1 FROM INFORMATION_SCHEMA.INNODB_TRX;
---source include/wait_condition.inc
+-- source include/wait_condition.inc
 -- disable_query_log
 
 -- enable_result_log
@@ -282,4 +282,3 @@ DROP TABLE t2;
 DROP TABLE t1;
 
 EVAL SET GLOBAL innodb_lock_wait_timeout=$initial_timeout;
-

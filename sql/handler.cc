@@ -3388,7 +3388,19 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
+/**
+  Construct and emit duplicate key error message using information
+  from table's record buffer.
+
+  @param table    TABLE object which record buffer should be used as
+                  source for column values.
+  @param key      Key description.
+  @param msg      Error message template to which key value should be
+                  added.
+  @param errflag  Flags for my_error() call.
+*/
+
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 {
   /* Write the duplicated key in the error message */
   char key_buff[MAX_KEY_LENGTH];
@@ -3415,9 +3427,16 @@ void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
 }
 
 
-void handler::print_keydup_error(KEY *key, myf errflag)
+/**
+  Construct and emit duplicate key error message using information
+  from table's record buffer.
+
+  @sa print_keydup_error(table, key, msg, errflag).
+*/
+
+void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -3465,7 +3484,8 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
+      print_keydup_error(table,
+                         key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
                          errflag);
       DBUG_VOID_RETURN;
     }
@@ -6523,14 +6543,8 @@ int handler::read_range_first(const key_range *start_key,
   DBUG_ENTER("handler::read_range_first");
 
   eq_range= eq_range_arg;
-  end_range= 0;
-  if (end_key)
-  {
-    end_range= &save_end_range;
-    save_end_range= *end_key;
-    key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
-				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
-  }
+  set_end_range(end_key, RANGE_SCAN_ASC);
+
   range_key_part= table->key_info[active_index].key_part;
 
   if (!start_key)			// Read first record
@@ -6606,6 +6620,24 @@ int handler::read_range_next()
 }
 
 
+void handler::set_end_range(const key_range* range,
+                            enum_range_scan_direction direction)
+{
+  if (range)
+  {
+    save_end_range= *range;
+    end_range= &save_end_range;
+    range_key_part= table->key_info[active_index].key_part;
+    key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
+                                  (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  }
+  else
+    end_range= NULL;
+
+  range_scan_direction= direction;
+}
+
+
 /**
   Compare if found key (in row) is over max-value.
 
@@ -6634,11 +6666,26 @@ int handler::compare_key(key_range *range)
 
 
 /*
-  Same as compare_key() but doesn't check have in_range_check_pushed_down.
-  This is used by index condition pushdown implementation.
+  Compare if a found key (in row) is within the range.
+
+  This function is similar to compare_key() but checks the range scan
+  direction to determine if this is a descending scan. This function
+  is used by the index condition pushdown implementation to determine
+  if the read record is within the range scan.
+
+  @param range Range to compare to row. May be NULL for no range.
+
+  @seealso
+    handler::compare_key()
+
+  @return Returns whether the key is within the range
+
+    - 0   : Key is equal to range or 'range' == 0 (no range)
+    - -1  : Key is within the current range
+    - 1   : Key is outside the current range
 */
 
-int handler::compare_key2(key_range *range)
+int handler::compare_key_icp(const key_range *range) const
 {
   int cmp;
   if (!range)
@@ -6646,6 +6693,8 @@ int handler::compare_key2(key_range *range)
   cmp= key_cmp(range_key_part, range->key, range->length);
   if (!cmp)
     cmp= key_compare_result_on_equal;
+  if (range_scan_direction == RANGE_SCAN_DESC)
+    cmp= -cmp;
   return cmp;
 }
 

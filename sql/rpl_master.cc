@@ -313,10 +313,10 @@ static uint8 get_binlog_checksum_value_at_connect(THD * thd)
   }
   else
   {
-    DBUG_ASSERT(entry->type == STRING_RESULT);
+    DBUG_ASSERT(entry->type() == STRING_RESULT);
     String str;
     uint dummy_errors;
-    str.copy(entry->value, entry->length, &my_charset_bin, &my_charset_bin,
+    str.copy(entry->ptr(), entry->length(), &my_charset_bin, &my_charset_bin,
              &dummy_errors);
     ret= (uint8) find_type ((char*) str.ptr(), &binlog_checksum_typelib, 1) - 1;
     DBUG_ASSERT(ret <= BINLOG_CHECKSUM_ALG_CRC32); // while it's just on CRC32 alg
@@ -615,6 +615,54 @@ static int send_heartbeat_event(NET* net, String* packet,
   DBUG_RETURN(0);
 }
 
+
+/**
+  If there are less than BYTES bytes left to read in the packet,
+  report error.
+*/
+#define CHECK_PACKET_SIZE(BYTES)                                        \
+  do {                                                                  \
+    if (packet_bytes_todo < BYTES)                                      \
+      goto error_malformed_packet;                                      \
+  } while (0)
+
+/**
+  Auxiliary macro used to define READ_INT and READ_STRING.
+
+  Check that there are at least BYTES more bytes to read, then read
+  the bytes using the given DECODER, then advance the reading
+  position.
+*/
+#define READ(DECODE, BYTES)                                             \
+  do {                                                                  \
+    CHECK_PACKET_SIZE(BYTES);                                           \
+    DECODE;                                                             \
+    packet_position+= BYTES;                                            \
+    packet_bytes_todo-= BYTES;                                          \
+  } while (0)
+
+/**
+  Check that there are at least BYTES more bytes to read, then read
+  the bytes and decode them into the given integer VAR, then advance
+  the reading position.
+*/
+#define READ_INT(VAR, BYTES)                                            \
+  READ(VAR= uint ## BYTES ## korr(packet_position), BYTES)
+
+/**
+  Check that there are at least BYTES more bytes to read and that
+  BYTES+1 is not greater than BUFFER_SIZE, then read the bytes into
+  the given variable VAR, then advance the reading position.
+*/
+#define READ_STRING(VAR, BYTES, BUFFER_SIZE)                            \
+  do {                                                                  \
+    if (BUFFER_SIZE <= BYTES)                                           \
+      goto error_malformed_packet;                                      \
+    READ(memcpy(VAR, packet_position, BYTES), BYTES);                   \
+    VAR[BYTES]= '\0';                                                   \
+  } while (0)
+
+
 /**
   Processes the command COM_BINLOG_DUMP.
 
@@ -622,28 +670,31 @@ static int send_heartbeat_event(NET* net, String* packet,
   @param packet is the stream of bytes that has encoded the
                 the data requested by a slave.
 
-  @return true if the thread needs to terminate, false
-          otherwise.
+  @return On success, this function never returns. On failure, this
+  function returns true.
 */
-bool com_binlog_dump(THD *thd, char *packet)
+bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
 {
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
   ushort flags;
   String slave_uuid;
+  const uchar* packet_position= (uchar *) packet;
+  uint packet_bytes_todo= packet_length;
 
   status_var_increment(thd->status_var.com_other);
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
-  /* This should be changed to an 8 byte integer. However, this would break
-     compatibility and due to this reason will not be changed. However, the
-     fix is done in the new protocol. @see com_binlog_dump_gtid().
+  /*
+    4 bytes is too little, but changing the protocol would break
+    compatibility.  This has been fixed in the new protocol. @see
+    com_binlog_dump_gtid().
   */
-  pos = uint4korr(packet);
-  flags = uint2korr(packet + 4);
-  thd->server_id= uint4korr(packet + 6);
+  READ_INT(pos, 4);
+  READ_INT(flags, 2);
+  READ_INT(thd->server_id, 4);
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
@@ -656,6 +707,10 @@ bool com_binlog_dump(THD *thd, char *packet)
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
   DBUG_RETURN(true);
+
+error_malformed_packet:
+  my_error(ER_MALFORMED_PACKET, MYF(0));
+  DBUG_RETURN(true);
 }
 
 /**
@@ -665,10 +720,10 @@ bool com_binlog_dump(THD *thd, char *packet)
   @param packet is the stream of bytes that has encoded the
                 the data requested by a slave.
 
-  @return true if the thread needs to terminate, false
-          otherwise.
+  @return On success, this function never returns. On failure, this
+  function returns true.
 */
-bool com_binlog_dump_gtid(THD *thd, char *packet)
+bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
 {
   DBUG_ENTER("com_binlog_dump_gtid");
   /*
@@ -682,7 +737,8 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   char name[FN_REFLEN + 1];
   uint32 name_size= 0;
   char* gtid_string= NULL;
-  const uchar* ptr_buffer= (uchar *) packet;
+  const uchar* packet_position= (uchar *) packet;
+  uint packet_bytes_todo= packet_length;
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_done(&sid_map);
 
@@ -691,29 +747,23 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
-  flags = uint2korr(ptr_buffer);
-  ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
-  thd->server_id= uint4korr(ptr_buffer);
-  ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
-  name_size= uint4korr(ptr_buffer);
-  ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-  strncpy(name, (const char *) ptr_buffer, name_size);
-  ptr_buffer+= name_size;
-  name[name_size]= 0;
-  pos= uint8korr(ptr_buffer);
-  ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
+  READ_INT(flags, 2);
+  READ_INT(thd->server_id, 4);
+  READ_INT(name_size, 4);
+  READ_STRING(name, name_size, sizeof(name));
+  READ_INT(pos, 8);
 
   DBUG_PRINT("info", ("master_slave_proto=%d", is_master_slave_proto(flags, BINLOG_THROUGH_GTID)));
   if (is_master_slave_proto(flags, BINLOG_THROUGH_GTID))
   {
-    data_size= uint4korr(ptr_buffer);
-    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    READ_INT(data_size, 4);
+    CHECK_PACKET_SIZE(data_size);
 
     if (mysql_bin_log.is_open())
     {
-      if (slave_gtid_done.add_gtid_encoding(ptr_buffer, data_size) !=
+      if (slave_gtid_done.add_gtid_encoding(packet_position, data_size) !=
           RETURN_STATUS_OK)
-        DBUG_RETURN(false);
+        DBUG_RETURN(true);
       gtid_string= slave_gtid_done.to_string();
     }
   }
@@ -729,6 +779,10 @@ bool com_binlog_dump_gtid(THD *thd, char *packet)
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
+  DBUG_RETURN(true);
+
+error_malformed_packet:
+  my_error(ER_MALFORMED_PACKET, MYF(0));
   DBUG_RETURN(true);
 }
 
@@ -1611,9 +1665,9 @@ String *get_slave_uuid(THD *thd, String *value)
     return NULL;
   user_var_entry *entry=
     (user_var_entry*) my_hash_search(&thd->user_vars, name, sizeof(name)-1);
-  if (entry && entry->length > 0)
+  if (entry && entry->length() > 0)
   {
-    value->copy(entry->value, entry->length, NULL);
+    value->copy(entry->ptr(), entry->length(), NULL);
     return value;
   }
   else

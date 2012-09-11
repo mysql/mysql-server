@@ -1,0 +1,58 @@
+#
+#  2012-08-01  Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_api_bk_commit_interval;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are positive number
+SELECT @@global.innodb_api_bk_commit_interval > 0;
+SELECT @@global.innodb_api_bk_commit_interval <= 1024*1024*1024;
+SELECT @@global.innodb_api_bk_commit_interval;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.innodb_api_bk_commit_interval;
+SHOW global variables LIKE 'innodb_api_bk_commit_interval';
+SHOW session variables LIKE 'innodb_api_bk_commit_interval';
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_api_bk_commit_interval';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_api_bk_commit_interval';
+
+#
+# show that it's writable
+#
+SET global innodb_api_bk_commit_interval=100;
+SELECT @@global.innodb_api_bk_commit_interval;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_api_bk_commit_interval';
+SELECT * FROM information_schema.session_variables 
+WHERE variable_name='innodb_api_bk_commit_interval';
+--error ER_GLOBAL_VARIABLE
+SET session innodb_api_bk_commit_interval=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_api_bk_commit_interval=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_api_bk_commit_interval=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_api_bk_commit_interval="foo";
+SET global innodb_api_bk_commit_interval=-7;
+SELECT @@global.innodb_api_bk_commit_interval;
+SELECT * FROM information_schema.global_variables 
+WHERE variable_name='innodb_api_bk_commit_interval';
+
+#
+# cleanup
+#
+
+SET @@global.innodb_api_bk_commit_interval = @start_global_value;
+SELECT @@global.innodb_api_bk_commit_interval;

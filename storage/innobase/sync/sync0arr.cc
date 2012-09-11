@@ -79,7 +79,7 @@ any waiting threads who have missed the signal. */
 /** A cell where an individual thread may wait suspended
 until a resource is released. The suspending is implemented
 using an operating system event semaphore. */
-struct sync_cell_struct {
+struct sync_cell_t {
 	void*		wait_object;	/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
@@ -117,7 +117,7 @@ all changes (set or reset) to the state of the event must be made
 while owning the mutex. */
 
 /** Synchronization array */
-struct sync_array_struct {
+struct sync_array_t {
 	ulint		n_reserved;	/*!< number of currently reserved
 					cells in the wait array */
 	ulint		n_cells;	/*!< number of cells in the

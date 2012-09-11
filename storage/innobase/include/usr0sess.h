@@ -53,7 +53,7 @@ sess_close(
 
 /* The session handle. This data structure is only used by purge and is
 not really necessary. We should get rid of it. */
-struct sess_struct{
+struct sess_t{
 	ulint		state;		/*!< state of the session */
 	trx_t*		trx;		/*!< transaction object permanently
 					assigned for the session: the

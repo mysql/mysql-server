@@ -187,9 +187,9 @@ UNIV_INTERN ibool	sync_initialized	= FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
 /** An acquired mutex or rw-lock and its level in the latching order */
-typedef struct sync_level_struct	sync_level_t;
+struct sync_level_t;
 /** Mutexes or rw-locks held by a thread */
-typedef struct sync_thread_struct	sync_thread_t;
+struct sync_thread_t;
 
 /** The latch levels currently owned by threads are stored in this data
 structure; the size of this array is OS_THREAD_MAX_N */
@@ -221,10 +221,8 @@ UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
 /** Number of slots reserved for each OS thread in the sync level array */
 static const ulint SYNC_THREAD_N_LEVELS = 10000;
 
-typedef struct sync_arr_struct sync_arr_t;
-
 /** Array for tracking sync levels per thread. */
-struct sync_arr_struct {
+struct sync_arr_t {
 	ulint		in_use;		/*!< Number of active cells */
 	ulint		n_elems;	/*!< Number of elements in the array */
 	ulint		max_elems;	/*!< Maximum elements */
@@ -234,14 +232,14 @@ struct sync_arr_struct {
 };
 
 /** Mutexes or rw-locks held by a thread */
-struct sync_thread_struct{
+struct sync_thread_t{
 	os_thread_id_t	id;		/*!< OS thread id */
 	sync_arr_t*	levels;		/*!< level array for this thread; if
 					this is NULL this slot is unused */
 };
 
 /** An acquired mutex or rw-lock and its level in the latching order */
-struct sync_level_struct{
+struct sync_level_t{
 	void*		latch;		/*!< pointer to a mutex or an
 					rw-lock; NULL means that
 					the slot is empty */
@@ -252,6 +250,9 @@ struct sync_level_struct{
 					latch == NULL then this will contain
 					the ordinal value of the next free
 					element */
+	ulint		count;		/*!< Numbe of times this latch has
+					been locked at this level.  Allows
+					for recursive locking */
 };
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -889,6 +890,29 @@ sync_thread_levels_contain(
 }
 
 /******************************************************************//**
+Checks if the level value and latch is already stored in the level array.
+@return	slot if found or NULL */
+static
+sync_level_t*
+sync_thread_levels_find(
+/*====================*/
+	sync_arr_t*	arr,	/*!< in: pointer to level array for an OS
+				thread */
+	void*		latch,	/*!< in: pointer to a mutex or an rw-lock */
+	ulint		level)	/*!< in: level */
+{
+	for (ulint i = 0; i < arr->n_elems; i++) {
+		sync_level_t*	slot = &arr->elems[i];
+
+		if (slot->latch == latch && slot->level == level) {
+			return(slot);
+		}
+	}
+
+	return(NULL);
+}
+
+/******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
@@ -1315,6 +1339,16 @@ sync_thread_add_level(
 	}
 
 levels_ok:
+	/* Look for this latch and level in the active list. If it is
+	already there, then this is a recursive lock. */
+	slot = sync_thread_levels_find(array, latch, level);
+	if (slot != NULL) {
+		slot->count++;
+		mutex_exit(&sync_thread_mutex);
+		return;
+	}
+
+	/* Get a free slot to track this level and latch */
 	if (array->next_free == ULINT_UNDEFINED) {
 		ut_a(array->n_elems < array->max_elems);
 
@@ -1335,6 +1369,7 @@ levels_ok:
 
 	slot->latch = latch;
 	slot->level = level;
+	slot->count = 1;
 
 	mutex_exit(&sync_thread_mutex);
 }
@@ -1388,6 +1423,15 @@ sync_thread_reset_level(
 
 		if (slot->latch != latch) {
 			continue;
+		}
+
+		if (slot->count > 1) {
+			/* Found a latch recursively locked */
+			slot->count--;
+
+			mutex_exit(&sync_thread_mutex);
+
+			return(TRUE);
 		}
 
 		slot->latch = NULL;

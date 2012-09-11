@@ -2882,7 +2882,7 @@ public:
     UNDEF_F= 0,
     UNSIGNED_F= 1
   };
-  char *name;
+  const char *name;
   uint name_len;
   char *val;
   ulong val_len;
@@ -2892,7 +2892,7 @@ public:
   uchar flags;
 #ifdef MYSQL_SERVER
   bool deferred;
-  User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
+  User_var_log_event(THD* thd_arg, const char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg,
                      enum_event_cache_type cache_type_arg,
@@ -2920,7 +2920,7 @@ public:
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
-  void set_deferred() { deferred= val; }
+  void set_deferred() { deferred= true; }
 #endif
   bool is_valid() const { return 1; }
 

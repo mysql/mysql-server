@@ -989,10 +989,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 162 shift/reduce conflicts.
+  Currently there are 161 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 162
+%expect 161
 
 /*
    Comments for TOKENS.
@@ -2168,6 +2168,7 @@ master_def:
         | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
+            Lex->contains_plaintext_password= true;
           }
         | MASTER_PORT_SYM EQ ulong_num
           {
@@ -2489,6 +2490,7 @@ server_option:
         | PASSWORD TEXT_STRING_sys
           {
             Lex->server_options.password= $2.str;
+            Lex->contains_plaintext_password= true;
           }
         | SOCKET_SYM TEXT_STRING_sys
           {
@@ -7769,7 +7771,7 @@ alter_list_item:
             lex->alter_info.drop_list.push_back(ad);
             lex->alter_info.flags|= Alter_info::ALTER_DROP_COLUMN;
           }
-        | DROP FOREIGN KEY_SYM opt_ident
+        | DROP FOREIGN KEY_SYM field_ident
           {
             LEX *lex=Lex;
             Alter_drop *ad= new Alter_drop(Alter_drop::FOREIGN_KEY, $4.str);
@@ -8088,6 +8090,7 @@ slave_user_pass_opt:
         | PASSWORD EQ TEXT_STRING_sys
           {
             Lex->slave_connection.password= $3.str;
+            Lex->contains_plaintext_password= true;
           }
 
 slave_plugin_auth_opt:
@@ -9804,6 +9807,7 @@ function_call_conflict:
         | OLD_PASSWORD '(' expr ')'
           {
             $$=  new (YYTHD->mem_root) Item_func_old_password($3);
+            Lex->contains_plaintext_password= true;
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -9811,6 +9815,7 @@ function_call_conflict:
           {
             THD *thd= YYTHD;
             Item* i1;
+            Lex->contains_plaintext_password= true;
             if (thd->variables.old_passwords == 1)
               i1= new (thd->mem_root) Item_func_old_password($3);
             else
@@ -12427,9 +12432,19 @@ show_param:
         | ERRORS opt_limit_clause_init
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
         | PROFILES_SYM
-          { Lex->sql_command = SQLCOM_SHOW_PROFILES; }
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "SHOW PROFILES", "Performance Schema");
+            Lex->sql_command = SQLCOM_SHOW_PROFILES;
+          }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
-          { 
+          {
+            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                                ER_WARN_DEPRECATED_SYNTAX,
+                                ER(ER_WARN_DEPRECATED_SYNTAX),
+                                "SHOW PROFILE", "Performance Schema");
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_PROFILE;
             if (prepare_schema_table(YYTHD, lex, NULL, SCH_PROFILES) != 0)
@@ -14816,6 +14831,7 @@ text_or_password:
             }
             if ($$ == NULL)
               MYSQL_YYABORT;
+            Lex->contains_plaintext_password= true;
           }
         | OLD_PASSWORD '(' TEXT_STRING ')'
           {
@@ -14824,6 +14840,7 @@ text_or_password:
               $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
+            Lex->contains_plaintext_password= true;
           }
         ;
 
@@ -15326,6 +15343,7 @@ grant_user:
               2. Password must be digested
             */
             $1->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 

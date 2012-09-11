@@ -4365,7 +4365,7 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   {
     Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
-    bool is_interrupted= test(join && join->tables != 1);
+    const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, non_cpk_scan_records, is_interrupted,
                         &sweep_cost);
     const double sweep_total_cost= sweep_cost.total_cost();
@@ -4511,7 +4511,7 @@ skip_to_ror_scan:
   {
     Cost_estimate sweep_cost;
     JOIN *join= param->thd->lex->select_lex.join;
-    bool is_interrupted= test(join && join->tables != 1);
+    const bool is_interrupted= join && join->tables != 1;
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
     roru_total_cost= roru_index_costs +
@@ -5102,7 +5102,7 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   {
     Cost_estimate sweep_cost;
     JOIN *join= info->param->thd->lex->select_lex.join;
-    bool is_interrupted= test(join && join->tables == 1);
+    const bool is_interrupted= join && join->tables == 1;
     get_sweep_read_cost(info->param->table, double2rows(info->out_rows),
                         is_interrupted, &sweep_cost);
     info->total_cost += sweep_cost.total_cost();
@@ -6128,7 +6128,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
   */
-  if (cond->const_item() && !cond->is_expensive())
+  if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 
@@ -7145,6 +7145,41 @@ tree_or(RANGE_OPT_PARAM *param,SEL_TREE *tree1,SEL_TREE *tree2)
     DBUG_RETURN(tree1);				// Can't use this
   if (tree2->type == SEL_TREE::MAYBE)
     DBUG_RETURN(tree2);
+
+  /*
+    It is possible that a tree contains both 
+    a) simple range predicates (in tree->keys[]) and
+    b) index merge range predicates (in tree->merges)
+
+    If a tree has both, they represent equally *valid* range
+    predicate alternatives; both will return all relevant rows from
+    the table but one may return more unnecessary rows than the
+    other (additional rows will be filtered later). However, doing
+    an OR operation on trees with both types of predicates is too
+    complex at the time. We therefore remove the index merge
+    predicates (if we have both types) before OR'ing the trees.
+
+    TODO: enable tree_or() for trees with both simple and index
+    merge range predicates.
+  */
+  if (!tree1->merges.is_empty())
+  {
+    for (uint i= 0; i < param->keys; i++)
+      if (tree1->keys[i] != NULL && tree2->keys[i] != &null_element)
+      {
+        tree1->merges.empty();
+        break;
+      }
+  }
+  if (!tree2->merges.is_empty())
+  {
+    for (uint i= 0; i< param->keys; i++)
+      if (tree2->keys[i] != NULL && tree2->keys[i] != &null_element)
+      {
+        tree2->merges.empty();
+        break;
+      }
+  }
 
   SEL_TREE *result= 0;
   key_map  result_keys;
@@ -9703,7 +9738,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   else
   {
     unique->reset();
-    filesort_free_buffers(head, true);
+    filesort_free_buffers(head, false);
   }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
@@ -10406,9 +10441,11 @@ int QUICK_SELECT_DESC::get_next()
 
   /* The max key is handled as follows:
    *   - if there is NO_MAX_RANGE, start at the end and move backwards
-   *   - if it is an EQ_RANGE, which means that max key covers the entire
-   *     key, go directly to the key and read through it (sorting backwards is
-   *     same as sorting forwards)
+   *   - if it is an EQ_RANGE (which means that max key covers the entire
+   *     key) and the query does not use any hidden key fields that are
+   *     not considered when the range optimzier sets EQ_RANGE (e.g. the 
+   *     primary key added by InnoDB), then go directly to the key and 
+   *     read through it (sorting backwards is same as sorting forwards).
    *   - if it is NEAR_MAX, go to the key or next, step back once, and
    *     move backwards
    *   - otherwise (not NEAR_MAX == include the key), go after the key,
@@ -10437,6 +10474,24 @@ int QUICK_SELECT_DESC::get_next()
     if (!(last_range= rev_it++))
       DBUG_RETURN(HA_ERR_END_OF_FILE);		// All ranges used
 
+    // Case where we can avoid descending scan, see comment above
+    const bool eqrange_all_keyparts= (last_range->flag & EQ_RANGE) && 
+                          (used_key_parts <= head->key_info[index].key_parts);
+
+    /*
+      If we have pushed an index condition (ICP) and this quick select
+      will use ha_index_prev() to read data, we need to let the
+      handler know where to end the scan in order to avoid that the
+      ICP implemention continues to read past the range boundary.
+    */
+    if (file->pushed_idx_cond && !eqrange_all_keyparts)
+    {
+      key_range min_range;
+      last_range->make_min_endpoint(&min_range);
+      if(min_range.length > 0)
+        file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+    }
+
     if (last_range->flag & NO_MAX_RANGE)        // Read last record
     {
       int local_error;
@@ -10448,8 +10503,7 @@ int QUICK_SELECT_DESC::get_next()
       continue;
     }
 
-    if (last_range->flag & EQ_RANGE &&
-        used_key_parts <= head->key_info[index].key_parts)
+    if (eqrange_all_keyparts)
 
     {
       result= file->ha_index_read_map(record, last_range->max_key,
@@ -10946,7 +11000,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
   /* Perform few 'cheap' tests whether this access method is applicable. */
   if (!join)
     cause= "no_join";
-  else if (join->tables != 1)   /* The query must reference one table. */
+  else if (join->primary_tables != 1)  /* Query must reference one table. */
     cause= "not_single_table";
   else if (join->select_lex->olap == ROLLUP_TYPE) /* Check (B3) for ROLLUP */
     cause= "rollup";
@@ -11786,7 +11840,7 @@ SEL_ARG * get_index_range_tree(uint index, SEL_TREE* range_tree, PARAM *param,
 
   DESCRIPTION
     This method computes the access cost of a TRP_GROUP_MIN_MAX instance and
-    the number of rows returned. It updates this->read_cost and this->records.
+    the number of rows returned.
 
   NOTES
     The cost computation distinguishes several cases:
@@ -11842,7 +11896,6 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
   double io_cost;
-  double cpu_cost= 0; /* TODO: CPU cost of index_read calls? */
   DBUG_ENTER("cost_group_min_max");
 
   table_records= table->file->stats.records;
@@ -11890,11 +11943,23 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
              (double) num_blocks;
 
   /*
-    TODO: If there is no WHERE clause and no other expressions, there should be
-    no CPU cost. We leave it here to make this cost comparable to that of index
-    scan as computed in SQL_SELECT::test_quick_select().
+    CPU cost must be comparable to that of an index scan as computed
+    in SQL_SELECT::test_quick_select(). When the groups are small,
+    e.g. for a unique index, using index scan will be cheaper since it
+    reads the next record without having to re-position to it on every
+    group. To make the CPU cost reflect this, we estimate the CPU cost
+    as the sum of:
+    1. Cost for evaluating the condition (similarly as for index scan).
+    2. Cost for navigating the index structure (assuming a b-tree).
+       Note: We only add the cost for one comparision per block. For a
+             b-tree the number of comparisons will be larger.
+       TODO: This cost should be provided by the storage engine.
   */
-  cpu_cost= num_groups * ROW_EVALUATE_COST;
+  const double tree_traversal_cost= 
+    ceil(log(static_cast<double>(table_records))/
+         log(static_cast<double>(keys_per_block))) * ROWID_COMPARE_COST; 
+
+  const double cpu_cost= num_groups * (tree_traversal_cost + ROW_EVALUATE_COST);
 
   *read_cost= io_cost + cpu_cost;
   *records= num_groups;
@@ -12181,8 +12246,14 @@ int QUICK_GROUP_MIN_MAX_SELECT::init()
 QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT()
 {
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT");
-  if (head->file->inited) 
-    head->file->ha_index_end();
+  if (head->file->inited)
+    /*
+      We may have used this object for index access during
+      create_sort_index() and then switched to rnd access for the rest
+      of execution. Since we don't do cleanup until now, we must call
+      ha_*_end() for whatever is the current access method.
+    */
+    head->file->ha_index_or_rnd_end();
   if (min_max_arg_part)
     delete_dynamic(&min_max_ranges);
   free_root(&alloc,MYF(0));
