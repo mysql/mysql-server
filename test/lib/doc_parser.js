@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-/*global fs */
+/*global fs udebug */
 
 /* Returns a list of function definitions 
 */
@@ -26,10 +26,15 @@ function scan(text) {
   var i = 0;                  // the index of the current character 
   var c = text.charAt(i);     // the current character
   var list = [];              // functions found in the file
+  var constructor = "";       // constructor function found in file
   var tok;                    // the current token
 
-  function isAlpha() { 
-    return ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c === '_'));
+  function isUpper(c)   { return (c >= 'A' && c <= 'Z'); }
+  function isLower(c)   { return (c >= 'a' && c <= 'z'); }
+  function isAlpha(c)   { return (isUpper(c) || isLower(c)); }
+  function isNumeric(c) { return (c >= '0' && c <= '9'); }
+  function isJsFunctionName(c) { 
+    return( isAlpha(c) || isNumeric(c) || (c == '_'));
   }
   
   function peek() {
@@ -59,45 +64,54 @@ function scan(text) {
   };
     
   Token.prototype.commit = function() {
-    list.push(this.str);
+    udebug.log("doc_parser.js found function:", this.str);
+    if(isUpper(this.str.charAt(0))) {     constructor = this.str;   }
+    else                            {     list.push(this.str);      }
   };
 
   // Start scanning
   while(c) {
   
-    if(c <= ' ') { advance(); }                       // whitespace
+    while(c != '' && c <= ' ') { advance(); }          // whitespace
      
-    else if(c == '/' && peek() == '/') {              // comment to EOL  
+    if(c == '/' && peek() == '/') {                    // comment to EOL  
       advance(2);
       while(c !== '\n' && c !== '\r' && c !== '') {
         advance();
       }
     }
     
-    else if (c === '/' && peek() === '*') {           // comment to */
+    else if (c === '/' && peek() === '*') {            // comment to */
       advance(2); 
-      while(c && c !== '*' && peek() !== '/') {
+      while(! (c == '*' && peek() == '/')) {
         advance();
       }
-      advance(2);
       if(c === '') { throw Error("Unterminated comment"); }
+      advance(2);
     }
  
-    else if(isAlpha()) {                              // candidate functions
+    else if(isAlpha(c)) {                              // candidate functions
       tok = new Token();
-      while(isAlpha()) {
+      while(isJsFunctionName(c)) {
         tok.consume();
       }
-      if(c == '(') { tok.commit(); }  // IT WAS A FUNCTION
-      /* Now, there may be more functions (callbacks) defined as arguments,
-         so we skip to the next semicolon */
-      while(c && c !== ';') {
-        advance();
+      if(c == '(') {  // IT WAS A FUNCTION
+        tok.commit();
+        advance();   
+        /* Now, there may be more functions (callbacks) defined as arguments,
+           so we skip to the next semicolon */
+        while(c && c !== ';') {
+          advance();
+        }
       }
+      delete tok;
     }
     
-    else advance();
+    else {
+      advance();
+    }
   }
+  list._found_constructor = constructor;
   return list;
 }
 
@@ -111,16 +125,13 @@ function ClassTester(obj) {
   this.class = obj;
 }
 
-ClassTester.prototype.assertTest = function(functionList) {
-  var func, name;
-  while(name = functionList.pop()) {
-    func = this.class[name];
-    assert.equal(typeof func, 'function', "No Function: " + name);
-  }
-};
-
 ClassTester.prototype.test = function(functionList, testCase) {
-  var func, name, missing = 0, firstMissing = null, msg;
+  var func, name;
+  var msg = "";
+  var missing = 0;
+  var firstMissing = null;
+
+  udebug.log("doc_parser.js verifying",functionList.length,"functions");
   while(name = functionList.pop()) {
     func = this.class[name];
     if(typeof func !== 'function') {
@@ -132,10 +143,14 @@ ClassTester.prototype.test = function(functionList, testCase) {
     msg = "Missing " + firstMissing;
     if(missing > 1)  { msg += " and " + (missing-1) + " other function"; }
     if(missing > 2)  { msg += "s"; }
-    testCase.fail(msg);
+  }
+
+  if(msg) {
+    if(testCase) {   testCase.fail(msg);    }
+    else         {   throw new Error(msg);  }
   }
   else {
-    testCase.pass();
+    if(testCase) {   testCase.pass();       }
   }
 }
 

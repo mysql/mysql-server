@@ -172,7 +172,6 @@ Test.prototype.run = function() {
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
 	if (o1 !== o2) {
 		this.errorMessages += message;
-		console.log(message);
 	}
 };
 
@@ -349,7 +348,7 @@ Suite.prototype.startSerialTests = function(result) {
 Suite.prototype.startClearSmokeTest = function(result) {
   assert(result);
   udebug.log('Suite.startClearSmokeTest');
-  if (this.clearSmokeTest) {
+  if (this.clearSmokeTest && this.clearSmokeTest.test) {
     this.clearSmokeTest.test(result);
     return false;
   } 

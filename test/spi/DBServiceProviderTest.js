@@ -60,7 +60,7 @@ t4.run = function() {
   var docFile = path.join(spi_doc_dir, "DBServiceProvider");
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(service);
-  tester.assertTest(functionList);
+  tester.test(functionList);
 
   return true;
 }
