@@ -26,15 +26,16 @@
 
 var spi = require(spi_module);
 var service = spi.getDBServiceProvider(global.adapter);
+var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
 
-var t1 = new harness.SerialTest("getDefaultConnectionProperties");
+var t1 = new harness.ConcurrentTest("getDefaultConnectionProperties");
 t1.run = function() {
   var properties = service.getDefaultConnectionProperties();
   return true; // test is complete
 };
 
 
-var t2 = new harness.SerialTest("getFactoryKey");
+var t2 = new harness.ConcurrentTest("getFactoryKey");
 t2.run = function() {
   var properties = service.getDefaultConnectionProperties();
   var key = service.getFactoryKey(properties);
@@ -50,4 +51,18 @@ t3.run = function() {
   return true; // test is complete
 };
 
-module.exports.tests = [t1, t2, t3];
+
+/* TEST THAT ALL FUNCTIONS PUBLISHED IN THE DOCUMENTATION 
+   ACTUALLY EXIST IN THE IMPLEMENTATION
+*/
+var t4 = new harness.ConcurrentTest("PublicFunctions");
+t4.run = function() {
+  var docFile = path.join(spi_doc_dir, "DBServiceProvider");
+  var functionList = doc_parser.listFunctions(docFile);
+  var tester = new doc_parser.ClassTester(service);
+  tester.assertTest(functionList);
+
+  return true;
+}
+
+module.exports.tests = [t1, t2, t3, t4];
