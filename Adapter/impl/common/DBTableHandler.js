@@ -91,6 +91,8 @@ FieldMapping.prototype.merge = function(mappedField) {
         case "converter":
           this[x] = mappedField[x];
           break;
+        case "name":
+          this.fieldName = mappedField.name;
         default:
           break;
       }
@@ -186,6 +188,7 @@ function DBTableHandler(dbtable, tablemapping) {
   for(i = 0 ; i < this.mapping.fields.length ; i++) {
     f = this.mapping.fields[i];
     if(! f.notPersistent) {
+      udebug.log_detail("DBTableHandler field: " + f.fieldName + " column: " + f.columnName);
       var colNo = f.columnNumber;
       this.fieldNameMap[f.fieldName] = f;             // Field Name to Field
       this.columnNameToFieldMap[f.columnName] = f;    // Column Name to Field
