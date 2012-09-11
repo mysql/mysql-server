@@ -367,11 +367,11 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
 #ifndef MARIADB_BASE_VERSION
-    else if (has_row_format_changes && !has_non_row_format_changes) {
+    else if (has_row_format_changes && !has_non_row_format_changes && tables_have_same_keys_and_columns(table, altered_table, true)) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
 #endif
-    else if (has_auto_inc_change && !has_non_auto_inc_change) {
+    else if (has_auto_inc_change && !has_non_auto_inc_change && tables_have_same_keys_and_columns(table, altered_table, true)) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
     else if (has_column_rename && !has_non_column_rename_changes) {
