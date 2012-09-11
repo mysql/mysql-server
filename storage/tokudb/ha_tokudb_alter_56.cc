@@ -304,7 +304,6 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }
-#ifndef MARIADB_BASE_VERSION
         // alter row_format
         else if (only_flags(create_info->used_fields, HA_CREATE_USED_ROW_FORMAT)) {
             // do a sanity check that the table is what we think it is
@@ -312,7 +311,6 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }
-#endif
     }
 
     // turn a not supported result into an error if the slow alter table (copy) is disabled
