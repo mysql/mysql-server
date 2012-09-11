@@ -13886,6 +13886,12 @@ user:
             $$->uses_identified_by_password_clause= false;
             $$->uses_authentication_string_clause= false;
 
+            /*
+              Trim whitespace as the values will go to a CHAR field
+              when stored.
+            */
+            trim_whitespace(system_charset_info, &$$->user);
+
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
                                          system_charset_info, 0))
@@ -13917,6 +13923,12 @@ user:
               the character set is utf8.
             */
             my_casedn_str(system_charset_info, $$->host.str);
+            /*
+              Trim whitespace as the values will go to a CHAR field
+              when stored.
+            */
+            trim_whitespace(system_charset_info, &$$->user);
+            trim_whitespace(system_charset_info, &$$->host);
           }
         | CURRENT_USER optional_braces
           {

@@ -1704,6 +1704,8 @@ void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
   while ((str->length > 0) && (my_isspace(cs, str->str[str->length-1])))
   {
     str->length --;
+    /* set trailing spaces to 0 as there're places that don't respect length */
+    str->str[str->length]= 0;
   }
 }
 
