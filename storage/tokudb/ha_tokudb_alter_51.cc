@@ -211,9 +211,7 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     
     // Check if the row format (read: compression) has 
     // changed as part of this alter statment.
-#ifndef MARIADB_BASE_VERSION
     bool has_row_format_changes = alter_flags->is_set(HA_ALTER_ROW_FORMAT);
-#endif
     bool has_non_indexing_changes = false;
     bool has_non_dropped_changes = false;
     bool has_non_added_changes = false;
@@ -366,11 +364,9 @@ ha_tokudb::check_if_supported_alter(TABLE *altered_table,
     else if (has_added_columns && !has_non_added_changes) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
-#ifndef MARIADB_BASE_VERSION
     else if (has_row_format_changes && !has_non_row_format_changes && tables_have_same_keys_and_columns(table, altered_table, true)) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
-#endif
     else if (has_auto_inc_change && !has_non_auto_inc_change && tables_have_same_keys_and_columns(table, altered_table, true)) {
         retval = HA_ALTER_SUPPORTED_WAIT_LOCK;
     }
