@@ -46,7 +46,7 @@ i	LEFT(j,20)
 CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
 ERROR HY000: Table 't2' is read only
 UPDATE t1 SET i = i+1;
-ERROR HY000: Table 't1' is read only
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 FLUSH STATUS;
 FLUSH LOGS;
 FLUSH TABLES t1;
