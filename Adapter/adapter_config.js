@@ -35,4 +35,6 @@ global.spi_module      = path.join(spi_dir, "SPI.js");
 global.api_module      = path.join(api_dir, "mynode.js");
 global.udebug_module   = path.join(api_dir, "unified_debug.js");
 
+global.udebug          = require(udebug_module);
+
 

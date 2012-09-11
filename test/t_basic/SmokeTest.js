@@ -48,8 +48,12 @@ test.run = function() {
       }
     );
     mynode.connect(props, annotations, function(err, factory) {
-      if(err) t.fail(err);
-      else(t.pass());
+      if(err) {
+        t.fail(err);
+      } else {
+        factory.close();
+        t.pass();
+      }
     });
   });
 };
