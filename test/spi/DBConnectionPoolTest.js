@@ -19,7 +19,7 @@
  */
 
 "use strict";
-/*global spi_module, udebug, harness, assert */
+/*global spi_module, path, suites_dir, spi_doc_dir, udebug, harness, assert */
 
 try {
   require("./suite_config.js");
