@@ -737,14 +737,13 @@ static bool
 change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     if (table->s->fields != altered_table->s->fields)
         return false;
-
+    if (ctx->changed_fields.elements() > 1)
+        return false; // only support one field change
     for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
-        if (field_in_key(table, old_field))
-            return false;
-        if (field_in_key(altered_table, new_field))
+        if (field_in_key(table, old_field) || field_in_key(altered_table, new_field))
             return false;
         // varchar(X) -> varchar(Y)
         if (!change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
@@ -947,13 +946,13 @@ static bool
 change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     if (table->s->fields != altered_table->s->fields)
         return false;
+    if (ctx->changed_fields.elements() > 1)
+        return false; // only support one field change
     for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
-        if (field_in_key(table, old_field))
-            return false;
-        if (field_in_key(altered_table, new_field))
+        if (field_in_key(table, old_field) || field_in_key(altered_table, new_field))
             return false;
         if (!change_type_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;            
