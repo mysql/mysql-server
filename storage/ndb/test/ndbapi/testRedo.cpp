@@ -25,8 +25,6 @@
 #include <NDBT_Stats.hpp>
 #include <random.h>
 
-#include "storage/ndb/src/mgmapi/mgmapi_configuration.hpp"
-
 static NdbMutex* g_msgmutex = 0;
 
 #undef require
