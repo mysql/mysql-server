@@ -20,20 +20,17 @@
 
 "use strict";
 
+var fieldmapping = require("./FieldMapping.js"),
+    tablemapping = require("./TableMapping.js"); 
+
+/** Annotations constructor
+*/
 function Annotations() {
   this.strictValue = undefined;
   this.mapAllTablesValue = true;
   this.mappings = [];
 }
 
-
-/** A Mapping holds the mapping for a single class */
-function Mapping(proto, mapping) {
-  this.proto = proto;
-  this.mapping = mapping;
-  this.proto.mynode = {};
-  this.proto.mynode.mapping = mapping;
-}
 
 /** In strict mode, all parameters of mapping functions must be valid */
 Annotations.prototype.strict = function(value) {
@@ -51,62 +48,37 @@ Annotations.prototype.mapAllTables = function(value) {
 
 /** Map tables */
 Annotations.prototype.mapClass = function(ctor, mapping) {
-  var x, i, field, fprop;
+  var x, i, validity;
   if (typeof(ctor) !== 'function') {
     throw new Error('mapClass takes a constructor function and a mapping.');
   }
   if(this.strictValue) {
-    for(x in mapping) {
-      if(mapping.hasOwnProperty(x)) {
-        switch (x) {
-          case 'table':
-          case 'schema':
-          case 'database':
-          case 'autoIncrementBatchSize':
-          case 'mapAllColumns':
-            break;
-          case 'field':
-          case 'fields':
-            // look inside the fields
-            var fields = mapping[x];
-            if (Object.prototype.toString.call( fields ) !== '[object Array]') {
-              fields = [fields];
-            }
-            
-            for(i = 0 ; i < fields.length ; i++) {
-              field = fields[i];
-              for(fprop in field) {
-                if (field.hasOwnProperty(fprop)) {
-                  switch(fprop) {
-                    case 'name':
-                    case 'nullValue':
-                    case 'column':
-                    case 'notPersistent':
-                    case 'converter':
-                      break;
-
-                    default:
-                      throw new Error('bad property in fields ' + fprop);
-                  }
-                }
-              }
-            }
-            break;
-           
-          default:
-            throw new Error('bad property ' + x);
-        }
-      }
+    validity = tablemapping.isStrictlyValidTableMapping(mapping);
+    if(validity !== true) {
+      throw new Error('mapClass(): ' + validity);
     }
   }
-
   if (typeof(ctor.prototype.mynode) === 'undefined') {
     ctor.prototype.mynode = {};
   }
   ctor.prototype.mynode.mapping = mapping;
   ctor.prototype.mynode.constructor = ctor;
-  this.mappings.push(new Mapping(ctor, mapping));
+  this.mappings.push(ctor.prototype.mynode);
 };
 
+
+Annotations.prototype.newTableMapping = function(tableName) {
+  var mapping = Object.create(TableMappingDoc.TableMapping);
+  if(! tableName) {
+    throw new Error("Annotations.newTableMapping(): tableName required.");
+  }
+  mapping.name = tableName;
+  return mapping;
+};
+
+
+Annotations.prototype.newFieldMapping = function(fieldName, columnName) {
+  return new fieldmapping.FieldMapping(fieldName, columnName);
+};
 
 exports.Annotations = Annotations;
