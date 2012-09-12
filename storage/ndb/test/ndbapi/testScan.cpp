@@ -1390,6 +1390,220 @@ finalizeBug42559(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int takeResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  
+  int checksnapshot = DumpStateOrd::TcResourceSnapshot;
+  restarter.dumpStateAllNodes(&checksnapshot, 1);
+
+  /* TODO : Check other block's resources? */
+  return NDBT_OK;
+}
+
+int runScanReadIndexWithBounds(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int numRanges = ctx->getProperty("NumRanges", 1);
+  int maxRunSecs = ctx->getProperty("MaxRunSecs", 60);
+  int maxRetries = ctx->getProperty("MaxRetries", 1000000);
+  
+  const NdbDictionary::Index * pIdx = 
+    GETNDB(step)->getDictionary()->getIndex(orderedPkIdxName, 
+					    ctx->getTab()->getName());
+
+  int i = 0;
+  HugoCalculator calc(*ctx->getTab());
+  NDBT_ResultRow row (*ctx->getTab());
+  Ndb* ndb = GETNDB(step);
+
+  Uint64 start = NdbTick_CurrentMillisecond();
+  Uint64 end = start + (1000*maxRunSecs);
+  int retries = 0;
+
+  /* Here we run an ordered index scan, with a bound.
+   * There are numRanges sub-scans with the same bound
+   * This is done to use up some KeyInfo, and expose bugs in that area
+   * If we run many of these in parallel we may exhaust the available KeyInfo storage,
+   * which may expose some bugs.
+   */
+  while (pIdx &&
+         i<loops && 
+         !ctx->isTestStopped() &&
+         NdbTick_CurrentMillisecond() < end) {
+    g_info << "Step " << step->getStepNo() 
+           << "Loop : " << i << ": ";
+    
+    /* Use specific-partition variant of startTransaction to ensure a single
+     * TC node is used
+     */
+    NdbTransaction* trans = ndb->startTransaction(ctx->getTab(), Uint32(0));
+    if (trans == NULL)
+    {
+      g_err << "Transaction start failed " << ndb->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+
+    NdbIndexScanOperation* iso = trans->getNdbIndexScanOperation(pIdx->getName(), 
+                                                                 ctx->getTab()->getName());
+    if (iso == NULL)
+    {
+      g_err << "Error obtaining IndexScanOperation : " << trans->getNdbError() << endl;
+      trans->close();
+      return NDBT_FAILED;
+    }
+
+    if (iso->readTuples(NdbOperation::LM_CommittedRead, 
+                        (NdbScanOperation::SF_OrderBy |
+                         NdbScanOperation::SF_ReadRangeNo |
+                         NdbScanOperation::SF_MultiRange), 
+                        0) != 0)
+    {
+      g_err << "Error calling readTuples : " << iso->getNdbError() << endl;
+      trans->close();
+      return NDBT_FAILED;
+    }
+
+    for (int range = 0; range < numRanges; range++)
+    {
+      /* Now define a bound... */
+      for (Uint32 k=0; k<pIdx->getNoOfColumns(); k++)
+      {
+        const NdbDictionary::Column* idxCol = pIdx->getColumn(k);
+        const char* colName = idxCol->getName();
+        /* Lower bound of <= NULL should return all rows */
+        if (iso->setBound(colName, NdbIndexScanOperation::BoundLE, NULL) != 0)
+        {
+          g_err << "Error setting bound for column %s. " 
+                << iso->getNdbError() << endl;
+          trans->close();
+          return NDBT_FAILED;
+        }
+      }
+      
+      if (iso->end_of_bound(range) != 0)
+      {
+        g_err << "Error closing range " << range << endl;
+        g_err << iso->getNdbError() << endl;
+        return NDBT_FAILED;
+      }
+    }
+    
+    const NdbDictionary::Table& tab= *ctx->getTab();
+
+    /* Now request all columns in result projection */
+    for (int a=0; a<tab.getNoOfColumns(); a++){
+      if((row.attributeStore(a) = 
+	  iso->getValue(tab.getColumn(a)->getName())) == 0) {
+	g_err << "Error defining read value " << trans->getNdbError() << endl;
+        trans->close();
+	return NDBT_FAILED;
+      }
+    }
+          
+    /* Ready to go... */
+    trans->execute(NoCommit, AbortOnError);
+
+    if (trans->getNdbError().code != 0)
+    {
+      if (trans->getNdbError().code == 218)
+      {
+        /* Out of KeyInfo buffers in TC - that's ok, let's try again */
+        trans->close();
+        if (retries++ < maxRetries)
+        {
+          g_err << "Step " << step->getStepNo()
+                << " TC out of Keyinfo buffers (218) - retrying" << endl;
+          continue;
+        }
+      }
+
+      g_err << "Error on execution : " << trans->getNdbError() << endl;
+      trans->close();
+      return NDBT_FAILED;
+    }
+    
+    int eof;
+    int rows = 0;
+    while ((eof = iso->nextResult(true)) == 0)
+    {
+      rows++;
+      if (calc.verifyRowValues(&row) != 0)
+      {
+        g_err << "Verification failed." << endl;
+        trans->close();
+        return NDBT_FAILED;
+      }
+
+#ifdef BUG_14388257_FIXED
+      int rangeNum = (rows -1) / records;
+      if (iso->get_range_no() != rangeNum)
+      {
+        g_err << "Expected row " << rows 
+              << " to be in range " << rangeNum
+              << " but it reports range num " << iso->get_range_no()
+              << " : " << row
+              << endl;
+        return NDBT_FAILED;
+      }
+#endif
+
+      //g_err << row << endl;
+    }
+
+    if (eof != 1)
+    {
+      g_err << "nextResult() returned " << eof << endl;
+      g_err << "Scan error : " << iso->getNdbError() << endl;
+
+      if (iso->getNdbError().status == NdbError::TemporaryError)
+      {
+        if (retries++ < maxRetries)
+        {
+          g_err << "Step "
+                << step->getStepNo()
+                << "  Temporary, retrying on iteration " 
+                << i << " rows so far : " << rows << endl;
+          trans->close();
+          NdbSleep_MilliSleep(2500);
+          continue;
+        }
+      }
+
+      trans->close();
+      return NDBT_FAILED;
+    }
+    
+    g_err << "Read " << rows << " rows." << endl;
+    
+    if (records != 0 && rows != (numRanges * records))
+    {
+      g_err << "Expected " << records << " rows"
+            << ", read " << rows << endl;
+#ifdef BUG_14388257_FIXED
+      trans->close();
+      assert(false);
+      return NDBT_FAILED;
+#endif
+    }
+
+    trans->close();
+    i++;
+  }
+  return NDBT_OK;
+}
+
+int checkResourceSnapshot(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  
+  int checksnapshot = DumpStateOrd::TcResourceCheckLeak;
+  restarter.dumpStateAllNodes(&checksnapshot, 1);
+
+  /* TODO : Check other block's resources? */
+  return NDBT_OK;
+}
+
 
 int
 runBug54945(NDBT_Context* ctx, NDBT_Step* step)
@@ -2364,6 +2578,47 @@ TESTCASE("extraNextResultBug11748194",
 {
   INITIALIZER(runExtraNextResult);
 }
+TESTCASE("ScanRealKeyInfoExhaust",
+         "Test behaviour when TC keyinfo buffers exhausted 4real")
+{
+  /* 55 threads, each setting 200 ranges in their keyinfo
+   * For the lightest single column PK case, each range should
+   * use 2 words, 200 ranges = 400 words per scan thread = 
+   * 400/4 = 100 Databuffers used.
+   * 55 threads = 55*100 = 5500 Databuffers which is >
+   * the 4000 statically allocated in 6.3
+   */
+  TC_PROPERTY("NumRanges", 200);
+  TC_PROPERTY("MaxRunSecs", 120);
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(takeResourceSnapshot);
+  STEPS(runScanReadIndexWithBounds,55);
+  FINALIZER(checkResourceSnapshot);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("ScanKeyInfoExhaust",
+         "Test behaviour when TC keyinfo buffers exhausted with error insert")
+{
+  /* Use error insert 8094 to cause keyinfo exhaustion, then run a single scan
+   * with keyinfo to hit the error path
+   */
+  TC_PROPERTY("MaxRunSecs", 10);
+  INITIALIZER(createOrderedPkIndex);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(takeResourceSnapshot);
+  TC_PROPERTY("ErrorCode", 8094);
+  INITIALIZER(runInsertError);
+  STEP(runScanReadIndexWithBounds);
+  FINALIZER(checkResourceSnapshot);
+  FINALIZER(runInsertError);
+  FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+  
+
+
 NDBT_TESTSUITE_END(testScan);
 
 int main(int argc, const char** argv){

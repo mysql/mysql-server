@@ -10794,12 +10794,29 @@ void Dbtc::scanKeyinfoLab(Signal* signal)
   ndbassert( signal->getLength() == 
              (KeyInfo::HeaderLength + wordsInSignal) );
 
-  if (unlikely (! appendToSection(regCachePtr->keyInfoSectionI,
-                                  &signal->theData[KeyInfo::HeaderLength],
-                                  wordsInSignal)))
+  if (unlikely ((! appendToSection(regCachePtr->keyInfoSectionI,
+                                   &signal->theData[KeyInfo::HeaderLength],
+                                   wordsInSignal)) ||
+                 ERROR_INSERTED(8094)))
   {
     jam();
-    seizeDatabuferrorLab(signal);
+    Uint32 transid0 = apiConnectptr.p->transid[0];
+    Uint32 transid1 = apiConnectptr.p->transid[1];
+    ndbrequire(apiConnectptr.p->apiScanRec != RNIL);
+    ScanRecordPtr scanPtr;
+    scanPtr.i = apiConnectptr.p->apiScanRec;
+    ptrCheckGuard(scanPtr, cscanrecFileSize, scanRecord);
+    abortScanLab(signal, 
+                 scanPtr,
+                 ZGET_DATAREC_ERROR, 
+                 true /* Not started */);
+    
+    /* Prepare for up coming ATTRINFO/KEYINFO */
+    apiConnectptr.p->apiConnectstate = CS_ABORTING;
+    apiConnectptr.p->abortState = AS_IDLE;
+    apiConnectptr.p->transid[0] = transid0;
+    apiConnectptr.p->transid[1] = transid1;
+
     return;
   }
 
@@ -11223,6 +11240,7 @@ void Dbtc::releaseScanResources(Signal* signal,
   scanPtr.p->scanTcrec = RNIL;
   scanPtr.p->scanApiRec = RNIL;
   cfirstfreeScanrec = scanPtr.i;
+  ndbassert(cConcScanCount > 0);
   cConcScanCount--;
   
   apiConnectptr.p->apiScanRec = RNIL;
@@ -13491,6 +13509,69 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
 #ifdef ERROR_INSERT
     ndbrequire(rss_cconcurrentOp == c_counters.cconcurrentOp);
 #endif
+  }
+
+  if (arg == DumpStateOrd::TcDumpPoolLevels)
+  {
+    if (signal->getLength() == 1)
+    {
+      signal->theData[1] = 1;
+      signal->theData[2] = 0;
+      signal->theData[3] = 0;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 4, JBB);
+      return;
+    }
+    if (signal->getLength() != 4)
+    {
+      ndbout_c("DUMP TcDumpPoolLevels : Bad signal length : %u", signal->getLength());
+      return;
+    }
+    
+    Uint32 resource = signal->theData[1];
+    Uint32 position = signal->theData[2];
+    Uint32 sum = signal->theData[3];
+    /* const Uint32 MAX_ITER = 200; */
+
+    switch(resource)
+    {
+    case 1: 
+      infoEvent("TC : Concurrent operations in use/total : %u/%u (%u bytes each)", 
+                c_counters.cconcurrentOp, 
+                ctcConnectFilesize,
+                (Uint32) sizeof(TcConnectRecord));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    case 2:
+      infoEvent("TC : Concurrent scans in use/total : %u/%u (%u bytes each)", 
+                cConcScanCount, 
+                cscanrecFileSize,
+                (Uint32) sizeof(ScanRecord));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    case 3:
+      infoEvent("TC : Scan Frag records in use/total : %u/%u (%u bytes each)",
+                c_scan_frag_pool.getSize() - 
+                c_scan_frag_pool.getNoOfFree(), 
+                c_scan_frag_pool.getSize(),
+                (Uint32) sizeof(ScanFragRec));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    default:
+      return;
+    }
+
+    signal->theData[0] = DumpStateOrd::TcDumpPoolLevels;
+    signal->theData[1] = resource;
+    signal->theData[2] = position;
+    signal->theData[3] = sum;
+    sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 4, JBB);
+    return;
   }
 }//Dbtc::execDUMP_STATE_ORD()
 
