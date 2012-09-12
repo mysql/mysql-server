@@ -1549,3 +1549,7 @@ max-time: 600
 cmd: testRedo
 args: -n RestartFD -l 2 T1
 
+max-time : 300
+cmd: testScan
+args: -n ScanKeyInfoExhaust T1
+
