@@ -30,13 +30,13 @@ delimiter ;|
 
 #
 # #28436: Incorrect position in SHOW BINLOG EVENTS causes server coredump 
-# Note: 365 (depends on FD event size changes) is a magic position (found experimentally, depends on  
+# Note: 366 (depends on FD event size changes) is a magic position (found experimentally, depends on  
 # the log's contents) that caused the server crash.
 
 call mtr.add_suppression("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49");
 
 --error 1220
-SHOW BINLOG EVENTS FROM 365;
+SHOW BINLOG EVENTS FROM 366;
 
 --echo Bug#44352 UPPER/LOWER function doesn't work correctly on cp932 and sjis environment.
 CREATE TABLE t1 (a varchar(16)) character set cp932;
