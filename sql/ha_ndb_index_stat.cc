@@ -32,7 +32,7 @@ extern pthread_mutex_t ndbcluster_mutex;
 extern bool ndb_index_stat_get_enable(THD *thd);
 extern const char* g_ndb_status_index_stat_status;
 extern long g_ndb_status_index_stat_cache_query;
-extern long g_ndb_status_index_stat_cache_clean;
+extern long g_ndb_status_index_stat_cache_clean;        
 
 // Do we have waiter...
 static bool ndb_index_stat_waiter= false;
@@ -127,9 +127,9 @@ struct Ndb_index_stat_list {
 
 extern Ndb_index_stat_list ndb_index_stat_list[];
 
-time_t ndb_index_stat_time_now= 0;
+static time_t ndb_index_stat_time_now= 0;
 
-time_t
+static time_t
 ndb_index_stat_time()
 {
   time_t now= time(0);
@@ -153,9 +153,9 @@ ndb_index_stat_time()
   and after it exits.  This is only a pre-caution since mysqld
   should not allow clients at these times.
 */
-bool ndb_index_stat_allow_flag= false;
+static bool ndb_index_stat_allow_flag= false;
 
-bool
+static bool
 ndb_index_stat_allow(int flag= -1)
 {
   if (flag != -1)
@@ -167,7 +167,7 @@ ndb_index_stat_allow(int flag= -1)
 
 /* Options in string format buffer size */
 static const uint ndb_index_stat_option_sz= 512;
-void ndb_index_stat_opt2str(const struct Ndb_index_stat_opt&, char*);
+static void ndb_index_stat_opt2str(const struct Ndb_index_stat_opt&, char*);
 
 struct Ndb_index_stat_opt {
   enum Unit {
@@ -258,10 +258,10 @@ Ndb_index_stat_opt::Ndb_index_stat_opt(char* buf) :
 static const uint ndb_index_stat_max_evict_batch = 32;
 
 char ndb_index_stat_option_buf[ndb_index_stat_option_sz];
-Ndb_index_stat_opt ndb_index_stat_opt(ndb_index_stat_option_buf);
+static Ndb_index_stat_opt ndb_index_stat_opt(ndb_index_stat_option_buf);
 
 /* Copy option struct to string buffer */
-void
+static void
 ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
 {
   DBUG_ENTER("ndb_index_stat_opt2str");
@@ -343,7 +343,7 @@ ndb_index_stat_opt2str(const Ndb_index_stat_opt& opt, char* str)
   DBUG_VOID_RETURN;
 }
 
-int
+static int
 ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
 {
   DBUG_ENTER("ndb_index_stat_option_parse");
@@ -459,7 +459,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
 }
 
 /* Copy option string to option struct */
-int
+static int
 ndb_index_stat_str2opt(const char *str, Ndb_index_stat_opt& opt)
 {
   DBUG_ENTER("ndb_index_stat_str2opt");
@@ -502,7 +502,7 @@ ndb_index_stat_str2opt(const char *str, Ndb_index_stat_opt& opt)
 /* Thanks to ha_innodb.cc */
 
 /* Need storage between check and update (assume locked) */
-char ndb_index_stat_option_tmp[ndb_index_stat_option_sz];
+static char ndb_index_stat_option_tmp[ndb_index_stat_option_sz];
  
 int
 ndb_index_stat_option_check(MYSQL_THD,
@@ -718,7 +718,7 @@ Ndb_index_stat_glob::zero_total()
   cache_high_bytes= cache_query_bytes + cache_clean_bytes;
 }
 
-Ndb_index_stat_glob ndb_index_stat_glob;
+static Ndb_index_stat_glob ndb_index_stat_glob;
 
 /* Shared index entries */
 
@@ -761,7 +761,7 @@ Ndb_index_stat::Ndb_index_stat()
   since they are probably local e.g. bad range (internal error).
   Argument "from" is 0=stats thread 1=client.
 */
-void
+static void
 ndb_index_stat_error(Ndb_index_stat *st,
                      int from, const char* place, int line)
 {
@@ -790,7 +790,7 @@ ndb_index_stat_error(Ndb_index_stat *st,
                             place, line, error.code, error.line, error.extra));
 }
 
-void
+static void
 ndb_index_stat_clear_error(Ndb_index_stat *st)
 {
   st->error.code= 0;
@@ -819,7 +819,7 @@ Ndb_index_stat_list ndb_index_stat_list[Ndb_index_stat::LT_Count] = {
   Ndb_index_stat_list(Ndb_index_stat::LT_Error,  "error")
 };
 
-void
+static void
 ndb_index_stat_list_add(Ndb_index_stat* st, int lt)
 {
   assert(st != 0 && st->lt == 0);
@@ -847,7 +847,7 @@ ndb_index_stat_list_add(Ndb_index_stat* st, int lt)
   st->lt= lt;
 }
 
-void
+static void
 ndb_index_stat_list_remove(Ndb_index_stat* st)
 {
   assert(st != 0);
@@ -878,7 +878,7 @@ ndb_index_stat_list_remove(Ndb_index_stat* st)
   st->list_prev= 0;
 }
 
-void
+static void
 ndb_index_stat_list_move(Ndb_index_stat *st, int lt)
 {
   assert(st != 0);
@@ -888,7 +888,7 @@ ndb_index_stat_list_move(Ndb_index_stat *st, int lt)
 
 /* Stats entry changes (must hold stat_mutex) */
 
-void
+static void
 ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
 {
   safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
@@ -915,7 +915,7 @@ ndb_index_stat_force_update(Ndb_index_stat *st, bool onoff)
   }
 }
 
-void
+static void
 ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
 {
   safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
@@ -938,7 +938,7 @@ ndb_index_stat_no_stats(Ndb_index_stat *st, bool flag)
   }
 }
 
-void
+static void
 ndb_index_stat_ref_count(Ndb_index_stat *st, bool flag)
 {
   safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
@@ -968,7 +968,7 @@ struct Ndb_index_stat_snap {
 };
 
 /* Subroutine, have lock */
-Ndb_index_stat*
+static Ndb_index_stat*
 ndb_index_stat_alloc(const NDBINDEX *index,
                      const NDBTAB *table,
                      int &err_out)
@@ -1001,7 +1001,7 @@ ndb_index_stat_alloc(const NDBINDEX *index,
 }
 
 /* Subroutine, have lock */
-Ndb_index_stat*
+static Ndb_index_stat*
 ndb_index_stat_find_share(NDB_SHARE *share,
                           const NDBINDEX *index,
                           Ndb_index_stat *&st_last)
@@ -1024,7 +1024,7 @@ ndb_index_stat_find_share(NDB_SHARE *share,
 }
 
 /* Subroutine, have lock */
-void
+static void
 ndb_index_stat_add_share(NDB_SHARE *share,
                          Ndb_index_stat *st,
                          Ndb_index_stat *st_last)
@@ -1036,7 +1036,7 @@ ndb_index_stat_add_share(NDB_SHARE *share,
     st_last->share_next= st;
 }
 
-Ndb_index_stat*
+static Ndb_index_stat*
 ndb_index_stat_get_share(NDB_SHARE *share,
                          const NDBINDEX *index,
                          const NDBTAB *table,
@@ -1111,7 +1111,7 @@ ndb_index_stat_get_share(NDB_SHARE *share,
 */
 
 /* caller must hold stat_mutex */
-void
+static void
 ndb_index_stat_free(Ndb_index_stat *st)
 {
   safe_mutex_assert_owner(&ndb_index_stat_thread.stat_mutex);
@@ -1225,7 +1225,7 @@ ndb_index_stat_free(NDB_SHARE *share)
 
 /* Find entry across shares */
 /* wl4124_todo mutex overkill, hash table, can we find table share */
-Ndb_index_stat*
+static Ndb_index_stat*
 ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
 {
   DBUG_ENTER("ndb_index_stat_find_entry");
@@ -1258,7 +1258,7 @@ ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
 
 /* Statistics thread sub-routines */
 
-void
+static void
 ndb_index_stat_cache_move(Ndb_index_stat *st)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1283,7 +1283,7 @@ ndb_index_stat_cache_move(Ndb_index_stat *st)
     glob.cache_high_bytes= cache_total;
 }
 
-bool
+static bool
 ndb_index_stat_cache_clean(Ndb_index_stat *st)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1303,7 +1303,7 @@ ndb_index_stat_cache_clean(Ndb_index_stat *st)
   return true;
 }
 
-void
+static void
 ndb_index_stat_cache_evict(Ndb_index_stat *st)
 {
   NdbIndexStat::Head head;
@@ -1356,7 +1356,7 @@ struct Ndb_index_stat_proc {
   {}
 };
 
-void
+static void
 ndb_index_stat_proc_new(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   assert(st->error.code == 0);
@@ -1366,7 +1366,7 @@ ndb_index_stat_proc_new(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     pr.lt= Ndb_index_stat::LT_Read;
 }
 
-void
+static void
 ndb_index_stat_proc_new(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1388,7 +1388,7 @@ ndb_index_stat_proc_new(Ndb_index_stat_proc &pr)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   if (st->is->update_stat(pr.ndb) == -1)
@@ -1414,7 +1414,7 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pr.lt= Ndb_index_stat::LT_Read;
 }
 
-void
+static void
 ndb_index_stat_proc_update(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1443,7 +1443,7 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
-void
+static void
 ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1492,7 +1492,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_proc_read(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1521,7 +1521,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr)
     pr.busy= true;
 }
 
-void
+static void
 ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1575,7 +1575,7 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pr.lt= Ndb_index_stat::LT_Idle;
 }
 
-void
+static void
 ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1618,7 +1618,7 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   pr.now= ndb_index_stat_time();
@@ -1655,7 +1655,7 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pr.lt= Ndb_index_stat::LT_Idle;
 }
 
-void
+static void
 ndb_index_stat_proc_check(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1685,7 +1685,7 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr)
 }
 
 /* Check if need to evict more */
-bool
+static bool
 ndb_index_stat_proc_evict()
 {
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
@@ -1704,7 +1704,7 @@ ndb_index_stat_proc_evict()
 }
 
 /* Check if st1 is better or as good to evict than st2 */
-bool
+static bool
 ndb_index_stat_evict(const Ndb_index_stat *st1,
                      const Ndb_index_stat *st2)
 {
@@ -1717,7 +1717,7 @@ ndb_index_stat_evict(const Ndb_index_stat *st1,
   return false;
 }
 
-void
+static void
 ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1827,14 +1827,14 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr)
 {
   ndb_index_stat_proc_evict(pr, Ndb_index_stat::LT_Error);
   ndb_index_stat_proc_evict(pr, Ndb_index_stat::LT_Idle);
 }
 
-void
+static void
 ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1888,7 +1888,7 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
@@ -1923,7 +1923,7 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   pr.lt= Ndb_index_stat::LT_Error;
 }
 
-void
+static void
 ndb_index_stat_proc_error(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -1954,7 +1954,7 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_proc_event(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   /*
@@ -1986,7 +1986,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   }
 }
 
-void
+static void
 ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -2054,7 +2054,7 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
 
 /* Control options */
 
-void
+static void
 ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -2072,7 +2072,7 @@ ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
 }
 
 #ifndef DBUG_OFF
-void
+static void
 ndb_index_stat_entry_verify(Ndb_index_stat_proc &pr, const Ndb_index_stat *st)
 {
   const NDB_SHARE *share= st->share;
@@ -2110,7 +2110,7 @@ ndb_index_stat_entry_verify(Ndb_index_stat_proc &pr, const Ndb_index_stat *st)
   pr.cache_clean_bytes+= st->clean_bytes;
 }
 
-void
+static void
 ndb_index_stat_list_verify(Ndb_index_stat_proc &pr, int lt)
 {
   const Ndb_index_stat_list &list= ndb_index_stat_list[lt];
@@ -2161,7 +2161,7 @@ ndb_index_stat_list_verify(Ndb_index_stat_proc &pr, int lt)
   assert(count == list.count);
 }
 
-void
+static void
 ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
 {
   const Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -2177,7 +2177,7 @@ ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
   pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
-void
+static void
 ndb_index_stat_report(const Ndb_index_stat_glob& old_glob)
 {
   const Ndb_index_stat_glob &new_glob= ndb_index_stat_glob;
@@ -2192,7 +2192,7 @@ ndb_index_stat_report(const Ndb_index_stat_glob& old_glob)
 }
 #endif
 
-void
+static void
 ndb_index_stat_proc(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_proc");
@@ -2262,7 +2262,7 @@ ndb_index_stat_end()
 
 /* Index stats thread */
 
-int
+static int
 ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_check_or_create_systables");
@@ -2297,7 +2297,7 @@ ndb_index_stat_check_or_create_systables(Ndb_index_stat_proc &pr)
   DBUG_RETURN(-1);
 }
 
-int
+static int
 ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_check_or_create_sysevents");
@@ -2330,7 +2330,7 @@ ndb_index_stat_check_or_create_sysevents(Ndb_index_stat_proc &pr)
   DBUG_RETURN(-1);
 }
 
-int
+static int
 ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_start_listener");
@@ -2355,7 +2355,7 @@ ndb_index_stat_start_listener(Ndb_index_stat_proc &pr)
   DBUG_RETURN(0);
 }
 
-int
+static int
 ndb_index_stat_stop_listener(Ndb_index_stat_proc &pr)
 {
   DBUG_ENTER("ndb_index_stat_stop_listener");
@@ -2666,7 +2666,7 @@ ndb_index_stat_round(double x)
   similar but separated for clarity.
 */
 
-int
+static int
 ndb_index_stat_wait_query(Ndb_index_stat *st,
                           const Ndb_index_stat_snap &snap)
 {
@@ -2754,7 +2754,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
   DBUG_RETURN(0);
 }
 
-int
+static int
 ndb_index_stat_wait_analyze(Ndb_index_stat *st,
                             const Ndb_index_stat_snap &snap)
 {
