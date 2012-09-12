@@ -1716,6 +1716,7 @@ private:
     UintR cwriteCount;
     UintR cabortCount;
     UintR cconcurrentOp;
+    UintR cconcurrentScans;
     Uint32 c_scan_count;
     Uint32 c_range_scan_count;
     void reset () { 

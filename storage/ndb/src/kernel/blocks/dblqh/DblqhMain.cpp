@@ -21604,6 +21604,104 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       cmaxLogFilesInPageZero_DUMP = dumpState->args[1];
 #endif
 
+  if (arg == DumpStateOrd::LqhDumpPoolLevels)
+  {
+    /* Dump some state info for internal buffers */
+    if (signal->getLength() == 1)
+    {
+      signal->theData[1] = 1;
+      signal->theData[2] = 0;
+      signal->theData[3] = 0;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 4, JBB);
+      return;
+    }
+    if (signal->getLength() != 4)
+    {
+      ndbout_c("DUMP LqhDumpPoolLevels : Bad signal length : %u", signal->getLength());
+      return;
+    }
+
+    Uint32 resource = signal->theData[1];
+    Uint32 position = signal->theData[2];
+    Uint32 sum = signal->theData[3];
+    const Uint32 MAX_ITER = 200;
+    
+    switch(resource)
+    {
+    case 1:
+    {
+      /* Must get all in one loop, as we're traversing a dynamic list */
+      sum = 0;
+      TcConnectionrecPtr tcp;
+      tcp.i = cfirstfreeTcConrec;
+      while (tcp.i != RNIL)
+      {
+        sum++;
+        ptrCheckGuard(tcp, ctcConnectrecFileSize, tcConnectionrec);
+        tcp.i = tcp.p->nextTcConnectrec;
+      }
+      infoEvent("LQH : TcConnection (operation) records in use/total %u/%u (%u bytes each)",
+                ctcConnectrecFileSize - sum, ctcConnectrecFileSize, (Uint32) sizeof(TcConnectionrec));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    }
+    case 2:
+    {
+      infoEvent("LQH : ScanRecord (Fragment) pool in use/total %u/%u (%u bytes each)",
+                c_scanRecordPool.getSize()-
+                c_scanRecordPool.getNoOfFree(),
+                c_scanRecordPool.getSize(),
+                (Uint32) sizeof(ScanRecord));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    }
+    case 3:
+    {
+      /* Must get all in one loop, as we're traversing a dynamic list */
+      sum = 0;
+      DatabufPtr dbp;
+      dbp.i = cfirstfreeDatabuf;
+      while (dbp.i != RNIL)
+      {
+        sum++;
+        ptrCheckGuard(dbp, cdatabufFileSize, databuf);
+        dbp.i= dbp.p->nextDatabuf;
+      }
+      infoEvent("LQH : KeyInfo bufs in use/total %u/%u (%u bytes each)",
+                cdatabufFileSize - sum, 
+                cdatabufFileSize, (Uint32) sizeof(Databuf));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    }
+    case 4:
+    {
+      infoEvent("LQH : AttrInfo bufs in use/total %u/%u (%u bytes each)",
+                cattrinbufFileSize - c_no_attrinbuf_recs, 
+                cattrinbufFileSize, 
+                (Uint32) sizeof(Attrbuf));
+      resource++;
+      position = 0;
+      sum = 0;
+      break;
+    }
+    default:
+      return;
+    }
+
+    signal->theData[0] = DumpStateOrd::LqhDumpPoolLevels;
+    signal->theData[1] = resource;
+    signal->theData[2] = position;
+    signal->theData[3] = sum;
+    sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 4, JBB);
+    return; 
+  }
+
 }//Dblqh::execDUMP_STATE_ORD()
 
 /* **************************************************************** */
