@@ -118,7 +118,7 @@ t2.teardown = function() {
   if(dbSession) {
     dbSession.close();
   }
-}
+};
 
 exports.tests = [ t1, t2  ];
 

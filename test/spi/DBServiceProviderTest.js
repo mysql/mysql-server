@@ -20,7 +20,7 @@
 
 // TODO:  DBServiceProviderTest needs to run before DBConnectionPoolTest.
 
-/*global spi_module, harness */
+/*global spi_module, harness, path, suites_dir, spi_doc_dir */
 
 "use strict";
 
@@ -63,6 +63,6 @@ t4.run = function() {
   tester.test(functionList);
 
   return true;
-}
+};
 
 module.exports.tests = [t1, t2, t3, t4];
