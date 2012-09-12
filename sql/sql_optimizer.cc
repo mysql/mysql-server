@@ -7668,17 +7668,39 @@ static bool make_join_select(JOIN *join, Item *cond)
 	    DBUG_RETURN(1);				// Impossible range
 	  /*
 	    We plan to scan all rows.
-	    Check again if we should use an index.
-	    We could have used an column from a previous table in
-	    the index if we are using limit and this is the first table
+	    Check again if we should use an index. We can use an index if:
+
+            1a) There is a condition that range optimizer can work on, and
+            1b) There are non-constant conditions on one or more keys, and
+            1c) Some of the non-constant fields may have been read
+                already. This may be the case if this is not the first
+                table in the join OR this is a subselect with
+                non-constant conditions referring to an outer table
+                (dependent subquery)
+                or,
+            2a) There are conditions only relying on constants
+            2b) This is the first non-constant table
+            2c) There is a limit of rows to read that is lower than
+                the fanout for this table (i.e., the estimated number
+                of rows that will be produced for this table per row
+                combination of previous tables)
+            2d) The query is NOT run with FOUND_ROWS() (because in that
+                case we have to scan through all rows to count them anyway)
 	  */
 
-	  if ((cond &&
-              !tab->keys.is_subset(tab->const_keys) && i > 0) ||
-	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
-	       join->unit->select_limit_cnt < tab->position->records_read &&
-	       !(join->select_options & OPTION_FOUND_ROWS)))
-	  {
+	  if ((cond &&                                                // 1a
+               !tab->keys.is_subset(tab->const_keys) &&               // 1b
+               (i > 0 ||                                              // 1c
+                (join->select_lex->master_unit()->item &&
+                 cond->used_tables() & OUTER_REF_TABLE_BIT)
+                )
+               ) ||
+              (!tab->const_keys.is_clear_all() &&                     // 2a
+               i == join->const_tables &&                             // 2b
+               join->unit->select_limit_cnt < tab->position->records_read && // 2c
+               !(join->select_options & OPTION_FOUND_ROWS))          // 2d
+              )
+          {
             Opt_trace_object trace_one_table(trace);
             trace_one_table.add_utf8_table(tab->table);
             Opt_trace_object trace_table(trace, "rechecking_index_usage");
@@ -7698,7 +7720,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	      sel->cond->quick_fix_field();
 
             if (sel->test_quick_select(thd, tab->keys,
-                                       used_tables & ~ current_map,
+                                       used_tables & ~tab->table->map,
                                        (join->select_options &
                                         OPTION_FOUND_ROWS ?
                                         HA_POS_ERROR :
@@ -7715,7 +7737,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                 DBUG_RETURN(1);                 // Impossible WHERE
               Opt_trace_object trace_without_on(trace, "without_ON_clause");
               if (sel->test_quick_select(thd, tab->keys,
-                                         used_tables & ~ current_map,
+                                         used_tables & ~tab->table->map,
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
