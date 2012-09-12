@@ -19,7 +19,8 @@ def main():
         if i < len(cols)-1:
             create_cmd += ","
     print "%s);" % (create_cmd)
-    for t in gen_comb(range(5)):
+    l = range(len(cols))
+    for t in combinations(l, range(2,len(cols))):
         alter_cmd = gen_alter(t)
         print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
         print "--error ER_UNSUPPORTED_EXTENSION"
@@ -36,26 +37,10 @@ def gen_alter(t):
             alter += ","
     return alter
 
-def gen_comb(l):
-    r = []
-    for i in range(2,len(l)):
-        r += collapse(itertools.combinations(l, i))
-    return r
+def combinations(l, r):
+    c = []
+    for k in r:
+        c += [ x for x in itertools.combinations(l, k) ]
+    return c
 
-def collapse(i):
-    r = []
-    for x in i:
-        r += [x]
-    return r
-
-def new_type(i):
-    if i <= 0:
-        return "VARCHAR(2)"
-    if i <= 1:
-        return "VARBINARY(2)"
-    if i <= 2:
-        return "BIGINT"
-    if i <= 3:
-        return "CHAR(2)"
-    return "BINARY(2)"
 sys.exit(main())
