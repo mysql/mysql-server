@@ -11975,8 +11975,7 @@ ha_innobase::external_lock(
 		|| thd_sql_command(thd) == SQLCOM_DROP_INDEX
 		|| thd_sql_command(thd) == SQLCOM_DELETE)) {
 
-		ib_senderrf(thd,
-			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
@@ -12692,6 +12691,14 @@ ha_innobase::store_lock(
 
 	if (srv_read_only_mode
 	    && (sql_command == SQLCOM_UPDATE
+		|| sql_command == SQLCOM_INSERT
+		|| sql_command == SQLCOM_REPLACE
+		|| sql_command == SQLCOM_DROP_TABLE
+		|| sql_command == SQLCOM_ALTER_TABLE
+		|| sql_command == SQLCOM_OPTIMIZE
+		|| sql_command == SQLCOM_CREATE_TABLE
+		|| sql_command == SQLCOM_CREATE_INDEX
+		|| sql_command == SQLCOM_DROP_INDEX
 		|| sql_command == SQLCOM_DELETE)) {
 
 		ib_senderrf(trx->mysql_thd,
