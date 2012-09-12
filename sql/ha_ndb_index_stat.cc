@@ -28,7 +28,7 @@
 extern struct st_ndb_status g_ndb_status;
 extern pthread_mutex_t ndbcluster_mutex;
 
-/* these have to live in ha_ndbcluster.cc */
+/* Implemented in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
 extern const char* g_ndb_status_index_stat_status;
 extern long g_ndb_status_index_stat_cache_query;
@@ -36,8 +36,6 @@ extern long g_ndb_status_index_stat_cache_clean;
 
 // Do we have waiter...
 static bool ndb_index_stat_waiter= false;
-
-// copied from ha_ndbcluster_binlog.h
 
 extern handlerton *ndbcluster_hton;
 
