@@ -231,7 +231,7 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   */
 proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
 // FIXME: Pay attention to the user's dbsession
-  udebug.log("NdbConnectionPool getTable");
+  udebug.log("NdbConnectionPool getTableMetadata");
   assert(dbname && tabname && user_callback);
   adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
 };

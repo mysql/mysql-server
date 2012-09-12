@@ -32,8 +32,16 @@ var doc          = require(path.join(api_doc_dir, "TableMapping")),
 function TableMapping(tableName) {
   if(! tableName) {
     throw new Error("TableMapping(): tableName required.");
-  }  
-  this.name   = tableName;
+  }
+  var parts = tableName.split(".");
+  if(parts[0] && parts[1]) {
+    this.database = parts[0];
+    this.table = parts[1];
+  }
+  else {
+    this.table = parts[0];
+  }
+  
   this.fields = [];
 }
 TableMapping.prototype = doc.TableMapping;
@@ -53,7 +61,7 @@ function verify(property, value, strict) {
   if(typeof value === 'undefined' || value === null) { return valErr(); }
  
   switch(property) {
-    case "name":
+    case "table":
     case "database":
       if(typeof value !== 'string')             { return valErr(); }
       break;
@@ -68,7 +76,7 @@ function verify(property, value, strict) {
       if(typeof value !== 'object')             { return valErr(); }
       for(i = 0 ; i < value.length ; i++) {
         if(! fieldmapping.isValidFieldMapping(value[i], strict)) {
-          return "element " + i + "is not a FieldMapping.";
+          return "element " + i + " is not a FieldMapping.";
         }
       }
       break;
@@ -135,6 +143,19 @@ TableMapping.prototype.addFieldMapping = function(m) {
     throw new Error("TableMapping.addFieldMapping(): invalid FieldMapping.");
   }
 };
+
+
+/* mapField(fieldName, columnName)
+   IMMEDIATE
+   
+   Create a new FieldMapping for(fieldName, columnName) and add it to the 
+   list of mapped fields.
+*/
+TableMapping.prototype.mapField = function(fieldName, columnName) {
+  this.fields.push(new fieldmapping.FieldMapping(fieldName, columnName));
+}
+  
+
 
 
 exports.TableMapping = TableMapping;

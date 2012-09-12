@@ -69,13 +69,15 @@ function verify(property, value) {
 function isValidFieldMapping(m, strict) {
   var property;
   for(property in m) {
-    switch(verify(property, m[property])) {
-      case 0:
-        break;
-      case 1:
-        return false;
-      case 2:
-        if(strict === true) { return false; }
+    if(m.hasOwnProperty(property)) {
+      switch(verify(property, m[property])) {
+        case 0:
+          break;
+        case 1:
+          return false;
+        case 2:
+          if(strict === true) { return false; }
+      }
     }
   }
   return true;

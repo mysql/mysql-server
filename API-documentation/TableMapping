@@ -6,7 +6,7 @@
    * of the same name.
    */
   TableMapping = {
-    name                   :  "" ,  // Table name
+    table                  :  "" ,  // Table name
     database               :  "" ,  // Database name
     autoIncrementBatchSize :  1  ,  // Auto-increment prefetch batch size
     mapAllColumns          : true,  // Create a default FieldMapping for
@@ -34,7 +34,16 @@
    Annotations.newFieldMapping(). 
    Throws an exception on error.
 */
-  function addFieldMapping(fieldMapping)  {};
+  function addFieldMapping(fieldMapping) {};
+
+
+/* mapField(fieldName, columnName)
+   IMMEDIATE
+   
+   Create a new FieldMapping for(fieldName, columnName) and add it to the 
+   list of mapped fields.
+*/
+  function mapField(fieldName, columnName) {};
 
 
 /* This documentation file is a valid JavaScript module and exports: 

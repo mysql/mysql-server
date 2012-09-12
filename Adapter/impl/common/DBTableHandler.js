@@ -33,12 +33,12 @@ var assert = require("assert"),
    comapring user-supplied key fields of a domain object with a table's indexes.
    
    These are the structural parts of a DBT: 
-     * An apiTableMapping, either created explicitly in the API, or by default.
+     * mapping, an API TableMapping, either created explicitly or by default.
      * A TableMetadata object, obtained from the data dictionary.
      * The stubFields - a set of FieldMappings created implicitly by default rules. 
      * An internal set of maps between Fields and Columns
      
-    The apiTableMapping and TableMetadata are supplied as arguments to the 
+    The mapping and TableMetadata are supplied as arguments to the 
     constructor, which creates the maps.
     
     Some terms: 
@@ -49,7 +49,7 @@ var assert = require("assert"),
 /* DBT prototype */
 var proto = {
   dbTable                : {},  // TableMetadata 
-  apiTableMapping        : {},  // TableMapping from mapClass()
+  mapping                : {},  // API TableMapping from mapClass()
   newObjectConstructor   : {},  // constructorFunction from mapClass()  
   stubFields             : {},  // FieldMappings constructed by default rules
 
@@ -101,13 +101,13 @@ function DBTableHandler(dbtable, tablemapping) {
   this.dbTable = dbtable;
 
   if(tablemapping) {     
-    this.apiTableMapping = tablemapping;
+    this.mapping = tablemapping;
   }
   else {                                          // Create a default mapping
-    this.apiTableMapping = Object.create(TableMappingDoc.TableMapping);
-    this.apiTableMapping.name     = this.dbTable.name;
-    this.apiTableMapping.database = this.dbTable.database;
-    this.apiTableMapping.fields   = [];
+    this.mapping = Object.create(TableMappingDoc.TableMapping);
+    this.mapping.name     = this.dbTable.name;
+    this.mapping.database = this.dbTable.database;
+    this.mapping.fields   = [];
   }
   
   /* New Arrays */
@@ -119,8 +119,8 @@ function DBTableHandler(dbtable, tablemapping) {
 
   /* Build the first draft of the columnNumberToFieldMap, using only the
      explicitly mapped fields. */
-  for(i = 0 ; i < this.apiTableMapping.fields.length ; i++) {
-    f = this.apiTableMapping.fields[i];
+  for(i = 0 ; i < this.mapping.fields.length ; i++) {
+    f = this.mapping.fields[i];
     if(f && ! f.NotPersistent) {
       c = getColumnByName(this.dbTable, f.columnName);
       if(c) {
@@ -131,7 +131,7 @@ function DBTableHandler(dbtable, tablemapping) {
   }
 
   /* Now build the implicitly mapped fields and add them to the map */
-  if(this.apiTableMapping.mapAllColumns) {
+  if(this.mapping.mapAllColumns) {
     for(i = 0 ; i < this.dbTable.columns.length ; i++) {
       if(! this.columnNumberToFieldMap[i]) {
         c = this.dbTable.columns[i];
@@ -144,7 +144,7 @@ function DBTableHandler(dbtable, tablemapping) {
   }
 
   /* Total number of mapped fields */
-  nMappedFields = this.apiTableMapping.fields.length + this.stubFields.length;
+  nMappedFields = this.mapping.fields.length + this.stubFields.length;
          
   /* Build fieldNumberToColumnMap, establishing field order.
      Also build the remaining fieldNameToFieldMap and fieldNumberToFieldMap. */
