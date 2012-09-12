@@ -66,18 +66,4 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const key_range *start_key, const key_range *end_key,
                      int from);
 
-/* error codes local to ha_ndb */
-
-/* stats thread is not open for requests (should not happen) */
-#define Ndb_index_stat_error_NOT_ALLOW          9001
-
-/* stats entry for existing index not found (should not happen) */
-#define Ndb_index_stat_error_NOT_FOUND          9002
-
-/* request on stats entry with recent error was ignored */
-#define Ndb_index_stat_error_HAS_ERROR          9003
- 
-/* stats thread aborted request on stats entry */
-#define Ndb_index_stat_error_ABORT_REQUEST      9004
-
 #endif
