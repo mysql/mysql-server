@@ -43,7 +43,7 @@ t2.run = function() {
       dbSession.close();
       conn.closeSync();
     }
-  }
+  };
 
   function onTable(err, tab) {
     udebug.log("DBDictionaryTest onTable");

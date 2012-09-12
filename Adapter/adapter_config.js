@@ -36,4 +36,6 @@ global.api_module      = path.join(api_dir, "mynode.js");
 global.udebug_module   = path.join(api_dir, "unified_debug.js");
 global.udebug          = require(udebug_module);
 
+global.udebug          = require(udebug_module);
+
 
