@@ -104,6 +104,7 @@ var usageMessage =
   "Usage: node driver [options]\n" +
   "       -h or --help: print this message\n" +
   "      -d or --debug: set the debug flag\n" +
+  "           --detail: set the detail debug flag\n" +
   "      -t or --trace: print stack trace from failing tests\n" +
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
@@ -121,6 +122,11 @@ for(i = 2; i < process.argv.length ; i++) {
   case '-d':
     udebug.on();
     udebug.level_debug();
+    driver.result.listener.printStackTraces = true;
+    break;
+  case '--detail':
+    udebug.on();
+    udebug.level_detail();
     driver.result.listener.printStackTraces = true;
     break;
   case '--help':

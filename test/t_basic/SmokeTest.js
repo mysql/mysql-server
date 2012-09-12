@@ -32,27 +32,11 @@ test.run = function() {
       t.fail('createSQL failed: ' + error);
     } 
     var props = new mynode.ConnectionProperties(global.adapter);
-    var annotations = new mynode.Annotations();
-    annotations.strict(true);
-    annotations.mapClass(global.t_basic.prototype, {
-      "table" : "t_basic",
-      "schema" : "def",
-      "database" : "test",
-      "autoIncrementBatchSize" : 1,
-      "fields" : [
-                  {"name": "id", "column" : "id"},
-                  {"name": "age", "column" : "age"},
-                  {"name": "name", "column" : "name"},
-                  {"name": "magic", "column" : "magic"}
-      ]
-      }
-    );
-    mynode.connect(props, annotations, function(err, factory) {
-      if(err) {
-        t.fail(err);
-      } else {
-        factory.close();
+    global.fail_openSession(t, function(session) {
+      if (session) {
         t.pass();
+      } else {
+        t.fail();
       }
     });
   });

@@ -94,9 +94,9 @@ exports.UserContext.prototype.listTables = function() {
   this.session_factory.dbConnectionPool.listTables(databaseName, dbSession, listTablesOnTableList);
 };
 
-/** Get the table handler for a table name or prototype.
+/** Get the table handler for a table name or constructor.
  */
-var getTableHandler = function(tableNameOrPrototype, session, onTableHandler) {
+var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) {
 
   var TableHandlerFactory = function(tableName, sessionFactory, dbSession, mapping, onTableHandler) {
     this.tableName = tableName;
@@ -137,38 +137,42 @@ var getTableHandler = function(tableNameOrPrototype, session, onTableHandler) {
   };
     
   // start of getTableHandler 
-  
-  if (typeof(tableNameOrPrototype) === 'string') {
+  var err;
+
+  if (typeof(tableNameOrConstructor) === 'string') {
     // parameter is a table name; look up in table name to table handler hash
-    var tableHandler = session.sessionFactory.tableHandlers[tableNameOrPrototype];
+    var tableHandler = session.sessionFactory.tableHandlers[tableNameOrConstructor];
     if (typeof(tableHandler) === 'undefined') {
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       var tableHandlerFactory = new TableHandlerFactory(
-          tableNameOrPrototype, session.sessionFactory, session.dbSession, null, onTableHandler);
+          tableNameOrConstructor, session.sessionFactory, session.dbSession, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
       // send back the tableHandler
       onTableHandler(null, tableHandler);
     }
-  } else {
-    // parameter is a prototype; it must have been annotated already
-    if (typeof(tableNameOrPrototype.mynode) === 'undefined') {
-      var err = new Error('User exception: prototype must have been annotated.');
+  } else if (typeof(tableNameOrConstructor) === 'function') {
+    // parameter is a constructor; it must have been annotated already
+    if (typeof(tableNameOrConstructor.prototype.mynode) === 'undefined') {
+      err = new Error('User exception: constructor must have been annotated.');
       onTableHandler(err, null);
     } else {
-      tableHandler = tableNameOrPrototype.mynode.tableHandler;
+      tableHandler = tableNameOrConstructor.prototype.mynode.tableHandler;
       if (typeof(tableHandler) === 'undefined') {
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         var tableHandlerFactory = new TableHandlerFactory(
-            tableNameOrPrototype.mynode.mapping.table, session.sessionFactory, session.dbSession, tableNameOrPrototype.mynode.mapping, onTableHandler);
+            tableNameOrConstructor.prototype.mynode.mapping.table, session.sessionFactory, session.dbSession, tableNameOrConstructor.prototype.mynode.mapping, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
       // prototype has been annotated; return the table handler
       onTableHandler(null, tableHandler);
       }
     }
+  } else {
+    err = new Error('User error: parameter must be a string or a constructor function.');
+    onTableHandler(err, null);
   }
 };
 
@@ -224,8 +228,9 @@ exports.UserContext.prototype.persist = function() {
 
   // persist starts here
   // persist(object, callback)
-  // get DBTableHandler for prototype/tableName
-  getTableHandler(userContext.user_arguments[0], userContext.session, persistOnTableHandler);
+  // get DBTableHandler for constructor
+  var ctor = userContext.user_arguments[0].mynode.constructor;
+  getTableHandler(ctor, userContext.session, persistOnTableHandler);
 };
 
 /** Open a session. Allocate a slot in the session factory sessions array.
