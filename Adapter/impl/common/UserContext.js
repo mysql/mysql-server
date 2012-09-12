@@ -98,28 +98,36 @@ exports.UserContext.prototype.listTables = function() {
  */
 var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) {
 
-  var TableHandlerFactory = function(tableName, sessionFactory, dbSession, mapping, onTableHandler) {
+  var TableHandlerFactory = function(mynode, tableName, sessionFactory, dbSession, mapping, onTableHandler) {
     this.tableName = tableName;
     this.sessionFactory = sessionFactory;
     this.dbSession = dbSession;
     this.onTableHandler = onTableHandler;
     this.mapping = mapping;
+    this.dbName = sessionFactory.properties.database;
+    this.tableKey = this.dbName + '.' + tableName;
+    this.mynode = mynode;
     
     this.createTableHandler = function() {
       var tableHandlerFactory = this;
       var tableHandler;
-      var dbName;
+      var tableMetadata;
       
       var onTableMetadata = function(err, tableMetadata) {
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
-          udebug.log('UserContext.TableHandlerFactory.onTableMetadata for ' + dbName + '.' + tableName);
+          udebug.log('UserContext.TableHandlerFactory.onTableMetadata for ' + tableHandlerFactory.tableKey);
+          // put the table metadata into the table metadata map
+          tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
           // we have the table metadata; now create the table handler
           var tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, mapping);
           if (mapping == null) {
             // put the default table handler into the session factory
             tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
+          } else {
+            // put the table handler into the annotated object
+            tableHandlerFactory.mynode.tableHandler = tableHandler;
           }
         }
         tableHandlerFactory.onTableHandler(null, tableHandler);
@@ -127,17 +135,23 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       
       // start of createTableHandler
       
-      // get the table metadata from the db connection pool
-      // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-      dbName = this.sessionFactory.properties.database;
-      udebug.log('UserContext.TableHandlerFactory.createTableHandler for ' + dbName + '.' + tableName);
-      this.sessionFactory.dbConnectionPool.getTableMetadata(dbName, tableName, session.dbSession,
-          onTableMetadata);
+      // get the table metadata from the cache of table metadatas in session factory
+      tableMetadata = tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey];
+      if (tableMetadata) {
+        // we already have cached the table metadata
+        onTableMetadata(null, tableMetadata);
+      } else {
+        // get the table metadata from the db connection pool
+        // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
+        udebug.log('UserContext.TableHandlerFactory.createTableHandler for ' + tableHandlerFactory.tableKey);
+        this.sessionFactory.dbConnectionPool.getTableMetadata(
+            tableHandlerFactory.dbName, tableHandlerFactory.tableName, session.dbSession, onTableMetadata);
+      }
     };
   };
     
   // start of getTableHandler 
-  var err;
+  var err, mynode;
 
   if (typeof(tableNameOrConstructor) === 'string') {
     // parameter is a table name; look up in table name to table handler hash
@@ -146,24 +160,25 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       var tableHandlerFactory = new TableHandlerFactory(
-          tableNameOrConstructor, session.sessionFactory, session.dbSession, null, onTableHandler);
+          null, tableNameOrConstructor, session.sessionFactory, session.dbSession, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
       // send back the tableHandler
       onTableHandler(null, tableHandler);
     }
   } else if (typeof(tableNameOrConstructor) === 'function') {
+    mynode = tableNameOrConstructor.prototype.mynode;
     // parameter is a constructor; it must have been annotated already
-    if (typeof(tableNameOrConstructor.prototype.mynode) === 'undefined') {
+    if (typeof(mynode) === 'undefined') {
       err = new Error('User exception: constructor must have been annotated.');
       onTableHandler(err, null);
     } else {
-      tableHandler = tableNameOrConstructor.prototype.mynode.tableHandler;
+      tableHandler = mynode.tableHandler;
       if (typeof(tableHandler) === 'undefined') {
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         var tableHandlerFactory = new TableHandlerFactory(
-            tableNameOrConstructor.prototype.mynode.mapping.table, session.sessionFactory, session.dbSession, tableNameOrConstructor.prototype.mynode.mapping, onTableHandler);
+            mynode, mynode.mapping.table, session.sessionFactory, session.dbSession, mynode.mapping, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
       // prototype has been annotated; return the table handler
@@ -185,7 +200,7 @@ exports.UserContext.prototype.find = function() {
   var tableHandler;
 
   function findOnTableHandler(err, dbTableHandler) {
-    var keys, index, op;
+    var keys, index, op, transactionHandler, resolvedKeys;
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -195,6 +210,9 @@ exports.UserContext.prototype.find = function() {
         var err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
       } else {
+//        resolvedKeys = index.resolveKeys(keys);
+//        transactionHandler = userContext.session.dbSession.createTransaction();
+//        op = userContext.session.dbSession.buildReadOperation(dbTableHandler, userContext.user_arguments[1]);
         var err = new Error('UserContext.find using index ' + index.dbIndex.name + ' to be continued...');
         userContext.applyCallback(err, 'this is the user Session object');      
       }
@@ -221,7 +239,7 @@ exports.UserContext.prototype.persist = function() {
     } else {
     op = userContext.session.dbSession.buildInsertOperation(dbTableHandler, userContext.user_arguments[1]);
     var err = new Error('UserContext.persist will continue after a brief intermission...');
-    this.applyCallback(err, null);
+    userContext.applyCallback(err, null);
     // now what
     }
   }
