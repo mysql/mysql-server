@@ -85,23 +85,20 @@ function createInsertSQL(dbTableHandler) {
   var insertSQL = 'INSERT INTO ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' (';
   var valuesSQL = ' VALUES (';
   var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
-  var columns = dbTableHandler.dbTable.columns;
-  udebug.log_detail('MySQLConnection.getMetadata with columns ' + JSON.stringify(columns));
+  var columns = dbTableHandler.getColumnMetadata();
+  udebug.log_detail('MySQLConnection.getMetadata with columns', JSON.stringify(columns));
   // loop over the columns and extract the column name
   var columnSeparator = '';
   var duplicateSeparator = '';
-  var i, column, field;
-  var fields = dbTableHandler.mapping.fields;
-  for (i = 0; i < fields.length; ++i) {
-    field = fields[i];
-    if (!field.notPersistent) {
-      insertSQL += columnSeparator + field.columnName;
-      valuesSQL += columnSeparator + '?';
-      columnSeparator = ', ';
-      if (!columns[field.columnNumber].isInPrimaryKey) {
-        duplicateSQL += duplicateSeparator + field.columnName + ' = VALUES (' + field.columnName + ') ';
-        duplicateSeparator = ', ';
-      }
+  var i, column;  
+  for (i = 0; i < columns.length; ++i) {
+    column = columns[i];
+    insertSQL += columnSeparator + column.name;
+    valuesSQL += columnSeparator + '?';
+    columnSeparator = ', ';
+    if (!column.isInPrimaryKey) {
+      duplicateSQL += duplicateSeparator + column.name + ' = VALUES (' + column.name + ') ';
+      duplicateSeparator = ', ';
     }
   }
   valuesSQL += ')';
@@ -119,7 +116,7 @@ function createDeleteSQL(dbTableHandler, index) {
   // find the index metadata from the dbTableHandler index section
   // loop over the columns in the index and extract the column name
   var indexMetadatas = dbTableHandler.dbTable.indexes;
-  var columns = dbTableHandler.dbTable.columns;
+  var columns = dbTableHandler.getColumnMetadata();
   var separator = '';
   var i, j, indexMetadata;
   for (i = 0; i < indexMetadatas.length; ++i) {
@@ -142,20 +139,17 @@ function createSelectSQL(dbTableHandler, index) {
   var whereSQL =   ' FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
   // loop over the mapped column names in order
   var separator = '';
-  var i, j, field;
-  var fields = dbTableHandler.mapping.fields;
-  for (i = 0; i < fields.length; ++i) {
-    field = fields[i];
-    if (!field.notPersistent) {
-      selectSQL += separator + field.columnName;
-      separator = ', ';
-    }
+  var i, j, column;
+  var columns = dbTableHandler.getColumnMetadata();
+  for (i = 0; i < columns.length; ++i) {
+    column = columns[i];
+    selectSQL += separator + column.name;
+    separator = ', ';
   }
 
   // loop over the index columns
   // find the index metadata from the dbTableHandler index section
   // loop over the columns in the index and extract the column name
-  var columns = dbTableHandler.dbTable.columns;
   var indexMetadatas = dbTableHandler.dbTable.indexes;
   separator = '';
   for (i = 0; i < indexMetadatas.length; ++i) {

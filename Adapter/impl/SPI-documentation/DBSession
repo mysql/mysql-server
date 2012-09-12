@@ -107,7 +107,7 @@
    ASYNC
    
    Close DBSession and free all resources. 
-   Callback is optional; if supplied, will receive (null, null).
+   Callback is optional; if supplied, will receive (err).
 */
   close(callback);
 

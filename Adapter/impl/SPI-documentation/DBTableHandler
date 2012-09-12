@@ -39,13 +39,13 @@
   registerFieldConverter(fieldName, converter);
 
 
-/* DBTableHandler.setResultPrototype(Object proto_object)
+/* DBTableHandler.setResultConstructor(constructorFunction)
    IMMEDIATE
 
-   Declare that proto_object should be used as a prototype 
+   Declare that constructorFunction and its prototype should be used
    when creating a results object for a row read from the database.
 */
-  setResultPrototype(proto_object);
+  setResultConstructor(constructorFunction);
 
 
 /************************************************
@@ -95,9 +95,11 @@
 /* set() 
    IMMEDIATE
   
-   Set property of object, corresponding to fieldNumber, to value 
+   Set property of object, corresponding to fieldNumber, to value.
+   Returns true on success, false on failure.
 */
   set(obj, fieldNumber, value);
+
 
 /* setFields()
    IMMEDIATE

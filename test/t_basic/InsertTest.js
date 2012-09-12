@@ -30,8 +30,8 @@ var testInsert = function() {
   }
   var properties = mynode.ConnectionProperties(global.adapter);
   var annotations = mynode.Annotations();
-  annotations.mapClass(Employee,
-      {'table' : 't_basic'});
+  var mapping = annotations.newTableMapping("test.t_basic");
+  annotations.mapClass(Employee, mapping);
   var session;
   mynode.openSession(properties, annotations, function(err, session) {
     // use the session to insert an instance
