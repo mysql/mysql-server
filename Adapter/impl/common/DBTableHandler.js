@@ -160,6 +160,7 @@ function DBTableHandler(dbtable, tablemapping) {
   assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
  
   udebug.log("DBTableHandler new completed");
+  udebug.log_detail("DBTableHandler: " + JSON.stringify(this));
 }
 
 DBTableHandler.prototype = proto;     // Connect prototype to constructor
