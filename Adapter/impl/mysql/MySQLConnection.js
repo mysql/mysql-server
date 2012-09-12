@@ -55,6 +55,11 @@ function InsertOperation(sql, data) {
   this.data = data;
 }
 
+function ReadOperation(sql, keys) {
+  this.sql = sql;
+  this.keys = keys;
+}
+
 function getMetadata(dbTableHandler) {
   if (dbTableHandler.mysql) {
     return;
@@ -85,17 +90,19 @@ function createInsertSQL(dbTableHandler) {
   // loop over the columns and extract the column name
   var columnSeparator = '';
   var duplicateSeparator = '';
-  var i, column;
-  for (i = 0; i < columns.length; ++i) {
-    column = columns[i];
-    insertSQL += columnSeparator + column.name;
-    valuesSQL += columnSeparator + '?';
-    udebug.log_detail('MySQLConnection.createInsertSQL with column ' + JSON.stringify(column));
-    if (!column.isInPrimaryKey) {
-      duplicateSQL += duplicateSeparator + column.name + ' = VALUES (' + column.name + ') ';
-      duplicateSeparator = ', '
+  var i, column, field;
+  var fields = dbTableHandler.mapping.fields;
+  for (i = 0; i < fields.length; ++i) {
+    field = fields[i];
+    if (!field.notPersistent) {
+      insertSQL += columnSeparator + field.columnName;
+      valuesSQL += columnSeparator + '?';
+      columnSeparator = ', ';
+      if (!columns[field.columnNumber].isInPrimaryKey) {
+        duplicateSQL += duplicateSeparator + field.columnName + ' = VALUES (' + field.columnName + ') ';
+        duplicateSeparator = ', ';
+      }
     }
-    columnSeparator = ', ';
   }
   valuesSQL += ')';
   insertSQL += ')' + valuesSQL;
@@ -133,20 +140,22 @@ function createSelectSQL(dbTableHandler, index) {
   // create the select SQL statement from the table metadata for the named index
   var selectSQL = 'SELECT ';
   var whereSQL =   ' FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
-  // loop over the column names in order
-  var columns = dbTableHandler.dbTable.columns;
+  // loop over the mapped column names in order
   var separator = '';
   var i, j, field;
   var fields = dbTableHandler.mapping.fields;
   for (i = 0; i < fields.length; ++i) {
     field = fields[i];
-    selectSQL += separator + field.columnName;
-    separator = ', ';
+    if (!field.notPersistent) {
+      selectSQL += separator + field.columnName;
+      separator = ', ';
+    }
   }
 
   // loop over the index columns
   // find the index metadata from the dbTableHandler index section
   // loop over the columns in the index and extract the column name
+  var columns = dbTableHandler.dbTable.columns;
   var indexMetadatas = dbTableHandler.dbTable.indexes;
   separator = '';
   for (i = 0; i < indexMetadatas.length; ++i) {
@@ -163,11 +172,19 @@ function createSelectSQL(dbTableHandler, index) {
   return selectSQL;
 }
 
-exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object) {
+exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
   getMetadata(dbTableHandler);
   var insertSQL = dbTableHandler.mysql.insertSQL;
 //  var insertData = dbTableHandler.getInsertData(object);
   return new InsertOperation(insertSQL, object);
+};
+
+
+exports.DBSession.prototype.buildReadOperation = function(dbTableHandler, keys, transaction, callback) {
+  getMetadata(dbTableHandler);
+  var selectSQL = dbTableHandler.mysql.selectSQL;
+//  var insertData = dbTableHandler.getInsertData(object);
+  return new ReadOperation(selectSQL, keys);
 };
 
 
