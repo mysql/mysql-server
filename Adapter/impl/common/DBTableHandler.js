@@ -18,87 +18,49 @@
  02110-1301  USA
 */
 
-
-/*global udebug */
+/*global udebug, path, api_doc_dir */
 
 "use strict";
 
-var assert = require("assert");
+var assert = require("assert"),
+    TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
+    FieldMappingDoc = require(path.join(api_doc_dir, "FieldMapping"));
 
-/* Constructor and Prototype for TableMapping.
-   Copied from the API Documentation for Annotations.
-   FIXME Note that the prototypes (but not the constructors) could be moved
-   into api/Annotations.js
+
+/* A DBTableHandler (DBT) combines dictionary metadata with user annotations.  
+   It manages setting and getting of columns based on the fields of a 
+   user's domain object.  It can also choose an index access path by 
+   comapring user-supplied key fields of a domain object with a table's indexes.
+   
+   These are the structural parts of a DBT: 
+     * An apiTableMapping, either created explicitly in the API, or by default.
+     * A TableMetadata object, obtained from the data dictionary.
+     * The stubFields - a set of FieldMappings created implicitly by default rules. 
+     * An internal set of maps between Fields and Columns
+     
+    The apiTableMapping and TableMetadata are supplied as arguments to the 
+    constructor, which creates the maps.
+    
+    Some terms: 
+      column number: column order in table as supplied by DataDictionary
+      field number: an arbitrary ordering of only the mapped fields 
 */
-function TableMapping(dbtable) { 
-  udebug.log("DBTableHandler TableMapping constructor " + dbtable.name);
-  this.name = dbtable.name;
-  this.database = dbtable.database;
-  this.fields = [];
-}
 
-TableMapping.prototype = {
-  name                   :  ""  ,  // Table Name
-  database               :  ""  ,  // Database name
-  autoIncrementBatchSize :  1   ,  // Auto-increment prefetch batch size
-  isDefaultMapping       : true ,  // This mapping is a default mapping
-  fields                 :  {}     // array of FieldMapping objects
+/* DBT prototype */
+var proto = {
+  dbTable                : {},  // TableMetadata 
+  apiTableMapping        : {},  // TableMapping from mapClass()
+  newObjectConstructor   : {},  // constructorFunction from mapClass()  
+  stubFields             : {},  // FieldMappings constructed by default rules
+
+  fieldNameToFieldMap    : {},
+  columnNumberToFieldMap : {},
+  fieldNumberToColumnMap : {},
+  fieldNumberToFieldMap  : {}
 };
 
-TableMapping.prototype.merge = function(apiMapping) {
-  udebug.log("DBTableHandler TableMapping merge");
-  var x;
-  
-  for(x in apiMapping) {
-    if(apiMapping.hasOwnProperty(x)) {
-      switch(x) {
-        case "autoIncrementBatchSize":
-          this[x] = apiMapping[x];
-          break;
-        default:
-          break;
-      }
-    }
-  }
-};
-
-/* Constructor and Prototype for FieldMapping.
-   Copied from the API Documentation for Annotations
+/* getColumnByName() is a utility function used in the building of maps.
 */
-function FieldMapping(dbcolumn) {
-  udebug.log("DBTableHandler FieldMapping constructor: " + dbcolumn.name);
-  this.columnName = dbcolumn.name;
-  this.columnNumber = dbcolumn.columnNumber;
-}
-
-FieldMapping.prototype = {
-  fieldName     :  ""     ,  // Name of the field in the domain object
-  columnName    :  ""     ,  // Column name where this field is stored  
-  columnNumber  :  0      ,  // Column number in table 
-  actionOnNull  :  "NONE" ,  // One of NONE, ERROR, or DEFAULT
-  notPersistent : false   ,  // Boolean TRUE if this field should *not* be stored
-  converter     :  {}        // Converter class to use with this field  
-};
-
-FieldMapping.prototype.merge = function(mappedField) {
-  udebug.log("DBTableHandler FieldMapping merge");
-  var x;
-
-  for(x in mappedField) {
-    if(mappedField.hasOwnProperty(x)) {
-      switch(x) {
-        case "actionOnNull":
-        case "converter":
-          this[x] = mappedField[x];
-          break;
-        default:
-          break;
-      }
-    }
-  }
-};
-
-
 function getColumnByName(dbTable, colName) {
   udebug.log("DBTableHandler getColumnByName " + colName);
   var i, col;
@@ -109,46 +71,8 @@ function getColumnByName(dbTable, colName) {
       return col;
     }
   }
-  udebug.log("DBTableHandler getColumnByName " + colName + " NOT FOUND.");
+  udebug.log("DBTableHandler getColumnByName", colName, "NOT FOUND.");
   return null;
-}
-
-
-function createDefaultMapping(dbtable) {
-  udebug.log("DBTableHandler createDefaultMapping for table " + dbtable.name);
-  var mapping = new TableMapping(dbtable);
-  var i;
-  for(i = 0 ; i < dbtable.columns.length ; i++) {
-    mapping.fields[i] = new FieldMapping(dbtable.columns[i]);
-    mapping.fields[i].fieldName = dbtable.columns[i].name;
-  }
-  return mapping;
-}
-
-
-// TODO: Figure out error handling if the API Mapping is invalid
-
-function resolveApiMapping(dbTable, apiMapping) {
-  udebug.log("DBTableHandler resolveApiMapping for table " + dbTable.name +
-      ' mapping ' + JSON.stringify(apiMapping));
-  var mapping, field, apiField, col, i;
-
-  mapping = new TableMapping(dbTable);
-  mapping.isDefaultMapping = false;
-  mapping.merge(apiMapping);
-    
-  for(i = 0 ; i < apiMapping.fields.length ; i++) {
-    apiField = apiMapping.fields[i]; 
-    if(! apiField.notPersistent) {
-      col = getColumnByName(dbTable, apiField.name);  // WRONG!
-      /* TODO: check for null */
-      field = new FieldMapping(col);
-      field.merge(apiField);
-      mapping.fields.push(field);      
-    }
-  }
-  
-  return mapping;
 }
 
 
@@ -168,57 +92,87 @@ function resolveApiMapping(dbTable, apiMapping) {
 function DBTableHandler(dbtable, tablemapping) {
   udebug.log("DBTableHandler constructor");
   assert(arguments.length === 2);
-  var i, f;
-  if(tablemapping === null) {     // Create a default mapping
-    this.mapping = createDefaultMapping(dbtable);
-  }
-  else {                                   // Resolve the API Mapping
-    this.mapping = resolveApiMapping(dbtable, tablemapping);
-  }
-   
+  var i,               // an iterator
+      f,               // a FieldMapping
+      c,               // a ColumnMetadata
+      n,               // a field or column number
+      nMappedFields;
+
   this.dbTable = dbtable;
 
-  /* Build Convenience Maps: 
-       Only *persistent* fields are included in the maps
-  */
-  this.columnNumberToFieldMap = [];   // new array 
-  this.colMetadata = [];              // new array
-  for(i = 0 ; i < this.mapping.fields.length ; i++) {
-    f = this.mapping.fields[i];
-    if(! f.notPersistent) {
-      var colNo = f.columnNumber;
-      this.fieldNameMap[f.fieldName] = f;             // Field Name to Field
-      this.columnNameToFieldMap[f.columnName] = f;    // Column Name to Field
-      this.columnNumberToFieldMap[colNo] = f;         // Col Number to Field
-      this.colMetadata[i] = dbtable.columns[colNo];   // Field Number to Column
+  if(tablemapping) {     
+    this.apiTableMapping = tablemapping;
+  }
+  else {                                          // Create a default mapping
+    this.apiTableMapping = Object.create(TableMappingDoc.TableMapping);
+    this.apiTableMapping.name     = this.dbTable.name;
+    this.apiTableMapping.database = this.dbTable.database;
+    this.apiTableMapping.fields   = [];
+  }
+  
+  /* New Arrays */
+  this.stubFields             = [];
+  this.columnNumberToFieldMap = [];  
+  this.fieldNumberToColumnMap = [];
+  this.fieldNumberToFieldMap  = [];
+  this.fieldNameToFieldMap    = {};
+
+  /* Build the first draft of the columnNumberToFieldMap, using only the
+     explicitly mapped fields. */
+  for(i = 0 ; i < this.apiTableMapping.fields.length ; i++) {
+    f = this.apiTableMapping.fields[i];
+    if(f && ! f.NotPersistent) {
+      c = getColumnByName(this.dbTable, f.columnName);
+      if(c) {
+        n = c.columnNumber;
+        this.columnNumberToFieldMap[n] = f;
+      }
     }
   }
 
+  /* Now build the implicitly mapped fields and add them to the map */
+  if(this.apiTableMapping.mapAllColumns) {
+    for(i = 0 ; i < this.dbTable.columns.length ; i++) {
+      if(! this.columnNumberToFieldMap[i]) {
+        c = this.dbTable.columns[i];
+        f = Object.create(FieldMappingDoc.FieldMapping); // new FieldMapping
+        f.fieldName = f.columnName = c.name;
+        this.stubFields.push(f);
+        this.columnNumberToFieldMap[i] = f;
+      }
+    }
+  }
+
+  /* Total number of mapped fields */
+  nMappedFields = this.apiTableMapping.fields.length + this.stubFields.length;
+         
+  /* Build fieldNumberToColumnMap, establishing field order.
+     Also build the remaining fieldNameToFieldMap and fieldNumberToFieldMap. */
+  for(i = 0 ; i < this.dbTable.columns.length ; i++) {
+    c = this.dbTable.columns[i];
+    f = this.columnNumberToFieldMap[i];
+    if(f) {
+      this.fieldNumberToColumnMap.push(c);
+      this.fieldNumberToFieldMap.push(f);
+      this.fieldNameToFieldMap[f.fieldName] = f;
+    }
+  }  
+  assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
+ 
   udebug.log("DBTableHandler new completed");
 }
-
-var proto = {
-  dbTable                : {},
-  mapping                : {},
-  newObjectPrototype     : {},
-  fieldNameMap           : {},
-  columnNameToFieldMap   : {},
-  columnNumberToFieldMap : {},
-  colMetadata            : {}
-};
-
 
 DBTableHandler.prototype = proto;     // Connect prototype to constructor
 
 
-/* DBTableHandler.setResultPrototype(Object proto_object)
+/* DBTableHandler.setResultConstructor(constructorFunction)
    IMMEDIATE
 
-   Declare that proto_object should be used as a prototype 
+   Declare that constructorFunction and its prototype should be used
    when creating a results object for a row read from the database.
 */
-proto.setResultPrototype = function(obj) {
-  this.newObjectPrototype = obj;
+proto.setResultConstructor = function(constructorFunction) {
+  this.newObjectConstructor = constructorFunction;
 };
 
 
@@ -227,7 +181,7 @@ proto.setResultPrototype = function(obj) {
   Register a converter for a field in a domain object 
 */
 proto.registerFieldConverter = function(fieldName, converter) {
-  var f = this.fieldNameMap[fieldName];
+  var f = this.fieldNameToFieldMap[fieldName];
   if(f) {
     f.converter = converter;
   }  
@@ -240,17 +194,18 @@ proto.registerFieldConverter = function(fieldName, converter) {
 */
 proto.getMappedFieldCount = function() {
   udebug.log("DBTableHandler.js getMappedFieldCount");
-  return this.columnNumberToFieldMap.length;
+  return this.fieldNumberToColumnMap.length;
 };
+
 
 /* allColumnsMapped()
    IMMEDIATE   
    Boolean: returns True if all columns are mapped
 */
 proto.allColumnsMapped = function() {
-  // Note that this.mapping.length cannot be used here
-  return (this.dbTable.columns.length === this.columnNumberToFieldMap.length);
+  return (this.dbTable.columns.length === this.fieldNumberToColumnMap.length);
 };
+
 
 /* getColumnMetadata() 
    IMMEDIATE 
@@ -258,9 +213,8 @@ proto.allColumnsMapped = function() {
    Returns an array containing ColumnMetadata objects in field order
 */   
 proto.getColumnMetadata = function() {
-  return this.colMetadata;
+  return this.fieldNumberToColumnMap;
 };
-
 
 
 /* IndexMetadata chooseIndex(dbTableHandler, keys) 
@@ -275,9 +229,10 @@ proto.getColumnMetadata = function() {
    * mapping.
 */
 function chooseIndex(self, keys) {
+  udebug.log("DBTableHandler.js chooseIndex");
   var idxs = self.dbTable.indexes;
-  var keyFields;
-  var i, j, f, nmatches;
+  var keyFieldNames, firstIdxFieldName;
+  var i, j, f, n, index, nmatches;
   
   if(typeof keys === 'number' || typeof keys === 'string') {
     if(idxs[0].columnNumbers.length === 1) {
@@ -286,22 +241,24 @@ function chooseIndex(self, keys) {
   }
   else {
     /* Keys is an object */ 
-     keyFields = Object.keys(keys);
+     keyFieldNames = Object.keys(keys);
 
     /* First look for a unique index.  All columns must match. */
     for(i = 0 ; i < idxs.length ; i++) {
-      if(idxs[i].isUnique && idxs[i].columnNumbers.length === keyFields.length) {
-         // Each key field resolves to a column, which must be in the index
-         nmatches = 0;
-         for(j = 0 ; j < keyFields.length ; j++) {
-console.log(j, keyFields[j], self.fieldNameMap);
-          f = self.fieldNameMap[keyFields[j]];
-          if(idxs[i].columnNumbers.indexOf(f.columnNumber) >= 0) {
+      index = idxs[i];
+      if(index.isUnique && index.columnNumbers.length === keyFieldNames.length) {
+        // Each key field resolves to a column, which must be in the index
+        nmatches = 0;
+        for(j = 0 ; j < index.columnNumbers.length ; j++) {
+          n = index.columnNumbers[j];
+          f = self.columnNumberToFieldMap[n]; 
+          if(typeof keys[f.fieldName] !== 'undefined') {
             nmatches++;
           }
         }
-        if(nmatches === keyFields.length) { 
-          return idxs[i];   // bingo!
+        if(nmatches === keyFieldNames.length) { 
+          udebug.log("DBTableHandler.js chooseIndex picked unique index", i);
+          return index;   // bingo!
         }
       }    
     }
@@ -309,23 +266,27 @@ console.log(j, keyFields[j], self.fieldNameMap);
     /* Then look for an ordered index.  A prefix match is OK. */
     /* Return the first suitable index we find (which might not be the best) */
     for(i = 0 ; i < idxs.length ; i++) {
-      if(idxs[i].isOrdered && idxs[i].columnNumbers.length >= keyFields.length) {
-        // FIXME: This code may be incorrect
-        if(self.fieldNameMap[keys[keyFields[0]]]) {
-          return idxs[i];  // this is an ordered index scan
+      index = idxs[i];
+      if(index.isOrdered && index.columnNumbers.length >= keyFieldNames.length) {
+        f = self.columnNumberToFieldMap[index.columnNumbers[0]];
+        if(keyFieldNames.indexOf(f.fieldName) >= 0) {
+         udebug.log("DBTableHandler.js chooseIndex picked ordered index", i);
+         return index;  // this is an ordered index scan
         }
       }
     }
   }
 
+  udebug.log("DBTableHandler.js chooseIndex FAILED");
   return null;
 }
 
+
 /* Return the property of obj corresponding to fieldNumber */
 proto.get = function(obj, fieldNumber) { 
-  var f = this.mapping.fields[fieldNumber];
-  udebug.log("DBTableHandler get " + fieldNumber +" "+ f.fieldName);
-  return obj[f.fieldName];
+  udebug.log("DBTableHandler get", fieldNumber);
+  var f = this.fieldNumberToFieldMap[fieldNumber];
+  return f ? obj[f.fieldName] : null;
 };
 
 
@@ -341,8 +302,13 @@ proto.getFields = function(obj) {
 
 /* Set field to value */
 proto.set = function(obj, fieldNumber, value) {
-  var f = this.mapping.fields[fieldNumber];
-  obj[f.fieldName] = value;
+  udebug.log("DBTableHandler set", fieldNumber);
+  var f = this.fieldNumberToFieldMap[fieldNumber];
+  if(f) {
+    obj[f.fieldName] = value;
+    return true; 
+  }
+  return false;
 };
 
 
@@ -365,25 +331,25 @@ function DBIndexHandler(parent, dbIndex) {
 
   this.tableHandler = parent;
   this.dbIndex = dbIndex;
-    
+  this.fieldNumberToColumnMap = [];
+  this.fieldNumberToFieldMap  = [];
+  
   for(i = 0 ; i < dbIndex.columnNumbers.length ; i++) {
     colNo = dbIndex.columnNumbers[i];
-    this.mapping.fields[i] = parent.columnNumberToFieldMap[colNo];
-    this.colMetadata[i] = parent.dbTable.columns[colNo];
+    this.fieldNumberToFieldMap[i]  = parent.columnNumberToFieldMap[colNo];
+    this.fieldNumberToColumnMap[i] = parent.dbTable.columns[colNo];
   }
-  udebug.log("DBIndexHandler constructor done");
 }
 
-
 DBIndexHandler.prototype = {
-  tableHandler        : null,
-  dbIndex             : null,
-  mapping             : { fields : {} },
-  colMetadata         : {},
-  getMappedFieldCount : function() { return this.dbIndex.columnNumbers.length;},
-  get                 : proto.get,                    // inherited
-  getFields           : proto.getFields,              // inherited
-  getColumnMetadata   : proto.getColumnMetadata       // inherited
+  tableHandler           : null,
+  dbIndex                : null,
+  fieldNumberToColumnMap : null,
+  fieldNumberToFieldMap  : null,
+  getMappedFieldCount    : proto.getMappedFieldCount,    // inherited
+  get                    : proto.get,                    // inherited
+  getFields              : proto.getFields,              // inherited
+  getColumnMetadata      : proto.getColumnMetadata       // inherited
 };
 
 

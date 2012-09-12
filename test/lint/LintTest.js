@@ -27,7 +27,7 @@ var linter, skipTests;
 try      { skipTests = false; linter = require("jslint/lib/linter"); }
 catch(e) { skipTests = true; }
 
-var lintOptions = {
+var jslintOptions = {
   "vars"      : true,     // allow multiple var declarations
   "plusplus"  : true,     // ++ operators
   "white"     : true,     // misc. white space
@@ -46,7 +46,7 @@ function lintTest(basePath, sourceFile) {
 
     var e, i, n=0;
     var data = fs.readFileSync(this.sourceFile, "utf8");  
-    var result = linter.lint(data, lintOptions);
+    var result = linter.lint(data, jslintOptions);
 
     if(! result.ok) {
       console.log("Errors for "+ this.name +":");
@@ -101,6 +101,9 @@ checkSpiDoc("DBOperation");
 checkSource("api/unified_debug.js");
 checkSource("api/SessionFactory.js");
 checkSource("api/Session.js");
+checkSource("api/Annotations.js");
+checkSource("api/FieldMapping.js");
+checkSource("api/TableMapping.js");
 // checkSource("api/mynode.js");
 
 // ****** TEST FILES TO CHECK ********** //

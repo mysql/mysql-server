@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug, path, build_dir, spi_doc_dir */
+/*global assert, udebug, path, build_dir, spi_doc_dir */
 
 "use strict";
 

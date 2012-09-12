@@ -19,6 +19,11 @@
 */
 "use strict";
 
+// TODO:
+// urgent, notice, info, debug, detail
+// register javascript message listener functions
+
+
 var path = require("path"),
     util = require("util"),
     impl = require("../impl/build/Release/ndb_adapter").debug;
