@@ -55,6 +55,11 @@ function InsertOperation(sql, data) {
   this.data = data;
 }
 
+function ReadOperation(sql, keys) {
+  this.sql = sql;
+  this.keys = keys;
+}
+
 function getMetadata(dbTableHandler) {
   if (dbTableHandler.mysql) {
     return;
@@ -80,22 +85,21 @@ function createInsertSQL(dbTableHandler) {
   var insertSQL = 'INSERT INTO ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' (';
   var valuesSQL = ' VALUES (';
   var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
-  var columns = dbTableHandler.dbTable.columns;
-  udebug.log_detail('MySQLConnection.getMetadata with columns ' + JSON.stringify(columns));
+  var columns = dbTableHandler.getColumnMetadata();
+  udebug.log_detail('MySQLConnection.getMetadata with columns', JSON.stringify(columns));
   // loop over the columns and extract the column name
   var columnSeparator = '';
   var duplicateSeparator = '';
-  var i, column;
+  var i, column;  
   for (i = 0; i < columns.length; ++i) {
     column = columns[i];
     insertSQL += columnSeparator + column.name;
     valuesSQL += columnSeparator + '?';
-    udebug.log_detail('MySQLConnection.createInsertSQL with column ' + JSON.stringify(column));
+    columnSeparator = ', ';
     if (!column.isInPrimaryKey) {
       duplicateSQL += duplicateSeparator + column.name + ' = VALUES (' + column.name + ') ';
-      duplicateSeparator = ', '
+      duplicateSeparator = ', ';
     }
-    columnSeparator = ', ';
   }
   valuesSQL += ')';
   insertSQL += ')' + valuesSQL;
@@ -112,7 +116,7 @@ function createDeleteSQL(dbTableHandler, index) {
   // find the index metadata from the dbTableHandler index section
   // loop over the columns in the index and extract the column name
   var indexMetadatas = dbTableHandler.dbTable.indexes;
-  var columns = dbTableHandler.dbTable.columns;
+  var columns = dbTableHandler.getColumnMetadata();
   var separator = '';
   var i, j, indexMetadata;
   for (i = 0; i < indexMetadatas.length; ++i) {
@@ -133,14 +137,13 @@ function createSelectSQL(dbTableHandler, index) {
   // create the select SQL statement from the table metadata for the named index
   var selectSQL = 'SELECT ';
   var whereSQL =   ' FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
-  // loop over the column names in order
-  var columns = dbTableHandler.dbTable.columns;
+  // loop over the mapped column names in order
   var separator = '';
-  var i, j, field;
-  var fields = dbTableHandler.mapping.fields;
-  for (i = 0; i < fields.length; ++i) {
-    field = fields[i];
-    selectSQL += separator + field.columnName;
+  var i, j, column;
+  var columns = dbTableHandler.getColumnMetadata();
+  for (i = 0; i < columns.length; ++i) {
+    column = columns[i];
+    selectSQL += separator + column.name;
     separator = ', ';
   }
 
@@ -163,11 +166,19 @@ function createSelectSQL(dbTableHandler, index) {
   return selectSQL;
 }
 
-exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object) {
+exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
   getMetadata(dbTableHandler);
   var insertSQL = dbTableHandler.mysql.insertSQL;
 //  var insertData = dbTableHandler.getInsertData(object);
   return new InsertOperation(insertSQL, object);
+};
+
+
+exports.DBSession.prototype.buildReadOperation = function(dbTableHandler, keys, transaction, callback) {
+  getMetadata(dbTableHandler);
+  var selectSQL = dbTableHandler.mysql.selectSQL;
+//  var insertData = dbTableHandler.getInsertData(object);
+  return new ReadOperation(selectSQL, keys);
 };
 
 

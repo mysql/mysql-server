@@ -14,6 +14,7 @@
    * IMMEDIATE
    *
    * Create a new TableMapping for table tableName.
+   * tableName may be a bare table name, or fully qualified "database.table".
    */
   newTableMapping(tableName);
   

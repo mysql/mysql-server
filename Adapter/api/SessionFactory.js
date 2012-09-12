@@ -32,6 +32,7 @@ var SessionFactory = function(key, dbConnectionPool, properties, annotations, de
   this.delete_callback = delete_callback;
   this.sessions = [];
   this.tableHandlers = {};
+  this.tableMetadatas = {};
 };
 
 

@@ -21,7 +21,7 @@
 "use strict";
 
 var fieldmapping = require("./FieldMapping.js"),
-    tablemapping = require("./TableMapping.js"); 
+    tablemapping = require("./TableMapping.js");
 
 /** Annotations constructor
 */
@@ -68,12 +68,10 @@ Annotations.prototype.mapClass = function(ctor, mapping) {
 
 
 Annotations.prototype.newTableMapping = function(tableName) {
-  var mapping = Object.create(TableMappingDoc.TableMapping);
   if(! tableName) {
     throw new Error("Annotations.newTableMapping(): tableName required.");
   }
-  mapping.name = tableName;
-  return mapping;
+  return new tablemapping.TableMapping(tableName);
 };
 
 
