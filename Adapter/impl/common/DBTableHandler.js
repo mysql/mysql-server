@@ -293,7 +293,8 @@ proto.get = function(obj, fieldNumber) {
 
 /* Return an array of values in field order */
 proto.getFields = function(obj) {
-  var i, fields;
+  var i;
+  var fields = [];
   for(i = 0; i < this.getMappedFieldCount() ; i ++) {
     fields[i] = this.get(obj, i);
   }

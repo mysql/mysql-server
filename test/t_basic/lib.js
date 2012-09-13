@@ -40,6 +40,10 @@ global.fail_verify_t_basic = function(err, instance, id, testCase) {
     testCase.fail(err);
     return;
   }
+  if (typeof(instance) !== 'object') {
+    testCase.fail(new Error('Result is not valid: ' + typeof(instance)));
+    return;
+  }
   var message = '';
   if (instance.id != id) {
     message += 'fail to verify id: expected: ' + id + ', actual: ' + instance.id + '\n';
@@ -47,7 +51,7 @@ global.fail_verify_t_basic = function(err, instance, id, testCase) {
   if (instance.age != id) {
     message += 'fail to verify age: expected: ' + id + ', actual: ' + instance.age + '\n';
   }
-  if (instance.magic == id) {
+  if (instance.magic != id) {
     message += 'fail to verify magic: expected: ' + id + ', actual: ' + instance.magic + '\n';
   }
   if (instance.name !== "Employee " + id) {
