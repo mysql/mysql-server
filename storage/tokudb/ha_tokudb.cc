@@ -7693,6 +7693,17 @@ int ha_tokudb::tokudb_add_index(
         write_key_name_to_status(share->status_block, key_info[i].name, txn);
     }
     pthread_mutex_unlock(&share->mutex);
+
+    // the transaction that does either a bulk load or a hot index
+    // will need to do a checkpoint during commit, which may be
+    // expensive. This may block other threads because the commit
+    // takes place when MySQL's metadata lock is held. So,
+    // reduce the time it takes for that checkpoint to happen,
+    // we run a checkpoint right now.
+    error = db_env->txn_checkpoint(db_env, 0, 0, 0);
+    if (error) {
+        goto cleanup;
+    }
     
     error = 0;
 cleanup:
