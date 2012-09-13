@@ -1115,8 +1115,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
            event was not skipped).
         */
         if (skip_event)
+          /* Flush head,body and footer cache to result_file */
           if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)  ||
+              copy_event_cache_to_file_and_reinit(&print_event_info->footer_cache, result_file)))
             goto err;
       }
 
@@ -1151,12 +1153,13 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       ev->print(result_file, print_event_info);
       print_event_info->have_unflushed_events= TRUE;
-      /* Flush head and body cache to result_file */
+      /* Flush head,body and footer cache to result_file */
       if (stmt_end)
       {
         print_event_info->have_unflushed_events= FALSE;
         if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
+            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file) ||
+            copy_event_cache_to_file_and_reinit(&print_event_info->footer_cache, result_file))
           goto err;
         goto end;
       }

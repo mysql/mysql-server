@@ -2473,7 +2473,7 @@ void Log_event::print_base64(IO_CACHE* file,
     
     if (ev)
     {
-      ev->print_verbose(file, print_event_info);
+      ev->print_verbose(&print_event_info->footer_cache, print_event_info);
       delete ev;
     }
   }
@@ -13213,6 +13213,7 @@ st_print_event_info::st_print_event_info()
   myf const flags = MYF(MY_WME | MY_NABP);
   open_cached_file(&head_cache, NULL, NULL, 0, flags);
   open_cached_file(&body_cache, NULL, NULL, 0, flags);
+  open_cached_file(&footer_cache, NULL, NULL, 0, flags);
 }
 #endif
 
