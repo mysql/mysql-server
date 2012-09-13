@@ -127,6 +127,34 @@ public:
   SJ_TMP_TABLE *next; 
 };
 
+
+ /**
+  Executor structure for the materialized semi-join info, which contains
+   - Description of expressions selected from subquery
+   - The sj-materialization temporary table
+*/
+class Semijoin_mat_exec : public Sql_alloc
+{
+public:
+  Semijoin_mat_exec(TABLE_LIST *sj_nest, bool is_scan, uint table_count,
+                    uint mat_table_index, uint inner_table_index)
+    :sj_nest(sj_nest), is_scan(is_scan), table_count(table_count),
+     mat_table_index(mat_table_index), inner_table_index(inner_table_index),
+    table_param(), table(NULL)
+  {}
+  ~Semijoin_mat_exec()
+  {}
+  TABLE_LIST *const sj_nest;    ///< Semi-join nest for this materialization
+  const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
+  const uint table_count;       ///< Number of tables in the sj-nest
+  const uint mat_table_index;   ///< Index in join_tab for materialized table
+  const uint inner_table_index; ///< Index in join_tab for first inner table
+  TMP_TABLE_PARAM table_param;  ///< The temptable and its related info
+  TABLE *table;                 ///< Reference to temporary table
+};
+
+
+
 /**
   QEP_operation is an interface class for operations in query execution plan.
 

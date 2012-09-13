@@ -605,14 +605,15 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   {
     TABLE *table= sjm->table;
 
-    List_iterator<Item> it(*sjm->subq_exprs);
+    List_iterator<Item> it(sjm->sj_nest->nested_join->sj_inner_exprs);
     Item *item;
     while ((item= it++))
     {
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, *sjm->subq_exprs, 1, NULL);
+    fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
+                1, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))
