@@ -199,8 +199,23 @@ exports.UserContext.prototype.find = function() {
   var userContext = this;
   var tableHandler;
 
+  function findOnResult(err, dbOperation) {
+    udebug.log('UserContext.persist.findOnResult');
+    if (err) {
+      userContext.applyCallback(err, null);
+    } else {
+      var opErr = dbOperation.result.error;
+      if (opErr) {
+        userContext.applyCallback(err, null);
+      } else {
+        var result = dbOperation.result.value;
+        userContext.applyCallback(err, result);      
+      }
+    }
+  }
+
   function findOnTableHandler(err, dbTableHandler) {
-    var keys, index, op, transactionHandler, resolvedKeys;
+    var dbSession, keys, index, op, tx;
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -210,11 +225,14 @@ exports.UserContext.prototype.find = function() {
         var err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
       } else {
-//        resolvedKeys = index.resolveKeys(keys);
-//        transactionHandler = userContext.session.dbSession.createTransaction();
-//        op = userContext.session.dbSession.buildReadOperation(dbTableHandler, userContext.user_arguments[1]);
-        var err = new Error('UserContext.find using index ' + index.dbIndex.name + ' to be continued...');
-        userContext.applyCallback(err, 'this is the user Session object');      
+        // create the find operation and execute it
+        dbSession = userContext.session.dbSession;
+        tx = dbSession.createTransaction();
+        op = dbSession.buildReadOperation(index, keys, tx, findOnResult);
+        tx.executeNoCommit([op], function() {
+          // there is nothing that needs to be done here
+          console.log_detail('UserContext.find tx.execute callback.');
+        });
       }
     }
   }
@@ -231,16 +249,35 @@ exports.UserContext.prototype.find = function() {
  */
 exports.UserContext.prototype.persist = function() {
   var userContext = this;
-  var tableHandler;
-  function persistOnTableHandler(err, dbTableHandler) {
-    var op;
+  var tableHandler, tx, object, callback, op;
+
+  function persistOnResult(err, dbOperation) {
+    udebug.log('UserContext.persist.persistOnResult');
+    // return any error code plus the original user object
     if (err) {
       userContext.applyCallback(err, null);
     } else {
-    op = userContext.session.dbSession.buildInsertOperation(dbTableHandler, userContext.user_arguments[1]);
-    var err = new Error('UserContext.persist will continue after a brief intermission...');
-    userContext.applyCallback(err, null);
-    // now what
+      var opErr = dbOperation.result.error;
+      if (opErr) {
+        userContext.applyCallback(err, null);
+      } else {
+        var result = dbOperation.result.value;
+        userContext.applyCallback(err, result);      
+      }
+    }
+  }
+
+  function persistOnTableHandler(err, dbTableHandler) {
+    var op, tx, object;
+    var dbSession = userContext.session.dbSession;
+    if (err) {
+      userContext.applyCallback(err, null);
+    } else {
+      tx = dbSession.createTransaction();
+      object = userContext.user_arguments[0];
+      callback = userContext.user_callback;
+      op = dbSession.buildInsertOperation(dbTableHandler, object, tx, persistOnResult);
+      tx.executeNoCommit([op]);
     }
   }
 
