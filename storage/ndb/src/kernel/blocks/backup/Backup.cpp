@@ -89,6 +89,8 @@ Backup::execSTTOR(Signal* signal)
 
   if (startphase == 1)
   {
+    m_monitor_words_written = 0;
+    m_monitor_snapshot_start = NdbTick_CurrentMillisecond();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed_sr;
     m_overflow_disk_write = 0;
     m_reset_disk_speed_time = NdbTick_CurrentMillisecond();
@@ -107,6 +109,8 @@ Backup::execSTTOR(Signal* signal)
 
   if (startphase == 7)
   {
+    m_monitor_words_written = 0;
+    m_monitor_snapshot_start = NdbTick_CurrentMillisecond();
     m_curr_disk_write_speed = c_defaults.m_disk_write_speed;
   }
 
@@ -190,6 +194,7 @@ Backup::execCONTINUEB(Signal* signal)
   switch(Tdata0) {
   case BackupContinueB::RESET_DISK_SPEED_COUNTER:
   {
+    jam();
     /*
       Adjust for upto 10 millisecond delay of this signal. Longer
       delays will not be handled, in this case the system is most
@@ -204,8 +209,40 @@ Backup::execCONTINUEB(Signal* signal)
     NDB_TICKS curr_time = NdbTick_CurrentMillisecond();
     int sig_delay = curr_time - m_reset_disk_speed_time;
 
-    m_words_written_this_period = m_overflow_disk_write;
-    m_overflow_disk_write = 0;
+    /* If we overflowed in the last period, count it in 
+     * this new period, potentially overflowing again into
+     * future periods...
+     */
+    /* How much overflow will we 'consume' this period?
+     * +1 to ensure that in the 'period full' case we
+     * do not write any more this period
+     */
+    Uint32 overflowThisPeriod = MIN(m_overflow_disk_write, 
+                                    m_curr_disk_write_speed + 1);
+    
+    /* How much overflow remains after this period? */
+    Uint32 remainingOverFlow = m_overflow_disk_write - overflowThisPeriod;
+    
+    if (overflowThisPeriod)
+    {
+      jam();
+#ifdef DEBUG_CHECKPOINTSPEED
+      ndbout_c("Overflow of %u bytes (max/period is %u bytes)",
+               overflowThisPeriod * 4, m_curr_disk_write_speed * 4);
+#endif
+      if (remainingOverFlow)
+      {
+        jam();
+#ifdef DEBUG_CHECKPOINTSPEED
+        ndbout_c("  Extra overflow : %u bytes, will take %u further periods to clear",
+                 remainingOverFlow * 4,
+                 remainingOverFlow / m_curr_disk_write_speed);
+#endif
+      }
+    }
+
+    m_words_written_this_period = overflowThisPeriod;
+    m_overflow_disk_write = remainingOverFlow;
     m_reset_disk_speed_time = curr_time;
 
     if (sig_delay > delay_time + 10)
@@ -217,6 +254,43 @@ Backup::execCONTINUEB(Signal* signal)
     m_reset_delay_used= delay_time;
     signal->theData[0] = BackupContinueB::RESET_DISK_SPEED_COUNTER;
     sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, delay_time, 1);
+
+    {
+      /* Independent check of DiskCheckpointSpeed.
+       * We check every second or so that we are roughly sticking
+       * to our diet.
+       */
+      if (curr_time >= m_monitor_snapshot_start + 1000)
+      {
+        jam();
+        const Uint64 millisPassed = curr_time - m_monitor_snapshot_start;
+        const Uint64 periodsPassed = (millisPassed / DISK_SPEED_CHECK_DELAY) + 1;
+        const Uint64 quotaWordsPerPeriod = m_curr_disk_write_speed;
+        const Uint64 maxOverFlowWords = c_defaults.m_maxWriteSize / 4;
+        const Uint64 maxExpectedWords = (periodsPassed * quotaWordsPerPeriod) + maxOverFlowWords;
+        
+        if (unlikely(m_monitor_words_written > maxExpectedWords))
+        {
+          jam();
+          /* In the last monitoring interval, we have written more words
+           * than allowed by the quota (DiskCheckpointSpeed), including
+           * transient spikes due to a single MaxBackupWriteSize write
+           */
+          ndbout << "Backup : Excessive Backup/LCP write rate in last monitoring period - recorded = "
+                 << (m_monitor_words_written * 4 * 1000) / millisPassed
+                 << " bytes/s, configured = "
+                 << m_curr_disk_write_speed * 4 * 10
+                 << " bytes/s" << endl;
+          ndbout << "Backup : Monitoring period : " << millisPassed
+                 << " millis. Bytes written : " << m_monitor_words_written
+                 << ".  Max allowed : " << maxExpectedWords << endl;
+          ndbassert(false);
+        }
+        /* Reset the monitor */
+        m_monitor_words_written = 0;
+        m_monitor_snapshot_start = curr_time;
+      }
+    }
 #if 0
     ndbout << "Signal delay was = " << sig_delay;
     ndbout << " Current time = " << curr_time << endl;
@@ -488,6 +562,15 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
               m_curr_disk_write_speed, m_words_written_this_period, m_overflow_disk_write);
     ndbout_c("m_reset_delay_used: %u  m_reset_disk_speed_time: %llu",
              m_reset_delay_used, (Uint64)m_reset_disk_speed_time);
+    /* Dump measured rate since last snapshot start */
+    NDB_TICKS now = NdbTick_CurrentMillisecond();
+    Uint64 millisPassed = now - m_monitor_snapshot_start;
+    Uint64 byteRate = (4000 * m_monitor_words_written) / (millisPassed + 1);
+    ndbout_c("m_monitor_words_written : %llu, duration : %llu millis, rate : %llu bytes/s : (%u pct of config)",
+             m_monitor_words_written, millisPassed, 
+             byteRate,
+             (Uint32) (100 * byteRate / (4 * 10)) / m_curr_disk_write_speed);
+
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
     {
       ndbout_c("BackupRecord %u:  BackupId: %u  MasterRef: %x  ClientRef: %x",
@@ -4293,6 +4376,7 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
       completed by now.
     */
     int overflow;
+    m_monitor_words_written+= sz;
     m_words_written_this_period += sz;
     overflow = m_words_written_this_period - m_curr_disk_write_speed;
     if (overflow > 0)
