@@ -520,7 +520,7 @@ a
 b
 explain select f1 from t1 where f1 in ('a','b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	t1f1_idx	t1f1_idx	2	NULL	3	Using where; Using index
+1	SIMPLE	t1	range	t1f1_idx	t1f1_idx	2	NULL	2	Using where; Using index
 select f1 from t1 where f1 in (2,1);
 f1
 1
@@ -551,7 +551,7 @@ Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
 explain select f2 from t2 where f2 in ('a','b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index	t2f2	t2f2	5	NULL	3	Using where; Using index
+1	SIMPLE	t2	range	t2f2	t2f2	5	NULL	1	Using where; Using index
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
 Warning	1292	Truncated incorrect DOUBLE value: 'b'
