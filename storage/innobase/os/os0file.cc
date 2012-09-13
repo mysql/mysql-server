@@ -4643,8 +4643,11 @@ try_again:
 		}
 		break;
 	case OS_AIO_SYNC:
-		ut_ad(!srv_read_only_mode);
-		array = os_aio_sync_array;
+		if (srv_read_only_mode) {
+			array = os_aio_read_array;
+		} else {
+			array = os_aio_sync_array;
+		}
 
 #if defined(LINUX_NATIVE_AIO)
 		/* In Linux native AIO we don't use sync IO array. */

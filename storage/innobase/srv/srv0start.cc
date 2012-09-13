@@ -1856,7 +1856,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	/* Now overwrite the value on srv_n_file_io_threads */
-	srv_n_file_io_threads =  srv_n_read_io_threads;
+	srv_n_file_io_threads = srv_n_read_io_threads;
 
 	if (!srv_read_only_mode) {
 		/* Add the log and ibuf IO threads. */
