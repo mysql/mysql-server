@@ -135,15 +135,7 @@ args: -n DeleteRead
 
 max-time: 500
 cmd: testSpj
-args: -n LookupJoin
-
-max-time: 500
-cmd: testSpj
-args: -n ScanJoin
-
-max-time: 500
-cmd: testSpj
-args: -n MixedJoin
+args: -n FeatureDisabled T1
 
 max-time: 500
 cmd: testBasic
@@ -738,10 +730,6 @@ args: -n NFNR2 T6 T13
 max-time: 2500
 cmd: testIndex
 args: -n NFNR2_O T6 T13 
-
-max-time: 2500
-cmd: testSpj
-args: -n NF_Join T6 T13
 
 #
 # DICT TESTS

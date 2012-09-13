@@ -53,6 +53,7 @@ static const bool doPrintQueryTree = false;
 
 /* Various error codes that are not specific to NdbQuery. */
 static const int Err_MemoryAlloc = 4000;
+static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_FinaliseNotCalled = 4519;
 
@@ -703,6 +704,13 @@ NdbQueryBuilder* NdbQueryBuilder::create()
   {
     if (likely(impl->getNdbError().code == 0))
     {
+      if((!ndb_join_pushdown(ndbGetOwnVersion())))
+      {
+        /* The SPJ code is present in releases where the SPJ feature is
+         * not yet enabled.
+         */
+        impl->setErrorCode(Err_FunctionNotImplemented);
+      }
       return &impl->m_interface;
     }
     else
