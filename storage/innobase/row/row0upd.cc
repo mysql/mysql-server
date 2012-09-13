@@ -1664,6 +1664,20 @@ row_upd_sec_index_entry(
 		break;
 
 	case ROW_NOT_FOUND:
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			/* When online CREATE INDEX copied the update
+			that we already made to the clustered index,
+			and completed the secondary index creation
+			before we got here, the old secondary index
+			record would not exist. The CREATE INDEX
+			should be waiting for a MySQL meta-data lock
+			upgrade at least until this UPDATE
+			returns. After that point, the
+			TEMP_INDEX_PREFIX would be dropped from the
+			index name in commit_inplace_alter_table(). */
+			break;
+		}
+
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -2519,6 +2533,9 @@ row_upd(
 
 		return(DB_SUCCESS);
 	}
+
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "after_row_upd_clust");
 
 	do {
 		/* Skip corrupted index */
