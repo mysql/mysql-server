@@ -1,6 +1,7 @@
 import sys
 import random
 import string
+import re
 
 class Field:
     def __init__(self, name, is_nullible):
@@ -134,7 +135,12 @@ class Field_blob(Field):
 def main():
     experiments = 1000
     nrows = 10
-    random.seed(0)
+    seed = 0
+    for arg in sys.argv[1:]:
+        match = re.match("--(.*)=(.*)", arg)
+        if match:
+            exec("%s = %s" % (match.group(1),match.group(2)))
+    random.seed(seed)
     header()
     for experiment in range(experiments):
         # generate a schema
@@ -145,14 +151,10 @@ def main():
 
         # insert some rows
         for r in range(nrows):
-            print insert_row(fields)
+            print insert_row(fields) % ('t')
         print "CREATE TABLE ti LIKE t;"
         print "ALTER TABLE ti ENGINE=myisam;"
         print "INSERT INTO ti SELECT * FROM t;"
-
-        # compare tables
-        print "let $diff_tables = test.t, test.ti;"
-        print "source include/diff_tables.inc;"
 
         # change fixed column
         next_field = fields[0].next_field('')
@@ -160,17 +162,19 @@ def main():
         print "ALTER TABLE ti CHANGE COLUMN a a %s;" % (next_field.get_type())
         
         # add some more rows
-
-        # compare tables
-        print "let $diff_tables = test.t, test.ti;"
-        print "source include/diff_tables.inc;"
+        new_row = insert_row(fields)
+        print new_row % ('t')
+        print new_row % ('ti')
 
         # change variable column
         next_field = fields[3].next_field('')
         print "ALTER TABLE t CHANGE COLUMN d dd %s;" % (next_field.get_type())
         print "ALTER TABLE ti CHANGE COLUMN d dd %s;" % (next_field.get_type())        
 
-        # add some more rows
+        # add a row
+        new_row = insert_row(fields)
+        print new_row % ('t')
+        print new_row % ('ti')
 
         # compare tables
         print "let $diff_tables = test.t, test.ti;"
@@ -213,7 +217,7 @@ def create_table(fields):
     return t
 
 def insert_row(fields):
-    t = "INSERT INTO t VALUES ("
+    t = "INSERT INTO %s VALUES ("
     for i in range(len(fields)):
         f = fields[i]
         t += "%s" % (f.get_value())
