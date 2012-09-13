@@ -3310,6 +3310,16 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
           table_list.alias= table_list.table_name= schema->name;
           close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
         }
+        /**
+         * Note about get_share() / free_share() referrences:
+         *
+         *  1) All shares have a ref count related to their 'discovery' by dictionary.
+         *     (Until they are 'dropped')
+         *  2) All shares are referred by the binlog thread if its DDL operations 
+         *     should be replicated with schema events ('share->op != NULL')
+         *  3) All shares are ref counted when they are temporarily referred
+         *     inside a function. (see get_share() above)
+         */
         if (share)
         {
           pthread_mutex_lock(&share->mutex);
@@ -3324,22 +3334,20 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
               injector_ndb->dropEventOperation(share->op);
             }
             share->op= 0;
-            free_share(&share);
+            free_share(&share);   // Free binlog ref, 2)
+            DBUG_ASSERT(share);   // Still ref'ed by 1) & 3)
           }
           pthread_mutex_unlock(&share->mutex);
-          free_share(&share);
-        }
 
-        if (share)
-        {
           /*
             Free the share pointer early, ndb_create_table_from_engine()
             may delete what share is pointing to as a sideeffect
           */
           DBUG_PRINT("NDB_SHARE", ("%s early free, use_count: %u",
                                    share->key, share->use_count));
-          free_share(&share);
-          share= 0;
+          free_share(&share);   // Free temporary ref, 3)
+          DBUG_ASSERT(share);   // Still ref'ed by dict, 1)
+          share= 0;             // ndb_create_table_from_engine() will delete
         }
 
         thd_ndb_options.set(TNO_NO_LOCK_SCHEMA_OP);
@@ -3492,6 +3500,7 @@ ndb_binlog_thread_handle_schema_event_post_epoch(THD *thd,
             share->op= share->new_op;
             share->new_op= 0;
             free_share(&share);
+            DBUG_ASSERT(share);   // Should still be ref'ed
           }
           pthread_mutex_unlock(&share->mutex);
         }
