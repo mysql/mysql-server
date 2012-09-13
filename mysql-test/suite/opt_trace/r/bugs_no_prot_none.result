@@ -1697,7 +1697,7 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                               "using_mrr": false,
                                               "index_only": true,
                                               "rows": 1,
-                                              "cost": 2.21,
+                                              "cost": 1.21,
                                               "chosen": false,
                                               "cause": "cost"
                                             }
