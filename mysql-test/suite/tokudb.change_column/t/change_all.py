@@ -9,52 +9,31 @@ class Field:
         self.is_nullible = is_nullible
 
 class Field_int(Field):
+    sizes = [ 1, 2, 3, 4, 8 ]
+    next_size = [ 2, 3, 4, 8, 8 ]
+    types = [ "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT" ]
+    int_ranges = [ (0,(1<<8)-1), (0,(1<<16)-1), (0,(1<<24)-1), (0,(1<<32)-1), (0,(1<<64)-1) ]
+    uint_ranges = [ (-(1<<7), (1<<7)-1), (-(1<<15),(1<<15)-1), (-(1<<23),(1<<23)-1), (-(1<<31),(1<<31)-1), (-(1<<63),(1<<63)-1) ]
     def __init__(self, name, size, is_unsigned, is_nullible):
         Field.__init__(self, name, is_nullible)
-        assert size == 1 or size == 2 or size == 3 or size == 4 or size == 8
+        self.idx = Field_int.sizes.index(size)
         self.size = size
         self.is_unsigned = is_unsigned
-        if self.size == 1:
-            self.max_value = (1<<7)-1
-        elif self.size == 2:
-            self.max_value = (1<<15)-1
-        elif self.size == 3:
-            self.max_value = (1<<23)-1
-        elif self.size == 4:
-            self.max_value = (1<<31)-1
-        else:
-            self.max_value = (1<<63)-1
     def get_type(self):
-        if self.size == 1:
-            t = "TINYINT"
-        elif self.size == 2:
-            t = "SMALLINT"
-        elif self.size == 3:
-            t = "MEDIUMINT"
-        elif self.size == 4:
-            t = "INT"
-        else:
-            t = "BIGINT"
+        t = Field_int.types[self.idx]
         if self.is_unsigned:
             t += " UNSIGNED"
         if not self.is_nullible:
             t += " NOT NULL"
         return t
     def get_value(self):
-        return random.randint(0, self.max_value)
-    
-    def next_field(self, name):
-        if self.size == 1:
-            new_size = 2
-        elif self.size == 2:
-            new_size = 3
-        elif self.size == 3:
-            new_size = 4
-        elif self.size == 4:
-            new_size = 8
+        if self.is_unsigned:
+            r = Field_int.uint_ranges[self.idx]
         else:
-            new_size = 8
-        return Field_int(name, new_size, self.is_unsigned, self.is_nullible)
+            r = Field_int.int_ranges[self.idx]
+        return random.randint(r[0],r[1])    
+    def next_field(self, name):
+        return Field_int(name, Field_int.next_size[self.idx], self.is_unsigned, self.is_nullible)
 
 class Field_int_auto_inc(Field_int):
     def __init__(self, name, size, is_unsigned, is_nullible):
@@ -68,17 +47,14 @@ class Field_int_auto_inc(Field_int):
         return v
 
 class Field_char(Field):
+    types = [ "CHAR", "BINARY" ]
     def __init__(self, name, size, is_binary, is_nullible):
         Field.__init__(self, name, is_nullible)
         assert 0 <= size and size < 256
         self.size = size
         self.is_binary = is_binary
     def get_type(self):
-        if self.is_binary:
-            t = "BINARY"
-        else:
-            t = "CHAR"
-        t += "(%d)" % (self.size)
+        t = "%s(%d)" % (Field_char.types[self.is_binary], self.size)
         if not self.is_nullible:
             t += " NOT NULL"
         return t
@@ -92,17 +68,14 @@ class Field_char(Field):
         return "'%s'" % (s)
 
 class Field_varchar(Field):
+    types = [ "VARCHAR", "VARBINARY" ]
     def __init__(self, name, size, is_binary, is_nullible):
         Field.__init__(self, name, is_nullible)
         assert 0 <= size and size < 64*1024
         self.size= size
         self.is_binary = is_binary
     def get_type(self):
-        if self.is_binary:
-            t = "VARBINARY"
-        else:
-            t = "VARCHAR"
-        t += "(%d)" % (self.size)
+        t = "%s(%d)" % (Field_varchar.types[self.is_binary], self.size)
         if not self.is_nullible:
             t += " NOT NULL"
         return t;
