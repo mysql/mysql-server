@@ -1936,7 +1936,7 @@ cachetable_unpin_internal(
     if (attr.is_valid) {
         p->attr = attr;
     }
-    bool read_lock_grabbed = p->value_rwlock.readers();
+    bool read_lock_grabbed = p->value_rwlock.readers() != 0;
     unpin_pair(p, read_lock_grabbed);
     pair_unlock(p);
     
@@ -2121,6 +2121,10 @@ try_again:
         pair_lock(p);
         // grab expensive write lock, because we are about to do a fetch
         // off disk
+        // No one can access this pair because
+        // we hold the write list lock and we just injected
+        // the pair into the cachetable. Therefore, this lock acquisition
+        // will not block.
         p->value_rwlock.write_lock(true);
         pair_unlock(p);
         run_unlockers(unlockers); // we hold the write list_lock.
@@ -2247,7 +2251,7 @@ int toku_cachetable_get_and_pin_nonblocking (
     CACHEKEY key,
     uint32_t fullhash,
     void**value,
-    long* UU(sizep),
+    long* sizep,
     CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_FETCH_CALLBACK fetch_callback,
     CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
