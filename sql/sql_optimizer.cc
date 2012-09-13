@@ -2934,15 +2934,12 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 bool JOIN::update_equalities_for_sjm()
 {
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest= sj_list_it++))
+  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
+  Semijoin_mat_exec *sjm_exec;
+  while ((sjm_exec= it++))
   {
-    Semijoin_mat_exec *sjm_exec= sj_nest->sj_mat_exec;
-    if (sjm_exec == NULL)
-      continue;
+    TABLE_LIST *const sj_nest= sjm_exec->sj_nest;
 
-    // This is a semi-join nest with materialization strategy chosen.
     DBUG_ASSERT(!sj_nest->outer_join_nest());
     /*
       A materialized semi-join nest cannot actually be an inner part of an
@@ -2974,7 +2971,7 @@ bool JOIN::update_equalities_for_sjm()
            keyuse->key == tab->position->key->key;
            keyuse++)
       {
-        List_iterator<Item> it(*sjm_exec->subq_exprs);
+        List_iterator<Item> it(sj_nest->nested_join->sj_inner_exprs);
         Item *old;
         uint fieldno= 0;
         while ((old= it++))
