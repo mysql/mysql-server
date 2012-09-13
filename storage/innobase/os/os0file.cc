@@ -3942,12 +3942,12 @@ os_aio_init(
 			return(FALSE);
 		}
 
-		for (ulint i = 2 + n_read_segs; i < n_segments; ++i) {
+		n_segments += n_write_segs;
+
+		for (ulint i = start + n_read_segs; i < n_segments; ++i) {
 			ut_a(i < SRV_MAX_N_IO_THREADS);
 			srv_io_thread_function[i] = "write thread";
 		}
-
-		n_segments += n_write_segs;
 
 		os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
 
@@ -5691,7 +5691,8 @@ os_aio_print(
 	double		avg_bytes_read;
 
 	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
-		fprintf(file, "I/O thread %lu state: %s (%s)", (ulong) i,
+		fprintf(file, "I/O thread %lu state: %s (%s)",
+			(ulong) i,
 			srv_io_thread_op_info[i],
 			srv_io_thread_function[i]);
 

@@ -635,7 +635,7 @@ Resets the info describing an i/o thread current state. */
 UNIV_INTERN
 void
 srv_reset_io_thread_op_info()
-/*========================*/
+/*=========================*/
 {
 	for (ulint i = 0; i < UT_ARR_SIZE(srv_io_thread_op_info); ++i) {
 		srv_io_thread_op_info[i] = "not started yet";
