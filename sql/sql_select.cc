@@ -704,7 +704,6 @@ static void destroy_sj_tmp_tables(JOIN *join)
     free_tmp_table(join->thd, table);
   }
   join->sj_tmp_tables.empty();
-  join->sjm_exec_list.empty();
 }
 
 
@@ -912,6 +911,7 @@ bool JOIN::destroy()
   Semijoin_mat_exec *sjm;
   while ((sjm= sjm_list_it++))
     delete sjm;
+  sjm_exec_list.empty();
 
   keyuse.clear();
   DBUG_RETURN(test(error));
@@ -1378,14 +1378,13 @@ bool JOIN::get_best_combination()
 
       Semijoin_mat_exec *const sjm_exec=
         new (thd->mem_root)
-        Semijoin_mat_exec((pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
-                          remaining_sjm_inner, outer_target, inner_target,
-                          &sj_nest->nested_join->sj_inner_exprs);
+        Semijoin_mat_exec(sj_nest,
+                          (pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
+                          remaining_sjm_inner, outer_target, inner_target);
       if (!sjm_exec)
         DBUG_RETURN(true);
 
       (join_tab + outer_target)->sj_mat_exec= sjm_exec;
-      sj_nest->sj_mat_exec= sjm_exec;
 
       if (setup_materialized_table(join_tab + outer_target, sjm_index,
                                    pos_table, best_positions + sjm_index))
@@ -2593,7 +2592,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   const TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec;
-  const uint field_count= sjm_exec->subq_exprs->elements;
+  const uint field_count= emb_sj_nest->nested_join->sj_inner_exprs.elements;
 
   DBUG_ASSERT(inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
@@ -2616,7 +2615,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   name[len] = '\0';
   TABLE *table;
   if (!(table= create_tmp_table(thd, &sjm_exec->table_param, 
-                                *sjm_exec->subq_exprs, NULL, 
+                                emb_sj_nest->nested_join->sj_inner_exprs,
+                                NULL, 
                                 true /* distinct */, 
                                 true /* save_sum_fields */,
                                 thd->variables.option_bits |
