@@ -153,9 +153,7 @@ TableMapping.prototype.addFieldMapping = function(m) {
 */
 TableMapping.prototype.mapField = function(fieldName, columnName) {
   this.fields.push(new fieldmapping.FieldMapping(fieldName, columnName));
-}
-  
-
+};
 
 
 exports.TableMapping = TableMapping;

@@ -117,7 +117,7 @@ Handle<Value>  CharsetMap_getUTF8CharsetNumber(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
 
-  REQUIRE_ARGS_LENGTH(1);
+  REQUIRE_ARGS_LENGTH(0);
 
   typedef NativeConstMethodCall_0_<int, CharsetMap> NCALL;
 
@@ -133,7 +133,7 @@ Handle<Value>  CharsetMap_getUTF16CharsetNumber(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
 
-  REQUIRE_ARGS_LENGTH(1);
+  REQUIRE_ARGS_LENGTH(0);
 
   typedef NativeConstMethodCall_0_<int, CharsetMap> NCALL;
 

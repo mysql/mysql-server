@@ -26,7 +26,9 @@ var util = require(path.join(build_dir, "ndb_adapter.node")).ndb.util,
     charsetMap = null;
 
 function init() {
+  udebug.log("NdbTypeEncoders.js init()");
   charsetMap = new util.CharsetMap();
+  udebug.log("NdbTypeEncoders.js init() done");
 }
 
 function NdbEncoder() {}
@@ -46,9 +48,14 @@ NdbStringEncoder.prototype = {
 
 
 /* Encoder Factory for TINYINT, SMALLINT, INT  -- signed and unsigned */
-function makeIntEncoder(type) {
-  var rd_func = "read" + type + "LE";   // FIXME: BE on a big endian machine
-  var wr_func = "write" + type + "LE";
+function makeIntEncoder(type,size) {
+  type = type + String(size);
+  if(size > 8) {
+    type = type + "LE";
+  }
+  
+  var rd_func = "read" + type;
+  var wr_func = "write" + type;
 
   var enc = new NdbEncoder();
   
@@ -79,15 +86,18 @@ function pad(str, finalLen) {
 
 // write string to buffer through Charset recoder
 function strWrite(col, value, buffer, offset, length) {
-  if(! charsetMap) { init(); }
-  charsetMap.recodeIn(value, col.charsetNumber, buffer, offset, length);  
+  udebug.log("NdbTypeEncoders strWrite");
+  // if(! charsetMap) { init(); }
+  buffer.write(value, offset, length, 'ascii');
+// charsetMap.recodeIn(value, col.charsetNumber, buffer, offset, length);  
 }
 
 // read string from buffer through Charset recoder
 function strRead(col, buffer, offset, length) {
   var status, r;
-  if(! charsetMap) { init(); }
-  r = charsetMap.recodeOut(buffer, offset, length, col.charsetNumber, status);
+  // if(! charsetMap) { init(); }
+  // r = charsetMap.recodeOut(buffer, offset, length, col.charsetNumber, status);
+  r = buffer.toString('ascii', offset, offset+length);
   return r;
 }
 
@@ -107,10 +117,11 @@ CharEncoder.read = function(col, buffer, offset) {
 
 /* VARCHAR */
 var VarcharEncoder = new NdbStringEncoder();
-VarcharEncoder.lengthEncoder = makeIntEncoder("Uint8");
+VarcharEncoder.lengthEncoder = makeIntEncoder("UInt",8);
 VarcharEncoder.lengthBytes = 1;
 
 VarcharEncoder.write = function(col, value, buffer, offset) {
+  udebug.log("NdbTypeEncoders.js Encoder write");
   var len = value.length;
   this.lengthEncoder.write(col, len, buffer, offset);
   strWrite(col, value, buffer, offset + this.lengthBytes, len);
@@ -124,7 +135,7 @@ VarcharEncoder.read = function(col, buffer, offset) {
 
 /* LONGVARCHAR */
 var LongVarcharEncoder = new NdbStringEncoder();
-LongVarcharEncoder.lengthEncoder = makeIntEncoder("Uint16");
+LongVarcharEncoder.lengthEncoder = makeIntEncoder("UInt",16);
 LongVarcharEncoder.lengthBytes = 2;
 LongVarcharEncoder.write = VarcharEncoder.write;
 LongVarcharEncoder.read = VarcharEncoder.read;
@@ -132,14 +143,14 @@ LongVarcharEncoder.read = VarcharEncoder.read;
 
 var defaultTypeEncoders = [
   null,                                   // 0 
-  makeIntEncoder("Int8"),                 // 1  TINY INT
-  makeIntEncoder("Uint8"),                // 2  TINY UNSIGNED
-  makeIntEncoder("Int16"),                // 3  SMALL INT
-  makeIntEncoder("Uint16"),               // 4  SMALL UNSIGNED
+  makeIntEncoder("Int",8),                // 1  TINY INT
+  makeIntEncoder("UInt",8),               // 2  TINY UNSIGNED
+  makeIntEncoder("Int",16),               // 3  SMALL INT
+  makeIntEncoder("UInt",16),              // 4  SMALL UNSIGNED
   null,                                   // 5  MEDIUM INT
   null,                                   // 6  MEDIUM UNSIGNED
-  makeIntEncoder("Int32"),                // 7  INT
-  makeIntEncoder("Uint32"),               // 8  UNSIGNED
+  makeIntEncoder("Int",32),               // 7  INT
+  makeIntEncoder("UInt",32),              // 8  UNSIGNED
   null,                                   // 9  BIGINT
   null,                                   // 10 BIG UNSIGNED
   null,                                   // 11

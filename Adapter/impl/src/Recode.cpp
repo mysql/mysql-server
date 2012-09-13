@@ -23,11 +23,13 @@
 
 #include <NdbApi.hpp>
 #include <v8.h>
-
 #include <node_buffer.h>
 
-#include "js_wrapper_macros.h"
 #include "ndb_util/CharsetMap.hpp"
+
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
+#include "JsConverter.h"
 
 using namespace v8;
 
@@ -51,24 +53,28 @@ using namespace v8;
 
 Handle<Value> CharsetMap_recode_in(const Arguments &args) {
   HandleScope scope;
+  DEBUG_MARKER(UDEB_DEBUG);
   
   REQUIRE_ARGS_LENGTH(5);
+
+  JsValueConverter<CharsetMap *> converter(args.Holder());
+  CharsetMap * csmap = converter.toC();
   
-  CharsetMap csmap;
   int32_t lengths[2]; 
   enum { SOURCE = 0 , DEST = 1 };  // for lengths[]
-  int status = csmap.RECODE_OK;
+  int status = CharsetMap::RECODE_OK;
   int copyLen;
   
+  Local<Object> NodeBuffer = args[2]->ToObject();
   Local<String> sourceStr  = args[0]->ToString();
   int32_t cs_to            = args[1]->Int32Value();
-  char * buffer            = node::Buffer::Data(args[2]->ToObject());
+  char * buffer            = node::Buffer::Data(NodeBuffer);
   uint32_t offset          = args[3]->Uint32Value();
   lengths[DEST]            = args[4]->Int32Value();
 
   /* Source string length and charset */
-  int32_t cs_from          = csmap.getUTF16CharsetNumber();
-  lengths[SOURCE]          = sourceStr->Length() * 2;   // 2-byte chars.
+  int32_t cs_from          = csmap->getUTF16CharsetNumber();
+  lengths[SOURCE]          = sourceStr->Length();
 
   /* Special case: if the destination is 2-byte unicode, just copy directly. 
      sourceStr->Write(uint16_t * ...) might face alignment issues, so we use
@@ -80,8 +86,9 @@ Handle<Value> CharsetMap_recode_in(const Arguments &args) {
     }
     else {
       copyLen = lengths[DEST];
-      status = csmap.RECODE_BUFF_TOO_SMALL;
+      status = csmap->RECODE_BUFF_TOO_SMALL;
     }
+    DEBUG_PRINT("recodeIn() optimized path UTF16 -> UTF16 using memcpy");
     String::Value source(sourceStr);
     memcpy(buffer + offset, *source, copyLen);
     lengths[DEST] = copyLen;
@@ -91,18 +98,23 @@ Handle<Value> CharsetMap_recode_in(const Arguments &args) {
      copyLen will receive the length written in characters.
      The return value is the length written in bytes.
   */
-  else if(cs_to == csmap.getUTF8CharsetNumber()) {
+  else if(cs_to == csmap->getUTF8CharsetNumber()) {
     lengths[DEST] = sourceStr->WriteUtf8(buffer + offset, lengths[DEST], 
-                                         &copyLen, String::NO_NULL_TERMINATION);
+                                         &copyLen, 1);
     if(copyLen < sourceStr->Length()) {
-      status = csmap.RECODE_BUFF_TOO_SMALL;
+      status = CharsetMap::RECODE_BUFF_TOO_SMALL;
     }                                         
+    DEBUG_PRINT("recodeIn() UTF16 -> UTF8 using v8 WriteUtf8(): %s",
+                buffer + offset);
   }
   
   /* General case: use CharsetMap::recode() */
   else {
     String::Value source(sourceStr);
-    status = csmap.recode(lengths, cs_from, cs_to, *source, buffer + offset);
+    status = csmap->recode(lengths, cs_from, cs_to, *source, buffer + offset);
+    DEBUG_PRINT("recodeIn() UTF16 -> X using recode(%c%c%c%c...): %s", 
+                (*source)[1], (*source)[3], (*source)[5], (*source)[7],
+                buffer + offset);
   }
 
   /* Build the return value */
@@ -110,6 +122,8 @@ Handle<Value> CharsetMap_recode_in(const Arguments &args) {
   returnVal->Set(String::NewSymbol("status"), Integer::New(status));
   returnVal->Set(String::NewSymbol("lengthIn"), Integer::New(lengths[SOURCE]));
   returnVal->Set(String::NewSymbol("lengthOut"), Integer::New(lengths[DEST]));
+  returnVal->Set(String::NewSymbol("charset"), args[1]);
+  returnVal->Set(String::NewSymbol("offset"), Integer::New(offset));
   
   return scope.Close(returnVal);
 }
@@ -130,10 +144,12 @@ Handle<Value> CharsetMap_recode_out(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(5);
  
-  CharsetMap csmap;
+  JsValueConverter<CharsetMap *> converter(args.Holder());
+  CharsetMap * csmap = converter.toC();
+
   int32_t lengths[2]; 
   enum { SOURCE = 0 , DEST = 1 };  // for lengths[]
-  int status = csmap.RECODE_OK;
+  int status = CharsetMap::RECODE_OK;
 
   Local<Value> result = String::Empty();
   
@@ -145,10 +161,10 @@ Handle<Value> CharsetMap_recode_out(const Arguments &args) {
   Local<Object> statusObj  = args[4]->ToObject();
   
   /* Destination charset */
-  int32_t cs_to            = csmap.getUTF16CharsetNumber();
+  int32_t cs_to            = csmap->getUTF16CharsetNumber();
 
   /* Special case: source string is UTF-8 */
-  if(cs_from == csmap.getUTF8CharsetNumber()) {
+  if(cs_from == csmap->getUTF8CharsetNumber()) {
     result = String::New(buffer + offset, lengths[SOURCE]);
   }
 
@@ -156,13 +172,13 @@ Handle<Value> CharsetMap_recode_out(const Arguments &args) {
   else {
     lengths[DEST] = lengths[SOURCE] * 2;  
     char target[lengths[DEST]];
-    status = csmap.recode(lengths, cs_from, cs_to, buffer + offset, target);
-    if(status == csmap.RECODE_OK) {
+    status = csmap->recode(lengths, cs_from, cs_to, buffer + offset, target);
+    if(status == CharsetMap::RECODE_OK) {
       result = String::New(target, lengths[DEST]);
     }
   }
 
-  statusObj->Set(String::NewSymbol("status"), Integer::New(status));
+  // statusObj->Set(String::NewSymbol("status"), Integer::New(status));
   return scope.Close(result);
 }
 

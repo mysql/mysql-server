@@ -102,7 +102,7 @@ NdbSession.prototype.createTransaction = function() {
 };
 
 
-/* buildReadOperation(DBTableHandler table, 
+/* buildReadOperation(DBTableHandler dbt, 
                       Object ResolvedKeys,
                       DBTransactionHandler transaction,
                       function(error, DBOperation) userCallback)
@@ -113,17 +113,17 @@ NdbSession.prototype.createTransaction = function() {
 
    RETURNS a DBOperation 
 */
-NdbSession.prototype.buildReadOperation = function(table, keys,
-                                                  tx, callback) {
-  udebug.log("NdbSession buildReadOperation "+ table.name);
+NdbSession.prototype.buildReadOperation = function(dbt, keys,
+                                                   tx, callback) {
+  udebug.log("NdbSession buildReadOperation "+ dbt.dbTable.name);
   var lockMode = "SHARED";
-  var op = ndboperation.newReadOperation(tx, table, keys, lockMode);
+  var op = ndboperation.newReadOperation(tx, dbt, keys, lockMode);
   op.userCallback = callback;
   return op;
 };
 
 
-/* buildInsertOperation(DBTableHandler table, Object row,
+/* buildInsertOperation(DBTableHandler tableHandler, Object row,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE

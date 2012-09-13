@@ -27,8 +27,14 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation"));
 
 
+/* Constructors.
+   All of these use prototypes directly from the documentation.
+*/
 var DBResult = function() {};
 DBResult.prototype = doc.DBResult;
+
+var DBOperationError = function() {};
+DBOperationError.prototype = doc.DBOperationError;
 
 var DBOperation = function(opcode, tx, tableHandler) {
   assert(doc.OperationCodes.indexOf(opcode) !== -1);
@@ -42,9 +48,7 @@ var DBOperation = function(opcode, tx, tableHandler) {
   this.state        = doc.OperationStates[0];  // DEFINED
   this.result       = new DBResult();
 };
-
 DBOperation.prototype = doc.DBOperation;
-
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("NdbOperation prepare " + this.opcode);
@@ -59,6 +63,12 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       helperSpec.key_buffer = this.buffers.key;
       helperSpec.row_record = this.tableHandler.dbTable.record;
       break;
+    case 'read':
+      helperSpec.key_record = this.index.record;
+      helperSpec.key_buffer = this.buffers.key;
+      helperSpec.row_record = this.tableHandler.dbTable.record;
+      helperSpec.row_buffer = this.buffers.row;
+      break; 
   }
 
   helper = adapter.impl.DBOperationHelper(helperSpec);
@@ -66,10 +76,13 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   
   switch(this.opcode) {
     case 'insert':
-      helper.insertTuple(ndbTransaction);
+      this.ndbop = helper.insertTuple(ndbTransaction);
       break;
     case 'delete':
-      helper.deleteTuple(ndbTransaction);
+      this.ndbop = helper.deleteTuple(ndbTransaction);
+      break;
+    case 'read':
+      this.ndbop = helper.readTuple(ndbTransaction);
       break;
   }
 
@@ -118,6 +131,7 @@ function encodeRowBuffer(op) {
   udebug.log("NdbOperation encodeRowBuffer nfields", nfields);
   var col = op.tableHandler.getColumnMetadata();
   
+  // do this earlier? 
   op.buffers.row = new Buffer(row_buffer_size);
   
   for(i = 0 ; i < nfields ; i++) {  
@@ -126,6 +140,7 @@ function encodeRowBuffer(op) {
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
       encoder.write(col[i], value, op.buffers.row, offset);
+      record.setNotNull(i, op.buffers.row);
     }
     else {
       udebug.log("NdbOperation encodeRowBuffer "+ i + " NULL.");
@@ -134,18 +149,63 @@ function encodeRowBuffer(op) {
   }
 }
 
+function readResultRow(op) {
+  udebug.log("NdbOperation readResultRow");
+  var i, offset, encoder, value;
+  var dbt             = op.tableHandler;
+  // FIXME: Get the mapped record, not the table record
+  var record          = dbt.dbTable.record;
+  var nfields         = dbt.getMappedFieldCount();
+  var col             = dbt.getColumnMetadata();
+  var resultRow       = dbt.newResultObject();
+  
+  for(i = 0 ; i < nfields ; i++) {
+    offset  = record.getColumnOffset(i);
+    encoder = encoders[col[i].ndbTypeId];
+    assert(encoder);
+    value   = encoder.read(col[i], op.buffers.row, offset);
+    dbt.set(resultRow, i, value);
+  }
+
+  op.result.value = resultRow;
+  // TODO: set op.result.success and error objects
+}
+
+var completeOpHandler = 
+ { "read"   : readResultRow,
+   "insert" : null,
+   "update" : null,
+   "write"  : null,
+   "delete" : null
+ };
+
+function completeExecutedOps(txOperations) {
+  udebug.log("NdbOperation completeExecutedOps", txOperations.length);
+  var i, op, handler;
+  for(i = 0; i < txOperations.length ; i++) {
+    op = txOperations[i];
+    if(op.result !== null) {
+      op.result = new DBResult();
+      handler = completeOpHandler[op.opcode];
+      if(handler) {
+        handler(op);
+      }
+    }
+  }
+  udebug.log("NdbOperation completeExecutedOps done");
+}
 
 function newReadOperation(tx, tableHandler, keys, lockMode) {
   udebug.log("NdbOperation getReadOperation");
   assert(doc.LockModes.indexOf(lockMode) !== -1);
   var op = new DBOperation("read", tx, tableHandler);
+  var record = op.tableHandler.dbTable.record;
   op.lockMode = lockMode;
   op.keys = keys;
-  op.lockMode = lockMode;
-  op.index = tableHandler.chooseIndex(keys);
   encodeKeyBuffer(op);  
+
   /* The row buffer for a read must be allocated here, before execution */
-  op.buffers.row = new Buffer(op.tableHandler.record.getBufferSize());
+  op.buffers.row = new Buffer(record.getBufferSize());
   return op;
 }
 
@@ -172,3 +232,5 @@ exports.DBOperation = DBOperation;
 exports.newReadOperation   = newReadOperation;
 exports.newInsertOperation = newInsertOperation;
 exports.newDeleteOperation = newDeleteOperation;
+exports.completeExecutedOps = completeExecutedOps;
+

@@ -77,6 +77,7 @@ function isValidFieldMapping(m, strict) {
           return false;
         case 2:
           if(strict === true) { return false; }
+          break;
       }
     }
   }
