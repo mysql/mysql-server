@@ -188,7 +188,7 @@ struct os_aio_slot_t{
 	struct iocb	control;	/* Linux control block for aio */
 	int		n_bytes;	/* bytes written/read. */
 	int		ret;		/* AIO return code */
-#endif
+#endif /* WIN_ASYNC_IO */
 };
 
 /** The asynchronous i/o array structure */
@@ -226,7 +226,7 @@ struct os_aio_array_t{
 				order. This can be used in
 				WaitForMultipleObjects; used only in
 				Windows */
-#endif
+#endif /* __WIN__ */
 
 #if defined(LINUX_NATIVE_AIO)
 	io_context_t*		aio_ctx;
@@ -238,7 +238,7 @@ struct os_aio_array_t{
 				There is one such event for each
 				possible pending IO. The size of the
 				array is equal to n_slots. */
-#endif
+#endif /* LINUX_NATIV_AIO */
 };
 
 #if defined(LINUX_NATIVE_AIO)
@@ -854,7 +854,7 @@ os_file_opendir(
 	}
 
 	return(dir);
-#endif
+#endif /* __WIN__ */
 }
 
 /***********************************************************************//**
@@ -888,7 +888,7 @@ os_file_closedir(
 	}
 
 	return(ret);
-#endif
+#endif /* __WIN__ */
 }
 
 /***********************************************************************//**
@@ -1091,8 +1091,9 @@ os_file_create_directory(
 	if (!(rcode != 0
 	      || (GetLastError() == ERROR_ALREADY_EXISTS
 		  && !fail_if_exists))) {
-		/* failure */
-		os_file_handle_error_no_exit(pathname, "CreateDirectory", FALSE);
+
+		os_file_handle_error_no_exit(
+			pathname, "CreateDirectory", FALSE);
 
 		return(FALSE);
 	}
@@ -1111,7 +1112,7 @@ os_file_create_directory(
 	}
 
 	return (TRUE);
-#endif
+#endif /* __WIN__ */
 }
 
 /****************************************************************//**
@@ -1844,7 +1845,7 @@ loop:
 	}
 
 	return(true);
-#endif
+#endif /* __WIN__ */
 }
 
 /***********************************************************************//**
@@ -1948,7 +1949,7 @@ os_file_rename_func(
 	}
 
 	return(TRUE);
-#endif
+#endif /* __WIN__ */
 }
 
 /***********************************************************************//**
@@ -1988,7 +1989,7 @@ os_file_close_func(
 	}
 
 	return(TRUE);
-#endif
+#endif /* __WIN__ */
 }
 
 #ifdef UNIV_HOTBACKUP
@@ -2024,7 +2025,7 @@ os_file_close_no_error_handling(
 	}
 
 	return(TRUE);
-#endif
+#endif /* __WIN__ */
 }
 #endif /* UNIV_HOTBACKUP */
 
@@ -2053,7 +2054,7 @@ os_file_get_size(
 	return(offset);
 #else
 	return((os_offset_t) lseek(file, 0, SEEK_END));
-#endif
+#endif /* __WIN__ */
 }
 
 /***********************************************************************//**
@@ -4452,7 +4453,6 @@ background threads too eagerly to allow for coalescing during
 readahead requests. */
 #ifdef __WIN__
 	os_aio_array_t*	array;
-	ulint		g;
 
 	if (srv_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
@@ -4462,12 +4462,12 @@ readahead requests. */
 
 	os_aio_recommend_sleep_for_read_threads	= TRUE;
 
-	for (g = 0; g < os_aio_n_segments; g++) {
-		os_aio_get_array_and_local_segment(&array, g);
+	for (ulint i = 0; i < os_aio_n_segments; i++) {
+		os_aio_get_array_and_local_segment(&array, i);
 
 		if (array == os_aio_read_array) {
 
-			os_event_reset(os_aio_segment_wait_events[g]);
+			os_event_reset(os_aio_segment_wait_events[i]);
 		}
 	}
 #endif /* __WIN__ */
@@ -4787,9 +4787,9 @@ os_aio_windows_handle(
 	DWORD		len;
 	BOOL		retry		= FALSE;
 
-	if (segment == ULINT_UNDEFINED) {
-		array = os_aio_sync_array;
+	if (!srv_read_only_mode && segment == ULINT_UNDEFINED) {
 		segment = 0;
+		array = os_aio_sync_array;
 	} else {
 		segment = os_aio_get_array_and_local_segment(&array, segment);
 	}

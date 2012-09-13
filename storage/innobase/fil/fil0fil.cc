@@ -5325,7 +5325,7 @@ fil_aio_wait(
 #else
 		ut_error;
 		ret = 0; /* Eliminate compiler warning */
-#endif
+#endif /* WIN_ASYNC_IO */
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
@@ -5435,7 +5435,7 @@ fil_flush(
 
 				goto skip_flush;
 			}
-#endif
+#endif /* __WIN__ */
 retry:
 			if (node->n_pending_flushes > 0) {
 				/* We want to avoid calling os_file_flush() on
