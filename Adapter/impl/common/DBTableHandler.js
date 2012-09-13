@@ -322,6 +322,9 @@ DBTableHandler.prototype.get = function(obj, fieldNumber) {
 
 /* Return an array of values in field order */
 DBTableHandler.prototype.getFields = function(obj) {
+  if (typeof(obj) === 'string' || typeof(obj) === 'number') {
+    return [obj];
+  }
   var i = 0, fields = [];
   for( ; i < this.getMappedFieldCount() ; i ++) {
     fields[i] = this.get(obj, i);

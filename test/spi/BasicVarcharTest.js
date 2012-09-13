@@ -109,7 +109,8 @@ t2.runTestMethod = function do_read_op(keyObj) {
   udebug.log("BasicVarcharTest.js do_read_op");
   var test = this;
   var tx = dbSession.createTransaction();
-  var op = dbSession.buildReadOperation(dbt, keyObj, tx);
+  var index = dbt.getIndexHandler(keyObj);
+  var op = dbSession.buildReadOperation(index, keyObj, tx);
   
   tx.executeCommit([ op ], function(err, tx) {
     var op, value;
