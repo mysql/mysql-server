@@ -535,6 +535,8 @@ public:
     int alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_info *ha_alter_info, int expand_field_num);
     void print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_info);
     int setup_kc_info(TABLE *altered_table, KEY_AND_COL_INFO *kc_info);
+    int new_row_descriptor(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, uint32_t idx, DBT *row_descriptor);
+
  public:
 #endif
 #if TOKU_INCLUDE_ALTER_55
