@@ -1304,10 +1304,10 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis,
       {
         Uint32 node_id = t->getRemoteNodeId();
 #ifdef ERROR_INSERT
-        if (m_blocked.get(i))
+        if (m_blocked.get(node_id))
         {
           /* Don't pull from socket now, wait till unblocked */
-          m_blocked_with_data.set(i);
+          m_blocked_with_data.set(node_id);
           continue;
         }
 #endif
