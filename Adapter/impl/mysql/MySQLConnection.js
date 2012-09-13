@@ -52,6 +52,10 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
         console.log('MySQLConnection.transactionHandler.executeNoCommit callback');
       });
     });
+    this.executedOperations = operationsList;
+    if (typeof(transactionExecuteCallback) === 'function') {
+      transactionExecuteCallback(null, transactionHandler);
+    }
   };
 
   this.executeCommit = function(operationsList, transactionExecuteCallback) {
@@ -61,7 +65,12 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
         console.log('MySQLConnection.transactionHandler.executeCommit callback');
       });
     });
+    this.executedOperations = operationsList;
+    if (typeof(transactionExecuteCallback) === 'function') {
+      transactionExecuteCallback(null, transactionHandler);
+    }
   };
+
 };
 
 
@@ -86,6 +95,9 @@ function InsertOperation(sql, data, callback) {
   }
 
   function onInsert(err) {
+    if (typeof(op.callback) !== 'function') {
+      return;
+    }
     if (err) {
       udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + err);
       op.callback(err, null);
@@ -96,15 +108,18 @@ function InsertOperation(sql, data, callback) {
   }
   this.execute = function(connection) {
     connection.on('error', onInsertError);
-    connection.query(this.sql, this.data, this.onInsert);
+    connection.query(this.sql, this.data, onInsert);
   };
 }
 
 function ReadOperation(sql, keys, callback) {
-  console.log('MySQLConnection.dbSession.ReadOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+  udebug.log('MySQLConnection.dbSession.ReadOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
   var op = this;
 
   function onRead(err, rows) {
+    if (typeof(op.callback) !== 'function') {
+      return;
+    }
     if (err) {
       udebug.log('MySQLConnection.dbSession.ReadOperation err callback: ' + err);
       op.callback(err, op);

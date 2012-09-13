@@ -233,7 +233,7 @@ exports.UserContext.prototype.find = function() {
         op = dbSession.buildReadOperation(index, keys, tx, findOnResult);
         tx.executeNoCommit([op], function() {
           // there is nothing that needs to be done here
-          console.log_detail('UserContext.find tx.execute callback.');
+          udebug.log_detail('UserContext.find tx.execute callback.');
         });
       }
     }
