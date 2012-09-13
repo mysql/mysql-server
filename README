@@ -19,9 +19,10 @@ and "node-waf distclean" might be needed for cleaning up.
 
 DIRECTORY STRUCTURE
 -------------------
+ API-documentation              Documentation of the main API
  test/                          Test driver and test suite
+ samples/                       Sample code
  Adapter/                       The node.js adapter
- Adapter/API-documentation      Documentation of the main API
  Adapter/api                    Implementation of the top-level API
  Adapter/impl                   Low-level implementations
  Adapter/impl/ndb               Low-level MySQL Cluster native connector

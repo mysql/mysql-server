@@ -1,5 +1,6 @@
 use test;
 create table IF NOT EXISTS tbl1 (i int primary key not null, j int) engine = ndb;
+
 create table IF NOT EXISTS tbl2 (
   colbit bit(9),
   coltinyint tinyint,
@@ -48,3 +49,9 @@ create table IF NOT EXISTS tbl2 (
   unique key idxcolsmallintboth (colsmallint),
   key idxcolintunsignedcoldateusingbtree (colintunsigned, coldate)
   ) engine = ndb;
+
+create table IF NOT EXISTS tbl3 (
+  i int primary key not null,
+  c varchar(120) 
+  ) engine = ndb;
+

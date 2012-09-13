@@ -24,19 +24,18 @@
 
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ndbsession      = require("./NdbSession.js"),
-    dbOpDoc         = require(path.join(spi_doc_dir, "DBOperation")),
-    dbTxDoc         = require(path.join(spi_doc_dir, "DBTransactionHandler")),
-    proto           = dbTxDoc.DBTransactionHandler;
+    ndboperation    = require("./NdbOperation.js"),
+    doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
+    proto           = doc.DBTransactionHandler;
 
 
 function DBTransactionHandler(dbsession) {
   udebug.log("NdbTransactionHandler constructor");
   this.dbSession          = dbsession;
   this.ndbtx              = null;
-  this.state              = dbTxDoc.DBTransactionStates[0];  // DEFINED
+  this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.executedOperations = [];
 }
-
 DBTransactionHandler.prototype = proto;
 
 
@@ -71,9 +70,15 @@ function execute(self, execMode, dbOperationList, callback) {
 
   function onCompleteTx(err, result) {
     udebug.log("NdbTransactionHandler execute onCompleteTx");
+    
+    // Update our own success and error objects
+    self.error = err;
+    self.success = err ? false : true;
+    
+    /* Attach results to their operations */
+    ndboperation.completeExecutedOps(self.executedOperations);
 
-    // TODO: Update our own success and error objects
-    /* TODO: attach results to their operations */
+    /* Next callback */
     callback(err, self);
   }
 
@@ -98,7 +103,7 @@ function execute(self, execMode, dbOperationList, callback) {
     }
 
     self.ndbtx = ndbtx; 
-    self.state = dbTxDoc.DBTransactionStates[1]; // STARTED
+    self.state = doc.DBTransactionStates[1]; // STARTED
     udebug.log("NdbTransactionHandler execute onStartTx. " +
                " TC node: " + ndbtx.getConnectedNodeId() +
                " operations: " + dbOperationList.length);
@@ -140,7 +145,7 @@ proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
   
   function onExecCommit(err, dbTxHandler) {
     udebug.log("NdbTransactionHandler executeCommit onExecCommit");
-    dbTxHandler.state = dbTxDoc.DBTransactionStates[2]; // COMMITTED
+    dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
     userCallback(err, dbTxHandler);
   }
   
@@ -159,7 +164,7 @@ proto.commit = function commit(callback) {
   
   function onNdbCommit(err, result) {
     // TODO: Update our own success and error objects
-    self.state = dbTxDoc.DBTransactionStates[2]; // COMMITTED
+    self.state = doc.DBTransactionStates[2]; // COMMITTED
     callback(err, self);
   }
   
@@ -182,7 +187,7 @@ proto.rollback = function rollback(callback) {
     callback(err, self);
   }
   
-  self.state = dbTxDoc.DBTransactionStates[3]; // ROLLEDBACK
+  self.state = doc.DBTransactionStates[3]; // ROLLEDBACK
   self.ndbtx.execute(adapter.ndbapi.Rollback, adapter.ndbapi.DefaultAbortOption,
                      0, onNdbRollback);
 };

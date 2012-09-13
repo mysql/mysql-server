@@ -48,10 +48,10 @@ var assert = require("assert"),
 
 /* DBT prototype */
 var proto = {
-  dbTable                : {},  // TableMetadata 
-  mapping                : {},  // API TableMapping from mapClass()
-  newObjectConstructor   : {},  // constructorFunction from mapClass()  
-  stubFields             : {},  // FieldMappings constructed by default rules
+  dbTable                : {},    // TableMetadata 
+  mapping                : {},    // API TableMapping from mapClass()
+  newObjectConstructor   : null,  // constructorFunction from mapClass()  
+  stubFields             : null,  // FieldMappings constructed by default rules
 
   fieldNameToFieldMap    : {},
   columnNumberToFieldMap : {},
@@ -198,9 +198,11 @@ DBTableHandler.prototype.newResultObject = function() {
   }
   
   if(this.newObjectConstructor) {
+    udebug.log("DBTableHandler newResultObject calling user constructor");
     this.newObjectConstructor.call(newDomainObj);
   }
-  
+
+  udebug.log("DBTableHandler newResultObject done", newDomainObj);
   return newDomainObj;
 }
 
