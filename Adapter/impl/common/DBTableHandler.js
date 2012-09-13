@@ -98,6 +98,10 @@ function DBTableHandler(dbtable, tablemapping) {
       n,               // a field or column number
       nMappedFields;
 
+  if(! ( dbtable && dbtable.columns)) {
+    return null;
+  }
+  
   this.dbTable = dbtable;
 
   if(tablemapping) {     
@@ -172,16 +176,39 @@ DBTableHandler.prototype = proto;     // Connect prototype to constructor
    Declare that constructorFunction and its prototype should be used
    when creating a results object for a row read from the database.
 */
-proto.setResultConstructor = function(constructorFunction) {
+DBTableHandler.prototype.setResultConstructor = function(constructorFunction) {
   this.newObjectConstructor = constructorFunction;
 };
 
+
+/* DBTableHandler.newResultObject
+   IMMEDIATE
+   
+   Create a new object using the constructor function (if set).
+*/
+DBTableHandler.prototype.newResultObject = function() {
+  udebug.log("DBTableHandler newResultObject");
+  var newDomainObj;
+  
+  if(this.newObjectConstructor && this.newObjectConstructor.prototype) {
+    newDomainObj = Object.create(this.newObjectConstructor.prototype);
+  }
+  else {
+    newDomainObj = {};
+  }
+  
+  if(this.newObjectConstructor) {
+    this.newObjectConstructor.call(newDomainObj);
+  }
+  
+  return newDomainObj;
+}
 
 /* registerFieldConverter(String fieldname, Converter converter)
   IMMEDIATE
   Register a converter for a field in a domain object 
 */
-proto.registerFieldConverter = function(fieldName, converter) {
+DBTableHandler.prototype.registerFieldConverter = function(fieldName, converter) {
   var f = this.fieldNameToFieldMap[fieldName];
   if(f) {
     f.converter = converter;
@@ -193,7 +220,7 @@ proto.registerFieldConverter = function(fieldName, converter) {
    IMMEDIATE   
    Returns the number of fields mapped to columns in the table 
 */
-proto.getMappedFieldCount = function() {
+DBTableHandler.prototype.getMappedFieldCount = function() {
   udebug.log("DBTableHandler.js getMappedFieldCount");
   return this.fieldNumberToColumnMap.length;
 };
@@ -203,7 +230,7 @@ proto.getMappedFieldCount = function() {
    IMMEDIATE   
    Boolean: returns True if all columns are mapped
 */
-proto.allColumnsMapped = function() {
+DBTableHandler.prototype.allColumnsMapped = function() {
   return (this.dbTable.columns.length === this.fieldNumberToColumnMap.length);
 };
 
@@ -213,7 +240,7 @@ proto.allColumnsMapped = function() {
    
    Returns an array containing ColumnMetadata objects in field order
 */   
-proto.getColumnMetadata = function() {
+DBTableHandler.prototype.getColumnMetadata = function() {
   return this.fieldNumberToColumnMap;
 };
 
@@ -284,7 +311,7 @@ function chooseIndex(self, keys) {
 
 
 /* Return the property of obj corresponding to fieldNumber */
-proto.get = function(obj, fieldNumber) { 
+DBTableHandler.prototype.get = function(obj, fieldNumber) { 
   udebug.log("DBTableHandler get", fieldNumber);
   var f = this.fieldNumberToFieldMap[fieldNumber];
   return f ? obj[f.fieldName] : null;
@@ -292,9 +319,9 @@ proto.get = function(obj, fieldNumber) {
 
 
 /* Return an array of values in field order */
-proto.getFields = function(obj) {
-  var i, fields;
-  for(i = 0; i < this.getMappedFieldCount() ; i ++) {
+DBTableHandler.prototype.getFields = function(obj) {
+  var i = 0, fields = [];
+  for( ; i < this.getMappedFieldCount() ; i ++) {
     fields[i] = this.get(obj, i);
   }
   return fields;
@@ -302,7 +329,7 @@ proto.getFields = function(obj) {
 
 
 /* Set field to value */
-proto.set = function(obj, fieldNumber, value) {
+DBTableHandler.prototype.set = function(obj, fieldNumber, value) {
   udebug.log("DBTableHandler set", fieldNumber);
   var f = this.fieldNumberToFieldMap[fieldNumber];
   if(f) {
@@ -315,7 +342,7 @@ proto.set = function(obj, fieldNumber, value) {
 
 /* Set all member values of object according to an ordered array of fields 
 */
-proto.setFields = function(obj, values) {
+DBTableHandler.prototype.setFields = function(obj, values) {
   var i;
   for(i = 0; i < this.getMappedFieldCount() ; i ++) {
     if(values[i]) {
@@ -361,7 +388,7 @@ DBIndexHandler.prototype = {
    choose an index to use as an access path for the operation,
    and return a DBIndexHandler for that index.
 */
-proto.getIndexHandler = function(keys) {
+DBTableHandler.prototype.getIndexHandler = function(keys) {
   udebug.log("DBTableHandler getIndexHandler");
   var idx = chooseIndex(this, keys);
   var handler = null;

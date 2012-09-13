@@ -7,8 +7,7 @@
 
 /* Related objects:
    TableMetadata: as defined in api/TableMetadata
-   TableMapping:  as defined in api/Annotations 
-   FieldMapping:  as defined in api/Annotations 
+   TableMapping:  as defined in api/TableMapping 
 */
 
 
@@ -25,7 +24,7 @@
      use default converters for all data types
      perform no remapping between field names and column names
 */
-  DBTableHandler(tableMetadata, TableMapping);
+  function DBTableHandler(tableMetadata, TableMapping) {};
 
 
 /************************************************
@@ -36,7 +35,7 @@
   IMMEDIATE
   Register a converter for a field in a domain object 
 */
-  registerFieldConverter(fieldName, converter);
+  function registerFieldConverter(fieldName, converter) {};
 
 
 /* DBTableHandler.setResultConstructor(constructorFunction)
@@ -45,9 +44,17 @@
    Declare that constructorFunction and its prototype should be used
    when creating a results object for a row read from the database.
 */
-  setResultConstructor(constructorFunction);
+  function setResultConstructor(constructorFunction) {};
 
 
+/* DBTableHandler.newResultObject
+   IMMEDIATE
+   
+   Create a new object using the constructor function (if set).
+*/
+  function newResultObject() {};
+  
+  
 /************************************************
       Methods for working with mapped objects 
  ************************************************/
