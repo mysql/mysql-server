@@ -26,6 +26,7 @@
 #include <HugoQueryBuilder.hpp>
 #include <HugoQueries.hpp>
 #include <NdbSchemaCon.hpp>
+#include <ndb_version.h>
 
 static int faultToInject = 0;
 
@@ -535,6 +536,7 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 #define QRY_EMPTY_PROJECTION 4826
 
 /* Various error codes that are not specific to NdbQuery. */
+static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_WrongFieldLength = 4209;
 static const int Err_InvalidRangeNo = 4286;
@@ -560,6 +562,9 @@ public:
   static int valueTest(NDBT_Context* ctx, NDBT_Step* step)
   { return NegativeTest(ctx, step).runValueTest();}
 
+  static int featureDisabledTest(NDBT_Context* ctx, NDBT_Step* step)
+  { return NegativeTest(ctx, step).runFeatureDisabledTest();}
+
 private:
   Ndb* m_ndb;
   NdbDictionary::Dictionary* m_dictionary;
@@ -577,6 +582,7 @@ private:
   int runGraphTest() const;
   int runSetBoundTest() const;
   int runValueTest() const;
+  int runFeatureDisabledTest() const;
   // No copy.
   NegativeTest(const NegativeTest&);
   NegativeTest& operator=(const NegativeTest&);
@@ -1296,6 +1302,61 @@ NegativeTest::runValueTest() const
   return NDBT_OK;
 } // NegativeTest::runValueBoundTest()
 
+/**
+ * Check that query pushdown is disabled in older versions of the code
+ * (even if the API extensions are present in the code).
+ */
+int
+NegativeTest::runFeatureDisabledTest() const
+{
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+  
+  const NdbQueryTableScanOperationDef* const parentOperation
+    = builder->scanTable(m_nt1Tab);
+  
+  int result = NDBT_OK;
+
+  if (ndb_join_pushdown(ndbGetOwnVersion()))
+  {
+    if (parentOperation == NULL)
+    {
+      g_err << "scanTable() failed: " << builder->getNdbError()
+            << endl;
+      result = NDBT_FAILED;
+    }
+    else
+    {
+      g_info << "scanTable() succeeded in version "
+             << ndbGetOwnVersionString() << " as expected." << endl;
+    }
+  }
+  else
+  {
+    // Query pushdown should not be enabled in this version.
+    if (parentOperation != NULL)
+    {
+      g_err << "Succeeded with creating scan operation, which should not be "
+        "possible in version " << ndbGetOwnVersionString() << endl;
+      result = NDBT_FAILED;      
+    }
+    else if (builder->getNdbError().code != Err_FunctionNotImplemented)
+    {
+      g_err << "scanTable() failed with unexpected error: " 
+            << builder->getNdbError() << endl;
+      result = NDBT_FAILED;
+    }
+    else
+    {
+      g_info << "scanTable() failed in version "
+             << ndbGetOwnVersionString() << " as expected with error: " 
+             << builder->getNdbError() << endl;
+    }
+  }
+
+  builder->destroy();
+  return result;
+} // NegativeTest::runFeatureDisabledTest()
+
 static int
 dropNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -1322,6 +1383,11 @@ TESTCASE("NegativeJoin", ""){
   INITIALIZER(NegativeTest::graphTest);
   INITIALIZER(NegativeTest::setBoundTest);
   INITIALIZER(NegativeTest::valueTest);
+  FINALIZER(dropNegativeSchema);
+}
+TESTCASE("FeatureDisabled", ""){
+  INITIALIZER(createNegativeSchema);
+  INITIALIZER(NegativeTest::featureDisabledTest);
   FINALIZER(dropNegativeSchema);
 }
 TESTCASE("LookupJoin", ""){
