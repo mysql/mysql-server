@@ -146,6 +146,10 @@ cmd: testSpj
 args: -n MixedJoin
 
 max-time: 500
+cmd: testSpj
+args: -n FeatureDisabled T1
+
+max-time: 500
 cmd: testBasic
 args: -n PkReadAndLocker T6 D1 D2
 
