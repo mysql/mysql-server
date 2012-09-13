@@ -12924,11 +12924,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
    */
   if (!((share->use_count == 1) && share->util_thread))
   {
-#ifdef NDB_LOG_TRAILING_SHARE_ERRORS
     sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
                       " Moving away for safety, but possible memleak.",
                       share->key, share->use_count);
-#endif
   }
   dbug_print_open_tables();
 
