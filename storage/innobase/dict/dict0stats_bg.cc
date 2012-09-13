@@ -23,12 +23,12 @@ Code used for background table and index stats gathering.
 Created Apr 25, 2012 Vasil Dimov
 *******************************************************/
 
-#include <vector>
-
 #include "row0mysql.h"
 #include "srv0start.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+
+#include <vector>
 
 /** Minimum time interval between stats recalc for a given table */
 #define MIN_RECALC_INTERVAL	10 /* seconds */
