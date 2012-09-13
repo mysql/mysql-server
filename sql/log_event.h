@@ -792,9 +792,12 @@ typedef struct st_print_event_info
   ~st_print_event_info() {
     close_cached_file(&head_cache);
     close_cached_file(&body_cache);
+    close_cached_file(&footer_cache);
   }
   bool init_ok() /* tells if construction was successful */
-    { return my_b_inited(&head_cache) && my_b_inited(&body_cache); }
+    { return my_b_inited(&head_cache) && 
+	     my_b_inited(&body_cache) && 
+  	     my_b_inited(&footer_cache); }
 
 
   /* Settings on how to print the events */
@@ -816,12 +819,14 @@ typedef struct st_print_event_info
   table_mapping m_table_map_ignored;
 
   /*
-     These two caches are used by the row-based replication events to
+     These three caches are used by the row-based replication events to
      collect the header information and the main body of the events
-     making up a statement.
+     making up a statement and in footer section any verbose related details 
+     or comments related to the statment.
    */
   IO_CACHE head_cache;
   IO_CACHE body_cache;
+  IO_CACHE footer_cache; 
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
 } PRINT_EVENT_INFO;
