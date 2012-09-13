@@ -1201,8 +1201,6 @@ os_file_create_simple_func(
 		return((os_file_t) -1);
 	}
 
-	ibool	retry;
-
 	do {
 		/* Use default security attributes and no template file. */
 
