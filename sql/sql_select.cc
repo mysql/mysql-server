@@ -2602,7 +2602,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   */
   sjm_exec->table_param.init();
   count_field_types(select_lex, &sjm_exec->table_param,
-                    *sjm_exec->subq_exprs, false, true);
+                    emb_sj_nest->nested_join->sj_inner_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long= true;
 
   char buffer[NAME_LEN];
