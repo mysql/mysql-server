@@ -961,24 +961,24 @@ INSERT INTO t2 SELECT * FROM t1;
 # plans should be identical
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10,100) GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	a	a	5	NULL	1	Using where; Using index for group-by
+1	SIMPLE	t1	range	a	a	5	NULL	2	Using where; Using index
 EXPLAIN SELECT a, MAX(b) FROM t2 WHERE a IN (10,100) GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	a	a	5	NULL	2	Using where; Using index for group-by
+1	SIMPLE	t2	range	a	a	5	NULL	2	Using where; Using index
 FLUSH status;
 SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100) GROUP BY a;
 a	MAX(b)
 10	10
-# Should be no more than 4 reads.
+# Should be no more than 2 reads.
 SHOW status LIKE 'handler_read_key';
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	2
 FLUSH status;
 SELECT a, MAX(b) FROM t2 WHERE a IN (10, 100) GROUP BY a;
 a	MAX(b)
 10	10
-# Should be no more than 4 reads.
+# Should be no more than 2 reads.
 SHOW status LIKE 'handler_read_key';
 Variable_name	Value
-Handler_read_key	4
+Handler_read_key	2
 DROP TABLE t1, t2;
