@@ -34,30 +34,100 @@ exports.DBSession = function(pooledConnection, connectionPool) {
   }
 };
 
-exports.DBSession.prototype.TransactionHandler = function() {
+exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.isOpen = true;
+  this.dbSession = dbSession;
   this.execute = function(type, callback) {
     var err = new Error('not implemented: MySQLConnection.TransactionHandler.execute');
     callback(err, this);
   };
+
   this.close = function() {
+  };
+
+  this.executeNoCommit = function(operationsList, transactionExecuteCallback) {
+    var transactionHandler = this;
+    operationsList.forEach(function(operation) {
+      operation.execute(transactionHandler.dbSession.pooledConnection, function() {
+        console.log('MySQLConnection.transactionHandler.executeNoCommit callback');
+      });
+    });
+  };
+
+  this.executeCommit = function(operationsList, transactionExecuteCallback) {
+    var transactionHandler = this;
+    operationsList.forEach(function(operation) {
+      operation.execute(transactionHandler.dbSession.pooledConnection, function() {
+        console.log('MySQLConnection.transactionHandler.executeCommit callback');
+      });
+    });
   };
 };
 
 
 exports.DBSession.prototype.createTransaction = function() {
-  this.transactionHandler = new this.TransactionHandler();
-  return this.transactionHandler;
+  var transactionHandler = new this.TransactionHandler(this);
+  return transactionHandler;
 };
 
-function InsertOperation(sql, data) {
+function InsertOperation(sql, data, callback) {
+  udebug.log('MySQLConnection.dbSession.InsertOperation with ' + util.inspect(sql) + ' ' + util.inspect(data));
+
+  var op = this;
   this.sql = sql;
   this.data = data;
+  this.callback = callback;
+  this.result = {};
+  this.result.error = 0;
+
+  function onInsertError(err) {
+    udebug.log(err);
+    op.callback(err, null);
+  }
+
+  function onInsert(err) {
+    if (err) {
+      udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + err);
+      op.callback(err, null);
+    } else {
+      udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback.');
+      op.callback(null, op);
+    }
+  }
+  this.execute = function(connection) {
+    connection.on('error', onInsertError);
+    connection.query(this.sql, this.data, this.onInsert);
+  };
 }
 
-function ReadOperation(sql, keys) {
+function ReadOperation(sql, keys, callback) {
+  console.log('MySQLConnection.dbSession.ReadOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+  var op = this;
+
+  function onRead(err, rows) {
+    if (err) {
+      udebug.log('MySQLConnection.dbSession.ReadOperation err callback: ' + err);
+      op.callback(err, op);
+    } else {
+      if (rows.length > 1) {
+        err = new Error('Too many results from read: ' + rows.length);
+        op.callback(err, op);
+      } else {
+        udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback: ' + util.inspect(rows[0]));
+        op.result.value = rows[0];
+        op.callback(null, op);
+      }
+    }
+  }
   this.sql = sql;
   this.keys = keys;
+  this.callback = callback;
+  this.result = {};
+  this.result.error = 0;
+
+  this.execute = function(connection, callback) {
+    connection.query(this.sql, this.keys, onRead);
+  };
 }
 
 function getMetadata(dbTableHandler) {
@@ -82,7 +152,7 @@ function getMetadata(dbTableHandler) {
 
 function createInsertSQL(dbTableHandler) {
   // create the insert SQL statement from the table metadata
-  var insertSQL = 'INSERT INTO ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' (';
+  var insertSQL = 'INSERT INTO ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' (';
   var valuesSQL = ' VALUES (';
   var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
   var columns = dbTableHandler.getColumnMetadata();
@@ -112,7 +182,7 @@ function createInsertSQL(dbTableHandler) {
 
 function createDeleteSQL(dbTableHandler, index) {
   // create the delete SQL statement from the table metadata for the named index
-  var deleteSQL = 'DELETE FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
+  var deleteSQL = 'DELETE FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' WHERE ';
   // find the index metadata from the dbTableHandler index section
   // loop over the columns in the index and extract the column name
   var indexMetadatas = dbTableHandler.dbTable.indexes;
@@ -136,7 +206,7 @@ function createDeleteSQL(dbTableHandler, index) {
 function createSelectSQL(dbTableHandler, index) {
   // create the select SQL statement from the table metadata for the named index
   var selectSQL = 'SELECT ';
-  var whereSQL =   ' FROM ' + dbTableHandler.mapping.database + '.' + dbTableHandler.mapping.name + ' WHERE ';
+  var whereSQL =   ' FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' WHERE ';
   // loop over the mapped column names in order
   var separator = '';
   var i, j, column;
@@ -167,18 +237,23 @@ function createSelectSQL(dbTableHandler, index) {
 }
 
 exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
+  udebug.log_detail('MySQLConnection.dbSession.buildInsertOperation with tableHandler: ' + util.inspect(dbTableHandler) +
+      ' object: ' + util.inspect(object));
   getMetadata(dbTableHandler);
+  var fields = dbTableHandler.getFields(object);
   var insertSQL = dbTableHandler.mysql.insertSQL;
-//  var insertData = dbTableHandler.getInsertData(object);
-  return new InsertOperation(insertSQL, object);
+  return new InsertOperation(insertSQL, fields, callback);
 };
 
 
-exports.DBSession.prototype.buildReadOperation = function(dbTableHandler, keys, transaction, callback) {
+exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, transaction, callback) {
+  udebug.log_detail('MySQLConnection.dbSession.buildReadOperation with indexHandler: ' + util.inspect(dbIndexHandler) +
+      util.inspect(keys));
+  var dbTableHandler = dbIndexHandler.tableHandler;
+  var fields = dbIndexHandler.getFields(keys);
   getMetadata(dbTableHandler);
-  var selectSQL = dbTableHandler.mysql.selectSQL;
-//  var insertData = dbTableHandler.getInsertData(object);
-  return new ReadOperation(selectSQL, keys);
+  var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
+  return new ReadOperation(selectSQL, fields, callback);
 };
 
 
