@@ -2561,6 +2561,14 @@ static bool block_until_new_connection()
     DBUG_PRINT("info", ("Blocking pthread for reuse"));
     blocked_pthread_count++;
 
+    DBUG_POP();
+    /*
+      mysys_var is bound to the physical thread,
+      so make sure mysys_var->dbug is reset to a clean state
+      before picking another session in the thread cache.
+    */
+    DBUG_ASSERT( ! _db_is_pushed_());
+
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
       Delete the instrumentation for the job that just completed,
