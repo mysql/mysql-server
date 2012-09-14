@@ -4717,11 +4717,10 @@ try_again:
 				we must use the same wait mechanism as for
 				async i/o */
 
-				retval = os_aio_windows_handle(ULINT_UNDEFINED,
-							       slot->pos,
-							       &dummy_mess1,
-							       &dummy_mess2,
-							       &dummy_type);
+				retval = os_aio_windows_handle(
+					ULINT_UNDEFINED, slot->pos,
+					&dummy_mess1, &dummy_mess2,
+					&dummy_type);
 
 				return(retval);
 			}
@@ -4807,11 +4806,16 @@ os_aio_windows_handle(
 
 	n = array->n_slots / array->n_segments;
 
-	if (array == os_aio_sync_array) {
+	/* If it is a Windows SYNC IO request then we have to honour that. */
+	if (array == os_aio_sync_array
+	    || (orig_seg == ULINT_UNDEFINED && srv_read_only_mode)) {
+
 		WaitForSingleObject(
 			os_aio_array_get_nth_slot(array, pos)->handle,
 			INFINITE);
+
 		i = pos;
+
 	} else {
 		if (!srv_read_only_mode) {
 			srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
