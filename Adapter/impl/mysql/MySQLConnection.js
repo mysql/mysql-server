@@ -80,6 +80,11 @@ exports.DBSession.prototype.createTransaction = function() {
 };
 
 function InsertOperation(sql, data, callback) {
+  function translateError(code) {
+    switch(code) {
+    case 'ER_DUP_ENTRY': return 120; break;
+    }
+  }
   udebug.log('MySQLConnection.dbSession.InsertOperation with ' + util.inspect(sql) + ' ' + util.inspect(data));
 
   var op = this;
@@ -89,25 +94,28 @@ function InsertOperation(sql, data, callback) {
   this.result = {};
   this.result.error = 0;
 
-  function onInsertError(err) {
-    udebug.log(err);
-    op.callback(err, null);
-  }
+//  function onInsertError(err) {
+//    udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + util.inspect(err));
+//    op.callback(err, null);
+//  }
 
   function onInsert(err) {
-    if (typeof(op.callback) !== 'function') {
-      return;
-    }
     if (err) {
-      udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + err);
-      op.callback(err, null);
+      udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + util.inspect(err));
+      op.result.error = translateError(err.code);
+      udebug.log('MySQLConnection.dbSession.InsertOperation err code: ' + util.inspect(err.code) + ' ' + op.result.error);
+      if (typeof(op.callback) === 'function') {
+        op.callback(err, null);
+      }
     } else {
       udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback.');
-      op.callback(null, op);
+      if (typeof(op.callback) === 'function') {
+        op.callback(null, op);
+      }
     }
   }
   this.execute = function(connection) {
-    connection.on('error', onInsertError);
+//    connection.on('error', onInsertError);
     connection.query(this.sql, this.data, onInsert);
   };
 }
@@ -117,20 +125,23 @@ function ReadOperation(sql, keys, callback) {
   var op = this;
 
   function onRead(err, rows) {
-    if (typeof(op.callback) !== 'function') {
-      return;
-    }
     if (err) {
       udebug.log('MySQLConnection.dbSession.ReadOperation err callback: ' + err);
-      op.callback(err, op);
+      if (typeof(op.callback) === 'function') {
+        op.callback(err, op);
+      }
     } else {
       if (rows.length > 1) {
         err = new Error('Too many results from read: ' + rows.length);
-        op.callback(err, op);
+        if (typeof(op.callback) === 'function') {
+          op.callback(err, op);
+        }
       } else {
         udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback: ' + util.inspect(rows[0]));
         op.result.value = rows[0];
-        op.callback(null, op);
+        if (typeof(op.callback) === 'function') {
+          op.callback(null, op);
+        }
       }
     }
   }
@@ -149,16 +160,17 @@ function DeleteOperation(sql, keys, callback) {
   udebug.log('MySQLConnection.dbSession.DeleteOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
   var op = this;
 
-  function onDelete(err, rows) {
-    if (typeof(op.callback) !== 'function') {
-      return;
-    }
+  function onDelete(err) {
     if (err) {
       udebug.log('MySQLConnection.dbSession.DeleteOperation err callback: ' + err);
-      op.callback(err, op);
+      if (typeof(op.callback) === 'function') {
+        op.callback(err, op);
+      }
     } else {
       udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback.');
-      op.callback(null, op);
+      if (typeof(op.callback) === 'function') {
+        op.callback(null, op);
+      }
     }
   }
   this.sql = sql;
@@ -217,8 +229,8 @@ function createInsertSQL(dbTableHandler) {
   insertSQL += ')' + valuesSQL;
   dbTableHandler.mysql.insertSQL = insertSQL;
   dbTableHandler.mysql.duplicateSQL = insertSQL + duplicateSQL;
-  udebug.log('MySQLConnection.getMetadata insertSQL: ' + dbTableHandler.mysql.insertSQL);
-  udebug.log('MySQLConnection.getMetadata duplicateSQL: ' + dbTableHandler.mysql.duplicateSQL);
+  udebug.log_detail('MySQLConnection.getMetadata insertSQL: ' + dbTableHandler.mysql.insertSQL);
+  udebug.log_detail('MySQLConnection.getMetadata duplicateSQL: ' + dbTableHandler.mysql.duplicateSQL);
   return insertSQL;
 }
 
@@ -234,14 +246,14 @@ function createDeleteSQL(dbTableHandler, index) {
   for (i = 0; i < indexMetadatas.length; ++i) {
     if (indexMetadatas[i].name === index) {
       indexMetadata = indexMetadatas[i];
-      udebug.log('MySQLConnection.createDeleteSQL indexMetadata: ' + JSON.stringify(indexMetadata));
+      udebug.log_detail('MySQLConnection.createDeleteSQL indexMetadata: ' + JSON.stringify(indexMetadata));
       for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
         deleteSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ?';
         separator = ' AND ';
       }
     }
   }
-  udebug.log('MySQLConnection.getMetadata deleteSQL for ' + index + ': ' + deleteSQL);
+  udebug.log_detail('MySQLConnection.getMetadata deleteSQL for ' + index + ': ' + deleteSQL);
   return deleteSQL;
 }
 
@@ -274,7 +286,7 @@ function createSelectSQL(dbTableHandler, index) {
     }
   }
   selectSQL += whereSQL;
-  udebug.log('MySQLConnection.getMetadata selectSQL for ' + index + ': ' + selectSQL);
+  udebug.log_detail('MySQLConnection.getMetadata selectSQL for ' + index + ': ' + selectSQL);
   return selectSQL;
 }
 
