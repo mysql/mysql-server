@@ -5319,11 +5319,11 @@ fil_aio_wait(
 	if (srv_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
-		ret = os_aio_windows_handle(segment, 0, &fil_node,
-					    &message, &type);
+		ret = os_aio_windows_handle(
+			segment, 0, &fil_node, &message, &type);
 #elif defined(LINUX_NATIVE_AIO)
-		ret = os_aio_linux_handle(segment, &fil_node,
-					  &message, &type);
+		ret = os_aio_linux_handle(
+			segment, &fil_node, &message, &type);
 #else
 		ut_error;
 		ret = 0; /* Eliminate compiler warning */
@@ -5331,12 +5331,12 @@ fil_aio_wait(
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
-		ret = os_aio_simulated_handle(segment, &fil_node,
-					      &message, &type);
+		ret = os_aio_simulated_handle(
+			segment, &fil_node, &message, &type);
 	}
 
 	ut_a(ret);
-	if (UNIV_UNLIKELY(fil_node == NULL)) {
+	if (fil_node == NULL) {
 		ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 		return;
 	}
