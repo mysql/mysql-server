@@ -33,7 +33,7 @@ var dbtablehandler = require(path.join(spi_dir, "common", "DBTableHandler.js"));
 var dbSession = null;
 var table = null;
 var dbt = null;
-var annotations = new mynode.Annotations;
+var annotations = new mynode.Annotations();
 var mapping = annotations.newTableMapping("test.tbl3");
 mapping.mapField("id", "i");
 mapping.mapField("name", "c");
@@ -197,7 +197,11 @@ t4.checkResult = function(err, tx) {
   if(err) { t4.fail("ExecuteCommit failed: " + err);  }
   else { 
     op = tx.executedOperations.pop();
-    t4.errorIfNotEqual("Expected Henrietta", op.result.value.name, 'Henrietta');
+    if (op.result.value !== null) {
+      t4.errorIfNotEqual("Expected Henrietta", op.result.value.name, 'Henrietta');
+    } else {
+      t4.appendErrorMessage('No object found for Henrietta.');
+    }
     t4.failOnError();
   }
   tx.close();
