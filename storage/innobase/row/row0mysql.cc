@@ -1331,6 +1331,7 @@ error_exit:
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
+			ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 			goto run_again;
 		}
 
