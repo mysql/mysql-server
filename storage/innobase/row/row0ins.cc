@@ -247,9 +247,8 @@ row_ins_sec_index_entry_by_modify(
 	rec = btr_cur_get_rec(cursor);
 
 	ut_ad(!dict_index_is_clust(cursor->index));
-	ut_ad(rec_get_deleted_flag(rec,
-				   dict_table_is_comp(cursor->index->table)));
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
+	ut_ad(!entry->info_bits);
 
 	/* We know that in the alphabetical ordering, entry and rec are
 	identified. But in their binary form there may be differences if
@@ -258,6 +257,25 @@ row_ins_sec_index_entry_by_modify(
 
 	update = row_upd_build_sec_rec_difference_binary(
 		rec, cursor->index, *offsets, entry, heap);
+
+	if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
+		/* We should never insert in place of a record that
+		has not been delete-marked. The only exception is when
+		online CREATE INDEX copied the changes that we already
+		made to the clustered index, and completed the
+		secondary index creation before we got here. In this
+		case, the change would already be there. The CREATE
+		INDEX should be waiting for a MySQL meta-data lock
+		upgrade at least until this INSERT or UPDATE
+		returns. After that point, the TEMP_INDEX_PREFIX
+		would be dropped from the index name in
+		commit_inplace_alter_table(). */
+		ut_a(update->n_fields == 0);
+		ut_a(*cursor->index->name == TEMP_INDEX_PREFIX);
+		ut_ad(!dict_index_is_online_ddl(cursor->index));
+		return(DB_SUCCESS);
+	}
+
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try an optimistic updating of the record, keeping changes
 		within the page */
@@ -2847,6 +2865,15 @@ row_ins_index_entry_step(
 	ut_ad(dtuple_check_typed(node->entry));
 
 	err = row_ins_index_entry(node->index, node->entry, thr);
+
+#ifdef UNIV_DEBUG
+	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
+	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
+	if (!thr_get_trx(thr)->ddl) {
+		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+				    "after_row_ins_index_entry_step");
+	}
+#endif /* UNIV_DEBUG */
 
 	return(err);
 }
