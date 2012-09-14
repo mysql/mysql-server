@@ -98,9 +98,10 @@ t2.runTestMethod = function do_delete_op(keyObj) {
   udebug.log("InsertIntTest.js do_delete_op");
   var tx = dbSession.createTransaction();
   var thandler = new dbt.DBTableHandler(table, null);
+  var ixhandler = thandler.getIndexHandler(keyObj);
   var test = this;
 
-  var op = dbSession.buildDeleteOperation(thandler, keyObj, tx, null);
+  var op = dbSession.buildDeleteOperation(ixhandler, keyObj, tx, null);
   
   tx.executeCommit([ op ], function(err, tx) {
     tx.close();

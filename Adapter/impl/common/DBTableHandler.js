@@ -276,7 +276,7 @@ function chooseIndex(self, keys) {
     /* First look for a unique index.  All columns must match. */
     for(i = 0 ; i < idxs.length ; i++) {
       index = idxs[i];
-      if(index.isUnique && index.columnNumbers.length === keyFieldNames.length) {
+      if(index.isUnique) {
         // Each key field resolves to a column, which must be in the index
         nmatches = 0;
         for(j = 0 ; j < index.columnNumbers.length ; j++) {
@@ -286,7 +286,7 @@ function chooseIndex(self, keys) {
             nmatches++;
           }
         }
-        if(nmatches === keyFieldNames.length) { 
+        if(nmatches === index.columnNumbers.length) {
           udebug.log("DBTableHandler.js chooseIndex picked unique index", i);
           return index;   // bingo!
         }
@@ -295,9 +295,10 @@ function chooseIndex(self, keys) {
 
     /* Then look for an ordered index.  A prefix match is OK. */
     /* Return the first suitable index we find (which might not be the best) */
+    /* A better algorithm might be to return the one with the longest train of matches */
     for(i = 0 ; i < idxs.length ; i++) {
       index = idxs[i];
-      if(index.isOrdered && index.columnNumbers.length >= keyFieldNames.length) {
+      if(index.isOrdered) {
         f = self.columnNumberToFieldMap[index.columnNumbers[0]];
         if(keyFieldNames.indexOf(f.fieldName) >= 0) {
          udebug.log("DBTableHandler.js chooseIndex picked ordered index", i);

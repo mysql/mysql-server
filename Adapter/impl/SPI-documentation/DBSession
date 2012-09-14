@@ -19,21 +19,8 @@
   getConnectionPool();
 
 
-/* buildReadOperation(DBTableHandler table, 
-                      Object ResolvedKeys,
-                      DBTransactionHandler transaction,
-                      function(error, DBOperation) userCallback)
-   IMMEDIATE
-   Define an operation which when executed will fetch a row.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
-
-   RETURNS a DBOperation 
-*/
-  buildReadOperation(tableHandler, keys, transaction, callback);
-
-
-/* buildInsertOperation(DBTableHandler table, Object row,
+/* buildInsertOperation(DBTableHandler tableHandler, 
+                        Object row,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE
@@ -46,20 +33,8 @@
   buildInsertOperation(tableHandler, row, transaction, callback);
 
 
-/* buildUpdateOperation(DBTableHandler table, Object key, Object row,
-                        DBTransactionHandler transaction,
-                        function(error, DBOperation) userCallback)
-   IMMEDIATE
-   Define an operation which when executed will update a row
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
-  
-   RETURNS a DBOperation 
-*/
-  buildUpdateOperation(tableHandler, keys, row, transaction, callback);
-
-
-/* buildWriteOperation(DBTableHandler table, Object key, Object row,
+/* buildWriteOperation(DBIndexHandler dbIndexHandler, 
+                       Object row,
                        DBTransactionHandler transaction,
                        function(error, DBOperation) userCallback)
    IMMEDIATE
@@ -69,10 +44,39 @@
  
    RETURNS a DBOperation 
 */
-  buildWriteOperation(tableHandler, keys, row, transaction, callback);
+  buildWriteOperation(dbTableHandler, row, transaction, callback);
 
 
-/* buildDeleteOperation(DBTableHandler table, Object primaryKey,
+/* buildReadOperation(DBIndexHandler dbIndexHandler, 
+                      Object keys,
+                      DBTransactionHandler transaction,
+                      function(error, DBOperation) userCallback)
+   IMMEDIATE
+   Define an operation which when executed will fetch a row.
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
+
+   RETURNS a DBOperation 
+*/
+  buildReadOperation(indexHandler, keys, transaction, callback);
+                      
+
+/* buildUpdateOperation(DBIndexHandler dbIndexHandler, 
+                        Object row,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
+   IMMEDIATE
+   Define an operation which when executed will update a row
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
+  
+   RETURNS a DBOperation 
+*/
+  buildUpdateOperation(dbIndexHandler, row, transaction, callback);
+
+
+/* buildDeleteOperation(DBIndexHandler dbIndexHandler, 
+                        Object keys,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE 
@@ -82,7 +86,7 @@
  
    RETURNS a DBOperation 
 */  
-  buildDeleteOperation(tableHandler, keys, transaction, callback);
+  buildDeleteOperation(dbIndexHandler, keys, transaction, callback);
 
 
 /* createTransaction()

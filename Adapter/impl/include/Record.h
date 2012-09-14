@@ -18,6 +18,8 @@
  02110-1301  USA
 */
 
+#include "NdbApi.hpp"
+
 #pragma once
 
 class Record {

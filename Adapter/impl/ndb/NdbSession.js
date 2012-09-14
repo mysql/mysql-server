@@ -102,8 +102,8 @@ NdbSession.prototype.createTransaction = function() {
 };
 
 
-/* buildReadOperation(DBTableHandler dbt, 
-                      Object ResolvedKeys,
+/* buildReadOperation(DBIndexHandler dbIndexHandler, 
+                      Object keys,
                       DBTransactionHandler transaction,
                       function(error, DBOperation) userCallback)
    IMMEDIATE
@@ -113,17 +113,18 @@ NdbSession.prototype.createTransaction = function() {
 
    RETURNS a DBOperation 
 */
-NdbSession.prototype.buildReadOperation = function(dbt, keys,
+NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
                                                    tx, callback) {
-  udebug.log("NdbSession buildReadOperation "+ dbt.dbTable.name);
+  udebug.log("NdbSession buildReadOperation");
   var lockMode = "SHARED";
-  var op = ndboperation.newReadOperation(tx, dbt, keys, lockMode);
+  var op = ndboperation.newReadOperation(tx, dbIndexHandler, keys, lockMode);
   op.userCallback = callback;
   return op;
 };
 
 
-/* buildInsertOperation(DBTableHandler tableHandler, Object row,
+/* buildInsertOperation(DBTableHandler tableHandler, 
+                        Object row,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE
@@ -136,14 +137,54 @@ NdbSession.prototype.buildReadOperation = function(dbt, keys,
 NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                                                     tx, callback) {
   udebug.log("NdbSession buildInsertOperation " + tableHandler.dbTable.name);
-
   var op = ndboperation.newInsertOperation(tx, tableHandler, row);
   op.userCallback = callback;
   return op;
 };
 
 
-/* buildDeleteOperation(DBTableHandler table, Object primaryKey,
+/* buildWriteOperation(DBIndexHandler dbIndexHandler, 
+                       Object row,
+                       DBTransactionHandler transaction,
+                       function(error, DBOperation) userCallback)
+   IMMEDIATE
+   Define an operation which when executed will update or insert
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
+ 
+   RETURNS a DBOperation 
+*/
+NdbSession.prototype.buildWriteOperation = function(dbTableHandler, row, 
+                                                    tx, callback) {
+  udebug.log("NdbSession buildWriteOperation " + tableHandler.dbTable.name);
+  var op = ndboperation.newWriteOperation(tx, tableHandler, row);
+  op.userCallback = callback;
+  return op;
+};
+
+
+/* buildUpdateOperation(DBIndexHandler dbIndexHandler, 
+                        Object row,
+                        DBTransactionHandler transaction,
+                        function(error, DBOperation) userCallback)
+   IMMEDIATE
+   Define an operation which when executed will update a row
+   The userCallback is stored in the DBOperation, but will not be called 
+   by this layer.
+  
+   RETURNS a DBOperation 
+*/
+NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler, row, 
+                                                     tx, userData) {
+  udebug.log("NdbSession buildUpdateOperation");
+  var op = ndboperation.newUpdateOperation(tx, dbIndexHandler, row);
+  op.userCallback = userData;
+  return op;
+}
+
+
+/* buildDeleteOperation(DBIndexHandler dbIndexHandler, 
+                        Object keys,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE 
@@ -152,12 +193,12 @@ NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
    by this layer.
  
    RETURNS a DBOperation 
-*/ 
-NdbSession.prototype.buildDeleteOperation = function(tableHandler, row,
-                                                    tx, callback) {
-  udebug.log("NdbSession buildDeleteOperation " + tableHandler.dbTable.name);
+*/  
+NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
+                                                     tx, callback) {
+  udebug.log("NdbSession buildDeleteOperation");
   
-  var op = ndboperation.newDeleteOperation(tx, tableHandler, row);
+  var op = ndboperation.newDeleteOperation(tx, dbIndexHandler, keys);
   op.userCallback = callback;
   return op;
 };
