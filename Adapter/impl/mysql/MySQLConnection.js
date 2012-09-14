@@ -20,6 +20,8 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
+/*global udebug, util */
+
 "use strict";
 
 var mysql = require("mysql");
@@ -29,14 +31,21 @@ exports.DBSession = function(pooledConnection, connectionPool) {
   if (arguments.length !== 2) {
     throw new Error('Fatal internal exception: expected 2 arguments; got ' + arguments.length);
   } else {
+    if (pooledConnection === null) {
+      throw new Error('Fatal internal exception: got null for pooledConnection');
+    }
     this.pooledConnection = pooledConnection; 
     this.connectionPool = connectionPool;
   }
 };
 
 exports.DBSession.prototype.TransactionHandler = function(dbSession) {
+
+  var transactionHandler = this;
   this.isOpen = true;
   this.dbSession = dbSession;
+  this.executedOperations = [];
+
   this.execute = function(type, callback) {
     var err = new Error('not implemented: MySQLConnection.TransactionHandler.execute');
     callback(err, this);
@@ -45,30 +54,41 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.close = function() {
   };
 
-  this.executeNoCommit = function(operationsList, transactionExecuteCallback) {
-    var transactionHandler = this;
-    operationsList.forEach(function(operation) {
-      operation.execute(transactionHandler.dbSession.pooledConnection, function() {
-        console.log('MySQLConnection.transactionHandler.executeNoCommit callback');
-      });
-    });
-    this.executedOperations = operationsList;
-    if (typeof(transactionExecuteCallback) === 'function') {
-      transactionExecuteCallback(null, transactionHandler);
+  function operationCompleteCallback(completedOperation) {
+    transactionHandler.executedOperations.push(completedOperation);
+    var complete = transactionHandler.executedOperations.length;
+    if (complete === transactionHandler.numberOfOperations) {
+      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback done: ' +
+          ' completed ' + complete + ' of ' + transactionHandler.numberOfOperations);
+      if (typeof(transactionHandler.transactionExecuteCallback) === 'function') {
+        transactionHandler.transactionExecuteCallback(null, transactionHandler);
+      }
+    } else {
+      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback ' +
+          ' completed ' + complete + ' of ' + transactionHandler.numberOfOperations);
     }
+  }
+
+  this.executeNoCommit = function(operationsList, transactionExecuteCallback) {
+    transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
+    transactionHandler.numberOfOperations = operationsList.length;
+    operationsList.forEach(function(operation) {
+      if (transactionHandler.dbSession.pooledConnection === null) {
+        throw new Error('Fatal internal exception: got null for pooledConnection');
+      }
+      operation.execute(transactionHandler.dbSession.pooledConnection, operationCompleteCallback);
+    });
   };
 
   this.executeCommit = function(operationsList, transactionExecuteCallback) {
-    var transactionHandler = this;
+    transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
+    transactionHandler.numberOfOperations = operationsList.length;
     operationsList.forEach(function(operation) {
-      operation.execute(transactionHandler.dbSession.pooledConnection, function() {
-        console.log('MySQLConnection.transactionHandler.executeCommit callback');
-      });
+      if (transactionHandler.dbSession.pooledConnection === null) {
+        throw new Error('Fatal internal exception: got null for pooledConnection');
+      }
+      operation.execute(transactionHandler.dbSession.pooledConnection, operationCompleteCallback);
     });
-    this.executedOperations = operationsList;
-    if (typeof(transactionExecuteCallback) === 'function') {
-      transactionExecuteCallback(null, transactionHandler);
-    }
   };
 
 };
@@ -81,7 +101,7 @@ exports.DBSession.prototype.createTransaction = function() {
 
 exports.DBSession.translateError = function(code) {
   switch(code) {
-  case 'ER_DUP_ENTRY': return 121; break;
+  case 'ER_DUP_ENTRY': return 121;
   }  
 };
 
@@ -93,42 +113,88 @@ function InsertOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  this.result.error = 0;
+  this.result.error = {};
 
-//  function onInsertError(err) {
-//    udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + util.inspect(err));
-//    op.callback(err, null);
-//  }
-
-  function onInsert(err) {
+  function onInsert(err, status) {
     if (err) {
       udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + util.inspect(err));
-      op.result.error = exports.DBSession.translateError(err.code);
-      udebug.log('MySQLConnection.dbSession.InsertOperation err code: ' + util.inspect(err.code) + ' ' + op.result.error);
+      op.result.error.code = exports.DBSession.translateError(err.code);
+      udebug.log('MySQLConnection.dbSession.InsertOperation err code: ' + util.inspect(err.code) + 
+          ' ' + op.result.error.code);
+      op.result.success = false;
       if (typeof(op.callback) === 'function') {
         op.callback(err, null);
       }
     } else {
-      udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback.');
+      udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback: ' + JSON.stringify(status));
       op.result.success = true;
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);
       }
     }
+    // now call the transaction execution callback
+    op.operationCompleteCallback(op);
   }
-  this.execute = function(connection) {
-//    connection.on('error', onInsertError);
+
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
     connection.query(this.sql, this.data, onInsert);
+  };
+}
+
+function DeleteOperation(sql, keys, callback) {
+  udebug.log('MySQLConnection.dbSession.DeleteOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+  var op = this;
+  this.sql = sql;
+  this.keys = keys;
+  this.callback = callback;
+  this.result = {};
+  this.result.error = {};
+
+  function onDelete(err, status) {
+    if (err) {
+      udebug.log('MySQLConnection.dbSession.DeleteOperation err callback: ' + err);
+      if (typeof(op.callback) === 'function') {
+        op.callback(err, op);
+      }
+    } else {
+      udebug.log('MySQLConnection.dbSession.DeleteOperation NO ERROR callback: ' + JSON.stringify(status));
+      if (status.affectedRows === 1) {
+        op.result.success = true;
+        op.result.error.code = 0;
+      } else {
+        udebug.log('MySQLConnection.dbSession.DeleteOperation NO ERROR callback with no deleted rows');
+        op.result.success = false;
+        op.result.error.code = 120;
+      }
+      if (typeof(op.callback) === 'function') {
+        op.callback(null, op);
+      }
+    }
+    // now call the transaction execution callback
+    op.operationCompleteCallback(op);
+  }
+
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
+    connection.query(this.sql, this.keys, onDelete);
   };
 }
 
 function ReadOperation(sql, keys, callback) {
   udebug.log('MySQLConnection.dbSession.ReadOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
   var op = this;
+  this.sql = sql;
+  this.keys = keys;
+  this.callback = callback;
+  this.result = {};
+  this.result.error = {};
 
   function onRead(err, rows) {
     if (err) {
       udebug.log('MySQLConnection.dbSession.ReadOperation err callback: ' + err);
+      op.result.value = null;
+      op.result.success = false;
       if (typeof(op.callback) === 'function') {
         op.callback(err, op);
       }
@@ -142,6 +208,7 @@ function ReadOperation(sql, keys, callback) {
         udebug.log('MySQLConnection.dbSession.ReadOperation ONE RESULT callback: ' + util.inspect(rows[0]));
         op.result.value = rows[0];
         op.result.success = true;
+        op.result.error.code = 0;
         if (typeof(op.callback) === 'function') {
           op.callback(null, op);
         }
@@ -155,65 +222,54 @@ function ReadOperation(sql, keys, callback) {
         }
       }
     }
+    // now call the transaction execution callback
+    op.operationCompleteCallback(op);
   }
-  this.sql = sql;
-  this.keys = keys;
-  this.callback = callback;
-  this.result = {};
-  this.result.error = 0;
 
-  this.execute = function(connection, callback) {
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
     connection.query(this.sql, this.keys, onRead);
   };
 }
 
-function DeleteOperation(sql, keys, callback) {
-  udebug.log('MySQLConnection.dbSession.DeleteOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+function UpdateOperation(sql, keys, values, callback) {
+  udebug.log('MySQLConnection.dbSession.UpdateOperation with ' + util.inspect(sql) + ' ' + util.inspect(values) +
+      ' ' + util.inspect(keys));
   var op = this;
-
-  function onDelete(err) {
-    if (err) {
-      udebug.log('MySQLConnection.dbSession.DeleteOperation err callback: ' + err);
-      if (typeof(op.callback) === 'function') {
-        op.callback(err, op);
-      }
-    } else {
-      udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback.');
-      op.result.success = true;
-      if (typeof(op.callback) === 'function') {
-        op.callback(null, op);
-      }
-    }
-  }
   this.sql = sql;
   this.keys = keys;
+  this.values = values;
   this.callback = callback;
   this.result = {};
   this.result.error = 0;
 
-  this.execute = function(connection, callback) {
-    connection.query(this.sql, this.keys, onDelete);
-  };
-}
+  function onUpdate(err, status) {
+    if (err) {
+      udebug.log('MySQLConnection.dbSession.UpdateOperation err callback: ' + err);
+      if (typeof(op.callback) === 'function') {
+        op.callback(err, op);
+      }
+    } else {
+      udebug.log('MySQLConnection.dbSession.UpdateOperation NO ERROR callback: ' + JSON.stringify(status));
+      if (status.affectedRows === 1) {
+        op.result.success = true;
+        op.result.error = 0;
+      } else {
+        op.result.success = false;
+        op.result.error = 120;
+      }
+      if (typeof(op.callback) === 'function') {
+        op.callback(null, op);
+      }
+    }
+    // now call the transaction execution callback
+    op.operationCompleteCallback(op);
+  }
 
-function getMetadata(dbTableHandler) {
-  if (dbTableHandler.mysql) {
-    return;
-  }
-  udebug.log_detail('MySQLConnection.getMetadata with dbTableHandler ' + JSON.stringify(dbTableHandler));
-  dbTableHandler.mysql = {};
-  dbTableHandler.mysql.indexes = {};
-  dbTableHandler.mysql.deleteSQL = {};
-  dbTableHandler.mysql.selectSQL = {};
-  createInsertSQL(dbTableHandler);
-  var i, indexes, index;
-  // create a delete statement and select statement per index
-  indexes = dbTableHandler.dbTable.indexes;
-  for (i = 0; i < indexes.length; ++i) {
-    index = dbTableHandler.dbTable.indexes[i];
-    dbTableHandler.mysql.deleteSQL[index.name] = createDeleteSQL(dbTableHandler, index.name);
-    dbTableHandler.mysql.selectSQL[index.name] = createSelectSQL(dbTableHandler, index.name);
-  }
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
+    connection.query(this.sql, this.values.concat(this.keys), onUpdate);
+  };
 }
 
 function createInsertSQL(dbTableHandler) {
@@ -275,11 +331,13 @@ function createSelectSQL(dbTableHandler, index) {
   var whereSQL =   ' FROM ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' WHERE ';
   // loop over the mapped column names in order
   var separator = '';
-  var i, j, column;
-  var columns = dbTableHandler.getColumnMetadata();
-  for (i = 0; i < columns.length; ++i) {
-    column = columns[i];
-    selectSQL += separator + column.name;
+  var i, j, columns, column, fields, field;
+  columns = dbTableHandler.getColumnMetadata();
+  fields = dbTableHandler.fieldNumberToFieldMap;
+  for (i = 0; i < fields.length; ++i) {
+    field = fields[i].fieldName;
+    column = fields[i].columnName;
+    selectSQL += separator + column + ' AS ' + field;
     separator = ', ';
   }
 
@@ -300,6 +358,26 @@ function createSelectSQL(dbTableHandler, index) {
   selectSQL += whereSQL;
   udebug.log_detail('MySQLConnection.getMetadata selectSQL for ' + index + ': ' + selectSQL);
   return selectSQL;
+}
+
+function getMetadata(dbTableHandler) {
+  if (dbTableHandler.mysql) {
+    return;
+  }
+  udebug.log_detail('MySQLConnection.getMetadata with dbTableHandler ' + JSON.stringify(dbTableHandler));
+  dbTableHandler.mysql = {};
+  dbTableHandler.mysql.indexes = {};
+  dbTableHandler.mysql.deleteSQL = {};
+  dbTableHandler.mysql.selectSQL = {};
+  createInsertSQL(dbTableHandler);
+  var i, indexes, index;
+  // create a delete statement and select statement per index
+  indexes = dbTableHandler.dbTable.indexes;
+  for (i = 0; i < indexes.length; ++i) {
+    index = dbTableHandler.dbTable.indexes[i];
+    dbTableHandler.mysql.deleteSQL[index.name] = createDeleteSQL(dbTableHandler, index.name);
+    dbTableHandler.mysql.selectSQL[index.name] = createSelectSQL(dbTableHandler, index.name);
+  }
 }
 
 exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
@@ -331,6 +409,47 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
   return new ReadOperation(selectSQL, fields, callback);
+};
+
+
+exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, object, transaction, callback) {
+  udebug.log_detail('MySQLConnection.dbSession.buildUpdateOperation with indexHandler: ' + util.inspect(dbIndexHandler) +
+      util.inspect(object));
+  var dbTableHandler = dbIndexHandler.tableHandler;
+  var keyFields = dbIndexHandler.getFields(object);
+  // build the SQL Update statement along with the data values
+  var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
+  var updateWhereSQL = ' WHERE ';
+  var separatorWhereSQL = '';
+  var separatorUpdateSetSQL = '';
+  var updateFields = [];
+  // get an array of key field names
+  var keyFieldNames = [];
+  var j;
+  for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
+    keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
+  }
+  var x, columnName;
+  for (x in object) {
+    if (object.hasOwnProperty(x)) {
+      if (keyFieldNames.indexOf(x) !== -1) {
+        // add the key field to the WHERE clause
+        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
+        updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
+        separatorWhereSQL = 'AND ';
+      } else {
+        // add the value in the object to the updateFields
+        updateFields.push(object[x]);
+        // add the value field to the SET clause
+        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
+        updateSetSQL += separatorUpdateSetSQL + columnName + ' = ?';
+        separatorUpdateSetSQL = ', ';
+      }
+    }
+  }
+  updateSetSQL += updateWhereSQL;
+  udebug.log('MySQLConnection.dbSession.buildUpdateOperation SQL: ' + updateSetSQL);
+  return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
 };
 
 

@@ -116,6 +116,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       var tableMetadata;
       
       var onTableMetadata = function(err, tableMetadata) {
+        var tableHandler;
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
@@ -123,8 +124,8 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
           // put the table metadata into the table metadata map
           tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
           // we have the table metadata; now create the table handler
-          var tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, mapping);
-          if (mapping == null) {
+          tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, mapping);
+          if (mapping === null) {
             // put the default table handler into the session factory
             tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
           } else {
@@ -153,15 +154,15 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
   };
     
   // start of getTableHandler 
-  var err, mynode;
+  var err, mynode, tableHandler, tableHandlerFactory;
 
   if (typeof(tableNameOrConstructor) === 'string') {
     // parameter is a table name; look up in table name to table handler hash
-    var tableHandler = session.sessionFactory.tableHandlers[tableNameOrConstructor];
+    tableHandler = session.sessionFactory.tableHandlers[tableNameOrConstructor];
     if (typeof(tableHandler) === 'undefined') {
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
-      var tableHandlerFactory = new TableHandlerFactory(
+      tableHandlerFactory = new TableHandlerFactory(
           null, tableNameOrConstructor, session.sessionFactory, session.dbSession, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
@@ -179,7 +180,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       if (typeof(tableHandler) === 'undefined') {
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-        var tableHandlerFactory = new TableHandlerFactory(
+        tableHandlerFactory = new TableHandlerFactory(
             mynode, mynode.mapping.table, session.sessionFactory, session.dbSession, mynode.mapping, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
@@ -206,7 +207,7 @@ exports.UserContext.prototype.find = function() {
     if (err) {
       userContext.applyCallback(err, null);
     } else {
-      var opErr = dbOperation.result.error;
+      var opErr = dbOperation.result.error.code;
       if (opErr) {
         userContext.applyCallback(err, null);
       } else {
@@ -224,7 +225,7 @@ exports.UserContext.prototype.find = function() {
       keys = userContext.user_arguments[1];
       index = dbTableHandler.getIndexHandler(keys);
       if (index === null) {
-        var err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
+        err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
       } else {
         // create the find operation and execute it
