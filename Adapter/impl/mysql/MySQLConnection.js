@@ -145,6 +145,33 @@ function ReadOperation(sql, keys, callback) {
   };
 }
 
+function DeleteOperation(sql, keys, callback) {
+  udebug.log('MySQLConnection.dbSession.DeleteOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+  var op = this;
+
+  function onDelete(err, rows) {
+    if (typeof(op.callback) !== 'function') {
+      return;
+    }
+    if (err) {
+      udebug.log('MySQLConnection.dbSession.DeleteOperation err callback: ' + err);
+      op.callback(err, op);
+    } else {
+      udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback.');
+      op.callback(null, op);
+    }
+  }
+  this.sql = sql;
+  this.keys = keys;
+  this.callback = callback;
+  this.result = {};
+  this.result.error = 0;
+
+  this.execute = function(connection, callback) {
+    connection.query(this.sql, this.keys, onDelete);
+  };
+}
+
 function getMetadata(dbTableHandler) {
   if (dbTableHandler.mysql) {
     return;
@@ -258,6 +285,17 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
   var fields = dbTableHandler.getFields(object);
   var insertSQL = dbTableHandler.mysql.insertSQL;
   return new InsertOperation(insertSQL, fields, callback);
+};
+
+
+exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
+  udebug.log_detail('MySQLConnection.dbSession.buildReadOperation with indexHandler: ' + util.inspect(dbIndexHandler) +
+      util.inspect(keys));
+  var dbTableHandler = dbIndexHandler.tableHandler;
+  var fields = dbIndexHandler.getFields(keys);
+  getMetadata(dbTableHandler);
+  var deleteSQL = dbTableHandler.mysql.deleteSQL[dbIndexHandler.dbIndex.name];
+  return new DeleteOperation(deleteSQL, fields, callback);
 };
 
 

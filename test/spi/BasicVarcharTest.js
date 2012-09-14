@@ -197,7 +197,11 @@ t4.checkResult = function(err, tx) {
   if(err) { t4.fail("ExecuteCommit failed: " + err);  }
   else { 
     op = tx.executedOperations.pop();
-    t4.errorIfNotEqual("Expected Henrietta", op.result.value.name, 'Henrietta');
+    if (typeof(op.result.value) === 'object') {
+      t4.errorIfNotEqual("Expected Henrietta", op.result.value.name, 'Henrietta');
+    } else {
+      t4.appendErrorMessage('No object found for Henrietta.');
+    }
     t4.failOnError();
   }
   tx.close();
