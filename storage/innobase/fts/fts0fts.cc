@@ -3575,6 +3575,20 @@ fts_doc_fetch_by_doc_id(
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
+			/* This is used for crash recovery of table with
+			hidden DOC ID or FTS indexes. We will scan the table
+			to re-processing user table rows whose DOC ID or
+			FTS indexed documents have not been sync-ed to disc
+			during recent crash.
+			In the case that all fulltext indexes are dropped
+			for a table, we will keep the "hidden" FTS_DOC_ID
+			column, and this scan is to retreive the largest
+			DOC ID being used in the table to determine the
+			appropriate next DOC ID.
+			In the case of there exists fulltext index(es), this
+			operation will re-tokenize any docs that have not
+			been sync-ed to the disk, and re-prime the FTS
+			cached */
 			graph = fts_parse_sql(
 				NULL,
 				info,
@@ -3582,8 +3596,7 @@ fts_doc_fetch_by_doc_id(
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
 					" SELECT %s, %s FROM %s"
-					" WHERE %s > :doc_id"
-					" ORDER BY %s;\n"
+					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
 					"OPEN c;\n"
@@ -3596,7 +3609,6 @@ fts_doc_fetch_by_doc_id(
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
 					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME,
 					FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
