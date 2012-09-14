@@ -45,10 +45,11 @@ global.fail_verify_t_basic = function(err, instance, id, testCase) {
     testCase.fail(err);
     return;
   }
-  if (typeof(instance) !== 'object') {
+  if (typeof(instance) !== 'object' || instance === null) {
     testCase.fail(new Error('Result is not valid: ' + typeof(instance)));
     return;
   }
+  udebug.log_detail('lib.js instance: ' + util.inspect(instance));
   var message = '';
   if (instance.id != id) {
     message += 'fail to verify id: expected: ' + id + ', actual: ' + instance.id + '\n';
