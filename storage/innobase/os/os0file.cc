@@ -4790,7 +4790,13 @@ os_aio_windows_handle(
 	BOOL		retry		= FALSE;
 
 	if (srv_read_only_mode) {
-		segment = os_aio_get_array_and_local_segment(&array, 0);
+
+		segment = os_aio_get_array_and_local_segment(&array, orig_seg);
+
+		if (orig_seg == ULINT_UNDEFINED)
+			segment = 0;
+		}
+
 	} else if (segment == ULINT_UNDEFINED) {
 		segment = 0;
 		array = os_aio_sync_array;
