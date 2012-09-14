@@ -4793,7 +4793,7 @@ os_aio_windows_handle(
 
 		segment = os_aio_get_array_and_local_segment(&array, orig_seg);
 
-		if (orig_seg == ULINT_UNDEFINED)
+		if (orig_seg == ULINT_UNDEFINED) {
 			segment = 0;
 		}
 
