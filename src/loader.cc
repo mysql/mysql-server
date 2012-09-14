@@ -172,13 +172,8 @@ static int ft_loader_close_and_redirect(DB_LOADER *loader) {
     return r;
 }
 
-// loader_flags currently has three possible values:
-//   0                   use brt loader
-//   USE_PUTS            do not use brt loader, use log suppression mechanism (2440)
-//                       which results in recursive call here via toku_db_pre_acquire_table_lock()
-//   DB_PRELOCKED_WRITE  do not use brt loader, this is the recursive (inner) call via 
-//                       toku_db_pre_acquire_table_lock()
-int toku_loader_create_loader(DB_ENV *env, 
+
+static int create_loader(DB_ENV *env, 
                               DB_TXN *txn, 
                               DB_LOADER **blp, 
                               DB *src_db, 
@@ -186,7 +181,8 @@ int toku_loader_create_loader(DB_ENV *env,
                               DB *dbs[], 
                               uint32_t db_flags[/*N*/], 
                               uint32_t dbt_flags[/*N*/], 
-                              uint32_t loader_flags)
+                              uint32_t loader_flags,
+                              bool check_empty)
 {
     int rval;
     bool use_ft_loader = (loader_flags == 0); 
@@ -233,10 +229,12 @@ int toku_loader_create_loader(DB_ENV *env,
                 goto create_exit;
             }
         }
-        bool empty = toku_ft_is_empty_fast(dbs[i]->i->ft_handle);
-        if (!empty) {
-            rval = ENOTEMPTY;
-            goto create_exit;
+        if (check_empty) {
+            bool empty = toku_ft_is_empty_fast(dbs[i]->i->ft_handle);
+            if (!empty) {
+                rval = ENOTEMPTY;
+                goto create_exit;
+            }
         }
     }
 
@@ -315,6 +313,37 @@ int toku_loader_create_loader(DB_ENV *env,
     }
     return rval;
 }
+
+// loader_flags currently has three possible values:
+//   0                   use brt loader
+//   USE_PUTS            do not use brt loader, use log suppression mechanism (2440)
+//                       which results in recursive call here via toku_db_pre_acquire_table_lock()
+//   DB_PRELOCKED_WRITE  do not use brt loader, this is the recursive (inner) call via 
+//                       toku_db_pre_acquire_table_lock()
+int toku_loader_create_loader(DB_ENV *env, 
+                              DB_TXN *txn, 
+                              DB_LOADER **blp, 
+                              DB *src_db, 
+                              int N, 
+                              DB *dbs[], 
+                              uint32_t db_flags[/*N*/], 
+                              uint32_t dbt_flags[/*N*/], 
+                              uint32_t loader_flags)
+{
+    return create_loader(
+        env, 
+        txn, 
+        blp, 
+        src_db, 
+        N, 
+        dbs, 
+        db_flags, 
+        dbt_flags, 
+        loader_flags, 
+        true
+        );
+}
+
 
 int toku_loader_set_poll_function(DB_LOADER *loader,
                                   int (*poll_func)(void *extra, float progress),
@@ -434,7 +463,25 @@ int toku_loader_abort(DB_LOADER *loader)
 
     if (!(loader->i->loader_flags & LOADER_USE_PUTS) ) {
         r = toku_ft_loader_abort(loader->i->ft_loader, true);
+        lazy_assert_zero(r);
     }
+
+    DB_LOADER* tmp_loader = NULL;
+    r = create_loader(
+        loader->i->env,
+        loader->i->txn,
+        &tmp_loader,
+        loader->i->src_db,
+        loader->i->N,
+        loader->i->dbs,
+        loader->i->db_flags,
+        loader->i->dbt_flags,
+        0,
+        false
+        );
+    lazy_assert_zero(r);
+    r = toku_loader_close(tmp_loader);
+    
     free_loader(loader);
     return r;
 }
