@@ -4813,11 +4813,13 @@ os_aio_windows_handle(
 			INFINITE);
 		i = pos;
 	} else {
-		srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
-		i = WaitForMultipleObjects((DWORD) n,
-					   array->handles + segment * n,
-					   FALSE,
-					   INFINITE);
+		if (!srv_read_only_mode) {
+			srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
+		}
+
+		i = WaitForMultipleObjects(
+			(DWORD) n, array->handles + segment * n,
+			FALSE, INFINITE);
 	}
 
 	os_mutex_enter(array->mutex);
@@ -4836,9 +4838,9 @@ os_aio_windows_handle(
 
 	ut_a(slot->reserved);
 
-	if (orig_seg != ULINT_UNDEFINED) {
-		srv_set_io_thread_op_info(orig_seg,
-					  "get windows aio return value");
+	if (!srv_read_only_mode && orig_seg != ULINT_UNDEFINED) {
+		srv_set_io_thread_op_info(
+			orig_seg, "get windows aio return value");
 	}
 
 	ret = GetOverlappedResult(slot->file, &(slot->control), &len, TRUE);
