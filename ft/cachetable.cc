@@ -4245,8 +4245,9 @@ void checkpointer::increment_num_txns() {
 void checkpointer::update_cachefiles() {
     int r = 0;
     CACHEFILE cf;
-    for(cf = m_cf_list->m_head; cf; cf=cf->next) {        
-        if (cf->for_checkpoint && cf->begin_checkpoint_userdata) {
+    for(cf = m_cf_list->m_head; cf; cf=cf->next) {
+        assert(cf->begin_checkpoint_userdata);
+        if (cf->for_checkpoint) {
             r = cf->begin_checkpoint_userdata(m_lsn_of_checkpoint_in_progress,
                                               cf->userdata);
             assert(r == 0);
@@ -4273,10 +4274,9 @@ int checkpointer::begin_checkpoint() {
         
         // Putting this check here so that this method may be called
         // by cachetable tests.
-        if (cf->note_pin_by_checkpoint) {
-            r = cf->note_pin_by_checkpoint(cf, cf->userdata);
-            assert(r == 0);
-        }
+        assert(cf->note_pin_by_checkpoint);
+        r = cf->note_pin_by_checkpoint(cf, cf->userdata);
+        assert(r == 0);
         cf->for_checkpoint = true;
         m_checkpoint_num_files++;
     }
@@ -4330,10 +4330,9 @@ void checkpointer::log_begin_checkpoint() {
     
     // Log the list of open dictionaries.
     for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
-        if (cf->log_fassociate_during_checkpoint) {
-            r = cf->log_fassociate_during_checkpoint(cf, cf->userdata);
-            assert(r == 0);
-        }
+        assert(cf->log_fassociate_during_checkpoint);
+        r = cf->log_fassociate_during_checkpoint(cf, cf->userdata);
+        assert(r == 0);
     }
     
     // Write open transactions to the log.
@@ -4345,10 +4344,9 @@ void checkpointer::log_begin_checkpoint() {
     // Writes list of dictionaries that have had
     // rollback logs suppressed.
     for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
-        if (cf->log_suppress_rollback_during_checkpoint) {
-            r = cf->log_suppress_rollback_during_checkpoint(cf, cf->userdata);
-            assert(r == 0);
-        }
+        assert(cf->log_suppress_rollback_during_checkpoint);
+        r = cf->log_suppress_rollback_during_checkpoint(cf, cf->userdata);
+        assert(r == 0);
     }
 }
 
@@ -4456,12 +4454,11 @@ void checkpointer::checkpoint_userdata(CACHEFILE* checkpoint_cfs) {
     for (uint32_t i = 0; i < m_checkpoint_num_files; i++) {
         CACHEFILE cf = checkpoint_cfs[i];
         assert(cf->for_checkpoint);
-        if (cf->checkpoint_userdata) {
-            toku_cachetable_set_checkpointing_user_data_status(1);
-            int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
-            toku_cachetable_set_checkpointing_user_data_status(0);
-            assert(r==0);
-        }
+        assert(cf->checkpoint_userdata);
+        toku_cachetable_set_checkpointing_user_data_status(1);
+        int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
+        toku_cachetable_set_checkpointing_user_data_status(0);
+        assert(r==0);
     }
 }
 
@@ -4486,10 +4483,9 @@ void checkpointer::end_checkpoint_userdata(CACHEFILE* checkpoint_cfs) {
     for (uint32_t i = 0; i < m_checkpoint_num_files; i++) {
         CACHEFILE cf = checkpoint_cfs[i];
         assert(cf->for_checkpoint);
-        if (cf->end_checkpoint_userdata) {
-            int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
-            assert(r==0);
-        }
+        assert(cf->end_checkpoint_userdata);
+        int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
+        assert(r==0);
     }
 }
 
@@ -4505,12 +4501,11 @@ int checkpointer::remove_cachefiles(CACHEFILE* checkpoint_cfs) {
         // can be called from cachetable tests.
         assert(cf->for_checkpoint);
         cf->for_checkpoint = false;
-        if (cf->note_unpin_by_checkpoint) {
-            // Clear the bit saying theis file is in the checkpoint.
-            r = cf->note_unpin_by_checkpoint(cf, cf->userdata);
-            if (r != 0) {
-                return r;
-            }
+        assert(cf->note_unpin_by_checkpoint);
+        // Clear the bit saying theis file is in the checkpoint.
+        r = cf->note_unpin_by_checkpoint(cf, cf->userdata);
+        if (r != 0) {
+            return r;
         }
     }
     return r;
