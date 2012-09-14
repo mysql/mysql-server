@@ -34,6 +34,11 @@ global.t_basic_key = function(id) {
   this.id = id;
 };
 
+/** The t_basic unique key */
+global.t_basic_magic_key = function(id) {
+  this.magic = id;
+};
+
 /** Verify the instance or fail the test case */
 global.fail_verify_t_basic = function(err, instance, id, testCase) {
   if (err) {
