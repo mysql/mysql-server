@@ -33,10 +33,19 @@
 #include "NativeMethodCall.h"
 #include "unified_debug.h"
 #include "JsWrapper.h"
+#include "NdbWrapperErrors.h"
 
 using namespace v8;
 
-Envelope NdbOperationEnvelope("NdbOperation");
+class NdbOperationEnvelopeClass : public Envelope {
+public:
+  NdbOperationEnvelopeClass() : Envelope("NdbOperation") {
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", 
+                       getNdbError<NdbOperation>);
+  }
+};
+
+NdbOperationEnvelopeClass NdbOperationEnvelope;
 Envelope NdbScanOperationEnvelope("NdbScanOperation");
 Envelope NdbIndexScanOperationEnvelope("NdbIndexScanOperation");
 

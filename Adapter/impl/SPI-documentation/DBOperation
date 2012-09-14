@@ -20,8 +20,7 @@ DBOperation = {
   opcode          : null ,  // the OperationCode
   userCallback    : null ,  // a higher level callback
   transaction     : null ,  // pointer to the operation's transaction
-  keys            : null ,  // array or map containing key fields
-  values          : null ,  // array or map containing row values
+  values          : null ,  // array or map containing user-supplied values
   tableHandler    : null ,  // the DBTableHandler used for this operation
   lockMode        : null ,  // LockMode used for a read operation
   index           : null ,  // the IndexMetadata used for this operation
@@ -42,7 +41,6 @@ OperationCodes = [
 OperationStates = [ 
   "DEFINED",             // opcode, table, and required keys/values are present
   "PREPARED",            // local preparation of the operation is complete
-  "EXECUTING",           // operation has been sent to database
   "COMPLETED"            // operation is complete and result is available
 ];   
 

@@ -60,3 +60,19 @@ NativeCodeError * getNdbErrorIfNonZero(R return_val, C * ndbapiobject) {
   
   return err;
 };
+
+
+template<typename R, typename C> 
+NativeCodeError * getNdbErrorAlways(R return_val, C * ndbApiObject) {
+
+  return new NdbNativeCodeError(ndbApiObject->getNdbError());
+};
+
+
+template<typename C> 
+Handle<Value> getNdbError(const Arguments &args) {
+  C * ndbApiObject = unwrapPointer<C *>(args.Holder());
+  const NdbError & ndberr = ndbApiObject->getNdbError();
+  return NdbError_Wrapper(ndberr);
+};
+

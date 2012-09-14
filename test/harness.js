@@ -175,6 +175,12 @@ Test.prototype.errorIfNotEqual = function(message, o1, o2) {
 	}
 };
 
+Test.prototype.errorIfNull = function(message, val) {
+  if(val === null) {
+    this.errorMessages += message;
+  }
+};
+
 
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 

@@ -52,7 +52,7 @@ public:
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "writeTuple", writeTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "insertTuple", insertTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "deleteTuple", deleteTuple);
-//   DEFINE_JS_FUNCTION(Envelope::stencil, "updateTuple", updateTuple);
+   DEFINE_JS_FUNCTION(Envelope::stencil, "updateTuple", updateTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "scanTable", scanTable);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "scanIndex", scanIndex);   
   }
@@ -66,6 +66,22 @@ Handle<Value> Operation_Wrapper(Operation *op) {
   Local<Object> jsobj = OperationEnvelope.newWrapper();
   wrapPointerInObject(op, OperationEnvelope, jsobj);
   return scope.Close(jsobj);
+}
+
+
+Handle<Value> updateTuple(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+    
+  REQUIRE_ARGS_LENGTH(1);
+  Operation * op = unwrapPointer<Operation *>(args.Holder());
+
+  JsValueConverter<NdbTransaction *> arg0c(args[0]);
+
+  NdbTransaction * tx = arg0c.toC();
+
+  const NdbOperation * ndbop = op->updateTuple(tx);
+  return scope.Close(NdbOperation_Wrapper(ndbop));
 }
 
 

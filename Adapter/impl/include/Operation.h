@@ -112,8 +112,8 @@ inline const NdbOperation *
 inline const NdbOperation * 
   Operation::updateTuple(NdbTransaction *tx) { 
     return tx->updateTuple(key_record->getNdbRecord(), key_buffer,
-                           row_record->getNdbRecord(), row_buffer, 
-                           row_mask, options);
+                           row_record->getNdbRecord(), row_buffer);
+                           /* row_mask, options); */
 }
 
 inline NdbScanOperation * 
