@@ -79,12 +79,13 @@ exports.DBSession.prototype.createTransaction = function() {
   return transactionHandler;
 };
 
+exports.DBSession.translateError = function(code) {
+  switch(code) {
+  case 'ER_DUP_ENTRY': return 121; break;
+  }  
+};
+
 function InsertOperation(sql, data, callback) {
-  function translateError(code) {
-    switch(code) {
-    case 'ER_DUP_ENTRY': return 120; break;
-    }
-  }
   udebug.log('MySQLConnection.dbSession.InsertOperation with ' + util.inspect(sql) + ' ' + util.inspect(data));
 
   var op = this;
@@ -102,13 +103,14 @@ function InsertOperation(sql, data, callback) {
   function onInsert(err) {
     if (err) {
       udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + util.inspect(err));
-      op.result.error = translateError(err.code);
+      op.result.error = exports.DBSession.translateError(err.code);
       udebug.log('MySQLConnection.dbSession.InsertOperation err code: ' + util.inspect(err.code) + ' ' + op.result.error);
       if (typeof(op.callback) === 'function') {
         op.callback(err, null);
       }
     } else {
       udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback.');
+      op.result.success = true;
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);
       }
@@ -136,9 +138,18 @@ function ReadOperation(sql, keys, callback) {
         if (typeof(op.callback) === 'function') {
           op.callback(err, op);
         }
-      } else {
-        udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback: ' + util.inspect(rows[0]));
+      } else if (rows.length === 1) {
+        udebug.log('MySQLConnection.dbSession.ReadOperation ONE RESULT callback: ' + util.inspect(rows[0]));
         op.result.value = rows[0];
+        op.result.success = true;
+        if (typeof(op.callback) === 'function') {
+          op.callback(null, op);
+        }
+      } else {
+        udebug.log('MySQLConnection.dbSession.ReadOperation NO RESULTS callback.');
+        op.result.value = null;
+        op.result.success = false;
+        op.result.error = 120;
         if (typeof(op.callback) === 'function') {
           op.callback(null, op);
         }
@@ -168,6 +179,7 @@ function DeleteOperation(sql, keys, callback) {
       }
     } else {
       udebug.log('MySQLConnection.dbSession.ReadOperation NO ERROR callback.');
+      op.result.success = true;
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);
       }
