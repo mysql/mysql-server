@@ -334,6 +334,7 @@ public:
   bool test_limit(st_select_lex_unit *unit);
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
+  inline bool left_expr_has_null();
 
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
@@ -513,7 +514,6 @@ protected:
     expression is NULL.
   */
   bool empty_result_set;
-  bool null_keypart; /* TRUE <=> constructed search tuple has a NULL */
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
