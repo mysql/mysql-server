@@ -37,7 +37,7 @@ function Test(name, phase) {
   this.phase = (typeof(phase) === 'number') ? phase : 2;
   this.errorMessages = '';
   this.index = 0;
-  this.failed = false;
+  this.failed = null;
   this.has_proxy = false;
   this.skipped = false;
 }
@@ -119,11 +119,14 @@ Test.prototype.test = function(result) {
 };
 
 Test.prototype.pass = function() {
+  assert(this.failed === null); // must have not yet passed or failed
+  this.failed = false;
   this.result.pass(this);
   this.teardown();
 };
 
 Test.prototype.fail = function(message) {
+  assert(this.failed === null);  // must have not yet passed or failed
   this.failed = true;
   if (message) {
     this.appendErrorMessage(message);
