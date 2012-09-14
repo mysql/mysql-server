@@ -4,8 +4,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
-
-
+#include "cachetable-test.h"
 
 bool v1_written;
 uint64_t val1;
@@ -13,7 +12,6 @@ bool v2_written;
 uint64_t val2;
 uint64_t val3;
 bool check_me;
-
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -76,6 +74,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    create_dummy_functions(f1);
     
     void* v1;
     void* v2;

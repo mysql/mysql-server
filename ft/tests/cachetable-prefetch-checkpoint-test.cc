@@ -8,7 +8,7 @@
 #include "test.h"
 #include <stdio.h>
 #include <unistd.h>
-
+#include "cachetable-test.h"
 
 #include "checkpoint.h"
 
@@ -59,9 +59,6 @@ static int fetch(
     return 0;
 }
 
-static int dummy_pin_unpin(CACHEFILE UU(cfu), void* UU(v)) {
-    return 0;
-}
 // put n items into the cachetable, maybe mark them dirty, do a checkpoint, and
 // verify that all of the items have been written and are clean.
 static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dirty) {
@@ -76,8 +73,7 @@ static void cachetable_prefetch_checkpoint_test(int n, enum cachetable_dirty dir
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    toku_cachefile_set_userdata(f1, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                                dummy_pin_unpin, dummy_pin_unpin);
+    create_dummy_functions(f1);
 
     // prefetch block n+1. this will take 10 seconds.
     {

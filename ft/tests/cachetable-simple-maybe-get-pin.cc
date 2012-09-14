@@ -4,6 +4,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
+#include "cachetable-test.h"
 
 //
 // simple tests for maybe_get_and_pin(_clean)
@@ -19,6 +20,7 @@ cachetable_test (void) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    create_dummy_functions(f1);
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     
     void* v1;

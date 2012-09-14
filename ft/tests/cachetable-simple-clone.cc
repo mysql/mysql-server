@@ -4,6 +4,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
+#include "cachetable-test.h"
 
 bool clone_called;
 bool check_flush;
@@ -68,7 +69,8 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    
+    create_dummy_functions(f1);
+
     void* v1;
     long s1;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);

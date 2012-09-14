@@ -4,6 +4,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
+#include "cachetable-test.h"
 
 //
 // simple tests for cleaner thread with an empty cachetable
@@ -21,7 +22,8 @@ cachetable_test (void) {
     unlink(fname1);
     CACHEFILE f1;
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-
+    create_dummy_functions(f1);
+    
     usleep(4000000);
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);

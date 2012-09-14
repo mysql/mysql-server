@@ -4,7 +4,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #include "includes.h"
 #include "test.h"
-
+#include "cachetable-test.h"
 
 //
 // This test ensures that get_and_pin with dependent nodes works
@@ -344,14 +344,14 @@ cachetable_test (void) {
     toku_cachefile_set_userdata(
         f1, 
         NULL, 
-        NULL, 
-        NULL, 
-        NULL, 
+        &dummy_log_fassociate, 
+        &dummy_log_rollback, 
+        &dummy_close_usr, 
         dummy_int_checkpoint_userdata, 
         test_begin_checkpoint, // called in begin_checkpoint
         dummy_int_checkpoint_userdata,
-        NULL, 
-        NULL
+        &dummy_note_pin, 
+        &dummy_note_unpin
         );
     
     toku_pthread_t time_tid;

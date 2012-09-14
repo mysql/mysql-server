@@ -6,6 +6,7 @@
 #include "includes.h"
 #include "test.h"
 #include "cachetable-internal.h"
+#include "cachetable-test.h"
 
 //
 // Wrapper for the checkpointer and necessary
@@ -26,47 +27,6 @@ struct checkpointer_test {
     uint32_t count,
     uint32_t k);
 };
-
-//
-// Dummy callbacks for checkpointing
-//
-static int dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
-static int dummy_log_rollback(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
-static int dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), char** UU(c), bool UU(b), LSN UU(lsn))
-{ return 0; }
-static int dummy_chckpnt_usr(CACHEFILE UU(cf), int UU(i), void* UU(p))
-{ return 0; }
-static int dummy_begin(LSN UU(lsn), void* UU(p))
-{ return 0; }
-static int dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p))
-{ return 0; }
-static int dummy_note_pin(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
-static int dummy_note_unpin(CACHEFILE UU(cf), void* UU(p))
-{ return 0; }
-
-
-//
-// Helper function to set dummy functions in given cachefile.
-//
-static void
-create_dummy_functions(CACHEFILE cf)
-{
-    void *ud = NULL;
-    toku_cachefile_set_userdata (cf,
-                                 ud,
-                                 &dummy_log_fassociate,
-                                 &dummy_log_rollback,
-                                 &dummy_close_usr,
-                                 &dummy_chckpnt_usr,
-                                 &dummy_begin,
-                                 &dummy_end,
-                                 &dummy_note_pin,
-                                 &dummy_note_unpin);
-}
-
 
 //------------------------------------------------------------------------------
 // test_begin_checkpoint() -
