@@ -107,13 +107,13 @@ t7.run = function() {
   });
 };
 
-/***** Find with domain object and javascript ordered key literal ***/
-t8 = new harness.ConcurrentTest("testFindDomainObjectOrderedIndexLiteral");
+/***** Find with domain object and javascript unique key object ***/
+t8 = new harness.ConcurrentTest("testFindDomainObjectUniqueKeyObject");
 t8.run = function() {
   var testCase = this;
   // use the domain object and literal to find an instance
   var from = global.t_basic;
-  var key = {'age' : 8};
+  var key = new global.t_basic_magic_key(8);
   fail_openSession(testCase, function(session) {
     // key and testCase are passed to fail_verify_t_basic as extra parameters
     session.find(from, key, fail_verify_t_basic, 8, testCase);
@@ -133,13 +133,13 @@ t9.run = function() {
   });
 };
 
-/***** Find with table name and javascript ordered key literal ***/
-t0 = new harness.ConcurrentTest("testFindTableNameOrderedIndexLiteral");
+/***** Find with table name and javascript unique key object ***/
+t0 = new harness.ConcurrentTest("testFindTableNameUniqueKeyObject");
 t0.run = function() {
   var testCase = this;
-  // use the table name and literal to find an instance
+  // use the table name and object to find an instance
   var from = 't_basic';
-  var key = {'age': 0};
+  var key = new global.t_basic_magic_key(0);
   fail_openSession(testCase, function(session) {
     // key and testCase are passed to fail_verify_t_basic as extra parameters
     session.find(from, key, fail_verify_t_basic, 0, testCase);

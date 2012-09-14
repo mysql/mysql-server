@@ -254,12 +254,17 @@ Suite.prototype.createTests = function() {
 
   udebug.log('Suite', this.name, 'found', this.tests.length, 'tests.');
 
+  this.tests.forEach(function(t, index) {
+    t.original = index;
+  });
+
   this.tests.sort(function(a,b) {
+    // sort the tests by phase, preserving the original order within each phase
     if(a.phase < b.phase)  { return -1; }
-    if(a.phase === b.phase) { return 0;  }
+    if(a.phase === b.phase) { return (a.original < b.original)?-1:1;  }
     return 1;
   });
-    
+
   suite = this;
   this.tests.forEach(function(t, index) {
     t.index = index;

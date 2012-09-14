@@ -93,7 +93,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
   };
 
   var parseCreateTable = function(tableName, statement) {
-    udebug.log('MySQLDictionary.parseCreateTable: ' + statement);
+    udebug.log_detail('MySQLDictionary.parseCreateTable: ' + statement);
     var columns = [];
     var indexes = [];
     var result = {'name' : tableName,
@@ -132,13 +132,13 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         var indexColumnNames = decodeIndexColumnNames(columnNames);
         udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY indexColumnNames: ' + indexColumnNames);
         var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
-        udebug.log('MySQLDictionary.parseCreateTable PRIMARY indexColumnNumbers: ' + JSON.stringify(indexColumnNumbers));
+        udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY indexColumnNumbers: ' + JSON.stringify(indexColumnNumbers));
         index['columnNumbers'] = indexColumnNumbers;
         // mark primary key index columns with 'isInPrimaryKey'
         for (var columnNumberIndex = 0; columnNumberIndex < indexColumnNumbers.length; ++columnNumberIndex) {
           var columnNumber = indexColumnNumbers[columnNumberIndex];
           var column = columns[columnNumber];
-          udebug.log('MySQLDictionary.parseCreateTable marking column ' + columnNumber 
+          udebug.log_detail('MySQLDictionary.parseCreateTable marking column ' + columnNumber 
               + ' ' + columns[columnNumber].name);
           column.isInPrimaryKey = true;
         }
@@ -285,7 +285,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     if (err) {
       callback(err);
     } else {
-      udebug.log(rows);
+      udebug.log_detail(rows);
       var row = rows[0];
       // result of show create table is of the form:
       // [ { Table: 'tbl1',
@@ -293,7 +293,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       // the create table statement is the attribute named 'Create Table'
       var createTableStatement = row['Create Table'];
       var metadata = parseCreateTable(tableName, createTableStatement);
-      udebug.log('showCreateTable_callback.forEach metadata: ' + util.inspect(metadata));
+      udebug.log_detail('showCreateTable_callback.forEach metadata: ' + util.inspect(metadata));
       result = metadata;
       
       callback(err, result);
