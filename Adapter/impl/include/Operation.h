@@ -105,15 +105,15 @@ inline const NdbOperation * Operation::writeTuple(NdbTransaction *tx) {
 
 inline const NdbOperation * 
   Operation::insertTuple(NdbTransaction *tx) { 
-    return tx->insertTuple(row_record->getNdbRecord(), row_buffer);
-                           /* ,row_mask, options); */
+    return tx->insertTuple(row_record->getNdbRecord(), row_buffer,
+                           row_mask, options);
 }
 
 inline const NdbOperation * 
   Operation::updateTuple(NdbTransaction *tx) { 
     return tx->updateTuple(key_record->getNdbRecord(), key_buffer,
-                           row_record->getNdbRecord(), row_buffer);
-                           /* row_mask, options); */
+                           row_record->getNdbRecord(), row_buffer,
+                           row_mask, options);
 }
 
 inline NdbScanOperation * 

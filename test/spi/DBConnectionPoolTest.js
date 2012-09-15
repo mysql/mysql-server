@@ -70,7 +70,6 @@ t3.run = function() {
     
   this.teardown = function() {
     if(x_session !== null) { x_session.close(); }
-    if(x_conn !== null) { x_conn.closeSync(); }
   };
 
   var tcb1 = function(err, connection) {

@@ -61,18 +61,20 @@
   buildReadOperation(indexHandler, keys, transaction, callback);
                       
 
-/* buildUpdateOperation(DBIndexHandler dbIndexHandler, 
-                        Object row,
+/* buildUpdateOperation(DBIndexHandler dbIndexHandler,
+                        Object keys, 
+                        Object values,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE
-   Define an operation which when executed will update a row
+   Define an operation which when executed will access a row using the keys
+   object and update the values provided in the values object.
    The userCallback is stored in the DBOperation, but will not be called 
    by this layer.
   
    RETURNS a DBOperation 
 */
-  buildUpdateOperation(dbIndexHandler, row, transaction, callback);
+  buildUpdateOperation(dbIndexHandler, keys, values, transaction, callback);
 
 
 /* buildDeleteOperation(DBIndexHandler dbIndexHandler, 

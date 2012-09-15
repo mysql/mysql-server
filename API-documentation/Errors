@@ -1,0 +1,28 @@
+
+
+
+/* These are the errors 
+   Reference: 
+   Gulutzan & Pelzer, "SQL 99 Complete Really", chapter 47
+*/
+var Errors;
+
+Errors = {
+  /* Standard-defined classes, SQL-99 */
+  "02000" : "No Data",
+
+  "08000" : "Connection error",
+  "08001" : "Unable to connect to server",
+  "08004" : "Connection refused",
+
+  "22000" : "Data error",
+  "22001" : "String too long",
+  "22003" : "Numeric value out of range",
+  "22008" : "Invalid datetime",
+  
+  "23000" : "Integrity Constraint Violation",
+  
+  /* Implementation-defined classes (NDB) */
+  "NDB00" : "Refer to ndb_error for details"
+};
+

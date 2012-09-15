@@ -163,21 +163,23 @@ NdbSession.prototype.buildWriteOperation = function(dbTableHandler, row,
 };
 
 
-/* buildUpdateOperation(DBIndexHandler dbIndexHandler, 
-                        Object row,
+/* buildUpdateOperation(DBIndexHandler dbIndexHandler,
+                        Object keys, 
+                        Object values,
                         DBTransactionHandler transaction,
                         function(error, DBOperation) userCallback)
    IMMEDIATE
-   Define an operation which when executed will update a row
+   Define an operation which when executed will access a row using the keys
+   object and update the values provided in the values object.
    The userCallback is stored in the DBOperation, but will not be called 
    by this layer.
   
    RETURNS a DBOperation 
 */
-NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler, row, 
-                                                     tx, userData) {
+NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler, 
+                                                     keys, row, tx, userData) {
   udebug.log("NdbSession buildUpdateOperation");
-  var op = ndboperation.newUpdateOperation(tx, dbIndexHandler, row);
+  var op = ndboperation.newUpdateOperation(tx, dbIndexHandler, keys, row);
   op.userCallback = userData;
   return op;
 }

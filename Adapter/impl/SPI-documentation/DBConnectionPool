@@ -115,17 +115,3 @@ DBConnectionPool(Properties connectionProperties);
    @param type is as defined in DBDictionary for the storage SPI
 */
   registerTypeConverter(typeName, converterObject);
-
-
-/* registerCharsetEncoder
-   IMMEDIATE
-   Register an encoder to/from Javascript String for a SQL charset
-*/
-  registerCharsetEncoder(charsetName, encoderObject);
-  
-
-/* getEncoder 
-   IMMEDIATE
-   Fetch the encoder for a column
-*/
-   getEncoder(columnMetadata);  
