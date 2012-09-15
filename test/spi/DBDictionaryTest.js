@@ -41,7 +41,6 @@ t2.run = function() {
   this.teardown = function() {
     if(dbSession) {
       dbSession.close();
-      conn.closeSync();
     }
   };
 

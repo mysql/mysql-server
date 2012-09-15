@@ -106,8 +106,8 @@ function do_update_op(testCase, dataObj) {
   assert(typeof testCase.checkResult === 'function');
   udebug.log("BasicVarcharTest.js do_update_op for", testCase.name);
   var tx = dbSession.createTransaction();
-  var dbix = dbt.getIndexHandler(dataObj);
-  var op = dbSession.buildUpdateOperation(dbix, dataObj, tx, null);
+  var dbix = dbt.getIndexHandler(dataObj.keys);
+  var op = dbSession.buildUpdateOperation(dbix, dataObj.keys, dataObj.values, tx, null);
   tx.executeCommit([ op ], testCase.checkResult);
 }
 
@@ -183,7 +183,7 @@ t3.checkResult = function(err, tx) {
 };
 
 t3.run = function() {
-  var dataObj = { id : 1 , name: "Henrietta" }; 
+  var dataObj = { keys: { id : 1 }, values: {name: "Henrietta" } };
   prepare(t3, dataObj);
 };
 
@@ -222,7 +222,7 @@ t5.checkResult = function(err, tx) {
   if(err) { t5.fail("ExecuteCommit failed: " + err);  }
   else { 
     op = tx.executedOperations.pop();
-    t5.errorIfNotEqual("Expected 121", op.result.error.code, 121); 
+    t5.errorIfNotEqual("Expected 23000", op.result.error.code, "23000"); 
     t5.failOnError();
   }
   tx.close();
@@ -259,7 +259,7 @@ t7.checkResult = function(err, tx) {
   if(err) { t7.fail("ExecuteCommit failed: " + err); }
   else    { 
     op = tx.executedOperations.pop();
-    t7.errorIfNotEqual("Expected 120", op.result.error.code, 120); 
+    t7.errorIfNotEqual("Expected 02000", op.result.error.code, "02000"); 
     t7.failOnError();    
   }
   tx.close();

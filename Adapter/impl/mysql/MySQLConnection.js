@@ -101,7 +101,7 @@ exports.DBSession.prototype.createTransaction = function() {
 
 exports.DBSession.translateError = function(code) {
   switch(code) {
-  case 'ER_DUP_ENTRY': return 121;
+  case 'ER_DUP_ENTRY': return "23000";
   }  
 };
 
@@ -165,7 +165,7 @@ function DeleteOperation(sql, keys, callback) {
       } else {
         udebug.log('MySQLConnection.dbSession.DeleteOperation NO ERROR callback with no deleted rows');
         op.result.success = false;
-        op.result.error.code = 120;
+        op.result.error.code = "02000";
       }
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);
@@ -216,7 +216,7 @@ function ReadOperation(sql, keys, callback) {
         udebug.log('MySQLConnection.dbSession.ReadOperation NO RESULTS callback.');
         op.result.value = null;
         op.result.success = false;
-        op.result.error = 120;
+        op.result.error = "02000";
         if (typeof(op.callback) === 'function') {
           op.callback(null, op);
         }
@@ -256,7 +256,7 @@ function UpdateOperation(sql, keys, values, callback) {
         op.result.error = 0;
       } else {
         op.result.success = false;
-        op.result.error = 120;
+        op.result.error = "02000";
       }
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);

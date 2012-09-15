@@ -47,6 +47,7 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
   Local<String> K_row_record = String::New("row_record");
   Local<String> K_key_record = String::New("key_record");
   Local<String> K_lock_mode  = String::New("lock_mode");
+  Local<String> K_mask       = String::New("mask");
 
   for(int i = 0 ; i < args.Length() ; i++) {
     if(args[i]->IsObject()) {
@@ -94,7 +95,15 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
         
         op->lmode = lmode;
       }      
-    }
+      if(obj->Has(K_mask)) {
+        DEBUG_PRINT("Setting operation column mask");
+        Array *maskArray = Array::Cast( * (obj->Get(K_mask)));
+        for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
+          Local<Value> colId = maskArray->Get(m);
+          op->useColumn(colId->Int32Value());
+        }
+      }
+    }    
   }
   
   return scope.Close(Operation_Wrapper(op));
