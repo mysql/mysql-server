@@ -41,6 +41,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2012 Tokutek Inc.  All r
 #include "ydb_write.h"
 #include "ydb_txn.h"
 #include "ft/txn_manager.h"
+#include "ft/partitioned_counter.h"
 
 // Include ydb_lib.cc here so that its constructor/destructor gets put into
 // ydb.o, to make sure they don't get erased at link time (when linking to
@@ -2083,6 +2084,18 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
                     n += snprintf(buff + n, bufsiz - n, "%.6f\n", t);
                 }
                 break;
+            case PARCOUNT:
+                {
+                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
+                    n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
+                }
+#if 0
+            case MAXCOUNT:
+                {
+                    uint64_t v = read_max_partitioned_counter(mystat[row].value.maxcount);
+                    n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
+                }
+#endif
             default:
                 n += snprintf(buff + n, bufsiz - n, "UNKNOWN STATUS TYPE: %d\n", mystat[row].type);
                 break;                

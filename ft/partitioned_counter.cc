@@ -253,18 +253,16 @@ static inline struct local_counter *get_thread_local_counter(uint64_t pc_key, Gr
     }
 }
 
-void increment_partitioned_counter(PARTITIONED_COUNTER pc, uint64_t amount)
-// Effect: Increment the counter by amount.
-// Requires: No overflows.  This is a 64-bit unsigned counter.
+static struct local_counter *get_or_alloc_thread_local_counter(PARTITIONED_COUNTER pc)
 {
     // Only this thread is allowed to modify thread_local_array, except for setting tla->array[pc_key] to NULL
     // when a counter is destroyed (and in that case there should be no race because no other thread should be
     // trying to access the same local counter at the same time.
     uint64_t pc_key = pc->pc_key;
-    struct local_counter *lc = get_thread_local_counter(pc_key, &thread_local_array);
-    if (lc==NULL) {
-	XMALLOC(lc);    // Might as well do the malloc without holding the pc lock.  But most of the rest of this work needs the lock.
-	pc_lock();
+    struct local_counter *lc = get_thread_local_counter(pc->pc_key, &thread_local_array);
+    if (__builtin_expect(!!(lc == NULL), 0)) {
+        XMALLOC(lc);    // Might as well do the malloc without holding the pc lock.  But most of the rest of this work needs the lock.
+        pc_lock();
 
         // Set things up so that this thread terminates, the thread-local parts of the counter will be destroyed and merged into their respective counters.
         if (!thread_local_array_inited) {
@@ -274,9 +272,9 @@ void increment_partitioned_counter(PARTITIONED_COUNTER pc, uint64_t amount)
             all_thread_local_arrays.insert(&thread_local_ll_elt, &thread_local_array);
         }
 
-	lc->sum         = 0;
-	HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&lc->sum, sizeof(lc->sum)); // the counter increment is kind of racy.
-	lc->owner_pc    = pc;
+        lc->sum         = 0;
+        HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&lc->sum, sizeof(lc->sum)); // the counter increment is kind of racy.
+        lc->owner_pc    = pc;
         lc->thread_local_array = &thread_local_array;
 
         // Grow the array if needed, filling in NULLs
@@ -285,8 +283,16 @@ void increment_partitioned_counter(PARTITIONED_COUNTER pc, uint64_t amount)
         }
         thread_local_array.store_unchecked(pc_key, lc);
         pc->ll_counter_head.insert(&lc->ll_in_counter, lc);
-	pc_unlock();
+        pc_unlock();
     }
+    return lc;
+}
+
+void increment_partitioned_counter(PARTITIONED_COUNTER pc, uint64_t amount)
+// Effect: Increment the counter by amount.
+// Requires: No overflows.  This is a 64-bit unsigned counter.
+{
+    struct local_counter *lc = get_or_alloc_thread_local_counter(pc);
     lc->sum += amount;
 }
 
@@ -322,9 +328,8 @@ void partitioned_counters_destroy(void)
     while (all_thread_local_arrays.pop(&a_ll)) {
         a_ll->get_container()->deinit();
     }
-        
+
     pk_delete(thread_destructor_key);
     destroy_counters();
     pc_unlock();
 }
-
