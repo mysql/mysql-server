@@ -124,7 +124,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
           // put the table metadata into the table metadata map
           tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
           // we have the table metadata; now create the table handler
-          tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, mapping);
+          tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping);
           if (mapping === null) {
             // put the default table handler into the session factory
             tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
