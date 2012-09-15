@@ -9536,31 +9536,26 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
  */
 void JOIN::refine_best_rowcount()
 {
+  // If plan is const, 0 or 1 rows should be returned
+  DBUG_ASSERT(!plan_is_const() || best_rowcount <= 1);
+
   if (plan_is_const())
     return;
+
   /*
-    Calculate estimated number of rows for materialized derived
-    table/view.
+    Setting estimate to 1 row would mark a derived table as const.
+    The row count is bumped to the nearest higher value, so that the
+    query block will not be evaluated during optimization.
   */
-  if (unit->select_limit_cnt != HA_POS_ERROR)
-  {
-    /*
-      There will be no more rows than defined in the LIMIT clause. Use it
-      as an estimate.
-    */
-    set_if_smaller(best_rowcount, unit->select_limit_cnt);
-  }
-  else
-  {
-    /*
-      Since it's only an estimate it's inaccurate. Setting estimate to 1
-      row in some cases will make derived table a constant one.
-      Currently it's impossible to revert it to non-const. Thus we
-      adjust estimated # of rows to make derived table not a const one.
-    */
-    if (best_rowcount <= 1)
-      best_rowcount= 2;
-  }
+  if (best_rowcount <= 1)
+    best_rowcount= 2;
+
+  /*
+    There will be no more rows than defined in the LIMIT clause. Use it
+    as an estimate. If LIMIT 1 is specified, the query block will be
+    considered "const", with actual row count 0 or 1.
+  */
+  set_if_smaller(best_rowcount, unit->select_limit_cnt);
 }
 
 /**
