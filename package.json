@@ -1,0 +1,27 @@
+
+{
+   /* The package name. Should be short, descriptive, URL-safe,
+      not already registered at npmjs.org, and should not contain
+      "node" or "js": */
+  "name"    : 
+  ,
+  "version" :                // See "npm help semver"
+  ,
+  "description" :            // Will appear in npmjs.org directory
+  ,
+  "keywords" :               // Used by npm search
+  ,
+  "homepage" :               // Human-readable
+  ,
+  "bugs" :                   // Bug tracker URL
+  ,
+  "contributors" :           // [ "name <email> (URL)" , ... ] 
+  ,
+  "main" : "Adapter/api/mynode"
+  ,
+  "scripts" :
+  ,
+  "dependencies" :
+  ,
+  "repository" :
+}
