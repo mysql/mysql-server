@@ -4791,11 +4791,11 @@ os_aio_windows_handle(
 
 	if (srv_read_only_mode) {
 
-		segment = os_aio_get_array_and_local_segment(&array, orig_seg);
-
-		if (orig_seg == ULINT_UNDEFINED) {
+		if (segment == ULINT_UNDEFINED) {
 			segment = 0;
 		}
+
+		segment = os_aio_get_array_and_local_segment(&array, segment);
 
 	} else if (segment == ULINT_UNDEFINED) {
 		segment = 0;
