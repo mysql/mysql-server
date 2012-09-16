@@ -232,7 +232,7 @@ Suite.prototype.addTestsFromFile = function(f) {
       this.addTest(f, t);
     }
     else { 
-      udebug.inspect(t);
+      udebug.log_detail(t);
       throw "Module " + f + " does not export a Test.";
     }
   }
