@@ -120,9 +120,15 @@ function DBTableHandler(dbtable, tablemapping) {
   this.fieldNumberToColumnMap = [];
   this.fieldNumberToFieldMap  = [];
   this.fieldNameToFieldMap    = {};
+  if (typeof(this.mapping.mapAllColumns === 'undefined')) {
+    this.mapping.mapAllColumns = true;
+  }
 
   /* Build the first draft of the columnNumberToFieldMap, using only the
      explicitly mapped fields. */
+  if (typeof(this.mapping.fields) === 'undefined') {
+    this.mapping.fields = [];
+  }
   for(i = 0 ; i < this.mapping.fields.length ; i++) {
     f = this.mapping.fields[i];
     if(f && ! f.NotPersistent) {
