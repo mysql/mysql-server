@@ -19,14 +19,24 @@
 */
 "use strict";
 
-// TODO:
-// urgent, notice, info, debug, detail
-// register javascript message listener functions
-
 
 var path = require("path"),
     util = require("util"),
-    impl = require("../impl/build/Release/ndb_adapter").debug;
+
+    UDEB_OFF      = 0,
+    UDEB_URGENT   = 1,
+    UDEB_NOTICE   = 2,
+    UDEB_INFO     = 3,
+    UDEB_DEBUG    = 4,
+    UDEB_DETAIL   = 5,
+    UDEB_META     = 6, 
+
+    udeb_on           = 1,                 // initially on/off
+    udeb_level        = UDEB_NOTICE,       // initial level
+    destinationStream = process.stderr,    // initial message destination
+    nativeCodeClients = [],
+    logListeners      = [];
+
 
 /* This is a common internal run-time debugging package for C and JavaScript. 
  * In the spirit of Fred Fish's dbug package, which is widely used in the 
@@ -44,20 +54,21 @@ var path = require("path"),
  *
  * debug.on()                       // turn debugging on
  * debug.off()                      // turn debugging off
+ * debug.level_urgent()             // set output level to URGENT
+ * debug.level_notice()             // set output level to NOTICE
  * debug.level_info()               // set output level to INFO
  * debug.level_debug()              // set output level to DEBUG
  * debug.level_detail()             // set output level to DETAIL
  * debug.level_meta()               // also debug the debug system
  *
- * debug.destination(<log_file>)    // direct output to log_file
  * debug.close()                    // close log file
  *
  * debug.log(<message>)             // write debugging message (at DEBUG level)
+ * debug.log_urgent(<message>)      // write message at URGENT level
+ * debug.log_notice(<message>)      // write message at NOTICE level
  * debug.log_info(<message>)        // write message at INFO level
- * debug.log_debug(<message>)       // same as debug.log
+ * debug.log_debug(<message>)       // write message at DEBUG level
  * debug.log_detail(<message>)      // write message at DETAIL level
- *
- * debug.inspect(<object>)          // inspect object (INFO level)
  *
  * debug.all_files()                // enable messages from all source files
  * debug.all_but_selected()         //  ... from all files except those selected
@@ -67,72 +78,107 @@ var path = require("path"),
  * 
  */
 
-/** Set the path for debugging output. 
-    By default, debugging output goes to standard error.
-    This function will append debugging output to an existing file,
-    creating it if necessary.
+
+/* close the destination stream
 */
-var udeb_on = 0;
-
-exports.destination = function(filename) {
-  impl.udeb_destination(filename);
-};
-
 exports.close = function() {
-  impl.udeb_close();
+  if(destinationStream !== process.stderr && destinationStream !== process.stdout) {
+    destinationStream.end();
+  }
 };
+
+/* Tell native code logging clients about the level 
+*/
+function clientSetLevel(l) {
+  var i, client;
+  for(i = 0 ; i < nativeCodeClients.length ; i++) {
+    client = nativeCodeClients[i];
+    client.setLevel(l);
+  }
+}
 
 /* Turn debugging output on.
 */
 exports.on = function() {
-  impl.udeb_switch(1);
-  udeb_on = impl.UDEB_INFO;
+  udeb_on = 1;
+  clientSetLevel(udeb_level);
   exports.log("unified debug enabled");
 };
 
 /* Turn debugging output off.
 */
 exports.off = function() {
-  impl.udeb_switch(0);
   udeb_on = 0;
+  clientSetLevel(UDEB_OFF);
   exports.log("unified debug disabled");
 };
 
+
 /* Set the logging level
 */
+function udeb_set_level(lvl) {
+  udeb_level = lvl;
+  clientSetLevel(udeb_level);
+}
+
+exports.level_urgent = function() {
+  udeb_set_level(UDEB_URGENT);
+};
+
+exports.level_notice = function() {
+  udeb_set_level(UDEB_NOTICE);
+};
+
 exports.level_info = function() {
-  udeb_on = impl.UDEB_INFO;
-  impl.udeb_switch(impl.UDEB_INFO);
+  udeb_set_level(UDEB_INFO);
 };
 
 exports.level_debug = function() {
-  udeb_on = impl.UDEB_DEBUG;
-  impl.udeb_switch(impl.UDEB_DEBUG);
+  udeb_set_level(UDEB_DEBUG);
 };
 
 exports.level_detail = function() {
-  udeb_on = impl.UDEB_DETAIL;
-  impl.udeb_switch(impl.UDEB_DETAIL);
+  udeb_set_level(UDEB_DETAIL);
 };
 
 exports.level_meta = function() {
-  udeb_on = impl.UDEB_META;
-  impl.udeb_switch(impl.UDEB_META);
+  udeb_set_level(UDEB_META);
 };
 
 
-/* Write a message to the debugging destination.
-   By default, if debugging is on, all messages are logged.
-   However, it is also possible to enable logging only from specific 
-   source code files (see below).
-*/
+/**********************************************************/
+function write_log_message(level, file, message) {
+  if(udeb_level >= level) {
+    message += "\n"
+    destinationStream.write(message, 'ascii');
+  }
+}
+
+// TO DO, THESE ARE ACTUALLY FUNCTIONS OF THE PER-FILE LOGGER CLASS AND ARE GENERATED.
+exports.log_urgent = function() {
+  var message;
+  if(udeb_level >= UDEB_URGENT) {
+    message = util.format.apply(null, arguments);
+    write_log_message(UDEB_URGENT, path.basename(module.parent.filename), 
+                      message);
+  }
+};
+
+exports.log_notice = function() {
+  var message;
+  if(udeb_level >= UDEB_NOTICE) {
+    message = util.format.apply(null, arguments);
+    write_log_message(UDEB_NOTICE, path.basename(module.parent.filename), 
+                      message);
+  }
+};
 
 exports.log_debug = function() {
   var message;
-  if(udeb_on >= impl.UDEB_DEBUG) {
+  if(udeb_level >= UDEB_DEBUG) {
     message = util.format.apply(null, arguments);
-    impl.udeb_print(path.basename(module.parent.filename), 
-                    impl.UDEB_DEBUG, message);
+    write_log_message(UDEB_DEBUG, path.basename(module.parent.filename), 
+                      message);
   }
 };
 
@@ -144,10 +190,10 @@ exports.log = exports.log_debug;
 */
 exports.log_info = function() {
   var message;
-  if(udeb_on >= impl.UDEB_INFO) {
+  if(udeb_level >= UDEB_INFO) {
     message = util.format.apply(null, arguments);
-    impl.udeb_print(path.basename(module.parent.filename), 
-                    impl.UDEB_INFO, message);
+    write_log_message(UDEB_INFO, path.basename(module.parent.filename), 
+                      message);
   }
 };
 
@@ -155,52 +201,37 @@ exports.log_info = function() {
 */
 exports.log_detail = function() {
   var message;
-  if(udeb_on >= impl.UDEB_DETAIL) {
+  if(udeb_level >= UDEB_DETAIL) {
     message = util.format.apply(null, arguments);
-    impl.udeb_print(path.basename(module.parent.filename), 
-                    impl.UDEB_DETAIL, message);
+    write_log_message(UDEB_DETAIL, path.basename(module.parent.filename), 
+                      message);
   }
 };
 
-/* Inspect object.  Logged at INFO level.
-*/
-exports.inspect = function() {
-  var message;
-  if(udeb_on) {
-    message = util.inspect.apply(null, arguments);
-    impl.udeb_print(path.basename(module.parent.filename), 
-                    impl.UDEB_INFO, message);
-  }
-};
 
 /* Enable debugging output from all source files.
    This is the default.
 */
 exports.all_files = function() {
-  impl.udeb_select(0);
 };
 
 /* Enable debugging output only from specifically selected source files.
    Files from which output is desired must be added to the target list.
 */
 exports.none_but_selected = function() {
-  impl.udeb_select(5);
 };
 
 /* Enable debugging from all source files -except- those on the target list.
 */
 exports.all_but_selected = function() {
-  impl.udeb_select(4);
 };
 
 /* Add a source file to the target list.
 */
 exports.add_file = function(source_file_name) {
-  impl.udeb_add_drop(source_file_name, 1);
 };
 
 /* Remove a source file from the target list.
 */
 exports.drop_file = function(source_file_name) {
-  impl.udeb_add_drop(source_file_name, 2);
 };

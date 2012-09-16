@@ -30,6 +30,19 @@
     bit in a bitmask indexes.  Hash collisions are possible.)
 */
 
+enum {
+  UDEB_OFF      = 0,
+  UDEB_URGENT   = 1,
+  UDEB_NOTICE   = 2,
+  UDEB_INFO     = 3,
+  UDEB_DEBUG    = 4,
+  UDEB_DETAIL   = 5,
+  UDEB_META     = 6
+};
+
+#define UDEB_SOURCE_FILE_BITMASK_BYTES 2048
+#define UDEB_SOURCE_FILE_BITMASK_BITS (8 * 2048)
+
 #ifdef __cplusplus
 #define DECLARE_FUNCTIONS_WITH_C_LINKAGE extern "C" { 
 #define END_FUNCTIONS_WITH_C_LINKAGE }
@@ -40,18 +53,6 @@
 
 DECLARE_FUNCTIONS_WITH_C_LINKAGE
 
-/* Public API */
-void unified_debug_on(void);
-void unified_debug_off(void);
-void unified_debug_add_file(const char *name);
-void unified_debug_drop_file(const char *name);
-void unified_debug_all_files(void);
-void unified_debug_all_but_selected(void);
-void unified_debug_none_but_selected(void);
-void unified_debug_none();
-void unified_debug_destination(const char * file);
-void unified_debug_log_level(int);
-void unified_debug_close();
 
 /* Macros in the Public API:
  *
@@ -61,42 +62,26 @@ void unified_debug_close();
  * DEBUG_LEAVE()                : leave a function (DEBUG level)
  * DEBUG_MARKER()               : automatic enter & leave for C++ code
  *
- * Constants in the Public API:
- * UDEB_INFO, UDEB_DETAIL, UDEB_TRACE
 */
 
 
-/* Private */
-enum {
-  UDEB_ALL                = 0,  /* initial state */
-  UDEB_ADD                = 1,
-  UDEB_DROP               = 2,
-  UDEB_NONE               = 3,
-  UDEB_ALL_BUT_SELECTED   = 4,
-  UDEB_NONE_BUT_SELECTED  = 5,
-  UDEB_INFO               = 6,
-  UDEB_DEBUG              = 7,
-  UDEB_DETAIL             = 8,
-  UDEB_META               = 9
-};
-
-void udeb_select(const char *file_name, int udeb_cmd);
 void udeb_print(const char *, int level, const char *fmt, ...);
 void udeb_enter(int level, const char *, const char *, int);
-void udeb_leave(int level, const char *, const char *);
-void udeb_trace(const char *, int);
-void udeb_switch(int);
-int uni_dbg(void);
+void udeb_enter(int level, const char *, const char *, int );
 
-inline void unified_debug_on(void)                 { udeb_switch(1);           }
-inline void unified_debug_off(void)                { udeb_switch(0);           }
-inline void unified_debug_log_level(int i)         { udeb_switch(i);           }
-inline void unified_debug_add_file(const char *f)  { udeb_select(f, UDEB_ADD); }
-inline void unified_debug_drop_file(const char *f) { udeb_select(f, UDEB_DROP);}
-inline void unified_debug_all_files()              { udeb_select(NULL, 0);     }
-inline void unified_debug_all_but_selected()       { udeb_select(NULL, 4);     }
-inline void unified_debug_none_but_selected()      { udeb_select(NULL, 5);     }
-inline void unified_debug_none()                   { udeb_select(NULL, 3);     }
+inline void udeb_trace(const char *src_path, int line) {
+  udeb_print(src_path, UDEB_DETAIL, "  Trace: %27s line %d", ".....", line);
+}
+
+inline void udeb_leave(int level, const char *src_path, const char *function) {
+  udeb_print(src_path, level, "  Leave: %25s", function);
+}
+
+inline void udeb_enter(int level, const char *src_path, const char *fn, int ln) {
+  udeb_print(src_path, level, "Enter: %27s - line %d", fn, ln);
+}
+
+
 
 END_FUNCTIONS_WITH_C_LINKAGE
 
@@ -145,11 +130,6 @@ public:
 #define DEBUG_ASSERT(x)
 
 #endif
-
-
-/* Size of bitmask index on filename hashes */
-#define UDEB_SOURCE_FILE_BITMASK_BYTES 2048
-#define UDEB_SOURCE_FILE_BITMASK_BITS (8 * 2048)
 
 /* Maximum size of a debug message */
 #define UDEB_MSG_BUF 8000
