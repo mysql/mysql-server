@@ -22,24 +22,38 @@
 
 var mynode = require('../Adapter/api/mynode.js');
 
-//dump the values of the object
-var onData = function(err, data) {
-  if (err) {
-    console.log(err);
-    process.exit(0);
-  }
-  console.log('Found: ', JSON.stringify(data));
-  process.exit(0);
+udebug.on();
+udebug.level_detail();
+
+// define a simple mapping class
+var t_basic = function(id, name, age, magic) {
+  this.id = id;
+  this.name = name;
+  this.age = age;
+  this.magic = magic;
 };
 
-//find an object
-var onSession = function(err, session) {
-  
+// check results of insert
+var onInsert = function(err, object) {
+  console.log('onInsert.');
   if (err) {
     console.log(err);
-    process.exit(0);
+  } else {
+    console.log('Inserted: ' + object);
   }
-  session.find('t_basic', 0, onData);
+};
+
+// insert an object
+var onSession = function(err, session) {
+  console.log('onSession: ' + util.inspect(session));
+  if (err) {
+    console.log('Error onSession.');
+    console.log(err);
+  } else {
+    var data = new t_basic(1, 'Craig', 99, 99);
+    console.log('data.mynode: ' + util.inspect(data.mynode));
+    session.persist(data, onInsert);
+  }
 };
 
 // *** program starts here ***
@@ -56,6 +70,18 @@ var dbProperties = {
     "ndb_connect_timeout_after" : 20
 };
 
+// create a basic mapping
+
+var annotations = new mynode.Annotations();
+var t_basic = function(id, name, age, magic) {
+  this.id = id;
+  this.name = name;
+  this.age = age;
+  this.magic = magic;
+};
+
+annotations.mapClass(t_basic, {'table' : 't_basic'});
+
 // connect to the database
-mynode.openSession(dbProperties, null, onSession);
+mynode.openSession(dbProperties, annotations, onSession);
 
