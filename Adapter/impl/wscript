@@ -18,7 +18,6 @@ def build(ctx):
   \
   "src/async_common.cpp " +\
   "src/unified_debug.cpp " +\
-  "src/unified_debug_v8.cpp " +\
   \
   "src/Record.cpp " +\
   "src/Recode.cpp " +\
