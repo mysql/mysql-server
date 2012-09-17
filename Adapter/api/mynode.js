@@ -21,10 +21,10 @@
 "use strict";
 /*global unified_debug */
 
-var udebug = unified_debug.getLogger("mynode.js");
 var spi = require("../impl/SPI.js");
 var annotations = require("./Annotations.js");
 var sessionfactory = require("./SessionFactory.js");
+var udebug = unified_debug.getLogger("mynode.js");
 
 /** connections is a hash of connectionKey to Connection */
 var connections = {};
