@@ -688,20 +688,22 @@ PFS_unknown_acl pfs_unknown_acl;
 ACL_internal_access_result
 PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
 {
-  const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
-    | CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL
-    | CREATE_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
+  const ulong always_forbidden= CREATE_ACL
+    | REFERENCES_ACL | INDEX_ACL | ALTER_ACL
+    | CREATE_VIEW_ACL | TRIGGER_ACL;
 
   if (unlikely(want_access & always_forbidden))
     return ACL_INTERNAL_ACCESS_DENIED;
 
   /*
-    There is no point in hidding (by enforcing ACCESS_DENIED for SELECT_ACL
+    There is no point in hiding (by enforcing ACCESS_DENIED for SELECT_ACL
     on performance_schema.*) tables that do not exist anyway.
     When SELECT_ACL is granted on performance_schema.* or *.*,
     SELECT * from performance_schema.wrong_table
     will fail with a more understandable ER_NO_SUCH_TABLE error,
     instead of ER_TABLEACCESS_DENIED_ERROR.
+    The same goes for other DML (INSERT_ACL | UPDATE_ACL | DELETE_ACL),
+    for ease of use: error messages will be less surprising.
   */
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
