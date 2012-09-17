@@ -132,3 +132,21 @@ my_thread_id Owned_gtids::get_owner(const Gtid &gtid) const
     return n->owner;
   return 0;
 }
+
+
+bool Owned_gtids::is_intersection(const Gtid_set *other) const
+{
+  DBUG_ENTER("Owned_gtids::is_intersection(Gtid_set *)");
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+  Gtid_iterator git(this);
+  Gtid g= git.get();
+  while (g.sidno != 0)
+  {
+    if (other->contains_gtid(g.sidno, g.gno))
+      DBUG_RETURN(true);
+    git.next();
+    g= git.get();
+  }
+  DBUG_RETURN(false);
+}
