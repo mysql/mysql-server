@@ -5302,7 +5302,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
       }
 
       global_sid_lock->rdlock();
-      if (gtid_state->update(thd, true) != RETURN_STATUS_OK)
+      if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         goto err;
@@ -6151,6 +6151,15 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     if (thd->transaction.flags.xid_written)
       dec_prep_xids();
   }
+
+  /*
+    Remove committed GTID from owned_gtids, it was already logged on
+    MYSQL_BIN_LOG::write_cache().
+  */
+  global_sid_lock->rdlock();
+  gtid_state->update_on_commit(thd);
+  global_sid_lock->unlock();
+
   DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.commit_low);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
