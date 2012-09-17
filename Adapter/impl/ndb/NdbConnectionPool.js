@@ -62,6 +62,7 @@ exports.DBConnectionPool = function(props) {
   this.ndbconn = 
     new adapter.ndb.ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
   this.ndbconn.set_name("nodejs");
+  udebug.log("constructor returning");
 };
 
 /* NdbConnectionPool prototype 
@@ -117,6 +118,7 @@ proto.connect = function(user_callback) {
       err = null;
 
   function onGotDictionarySession(cb_err, dsess) {
+    udebug.log("connect onGotDictionarySession");
     // Got the dictionary.  Next step is the user's callback.
     if(cb_err) {
       user_callback(cb_err, null);
@@ -130,24 +132,24 @@ proto.connect = function(user_callback) {
 
   function onReady(cb_err, nnodes) {
     // Cluster is ready.  Next step is to get the dictionary session
-    udebug.log("connect() wait_until_ready internal callback/nnodes=", nnodes);
+    udebug.log("connect() onReady nnodes =", nnodes);
     if(nnodes < 0) {
       err = new Error("Timeout waiting for cluster to become ready.");
       user_callback(err, self);
     }
     else {
       self.is_connected = true;
-      if(nnodes > 0) {             // FIXME: How to log a console warning?
-        console.log("Warning: only " + nnodes + " data nodes are running.");
+      if(nnodes > 0) {
+        udebug.log_notice("Warning: only " + nnodes + " data nodes are running.");
       }
-      console.log("Connected to cluster as node id: " + self.ndbconn.node_id());
+      udebug.log_notice("Connected to cluster as node id: " + self.ndbconn.node_id());
      }
      self.getDBSession(0, onGotDictionarySession);
   }
   
   function onConnected(cb_err, rval) {
     // Connected to NDB.  Next step is wait_until_ready().
-    udebug.log("connect() connectAsync internal callback/rval=", rval);
+    udebug.log("connect() onConnected rval =", rval);
     if(rval === 0) {
       assert(typeof self.ndbconn.wait_until_ready === 'function');
       self.ndbconn.wait_until_ready(1, 1, onReady);
@@ -235,6 +237,7 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
 // FIXME: Pay attention to the user's dbsession
   udebug.log("getTableMetadata");
   assert(dbname && tabname && user_callback);
+  udebug.log_detail(this.dictionary, dbname, tabname, user_callback);
   adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
 };
 

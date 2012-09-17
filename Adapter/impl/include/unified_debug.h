@@ -74,10 +74,7 @@ inline void udeb_leave(int level, const char *src_path, const char *function) {
   udeb_print(src_path, level, "  Leave: %25s", function);
 }
 
-inline void udeb_enter(int level, const char *src_path, const char *fn, int ln) {
-  udeb_print(src_path, level, "Enter: %27s - line %d", fn, ln);
-}
-
+void udeb_enter(int, const char *, const char *, int);
 
 
 END_FUNCTIONS_WITH_C_LINKAGE
