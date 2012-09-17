@@ -46,6 +46,8 @@ select * from t1 where MATCH(a,b) AGAINST ("collections");
 select * from t1 where MATCH(a,b) AGAINST ("indexes");
 drop table t1;
 
+# We need the following when running with --ps-protocol
+--replace_result 4 2
 show status like "feature_fulltext";
 
 
@@ -68,6 +70,7 @@ create table t1 (a int);
 insert into t1 values (2);
 select (select a from t1 where t1.a=t2.a), a from t1 as t2;
 drop table t1;
+--replace_result 8 4
 show status like "feature_subquery";
 
 --echo #
@@ -104,4 +107,5 @@ SET @xml='<a aa1="aa1" aa2="aa2">a1<b ba1="ba1">b1<c>c1</c>b2</b>a2</a>';
 SELECT extractValue(@xml,'/a');
 select updatexml('<div><div><span>1</span><span>2</span></div></div>',
                  '/','<tr><td>1</td><td>2</td></tr>') as upd1;
+--replace_result 4 2
 show status like "feature_xml";

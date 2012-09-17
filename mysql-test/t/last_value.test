@@ -27,9 +27,12 @@ DROP TABLE t1;
 #
 # Test with different types
 #
+# PS protocol gives slightly different metadata for the length
 --enable_metadata
+--disable_ps_protocol
 SELECT LAST_VALUE(@last_a:=1,@last_b:=1);
 select @last_b;
+--enable_ps_protocol
 SELECT LAST_VALUE(@last_a:=1,@last_b:=1.0);
 select @last_b;
 SELECT LAST_VALUE(@last_a:=1,@last_b:="hello");
