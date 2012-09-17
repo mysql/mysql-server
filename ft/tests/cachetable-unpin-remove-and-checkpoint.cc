@@ -17,7 +17,7 @@ static void *run_end_chkpt(void *arg) {
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     int r = toku_cachetable_end_checkpoint(
         cp, 
-        NULL, 
+        false, 
         NULL,
         NULL
         );
@@ -53,7 +53,7 @@ run_test (void) {
 
     // now this should mark the pair for checkpoint
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL);
+    r = toku_cachetable_begin_checkpoint(cp);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
 
     toku_pthread_t mytid;

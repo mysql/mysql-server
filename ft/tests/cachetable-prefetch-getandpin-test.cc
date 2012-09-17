@@ -22,7 +22,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool w      __attribute__((__unused__)),
        bool keep   __attribute__((__unused__)),
        bool c      __attribute__((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
        ) {
     assert(w == false);
 }

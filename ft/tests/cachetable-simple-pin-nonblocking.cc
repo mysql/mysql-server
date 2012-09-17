@@ -24,7 +24,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool w      __attribute__((__unused__)),
        bool keep   __attribute__((__unused__)),
        bool c      __attribute__((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
        ) {
   /* Do nothing */
   if (verbose) { printf("FLUSH: %d\n", (int)k.b); }
@@ -109,12 +109,12 @@ run_test (void) {
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8)); assert(r==0);
     // this should mark the PAIR as pending
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);
+    r = toku_cachetable_begin_checkpoint(cp); assert(r == 0);
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
     assert(r==TOKUDB_TRY_AGAIN);
     r = toku_cachetable_end_checkpoint(
         cp, 
-        NULL, 
+        false, 
         NULL,
         NULL
         );

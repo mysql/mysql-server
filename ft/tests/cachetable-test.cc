@@ -81,7 +81,7 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEK
         PAIR_ATTR* new_size      __attribute__((__unused__)),
 		     bool write_me __attribute__((__unused__)),    bool keep_me __attribute__((__unused__)),
 		     bool for_checkpoint __attribute__ ((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
 		     ) {
     int *CAST_FROM_VOIDP(v, value);
     assert(*v==0);
@@ -156,7 +156,7 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         bool write_me    __attribute__((__unused__)),
                         bool keep_me     __attribute__((__unused__)),
                         bool for_checkpoint __attribute__((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
                         ) {
 }
 
@@ -240,7 +240,7 @@ static void test_dirty_flush(CACHEFILE f,
 			     bool do_write,
 			     bool keep,
 			     bool for_checkpoint __attribute__((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
 			     ) {
     if (verbose) printf("test_dirty_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size.size, (unsigned)do_write, (unsigned)keep);
 }
@@ -374,7 +374,7 @@ static void test_size_flush_callback(CACHEFILE f,
 				     bool do_write,
 				     bool keep,
 				     bool for_checkpoint __attribute__((__unused__)),
-        bool UU(is_clone)
+        bool UU(is_clone), bool UU(aggressive)
 				     ) {
     if (test_size_debug && verbose) printf("test_size_flush %p %" PRId64 " %p %ld %u %u\n", f, key.b, value, size.size, (unsigned)do_write, (unsigned)keep);
     if (keep) {

@@ -30,7 +30,8 @@ flush (
     bool w      __attribute__((__unused__)),
     bool keep   __attribute__((__unused__)),
     bool c      __attribute__((__unused__)),
-    bool is_clone
+    bool is_clone,
+    bool UU(aggressive)
     ) 
 {  
     if (is_clone) {
@@ -44,7 +45,7 @@ static void *run_end_checkpoint(void *arg) {
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     int r = toku_cachetable_end_checkpoint(
         cp, 
-        NULL, 
+        false, 
         NULL,
         NULL
         );
@@ -77,7 +78,7 @@ cachetable_test (void) {
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     assert_zero(r);
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-    r = toku_cachetable_begin_checkpoint(cp, NULL);
+    r = toku_cachetable_begin_checkpoint(cp);
 
 
     clone_flush_started = false;
