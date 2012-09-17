@@ -834,8 +834,14 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 
   if (ev != NULL)
   {
+    DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                  {DBUG_SET("+d,simulate_file_write_error");});
     if (ev->write(&cache_log) != 0)
+    {
+      DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                      {DBUG_SET("-d,simulate_file_write_error");});
       DBUG_RETURN(1);
+    }
     if (ev->get_type_code() == XID_EVENT)
       flags.with_xid= true;
     if (ev->is_using_immediate_logging())
@@ -4603,6 +4609,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       if (check_write_error(thd) && cache_data &&
           stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
+      delete pending;
+      cache_data->set_pending(NULL);
       DBUG_RETURN(1);
     }
 
@@ -5294,7 +5302,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
       }
 
       global_sid_lock->rdlock();
-      if (gtid_state->update(thd, true) != RETURN_STATUS_OK)
+      if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         goto err;
@@ -6143,6 +6151,15 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     if (thd->transaction.flags.xid_written)
       dec_prep_xids();
   }
+
+  /*
+    Remove committed GTID from owned_gtids, it was already logged on
+    MYSQL_BIN_LOG::write_cache().
+  */
+  global_sid_lock->rdlock();
+  gtid_state->update_on_commit(thd);
+  global_sid_lock->unlock();
+
   DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.commit_low);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
