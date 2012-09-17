@@ -2791,19 +2791,18 @@ wait_until_unfixed:
 					buf_pool, space, offset, fold);
 			}
 
-			if (UNIV_LIKELY_NULL(block)) {
-				block_mutex = buf_page_get_mutex(
-					&block->page);
-				/* The page entered the buffer
-				pool for some reason. Try to
-				evict it again. */
-				mutex_enter(block_mutex);
-				rw_lock_x_unlock(hash_lock);
+			rw_lock_x_unlock(hash_lock);
 
-				goto got_block;
+			if (UNIV_LIKELY_NULL(block)) {
+				/* Either the page has been read in or
+				a watch was set on that in the window
+				where we released the buf_pool::mutex
+				and before we acquire the hash_lock
+				above. Try again. */
+				guess = block;
+				goto loop;
 			}
 
-			rw_lock_x_unlock(hash_lock);
 			fprintf(stderr,
 				"innodb_change_buffering_debug evict %u %u\n",
 				(unsigned) space, (unsigned) offset);
