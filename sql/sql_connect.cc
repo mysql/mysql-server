@@ -499,6 +499,19 @@ static int check_connection(THD *thd)
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
+    /* BEGIN : DEBUG */
+    DBUG_EXECUTE_IF("addr_fake_ipv4",
+                    {
+                      struct sockaddr *sa= (sockaddr *) &net->vio->remote;
+                      sa->sa_family= AF_INET;
+                      struct in_addr *ip4= &((struct sockaddr_in *)sa)->sin_addr;
+                      /* See RFC 5737, 192.0.2.0/23 is reserved */
+                      const char* fake= "192.0.2.4";
+                      ip4->s_addr= inet_addr(fake);
+                      strcpy(ip, fake);
+                    };);
+    /* END   : DEBUG */
+
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
       return 1; /* The error is set by my_strdup(). */
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
