@@ -1460,10 +1460,6 @@ PageConverter::update_index_page(
 	index_id_t	id;
 	buf_frame_t*	page = block->frame;
 
-#ifdef UNIV_ZIP_DEBUG
-	ut_a(!is_compressed_table() || page_zip_validate(m_page_zip_ptr, page));
-#endif /* UNIV_ZIP_DEBUG */
-
 	if ((id = btr_page_get_index_id(page)) != m_index->m_id) {
 
 		row_index_t*	index = find_index(id);
@@ -1479,6 +1475,11 @@ PageConverter::update_index_page(
 		/* Update current index */
 		m_index = index;
 	}
+
+#ifdef UNIV_ZIP_DEBUG
+	ut_a(!is_compressed_table()
+	     || page_zip_validate(m_page_zip_ptr, page, m_index->m_srv_index));
+#endif /* UNIV_ZIP_DEBUG */
 
 	/* This has to be written to uncompressed index header. Set it to
 	the current index id. */
