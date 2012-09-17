@@ -69,6 +69,10 @@ function execute(self, execMode, dbOperationList, callback) {
   udebug.log("execute");
   var table = dbOperationList[0].tableHandler.dbTable;
 
+  function defaultCallback(err, dbTxHandler) {
+    dbTxHandler.close();
+  }
+
   function onCompleteTx(err, result) {
     udebug.log("execute onCompleteTx");
     
@@ -80,7 +84,12 @@ function execute(self, execMode, dbOperationList, callback) {
     ndboperation.completeExecutedOps(self.executedOperations);
 
     /* Next callback */
-    callback(err, self);
+    if(callback) {
+      callback(err, self);
+    }
+    else {
+      defaultCallback(err, self);
+    }
   }
 
   function prepareOperationsAndExecute() {
