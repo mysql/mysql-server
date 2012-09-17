@@ -59,15 +59,18 @@ ALTER TABLE WL6445.t1 DROP INDEX sec_idx;
 
 # FIXME: Should bne
 #--error ER_OPEN_AS_READONLY
+--replace_regex /wl6445/WL6445/i
 --error ER_BAD_TABLE_ERROR
 DROP TABLE WL6445.t1;
 
 --error ER_OPEN_AS_READONLY
 TRUNCATE TABLE WL6445.t1;
 
+--replace_regex /'\..*t1'/'t1'/  /'\..*t2'/'t2'/
 --error ER_ERROR_ON_RENAME
 RENAME TABLE WL6445.t1 TO WL6444.t2;
 
+--replace_regex /wl6445/WL6445/i
 --error ER_BAD_TABLE_ERROR
 DROP DATABASE WL6445;
 
