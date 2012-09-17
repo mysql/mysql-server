@@ -36,7 +36,7 @@ ERROR 42S02: Unknown table 'WL6445.t1'
 TRUNCATE TABLE WL6445.t1;
 ERROR HY000: Table 't1' is read only
 RENAME TABLE WL6445.t1 TO WL6444.t2;
-ERROR HY000: Error on rename of './WL6445/t1' to './WL6444/t2' (errno: 165 - Table is read only)
+ERROR HY000: Error on rename of 't1' to 't2' (errno: 165 - Table is read only)
 DROP DATABASE WL6445;
 ERROR 42S02: Unknown table 'WL6445.t1'
 SHOW CREATE TABLE WL6445.t1;
