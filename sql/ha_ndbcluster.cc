@@ -13252,6 +13252,9 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   if ((* share)->state == NSS_DROPPED)
   {
     found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
+
+    // If this is a 'trailing share', it might still be 'open'
+    my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
   }
   else
   {
