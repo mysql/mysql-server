@@ -60,21 +60,21 @@ void toku_checkpoint_init(void);
 void toku_checkpoint_destroy(void);
 
 typedef enum {SCHEDULED_CHECKPOINT  = 0,   // "normal" checkpoint taken on checkpoint thread
-	      CLIENT_CHECKPOINT     = 1,   // induced by client, such as FLUSH LOGS or SAVEPOINT
-	      TXN_COMMIT_CHECKPOINT = 2,   
-	      STARTUP_CHECKPOINT    = 3, 
-	      UPGRADE_CHECKPOINT    = 4,
-	      RECOVERY_CHECKPOINT   = 5,
-	      SHUTDOWN_CHECKPOINT   = 6} checkpoint_caller_t;
+              CLIENT_CHECKPOINT     = 1,   // induced by client, such as FLUSH LOGS or SAVEPOINT
+              TXN_COMMIT_CHECKPOINT = 2,   
+              STARTUP_CHECKPOINT    = 3, 
+              UPGRADE_CHECKPOINT    = 4,
+              RECOVERY_CHECKPOINT   = 5,
+              SHUTDOWN_CHECKPOINT   = 6} checkpoint_caller_t;
 
 // Take a checkpoint of all currently open dictionaries
 // Callbacks are called during checkpoint procedure while checkpoint_safe lock is still held.
 // Callbacks are primarily intended for use in testing.
 // caller_id identifies why the checkpoint is being taken.
 int toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
-		    void (*callback_f)(void*),  void * extra,
-		    void (*callback2_f)(void*), void * extra2,
-		    checkpoint_caller_t caller_id);
+                    void (*callback_f)(void*),  void * extra,
+                    void (*callback2_f)(void*), void * extra2,
+                    checkpoint_caller_t caller_id);
 
 
 
