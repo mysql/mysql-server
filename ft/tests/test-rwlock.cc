@@ -386,7 +386,7 @@ void time_frwlock(void) {
 
 
 #define N 6
-#define T 100000
+#define T 150000
 #define L 5
 #define N_LOG_ENTRIES (L*N*4)
 
