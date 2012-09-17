@@ -834,8 +834,14 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 
   if (ev != NULL)
   {
+    DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                  {DBUG_SET("+d,simulate_file_write_error");});
     if (ev->write(&cache_log) != 0)
+    {
+      DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                      {DBUG_SET("-d,simulate_file_write_error");});
       DBUG_RETURN(1);
+    }
     if (ev->get_type_code() == XID_EVENT)
       flags.with_xid= true;
     if (ev->is_using_immediate_logging())
@@ -4603,6 +4609,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       if (check_write_error(thd) && cache_data &&
           stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
+      delete pending;
+      cache_data->set_pending(NULL);
       DBUG_RETURN(1);
     }
 
