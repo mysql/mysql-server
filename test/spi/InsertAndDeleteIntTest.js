@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug, path, fs, assert, spi_module, harness, adapter_dir, spi_dir */
+/*global unified_debug, path, fs, assert, spi_module, harness, adapter_dir, spi_dir */
 
 "use strict";
 
@@ -26,17 +26,17 @@ try {
   require("./suite_config.js");
 } catch(e) {} 
 
-var spi = require(spi_module);
-var dbt = require(path.join(spi_dir, "common", "DBTableHandler.js"));
-var dbSession = null;
-var table = null;
+var spi_lib = require("./lib.js"),
+    dbt     = require(path.join(spi_dir, "common", "DBTableHandler.js")),
+    udebug  = unified_debug.getLogger("InsertAndDeleteIntTest.js");
+
+var dbSession = null,
+    table = null;
 
 var t1 = new harness.SerialTest("InsertInt");
 
 t1.prepare = function prepare(testObj) {
-  var provider = spi.getDBServiceProvider(global.adapter),
-      properties = provider.getDefaultConnectionProperties(), 
-      connection = null,
+  var connection = null,
       test = this;
 
   if(dbSession && table) {  // already set up
@@ -45,30 +45,30 @@ t1.prepare = function prepare(testObj) {
   }
 
   function onTable(err, dbTable) {
-    udebug.log("InsertIntTest.js prepare onTable");
+    udebug.log("prepare onTable");
     table = dbTable;  // set global
     if(err) {  test.fail(err);               }
     else    {  test.runTestMethod(testObj);  }
   }
 
   function onSession(err, sess) {
-    udebug.log("InsertIntTest.js prepare onSession");
+    udebug.log("prepare onSession");
     dbSession = sess; // set global
     if(err) {   test.fail(err);   }
     else    {   dbSession.getConnectionPool().getTableMetadata("test", "tbl1", null, onTable); }
   }
 
   function onConnect(err, conn) {
-    udebug.log("InsertIntTest.js prepare onConnect");
+    udebug.log("prepare onConnect");
     connection = conn;
     connection.getDBSession(0, onSession);
   }
   
-  provider.connect(properties, onConnect);
+  spi_lib.getConnectionPool(onConnect);
 };
 
 t1.runTestMethod = function do_insert_op(dataObj) {
-  udebug.log("InsertIntTest.js do_insert_op");
+  udebug.log("do_insert_op");
 
   var tx = dbSession.createTransaction();
   var thandler = new dbt.DBTableHandler(table, null);
@@ -95,7 +95,7 @@ var t2 = new harness.SerialTest("DeleteIntPK");
 t2.prepare = t1.prepare;
 
 t2.runTestMethod = function do_delete_op(keyObj) {
-  udebug.log("InsertIntTest.js do_delete_op");
+  udebug.log("do_delete_op");
   var tx = dbSession.createTransaction();
   var thandler = new dbt.DBTableHandler(table, null);
   var ixhandler = thandler.getIndexHandler(keyObj);

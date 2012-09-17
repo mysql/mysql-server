@@ -51,7 +51,7 @@ var t4 = new harness.ConcurrentTest("mapClass");
 t4.run = function() {
   var annotations = new mynode.Annotations();
   annotations.strict(true);
-  annotations.mapClass(domainClass.prototype, {
+  annotations.mapClass(domainClass, {
     "table" : "t_basic",
     "schema" : "def",
     "database" : "test",

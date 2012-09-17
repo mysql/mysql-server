@@ -20,7 +20,10 @@
 
 "use strict";
 
-/*global udebug, spi_module, harness */
+/*global unified_debug, spi_module, harness */
+
+var udebug = unified_debug.getLogger("DBDictionaryTest.js");
+var spi_lib = require("./lib.js");
 
 try {
   require("./suite_config.js");
@@ -33,26 +36,28 @@ var t2 = new harness.ConcurrentTest("getTable");
 
 
 t2.run = function() {  
-  var provider = spi.getDBServiceProvider(global.adapter),
-      properties = provider.getDefaultConnectionProperties(), 
-      conn = null,
+  var conn = null,
       dbSession = null;
 
-  this.teardown = function() {
-    if(dbSession) {
-      dbSession.close();
-    }
-  };
-
   function onTable(err, tab) {
-    udebug.log("DBDictionaryTest onTable");
+    udebug.log("onTable");
+    var passed;
     // TODO: Test specific properties of the table object
-    if(tab && ! err) { t2.pass(); }
-    else             { t2.fail("getTable error"); }
+    
+    if(tab && !err)  { passed = true; }
+    else             { passed = false; }
+    
+    function onClose() {
+      udebug.log("onTable onClose");
+      if(passed)     {   t2.pass(); }
+      else           { t2.fail("getTable error"); }
+    }
+
+    dbSession.close(onClose);
   }
 
   function onList(err, table_list) {
-    udebug.log("DBDictionaryTest onList");
+    udebug.log("onList");
     if (err) {
       t1.fail(err);
       t2.fail(err);
@@ -67,7 +72,7 @@ t2.run = function() {
     }
     table_list.forEach(countTables);
     
-    udebug.log("DBDictionaryTest onList count = " + count);
+    udebug.log("onList count =", count);
     t1.errorIfNotEqual("Bad table count", count, 2);
     t1.failOnError();
 
@@ -75,18 +80,18 @@ t2.run = function() {
   }
 
   function onSession(err, sess) {
-    udebug.log("DBDictionaryTest onSession");
+    udebug.log("onSession");
     dbSession = sess;   // for teardown
     dbSession.getConnectionPool().listTables("test", null, onList);
   }
     
   function onConnect(err, connection) {
-    udebug.log("DBDictionaryTest onConnect");
+    udebug.log("onConnect");
     conn = connection; // for teardown
     conn.getDBSession(0, onSession);
   }
   
-  provider.connect(properties, onConnect);
+  spi_lib.getConnectionPool(onConnect);
 };
 
 exports.tests = [ t1, t2];

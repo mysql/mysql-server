@@ -18,13 +18,14 @@
  02110-1301  USA
  */
 
-/*global udebug, fs, path, util, assert, suites_dir */
+/*global unified_debug, fs, path, util, assert, suites_dir */
 
 "use strict";
 
 /* This test harness is documented in the README file.
 */
 
+var udebug = unified_debug.getLogger("harness.js");
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
 var SQL = {};
@@ -212,7 +213,7 @@ function Suite(name, path) {
 
 Suite.prototype.addTest = function(filename, test) {
   this.filename = path.relative(suites_dir, filename);
-  udebug.log('Suite', this.name, 'adding test', test.name, 'from', this.filename);
+  udebug.log_detail('Suite', this.name, 'adding test', test.name, 'from', this.filename);
   test.filename = filename;
   test.suite = this;
   this.tests.push(test);
@@ -336,7 +337,7 @@ Suite.prototype.startConcurrentTests = function(result) {
   udebug.log_detail('Suite.startConcurrentTests');
   if (this.firstConcurrentTestIndex !== -1) {
     this.concurrentTests.forEach(function(testCase) {
-      udebug.log('Suite.startConcurrentTests starting ', testCase.name);
+      udebug.log_detail('Suite.startConcurrentTests starting ', testCase.name);
       testCase.test(result);
       self.numberOfConcurrentTestsStarted++;
     });
@@ -495,8 +496,9 @@ Result.prototype.skip = function(t, reason) {
 
 /* SQL DDL Utilities
 */
-var runSQL = function(sqlPath, source, callback) {
-  var child = exec('mysql <' + sqlPath, function (error, stdout, stderr) {
+var runSQL = function(sqlPath, source, callback) {  
+
+  function childProcess(error, stdout, stderr) {
     udebug.log(source + ' stdout: ' + stdout);
     udebug.log(source + ' stderr: ' + stderr);
     if (error !== null) {
@@ -504,8 +506,12 @@ var runSQL = function(sqlPath, source, callback) {
     } else {
       udebug.log(source + ' exec OK');
     }
-    callback(error);
-  });
+    if(callback) {
+      callback(error);  
+    }
+  }
+
+  var child = exec('mysql <' + sqlPath, childProcess);
 };
 
 SQL.create =  function(suite, callback) {

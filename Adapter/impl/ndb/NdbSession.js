@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global udebug, path, build_dir */
+/*global unified_debug, path, build_dir */
 
 "use strict";
 
@@ -27,16 +27,17 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     dbtxhandler    = require("./NdbTransactionHandler.js"),
     util           = require("util"),
     assert         = require("assert"),
+    udebug         = unified_debug.getLogger("NdbSession.js"),
     NdbSession;
 
 /*** Methods exported by this module but not in the public DBSession SPI ***/
 
 
-/* getDBSession(sessionImpl) 
+/* newDBSession(sessionImpl) 
    Called from NdbConnectionPool.js to create a DBSession object
 */
-exports.getDBSession = function(pool, impl) {
-  udebug.log("ndbsession getDBSession(connectionPool, sessionImpl)");
+exports.newDBSession = function(pool, impl) {
+  udebug.log("newDBSession(connectionPool, sessionImpl)");
   var dbSess = new NdbSession();
   dbSess.parentPool = pool;
   dbSess.impl = impl;
@@ -47,7 +48,7 @@ exports.getDBSession = function(pool, impl) {
 /* getNdb(DBSession) 
 */
 exports.getNdb = function(dbsession) {
-  udebug.log("ndbsession getNdb(DBSession)");
+  udebug.log("getNdb(DBSession)");
   return dbsession.impl.getNdb();
 };
 
@@ -55,7 +56,7 @@ exports.getNdb = function(dbsession) {
 /* DBSession Simple Constructor
 */
 NdbSession = function() { 
-  udebug.log("NdbSession constructor");
+  udebug.log("constructor");
 };
 
 /* NdbSession prototype 
@@ -71,7 +72,7 @@ NdbSession.prototype = {
     RETURNS the DBConnectionPool from which this DBSession was created.
 */
 NdbSession.prototype.getConnectionPool = function() {
-  udebug.log("NdbSession getConnectionPool");
+  udebug.log("getConnectionPool");
   return this.parentPool;
 };
 
@@ -80,7 +81,9 @@ NdbSession.prototype.getConnectionPool = function() {
    ASYNC. Optional callback.
 */
 NdbSession.prototype.close = function(userCallback) {
-  adapter.ndb.impl.DBSession.destroy(this.impl);
+  if(this && this.impl) {
+    adapter.ndb.impl.DBSession.destroy(this.impl);
+  }
   if(userCallback) {
     userCallback(null, null);
   }
@@ -93,7 +96,7 @@ NdbSession.prototype.close = function(userCallback) {
    RETURNS a DBTransactionHandler
 */
 NdbSession.prototype.createTransaction = function() {
-  udebug.log("NdbSession createTransaction");
+  udebug.log("createTransaction");
   
   delete this.tx;  
   this.tx = new dbtxhandler.DBTransactionHandler(this);
@@ -115,7 +118,7 @@ NdbSession.prototype.createTransaction = function() {
 */
 NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
                                                    tx, callback) {
-  udebug.log("NdbSession buildReadOperation");
+  udebug.log("buildReadOperation");
   var lockMode = "SHARED";
   var op = ndboperation.newReadOperation(tx, dbIndexHandler, keys, lockMode);
   op.userCallback = callback;
@@ -136,7 +139,7 @@ NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                                                     tx, callback) {
-  udebug.log("NdbSession buildInsertOperation " + tableHandler.dbTable.name);
+  udebug.log("buildInsertOperation " + tableHandler.dbTable.name);
   var op = ndboperation.newInsertOperation(tx, tableHandler, row);
   op.userCallback = callback;
   return op;
@@ -156,8 +159,8 @@ NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
 */
 NdbSession.prototype.buildWriteOperation = function(dbTableHandler, row, 
                                                     tx, callback) {
-  udebug.log("NdbSession buildWriteOperation " + tableHandler.dbTable.name);
-  var op = ndboperation.newWriteOperation(tx, tableHandler, row);
+  udebug.log("buildWriteOperation " + dbTableHandler.dbTable.name);
+  var op = ndboperation.newWriteOperation(tx, dbTableHandler, row);
   op.userCallback = callback;
   return op;
 };
@@ -178,11 +181,11 @@ NdbSession.prototype.buildWriteOperation = function(dbTableHandler, row,
 */
 NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler, 
                                                      keys, row, tx, userData) {
-  udebug.log("NdbSession buildUpdateOperation");
+  udebug.log("buildUpdateOperation");
   var op = ndboperation.newUpdateOperation(tx, dbIndexHandler, keys, row);
   op.userCallback = userData;
   return op;
-}
+};
 
 
 /* buildDeleteOperation(DBIndexHandler dbIndexHandler, 
@@ -198,7 +201,7 @@ NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler,
 */  
 NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
                                                      tx, callback) {
-  udebug.log("NdbSession buildDeleteOperation");
+  udebug.log("buildDeleteOperation");
   
   var op = ndboperation.newDeleteOperation(tx, dbIndexHandler, keys);
   op.userCallback = callback;

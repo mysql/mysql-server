@@ -18,10 +18,11 @@
  02110-1301  USA
  */
 
-/*global path, udebug, api_doc_dir */
+/*global path, unified_debug, api_doc_dir */
 "use strict";
 
-var doc = require(path.join(api_doc_dir, "FieldMapping"));
+var udebug = unified_debug.getLogger("FieldMapping.js"),
+    doc    = require(path.join(api_doc_dir, "FieldMapping"));
 
 
 function FieldMapping(fieldName, columnName) {

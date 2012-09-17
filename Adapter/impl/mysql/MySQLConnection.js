@@ -20,11 +20,13 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
-/*global udebug, util */
+/*global unified_debug, util */
 
 "use strict";
 
-var mysql = require("mysql");
+var mysql  = require("mysql"),
+    udebug = unified_debug.getLogger("MySQLConnection.js");
+
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract */
 exports.DBSession = function(pooledConnection, connectionPool) {
@@ -58,8 +60,8 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
     transactionHandler.executedOperations.push(completedOperation);
     var complete = transactionHandler.executedOperations.length;
     if (complete === transactionHandler.numberOfOperations) {
-      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback done: ' +
-          ' completed ' + complete + ' of ' + transactionHandler.numberOfOperations);
+      udebug.log('TransactionHandler.operationCompleteCallback done: completed',
+                 complete, 'of', transactionHandler.numberOfOperations);
       if (typeof(transactionHandler.transactionExecuteCallback) === 'function') {
         transactionHandler.transactionExecuteCallback(null, transactionHandler);
       }
@@ -106,7 +108,7 @@ exports.DBSession.translateError = function(code) {
 };
 
 function InsertOperation(sql, data, callback) {
-  udebug.log('MySQLConnection.dbSession.InsertOperation with ' + util.inspect(sql) + ' ' + util.inspect(data));
+  udebug.log('dbSession.InsertOperation with', sql, data);
 
   var op = this;
   this.sql = sql;
@@ -117,16 +119,15 @@ function InsertOperation(sql, data, callback) {
 
   function onInsert(err, status) {
     if (err) {
-      udebug.log('MySQLConnection.dbSession.InsertOperation err callback: ' + util.inspect(err));
+      udebug.log('dbSession.InsertOperation err callback: ', err);
       op.result.error.code = exports.DBSession.translateError(err.code);
-      udebug.log('MySQLConnection.dbSession.InsertOperation err code: ' + util.inspect(err.code) + 
-          ' ' + op.result.error.code);
+      udebug.log('dbSession.InsertOperation err code:', err.code, op.result.error.code);
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
         op.callback(err, null);
       }
     } else {
-      udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback: ' + JSON.stringify(status));
+      udebug.log('dbSession.InsertOperation NO ERROR callback:', status);
       op.result.success = true;
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);
@@ -143,7 +144,7 @@ function InsertOperation(sql, data, callback) {
 }
 
 function DeleteOperation(sql, keys, callback) {
-  udebug.log('MySQLConnection.dbSession.DeleteOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+  udebug.log('dbSession.DeleteOperation with ', sql, keys);
   var op = this;
   this.sql = sql;
   this.keys = keys;
@@ -153,17 +154,17 @@ function DeleteOperation(sql, keys, callback) {
 
   function onDelete(err, status) {
     if (err) {
-      udebug.log('MySQLConnection.dbSession.DeleteOperation err callback: ' + err);
+      udebug.log('dbSession.DeleteOperation err callback:', err);
       if (typeof(op.callback) === 'function') {
         op.callback(err, op);
       }
     } else {
-      udebug.log('MySQLConnection.dbSession.DeleteOperation NO ERROR callback: ' + JSON.stringify(status));
+      udebug.log('dbSession.DeleteOperation NO ERROR callback:', status);
       if (status.affectedRows === 1) {
         op.result.success = true;
         op.result.error.code = 0;
       } else {
-        udebug.log('MySQLConnection.dbSession.DeleteOperation NO ERROR callback with no deleted rows');
+        udebug.log('dbSession.DeleteOperation NO ERROR callback with no deleted rows');
         op.result.success = false;
         op.result.error.code = "02000";
       }
@@ -182,7 +183,7 @@ function DeleteOperation(sql, keys, callback) {
 }
 
 function ReadOperation(sql, keys, callback) {
-  udebug.log('MySQLConnection.dbSession.ReadOperation with ' + util.inspect(sql) + ' ' + util.inspect(keys));
+  udebug.log('dbSession.ReadOperation with', sql, keys);
   var op = this;
   this.sql = sql;
   this.keys = keys;
@@ -192,7 +193,7 @@ function ReadOperation(sql, keys, callback) {
 
   function onRead(err, rows) {
     if (err) {
-      udebug.log('MySQLConnection.dbSession.ReadOperation err callback: ' + err);
+      udebug.log('dbSession.ReadOperation err callback:', err);
       op.result.value = null;
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
@@ -205,7 +206,7 @@ function ReadOperation(sql, keys, callback) {
           op.callback(err, op);
         }
       } else if (rows.length === 1) {
-        udebug.log('MySQLConnection.dbSession.ReadOperation ONE RESULT callback: ' + util.inspect(rows[0]));
+        udebug.log('dbSession.ReadOperation ONE RESULT callback:', rows[0]);
         op.result.value = rows[0];
         op.result.success = true;
         op.result.error.code = 0;
@@ -213,7 +214,7 @@ function ReadOperation(sql, keys, callback) {
           op.callback(null, op);
         }
       } else {
-        udebug.log('MySQLConnection.dbSession.ReadOperation NO RESULTS callback.');
+        udebug.log('dbSession.ReadOperation NO RESULTS callback.');
         op.result.value = null;
         op.result.success = false;
         op.result.error = "02000";
@@ -233,8 +234,7 @@ function ReadOperation(sql, keys, callback) {
 }
 
 function UpdateOperation(sql, keys, values, callback) {
-  udebug.log('MySQLConnection.dbSession.UpdateOperation with ' + util.inspect(sql) + ' ' + util.inspect(values) +
-      ' ' + util.inspect(keys));
+  udebug.log('dbSession.UpdateOperation with', sql, values, keys);
   var op = this;
   this.sql = sql;
   this.keys = keys;
@@ -245,12 +245,12 @@ function UpdateOperation(sql, keys, values, callback) {
 
   function onUpdate(err, status) {
     if (err) {
-      udebug.log('MySQLConnection.dbSession.UpdateOperation err callback: ' + err);
+      udebug.log('dbSession.UpdateOperation err callback:', err);
       if (typeof(op.callback) === 'function') {
         op.callback(err, op);
       }
     } else {
-      udebug.log('MySQLConnection.dbSession.UpdateOperation NO ERROR callback: ' + JSON.stringify(status));
+      udebug.log('dbSession.UpdateOperation NO ERROR callback:', status);
       if (status.affectedRows === 1) {
         op.result.success = true;
         op.result.error = 0;
@@ -278,7 +278,7 @@ function createInsertSQL(dbTableHandler) {
   var valuesSQL = ' VALUES (';
   var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
   var columns = dbTableHandler.getColumnMetadata();
-  udebug.log_detail('MySQLConnection.getMetadata with columns', JSON.stringify(columns));
+  udebug.log_detail('getMetadata with columns', columns);
   // loop over the columns and extract the column name
   var columnSeparator = '';
   var duplicateSeparator = '';
@@ -297,8 +297,8 @@ function createInsertSQL(dbTableHandler) {
   insertSQL += ')' + valuesSQL;
   dbTableHandler.mysql.insertSQL = insertSQL;
   dbTableHandler.mysql.duplicateSQL = insertSQL + duplicateSQL;
-  udebug.log_detail('MySQLConnection.getMetadata insertSQL: ' + dbTableHandler.mysql.insertSQL);
-  udebug.log_detail('MySQLConnection.getMetadata duplicateSQL: ' + dbTableHandler.mysql.duplicateSQL);
+  udebug.log_detail('getMetadata insertSQL:', dbTableHandler.mysql.insertSQL);
+  udebug.log_detail('getMetadata duplicateSQL:', dbTableHandler.mysql.duplicateSQL);
   return insertSQL;
 }
 
@@ -314,14 +314,14 @@ function createDeleteSQL(dbTableHandler, index) {
   for (i = 0; i < indexMetadatas.length; ++i) {
     if (indexMetadatas[i].name === index) {
       indexMetadata = indexMetadatas[i];
-      udebug.log_detail('MySQLConnection.createDeleteSQL indexMetadata: ' + JSON.stringify(indexMetadata));
+      udebug.log_detail('createDeleteSQL indexMetadata: ', indexMetadata);
       for (j = 0; j < indexMetadata.columnNumbers.length; ++j) {
         deleteSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ?';
         separator = ' AND ';
       }
     }
   }
-  udebug.log_detail('MySQLConnection.getMetadata deleteSQL for ' + index + ': ' + deleteSQL);
+  udebug.log_detail('getMetadata deleteSQL for', index, ':', deleteSQL);
   return deleteSQL;
 }
 
@@ -356,7 +356,7 @@ function createSelectSQL(dbTableHandler, index) {
     }
   }
   selectSQL += whereSQL;
-  udebug.log_detail('MySQLConnection.getMetadata selectSQL for ' + index + ': ' + selectSQL);
+  udebug.log_detail('getMetadata selectSQL for', index +':', selectSQL);
   return selectSQL;
 }
 
@@ -364,7 +364,7 @@ function getMetadata(dbTableHandler) {
   if (dbTableHandler.mysql) {
     return;
   }
-  udebug.log_detail('MySQLConnection.getMetadata with dbTableHandler ' + JSON.stringify(dbTableHandler));
+  udebug.log_detail('getMetadata with dbTableHandler', dbTableHandler);
   dbTableHandler.mysql = {};
   dbTableHandler.mysql.indexes = {};
   dbTableHandler.mysql.deleteSQL = {};
@@ -381,8 +381,8 @@ function getMetadata(dbTableHandler) {
 }
 
 exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
-  udebug.log_detail('MySQLConnection.dbSession.buildInsertOperation with tableHandler: ' + util.inspect(dbTableHandler) +
-      ' object: ' + util.inspect(object));
+  udebug.log_detail('dbSession.buildInsertOperation with tableHandler:', 
+                    dbTableHandler, 'object:', object);
   getMetadata(dbTableHandler);
   var fields = dbTableHandler.getFields(object);
   var insertSQL = dbTableHandler.mysql.insertSQL;
@@ -391,8 +391,7 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
 
 
 exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('MySQLConnection.dbSession.buildReadOperation with indexHandler: ' + util.inspect(dbIndexHandler) +
-      util.inspect(keys));
+  udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler, keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   var fields = dbIndexHandler.getFields(keys);
   getMetadata(dbTableHandler);
@@ -402,8 +401,7 @@ exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys
 
 
 exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('MySQLConnection.dbSession.buildReadOperation with indexHandler: ' + util.inspect(dbIndexHandler) +
-      util.inspect(keys));
+  udebug.log_detail('dbSession.buildReadOperation with indexHandler:' + dbIndexHandler, keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   var fields = dbIndexHandler.getFields(keys);
   getMetadata(dbTableHandler);
@@ -413,8 +411,7 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
 
 
 exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, object, transaction, callback) {
-  udebug.log_detail('MySQLConnection.dbSession.buildUpdateOperation with indexHandler: ' + util.inspect(dbIndexHandler) +
-      util.inspect(object));
+  udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, object);
   var dbTableHandler = dbIndexHandler.tableHandler;
   var keyFields = dbIndexHandler.getFields(object);
   // build the SQL Update statement along with the data values
@@ -448,7 +445,7 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, obje
     }
   }
   updateSetSQL += updateWhereSQL;
-  udebug.log('MySQLConnection.dbSession.buildUpdateOperation SQL: ' + updateSetSQL);
+  udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
   return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
 };
 

@@ -36,8 +36,7 @@ enum {
   UDEB_NOTICE   = 2,
   UDEB_INFO     = 3,
   UDEB_DEBUG    = 4,
-  UDEB_DETAIL   = 5,
-  UDEB_META     = 6
+  UDEB_DETAIL   = 5
 };
 
 #define UDEB_SOURCE_FILE_BITMASK_BYTES 2048
@@ -66,8 +65,6 @@ DECLARE_FUNCTIONS_WITH_C_LINKAGE
 
 
 void udeb_print(const char *, int level, const char *fmt, ...);
-void udeb_enter(int level, const char *, const char *, int);
-void udeb_enter(int level, const char *, const char *, int );
 
 inline void udeb_trace(const char *src_path, int line) {
   udeb_print(src_path, UDEB_DETAIL, "  Trace: %27s line %d", ".....", line);

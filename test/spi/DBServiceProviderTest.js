@@ -24,9 +24,10 @@
 
 "use strict";
 
-var spi = require(spi_module);
-var service = spi.getDBServiceProvider(global.adapter);
-var doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+var spi = require(spi_module),
+    service = spi.getDBServiceProvider(global.adapter),
+    doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
+
 
 var t1 = new harness.ConcurrentTest("getDefaultConnectionProperties");
 t1.run = function() {
@@ -39,15 +40,6 @@ var t2 = new harness.ConcurrentTest("getFactoryKey");
 t2.run = function() {
   var properties = service.getDefaultConnectionProperties();
   var key = service.getFactoryKey(properties);
-  return true; // test is complete
-};
-
-
-var t3 = new harness.SerialTest("connectSync");
-t3.run = function() {
-  var properties = service.getDefaultConnectionProperties();
-  var connection = service.connectSync(properties);
-  connection.closeSync();
   return true; // test is complete
 };
 
@@ -65,4 +57,4 @@ t4.run = function() {
   return true;
 };
 
-module.exports.tests = [t1, t2, t3, t4];
+module.exports.tests = [t1, t2, t4];

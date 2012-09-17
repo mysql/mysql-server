@@ -18,7 +18,9 @@
  02110-1301  USA
 */
 
-/*global fs udebug */
+/*global fs unified_debug */
+
+var udebug = unified_debug.getLogger("doc_parser.js");
 
 /* Returns a list of function definitions 
 */
@@ -64,7 +66,7 @@ function scan(text) {
   };
     
   Token.prototype.commit = function() {
-    udebug.log("doc_parser.js found function:", this.str);
+    udebug.log("found function:", this.str);
     if(isUpper(this.str.charAt(0))) {     constructor = this.str;   }
     else                            {     list.push(this.str);      }
   };
@@ -132,11 +134,11 @@ ClassTester.prototype.test = function(functionList, testCase) {
   var missing = 0;
   var firstMissing = null;
 
-  udebug.log("doc_parser.js verifying",functionList.length,"functions");
+  udebug.log("verifying",functionList.length,"functions");
   while(name = functionList.pop()) {
     func = this.class[name];
     if(typeof func !== 'function') {
-      udebug.log("doc_parser.js MISSING FUNCTION", this.file, name);
+      udebug.log("MISSING FUNCTION", this.file, name);
       if(! firstMissing) { firstMissing = name; }
       missing += 1;
     }

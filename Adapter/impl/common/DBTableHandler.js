@@ -18,13 +18,14 @@
  02110-1301  USA
 */
 
-/*global udebug, path, api_doc_dir */
+/*global unified_debug, path, api_doc_dir */
 
 "use strict";
 
 var assert = require("assert"),
     TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
-    FieldMappingDoc = require(path.join(api_doc_dir, "FieldMapping"));
+    FieldMappingDoc = require(path.join(api_doc_dir, "FieldMapping")),
+    udebug          = unified_debug.getLogger("DBTableHander.js");
 
 
 /* A DBTableHandler (DBT) combines dictionary metadata with user annotations.  
@@ -62,7 +63,7 @@ var proto = {
 /* getColumnByName() is a utility function used in the building of maps.
 */
 function getColumnByName(dbTable, colName) {
-  udebug.log("DBTableHandler getColumnByName " + colName);
+  udebug.log("getColumnByName", colName);
   var i, col;
   
   for(i = 0 ; i < dbTable.columns.length ; i++) {
@@ -71,7 +72,7 @@ function getColumnByName(dbTable, colName) {
       return col;
     }
   }
-  udebug.log("DBTableHandler getColumnByName", colName, "NOT FOUND.");
+  udebug.log("getColumnByName", colName, "NOT FOUND.");
   return null;
 }
 
@@ -90,7 +91,7 @@ function getColumnByName(dbTable, colName) {
      perform no remapping between field names and column names
 */
 function DBTableHandler(dbtable, tablemapping) {
-  udebug.log("DBTableHandler constructor");
+  udebug.log("constructor");
   assert(arguments.length === 2);
   var i,               // an iterator
       f,               // a FieldMapping
@@ -169,8 +170,8 @@ function DBTableHandler(dbtable, tablemapping) {
   }  
   assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
  
-  udebug.log("DBTableHandler new completed");
-  udebug.log_detail("DBTableHandler: " + JSON.stringify(this));
+  udebug.log("new completed");
+  udebug.log_detail(this);
 }
 
 DBTableHandler.prototype = proto;     // Connect prototype to constructor
@@ -193,7 +194,7 @@ DBTableHandler.prototype.setResultConstructor = function(constructorFunction) {
    Create a new object using the constructor function (if set).
 */
 DBTableHandler.prototype.newResultObject = function() {
-  udebug.log("DBTableHandler newResultObject");
+  udebug.log("newResultObject");
   var newDomainObj;
   
   if(this.newObjectConstructor && this.newObjectConstructor.prototype) {
@@ -204,13 +205,14 @@ DBTableHandler.prototype.newResultObject = function() {
   }
   
   if(this.newObjectConstructor) {
-    udebug.log("DBTableHandler newResultObject calling user constructor");
+    udebug.log("newResultObject calling user constructor");
     this.newObjectConstructor.call(newDomainObj);
   }
 
-  udebug.log("DBTableHandler newResultObject done", newDomainObj);
+  udebug.log("newResultObject done", newDomainObj);
   return newDomainObj;
-}
+};
+
 
 /* registerFieldConverter(String fieldname, Converter converter)
   IMMEDIATE
@@ -229,7 +231,7 @@ DBTableHandler.prototype.registerFieldConverter = function(fieldName, converter)
    Returns the number of fields mapped to columns in the table 
 */
 DBTableHandler.prototype.getMappedFieldCount = function() {
-  udebug.log("DBTableHandler.js getMappedFieldCount");
+  udebug.log("getMappedFieldCount");
   return this.fieldNumberToColumnMap.length;
 };
 
@@ -265,7 +267,7 @@ DBTableHandler.prototype.getColumnMetadata = function() {
    * mapping.
 */
 function chooseIndex(self, keys) {
-  udebug.log("DBTableHandler.js chooseIndex");
+  udebug.log("chooseIndex");
   var idxs = self.dbTable.indexes;
   var keyFieldNames, firstIdxFieldName;
   var i, j, f, n, index, nmatches;
@@ -293,7 +295,7 @@ function chooseIndex(self, keys) {
           }
         }
         if(nmatches === index.columnNumbers.length) {
-          udebug.log("DBTableHandler.js chooseIndex picked unique index", i);
+          udebug.log("chooseIndex picked unique index", i);
           return index;   // bingo!
         }
       }    
@@ -307,21 +309,21 @@ function chooseIndex(self, keys) {
       if(index.isOrdered) {
         f = self.columnNumberToFieldMap[index.columnNumbers[0]];
         if(keyFieldNames.indexOf(f.fieldName) >= 0) {
-         udebug.log("DBTableHandler.js chooseIndex picked ordered index", i);
+         udebug.log("chooseIndex picked ordered index", i);
          return index;  // this is an ordered index scan
         }
       }
     }
   }
 
-  udebug.log("DBTableHandler.js chooseIndex FAILED");
+  udebug.log("chooseIndex FAILED");
   return null;
 }
 
 
 /* Return the property of obj corresponding to fieldNumber */
 DBTableHandler.prototype.get = function(obj, fieldNumber) { 
-  udebug.log("DBTableHandler get", fieldNumber);
+  udebug.log("get", fieldNumber);
   var f = this.fieldNumberToFieldMap[fieldNumber];
   return f ? obj[f.fieldName] : null;
 };
@@ -332,8 +334,8 @@ DBTableHandler.prototype.getFields = function(obj) {
   if (typeof(obj) === 'string' || typeof(obj) === 'number') {
     return [obj];
   }
-  var i = 0, fields = [];
-  for( ; i < this.getMappedFieldCount() ; i ++) {
+  var i, fields = [];
+  for( i = 0 ; i < this.getMappedFieldCount() ; i ++) {
     fields[i] = this.get(obj, i);
   }
   return fields;
@@ -342,7 +344,7 @@ DBTableHandler.prototype.getFields = function(obj) {
 
 /* Set field to value */
 DBTableHandler.prototype.set = function(obj, fieldNumber, value) {
-  udebug.log("DBTableHandler set", fieldNumber);
+  udebug.log("set", fieldNumber);
   var f = this.fieldNumberToFieldMap[fieldNumber];
   if(f) {
     obj[f.fieldName] = value;
@@ -401,7 +403,7 @@ DBIndexHandler.prototype = {
    and return a DBIndexHandler for that index.
 */
 DBTableHandler.prototype.getIndexHandler = function(keys) {
-  udebug.log("DBTableHandler getIndexHandler");
+  udebug.log("getIndexHandler");
   var idx = chooseIndex(this, keys);
   var handler = null;
   if(idx) {

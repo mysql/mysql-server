@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global mynode, udebug, path, fs, assert, spi_module, harness, 
+/*global mynode, unified_debug, path, fs, assert, spi_module, harness, 
          adapter_dir, spi_dir 
 */
 
@@ -28,8 +28,10 @@ try {
   require("./suite_config.js");
 } catch(e) {} 
 
-var spi = require(spi_module);
+var spi_lib = require("./lib.js");
 var dbtablehandler = require(path.join(spi_dir, "common", "DBTableHandler.js"));
+var udebug = unified_debug.getLogger("BasicVarcharTest.js");
+
 var dbSession = null;
 var table = null;
 var dbt = null;
@@ -51,9 +53,7 @@ var t1 = new harness.SerialTest("Insert"),
 /// Common prep
 
 function prepare(testCase, testObj) {
-  var provider = spi.getDBServiceProvider(global.adapter),
-      properties = provider.getDefaultConnectionProperties(), 
-      connection = null;
+  var connection = null;
 
   if(dbSession && table) {  // already set up
     testCase.runTestMethod(testCase, testObj);
@@ -61,7 +61,7 @@ function prepare(testCase, testObj) {
   }
 
   function onTable(err, dbTable) {
-    udebug.log("BasicVarcharTest.js prepare onTable");
+    udebug.log("prepare onTable");
     table = dbTable;         // set global
     dbt = new dbtablehandler.DBTableHandler(table, mapping);   // set global
     if(err) {  testCase.fail(err);               }
@@ -69,7 +69,7 @@ function prepare(testCase, testObj) {
   }
 
   function onSession(err, sess) {
-    udebug.log("BasicVarcharTest.js prepare onSession");
+    udebug.log("prepare onSession");
     dbSession = sess; // set global
     if(err) {   testCase.fail(err);   }
     else    {   
@@ -78,24 +78,24 @@ function prepare(testCase, testObj) {
   }
 
   function onConnect(err, conn) {
-    udebug.log("BasicVarcharTest.js prepare onConnect");
+    udebug.log("prepare onConnect");
     connection = conn;
     connection.getDBSession(0, onSession);
   }
   
-  provider.connect(properties, onConnect);
+  spi_lib.getConnectionPool(onConnect);
 }
 
 
 function do_insert_op(testCase, dataObj) {
-  udebug.log("BasicVarcharTest.js do_insert_op for", testCase.name);
+  udebug.log("do_insert_op for", testCase.name);
   var tx = dbSession.createTransaction();
   var op = dbSession.buildInsertOperation(dbt, dataObj, tx, null);
   tx.executeCommit([ op ], testCase.checkResult);
 }
 
 function do_read_op(testCase, keyObj) {
-  udebug.log("BasicVarcharTest.js do_read_op for", testCase.name);
+  udebug.log("do_read_op for", testCase.name);
   var tx = dbSession.createTransaction();
   var index = dbt.getIndexHandler(keyObj);
   var op = dbSession.buildReadOperation(index, keyObj, tx);
@@ -104,7 +104,7 @@ function do_read_op(testCase, keyObj) {
 
 function do_update_op(testCase, dataObj) {
   assert(typeof testCase.checkResult === 'function');
-  udebug.log("BasicVarcharTest.js do_update_op for", testCase.name);
+  udebug.log("do_update_op for", testCase.name);
   var tx = dbSession.createTransaction();
   var dbix = dbt.getIndexHandler(dataObj.keys);
   var op = dbSession.buildUpdateOperation(dbix, dataObj.keys, dataObj.values, tx, null);
@@ -112,7 +112,7 @@ function do_update_op(testCase, dataObj) {
 }
 
 function do_delete_op(testCase, keyObj) {
-  udebug.log("InsertIntTest.js do_delete_op for", testCase.name);
+  udebug.log("do_delete_op for", testCase.name);
   var tx = dbSession.createTransaction();
   var dbix = dbt.getIndexHandler(keyObj);
   var op = dbSession.buildDeleteOperation(dbix, keyObj, tx, null);  
@@ -123,7 +123,7 @@ function do_delete_op(testCase, keyObj) {
 t1.runTestMethod = do_insert_op;
 
 t1.checkResult = function(err, tx) {
-  udebug.log("BasicVarcharTest checkResult");
+  udebug.log("checkResult");
   var op;
   if(err) { t1.fail("ExecuteCommit failed: " + err);  }
   else { 
@@ -144,7 +144,7 @@ t1.run = function() {
 t2.runTestMethod = do_read_op;
 
 t2.checkResult = function(err, tx) {
-  udebug.log("BasicVarcharTest checkResult t2");
+  udebug.log("checkResult t2");
   var op;
   if(err) { t2.fail("ExecuteCommit failed: " + err);  }
   else { 
@@ -168,7 +168,7 @@ t2.run = function() {
 t3.runTestMethod = do_update_op;
 
 t3.checkResult = function(err, tx) {
-  udebug.log("BasicVarcharTest checkResult t3");
+  udebug.log("checkResult t3");
   if(err) { 
     t3.fail("ExecuteCommit failed: " + err);  
   }
@@ -192,7 +192,7 @@ t3.run = function() {
 t4.runTestMethod = do_read_op;
 
 t4.checkResult = function(err, tx) {
-  udebug.log("BasicVarcharTest checkResult t4");
+  udebug.log("checkResult t4");
   var op;
   if(err) { t4.fail("ExecuteCommit failed: " + err);  }
   else { 
@@ -217,7 +217,7 @@ t4.run = function() {
 t5.runTestMethod = do_insert_op;
 
 t5.checkResult = function(err, tx) {
-  udebug.log("BasicVarcharTest checkResult t5");
+  udebug.log("checkResult t5");
   var op;
   if(err) { t5.fail("ExecuteCommit failed: " + err);  }
   else { 
@@ -238,7 +238,7 @@ t5.run = function() {
 t6.runTestMethod = do_delete_op;
 
 t6.checkResult = function(err, tx) {
-  udebug.log("BasicVarcharTest checkResult t6");
+  udebug.log("checkResult t6");
   if(err) { t6.fail("ExecuteCommit failed: " + err); }
   else    { t6.pass(); }
   tx.close();
@@ -255,7 +255,7 @@ t7.runTestMethod = do_delete_op;
 
 t7.checkResult = function(err, tx) {
   var op;
-  udebug.log("BasicVarcharTest checkResult t7");
+  udebug.log("checkResult t7");
   if(err) { t7.fail("ExecuteCommit failed: " + err); }
   else    { 
     op = tx.executedOperations.pop();

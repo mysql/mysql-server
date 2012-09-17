@@ -19,12 +19,14 @@
  02110-1301  USA
  */
 
-/*global path, api_doc_dir */
+/*global path, api_doc_dir, unified_debug */
 
 "use strict";
 
+
 var doc          = require(path.join(api_doc_dir, "TableMapping")),
-    fieldmapping = require("./FieldMapping.js");
+    fieldmapping = require("./FieldMapping.js"),
+    udebug       = unified_debug.getLogger("___.js");
 
 
 /* TableMapping constructor

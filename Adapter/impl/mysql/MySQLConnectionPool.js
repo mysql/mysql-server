@@ -18,16 +18,18 @@
  02110-1301  USA
 */
 
-
-/* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
+/*global unified_debug, exports */
 
 "use strict";
 
-/*global udebug, exports */
+/* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
 var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
+var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
+
+
 /* Translate our properties to the driver's */
 function getDriverProperties(props) {
   var driver = {};
@@ -56,7 +58,7 @@ function getDriverProperties(props) {
 /* Constructor saves properties but doesn't actually do anything with them.
 */
 exports.DBConnectionPool = function(props) {
-  udebug.log("MySQLConnectionPool constructor");
+  udebug.log("constructor");
   this.driverproperties = getDriverProperties(props);
   // connections not being used at the moment
   this.pooledConnections = [];
@@ -102,18 +104,18 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
 };
 
 exports.DBConnectionPool.prototype.closeSync = function() {
-  udebug.log('MySQLConnectionPool.closeSync');
+  udebug.log('closeSync');
   var i;
   for (i = 0; i < this.pooledConnections.length; ++i) {
     var pooledConnection = this.pooledConnections[i];
-    udebug.log('MySQLConnectionPool.closeSync ending pooled connection ' + i);
+    udebug.log('closeSync ending pooled connection ' + i);
     if (pooledConnection._connectCalled) {
         pooledConnection.end();
     }
   }
   this.pooledConnections = [];
   for (i = 0; i < this.openConnections.length; ++i) {
-    udebug.log('MySQLConnectionPool.closeSync ending open connection ' + i);
+    udebug.log('closeSync ending open connection ' + i);
     var openConnection = this.openConnections[i];
     if (openConnection._connectCalled) {
       this.openConnections[i].end();
@@ -147,9 +149,9 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
     var connected_callback = function(err) {
       newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
       connectionPool.openConnections[index] = newDBSession;
-      udebug.log('MySQLConnectionPool.getDBSession '
-          + ' pooledConnections: ' + connectionPool.pooledConnections.length
-          + ' openConnections: ' + connectionPool.openConnections.length);
+      udebug.log('getDBSession', 
+                 ' pooledConnections:', connectionPool.pooledConnections.length,
+                 ' openConnections: ', connectionPool.openConnections.length);
       
       callback(err, newDBSession);
     };

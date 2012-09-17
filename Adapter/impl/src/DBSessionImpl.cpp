@@ -43,10 +43,8 @@ ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
   sess->ndb = new Ndb(conn, db);
   sess->dbname = db;
   sess->ndb->init();
-
   sess->dict = sess->ndb->getDictionary();    // get Dictionary
   
-  DEBUG_LEAVE();
   return sess;
 }
 
@@ -85,10 +83,12 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   ncallptr->function = & ndb_session_new;
 
   if(args.Length() == 3) {
+    DEBUG_PRINT("async (%d arguments)", args.Length());
     ncallptr->runAsync();
     ret = JS_VOID_RETURN;
   }
   else { 
+    DEBUG_PRINT("sync (%d arguments)", args.Length());
     ncallptr->run();
     ret = ncallptr->jsReturnVal();
     delete ncallptr;

@@ -18,20 +18,21 @@
  02110-1301  USA
  */
 
-"use strict";
 /*global harness */
+
+"use strict";
+
+var spi_lib = require("./lib.js");
 
 var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {
   var t = this;
-  harness.SQL.drop(this.suite, function(error) {
-    if (error) {
-      t.fail('dropSQL failed: ' + error);
-    } else {
-      t.pass();
-    }
-  });
+
+  spi_lib.closeConnectionPool();  
+  harness.SQL.drop(this.suite, null);
+  
+  return true;
 };
 
 module.exports.tests = [test];

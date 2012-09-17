@@ -18,6 +18,10 @@
  02110-1301  USA
  */
 
+/*global udebug_module */
+
+var udebug = unified_debug.getLogger("spi/lib.js");
+
 /** This is the smoke test for the t_basic suite.
  */
 
@@ -49,7 +53,7 @@ global.fail_verify_t_basic = function(err, instance, id, testCase) {
     testCase.fail(new Error('Result is not valid: ' + typeof(instance)));
     return;
   }
-  udebug.log_detail('lib.js instance: ' + util.inspect(instance));
+  udebug.log_detail('instance:', instance);
   var message = '';
   if (instance.id != id) {
     message += 'fail to verify id: expected: ' + id + ', actual: ' + instance.id + '\n';

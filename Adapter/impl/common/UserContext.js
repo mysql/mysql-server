@@ -18,14 +18,15 @@
  02110-1301  USA
 */
 
-/*global udebug */
+/*global unified_debug */
 
 "use strict";
 
-var assert = require("assert");
-var commonDBTableHandler = require("./DBTableHandler.js");
+var assert = require("assert"),
+    commonDBTableHandler = require("./DBTableHandler.js"),
+    apiSession = require("../../api/Session.js"),
+    udebug     = unified_debug.getLogger("UserContext.js");
 
-var apiSession = require("../../api/Session.js");
 
 /** Create a function to manage the context of a user's asynchronous call.
  * All asynchronous user functions make a callback passing
@@ -120,7 +121,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
-          udebug.log('UserContext.TableHandlerFactory.onTableMetadata for ' + tableHandlerFactory.tableKey);
+          udebug.log('TableHandlerFactory.onTableMetadata for', tableHandlerFactory.tableKey);
           // put the table metadata into the table metadata map
           tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
           // we have the table metadata; now create the table handler
@@ -146,7 +147,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       } else {
         // get the table metadata from the db connection pool
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-        udebug.log('UserContext.TableHandlerFactory.createTableHandler for ' + tableHandlerFactory.tableKey);
+        udebug.log('TableHandlerFactory.createTableHandler for' + tableHandlerFactory.tableKey);
         this.sessionFactory.dbConnectionPool.getTableMetadata(
             tableHandlerFactory.dbName, tableHandlerFactory.tableName, session.dbSession, onTableMetadata);
       }
@@ -203,7 +204,7 @@ exports.UserContext.prototype.find = function() {
   var tableHandler;
 
   function findOnResult(err, dbOperation) {
-    udebug.log('UserContext.persist.findOnResult');
+    udebug.log('persist.findOnResult');
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -234,7 +235,7 @@ exports.UserContext.prototype.find = function() {
         op = dbSession.buildReadOperation(index, keys, tx, findOnResult);
         tx.executeNoCommit([op], function() {
           // there is nothing that needs to be done here
-          udebug.log_detail('UserContext.find tx.execute callback.');
+          udebug.log_detail('find tx.execute callback.');
         });
       }
     }
@@ -255,7 +256,7 @@ exports.UserContext.prototype.persist = function() {
   var tableHandler, tx, object, callback, op;
 
   function persistOnResult(err, dbOperation) {
-    udebug.log('UserContext.persist.persistOnResult');
+    udebug.log('persist.persistOnResult');
     // return any error code plus the original user object
     if (err) {
       userContext.applyCallback(err, null);

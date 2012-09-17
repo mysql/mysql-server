@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global assert, udebug, path, build_dir, spi_doc_dir */
+/*global assert, unified_debug, path, build_dir, spi_doc_dir */
 
 "use strict";
 
@@ -26,11 +26,12 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ndbsession      = require("./NdbSession.js"),
     ndboperation    = require("./NdbOperation.js"),
     doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
+    udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
     proto           = doc.DBTransactionHandler;
 
 
 function DBTransactionHandler(dbsession) {
-  udebug.log("NdbTransactionHandler constructor");
+  udebug.log("constructor");
   this.dbSession          = dbsession;
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
@@ -43,14 +44,14 @@ DBTransactionHandler.prototype = proto;
    ASYNC
 */
 proto.close = function(userCallback) {
-  udebug.log("NdbTransactionHandler close");
+  udebug.log("close");
 
   delete this.executedOperations;
   delete this.error;
 
   function onNdbClose(err, i) {
     /* NdbTransaction::close() returns void.  i == 1. */
-    udebug.log("NdbTransactionHandler close onNdbClose");
+    udebug.log("close onNdbClose");
     if(userCallback) {
       userCallback(null, null);
     }
@@ -65,11 +66,11 @@ proto.close = function(userCallback) {
 /* Internal execute()
 */ 
 function execute(self, execMode, dbOperationList, callback) {
-  udebug.log("NdbTransactionHandler execute");
+  udebug.log("execute");
   var table = dbOperationList[0].tableHandler.dbTable;
 
   function onCompleteTx(err, result) {
-    udebug.log("NdbTransactionHandler execute onCompleteTx");
+    udebug.log("execute onCompleteTx");
     
     // Update our own success and error objects
     self.error = err;
@@ -83,7 +84,7 @@ function execute(self, execMode, dbOperationList, callback) {
   }
 
   function prepareOperationsAndExecute() {
-    udebug.log("NdbTransactionHandler execute prepareOperationsAndExecute");
+    udebug.log("execute prepareOperationsAndExecute");
     var i;
     for(i = 0 ; i < dbOperationList.length; i++) {
       dbOperationList[i].prepare(self.ndbtx);
@@ -97,16 +98,15 @@ function execute(self, execMode, dbOperationList, callback) {
   function onStartTx(err, ndbtx) {
     var op, helper;
     if(err) {
-      udebug.log("NdbTransactionHandler execute onStartTx [ERROR].");
+      udebug.log("execute onStartTx [ERROR].");
       self.callback(err, self);
       return;
     }
 
     self.ndbtx = ndbtx; 
     self.state = doc.DBTransactionStates[1]; // STARTED
-    udebug.log("NdbTransactionHandler execute onStartTx. " +
-               " TC node: " + ndbtx.getConnectedNodeId() +
-               " operations: " + dbOperationList.length);
+    udebug.log("execute onStartTx. TC node:", ndbtx.getConnectedNodeId(),
+               "operations:",  dbOperationList.length);
     prepareOperationsAndExecute();    
   }
 
@@ -129,7 +129,7 @@ function execute(self, execMode, dbOperationList, callback) {
    Executes the DBOperations in dbOperationList, without commiting.
 */
 proto.execute = function executeNoCommit(dbOperationList, userCallback) {
-  udebug.log("NdbTransactionHandler executeNoCommit"); 
+  udebug.log("executeNoCommit"); 
   execute(this, adapter.ndbapi.NoCommit, dbOperationList, userCallback);
 };
 
@@ -141,10 +141,10 @@ proto.execute = function executeNoCommit(dbOperationList, userCallback) {
    Executes the DBOperations in dbOperationList and commit the transaction.
 */
 proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
-  udebug.log("NdbTransactionHandler executeCommit");
+  udebug.log("executeCommit");
   
   function onExecCommit(err, dbTxHandler) {
-    udebug.log("NdbTransactionHandler executeCommit onExecCommit");
+    udebug.log("executeCommit onExecCommit");
     dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
     userCallback(err, dbTxHandler);
   }
@@ -159,7 +159,7 @@ proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
    Commit work.
 */
 proto.commit = function commit(callback) {
-  udebug.log("NdbTransactionHandler commit");
+  udebug.log("commit");
   var self = this;
   
   function onNdbCommit(err, result) {
@@ -179,7 +179,7 @@ proto.commit = function commit(callback) {
    Roll back all previously executed operations.
 */
 proto.rollback = function rollback(callback) {
-  udebug.log("NdbTransactionHandler rollback");
+  udebug.log("rollback");
   var self = this;
   
   function onNdbRollback(err, result) {
