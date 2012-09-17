@@ -22,7 +22,7 @@
 
 "use strict";
 
-var adapter        = require(path.join(build_dir, "ndb_adapter.node")).ndb,
+var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndboperation   = require("./NdbOperation.js"),
     dbtxhandler    = require("./NdbTransactionHandler.js"),
     util           = require("util"),
@@ -81,7 +81,8 @@ NdbSession.prototype.getConnectionPool = function() {
    ASYNC. Optional callback.
 */
 NdbSession.prototype.close = function(userCallback) {
-  if(this && this.impl) {
+  udebug.log("close");
+  if(this.impl) {
     adapter.ndb.impl.DBSession.destroy(this.impl);
   }
   if(userCallback) {

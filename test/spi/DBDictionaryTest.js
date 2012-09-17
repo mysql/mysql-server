@@ -49,7 +49,7 @@ t2.run = function() {
     
     function onClose() {
       udebug.log("onTable onClose");
-      if(passed)     {   t2.pass(); }
+      if(passed)     { t2.pass(); }
       else           { t2.fail("getTable error"); }
     }
 
