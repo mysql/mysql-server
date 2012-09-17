@@ -18,13 +18,15 @@
  02110-1301  USA
 */
 
-/* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
+/*global unified_debug, exports */
 
 "use strict";
 
-/*global udebug, exports */
 
-var util = require('util');
+/* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
+
+var util   = require('util'),
+    udebug = unified_debug.getLogger("MySQLDictionary.js");
 
 exports.DataDictionary = function(pooledConnection) {
   this.connection = pooledConnection;
@@ -41,7 +43,7 @@ exports.DataDictionary.prototype.listTables = function(databaseName, user_callba
       rows.forEach(function(row) {
         result.push(row[propertyName]);
       });
-      udebug.log('MySQLDictionary.listTables function result: ' + result);
+      udebug.log('listTables function result:', result);
       callback(err, result);
     }
   };
@@ -67,12 +69,12 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     var columnNamesSplit = columnNames.split('`');
     var indexColumnNames = [];
     var k;
-    udebug.log_detail('MySQLDictionary.decodeIndexColumnNames columnNamesSplit: '
-        + columnNamesSplit.length + ' ' + columnNamesSplit);
+    udebug.log_detail('decodeIndexColumnNames columnNamesSplit: ',
+                       columnNamesSplit.length, ' ', columnNamesSplit);
     for (k = 1; k < columnNamesSplit.length; k += 2) {
       indexColumnNames.push(columnNamesSplit[k]);
     }
-    udebug.log_detail('MySQLDictionary.decodeIndexColumnNames indexColumnNames: ' + indexColumnNames);
+    udebug.log_detail('decodeIndexColumnNames indexColumnNames:', indexColumnNames);
     return indexColumnNames;
   };
 
@@ -80,8 +82,8 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     var result = [];
     var i, j;
     for (i = 0; i < columnNames.length; ++i) {
-      udebug.log_detail('MySQLDictionary.convertColumnNamesToNumbers looking for: ' + columnNames[i]
-              + ' in ' + JSON.stringify(columns));
+      udebug.log_detail('convertColumnNamesToNumbers looking for: ', 
+                         columnNames[i],' in ', columns);
       for (j = 0; j < columns.length; ++j) {
         if (columnNames[i] == columns[j].name) {
           result.push(j);
@@ -93,7 +95,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
   };
 
   var parseCreateTable = function(tableName, statement) {
-    udebug.log_detail('MySQLDictionary.parseCreateTable: ' + statement);
+    udebug.log_detail('parseCreateTable: ', statement);
     var columns = [];
     var indexes = [];
     var result = {'name' : tableName,
@@ -108,7 +110,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     // first line has table name which we ignore because we already know it
     for (i = 1; i < lines.length; ++i) {
       var line = lines[i];
-      udebug.log_detail('\nMySQLDictionary.parseCreateTable: ' + line);
+      udebug.log_detail('\n parseCreateTable:', line);
       var tokens = line.split(' ');
       var j = 0; // index into tokens in the line
       var token = tokens[j];
@@ -117,29 +119,29 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         token = tokens[++j];
       }
       var unique = false;
-      udebug.log_detail('MySQLDictionary.parseCreateTable token: ' + token);
+      udebug.log_detail('parseCreateTable token:', token);
       switch (token) {
       case 'PRIMARY':
         // found primary key definition
         j+= 2; // skip 'PRIMARY KEY'
         var index = {};
         index['name'] = 'PRIMARY';
-        udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY: ' + token);
+        udebug.log_detail('parseCreateTable PRIMARY:', token);
         index['isPrimaryKey'] = true;
         index['isUnique'] = true;
         index['isOrdered'] = true;
         var columnNames = tokens[j];
         var indexColumnNames = decodeIndexColumnNames(columnNames);
-        udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY indexColumnNames: ' + indexColumnNames);
+        udebug.log_detail('parseCreateTable PRIMARY indexColumnNames:', indexColumnNames);
         var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
-        udebug.log_detail('MySQLDictionary.parseCreateTable PRIMARY indexColumnNumbers: ' + JSON.stringify(indexColumnNumbers));
+        udebug.log_detail('parseCreateTable PRIMARY indexColumnNumbers: ', indexColumnNumbers);
         index['columnNumbers'] = indexColumnNumbers;
         // mark primary key index columns with 'isInPrimaryKey'
         for (var columnNumberIndex = 0; columnNumberIndex < indexColumnNumbers.length; ++columnNumberIndex) {
           var columnNumber = indexColumnNumbers[columnNumberIndex];
           var column = columns[columnNumber];
-          udebug.log_detail('MySQLDictionary.parseCreateTable marking column ' + columnNumber 
-              + ' ' + columns[columnNumber].name);
+          udebug.log_detail('parseCreateTable marking column', columnNumber,
+                             columns[columnNumber].name);
           column.isInPrimaryKey = true;
         }
         indexes.push(index);
@@ -147,7 +149,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
 
       case 'UNIQUE':
         // found unique key definition
-        udebug.log_detail('MySQLDictionary.parseCreateTable UNIQUE: ' + token);
+        udebug.log_detail('parseCreateTable UNIQUE:', token);
         unique = true;
         ++j;
         // continue with KEY handling
@@ -164,9 +166,9 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         // get column names
         var columnNames = tokens[++j];
         var indexColumnNames = decodeIndexColumnNames(columnNames);
-        udebug.log_detail('MySQLDictionary.parseCreateTable KEY indexColumnNames: ' + indexColumnNames);
+        udebug.log_detail('parseCreateTable KEY indexColumnNames:', indexColumnNames);
         var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
-        udebug.log_detail('MySQLDictionary.parseCreateTable KEY indexColumnNumbers: ' + indexColumnNumbers);
+        udebug.log_detail('parseCreateTable KEY indexColumnNumbers:', indexColumnNumbers);
         index['columnNumbers'] = indexColumnNumbers;
 
         var usingHash = false;
@@ -182,7 +184,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           // btree or both
           index['isOrdered'] = true;
         }
-        udebug.log_detail('MySQLDictionary.parseCreateTable ' + ' for ' + indexName + ' KEY USING HASH: ' + usingHash);
+        udebug.log_detail('parseCreateTable for ', indexName, 'KEY USING HASH:', usingHash);
         indexes.push(index);
         break;
 
@@ -199,18 +201,18 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         column.columnNumber = columnNumber++;
         // decode the column name
         var columnName = (token.split('`'))[1];
-        udebug.log_detail('MySQLDictionary.parseCreateTable: columnName: ' + columnName);
+        udebug.log_detail('parseCreateTable: columnName:', columnName);
         column.name = columnName;
         // analyze column type
         var columnTypeAndSize = tokens[++j];
-        udebug.log_detail('MySQLDictionary.parseCreateTable: columnDefinition: ' + columnTypeAndSize);
+        udebug.log_detail('parseCreateTable: columnDefinition:', columnTypeAndSize);
         var columnTypeAndSizeSplit = columnTypeAndSize.split('(');
         var columnType = columnTypeAndSizeSplit[0];
-        udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': columnType: ' + columnType);
+        udebug.log_detail('parseCreateTable for: ', columnName, ': columnType: ', columnType);
         column.columnType = columnType;
         if (columnTypeAndSizeSplit.length > 1) {
           var columnSize = columnTypeAndSizeSplit[1].split(')')[0];
-          udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': columnSize: ' + columnSize);
+          udebug.log_detail('parseCreateTable for: ', columnName, ': columnSize: ', columnSize);
         }
         ++j;
 
@@ -219,19 +221,19 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           var unsigned = true;
           ++j;
         }
-        udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': unsigned: ' + unsigned);
+        udebug.log_detail('parseCreateTable for:', columnName, ': unsigned: ', unsigned);
         column.isUnsigned = unsigned;
 
         // check for character set
         if (tokens[j] == 'CHARACTER') {
           var charset = tokens[j + 2];
-          udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': charset: ' + charset);
+          udebug.log_detail('parseCreateTable for:', columnName, ': charset: ', charset);
           j += 3; // skip 'CHARACTER SET charset'
           column.charsetName = charset;
           // check for collation
           if (tokens[j] == 'COLLATE') {
             var collation = tokens[j + 1];
-            udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': collation: ' + collation);
+            udebug.log_detail('parseCreateTable for: ', columnName, ': collation: ', collation);
             column['collationName'] = collation;
             j+= 2; // skip 'COLLATE collation'
           }
@@ -240,10 +242,10 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           nullable = false;
           j += 2; // skip 'not null'
         }
-        udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ' NOT NULL: ' + !nullable);
+        udebug.log_detail('parseCreateTable for: ', columnName, ' NOT NULL: ', !nullable);
         column.isNullable = nullable;
         if (tokens[j] == 'DEFAULT') {
-          udebug.log_detail('MySQLDictionary.parseCreateTable for: ' + columnName + ': DEFAULT: ' + tokens[j]);
+          udebug.log_detail('parseCreateTable for: ', columnName, ': DEFAULT: ', tokens[j]);
         }
 
         // add extra metadata specific to type
@@ -293,7 +295,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       // the create table statement is the attribute named 'Create Table'
       var createTableStatement = row['Create Table'];
       var metadata = parseCreateTable(tableName, createTableStatement);
-      udebug.log_detail('showCreateTable_callback.forEach metadata: ' + util.inspect(metadata));
+      udebug.log_detail('showCreateTable_callback.forEach metadata:', metadata);
       result = metadata;
       
       callback(err, result);

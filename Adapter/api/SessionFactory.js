@@ -18,11 +18,13 @@
  02110-1301  USA
  */
 
+/*global unified_debug */
+
 "use strict";
 
-var session = require("./Session.js");
-
-var userContext = require('../impl/common/UserContext.js');
+var session     = require("./Session.js"),
+    udebug      = unified_debug.getLogger("SessionFactory.js"),  
+    userContext = require('../impl/common/UserContext.js');
 
 var SessionFactory = function(key, dbConnectionPool, properties, annotations, delete_callback) {
   this.key = key;

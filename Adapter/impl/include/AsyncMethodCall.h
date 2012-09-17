@@ -88,6 +88,8 @@ class AsyncMethodCall {
     virtual void handleErrors(void) { }
 
     void runAsync() {
+      DEBUG_PRINT_DETAIL("runAsync() [%s]",
+                         this->envelope ? this->envelope->classname : "");
       uv_work_t * req = new uv_work_t;
       req->data = (void *) this;
       uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);

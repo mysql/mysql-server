@@ -18,12 +18,13 @@
  02110-1301  USA
  */
 
+/*global unified_debug */
+
 'use strict';
 
 var mynode = require('../Adapter/api/mynode.js');
 
-udebug.on();
-udebug.level_detail();
+unified_debug.level_detail();
 
 // define a simple mapping class
 var t_basic = function(id, name, age, magic) {

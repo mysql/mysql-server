@@ -18,12 +18,13 @@
  02110-1301  USA
  */
 
-/*global path, fs, assert, util, harness, udebug, mynode, driver_dir */
+/*global path, fs, assert, util, harness, unified_debug, mynode, driver_dir */
 
 "use strict";
 
 require("./test_config.js");
 
+var udebug = unified_debug.getLogger("Driver.js");
 
 /** Driver 
 */
@@ -80,13 +81,13 @@ Driver.prototype.reportResultsAndExit = function() {
   // close all session factories
   var sessionFactories = mynode.getOpenSessionFactories();
   sessionFactories.forEach(function(sessionFactory) {
-    udebug.log('Driver.reportResultsAndExit closing' + sessionFactory.key);
+    udebug.log('Driver.reportResultsAndExit closing', sessionFactory.key);
     sessionFactory.close();
   });
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
   console.log("Skipped: ", this.result.skipped.length);
-  udebug.close();
+  unified_debug.close();
   process.exit(this.result.failed.length > 0);
 };
 
@@ -120,13 +121,13 @@ for(i = 2; i < process.argv.length ; i++) {
   switch (val) {
   case '--debug':
   case '-d':
-    udebug.on();
-    udebug.level_debug();
+    unified_debug.on();
+    unified_debug.level_debug();
     driver.result.listener.printStackTraces = true;
     break;
   case '--detail':
-    udebug.on();
-    udebug.level_detail();
+    unified_debug.on();
+    unified_debug.level_detail();
     driver.result.listener.printStackTraces = true;
     break;
   case '--help':
@@ -187,7 +188,7 @@ driver.findSuites(driver_dir);
 udebug.log('suites found', driver.suites.length);
 
 driver.suites.forEach(function(suite) {
-  udebug.log('createTests for' + suite.name);
+  udebug.log('createTests for', suite.name);
   suite.createTests();
 });
 

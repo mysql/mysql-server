@@ -1,5 +1,5 @@
 console.log("line 1");
-var udebug = require("../../api/unified_debug.js");
+var udebug = require("../../api/unified_debug.js").getLogger("maptest.js");
 var mapper = require("../build/Release/test/mapper.node");
 var dmapper = require("../build/Release/test/outermapper.node");
 

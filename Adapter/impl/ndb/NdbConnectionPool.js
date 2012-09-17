@@ -18,20 +18,23 @@
  02110-1301  USA
  */
 
-/*global path, build_dir, assert, udebug */
+/*global path, build_dir, assert, unified_debug */
 
 "use strict";
 
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndbsession     = require("./NdbSession.js"),
     dbtablehandler = require("../common/DBTableHandler.js"),
+    udebug         = unified_debug.getLogger("NdbConnectionPool.js"),
     ndb_is_initialized = false,
     proto;
+
 
 function initialize_ndb() {
   if(! ndb_is_initialized) {
     adapter.ndb.ndbapi.ndb_init();                       // ndb_init()
     adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
+    unified_debug.register_client(adapter.debug);
     ndb_is_initialized = true;
   }
 }
@@ -51,7 +54,7 @@ assert(typeof adapter.ndb.impl.DBDictionary.getTable === 'function');
    Throws an exception if the Properties object is invalid.
 */   
 exports.DBConnectionPool = function(props) {
-  udebug.log("NdbConnectionPool constructor");
+  udebug.log("constructor");
 
   initialize_ndb();
   
@@ -92,14 +95,14 @@ proto.connectSync = function() {
     else {
       this.is_connected = true;
       if(nnodes > 0) {
-        console.log("Warning: only " + nnodes + " data nodes are running.");
+        udebug.log_notice("Warning: only", nnodes, "data nodes are running.");
       }
-      console.log("Connected to cluster as node id: " + this.ndbconn.node_id());
+      udebug.log_notice("Connected to cluster as node id:", this.ndbconn.node_id());
     }
 
     /* Get sessionImpl and session for dictionary use */
     this.dictionary = adapter.ndb.impl.DBSession.create(this.ndbconn, db);  
-    this.dict_sess =  ndbsession.getDBSession(this, this.dictionary);
+    this.dict_sess =  ndbsession.newDBSession(this, this.dictionary);
   }
     
   return this.is_connected;
@@ -109,7 +112,7 @@ proto.connectSync = function() {
 /* Async connect 
 */
 proto.connect = function(user_callback) {
-  udebug.log("NdbConnectionPool connect");
+  udebug.log("connect");
   var self = this,
       err = null;
 
@@ -127,7 +130,7 @@ proto.connect = function(user_callback) {
 
   function onReady(cb_err, nnodes) {
     // Cluster is ready.  Next step is to get the dictionary session
-    udebug.log("connect() wait_until_ready internal callback/nnodes=" + nnodes);
+    udebug.log("connect() wait_until_ready internal callback/nnodes=", nnodes);
     if(nnodes < 0) {
       err = new Error("Timeout waiting for cluster to become ready.");
       user_callback(err, self);
@@ -144,7 +147,7 @@ proto.connect = function(user_callback) {
   
   function onConnected(cb_err, rval) {
     // Connected to NDB.  Next step is wait_until_ready().
-    udebug.log("connect() connectAsync internal callback/rval=" + rval);
+    udebug.log("connect() connectAsync internal callback/rval=", rval);
     if(rval === 0) {
       assert(typeof self.ndbconn.wait_until_ready === 'function');
       self.ndbconn.wait_until_ready(1, 1, onReady);
@@ -187,22 +190,21 @@ proto.closeSync = function() {
    Users's callback receives (error, DBSession)
 */
 proto.getDBSession = function(index, user_callback) {
-  udebug.log("NdbConnectionPool getDBSession");
+  udebug.log("getDBSession");
   assert(this.ndbconn);
   assert(user_callback);
   var db   = this.properties.database,
       self = this;
 
   function private_callback(err, sessImpl) {
-    var user_session;
-    
-    udebug.log("NDB getDBSession private_callback");
+    udebug.log("getDBSession private_callback");
 
+    var user_session;
     if(err) {
       user_callback(err, null);
     }
     else {  
-      user_session = ndbsession.getDBSession(self, sessImpl);
+      user_session = ndbsession.newDBSession(self, sessImpl);
       user_callback(null, user_session);
     }
   }
@@ -218,7 +220,7 @@ proto.getDBSession = function(index, user_callback) {
   */
 proto.listTables = function(databaseName, dbSession, user_callback) {
 // FIXME: Pay attention to the user's dbsession
-  udebug.log("NdbConnectionPool listTables");
+  udebug.log("listTables");
   assert(databaseName && user_callback);
   adapter.ndb.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
 };
@@ -231,7 +233,7 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   */
 proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
 // FIXME: Pay attention to the user's dbsession
-  udebug.log("NdbConnectionPool getTableMetadata");
+  udebug.log("getTableMetadata");
   assert(dbname && tabname && user_callback);
   adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
 };
@@ -242,7 +244,7 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
    Creates and returns a DBTableHandler for table and mapping
 */
 proto.createDBTableHandler = function(tableMetadata, apiMapping) { 
-  udebug.log("NdbConnectionPool createDBTableHandler " + tableMetadata.name);
+  udebug.log("createDBTableHandler", tableMetadata.name);
   var handler;
   handler = new dbtablehandler.DBTableHandler(tableMetadata, apiMapping);
   /* TODO: If the mapping is not a default mapping, then the DBTableHandler

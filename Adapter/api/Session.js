@@ -18,9 +18,13 @@
  02110-1301  USA
  */
 
+/*global unified_debug */
+
 "use strict";
 
-var userContext = require('../impl/common/UserContext.js');
+var userContext = require('../impl/common/UserContext.js'),
+    udebug      = unified_debug.getLogger("TableMapping.js");
+
 
 function Session(index, sessionFactory, dbSession) {
   this.index = index;

@@ -18,17 +18,19 @@
  02110-1301  USA
  */
 
-/*global udebug, build_dir, path */
+/*global unified_debug, build_dir, path */
 
 "use strict";
 
 var util = require(path.join(build_dir, "ndb_adapter.node")).ndb.util,
-    charsetMap = null;
+    charsetMap = null,
+    udebug     = unified_debug.getLogger("NdbTypeEncoders.js");
+
 
 function init() {
-  udebug.log("NdbTypeEncoders.js init()");
+  udebug.log("init()");
   charsetMap = new util.CharsetMap();
-  udebug.log("NdbTypeEncoders.js init() done");
+  udebug.log("init() done");
 }
 
 function NdbEncoder() {}
@@ -63,7 +65,7 @@ function makeIntEncoder(type,size) {
     return buffer[rd_func](offset);
   };
   enc.write = function write (col, value, buffer, offset) { 
-    udebug.log("NdbTypeEncoders.js write", wr_func, value);
+    udebug.log("write", wr_func, value);
     return buffer[wr_func](value, offset);
   };
 
@@ -86,7 +88,7 @@ function pad(str, finalLen) {
 
 // write string to buffer through Charset recoder
 function strWrite(col, value, buffer, offset, length) {
-  udebug.log("NdbTypeEncoders strWrite");
+  udebug.log("strWrite");
   // if(! charsetMap) { init(); }
   buffer.write(value, offset, length, 'ascii');
 // charsetMap.recodeIn(value, col.charsetNumber, buffer, offset, length);  
@@ -121,7 +123,7 @@ VarcharEncoder.lengthEncoder = makeIntEncoder("UInt",8);
 VarcharEncoder.lengthBytes = 1;
 
 VarcharEncoder.write = function(col, value, buffer, offset) {
-  udebug.log("NdbTypeEncoders.js Encoder write");
+  udebug.log("Encoder write");
   var len = value.length;
   this.lengthEncoder.write(col, len, buffer, offset);
   strWrite(col, value, buffer, offset + this.lengthBytes, len);

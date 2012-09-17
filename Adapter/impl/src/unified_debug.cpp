@@ -91,8 +91,8 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   const char * src_file = udeb_basename(src_path);
   if(udeb_initialized && udeb_level >= level) {
     /* Construct the message */
+    sz += snprintf(message, UDEB_MSG_BUF, "%s ", src_file);
     sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
-    sprintf(message + sz++, "\n");  // also writes the null terminator.
   
     /* Send it to JavaScript */
     Handle<Value> jsArgs[3];
@@ -124,7 +124,7 @@ Handle<Value> udeb_setLogger(const Arguments &args) {
   Handle<Value> argv[3];
   argv[0] = Number::New(UDEB_INFO);
   argv[1] = String::New("unified_debug.cpp");
-  argv[2] = String::New("C++ unified_debug enabled");
+  argv[2] = String::New("unified_debug.cpp C++ unified_debug enabled");
 
   JSLoggerFunction->Call(Context::GetCurrent()->Global(), 3, argv);
   return scope.Close(True());

@@ -18,9 +18,13 @@
  02110-1301  USA
 */
 
+/*global unified_debug */
+
 "use strict";
 
-var mysqlconnection = require("./MysqlConnectionPool.js");
+var mysqlconnection = require("./MysqlConnectionPool.js"),
+    udebug          = unified_debug.getLogger("mysql_service_provider.js");
+
 
 var MysqlDefaultConnectionProperties = {  
   "implementation" : "mysql",

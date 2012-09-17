@@ -19,8 +19,9 @@
 */
 
 "use strict";
-/*global udebug */
+/*global unified_debug */
 
+var udebug = unified_debug.getLogger("mynode.js");
 var spi = require("../impl/SPI.js");
 var annotations = require("./Annotations.js");
 var sessionfactory = require("./SessionFactory.js");
@@ -61,14 +62,14 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
   
   var createFactory = function(dbConnectionPool) {
     var newFactory;
-    udebug.log('mynode.connect createFactory creating factory for ' + connectionKey + ' database ' + database);
+    udebug.log('connect createFactory creating factory for', connectionKey, 'database', database);
     newFactory = new sessionfactory.SessionFactory(connectionKey, dbConnectionPool, properties, annotations, deleteFactory);
     return newFactory;
   };
   
   var dbConnectionPoolCreated_callback = function(error, dbConnectionPool) {
     if(! error) {
-      udebug.log('mynode.connect dbConnectionPoolCreated creating factory for ' + connectionKey + ' database ' + database);
+      udebug.log('connect dbConnectionPoolCreated creating factory for', connectionKey, 'database', database);
       var connection = new Connection(dbConnectionPool);
       connections[connectionKey] = connection;
       
@@ -81,14 +82,15 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
 
   if(typeof(connection) === 'undefined') {
     // there is no connection yet using this connection key    
-    udebug.log('mynode.connect connection does not exist; creating factory for ' + connectionKey + ' database ' + database);
+    udebug.log('connect connection does not exist; creating factory for',
+               connectionKey, 'database', database);
     sp.connect(properties, dbConnectionPoolCreated_callback);
   } else {
     // there is a connection, but is there a SessionFactory for this database?
     factory = connection.factories[database];
     if (typeof(factory) === 'undefined') {
       // create a SessionFactory for the existing dbConnectionPool
-      udebug.log('mynode.connect creating factory with existing ' + connectionKey + ' database ' + database);
+      udebug.log('connect creating factory with existing', connectionKey, 'database', database);
       factory = createFactory();
       connection.factories[database] = factory;
       connection.count++;
@@ -123,7 +125,7 @@ exports.getOpenSessionFactories = function() {
 
 /** deleteFactory is called only from SessionFactory.close() */
 deleteFactory = function(key, database) {
-  udebug.log('mynode.deleteFactory for key ' + key + ' database ' + database);
+  udebug.log('deleteFactory for key', key, 'database', database);
   var connection = connections[key];
   var factory = connection.factories[database];
   var dbConnectionPool = factory.dbConnectionPool;
@@ -131,7 +133,7 @@ deleteFactory = function(key, database) {
   delete connection.factories[database];
   if (--connection.count == 0) {
     // no more factories in this connection
-    udebug.log('mynode.deleteFactory closing dbConnectionPool for key ' + key + ' database ' + database);
+    udebug.log('deleteFactory closing dbConnectionPool for key', key, 'database', database);
     if (dbConnectionPool != null) {
       dbConnectionPool.closeSync();
       dbConnectionPool = null;

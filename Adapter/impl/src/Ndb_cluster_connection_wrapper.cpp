@@ -67,7 +67,7 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
    3 args SYNC / 4 args ASYNC
 */
 Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
+  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   Local<Value> ret;
   
@@ -81,10 +81,12 @@ Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
   mcallptr->envelope = & NdbccEnvelope;
 
   if(args.Length() == 4) {
+    DEBUG_PRINT_DETAIL("async");
     mcallptr->runAsync();
     ret = JS_VOID_RETURN;
   }
   else {
+    DEBUG_PRINT_DETAIL("sync");
     mcallptr->run();
     ret = mcallptr->jsReturnVal();
     delete mcallptr;

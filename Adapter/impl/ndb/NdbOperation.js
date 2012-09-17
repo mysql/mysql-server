@@ -18,13 +18,14 @@
  02110-1301  USA
  */
 
-/*global udebug, path, build_dir, spi_doc_dir, assert */
+/*global unified_debug, path, build_dir, spi_doc_dir, assert */
 
 "use strict";
 
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
-    doc           = require(path.join(spi_doc_dir, "DBOperation"));
+    doc           = require(path.join(spi_doc_dir, "DBOperation")),
+    udebug        = unified_debug.getLogger("NdbOperations.js");
 
 
 /* Constructors.
@@ -52,7 +53,7 @@ var DBOperation = function(opcode, tx, tableHandler) {
 DBOperation.prototype = doc.DBOperation;
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
-  udebug.log("NdbOperation prepare " + this.opcode);
+  udebug.log("prepare", this.opcode);
   var helperSpec = {}, helper;
   switch(this.opcode) {
     case 'insert':
@@ -76,7 +77,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   }
 
   helper = adapter.impl.DBOperationHelper(helperSpec);
-  udebug.log("NdbOperation prepare: got helper");
+  udebug.log("prepare: got helper");
   
   switch(this.opcode) {
     case 'insert':
@@ -98,13 +99,13 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 
 
 function encodeKeyBuffer(indexHandler, op, keys) {
-  udebug.log("NdbOperation encodeKeyBuffer");
+  udebug.log("encodeKeyBuffer");
   var i, offset, value, encoder, record, nfields, col;
   if(indexHandler) {
     op.index = indexHandler.dbIndex;
   }
   else {
-    udebug.log("NdbOperation encodeKeyBuffer NO_INDEX");
+    udebug.log("encodeKeyBuffer NO_INDEX");
     return;
   }
 
@@ -121,19 +122,19 @@ function encodeKeyBuffer(indexHandler, op, keys) {
       encoder.write(col[i], value, op.buffers.key, offset);
     }
     else {
-      udebug.log("NdbOperation encodeKeyBuffer "+i+" NULL.");
+      udebug.log("encodeKeyBuffer ", i, "NULL.");
       record.setNull(i, op.buffers.key);
     }
   }
 }
 
 function encodeRowBuffer(op) {
-  udebug.log("NdbOperation encodeRowBuffer");
+  udebug.log("encodeRowBuffer");
   var i, offset, encoder, value;
   var record = op.tableHandler.dbTable.record;
   var row_buffer_size = record.getBufferSize();
   var nfields = op.tableHandler.getMappedFieldCount();
-  udebug.log("NdbOperation encodeRowBuffer nfields", nfields);
+  udebug.log("encodeRowBuffer nfields", nfields);
   var col = op.tableHandler.getColumnMetadata();
   
   // do this earlier? 
@@ -153,7 +154,7 @@ function encodeRowBuffer(op) {
 
 
 function readResultRow(op) {
-  udebug.log("NdbOperation readResultRow");
+  udebug.log("readResultRow");
   var i, offset, encoder, value;
   var dbt             = op.tableHandler;
   // FIXME: Get the mapped record, not the table record
@@ -191,7 +192,7 @@ function mapError(opError) {
 }
 
 function completeExecutedOps(txOperations) {
-  udebug.log("NdbOperation completeExecutedOps", txOperations.length);
+  udebug.log("completeExecutedOps", txOperations.length);
   var i, op, ndberror;
   for(i = 0; i < txOperations.length ; i++) {
     op = txOperations[i];
@@ -215,16 +216,18 @@ function completeExecutedOps(txOperations) {
       op.state = doc.OperationStates[2];  // COMPLETED
     }
     else {
-      udebug.log("NdbOperation completeExecutedOps GOT AN OP IN STATE", op.state);
+      udebug.log("completeExecutedOps GOT AN OP IN STATE", op.state);
     }
   }
-  udebug.log("NdbOperation completeExecutedOps done");
+  udebug.log("completeExecutedOps done");
 }
 
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
-  udebug.log("NdbOperation getReadOperation");
+  udebug.log("getReadOperation");
   assert(doc.LockModes.indexOf(lockMode) !== -1);
-  if(! dbIndexHandler.tableHandler) throw ("Invalid dbIndexHandler");
+  if(! dbIndexHandler.tableHandler) { 
+    throw ("Invalid dbIndexHandler");
+  }
   var op = new DBOperation("read", tx, dbIndexHandler.tableHandler);
   var record = op.tableHandler.dbTable.record;
   op.lockMode = lockMode;
@@ -237,7 +240,7 @@ function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
 
 
 function newInsertOperation(tx, tableHandler, row) {
-  udebug.log("NdbOperation newInsertOperation");
+  udebug.log("newInsertOperation");
   var op = new DBOperation("insert", tx, tableHandler);
   op.values = row;
   encodeRowBuffer(op);  
@@ -246,8 +249,10 @@ function newInsertOperation(tx, tableHandler, row) {
 
 
 function newDeleteOperation(tx, dbIndexHandler, keys) {
-  udebug.log("NdbOperation newDeleteOperation");
-  if(! dbIndexHandler.tableHandler) throw ("Invalid dbIndexHandler");
+  udebug.log("newDeleteOperation");
+  if(! dbIndexHandler.tableHandler) {
+    throw ("Invalid dbIndexHandler");
+  }
   var op = new DBOperation("delete", tx, dbIndexHandler.tableHandler);
   encodeKeyBuffer(dbIndexHandler, op, keys);
   return op;
@@ -256,12 +261,14 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
 
 function newWriteOperation(tx, tablehandler, row) {
  throw "ublah";
-  return new_Operation('write', tx, tablehandler, row);
+ // return new_Operation('write', tx, tablehandler, row);
 }
 
 function newUpdateOperation(tx, dbIndexHandler, keys, row) {
-  udebug.log("NdbOperation newUpdateOperation");
-  if(! dbIndexHandler.tableHandler) throw ("Invalid dbIndexHandler");
+  udebug.log("newUpdateOperation");
+  if(! dbIndexHandler.tableHandler) {
+    throw ("Invalid dbIndexHandler");
+  }
   var op = new DBOperation("update", tx, dbIndexHandler.tableHandler);
   op.values = row;
   encodeKeyBuffer(dbIndexHandler, op, keys);

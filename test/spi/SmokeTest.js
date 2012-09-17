@@ -23,8 +23,7 @@
     This tests the loading of required compiled code in shared library files.
  */
 
-/*global path, fs, assert, spi_module, udebug,
-         harness, build_dir, adapter_dir
+/*global path, fs, assert, spi_module, harness, build_dir, adapter_dir
 */
 
 "use strict";
@@ -48,11 +47,19 @@ test.run = function() {
     require(path.join(build_dir, modules[i]));
   }
 
+  /* Get a database connection.  Do this in the smokeTest so that we can
+     abort the whole suite if it fails.
+  */
+  var properties = service.getDefaultConnectionProperties();
+  var connection = service.connectSync(properties);
+  assert(connection.isConnected(), "failed to connect");
+  connection.closeSync();
+
   /* Create SQL if there is a file */
   harness.SQL.create(this.suite, function() {
     test.pass();
   });
-  
 };
+
 
 exports.tests = [test];
