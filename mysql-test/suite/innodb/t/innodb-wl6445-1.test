@@ -373,9 +373,6 @@ UNLOCK TABLES;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 # Do something while server is down
---exec chmod 0644 $MYSQLD_DATADIR/ibdata1
---exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
---exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
