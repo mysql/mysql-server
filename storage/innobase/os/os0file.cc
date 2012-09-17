@@ -3949,15 +3949,15 @@ os_aio_init(
 			srv_io_thread_function[i] = "write thread";
 		}
 
-		os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
-
-		if (os_aio_sync_array == NULL) {
-			return(FALSE);
-		}
-
 		ut_ad(n_segments >= 4);
 	} else {
 		ut_ad(n_segments > 0);
+	}
+
+	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
+
+	if (os_aio_sync_array == NULL) {
+		return(FALSE);
 	}
 
 	os_aio_n_segments = n_segments;
@@ -4643,12 +4643,7 @@ try_again:
 		}
 		break;
 	case OS_AIO_SYNC:
-		if (srv_read_only_mode) {
-			array = os_aio_read_array;
-		} else {
-			array = os_aio_sync_array;
-		}
-
+		array = os_aio_sync_array;
 #if defined(LINUX_NATIVE_AIO)
 		/* In Linux native AIO we don't use sync IO array. */
 		ut_a(!srv_use_native_aio);
@@ -4789,15 +4784,7 @@ os_aio_windows_handle(
 	DWORD		len;
 	BOOL		retry		= FALSE;
 
-	if (srv_read_only_mode) {
-
-		if (segment == ULINT_UNDEFINED) {
-			segment = 0;
-		}
-
-		segment = os_aio_get_array_and_local_segment(&array, segment);
-
-	} else if (segment == ULINT_UNDEFINED) {
+	if (segment == ULINT_UNDEFINED) {
 		segment = 0;
 		array = os_aio_sync_array;
 	} else {
@@ -4812,9 +4799,7 @@ os_aio_windows_handle(
 
 	n = array->n_slots / array->n_segments;
 
-	/* If it is a Windows SYNC IO request then we have to honour that. */
-	if (array == os_aio_sync_array
-	    || (orig_seg == ULINT_UNDEFINED && srv_read_only_mode)) {
+	if (array == os_aio_sync_array) {
 
 		WaitForSingleObject(
 			os_aio_array_get_nth_slot(array, pos)->handle,
@@ -4823,7 +4808,7 @@ os_aio_windows_handle(
 		i = pos;
 
 	} else {
-		if (!srv_read_only_mode) {
+		if (orig_seg != ULINT_UNDEFINED) {
 			srv_set_io_thread_op_info(orig_seg, "wait Windows aio");
 		}
 
@@ -4848,7 +4833,7 @@ os_aio_windows_handle(
 
 	ut_a(slot->reserved);
 
-	if (!srv_read_only_mode && orig_seg != ULINT_UNDEFINED) {
+	if (orig_seg != ULINT_UNDEFINED) {
 		srv_set_io_thread_op_info(
 			orig_seg, "get windows aio return value");
 	}
