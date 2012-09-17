@@ -81,14 +81,6 @@ status_init(void) {
     STATUS_INIT(CP_WAITERS_MAX,                         UINT64,   "waiters max");
     STATUS_INIT(CP_CLIENT_WAIT_ON_MO,                   UINT64,   "non-checkpoint client wait on mo lock");
     STATUS_INIT(CP_CLIENT_WAIT_ON_CS,                   UINT64,   "non-checkpoint client wait on cs lock");
-    STATUS_INIT(CP_WAIT_SCHED_CS,                       UINT64,   "sched wait on cs lock");
-    STATUS_INIT(CP_WAIT_CLIENT_CS,                      UINT64,   "client wait on cs lock");
-    STATUS_INIT(CP_WAIT_TXN_CS,                         UINT64,   "txn wait on cs lock");
-    STATUS_INIT(CP_WAIT_OTHER_CS,                       UINT64,   "other wait on cs lock");
-    STATUS_INIT(CP_WAIT_SCHED_MO,                       UINT64,   "sched wait on mo lock");
-    STATUS_INIT(CP_WAIT_CLIENT_MO,                      UINT64,   "client wait on mo lock");
-    STATUS_INIT(CP_WAIT_TXN_MO,                         UINT64,   "txn wait on mo lock");
-    STATUS_INIT(CP_WAIT_OTHER_MO,                       UINT64,   "other wait on mo lock");
     cp_status.initialized = true;
 }
 #undef STATUS_INIT
@@ -235,17 +227,6 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
 
     assert(initialized);
 
-    if (locked_cs) {
-        if (caller_id == SCHEDULED_CHECKPOINT)
-            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_SCHED_CS), 1);
-        else if (caller_id == CLIENT_CHECKPOINT)
-            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_CLIENT_CS), 1);
-        else if (caller_id == TXN_COMMIT_CHECKPOINT)
-            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_TXN_CS), 1);
-        else 
-            (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAIT_OTHER_CS), 1);
-    }
-
     (void) __sync_fetch_and_add(&STATUS_VALUE(CP_WAITERS_NOW), 1);
     checkpoint_safe_checkpoint_lock();
     (void) __sync_fetch_and_sub(&STATUS_VALUE(CP_WAITERS_NOW), 1);
@@ -254,16 +235,6 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
         STATUS_VALUE(CP_WAITERS_MAX) = STATUS_VALUE(CP_WAITERS_NOW);  // threadsafe, within checkpoint_safe lock
 
     SET_CHECKPOINT_FOOTPRINT(10);
-    if (locked_mo) {
-        if (caller_id == SCHEDULED_CHECKPOINT)
-            STATUS_VALUE(CP_WAIT_SCHED_MO)++;           // threadsafe, within checkpoint_safe lock
-        else if (caller_id == CLIENT_CHECKPOINT)
-            STATUS_VALUE(CP_WAIT_CLIENT_MO)++;
-        else if (caller_id == TXN_COMMIT_CHECKPOINT)
-            STATUS_VALUE(CP_WAIT_TXN_MO)++;
-        else 
-            STATUS_VALUE(CP_WAIT_OTHER_MO)++;
-    }
     multi_operation_checkpoint_lock();
     SET_CHECKPOINT_FOOTPRINT(20);
     toku_ft_open_close_lock();

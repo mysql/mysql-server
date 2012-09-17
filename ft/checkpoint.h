@@ -97,14 +97,6 @@ typedef enum {
     CP_WAITERS_MAX,          // max threads ever simultaneously waiting for the checkpoint_safe lock to perform a checkpoint
     CP_CLIENT_WAIT_ON_MO,    // how many times a client thread waited to take the multi_operation lock, not for checkpoint
     CP_CLIENT_WAIT_ON_CS,    // how many times a client thread waited for the checkpoint_safe lock, not for checkpoint
-    CP_WAIT_SCHED_CS,        // how many times a scheduled checkpoint waited for the checkpoint_safe lock
-    CP_WAIT_CLIENT_CS,       // how many times a client checkpoint waited for the checkpoint_safe lock
-    CP_WAIT_TXN_CS,          // how many times a txn_commit checkpoint waited for the checkpoint_safe lock
-    CP_WAIT_OTHER_CS,        // how many times a checkpoint for another purpose waited for the checkpoint_safe lock
-    CP_WAIT_SCHED_MO,        // how many times a scheduled checkpoint waited for the multi_operation lock
-    CP_WAIT_CLIENT_MO,       // how many times a client checkpoint waited for the multi_operation lock
-    CP_WAIT_TXN_MO,          // how many times a txn_commit checkpoint waited for the multi_operation lock
-    CP_WAIT_OTHER_MO,        // how many times a checkpoint for another purpose waited for the multi_operation lock
     CP_STATUS_NUM_ROWS       // number of rows in this status array
 } cp_status_entry;
 
