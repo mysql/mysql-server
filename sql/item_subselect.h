@@ -575,6 +575,7 @@ public:
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
   bool expr_cache_is_needed(THD *thd);
+  inline bool left_expr_has_null();
   
   int optimize(double *out_rows, double *cost);
   /* 
@@ -853,7 +854,6 @@ protected:
     expression is NULL.
   */
   bool empty_result_set;
-  bool null_keypart; /* TRUE <=> constructed search tuple has a NULL */
 public:
 
   // constructor can assign THD because it will be called after JOIN::prepare
@@ -877,8 +877,7 @@ public:
   bool no_tables();
   int index_lookup(); /* TIMOUR: this method needs refactoring. */
   int scan_table();
-  bool copy_ref_key();
-  int copy_ref_key_simple();  /* TIMOUR: this method needs refactoring. */
+  bool copy_ref_key(bool skip_constants);
   bool no_rows() { return empty_result_set; }
   virtual enum_engine_type engine_type() { return UNIQUESUBQUERY_ENGINE; }
 };

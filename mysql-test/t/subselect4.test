@@ -184,6 +184,50 @@ SELECT * FROM (SELECT default(a) FROM t GROUP BY a) d;
 DROP TABLE t;
 
 --echo #
+--echo # LP BUG#1009187, MDEV-373, MYSQL bug#58628
+--echo # Wrong result for a query with [NOT] IN subquery predicate if
+--echo # the left part of the predicate is explicit NULL
+--echo #
+
+CREATE TABLE t1 (pk INT NOT NULL, i INT NOT NULL);
+INSERT INTO t1 VALUES (0,10), (1,20), (2,30), (3,40);
+
+CREATE TABLE t2a (pk INT NOT NULL, i INT NOT NULL, PRIMARY KEY(i,pk));
+INSERT INTO t2a VALUES (0,0), (1,1), (2,2), (3,3);
+
+CREATE TABLE t2b (pk INT, i INT);
+INSERT INTO t2b VALUES (0,0), (1,1), (2,2), (3,3);
+
+CREATE TABLE t2c (pk INT NOT NULL, i INT NOT NULL);
+INSERT INTO t2c VALUES (0,0), (1,1), (2,2), (3,3);
+create index it2c on t2c (i,pk);
+
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk);
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk);
+SELECT * FROM t1 WHERE 1+NULL NOT IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk);
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2a.i FROM t2a WHERE t2a.pk = t1.pk) IS UNKNOWN;
+SELECT t1.pk, NULL NOT IN (SELECT t2a.i FROM t2a  WHERE t2a.pk = t1.pk) FROM t1;
+
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2b.i FROM t2b WHERE t2b.pk = t1.pk);
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2b.i FROM t2b WHERE t2b.pk = t1.pk);
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2b.i FROM t2b WHERE t2b.pk = t1.pk) IS UNKNOWN;
+SELECT t1.pk, NULL NOT IN (SELECT t2b.i FROM t2b  WHERE t2b.pk = t1.pk) FROM t1;
+
+EXPLAIN
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2c.i FROM t2c WHERE t2c.pk = t1.pk);
+SELECT * FROM t1 WHERE NULL NOT IN (SELECT t2c.i FROM t2c WHERE t2c.pk = t1.pk);
+SELECT * FROM t1 WHERE NULL     IN (SELECT t2c.i FROM t2c WHERE t2c.pk = t1.pk) IS UNKNOWN;
+SELECT t1.pk, NULL NOT IN (SELECT t2c.i FROM t2c  WHERE t2c.pk = t1.pk) FROM t1;
+
+EXPLAIN
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2a.i, t2a.pk FROM t2a WHERE t2a.pk = t1.pk);
+SELECT * FROM t1 WHERE (NULL, 1) NOT IN (SELECT t2a.i, t2a.pk FROM t2a WHERE t2a.pk = t1.pk);
+
+drop table t1, t2a, t2b, t2c;
+
+--echo #
 --echo # End of 5.1 tests.
 --echo #
 

@@ -679,6 +679,19 @@ bool Item_subselect::expr_cache_is_needed(THD *thd)
 
 
 /**
+  Check if the left IN argument contains NULL values.
+
+  @retval TRUE  there are NULLs
+  @retval FALSE otherwise
+*/
+
+inline bool Item_in_subselect::left_expr_has_null()
+{
+  return (*(optimizer->get_cache()))->null_value;
+}
+
+
+/**
   Check if an expression cache is needed for this subquery
 
   @param thd             Thread handle
@@ -3224,161 +3237,51 @@ int subselect_uniquesubquery_engine::scan_table()
 }
 
 
-/*
-  Copy ref key and check for null parts in it
+/**
+  Copy ref key for index access into the only subquery table.
 
-  SYNOPSIS
-    subselect_uniquesubquery_engine::copy_ref_key()
+  @details
+    Copy ref key and check for conversion problems.
+    If there is an error converting the left IN operand to the column type of
+    the right IN operand count it as no match. In this case IN has the value of
+    FALSE. We mark the subquery table cursor as having no more rows (to ensure
+    that the processing that follows will not find a match) and return FALSE,
+    so IN is not treated as returning NULL.
 
-  DESCRIPTION
-    Copy ref key and check for null parts in it.
-    Depending on the nullability and conversion problems this function
-    recognizes and processes the following states :
-      1. Partial match on top level. This means IN has a value of FALSE
-         regardless of the data in the subquery table.
-         Detected by finding a NULL in the left IN operand of a top level
-         expression.
-         We may actually skip reading the subquery, so return TRUE to skip
-         the table scan in subselect_uniquesubquery_engine::exec and make
-         the value of the IN predicate a NULL (that is equal to FALSE on
-         top level).
-      2. No exact match when IN is nested inside another predicate.
-         Detected by finding a NULL in the left IN operand when IN is not
-         a top level predicate.
-         We cannot have an exact match. But we must proceed further with a
-         table scan to find out if it's a partial match (and IN has a value
-         of NULL) or no match (and IN has a value of FALSE).
-         So we return FALSE to continue with the scan and see if there are
-         any record that would constitute a partial match (as we cannot
-         determine that from the index).
-      3. Error converting the left IN operand to the column type of the
-         right IN operand. This counts as no match (and IN has the value of
-         FALSE). We mark the subquery table cursor as having no more rows
-         (to ensure that the processing that follows will not find a match)
-         and return FALSE, so IN is not treated as returning NULL.
-
-
-  RETURN
-    FALSE - The value of the IN predicate is not known. Proceed to find the
-            value of the IN predicate using the determined values of
-            null_keypart and table->status.
-    TRUE  - IN predicate has a value of NULL. Stop the processing right there
-            and return NULL to the outer predicates.
+  @returns
+    @retval FALSE The outer ref was copied into an index lookup key.
+    @retval TRUE  The outer ref cannot possibly match any row, IN is FALSE.
 */
 
-bool subselect_uniquesubquery_engine::copy_ref_key()
+bool subselect_uniquesubquery_engine::copy_ref_key(bool skip_constants)
 {
   DBUG_ENTER("subselect_uniquesubquery_engine::copy_ref_key");
 
   for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
   {
-    if ((*copy)->store_key_is_const())
-      continue;
-    tab->ref.key_err= (*copy)->copy();
-
-    /*
-      When there is a NULL part in the key we don't need to make index
-      lookup for such key thus we don't need to copy whole key.
-      If we later should do a sequential scan return OK. Fail otherwise.
-
-      See also the comment for the subselect_uniquesubquery_engine::exec()
-      function.
-    */
-    null_keypart= (*copy)->null_key;
-    if (null_keypart)
-    {
-      bool top_level= ((Item_in_subselect *) item)->is_top_level_item();
-      if (top_level)
-      {
-        /* Partial match on top level */
-        DBUG_RETURN(1);
-      }
-      else
-      {
-        /* No exact match when IN is nested inside another predicate */
-        break;
-      }
-    }
-
-    /*
-      Check if the error is equal to STORE_KEY_FATAL. This is not expressed 
-      using the store_key::store_key_result enum because ref.key_err is a 
-      boolean and we want to detect both TRUE and STORE_KEY_FATAL from the 
-      space of the union of the values of [TRUE, FALSE] and 
-      store_key::store_key_result.  
-      TODO: fix the variable an return types.
-    */
-    if (tab->ref.key_err & 1)
-    {
-      /*
-       Error converting the left IN operand to the column type of the right
-       IN operand. 
-      */
-      tab->table->status= STATUS_NOT_FOUND;
-      break;
-    }
-  }
-  DBUG_RETURN(0);
-}
-
-
-/*
-  @retval  1  A NULL was found in the outer reference, index lookup is
-              not applicable, the outer ref is unsusable as a lookup key,
-              use some other method to find a match.
-  @retval  0  The outer ref was copied into an index lookup key.
-  @retval -1  The outer ref cannot possibly match any row, IN is FALSE.
-*/
-/* TIMOUR: this method is a variant of copy_ref_key(), needs refactoring. */
-
-int subselect_uniquesubquery_engine::copy_ref_key_simple()
-{
-  for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
-  {
     enum store_key::store_key_result store_res;
+    if (skip_constants && (*copy)->store_key_is_const())
+      continue;
     store_res= (*copy)->copy();
     tab->ref.key_err= store_res;
 
-    /*
-      When there is a NULL part in the key we don't need to make index
-      lookup for such key thus we don't need to copy whole key.
-      If we later should do a sequential scan return OK. Fail otherwise.
-
-      See also the comment for the subselect_uniquesubquery_engine::exec()
-      function.
-    */
-    null_keypart= (*copy)->null_key;
-    if (null_keypart)
-      return 1;
-
-    /*
-      Check if the error is equal to STORE_KEY_FATAL. This is not expressed 
-      using the store_key::store_key_result enum because ref.key_err is a 
-      boolean and we want to detect both TRUE and STORE_KEY_FATAL from the 
-      space of the union of the values of [TRUE, FALSE] and 
-      store_key::store_key_result.  
-      TODO: fix the variable an return types.
-    */
     if (store_res == store_key::STORE_KEY_FATAL)
     {
       /*
        Error converting the left IN operand to the column type of the right
        IN operand. 
       */
-      return -1;
+      DBUG_RETURN(true);
     }
   }
-  return 0;
+  DBUG_RETURN(false);
 }
 
 
-/*
-  Execute subselect
+/**
+  Execute subselect via unique index lookup
 
-  SYNOPSIS
-    subselect_uniquesubquery_engine::exec()
-
-  DESCRIPTION
+  @details
     Find rows corresponding to the ref key using index access.
     If some part of the lookup key is NULL, then we're evaluating
       NULL IN (SELECT ... )
@@ -3395,11 +3298,11 @@ int subselect_uniquesubquery_engine::copy_ref_key_simple()
     
     The result of this function (info about whether a row was found) is
     stored in this->empty_result_set.
-  NOTE
     
-  RETURN
-    FALSE - ok
-    TRUE  - an error occured while scanning
+  @returns
+    @retval 0  OK
+    @retval 1  notify caller to call Item_subselect::reset(),
+               in most cases reset() sets the result to NULL
 */
 
 int subselect_uniquesubquery_engine::exec()
@@ -3409,32 +3312,30 @@ int subselect_uniquesubquery_engine::exec()
   TABLE *table= tab->table;
   empty_result_set= TRUE;
   table->status= 0;
- 
-  /* TODO: change to use of 'full_scan' here? */
-  if (copy_ref_key())
-  {
-    /*
-      TIMOUR: copy_ref_key() == 1 means NULL result, not error, why return 1?
-      Check who reiles on this result.
-    */
-    DBUG_RETURN(1);
-  }
-  if (table->status)
-  {
-    /* 
-      We know that there will be no rows even if we scan. 
-      Can be set in copy_ref_key.
-    */
-    ((Item_in_subselect *) item)->value= 0;
-    DBUG_RETURN(0);
-  }
+  Item_in_subselect *in_subs= (Item_in_subselect *) item;
 
   if (!tab->preread_init_done && tab->preread_init())
     DBUG_RETURN(1);
-
-  if (null_keypart)
-    DBUG_RETURN(scan_table());
  
+  if (in_subs->left_expr_has_null())
+  {
+    /*
+      The case when all values in left_expr are NULL is handled by
+      Item_in_optimizer::val_int().
+    */
+    if (in_subs->is_top_level_item())
+      DBUG_RETURN(1); /* notify caller to call reset() and set NULL value. */
+    else
+      DBUG_RETURN(scan_table());
+  }
+
+  if (copy_ref_key(true))
+  {
+    /* We know that there will be no rows even if we scan. */
+    in_subs->value= 0;
+    DBUG_RETURN(0);
+  }
+
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 0);
   error= table->file->ha_index_read_map(table->record[0],
@@ -3510,14 +3411,10 @@ subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
 }
 
 
-/*
-  Index-lookup subselect 'engine' - run the subquery
+/**
+  Execute subselect via unique index lookup
 
-  SYNOPSIS
-    subselect_indexsubquery_engine:exec()
-      full_scan 
-
-  DESCRIPTION
+  @details
     The engine is used to resolve subqueries in form
 
       oe IN (SELECT key FROM tbl WHERE subq_where) 
@@ -3532,7 +3429,7 @@ subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
        row that satisfies subq_where. If found, return NULL, otherwise
        return FALSE.
 
-  TODO
+  @todo
     The step #1 can be optimized further when the index has several key
     parts. Consider a subquery:
     
@@ -3557,9 +3454,10 @@ subselect_uniquesubquery_engine::~subselect_uniquesubquery_engine()
     cheaper. We can use index statistics to quickly check whether "ref" scan
     will be cheaper than full table scan.
 
-  RETURN
-    0
-    1
+  @returns
+    @retval 0  OK
+    @retval 1  notify caller to call Item_subselect::reset(),
+               in most cases reset() sets the result to NULL
 */
 
 int subselect_indexsubquery_engine::exec()
@@ -3568,10 +3466,10 @@ int subselect_indexsubquery_engine::exec()
   int error;
   bool null_finding= 0;
   TABLE *table= tab->table;
+  Item_in_subselect *in_subs= (Item_in_subselect *) item;
 
   ((Item_in_subselect *) item)->value= 0;
   empty_result_set= TRUE;
-  null_keypart= 0;
   table->status= 0;
 
   if (check_null)
@@ -3581,25 +3479,27 @@ int subselect_indexsubquery_engine::exec()
     ((Item_in_subselect *) item)->was_null= 0;
   }
 
-  /* Copy the ref key and check for nulls... */
-  if (copy_ref_key())
-    DBUG_RETURN(1);
-
-  if (table->status)
-  {
-    /* 
-      We know that there will be no rows even if we scan. 
-      Can be set in copy_ref_key.
-    */
-    ((Item_in_subselect *) item)->value= 0;
-    DBUG_RETURN(0);
-  }
-
   if (!tab->preread_init_done && tab->preread_init())
     DBUG_RETURN(1);
 
-  if (null_keypart)
-    DBUG_RETURN(scan_table());
+  if (in_subs->left_expr_has_null())
+  {
+    /*
+      The case when all values in left_expr are NULL is handled by
+      Item_in_optimizer::val_int().
+    */
+    if (in_subs->is_top_level_item())
+      DBUG_RETURN(1); /* notify caller to call reset() and set NULL value. */
+    else
+      DBUG_RETURN(scan_table());
+  }
+
+  if (copy_ref_key(true))
+  {
+    /* We know that there will be no rows even if we scan. */
+    in_subs->value= 0;
+    DBUG_RETURN(0);
+  }
 
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, 1);
@@ -5350,37 +5250,42 @@ subselect_partial_match_engine::subselect_partial_match_engine(
 int subselect_partial_match_engine::exec()
 {
   Item_in_subselect *item_in= (Item_in_subselect *) item;
-  int copy_res, lookup_res;
+  int lookup_res;
 
-  /* Try to find a matching row by index lookup. */
-  copy_res= lookup_engine->copy_ref_key_simple();
-  if (copy_res == -1)
+  DBUG_ASSERT(!(item_in->left_expr_has_null() &&
+                item_in->is_top_level_item()));
+
+  if (!item_in->left_expr_has_null())
   {
-    /* The result is FALSE based on the outer reference. */
-    item_in->value= 0;
-    item_in->null_value= 0;
-    return 0;
-  }
-  else if (copy_res == 0)
-  {
-    /* Search for a complete match. */
-    if ((lookup_res= lookup_engine->index_lookup()))
+    /* Try to find a matching row by index lookup. */
+    if (lookup_engine->copy_ref_key(false))
     {
-      /* An error occured during lookup(). */
+      /* The result is FALSE based on the outer reference. */
       item_in->value= 0;
       item_in->null_value= 0;
-      return lookup_res;
-    }
-    else if (item_in->value || !count_columns_with_nulls)
-    {
-      /*
-        A complete match was found, the result of IN is TRUE.
-        If no match was found, and there are no NULLs in the materialized
-        subquery, then the result is guaranteed to be false because this
-        branch is executed when the outer reference has no NULLs as well.
-        Notice: (this->item == lookup_engine->item)
-      */
       return 0;
+    }
+    else
+    {
+      /* Search for a complete match. */
+      if ((lookup_res= lookup_engine->index_lookup()))
+      {
+        /* An error occured during lookup(). */
+        item_in->value= 0;
+        item_in->null_value= 0;
+        return lookup_res;
+      }
+      else if (item_in->value || !count_columns_with_nulls)
+      {
+        /*
+          A complete match was found, the result of IN is TRUE.
+          If no match was found, and there are no NULLs in the materialized
+          subquery, then the result is guaranteed to be false because this
+          branch is executed when the outer reference has no NULLs as well.
+          Notice: (this->item == lookup_engine->item)
+        */
+        return 0;
+      }
     }
   }
 
