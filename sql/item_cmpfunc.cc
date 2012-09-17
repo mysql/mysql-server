@@ -2354,6 +2354,26 @@ void Item_func_interval::fix_length_and_dec()
 
 
 /**
+  Appends function name and arguments list to the String str.
+
+  @note
+    Arguments of INTERVAL function are stored in "Item_row" object. Function
+    print_args calls print function of "Item_row" class. Item_row::print
+    function append "(", "argument_list" and ")" to String str.
+
+  @param str          [in/out]  String to which the func_name and argument list
+                                should be appeneded. 
+  @param query_type   [in]      Query type
+*/
+
+void Item_func_interval::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  print_args(str, 0, query_type);
+}
+
+
+/**
   Execute Item_func_interval().
 
   @note
