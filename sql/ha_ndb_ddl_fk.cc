@@ -224,7 +224,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
   DBUG_ENTER("ha_ndbcluster::create_fks");
 
   // return real mysql error to avoid total randomness..
-  const int er_default= ER_CANNOT_ADD_FOREIGN;
+  const int err_default= HA_ERR_CANNOT_ADD_FOREIGN;
   char tmpbuf[FN_REFLEN];
 
   assert(thd->lex != 0);
@@ -264,7 +264,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
                                                       tmpbuf, sizeof(tmpbuf)));
         if (ndbcol == 0)
         {
-          DBUG_RETURN(er_default); // TODO suitable error code
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                              ER_CANNOT_ADD_FOREIGN,
+                              "Child table %s has no column %s in NDB",
+                              child_tab.get_table()->getName(), tmpbuf);
+          DBUG_RETURN(err_default);
         }
         childcols[pos++]= ndbcol;
       }
@@ -279,7 +283,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
 
     if (!child_primary_key && child_index == 0)
     {
-      DBUG_RETURN(er_default); // TODO suitable error code
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_CANNOT_ADD_FOREIGN,
+                          "Child table %s foreign key columns match no index in NDB",
+                          child_tab.get_table()->getName());
+      DBUG_RETURN(err_default);
     }
 
     Ndb_db_guard db_guard(ndb); // save db
@@ -325,7 +333,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
                                                       tmpbuf, sizeof(tmpbuf)));
         if (ndbcol == 0)
         {
-          DBUG_RETURN(er_default); // TODO suitable error code
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                              ER_CANNOT_ADD_FOREIGN,
+                              "Parent table %s has no column %s in NDB",
+                              parent_tab.get_table()->getName(), tmpbuf);
+          DBUG_RETURN(err_default);
         }
         parentcols[pos++]= ndbcol;
       }
@@ -342,7 +354,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
 
     if (!parent_primary_key && parent_index == 0)
     {
-      DBUG_RETURN(er_default); // TODO suitable error code
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_CANNOT_ADD_FOREIGN,
+                          "Parent table %s foreign key columns match no index in NDB",
+                          parent_tab.get_table()->getName());
+      DBUG_RETURN(err_default);
     }
 
     NdbDictionary::ForeignKey ndbfk;
