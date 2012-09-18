@@ -65,8 +65,6 @@ function lintTest(basePath, sourceFile) {
   return t;
 }
 
-exports.tests = [];
-
 function checkSource(file) {
   exports.tests.push(lintTest(adapter_dir, file));
 }
@@ -78,6 +76,21 @@ function checkTest(file) {
 function checkSpiDoc(file) {
   exports.tests.push(lintTest(spi_doc_dir, file));
 }
+
+/// ******** SMOKE TEST FOR THIS SUITE ******* ///
+exports.tests = [];
+
+var smokeTest = new harness.SmokeTest("jslint smoke test");
+smokeTest.run = function runLintSmokeTest() {
+  if(skipTests) {
+    this.fail("jslint is not available");
+  }
+  else {
+    this.pass();
+  }
+};
+exports.tests.push(smokeTest);
+
 
 // ****** SOURCES FILES TO CHECK ********** //
 
@@ -119,3 +132,4 @@ checkTest("spi/InsertAndDeleteIntTest.js");
 checkTest("spi/ClearSmokeTest.js");
 checkTest("spi/BasicVarcharTest.js");
 
+console.dir(exports.test);
