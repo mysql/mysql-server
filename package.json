@@ -2,7 +2,7 @@
 {
   "name"        : "mysql-objects"
   ,
-  "version"     : "0.0.151-alpha"
+  "version"     : "0.0.157-alpha"
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,
