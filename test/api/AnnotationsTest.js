@@ -53,7 +53,6 @@ t4.run = function() {
   annotations.strict(true);
   annotations.mapClass(domainClass, {
     "table" : "t_basic",
-    "schema" : "def",
     "database" : "test",
     "autoIncrementBatchSize" : 1,
     "mapAllColumns" : false,
