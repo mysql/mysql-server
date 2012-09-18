@@ -55,7 +55,7 @@ ADD_CUSTOM_TARGET(GenError
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 ## For 'comp_err' we need it to be available during build.
 COPY_OPENSSL_DLLS(copy_openssl_extra)
-IF (WIN32 AND WITH_SSL_PATH)
+IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
   ADD_DEPENDENCIES(GenError copy_openssl_extra)
 ENDIF()
 
