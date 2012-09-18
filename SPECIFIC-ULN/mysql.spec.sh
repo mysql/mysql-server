@@ -26,9 +26,7 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 # %define mysql_old_vendor        MySQL AB               # Applies to traditional MySQL RPMs only.
-# %define mysql_vendor_2          Sun Microsystems, Inc. # Duplicated here to have code similar.
-%define mysql_old_vendor        Oracle and/or its affiliates
-%define mysql_vendor_2          Oracle and/or its affiliates
+# %define mysql_vendor_2          Sun Microsystems, Inc.
 %define mysql_vendor            Oracle and/or its affiliates
 
 %define mysql_version   @VERSION@
@@ -675,8 +673,6 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   installed=`echo $installed | sed 's/\([^ ]*\) .*/\1/'` # Tests have shown duplicated package names
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
-  myoldvendor='%{mysql_old_vendor}'
-  myvendor_2='%{mysql_vendor_2}'
   myvendor='%{mysql_vendor}'
   myversion='%{mysql_version}'
 
@@ -690,12 +686,10 @@ if [ $? -eq 0 -a -n "$installed" ]; then
   [ -z "$new_family" ] && new_family="<bad package specification: version $myversion>"
 
   error_text=
-  if [ "$vendor" != "$myoldvendor" \
-    -a "$vendor" != "$myvendor_2" \
-    -a "$vendor" != "$myvendor" ]; then
+  if [ "$vendor" != "$myvendor" ]; then
     error_text="$error_text
 The current MySQL server package is provided by a different
-vendor ($vendor) than $myoldvendor, $myvendor_2, or $myvendor.
+vendor ($vendor) than $myvendor.
 Some files may be installed to different locations, including log
 files and the service startup script in %{_sysconfdir}/init.d/.
 "
@@ -970,6 +964,10 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Tue Sep 18 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- Restrict the vendor check to Oracle: There is no history here
+  which we have to allow for.
+
 * Thu Jul 26 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Add the vendor and release series checks from the traditional MySQL RPM
   spec file, to protect against errors happening during upgrades.
