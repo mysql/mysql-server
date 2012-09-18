@@ -127,7 +127,9 @@ function InsertOperation(sql, data, callback) {
         op.callback(err, null);
       }
     } else {
-      udebug.log('dbSession.InsertOperation NO ERROR callback:', status);
+      udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback: ' + JSON.stringify(status));
+      op.result.error.code = 0;
+      op.result.value = op.data;
       op.result.success = true;
       if (typeof(op.callback) === 'function') {
         op.callback(null, op);
