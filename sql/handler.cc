@@ -2502,6 +2502,8 @@ int handler::update_auto_increment()
   bool append= FALSE;
   THD *thd= table->in_use;
   struct system_variables *variables= &thd->variables;
+  int result=0, tmp;
+  enum enum_check_fields save_count_cuted_fields;
   DBUG_ENTER("handler::update_auto_increment");
 
   /*
@@ -2519,8 +2521,10 @@ int handler::update_auto_increment()
       statement (case of INSERT VALUES(null),(3763),(null):
       the last NULL needs to insert 3764, not the value of the first NULL plus
       1).
+      Ignore negative values.
     */
-    adjust_next_insert_id_after_explicit_value(nr);
+    if ((longlong) nr > 0 || (table->next_number_field->flags & UNSIGNED_FLAG))
+      adjust_next_insert_id_after_explicit_value(nr);
     insert_id_for_cur_row= 0; // didn't generate anything
     DBUG_RETURN(0);
   }
@@ -2579,7 +2583,6 @@ int handler::update_auto_increment()
         else
           nb_desired_values= AUTO_INC_DEFAULT_NB_MAX;
       }
-      /* This call ignores all its parameters but nr, currently */
       get_auto_increment(variables->auto_increment_offset,
                          variables->auto_increment_increment,
                          nb_desired_values, &nr,
@@ -2616,29 +2619,23 @@ int handler::update_auto_increment()
   }
 
   if (unlikely(nr == ULONGLONG_MAX))
-      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE); 
+      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
 
   DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
 
-  if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
+  /* Store field without warning (Warning will be printed by insert) */
+  save_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_IGNORE;
+  tmp= table->next_number_field->store((longlong) nr, TRUE);
+  thd->count_cuted_fields= save_count_cuted_fields;
+
+  if (unlikely(tmp))                            // Out of range value in store
   {
     /*
-      first test if the query was aborted due to strict mode constraints
+      It's better to return an error here than getting a confusing
+      'duplicate key error' later.
     */
-    if (killed_mask_hard(thd->killed) == KILL_BAD_DATA)
-      DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
-
-    /*
-      field refused this value (overflow) and truncated it, use the result of
-      the truncation (which is going to be inserted); however we try to
-      decrease it to honour auto_increment_* variables.
-      That will shift the left bound of the reserved interval, we don't
-      bother shifting the right bound (anyway any other value from this
-      interval will cause a duplicate key).
-    */
-    nr= prev_insert_id(table->next_number_field->val_int(), variables);
-    if (unlikely(table->next_number_field->store((longlong) nr, TRUE)))
-      nr= table->next_number_field->val_int();
+    result= HA_ERR_AUTOINC_ERANGE;
   }
   if (append)
   {
@@ -2660,6 +2657,10 @@ int handler::update_auto_increment()
     already set.
   */
   insert_id_for_cur_row= nr;
+
+  if (result)                                   // overflow
+    DBUG_RETURN(result);
+
   /*
     Set next insert id to point to next auto-increment value to be able to
     handle multi-row statements.
@@ -2783,7 +2784,7 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(uint key_nr, const char *msg)
+void handler::print_keydup_error(uint key_nr, const char *msg, myf errflag)
 {
   /* Write the duplicated key in the error message */
   char key[MAX_KEY_LENGTH];
@@ -2793,7 +2794,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
   {
     /* Key is unknown */
     str.copy("", 0, system_charset_info);
-    my_printf_error(ER_DUP_ENTRY, msg, MYF(0), str.c_ptr(), "*UNKNOWN*");
+    my_printf_error(ER_DUP_ENTRY, msg, errflag, str.c_ptr(), "*UNKNOWN*");
   }
   else
   {
@@ -2806,7 +2807,7 @@ void handler::print_keydup_error(uint key_nr, const char *msg)
       str.append(STRING_WITH_LEN("..."));
     }
     my_printf_error(ER_DUP_ENTRY, msg,
-		    MYF(0), str.c_ptr_safe(), table->key_info[key_nr].name);
+		    errflag, str.c_ptr_safe(), table->key_info[key_nr].name);
   }
 }
 
@@ -2874,7 +2875,7 @@ void handler::print_error(int error, myf errflag)
       uint key_nr=get_dup_key(error);
       if ((int) key_nr >= 0)
       {
-        print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME));
+        print_keydup_error(key_nr, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
         DBUG_VOID_RETURN;
       }
     }
@@ -3037,7 +3038,10 @@ void handler::print_error(int error, myf errflag)
     textno= ER_AUTOINC_READ_FAILED;
     break;
   case HA_ERR_AUTOINC_ERANGE:
-    textno= ER_WARN_DATA_OUT_OF_RANGE;
+    textno= error;
+    my_error(textno, errflag, table->next_number_field->field_name,
+             table->in_use->warning_info->current_row_for_warning());
+    DBUG_VOID_RETURN;
     break;
   case HA_ERR_TOO_MANY_CONCURRENT_TRXS:
     textno= ER_TOO_MANY_CONCURRENT_TRXS;

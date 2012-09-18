@@ -125,6 +125,10 @@ insert into t1 values(600),(NULL),(NULL);
 ERROR 23000: Duplicate entry '600' for key 'PRIMARY'
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+Warnings:
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
 select * from t1;
 a
 1
@@ -186,7 +190,7 @@ set auto_increment_offset=4;
 insert into t1 values(null);
 insert into t1 values(null);
 insert into t1 values(null);
-ERROR 23000: Duplicate entry '125' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'a' at row 1
 select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t1 order by a;
 a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
 103	0
@@ -196,21 +200,19 @@ create table t2 (a tinyint unsigned not null auto_increment primary key) engine=
 set auto_increment_increment=10;
 set auto_increment_offset=1;
 set insert_id=1000;
+insert into t2 values(10);
 insert into t2 values(null);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+ERROR 22003: Out of range value for column 'a' at row 1
 select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t2 order by a;
 a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
-251	0
+10	9
 create table t3 like t1;
 set auto_increment_increment=1000;
 set auto_increment_offset=700;
 insert into t3 values(null);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+ERROR 22003: Out of range value for column 'a' at row 1
 select * from t3 order by a;
 a
-127
 select * from t1 order by a;
 a
 103
@@ -218,10 +220,9 @@ a
 125
 select * from t2 order by a;
 a
-251
+10
 select * from t3 order by a;
 a
-127
 drop table t1,t2,t3;
 set auto_increment_increment=1;
 set auto_increment_offset=1;

@@ -25,6 +25,7 @@ my $cmakeargs = "";
 # Assume this script is in <srcroot>/cmake
 my $srcdir = dirname(dirname(abs_path($0)));
 my $cmake_install_prefix="";
+my $just_print= 0;
 
 # Sets installation directory,  bindir, libdir, libexecdir etc
 # the equivalent CMake variables are given without prefix
@@ -112,6 +113,11 @@ foreach my $option (@ARGV)
   {
     system("cmake ${srcdir} -LH");
     exit(0);
+  }
+  if ($option =~ /print/)
+  {
+    $just_print=1;
+    next;
   }
   if($option =~ /with-plugins=/)
   {
@@ -223,6 +229,7 @@ foreach my $option (@ARGV)
 }
 
 print("configure.pl : calling cmake $srcdir $cmakeargs\n");
+exit(0) if ($just_print);
 unlink("CMakeCache.txt");
 my $rc = system("cmake $srcdir $cmakeargs");
 exit($rc);

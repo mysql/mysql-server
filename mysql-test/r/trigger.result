@@ -165,6 +165,8 @@ select @log;
 (BEFORE_INSERT: new=(id=1, data=1))(AFTER_INSERT: new=(id=1, data=1))
 set @log:= "";
 insert ignore t1 values (1, 2);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 select @log;
 @log
 (BEFORE_INSERT: new=(id=1, data=2))

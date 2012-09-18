@@ -1,5 +1,5 @@
---- suite/rpl/r/rpl_insert_delayed.result	2012-02-06 21:37:21.000000000 +0100
-+++ suite/rpl/r/rpl_insert_delayed,stmt.reject	2012-02-06 23:12:55.000000000 +0100
+--- suite/rpl/r/rpl_insert_delayed.result	2012-09-18 01:37:45.317521958 +0300
++++ suite/rpl/r/rpl_insert_delayed,stmt.reject	2012-09-18 01:36:16.637514667 +0300
 @@ -15,17 +15,17 @@
  insert delayed into t1 values(10, "my name");
  flush table t1;

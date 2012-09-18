@@ -102,7 +102,9 @@ CREATE TABLE t1(a int, UNIQUE(a));
 --let $_start= query_get_value(SHOW MASTER STATUS, Position, 1)
 
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+--disable_warnings
 INSERT DELAYED IGNORE INTO t1 VALUES(1);
+--enable_warnings
 flush table t1; # to wait for INSERT DELAYED to be done
 if  (`SELECT @@global.binlog_format = 'STATEMENT'`)
 {

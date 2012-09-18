@@ -691,15 +691,13 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       *((double*) value)= getopt_double(argument, opts, &err);
       break;
     case GET_STR:
-      if (argument == enabled_my_option)
-        break; /* string options don't use this default of "1" */
-      *((char**) value)= argument;
+      /* If no argument or --enable-string-option, set string to "" */
+      *((char**) value)= argument == enabled_my_option ? (char*) "" : argument;
       break;
     case GET_STR_ALLOC:
-      if (argument == enabled_my_option)
-        break; /* string options don't use this default of "1" */
       my_free(*((char**) value));
-      if (!(*((char**) value)= my_strdup(argument, MYF(MY_WME))))
+      if (!(*((char**) value)= my_strdup(argument == enabled_my_option ? "" :
+                                         argument, MYF(MY_WME))))
       {
         res= EXIT_OUT_OF_MEMORY;
         goto ret;

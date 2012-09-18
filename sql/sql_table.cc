@@ -1828,6 +1828,7 @@ int write_bin_log(THD *thd, bool clear_error,
   if (mysql_bin_log.is_open())
   {
     int errcode= 0;
+    thd_proc_info(thd, "Writing to binlog");
     if (clear_error)
       thd->clear_error();
     else
@@ -1835,6 +1836,7 @@ int write_bin_log(THD *thd, bool clear_error,
     error= thd->binlog_query(THD::STMT_QUERY_TYPE,
                              query, query_length, is_trans, FALSE, FALSE,
                              errcode);
+    thd_proc_info(thd, 0);
   }
   return error;
 }
@@ -7474,7 +7476,7 @@ copy_data_between_tables(THD *thd, TABLE *from,TABLE *to,
                  (to->key_info[0].key_part[0].field->flags &
                   AUTO_INCREMENT_FLAG))
                err_msg= ER(ER_DUP_ENTRY_AUTOINCREMENT_CASE);
-             to->file->print_keydup_error(key_nr, err_msg);
+             to->file->print_keydup_error(key_nr, err_msg, MYF(0));
              break;
            }
          }

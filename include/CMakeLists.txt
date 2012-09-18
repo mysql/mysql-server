@@ -51,6 +51,7 @@ SET(HEADERS
   m_ctype.h
   my_attribute.h 
   my_compiler.h
+  handler_state.h
 )
 
 INSTALL(FILES ${HEADERS} DESTINATION ${INSTALL_INCLUDEDIR} COMPONENT Development)

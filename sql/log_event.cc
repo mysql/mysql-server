@@ -1086,6 +1086,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   ulong now;
   bool ret;
   DBUG_ENTER("Log_event::write_header");
+  DBUG_PRINT("enter", ("filepos: %lld  length: %lu type: %d",
+                       (longlong) my_b_tell(file), event_data_length,
+                       (int) get_type_code()));
 
   /* Store number of bytes that will be written by this event */
   data_written= event_data_length + sizeof(header);
@@ -3512,6 +3515,34 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli)
   return do_apply_event(rli, query, q_len);
 }
 
+/**
+   Compare if two errors should be regarded as equal.
+   This is to handle the case when you can get slightly different errors
+   on master and slave for the same thing.
+   @param
+   expected_error	Error we got on master
+   actual_error		Error we got on slave
+
+   @return
+   1 Errors are equal
+   0 Errors are different
+*/
+
+bool test_if_equal_repl_errors(int expected_error, int actual_error)
+{
+  if (expected_error == actual_error)
+    return 1;
+  switch (expected_error) {
+  case ER_DUP_ENTRY:
+  case ER_AUTOINC_READ_FAILED:
+    return (actual_error == ER_AUTOINC_READ_FAILED ||
+            actual_error == HA_ERR_AUTOINC_ERANGE);
+  default:
+    break;
+  }
+  return 0;
+}
+
 
 /**
   @todo
@@ -3824,7 +3855,8 @@ compare_errors:
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
-    if ((expected_error && expected_error != actual_error &&
+    if ((expected_error &&
+         !test_if_equal_repl_errors(expected_error, actual_error) &&
          !concurrency_error_code(expected_error)) &&
         !ignored_error_code(actual_error) &&
         !ignored_error_code(expected_error))
@@ -3846,7 +3878,7 @@ Default database: '%s'. Query: '%s'",
       If we get the same error code as expected and it is not a concurrency
       issue, or should be ignored.
     */
-    else if ((expected_error == actual_error &&
+    else if ((test_if_equal_repl_errors(expected_error, actual_error) &&
               !concurrency_error_code(expected_error)) ||
              ignored_error_code(actual_error))
     {

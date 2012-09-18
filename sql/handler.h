@@ -1957,7 +1957,7 @@ public:
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
-  void print_keydup_error(uint key_nr, const char *msg);
+  void print_keydup_error(uint key_nr, const char *msg, myf errflag);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
@@ -2006,7 +2006,8 @@ public:
     if (!error ||
         ((flags & HA_CHECK_DUP_KEY) &&
          (error == HA_ERR_FOUND_DUPP_KEY ||
-          error == HA_ERR_FOUND_DUPP_UNIQUE)))
+          error == HA_ERR_FOUND_DUPP_UNIQUE)) ||
+        error == HA_ERR_AUTOINC_ERANGE)
       return FALSE;
     return TRUE;
   }
