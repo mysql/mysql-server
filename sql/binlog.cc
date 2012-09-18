@@ -2273,6 +2273,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_sync);
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
+    mysql_cond_destroy(&m_prep_xids_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2286,6 +2287,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
   my_atomic_rwlock_init(&m_prep_xids_lock);
+  mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond, NULL);
   stage_manager.init(
 #ifdef HAVE_PSI_INTERFACE
                    m_key_LOCK_flush_queue,
