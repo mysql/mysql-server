@@ -30,15 +30,16 @@ test.run = function() {
   harness.SQL.create(this.suite, function(error) {
     if (error) {
       t.fail('createSQL failed: ' + error);
-    } 
-    var props = new mynode.ConnectionProperties(global.adapter);
-    global.fail_openSession(t, function(session) {
-      if (session) {
-        t.pass();
-      } else {
-        t.fail();
-      }
-    });
+    } else {
+      var props = new mynode.ConnectionProperties(global.adapter);
+      global.fail_openSession(t, function(session) {
+        if (session) {
+          t.pass();
+        } else {
+          t.fail();
+        }
+      });
+    }
   });
 };
 
