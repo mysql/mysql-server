@@ -233,7 +233,7 @@ exports.UserContext.prototype.find = function() {
         dbSession = userContext.session.dbSession;
         tx = dbSession.createTransaction();
         op = dbSession.buildReadOperation(index, keys, tx, findOnResult);
-        tx.executeNoCommit([op], function() {
+        tx.executeCommit([op], function() {
           // there is nothing that needs to be done here
           udebug.log_detail('find tx.execute callback.');
         });
@@ -282,7 +282,7 @@ exports.UserContext.prototype.persist = function() {
       object = userContext.user_arguments[0];
       callback = userContext.user_callback;
       op = dbSession.buildInsertOperation(dbTableHandler, object, tx, persistOnResult);
-      tx.executeNoCommit([op]);
+      tx.executeCommit([op]);
     }
   }
 
