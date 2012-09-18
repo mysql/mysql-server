@@ -17,32 +17,17 @@
 	<key>Mapped NdbError object</key>
 	<true/>
 	<key>Need actual converters in NdbTypeConverters.js</key>
-	<false/>
+	<true/>
 	<key>Need actual handling of masked fields in Operation</key>
-	<false/>
+	<true/>
 	<key>The Converter concept is inadequate</key>
-	<false/>
+	<true/>
 	<key>Tt doesn&apos;t separate user-conversion of a data type</key>
-	<false/>
+	<true/>
 	<key>from NDB encoding of storage</key>
-	<false/>
+	<true/>
 	<key>udebug -- use util.format, always take argument lists - avoid concatenation</key>
 	<string></string>
-	<key>Unified C/JS Debug framework</key>
-	<dict>
-		<key>Turn debugging on/off from JavaScript</key>
-		<true/>
-		<key>Compile-time enable/disable in C</key>
-		<true/>
-		<key>Support in waf</key>
-		<true/>
-		<key>Flush &amp; close debug file descriptor</key>
-		<false/>
-		<key>Flush-on-write option</key>
-		<false/>
-		<key>Support 3 levels: info, debug, &amp; detail</key>
-		<true/>
-	</dict>
 	<key>Notes</key>
 	<dict>
 		<key>One NDB per open session</key>

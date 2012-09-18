@@ -69,10 +69,6 @@ function execute(self, execMode, dbOperationList, callback) {
   udebug.log("execute");
   var table = dbOperationList[0].tableHandler.dbTable;
 
-  function defaultCallback(err, dbTxHandler) {
-    dbTxHandler.close();
-  }
-
   function onCompleteTx(err, result) {
     udebug.log("execute onCompleteTx");
     
@@ -86,9 +82,9 @@ function execute(self, execMode, dbOperationList, callback) {
     /* Next callback */
     if(callback) {
       callback(err, self);
-    }
-    else {
-      defaultCallback(err, self);
+    }   // If there is no user callback, default close() after commit
+    else if(execMode === adapter.ndbapi.Commit) {
+      self.close();
     }
   }
 
