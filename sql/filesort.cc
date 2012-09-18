@@ -138,6 +138,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   */
   memcpy(&table_sort, &table->sort, sizeof(FILESORT_INFO));
   table->sort.io_cache= NULL;
+  DBUG_ASSERT(table_sort.record_pointers == NULL);
   
   outfile= table_sort.io_cache;
   my_b_clear(&tempfile);
@@ -366,6 +367,7 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
 
 void filesort_free_buffers(TABLE *table, bool full)
 {
+  DBUG_ENTER("filesort_free_buffers");
   my_free(table->sort.record_pointers);
   table->sort.record_pointers= NULL;
 
@@ -383,6 +385,7 @@ void filesort_free_buffers(TABLE *table, bool full)
   my_free(table->sort.addon_field);
   table->sort.addon_buf= NULL;
   table->sort.addon_field= NULL;
+  DBUG_VOID_RETURN;
 }
 
 /** Make a array of string pointers. */

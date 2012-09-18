@@ -57,7 +57,10 @@ int unique_write_to_ptrs(uchar* key, element_count count, Unique *unique)
 
 Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
 	       uint size_arg, ulonglong max_in_memory_size_arg)
-  :max_in_memory_size(max_in_memory_size_arg), size(size_arg), elements(0)
+  :max_in_memory_size(max_in_memory_size_arg),
+   record_pointers(NULL),
+   size(size_arg),
+   elements(0)
 {
   my_b_clear(&file);
   init_tree(&tree, (ulong) (max_in_memory_size / 16), 0, size, comp_func, 0,
@@ -583,6 +586,7 @@ bool Unique::get(TABLE *table)
   if (my_b_tell(&file) == 0)
   {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
+    DBUG_ASSERT(table->sort.record_pointers == NULL);
     if ((record_pointers=table->sort.record_pointers= (uchar*)
 	 my_malloc(size * tree.elements_in_tree, MYF(0))))
     {
@@ -603,6 +607,7 @@ bool Unique::get(TABLE *table)
   bool error=1;
 
       /* Open cached file if it isn't open */
+  DBUG_ASSERT(table->sort.io_cache == NULL);
   outfile=table->sort.io_cache=(IO_CACHE*) my_malloc(sizeof(IO_CACHE),
                                 MYF(MY_ZEROFILL));
 
