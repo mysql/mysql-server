@@ -49,6 +49,7 @@ create table t2 (
 alter table t2
   add constraint fk1 foreign key (b) references t1 (a)
   on delete cascade on update cascade;
+show warnings;
 
 alter table t2
   add constraint fk1 foreign key (b) references t1 (a)

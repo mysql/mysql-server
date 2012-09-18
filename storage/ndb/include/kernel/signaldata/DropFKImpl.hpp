@@ -70,7 +70,7 @@ struct DropFKImplRef
 
   enum ErrCode
   {
-    NoSuchObject = 700
+    NoSuchObject = 21042
   };
 };
 

@@ -69,6 +69,10 @@ struct BuildFKImplRef
 
   STATIC_CONST( SignalLength = 3 );
 
+  enum ErrorCode {
+    NoError = 0
+  };
+
   Uint32 senderData;
   Uint32 senderRef;
   Uint32 errorCode;

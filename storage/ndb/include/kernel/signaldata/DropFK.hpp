@@ -74,10 +74,8 @@ struct DropFKRef
     NoError = 0,
     Busy = 701,
     NotMaster = 702,
-    NoMoreObjectRecords = 710,
-    InvalidFormat = 740,
-    FKNotFound = 709,
-    InvalidFKVersion = 241
+    FKNotFound = 21040,
+    InvalidFKVersion = 21041
   };
 
   Uint32 senderData;

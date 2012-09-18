@@ -117,9 +117,9 @@ struct CreateFKImplRef
 
   enum ErrCode
   {
-    ObjectAlreadyExist = 700,
-    NoMoreObjectRecords = 700,
-    InvalidFormat = 700
+    ObjectAlreadyExist = 21030,
+    NoMoreObjectRecords = 21031,
+    InvalidFormat = 21032
   };
 };
 

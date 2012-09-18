@@ -3923,7 +3923,7 @@ NdbDictionary::Dictionary::createForeignKey(const ForeignKey& fk,
   if (fk.getParentIndex() == 0 // primary key
       && fk.getOnUpdateAction() == NdbDictionary::ForeignKey::Cascade)
   {
-    m_impl.m_error.code = 21001;
+    m_impl.m_error.code = 21000;
     return -1;
   }
 

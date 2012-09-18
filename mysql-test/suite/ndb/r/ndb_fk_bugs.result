@@ -33,6 +33,10 @@ alter table t2
 add constraint fk1 foreign key (b) references t1 (a)
 on delete cascade on update cascade;
 ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21000 'Create foreign key failed - parent key is primary key and on-update-cascade is not allowed' from NDB
+Error	150	Cannot add foreign key constraint
 alter table t2
 add constraint fk1 foreign key (b) references t1 (a)
 on delete cascade on update restrict;
