@@ -14,7 +14,7 @@ def set_options(opt):
 def configure(conf):
   import Options
   
-  if(Options.options.interactive || Options.options.mysql == '-interactive-'):
+  if(Options.options.interactive or Options.options.mysql == '-interactive-'):
     # readline config goes here.
     mysql_path = raw_input("mysql location: ")
   else:

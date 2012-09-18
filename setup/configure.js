@@ -133,10 +133,11 @@ function build_prompt(candidates) {
 
 function configure(mysql) {
   var envCmd = "";
+  var tempfile = process.argv[2];
   if(mysql) {
     envCmd = 'PREFERRED_MYSQL=' + mysql + '\n';
   }
-  fs.writeFileSync("setup/mysql_pref.sh", envCmd, 'ascii');
+  fs.writeFileSync(tempfile, envCmd, 'ascii');
   process.exit();
 }
 
@@ -149,7 +150,7 @@ function main() {
   
   function hangup(code) {
     rl.close();
-    process.exit();
+    process.exit(code);
   }
 
   function onEntry(choice) {
