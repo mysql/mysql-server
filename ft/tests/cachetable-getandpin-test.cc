@@ -18,7 +18,7 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
        bool write_me    __attribute__((__unused__)),
        bool keep_me     __attribute__((__unused__)),
        bool for_checkpoint    __attribute__((__unused__)),
-        bool UU(is_clone), bool UU(aggressive)
+        bool UU(is_clone)
        ) {
     assert((long) key.b == size.size);
     if (!keep_me) toku_free(v);

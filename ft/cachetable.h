@@ -65,11 +65,8 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
 
 // TODO: #1510  Add comments on how these behave
-int toku_cachetable_begin_checkpoint (CHECKPOINTER cp);
-// Completes the checkpoint by writing dirty nodes and headers to disk.
-// The aggressive variable determines if the checkpointer should aggressively
-// use CPU during the writes or not.
-int toku_cachetable_end_checkpoint(CHECKPOINTER cp, bool aggressive, 
+int toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER);
+int toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER logger, 
                                    void (*testcallback_f)(void*),  void * testextra);
 
 // Shuts down checkpoint thread
@@ -121,10 +118,9 @@ enum cachetable_dirty {
 // When write_me is true, the value should be written to storage.
 // When keep_me is false, the value should be freed.
 // When for_checkpoint is true, this was a 'pending' write
-// When aggressive is true, the callback can feel free to use all the cores it can to complete the flush ASAP
 // Returns: 0 if success, otherwise an error number.
 // Can access fd (fd is protected by a readlock during call)
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void **disk_data, void *write_extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone, bool aggressive);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void **disk_data, void *write_extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.

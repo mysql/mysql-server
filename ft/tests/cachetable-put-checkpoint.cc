@@ -55,7 +55,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
        bool write_me,
        bool keep_me,
        bool checkpoint_me,
-        bool UU(is_clone), bool UU(aggressive)
+        bool UU(is_clone)
        ) {
     int64_t val_to_write = *(int64_t *)v;
     size_t data_index = (size_t)k.b;
@@ -400,10 +400,10 @@ static void *checkpoints(void *arg) {
         //
         int r;
         CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
-        r = toku_cachetable_begin_checkpoint(cp); assert(r == 0);    
+        r = toku_cachetable_begin_checkpoint(cp, NULL); assert(r == 0);    
         r = toku_cachetable_end_checkpoint(
             cp, 
-            false, 
+            NULL, 
             NULL,
             NULL
             );

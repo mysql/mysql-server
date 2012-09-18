@@ -563,7 +563,7 @@ static void cachetable_free_pair(PAIR p) {
     // cachetable_remove_pair, we cannot pass in p->cachefile and p->cachefile->fd
     // for the first two parameters, as these may be invalid (#5171), so, we
     // pass in NULL and -1, dummy values
-    flush_callback(NULL, -1, key, value, &disk_data, write_extraargs, old_attr, &new_attr, false, false, true, false, false);
+    flush_callback(NULL, -1, key, value, &disk_data, write_extraargs, old_attr, &new_attr, false, false, true, false);
     
     ctpair_destroy(p);
 }
@@ -613,8 +613,7 @@ static void cachetable_only_write_locked_data(
     PAIR p, 
     bool for_checkpoint,
     PAIR_ATTR* new_attr,
-    bool is_clone,
-    bool aggressive
+    bool is_clone
     ) 
 {    
     CACHETABLE_FLUSH_CALLBACK flush_callback = p->flush_callback;
@@ -649,8 +648,7 @@ static void cachetable_only_write_locked_data(
         dowrite, 
         is_clone ? false : true, // keep_me (only keep if this is not cloned pointer)
         for_checkpoint, 
-        is_clone, //is_clone
-        aggressive
+        is_clone //is_clone
         );
     p->disk_data = disk_data;
     if (is_clone) {
@@ -691,7 +689,7 @@ static void cachetable_write_locked_pair(
     // there should be no cloned value data
     assert(p->cloned_value_data == NULL);
     if (p->dirty) {
-        cachetable_only_write_locked_data(ev, p, for_checkpoint, &new_attr, false, false);
+        cachetable_only_write_locked_data(ev, p, for_checkpoint, &new_attr, false);
         //
         // now let's update variables
         //
@@ -926,8 +924,7 @@ static void checkpoint_cloned_pair(void* extra) {
         p,
         true, //for_checkpoint
         &new_attr,
-        true, //is_clone
-        false // aggressive
+        true //is_clone
         );
     pair_lock(p);
     nb_mutex_unlock(&p->disk_nb_mutex);
@@ -981,7 +978,7 @@ write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p, bool checkpoint_pending)
 //           Else release write lock
 //
 static void
-write_pair_for_checkpoint_thread (evictor* ev, PAIR p, bool aggressive)
+write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
 {
     // Grab an exclusive lock on the pair.
     // If we grab an expensive lock, then other threads will return
@@ -1022,8 +1019,7 @@ write_pair_for_checkpoint_thread (evictor* ev, PAIR p, bool aggressive)
                 p,
                 true, //for_checkpoint
                 &attr,
-                true, //is_clone
-                aggressive
+                true //is_clone
                 );
             pair_lock(p);
             nb_mutex_unlock(&p->disk_nb_mutex);
@@ -2450,8 +2446,7 @@ static void cachetable_flush_pair_for_close(void* extra) {
         p,
         false, // not for a checkpoint, as we assert above
         &attr,
-        false, // not a clone
-        true // aggressive
+        false // not a clone
         );            
     p->dirty = CACHETABLE_CLEAN;
     bjm_remove_background_job(args->bjm);
@@ -2829,7 +2824,7 @@ cleanup:
 //             Mark every dirty node as "pending."  ("Pending" means that the node must be
 //                                                    written to disk before it can be modified.)
 int
-toku_cachetable_begin_checkpoint (CHECKPOINTER cp) {    
+toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER UU(logger)) {    
     return cp->begin_checkpoint();
 }
 
@@ -2849,9 +2844,9 @@ int toku_cachetable_get_checkpointing_user_data_status (void) {
 //             Use end_checkpoint callback to fsync dictionary and log, and to free unused blocks
 // Note:       If testcallback is null (for testing purposes only), call it after writing dictionary but before writing log
 int
-toku_cachetable_end_checkpoint(CHECKPOINTER cp, bool aggressive,
+toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER UU(logger),
                                void (*testcallback_f)(void*),  void* testextra) {
-    return cp->end_checkpoint(aggressive, testcallback_f, testextra);
+    return cp->end_checkpoint(testcallback_f, testextra);
 }
 
 TOKULOGGER toku_cachefile_logger (CACHEFILE cf) {
@@ -4401,17 +4396,12 @@ void checkpointer::remove_background_job() {
     bjm_remove_background_job(m_checkpoint_clones_bjm);
 }
 
-int checkpointer::end_checkpoint(
-    bool aggressive, 
-    void (*testcallback_f)(void*),  
-    void* testextra
-    ) 
-{
+int checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextra) {
     int r = 0;
     CACHEFILE *XMALLOC_N(m_checkpoint_num_files, checkpoint_cfs);
 
     this->fill_checkpoint_cfs(checkpoint_cfs);    
-    this->checkpoint_pending_pairs(aggressive);
+    this->checkpoint_pending_pairs();
     this->checkpoint_userdata(checkpoint_cfs);
     // For testing purposes only.  Dictionary has been fsync-ed to disk but log has not yet been written.
     if (testcallback_f) {
@@ -4440,7 +4430,7 @@ void checkpointer::fill_checkpoint_cfs(CACHEFILE* checkpoint_cfs) {
     m_cf_list->read_unlock();
 }
 
-void checkpointer::checkpoint_pending_pairs(bool aggressive) {
+void checkpointer::checkpoint_pending_pairs() {
     PAIR p;
     m_list->read_list_lock();
     while ((p = m_list->m_pending_head)!=0) {
@@ -4450,7 +4440,7 @@ void checkpointer::checkpoint_pending_pairs(bool aggressive) {
         // if still pending, clear the pending bit and write out the node
         pair_lock(p);
         m_list->read_list_unlock();
-        write_pair_for_checkpoint_thread(m_ev, p, aggressive);
+        write_pair_for_checkpoint_thread(m_ev, p);
         pair_unlock(p);
         m_list->read_list_lock();
     }
