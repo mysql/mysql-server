@@ -4812,6 +4812,12 @@ trx_rollback:
 		trx_rollback_for_mysql(trx);
 	}
 
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+
+	log_buffer_flush_to_disk();
+
 	if (new_clustered) {
 		innobase_online_rebuild_log_free(prebuilt->table);
 	}
@@ -4907,6 +4913,10 @@ trx_rollback:
 		drop the old table. */
 		update_thd();
 		prebuilt->trx->will_lock++;
+
+		DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit",
+				DBUG_SUICIDE(););
+
 		trx_start_if_not_started_xa(prebuilt->trx);
 	}
 
