@@ -261,12 +261,13 @@ exports.UserContext.prototype.persist = function() {
     if (err) {
       userContext.applyCallback(err, null);
     } else {
-      var opErr = dbOperation.result.error;
-      if (opErr) {
+      var opErr = dbOperation.result.error.code;
+      if (opErr !== 0) {
+        err = new Error('Error on persist: ' + opErr);
         userContext.applyCallback(err, null);
       } else {
         var result = dbOperation.result.value;
-        userContext.applyCallback(err, result);      
+        userContext.applyCallback(null, result);
       }
     }
   }
