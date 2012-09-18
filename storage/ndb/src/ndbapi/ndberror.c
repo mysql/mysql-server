@@ -492,7 +492,7 @@ ErrorBundle ErrorCodes[] = {
   { 919,  DMEC, TR, "Cannot execute index stats update" },
   { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
-  { 1226, DMEC, SE, "Table is being dropped" },
+  { 1226, HA_ERR_NO_SUCH_TABLE, SE, "Table is being dropped" },
   { 1227, HA_WRONG_CREATE_OPTION, SE, "Invalid schema version" },
   { 1228, DMEC, SE, "Cannot use drop table for drop index" },
   { 1229, DMEC, SE, "Too long frm data supplied" },
