@@ -1,11 +1,11 @@
 #!/bin/sh
 
-node setup/configure.js
+NOTEFILE=`mktemp`
+node setup/configure.js $NOTEFILE
 conf_exit=$?
 if [ $conf_exit = "0" ]
   then 
-    source setup/mysql_pref.sh
+    source $NOTEFILE
+    node-waf clean || true
     node-waf configure --mysql=$PREFERRED_MYSQL
-  else
-    exit 1
 fi

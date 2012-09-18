@@ -6,7 +6,7 @@
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,
-  "keywords"    : ["mysql", "cluster", "mysql cluster", "ndb", "mapping" ],
+  "keywords"    : ["mysql", "cluster", "mysql cluster", "ndb", "mapping" ]
   ,
   "homepage"    : ""
   ,
