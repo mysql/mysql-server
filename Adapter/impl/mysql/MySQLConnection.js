@@ -412,33 +412,90 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
 };
 
 
-exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, object, transaction, callback) {
-  udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, object);
+//exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, object, transaction, callback) {
+//udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, object);
+//var dbTableHandler = dbIndexHandler.tableHandler;
+//var keyFields = dbIndexHandler.getFields(object);
+//// build the SQL Update statement along with the data values
+//var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
+//var updateWhereSQL = ' WHERE ';
+//var separatorWhereSQL = '';
+//var separatorUpdateSetSQL = '';
+//var updateFields = [];
+//// get an array of key field names
+//var keyFieldNames = [];
+//var j;
+//for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
+//keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
+//}
+//var x, columnName;
+//for (x in object) {
+//if (object.hasOwnProperty(x)) {
+//  if (keyFieldNames.indexOf(x) !== -1) {
+//    // add the key field to the WHERE clause
+//    columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
+//    updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
+//    separatorWhereSQL = 'AND ';
+//  } else {
+//    // add the value in the object to the updateFields
+//    updateFields.push(object[x]);
+//    // add the value field to the SET clause
+//    columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
+//    updateSetSQL += separatorUpdateSetSQL + columnName + ' = ?';
+//    separatorUpdateSetSQL = ', ';
+//  }
+//}
+//}
+//updateSetSQL += updateWhereSQL;
+//udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
+//return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
+//};
+
+
+exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys, values, transaction, callback) {
+  udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, keys, values);
+  var object;
   var dbTableHandler = dbIndexHandler.tableHandler;
-  var keyFields = dbIndexHandler.getFields(object);
   // build the SQL Update statement along with the data values
   var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
   var updateWhereSQL = ' WHERE ';
   var separatorWhereSQL = '';
   var separatorUpdateSetSQL = '';
   var updateFields = [];
+  var keyFields = [];
   // get an array of key field names
   var keyFieldNames = [];
-  var j;
+  var j, field;
   for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
     keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
   }
+  // get an array of persistent field names
+  var valueFieldNames = [];
+  for(j = 0 ; j < dbTableHandler.fieldNumberToFieldMap.length ; j++) {
+    field = dbTableHandler.fieldNumberToFieldMap[j];
+    if (!field.NotPersistent) {
+      valueFieldNames.push(dbTableHandler.fieldNumberToFieldMap[j].fieldName);
+    }
+  }
+  
   var x, columnName;
-  for (x in object) {
-    if (object.hasOwnProperty(x)) {
+  for (x in keys) {
+    if (keys.hasOwnProperty(x)) {
       if (keyFieldNames.indexOf(x) !== -1) {
+        // add the key value to the keyFields
+        keyFields.push(keys[x]);
         // add the key field to the WHERE clause
         columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
         updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
         separatorWhereSQL = 'AND ';
-      } else {
+      }
+    }
+  }
+  for (x in values) {
+    if (values.hasOwnProperty(x)) {
+      if (valueFieldNames.indexOf(x) !== -1) {
         // add the value in the object to the updateFields
-        updateFields.push(object[x]);
+        updateFields.push(values[x]);
         // add the value field to the SET clause
         columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
         updateSetSQL += separatorUpdateSetSQL + columnName + ' = ?';
@@ -446,9 +503,10 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, obje
       }
     }
   }
-  updateSetSQL += updateWhereSQL;
-  udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
-  return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
+
+updateSetSQL += updateWhereSQL;
+udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
+return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
 };
 
 
