@@ -7173,14 +7173,14 @@ void JOIN::cleanup(bool full)
   {
     JOIN_TAB *tab,*end;
     /*
-      Only a sorted table may be cached.  This sorted table is always the
-      first non const table in join->all_tables
+      Free resources allocated by filesort() and Unique::get()
     */
     if (tables > const_tables) // Test for not-const tables
-    {
-      free_io_cache(all_tables[const_tables]);
-      filesort_free_buffers(all_tables[const_tables],full);
-    }
+      for (uint ix= const_tables; ix < tables; ++ix)
+      {
+        free_io_cache(all_tables[ix]);
+        filesort_free_buffers(all_tables[ix], full);
+      }
 
     if (full)
     {
