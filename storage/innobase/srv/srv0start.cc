@@ -1152,11 +1152,11 @@ srv_undo_tablespace_create(
 	} else if (ret == FALSE
 		   && os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-	    /* AIX 5.1 after security patch ML7 may have
-	    errno set to 0 here, which causes our function
-	    to return 100; work around that AIX problem */
-	    && os_file_get_last_error(false) != 100
-#endif
+		/* AIX 5.1 after security patch ML7 may have
+		errno set to 0 here, which causes our function
+		to return 100; work around that AIX problem */
+		   && os_file_get_last_error(false) != 100
+#endif /* UNIV_AIX */
 		) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
