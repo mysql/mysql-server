@@ -329,7 +329,7 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
 
 /*
-  Check update fields for the timestamp field.
+  Check update fields for the timestamp and auto_increment fields.
 
   SYNOPSIS
     check_update_fields()
@@ -342,6 +342,9 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
     If the update fields include the timestamp field,
     remove TIMESTAMP_AUTO_SET_ON_UPDATE from table->timestamp_field_type.
 
+   If the update fields include an autoinc field, set the
+   table->next_number_field_updated flag.
+
   RETURN
     0           OK
     -1          Error
@@ -353,7 +356,9 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
 {
   TABLE *table= insert_table_list->table;
   my_bool timestamp_mark;
+  my_bool autoinc_mark;
   LINT_INIT(timestamp_mark);
+  LINT_INIT(autoinc_mark);
 
   if (table->timestamp_field)
   {
@@ -363,6 +368,19 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     */
     timestamp_mark= bitmap_test_and_clear(table->write_set,
                                           table->timestamp_field->field_index);
+  }
+
+  table->next_number_field_updated= FALSE;
+
+  if (table->found_next_number_field)
+  {
+    /*
+      Unmark the auto_increment field so that we can check if this is modified
+      by update_fields
+    */
+    autoinc_mark= bitmap_test_and_clear(table->write_set,
+                                        table->found_next_number_field->
+                                        field_index);
   }
 
   /* Check the fields we are going to modify */
@@ -386,6 +404,18 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
       bitmap_set_bit(table->write_set,
                      table->timestamp_field->field_index);
   }
+
+  if (table->found_next_number_field)
+  {
+    if (bitmap_is_set(table->write_set,
+                      table->found_next_number_field->field_index))
+      table->next_number_field_updated= TRUE;
+
+    if (autoinc_mark)
+      bitmap_set_bit(table->write_set,
+                     table->found_next_number_field->field_index);
+  }
+
   return 0;
 }
 
@@ -1563,6 +1593,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
   MY_BITMAP *save_read_set, *save_write_set;
   ulonglong prev_insert_id= table->file->next_insert_id;
   ulonglong insert_id_for_cur_row= 0;
+  ulonglong prev_insert_id_for_cur_row= 0;
   DBUG_ENTER("write_record");
 
   info->records++;
@@ -1709,6 +1740,7 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
             INSERT query, which is handled separately by
             THD::arg_of_last_insert_id_function.
           */
+          prev_insert_id_for_cur_row= table->file->insert_id_for_cur_row;
           insert_id_for_cur_row= table->file->insert_id_for_cur_row= 0;
           trg_error= (table->triggers &&
                       table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
@@ -1716,9 +1748,22 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
           info->copied++;
         }
 
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
+        /*
+          Only update next_insert_id if the AUTO_INCREMENT value was explicitly
+          updated, so we don't update next_insert_id with the value from the
+          row being updated. Otherwise reset next_insert_id to what it was
+          before the duplicate key error, since that value is unused.
+        */
+        if (table->next_number_field_updated)
+        {
+          DBUG_ASSERT(table->next_number_field != NULL);
+
+          table->file->adjust_next_insert_id_after_explicit_value(table->next_number_field->val_int());
+        }
+        else
+        {
+          table->file->restore_auto_increment(prev_insert_id_for_cur_row);
+        }
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */

@@ -2938,6 +2938,7 @@ end_with_restore_list:
                       DBUG_ASSERT(!debug_sync_set_action(thd,
                                                          STRING_WITH_LEN(act2)));
                     };);
+    DEBUG_SYNC(thd, "after_mysql_insert");
     break;
   }
   case SQLCOM_REPLACE_SELECT:
