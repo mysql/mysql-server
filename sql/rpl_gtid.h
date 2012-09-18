@@ -1935,7 +1935,7 @@ public:
   {
   public:
     Gtid_iterator(const Owned_gtids* og)
-      : owned_gtids(og), sidno(1), node_index(0), node(NULL)
+      : owned_gtids(og), sidno(1), hash(NULL), node_index(0), node(NULL)
     {
       max_sidno= owned_gtids->get_max_sidno();
       if (sidno <= max_sidno)
