@@ -37,8 +37,6 @@ explain
   on (parent.b = child.a)
   where parent.b > 5;
 
-show variables like 'server_id';
-
 --disable_query_log
 delimiter %;
 create procedure queryload (seconds int)
