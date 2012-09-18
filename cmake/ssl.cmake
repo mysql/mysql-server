@@ -88,6 +88,8 @@ MACRO (MYSQL_CHECK_SSL)
 
   IF(WITH_SSL STREQUAL "bundled")
     MYSQL_USE_BUNDLED_SSL()
+    UNSET(WITH_SSL_PATH)
+    UNSET(WITH_SSL_PATH CACHE)
   ELSEIF(WITH_SSL STREQUAL "system" OR
          WITH_SSL STREQUAL "yes" OR
          WITH_SSL_PATH
@@ -180,18 +182,25 @@ ENDMACRO()
 # Many executables will depend on libeay32.dll and ssleay32.dll at runtime.
 # In order to ensure we find the right version(s), we copy them into
 # the same directory as the executables.
+# NOTE: Using dlls will likely crash in malloc/free,
+#       see INSTALL.W32 which comes with the openssl sources.
+# So we should be linking static versions of the libraries.
 MACRO (COPY_OPENSSL_DLLS target_name)
   IF (WIN32 AND WITH_SSL_PATH)
     GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
     GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARIES}" NAME_WE)
-    ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    FILE(GLOB HAVE_CRYPTO_DLL "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll")
+    FILE(GLOB HAVE_OPENSSL_DLL "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll")
+    IF (HAVE_CRYPTO_DLL AND HAVE_OPENSSL_DLL)
+      ADD_CUSTOM_COMMAND(OUTPUT ${target_name}
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
           "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${CRYPTO_NAME}.dll"
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
           "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
           "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${OPENSSL_NAME}.dll"
-      )
-    ADD_CUSTOM_TARGET(${target_name} ALL)
+        )
+      ADD_CUSTOM_TARGET(${target_name} ALL)
+    ENDIF()
   ENDIF()
 ENDMACRO()
