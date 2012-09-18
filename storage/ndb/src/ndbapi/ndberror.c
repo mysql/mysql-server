@@ -172,8 +172,28 @@ ErrorBundle ErrorCodes[] = {
   /**
    * DICT FK kernel and ndbapi error codes
    */
-  { 21001, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Foreign key create failed: parent key is primary key: on-update-cascade is currently not allowed" },
-
+  { 21000, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed - parent key is primary key and on-update-cascade is not allowed" },
+  /* CreateFKRef + CreateFKImplRef */
+  { 21020, DMEC, TR, "Create foreign key failed in NDB - no more object records" },
+  { 21021, DMEC, IE, "Create foreign key failed in NDB - invalid request" },
+  { 21022, DMEC, SE, "Create foreign key failed in NDB - parent table is not table" },
+  { 21023, DMEC, SE, "Create foreign key failed in NDB - invalid parent table version" },
+  { 21024, DMEC, SE, "Create foreign key failed in NDB - child table is not table" },
+  { 21025, DMEC, SE, "Create foreign key failed in NDB - invalid child table version" },
+  { 21026, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - parent index is not unique index" },
+  { 21027, DMEC, SE, "Create foreign key failed in NDB - invalid parent index version" },
+  { 21028, DMEC, SE, "Create foreign key failed in NDB - child index is not index" },
+  { 21029, DMEC, SE, "Create foreign key failed in NDB - invalid child index version" },
+  { 21030, DMEC, IE, "Create foreign key failed in NDB - object already exists in TC" },
+  { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
+  { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
+  /* DropFKRef + DropFKImplRef */
+  { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
+  { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
+  { 21042, DMEC, SE, "Drop foreign key failed in NDB - foreign key not found in TC" },
+  /* BuildFKRef + BuildFKImplRef */
+  { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
+  { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
   
   /**
    * Node shutdown

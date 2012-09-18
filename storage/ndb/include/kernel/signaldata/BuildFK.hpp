@@ -66,8 +66,8 @@ struct BuildFKRef
 
   enum ErrorCode {
     NoError = 0,
-    FKNotFound = 700,
-    InvalidFKVersion = 700
+    FKNotFound = 21060,
+    InvalidFKVersion = 21061
   };
 
   Uint32 senderData;
