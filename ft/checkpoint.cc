@@ -220,13 +220,15 @@ static bool checkpoint_caller_is_aggressive(checkpoint_caller_t caller_id) {
     case CLIENT_CHECKPOINT:
         retval = false;
         break;
-    case TXN_COMMIT_CHECKPOINT:   
-    case STARTUP_CHECKPOINT: 
+    case TXN_COMMIT_CHECKPOINT:
+    case STARTUP_CHECKPOINT:
     case UPGRADE_CHECKPOINT:
     case RECOVERY_CHECKPOINT:
     case SHUTDOWN_CHECKPOINT:
         retval = true;
         break;
+    default:
+        abort();
     }
     return retval;
 }
