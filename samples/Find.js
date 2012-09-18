@@ -22,6 +22,8 @@
 
 var mynode = require('../Adapter/api/mynode.js');
 
+var adapter = 'ndb';
+
 //dump the values of the object
 var onData = function(err, data) {
   if (err) {
@@ -42,19 +44,64 @@ var onSession = function(err, session) {
   session.find('t_basic', 0, onData);
 };
 
-// *** program starts here ***
+//analyze command line
+
+var usageMessage = 
+  "Usage: node Insert [options]\n" +
+  "       -h or --help: print this message\n" +
+  "      -d or --debug: set the debug flag\n" +
+  "           --detail: set the detail debug flag\n" +
+  "--adapter=<adapter>: run on the named adapter (e.g. ndb or mysql)\n"
+  ;
+
+// handle command line arguments
+var i, exit, val, values;
+
+for(i = 2; i < process.argv.length ; i++) {
+  val = process.argv[i];
+  switch (val) {
+  case '--debug':
+  case '-d':
+    unified_debug.on();
+    unified_debug.level_debug();
+    break;
+  case '--detail':
+    unified_debug.on();
+    unified_debug.level_detail();
+    break;
+  case '--help':
+  case '-h':
+    exit = true;
+    break;
+  default:
+    values = val.split('=');
+    if (values.length === 2) {
+      switch (values[0]) {
+      case '--adapter':
+        adapter = values[1];
+        break;
+      default:
+        console.log('Invalid option ' + val);
+        exit = true;
+      }
+    } else {
+      console.log('Invalid option ' + val);
+      exit = true;
+   }
+  }
+}
+
+if (exit) {
+  console.log(usageMessage);
+  process.exit(0);
+}
+
+console.log('Running find with adapter', adapter);
 
 //create a database properties object
-var dbProperties = {  
-    "implementation" : "ndb",
-    "database" : "test",
-    "ndb_connectstring" : "localhost:1186",
-    "ndb_connect_retries" : 4, 
-    "ndb_connect_delay" : 5,
-    "ndb_connect_verbose" : 0,
-    "ndb_connect_timeout_before" : 30,
-    "ndb_connect_timeout_after" : 20
-};
+
+var dbProperties = mynode.ConnectionProperties(adapter);
+
 
 // connect to the database
 mynode.openSession(dbProperties, null, onSession);
