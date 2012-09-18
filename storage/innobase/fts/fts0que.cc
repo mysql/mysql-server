@@ -3292,7 +3292,7 @@ fts_query(
 		sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
 
 	/* Parse the input query string. */
-	if (fts_query_parse(&query, lc_query_str, query_len)) {
+	if (fts_query_parse(&query, lc_query_str, result_len)) {
 		fts_ast_node_t*	ast = query.root;
 
 		/* Traverse the Abstract Syntax Tree (AST) and execute
