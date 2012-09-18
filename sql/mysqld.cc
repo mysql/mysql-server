@@ -3621,6 +3621,7 @@ int init_common_variables()
                              key_BINLOG_LOCK_sync_queue,
                              key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
+                             key_BINLOG_prep_xids_cond,
                              key_file_binlog,
                              key_file_binlog_index);
 #endif
@@ -9154,6 +9155,8 @@ PSI_cond_key key_BINLOG_update_cond,
 PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_BINLOG_COND_done;
 PSI_cond_key key_RELAYLOG_COND_done;
+PSI_cond_key key_BINLOG_prep_xids_cond;
+PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 
 static PSI_cond_info all_server_conds[]=
@@ -9168,8 +9171,10 @@ static PSI_cond_info all_server_conds[]=
 #endif /* HAVE_MMAP */
   { &key_BINLOG_COND_done, "MYSQL_BIN_LOG::COND_done", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_BINLOG_prep_xids_cond, "MYSQL_BIN_LOG::prep_xids_cond", 0},
   { &key_RELAYLOG_COND_done, "MYSQL_RELAY_LOG::COND_done", 0},
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
+  { &key_RELAYLOG_prep_xids_cond, "MYSQL_RELAY_LOG::prep_xids_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},
