@@ -1,6 +1,6 @@
 #!/bin/sh
 
-NOTEFILE=`mktemp`
+NOTEFILE=`mktemp -t npm.XXXXXX`
 node setup/configure.js $NOTEFILE
 conf_exit=$?
 if [ $conf_exit = "0" ]
