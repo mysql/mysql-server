@@ -4619,7 +4619,7 @@ DROP TABLE t1,t2,t3;
 --echo #
 
 flush status;
-
+--disable_ps_protocol
 CREATE TABLE t1 (a INT);
 CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.* FROM t1 AS a1, t1 AS a2;
 CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
@@ -4629,6 +4629,7 @@ drop view v2,v1;
 drop table t1;
 show status like '%view%';
 show status like 'Opened_table%';
+--enable_ps_protocol
 
 --echo #
 --echo # MDEV-486 LP BUG#1010116 Incorrect query results in
