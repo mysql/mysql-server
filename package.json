@@ -1,27 +1,27 @@
 
 {
-  "name"        : 'mysql-objects'
+  "name"        : "mysql-objects"
   ,
-  "version"     : '0.0.151-alpha'
+  "version"     : "0.0.151-alpha"
   ,  
-  "description" : 'Lightweight object mapping layer for MySQL and MySQL Cluster'
+  "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,
-  "keywords"    : ['mysql', 'cluster', 'mysql cluster', 'ndb', 'mapping' ],
+  "keywords"    : ["mysql", "cluster", "mysql cluster", "ndb", "mapping" ],
   ,
-  "homepage"    : ''
+  "homepage"    : ""
   ,
   "bugs"        : {}
   ,
-  "contributors": [ 'John David Duncan <john.duncan@oracle.com>' ,
-                    'Craig Russell <craig.russell@oracle.com>' ]
+  "contributors": [ "John David Duncan <john.duncan@oracle.com>" ,
+                    "Craig Russell <craig.russell@oracle.com>" ]
   ,
-  "main"        : 'Adapter/api/mynode'
+  "main"        : "Adapter/api/mynode"
   ,
-  "scripts"     : {"preinstall" : 'setup/build.sh' }
+  "scripts"     : {"preinstall" : "setup/build.sh" }
   ,
   "dependencies": []
   ,
   "repository"  : {}
   ,
-  "os"          : [ '!win32' ]
+  "os"          : [ "!win32" ]
 }
