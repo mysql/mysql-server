@@ -3917,7 +3917,8 @@ fil_load_single_table_tablespace(
 	}
 	mutex_exit(&fil_system->mutex);
 
-	/* Build up the filepath of the .ibd tablespace in the datadir */
+	/* Build up the filepath of the .ibd tablespace in the datadir.
+	This must be freed independent of def.success. */
 	def.filepath = fil_make_ibd_name(tablename, false);
 
 #ifdef __WIN__
@@ -3956,9 +3957,6 @@ fil_load_single_table_tablespace(
 		fil_validate_single_table_tablespace(tablename, &def);
 		if (!def.success) {
 			os_file_close(def.file);
-			if (remote.success) {
-				mem_free(def.filepath);
-			}
 		}
 	}
 
@@ -3968,7 +3966,6 @@ fil_load_single_table_tablespace(
 		fprintf(stderr,
 			"InnoDB: Error: could not open single-table"
 			" tablespace file %s\n", def.filepath);
-		mem_free(def.filepath);
 no_good_file:
 		fprintf(stderr,
 			"InnoDB: We do not continue the crash recovery,"
@@ -3993,6 +3990,10 @@ no_good_file:
 			" recovery here.\n");
 will_not_choose:
 		mem_free(tablename);
+		if (remote.success) {
+			mem_free(remote.filepath);
+		}
+		mem_free(def.filepath);
 
 		if (srv_force_recovery > 0) {
 			fprintf(stderr,
@@ -4004,10 +4005,10 @@ will_not_choose:
 			return;
 		}
 
+		/* If debug code, cause a core dump and call stack. For
+		release builds just exit and rely on the messages above. */
+		ut_ad(0);
 		exit(1);
-		/* Exit here with a core dump, stack, etc. if MTR could handle it. */
-		/* ulint will_not_choose = 0; */
-		/* ut_a(will_not_choose); */
 	}
 
 	if (def.success && remote.success) {
@@ -4021,11 +4022,8 @@ will_not_choose:
 			remote.filepath);
 
 		def.success = FALSE;
-		remote.success = FALSE;
 		os_file_close(def.file);
 		os_file_close(remote.file);
-		mem_free(def.filepath);
-		mem_free(remote.filepath);
 		goto will_not_choose;
 	}
 
@@ -4046,7 +4044,6 @@ will_not_choose:
 			" of single-table tablespace file %s\n",
 			fsp->filepath);
 		os_file_close(fsp->file);
-		mem_free(fsp->filepath);
 		goto no_good_file;
 	}
 
@@ -4062,7 +4059,6 @@ will_not_choose:
 			", should be at least %lu!\n",
 			fsp->filepath, size, minimum_size);
 		os_file_close(fsp->file);
-		mem_free(fsp->filepath);
 		goto no_good_file;
 #else
 		fsp->id = ULINT_UNDEFINED;
@@ -4089,11 +4085,9 @@ will_not_choose:
 		new_path = fil_make_ibbackup_old_name(fsp->filepath);
 		ut_a(os_file_rename(innodb_file_data_key, fsp->filepath, new_path));
 
-		mem_free(tablename);
-		mem_free(fsp->filepath);
 		mem_free(new_path);
 
-		return;
+		goto func_exit_after_close;
 	}
 
 	/* A backup may contain the same space several times, if the space got
@@ -4127,11 +4121,9 @@ will_not_choose:
 
 		ut_a(os_file_rename(innodb_file_data_key, fsp->filepath, new_path));
 
-		mem_free(tablename);
-		mem_free(fsp->filepath);
 		mem_free(new_path);
 
-		return;
+		goto func_exit_after_close;
 	}
 	mutex_exit(&fil_system->mutex);
 #endif
@@ -4161,8 +4153,17 @@ will_not_choose:
 
 func_exit:
 	os_file_close(fsp->file);
+
+#ifdef UNIV_HOTBACKUP
+func_exit_after_close:
+#else
+	ut_ad(!mutex_own(&fil_system->mutex));
+#endif
 	mem_free(tablename);
-	mem_free(fsp->filepath);
+	if (remote.success) {
+		mem_free(remote.filepath);
+	}
+	mem_free(def.filepath);
 }
 
 /***********************************************************************//**
