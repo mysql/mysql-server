@@ -1000,14 +1000,14 @@ void Query_cache::end_of_result(THD *thd)
   if (query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  /* Ensure that only complete results are cached. */
-  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
-
-  if (thd->killed)
+  if (thd->killed || thd->is_error())
   {
     query_cache_abort(&thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
+
+  /* Ensure that only complete results are cached. */
+  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
 #ifdef EMBEDDED_LIBRARY
   insert(query_cache_tls, (char*)thd,
