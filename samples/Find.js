@@ -47,7 +47,7 @@ var onSession = function(err, session) {
 //analyze command line
 
 var usageMessage = 
-  "Usage: node Insert [options]\n" +
+  "Usage: node Find [options]\n" +
   "       -h or --help: print this message\n" +
   "      -d or --debug: set the debug flag\n" +
   "           --detail: set the detail debug flag\n" +
