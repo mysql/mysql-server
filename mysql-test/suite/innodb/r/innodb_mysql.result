@@ -1480,10 +1480,15 @@ k	a	c
 1	6	2
 2	7	NULL
 insert ignore into t2 values (null,6,1),(10,8,1);
+Warnings:
+Warning	1062	Duplicate entry '6' for key 'idx_1'
 select last_insert_id();
 last_insert_id()
 0
 insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
+Warnings:
+Warning	1062	Duplicate entry '6' for key 'idx_1'
+Warning	1062	Duplicate entry '8' for key 'idx_1'
 select last_insert_id();
 last_insert_id()
 11

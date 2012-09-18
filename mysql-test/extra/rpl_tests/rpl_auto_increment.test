@@ -111,7 +111,7 @@ set auto_increment_increment=11;
 set auto_increment_offset=4;
 insert into t1 values(null);
 insert into t1 values(null);
---error ER_DUP_ENTRY
+--error 167
 insert into t1 values(null);
 select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t1 order by a;
 
@@ -120,6 +120,8 @@ create table t2 (a tinyint unsigned not null auto_increment primary key) engine=
 set auto_increment_increment=10;
 set auto_increment_offset=1;
 set insert_id=1000;
+insert into t2 values(10);
+--error 167
 insert into t2 values(null);
 select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t2 order by a;
 
@@ -127,6 +129,7 @@ select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t2 orde
 create table t3 like t1;
 set auto_increment_increment=1000;
 set auto_increment_offset=700;
+--error 167
 insert into t3 values(null);
 select * from t3 order by a;
 sync_slave_with_master;

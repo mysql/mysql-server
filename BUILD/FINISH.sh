@@ -21,6 +21,12 @@ extra_configs="$extra_configs $local_infile_configs $EXTRA_CONFIGS"
 
 configure="./configure $base_configs $extra_configs"
 
+if test "$just_print" = "1" -a "$just_configure" = "1"
+then
+  just_print=""
+  configure="$configure --print"
+fi
+
 commands="\
 /bin/rm -rf configure;
 /bin/rm -rf CMakeCache.txt CMakeFiles/

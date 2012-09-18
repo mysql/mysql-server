@@ -816,6 +816,8 @@ id
 1
 2
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
+Warnings:
+Warning	1062	Duplicate entry '1-1' for key 'PRIMARY'
 commit;
 select id,id3 from t1;
 id	id3

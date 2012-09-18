@@ -452,6 +452,8 @@ SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
 CREATE TABLE t1 (id int(11) PRIMARY KEY auto_increment,f1 varchar(10) NOT NULL UNIQUE);
 INSERT IGNORE INTO t1 (f1) VALUES ("test1");
 INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+Warnings:
+Warning	1062	Duplicate entry 'test1' for key 'f1'
 INSERT IGNORE INTO t1 (f1) VALUES ("test2");
 SELECT * FROM t1;
 id	f1
