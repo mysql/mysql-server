@@ -3130,7 +3130,7 @@ Dblqh::get_table_state_error(Ptr<Tablerec> tabPtr) const
     jam();
   case Tablerec::DROP_TABLE_TUX:
     jam();
-    return PrepDropTabRef::DropInProgress;
+    return ZDROP_TABLE_IN_PROGRESS;
     break;
   case Tablerec::TABLE_DEFINED:
   case Tablerec::TABLE_READ_ONLY:
