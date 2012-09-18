@@ -1,6 +1,6 @@
 import os
 import readline
-import completion
+# import completion
 
 srcdir = 'Adapter/impl'
 blddir = 'Adapter/impl/build'
