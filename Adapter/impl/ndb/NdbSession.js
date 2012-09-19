@@ -112,8 +112,6 @@ NdbSession.prototype.createTransaction = function() {
                       function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will fetch a row.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
 
    RETURNS a DBOperation 
 */
@@ -133,8 +131,6 @@ NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
                         function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will insert a row.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
  
    RETURNS a DBOperation 
 */
@@ -153,8 +149,6 @@ NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                        function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will update or insert
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
  
    RETURNS a DBOperation 
 */
@@ -175,8 +169,6 @@ NdbSession.prototype.buildWriteOperation = function(dbTableHandler, row,
    IMMEDIATE
    Define an operation which when executed will access a row using the keys
    object and update the values provided in the values object.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
   
    RETURNS a DBOperation 
 */
@@ -195,8 +187,6 @@ NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler,
                         function(error, DBOperation) userCallback)
    IMMEDIATE 
    Define an operation which when executed will delete a row
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
  
    RETURNS a DBOperation 
 */  

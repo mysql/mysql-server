@@ -82,8 +82,9 @@ function execute(self, execMode, dbOperationList, callback) {
     /* Next callback */
     if(callback) {
       callback(err, self);
-    }   // If there is no user callback, default close() after commit
-    else if(execMode === adapter.ndbapi.Commit) {
+    }   // If there is no user callback, default close() after commit or rollback
+    else if(execMode === adapter.ndbapi.Commit || 
+            execMode === adapter.ndbapi.Rollback) {
       self.close();
     }
   }
