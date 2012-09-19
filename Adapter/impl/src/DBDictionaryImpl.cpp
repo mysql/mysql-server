@@ -58,6 +58,7 @@ using namespace v8;
  *   The IndexMetadta objects for SECONDARY indexes wrap an NdbDictionary::Index,
  *    -- but IndexMetadta for PK does *not* wrap any native object!
 */
+Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 Envelope NdbDictTableEnv("NdbDictionary::Table");
 Envelope NdbDictColumnEnv("NdbDictionary::Column");
 Envelope NdbDictIndexEnv("NdbDictionary::Index");
@@ -78,7 +79,10 @@ public:
   /* Constructor */
   ListTablesCall(const Arguments &args) : 
     NativeCFunctionCall_2_<int, ndb_session *, const char *>(args), 
-    list() {  }
+    list() 
+  {
+    envelope = & NdbDictionaryImplEnv;
+  }
   
   /* UV_WORKER_THREAD part of listTables */
   void run() {
@@ -136,9 +140,9 @@ Handle<Value> listTables(const Arguments &args) {
   // FIXME: This throws an assertion that never gets caught ...
   REQUIRE_ARGS_LENGTH(3);
   
-  ListTablesCall * ncallptr = new ListTablesCall(args);  
+  ListTablesCall * ncallptr = new ListTablesCall(args);
 
-  DEBUG_PRINT("arg1: %s", ncallptr->arg1);
+  DEBUG_PRINT("listTables in database: %s", ncallptr->arg1);
   ncallptr->runAsync();
 
   return scope.Close(JS_VOID_RETURN);
@@ -164,7 +168,10 @@ public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(args), 
-    ndb_table(0), indexes(0), n_index(0) {  }
+    ndb_table(0), indexes(0), n_index(0)
+  {
+    envelope = & NdbDictionaryImplEnv;
+  }
   
   /* UV_WORKER_THREAD part of listTables */
   void run();
@@ -175,6 +182,7 @@ public:
 
 
 void GetTableCall::run() {
+  DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
   NdbDictionary::Dictionary * dict = arg0->dict;
   NdbDictionary::Dictionary::List idx_list;
   
@@ -196,8 +204,8 @@ void GetTableCall::run() {
 
 
 void GetTableCall::doAsyncCallback(Local<Object> ctx) {
-  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;  
+  DEBUG_PRINT("GetTableCall::doAsyncCallback: return_val %d", return_val);
 
   /* User callback arguments */
   Handle<Value> cb_args[2];
