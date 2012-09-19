@@ -2769,19 +2769,20 @@ btr_cur_del_mark_set_sec_rec(
 	return(DB_SUCCESS);
 }
 
-/***********************************************************//**
-Clear a secondary index record's delete mark.  This function is only
+/***************************************************************
+Sets a secondary index record delete mark. This function is only
 used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
 	rec_t*		rec,		/*!< in/out: record to delete unmark */
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
 					corresponding to rec, or NULL
 					when the tablespace is
 					uncompressed */
-	mtr_t*		mtr)		/*!< in: mtr */
+	ibool		val,		/*!< in: value to set */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	/* We do not need to reserve btr_search_latch, as the page
 	has just been read to the buffer pool and there cannot be
@@ -2789,9 +2790,9 @@ btr_cur_del_unmark_for_ibuf(
 	updated in place and the adaptive hash index does not depend
 	on it. */
 
-	btr_rec_set_deleted_flag(rec, page_zip, FALSE);
+	btr_rec_set_deleted_flag(rec, page_zip, val);
 
-	btr_cur_del_mark_set_sec_rec_log(rec, FALSE, mtr);
+	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 }
 
 /*==================== B-TREE RECORD REMOVE =========================*/

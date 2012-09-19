@@ -2377,21 +2377,22 @@ btr_cur_del_mark_set_sec_rec(
 }
 
 /***************************************************************
-Sets a secondary index record delete mark to FALSE. This function is only
+Sets a secondary index record delete mark. This function is only
 used by the insert buffer insert merge mechanism. */
 
 void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
 	rec_t*		rec,	/* in: record to delete unmark */
+	ibool		val,	/* in: value to set */
 	mtr_t*		mtr)	/* in: mtr */
 {
 	/* We do not need to reserve btr_search_latch, as the page has just
 	been read to the buffer pool and there cannot be a hash index to it. */
 
-	rec_set_deleted_flag(rec, page_is_comp(buf_frame_align(rec)), FALSE);
+	rec_set_deleted_flag(rec, page_is_comp(buf_frame_align(rec)), val);
 
-	btr_cur_del_mark_set_sec_rec_log(rec, FALSE, mtr);
+	btr_cur_del_mark_set_sec_rec_log(rec, val, mtr);
 }
 
 /*==================== B-TREE RECORD REMOVE =========================*/
