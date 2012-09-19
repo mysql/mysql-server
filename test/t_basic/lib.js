@@ -33,6 +33,8 @@ global.t_basic = function() {
   this.magic;
 };
 
+global.t_basic.prototype.getAge = function() {return this.age;};
+
 /** The t_basic key */
 global.t_basic_key = function(id) {
   this.id = id;
@@ -44,14 +46,23 @@ global.t_basic_magic_key = function(id) {
 };
 
 /** Verify the instance or fail the test case */
-global.fail_verify_t_basic = function(err, instance, id, testCase) {
+global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject) {
   if (err) {
     testCase.fail(err);
     return;
   }
-  if (typeof(instance) !== 'object' || instance === null) {
-    testCase.fail(new Error('Result is not valid: ' + typeof(instance)));
+  if (typeof(instance) !== 'object') {
+    testCase.fail(new Error('Result is not an object: ' + typeof(instance)));
+  }
+  if (instance === null) {
+    testCase.fail(new Error('Result is null.'));
     return;
+  }
+  if (domainObject) {
+    if (typeof(instance.getAge) !== 'function') {
+      testCase.fail(new Error('Result is not a domain object'));
+      return;
+    }
   }
   udebug.log_detail('instance:', instance);
   var message = '';
