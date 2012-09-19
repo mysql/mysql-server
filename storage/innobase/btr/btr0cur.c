@@ -2886,7 +2886,7 @@ btr_cur_set_deleted_flag_for_ibuf(
 					when the tablespace is
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
-	mtr_t*		mtr)		/*!< in: mtr */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	/* We do not need to reserve btr_search_latch, as the page
 	has just been read to the buffer pool and there cannot be
