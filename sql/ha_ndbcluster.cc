@@ -3582,7 +3582,7 @@ int ha_ndbcluster::fetch_next_pushed()
     DBUG_PRINT("info", ("Error from 'nextResult()'"));
     table->status= STATUS_GARBAGE;
 //  DBUG_ASSERT(false);
-//  DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
   DBUG_RETURN(result);
 }

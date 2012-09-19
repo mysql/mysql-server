@@ -32,7 +32,7 @@ static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17510
+  FI_END = 17521
 };
 
 int
@@ -131,7 +131,8 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
       17130,        // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
       7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
-      17510 // random failure when allocating seection memory
+      17510,        // random failure when allocating section memory
+      17520, 17521  // failure (+random) from ::checkTableError()
   }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
 
@@ -226,7 +227,8 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17100, // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
       17110, 17111, 17112, // scanIndex_sends invalid schema version, to get a SCAN_FRAGREF
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
-      17510 // random failure when allocating seection memory
+      17510,        // random failure when allocating section memory
+      17520, 17521  // failure (+random) from TableRecord::checkTableError()
   }; 
   loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
 
