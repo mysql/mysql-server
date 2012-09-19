@@ -121,7 +121,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
-          udebug.log('TableHandlerFactory.onTableMetadata for', tableHandlerFactory.tableKey);
+          udebug.log('TableHandlerFactory.onTableMetadata for ', tableHandlerFactory.tableKey);
           // put the table metadata into the table metadata map
           tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
           // we have the table metadata; now create the table handler
@@ -147,7 +147,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       } else {
         // get the table metadata from the db connection pool
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-        udebug.log('TableHandlerFactory.createTableHandler for' + tableHandlerFactory.tableKey);
+        udebug.log('TableHandlerFactory.createTableHandler for ' + tableHandlerFactory.tableKey);
         this.sessionFactory.dbConnectionPool.getTableMetadata(
             tableHandlerFactory.dbName, tableHandlerFactory.tableName, session.dbSession, onTableMetadata);
       }
@@ -195,6 +195,16 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
   }
 };
 
+function checkOperation(err, dbOperation) {
+  if (err) {
+    return err;
+  } else if (!dbOperation.result.success) {
+    var code = dbOperation.result.error.code;
+    return new Error('Operation error: ' + code);
+  } else {
+    return null;
+  }
+}
 
 /** Find the object by key.
  * 
@@ -204,17 +214,13 @@ exports.UserContext.prototype.find = function() {
   var tableHandler;
 
   function findOnResult(err, dbOperation) {
-    udebug.log('persist.findOnResult');
-    if (err) {
+    udebug.log('find.findOnResult');
+    var error = checkOperation(err, dbOperation);
+    if (error) {
       userContext.applyCallback(err, null);
     } else {
-      var opErr = dbOperation.result.error.code;
-      if (opErr) {
-        userContext.applyCallback(err, null);
-      } else {
-        var result = dbOperation.result.value;
-        userContext.applyCallback(err, result);      
-      }
+      var result = dbOperation.result.value;
+      userContext.applyCallback(null, result);      
     }
   }
 
@@ -258,17 +264,11 @@ exports.UserContext.prototype.persist = function() {
   function persistOnResult(err, dbOperation) {
     udebug.log('persist.persistOnResult');
     // return any error code plus the original user object
-    if (err) {
-      userContext.applyCallback(err, null);
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(error);
     } else {
-      var opErr = dbOperation.result.error.code;
-      if (opErr !== 0) {
-        err = new Error('Error on persist: ' + opErr);
-        userContext.applyCallback(err, null);
-      } else {
-        var result = dbOperation.result.value;
-        userContext.applyCallback(null, result);
-      }
+      userContext.applyCallback(null);      
     }
   }
 
@@ -276,7 +276,7 @@ exports.UserContext.prototype.persist = function() {
     var op, tx, object;
     var dbSession = userContext.session.dbSession;
     if (err) {
-      userContext.applyCallback(err, null);
+      userContext.applyCallback(err);
     } else {
       tx = dbSession.createTransaction();
       object = userContext.user_arguments[0];
@@ -291,6 +291,52 @@ exports.UserContext.prototype.persist = function() {
   // get DBTableHandler for constructor
   var ctor = userContext.user_arguments[0].mynode.constructor;
   getTableHandler(ctor, userContext.session, persistOnTableHandler);
+};
+
+/** Remove the object.
+ * 
+ */
+exports.UserContext.prototype.remove = function() {
+  var userContext = this;
+  var tableHandler, tx, object, callback, op;
+
+  function removeOnResult(err, dbOperation) {
+    udebug.log('remove.removeOnResult');
+    // return any error code plus the original user object
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(error);
+    } else {
+      var result = dbOperation.result.value;
+      userContext.applyCallback(null);
+    }
+  }
+
+  function removeOnTableHandler(err, dbTableHandler) {
+    var op, tx, object, dbIndexHandler;
+    var dbSession = userContext.session.dbSession;
+    if (err) {
+      userContext.applyCallback(err, null);
+    } else {
+      object = userContext.user_arguments[0];
+      dbIndexHandler = dbTableHandler.getIndexHandler(object);
+      if (dbIndexHandler === null) {
+        err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
+        userContext.applyCallback(err, null);
+      } else {
+        tx = dbSession.createTransaction();
+        callback = userContext.user_callback;
+        op = dbSession.buildDeleteOperation(dbIndexHandler, object, tx, removeOnResult);
+        tx.executeCommit([op]);
+      }
+    }
+  }
+
+  // remove starts here
+  // remove(object, callback)
+  // get DBTableHandler for constructor
+  var ctor = userContext.user_arguments[0].mynode.constructor;
+  getTableHandler(ctor, userContext.session, removeOnTableHandler);
 };
 
 /** Open a session. Allocate a slot in the session factory sessions array.

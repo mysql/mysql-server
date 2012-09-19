@@ -65,28 +65,28 @@ exports.Session.prototype.load = function() {
 
 
 exports.Session.prototype.persist = function() {
-  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
   // delegate to context's persist function for execution
   context.persist();
 };
 
 
 exports.Session.prototype.remove = function() {
-  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
   // delegate to context's remove function for execution
   context.remove();
 };
 
 
 exports.Session.prototype.update = function() {
-  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
   // delegate to context's update function for execution
   context.update();
 };
 
 
 exports.Session.prototype.save = function() {
-  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
   // delegate to context's save function for execution
   context.save();
 };
