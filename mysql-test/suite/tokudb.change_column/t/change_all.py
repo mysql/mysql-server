@@ -10,10 +10,9 @@ class Field:
 
 class Field_int(Field):
     sizes = [ 1, 2, 3, 4, 8 ]
-    next_size = [ 2, 3, 4, 8, 8 ]
     types = [ "TINYINT", "SMALLINT", "MEDIUMINT", "INT", "BIGINT" ]
-    int_ranges = [ (0,(1<<8)-1), (0,(1<<16)-1), (0,(1<<24)-1), (0,(1<<32)-1), (0,(1<<64)-1) ]
-    uint_ranges = [ (-(1<<7), (1<<7)-1), (-(1<<15),(1<<15)-1), (-(1<<23),(1<<23)-1), (-(1<<31),(1<<31)-1), (-(1<<63),(1<<63)-1) ]
+    uint_ranges = [ (0,(1<<8)-1), (0,(1<<16)-1), (0,(1<<24)-1), (0,(1<<32)-1), (0,(1<<64)-1) ]
+    int_ranges = [ (-(1<<7), (1<<7)-1), (-(1<<15),(1<<15)-1), (-(1<<23),(1<<23)-1), (-(1<<31),(1<<31)-1), (-(1<<63),(1<<63)-1) ]
     def __init__(self, name, size, is_unsigned, is_nullible):
         Field.__init__(self, name, is_nullible)
         self.idx = Field_int.sizes.index(size)
@@ -31,9 +30,9 @@ class Field_int(Field):
             r = Field_int.uint_ranges[self.idx]
         else:
             r = Field_int.int_ranges[self.idx]
-        return random.randint(r[0],r[1])    
-    def next_field(self, name):
-        return Field_int(name, Field_int.next_size[self.idx], self.is_unsigned, self.is_nullible)
+        return random.randint(r[0],r[1])
+    def next_field(self):
+        return Field_int(self.name, Field_int.sizes[random.randint(self.idx,len(Field_int.sizes)-1)], self.is_unsigned, self.is_nullible)
 
 class Field_int_auto_inc(Field_int):
     def __init__(self, name, size, is_unsigned, is_nullible):
@@ -66,6 +65,8 @@ class Field_char(Field):
         l = random.randint(1, self.size)
         s = ''.join(random.choice(string.ascii_lowercase + string.ascii_uppercase + string.digits) for x in range(l))    
         return "'%s'" % (s)
+    def next_field(self):
+        return Field_char(self.name, self.next_size(), self.is_binary, self.is_nullible)
 
 class Field_varchar(Field):
     types = [ "VARCHAR", "VARBINARY" ]
@@ -87,12 +88,12 @@ class Field_varchar(Field):
         if self.size < 64*1024:
             return self.size + 1
         return self.size
-    def next_field(self, name):
+    def next_field(self):
         if self.size < 256:
             new_size = 256
         else:
             new_size = self.size + 1
-        return Field_varchar(name, new_size, self.is_binary, self.is_nullible)
+        return Field_varchar(self.name, new_size, self.is_binary, self.is_nullible)
 
 class Field_blob(Field):
     def __init__(self, name, size, is_nullible):
@@ -129,25 +130,15 @@ def main():
         print "ALTER TABLE ti ENGINE=myisam;"
         print "INSERT INTO ti SELECT * FROM t;"
 
-        # change fixed column
-        next_field = fields[0].next_field('')
-        print "ALTER TABLE t CHANGE COLUMN a a %s;" % (next_field.get_type())
-        print "ALTER TABLE ti CHANGE COLUMN a a %s;" % (next_field.get_type())
+        # transform table schema and contents
+        for f in [ 0, 2, 3, 5 ]:
+            fields[f] = fields[f].next_field()
+            print "ALTER TABLE t CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
+            print "ALTER TABLE ti CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
         
-        # add some more rows
-        new_row = insert_row(fields)
-        print new_row % ('t')
-        print new_row % ('ti')
-
-        # change variable column
-        next_field = fields[3].next_field('')
-        print "ALTER TABLE t CHANGE COLUMN d dd %s;" % (next_field.get_type())
-        print "ALTER TABLE ti CHANGE COLUMN d dd %s;" % (next_field.get_type())        
-
-        # add a row
-        new_row = insert_row(fields)
-        print new_row % ('t')
-        print new_row % ('ti')
+            new_row = insert_row(fields)
+            print new_row % ('t')
+            print new_row % ('ti')
 
         # compare tables
         print "let $diff_tables = test.t, test.ti;"
