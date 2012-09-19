@@ -101,7 +101,7 @@ exports.UserContext.prototype.listTables = function() {
  */
 var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) {
 
-  var TableHandlerFactory = function(mynode, tableName, sessionFactory, dbSession, mapping, onTableHandler) {
+  var TableHandlerFactory = function(mynode, tableName, sessionFactory, dbSession, mapping, ctor, onTableHandler) {
     this.tableName = tableName;
     this.sessionFactory = sessionFactory;
     this.dbSession = dbSession;
@@ -110,6 +110,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
     this.dbName = sessionFactory.properties.database;
     this.tableKey = this.dbName + '.' + tableName;
     this.mynode = mynode;
+    this.ctor = ctor;
     
     this.createTableHandler = function() {
       var tableHandlerFactory = this;
@@ -130,6 +131,12 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
             // put the default table handler into the session factory
             tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
           } else {
+            if (tableHandlerFactory.ctor) {
+              // if a domain object mapping, set the constructor
+              tableHandler.setResultConstructor(ctor);
+              // and cache the table handler in the prototype
+              ctor.prototype.mynode.tableHandler = tableHandler;
+            }
             // put the table handler into the annotated object
             tableHandlerFactory.mynode.tableHandler = tableHandler;
           }
@@ -164,7 +171,8 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       tableHandlerFactory = new TableHandlerFactory(
-          null, tableNameOrConstructor, session.sessionFactory, session.dbSession, null, onTableHandler);
+          null, tableNameOrConstructor, session.sessionFactory, session.dbSession,
+          null, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
       // send back the tableHandler
@@ -182,11 +190,12 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         tableHandlerFactory = new TableHandlerFactory(
-            mynode, mynode.mapping.table, session.sessionFactory, session.dbSession, mynode.mapping, onTableHandler);
+            mynode, mynode.mapping.table, session.sessionFactory, session.dbSession, 
+            mynode.mapping, tableNameOrConstructor, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
-      // prototype has been annotated; return the table handler
-      onTableHandler(null, tableHandler);
+        // prototype has been annotated; return the table handler
+        onTableHandler(null, tableHandler);
       }
     }
   } else {
@@ -212,14 +221,23 @@ function checkOperation(err, dbOperation) {
 exports.UserContext.prototype.find = function() {
   var userContext = this;
   var tableHandler;
+  if (typeof(this.user_arguments[0]) === 'function') {
+    userContext.domainObject = true;
+  }
 
   function findOnResult(err, dbOperation) {
     udebug.log('find.findOnResult');
+    var result, values;
     var error = checkOperation(err, dbOperation);
     if (error) {
       userContext.applyCallback(err, null);
     } else {
-      var result = dbOperation.result.value;
+      if (userContext.domainObject) {
+        values = dbOperation.result.value;
+        result = userContext.dbTableHandler.newResultObject(values);
+      } else {
+        result = dbOperation.result.value;
+      }
       userContext.applyCallback(null, result);      
     }
   }
@@ -229,6 +247,7 @@ exports.UserContext.prototype.find = function() {
     if (err) {
       userContext.applyCallback(err, null);
     } else {
+      userContext.dbTableHandler = dbTableHandler;
       keys = userContext.user_arguments[1];
       index = dbTableHandler.getIndexHandler(keys);
       if (index === null) {
