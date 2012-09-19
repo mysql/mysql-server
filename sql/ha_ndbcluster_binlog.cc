@@ -506,7 +506,6 @@ ndb_create_thd(char * stackptr)
   thd->thread_stack= stackptr; /* remember where our stack is */
   if (thd->store_globals())
   {
-    thd->cleanup();
     delete thd;
     DBUG_RETURN(0);
   }
@@ -587,7 +586,6 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 
   if (save_thd == 0)
   {
-    thd->cleanup();
     delete thd;
   }
 
@@ -6621,7 +6619,6 @@ ndb_binlog_thread_func(void *arg)
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
   {
-    thd->cleanup();
     delete thd;
     ndb_binlog_thread_running= -1;
     pthread_mutex_unlock(&injector_mutex);
@@ -7504,7 +7501,6 @@ restart_cluster_failure:
   }
 
   net_end(&thd->net);
-  thd->cleanup();
   delete thd;
 
   ndb_binlog_thread_running= -1;
