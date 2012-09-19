@@ -909,6 +909,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   
   {
     /**
+     * Spj Size Alt values
+     */
+    cfg.put(CFG_SPJ_TABLE, 
+	    noOfMetaTables);
+  }
+  
+  {
+    /**
      * Tc Size Alt values
      */
     cfg.put(CFG_TC_API_CONNECT, 

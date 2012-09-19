@@ -165,7 +165,10 @@ ErrorBundle ErrorCodes[] = {
   { 20016, DMEC, NR, "Query aborted due to node failure" },
   { 20017, DMEC, IE, "Query aborted due to invalid node count" },
   { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
-  
+  { 20019, HA_ERR_NO_SUCH_TABLE, SE, "Query table not defined" },
+  { 20020, HA_ERR_NO_SUCH_TABLE, SE, "Query table is being dropped" },
+  { 20021, HA_ERR_TABLE_DEF_CHANGED, SE, "Query table definition has changed" },
+
   /**
    * Node shutdown
    */
