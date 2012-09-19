@@ -80,10 +80,10 @@ Driver.prototype.testCompleted = function(testCase) {
 Driver.prototype.reportResultsAndExit = function() {
   // close all session factories
   var sessionFactories = mynode.getOpenSessionFactories();
-  sessionFactories.forEach(function(sessionFactory) {
-    udebug.log('Driver.reportResultsAndExit closing', sessionFactory.key);
-    sessionFactory.close();
-  });
+  //sessionFactories.forEach(function(sessionFactory) {
+  //  udebug.log('Driver.reportResultsAndExit closing', sessionFactory.key);
+  //  sessionFactory.close();
+  //});
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
   console.log("Skipped: ", this.result.skipped.length);

@@ -47,14 +47,12 @@ var onInsert = function(err, object) {
 
 // insert an object
 var onSession = function(err, session) {
-  console.log('onSession: ' + util.inspect(session));
   if (err) {
     console.log('Error onSession.');
     console.log(err);
     process.exit(0);
   } else {
     var data = new t_basic(1, 'Craig', 99, 99);
-    console.log('data.mynode: ' + util.inspect(data.mynode));
     session.persist(data, onInsert);
   }
 };

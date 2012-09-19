@@ -40,7 +40,7 @@ var testInsert = function() {
     employee.name = 'Employee 999';
     employee.age = 999;
     employee.magic = 999;
-    session.persist(employee, function(err, instance) {
+    session.persist(employee, function(err) {
       if (err) {
         testCase.fail(err);
       } else {

@@ -221,10 +221,10 @@ proto.getDBSession = function(index, user_callback) {
   * listTables(databaseName, dbSession, callback(error, array));
   */
 proto.listTables = function(databaseName, dbSession, user_callback) {
-// FIXME: Pay attention to the user's dbsession
   udebug.log("listTables");
   assert(databaseName && user_callback);
-  adapter.ndb.impl.DBDictionary.listTables(this.dictionary, databaseName, user_callback);
+  var dictSessionImpl = dbSession ? dbSession.impl : this.dictionary;
+  adapter.ndb.impl.DBDictionary.listTables(dictSessionImpl, databaseName, user_callback);
 };
 
 
@@ -234,12 +234,12 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   * getTableMetadata(databaseName, tableName, dbSession, callback(error, TableMetadata));
   */
 proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
-// FIXME: Pay attention to the user's dbsession
   udebug.log("getTableMetadata");
   assert(dbname && tabname && user_callback);
+  var dictSessionImpl = dbSession ? dbSession.impl : this.dictionary;
   // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
-  udebug.log_detail(this.dictionary, dbname, tabname, user_callback);
-  adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
+  udebug.log_detail(dictSessionImpl, dbname, tabname, user_callback);
+  adapter.ndb.impl.DBDictionary.getTable(dictSessionImpl, dbname, tabname, user_callback);
 };
 
 

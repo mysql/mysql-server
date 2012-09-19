@@ -85,6 +85,8 @@ void udeb_enter(int level, const char *src_path, const char *fn, int ln) {
 }
 
 
+#define SEND_MESSAGES_TO_JAVASCRIPT 0
+
 /* udeb_print() is used by macros in the public API 
 */ 
 void udeb_print(const char *src_path, int level, const char *fmt, ...) {
@@ -98,20 +100,21 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   /* Construct the message */
   sz += snprintf(message, UDEB_MSG_BUF, "%s ", src_file);
   sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
-/* Uncomment to bypass javascript and print directly from here: */
-  sprintf(message + sz, "\n");
-  fputs(message, stderr);
-  va_end(args);
-  return;
-  
+
   if(udeb_initialized && udeb_level >= level) {
-  /* Send it to JavaScript */
+#if SEND_MESSAGES_TO_JAVASCRIPT
     HandleScope scope;
     Handle<Value> jsArgs[3];
     jsArgs[0] = Number::New(level);
     jsArgs[1] = String::New(src_file);
     jsArgs[2] = String::New(message, sz);
     JSLoggerFunction->Call(Context::GetCurrent()->Global(), 3, jsArgs);
+#else
+    sprintf(message + sz, "\n");
+    fputs(message, stderr);
+    va_end(args);
+    return;
+#endif
   }
 
   va_end(args);

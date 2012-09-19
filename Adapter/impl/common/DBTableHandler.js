@@ -272,6 +272,8 @@ function chooseIndex(self, keys) {
   var keyFieldNames, firstIdxFieldName;
   var i, j, f, n, index, nmatches;
   
+  udebug.log_detail("chooseIndex for:", JSON.stringify(keys));
+  
   if(typeof keys === 'number' || typeof keys === 'string') {
     if(idxs[0].columnNumbers.length === 1) {
       return idxs[0];   // primary key
@@ -285,13 +287,16 @@ function chooseIndex(self, keys) {
     for(i = 0 ; i < idxs.length ; i++) {
       index = idxs[i];
       if(index.isUnique) {
+        udebug.log_detail("Considering:", index.name ? index.name : "primary key");
         // Each key field resolves to a column, which must be in the index
         nmatches = 0;
         for(j = 0 ; j < index.columnNumbers.length ; j++) {
           n = index.columnNumbers[j];
           f = self.columnNumberToFieldMap[n]; 
+          udebug.log_detail("index part", j, "is column", n, ":", f.fieldName);
           if(typeof keys[f.fieldName] !== 'undefined') {
             nmatches++;
+            udebug.log_detail("match!", nmatches);
           }
         }
         if(nmatches === index.columnNumbers.length) {
@@ -324,6 +329,9 @@ function chooseIndex(self, keys) {
 /* Return the property of obj corresponding to fieldNumber */
 DBTableHandler.prototype.get = function(obj, fieldNumber) { 
   udebug.log("get", fieldNumber);
+  if (typeof(obj) === 'string' || typeof(obj) === 'number') {
+    return obj;
+  }
   var f = this.fieldNumberToFieldMap[fieldNumber];
   return f ? obj[f.fieldName] : null;
 };
@@ -331,9 +339,6 @@ DBTableHandler.prototype.get = function(obj, fieldNumber) {
 
 /* Return an array of values in field order */
 DBTableHandler.prototype.getFields = function(obj) {
-  if (typeof(obj) === 'string' || typeof(obj) === 'number') {
-    return [obj];
-  }
   var i, fields = [];
   for( i = 0 ; i < this.getMappedFieldCount() ; i ++) {
     fields[i] = this.get(obj, i);
