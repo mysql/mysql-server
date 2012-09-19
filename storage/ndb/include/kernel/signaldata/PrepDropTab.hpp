@@ -29,11 +29,12 @@ class PrepDropTabReq {
   /**
    * Receiver(s)
    */
+  friend class Dbspj;
   friend class Dbtc;
   friend class Dblqh;
   friend class DblqhProxy;
   friend class Dbdih;
-  friend class DbtcProxy;
+  friend class DbgdmProxy;
 
   friend bool printPREP_DROP_TAB_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -50,11 +51,12 @@ class PrepDropTabConf {
   /**
    * Sender(s)
    */
+  friend class Dbspj;
   friend class Dbtc;
   friend class Dblqh;
   friend class DblqhProxy;
   friend class Dbdih;
-  friend class DbtcProxy;
+  friend class DbgdmProxy;
 
   /**
    * Receiver(s)
@@ -75,11 +77,12 @@ class PrepDropTabRef {
   /**
    * Sender(s)
    */
+  friend class Dbspj;
   friend class Dbtc;
   friend class Dblqh;
   friend class DblqhProxy;
   friend class Dbdih;
-  friend class DbtcProxy;
+  friend class DbgdmProxy;
 
   /**
    * Receiver(s)

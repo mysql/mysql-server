@@ -18,12 +18,8 @@
 #ifndef NDB_DBTC_PROXY_HPP
 #define NDB_DBTC_PROXY_HPP
 
-#include <LocalProxy.hpp>
-#include <signaldata/CreateTab.hpp>
-#include <signaldata/TabCommit.hpp>
-#include <signaldata/PrepDropTab.hpp>
-#include <signaldata/DropTab.hpp>
-#include <signaldata/AlterTab.hpp>
+#include "../dbgdm/DbgdmProxy.hpp"
+
 #include <signaldata/GCP.hpp>
 
 #include <signaldata/CreateIndxImpl.hpp>
@@ -31,7 +27,8 @@
 #include <signaldata/DropIndxImpl.hpp>
 #include <signaldata/AbortAll.hpp>
 
-class DbtcProxy : public LocalProxy {
+
+class DbtcProxy : public DbgdmProxy {
 public:
   DbtcProxy(Block_context& ctx);
   virtual ~DbtcProxy();
@@ -42,128 +39,6 @@ protected:
 
   // GSN_NDB_STTOR
   virtual void callNDB_STTOR(Signal*);
-
-  // GSN_TC_SCHVERREQ
-  struct Ss_TC_SCHVERREQ : SsParallel {
-    TcSchVerReq m_req;
-    Ss_TC_SCHVERREQ() {
-      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendTC_SCHVERREQ;
-      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendTC_SCHVERCONF;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_TC_SCHVERREQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_TC_SCHVERREQ;
-    }
-  };
-  SsPool<Ss_TC_SCHVERREQ> c_ss_TC_SCHVERREQ;
-  void execTC_SCHVERREQ(Signal*);
-  void sendTC_SCHVERREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execTC_SCHVERCONF(Signal*);
-  void sendTC_SCHVERCONF(Signal*, Uint32 ssId);
-
-  // GSN_TAB_COMMITREQ [ sub-op ]
-  struct Ss_TAB_COMMITREQ : SsParallel {
-    TabCommitReq m_req;
-    Ss_TAB_COMMITREQ() {
-      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendTAB_COMMITREQ;
-      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendTAB_COMMITCONF;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_TAB_COMMITREQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_TAB_COMMITREQ;
-    }
-  };
-  SsPool<Ss_TAB_COMMITREQ> c_ss_TAB_COMMITREQ;
-  void execTAB_COMMITREQ(Signal*);
-  void sendTAB_COMMITREQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execTAB_COMMITCONF(Signal*);
-  void execTAB_COMMITREF(Signal*);
-  void sendTAB_COMMITCONF(Signal*, Uint32 ssId);
-
-  // GSN_PREP_DROP_TAB_REQ
-  struct Ss_PREP_DROP_TAB_REQ : SsParallel {
-    PrepDropTabReq m_req;
-    Ss_PREP_DROP_TAB_REQ() {
-      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendPREP_DROP_TAB_REQ;
-      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendPREP_DROP_TAB_CONF;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_PREP_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_PREP_DROP_TAB_REQ;
-    }
-  };
-
-  SsPool<Ss_PREP_DROP_TAB_REQ> c_ss_PREP_DROP_TAB_REQ;
-  Uint32 getSsId(const PrepDropTabReq* req) {
-    return SsIdBase | req->tableId;
-  }
-  Uint32 getSsId(const PrepDropTabConf* conf) {
-    return SsIdBase | conf->tableId;
-  }
-  Uint32 getSsId(const PrepDropTabRef* ref) {
-    return SsIdBase | ref->tableId;
-  }
-  void execPREP_DROP_TAB_REQ(Signal*);
-  void sendPREP_DROP_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execPREP_DROP_TAB_CONF(Signal*);
-  void execPREP_DROP_TAB_REF(Signal*);
-  void sendPREP_DROP_TAB_CONF(Signal*, Uint32 ssId);
-
-  // GSN_DROP_TAB_REQ
-  struct Ss_DROP_TAB_REQ : SsParallel {
-    DropTabReq m_req;
-    Ss_DROP_TAB_REQ() {
-      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendDROP_TAB_REQ;
-      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendDROP_TAB_CONF;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_DROP_TAB_REQ;
-    }
-  };
-  SsPool<Ss_DROP_TAB_REQ> c_ss_DROP_TAB_REQ;
-  Uint32 getSsId(const DropTabReq* req) {
-    return SsIdBase | req->tableId;
-  }
-  Uint32 getSsId(const DropTabConf* conf) {
-    return SsIdBase | conf->tableId;
-  }
-  Uint32 getSsId(const DropTabRef* ref) {
-    return SsIdBase | ref->tableId;
-  }
-  void execDROP_TAB_REQ(Signal*);
-  void sendDROP_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execDROP_TAB_CONF(Signal*);
-  void execDROP_TAB_REF(Signal*);
-  void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
-
-  // GSN_ALTER_TAB_REQ
-  struct Ss_ALTER_TAB_REQ : SsParallel {
-    AlterTabReq m_req;
-    Ss_ALTER_TAB_REQ() {
-      m_sendREQ = (SsFUNCREQ)&DbtcProxy::sendALTER_TAB_REQ;
-      m_sendCONF = (SsFUNCREP)&DbtcProxy::sendALTER_TAB_CONF;
-    }
-    enum { poolSize = 1 };
-    static SsPool<Ss_ALTER_TAB_REQ>& pool(LocalProxy* proxy) {
-      return ((DbtcProxy*)proxy)->c_ss_ALTER_TAB_REQ;
-    }
-  };
-  SsPool<Ss_ALTER_TAB_REQ> c_ss_ALTER_TAB_REQ;
-  Uint32 getSsId(const AlterTabReq* req) {
-    return SsIdBase | req->tableId;
-  }
-  Uint32 getSsId(const AlterTabConf* conf) {
-    return conf->senderData;
-  }
-  Uint32 getSsId(const AlterTabRef* ref) {
-    return ref->senderData;
-  }
-  void execALTER_TAB_REQ(Signal*);
-  void sendALTER_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
-  void execALTER_TAB_CONF(Signal*);
-  void execALTER_TAB_REF(Signal*);
-  void sendALTER_TAB_CONF(Signal*, Uint32 ssId);
 
   /**
    * TCSEIZEREQ
