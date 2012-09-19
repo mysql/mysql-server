@@ -9741,6 +9741,14 @@ abort:
       DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
                           dict->getNdbError().code));
     m_table= 0;
+
+    {
+      // Flush the table out of ndbapi's dictionary cache
+      Ndb_table_guard ndbtab_g(dict);
+      ndbtab_g.init(m_tabname);
+      ndbtab_g.invalidate();
+    }
+
     DBUG_RETURN(my_errno);
 abort_return:
     DBUG_PRINT("info", ("Aborting schema transaction"));
