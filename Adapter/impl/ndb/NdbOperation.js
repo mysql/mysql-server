@@ -212,6 +212,10 @@ function completeExecutedOps(txOperations) {
       //still to do: insert_id
       if(op.result.success && op.opcode === "read") {
         readResultRow(op);
+        
+        if(op.userCallback) {
+          op.userCallback(op.result.error, op);
+        }
       }
       op.state = doc.OperationStates[2];  // COMPLETED
     }

@@ -90,7 +90,6 @@ void udeb_enter(int level, const char *src_path, const char *fn, int ln) {
 void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   int sz = 0;
   char message[UDEB_MSG_BUF];
-  HandleScope scope;
   va_list args;
   va_start(args, fmt);
   
@@ -99,15 +98,22 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   /* Construct the message */
   sz += snprintf(message, UDEB_MSG_BUF, "%s ", src_file);
   sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
+/* Uncomment to bypass javascript and print directly from here: */
+  sprintf(message + sz, "\n");
+  fputs(message, stderr);
+  va_end(args);
+  return;
   
   if(udeb_initialized && udeb_level >= level) {
-    /* Send it to JavaScript */
+  /* Send it to JavaScript */
+    HandleScope scope;
     Handle<Value> jsArgs[3];
     jsArgs[0] = Number::New(level);
     jsArgs[1] = String::New(src_file);
     jsArgs[2] = String::New(message, sz);
-    JSLoggerFunction->Call(Context::GetCurrent()->Global(), 3, jsArgs);    
+    JSLoggerFunction->Call(Context::GetCurrent()->Global(), 3, jsArgs);
   }
+
   va_end(args);
 }
 
@@ -143,11 +149,11 @@ Handle<Value> udeb_setLevel(const Arguments &args) {
   
   udeb_level = args[0]->Int32Value();
   // C code cannot log below UDEB_INFO
-  //uni_debug = (udeb_level > UDEB_NOTICE) ? 1 : 0;  
+  uni_debug = (udeb_level > UDEB_NOTICE) ? 1 : 0;  
   
   // leave uni_debug off until stack corruption in udeb_print() is fixed
-  uni_debug = 0;
-  
+  //uni_debug = 0;
+
   
   return scope.Close(True());
 }

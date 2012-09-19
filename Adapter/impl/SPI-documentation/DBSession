@@ -25,8 +25,6 @@
                         function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will insert a row.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
  
    RETURNS a DBOperation 
 */
@@ -39,8 +37,6 @@
                        function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will update or insert
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
  
    RETURNS a DBOperation 
 */
@@ -53,8 +49,6 @@
                       function(error, DBOperation) userCallback)
    IMMEDIATE
    Define an operation which when executed will fetch a row.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
 
    RETURNS a DBOperation 
 */
@@ -69,8 +63,6 @@
    IMMEDIATE
    Define an operation which when executed will access a row using the keys
    object and update the values provided in the values object.
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
   
    RETURNS a DBOperation 
 */
@@ -83,8 +75,6 @@
                         function(error, DBOperation) userCallback)
    IMMEDIATE 
    Define an operation which when executed will delete a row
-   The userCallback is stored in the DBOperation, but will not be called 
-   by this layer.
  
    RETURNS a DBOperation 
 */  

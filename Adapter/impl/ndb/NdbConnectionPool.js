@@ -237,6 +237,7 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
 // FIXME: Pay attention to the user's dbsession
   udebug.log("getTableMetadata");
   assert(dbname && tabname && user_callback);
+  // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
   udebug.log_detail(this.dictionary, dbname, tabname, user_callback);
   adapter.ndb.impl.DBDictionary.getTable(this.dictionary, dbname, tabname, user_callback);
 };
