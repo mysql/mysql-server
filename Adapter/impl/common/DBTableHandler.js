@@ -287,7 +287,7 @@ function chooseIndex(self, keys) {
     for(i = 0 ; i < idxs.length ; i++) {
       index = idxs[i];
       if(index.isUnique) {
-        udebug.log_detail("Considering:", index.name ? index.name : "primary key");
+        udebug.log_detail("Considering:", index.name || "primary key");
         // Each key field resolves to a column, which must be in the index
         nmatches = 0;
         for(j = 0 ; j < index.columnNumbers.length ; j++) {

@@ -66,7 +66,6 @@ var greeting =
 function verify(dir) {
   try {
     stats = fs.statSync(dir);
-console.log("STAT " + dir);
     return stats.isDirectory();
   }
   catch(e) {
