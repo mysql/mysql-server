@@ -473,6 +473,7 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
   var valueFieldNames = [];
   for(j = 0 ; j < dbTableHandler.fieldNumberToFieldMap.length ; j++) {
     field = dbTableHandler.fieldNumberToFieldMap[j];
+    // TODO: exclude not persistent fields and fields that are part of the index
     if (!field.NotPersistent) {
       valueFieldNames.push(dbTableHandler.fieldNumberToFieldMap[j].fieldName);
     }
