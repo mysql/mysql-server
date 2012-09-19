@@ -1,4 +1,6 @@
+--source include/not_embedded.inc
 --source include/have_multi_ndb.inc
+
 connect (j1,localhost,root,,test);
 connect (j2,localhost,root,,test);
 connect (j3,localhost,root,,test);
