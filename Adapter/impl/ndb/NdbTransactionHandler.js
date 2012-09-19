@@ -77,7 +77,6 @@ function execute(self, execMode, dbOperationList, callback) {
     // Update our own success and error objects
     self.error = err;
     self.success = err ? false : true;
-    if(err) udebug.log_detail("execute onCompleteTx", err.ndb_error);
     
     /* Attach results to their operations */
     ndboperation.completeExecutedOps(err, self.executedOperations);
@@ -175,7 +174,7 @@ proto.commit = function commit(userCallback) {
   function onNdbCommit(err, result) {
     // TODO: Update our own success and error objects
     self.state = doc.DBTransactionStates[2]; // COMMITTED
-    callback(err, self);
+    userCallback(err, self);
   }
   
   self.ndbtx.execute(adapter.ndbapi.Commit, adapter.ndbapi.AbortOnError,

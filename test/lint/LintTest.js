@@ -131,5 +131,3 @@ checkTest("spi/DBDictionaryTest.js");
 checkTest("spi/InsertAndDeleteIntTest.js");
 checkTest("spi/ClearSmokeTest.js");
 checkTest("spi/BasicVarcharTest.js");
-
-console.dir(exports.test);

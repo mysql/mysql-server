@@ -60,7 +60,6 @@ exports.getFactoryKey = function(properties) {
   // TODO: hash user and password to avoid security issue
   var key = properties.implementation + "://" + socket + 
     "+" + properties.mysql_user + "<" + properties.mysql_password + ">";
-//  console.log(key);
   return key;
 };
 
