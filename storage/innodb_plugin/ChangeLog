@@ -1,3 +1,9 @@
+2012-09-18	The InnoDB Team
+
+	* btr/btr0cur.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c,
+	include/btr0cur.h:
+	Fix Bug#14636528 INNODB CHANGE BUFFERING IS NOT ENTIRELY CRASH-SAFE
+
 2012-09-17	The InnoDB Team
 
 	* btr/btr0btr.c, btr/btr0cur.c, buf/buf0lru.c,
