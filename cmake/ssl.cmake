@@ -88,8 +88,27 @@ MACRO (MYSQL_CHECK_SSL)
 
   IF(WITH_SSL STREQUAL "bundled")
     MYSQL_USE_BUNDLED_SSL()
-    UNSET(WITH_SSL_PATH)
-    UNSET(WITH_SSL_PATH CACHE)
+    # Reset some variables, in case we switch from /path/to/ssl to "bundled".
+    IF (WITH_SSL_PATH)
+      UNSET(WITH_SSL_PATH)
+      UNSET(WITH_SSL_PATH CACHE)
+    ENDIF()
+    IF (OPENSSL_ROOT_DIR)
+      UNSET(OPENSSL_ROOT_DIR)
+      UNSET(OPENSSL_ROOT_DIR CACHE)
+    ENDIF()
+    IF (OPENSSL_INCLUDE_DIR)
+      UNSET(OPENSSL_INCLUDE_DIR)
+      UNSET(OPENSSL_INCLUDE_DIR CACHE)
+    ENDIF()
+    IF (WIN32 AND OPENSSL_APPLINK_C)
+      UNSET(OPENSSL_APPLINK_C)
+      UNSET(OPENSSL_APPLINK_C CACHE)
+    ENDIF()
+    IF (OPENSSL_LIBRARIES)
+      UNSET(OPENSSL_LIBRARIES)
+      UNSET(OPENSSL_LIBRARIES CACHE)
+    ENDIF()
   ELSEIF(WITH_SSL STREQUAL "system" OR
          WITH_SSL STREQUAL "yes" OR
          WITH_SSL_PATH
@@ -110,6 +129,15 @@ MACRO (MYSQL_CHECK_SSL)
       NAMES openssl/ssl.h
       HINTS ${OPENSSL_ROOT_DIR}/include
     )
+
+    IF (WIN32)
+      FIND_FILE(OPENSSL_APPLINK_C
+        NAMES openssl/applink.c
+        HINTS ${OPENSSL_ROOT_DIR}/include
+      )
+      MESSAGE(STATUS "OPENSSL_APPLINK_C ${OPENSSL_APPLINK_C}")
+    ENDIF()
+
     # On mac this list is <.dylib;.so;.a>
     # We prefer static libraries, so we revert it here.
     LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
