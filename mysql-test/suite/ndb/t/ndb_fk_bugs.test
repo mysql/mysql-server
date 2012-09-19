@@ -56,3 +56,20 @@ alter table t2
   on delete cascade on update restrict;
 
 drop table t2, t1;
+
+# Bug #14195170  	FAILING CREATE TABLE WITH FK CONSTRAINTS LEAVES ORPHANED .FRM
+
+CREATE TABLE customer (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=NDB;
+
+CREATE TABLE product (category INT NOT NULL, id INT NOT NULL,
+                      price DECIMAL, PRIMARY KEY(category, id)) ENGINE=NDB;
+
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT NOT NULL, product_id INT NOT NULL, customer_id INT NOT NULL, PRIMARY KEY(no), INDEX (product_category, product_id), FOREIGN KEY (product_category, product_id) REFERENCES product(category, id) ON UPDATE CASCADE ON DELETE RESTRICT, INDEX (customer_id), FOREIGN KEY (customer_id) REFERENCES customer(id)) ENGINE=ndb;
+show warnings;
+
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT NOT NULL, product_id INT NOT NULL, customer_id INT NOT NULL, PRIMARY KEY(no), INDEX (product_category, product_id), FOREIGN KEY (product_category, product_id) REFERENCES product(category, id) ON UPDATE CASCADE ON DELETE RESTRICT, INDEX (customer_id), FOREIGN KEY (customer_id) REFERENCES customer(id)) ENGINE=ndb;
+show warnings;
+
+DROP TABLE customer, product;
