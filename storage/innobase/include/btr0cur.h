@@ -635,7 +635,7 @@ btr_cur_set_deleted_flag_for_ibuf(
 					when the tablespace is
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
