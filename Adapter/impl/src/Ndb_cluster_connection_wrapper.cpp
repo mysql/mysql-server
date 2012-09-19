@@ -67,7 +67,7 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
    3 args SYNC / 4 args ASYNC
 */
 Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   Local<Value> ret;
   

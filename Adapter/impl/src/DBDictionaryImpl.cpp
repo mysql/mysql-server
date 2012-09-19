@@ -329,9 +329,11 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   int ncol = idx->getNoOfColumns();
   Local<Array> idx_columns = Array::New(ncol);
   Record * idx_record = new Record(arg0->dict, ncol);
-  for(int i = 0 ; i < ncol ; i++) {    
-    idx_columns->Set(i, v8::Int32::New(idx->getColumn(i)->getColumnNo()));
-    idx_record->addColumn(ndb_table->getColumn(idx->getColumn(i)->getName()));
+  for(int i = 0 ; i < ncol ; i++) {
+    const char *colName = idx->getColumn(i)->getName();
+    const NdbDictionary::Column *col = ndb_table->getColumn(colName);
+    idx_columns->Set(i, v8::Int32::New(col->getColumnNo()));
+    idx_record->addColumn(col);
   }
   idx_record->completeIndexRecord(idx);
   obj->Set(String::NewSymbol("record"), Record_Wrapper(idx_record), ReadOnly);

@@ -26,7 +26,8 @@ DBTransactionStates = [
   "DEFINED",      // No operations have been executed
   "STARTED",      // Operations have been executed but not committed
   "COMMITTED",    // Transaction has been committed
-  "ROLLEDBACK"    // Transaction has been rolled back
+  "ROLLEDBACK",   // Transaction has been rolled back
+  "CLOSED"        // Transaction has completed and been closed
 ];   
 
 

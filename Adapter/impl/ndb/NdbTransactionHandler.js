@@ -46,9 +46,6 @@ DBTransactionHandler.prototype = proto;
 proto.close = function(userCallback) {
   udebug.log("close");
 
-  delete this.executedOperations;
-  delete this.error;
-
   function onNdbClose(err, i) {
     /* NdbTransaction::close() returns void.  i == 1. */
     udebug.log("close onNdbClose");
@@ -57,8 +54,13 @@ proto.close = function(userCallback) {
     }
   }  
 
-  if(this.ndbtx) {
-    this.ndbtx.close(onNdbClose);
+  if(this.state !== "CLOSED") {
+    this.state = doc.DBTransactionStates[4];  // CLOSED
+    delete this.executedOperations;
+    delete this.error;
+    if(this.ndbtx) {
+      this.ndbtx.close(onNdbClose);
+    }
   }
 };
 
@@ -75,18 +77,15 @@ function execute(self, execMode, dbOperationList, callback) {
     // Update our own success and error objects
     self.error = err;
     self.success = err ? false : true;
+    if(err) udebug.log_detail("execute onCompleteTx", err.ndb_error);
     
     /* Attach results to their operations */
-    ndboperation.completeExecutedOps(self.executedOperations);
+    ndboperation.completeExecutedOps(err, self.executedOperations);
 
     /* Next callback */
     if(callback) {
       callback(err, self);
     }   // If there is no user callback, default close() after commit or rollback
-    else if(execMode === adapter.ndbapi.Commit || 
-            execMode === adapter.ndbapi.Rollback) {
-      self.close();
-    }
   }
 
   function prepareOperationsAndExecute() {
@@ -152,7 +151,12 @@ proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
   function onExecCommit(err, dbTxHandler) {
     udebug.log("executeCommit onExecCommit");
     dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
-    userCallback(err, dbTxHandler);
+    if(userCallback) {
+      userCallback(err, dbTxHandler);
+    }
+    else {
+      dbTxHandler.close();
+    }
   }
   
   execute(this, adapter.ndbapi.Commit, dbOperationList, onExecCommit);
@@ -164,7 +168,7 @@ proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
    
    Commit work.
 */
-proto.commit = function commit(callback) {
+proto.commit = function commit(userCallback) {
   udebug.log("commit");
   var self = this;
   

@@ -67,6 +67,8 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       helperSpec.row_record = this.tableHandler.dbTable.record;
       break;
     case 'read':
+      helperSpec.lock_mode  = this.lockMode;
+      // fall through
     case 'update':
       helperSpec.mask       = this.columnMask;
       helperSpec.key_record = this.index.record;
@@ -180,6 +182,7 @@ var errorMap = {
 };
 
 function mapError(opError) {
+  udebug.log("mapError " + JSON.stringify(opError.ndb_error));
   var mappedCode = errorMap[opError.ndb_error.classification];
   if(mappedCode) {
     opError.code = mappedCode;
@@ -191,7 +194,7 @@ function mapError(opError) {
   }
 }
 
-function completeExecutedOps(txOperations) {
+function completeExecutedOps(txError, txOperations) {
   udebug.log("completeExecutedOps", txOperations.length);
   var i, op, ndberror;
   for(i = 0; i < txOperations.length ; i++) {
@@ -212,11 +215,12 @@ function completeExecutedOps(txOperations) {
       //still to do: insert_id
       if(op.result.success && op.opcode === "read") {
         readResultRow(op);
-        
-        if(op.userCallback) {
-          op.userCallback(op.result.error, op);
-        }
+      }  
+
+      if(op.userCallback) {
+        op.userCallback(txError, op);
       }
+
       op.state = doc.OperationStates[2];  // COMPLETED
     }
     else {
@@ -227,14 +231,19 @@ function completeExecutedOps(txOperations) {
 }
 
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
-  udebug.log("getReadOperation");
+  udebug.log("newReadOperation", keys);
   assert(doc.LockModes.indexOf(lockMode) !== -1);
   if(! dbIndexHandler.tableHandler) { 
     throw ("Invalid dbIndexHandler");
   }
   var op = new DBOperation("read", tx, dbIndexHandler.tableHandler);
   var record = op.tableHandler.dbTable.record;
-  op.lockMode = lockMode;
+  if(dbIndexHandler.dbIndex.isPrimaryKey || lockMode === "EXCLUSIVE") {
+    op.lockMode = lockMode;
+  }
+  else {
+    op.lockMode = "SHARED";
+  }
   encodeKeyBuffer(dbIndexHandler, op, keys);  
 
   /* The row buffer for a read must be allocated here, before execution */

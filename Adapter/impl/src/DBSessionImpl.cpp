@@ -37,7 +37,7 @@ Envelope NdbSessionImplEnv("NdbSessionImpl");
    This is the background thread part of NewDBSessionImpl
 */
 ndb_session * ndb_session_new(Ndb_cluster_connection *conn, const char *db) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   ndb_session * sess = new ndb_session;
     
   sess->ndb = new Ndb(conn, db);
