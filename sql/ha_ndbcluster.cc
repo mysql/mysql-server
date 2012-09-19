@@ -15410,7 +15410,6 @@ ndb_util_thread_fail:
     Thd_ndb::release(thd_ndb);
     thd_set_thd_ndb(thd, NULL);
   }
-  thd->cleanup();
   delete thd;
   
   /* signal termination */
