@@ -1,6 +1,6 @@
 import os
 import readline
-# import completion
+import setup.completion
 
 srcdir = 'Adapter/impl'
 blddir = 'Adapter/impl/build'
@@ -15,7 +15,8 @@ def configure(conf):
   import Options
   
   if(Options.options.interactive or Options.options.mysql == '-interactive-'):
-    # readline config goes here.
+    comp = setup.completion.Completer()
+    readline.set_completer(comp.complete)
     mysql_path = raw_input("mysql location: ")
   else:
     mysql_path = Options.options.mysql
