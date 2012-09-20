@@ -42,6 +42,7 @@ void checkpointer_test::test_begin_checkpoint() {
     cachetable ctbl;
     ctbl.list.init();
 
+    ZERO_STRUCT(m_cp);
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
 
     // 1. Call checkpoint with NO cachefiles.
@@ -97,6 +98,7 @@ void checkpointer_test::test_pending_bits() {
     cachetable ctbl;
     ctbl.list.init();
 
+    ZERO_STRUCT(m_cp);
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
 
     //
@@ -250,6 +252,7 @@ void checkpointer_test::test_end_checkpoint() {
     cf.for_checkpoint = true;
     create_dummy_functions(&cf);
 
+    ZERO_STRUCT(m_cp);
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
     m_cp.m_cf_list->m_head = &cf;
 
