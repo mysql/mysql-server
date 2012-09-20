@@ -15437,11 +15437,11 @@ static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
 static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
    PLUGIN_VAR_RQCMDARG,
    "Maximum delay of user threads in micro-seconds",
-   NULL, NULL, 
+   NULL, NULL,
    0L,			/* Default seting */
    0L,			/* Minimum value */
    10000000UL, 0);	/* Maximum value */
- 
+
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
