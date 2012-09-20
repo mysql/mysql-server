@@ -870,7 +870,7 @@ struct row_prebuilt_t {
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 	/*----------------------*/
-	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
+	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };

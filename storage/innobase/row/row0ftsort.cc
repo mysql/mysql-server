@@ -778,7 +778,7 @@ exit:
 				  	}
 				}
 
-				# write out the last batch 
+				# write out the last batch
 				if (offset > 0) {
 					row_merge_write();
 					offset++;
@@ -1349,7 +1349,7 @@ row_fts_merge_insert(
 		count_diag += (int) psort_info[i].merge_file[id]->n_rec;
 	}
 
-	if (fts_enable_diag_print) { 
+	if (fts_enable_diag_print) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB_FTS: to inserted %lu records\n",
 			(ulong) count_diag);
