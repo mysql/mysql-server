@@ -18,11 +18,28 @@
  02110-1301  USA
  */
 
+/* 1: Require adapter_config.js. 
+      This imports path, fs, assert, util, and unified_debug modules globally.
+      It also sets some global location variables: adapter_dir, spi_dir, etc.
+      
+      adapter_config is required here, rather than at the top level of the api,
+      so that the spi can be used independently of the api.  
+*/
 require("../adapter_config.js");
 
 exports.getDBServiceProvider = function(impl_name) {
-  var module = path.join(adapter_dir, "impl", impl_name,
-                         impl_name + "_service_provider.js");
-  var spi = require(module);
+  var module = path.join(spi_dir, impl_name, impl_name + "_service_provider.js");
+  var service;
+
+  /* If the module file does not exist, throw an error.
+  */  
+  if(! path.existsSync(module)) {
+    throw new Error('Unknown service provider "' + impl_name + '"');
+  }
+
+  
+  
+
+
   return spi;
 };

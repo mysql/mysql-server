@@ -22,7 +22,7 @@
 
 'use strict';
 
-var mynode = require('../Adapter/api/mynode.js');
+var mynode = require('..');
 
 var adapter = 'ndb';
 

@@ -54,10 +54,15 @@ exports.ConnectionProperties = function(name) {
 
 exports.connect = function(properties, annotations, user_callback, extra1, extra2, extra3, extra4) {
   var mynode = this;
-  // if user doesn't specify properties, default to ndb adapter
-  if (typeof(properties) !== 'object' || properties == null) {
+
+  // Properties can be a string adapter name.  It defaults to 'ndb'.
+  if(typeof properties === 'string') {
+    properties = this.ConnctionProperties(properties);
+  }
+  else if (properties === null) {
     properties = this.ConnectionProperties('ndb');
   }
+
   var sp = spi.getDBServiceProvider(properties.implementation);
   var connectionKey = sp.getFactoryKey(properties);
   var database = properties.database;

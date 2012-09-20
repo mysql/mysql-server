@@ -23,14 +23,15 @@
 "use strict";
 
 var userContext = require('../impl/common/UserContext.js'),
-    udebug      = unified_debug.getLogger("TableMapping.js");
-
+    udebug      = unified_debug.getLogger("TableMapping.js"),
+    transaction = require('./Transaction.js');
 
 function Session(index, sessionFactory, dbSession) {
   this.index = index;
   this.sessionFactory = sessionFactory;
   this.dbSession = dbSession;
   this.closed = false;
+  this.tx = new transaction.Transaction(this);
 }
 
 
@@ -109,5 +110,9 @@ exports.Session.prototype.isBatch = function() {
 
 exports.Session.prototype.isClosed = function() {
   return this.closed;
+};
+
+exports.Session.prototype.currentTransaction = function() {
+  return this.tx;
 };
 

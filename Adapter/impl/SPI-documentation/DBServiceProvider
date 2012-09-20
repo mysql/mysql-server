@@ -7,7 +7,7 @@
      connectSync(properties)
      connect(properties, callback)
      getFactoryKey(properties)
-     getNativeCodeModules()
+     getRequiredModules()
 */
 
 
@@ -19,7 +19,7 @@
   function getDefaultConnectionProperties() {};
 
 
-/* DBConnectionPool connectSync(Object properties);
+/* DBConnectionPool connectSync(Object properties)
    SYNC.
    Blocking connect.  
    RETURNS a DBConnectionPool object
@@ -34,7 +34,7 @@
   function connect(properties, callback) {};
 
 
-/* String getFactoryKey(Object properties);
+/* String getFactoryKey(Object properties)
    IMMEDIATE
    Create a SessionFactory key that will identify a DBConnectionPool 
    based on connection properties.
@@ -43,12 +43,11 @@
   function getFactoryKey(properties) {};
 
 
-/* Array getNativeCodeModules();
+/* Array getRequiredModules()
    IMMEDIATE
-   Get an array containing the native-code modules required by a
-   service provider.
-   The array constists of pathnames relative to the Adapter directory.
+   Get an array listing the modules required by a service provider.
+   Any relative pathnames are considered as relative to ... //FIXME WHERE?
    The array elements are in the order in which the files should be loaded.
    RETURNS the array.
 */
-  function getNativeCodeModules() {};
+  function getRequiredModules() {};

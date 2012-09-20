@@ -76,6 +76,6 @@ exports.connect = function(properties, sessionFactory_callback) {
 };
 
 
-exports.getNativeCodeModules = function() {
-  return [];
+exports.getRequiredModules = function() {
+  return [ "mysql" ];
 };
