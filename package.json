@@ -1,8 +1,8 @@
 
 {
-  "name"        : "mysql-objects"
+  "name"        : "mysql-js"
   ,
-  "version"     : "0.0.157-alpha"
+  "version"     : "0.0.165-alpha"
   ,  
   "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
   ,

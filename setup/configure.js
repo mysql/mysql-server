@@ -46,10 +46,10 @@ var greeting =
 '#  September, 2012'                                                        +lf+
 '# '                                                                        +lf+
 '#  The NoSQL API for Node.JS provides lightweight object mapping for '     +lf+
-'#  JavaScript.  The API can be used with two separate backends:'           +lf+
-'#    - The "ndb" backend, which uses the C++ NDB API to provide'           +lf+
+'#  JavaScript.  The API can be used with two separate backend adapters:'   +lf+
+'#    - The "ndb" adapter, which uses the C++ NDB API to provide'           +lf+
 '#      high-performance native access to MySQL Cluster. '                  +lf+
-'#    - The "mysql" backend, which uses the node-mysql driver '             +lf+ 
+'#    - The "mysql" adapter, which uses the node-mysql driver '             +lf+ 
 '#      available from http://github.com/felixge/node-mysql'                +lf+
 '# '                                                                        +lf+
 '#  The mysql backend translates API calls into SQL statements and sends '  +lf+
@@ -57,7 +57,7 @@ var greeting =
 '#  NDB data nodes, without translating to SQL or making any use of a '     +lf+ 
 '#  MySQL Server.'                                                          +lf+
 '# '                                                                        +lf+
-'#  In order to build and run the ndb backend, you must have: '             +lf+
+'#  In order to build and run the ndb adapter, you must have: '             +lf+
 '#    - An installation of MySQL Cluster 7.x or MySQL 5.6 '                 +lf+
 '#      including headers and shared library files [' +archname +']'        +lf+
 '#    - A working C++ compiler '                                            +lf+
