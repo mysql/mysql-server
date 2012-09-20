@@ -212,6 +212,7 @@ human_print_perf_iteration(const struct cli_args *cli_args, const int current_ti
         const double totalpersecond = (double) period_total / secondsthisiter;
         printf("\tTotal %'12" PRIu64 " (%'12.1lf/s)\n", period_total, totalpersecond);
     }
+    fflush(stdout);
 }
 
 static void
@@ -289,6 +290,7 @@ csv_print_perf_iteration(const struct cli_args *cli_args, const int current_time
         printf(",%" PRIu64 ",%.1lf", period_totals[op], totalpersecond);
     }
     printf("\n");
+    fflush(stdout);
 }
 
 static void
@@ -355,6 +357,7 @@ tsv_print_perf_iteration(const struct cli_args *cli_args, const int current_time
         printf("\t%" PRIu64 "\t%.1lf", period_totals[op], totalpersecond);
     }
     printf("\n");
+    fflush(stdout);
 }
 
 static void
