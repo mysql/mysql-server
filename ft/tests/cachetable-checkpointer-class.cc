@@ -261,6 +261,7 @@ void checkpointer_test::test_end_checkpoint() {
     // 2. Add data before running checkpoint.
     const uint32_t count = 6;
     ctpair pairs[count];
+    ZERO_ARRAY(pairs);
     add_pairs(&cf, pairs, count / 2, 0);
     assert(m_cp.m_list->m_n_in_table == count / 2);
 
