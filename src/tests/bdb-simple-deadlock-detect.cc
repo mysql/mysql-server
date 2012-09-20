@@ -135,7 +135,7 @@ static void *run_locker_b(void *arg) {
 static void simple_deadlock(DB_ENV *db_env) {
     int r;
 
-    struct test_seq test_seq; test_seq_init(&test_seq);
+    struct test_seq test_seq; ZERO_STRUCT(test_seq); test_seq_init(&test_seq);
 
     int deadlock_count = 0 ;
 

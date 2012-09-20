@@ -162,7 +162,7 @@ int test_main(int argc, char * const argv[]) {
     r = db->open(db, NULL, db_filename, NULL, DB_BTREE, DB_CREATE|DB_AUTO_COMMIT|DB_THREAD, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
 
     // run test
-    struct test_seq seq; test_seq_init(&seq);
+    struct test_seq seq; ZERO_STRUCT(seq); test_seq_init(&seq);
     toku_pthread_t t_a_id;
     struct t_a_args t_a_args = { db_env, db, &seq };
     r = toku_pthread_create(&t_a_id, NULL, t_a_thread, &t_a_args); assert(r == 0);
