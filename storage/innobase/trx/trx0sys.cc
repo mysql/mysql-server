@@ -1116,11 +1116,11 @@ trx_sys_read_pertable_file_format_id(
 	if (flags == 0) {
 		/* file format is Antelope */
 		*format_id = 0;
-		return (TRUE);
+		return(TRUE);
 	} else if (flags & 1) {
 		/* tablespace flags are ok */
 		*format_id = (flags / 32) % 128;
-		return (TRUE);
+		return(TRUE);
 	} else {
 		/* bad tablespace flags */
 		return(FALSE);
@@ -1139,7 +1139,7 @@ trx_sys_file_format_id_to_name(
 {
 	if (!(id < FILE_FORMAT_NAME_N)) {
 		/* unknown id */
-		return ("Unknown");
+		return("Unknown");
 	}
 
 	return(file_format_name_map[id]);

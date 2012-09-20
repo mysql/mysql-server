@@ -1224,7 +1224,7 @@ fts_tokenizer_word_get(
 	if (rbt_search(cache->stopword_info.cached_stopword,
 		       &parent, text) == 0) {
 
-		return NULL;
+		return(NULL);
 	}
 
 	/* Check if we found a match, if not then add word to tree. */
@@ -1962,22 +1962,22 @@ fts_get_state_str(
 {
 	switch (state) {
 	case FTS_INSERT:
-		return "INSERT";
+		return("INSERT");
 
 	case FTS_MODIFY:
-		return "MODIFY";
+		return("MODIFY");
 
 	case FTS_DELETE:
-		return "DELETE";
+		return("DELETE");
 
 	case FTS_NOTHING:
-		return "NOTHING";
+		return("NOTHING");
 
 	case FTS_INVALID:
-		return "INVALID";
+		return("INVALID");
 
 	default:
-		return "UNKNOWN";
+		return("UNKNOWN");
 	}
 }
 #endif
