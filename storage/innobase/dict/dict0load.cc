@@ -187,7 +187,8 @@ dict_print(void)
 
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -223,7 +224,8 @@ dict_print(void)
 	/* Restore the fatal semaphore wait timeout */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 }
 
 /********************************************************************//**
@@ -1093,8 +1095,8 @@ loop:
 
 			/* filepath can be NULL in this call. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, true, space_id,
-				dict_tf_to_fsp_flags(flags),
+				false, srv_read_only_mode ? false : true,
+				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
 			if (err != DB_SUCCESS) {
