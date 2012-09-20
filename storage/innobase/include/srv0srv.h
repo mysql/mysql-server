@@ -245,6 +245,7 @@ extern ibool	srv_created_new_raw;
 
 extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
+extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;

@@ -506,174 +506,81 @@ srv_normalize_path_for_win(
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
-Creates or opens the log files and closes them.
+Creates a log file.
 @return	DB_SUCCESS or error code */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
-open_or_create_log_file(
-/*====================*/
-	ibool	create_new_db,		/*!< in: TRUE if we should create a
-					new database */
-	ibool*	log_file_created,	/*!< out: TRUE if new log file
-					created */
-	ibool	log_file_has_been_opened,/*!< in: TRUE if a log file has been
-					opened before: then it is an error
-					to try to create another log file */
-	ulint	k,			/*!< in: log group number */
-	ulint	i)			/*!< in: log file number in group */
+create_log_file(
+/*============*/
+	os_file_t*	file,	/*!< out: file handle */
+	const char*	name)	/*!< in: log file name */
 {
 	ibool		ret;
-	os_offset_t	size;
-	char		name[10000];
-	ulint		dirnamelen;
 
-	UT_NOT_USED(create_new_db);
-
-	*log_file_created = FALSE;
-
-	srv_normalize_path_for_win(srv_log_group_home_dir);
-
-	dirnamelen = strlen(srv_log_group_home_dir);
-	ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
-	memcpy(name, srv_log_group_home_dir, dirnamelen);
-
-	/* Add a path separator if needed. */
-	if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-		name[dirnamelen++] = SRV_PATH_SEPARATOR;
-	}
-
-	sprintf(name + dirnamelen, "%s%lu", "ib_logfile", (ulong) i);
-
-	/* Note: If the file doesn't exist then this check will return true. */
-
-	if (!srv_file_check_mode(name)) {
-		return(DB_ERROR);
-	}
-
-	files[i] = os_file_create(
+	*file = os_file_create(
 		innodb_file_log_key, name,
 		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
 
-	if (ret == FALSE) {
-		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
-#ifdef UNIV_AIX
-		    /* AIX 5.1 after security patch ML7 may have errno set
-		    to 0 here, which causes our function to return 100;
-		    work around that AIX problem */
-		    && os_file_get_last_error(false) != 100
-#endif
-		    ) {
-			fprintf(stderr,
-				"InnoDB: Error in creating"
-				" or opening %s\n", name);
+	ut_print_timestamp(stderr);
 
-			return(DB_ERROR);
-		}
+	fprintf(stderr,
+		" InnoDB: Log file %s did not exist:"
+		" new to be created\n",
+		name);
 
-		files[i] = os_file_create(innodb_file_log_key, name,
-					  OS_FILE_OPEN, OS_FILE_AIO,
-					  OS_LOG_FILE, &ret);
-		if (!ret) {
-			fprintf(stderr,
-				"InnoDB: Error in opening %s\n", name);
+	fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
+		name, (ulong) srv_log_file_size
+		>> (20 - UNIV_PAGE_SIZE_SHIFT));
 
-			return(DB_ERROR);
-		}
+	fprintf(stderr,
+		"InnoDB: Database physically writes the file"
+		" full: wait...\n");
 
-		size = os_file_get_size(files[i]);
-		ut_a(size != (os_offset_t) -1);
-
-		if (UNIV_UNLIKELY(size != (os_offset_t) srv_log_file_size
-				  << UNIV_PAGE_SIZE_SHIFT)) {
-
-			fprintf(stderr,
-				"InnoDB: Error: log file %s is"
-				" of different size "UINT64PF" bytes\n"
-				"InnoDB: than specified in the .cnf"
-				" file "UINT64PF" bytes!\n",
-				name, size,
-				(os_offset_t) srv_log_file_size
-				<< UNIV_PAGE_SIZE_SHIFT);
-
-			return(DB_ERROR);
-		}
-	} else {
-		*log_file_created = TRUE;
-
-		ut_print_timestamp(stderr);
-
+	ret = os_file_set_size(name, *file,
+			       (os_offset_t) srv_log_file_size
+			       << UNIV_PAGE_SIZE_SHIFT);
+	if (!ret) {
 		fprintf(stderr,
-			" InnoDB: Log file %s did not exist:"
-			" new to be created\n",
+			"InnoDB: Error in creating %s:"
+			" probably out of disk space\n",
 			name);
-		if (log_file_has_been_opened) {
 
-			return(DB_ERROR);
-		}
-
-		fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
-			name, (ulong) srv_log_file_size
-			>> (20 - UNIV_PAGE_SIZE_SHIFT));
-
-		fprintf(stderr,
-			"InnoDB: Database physically writes the file"
-			" full: wait...\n");
-
-		ret = os_file_set_size(name, files[i],
-				       (os_offset_t) srv_log_file_size
-				       << UNIV_PAGE_SIZE_SHIFT);
-		if (!ret) {
-			fprintf(stderr,
-				"InnoDB: Error in creating %s:"
-				" probably out of disk space\n",
-				name);
-
-			return(DB_ERROR);
-		}
+		return(DB_ERROR);
 	}
 
-	ret = os_file_close(files[i]);
+	ret = os_file_close(*file);
 	ut_a(ret);
 
-	if (i == 0) {
-		/* Create in memory the file space object
-		which is for this log group */
+	return(DB_SUCCESS);
+}
 
-		fil_space_create(name,
-				 2 * k + SRV_LOG_SPACE_FIRST_ID,
-				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-				 FIL_LOG);
+/*********************************************************************//**
+Opens a log file.
+@return	DB_SUCCESS or error code */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+open_log_file(
+/*==========*/
+	os_file_t*	file,	/*!< out: file handle */
+	const char*	name,	/*!< in: log file name */
+	os_offset_t*	size)	/*!< out: file size */
+{
+	ibool	ret;
+
+	*file = os_file_create(innodb_file_log_key, name,
+			       OS_FILE_OPEN, OS_FILE_AIO,
+			       OS_LOG_FILE, &ret);
+	if (!ret) {
+		fprintf(stderr,
+			"InnoDB: Error in opening %s\n", name);
+
+		return(DB_ERROR);
 	}
 
-	ut_a(fil_validate());
+	*size = os_file_get_size(*file);
 
-	/* srv_log_file_size is measured in pages; if page size is 16KB,
-	then we have a limit of 64TB on 32 bit systems */
-	ut_a(srv_log_file_size <= ULINT_MAX);
-
-	fil_node_create(name, (ulint) srv_log_file_size,
-			2 * k + SRV_LOG_SPACE_FIRST_ID, FALSE);
-#ifdef UNIV_LOG_ARCHIVE
-	/* If this is the first log group, create the file space object
-	for archived logs.
-	Under MySQL, no archiving ever done. */
-
-	if (k == 0 && i == 0) {
-		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
-
-		fil_space_create("arch_log_space", arch_space_id, 0, FIL_LOG);
-	} else {
-		arch_space_id = ULINT_UNDEFINED;
-	}
-#endif /* UNIV_LOG_ARCHIVE */
-	if (i == 0) {
-		log_group_init(k, srv_n_log_files,
-			       srv_log_file_size * UNIV_PAGE_SIZE,
-			       2 * k + SRV_LOG_SPACE_FIRST_ID,
-			       SRV_LOG_SPACE_FIRST_ID + 1); /* dummy arch
-							    space id */
-	}
-
+	ret = os_file_close(*file);
+	ut_a(ret);
 	return(DB_SUCCESS);
 }
 
@@ -1373,9 +1280,7 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
 	ibool		create_new_db;
-	ibool		log_file_created;
-	ibool		log_created	= FALSE;
-	ibool		log_opened	= FALSE;
+	ibool		log_created;
 	lsn_t		min_flushed_lsn;
 	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
@@ -1390,6 +1295,8 @@ innobase_start_or_create_for_mysql(void)
 	ulint		io_limit;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
+	char		logfilename[10000];
+	size_t		dirnamelen;
 
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
@@ -1794,7 +1701,7 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
-	if (0 != ut_strcmp(srv_log_group_home_dirs[0], srv_arch_dir)) {
+	if (0 != ut_strcmp(srv_log_group_home_dir, srv_arch_dir)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: Error: you must set the log group home dir in my.cnf\n");
 		ut_print_timestamp(stderr);
@@ -1898,35 +1805,122 @@ innobase_start_or_create_for_mysql(void)
 	srv_arch_dir = srv_add_path_separator_if_needed(srv_arch_dir);
 #endif /* UNIV_LOG_ARCHIVE */
 
-	for (i = 0; i < srv_n_log_files; i++) {
+	dirnamelen = strlen(srv_log_group_home_dir);
+	ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
+	memcpy(logfilename, srv_log_group_home_dir, dirnamelen);
 
-		err = open_or_create_log_file(
-			create_new_db, &log_file_created, log_opened, 0, i);
+	/* Add a path separator if needed. */
+	if (dirnamelen && logfilename[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
+		logfilename[dirnamelen++] = SRV_PATH_SEPARATOR;
+	}
 
-		if (err != DB_SUCCESS) {
+	srv_log_file_size_requested = srv_log_file_size;
+	log_created = FALSE;
 
-			return(err);
-		} else if (log_file_created) {
-			log_created = TRUE;
-		} else {
-			log_opened = TRUE;
+	if (create_new_db) {
+create_log_files:
+		for (i = 0; i < srv_n_log_files; i++) {
+			sprintf(logfilename + dirnamelen,
+				"ib_logfile%lu", (ulong) i);
+
+			err = create_log_file(&files[i], logfilename);
+
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
 		}
-		if ((log_opened && create_new_db)
-		    || (log_opened && log_created)) {
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"All log files must be created at the "
-				"same time. All log files must be created "
-				"also in database creation. If you want "
-				"bigger or smaller log files, shut down "
-				"the database cleanly and make sure there "
-				"were no errors during shutdown. Then delete "
-				"the existing log files. Edit the .cnf file "
-				"and start the database again.");
+		log_created = TRUE;
+	} else {
+		for (i = 0; i < 100/* max of srv_n_log_files */; i++) {
+			os_offset_t	size;
+			os_file_stat_t	stat_info;
 
-			return(DB_ERROR);
+			sprintf(logfilename + dirnamelen,
+				"ib_logfile%lu", (ulong) i);
+
+			err = os_file_get_status(
+				logfilename, &stat_info, false);
+
+			if (err == DB_NOT_FOUND) {
+				if (i == 0) {
+					goto create_log_files;
+				}
+
+				if (i < 2) {
+					/* must have at least 2 log files */
+					return(err);
+				}
+
+				/* opened all files */
+				break;
+			}
+
+			err = open_log_file(&files[i], logfilename, &size);
+
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+
+			ut_a(size != (os_offset_t) -1);
+
+			if (size & ((1 << UNIV_PAGE_SIZE_SHIFT) - 1)) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"InnoDB: Error: log file %s size "
+					UINT64PF " is not a multiple of"
+					" innodb_page_size\n",
+					logfilename, size);
+				return(DB_ERROR);
+			}
+
+			size >>= UNIV_PAGE_SIZE_SHIFT;
+
+			if (i == 0) {
+				srv_log_file_size = size;
+			} else if (size != srv_log_file_size) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Log file %s is"
+					" of different size "UINT64PF" bytes"
+					" than other log "
+					" files "UINT64PF" bytes!\n",
+					logfilename,
+					size << UNIV_PAGE_SIZE_SHIFT,
+					(os_offset_t) srv_log_file_size
+					<< UNIV_PAGE_SIZE_SHIFT);
+				return(DB_ERROR);
+			}
 		}
 	}
+
+	/* Create the in-memory file space objects. */
+
+	sprintf(logfilename + dirnamelen, "ib_logfile%lu", 0UL);
+
+	fil_space_create(logfilename,
+			 SRV_LOG_SPACE_FIRST_ID,
+			 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+			 FIL_LOG);
+
+	ut_a(fil_validate());
+
+	/* srv_log_file_size is measured in pages; if page size is 16KB,
+	then we have a limit of 64TB on 32 bit systems */
+	ut_a(srv_log_file_size <= ULINT_MAX);
+
+	for (ulint j = 0; j < i; j++) {
+		fil_node_create(logfilename, (ulint) srv_log_file_size,
+				SRV_LOG_SPACE_FIRST_ID, FALSE);
+	}
+
+#ifdef UNIV_LOG_ARCHIVE
+	/* Create the file space object for archived logs. Under
+	MySQL, no archiving ever done. */
+	fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
+			 0, FIL_LOG);
+#endif /* UNIV_LOG_ARCHIVE */
+	log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
+		       SRV_LOG_SPACE_FIRST_ID,
+		       SRV_LOG_SPACE_FIRST_ID + 1); /* dummy arch space id */
 
 	/* Open all log files and data files in the system tablespace: we
 	keep them open until database shutdown */
@@ -2108,6 +2102,11 @@ innobase_start_or_create_for_mysql(void)
 		if (err != DB_SUCCESS) {
 
 			return(DB_ERROR);
+		}
+
+		if (i != srv_n_log_files
+		    || srv_log_file_size_requested != srv_log_file_size) {
+			ut_error; /* TODO */
 		}
 
 		/* Since the insert buffer init is in dict_boot, and the
