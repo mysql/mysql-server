@@ -48,8 +48,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_logger_open(logdir, logger);
     assert(error == 0);
     CACHETABLE ct = NULL;
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, logger);
     toku_logger_set_cachetable(logger, ct);
     error = toku_logger_open_rollback(logger, ct, true);
     assert(error == 0);
@@ -78,8 +77,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
         toku_fill_dbt(&key, &k, sizeof k);
         DBT val;
         toku_fill_dbt(&val, &v, sizeof v);
-        error = toku_ft_insert(brt, &key, &val, txn);
-        assert(error == 0);
+        toku_ft_insert(brt, &key, &val, txn);
     }
 
     error = toku_txn_commit_txn(txn, true, NULL, NULL);
@@ -92,20 +90,18 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
-    error = toku_logger_close_rollback(logger, false);
+    toku_logger_close_rollback(logger);
     assert(error == 0);
 
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
 
-    error = toku_logger_shutdown(logger);
-    CKERR(error);
+    toku_logger_shutdown(logger);
 
     error = toku_logger_close(&logger);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 // test toku_le_cursor_is_key_greater when the LE_CURSOR is positioned at -infinity
@@ -115,8 +111,7 @@ test_neg_infinity(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     FT_HANDLE brt = NULL;
     error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_keycompare);
@@ -135,14 +130,12 @@ test_neg_infinity(const char *fname, int n) {
         assert(right == true);
     }
         
-    error = toku_le_cursor_close(cursor);
-    assert(error == 0);
+    toku_le_cursor_close(cursor);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 // test toku_le_cursor_is_key_greater when the LE_CURSOR is positioned at +infinity
@@ -152,8 +145,7 @@ test_pos_infinity(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     FT_HANDLE brt = NULL;
     error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_keycompare);
@@ -196,14 +188,12 @@ test_pos_infinity(const char *fname, int n) {
         assert(right == false);
     }
 
-    error = toku_le_cursor_close(cursor);
-    assert(error == 0);
+    toku_le_cursor_close(cursor);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 // test toku_le_cursor_is_key_greater when the LE_CURSOR is positioned in between -infinity and +infinity
@@ -213,8 +203,7 @@ test_between(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     FT_HANDLE brt = NULL;
     error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_keycompare);
@@ -268,14 +257,12 @@ test_between(const char *fname, int n) {
     toku_destroy_dbt(&key);
     toku_destroy_dbt(&val);
 
-    error = toku_le_cursor_close(cursor);
-    assert(error == 0);
+    toku_le_cursor_close(cursor);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 static void

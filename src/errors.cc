@@ -20,7 +20,7 @@
 /** Checks whether the environment has panicked */
 int toku_env_is_panicked(DB_ENV *dbenv /**< The environment to check */) {
     if (dbenv==0) return 0;
-    return dbenv->i->is_panicked || toku_logger_panicked(dbenv->i->logger);
+    return dbenv->i->is_panicked;
 }
 
 
@@ -91,7 +91,6 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
     \param fmt    The format string for additional variable arguments to
                   be printed   */
 int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
-    if (toku_logger_panicked(dbenv->i->logger)) dbenv->i->is_panicked=1;
     va_list ap;
     va_start(ap, fmt);
     toku_ydb_error_all_cases(dbenv, error, false, false, fmt, ap);

@@ -131,15 +131,10 @@ unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
 int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
-int toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
+void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
-int toku_bnc_flush_to_child(
-    FT h,
-    NONLEAF_CHILDINFO bnc, 
-    FTNODE child
-    );
-bool
-toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
+void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child);
+bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
 
 
 enum reactivity get_nonleaf_reactivity (FTNODE node);
@@ -463,11 +458,6 @@ struct ft {
     // A checkpoint is running.  If true, then keep this header around for checkpoint, like a transaction
     bool pinned_by_checkpoint;
 
-    // If nonzero there was a write error.  Don't write any more, because it probably only gets worse.  This is the error code.
-    int panic;
-    // A malloced string that can indicate what went wrong.
-    char *panic_string;
-
     // is this ft a blackhole? if so, all messages are dropped.
     bool blackhole;
 };
@@ -550,8 +540,7 @@ deserialize_ft_from_fd_into_rbuf(int fd,
 int
 deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
 
-int
-read_block_from_fd_into_rbuf(
+void read_block_from_fd_into_rbuf(
     int fd, 
     BLOCKNUM blocknum,
     FT h,
@@ -582,9 +571,9 @@ unsigned int toku_serialize_ftnode_size(FTNODE node); /* How much space will it 
 
 void toku_verify_or_set_counts(FTNODE);
 
-int toku_serialize_ft_size (FT_HEADER h);
-int toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf);
-int toku_serialize_ft_to_wbuf (
+size_t toku_serialize_ft_size (FT_HEADER h);
+void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf);
+void toku_serialize_ft_to_wbuf (
     struct wbuf *wbuf, 
     FT_HEADER h, 
     DISKOFF translation_location_on_disk, 
@@ -892,8 +881,7 @@ int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra)
     __attribute__((__warn_unused_result__));
 
 // toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
-int toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd)
-    __attribute__((__warn_unused_result__));
+void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd);
 
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size, void **maybe_free);
 // Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items

@@ -37,10 +37,10 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int node
 // - can only update cmp descriptor immidiately after opening the FIRST ft handle for this ft and before 
 //   ANY operations. to update the cmp descriptor after any operations have already happened, all handles 
 //   and transactions must close and reopen before the change, then you can update the cmp descriptor
-int toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT* new_descriptor, bool do_log, TOKUTXN txn, bool update_cmp_descriptor);
+void toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT* new_descriptor, bool do_log, TOKUTXN txn, bool update_cmp_descriptor);
 uint32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
 
-int toku_ft_handle_create(FT_HANDLE *)  __attribute__ ((warn_unused_result));
+void toku_ft_handle_create(FT_HANDLE *ft);
 void toku_ft_set_flags(FT_HANDLE, unsigned int flags);
 void toku_ft_get_flags(FT_HANDLE, unsigned int *flags);
 void toku_ft_handle_set_nodesize(FT_HANDLE, unsigned int nodesize);
@@ -51,7 +51,7 @@ void toku_ft_handle_get_basementnodesize(FT_HANDLE, unsigned int *basementnodesi
 void toku_ft_handle_set_compression_method(FT_HANDLE, enum toku_compression_method);
 void toku_ft_handle_get_compression_method(FT_HANDLE, enum toku_compression_method *);
 
-int toku_ft_set_bt_compare(FT_HANDLE, ft_compare_func)  __attribute__ ((warn_unused_result));
+void toku_ft_set_bt_compare(FT_HANDLE, ft_compare_func);
 ft_compare_func toku_ft_get_bt_compare (FT_HANDLE brt);
 
 void toku_ft_set_redirect_callback(FT_HANDLE brt, on_redirect_callback redir_cb, void* extra);
@@ -92,7 +92,7 @@ void toku_ft_set_redirect_callback(FT_HANDLE brt, on_redirect_callback redir_cb,
 // Implementation note: Acquires a write lock on the entire database.
 //  This function works by sending an BROADCAST-UPDATE message containing
 //   the key and the extra.
-int toku_ft_set_update(FT_HANDLE brt, ft_update_func update_fun) __attribute__ ((warn_unused_result));
+void toku_ft_set_update(FT_HANDLE brt, ft_update_func update_fun);
 
 int toku_ft_handle_open(FT_HANDLE, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn)  __attribute__ ((warn_unused_result));
@@ -122,51 +122,43 @@ toku_ft_handle_open_with_dict_id(
 int toku_ft_lookup (FT_HANDLE brt, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 
 // Effect: Insert a key and data pair into a brt
-// Returns 0 if successful
-int toku_ft_insert (FT_HANDLE brt, DBT *k, DBT *v, TOKUTXN txn)  __attribute__ ((warn_unused_result));
+void toku_ft_insert (FT_HANDLE brt, DBT *k, DBT *v, TOKUTXN txn);
 
-int toku_ft_optimize (FT_HANDLE brt)  __attribute__ ((warn_unused_result));
+// Effect: Optimize the ft
+void toku_ft_optimize (FT_HANDLE brt);
 
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
-// Returns 0 if successful
-int toku_ft_maybe_insert (FT_HANDLE brt, DBT *k, DBT *v, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, enum ft_msg_type type)  __attribute__ ((warn_unused_result));
+void toku_ft_maybe_insert (FT_HANDLE brt, DBT *k, DBT *v, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, enum ft_msg_type type);
 
 // Effect: Send an update message into a brt.  This function is called
 // during recovery.
-// Returns 0 if successful
-int toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_function_extra, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging) __attribute__ ((warn_unused_result));
+void toku_ft_maybe_update(FT_HANDLE brt, const DBT *key, const DBT *update_function_extra, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging);
 
 // Effect: Send a broadcasting update message into a brt.  This function
 // is called during recovery.
-// Returns 0 if successful
-int toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, bool is_resetting_op) __attribute__ ((warn_unused_result));
+void toku_ft_maybe_update_broadcast(FT_HANDLE brt, const DBT *update_function_extra, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging, bool is_resetting_op);
 
-int toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
-int toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn)  __attribute__ ((warn_unused_result));
-// 2954
-int toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_log, LSN *hot_index_lsn);
-int toku_ft_hot_index(FT_HANDLE brt, TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn) __attribute__ ((warn_unused_result));
+void toku_ft_load_recovery(TOKUTXN txn, FILENUM old_filenum, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn);
+void toku_ft_load(FT_HANDLE brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn);
+void toku_ft_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_log, LSN *hot_index_lsn);
+void toku_ft_hot_index(FT_HANDLE brt, TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn);
 
-int toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val)  __attribute__ ((warn_unused_result));
-int toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val)  __attribute__ ((warn_unused_result));
-int toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val) __attribute__ ((warn_unused_result));
-int toku_ft_log_del (TOKUTXN txn, FT_HANDLE brt, const DBT *key) __attribute__ ((warn_unused_result));
+void toku_ft_log_put_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val);
+void toku_ft_log_put (TOKUTXN txn, FT_HANDLE brt, const DBT *key, const DBT *val);
+void toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *brts, int num_fts, const DBT *key, const DBT *val);
+void toku_ft_log_del (TOKUTXN txn, FT_HANDLE brt, const DBT *key);
 
 // Effect: Delete a key from a brt
-// Returns 0 if successful
-int toku_ft_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn)  __attribute__ ((warn_unused_result));
+void toku_ft_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn);
 
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
-// Returns 0 if successful
-int toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging)  __attribute__ ((warn_unused_result));
+void toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging);
 
-int toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type) __attribute__ ((warn_unused_result));
-int toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
-int toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
+void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type);
+void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids);
+void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids);
 
 int toku_close_ft_handle_nolsn (FT_HANDLE, char **error_string)  __attribute__ ((warn_unused_result));
-
-int toku_ft_handle_set_panic(FT_HANDLE brt, int panic, const char *panic_string)  __attribute__ ((warn_unused_result));
 
 int toku_dump_ft (FILE *,FT_HANDLE brt)  __attribute__ ((warn_unused_result));
 
@@ -200,7 +192,7 @@ int toku_ft_cursor_get_both_range(FT_CURSOR cursor, DBT *key, DBT *val, FT_GET_C
 int toku_ft_cursor_get_both_range_reverse(FT_CURSOR cursor, DBT *key, DBT *val, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 
 int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_close (FT_CURSOR curs)  __attribute__ ((warn_unused_result));
+void toku_ft_cursor_close (FT_CURSOR curs);
 bool toku_ft_cursor_uninitialized(FT_CURSOR c)  __attribute__ ((warn_unused_result));
 
 void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
@@ -214,8 +206,7 @@ enum ft_flags {
     TOKU_DB_VALCMP_BUILTIN_13  = (1<<3),
 };
 
-int 
-toku_ft_keyrange (FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater) __attribute__ ((warn_unused_result));
+void toku_ft_keyrange(FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater);
 
 struct ftstat64_s {
     uint64_t nkeys; /* estimate how many unique keys (even when flattened this may be an estimate)     */
@@ -228,8 +219,7 @@ struct ftstat64_s {
     uint64_t verify_time_sec; /* time of last verification, in seconds */
 };
 
-int 
-toku_ft_handle_stat64 (FT_HANDLE, TOKUTXN, struct ftstat64_s *stat) __attribute__ ((warn_unused_result));
+void toku_ft_handle_stat64 (FT_HANDLE, TOKUTXN, struct ftstat64_s *stat);
 
 int toku_ft_layer_init(void) __attribute__ ((warn_unused_result));
 void toku_ft_open_close_lock(void);

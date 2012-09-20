@@ -18,7 +18,7 @@
 // unlink a ft from the filesystem with or without a txn.
 // if with a txn, then the unlink happens on commit.
 void toku_ft_unlink(FT_HANDLE handle);
-int toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn) __attribute__((__warn_unused_result__));
+void toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn);
 
 //Effect: suppresses rollback logs
 void toku_ft_suppress_rollbacks(FT h, TOKUTXN txn);
@@ -39,7 +39,7 @@ bool toku_ft_has_one_reference_unlocked(FT ft);
 
 // evict a ft from memory by closing its cachefile. any future work
 // will have to read in the ft in a new cachefile and new FT object.
-int toku_ft_evict_from_memory(FT ft, char **error_string, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+int toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
 
 FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
 
@@ -69,7 +69,6 @@ void toku_ft_remove_txn_ref(FT h);
 void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, uint32_t *roothash);
 void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key); 
 LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
-int toku_ft_set_panic(FT h, int panic, const char *panic_string) __attribute__ ((warn_unused_result));
 void toku_ft_stat64 (FT h, struct ftstat64_s *s);
 
 // unconditionally set the descriptor for an open FT. can't do this when 

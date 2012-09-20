@@ -19,8 +19,7 @@ static void test_header (void) {
     char fname[]= __SRCFILE__ ".ft_handle";
 
     // First create dictionary
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -35,12 +34,10 @@ static void test_header (void) {
     ft->in_memory_stats          = (STAT64INFO_S) {10, 11};
     ft->h->on_disk_stats            = (STAT64INFO_S) {20, 21};
     r = toku_close_ft_handle_nolsn(t, 0);     assert(r==0);
-    r = toku_cachetable_close(&ct);
-    assert(r==0);
+    toku_cachetable_close(&ct);
 
     // Now read dictionary back into memory and examine some header fields
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 0, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
@@ -53,8 +50,7 @@ static void test_header (void) {
     assert(ft->in_memory_stats.numrows == expected_stats.numrows);
     assert(ft->h->on_disk_stats.numbytes  == expected_stats.numbytes);
     r = toku_close_ft_handle_nolsn(t, 0);     assert(r==0);
-    r = toku_cachetable_close(&ct);
-    assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 int

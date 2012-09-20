@@ -280,11 +280,7 @@ int toku_txn_manager_start_txn(
         return r;
     }
 
-    r = toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, xids, for_recovery);
-    if (r != 0) {
-        // logger is panicked
-        return r;
-    }
+    toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, xids, for_recovery);
 
     // the act of getting a transaction ID and adding the
     // txn to the proper OMTs must be atomic. MVCC depends

@@ -40,7 +40,7 @@ run_test (pair_lock_type lock_type) {
     struct unlockers unlockers = {true, unlock_dummy, NULL, NULL};
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -81,9 +81,9 @@ run_test (pair_lock_type lock_type) {
     }
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); 
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); 
     assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);    
+    toku_cachetable_close(&ct);
 }
 
 int

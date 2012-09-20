@@ -41,11 +41,10 @@ static void setup_logger(int which) {
 }
 
 static void play_with_logger(int which) {
-    int r;
     {
 	ml_lock(&logger[which]->input_lock);
 	int lsize=LSIZE-12-2;
-	r = toku_logger_make_space_in_inbuf(logger[which], lsize);       assert(r==0); 
+	toku_logger_make_space_in_inbuf(logger[which], lsize);
 	snprintf(logger[which]->inbuf.buf+logger[which]->inbuf.n_in_buf, lsize, "a%*d", lsize-1, 0);
 	logger[which]->inbuf.n_in_buf += lsize;
 	logger[which]->lsn.lsn++;
@@ -55,7 +54,7 @@ static void play_with_logger(int which) {
 
     {
 	ml_lock(&logger[which]->input_lock);
-	r = toku_logger_make_space_in_inbuf(logger[which], 2);           assert(r==0);
+	toku_logger_make_space_in_inbuf(logger[which], 2);
 	memcpy(logger[which]->inbuf.buf+logger[which]->inbuf.n_in_buf, "b1", 2);
 	logger[which]->inbuf.n_in_buf += 2;
 	logger[which]->lsn.lsn++;

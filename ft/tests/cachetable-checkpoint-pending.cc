@@ -105,7 +105,7 @@ static void checkpoint_pending(void) {
     if (verbose) { printf("%s:%d n=%d\n", __FUNCTION__, __LINE__, N); fflush(stdout); }
     const int test_limit = N;
     int r;
-    r = toku_create_cachetable(&ct, test_limit*sizeof(int), ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit*sizeof(int), ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     r = unlink(fname1); if (r!=0) CKERR2(get_error_errno(), ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
@@ -119,7 +119,7 @@ static void checkpoint_pending(void) {
 	values[i] = 42;
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = flush;
-        r = toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), wc, put_callback_nop);
+        toku_cachetable_put(cf, key, hi, &values[i], make_pair_attr(sizeof(int)), wc, put_callback_nop);
         assert(r == 0);
 
         r = toku_test_cachetable_unpin(cf, key, hi, CACHETABLE_DIRTY, make_pair_attr(item_size));
@@ -153,8 +153,8 @@ static void checkpoint_pending(void) {
     assert(r == 0);
     assert(n_flush == 0 && n_write_me == 0 && n_keep_me == 0);
 
-    r = toku_cachefile_close(&cf, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&cf, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

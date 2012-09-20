@@ -35,14 +35,14 @@ static FT_HANDLE t;
 static void setup (void) {
     int r;
     unlink(fname);
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, NULL_TXN, toku_builtin_compare_fun); assert(r==0);
 }
 
 static void toku_shutdown (void) {
     int r;
     r = toku_close_ft_handle_nolsn(t, 0); assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 }
 static void long_long_to_array (unsigned char *a, unsigned long long l) {
     int i;
@@ -57,8 +57,7 @@ static void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    int r = toku_ft_insert(t, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
-    CKERR(r);
+    toku_ft_insert(t, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
     if (do_verify) toku_cachetable_verify(ct);
 }
 

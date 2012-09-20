@@ -99,8 +99,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
 
     // create a cachetable
     CACHETABLE ct = NULL;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     // create the brt
     TOKUTXN null_txn = NULL;
@@ -129,8 +128,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     assert(r == 0);
 
     // shutdown the cachetable
-    r = toku_cachetable_close(&ct);
-    assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 static int

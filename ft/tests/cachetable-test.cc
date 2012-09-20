@@ -28,32 +28,12 @@ static inline void test_mutex_unlock(void) {
     toku_mutex_unlock(&test_mutex);
 }
 
-static void *my_malloc_always_fails(size_t n UU()) {
-    errno = ENOMEM;
-    return NULL;
-}
-
 // verify that cachetable creation and close works
 
 static void
 test_cachetable_create(void) {
     CACHETABLE ct = NULL;
-    int r;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r == 0);
-    r = toku_cachetable_close(&ct);
-    assert(r == 0 && ct == 0);
-}
-
-// verify that cachetable create with no memory returns ENOMEM
-static void
-test_cachetable_create_no_memory (void) {
-    toku_set_func_malloc(my_malloc_always_fails);
-    CACHETABLE ct = NULL;
-    int r;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r == ENOMEM);
-    toku_set_func_malloc(NULL);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 }
 
 static const int test_object_size = 1;
@@ -106,8 +86,7 @@ static void test_nested_pin (void) {
     void *vv,*vv2;
     char fname[] = __SRCFILE__ "test_ct.dat";
     if (verbose) printf("creating cachetable\n");
-    r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
-    assert(r==0);
+    toku_cachetable_create(&t, 1, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
@@ -117,8 +96,7 @@ static void test_nested_pin (void) {
     uint32_t f1hash = toku_cachetable_hash(f, make_blocknum(1));
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(f2);
     wc.flush_callback = flush_n;
-    r = toku_cachetable_put(f, make_blocknum(1), f1hash, &i0, make_pair_attr(1), wc, put_callback_nop);
-    assert(r==0);
+    toku_cachetable_put(f, make_blocknum(1), f1hash, &i0, make_pair_attr(1), wc, put_callback_nop);
     r = toku_test_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     r = toku_cachetable_get_and_pin(f, make_blocknum(1), f1hash, &vv, NULL, wc, fetch_n, def_pf_req_callback, def_pf_callback, true, f2);
     assert(r==0);
@@ -132,13 +110,11 @@ static void test_nested_pin (void) {
     r = toku_test_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     assert(r==0);
     uint32_t f2hash = toku_cachetable_hash(f, make_blocknum(2));
-    r = toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, make_pair_attr(test_object_size), wc, put_callback_nop);
-    assert(r==0); // The other one is pinned, but now the cachetable fails gracefully:  It allows the pin to happen
+    toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, make_pair_attr(test_object_size), wc, put_callback_nop);
     r = toku_test_cachetable_unpin(f, make_blocknum(2), f2hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     assert(r==0);
-    //    toku_os_usleep(1*1000000);
-    r = toku_cachefile_close(&f, 0, false, ZERO_LSN); assert(r==0);
-    r = toku_cachetable_close(&t); assert(r==0);
+    r = toku_cachefile_close(&f, false, ZERO_LSN); assert(r==0);
+    toku_cachetable_close(&t);
 }
 
 
@@ -192,7 +168,7 @@ static void test_multi_filehandles (void) {
     unlink(fname1);
     unlink(fname2);
 
-    r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);          assert(r==0);
+    toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
     r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
     r = link(fname1, fname2);                                     assert(r==0);
     r = toku_cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
@@ -203,7 +179,7 @@ static void test_multi_filehandles (void) {
     
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback((void*)123);
     wc.flush_callback = null_flush;
-    r = toku_cachetable_put(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), (void*)124, make_pair_attr(test_object_size), wc, put_callback_nop); assert(r==0);
+    toku_cachetable_put(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), (void*)124, make_pair_attr(test_object_size), wc, put_callback_nop);
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, make_pair_attr(0)); assert(r==0);
     r = toku_cachetable_get_and_pin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), &v, NULL, wc, add123_fetch, def_pf_req_callback, def_pf_callback, true, (void*)123); assert(r==0);
     assert((unsigned long)v==124);
@@ -216,12 +192,12 @@ static void test_multi_filehandles (void) {
     // we support only one close for a file handle
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
     r = toku_test_cachetable_unpin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
-    r = toku_cachefile_close(&f2, 0, false, ZERO_LSN); assert(r==0);
+    r = toku_cachefile_close(&f2, false, ZERO_LSN); assert(r==0);
 
     r = toku_test_cachetable_unpin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
-    r = toku_cachefile_close(&f3, 0, false, ZERO_LSN); assert(r==0);
+    r = toku_cachefile_close(&f3, false, ZERO_LSN); assert(r==0);
 
-    r = toku_cachetable_close(&t); assert(r==0);
+    toku_cachetable_close(&t);
 }
 
 #endif
@@ -262,8 +238,7 @@ static void test_dirty(void) {
     int dirty; long long pinned; long entry_size;
     int r;
 
-    r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);
-    assert(r == 0);
+    toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
 
     const char *fname = __SRCFILE__ "test.dat";
     unlink(fname);
@@ -274,8 +249,7 @@ static void test_dirty(void) {
     uint32_t hkey = toku_cachetable_hash(f, key);
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = test_dirty_flush;
-    r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(test_object_size), wc, put_callback_nop);
-    assert(r == 0);
+    toku_cachetable_put(f, key, hkey, value, make_pair_attr(test_object_size), wc, put_callback_nop);
 
     // cachetable_print_state(t);
     r = toku_cachetable_get_key_state(t, key, f, &value, &dirty, &pinned, &entry_size);
@@ -351,10 +325,7 @@ static void test_dirty(void) {
     assert(dirty == 1);
     assert(pinned == 0);
      
-    r = toku_cachefile_close(&f, 0, false, ZERO_LSN);
-    assert(r == 0);
-    r = toku_cachetable_close(&t);
-    assert(r == 0);
+    toku_cachefile_close(&f, false, ZERO_LSN);
 }
 
 static int test_size_debug;
@@ -395,8 +366,7 @@ static void test_size_resize(void) {
     int n = 3;
     long size = 1;
 
-    r = toku_create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
-    assert(r == 0);
+    toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
 
     const char *fname = __SRCFILE__ "test.dat";
     unlink(fname);
@@ -410,8 +380,7 @@ static void test_size_resize(void) {
 
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = test_size_flush_callback;
-    r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc, put_callback_nop);
-    assert(r == 0);
+    toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc, put_callback_nop);
 
     void *entry_value; int dirty; long long pinned; long entry_size;
     r = toku_cachetable_get_key_state(t, key, f, &entry_value, &dirty, &pinned, &entry_size);
@@ -435,10 +404,7 @@ static void test_size_resize(void) {
     r = toku_test_cachetable_unpin(f, key, hkey, CACHETABLE_CLEAN, make_pair_attr(new_size));
     assert(r == 0);
 
-    r = toku_cachefile_close(&f, 0, false, ZERO_LSN);
-    assert(r == 0);
-    r = toku_cachetable_close(&t);
-    assert(r == 0);
+    toku_cachefile_close(&f, false, ZERO_LSN);
 }
 
 static int min2(int a, int b) { return a < b ? a : b; }
@@ -453,8 +419,7 @@ static void test_size_flush(void) {
 
     const int n = 8;
     long long size = 1*1024*1024;
-    r = toku_create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
-    assert(r == 0);
+    toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
 
     const char *fname = __SRCFILE__ "test.dat";
     unlink(fname);
@@ -475,8 +440,7 @@ static void test_size_flush(void) {
 	uint32_t hkey = toku_cachetable_hash(f, key);
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
         wc.flush_callback = test_size_flush_callback;
-        r = toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f, key, hkey, value, make_pair_attr(size), wc, put_callback_nop);
 
         int n_entries, hash_size; long size_current, size_limit;
         toku_cachetable_get_state(t, &n_entries, &hash_size, &size_current, &size_limit);
@@ -506,17 +470,13 @@ static void test_size_flush(void) {
         assert(r == 0);
     }
     
-    r = toku_cachefile_close(&f, 0, false, ZERO_LSN);
+    r = toku_cachefile_close(&f, false, ZERO_LSN);
     assert(r == 0);
-    r = toku_cachetable_close(&t);
-    assert(r == 0);
+    toku_cachetable_close(&t);
 }
 
 int
 test_main (int argc, const char *argv[]) {
-    // defaults
-    int do_malloc_fail = 0;
-
     // parse args
     int i;
     for (i=1; i<argc; i++) {
@@ -529,10 +489,6 @@ test_main (int argc, const char *argv[]) {
             if (verbose > 0) verbose--;
             continue;
         }
-        if (strcmp(arg, "-malloc-fail") == 0) {
-            do_malloc_fail = 1;
-            continue;
-        }
     }
 
     test_mutex_init();
@@ -542,8 +498,6 @@ test_main (int argc, const char *argv[]) {
     test_multi_filehandles();
 #endif
     test_cachetable_create();
-    if (do_malloc_fail)
-        test_cachetable_create_no_memory();    // fails with valgrind
     for (i=0; i<1; i++) {
         test_nested_pin();
 #if !TOKU_WINDOWS

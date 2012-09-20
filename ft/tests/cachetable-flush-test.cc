@@ -12,7 +12,7 @@ test_cachetable_def_flush (int n) {
     const int test_limit = 2*n;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -28,13 +28,11 @@ test_cachetable_def_flush (int n) {
     for (i=0; i<n; i++) {
         uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
         r = toku_test_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
         hi = toku_cachetable_hash(f2, make_blocknum(i));
-        r = toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f2, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
         r = toku_test_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
     }
@@ -57,7 +55,7 @@ test_cachetable_def_flush (int n) {
     }
 
     // def_flush 
-    r = toku_cachefile_flush(f1); assert(r == 0);
+    toku_cachefile_flush(f1);
     toku_cachefile_verify(f1);
 
     // verify keys do not exist in f1 but do exist in f2
@@ -74,9 +72,9 @@ test_cachetable_def_flush (int n) {
         assert(r == 0);
     }
 
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachefile_close(&f2, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f2, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

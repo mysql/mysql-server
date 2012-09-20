@@ -37,7 +37,7 @@ int toku_txn_begin_with_xid (
     );
 
 // Allocate and initialize a txn
-int toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn, XIDS xids, bool for_checkpoint);
+void toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn, XIDS xids, bool for_checkpoint);
 void toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid);
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
@@ -53,7 +53,7 @@ int toku_txn_abort_txn(TOKUTXN txn,
 int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
-int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid) __attribute__((warn_unused_result));
+void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid);
 // Effect: Do the internal work of preparing a transaction (does not log the prepare record).
 
 void toku_txn_get_prepared_xa_xid (TOKUTXN, TOKU_XA_XID *);

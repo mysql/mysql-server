@@ -31,7 +31,7 @@ cachetable_unpin_and_remove_test (int n) {
     int i;
 
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, table_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, table_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -47,8 +47,7 @@ cachetable_unpin_and_remove_test (int n) {
     // put the keys into the cachetable
     for (i=0; i<n; i++) {
         uint32_t hi = toku_cachetable_hash(f1, make_blocknum(keys[i].b));
-        r = toku_cachetable_put(f1, make_blocknum(keys[i].b), hi, (void *)(long) keys[i].b, make_pair_attr(1),wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f1, make_blocknum(keys[i].b), hi, (void *)(long) keys[i].b, make_pair_attr(1),wc, put_callback_nop);
     }
     
     // unpin and remove
@@ -75,9 +74,8 @@ cachetable_unpin_and_remove_test (int n) {
     toku_cachetable_get_state(ct, &nentries, NULL, NULL, NULL);
     assert(nentries == 0);
 
-    char *error_string;
-    r = toku_cachefile_close(&f1, &error_string, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 // test remove when the pair in being written
@@ -89,7 +87,7 @@ cachetable_put_evict_remove_test (int n) {
     int i;
 
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, table_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, table_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -102,8 +100,7 @@ cachetable_put_evict_remove_test (int n) {
 
     // put 0, 1, 2, ... should evict 0
     for (i=0; i<n; i++) {
-        r = toku_cachetable_put(f1, make_blocknum(i), hi[i], (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f1, make_blocknum(i), hi[i], (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
         r = toku_test_cachetable_unpin(f1, make_blocknum(i), hi[i], CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
     }
@@ -117,9 +114,8 @@ cachetable_put_evict_remove_test (int n) {
     r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(0), NULL, NULL);
     assert(r == 0);
 
-    char *error_string;
-    r = toku_cachefile_close(&f1, &error_string, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

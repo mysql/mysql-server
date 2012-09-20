@@ -12,8 +12,7 @@
 static void test_cachetable_reservation (long size) {
     CACHETABLE ct;
     {
-        int r = toku_create_cachetable(&ct, size, ZERO_LSN, NULL);
-        assert(r==0);
+        toku_cachetable_create(&ct, size, ZERO_LSN, NULL);
     }
     {
         uint64_t r0 = toku_cachetable_reserve_memory(ct, 0.5);
@@ -38,8 +37,7 @@ static void test_cachetable_reservation (long size) {
         toku_cachetable_release_reserved_memory(ct, r2);
     }
     {
-        int r = toku_cachetable_close(&ct);
-        assert(r==0);
+        toku_cachetable_close(&ct);
     }
     
 }

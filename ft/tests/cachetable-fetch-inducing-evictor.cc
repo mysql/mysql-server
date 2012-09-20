@@ -28,7 +28,7 @@ cachetable_test (enum pin_evictor_test_type test_type, bool nonblocking) {
     const int test_limit = 7;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     evictor_test_helpers::set_hysteresis_limits(&ct->ev, test_limit, test_limit);
     evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
@@ -100,8 +100,8 @@ cachetable_test (enum pin_evictor_test_type test_type, bool nonblocking) {
     }
   
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); lazy_assert_zero(r);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

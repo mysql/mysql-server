@@ -812,12 +812,6 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         r = toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
         goto cleanup;
     }
-    if (0) {
-        died1:
-        toku_free(env->i->dir);
-        env->i->dir = NULL;
-        goto cleanup;
-    }
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
@@ -833,7 +827,6 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
     if (r!=0) goto cleanup;
     r = single_process_lock(env->i->real_tmp_dir, "temp", &env->i->tmpdir_lockfd);
     if (r!=0) goto cleanup;
-
 
     bool need_rollback_cachefile;
     need_rollback_cachefile = false;
@@ -893,9 +886,6 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
             r = toku_logger_open(env->i->real_log_dir, env->i->logger);
             if (r!=0) {
                 toku_ydb_do_error(env, r, "Could not open logger\n");
-            died2:
-                toku_logger_close(&env->i->logger);
-                goto died1;
             }
         }
     } else {
@@ -925,8 +915,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
 
     if (env->i->cachetable==NULL) {
         // If we ran recovery then the cachetable should be set here.
-        r = toku_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
-        if (r!=0) goto died2;
+        toku_cachetable_create(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     }
 
     toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
@@ -1070,7 +1059,7 @@ env_close(DB_ENV * env, uint32_t flags) {
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
-            r = toku_logger_close_rollback(env->i->logger, false);
+            r = toku_logger_close_rollback(env->i->logger);
             if (r) {
                 err_msg = "Cannot close environment (error during closing rollback cachefile)\n";
                 toku_ydb_do_error(env, r, "%s", err_msg);
@@ -1083,19 +1072,9 @@ env_close(DB_ENV * env, uint32_t flags) {
                 toku_ydb_do_error(env, r, "%s", err_msg);
                 goto panic_and_quit_early;
             }
-            r = toku_logger_shutdown(env->i->logger); 
-            if (r) {
-                err_msg = "Cannot close environment (error during logger shutdown)\n";
-                toku_ydb_do_error(env, r, "%s", err_msg);
-                goto panic_and_quit_early;
-            }
+            toku_logger_shutdown(env->i->logger); 
         }
-        r=toku_cachetable_close(&env->i->cachetable);
-        if (r) {
-            err_msg = "Cannot close environment (cachetable close error)\n";
-            toku_ydb_do_error(env, r, "%s", err_msg);
-            goto panic_and_quit_early;
-        }
+        toku_cachetable_close(&env->i->cachetable);
     }
     if (env->i->logger) {
         r=toku_logger_close(&env->i->logger);
@@ -1502,30 +1481,36 @@ env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txn
 static int
 env_checkpointing_set_period(DB_ENV * env, uint32_t seconds) {
     HANDLE_PANICKED_ENV(env);
-    int r;
-    if (!env_opened(env)) r = EINVAL;
-    else
-        r = toku_set_checkpoint_period(env->i->cachetable, seconds);
+    int r = 0;
+    if (!env_opened(env)) {
+        r = EINVAL;
+    } else {
+        toku_set_checkpoint_period(env->i->cachetable, seconds);
+    }
     return r;
 }
 
 static int
 env_cleaner_set_period(DB_ENV * env, uint32_t seconds) {
     HANDLE_PANICKED_ENV(env);
-    int r;
-    if (!env_opened(env)) r = EINVAL;
-    else
-        r = toku_set_cleaner_period(env->i->cachetable, seconds);
+    int r = 0;
+    if (!env_opened(env)) {
+        r = EINVAL;
+    } else {
+        toku_set_cleaner_period(env->i->cachetable, seconds);
+    }
     return r;
 }
 
 static int
 env_cleaner_set_iterations(DB_ENV * env, uint32_t iterations) {
     HANDLE_PANICKED_ENV(env);
-    int r;
-    if (!env_opened(env)) r = EINVAL;
-    else
-        r = toku_set_cleaner_iterations(env->i->cachetable, iterations);
+    int r = 0;
+    if (!env_opened(env)) {
+        r = EINVAL;
+    } else {
+        toku_set_cleaner_iterations(env->i->cachetable, iterations);
+    }
     return r;
 }
 
@@ -2512,8 +2497,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
             goto exit;
         }
         // The ft will be unlinked when the txn commits
-        r = toku_ft_unlink_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
-        lazy_assert_zero(r);
+        toku_ft_unlink_on_commit(db->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
     }
     else {
         // unlink the ft without a txn

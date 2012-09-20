@@ -151,8 +151,8 @@ checkpoint_thread (void *checkpointer_v)
     return r;
 }
 
-int toku_set_checkpoint_period (CACHETABLE ct, uint32_t new_period) {
-    return ct->cp.set_checkpoint_period(new_period);
+void toku_set_checkpoint_period (CACHETABLE ct, uint32_t new_period) {
+    ct->cp.set_checkpoint_period(new_period);
 }
 
 uint32_t toku_get_checkpoint_period (CACHETABLE ct) {
@@ -163,9 +163,8 @@ uint32_t toku_get_checkpoint_period_unlocked (CACHETABLE ct) {
     return ct->cp.get_checkpoint_period();
 }
 
-int toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period) {
+void toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period) {
     ct->cl.set_period(new_period);
-    return 0;
 }
 
 uint32_t toku_get_cleaner_period (CACHETABLE ct) {
@@ -176,9 +175,8 @@ uint32_t toku_get_cleaner_period_unlocked (CACHETABLE ct) {
     return ct->cl.get_period_unlocked();
 }
 
-int toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations) {
+void toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations) {
     ct->cl.set_iterations(new_iterations);
-    return 0;
 }
 
 uint32_t toku_get_cleaner_iterations (CACHETABLE ct) {
@@ -192,14 +190,12 @@ uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct) {
 // reserve 25% as "unreservable".  The loader cannot have it.
 #define unreservable_memory(size) ((size)/4)
 
-int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
+void toku_cachetable_create(CACHETABLE *result, long size_limit, LSN UU(initial_lsn), TOKULOGGER logger) {
     if (size_limit == 0) {
         size_limit = 128*1024*1024;
     }
-    CACHETABLE MALLOC(ct);
-    if (ct == 0) return ENOMEM;
-    memset(ct, 0, sizeof(*ct));
 
+    CACHETABLE XCALLOC(ct);
     ct->list.init();
     ct->cf_list.init();
 
@@ -214,7 +210,6 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     ct->cl.init(1, &ct->list, ct); // by default, start with one iteration
     ct->env_dir = toku_xstrdup(".");
     *result = ct;
-    return 0;
 }
 
 // Returns a pointer to the checkpoint contained within
@@ -393,7 +388,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     if (r != 0) { 
         r=get_error_errno(); close(fd); goto cleanup; // no change for t:2444
     }
-    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->fd, cf->userdata, 0, false, ZERO_LSN))) {
+    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->fd, cf->userdata, false, ZERO_LSN))) {
         goto cleanup;
     }
     cf->close_userdata = NULL;
@@ -445,7 +440,7 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
 
 // TODO: (Zardosht) review locking of this function carefully in code review
 int 
-toku_cachefile_close(CACHEFILE *cfp, char **error_string, bool oplsn_valid, LSN oplsn) {
+toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     int r, close_error = 0;
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
@@ -463,7 +458,7 @@ toku_cachefile_close(CACHEFILE *cfp, char **error_string, bool oplsn_valid, LSN 
     // Call the close userdata callback to notify the client this cachefile
     // and its underlying file are going to be closed
     if (cf->close_userdata) {
-        close_error = cf->close_userdata(cf, cf->fd, cf->userdata, error_string, oplsn_valid, oplsn);
+        close_error = cf->close_userdata(cf, cf->fd, cf->userdata, oplsn_valid, oplsn);
     }
 
     remove_cf_from_cachefiles_list(cf);
@@ -471,8 +466,7 @@ toku_cachefile_close(CACHEFILE *cfp, char **error_string, bool oplsn_valid, LSN 
     cf->bjm = NULL;
 
     // fsync and close the fd. 
-    r = toku_file_fsync_without_accounting(cf->fd);
-    assert(r == 0);   
+    toku_file_fsync_without_accounting(cf->fd);
     r = close(cf->fd);
     assert(r == 0);
 
@@ -499,11 +493,10 @@ toku_cachefile_close(CACHEFILE *cfp, char **error_string, bool oplsn_valid, LSN 
 // while this function is called, no other thread does work on the 
 // cachefile.
 //
-int toku_cachefile_flush (CACHEFILE cf) {
+void toku_cachefile_flush (CACHEFILE cf) {
     bjm_wait_for_jobs_to_finish(cf->bjm);
     CACHETABLE ct = cf->cachetable;
     cachetable_flush_cachefile(ct, cf);
-    return 0;
 }
 
 // This hash function comes from Jenkins:  http://burtleburtle.net/bob/c/lookup3.c
@@ -825,37 +818,23 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
 //
 // Requires pair list's write lock to be held on entry
 //
-static int cachetable_put_internal(
+static void cachetable_put_internal(
     CACHEFILE cachefile, 
     CACHEKEY key, 
     uint32_t fullhash, 
-    void*value, 
+    void *value, 
     PAIR_ATTR attr,
     CACHETABLE_WRITE_CALLBACK write_callback,
     CACHETABLE_PUT_CALLBACK put_callback
     )
 {
     CACHETABLE ct = cachefile->cachetable;
-    {
-        PAIR p = ct->list.find_pair(cachefile, key, fullhash);
-        if (p != NULL) {
-            // Ideally, we would like to just assert(false) here
-            // and not return an error, but as of Dr. Noga,
-            // cachetable-test2 depends on this behavior.
-            // To replace the following with an assert(false)
-            // we need to change the behavior of cachetable-test2
-            //
-            // Semantically, these two asserts are not strictly right.  After all, when are two functions eq?
-            // In practice, the functions better be the same.
-            assert(p->flush_callback == write_callback.flush_callback);
-            assert(p->pe_callback == write_callback.pe_callback);
-            assert(p->cleaner_callback == write_callback.cleaner_callback);
-            return -1; /* Already present, don't grab lock. */
-        }
-    }
+    PAIR p = ct->list.find_pair(cachefile, key, fullhash);
+    invariant_null(p);
+
     // flushing could change the table size, but wont' change the fullhash
     cachetable_puts++;
-    PAIR p = cachetable_insert_at(
+    p = cachetable_insert_at(
         ct, 
         cachefile, 
         key, 
@@ -872,7 +851,6 @@ static int cachetable_put_internal(
     //note_hash_count(count);
     invariant_notnull(put_callback);
     put_callback(value, p);
-    return 0;
 }
 
 // Pair mutex (p->mutex) is may or may not be held on entry,
@@ -1090,10 +1068,10 @@ static void get_pairs(
     }
 }
 
-int toku_cachetable_put_with_dep_pairs(
+void toku_cachetable_put_with_dep_pairs(
     CACHEFILE cachefile, 
     CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
-    void*value, 
+    void *value, 
     PAIR_ATTR attr,
     CACHETABLE_WRITE_CALLBACK write_callback,
     void *get_key_and_fullhash_extra,
@@ -1117,54 +1095,49 @@ int toku_cachetable_put_with_dep_pairs(
     if (ct->ev.should_client_wake_eviction_thread()) {
         ct->ev.signal_eviction_thread();
     }
-    int rval;
-    {
-        ct->list.write_list_lock();
-        get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
-        rval = cachetable_put_internal(
-            cachefile,
-            *key,
-            *fullhash,
-            value,
-            attr,
-            write_callback,
-            put_callback
-            );
-        PAIR dependent_pairs[num_dependent_pairs];
-        get_pairs(
-            &ct->list,
-            num_dependent_pairs,
-            dependent_cfs,
-            dependent_keys,
-            dependent_fullhash,
-            dependent_pairs
-            );
-        bool checkpoint_pending[num_dependent_pairs];
-        ct->list.write_pending_cheap_lock();
-        for (uint32_t i = 0; i < num_dependent_pairs; i++) {
-            checkpoint_pending[i] = dependent_pairs[i]->checkpoint_pending;
-            dependent_pairs[i]->checkpoint_pending = false;
-        }
-        ct->list.write_pending_cheap_unlock();
-        ct->list.write_list_unlock();
-
-        //
-        // now that we have inserted the row, let's checkpoint the 
-        // dependent nodes, if they need checkpointing
-        //
-        checkpoint_dependent_pairs(
-            ct,
-            num_dependent_pairs,
-            dependent_pairs,
-            checkpoint_pending,
-            dependent_dirty
-            );
+    ct->list.write_list_lock();
+    get_key_and_fullhash(key, fullhash, get_key_and_fullhash_extra);
+    cachetable_put_internal(
+        cachefile,
+        *key,
+        *fullhash,
+        value,
+        attr,
+        write_callback,
+        put_callback
+        );
+    PAIR dependent_pairs[num_dependent_pairs];
+    get_pairs(
+        &ct->list,
+        num_dependent_pairs,
+        dependent_cfs,
+        dependent_keys,
+        dependent_fullhash,
+        dependent_pairs
+        );
+    bool checkpoint_pending[num_dependent_pairs];
+    ct->list.write_pending_cheap_lock();
+    for (uint32_t i = 0; i < num_dependent_pairs; i++) {
+        checkpoint_pending[i] = dependent_pairs[i]->checkpoint_pending;
+        dependent_pairs[i]->checkpoint_pending = false;
     }
-    return rval;
+    ct->list.write_pending_cheap_unlock();
+    ct->list.write_list_unlock();
+
+    //
+    // now that we have inserted the row, let's checkpoint the 
+    // dependent nodes, if they need checkpointing
+    //
+    checkpoint_dependent_pairs(
+        ct,
+        num_dependent_pairs,
+        dependent_pairs,
+        checkpoint_pending,
+        dependent_dirty
+        );
 }
 
-
-int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void*value, PAIR_ATTR attr,
+void toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void*value, PAIR_ATTR attr,
                         CACHETABLE_WRITE_CALLBACK write_callback,
                         CACHETABLE_PUT_CALLBACK put_callback
                         ) {
@@ -1176,7 +1149,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, vo
         ct->ev.signal_eviction_thread();
     }
     ct->list.write_list_lock();
-    int r = cachetable_put_internal(
+    cachetable_put_internal(
         cachefile,
         key,
         fullhash,
@@ -1186,7 +1159,6 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, vo
         put_callback
         );
     ct->list.write_list_unlock();
-    return r;
 }
 
 static uint64_t get_tnow(void) {
@@ -2560,21 +2532,14 @@ toku_cachetable_minicron_shutdown(CACHETABLE ct) {
     ct->cl.destroy();
 }
 
-/* Require that it all be flushed. */
-int 
-toku_cachetable_close (CACHETABLE *ctp) {
-    int r = 0;
-    CACHETABLE ct=*ctp;
+/* Requires that it all be flushed. */
+void toku_cachetable_close (CACHETABLE *ctp) {
+    CACHETABLE ct = *ctp;
     ct->cp.destroy();
     ct->cl.destroy();
     cachetable_flush_cachefile(ct, NULL);
     ct->ev.destroy();
-    r = ct->list.destroy();
-    if (r != 0) {
-        // This means that there were still pairs in the
-        // pair list, which is bad.
-        return -1;
-    }
+    ct->list.destroy();
     ct->cf_list.destroy();
     
     toku_kibbutz_destroy(ct->client_kibbutz);
@@ -2583,7 +2548,6 @@ toku_cachetable_close (CACHETABLE *ctp) {
     toku_free(ct->env_dir);
     toku_free(ct);
     *ctp = 0;
-    return 0;
 }
 
 static PAIR test_get_pair(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, bool have_ct_lock) {
@@ -2775,35 +2739,33 @@ int log_open_txn (const TOKUTXN &txn, const uint32_t UU(index), checkpointer * c
     invariant(r==0);
     switch (toku_txn_get_state(txn)) {
     case TOKUTXN_LIVE:{
-        r = toku_log_xstillopen(logger, NULL, 0, txn,
-                                toku_txn_get_txnid(txn),
-                                toku_txn_get_txnid(toku_logger_txn_parent(txn)),
-                                txn->roll_info.rollentry_raw_count,
-                                open_filenums,
-                                txn->force_fsync_on_commit,
-                                txn->roll_info.num_rollback_nodes,
-                                txn->roll_info.num_rollentries,
-                                txn->roll_info.spilled_rollback_head,
-                                txn->roll_info.spilled_rollback_tail,
-                                txn->roll_info.current_rollback);
-        lazy_assert_zero(r);
+        toku_log_xstillopen(logger, NULL, 0, txn,
+                            toku_txn_get_txnid(txn),
+                            toku_txn_get_txnid(toku_logger_txn_parent(txn)),
+                            txn->roll_info.rollentry_raw_count,
+                            open_filenums,
+                            txn->force_fsync_on_commit,
+                            txn->roll_info.num_rollback_nodes,
+                            txn->roll_info.num_rollentries,
+                            txn->roll_info.spilled_rollback_head,
+                            txn->roll_info.spilled_rollback_tail,
+                            txn->roll_info.current_rollback);
         goto cleanup;
     }
     case TOKUTXN_PREPARING: {
         TOKU_XA_XID xa_xid;
         toku_txn_get_prepared_xa_xid(txn, &xa_xid);
-        r = toku_log_xstillopenprepared(logger, NULL, 0, txn,
-                                        toku_txn_get_txnid(txn),
-                                        &xa_xid,
-                                        txn->roll_info.rollentry_raw_count,
-                                        open_filenums,
-                                        txn->force_fsync_on_commit,
-                                        txn->roll_info.num_rollback_nodes,
-                                        txn->roll_info.num_rollentries,
-                                        txn->roll_info.spilled_rollback_head,
-                                        txn->roll_info.spilled_rollback_tail,
-                                        txn->roll_info.current_rollback);
-        lazy_assert_zero(r);
+        toku_log_xstillopenprepared(logger, NULL, 0, txn,
+                                    toku_txn_get_txnid(txn),
+                                    &xa_xid,
+                                    txn->roll_info.rollentry_raw_count,
+                                    open_filenums,
+                                    txn->force_fsync_on_commit,
+                                    txn->roll_info.num_rollback_nodes,
+                                    txn->roll_info.num_rollentries,
+                                    txn->roll_info.spilled_rollback_head,
+                                    txn->roll_info.spilled_rollback_tail,
+                                    txn->roll_info.current_rollback);
         goto cleanup;
     }
     case TOKUTXN_RETIRED:
@@ -2823,9 +2785,8 @@ cleanup:
 //             Use the begin_checkpoint callback to take necessary snapshots (header, btt)
 //             Mark every dirty node as "pending."  ("Pending" means that the node must be
 //                                                    written to disk before it can be modified.)
-int
-toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER UU(logger)) {    
-    return cp->begin_checkpoint();
+void toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER UU(logger)) {    
+    cp->begin_checkpoint();
 }
 
 
@@ -2843,10 +2804,9 @@ int toku_cachetable_get_checkpointing_user_data_status (void) {
 //             Use checkpoint callback to write snapshot information to disk (header, btt)
 //             Use end_checkpoint callback to fsync dictionary and log, and to free unused blocks
 // Note:       If testcallback is null (for testing purposes only), call it after writing dictionary but before writing log
-int
-toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER UU(logger),
+void toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER UU(logger),
                                void (*testcallback_f)(void*),  void* testextra) {
-    return cp->end_checkpoint(testcallback_f, testextra);
+    cp->end_checkpoint(testcallback_f, testextra);
 }
 
 TOKULOGGER toku_cachefile_logger (CACHEFILE cf) {
@@ -2958,14 +2918,14 @@ int toku_cachetable_get_key_state (CACHETABLE ct, CACHEKEY key, CACHEFILE cf, vo
 void
 toku_cachefile_set_userdata (CACHEFILE cf,
                              void *userdata,
-                             int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
-                             int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
-                             int (*close_userdata)(CACHEFILE, int, void*, char**, bool, LSN),
+                             void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
+                             void (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
+                             int (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
                              int (*checkpoint_userdata)(CACHEFILE, int, void*),
-                             int (*begin_checkpoint_userdata)(LSN, void*),
-                             int (*end_checkpoint_userdata)(CACHEFILE, int, void*),
-                             int (*note_pin_by_checkpoint)(CACHEFILE, void*),
-                             int (*note_unpin_by_checkpoint)(CACHEFILE, void*)) {
+                             void (*begin_checkpoint_userdata)(LSN, void*),
+                             void (*end_checkpoint_userdata)(CACHEFILE, int, void*),
+                             void (*note_pin_by_checkpoint)(CACHEFILE, void*),
+                             void (*note_unpin_by_checkpoint)(CACHEFILE, void*)) {
     cf->userdata = userdata;
     cf->log_fassociate_during_checkpoint = log_fassociate_during_checkpoint;
     cf->log_suppress_rollback_during_checkpoint = log_suppress_rollback_during_checkpoint;
@@ -2988,23 +2948,18 @@ toku_cachefile_get_cachetable(CACHEFILE cf) {
 
 //Only called by ft_end_checkpoint
 //Must have access to cf->fd (must be protected)
-int
-toku_cachefile_fsync(CACHEFILE cf) {
-    int r;
-    r = toku_file_fsync(cf->fd);
-    return r;
+void toku_cachefile_fsync(CACHEFILE cf) {
+    toku_file_fsync(cf->fd);
 }
 
 // Make it so when the cachefile closes, the underlying file is unlinked
-void 
-toku_cachefile_unlink_on_close(CACHEFILE cf) {
+void toku_cachefile_unlink_on_close(CACHEFILE cf) {
     assert(!cf->unlink_on_close);
     cf->unlink_on_close = true;
 }
 
 // is this cachefile marked as unlink on close?
-bool 
-toku_cachefile_is_unlink_on_close(CACHEFILE cf) {
+bool toku_cachefile_is_unlink_on_close(CACHEFILE cf) {
     return cf->unlink_on_close;
 }
 
@@ -3105,8 +3060,7 @@ uint32_t cleaner::get_period_unlocked(void) {
 }
 
 void cleaner::set_period(uint32_t new_period) {
-    int r = toku_minicron_change_period(&m_cleaner_cron, new_period);
-    assert_zero(r);
+    toku_minicron_change_period(&m_cleaner_cron, new_period);
 }
 
 // Effect:  runs a cleaner.
@@ -3274,18 +3228,15 @@ void pair_list::init() {
 // Frees the pair_list hash table.  It is expected to be empty by
 // the time this is called.  Returns an error if there are any
 // pairs in any of the hash table slots.
-int pair_list::destroy() {
+void pair_list::destroy() {
     // Check if any entries exist in the hash table.
     for (uint32_t i = 0; i < m_table_size; ++i) {
-        if (m_table[i]) {
-            return -1;
-        }
+        invariant_null(m_table[i]);
     }
     toku_pthread_rwlock_destroy(&m_list_lock);    
     toku_pthread_rwlock_destroy(&m_pending_lock_expensive);    
     toku_pthread_rwlock_destroy(&m_pending_lock_cheap);    
     toku_free(m_table);
-    return 0;
 }
 
 // This places the given pair inside of the pair list.
@@ -4206,8 +4157,8 @@ void checkpointer::destroy() {
 //
 // Sets how often the checkpoint thread will run.
 //
-int checkpointer::set_checkpoint_period(uint32_t new_period) {
-    return toku_minicron_change_period(&m_checkpointer_cron, new_period);
+void checkpointer::set_checkpoint_period(uint32_t new_period) {
+    toku_minicron_change_period(&m_checkpointer_cron, new_period);
 }
 
 //
@@ -4243,14 +4194,12 @@ void checkpointer::increment_num_txns() {
 // Update the user data in any cachefiles in our checkpoint list.
 //
 void checkpointer::update_cachefiles() {
-    int r = 0;
     CACHEFILE cf;
     for(cf = m_cf_list->m_head; cf; cf=cf->next) {
         assert(cf->begin_checkpoint_userdata);
         if (cf->for_checkpoint) {
-            r = cf->begin_checkpoint_userdata(m_lsn_of_checkpoint_in_progress,
+            cf->begin_checkpoint_userdata(m_lsn_of_checkpoint_in_progress,
                                               cf->userdata);
-            assert(r == 0);
         }
     }
 }
@@ -4258,9 +4207,8 @@ void checkpointer::update_cachefiles() {
 //
 // Sets up and kicks off a checkpoint.
 //
-int checkpointer::begin_checkpoint() {
+void checkpointer::begin_checkpoint() {
     // 1. Initialize the accountability counters.
-    int r = 0;
     m_checkpoint_num_files = 0;
     m_checkpoint_num_txns = 0;
     
@@ -4275,8 +4223,7 @@ int checkpointer::begin_checkpoint() {
         // Putting this check here so that this method may be called
         // by cachetable tests.
         assert(cf->note_pin_by_checkpoint);
-        r = cf->note_pin_by_checkpoint(cf, cf->userdata);
-        assert(r == 0);
+        cf->note_pin_by_checkpoint(cf, cf->userdata);
         cf->for_checkpoint = true;
         m_checkpoint_num_files++;
     }
@@ -4302,7 +4249,6 @@ int checkpointer::begin_checkpoint() {
     m_cf_list->read_unlock();
     m_list->read_list_unlock();
     m_list->write_pending_exp_unlock();
-    return r;
 }
 
 //
@@ -4324,15 +4270,13 @@ void checkpointer::log_begin_checkpoint() {
     LSN begin_lsn={ .lsn = (uint64_t) -1 }; // we'll need to store the lsn of the checkpoint begin in all the trees that are checkpointed.
     TXN_MANAGER mgr = toku_logger_get_txn_manager(m_logger);
     TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
-    r = toku_log_begin_checkpoint(m_logger, &begin_lsn, 0, 0, last_xid);
-    assert(r==0);
+    toku_log_begin_checkpoint(m_logger, &begin_lsn, 0, 0, last_xid);
     m_lsn_of_checkpoint_in_progress = begin_lsn;
     
     // Log the list of open dictionaries.
     for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
         assert(cf->log_fassociate_during_checkpoint);
-        r = cf->log_fassociate_during_checkpoint(cf, cf->userdata);
-        assert(r == 0);
+        cf->log_fassociate_during_checkpoint(cf, cf->userdata);
     }
     
     // Write open transactions to the log.
@@ -4345,8 +4289,7 @@ void checkpointer::log_begin_checkpoint() {
     // rollback logs suppressed.
     for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
         assert(cf->log_suppress_rollback_during_checkpoint);
-        r = cf->log_suppress_rollback_during_checkpoint(cf, cf->userdata);
-        assert(r == 0);
+        cf->log_suppress_rollback_during_checkpoint(cf, cf->userdata);
     }
 }
 
@@ -4396,8 +4339,7 @@ void checkpointer::remove_background_job() {
     bjm_remove_background_job(m_checkpoint_clones_bjm);
 }
 
-int checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextra) {
-    int r = 0;
+void checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextra) {
     CACHEFILE *XMALLOC_N(m_checkpoint_num_files, checkpoint_cfs);
 
     this->fill_checkpoint_cfs(checkpoint_cfs);    
@@ -4411,9 +4353,8 @@ int checkpointer::end_checkpoint(void (*testcallback_f)(void*),  void* testextra
     this->end_checkpoint_userdata(checkpoint_cfs);
 
     //Delete list of cachefiles in the checkpoint,
-    r = this->remove_cachefiles(checkpoint_cfs);
+    this->remove_cachefiles(checkpoint_cfs);
     toku_free(checkpoint_cfs);
-    return r;
 }
 
 void checkpointer::fill_checkpoint_cfs(CACHEFILE* checkpoint_cfs) {
@@ -4464,13 +4405,12 @@ void checkpointer::checkpoint_userdata(CACHEFILE* checkpoint_cfs) {
 
 void checkpointer::log_end_checkpoint() {
     if (m_logger) {
-        int r = toku_log_end_checkpoint(m_logger, NULL,
-                                        1, // want the end_checkpoint to be fsync'd
-                                        m_lsn_of_checkpoint_in_progress, 
-                                        0,
-                                        m_checkpoint_num_files,
-                                        m_checkpoint_num_txns);
-        assert(r==0);
+        toku_log_end_checkpoint(m_logger, NULL,
+                                1, // want the end_checkpoint to be fsync'd
+                                m_lsn_of_checkpoint_in_progress, 
+                                0,
+                                m_checkpoint_num_files,
+                                m_checkpoint_num_txns);
         toku_logger_note_checkpoint(m_logger, m_lsn_of_checkpoint_in_progress);
     }
 }
@@ -4484,16 +4424,14 @@ void checkpointer::end_checkpoint_userdata(CACHEFILE* checkpoint_cfs) {
         CACHEFILE cf = checkpoint_cfs[i];
         assert(cf->for_checkpoint);
         assert(cf->end_checkpoint_userdata);
-        int r = cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
-        assert(r==0);
+        cf->end_checkpoint_userdata(cf, cf->fd, cf->userdata);
     }
 }
 
 //
 // Deletes all the cachefiles in this checkpointers cachefile list. 
 //
-int checkpointer::remove_cachefiles(CACHEFILE* checkpoint_cfs) {
-    int r = 0;
+void checkpointer::remove_cachefiles(CACHEFILE* checkpoint_cfs) {
     // making this a while loop because note_unpin_by_checkpoint may destroy the cachefile
     for (uint32_t i = 0; i < m_checkpoint_num_files; i++) {
         CACHEFILE cf = checkpoint_cfs[i];
@@ -4503,12 +4441,8 @@ int checkpointer::remove_cachefiles(CACHEFILE* checkpoint_cfs) {
         cf->for_checkpoint = false;
         assert(cf->note_unpin_by_checkpoint);
         // Clear the bit saying theis file is in the checkpoint.
-        r = cf->note_unpin_by_checkpoint(cf, cf->userdata);
-        if (r != 0) {
-            return r;
-        }
+        cf->note_unpin_by_checkpoint(cf, cf->userdata);
     }
-    return r;
 }
 
 

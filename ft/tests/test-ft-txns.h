@@ -28,8 +28,7 @@ test_setup(TOKULOGGER *loggerp, CACHETABLE *ctp) {
     r = toku_logger_open(TESTDIR, logger);
     CKERR(r);
 
-    r = toku_create_cachetable(ctp, 0, ZERO_LSN, logger);
-    CKERR(r);
+    toku_cachetable_create(ctp, 0, ZERO_LSN, logger);
     CACHETABLE ct = *ctp;
     toku_cachetable_set_env_dir(ct, TESTDIR);
 
@@ -68,8 +67,7 @@ static inline void test_setup_and_recover(TOKULOGGER *loggerp, CACHETABLE *ctp) 
         invariant(ct==NULL);
         r = toku_logger_open(TESTDIR, logger);
         CKERR(r);
-        r = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);
-        CKERR(r);
+        toku_cachetable_create(&ct, 0, ZERO_LSN, logger);
         toku_logger_set_cachetable(logger, ct);
     }
     *ctp = ct;
@@ -82,17 +80,15 @@ static inline void clean_shutdown(TOKULOGGER *loggerp, CACHETABLE *ctp) {
     r = toku_checkpoint(cp, *loggerp, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
     CKERR(r);
 
-    r = toku_logger_close_rollback(*loggerp, false);
+    r = toku_logger_close_rollback(*loggerp);
     CKERR(r);
 
     r = toku_checkpoint(cp, *loggerp, NULL, NULL, NULL, NULL, SHUTDOWN_CHECKPOINT);
     CKERR(r);
 
-    r = toku_logger_shutdown(*loggerp);
-    CKERR(r);
+    toku_logger_shutdown(*loggerp);
 
-    r = toku_cachetable_close(ctp);
-    CKERR(r);
+    toku_cachetable_close(ctp);
 
     r = toku_logger_close(loggerp);
     CKERR(r);
@@ -100,10 +96,9 @@ static inline void clean_shutdown(TOKULOGGER *loggerp, CACHETABLE *ctp) {
 
 static inline void shutdown_after_recovery(TOKULOGGER *loggerp, CACHETABLE *ctp) {
     int r;
-    r = toku_logger_close_rollback(*loggerp, false);
+    r = toku_logger_close_rollback(*loggerp);
     CKERR(r);
-    r = toku_cachetable_close(ctp);
-    CKERR(r);
+    toku_cachetable_close(ctp);
     r = toku_logger_close(loggerp);
     CKERR(r);
 }

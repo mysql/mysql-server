@@ -1034,7 +1034,6 @@ flush_this_child(
 // Effect: Push everything in the CHILDNUMth buffer of node down into the child.
 {
     update_flush_status(child, 0);
-    int r;
     toku_assert_entire_node_in_memory(node);
     if (fa->should_destroy_basement_nodes(fa)) {
         maybe_destroy_child_blbs(node, child, h);
@@ -1053,7 +1052,7 @@ flush_this_child(
     set_BNC(node, childnum, toku_create_empty_nl());
 
     // now we have a bnc to flush to the child
-    r = toku_bnc_flush_to_child(h, bnc, child); assert_zero(r);
+    toku_bnc_flush_to_child(h, bnc, child);
     destroy_nonleaf_childinfo(bnc);
 }
 
@@ -1136,8 +1135,7 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     b->n_children = 0;
 }
 
-static int
-balance_leaf_nodes(
+static void balance_leaf_nodes(
     FTNODE a,
     FTNODE b,
     DBT *splitk)
@@ -1151,8 +1149,6 @@ balance_leaf_nodes(
     // now split them
     // because we are not creating a new node, we can pass in no dependent nodes
     ftleaf_split(NULL, a, &a, &b, splitk, false, 0, NULL);
-
-    return 0;
 }
 
 static void
@@ -1184,8 +1180,7 @@ maybe_merge_pinned_leaf_nodes(
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
         toku_free(parent_splitk->data); // We don't need the parent_splitk any more. If we need a splitk (if we don't merge) we'll malloc a new one.
         *did_rebalance = true;
-        int r = balance_leaf_nodes(a, b, splitk);
-        assert(r==0);
+         balance_leaf_nodes(a, b, splitk);
     } else {
         // we are merging them.
         *did_merge = true;
@@ -1478,7 +1473,6 @@ flush_some_child(
     call_flusher_thread_callback(flt_flush_before_child_pin);
 
     // get the child into memory
-    int r;
     BLOCKNUM targetchild = BP_BLOCKNUM(parent, childnum);
     toku_verify_blocknum_allocated(h->blocktable, targetchild);
     uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
@@ -1557,12 +1551,11 @@ flush_some_child(
             child->dirty = 1;
         }
         // do the actual flush
-        r = toku_bnc_flush_to_child(
+        toku_bnc_flush_to_child(
             h,
             bnc,
             child
             );
-        assert_zero(r);
         destroy_nonleaf_childinfo(bnc);
     }
 
@@ -1736,7 +1729,6 @@ struct flusher_extra {
 //
 static void flush_node_fun(void *fe_v)
 {
-    int r;
     struct flusher_extra* fe = (struct flusher_extra *) fe_v;
     // The node that has been placed on the background
     // thread may not be fully in memory. Some message
@@ -1761,12 +1753,11 @@ static void flush_node_fun(void *fe_v)
         // for test purposes
         call_flusher_thread_callback(flt_flush_before_applying_inbox);
 
-        r = toku_bnc_flush_to_child(
+        toku_bnc_flush_to_child(
             fe->h,
             fe->bnc,
             fe->node
             );
-        assert_zero(r);
         destroy_nonleaf_childinfo(fe->bnc);
 
         // after the flush has completed, now check to see if the node needs flushing

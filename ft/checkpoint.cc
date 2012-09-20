@@ -222,7 +222,7 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
                 void (*callback_f)(void*),  void * extra,
                 void (*callback2_f)(void*), void * extra2,
                 checkpoint_caller_t caller_id) {
-    int r;
+    int r = 0;
     int footprint_offset = (int) caller_id * 1000;
 
     assert(initialized);
@@ -241,7 +241,7 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
     
     SET_CHECKPOINT_FOOTPRINT(30);
     STATUS_VALUE(CP_TIME_LAST_CHECKPOINT_BEGIN) = time(NULL);
-    r = toku_cachetable_begin_checkpoint(cp, logger);
+    toku_cachetable_begin_checkpoint(cp, logger);
 
     toku_ft_open_close_unlock();
     multi_operation_checkpoint_unlock();
@@ -250,7 +250,7 @@ toku_checkpoint(CHECKPOINTER cp, TOKULOGGER logger,
     if (r==0) {
         if (callback_f) 
             callback_f(extra);      // callback is called with checkpoint_safe_lock still held
-        r = toku_cachetable_end_checkpoint(cp, logger, callback2_f, extra2);
+        toku_cachetable_end_checkpoint(cp, logger, callback2_f, extra2);
     }
     SET_CHECKPOINT_FOOTPRINT(50);
     if (r==0 && logger) {

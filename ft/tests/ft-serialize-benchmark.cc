@@ -114,7 +114,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD);
     brt->ft = brt_h;
-    brt_h->panic = 0; brt_h->panic_string = 0;
+    
     brt_h->compare_fun = long_key_cmp;
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
@@ -222,7 +222,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
             }
             memset(&buf[c], 0, valsize - c);
 
-            r = toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, FT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp); assert_zero(r);
+            toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, FT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp);
         }
         if (ck < 7) {
             toku_fill_dbt(&sn.childkeys[ck], toku_xmemdup(&k, sizeof k), sizeof k);
@@ -244,7 +244,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD);
     brt->ft = brt_h;
-    brt_h->panic = 0; brt_h->panic_string = 0;
+    
     brt_h->compare_fun = long_key_cmp;
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }

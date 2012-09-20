@@ -12,7 +12,7 @@ cachetable_count_pinned_test (int n) {
     const int test_limit = 2*n;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -23,8 +23,7 @@ cachetable_count_pinned_test (int n) {
         uint32_t hi;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
         CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
-        r = toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
-        assert(r == 0);
+        toku_cachetable_put(f1, make_blocknum(i), hi, (void *)(long)i, make_pair_attr(1), wc, put_callback_nop);
         assert(toku_cachefile_count_pinned(f1, 0) == i);
 
         void *v;
@@ -48,8 +47,8 @@ cachetable_count_pinned_test (int n) {
     assert(toku_cachefile_count_pinned(f1, 1) == 0);
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

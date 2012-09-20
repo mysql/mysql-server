@@ -67,7 +67,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
 static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, cachetable_size_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, cachetable_size_limit, ZERO_LSN, NULL_LOGGER);
     evictor_test_helpers::set_hysteresis_limits(&ct->ev, cachetable_size_limit, cachetable_size_limit);
     evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
@@ -103,11 +103,10 @@ static void cachetable_prefetch_flowcontrol_test (int cachetable_size_limit) {
     }
 
 
-    char *error_string;
-    r = toku_cachefile_close(&f1, &error_string, false, ZERO_LSN); assert(r == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
     if (verbose) printf("%s:%d 0x%x 0x%x\n", __FUNCTION__, __LINE__,
         evicted_keys, (1 << (2*cachetable_size_limit))-1);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

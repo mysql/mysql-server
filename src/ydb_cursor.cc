@@ -636,14 +636,14 @@ int
 toku_c_close(DBC * c) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-    int r = toku_ft_cursor_close(dbc_struct_i(c)->c);
+    toku_ft_cursor_close(dbc_struct_i(c)->c);
     toku_sdbt_cleanup(&dbc_struct_i(c)->skey_s);
     toku_sdbt_cleanup(&dbc_struct_i(c)->sval_s);
 #if !TOKUDB_NATIVE_H
     toku_free(dbc_struct_i(c));
 #endif
     toku_free(c);
-    return r;
+    return 0;
 }
 
 // these next two static functions are defined

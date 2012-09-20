@@ -52,11 +52,9 @@ toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE ft_handle, TOKUTXN 
     return result;
 }
 
-int 
-toku_le_cursor_close(LE_CURSOR le_cursor) {
-    int result = toku_ft_cursor_close(le_cursor->ft_cursor);
+void toku_le_cursor_close(LE_CURSOR le_cursor) {
+    toku_ft_cursor_close(le_cursor->ft_cursor);
     toku_free(le_cursor);
-    return result;
 }
 
 // Move to the next leaf entry under the LE_CURSOR

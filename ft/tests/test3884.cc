@@ -165,7 +165,7 @@ test_split_on_boundary(void)
     unlink(fname);
     CACHETABLE ct;
     FT_HANDLE brt;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
@@ -178,7 +178,7 @@ test_split_on_boundary(void)
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
     if (splitk.data) {
         toku_free(splitk.data);
@@ -238,7 +238,7 @@ test_split_with_everything_on_the_left(void)
     unlink(fname);
     CACHETABLE ct;
     FT_HANDLE brt;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
@@ -248,7 +248,7 @@ test_split_with_everything_on_the_left(void)
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
     if (splitk.data) {
         toku_free(splitk.data);
@@ -313,7 +313,7 @@ test_split_on_boundary_of_last_node(void)
     unlink(fname);
     CACHETABLE ct;
     FT_HANDLE brt;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
@@ -323,7 +323,7 @@ test_split_on_boundary_of_last_node(void)
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
     if (splitk.data) {
         toku_free(splitk.data);
@@ -381,7 +381,7 @@ test_split_at_begin(void)
     unlink(fname);
     CACHETABLE ct;
     FT_HANDLE brt;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
@@ -391,7 +391,7 @@ test_split_at_begin(void)
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
     if (splitk.data) {
         toku_free(splitk.data);
@@ -445,7 +445,7 @@ test_split_at_end(void)
     unlink(fname);
     CACHETABLE ct;
     FT_HANDLE brt;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
@@ -455,7 +455,7 @@ test_split_at_end(void)
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
     if (splitk.data) {
         toku_free(splitk.data);
@@ -499,7 +499,7 @@ test_split_odd_nodes(void)
     unlink(fname);
     CACHETABLE ct;
     FT_HANDLE brt;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);   assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, nodesize, bnsize, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     FTNODE nodea, nodeb;
@@ -512,7 +512,7 @@ test_split_odd_nodes(void)
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
     if (splitk.data) {
         toku_free(splitk.data);

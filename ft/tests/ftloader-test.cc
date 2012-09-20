@@ -249,12 +249,12 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     int r;
 
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     TOKUTXN const null_txn = NULL;
     FT_HANDLE t = NULL;
-    r = toku_ft_handle_create(&t); assert(r == 0);
-    r = toku_ft_set_bt_compare(t, compare_ints); assert(r==0);
+    toku_ft_handle_create(&t);
+    toku_ft_set_bt_compare(t, compare_ints);
     r = toku_ft_handle_open(t, name, 0, 0, ct, null_txn); assert(r==0);
 
     FT_CURSOR cursor = NULL;
@@ -277,14 +277,14 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     r = toku_ft_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
     assert(r != 0);
 
-    r = toku_ft_cursor_close(cursor); assert(r == 0);
+    toku_ft_cursor_close(cursor);
 
     struct ftstat64_s s;
-    r = toku_ft_handle_stat64(t, NULL, &s); assert(r == 0);
+    toku_ft_handle_stat64(t, NULL, &s);
     assert(s.nkeys == (uint64_t) n && s.ndata == (uint64_t) n && s.dsize == userdata);
     
     r = toku_close_ft_handle_nolsn(t, 0); assert(r==0);
-    r = toku_cachetable_close(&ct);assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 static void test_merge_files (const char *tf_template, const char *output_name) {

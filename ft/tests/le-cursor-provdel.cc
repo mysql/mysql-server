@@ -44,8 +44,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_logger_open(logdir, logger);
     assert(error == 0);
     CACHETABLE ct = NULL;
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, logger);
     toku_logger_set_cachetable(logger, ct);
     error = toku_logger_open_rollback(logger, ct, true);
     assert(error == 0);
@@ -74,7 +73,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
         toku_fill_dbt(&key, &k, sizeof k);
         DBT val;
         toku_fill_dbt(&val, &v, sizeof v);
-        error = toku_ft_insert(brt, &key, &val, txn);
+        toku_ft_insert(brt, &key, &val, txn);
         assert(error == 0);
     }
 
@@ -89,20 +88,18 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
 
-    error = toku_logger_close_rollback(logger, false);
+    toku_logger_close_rollback(logger);
     assert(error == 0);
     
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
 
-    error = toku_logger_shutdown(logger);
-    CKERR(error);
+    toku_logger_shutdown(logger);
 
     error = toku_logger_close(&logger);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 // provionally delete all of the even keys
@@ -118,8 +115,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     error = toku_logger_open(logdir, logger);
     assert(error == 0);
     CACHETABLE ct = NULL;
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, logger);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, logger);
     toku_logger_set_cachetable(logger, ct);
     error = toku_logger_open_rollback(logger, ct, false);
     assert(error == 0);
@@ -145,7 +141,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
         int k = toku_htonl(i);
         DBT key;
         toku_fill_dbt(&key, &k, sizeof k);
-        error = toku_ft_delete(brt, &key, txn);
+        toku_ft_delete(brt, &key, txn);
         assert(error == 0);
     }
 
@@ -180,8 +176,7 @@ test_provdel(const char *logdir, const char *fname, int n) {
     toku_destroy_dbt(&key);
     toku_destroy_dbt(&val);
 
-    error = toku_le_cursor_close(cursor);
-    assert(error == 0);
+    toku_le_cursor_close(cursor);
 
     error = toku_txn_commit_txn(cursortxn, true, NULL, NULL);
     assert(error == 0);
@@ -197,13 +192,12 @@ test_provdel(const char *logdir, const char *fname, int n) {
     error = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     assert(error == 0);
 
-    error = toku_logger_close_rollback(logger, false);
+    toku_logger_close_rollback(logger);
     assert(error == 0);
     error = toku_logger_close(&logger);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 static void

@@ -336,7 +336,6 @@ test_prefetching(void) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD);
     brt->ft = brt_h;
-    brt_h->panic = 0; brt_h->panic_string = 0;
     toku_blocktable_create_new(&brt_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20

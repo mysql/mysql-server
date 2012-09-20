@@ -49,7 +49,7 @@ cachetable_getandpin_test (int n) {
     const int test_limit = 1024*1024;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test_getandpin.dat";
     unlink(fname1);
     CACHEFILE f1;
@@ -73,8 +73,8 @@ cachetable_getandpin_test (int n) {
     }
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

@@ -12,7 +12,7 @@ cachetable_fd_test (void) {
     const int test_limit = 1;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     char fname1[] = __SRCFILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE cf;
@@ -44,8 +44,8 @@ cachetable_fd_test (void) {
     r = toku_cachefile_of_filenum(ct, fn, &newcf);
     assert(r == ENOENT);
 
-    r = toku_cachefile_close(&cf, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&cf, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

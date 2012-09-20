@@ -115,7 +115,7 @@ cachetable_test (void) {
     const int test_limit = 20;
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, test_limit, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     evictor_test_helpers::set_hysteresis_limits(&ct->ev, test_limit, 100*test_limit);
     evictor_test_helpers::disable_ev_thread(&ct->ev);
     char fname1[] = __SRCFILE__ "test1.dat";
@@ -165,7 +165,7 @@ cachetable_test (void) {
     wc.flush_callback = other_flush;
     wc.pe_est_callback = pe_est_callback;
     wc.pe_callback = other_pe_callback;
-    r = toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
+    toku_cachetable_put(f1, make_blocknum(5), 5, NULL, make_pair_attr(4), wc, put_callback_nop);
     flush_may_occur = true;
     r = toku_test_cachetable_unpin(f1, make_blocknum(5), 5, CACHETABLE_CLEAN, make_pair_attr(8));
     ct->ev.signal_eviction_thread();
@@ -180,8 +180,8 @@ cachetable_test (void) {
     assert(expected_bytes_to_free == 3);
 
 
-    r = toku_cachefile_close(&f1, 0, false, ZERO_LSN); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0 && ct == 0);
+    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachetable_close(&ct);
 }
 
 int

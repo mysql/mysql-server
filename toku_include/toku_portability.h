@@ -10,7 +10,6 @@
 
 // Tokutek portability layer
 
-
 #if defined(_MSC_VER) || (defined(__INTEL_COMPILER) && defined(__ICL))
 
 #define TOKU_WINDOWS 1
@@ -23,7 +22,6 @@
 #  define TOKU_WINDOWS_32 1
 #  define TOKU_WINDOWS_64 2
 #endif
-
 
 #else
 
@@ -205,7 +203,7 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 
 void *os_malloc(size_t) __attribute__((__visibility__("default")));
 void *os_realloc(void*,size_t) __attribute__((__visibility__("default")));
-void  os_free(void*) __attribute__((__visibility__("default")));
+void os_free(void*) __attribute__((__visibility__("default")));
 
 // full_pwrite and full_write performs a pwrite, and checks errors.  It doesn't return unless all the data was written. */
 void toku_os_full_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));
@@ -225,10 +223,9 @@ ssize_t toku_os_read(int fd, void *buf, size_t count);
 ssize_t toku_os_pread(int fd, void *buf, size_t count, off_t offset);
 
 // wrapper around fsync
-int toku_file_fsync_without_accounting(int fd);
-int toku_file_fsync(int fd);
-
-    int toku_fsync_directory(const char *fname);
+void toku_file_fsync_without_accounting(int fd);
+void toku_file_fsync(int fd);
+int toku_fsync_directory(const char *fname);
 
 // get the number of fsync calls and the fsync times (total)
 void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time);
@@ -236,21 +233,19 @@ void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time);
 // get the number of fsync calls and the fsync times for use by scheduler (subset of total)
 void toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time);
 
-// set a new fsync function (for debugging)
-int toku_set_func_fsync (int (*fsync_function)(int));
+void toku_set_func_fsync (int (*fsync_function)(int));
+void toku_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
+void toku_set_func_full_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
+void toku_set_func_write (ssize_t (*)(int, const void *, size_t));
+void toku_set_func_full_write (ssize_t (*)(int, const void *, size_t));
+void toku_set_func_fdopen (FILE * (*)(int, const char *));
+void toku_set_func_fopen (FILE * (*)(const char *, const char *));
+void toku_set_func_open (int (*)(const char *, int, int));
+void toku_set_func_fclose(int (*)(FILE*));
+void toku_set_func_read(ssize_t (*)(int, void *, size_t));
+void toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
 
-int toku_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
-int toku_set_func_full_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
-int toku_set_func_write (ssize_t (*)(int, const void *, size_t));
-int toku_set_func_full_write (ssize_t (*)(int, const void *, size_t));
-int toku_set_func_fdopen (FILE * (*)(int, const char *));
-int toku_set_func_fopen (FILE * (*)(const char *, const char *));
-int toku_set_func_open (int (*)(const char *, int, int));  // variadic form not implemented until needed
-int toku_set_func_fclose(int (*)(FILE*));
-int toku_set_func_read(ssize_t (*)(int, void *, size_t));
-int toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
-int toku_portability_init    (void);
-void toku_portability_destroy (void);
+int toku_portability_init(void);
+void toku_portability_destroy(void);
 
-
-#endif
+#endif /* TOKU_PORTABILITY_H */

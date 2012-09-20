@@ -27,8 +27,7 @@ static void test_sub_block(int n) {
 
     unlink(fname);
 
-    error = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(error == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
     error = toku_open_ft_handle(fname, true, &brt, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);
     assert(error == 0);
@@ -40,7 +39,7 @@ static void test_sub_block(int n) {
 	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
-        error = toku_ft_insert(brt, &key, &val, 0);
+        toku_ft_insert(brt, &key, &val, 0);
         assert(error == 0);
     }
 
@@ -69,14 +68,12 @@ static void test_sub_block(int n) {
     }
     assert(i == n);
 
-    error = toku_ft_cursor_close(cursor);
-    assert(error == 0);
+    toku_ft_cursor_close(cursor);
 
     error = toku_close_ft_handle_nolsn(brt, 0);
     assert(error == 0);
 
-    error = toku_cachetable_close(&ct);
-    assert(error == 0);
+    toku_cachetable_close(&ct);
 }
 
 int test_main (int argc , const char *argv[]) {

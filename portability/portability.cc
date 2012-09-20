@@ -256,8 +256,7 @@ toku_os_get_rss(int64_t *rss) {
     return r;
 }
 
-int 
-toku_os_is_absolute_name(const char* path) {
+bool toku_os_is_absolute_name(const char* path) {
     return path[0] == '/';
 }
 

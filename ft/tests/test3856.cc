@@ -38,22 +38,21 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     CACHETABLE ct;
     FT_HANDLE t;
 
-    int r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
-    r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r==0);
+    int r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r==0);
 
     for (int i = 0; i < count; ++i) {
         char key[100],val[100];
         DBT k,v;
         snprintf(key, 100, "hello%d", i);
         snprintf(val, 100, "there%d", i);
-        r = toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
-        assert(r==0);
+        toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
     }
     r = toku_close_ft_handle_nolsn(t, 0); assert(r == 0);
-    r = toku_cachetable_close(&ct); assert(r == 0);
+    toku_cachetable_close(&ct);
 
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r == 0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r == 0);
 
     for (int n = 0; n < count/100; ++n) {
@@ -71,11 +70,11 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
         for (int j = 0; j < 100; ++j) {
             r = toku_ft_cursor_next(c, found, NULL); assert(r == 0);
         }
-        r = toku_ft_cursor_close(c); assert(r == 0);
+        toku_ft_cursor_close(c);
     }
 
     r = toku_close_ft_handle_nolsn(t, 0); assert(r == 0);
-    r = toku_cachetable_close(&ct), assert(r == 0);
+    toku_cachetable_close(&ct);
 
     return 0;
 }

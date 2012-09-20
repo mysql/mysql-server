@@ -395,7 +395,7 @@ generate_log_writer (void) {
             fprintf(hf, "static const size_t toku_log_%s_overhead = (+4+1+8", lt->name);
             DO_FIELDS(field_type, lt, fprintf(hf, "+sizeof(%s)", field_type->type));
             fprintf(hf, "+8);\n");
-                        fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
+                        fprintf2(cf, hf, "void toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
                         switch (lt->log_begin_action) {
                         case SHOULD_LOG_BEGIN:
                         case ASSERT_BEGIN_WAS_LOGGED: {
@@ -407,8 +407,9 @@ generate_log_writer (void) {
                         DO_FIELDS(field_type, lt, fprintf2(cf, hf, ", %s %s", field_type->type, field_type->name));
                         fprintf(hf, ");\n");
                         fprintf(cf, ") {\n");
-                        fprintf(cf, "  int r = 0;\n");
-                        fprintf(cf, "  if (logger==0) return 0;\n");
+                        fprintf(cf, "  if (logger == NULL) {\n");
+                        fprintf(cf, "     return;\n");
+                        fprintf(cf, "  }\n");
                         switch (lt->log_begin_action) {
                         case SHOULD_LOG_BEGIN: {
                             fprintf(cf, "  //txn can be NULL during tests\n");
@@ -431,7 +432,7 @@ generate_log_writer (void) {
                         fprintf(cf, "    logger->lsn.lsn++;\n");
                         fprintf(cf, "    if (lsnp) *lsnp=logger->lsn;\n");
                         fprintf(cf, "    ml_unlock(&logger->input_lock);\n");
-                        fprintf(cf, "    return 0;\n");
+                        fprintf(cf, "    return;\n");
                         fprintf(cf, "  }\n");
                         fprintf(cf, "  const unsigned int buflen= (+4 // len at the beginning\n");
                         fprintf(cf, "                              +1 // log command\n");
@@ -442,8 +443,7 @@ generate_log_writer (void) {
                         fprintf(cf, "                     );\n");
                         fprintf(cf, "  struct wbuf wbuf;\n");
                         fprintf(cf, "  ml_lock(&logger->input_lock);\n");
-                        fprintf(cf, "  r = toku_logger_make_space_in_inbuf(logger, buflen);\n");
-                        fprintf(cf, "  if (r!=0) goto panic;\n");
+                        fprintf(cf, "  toku_logger_make_space_in_inbuf(logger, buflen);\n");
                         fprintf(cf, "  wbuf_nocrc_init(&wbuf, logger->inbuf.buf+logger->inbuf.n_in_buf, buflen);\n");
                         fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
                         fprintf(cf, "  wbuf_nocrc_char(&wbuf, '%c');\n", (char)(0xff&lt->command_and_flags));
@@ -459,12 +459,7 @@ generate_log_writer (void) {
                         fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
                         fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
                         fprintf(cf, "  logger->inbuf.n_in_buf += buflen;\n");
-                        fprintf(cf, "  r = toku_logger_maybe_fsync(logger, logger->lsn, do_fsync);\n");
-                        fprintf(cf, "  if (r!=0) goto panic;\n");
-                        fprintf(cf, "  return 0;\n");
-                        fprintf(cf, " panic:\n");
-                        fprintf(cf, "  toku_logger_panic(logger, r);\n");
-                        fprintf(cf, "  return r;\n");
+                        fprintf(cf, "  toku_logger_maybe_fsync(logger, logger->lsn, do_fsync);\n");
                         fprintf(cf, "}\n\n");
                     });
 }
@@ -595,7 +590,7 @@ generate_logprint (void) {
                 fprintf(pf, "          if (len_in_file!=len || crc_in_file!=actual_murmur) return DB_BADFORMAT;\n");
                 fprintf(pf, "        };\n");
                 fprintf(pf, "        fprintf(outf, \"\\n\");\n");
-                fprintf(pf, "        return 0;;\n\n");
+                fprintf(pf, "        return 0;\n\n");
             });
     fprintf(pf, "    }\n");
     fprintf(pf, "    fprintf(outf, \"Unknown command %%d ('%%c')\", cmd, cmd);\n");
@@ -606,7 +601,7 @@ generate_logprint (void) {
 static void
 generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
-                    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
+                    fprintf2(cf, hf, "void toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
                     DO_FIELDS(field_type, lt, {
                         if ( strcmp(field_type->type, "BYTESTRING") == 0 ) {
                             fprintf2(cf, hf, ", BYTESTRING *%s_ptr", field_type->name);
@@ -664,7 +659,7 @@ generate_rollbacks (void) {
                     fprintf(cf, "  toku_maybe_spill_rollbacks(txn, log);\n");
                     fprintf(cf, "  toku_rollback_log_unpin(txn, log);\n");
                     fprintf(cf, "  toku_txn_unlock(txn);\n");
-                    fprintf(cf, "  return 0;\n}\n");
+                    fprintf(cf, "}\n");
             });
 
     DO_ROLLBACKS(lt, {

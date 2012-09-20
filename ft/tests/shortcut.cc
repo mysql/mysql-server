@@ -23,7 +23,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 
     unlink(fname);
 
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                               assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);   assert(r==0);
     r = toku_ft_cursor(brt, &cursor, NULL, false, false);               assert(r==0);
 
@@ -32,7 +32,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 	char string[100];
 	snprintf(string, sizeof(string), "%04d", i);
 	DBT key,val;
-	r = toku_ft_insert(brt, toku_fill_dbt(&key, string, 5), toku_fill_dbt(&val, string, 5), 0);       assert(r==0);
+	toku_ft_insert(brt, toku_fill_dbt(&key, string, 5), toku_fill_dbt(&val, string, 5), 0);
     }
 
     {
@@ -47,7 +47,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
     // This will invalidate due to the root counter bumping, but the OMT itself will still be valid.
     {
 	DBT key, val;
-	r = toku_ft_insert(brt, toku_fill_dbt(&key, "d", 2), toku_fill_dbt(&val, "w", 2), 0);   assert(r==0);
+	toku_ft_insert(brt, toku_fill_dbt(&key, "d", 2), toku_fill_dbt(&val, "w", 2), 0);
     }
 
     {
@@ -55,8 +55,8 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 	r = toku_ft_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);    assert(r==0); assert(pair.call_count==1);
     }
 
-    r = toku_ft_cursor_close(cursor);                                                           assert(r==0);
+    toku_ft_cursor_close(cursor);
     r = toku_close_ft_handle_nolsn(brt, 0);                                                               assert(r==0);
-    r = toku_cachetable_close(&ct);                                                              assert(r==0);
+    toku_cachetable_close(&ct);
     return 0;
 }

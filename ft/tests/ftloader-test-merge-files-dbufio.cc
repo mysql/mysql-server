@@ -313,8 +313,7 @@ static void test (const char *directory, bool is_error) {
     CACHETABLE ct;
     enum {CACHETABLE_SIZE = 64*1024};
     {
-	int r = toku_create_cachetable(&ct, CACHETABLE_SIZE, (LSN){1}, NULL);
-	assert(r==0);
+	toku_cachetable_create(&ct, CACHETABLE_SIZE, (LSN){1}, NULL);
     }
     LSN *XMALLOC(lsnp);
     {
@@ -426,8 +425,7 @@ static void test (const char *directory, bool is_error) {
     }
     toku_ft_loader_internal_destroy(bl, false);
     {
-	int r = toku_cachetable_close(&ct);
-	assert(r==0);
+	toku_cachetable_close(&ct);
     }
     for (int i=0; i<N_DEST_DBS; i++) {
 	toku_free((void*)new_fnames_in_env[i]);

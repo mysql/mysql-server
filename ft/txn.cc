@@ -111,8 +111,7 @@ static void invalidate_xa_xid (TOKU_XA_XID *xid) {
     xid->formatID = -1; // According to the XA spec, -1 means "invalid data"
 }
 
-int
-toku_txn_create_txn (
+void toku_txn_create_txn (
     TOKUTXN *tokutxn, 
     TOKUTXN parent_tokutxn, 
     TOKULOGGER logger, 
@@ -122,9 +121,6 @@ toku_txn_create_txn (
     bool for_checkpoint
     )
 {
-    if (logger->is_panicked) {
-        return EINVAL;
-    }
     assert(logger->rollback_cachefile);
 
     omt<FT> open_fts;
@@ -181,8 +177,6 @@ toku_txn_create_txn (
     STATUS_VALUE(TXN_NUM_OPEN)++;
     if (STATUS_VALUE(TXN_NUM_OPEN) > STATUS_VALUE(TXN_MAX_OPEN))
         STATUS_VALUE(TXN_MAX_OPEN) = STATUS_VALUE(TXN_NUM_OPEN);
-
-    return 0;
 }
 
 void
@@ -271,8 +265,6 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
 {
     toku_txn_manager_note_commit_txn(txn->logger->txn_manager, txn);
-    int r;
-    // panic handled in log_commit
 
     // Child transactions do not actually 'commit'.  They promote their 
     // changes to parent, so no need to fsync if this txn has a parent. The
@@ -289,18 +281,14 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     txn->progress_poll_fun_extra = poll_extra;
 
     if (!toku_txn_is_read_only(txn)) {
-        r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
-        if (r != 0) {
-            goto cleanup;
-        }
+        toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
     }
     // If !txn->begin_was_logged, we could skip toku_rollback_commit
     // but it's cheap (only a number of function calls that return immediately)
     // since there were no writes.  Skipping it would mean we would need to be careful
     // in case we added any additional required cleanup into those functions in the future.
-    r = toku_rollback_commit(txn, oplsn);
+    int r = toku_rollback_commit(txn, oplsn);
     STATUS_VALUE(TXN_COMMIT)++;
-cleanup:
     return r;
 }
 
@@ -320,22 +308,17 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
-    int r;
     txn->do_fsync = false;
 
     if (!toku_txn_is_read_only(txn)) {
-        r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
-        if (r != 0) {
-            goto cleanup;
-        }
+        toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
     }
     // If !txn->begin_was_logged, we could skip toku_rollback_abort
     // but it's cheap (only a number of function calls that return immediately)
     // since there were no writes.  Skipping it would mean we would need to be careful
     // in case we added any additional required cleanup into those functions in the future.
-    r = toku_rollback_abort(txn, oplsn);
+    int r = toku_rollback_abort(txn, oplsn);
     STATUS_VALUE(TXN_ABORT)++;
-cleanup:
     return r;
 }
 
@@ -347,23 +330,20 @@ static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
     memcpy(dest->data, source->data, source->gtrid_length+source->bqual_length);
 }
 
-int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
-    int r = 0;
+void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
     if (txn->parent || toku_txn_is_read_only(txn)) {
         // We do not prepare children.
         //
         // Readonly transactions do the same if they commit or abort, so
         // XA guarantees are free.  No need to pay for overhead of prepare.
-        goto cleanup;
+        return;
     }
     toku_txn_manager_add_prepared_txn(txn->logger->txn_manager, txn);
     // Do we need to do an fsync?
     txn->do_fsync = (txn->force_fsync_on_commit || txn->roll_info.num_rollentries>0);
     copy_xid(&txn->xa_xid, xa_xid);
     // This list will go away with #4683, so we wn't need the ydb lock for this anymore.
-    r = toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64, xa_xid);
-cleanup:
-    return r;
+    toku_log_xprepare(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64, xa_xid);
 }
 
 void toku_txn_get_prepared_xa_xid (TOKUTXN txn, TOKU_XA_XID *xid) {
@@ -481,7 +461,7 @@ static void
 maybe_log_begin_txn_for_write_operation_unlocked(TOKUTXN txn) {
     // We now hold the lock.
     if (txn->begin_was_logged) {
-        goto cleanup;
+        return;
     }
     TOKUTXN parent;
     parent = txn->parent;
@@ -497,13 +477,8 @@ maybe_log_begin_txn_for_write_operation_unlocked(TOKUTXN txn) {
         pxid = parent->txnid64;
     }
 
-    int r;
-    r = toku_log_xbegin(txn->logger, NULL, 0, xid, pxid);
-    lazy_assert_zero(r);
-
+    toku_log_xbegin(txn->logger, NULL, 0, xid, pxid);
     txn->begin_was_logged = true;
-cleanup:
-    return;
 }
 
 void

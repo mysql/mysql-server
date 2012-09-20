@@ -108,14 +108,14 @@ struct cachefile {
     char *fname_in_env; /* Used for logging */
 
     void *userdata;
-    int (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
-    int (*log_suppress_rollback_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log which files need rollbacks suppressed
-    int (*close_userdata)(CACHEFILE cf, int fd, void *userdata, char **error_string, bool lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
-    int (*begin_checkpoint_userdata)(LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
+    void (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
+    void (*log_suppress_rollback_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log which files need rollbacks suppressed
+    int (*close_userdata)(CACHEFILE cf, int fd, void *userdata, bool lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
+    void (*begin_checkpoint_userdata)(LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // when checkpointing a cachefile, call this function.
-    int (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
-    int (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
-    int (*note_unpin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
+    void (*end_checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // after checkpointing cachefiles call this function.
+    void (*note_pin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
+    void (*note_unpin_by_checkpoint)(CACHEFILE cf, void *userdata); // add a reference to the userdata to prevent it from being removed from memory
     BACKGROUND_JOB_MANAGER bjm;
 };
 
@@ -262,7 +262,7 @@ public:
     toku_pthread_rwlock_t m_pending_lock_expensive;
     toku_pthread_rwlock_t m_pending_lock_cheap;
     void init();
-    int destroy();
+    void destroy();
     void evict(PAIR pair);
     void put(PAIR pair);
     PAIR find_pair(CACHEFILE file, CACHEKEY key, uint32_t hash);
@@ -317,14 +317,14 @@ class checkpointer {
 public:
     void init(pair_list *_pl, TOKULOGGER _logger, evictor *_ev, cachefile_list *files);
     void destroy();
-    int set_checkpoint_period(uint32_t new_period);
+    void set_checkpoint_period(uint32_t new_period);
     uint32_t get_checkpoint_period();
     int shutdown();
     bool has_been_shutdown();
-    int begin_checkpoint();
+    void begin_checkpoint();
     void add_background_job();
     void remove_background_job();
-    int end_checkpoint(void (*testcallback_f)(void*),  void* testextra);
+    void end_checkpoint(void (*testcallback_f)(void*),  void* testextra);
     TOKULOGGER get_logger();
     // used during begin_checkpoint
     void increment_num_txns();
@@ -351,7 +351,7 @@ private:
     void checkpoint_userdata(CACHEFILE* checkpoint_cfs);
     void log_end_checkpoint();
     void end_checkpoint_userdata(CACHEFILE* checkpoint_cfs);
-    int remove_cachefiles(CACHEFILE* checkpoint_cfs);
+    void remove_cachefiles(CACHEFILE* checkpoint_cfs);
     
     // Unit test struct needs access to private members.
     friend struct checkpointer_test;

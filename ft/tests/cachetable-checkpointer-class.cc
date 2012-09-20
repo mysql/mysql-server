@@ -34,8 +34,6 @@ struct checkpointer_test {
 // Description:
 //
 void checkpointer_test::test_begin_checkpoint() {
-    int r = 0;
-
     cachefile_list cfl;
     cfl.init();
 
@@ -46,8 +44,7 @@ void checkpointer_test::test_begin_checkpoint() {
     m_cp.init(&ctbl.list, NULL, &ctbl.ev, &cfl);
 
     // 1. Call checkpoint with NO cachefiles.
-    r = m_cp.begin_checkpoint();
-    if (r) { assert(!"CHECKPOINTER: Checkpoint with no cachefiles failed!\n"); }
+    m_cp.begin_checkpoint();
 
     // 2. Call checkpoint with ONE cachefile.
     //cachefile cf;
@@ -57,8 +54,7 @@ void checkpointer_test::test_begin_checkpoint() {
     m_cp.m_cf_list->m_head = &cf;
     create_dummy_functions(&cf);
 
-    r = m_cp.begin_checkpoint();
-    if (r) { assert(!"CHECKPOINTER: Checkpoint with one cachefile failed!\n"); }
+    m_cp.begin_checkpoint();
     assert(m_cp.m_checkpoint_num_files == 1);
     assert(cf.for_checkpoint == true);
 
@@ -76,8 +72,7 @@ void checkpointer_test::test_begin_checkpoint() {
         }
     }
 
-    r = m_cp.begin_checkpoint();
-    if (r) { assert(!"CHECKPOINTER: Multiple checkpoint failed!\n"); }
+    m_cp.begin_checkpoint();
     assert(m_cp.m_checkpoint_num_files == count);
     for (uint32_t i = 0; i < count; ++i) {
         assert(cfs[i].for_checkpoint == true);
@@ -171,8 +166,7 @@ void checkpointer_test::test_pending_bits() {
         m_cp.m_list->evict(pp);
     }
 
-    int r = ctbl.list.destroy();
-    assert_zero(r);
+    ctbl.list.destroy();
     m_cp.destroy();
 }
 
@@ -307,8 +301,7 @@ void checkpointer_test::test_end_checkpoint() {
         m_cp.m_list->evict(pp);
     }
     m_cp.destroy();
-    int r = ctbl.list.destroy();
-    assert_zero(r);
+    ctbl.list.destroy();
 }
 
 

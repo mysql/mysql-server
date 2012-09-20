@@ -88,10 +88,9 @@ insert_random_message(NONLEAF_CHILDINFO bnc, FT_MSG_S **save, bool *is_fresh_out
     *save = result;
     *is_fresh_out = is_fresh;
 
-    int r = toku_bnc_insert_msg(bnc, key, keylen + (sizeof pfx), val, vallen,
-                                FT_INSERT, msn, xids, is_fresh,
-                                NULL, dummy_cmp);
-    assert_zero(r);
+    toku_bnc_insert_msg(bnc, key, keylen + (sizeof pfx), val, vallen,
+                        FT_INSERT, msn, xids, is_fresh,
+                        NULL, dummy_cmp);
 }
 
 // generate a random message with xids and a key starting with pfx, insert
@@ -224,11 +223,10 @@ insert_random_update_message(NONLEAF_CHILDINFO bnc, FT_MSG_S **save, bool is_fre
     result->u.id.val = valdbt;
     *save = result;
 
-    int r = toku_bnc_insert_msg(bnc, key, keylen + (sizeof pfx),
-                                update_extra, sizeof *update_extra,
-                                FT_UPDATE, msn, xids, is_fresh,
-                                NULL, dummy_cmp);
-    assert_zero(r);
+    toku_bnc_insert_msg(bnc, key, keylen + (sizeof pfx),
+                        update_extra, sizeof *update_extra,
+                        FT_UPDATE, msn, xids, is_fresh,
+                        NULL, dummy_cmp);
     if (msn.msn > max_msn->msn) {
         *max_msn = msn;
     }
@@ -1119,12 +1117,11 @@ test_main (int argc, const char *argv[]) {
     initialize_dummymsn();
     int r;
     CACHETABLE ct;
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     FT_HANDLE t;
     r = toku_open_ft_handle(fname, 1, &t, 128*1024, 4096, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
-    r = toku_ft_set_update(t, orthopush_flush_update_fun); assert(r==0);
+    toku_ft_set_update(t, orthopush_flush_update_fun);
     // HACK
     t->ft->update_fun = orthopush_flush_update_fun;
 
@@ -1148,7 +1145,7 @@ test_main (int argc, const char *argv[]) {
     }
 
     r = toku_close_ft_handle_nolsn(t, 0);          assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 
     return 0;
 }

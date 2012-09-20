@@ -490,7 +490,7 @@ indexer_ft_delete_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS 
             // this question apples to delete_committed, insert_provisional
             // and insert_committed
             toku_multi_operation_client_lock();
-            result = toku_ft_maybe_delete (hotdb->i->ft_handle, hotkey, txn, false, ZERO_LSN, true);
+            toku_ft_maybe_delete (hotdb->i->ft_handle, hotkey, txn, false, ZERO_LSN, true);
             toku_multi_operation_client_unlock();
         }
     }
@@ -507,7 +507,7 @@ indexer_ft_delete_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xi
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            result = toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids);
+            toku_ft_send_delete(db_struct_i(hotdb)->ft_handle, hotkey, xids);
         }
     }
     return result;
@@ -527,7 +527,7 @@ indexer_ft_insert_provisional(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *
             assert(txn != NULL);
             // comment/question in indexer_ft_delete_provisional applies
             toku_multi_operation_client_lock();
-            result = toku_ft_maybe_insert (hotdb->i->ft_handle, hotkey, hotval, txn, false, ZERO_LSN, true, FT_INSERT);
+            toku_ft_maybe_insert (hotdb->i->ft_handle, hotkey, hotval, txn, false, ZERO_LSN, true, FT_INSERT);
             toku_multi_operation_client_unlock();
         }
     }
@@ -545,7 +545,7 @@ indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *ho
     } else {
         result = toku_ydb_check_avail_fs_space(indexer->i->env);
         if (result == 0) {
-            result  = toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT);
+            toku_ft_send_insert(db_struct_i(hotdb)->ft_handle, hotkey, hotval, xids, FT_INSERT);
         }
     }
     return result;
@@ -565,7 +565,7 @@ indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
         } else {
             result = toku_ydb_check_avail_fs_space(indexer->i->env);
             if (result == 0)
-                result = toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids);
+                toku_ft_send_commit_any(db_struct_i(hotdb)->ft_handle, hotkey, xids);
         }
     }
     return result;

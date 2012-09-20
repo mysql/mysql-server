@@ -365,16 +365,6 @@ toku_ft_unlock (FT ft) {
     unlock_for_blocktable(bt);
 }
 
-// This is a special debugging function used only in the brt-serialize-test.
-void
-toku_block_alloc(BLOCK_TABLE bt, uint64_t size, uint64_t *offset) {
-    lock_for_blocktable(bt);
-PRNTF("allocSomethingUnknown", 0L, (int64_t)size, 0L, bt);
-    block_allocator_alloc_block(bt->block_allocator, size, offset);
-PRNTF("allocSomethingUnknownd", 0L, (int64_t)size, (int64_t)*offset, bt);
-    unlock_for_blocktable(bt);
-}
-
 // Also used only in brt-serialize-test.
 void
 toku_block_free(BLOCK_TABLE bt, uint64_t offset) {

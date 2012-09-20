@@ -2101,54 +2101,6 @@ cleanup:
     return r;
 }
 
-void
-le_clean(uint8_t *key, uint32_t keylen,
-         uint8_t *val, uint32_t vallen,
-         void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
-         struct dbuf *d) {
-    struct leafentry le = {
-        .type = LE_CLEAN,
-        .keylen = toku_htod32(keylen),
-        .u = { .clean = { .vallen = toku_htod32(vallen) } }
-    };
-    size_t header_size = __builtin_offsetof(struct leafentry, u.clean) + sizeof(le.u.clean);
-    invariant(header_size==1+4+4);
-    bytes(d, &le, header_size); //Fixed
-    bytes(d, key, keylen); //key
-    bytes(d, val, vallen); //val
-}
-
-void
-le_committed_mvcc(uint8_t *key, uint32_t keylen,
-                  uint8_t *val, uint32_t vallen,
-                  TXNID xid,
-                  void (*bytes)(struct dbuf *dbuf, const void *bytes, int nbytes),
-                  struct dbuf *d) {
-    struct leafentry le = {
-        .type = LE_MVCC,
-        .keylen = toku_htod32(keylen),
-        .u = { .mvcc = {
-                .num_cxrs = toku_htod32(2), //TXNID_NONE and xid each have committed xrs
-                .num_pxrs = 0               //No provisional
-            }
-        }
-    };
-    size_t header_size = __builtin_offsetof(struct leafentry, u.mvcc) + sizeof(le.u.mvcc);
-    invariant(header_size==1+4+4+1);
-    bytes(d, &le, header_size); //Fixed
-    bytes(d, key, keylen); //key
-    invariant(xid!=TXNID_NONE);
-    xid = toku_htod64(xid);
-    bytes(d, &xid, 8); //xid of transaction
-                       //TXNID_NONE is implicit
-    uint32_t insert_length_and_bit = toku_htod32(INSERT_LENGTH(vallen));
-    bytes(d, &insert_length_and_bit, 4); //vallen insert
-    uint32_t delete_length_and_bit = toku_htod32(DELETE_LENGTH(0));
-    bytes(d, &delete_length_and_bit, 4); //committed delete
-    bytes(d, val, vallen); //val
-}
-
-
 #if TOKU_WINDOWS
 #pragma pack(push, 1)
 #endif

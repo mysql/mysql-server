@@ -20,13 +20,13 @@ static FT_HANDLE t;
 static void close_ft_and_ct (void) {
     int r;
     r = toku_close_ft_handle_nolsn(t, 0);          assert(r==0);
-    r = toku_cachetable_close(&ct);    assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 static void open_ft_and_ct (bool unlink_old) {
     int r;
     if (unlink_old) unlink(fname);
-    r = toku_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);                                assert(r==0);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
 }
 
@@ -75,13 +75,12 @@ static void test_keyrange (enum memory_state ms, uint64_t limit) {
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	snprintf(val, 100, "%08llu", (unsigned long long)2*i+1);
 	DBT k,v;
-	int r = toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v,val, 1+strlen(val)), null_txn);
-	assert(r == 0);
+	toku_ft_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v,val, 1+strlen(val)), null_txn);
     }
 
     {
         struct ftstat64_s s;
-        int r = toku_ft_handle_stat64(t, null_txn, &s); assert(r == 0);
+        toku_ft_handle_stat64(t, null_txn, &s);
         
         assert(0 < s.nkeys && s.nkeys < limit);
         assert(0 < s.dsize && s.dsize < limit * (9 + 9)); // keylen = 9, vallen = 9
@@ -100,8 +99,7 @@ static void test_keyrange (enum memory_state ms, uint64_t limit) {
 	    snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
 	    DBT k;
 	    uint64_t less,equal,greater;
-	    int r = toku_ft_keyrange(t, toku_fill_dbt(&k, key, 1+strlen(key)), &less, &equal, &greater);
-	    assert(r == 0);
+	    toku_ft_keyrange(t, toku_fill_dbt(&k, key, 1+strlen(key)), &less, &equal, &greater);
 	    if (verbose > 1) 
                 printf("Pkey %llu/%llu %llu %llu %llu\n", (unsigned long long)2*i+1, (unsigned long long)2*limit, (unsigned long long)less, (unsigned long long)equal, (unsigned long long)greater);
 
@@ -163,8 +161,7 @@ static void test_keyrange (enum memory_state ms, uint64_t limit) {
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i);
 	DBT k;
 	uint64_t less,equal,greater;
-	int r = toku_ft_keyrange(t, toku_fill_dbt(&k, key, 1+strlen(key)), &less, &equal, &greater);
-	assert(r == 0);
+	toku_ft_keyrange(t, toku_fill_dbt(&k, key, 1+strlen(key)), &less, &equal, &greater);
         if (verbose > 1)
             printf("Akey %llu/%llu %llu %llu %llu\n", (unsigned long long)2*i, (unsigned long long)2*limit, (unsigned long long)less, (unsigned long long)equal, (unsigned long long)greater);
 

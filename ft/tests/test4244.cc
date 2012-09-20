@@ -30,7 +30,7 @@ doit (void) {
     XMALLOC_N(fnamelen, fname);
 
     snprintf(fname, fnamelen, "%s.ft_handle", __SRCFILE__);
-    r = toku_create_cachetable(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -57,11 +57,10 @@ doit (void) {
     memset(&k, 0, sizeof(k));
     memset(&v, 0, sizeof(v));
     for (int i = 0; i < 100; i++) {
-        r = toku_ft_insert(t,
-                            toku_fill_dbt(&k, "hello", 6),
-                            toku_fill_dbt(&v, big_val, big_val_size),
-                            null_txn);
-        assert(r==0);
+        toku_ft_insert(t,
+                       toku_fill_dbt(&k, "hello", 6),
+                       toku_fill_dbt(&v, big_val, big_val_size),
+                       null_txn);
     }
     toku_free(big_val);
 
@@ -89,7 +88,7 @@ doit (void) {
     toku_unpin_ftnode_off_client_thread(t->ft, node);
 
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);
-    r = toku_cachetable_close(&ct); assert(r==0);
+    toku_cachetable_close(&ct);
 }
 
 int

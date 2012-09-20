@@ -223,7 +223,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     FILENUMS filenums;
     filenums = indexer->i->filenums;
     toku_multi_operation_client_lock();
-    rval = toku_ft_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
+    toku_ft_hot_index(NULL, ttxn, filenums, 1, &hot_index_lsn);
     toku_multi_operation_client_unlock();
 
     if (rval == 0) {
