@@ -200,7 +200,7 @@ row_fts_psort_info_init(
 
 	if (!psort_info) {
 		ut_free(dup);
-		return FALSE;
+		return(FALSE);
 	}
 
 	sort_event = os_event_create(NULL);
@@ -219,7 +219,7 @@ row_fts_psort_info_init(
 	if (!common_info) {
 		ut_free(dup);
 		mem_free(psort_info);
-		return FALSE;
+		return(FALSE);
 	}
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
