@@ -165,8 +165,8 @@ t7.run = function() {
 
 
 /***** Test begin with rollback only ***/
-t7 = new harness.ConcurrentTest("testBeginWithRollbackOnly");
-t7.run = function() {
+t8 = new harness.ConcurrentTest("testBeginWithRollbackOnly");
+t8.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
@@ -183,8 +183,8 @@ t7.run = function() {
 
 
 /***** Test setRollbackOnly without begin ***/
-t8 = new harness.ConcurrentTest("testSetRollbackOnlyWithoutBegin");
-t8.run = function() {
+t9 = new harness.ConcurrentTest("testSetRollbackOnlyWithoutBegin");
+t9.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
@@ -199,4 +199,4 @@ t8.run = function() {
 
 
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9];
