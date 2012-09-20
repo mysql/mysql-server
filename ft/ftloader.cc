@@ -2221,6 +2221,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     toku_ft_init(&ft, (BLOCKNUM){0}, bl->load_lsn, root_xid_that_created, target_nodesize, target_basementnodesize, target_compression_method);
 
     struct dbout out;
+    ZERO_STRUCT(out);
     dbout_init(&out, &ft);
     out.fd = fd;
     out.current_off = 8192; // leave 8K reserved at beginning

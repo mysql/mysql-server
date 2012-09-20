@@ -8,7 +8,7 @@
 #define FTLOADER_ERROR_INJECTOR_H
 
 
-static toku_mutex_t event_mutex = { PTHREAD_MUTEX_INITIALIZER };
+static toku_mutex_t event_mutex = TOKU_MUTEX_INITIALIZER;
 static void lock_events(void) {
     toku_mutex_lock(&event_mutex);
 }

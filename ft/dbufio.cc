@@ -164,7 +164,7 @@ static void* io_thread (void *v)
 int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t bufsize) {
     //printf("%s:%d here\n", __FILE__, __LINE__);
     int result = 0;
-    DBUFIO_FILESET MALLOC(bfs);
+    DBUFIO_FILESET CALLOC(bfs);
     if (bfs==0) { result = get_error_errno(); }
     bool mutex_inited = false, cond_inited = false;
     if (result==0) {
