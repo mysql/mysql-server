@@ -34,7 +34,7 @@ struct kibbutz {
 static void *work_on_kibbutz (void *);
 
 KIBBUTZ toku_kibbutz_create (int n_workers) {
-    KIBBUTZ XMALLOC(k);
+    KIBBUTZ XCALLOC(k);
     toku_mutex_init(&k->mutex, NULL);
     toku_cond_init(&k->cond, NULL);
     k->please_shutdown = false;
