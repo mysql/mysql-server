@@ -344,15 +344,15 @@ os_get_os_version(void)
 		switch (os_info.dwMajorVersion) {
 		case 3:
 		case 4:
-			return OS_WINNT;
+			return(OS_WINNT);
 		case 5:
-			return (os_info.dwMinorVersion == 0) ? OS_WIN2000
+			return(os_info.dwMinorVersion == 0) ? OS_WIN2000
 							     : OS_WINXP;
 		case 6:
-			return (os_info.dwMinorVersion == 0) ? OS_WINVISTA
+			return(os_info.dwMinorVersion == 0) ? OS_WINVISTA
 							     : OS_WIN7;
 		default:
-			return OS_WIN7;
+			return(OS_WIN7);
 		}
 	} else {
 		ut_error;
@@ -380,7 +380,7 @@ os_file_get_last_error_low(
 
 	ulint	err = (ulint) GetLastError();
 	if (err == ERROR_SUCCESS) {
-		return 0;
+		return(0);
 	}
 
 	if (report_all_errors
@@ -466,7 +466,7 @@ os_file_get_last_error_low(
 #else
 	int err = errno;
 	if (err == 0) {
-		return 0;
+		return(0);
 	}
 
 	if (report_all_errors
@@ -1084,7 +1084,7 @@ os_file_create_directory(
 		return(FALSE);
 	}
 
-	return (TRUE);
+	return(TRUE);
 #else
 	int	rcode;
 
@@ -1097,7 +1097,7 @@ os_file_create_directory(
 		return(FALSE);
 	}
 
-	return (TRUE);
+	return(TRUE);
 #endif
 }
 
@@ -1203,7 +1203,7 @@ try_again:
 		/* create subdirs along the path if needed  */
 		*success = os_file_create_subdirs_if_needed(name);
 		if (!*success) {
-			return (-1);
+			return(-1);
 		}
 		create_flag = O_RDWR | O_CREAT | O_EXCL;
 		create_mode = OS_FILE_CREATE;
