@@ -353,7 +353,7 @@ os_get_os_version(void)
 		switch (os_info.dwMajorVersion) {
 		case 3:
 		case 4:
-			return OS_WINNT;
+			return(OS_WINNT);
 		case 5:
 			return (os_info.dwMinorVersion == 0)
 				? OS_WIN2000 : OS_WINXP;
@@ -361,7 +361,7 @@ os_get_os_version(void)
 			return (os_info.dwMinorVersion == 0)
 				? OS_WINVISTA : OS_WIN7;
 		default:
-			return OS_WIN7;
+			return(OS_WIN7);
 		}
 	} else {
 		ut_error;
@@ -389,7 +389,7 @@ os_file_get_last_error_low(
 
 	ulint	err = (ulint) GetLastError();
 	if (err == ERROR_SUCCESS) {
-		return 0;
+		return(0);
 	}
 
 	if (report_all_errors
@@ -475,7 +475,7 @@ os_file_get_last_error_low(
 #else
 	int err = errno;
 	if (err == 0) {
-		return 0;
+		return(0);
 	}
 
 	if (report_all_errors
@@ -1098,7 +1098,7 @@ os_file_create_directory(
 		return(FALSE);
 	}
 
-	return (TRUE);
+	return(TRUE);
 #else
 	int	rcode;
 

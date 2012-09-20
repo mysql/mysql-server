@@ -1009,7 +1009,7 @@ innobase_create_handler(
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root)
 {
-	return new (mem_root) ha_innobase(hton, table);
+	return(new (mem_root) ha_innobase(hton, table));
 }
 
 /* General functions */
@@ -5552,13 +5552,13 @@ get_innobase_type_from_mysql_type(
 		case MYSQL_TYPE_TIME:
 		case MYSQL_TYPE_DATETIME:
 		case MYSQL_TYPE_TIMESTAMP:
-			return DATA_INT;
+			return(DATA_INT);
 		default: /* Fall through */
 			DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
 		case MYSQL_TYPE_TIME2:
 		case MYSQL_TYPE_DATETIME2:
 		case MYSQL_TYPE_TIMESTAMP2:
-			return DATA_FIXBINARY;
+			return(DATA_FIXBINARY);
 		}
 	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
@@ -5610,7 +5610,7 @@ innobase_read_from_2_little_endian(
 /*===============================*/
 	const uchar*	buf)	/*!< in: from where to read */
 {
-	return (uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
+	return((uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1]))));
 }
 
 /*******************************************************************//**
@@ -8065,7 +8065,7 @@ ha_innobase::ft_init_ext(
 
 	if (!index || index->type != DICT_FTS) {
 		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
-		return NULL;
+		return(NULL);
 	}
 
 	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
@@ -8094,7 +8094,7 @@ ha_innobase::ft_init_ext(
 		prebuilt->in_fts_query = true;
 	}
 
-	return ((FT_INFO*) fts_hdl);
+	return((FT_INFO*) fts_hdl);
 }
 
 /**********************************************************************//**
@@ -8146,7 +8146,7 @@ next_record:
 		   without fetching the table row */
 		if (ft_prebuilt->read_just_key) {
 			table->status= 0;
-			return (0);
+			return(0);
 		}
 
 		index = dict_table_get_index_on_name(
@@ -10486,7 +10486,7 @@ longlong
 ha_innobase::get_memory_buffer_size() const
 /*=======================================*/
 {
-	return innobase_buffer_pool_size;
+	return(innobase_buffer_pool_size);
 }
 
 /*********************************************************************//**
@@ -15058,9 +15058,9 @@ innobase_fts_retrieve_ranking(
 	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
 
 	if (ft_prebuilt->read_just_key) {
-		fts_ranking_t*  ranking = 
+		fts_ranking_t*  ranking =
 			rbt_value(fts_ranking_t, result->current);
-		return (ranking->rank);
+		return(ranking->rank);
 	}
 
 	/* Retrieve the ranking value for doc_id with value of
@@ -15110,7 +15110,7 @@ innobase_fts_find_ranking(
 
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
-	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
+	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
 }
 
 #ifdef UNIV_DEBUG
@@ -15173,7 +15173,7 @@ innobase_fts_get_version()
 	/* Currently this doesn't make much sense as returning
 	HA_CAN_FULLTEXT_EXT automatically mean this version is supported.
 	This supposed to ease future extensions.  */
-	return 2;
+	return(2);
 }
 
 /***********************************************************************
@@ -15182,7 +15182,7 @@ ulonglong
 innobase_fts_flags()
 /*================*/
 {
-	return (FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
+	return(FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
 }
 
 
@@ -15201,9 +15201,9 @@ innobase_fts_retrieve_docid(
 	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
 
 	if (ft_prebuilt->read_just_key) {
-		fts_ranking_t* ranking = 
+		fts_ranking_t* ranking =
 			rbt_value(fts_ranking_t, result->current);
-		return (ranking->doc_id);
+		return(ranking->doc_id);
 	}
 
 	return(ft_prebuilt->fts_doc_id);
@@ -15540,11 +15540,11 @@ static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
 static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
    PLUGIN_VAR_RQCMDARG,
    "Maximum delay of user threads in micro-seconds",
-   NULL, NULL, 
+   NULL, NULL,
    0L,			/* Default seting */
    0L,			/* Minimum value */
    10000000UL, 0);	/* Maximum value */
- 
+
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
