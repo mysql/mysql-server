@@ -426,7 +426,6 @@ recv_truncate_group(
 	lsn_t		finish_lsn1;
 	lsn_t		finish_lsn2;
 	lsn_t		finish_lsn;
-	ulint		i;
 
 	if (archived_lsn == LSN_MAX) {
 		/* Checkpoint was taken in the NOARCHIVELOG mode */
@@ -454,11 +453,7 @@ recv_truncate_group(
 
 	ut_a(RECV_SCAN_SIZE <= log_sys->buf_size);
 
-	/* Write the log buffer full of zeros */
-	for (i = 0; i < RECV_SCAN_SIZE; i++) {
-
-		*(log_sys->buf + i) = '\0';
-	}
+	memset(log_sys->buf, 0, RECV_SCAN_SIZE);
 
 	start_lsn = ut_uint64_align_down(recovered_lsn,
 					 OS_FILE_LOG_BLOCK_SIZE);
@@ -498,11 +493,7 @@ recv_truncate_group(
 			return;
 		}
 
-		/* Write the log buffer full of zeros */
-		for (i = 0; i < RECV_SCAN_SIZE; i++) {
-
-			*(log_sys->buf + i) = '\0';
-		}
+		memset(log_sys->buf, 0, RECV_SCAN_SIZE);
 
 		start_lsn = end_lsn;
 	}
