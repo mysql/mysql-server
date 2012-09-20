@@ -1684,16 +1684,25 @@ int ha_tokudb::initialize_share(
         goto exit;
     }
 
-    //
-    // verify frm file is what we expect it to be
-    // only for tables that are not partitioned
-    //
-    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA) {
+        // verify frm data for all tables
         error = verify_frm_data(table->s->path.str, txn);
-        if (error) {
+        if (error)
             goto exit;
+    } else {
+        // verify frm data for non-partitioned tables
+        if (table->part_info == NULL) {
+            error = verify_frm_data(table->s->path.str, txn);
+            if (error)
+                goto exit;
+        } else {
+            // remove the frm data for partitions since we are not maintaining it
+            error = remove_frm_data(share->status_block, txn);
+            if (error)
+                goto exit;
         }
     }
+
     error = initialize_key_and_col_info(
         table_share,
         table, 
