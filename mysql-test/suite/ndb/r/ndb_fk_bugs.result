@@ -41,6 +41,7 @@ alter table t2
 add constraint fk1 foreign key (b) references t1 (a)
 on delete cascade on update restrict;
 drop table t2, t1;
+# bug#14195170
 CREATE TABLE customer (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=NDB;
 CREATE TABLE product (category INT NOT NULL, id INT NOT NULL,
 price DECIMAL, PRIMARY KEY(category, id)) ENGINE=NDB;
@@ -57,3 +58,35 @@ Level	Code	Message
 Warning	1296	Got error 21000 'Create foreign key failed - parent key is primary key and on-update-cascade is not allowed' from NDB
 Error	1005	Can't create table 'test.product_order' (errno: 150)
 DROP TABLE customer, product;
+# bug#14124623
+CREATE TABLE counties (county VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX county_country_index(country)) ENGINE=ndb;
+INSERT INTO counties VALUES
+('Berkshire','England'),('Shropshire','England'),('Oxfordshire','England'),('Buckinghamshire','England');
+CREATE TABLE towns (town VARCHAR(30) NOT NULL PRIMARY KEY, county
+VARCHAR(30), INDEX county_county_index (county), CONSTRAINT county_town
+FOREIGN KEY (county) REFERENCES counties(county) ON DELETE RESTRICT ON UPDATE
+RESTRICT) ENGINE=ndb;
+INSERT INTO towns VALUES
+('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
+,('Oxford','Oxfordshire');
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+ERROR HY000: Can't create table 'test.languages' (errno: 150)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
+Error	1005	Can't create table 'test.languages' (errno: 150)
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+ERROR HY000: Can't create table 'test.languages' (errno: 150)
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
+Error	1005	Can't create table 'test.languages' (errno: 150)
+CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
+drop table languages, towns, counties;

@@ -58,6 +58,7 @@ alter table t2
 drop table t2, t1;
 
 # Bug #14195170  	FAILING CREATE TABLE WITH FK CONSTRAINTS LEAVES ORPHANED .FRM
+--echo # bug#14195170
 
 CREATE TABLE customer (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=NDB;
 
@@ -73,3 +74,39 @@ CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT
 show warnings;
 
 DROP TABLE customer, product;
+
+# Bug #14124623 - CREATING TABLE WITH FK CONSTRAINT FAILS AND LEAVES DB CORRUPT
+--echo # bug#14124623
+
+CREATE TABLE counties (county VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX county_country_index(country)) ENGINE=ndb;
+
+INSERT INTO counties VALUES
+('Berkshire','England'),('Shropshire','England'),('Oxfordshire','England'),('Buckinghamshire','England');
+
+CREATE TABLE towns (town VARCHAR(30) NOT NULL PRIMARY KEY, county
+VARCHAR(30), INDEX county_county_index (county), CONSTRAINT county_town
+FOREIGN KEY (county) REFERENCES counties(county) ON DELETE RESTRICT ON UPDATE
+RESTRICT) ENGINE=ndb;
+
+INSERT INTO towns VALUES
+('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
+,('Oxford','Oxfordshire');
+
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+show warnings;
+
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+show warnings;
+
+CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
+
+drop table languages, towns, counties;
