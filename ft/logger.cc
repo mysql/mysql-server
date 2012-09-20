@@ -69,7 +69,7 @@ static bool is_a_logfile (const char *name, long long *number_result) {
 
 
 int toku_logger_create (TOKULOGGER *resultp) {
-    TOKULOGGER MALLOC(result);
+    TOKULOGGER CALLOC(result);
     if (result==0) return get_error_errno();
     result->is_open=false;
     result->is_panicked=false;
