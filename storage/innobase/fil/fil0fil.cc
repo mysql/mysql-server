@@ -3095,12 +3095,12 @@ Deletes an InnoDB Symbolic Link (ISL) file. */
 UNIV_INTERN
 void
 fil_delete_link_file(
-/*==================*/
+/*=================*/
 	const char*	tablename)	/*!< in: name of table */
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete(link_filepath);
+	os_file_delete_if_exists(link_filepath);
 
 	mem_free(link_filepath);
 }
