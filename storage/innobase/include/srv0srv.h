@@ -237,13 +237,12 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
-extern char**	srv_log_group_home_dirs;
+extern char*	srv_log_group_home_dir;
 #ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
 
-extern ulint	srv_n_log_groups;
 extern ulint	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
