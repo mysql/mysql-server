@@ -3009,7 +3009,7 @@ fts_retrieve_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		return (ranking->rank);
+		return(ranking->rank);
 	}
 
 	return(0);

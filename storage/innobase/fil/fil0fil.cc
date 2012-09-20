@@ -199,14 +199,16 @@ struct fil_space_t {
 				requests on the file */
 	ibool		stop_new_ops;
 				/*!< we set this TRUE when we start
-				deleting a single-table tablespace */
-	ibool		is_being_deleted;
-				/*!< this is set to TRUE when we start
-				deleting a single-table tablespace and its
-				file; when this flag is set no further i/o
-				or flush requests can be placed on this space,
-				though there may be such requests still being
-				processed on this space */
+				deleting a single-table tablespace.
+				When this is set following new ops
+				are not allowed:
+				* read IO request
+				* ibuf merge
+				* file flush
+				Note that we can still possibly have
+				new write operations because we don't
+				check this flag when doing flush
+				batches. */
 	ulint		purpose;/*!< FIL_TABLESPACE, FIL_LOG, or
 				FIL_ARCH_LOG */
 	UT_LIST_BASE_NODE_T(fil_node_t) chain;
@@ -2328,22 +2330,18 @@ fil_ibuf_check_pending_ops(
 {
 	ut_ad(mutex_own(&fil_system->mutex));
 
-	if (space != 0) {
-		space->stop_new_ops = TRUE;
+	if (space != 0 && space->n_pending_ops != 0) {
 
-		if (space->n_pending_ops != 0) {
-
-			if (count > 5000) {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Trying to close/delete tablespace "
-					"'%s' but there are %lu pending change "
-					"buffer merges on it.",
-					space->name,
-					(ulong) space->n_pending_ops);
-			}
-
-			return(count + 1);
+		if (count > 5000) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Trying to close/delete tablespace "
+				"'%s' but there are %lu pending change "
+				"buffer merges on it.",
+				space->name,
+				(ulong) space->n_pending_ops);
 		}
+
+		return(count + 1);
 	}
 
 	return(0);
@@ -2362,8 +2360,6 @@ fil_check_pending_io(
 {
 	ut_ad(mutex_own(&fil_system->mutex));
 	ut_a(space->n_pending_ops == 0);
-
-	space->is_being_deleted = TRUE;
 
 	/* The following code must change when InnoDB supports
 	multiple datafiles per tablespace. */
@@ -2405,17 +2401,25 @@ fil_check_pending_operations(
 	ulint		count = 0;
 
 	ut_a(id != TRX_SYS_SPACE);
+	ut_ad(space);
 
 	*space = 0;
+
+	mutex_enter(&fil_system->mutex);
+	fil_space_t* sp = fil_space_get_by_id(id);
+	if (sp) {
+		sp->stop_new_ops = TRUE;
+	}
+	mutex_exit(&fil_system->mutex);
 
 	/* Check for pending change buffer merges. */
 
 	do {
 		mutex_enter(&fil_system->mutex);
 
-		*space = fil_space_get_by_id(id);
+		sp = fil_space_get_by_id(id);
 
-		count = fil_ibuf_check_pending_ops(*space, count);
+		count = fil_ibuf_check_pending_ops(sp, count);
 
 		mutex_exit(&fil_system->mutex);
 
@@ -2432,16 +2436,16 @@ fil_check_pending_operations(
 	do {
 		mutex_enter(&fil_system->mutex);
 
-		*space = fil_space_get_by_id(id);
+		sp = fil_space_get_by_id(id);
 
-		if (*space == NULL) {
+		if (sp == NULL) {
 			mutex_exit(&fil_system->mutex);
 			return(DB_TABLESPACE_NOT_FOUND);
 		}
 
 		fil_node_t*	node;
 
-		count = fil_check_pending_io(*space, &node, count);
+		count = fil_check_pending_io(sp, &node, count);
 
 		if (count == 0) {
 			*path = mem_strdup(node->name);
@@ -2455,6 +2459,9 @@ fil_check_pending_operations(
 
 	} while (count > 0);
 
+	ut_ad(sp);
+
+	*space = sp;
 	return(DB_SUCCESS);
 }
 
@@ -2480,16 +2487,17 @@ fil_close_tablespace(
 		return(err);
 	}
 
+	ut_a(space);
 	ut_a(path != 0);
 
 	rw_lock_x_lock(&space->latch);
 
 #ifndef UNIV_HOTBACKUP
 	/* Invalidate in the buffer pool all pages belonging to the
-	tablespace. Since we have set space->is_being_deleted = TRUE, readahead
+	tablespace. Since we have set space->stop_new_ops = TRUE, readahead
 	or ibuf merge can no longer read more pages of this tablespace to the
 	buffer pool. Thus we can clean the tablespace out of the buffer pool
-	completely and permanently. The flag is_being_deleted also prevents
+	completely and permanently. The flag stop_new_ops also prevents
 	fil_flush() from being applied to this tablespace. */
 
 	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_FLUSH_WRITE, trx);
@@ -2551,6 +2559,7 @@ fil_delete_tablespace(
 		return(err);
 	}
 
+	ut_a(space);
 	ut_a(path != 0);
 
 	/* Important: We rely on the data dictionary mutex to ensure
@@ -2566,12 +2575,26 @@ fil_delete_tablespace(
 	rw_lock_x_lock(&space->latch);
 
 #ifndef UNIV_HOTBACKUP
-	/* Invalidate in the buffer pool all pages belonging to the
-	tablespace. Since we have set space->is_being_deleted = TRUE, readahead
-	or ibuf merge can no longer read more pages of this tablespace to the
-	buffer pool. Thus we can clean the tablespace out of the buffer pool
-	completely and permanently. The flag is_being_deleted also prevents
-	fil_flush() from being applied to this tablespace. */
+	/* IMPORTANT: Because we have set space::stop_new_ops there
+	can't be any new ibuf merges, reads or flushes. We are here
+	because node::n_pending was zero above. However, it is still
+	possible to have pending read and write requests:
+
+	A read request can happen because the reader thread has
+	gone through the ::stop_new_ops check in buf_page_init_for_read()
+	before the flag was set and has not yet incremented ::n_pending
+	when we checked it above.
+
+	A write request can be issued any time because we don't check
+	the ::stop_new_ops flag when queueing a block for write.
+
+	We deal with pending write requests in the following function
+	where we'd minimally evict all dirty pages belonging to this
+	space from the flush_list. Not that if a block is IO-fixed
+	we'll wait for IO to complete.
+
+	To deal with potential read requests by checking the
+	::stop_new_ops flag in fil_io() */
 
 	buf_LRU_flush_or_remove_pages(id, buf_remove, 0);
 
@@ -2591,6 +2614,15 @@ fil_delete_tablespace(
 	}
 
 	mutex_enter(&fil_system->mutex);
+
+	/* Double check the sanity of pending ops after reacquiring
+	the fil_system::mutex. */
+	if (fil_space_get_by_id(id)) {
+		ut_a(space->n_pending_ops == 0);
+		ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+		fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
+		ut_a(node->n_pending == 0);
+	}
 
 	if (!fil_space_free(id, TRUE)) {
 		err = DB_TABLESPACE_NOT_FOUND;
@@ -2649,7 +2681,7 @@ fil_tablespace_is_being_deleted(
 
 	ut_a(space != NULL);
 
-	is_being_deleted = space->is_being_deleted;
+	is_being_deleted = space->stop_new_ops;
 
 	mutex_exit(&fil_system->mutex);
 
@@ -3065,12 +3097,12 @@ Deletes an InnoDB Symbolic Link (ISL) file. */
 UNIV_INTERN
 void
 fil_delete_link_file(
-/*==================*/
+/*=================*/
 	const char*	tablename)	/*!< in: name of table */
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete(link_filepath);
+	os_file_delete_if_exists(link_filepath);
 
 	mem_free(link_filepath);
 }
@@ -4372,7 +4404,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 
 	space = fil_space_get_by_id(id);
 
-	if (space == NULL || space->is_being_deleted) {
+	if (space == NULL || space->stop_new_ops) {
 		mutex_exit(&fil_system->mutex);
 
 		return(TRUE);
@@ -5171,7 +5203,9 @@ fil_io(
 
 	space = fil_space_get_by_id(space_id);
 
-	if (space == 0) {
+	/* If we are deleting a tablespace we don't allow any read
+	operations on that. However, we do allow write operations. */
+	if (space == 0 || (type == OS_FILE_READ && space->stop_new_ops)) {
 		mutex_exit(&fil_system->mutex);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -5386,7 +5420,7 @@ fil_flush(
 
 	space = fil_space_get_by_id(space_id);
 
-	if (!space || space->is_being_deleted) {
+	if (!space || space->stop_new_ops) {
 		mutex_exit(&fil_system->mutex);
 
 		return;
@@ -5540,7 +5574,7 @@ fil_flush_file_spaces(
 	     space;
 	     space = UT_LIST_GET_NEXT(unflushed_spaces, space)) {
 
-		if (space->purpose == purpose && !space->is_being_deleted) {
+		if (space->purpose == purpose && !space->stop_new_ops) {
 
 			space_ids[n_space_ids++] = space->id;
 		}

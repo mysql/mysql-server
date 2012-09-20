@@ -5556,7 +5556,7 @@ dict_table_get_index_on_name(
 
 	/* If name is NULL, just return */
 	if (!name) {
-		return NULL;
+		return(NULL);
 	}
 
 	index = dict_table_get_first_index(table);
@@ -5571,7 +5571,6 @@ dict_table_get_index_on_name(
 	}
 
 	return(NULL);
-
 }
 
 /**********************************************************************//**

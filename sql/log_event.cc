@@ -4762,6 +4762,12 @@ compare_errors:
              ignored_error_code(actual_error))
     {
       DBUG_PRINT("info",("error ignored"));
+      if (log_warnings > 1 && ignored_error_code(actual_error))
+      {
+	    rli->report(WARNING_LEVEL, actual_error,
+                "Could not execute %s event. Detailed error: %s;",
+		 get_type_str(), thd->get_stmt_da()->message());
+      }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
     }
@@ -9801,7 +9807,7 @@ void Rows_log_event::do_post_row_operations(Relay_log_info const *rli, int error
   }
 }
 
-int Rows_log_event::handle_idempotent_errors(Relay_log_info const *rli, int *err)
+int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *rli, int *err)
 {
   int error= *err;
   if (error)
@@ -9814,11 +9820,13 @@ int Rows_log_event::handle_idempotent_errors(Relay_log_info const *rli, int *err
 
     if (idempotent_error || ignored_error)
     {
-      if (log_warnings)
+      if ( (idempotent_error && log_warnings) || 
+		(ignored_error && log_warnings > 1) )
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, m_table,
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
+      thd->get_stmt_da()->clear_warning_info(thd->query_id);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
       if (idempotent_error == 0)
@@ -10423,7 +10431,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
 
             if ((error= do_apply_row(rli)))
             {
-              if (handle_idempotent_errors(rli, &error))
+              if (handle_idempotent_and_ignored_errors(rli, &error))
                 goto close_table;
 
               do_post_row_operations(rli, error);
@@ -10437,8 +10445,9 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
           continue;
 
         case HA_ERR_KEY_NOT_FOUND:
-          /* If the slave exec mode is idempotent don't break */
-          if (handle_idempotent_errors(rli, &error))
+          /* If the slave exec mode is idempotent or the error is
+              skipped error, then don't break */
+          if (handle_idempotent_and_ignored_errors(rli, &error))
             goto close_table;
           idempotent_errors++;
           continue;
@@ -10934,7 +10943,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
       error= (this->*do_apply_row_ptr)(rli);
 
-      if (handle_idempotent_errors(rli, &error))
+      if (handle_idempotent_and_ignored_errors(rli, &error))
         break;
 
       /* this advances m_curr_row */
@@ -10985,11 +10994,12 @@ AFTER_MAIN_EXEC_ROW_LOOP:
         ignored_error_code(convert_handler_error(error, thd, table)))
     {
 
-      if (log_warnings)
+      if (log_warnings > 1)
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
+      thd->get_stmt_da()->clear_warning_info(thd->query_id);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
