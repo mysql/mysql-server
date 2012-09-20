@@ -1459,7 +1459,7 @@ static int extend_fileset (FTLOADER bl, struct merge_fileset *fs, FIDX*ffile)
 
 // RFP maybe this should be buried in the ft_loader struct
 // This was previously a cilk lock, but now we need it to work for pthreads too.
-static toku_mutex_t update_progress_lock =  { PTHREAD_MUTEX_INITIALIZER };
+static toku_mutex_t update_progress_lock = TOKU_MUTEX_INITIALIZER;
 
 static int update_progress (int N,
                             FTLOADER bl,

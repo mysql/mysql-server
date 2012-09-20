@@ -45,7 +45,7 @@ struct queue {
 
 int queue_create (QUEUE *q, uint64_t weight_limit)
 {
-    QUEUE MALLOC(result);
+    QUEUE CALLOC(result);
     if (result==NULL) return get_error_errno();
     result->contents_weight = 0;
     result->weight_limit    = weight_limit;

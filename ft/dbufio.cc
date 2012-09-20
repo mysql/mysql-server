@@ -168,7 +168,7 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
     if (bfs==0) { result = get_error_errno(); }
     bool mutex_inited = false, cond_inited = false;
     if (result==0) {
-	MALLOC_N(N, bfs->files);
+	CALLOC_N(N, bfs->files);
 	if (bfs->files==NULL) { result = get_error_errno(); }
 	else {
 	    for (int i=0; i<N; i++) {
