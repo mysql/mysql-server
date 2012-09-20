@@ -55,9 +55,6 @@ Warnings:
 Warning	1292	Truncated incorrect innodb_change_buffering_debug value: '-2'
 set global innodb_change_buffering_debug=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_change_buffering_debug'
-set global innodb_change_buffering_debug=2;
-Warnings:
-Warning	1292	Truncated incorrect innodb_change_buffering_debug value: '2'
 SET @@global.innodb_change_buffering_debug = @start_global_value;
 SELECT @@global.innodb_change_buffering_debug;
 @@global.innodb_change_buffering_debug
