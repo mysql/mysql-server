@@ -31,8 +31,9 @@ typedef struct timespec toku_timespec_t;
 typedef struct toku_mutex {
     pthread_mutex_t pmutex;
 #if TOKU_PTHREAD_DEBUG
-    bool locked;
     pthread_t owner; // = pthread_self(); // for debugging
+    bool locked;
+    bool valid;
 #endif
 } toku_mutex_t;
 
@@ -50,12 +51,16 @@ toku_mutex_init(toku_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     assert_zero(r);
 #if TOKU_PTHREAD_DEBUG
     mutex->locked = false;
+    invariant(!mutex->valid);
+    mutex->valid = true;
 #endif
 }
 
 static inline void
 toku_mutex_destroy(toku_mutex_t *mutex) {
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->valid);
+    mutex->valid = false;
     invariant(!mutex->locked);
 #endif
     int r = pthread_mutex_destroy(&mutex->pmutex);
@@ -67,6 +72,7 @@ toku_mutex_lock(toku_mutex_t *mutex) {
     int r = pthread_mutex_lock(&mutex->pmutex);
     assert_zero(r);
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->valid);
     invariant(!mutex->locked);
     mutex->locked = true;
     mutex->owner = pthread_self();
@@ -76,6 +82,7 @@ toku_mutex_lock(toku_mutex_t *mutex) {
 static inline void
 toku_mutex_unlock(toku_mutex_t *mutex) {
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->valid);
     invariant(mutex->locked);
     mutex->locked = false;
     mutex->owner = 0;

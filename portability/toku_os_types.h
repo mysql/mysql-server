@@ -6,7 +6,7 @@
 #if !defined(TOKU_OS_TYPES_H)
 #define TOKU_OS_TYPES_H
 
-
+#include <stdbool.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -16,6 +16,11 @@ struct fileid {
     dev_t st_dev; /* device and inode are enough to uniquely identify a file in unix. */
     ino_t st_ino;
 };
+
+__attribute__((const, nonnull, warn_unused_result))
+static inline bool toku_fileids_are_equal(struct fileid *a, struct fileid *b) {
+    return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
+}
 
 typedef struct stat toku_struct_stat;
 

@@ -97,8 +97,8 @@ static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT 
 {
 
     // not used
-    src_db  = src_db;
-    src_key = src_key;
+    (void) src_db;
+    (void) src_key;
     assert(*(uint32_t*)dest_db->app_private == 0);
 
     // region fields
@@ -148,8 +148,8 @@ static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT 
 static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) 
 {
     // not used
-    src_db  = src_db;
-    src_key = src_key;
+    (void) src_db;
+    (void) src_key;
 
     // lineitem fields
     char orderkey[16];   

@@ -26,7 +26,7 @@ static void test_checkpoint_callback(void *extra) {
 }
 
 static void test_checkpoint_callback2(void *extra) {
-    extra = extra;
+    (void) extra;
 }
 
 static void run_test (bool do_commit, bool do_abort) {
@@ -63,7 +63,7 @@ static void run_test (bool do_commit, bool do_abort) {
 }
 
 static void run_recover (bool did_commit) {
-    did_commit = did_commit;
+    (void) did_commit;
     int r;
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0);                                                             CKERR(r);

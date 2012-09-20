@@ -11,6 +11,7 @@
 #include <toku_assert.h>
 #include <db.h>
 #include <errno.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
@@ -292,7 +293,7 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *CAST_FROM_VOIDP(e, extrav);
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
-    if (do_mysql && 0) {
+    if (do_mysql && false) {
         static uint64_t expect_key = 0;
         uint64_t k = mysql_get_bigint((unsigned char*)key->data+1);
         if (k != expect_key)

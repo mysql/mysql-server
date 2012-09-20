@@ -12,6 +12,42 @@
 #include "doubly_linked_list.h"
 #include "growable_array.h"
 
+#ifdef __APPLE__
+// TODO(leif): The __thread declspec is broken in ways I don't understand
+// on Darwin.  Partitioned counters use them and it would be prohibitive
+// to tease them apart before a week after 6.5.0, so instead, we're just
+// not going to use them in the most brutal way possible.  This is a
+// terrible implementation of the API in partitioned_counter.h but it
+// should be correct enough to release a non-performant version on OSX for
+// development.  Soon, we need to either make portable partitioned
+// counters, or we need to do this disabling in a portable way.
+
+struct partitioned_counter {
+    uint64_t v;
+};
+
+PARTITIONED_COUNTER create_partitioned_counter(void) {
+    PARTITIONED_COUNTER XCALLOC(counter);
+    return counter;
+}
+
+void destroy_partitioned_counter(PARTITIONED_COUNTER counter) {
+    toku_free(counter);
+}
+
+void increment_partitioned_counter(PARTITIONED_COUNTER counter, uint64_t delta) {
+    (void) __sync_fetch_and_add(&counter->v, delta);
+}
+
+uint64_t read_partitioned_counter(PARTITIONED_COUNTER counter) {
+    return counter->v;
+}
+
+void partitioned_counters_init(void) {}
+void partitioned_counters_destroy(void) {}
+
+#else // __APPLE__
+
 //******************************************************************************
 //
 // Representation: The representation of a partitioned counter comprises a
@@ -333,3 +369,5 @@ void partitioned_counters_destroy(void)
     destroy_counters();
     pc_unlock();
 }
+
+#endif // __APPLE__

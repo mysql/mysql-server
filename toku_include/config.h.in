@@ -19,6 +19,7 @@
 #cmakedefine HAVE_LIMITS_H 1
 #cmakedefine HAVE_MACHINE_ENDIAN_H 1
 #cmakedefine HAVE_MALLOC_H 1
+#cmakedefine HAVE_MALLOC_MALLOC_H 1
 #cmakedefine HAVE_PTHREAD_H 1
 #cmakedefine HAVE_STDINT_H 1
 #cmakedefine HAVE_STDLIB_H 1

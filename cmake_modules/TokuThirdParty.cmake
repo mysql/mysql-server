@@ -3,18 +3,14 @@ set(TOKU_SVNROOT "${TokuDB_SOURCE_DIR}/../.." CACHE FILEPATH "The top of the tok
 
 ## add lzma with an external project
 include(ExternalProject)
-set(xz_configure_opts --with-pic)
-if (CMAKE_SYSTEM_NAME MATCHES Darwin)
-  ## lzma has some assembly that doesn't work on osx
+set(xz_configure_opts --with-pic --enable-static)
+if (APPLE)
+  ## lzma has some assembly that doesn't work on darwin
   list(APPEND xz_configure_opts --disable-assembler)
 endif ()
 
 list(APPEND xz_configure_opts CC=${CMAKE_C_COMPILER})
-if (CMAKE_BUILD_TYPE MATCHES Release)
-  if (CMAKE_C_COMPILER_ID MATCHES Intel)
-    list(APPEND xz_configure_opts "CFLAGS=-O2 -g -ip -ipo1" AR=xiar)
-  endif ()
-else ()
+if (NOT CMAKE_BUILD_TYPE MATCHES Release)
   list(APPEND xz_configure_opts --enable-debug)
 endif ()
 

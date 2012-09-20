@@ -332,7 +332,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     }
     ct->cf_list.write_lock();
     for (extant = ct->cf_list.m_head; extant; extant = extant->next) {
-        if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
+        if (toku_fileids_are_equal(&extant->fileid, &fileid)) {
             // Clients must serialize cachefile open, close, and unlink
             // So, during open, we should never see a closing cachefile 
             // or one that has been marked as unlink on close.

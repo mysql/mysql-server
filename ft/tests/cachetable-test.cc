@@ -63,9 +63,6 @@ struct item {
     const char *something;
 };
 
-static volatile int expect_n_flushes=0;
-
-
 static CACHEFILE expect_f;
 
 static void maybe_flush(CACHETABLE t) {

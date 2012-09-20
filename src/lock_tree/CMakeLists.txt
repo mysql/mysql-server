@@ -14,20 +14,16 @@ set_property(TARGET lock_tree_tlog APPEND PROPERTY
 target_link_libraries(lock_tree_tlog range_tree_tlog)
 add_dependencies(lock_tree_tlog install_tdb_h)
 
-set_targets_need_intel_libs(lock_tree_lin lock_tree_tlog)
-if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
-  add_space_separated_property(TARGET lock_tree_lin LINK_FLAGS "-diag-disable 10237")
-  add_space_separated_property(TARGET lock_tree_tlog LINK_FLAGS "-diag-disable 10237")
-endif ()
-
 ## make the real library, it's going to go into libtokudb.so so it needs
 ## to be PIC
-add_library(lock_tree_static STATIC ${lock_tree_srcs})
-add_space_separated_property(TARGET lock_tree_static COMPILE_FLAGS "-fvisibility=hidden -fPIC")
-set_property(TARGET lock_tree_static APPEND PROPERTY
+add_library(lock_tree_objects OBJECT ${lock_tree_srcs})
+set_target_properties(lock_tree_objects PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_space_separated_property(TARGET lock_tree_objects COMPILE_FLAGS "-fvisibility=hidden")
+set_property(TARGET lock_tree_objects APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_RT_NOOVERLAPS)
-add_dependencies(lock_tree_static install_tdb_h)
+add_dependencies(lock_tree_objects install_tdb_h)
 
-maybe_add_gcov_to_libraries(lock_tree_lin lock_tree_tlog lock_tree_static)
+maybe_add_gcov_to_libraries(lock_tree_lin lock_tree_tlog lock_tree_objects)
 
+add_library(lock_tree_static STATIC $<TARGET_OBJECTS:lock_tree_objects>)
 add_subdirectory(tests)

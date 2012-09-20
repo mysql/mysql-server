@@ -29,8 +29,8 @@ static inline DBT *dbt_init(DBT *dbt, void *data, uint32_t size) {
 }
 
 static void err_cb(DB *db, int which_db, int err, DBT *key, DBT *val, void *extra) {
-    db = db; which_db = which_db; err = err; extra = extra;
-    val = val;
+    (void) db; (void) which_db; (void) err; (void) extra;
+    (void) val;
     found_dup = *(int *)key->data;
     if (verbose) printf("err_cb : key <%d> val <%d>\n", *(int *)key->data, *(int *)val->data);
 }

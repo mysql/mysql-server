@@ -22,7 +22,7 @@ get_data(int *v, int i, int ndbs) {
 
 static int
 del_callback(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data) {
-    dest_db = dest_db; src_db = src_db; dest_key = dest_key; src_key = src_key; src_data = src_data;
+    (void) dest_db; (void) src_db; (void) dest_key; (void) src_key; (void) src_data;
 
     unsigned int dbnum;
     assert(dest_db->descriptor->dbt.size == sizeof dbnum);
