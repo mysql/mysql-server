@@ -1,32 +1,55 @@
-This project contains the Mynode definition and implementation.
+                 MySQL Cluster NoSQL API for Node.JS
+
+INTRODUCTION
+------------
+The NoSQL API for Node.JS provides lightweight domain object mapping for 
+JavaScript.  The API can be used with two separate backend adapters:
+
+  - The "ndb" adapter, which uses the C++ NDB API to provide
+    high-performance native access to MySQL Cluster. 
+
+  - The "mysql" adapter, which uses the node-mysql driver,
+    available using "npm install node-mysql"
+
+
+REQUIREMENTS
+------------
+
+Building the ndb backend requires MySQL Cluster 7.x or MySQL 5.6, including 
+headers and shared library files.  The MySQL architecture must match the node
+architecture: if node.js is 64-bit, then MySQL must also be 64-bit.  If node
+is 32-bit, MySQL must be 32-bit.
+
+The mysql backend requires version 2.0 of node-mysql, an all-JavaScript 
+MySQL client.
 
 
 BUILDING
 --------
-The wscript file is a waf script defining the build process.
 
-In this directory, run node-waf (the build tool distributed with node.js 0.6), 
-passing the location of an installed mysql tree. For example:
+ * To build the module in place, type:
 
-% node-waf configure --mysql=/usr/local/mysql-5.1.24-rc-osx10.5-x86_64/
-% node-waf build
+    setup/build.sh
+    
+         - OR -
 
-This will create the binary artifacts under Adapter/impl/build/Release/
-
-If you have built a previous version of the project, "node-waf clean"
-and "node-waf distclean" might be needed for cleaning up.
+ * To build and install the module, type:
+  
+    npm install . 
+ 
+The installation script is interactive.  It will try to locate a suitable copy 
+of MySQL, and it will prompt you to accept its choice or enter an alternative.
 
 
 DIRECTORY STRUCTURE
 -------------------
  API-documentation              Documentation of the main API
- test/                          Test driver and test suite
  samples/                       Sample code
+ setup/                         Scripts used to build and install the adapter
+ test/                          Test driver and test suite
  Adapter/                       The node.js adapter
  Adapter/api                    Implementation of the top-level API
- Adapter/impl                   Low-level implementations
- Adapter/impl/ndb               Low-level MySQL Cluster native connector
- Adapter/impl/mysql             Low-level connector using mysql client
+ Adapter/impl                   Backend implementations
 
 
 TESTING
@@ -42,6 +65,3 @@ cd test
 node Driver 
 
 
-
-
- 
