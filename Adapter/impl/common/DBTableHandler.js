@@ -193,7 +193,7 @@ DBTableHandler.prototype.setResultConstructor = function(constructorFunction) {
    
    Create a new object using the constructor function (if set).
 */
-DBTableHandler.prototype.newResultObject = function() {
+DBTableHandler.prototype.newResultObject = function(values) {
   udebug.log("newResultObject");
   var newDomainObj;
   
@@ -210,6 +210,16 @@ DBTableHandler.prototype.newResultObject = function() {
   }
 
   udebug.log("newResultObject done", newDomainObj);
+  
+  if (typeof(values) === 'object') {
+    var x;
+    // copy values into the new domain object
+    for (x in values) {
+      if (values.hasOwnProperty(x)) {
+        newDomainObj[x] = values[x];
+      }
+    }
+  }
   return newDomainObj;
 };
 

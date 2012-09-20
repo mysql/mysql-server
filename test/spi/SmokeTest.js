@@ -38,7 +38,7 @@ var test = new harness.SmokeTest("LoadModule");
 test.run = function() {
   var spi = require(spi_module),
       service = spi.getDBServiceProvider(global.adapter),
-      modules = service.getNativeCodeModules(),
+      modules = service.getRequiredModules(),
       test = this,
       i;
 

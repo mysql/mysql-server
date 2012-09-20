@@ -22,6 +22,27 @@
 
 "use strict";
 
+function getRequiredModules() {
+  var modulelist = 
+    [ "ndb_adapter.node"
+    ];
+  return modulelist;
+};
+
+function checkModules() {
+  var i;
+  var modules = getRequiredModules();
+  
+
+/*********** LOAD-TIME DEPENDENCY CHECK *****************/
+
+
+
+
+
+/********************************************************/
+
+
 var ndbconnection = require("./NdbConnectionPool.js"),
     udebug        = unified_debug.getLogger("ndb_service_provider.js");
 
@@ -66,11 +87,8 @@ exports.getFactoryKey = function(properties) {
 };
 
 
-exports.getNativeCodeModules = function() {
-  udebug.log("getNativeCodeModules");
-  var modulelist = 
-    [ "ndb_adapter.node"
-    ];
-  return modulelist;
+exports.getRequiredModules = function() {
+  udebug.log("getRequiredModules");
+  return getRequiredModules();
 };
 
