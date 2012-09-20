@@ -431,79 +431,6 @@ srv_parse_data_file_paths_and_sizes(
 }
 
 /*********************************************************************//**
-Reads log group home directories from a character string given in
-the .cnf file.
-@return	TRUE if ok, FALSE on parse error */
-UNIV_INTERN
-ibool
-srv_parse_log_group_home_dirs(
-/*==========================*/
-	char*	str)	/*!< in/out: character string */
-{
-	char*	input_str;
-	char*	path;
-	ulint	i	= 0;
-
-	srv_log_group_home_dirs = NULL;
-
-	input_str = str;
-
-	/* First calculate the number of directories and check syntax:
-	path;path;... */
-
-	while (*str != '\0') {
-		path = str;
-
-		while (*str != ';' && *str != '\0') {
-			str++;
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-
-			return(FALSE);
-		}
-	}
-
-	if (i != 1) {
-		/* If innodb_log_group_home_dir was defined it must
-		contain exactly one path definition under current MySQL */
-
-		return(FALSE);
-	}
-
-	srv_log_group_home_dirs = static_cast<char**>(
-		malloc(i * sizeof *srv_log_group_home_dirs));
-
-	/* Then store the actual values to our array */
-
-	str = input_str;
-	i = 0;
-
-	while (*str != '\0') {
-		path = str;
-
-		while (*str != ';' && *str != '\0') {
-			str++;
-		}
-
-		if (*str == ';') {
-			*str = '\0';
-			str++;
-		}
-
-		srv_log_group_home_dirs[i] = path;
-
-		i++;
-	}
-
-	return(TRUE);
-}
-
-/*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
 UNIV_INTERN
@@ -517,8 +444,6 @@ srv_free_paths_and_sizes(void)
 	srv_data_file_sizes = NULL;
 	free(srv_data_file_is_raw_partition);
 	srv_data_file_is_raw_partition = NULL;
-	free(srv_log_group_home_dirs);
-	srv_log_group_home_dirs = NULL;
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -606,11 +531,11 @@ open_or_create_log_file(
 
 	*log_file_created = FALSE;
 
-	srv_normalize_path_for_win(srv_log_group_home_dirs[k]);
+	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	dirnamelen = strlen(srv_log_group_home_dirs[k]);
+	dirnamelen = strlen(srv_log_group_home_dir);
 	ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
-	memcpy(name, srv_log_group_home_dirs[k], dirnamelen);
+	memcpy(name, srv_log_group_home_dir, dirnamelen);
 
 	/* Add a path separator if needed. */
 	if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
@@ -2763,7 +2688,7 @@ innobase_shutdown_for_mysql(void)
 /********************************************************************
 Signal all per-table background threads to shutdown, and wait for them to do
 so. */
-
+UNIV_INTERN
 void
 srv_shutdown_table_bg_threads(void)
 /*===============================*/

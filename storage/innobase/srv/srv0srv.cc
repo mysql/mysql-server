@@ -176,9 +176,8 @@ the user from forgetting the 'newraw' keyword to my.cnf */
 
 UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
 
-UNIV_INTERN char**	srv_log_group_home_dirs = NULL;
+UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
 
-UNIV_INTERN ulint	srv_n_log_groups	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_log_files		= ULINT_MAX;
 /* size in database pages */
 UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
