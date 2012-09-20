@@ -3144,11 +3144,16 @@ recv_recovery_from_checkpoint_start_func(
 			}
 
 			if (!recv_needed_recovery) {
-				fprintf(stderr,
-					"InnoDB: The log sequence number"
-					" in ibdata files does not match\n"
-					"InnoDB: the log sequence number"
-					" in the ib_logfiles!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"InnoDB: The log sequence numbers "
+					LSN_PF " and " LSN_PF
+					" in ibdata files do not match"
+					" the log sequence number "
+					LSN_PF
+					" in the ib_logfiles!",
+					min_flushed_lsn,
+					max_flushed_lsn,
+					checkpoint_lsn);
 				recv_init_crash_recovery();
 			}
 		}
@@ -3160,29 +3165,14 @@ recv_recovery_from_checkpoint_start_func(
 	}
 
 	/* We currently have only one log group */
-	if (group_scanned_lsn < checkpoint_lsn) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: ERROR: We were only able to scan the log"
-			" up to\n"
-			"InnoDB: " LSN_PF ", but a checkpoint was at "
-			LSN_PF ".\n"
-			"InnoDB: It is possible that"
-			" the database is now corrupt!\n",
-			group_scanned_lsn,
-			checkpoint_lsn);
-	}
-
-	if (group_scanned_lsn < recv_max_page_lsn) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: ERROR: We were only able to scan the log"
-			" up to " LSN_PF "\n"
-			"InnoDB: but a database page a had an lsn " LSN_PF "."
-			" It is possible that the\n"
-			"InnoDB: database is now corrupt!\n",
-			group_scanned_lsn,
-			recv_max_page_lsn);
+	if (group_scanned_lsn < checkpoint_lsn
+	    || group_scanned_lsn < recv_max_page_lsn) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"We scanned the log up to "
+			LSN_PF ". A checkpoint was at " LSN_PF
+			" and the maximum LSN on a database page was " LSN_PF
+			". It is possible that the database is now corrupt!",
+			group_scanned_lsn, checkpoint_lsn, recv_max_page_lsn);
 	}
 
 	if (recv_sys->recovered_lsn < checkpoint_lsn) {
