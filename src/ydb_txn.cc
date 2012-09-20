@@ -46,9 +46,6 @@ toku_txn_destroy(DB_TXN *txn) {
     invariant(open_txns >= 0);
     toku_txn_destroy_txn(db_txn_struct_i(txn)->tokutxn);
     toku_mutex_destroy(&db_txn_struct_i(txn)->txn_mutex);
-#if !TOKUDB_NATIVE_H
-    toku_free(db_txn_struct_i(txn));
-#endif
     toku_free(txn);
 }
 
@@ -423,13 +420,6 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
     txn_func_init(result);
 
     result->parent = stxn;
-#if !TOKUDB_NATIVE_H
-    CALLOC(db_txn_struct_i(result));
-    if (!db_txn_struct_i(result)) {
-        toku_free(result);
-        return ENOMEM;
-    }
-#endif
     db_txn_struct_i(result)->flags = txn_flags;
     db_txn_struct_i(result)->iso = child_isolation;
 
@@ -491,19 +481,8 @@ void toku_keep_prepared_txn_callback (DB_ENV *env, TOKUTXN tokutxn) {
     txn_func_init(result);
     
     result->parent = NULL;
-    
-#if !TOKUDB_NATIVE_H
-    CALLOC(db_txn_struct_i(result));
-    if (!db_txn_struct_i(result)) {
-        toku_free(result);
-        return ENOMEM;
-    }
-#endif
-
-    {
-        int r = toku_lth_create(&db_txn_struct_i(result)->lth);
-        assert(r==0);
-    }
+    int r = toku_lth_create(&db_txn_struct_i(result)->lth);
+    assert(r==0);
 
     db_txn_struct_i(result)->tokutxn = tokutxn;
 
