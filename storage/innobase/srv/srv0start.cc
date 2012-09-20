@@ -1856,6 +1856,10 @@ create_log_files:
 				break;
 			}
 
+			if (!srv_file_check_mode(logfilename)) {
+				return(DB_ERROR);
+			}
+
 			err = open_log_file(&files[i], logfilename, &size);
 
 			if (err != DB_SUCCESS) {
@@ -1908,6 +1912,9 @@ create_log_files:
 	ut_a(srv_log_file_size <= ULINT_MAX);
 
 	for (ulint j = 0; j < i; j++) {
+		sprintf(logfilename + dirnamelen, "ib_logfile%lu",
+			(ulong) j);
+
 		fil_node_create(logfilename, (ulint) srv_log_file_size,
 				SRV_LOG_SPACE_FIRST_ID, FALSE);
 	}
