@@ -18,33 +18,47 @@
  02110-1301  USA
 */
 
-/*global unified_debug */
+/*global unified_debug, path */
 
 "use strict";
 
-function getRequiredModules() {
-  var modulelist = 
-    [ "ndb_adapter.node"
-    ];
-  return modulelist;
+try {
+  var ndbconnection = require("./NdbConnectionPool.js");
+}
+catch(e) {
+  /* Let unmet module dependencies be caught by loadRequiredModules() */
+}
+
+var udebug  = unified_debug.getLogger("ndb_service_provider.js");
+
+
+exports.loadRequiredModules = function() {
+  var err, ldp, module, msg;
+  module = path.join(build_dir, "ndb_adapter.node");
+  try {
+    require(module);
+    return true;
+  }
+  catch(e) {
+    ldp = process.platform === 'darwin' ? 'DYLD_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
+    msg = "\n\n" +
+      "  The ndb adapter cannot load the native code module ndb_adapter.node.\n";
+    if(path.existsSync(module)) {
+      msg += 
+      "  This module has been built, but was not succesfully loaded.  Perhaps \n" +
+      "  setting " + ldp + " to the mysql lib directory (containing \n" +
+      "  libndbclient) will resolve the problem.\n";
+    }
+    else {
+      msg += 
+      "  For help building the module, run " + 
+      "\"setup/build.sh\" or \"npm install .\"\n";
+    }
+    err = new Error(msg);
+    err.cause = e;
+    throw err;
+  }
 };
-
-function checkModules() {
-  var i;
-  var modules = getRequiredModules();
-  
-
-/*********** LOAD-TIME DEPENDENCY CHECK *****************/
-
-
-
-
-
-/********************************************************/
-
-
-var ndbconnection = require("./NdbConnectionPool.js"),
-    udebug        = unified_debug.getLogger("ndb_service_provider.js");
 
 
 var NdbDefaultConnectionProperties = {  
@@ -85,10 +99,3 @@ exports.getFactoryKey = function(properties) {
   var key = properties.implementation + "://" + properties.ndb_connectstring;
   return key;
 };
-
-
-exports.getRequiredModules = function() {
-  udebug.log("getRequiredModules");
-  return getRequiredModules();
-};
-

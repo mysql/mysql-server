@@ -2,3 +2,4 @@ Adapter/impl/build
 *.DS_Store
 *.lock-wscript
 mysql_pref.sh
+Adapter/impl/dev-checklist.plist

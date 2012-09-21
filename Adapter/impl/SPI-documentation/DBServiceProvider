@@ -7,7 +7,7 @@
      connectSync(properties)
      connect(properties, callback)
      getFactoryKey(properties)
-     getRequiredModules()
+     loadRequiredModules()
 */
 
 
@@ -43,11 +43,13 @@
   function getFactoryKey(properties) {};
 
 
-/* Array getRequiredModules()
+/* Array loadRequiredModules()
    IMMEDIATE
-   Get an array listing the modules required by a service provider.
-   Any relative pathnames are considered as relative to ... //FIXME WHERE?
-   The array elements are in the order in which the files should be loaded.
-   RETURNS the array.
+   The module should attempt to load all of its prerequisite modules.
+   If succesful, return true.
+   On failure, throw an excpetion with a message that describes the missing 
+   component.
+   Note that it must be possible to succesfully require the DBServiceProvider
+   module itself even if the dependencies are missing.
 */
-  function getRequiredModules() {};
+  function loadRequiredModules() {};

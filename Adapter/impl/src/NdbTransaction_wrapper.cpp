@@ -34,15 +34,7 @@ using namespace v8;
 Handle<Value> getTCNodeId(const Arguments &args);
 Handle<Value> execute(const Arguments &args);
 Handle<Value> close(const Arguments &args);
-
-
-
-
-/* TODO:  Map tx->close() here.
-          Call it in NdbTransactionHandler.js
-*/
-
-
+Handle<Value> commitStatus(const Arguments &args);
 
 
           
@@ -53,6 +45,7 @@ public:
     DEFINE_JS_FUNCTION(Envelope::stencil, "getConnectedNodeId", getTCNodeId); 
     DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute); 
     DEFINE_JS_FUNCTION(Envelope::stencil, "close", close);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "commitStatus", commitStatus);
   }
 };
 
@@ -93,6 +86,20 @@ Handle<Value> getTCNodeId(const Arguments &args) {
 
   NativeMethodCall_0_<uint32_t, NdbTransaction> ncall(args);
   ncall.method = & NdbTransaction::getConnectedNodeId;
+  ncall.run();
+  return scope.Close(ncall.jsReturnVal());
+}
+
+
+Handle<Value> commitStatus(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(0);
+  typedef NativeMethodCall_0_<NdbTransaction::CommitStatusType, NdbTransaction> 
+    NCALL;
+  NCALL ncall(args);
+  ncall.method = & NdbTransaction::commitStatus;
   ncall.run();
   return scope.Close(ncall.jsReturnVal());
 }

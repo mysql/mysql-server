@@ -55,6 +55,7 @@ proto.close = function(userCallback) {
   }  
 
   if(this.state !== "CLOSED") {
+debugger;
     this.state = doc.DBTransactionStates[4];  // CLOSED
     delete this.executedOperations;
     delete this.error;
