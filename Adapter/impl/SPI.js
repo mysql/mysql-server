@@ -36,10 +36,11 @@ require("../adapter_config.js");
 */
 
 exports.getDBServiceProvider = function(impl_name) {
+  var existsSync = fs.existsSync || path.existsSync;
   var impl_module_file = path.basename(impl_name) + "_service_provider.js";
   var externalModule = path.join(impl_name, impl_module_file);
   var internalModule = path.join(spi_dir, impl_name, impl_module_file);
-  var isInternalImpl = path.existsSync(internalModule);
+  var isInternalImpl = existsSync(internalModule);
   var service, error;
   
   if(isInternalImpl) {
@@ -51,7 +52,7 @@ exports.getDBServiceProvider = function(impl_name) {
     }
     catch(e) {
       error = new Error("getDBServiceProvider: provider " + impl_name + 
-                         "does not exist.");
+                         " does not exist.");
       error.cause = e;
       throw error;
     }

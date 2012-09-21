@@ -35,6 +35,7 @@ var udebug  = unified_debug.getLogger("ndb_service_provider.js");
 exports.loadRequiredModules = function() {
   var err, ldp, module, msg;
   module = path.join(build_dir, "ndb_adapter.node");
+  var existsSync = fs.existsSync || path.existsSync;
   try {
     require(module);
     return true;
@@ -43,7 +44,7 @@ exports.loadRequiredModules = function() {
     ldp = process.platform === 'darwin' ? 'DYLD_LIBRARY_PATH' : 'LD_LIBRARY_PATH';
     msg = "\n\n" +
       "  The ndb adapter cannot load the native code module ndb_adapter.node.\n";
-    if(path.existsSync(module)) {
+    if(existsSync(module)) {
       msg += 
       "  This module has been built, but was not succesfully loaded.  Perhaps \n" +
       "  setting " + ldp + " to the mysql lib directory (containing \n" +
@@ -54,6 +55,7 @@ exports.loadRequiredModules = function() {
       "  For help building the module, run " + 
       "\"setup/build.sh\" or \"npm install .\"\n";
     }
+    msg += "Original error: " + e.message;
     err = new Error(msg);
     err.cause = e;
     throw err;
