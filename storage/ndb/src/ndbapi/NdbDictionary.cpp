@@ -2654,6 +2654,16 @@ NdbDictionary::Dictionary::getIndex(const char * indexName,
   return 0;
 }
 
+const NdbDictionary::Index *
+NdbDictionary::Dictionary::getIndex(const char * indexName,
+                                    const NdbDictionary::Table& base) const
+{
+  NdbIndexImpl * i = m_impl.getIndex(indexName, NdbTableImpl::getImpl(base));
+  if (i)
+    return i->m_facade;
+  return 0;
+}
+
 void
 NdbDictionary::Dictionary::invalidateIndex(const Index *index){
   DBUG_ENTER("NdbDictionary::Dictionary::invalidateIndex");
@@ -3631,3 +3641,255 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
                                             0));
   return ret;
 }
+
+NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::FragmentType const fragtype)
+{
+  switch (fragtype)
+  {
+  case NdbDictionary::Object::FragUndefined:
+    ndbout << "FragUndefined";
+    break;
+  case NdbDictionary::Object::FragSingle:
+    ndbout << "FragSingle";
+    break;
+  case NdbDictionary::Object::FragAllSmall:
+    ndbout << "FragAllSmall";
+    break;
+  case NdbDictionary::Object::FragAllMedium:
+    ndbout << "FragAllMedium";
+    break;
+  case NdbDictionary::Object::FragAllLarge:
+    ndbout << "FragAllLarge";
+    break;
+  case NdbDictionary::Object::DistrKeyHash:
+    ndbout << "DistrKeyHash";
+    break;
+  case NdbDictionary::Object::DistrKeyLin:
+    ndbout << "DistrKeyLin";
+    break;
+  case NdbDictionary::Object::UserDefined:
+    ndbout << "UserDefined";
+    break;
+  case NdbDictionary::Object::HashMapPartition:
+    ndbout << "HashMapPartition";
+    break;
+  default:
+    ndbout << "Unknown(" << (unsigned) fragtype << ")";
+  }
+  return ndbout;
+}
+
+NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::Type const type)
+{
+  switch (type)
+  {
+  case NdbDictionary::Object::TypeUndefined:
+    ndbout << "Undefined";
+    break;
+  case NdbDictionary::Object::SystemTable:
+    ndbout << "SystemTable";
+    break;
+  case NdbDictionary::Object::UserTable:
+    ndbout << "UserTable";
+    break;
+  case NdbDictionary::Object::UniqueHashIndex:
+    ndbout << "UniqueHashIndex";
+    break;
+  case NdbDictionary::Object::OrderedIndex:
+    ndbout << "OrderedIndex";
+    break;
+  case NdbDictionary::Object::HashIndexTrigger:
+    ndbout << "HashIndexTrigger";
+    break;
+  case NdbDictionary::Object::IndexTrigger:
+    ndbout << "IndexTrigger";
+    break;
+  case NdbDictionary::Object::SubscriptionTrigger:
+    ndbout << "SubscriptionTrigger";
+    break;
+  case NdbDictionary::Object::ReadOnlyConstraint:
+    ndbout << "ReadOnlyConstraint";
+    break;
+  case NdbDictionary::Object::TableEvent:
+    ndbout << "TableEvent";
+    break;
+  case NdbDictionary::Object::Tablespace:
+    ndbout << "Tablespace";
+    break;
+  case NdbDictionary::Object::LogfileGroup:
+    ndbout << "LogfileGroup";
+    break;
+  case NdbDictionary::Object::Datafile:
+    ndbout << "Datafile";
+    break;
+  case NdbDictionary::Object::Undofile:
+    ndbout << "Undofile";
+    break;
+  case NdbDictionary::Object::ReorgTrigger:
+    ndbout << "ReorgTrigger";
+    break;
+  case NdbDictionary::Object::HashMap:
+    ndbout << "HashMap";
+    break;
+  default:
+    ndbout << "Type " << (unsigned) type;
+  }
+  return ndbout;
+}
+
+NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Index::Type const type)
+{
+  switch (type)
+  {
+  case NdbDictionary::Index::Undefined:
+    ndbout << "Undefined";
+    break;
+  case NdbDictionary::Index::UniqueHashIndex:
+    ndbout << "UniqueHashIndex";
+    break;
+  case NdbDictionary::Index::OrderedIndex:
+    ndbout << "OrderedIndex";
+    break;
+  default:
+    ndbout << "Type " << (unsigned) type;
+  }
+  return ndbout;
+}
+
+NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::Status const status)
+{
+  switch (status)
+  {
+  case NdbDictionary::Object::New:
+    ndbout << "New";
+    break;
+  case NdbDictionary::Object::Changed:
+    ndbout << "Changed";
+    break;
+  case NdbDictionary::Object::Retrieved:
+    ndbout << "Retrieved";
+    break;
+  case NdbDictionary::Object::Invalid:
+    ndbout << "Invalid";
+    break;
+  case NdbDictionary::Object::Altered:
+    ndbout << "Altered";
+    break;
+  default:
+    ndbout << "Undefined(" << (unsigned) status << ")";
+  }
+  return ndbout;
+}
+
+NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Index const& idx)
+{
+  ndbout << "Version: " << idx.getObjectVersion() << endl;
+  ndbout << "Base table: " << idx.getTable() << endl;
+  ndbout << "Number of attributes: " << idx.getNoOfColumns() << endl;
+  ndbout << "Logging: " << idx.getLogging() << endl;
+  ndbout << "Index type: " << idx.getType() << endl;
+  ndbout << "Index status: " << idx.getObjectStatus() << endl;
+
+  return ndbout;
+}
+
+void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Index const& idx)
+{
+  ndbout << idx;
+
+  ndbout << "-- Attributes --" << endl;
+  for (unsigned col = 0; col < idx.getNoOfColumns() ; col++)
+  {
+    ndbout << *idx.getColumn(col) << endl;
+  }
+
+  Table const& indexTable = *NdbIndexImpl::getImpl(idx).getIndexTable();
+  ndbout << "-- IndexTable " << indexTable.getName() << " --" << endl;
+
+  print(ndbout, indexTable);
+}
+
+NdbOut& operator <<(class NdbOut&, NdbDictionary::Table const& tab)
+{
+  ndbout << "Version: " <<  tab.getObjectVersion() << endl;
+  ndbout << "Fragment type: " <<  tab.getFragmentType() << endl;
+  ndbout << "K Value: " <<  tab.getKValue()<< endl;
+  ndbout << "Min load factor: " <<  tab.getMinLoadFactor()<< endl;
+  ndbout << "Max load factor: " <<  tab.getMaxLoadFactor()<< endl;
+  ndbout << "Temporary table: " <<  (tab.getStoredTable() ? "no" : "yes") << endl;
+  ndbout << "Number of attributes: " <<  tab.getNoOfColumns() << endl;
+  ndbout << "Number of primary keys: " <<  tab.getNoOfPrimaryKeys() << endl;
+  ndbout << "Length of frm data: " << tab.getFrmLength() << endl;
+  ndbout << "Row Checksum: " << tab.getRowChecksumIndicator() << endl;
+  ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
+  ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
+  ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
+  ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
+  ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
+  ndbout << "ExtraRowAuthorBits: " << tab.getExtraRowAuthorBits() << endl;
+  ndbout << "TableStatus: " << tab.getObjectStatus() << endl;
+  return ndbout;
+}
+
+void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const& tab)
+{
+  ndbout << tab;
+
+  HashMap hashmap;
+  if (getHashMap(hashmap, &tab) != -1)
+  {
+    ndbout << "HashMap: " << hashmap.getName() << endl;
+  }
+
+  ndbout << "-- Attributes --" << endl;
+  for (int col = 0; col < tab.getNoOfColumns() ; col++)
+  {
+    ndbout << *tab.getColumn(col) << endl;
+  }
+
+  ndbout << "-- Indexes -- " << endl;
+  ndbout << "PRIMARY KEY(";
+  unsigned j;
+  for (j= 0; (int)j < tab.getNoOfPrimaryKeys(); j++)
+  {
+    const Column * col= tab.getColumn(tab.getPrimaryKey(j));
+    ndbout << col->getName();
+    if ((int)j < tab.getNoOfPrimaryKeys()-1)
+      ndbout << ", ";
+  }
+  ndbout << ") - UniqueHashIndex" << endl;
+
+  List list;
+  if (listIndexes(list, tab) == 0)
+  {
+    for (j= 0; j < list.count; j++) {
+      List::Element& elt = list.elements[j];
+      const Index *pIdx = getIndex(elt.name, tab);
+      if (!pIdx)
+      {
+#ifdef VM_TRACE
+        assert(false);
+#endif
+        continue;
+      }
+
+      ndbout << pIdx->getName();
+      ndbout << "(";
+      unsigned noOfAttributes = pIdx->getNoOfColumns();
+      for (unsigned i = 0; i < noOfAttributes; i++)
+      {
+        const Column *col = pIdx->getColumn(i);
+        ndbout << col->getName();
+        if (i < noOfAttributes - 1)
+          ndbout << ", ";
+      }
+      ndbout << ")";
+      ndbout << " - " << pIdx->getType();
+      ndbout << endl;
+    }
+  }
+#ifdef VM_TRACE
+  else assert(false);
+#endif
+}
+
