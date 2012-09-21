@@ -37,13 +37,6 @@ extern long g_ndb_status_index_stat_cache_clean;
 // Do we have waiter...
 static bool ndb_index_stat_waiter= false;
 
-extern handlerton *ndbcluster_hton;
-
-inline
-void
-set_thd_ndb(THD *thd, Thd_ndb *thd_ndb)
-{ thd_set_ha_data(thd, ndbcluster_hton, thd_ndb); }
-
 // Typedefs for long names 
 typedef NdbDictionary::Table NDBTAB;
 typedef NdbDictionary::Index NDBINDEX;
@@ -1352,6 +1345,41 @@ struct Ndb_index_stat_proc {
     busy(false),
     end(false)
   {}
+
+  ~Ndb_index_stat_proc()
+  {
+    assert(ndb == NULL);
+  }
+
+  bool init_ndb(Ndb_cluster_connection* connection)
+  {
+    assert(ndb == NULL); // Should not have been created yet
+    assert(connection);
+
+    ndb= new Ndb(connection, "");
+    if (!ndb)
+      return false;
+
+    if (ndb->init() != 0)
+    {
+      sql_print_error("ndb_index_stat_proc: Failed to init Ndb object");
+      return false;
+    }
+
+    if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0)
+    {
+      sql_print_error("ndb_index_stat_proc: Failed to change database to %s",
+                      NDB_INDEX_STAT_DB);
+      return false;
+    }
+    return true;
+  }
+
+  void destroy(void)
+  {
+    delete ndb;
+    ndb= NULL;
+  }
 };
 
 static void
@@ -2393,13 +2421,13 @@ Ndb_index_stat_thread::is_setup_complete()
   return true;
 }
 
+extern Ndb_cluster_connection* g_ndb_cluster_connection;
+extern handlerton *ndbcluster_hton;
+
 void
 Ndb_index_stat_thread::do_run()
 {
-  THD *thd; /* needs to be first for thread_stack */
   struct timespec abstime;
-  Thd_ndb *thd_ndb= NULL;
-
   DBUG_ENTER("ndb_index_stat_thread_func");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
@@ -2408,39 +2436,8 @@ Ndb_index_stat_thread::do_run()
   bool have_listener;
   have_listener= false;
 
-  // wl4124_todo remove useless stuff copied from utility thread
-
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-
-  thd= new THD; /* note that contructor of THD uses DBUG_ */
-  if (thd == NULL)
-  {
-    my_errno= HA_ERR_OUT_OF_MEM;
-    DBUG_VOID_RETURN;
-  }
-  THD_CHECK_SENTRY(thd);
-
-  thd->thread_stack= (char*)&thd; /* remember where our stack is */
-  if (thd->store_globals())
-    goto ndb_index_stat_thread_fail;
-  lex_start(thd);
-  thd->init_for_queries();
-#ifndef NDB_THD_HAS_NO_VERSION
-  thd->version=refresh_version;
-#endif
-  thd->client_capabilities = 0;
-  thd->security_ctx->skip_grants();
-  my_net_init(&thd->net, 0);
-
-  CHARSET_INFO *charset_connection;
-  charset_connection= get_charset_by_csname("utf8",
-                                            MY_CS_PRIMARY, MYF(MY_WME));
-  thd->variables.character_set_client= charset_connection;
-  thd->variables.character_set_results= charset_connection;
-  thd->variables.collation_connection= charset_connection;
-  thd->update_charset();
-
   /* Signal successful initialization */
+  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
   ndb_index_stat_thread.running= 1;
   pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
   pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
@@ -2489,23 +2486,12 @@ Ndb_index_stat_thread::do_run()
     goto ndb_index_stat_thread_end;
   }
 
-  /* Get thd_ndb for this thread */
-  if (!(thd_ndb= ha_ndbcluster::seize_thd_ndb(thd)))
+  if (!pr.init_ndb(g_ndb_cluster_connection))
   {
-    sql_print_error("Could not allocate Thd_ndb object");
+    // Error already printed
     pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
     goto ndb_index_stat_thread_end;
   }
-  set_thd_ndb(thd, thd_ndb);
-  thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
-  if (thd_ndb->ndb->setDatabaseName(NDB_INDEX_STAT_DB) == -1)
-  {
-    sql_print_error("Could not change index stats thd_ndb database to %s",
-                    NDB_INDEX_STAT_DB);
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
-    goto ndb_index_stat_thread_end;
-  }
-  pr.ndb= thd_ndb->ndb;
 
   /* Allow clients */
   ndb_index_stat_allow(1);
@@ -2611,9 +2597,6 @@ Ndb_index_stat_thread::do_run()
   }
 
 ndb_index_stat_thread_end:
-  net_end(&thd->net);
-
-ndb_index_stat_thread_fail:
   /* Prevent clients */
   ndb_index_stat_allow(0);
 
@@ -2627,14 +2610,9 @@ ndb_index_stat_thread_fail:
     delete pr.is_util;
     pr.is_util= 0;
   }
-  if (thd_ndb)
-  {
-    ha_ndbcluster::release_thd_ndb(thd_ndb);
-    set_thd_ndb(thd, NULL);
-  }
-  thd->cleanup();
-  delete thd;
-  
+
+  pr.destroy();
+
   /* signal termination */
   ndb_index_stat_thread.running= 0;
   pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
