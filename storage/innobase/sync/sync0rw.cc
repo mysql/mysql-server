@@ -413,7 +413,7 @@ lock_loop:
 		sync_arr = sync_array_get();
 
 		sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_SHARED,
+			sync_arr, lock, RW_LOCK_S,
 			file_name, line, &index);
 
 		/* Set waiters before checking lock_word to ensure wake-up
@@ -498,7 +498,7 @@ rw_lock_x_lock_wait(
 		sync_arr = sync_array_get();
 
 		sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_WAIT_EX,
+			sync_arr, lock, RW_LOCK_X_WAIT,
 			file_name, line, &index);
 
 		i = 0;
@@ -514,14 +514,14 @@ rw_lock_x_lock_wait(
 			deadlock. We must add info for WAIT_EX thread for
 			deadlock detection to work properly. */
 #ifdef UNIV_SYNC_DEBUG
-			rw_lock_add_debug_info(lock, pass, RW_LOCK_WAIT_EX,
+			rw_lock_add_debug_info(lock, pass, RW_LOCK_X_WAIT,
 					       file_name, line);
 #endif
 
 			sync_array_wait_event(sync_arr, index);
 #ifdef UNIV_SYNC_DEBUG
 			rw_lock_remove_debug_info(
-				lock, pass, RW_LOCK_WAIT_EX);
+				lock, pass, RW_LOCK_X_WAIT);
 #endif
 			/* It is possible to wake when lock_word < 0.
 			We must pass the while-loop check to proceed.*/
@@ -623,7 +623,7 @@ rw_lock_x_lock_func(
 
 	ut_ad(rw_lock_validate(lock));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	i = 0;
@@ -763,7 +763,7 @@ rw_lock_add_debug_info(
 
 	rw_lock_debug_mutex_exit();
 
-	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
+	if (pass == 0 && lock_type != RW_LOCK_X_WAIT) {
 
 		if (lock_type == RW_LOCK_X && lock->lock_word < 0) {
 			sync_check_lock(lock);
@@ -787,7 +787,7 @@ rw_lock_remove_debug_info(
 
 	ut_ad(lock);
 
-	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
+	if (pass == 0 && lock_type != RW_LOCK_X_WAIT) {
 		sync_check_unlock(lock);
 	}
 
@@ -827,7 +827,7 @@ ibool
 rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
 					RW_LOCK_X */
 {
 	ut_ad(lock);
@@ -863,7 +863,7 @@ ibool
 rw_lock_is_locked(
 /*==============*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
 					RW_LOCK_X */
 {
 	ibool	ret	= FALSE;
@@ -871,7 +871,7 @@ rw_lock_is_locked(
 	ut_ad(lock);
 	ut_ad(rw_lock_validate(lock));
 
-	if (lock_type == RW_LOCK_SHARED) {
+	if (lock_type == RW_LOCK_S) {
 		if (rw_lock_get_reader_count(lock) > 0) {
 			ret = TRUE;
 		}
@@ -957,11 +957,11 @@ rw_lock_debug_print(
 	fprintf(f, "Locked: thread %lu file %s line %lu  ",
 		(ulong) os_thread_pf(info->thread_id), info->file_name,
 		(ulong) info->line);
-	if (rwt == RW_LOCK_SHARED) {
+	if (rwt == RW_LOCK_S) {
 		fprintf(f, "S-LOCK");
 	} else if (rwt == RW_LOCK_X) {
 		fprintf(f, "X-LOCK");
-	} else if (rwt == RW_LOCK_WAIT_EX) {
+	} else if (rwt == RW_LOCK_X_WAIT) {
 		fprintf(f, "WAIT X-LOCK");
 	} else {
 		ut_error;

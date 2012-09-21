@@ -843,7 +843,7 @@ buf_block_get_lock_hash_val(
 	ut_ad(buf_page_in_file(&block->page));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_X)
-	      || rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_SHARED));
+	      || rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 	return(block->lock_hash_val);
 }
@@ -992,7 +992,7 @@ buf_block_get_modify_clock(
 	buf_block_t*	block)	/*!< in: block */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1096,7 +1096,7 @@ buf_page_hash_get_low(
 
 	hash_lock = hash_get_lock(buf_pool->page_hash, fold);
 	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X)
-	      || rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	      || rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Look for the page in the hash table */
@@ -1144,18 +1144,18 @@ buf_page_hash_get_locked(
 					is passed then the hash_lock
 					is released by this function */
 	ulint		lock_mode)	/*!< in: RW_LOCK_X or
-					RW_LOCK_SHARED. Ignored if
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 {
 	buf_page_t*	bpage = NULL;
 	ulint		fold;
 	rw_lock_t*	hash_lock;
-	ulint		mode = RW_LOCK_SHARED;
+	ulint		mode = RW_LOCK_S;
 
 	if (lock != NULL) {
 		*lock = NULL;
 		ut_ad(lock_mode == RW_LOCK_X
-		      || lock_mode == RW_LOCK_SHARED);
+		      || lock_mode == RW_LOCK_S);
 		mode = lock_mode;
 	}
 
@@ -1164,10 +1164,10 @@ buf_page_hash_get_locked(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
-	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+	      && !rw_lock_own(hash_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
-	if (mode == RW_LOCK_SHARED) {
+	if (mode == RW_LOCK_S) {
 		rw_lock_s_lock(hash_lock);
 	} else {
 		rw_lock_x_lock(hash_lock);
@@ -1194,7 +1194,7 @@ buf_page_hash_get_locked(
 	}
 
 unlock_and_exit:
-	if (mode == RW_LOCK_SHARED) {
+	if (mode == RW_LOCK_S) {
 		rw_lock_s_unlock(hash_lock);
 	} else {
 		rw_lock_x_unlock(hash_lock);
@@ -1227,7 +1227,7 @@ buf_block_hash_get_locked(
 					is passed then the hash_lock
 					is released by this function */
 	ulint		lock_mode)	/*!< in: RW_LOCK_X or
-					RW_LOCK_SHARED. Ignored if
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 {
 	buf_page_t*	bpage = buf_page_hash_get_locked(buf_pool,
@@ -1248,7 +1248,7 @@ buf_block_hash_get_locked(
 		ut_ad(buf_page_in_file(bpage));
 
 		if (lock) {
-			if (lock_mode == RW_LOCK_SHARED) {
+			if (lock_mode == RW_LOCK_S) {
 				rw_lock_s_unlock(*lock);
 			} else {
 				rw_lock_x_unlock(*lock);

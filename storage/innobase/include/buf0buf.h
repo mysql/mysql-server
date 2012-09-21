@@ -1258,7 +1258,7 @@ buf_page_hash_get_locked(
 					is passed then the hash_lock
 					is released by this function */
 	ulint		lock_mode);	/*!< in: RW_LOCK_X or
-					RW_LOCK_SHARED. Ignored if
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 /******************************************************************//**
 Returns the control block of a file page, NULL if not found.
@@ -1284,7 +1284,7 @@ buf_block_hash_get_locked(
 					is passed then the hash_lock
 					is released by this function */
 	ulint		lock_mode);	/*!< in: RW_LOCK_X or
-					RW_LOCK_SHARED. Ignored if
+					RW_LOCK_S. Ignored if
 					lock == NULL */
 /* There are four different ways we can try to get a bpage or block
 from the page hash:
@@ -1294,14 +1294,14 @@ buf_page_hash_get_low() function.
 3) Caller wants to hold page hash lock in s-mode
 4) Caller doesn't want to hold page hash lock */
 #define buf_page_hash_get_s_locked(b, s, o, l)			\
-	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_S)
 #define buf_page_hash_get_x_locked(b, s, o, l)			\
 	buf_page_hash_get_locked(b, s, o, l, RW_LOCK_X)
 #define buf_page_hash_get(b, s, o)				\
 	buf_page_hash_get_locked(b, s, o, NULL, 0)
 
 #define buf_block_hash_get_s_locked(b, s, o, l)			\
-	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_SHARED)
+	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_S)
 #define buf_block_hash_get_x_locked(b, s, o, l)			\
 	buf_block_hash_get_locked(b, s, o, l, RW_LOCK_X)
 #define buf_block_hash_get(b, s, o)				\
@@ -1971,7 +1971,7 @@ Use these instead of accessing buf_pool->mutex directly. */
 	rw_lock_own(buf_page_hash_lock_get((b),		\
 		  buf_page_address_fold((p)->space,	\
 					(p)->offset)),	\
-					RW_LOCK_SHARED)
+					RW_LOCK_S)
 
 /** Test if page_hash lock is held in x-mode. */
 # define buf_page_hash_lock_held_x(b, p)		\

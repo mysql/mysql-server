@@ -116,7 +116,7 @@ rw_lock_reset_waiter_flag(
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
-@return	RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_WAIT_EX */
+@return	RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_X_WAIT */
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -132,7 +132,7 @@ rw_lock_get_writer(
 		return(RW_LOCK_X);
 	} else {
 		ut_ad(lock_word > -X_LOCK_DECR);
-		return(RW_LOCK_WAIT_EX);
+		return(RW_LOCK_X_WAIT);
 	}
 }
 
@@ -313,7 +313,7 @@ rw_lock_s_lock_low(
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, pass, RW_LOCK_SHARED, file_name, line);
+	rw_lock_add_debug_info(lock, pass, RW_LOCK_S, file_name, line);
 #endif
 	/* These debugging values are not set safely: they may be incorrect
 	or even refer to a line that is invalid for the file name. */
@@ -351,7 +351,7 @@ rw_lock_s_lock_func(
 	time. */
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED)); /* see NOTE above */
+	ut_ad(!rw_lock_own(lock, RW_LOCK_S)); /* see NOTE above */
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -447,7 +447,7 @@ rw_lock_s_unlock_func(
 	ut_ad(lock->lock_word < X_LOCK_DECR);
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_remove_debug_info(lock, pass, RW_LOCK_SHARED);
+	rw_lock_remove_debug_info(lock, pass, RW_LOCK_S);
 #endif
 
 	/* Increment lock_word to indicate 1 less reader */

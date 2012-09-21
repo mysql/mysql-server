@@ -135,7 +135,7 @@ row_purge_remove_clust_if_poss_low(
 	rec_offs_init(offsets_);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	index = dict_table_get_first_index(node->table);
@@ -553,7 +553,7 @@ row_purge_upd_exist_or_extern_func(
 	mem_heap_t*	heap;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_get_online_status(dict_table_get_first_index(

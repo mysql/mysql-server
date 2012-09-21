@@ -1750,7 +1750,7 @@ row_upd_sec_online(
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	heap = mem_heap_create(1024);

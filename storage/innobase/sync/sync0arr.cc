@@ -276,9 +276,9 @@ sync_cell_get_event(
 
 	if (type == SYNC_MUTEX) {
 		return(cell->latch.mutex->event());
-	} else if (type == RW_LOCK_WAIT_EX) {
+	} else if (type == RW_LOCK_X_WAIT) {
 		return(cell->latch.lock->wait_ex_event);
-	} else { /* RW_LOCK_SHARED and RW_LOCK_X wait on the same event */
+	} else { /* RW_LOCK_S and RW_LOCK_X wait on the same event */
 		return(cell->latch.lock->event);
 	}
 }
@@ -451,11 +451,11 @@ sync_array_cell_print(
 #endif /* UNIV_DEBUG */
 		       );
 	} else if (type == RW_LOCK_X
-		   || type == RW_LOCK_WAIT_EX
-		   || type == RW_LOCK_SHARED) {
+		   || type == RW_LOCK_X_WAIT
+		   || type == RW_LOCK_S) {
 
 		fputs(type == RW_LOCK_X ? "X-lock on"
-		      : type == RW_LOCK_WAIT_EX ? "X-lock (wait_ex) on"
+		      : type == RW_LOCK_X_WAIT ? "X-lock (wait_ex) on"
 		      : "S-lock on", file);
 
 		rwlock = cell->old_latch.lock;
@@ -638,7 +638,7 @@ sync_array_detect_deadlock(
 		return(false); /* No deadlock */
 
 	} else if (cell->request_type == RW_LOCK_X
-		   || cell->request_type == RW_LOCK_WAIT_EX) {
+		   || cell->request_type == RW_LOCK_X_WAIT) {
 
 		lock = cell->latch.lock;
 
@@ -650,9 +650,9 @@ sync_array_detect_deadlock(
 
 			if (((debug->lock_type == RW_LOCK_X)
 			     && !os_thread_eq(thread, cell->thread))
-			    || ((debug->lock_type == RW_LOCK_WAIT_EX)
+			    || ((debug->lock_type == RW_LOCK_X_WAIT)
 				&& !os_thread_eq(thread, cell->thread))
-			    || (debug->lock_type == RW_LOCK_SHARED)) {
+			    || (debug->lock_type == RW_LOCK_S)) {
 
 				/* The (wait) x-lock request can block
 				infinitely only if someone (can be also cell
@@ -676,7 +676,7 @@ print:
 
 		return(false);
 
-	} else if (cell->request_type == RW_LOCK_SHARED) {
+	} else if (cell->request_type == RW_LOCK_S) {
 
 		lock = cell->latch.lock;
 
@@ -687,7 +687,7 @@ print:
 			thread = debug->thread_id;
 
 			if ((debug->lock_type == RW_LOCK_X)
-			    || (debug->lock_type == RW_LOCK_WAIT_EX)) {
+			    || (debug->lock_type == RW_LOCK_X_WAIT)) {
 
 				/* The s-lock request can block infinitely
 				only if someone (can also be cell thread) is
@@ -741,7 +741,7 @@ sync_arr_cell_can_wake_up(
 			return(true);
 		}
 
-        } else if (cell->request_type == RW_LOCK_WAIT_EX) {
+        } else if (cell->request_type == RW_LOCK_X_WAIT) {
 		rw_lock_t*	lock;
 
 		lock = cell->latch.lock;
@@ -751,7 +751,7 @@ sync_arr_cell_can_wake_up(
 
 			return(true);
 		}
-	} else if (cell->request_type == RW_LOCK_SHARED) {
+	} else if (cell->request_type == RW_LOCK_S) {
 		rw_lock_t*	lock;
 
 		lock = cell->latch.lock;

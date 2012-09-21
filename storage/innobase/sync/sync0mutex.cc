@@ -137,9 +137,9 @@ return immediately without waiting.
 Q.E.D.
 
 Proof (windows): If there is a writer thread which is forced to wait for
-the lock, it may be able to set the state of rw_lock to RW_LOCK_WAIT_EX
+the lock, it may be able to set the state of rw_lock to RW_LOCK_X_WAIT
 The design of rw_lock ensures that there is one and only one thread
-that is able to change the state to RW_LOCK_WAIT_EX and this thread is
+that is able to change the state to RW_LOCK_X_WAIT and this thread is
 guaranteed to acquire the lock after it is released by the current
 holders and before any other waiter gets the lock.
 On windows this thread waits on a separate event i.e.: wait_ex_event.

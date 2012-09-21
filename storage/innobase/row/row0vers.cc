@@ -319,7 +319,7 @@ row_vers_must_preserve_del_marked(
 				hold the latch on purge_view */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	mtr_s_lock(&(purge_sys->latch), mtr);
@@ -362,7 +362,7 @@ row_vers_old_has_index_entry(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	clust_index = dict_table_get_first_index(index->table);
@@ -512,7 +512,7 @@ row_vers_build_for_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
@@ -653,7 +653,7 @@ row_vers_build_for_semi_consistent_read(
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
 	      || mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_S_FIX));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rec_offs_validate(rec, index, *offsets));
