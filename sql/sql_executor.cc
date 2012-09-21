@@ -2101,6 +2101,13 @@ join_read_linked_first(JOIN_TAB *tab)
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
 
+  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+  if (tab->ref.impossible_null_ref())
+  {
+    DBUG_PRINT("info", ("join_read_linked_first null_rejected"));
+    DBUG_RETURN(-1);
+  }
+
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
   {
     table->status=STATUS_NOT_FOUND;
