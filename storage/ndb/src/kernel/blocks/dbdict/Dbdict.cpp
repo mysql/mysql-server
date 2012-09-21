@@ -23,6 +23,7 @@
 #include "diskpage.hpp"
 
 #include <ndb_limits.h>
+#include <ndb_math.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <Properties.hpp>
@@ -8500,19 +8501,16 @@ Dbdict::check_supported_reorg(Uint32 org_map_id, Uint32 new_map_id)
   Ptr<Hash2FragmentMap> newptr;
   g_hash_map.getPtr(newptr, newmap_ptr.p->m_map_ptr_i);
 
-  if (newptr.p->m_cnt < orgptr.p->m_cnt)
+  /*
+   * check that old fragments maps to same old fragment
+   * or to a new fragment.
+   * allow both extending and shrinking hashmap.
+   */
+  Uint32 period = lcm(orgptr.p->m_cnt, newptr.p->m_cnt);
+  for (Uint32 i = 0; i < period; i++)
   {
-    jam();
-    return AlterTableRef::UnsupportedChange;
-  }
-
-  for (Uint32 i = 0; i<orgptr.p->m_cnt; i++)
-  {
-    jam();
-    if (orgptr.p->m_map[i] == newptr.p->m_map[i])
-      continue;
-
-    if (newptr.p->m_map[i] < orgptr.p->m_fragments)
+    if (orgptr.p->m_map[i % orgptr.p->m_cnt] != newptr.p->m_map[i % newptr.p->m_cnt] &&
+        newptr.p->m_map[i % newptr.p->m_cnt] < orgptr.p->m_fragments)
     {
       /**
        * Moving data from "old" fragment into "old" fragment

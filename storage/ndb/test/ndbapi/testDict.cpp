@@ -9253,6 +9253,10 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
       3, 130, 6, NDB_DEFAULT_HASHMAP_BUCKETS, 130 },
     { "Extend hashmap",
       3, 120, 7, NDB_DEFAULT_HASHMAP_BUCKETS, NDB_DEFAULT_HASHMAP_BUCKETS },
+    { "Keep old hashmap size since old size not multiple of old fragment count",
+      7, 120, 10, 60, 120 },
+    { "Shrink hashmap",
+      3, 120, 6, 60, 60 },
   };
 
   Bug14645319_createTable_args args;
@@ -9305,7 +9309,7 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
       result = pDic->beginSchemaTrans();
       if (result != 0) break;
 
-      result = pDic->prepareHashMap(old_tab, new_tab);
+      result = pDic->prepareHashMap(old_tab, new_tab, test.new_buckets);
 
       result |= pDic->endSchemaTrans();
       if (result != 0) break;
