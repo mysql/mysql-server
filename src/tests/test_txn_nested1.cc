@@ -10,7 +10,7 @@
 #include <memory.h>
 #include <sys/stat.h>
 #include <db.h>
-#include <ft/tokuconst.h>
+#include <ft/xids.h>
 #define MAX_NEST MAX_NESTED_TRANSACTIONS
 
 
