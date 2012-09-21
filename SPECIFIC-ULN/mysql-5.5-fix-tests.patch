@@ -1,0 +1,34 @@
+Adapt tests (where needed) to RedHat conventions.
+
+1) The RedHat convention uses the package name "mysql*" whereas upstream uses "MySQL*".
+   Test "file_contents" constructs path names and needs to be adapted.
+
+=== modified file 'mysql-test/t/file_contents.test'
+--- mysql-5.5.17-orig/mysql-test/t/file_contents.test	2011-10-10 12:03:29 +0000
++++ mysql-5.5.17/mysql-test/t/file_contents.test	2011-11-16 18:07:55 +0000
+@@ -17,20 +17,20 @@ if ($dir_bin =~ m|/usr/|) {
+   $dir_docs =~ s|/lib|/share/doc|;
+   if(-d "$dir_docs/packages") {
+     # SuSE: "packages/" in the documentation path
+-    $dir_docs = glob "$dir_docs/packages/MySQL-server*";
++    $dir_docs = glob "$dir_docs/packages/mysql-server*";
+   } else {
+     # RedHat: version number in directory name
+-    $dir_docs = glob "$dir_docs/MySQL-server*";
++    $dir_docs = glob "$dir_docs/mysql-server*";
+   }
+ } elsif ($dir_bin =~ m|/usr$|) {
+   # RPM build during development
+   $dir_docs = "$dir_bin/share/doc";
+   if(-d "$dir_docs/packages") {
+     # SuSE: "packages/" in the documentation path
+-    $dir_docs = glob "$dir_docs/packages/MySQL-server*";
++    $dir_docs = glob "$dir_docs/packages/mysql-server*";
+   } else {
+     # RedHat: version number in directory name
+-    $dir_docs = glob "$dir_docs/MySQL-server*";
++    $dir_docs = glob "$dir_docs/mysql-server*";
+   }
+ } else {
+   # tar.gz package, Windows, or developer work (in BZR)
+
