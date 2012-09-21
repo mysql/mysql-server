@@ -1,3 +1,6 @@
+# Restart of server does not work for embedded.
+--source include/not_embedded.inc
+
 source feedback_plugin_load.test;
 
 if (!$MTR_FEEDBACK_PLUGIN) {
