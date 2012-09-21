@@ -521,30 +521,16 @@ create_log_file(
 		innodb_file_log_key, name,
 		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
 
-	ut_print_timestamp(stderr);
-
-	fprintf(stderr,
-		" InnoDB: Log file %s did not exist:"
-		" new to be created\n",
-		name);
-
-	fprintf(stderr, "InnoDB: Setting log file %s size to %lu MB\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Setting log file %s size to %lu MB",
 		name, (ulong) srv_log_file_size
 		>> (20 - UNIV_PAGE_SIZE_SHIFT));
-
-	fprintf(stderr,
-		"InnoDB: Database physically writes the file"
-		" full: wait...\n");
 
 	ret = os_file_set_size(name, *file,
 			       (os_offset_t) srv_log_file_size
 			       << UNIV_PAGE_SIZE_SHIFT);
 	if (!ret) {
-		fprintf(stderr,
-			"InnoDB: Error in creating %s:"
-			" probably out of disk space\n",
-			name);
-
+		ib_logf(IB_LOG_LEVEL_ERROR, "Error in creating %s", name);
 		return(DB_ERROR);
 	}
 
