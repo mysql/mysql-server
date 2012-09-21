@@ -894,8 +894,10 @@ skip_size_check:
 
 		ut_a(fil_validate());
 
-		fil_node_create(name, srv_data_file_sizes[i], 0,
-				srv_data_file_is_raw_partition[i] != 0);
+		if (!fil_node_create(name, srv_data_file_sizes[i], 0,
+				     srv_data_file_is_raw_partition[i] != 0)) {
+			return(DB_ERROR);
+		}
 	}
 
 	return(DB_SUCCESS);
@@ -976,7 +978,7 @@ srv_undo_tablespace_open(
 	ulint		space)		/*!< in: tablespace id */
 {
 	os_file_t	fh;
-	dberr_t		err;
+	dberr_t		err	= DB_ERROR;
 	ibool		ret;
 	ulint		flags;
 
@@ -1029,11 +1031,9 @@ srv_undo_tablespace_open(
 		is 64 bit. It is OK to cast the n_pages to ulint because
 		the unit has been scaled to pages and they are always
 		32 bit. */
-		fil_node_create(name, (ulint) n_pages, space, FALSE);
-
-		err = DB_SUCCESS;
-	} else {
-		err = DB_ERROR;
+		if (fil_node_create(name, (ulint) n_pages, space, FALSE)) {
+			err = DB_SUCCESS;
+		}
 	}
 
 	return(err);
@@ -1915,8 +1915,10 @@ create_log_files:
 		sprintf(logfilename + dirnamelen, "ib_logfile%lu",
 			(ulong) j);
 
-		fil_node_create(logfilename, (ulint) srv_log_file_size,
-				SRV_LOG_SPACE_FIRST_ID, FALSE);
+		if (!fil_node_create(logfilename, (ulint) srv_log_file_size,
+				     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+			return(DB_ERROR);
+		}
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -2250,9 +2252,12 @@ create_log_files:
 				sprintf(logfilename + dirnamelen,
 					"ib_logfile%lu", (ulong) i);
 
-				fil_node_create(
-					logfilename, (ulint) srv_log_file_size,
-					SRV_LOG_SPACE_FIRST_ID, FALSE);
+				if (!fil_node_create(
+					    logfilename,
+					    (ulint) srv_log_file_size,
+					    SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+					ut_error;
+				}
 			}
 
 			log_group_init(0, srv_n_log_files,
