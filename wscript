@@ -1,6 +1,7 @@
 import os
 import readline
 import setup.completion
+import string
 
 srcdir = 'Adapter/impl'
 blddir = 'Adapter/impl/build'
@@ -20,7 +21,8 @@ def configure(conf):
     mysql_path = raw_input("mysql location: ")
   else:
     mysql_path = Options.options.mysql
-  
+ 
+  mysql_path = string.rstrip(mysql_path)     
   my_lib = mysql_path + "/lib/"
   my_inc = mysql_path + "/include/"
 
