@@ -37,7 +37,6 @@ typedef Handle<Object> jsobject;
  Value conversion from JavaScript to C
 ******************************************************************/
 
-
 template <>
 class JsValueConverter <NdbTransaction::ExecType> {
 public:
@@ -46,6 +45,17 @@ public:
   JsValueConverter(jsvalue v) : jsval(v) {};
   NdbTransaction::ExecType toC() { 
     return static_cast<NdbTransaction::ExecType>(jsval->Int32Value());
+  }
+};
+
+template <>
+class JsValueConverter <NdbTransaction::CommitStatusType> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  NdbTransaction::CommitStatusType toC() { 
+    return static_cast<NdbTransaction::CommitStatusType>(jsval->Int32Value());
   }
 };
 

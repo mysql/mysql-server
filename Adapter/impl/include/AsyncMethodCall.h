@@ -109,7 +109,7 @@ public:
 
   /* Constructor */
   AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback) :
-    AsyncMethodCall(callback), error(0), return_val(0) {}
+    AsyncMethodCall(callback), error(0)                       {}
 
   /* Destructor */
   virtual ~AsyncCall_Returning<RETURN_TYPE>() {

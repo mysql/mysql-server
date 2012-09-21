@@ -22,8 +22,28 @@
 
 "use strict";
 
-var mysqlconnection = require("./MysqlConnectionPool.js"),
-    udebug          = unified_debug.getLogger("mysql_service_provider.js");
+var udebug = unified_debug.getLogger("mysql_service_provider.js");
+
+try {
+  var mysqlconnection = require("./MysqlConnectionPool.js");
+}
+catch(e) {
+  /* Let unmet module dependencies be caught by loadRequiredModules() */
+}
+
+exports.loadRequiredModules = function() {
+  var error;
+  try {
+    require("mysql");
+  }
+  catch(e) {
+    error = new Error("The mysql adapter requires node-mysql version 2.0");
+    error.cause = e;
+    throw error;
+  }
+  
+  return true;
+};
 
 
 var MysqlDefaultConnectionProperties = {  
@@ -73,9 +93,4 @@ exports.connect = function(properties, sessionFactory_callback) {
   connectionPool.connect(function(err, connection) {
     callback(err, connectionPool);
   });
-};
-
-
-exports.getRequiredModules = function() {
-  return [ "mysql" ];
 };

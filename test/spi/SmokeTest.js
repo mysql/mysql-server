@@ -23,8 +23,7 @@
     This tests the loading of required compiled code in shared library files.
  */
 
-/*global path, fs, assert, spi_module, harness, build_dir, adapter_dir
-*/
+/*global assert, spi_module, harness */
 
 "use strict";
 
@@ -37,15 +36,13 @@ var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
   var spi = require(spi_module),
-      service = spi.getDBServiceProvider(global.adapter),
-      modules = service.getRequiredModules(),
-      test = this,
-      i;
-
-  /* Test loading the required native code modules */
-  for (i = 0 ; i < modules.length ; i++) {
-    require(path.join(build_dir, modules[i]));
-  }
+      service, i, test;
+  
+  test = this,
+  
+  /* This will fail if the adapter cannot be loaded: 
+  */
+  service = spi.getDBServiceProvider(global.adapter);
 
   /* Get a database connection.  Do this in the smokeTest so that we can
      abort the whole suite if it fails.
