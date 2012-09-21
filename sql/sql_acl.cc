@@ -4133,7 +4133,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   bool create_new_users=0;
   char *db_name, *table_name;
   bool save_binlog_row_based;
-  bool should_write_to_binlog= FALSE;
   bool transactional_tables;
   DBUG_ENTER("mysql_table_grant");
 
@@ -4320,15 +4319,6 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
       continue;					// Add next user
     }
 
-    /*
-      Some operations below can fail and are not undone.
-      As such, we play it safe and log the statement with
-      an error to give a chance to the slave to replay this
-      statement and fail as well, hoping that it will also
-      get the same side effects.
-     */
-    should_write_to_binlog= TRUE;
-
     db_name= table_list->get_db_name();
     thd->add_to_binlog_accessed_dbs(db_name); // collecting db:s for MTS
     table_name= table_list->get_table_name();
@@ -4412,7 +4402,20 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (should_write_to_binlog)
+  /*
+    We only log "complete" successful commands, because partially
+    failed REVOKE/GRANTS that fail because of insufficient privileges
+    on the master, will succeed on the slave due to SQL thread SUPER
+    privilege. Even though replication will stop (the error code from
+    the master will mismatch the error code on the slave), the
+    operation will already be executed (thence revoking or granting
+    additional privileges on the slave).
+    When some error happens, even partial, a incident event is logged
+    instead stating that manual reconciliation is needed.
+  */
+  if (result)
+    mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+  else
     result= result |
             write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
                           transactional_tables);
@@ -4457,7 +4460,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   TABLE_LIST tables[2];
   bool create_new_users=0, result=0;
   char *db_name, *table_name;
-  bool save_binlog_row_based, should_write_to_binlog= FALSE;
+  bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_routine_grant");
 
@@ -4595,35 +4598,34 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       result= TRUE;
       continue;
     }
-
-    /*
-      Even if there is an error, we should write to binary log.
-     */
-    should_write_to_binlog= TRUE;
-
   }
   thd->mem_root= old_root;
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (write_to_binlog && should_write_to_binlog)
+  if (write_to_binlog)
   {
-    /*
-      For performance reasons, we don't rewrite the query if we don't have to.
-      If that was the case, write the original query.
-    */
-    if (!thd->rewritten_query.length())
-    {
-      if (write_bin_log(thd, false, thd->query(), thd->query_length(),
-                        transactional_tables))
-        result= TRUE;
-    }
+    if (result)
+      mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
     else
     {
-      if (write_bin_log(thd, false,
-                        thd->rewritten_query.c_ptr_safe(),
-                        thd->rewritten_query.length(),
-                        transactional_tables))
-        result= TRUE;
+      /*
+        For performance reasons, we don't rewrite the query if we don't have to.
+        If that was the case, write the original query.
+      */
+      if (!thd->rewritten_query.length())
+      {
+        if (write_bin_log(thd, false, thd->query(), thd->query_length(),
+                          transactional_tables))
+          result= TRUE;
+      }
+      else
+      {
+        if (write_bin_log(thd, false,
+                          thd->rewritten_query.c_ptr_safe(),
+                          thd->rewritten_query.length(),
+                          transactional_tables))
+          result= TRUE;
+      }
     }
   }
 
@@ -4722,7 +4724,6 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   bool create_new_users=0;
   TABLE_LIST tables[2];
   bool save_binlog_row_based;
-  bool should_write_to_binlog= FALSE;
   bool transactional_tables;
   DBUG_ENTER("mysql_grant");
   if (!initialized)
@@ -4857,15 +4858,12 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                                     revoke_grant))
         result= -1;
     }
-
-    /*
-      Even if there is an error, we should write to binary log.
-     */
-    should_write_to_binlog= TRUE;
   }
   mysql_mutex_unlock(&acl_cache->lock);
 
-  if (should_write_to_binlog)
+  if (result)
+    mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+  else
   {
     if (thd->rewritten_query.length())
       result= result |
@@ -7718,7 +7716,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   int result;
   ACL_DB *acl_db;
   TABLE_LIST tables[GRANT_TABLES];
-  bool save_binlog_row_based, should_write_to_binlog= FALSE;
+  bool save_binlog_row_based;
   bool transactional_tables;
   DBUG_ENTER("mysql_revoke_all");
 
@@ -7763,11 +7761,6 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
       result= -1;
       continue;
     }
-
-    /*
-      Even if there is an error, we should write to binary log.
-     */
-    should_write_to_binlog= TRUE;
 
     /* Remove db access privileges */
     /*
@@ -7889,7 +7882,9 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   if (result)
     my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
 
-  if (should_write_to_binlog)
+  if (result)
+    mysql_bin_log.write_incident(thd, true /* need_lock_log=true */);
+  else
   {
     result= result |
       write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
