@@ -23,7 +23,6 @@
 #include <ft/ule-internal.h>
 #include <ft/le-cursor.h>
 #include "indexer-internal.h"
-#include <ft/xids.h>
 #include <ft/xids-internal.h>
 
 struct txn {

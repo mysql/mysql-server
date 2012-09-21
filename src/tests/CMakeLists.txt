@@ -336,7 +336,7 @@ if(BUILD_TESTING)
     get_filename_component(base ${bin} NAME_WE)
 
     add_executable(${base}.tdb ${base})
-    target_link_libraries(${base}.tdb ft ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
+    target_link_libraries(${base}.tdb ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
       COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
