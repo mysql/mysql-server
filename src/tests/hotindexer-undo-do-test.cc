@@ -15,6 +15,7 @@
 
 #include "test.h"
 
+#include <ft/tokuconst.h>
 #include <ft/fttypes.h>
 #include <ft/omt.h>
 #include <ft/leafentry.h>
@@ -22,6 +23,7 @@
 #include <ft/ule-internal.h>
 #include <ft/le-cursor.h>
 #include "indexer-internal.h"
+#include <ft/xids.h>
 #include <ft/xids-internal.h>
 
 struct txn {

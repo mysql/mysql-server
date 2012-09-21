@@ -22,6 +22,7 @@
 #include "x1764.h"
 #include "rbuf.h"
 #include "wbuf.h"
+#include "tokuconst.h"
 
 /* The number of transaction ids stored in the xids structure is 
  * represented by an 8-bit value.  The value 255 is reserved. 
