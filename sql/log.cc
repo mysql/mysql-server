@@ -291,9 +291,11 @@ bool LOGGER::is_log_table_enabled(uint log_table_type)
 {
   switch (log_table_type) {
   case QUERY_LOG_SLOW:
-    return (table_log_handler != NULL) && opt_slow_log;
+    return ((table_log_handler != NULL) && opt_slow_log
+            && (log_output_options & LOG_TABLE));
   case QUERY_LOG_GENERAL:
-    return (table_log_handler != NULL) && opt_log ;
+    return ((table_log_handler != NULL) && opt_log
+            && (log_output_options & LOG_TABLE));
   default:
     DBUG_ASSERT(0);
     return FALSE;                             /* make compiler happy */

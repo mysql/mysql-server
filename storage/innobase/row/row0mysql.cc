@@ -1331,6 +1331,7 @@ error_exit:
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
+			ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
 			goto run_again;
 		}
 
@@ -1937,7 +1938,7 @@ row_update_cascade_for_mysql(
 	thr->fk_cascade_depth++;
 
 	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
-		return (DB_FOREIGN_EXCEED_MAX_CASCADE);
+		return(DB_FOREIGN_EXCEED_MAX_CASCADE);
 	}
 run_again:
 	thr->run_node = node;
@@ -2270,7 +2271,7 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_open_on_name(table->name, FALSE, FALSE,
+		if (dict_table_open_on_name(table->name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
 
 			/* Make things easy for the drop table code. */
@@ -2279,7 +2280,7 @@ err_exit:
 				dict_table_move_from_lru_to_non_lru(table);
 			}
 
-			dict_table_close(table, FALSE, FALSE);
+			dict_table_close(table, TRUE, FALSE);
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 
@@ -2802,7 +2803,7 @@ row_discard_tablespace_foreign_key_checks(
 
 	}
 
-	if (foreign && trx->check_foreigns) {
+	if (!srv_read_only_mode && foreign && trx->check_foreigns) {
 
 		FILE*	ef	= dict_foreign_err_file;
 
@@ -3222,7 +3223,10 @@ row_truncate_table_for_mysql(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns) {
+	if (!srv_read_only_mode
+	    && foreign
+	    && trx->check_foreigns) {
+
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow truncating a referenced table if
@@ -3773,7 +3777,9 @@ check_next_foreign:
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns
+	if (!srv_read_only_mode
+	    && foreign
+	    && trx->check_foreigns
 	    && !(drop_db && dict_tables_have_same_db(
 			 name, foreign->foreign_table_name_lookup))) {
 		FILE*	ef	= dict_foreign_err_file;

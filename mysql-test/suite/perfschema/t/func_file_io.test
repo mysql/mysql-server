@@ -15,6 +15,9 @@ WHERE name LIKE 'wait/io/file/%';
 update performance_schema.threads SET instrumented = 'YES'
   WHERE PROCESSLIST_ID=connection_id();
 
+# reset lost counters
+flush status;
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -183,3 +186,7 @@ ORDER BY p.processlist_user, h.operation;
 
 # Clean-up.
 UPDATE performance_schema.setup_instruments SET enabled = 'YES', timed = 'YES';
+
+# In case of failure, will indicate the root cause
+show status like "performance_schema%";
+
