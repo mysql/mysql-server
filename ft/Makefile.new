@@ -1,7 +1,0 @@
-ROOT = ../
-build: ft.builddir
-check: ft.checkdir
-include $(ROOT)Makefile.include
-
-
-
