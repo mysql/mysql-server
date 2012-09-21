@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <ndb_math.h>
 #include <NdbDictionary.hpp>
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOut.hpp>
@@ -1962,6 +1963,14 @@ int
 NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
                                           Table& newTableF)
 {
+  return prepareHashMap(oldTableF, newTableF, NDB_DEFAULT_HASHMAP_BUCKETS);
+}
+
+int
+NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
+                                          Table& newTableF,
+                                          Uint32 buckets)
+{
   if (!hasSchemaTrans())
   {
     return -1;
@@ -1984,8 +1993,6 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
     }
 
     HashMap newmapF;
-    NdbHashMapImpl& newmap = NdbHashMapImpl::getImpl(newmapF);
-    newmap.assign(NdbHashMapImpl::getImpl(oldmap));
 
     Uint32 oldcnt = oldTable.getFragmentCount();
     Uint32 newcnt = newTable.getFragmentCount();
@@ -2032,12 +2039,86 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       newTable.setFragmentCount(newcnt);
     }
 
-    for (Uint32 i = 0; i<newmap.m_map.size(); i++)
+    /*
+     * if fragment count has not changed,
+     * dont move data and keep old hashmap.
+     */
+
+    if (newcnt == oldcnt)
+    {
+      newTable.m_hash_map_id = oldTable.m_hash_map_id;
+      newTable.m_hash_map_version = oldTable.m_hash_map_version;
+      return 0;
+    }
+
+    Uint32 newmapsize = buckets;
+    Uint32 oldmapsize = oldmap.getMapLen();
+
+    /**
+     * if old hashmap size is smaller than new hashmap size
+     * and new fragment count is a multiple of old hashmap
+     * size, no need to extend map, keep old hashmap size
+     */
+
+    if (oldmapsize < newmapsize &&
+        oldmapsize % newcnt == 0)
+    {
+      newmapsize = oldmapsize;
+    }
+
+    NdbHashMapImpl& newmap = NdbHashMapImpl::getImpl(newmapF);
+    NdbHashMapImpl const& oldmapimpl = NdbHashMapImpl::getImpl(oldmap);
+
+    newmap.m_map.expand(newmapsize);
+    for (Uint32 i = 0; i < newmapsize; i++)
     {
       Uint32 newval = i % newcnt;
-      if (newval >= oldcnt)
+      if (newval < oldcnt)
       {
-        newmap.m_map[i] = newval;
+         newval = oldmapimpl.m_map[i % oldmapsize];
+      }
+      newmap.m_map.push_back(newval);
+    }
+
+    /**
+     * check that new map do not imply data movement
+     * from old fragment to another old fragment.
+     * in such case, fall back to use old hashmap size
+     */
+
+    if (oldmapsize != newmapsize)
+    {
+      Uint32 period = lcm(oldmapsize, newmapsize);
+      Uint32 i;
+
+      for (i = 0; i < period; i++)
+      {
+        if (oldmapimpl.m_map[i % oldmapsize] != newmap.m_map[i % newmapsize] &&
+            newmap.m_map[i % newmapsize] < oldcnt)
+        {
+          /**
+           * move from old fragment to another old fragment
+           * not supported - keep old hashmap size
+           */
+          break;
+        }
+      }
+
+      /* keep old hashmap size, recreate newmap */
+      if (i < period)
+      {
+        newmapsize = oldmapsize;
+        newmap.m_map.clear();
+        newmap.m_map.expand(newmapsize);
+        for (Uint32 i = 0; i < newmapsize; i++)
+        {
+          Uint32 newval = i % newcnt;
+          if (newval < oldcnt)
+          {
+             newval = oldmapimpl.m_map[i % oldmapsize];
+          }
+          newmap.m_map.push_back(newval);
+        }
       }
     }
 
@@ -2045,7 +2126,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
      * Check if this accidently became a "default" map
      */
     HashMap def;
-    if (getDefaultHashMap(def, newcnt) == 0)
+    if (getDefaultHashMap(def, newmapsize, newcnt) == 0)
     {
       if (def.equal(newmapF))
       {
@@ -2055,7 +2136,7 @@ NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
       }
     }
 
-    initDefaultHashMap(def, newcnt);
+    initDefaultHashMap(def, newmapsize, newcnt);
     if (def.equal(newmapF))
     {
       ObjectId tmp;
@@ -2073,14 +2154,14 @@ retry:
     if (cnt == 0)
     {
       newmap.m_name.assfmt("HASHMAP-%u-%u-%u",
-                           NDB_DEFAULT_HASHMAP_BUCKETS,
+                           newmapsize,
                            oldcnt,
                            newcnt);
     }
     else
     {
       newmap.m_name.assfmt("HASHMAP-%u-%u-%u-#%u",
-                           NDB_DEFAULT_HASHMAP_BUCKETS,
+                           newmapsize,
                            oldcnt,
                            newcnt,
                            cnt);

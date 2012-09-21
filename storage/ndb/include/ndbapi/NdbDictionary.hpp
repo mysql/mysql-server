@@ -2474,6 +2474,7 @@ public:
      * NOTE: Requires a started schema transaction
      */
     int prepareHashMap(const Table& oldTable, Table& newTable);
+    int prepareHashMap(const Table& oldTable, Table& newTable, Uint32 buckets);
 
     /** @} *******************************************************************/
 
