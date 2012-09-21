@@ -2271,7 +2271,7 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_open_on_name(table->name, FALSE, FALSE,
+		if (dict_table_open_on_name(table->name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
 
 			/* Make things easy for the drop table code. */
@@ -2280,7 +2280,7 @@ err_exit:
 				dict_table_move_from_lru_to_non_lru(table);
 			}
 
-			dict_table_close(table, FALSE, FALSE);
+			dict_table_close(table, TRUE, FALSE);
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 
