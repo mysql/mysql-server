@@ -1,0 +1,555 @@
+Upstream insists on generating SSL testing certificates with relatively short
+lifespan, which has repeatedly caused problems (ie, one day the regression
+tests suddenly stop working).  Replace them with certificates with 20-year
+lifespan.  We should periodically regenerate these, too, but at least not
+very often.
+
+
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/cacert.pem mysql-5.1.50/mysql-test/std_data/cacert.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/cacert.pem	2010-08-03 13:55:04.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/cacert.pem	2010-08-27 23:42:05.751428144 -0400
+@@ -1,17 +1,22 @@
+ -----BEGIN CERTIFICATE-----
+-MIICrTCCAhagAwIBAgIJAMI7xZKjhrDbMA0GCSqGSIb3DQEBBAUAMEQxCzAJBgNV
++MIIDsjCCApqgAwIBAgIJAL5YrUwfPSWVMA0GCSqGSIb3DQEBBQUAMEQxCzAJBgNV
+ BAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdVcHBzYWxhMREwDwYD
+-VQQKEwhNeVNRTCBBQjAeFw0xMDAxMjkxMTQ3MTBaFw0xNTAxMjgxMTQ3MTBaMEQx
++VQQKEwhNeVNRTCBBQjAeFw0xMDAxMjkwNTU5NTNaFw0xNTAxMjgwNTU5NTNaMEQx
+ CzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdVcHBzYWxh
+-MREwDwYDVQQKEwhNeVNRTCBBQjCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA
+-wQYsOEfrN4ESP3FjsI8cghE+tZVuyK2gck61lwieVxjgFMtBd65mI5a1y9pmlOI1
+-yM4SB2Ppqcuw7/e1CdV1y7lvHrGNt5yqEHbN4QX1gvsN8TQauP/2WILturk4R4Hq
+-rKg0ZySu7f1Xhl0ed9a48LpaEHD17IcxWEGMMJwAxF0CAwEAAaOBpjCBozAMBgNV
+-HRMEBTADAQH/MB0GA1UdDgQWBBSvktYQ0ahLnyxyVKqty+WpBbBrDTB0BgNVHSME
+-bTBrgBSvktYQ0ahLnyxyVKqty+WpBbBrDaFIpEYwRDELMAkGA1UEBhMCU0UxEDAO
+-BgNVBAgTB1VwcHNhbGExEDAOBgNVBAcTB1VwcHNhbGExETAPBgNVBAoTCE15U1FM
+-IEFCggkAwjvFkqOGsNswDQYJKoZIhvcNAQEEBQADgYEAdKN1PjwMHAKG2Ww1145g
+-JQGBnKxSFOUaoSvkBi/4ntTM+ysnViWh7WvxyWjR9zU9arfr7aqsDeQxm0XDOqzj
+-AQ/cQIla2/Li8tXyfc06bisH/IHRaSc2zWqioTKbEwMdVOdrvq4a8V8ic3xYyIWn
+-7F4WeS07J8LKardSvM0+hOA=
++MREwDwYDVQQKEwhNeVNRTCBBQjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
++ggEBAL6kNN4peX7uhK9rb06W/QbPEpVuejmdWdl2PqMshP/eSuXXw7kwVgfpxx9R
++vC000CKQQSG9MCoZjtqPnFRsetmWLZgApRpEalGXTXJqq9sEbCfoFizg94U8G7d2
++u5XJjLVmcG34ru36KoBgVx1zeH1puBAf8dOzrE4L7Y+ZQBFzFohjh8C2LqWC4nM5
++qsLmOkDWMipGqYU5DvkKjIbTbwTyRNRgZHWSPfVDDPUIUOsY4BGUp2DpgeGY9aEv
++lIs57Ev9JqlIUCV65lOhhDkG+xwmkHKHA+ECEU9cALI8+uXbh48MB9XpMOuk408X
++/lX89aZwD0/G9kmObVGnE2G+H5UCAwEAAaOBpjCBozAdBgNVHQ4EFgQUsft+d7VA
++jWgRftkR5cPG2k2sUbAwdAYDVR0jBG0wa4AUsft+d7VAjWgRftkR5cPG2k2sUbCh
++SKRGMEQxCzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdV
++cHBzYWxhMREwDwYDVQQKEwhNeVNRTCBBQoIJAL5YrUwfPSWVMAwGA1UdEwQFMAMB
++Af8wDQYJKoZIhvcNAQEFBQADggEBALRUOAmdL8R8sl1y8kiEiFgDatdXK5RDqWai
++8yZChfmwTIToHhmQsOEshJe2e8hky3huUj+33VyXjINoMbebIwMuXPwEkbJal8RZ
++nSJmF0jN1Qz7J/jFffwK9xmejWZJx49Kt2+Qwrwp6kDeq9TLFqQOoVczgyJPYsTL
++NAOib5WqTud3XWvCwxrhqmWu7JZq6sp1fomP/uunprb8y2miWfLESZN2mKAhm44Q
++Lws867LT8v2lskEjq2dT1LutD5+R66XcdjgSr0uDziDs64jZwCD6ea94hVFM7ej0
++ZOXYeSEZJ56FjUxu632e9fY8NyMh30yKjjmQf1mM9PuGJvdvsWU=
+ -----END CERTIFICATE-----
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/client-cert.pem mysql-5.1.50/mysql-test/std_data/client-cert.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/client-cert.pem	2010-08-03 13:55:04.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/client-cert.pem	2010-08-27 23:42:05.752428395 -0400
+@@ -1,46 +1,69 @@
+ Certificate:
+     Data:
+-        Version: 1 (0x0)
+-        Serial Number: 1048577 (0x100001)
+-        Signature Algorithm: md5WithRSAEncryption
++        Version: 3 (0x2)
++        Serial Number: 6 (0x6)
++        Signature Algorithm: sha1WithRSAEncryption
+         Issuer: C=SE, ST=Uppsala, L=Uppsala, O=MySQL AB
+         Validity
+-            Not Before: Jan 29 11:50:22 2010 GMT
+-            Not After : Jan 28 11:50:22 2015 GMT
++            Not Before: Feb 20 03:03:26 2010 GMT
++            Not After : Sep  3 03:03:26 2030 GMT
+         Subject: C=SE, ST=Uppsala, O=MySQL AB
+         Subject Public Key Info:
+             Public Key Algorithm: rsaEncryption
+-                Public-Key: (1024 bit)
+-                Modulus:
+-                    00:cc:9a:37:49:13:66:dc:cf:e3:0b:13:a1:23:ed:
+-                    78:db:4e:bd:11:f6:8c:0d:76:f9:a3:32:56:9a:f8:
+-                    a1:21:6a:55:4e:4d:3f:e6:67:9d:26:99:b2:cd:a4:
+-                    9a:d2:2b:59:5c:d7:8a:d3:60:68:f8:18:bd:c5:be:
+-                    15:e1:2a:3c:a3:d4:61:cb:f5:11:94:17:81:81:f7:
+-                    87:8c:f6:6a:d2:ee:d8:e6:77:f6:62:66:4d:2e:16:
+-                    8d:08:81:4a:c9:c6:4b:31:e5:b9:c7:8a:84:96:48:
+-                    a7:47:8c:0d:26:90:56:4e:e6:a5:6e:8c:b3:f2:9f:
+-                    fc:3d:78:9b:49:6e:86:83:77
++            RSA Public Key: (1024 bit)
++                Modulus (1024 bit):
++                    00:c2:e7:20:cf:89:59:2f:67:cb:4c:9f:e8:11:f2:
++                    23:e5:f1:b1:ee:3f:66:5f:c3:f5:fd:1e:31:ee:8f:
++                    4c:2a:bd:c0:4a:a5:9f:c8:44:d5:77:8f:15:1b:4d:
++                    78:6e:b2:a2:48:a5:24:33:05:40:02:b3:c1:87:8d:
++                    59:3c:1a:07:aa:86:f0:04:e1:9c:20:4b:22:32:c4:
++                    51:9e:40:e4:31:c3:57:f5:98:bf:2e:b1:fd:2c:56:
++                    bf:49:d9:9b:e7:17:cc:95:5f:b5:08:19:5e:9d:df:
++                    65:22:39:2c:48:fb:69:96:31:7a:35:4d:de:60:b4:
++                    c1:60:19:5f:96:56:7e:55:19
+                 Exponent: 65537 (0x10001)
+-    Signature Algorithm: md5WithRSAEncryption
+-        5e:1f:a3:53:5f:24:13:1c:f8:28:32:b0:7f:69:69:f3:0e:c0:
+-        34:87:10:03:7d:da:15:8b:bd:19:b8:1a:56:31:e7:85:49:81:
+-        c9:7f:45:20:74:3e:89:c0:e0:26:84:51:cc:04:16:ce:69:99:
+-        01:e1:26:99:b3:e3:f5:bd:ec:5f:a0:84:e4:38:da:75:78:7b:
+-        89:9c:d2:cd:60:95:20:ba:8e:e3:7c:e6:df:76:3a:7c:89:77:
+-        02:94:86:11:3a:c4:61:7d:6f:71:83:21:8a:17:fb:17:e2:ee:
+-        02:6b:61:c1:b4:52:63:d7:d8:46:b2:c5:9c:6f:38:91:8a:35:
+-        32:0b
++        X509v3 extensions:
++            X509v3 Basic Constraints: 
++                CA:FALSE
++            X509v3 Subject Key Identifier: 
++                8D:10:67:91:33:76:9C:02:E5:78:5D:D8:C5:EF:25:96:B2:D7:FA:1F
++            X509v3 Authority Key Identifier: 
++                keyid:B1:FB:7E:77:B5:40:8D:68:11:7E:D9:11:E5:C3:C6:DA:4D:AC:51:B0
++                DirName:/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
++                serial:BE:58:AD:4C:1F:3D:25:95
++
++    Signature Algorithm: sha1WithRSAEncryption
++        a9:88:10:3e:5d:2a:47:29:c8:03:27:7a:31:5a:8e:10:03:bc:
++        b5:4e:37:1d:12:7b:eb:5f:50:71:70:b1:a3:8e:93:0e:77:17:
++        6c:47:b6:c9:a4:4d:2a:c4:38:f0:61:55:b2:7f:28:ba:06:79:
++        ee:67:11:7d:d4:c9:7f:0a:18:c8:c1:cb:d0:2c:f9:63:0f:bb:
++        45:ca:de:ea:bb:ac:00:01:52:48:36:2b:07:2b:c8:46:c7:b1:
++        21:81:bd:77:39:e7:4c:39:aa:bd:ac:60:d8:a7:bf:cf:14:98:
++        4a:0b:a1:40:55:06:8d:6f:35:a9:39:a0:71:a9:97:ba:7c:73:
++        3c:41:ba:c5:1c:11:4b:2b:43:1d:2d:ba:7b:5f:14:b5:3d:64:
++        62:15:36:b4:16:bd:78:c8:43:8d:f9:1c:a5:d2:ac:a1:58:74:
++        e1:99:de:ad:04:19:43:a8:bd:0a:fd:19:9b:50:44:46:6d:18:
++        55:4d:bf:b4:5b:a4:93:62:c7:64:91:6c:54:34:d1:f8:f3:ff:
++        12:6d:5f:85:e7:35:9e:5c:42:81:5e:fb:c8:bb:44:51:98:b2:
++        ef:1b:9f:5a:22:77:28:7d:da:fb:08:c2:94:9a:0f:42:08:93:
++        54:10:1e:ad:f2:4f:fc:62:98:51:e9:9b:b9:3a:93:d9:e4:1f:
++        1d:c4:76:d0
+ -----BEGIN CERTIFICATE-----
+-MIIB5zCCAVACAxAAATANBgkqhkiG9w0BAQQFADBEMQswCQYDVQQGEwJTRTEQMA4G
+-A1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwg
+-QUIwHhcNMTAwMTI5MTE1MDIyWhcNMTUwMTI4MTE1MDIyWjAyMQswCQYDVQQGEwJT
+-RTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIwgZ8wDQYJKoZI
+-hvcNAQEBBQADgY0AMIGJAoGBAMyaN0kTZtzP4wsToSPteNtOvRH2jA12+aMyVpr4
+-oSFqVU5NP+ZnnSaZss2kmtIrWVzXitNgaPgYvcW+FeEqPKPUYcv1EZQXgYH3h4z2
+-atLu2OZ39mJmTS4WjQiBSsnGSzHluceKhJZIp0eMDSaQVk7mpW6Ms/Kf/D14m0lu
+-hoN3AgMBAAEwDQYJKoZIhvcNAQEEBQADgYEAXh+jU18kExz4KDKwf2lp8w7ANIcQ
+-A33aFYu9GbgaVjHnhUmByX9FIHQ+icDgJoRRzAQWzmmZAeEmmbPj9b3sX6CE5Dja
+-dXh7iZzSzWCVILqO43zm33Y6fIl3ApSGETrEYX1vcYMhihf7F+LuAmthwbRSY9fY
+-RrLFnG84kYo1Mgs=
++MIIDETCCAfmgAwIBAgIBBjANBgkqhkiG9w0BAQUFADBEMQswCQYDVQQGEwJTRTEQ
++MA4GA1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlT
++UUwgQUIwHhcNMTAwMjIwMDMwMzI2WhcNMzAwOTAzMDMwMzI2WjAyMQswCQYDVQQG
++EwJTRTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIwgZ8wDQYJ
++KoZIhvcNAQEBBQADgY0AMIGJAoGBAMLnIM+JWS9ny0yf6BHyI+Xxse4/Zl/D9f0e
++Me6PTCq9wEqln8hE1XePFRtNeG6yokilJDMFQAKzwYeNWTwaB6qG8AThnCBLIjLE
++UZ5A5DHDV/WYvy6x/SxWv0nZm+cXzJVftQgZXp3fZSI5LEj7aZYxejVN3mC0wWAZ
++X5ZWflUZAgMBAAGjgaMwgaAwCQYDVR0TBAIwADAdBgNVHQ4EFgQUjRBnkTN2nALl
++eF3Yxe8llrLX+h8wdAYDVR0jBG0wa4AUsft+d7VAjWgRftkR5cPG2k2sUbChSKRG
++MEQxCzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdVcHBz
++YWxhMREwDwYDVQQKEwhNeVNRTCBBQoIJAL5YrUwfPSWVMA0GCSqGSIb3DQEBBQUA
++A4IBAQCpiBA+XSpHKcgDJ3oxWo4QA7y1TjcdEnvrX1BxcLGjjpMOdxdsR7bJpE0q
++xDjwYVWyfyi6BnnuZxF91Ml/ChjIwcvQLPljD7tFyt7qu6wAAVJINisHK8hGx7Eh
++gb13OedMOaq9rGDYp7/PFJhKC6FAVQaNbzWpOaBxqZe6fHM8QbrFHBFLK0MdLbp7
++XxS1PWRiFTa0Fr14yEON+Ryl0qyhWHThmd6tBBlDqL0K/RmbUERGbRhVTb+0W6ST
++YsdkkWxUNNH48/8SbV+F5zWeXEKBXvvIu0RRmLLvG59aIncofdr7CMKUmg9CCJNU
++EB6t8k/8YphR6Zu5OpPZ5B8dxHbQ
+ -----END CERTIFICATE-----
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/client-key.pem mysql-5.1.50/mysql-test/std_data/client-key.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/client-key.pem	2010-08-03 13:55:05.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/client-key.pem	2010-08-27 23:42:05.752428395 -0400
+@@ -1,15 +1,15 @@
+ -----BEGIN RSA PRIVATE KEY-----
+-MIICXQIBAAKBgQDMmjdJE2bcz+MLE6Ej7XjbTr0R9owNdvmjMlaa+KEhalVOTT/m
+-Z50mmbLNpJrSK1lc14rTYGj4GL3FvhXhKjyj1GHL9RGUF4GB94eM9mrS7tjmd/Zi
+-Zk0uFo0IgUrJxksx5bnHioSWSKdHjA0mkFZO5qVujLPyn/w9eJtJboaDdwIDAQAB
+-AoGASqk/4We2En+93y3jkIO4pXafIe3w/3zZ7caRue1ehx4RUQh5d+95djuB9u7J
+-HEZ7TpjM7QNyao5EueL6gvbxt0LXFvqAMni7yM9tt/HUYtHHPqYiRtUny9bKYFTm
+-l8szCCMal/wD9GZU9ByHDNHm7tHUMyMhARNTYSgx+SERFmECQQD/6jJocC4SXf6f
+-T3LqimWR02lbJ7qCoDgRglsUXh0zjrG+IIiAyE+QOCCx1GMe3Uw6bsIuYwdHT6as
+-WcdPs04xAkEAzKulvEvLVvN5zfa/DTYRTV7jh6aDleOxjsD5oN/oJXoACnPzVuUL
+-qQQMNtuAXm6Q1QItrRxpQsSKbY0UQka6JwJBAOSgoNoG5lIIYTKIMvzwGV+XBLeo
+-HYsXgh+6Wo4uql3mLErUG78ZtWL9kc/tE4R+ZdyKGLaCR/1gXmH5bwN4B/ECQEBb
+-uUH8k3REG4kojesZlVc+/00ojzgS4UKCa/yqa9VdB6ZBz8MDQydinnShkTwgiGpy
+-xOoqhO753o2UT0qH8wECQQC99IEJWUnwvExVMkLaZH5NjAFJkb22sjkmuT11tAgU
+-RQgOMoDOm6driojnOnDWOkx1r1Gy9NgMLooduja4v6cx
++MIICWwIBAAKBgQDC5yDPiVkvZ8tMn+gR8iPl8bHuP2Zfw/X9HjHuj0wqvcBKpZ/I
++RNV3jxUbTXhusqJIpSQzBUACs8GHjVk8GgeqhvAE4ZwgSyIyxFGeQOQxw1f1mL8u
++sf0sVr9J2ZvnF8yVX7UIGV6d32UiOSxI+2mWMXo1Td5gtMFgGV+WVn5VGQIDAQAB
++AoGARXcXLKDpVooJ3W+IyQyiWsw//IhANpWjUOm4JiyQmxMyO+i4ACr4Yjpu7WI5
++MEseqAGj20NdwxjKO0PXsCIe5LmrGZ+SI8+CSERFOWXWRtCWz7y7SG30i1k6suvM
++mwqWom0tJLwn93uA1lm/WSwKQwUrJRahRQd3EaZqrl7DP5kCQQD/8gbuYAT5pxQe
++ULLGM0RvEsXxDYbEDxNbY5wrBazfklBwpumxZpFl6jEAT++7Kh2Ns3A7kB1oUNlA
++FPYr+dYPAkEAwvHEwRtoyUr8jqoqVVJWI76CDmBjEOzVeMKW97ztqbs2LxZW8dYI
++iOh/myFGpdoUwgu0U8w9MmXcj3ZeZCYKVwJALyQ+AJPw9qa+fuLwOq9gsHCtwrty
++EhSQxSlwrz/pWniRll439vPkXfgntF4E0t1r+hiN2Hqv3/HcQgBaYzkuIwJAG023
++bACFxaOuCeFFepvEms8E8jSHy4gQQhCnCl24v8wLw76SQN7kZSCDNtwLRBFuVNtE
++z3PMonFn2eQPRmGZkwJAP1c1BHprMQx/ruafdscROILv3JrH40C1bR6KVVBKt1dK
++Qpnpgi7hK5rUQjDF8k3bn9ugTt06jyeHe/QhAml0kg==
+ -----END RSA PRIVATE KEY-----
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/server-cert.pem mysql-5.1.50/mysql-test/std_data/server-cert.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/server-cert.pem	2010-08-03 13:55:08.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/server-cert.pem	2010-08-27 23:42:05.753428361 -0400
+@@ -1,41 +1,69 @@
+ Certificate:
+     Data:
+-        Version: 1 (0x0)
+-        Serial Number: 1048578 (0x100002)
+-        Signature Algorithm: md5WithRSAEncryption
++        Version: 3 (0x2)
++        Serial Number: 4 (0x4)
++        Signature Algorithm: sha1WithRSAEncryption
+         Issuer: C=SE, ST=Uppsala, L=Uppsala, O=MySQL AB
+         Validity
+-            Not Before: Jan 29 11:56:49 2010 GMT
+-            Not After : Jan 28 11:56:49 2015 GMT
++            Not Before: Feb 20 02:55:06 2010 GMT
++            Not After : Sep  3 02:55:06 2030 GMT
+         Subject: C=SE, ST=Uppsala, O=MySQL AB, CN=localhost
+         Subject Public Key Info:
+             Public Key Algorithm: rsaEncryption
+-                Public-Key: (512 bit)
+-                Modulus:
+-                    00:cd:e4:87:51:9d:72:11:a0:d1:fa:f3:92:8b:13:
+-                    1c:eb:f7:e2:9a:2f:72:a8:d6:65:48:d1:69:af:1b:
+-                    c0:4c:13:e5:60:60:51:41:e9:ab:a6:bc:13:bb:0c:
+-                    5e:32:7c:d9:6c:9e:cd:05:24:84:78:db:80:91:2e:
+-                    d8:88:2b:c2:ed
++            RSA Public Key: (1024 bit)
++                Modulus (1024 bit):
++                    00:e3:7d:4f:c2:23:77:a9:3a:2c:d2:69:59:a0:2f:
++                    4e:d1:51:4c:ae:8d:f5:17:cc:ce:58:9c:83:4f:0b:
++                    a3:bb:29:a2:b8:1d:3e:1b:04:f9:a9:3e:e2:61:d0:
++                    e6:7b:b9:7c:12:d8:1f:86:c9:53:b5:04:dd:df:26:
++                    e9:c0:2b:de:4a:96:2e:f3:23:6f:79:6d:a9:d2:4e:
++                    17:af:2f:de:8b:68:44:ae:de:a3:e2:c4:37:1c:04:
++                    ad:73:4b:85:f9:83:ac:fe:b7:c1:54:47:2e:96:d4:
++                    31:96:85:94:69:d6:5a:63:24:04:99:89:19:1d:56:
++                    8a:d1:77:aa:87:fb:38:cd:b7
+                 Exponent: 65537 (0x10001)
+-    Signature Algorithm: md5WithRSAEncryption
+-        73:ce:9c:6e:39:46:b4:14:be:da:3f:f3:1b:ba:90:bc:23:43:
+-        d7:82:2a:70:4e:a6:d9:5a:65:5c:b7:df:71:df:75:77:c5:80:
+-        a4:af:fa:d2:59:e2:fd:c9:9c:f0:98:95:8e:69:a9:8c:7c:d8:
+-        6f:48:d2:e3:36:e0:cd:ff:3f:d1:a5:e6:ab:75:09:c4:50:10:
+-        c4:96:dd:bf:3b:de:32:46:da:ca:4a:f1:d6:52:8a:33:2f:ab:
+-        f5:2e:70:3f:d4:9c:be:00:c8:03:f9:39:8a:df:5b:70:3c:40:
+-        ef:03:be:7c:3d:1d:32:32:f3:51:81:e2:83:30:6e:3d:38:9b:
+-        fb:3c
++        X509v3 extensions:
++            X509v3 Basic Constraints: 
++                CA:FALSE
++            X509v3 Subject Key Identifier: 
++                CC:8C:71:40:D0:0F:BF:D1:99:79:3F:1B:E9:10:76:19:67:36:0F:A3
++            X509v3 Authority Key Identifier: 
++                keyid:B1:FB:7E:77:B5:40:8D:68:11:7E:D9:11:E5:C3:C6:DA:4D:AC:51:B0
++                DirName:/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
++                serial:BE:58:AD:4C:1F:3D:25:95
++
++    Signature Algorithm: sha1WithRSAEncryption
++        6f:ad:5e:59:fa:84:3a:be:e2:72:b1:e8:66:2a:4e:f8:73:19:
++        11:06:11:92:78:56:3e:d6:e8:68:29:90:8b:59:d2:fe:aa:ae:
++        25:59:c7:e9:99:bb:4a:06:43:dd:40:bd:cb:f4:ae:79:95:7d:
++        8e:90:ef:58:d2:a8:fc:bf:07:f3:37:b2:9b:bd:da:e6:8c:56:
++        dd:5e:c6:4a:70:7c:3e:3d:a1:e8:35:06:b8:a7:7b:ac:26:85:
++        54:5d:09:a2:7b:77:b4:17:7f:72:31:cb:ff:cc:67:6d:e6:3e:
++        c6:dc:96:eb:4a:0a:ae:e9:48:ae:8a:e0:d6:73:57:6e:32:4c:
++        00:dc:28:da:55:b3:9f:9f:d8:98:cc:d9:f1:b6:b3:14:67:2e:
++        a1:47:1e:51:11:cf:70:9f:31:8f:ba:59:29:f2:d0:88:0b:e2:
++        51:6b:f8:31:ed:6d:ac:00:5e:d3:78:4c:95:97:02:cc:74:2b:
++        3b:c6:28:e6:2a:c3:30:99:35:b4:4d:31:46:d4:90:f2:47:ed:
++        64:85:1a:75:2a:72:0a:2f:c6:3a:2f:d2:ac:6b:31:cc:e5:a8:
++        07:c2:d6:22:f3:c6:0f:bf:67:d9:d6:b2:79:cd:48:b5:c3:e0:
++        e3:18:7f:b5:74:c9:43:19:fb:c4:93:29:ca:cc:90:2b:1b:6f:
++        45:f6:25:f9
+ -----BEGIN CERTIFICATE-----
+-MIIBtzCCASACAxAAAjANBgkqhkiG9w0BAQQFADBEMQswCQYDVQQGEwJTRTEQMA4G
+-A1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwg
+-QUIwHhcNMTAwMTI5MTE1NjQ5WhcNMTUwMTI4MTE1NjQ5WjBGMQswCQYDVQQGEwJT
+-RTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIxEjAQBgNVBAMT
+-CWxvY2FsaG9zdDBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQDN5IdRnXIRoNH685KL
+-Exzr9+KaL3Ko1mVI0WmvG8BME+VgYFFB6aumvBO7DF4yfNlsns0FJIR424CRLtiI
+-K8LtAgMBAAEwDQYJKoZIhvcNAQEEBQADgYEAc86cbjlGtBS+2j/zG7qQvCND14Iq
+-cE6m2VplXLffcd91d8WApK/60lni/cmc8JiVjmmpjHzYb0jS4zbgzf8/0aXmq3UJ
+-xFAQxJbdvzveMkbaykrx1lKKMy+r9S5wP9ScvgDIA/k5it9bcDxA7wO+fD0dMjLz
+-UYHigzBuPTib+zw=
++MIIDJTCCAg2gAwIBAgIBBDANBgkqhkiG9w0BAQUFADBEMQswCQYDVQQGEwJTRTEQ
++MA4GA1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlT
++UUwgQUIwHhcNMTAwMjIwMDI1NTA2WhcNMzAwOTAzMDI1NTA2WjBGMQswCQYDVQQG
++EwJTRTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIxEjAQBgNV
++BAMTCWxvY2FsaG9zdDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA431PwiN3
++qTos0mlZoC9O0VFMro31F8zOWJyDTwujuymiuB0+GwT5qT7iYdDme7l8EtgfhslT
++tQTd3ybpwCveSpYu8yNveW2p0k4Xry/ei2hErt6j4sQ3HAStc0uF+YOs/rfBVEcu
++ltQxloWUadZaYyQEmYkZHVaK0Xeqh/s4zbcCAwEAAaOBozCBoDAJBgNVHRMEAjAA
++MB0GA1UdDgQWBBTMjHFA0A+/0Zl5PxvpEHYZZzYPozB0BgNVHSMEbTBrgBSx+353
++tUCNaBF+2RHlw8baTaxRsKFIpEYwRDELMAkGA1UEBhMCU0UxEDAOBgNVBAgTB1Vw
++cHNhbGExEDAOBgNVBAcTB1VwcHNhbGExETAPBgNVBAoTCE15U1FMIEFCggkAvlit
++TB89JZUwDQYJKoZIhvcNAQEFBQADggEBAG+tXln6hDq+4nKx6GYqTvhzGREGEZJ4
++Vj7W6GgpkItZ0v6qriVZx+mZu0oGQ91Avcv0rnmVfY6Q71jSqPy/B/M3spu92uaM
++Vt1exkpwfD49oeg1Brine6wmhVRdCaJ7d7QXf3Ixy//MZ23mPsbclutKCq7pSK6K
++4NZzV24yTADcKNpVs5+f2JjM2fG2sxRnLqFHHlERz3CfMY+6WSny0IgL4lFr+DHt
++bawAXtN4TJWXAsx0KzvGKOYqwzCZNbRNMUbUkPJH7WSFGnUqcgovxjov0qxrMczl
++qAfC1iLzxg+/Z9nWsnnNSLXD4OMYf7V0yUMZ+8STKcrMkCsbb0X2Jfk=
+ -----END CERTIFICATE-----
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/server-key.pem mysql-5.1.50/mysql-test/std_data/server-key.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/server-key.pem	2010-08-03 13:55:08.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/server-key.pem	2010-08-27 23:42:05.754428433 -0400
+@@ -1,9 +1,15 @@
+ -----BEGIN RSA PRIVATE KEY-----
+-MIIBOwIBAAJBAM3kh1GdchGg0frzkosTHOv34povcqjWZUjRaa8bwEwT5WBgUUHp
+-q6a8E7sMXjJ82WyezQUkhHjbgJEu2Igrwu0CAwEAAQJBAJuwhFbF3NzRpBbEmnqJ
+-4GPa1UJMQMLFJF+04tqj/HxJcAIVhOJhGmmtYNw1yjz/ZsPnfJCMz4eFOtdjvGtf
+-peECIQDmFFg2WLvYo+2m9w9V7z4ZIkg7ixYkI/ObUUctfZkPOQIhAOUWnrvjFrAX
+-bIvYT/YR50+3ZDLEc51XxNgJnWqWYl1VAiEAnTOFWgyivFC1DgF8PvDp8u5TgCt2
+-A1d1GMgd490O+TECIC/WMl0/hTxOF9930vKqOGf//o9PUGkZq8QE9fcM4gtlAiAE
+-iOcFpnLjtWj57jrhuw214ucnB5rklkQQe+AtcARNkg==
++MIICXgIBAAKBgQDjfU/CI3epOizSaVmgL07RUUyujfUXzM5YnINPC6O7KaK4HT4b
++BPmpPuJh0OZ7uXwS2B+GyVO1BN3fJunAK95Kli7zI295banSThevL96LaESu3qPi
++xDccBK1zS4X5g6z+t8FURy6W1DGWhZRp1lpjJASZiRkdVorRd6qH+zjNtwIDAQAB
++AoGAUb0o91y/FjMs/72S0pes/lDz+JRRSGfyjKxQEgrgndNsADOhqRu0iTdrKDJj
++XnlbN3ooecnFJfnFrvTQcJhSmlS30j6VrBw6LXpCBK3dvjYgJ9LOne7WK+dF1+vS
++FMQtsP04C56Sxy6HJDpMyWJ6oS3Bu169ygG2AxKo+Fk+E6ECQQD38w/MzmrARz2Z
++AGeEPDUnVZPYgtmXkmks95S0/2jSoLhmgpvJimzxwpYwVG/BG8dSDVuTDu5kp05D
++3bZIp3EzAkEA6uAwJsCZPtHXlWU3wYZJsA697rUNjPaCQOIaZ/lnh5RUHTmUiw1h
++Oj/VORqKB0kXqcDfawwLjZEvh1Xli+H5bQJBANTmhw2TvEPnp/OFTl1UGUvyBmXl
++TRMB639qAu07VfVtfYi/4ya1zn/0VmOfTOoigQ5qW9Q1AOu6YNCTQl62L9MCQQDc
++YfEsW2kvNYxYJHoVfuBjbuGuOnn1e1Oqd70ZND59S6NFLMMBWlORaVWzWACNZ3rp
++kAzSj6HDeqgjD2jsQONdAkEAt7S1YHUn8F760bRn4AnAto2TVOYdArtTP/wYjd4o
++9rJREO/d8AYkYJ96APLvF0SZ4n3t1pLwQRsKKN8ZGTmzLA==
+ -----END RSA PRIVATE KEY-----
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/server8k-cert.pem mysql-5.1.50/mysql-test/std_data/server8k-cert.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/server8k-cert.pem	2010-08-03 13:55:08.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/server8k-cert.pem	2010-08-27 23:43:00.005366270 -0400
+@@ -1,51 +1,69 @@
++Certificate:
++    Data:
++        Version: 3 (0x2)
++        Serial Number: 5 (0x5)
++        Signature Algorithm: sha1WithRSAEncryption
++        Issuer: C=SE, ST=Uppsala, L=Uppsala, O=MySQL AB
++        Validity
++            Not Before: Feb 20 03:00:54 2010 GMT
++            Not After : Sep  3 03:00:54 2030 GMT
++        Subject: C=SE, ST=Uppsala, O=MySQL AB, CN=server
++        Subject Public Key Info:
++            Public Key Algorithm: rsaEncryption
++            RSA Public Key: (1024 bit)
++                Modulus (1024 bit):
++                    00:c5:da:44:95:06:77:16:21:af:a0:c4:3c:e9:f8:
++                    1d:2d:95:f9:63:90:8c:3f:86:ba:77:76:4a:52:4b:
++                    6b:af:29:f5:1c:aa:d4:3f:3e:42:9f:6d:46:ba:86:
++                    90:b1:2d:cc:db:c6:33:15:a3:f4:af:53:33:4f:a1:
++                    56:d1:aa:3b:26:10:f7:64:b5:f9:bf:1b:b1:47:8e:
++                    cc:a6:d6:0d:aa:4a:77:e3:a3:63:9d:2a:dc:65:f4:
++                    7f:91:17:38:2d:d6:cd:4e:8d:53:52:97:6e:87:fc:
++                    64:60:a6:a1:00:ac:96:6c:e4:42:94:75:17:46:6f:
++                    91:b5:dd:06:47:ed:05:e3:db
++                Exponent: 65537 (0x10001)
++        X509v3 extensions:
++            X509v3 Basic Constraints: 
++                CA:FALSE
++            X509v3 Subject Key Identifier: 
++                6E:60:3F:29:13:60:99:ED:0C:F7:15:B5:DB:7B:1C:FB:6F:60:19:ED
++            X509v3 Authority Key Identifier: 
++                keyid:B1:FB:7E:77:B5:40:8D:68:11:7E:D9:11:E5:C3:C6:DA:4D:AC:51:B0
++                DirName:/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
++                serial:BE:58:AD:4C:1F:3D:25:95
++
++    Signature Algorithm: sha1WithRSAEncryption
++        63:2e:0f:07:14:06:cf:74:90:3d:37:42:f2:48:70:60:21:bc:
++        34:52:31:f1:87:70:d2:b2:fb:ff:13:38:dc:f0:5e:43:d7:ee:
++        a7:c7:1f:ac:aa:d2:8c:4f:fa:3c:4c:73:f6:b6:c2:0c:a0:ea:
++        a2:c9:e2:73:61:c3:2e:78:40:0f:2a:d3:63:50:9b:b8:f9:89:
++        40:ed:98:08:97:c3:07:24:17:34:b5:78:89:0a:bb:83:4c:e2:
++        5c:2e:13:d6:21:30:ad:30:48:b5:70:12:ff:4a:6f:42:f0:f8:
++        9f:b1:4b:bd:89:2b:f0:9d:e2:49:2b:35:69:18:1f:76:40:b4:
++        76:bd:cb:dd:27:2f:c0:c1:e2:33:3e:6e:df:68:54:19:92:8a:
++        bb:13:9c:cf:d6:17:56:da:bf:0d:64:70:3a:45:b7:aa:5f:e3:
++        f5:96:ae:34:f2:17:37:27:d0:4b:e8:30:4a:c0:02:42:e2:d2:
++        30:eb:eb:c7:d7:ec:d8:df:5c:43:58:e2:6f:b7:58:54:0d:c4:
++        01:71:2d:59:8f:44:c7:a1:6c:0b:41:28:fa:b7:63:a7:68:d3:
++        4f:c3:0f:17:9e:b2:32:50:e6:0b:87:3d:e2:39:47:c0:d8:0a:
++        3b:f6:af:50:68:0f:9d:ef:6e:34:0d:3a:07:94:f8:a4:d7:24:
++        86:32:d3:b4
+ -----BEGIN CERTIFICATE-----
+-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
+-/w8pMRr8gEuRqpL2WdJiKGG6lhMHLVFo
++MIIDIjCCAgqgAwIBAgIBBTANBgkqhkiG9w0BAQUFADBEMQswCQYDVQQGEwJTRTEQ
++MA4GA1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlT
++UUwgQUIwHhcNMTAwMjIwMDMwMDU0WhcNMzAwOTAzMDMwMDU0WjBDMQswCQYDVQQG
++EwJTRTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIxDzANBgNV
++BAMTBnNlcnZlcjCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEAxdpElQZ3FiGv
++oMQ86fgdLZX5Y5CMP4a6d3ZKUktrryn1HKrUPz5Cn21GuoaQsS3M28YzFaP0r1Mz
++T6FW0ao7JhD3ZLX5vxuxR47MptYNqkp346NjnSrcZfR/kRc4LdbNTo1TUpduh/xk
++YKahAKyWbORClHUXRm+Rtd0GR+0F49sCAwEAAaOBozCBoDAJBgNVHRMEAjAAMB0G
++A1UdDgQWBBRuYD8pE2CZ7Qz3FbXbexz7b2AZ7TB0BgNVHSMEbTBrgBSx+353tUCN
++aBF+2RHlw8baTaxRsKFIpEYwRDELMAkGA1UEBhMCU0UxEDAOBgNVBAgTB1VwcHNh
++bGExEDAOBgNVBAcTB1VwcHNhbGExETAPBgNVBAoTCE15U1FMIEFCggkAvlitTB89
++JZUwDQYJKoZIhvcNAQEFBQADggEBAGMuDwcUBs90kD03QvJIcGAhvDRSMfGHcNKy
+++/8TONzwXkPX7qfHH6yq0oxP+jxMc/a2wgyg6qLJ4nNhwy54QA8q02NQm7j5iUDt
++mAiXwwckFzS1eIkKu4NM4lwuE9YhMK0wSLVwEv9Kb0Lw+J+xS72JK/Cd4kkrNWkY
++H3ZAtHa9y90nL8DB4jM+bt9oVBmSirsTnM/WF1bavw1kcDpFt6pf4/WWrjTyFzcn
++0EvoMErAAkLi0jDr68fX7NjfXENY4m+3WFQNxAFxLVmPRMehbAtBKPq3Y6do00/D
++DxeesjJQ5guHPeI5R8DYCjv2r1BoD53vbjQNOgeU+KTXJIYy07Q=
+ -----END CERTIFICATE-----
+diff -Naur mysql-5.1.50.orig/mysql-test/std_data/server8k-key.pem mysql-5.1.50/mysql-test/std_data/server8k-key.pem
+--- mysql-5.1.50.orig/mysql-test/std_data/server8k-key.pem	2010-08-03 13:55:08.000000000 -0400
++++ mysql-5.1.50/mysql-test/std_data/server8k-key.pem	2010-08-27 23:43:10.165365998 -0400
+@@ -1,99 +1,15 @@
+ -----BEGIN RSA PRIVATE KEY-----
+-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
+ -----END RSA PRIVATE KEY-----

@@ -1,0 +1,28 @@
+The RPMs built by MySQL AB (-> Sun -> Oracle) put the libraries into "/usr/lib".
+Those built by RedHat put them into "/usr/lib/mysql".
+This patch is to modify the cmake files to follow the RedHat convention.
+Similar, the server is now in "/usr/libexec" (formerly "/usr/sbin").
+
+
+diff -Naur mysql-5.5.17.orig/cmake/install_layout.cmake mysql-5.5.17/cmake/install_layout.cmake
+--- mysql-5.5.17.orig/cmake/install_layout.cmake	2011-06-30 15:46:53 +0000
++++ mysql-5.5.17/cmake/install_layout.cmake	2011-10-27 16:40:10 +0000
+@@ -140,14 +140,14 @@ SET(INSTALL_SBINDIR_RPM                 
+ # be applied at build time via "rpmbuild".
+ #
+ SET(INSTALL_BINDIR_RPM                  "bin")
+-SET(INSTALL_SBINDIR_RPM                 "sbin")
++SET(INSTALL_SBINDIR_RPM                 "libexec")
+ SET(INSTALL_SCRIPTDIR_RPM               "bin")
+ #
+ IF(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+-  SET(INSTALL_LIBDIR_RPM                "lib64")
++  SET(INSTALL_LIBDIR_RPM                "lib64/mysql")
+   SET(INSTALL_PLUGINDIR_RPM             "lib64/mysql/plugin")
+ ELSE()
+-  SET(INSTALL_LIBDIR_RPM                "lib")
++  SET(INSTALL_LIBDIR_RPM                "lib/mysql")
+   SET(INSTALL_PLUGINDIR_RPM             "lib/mysql/plugin")
+ ENDIF()
+ #
+

@@ -1,0 +1,23 @@
+Hack the top-level Makefile to enable the openssl regression tests.
+(Why doesn't this happen automatically given the configure option??)
+
+Also, increase the overall timeout for the regression tests to 12 hours,
+because on a slow or heavily-loaded build machine sometimes the default of
+5 hours isn't enough.  (This has been demonstrated to fail in mass-rebuild
+scenarios, which aren't that uncommon for Fedora.)  Similarly increase the
+per-testcase timeout to 30 minutes, since the default of 15 hasn't got a
+great deal of headroom either.
+
+
+diff -Naur mysql-5.1.32.orig/Makefile.am mysql-5.1.32/Makefile.am
+--- mysql-5.1.32.orig/Makefile.am	2009-02-13 19:51:56.000000000 -0500
++++ mysql-5.1.32/Makefile.am	2009-03-04 18:12:36.000000000 -0500
+@@ -98,7 +98,7 @@
+ 
+ test-ns:
+ 	cd mysql-test ; \
+-	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --mysqld=--binlog-format=mixed
++	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ssl --mysqld=--binlog-format=mixed --suite-timeout=720 --testcase-timeout=30
+ 
+ test-binlog-statement:
+ 	cd mysql-test ; \

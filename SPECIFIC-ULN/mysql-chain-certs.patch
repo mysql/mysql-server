@@ -1,0 +1,41 @@
+Fix things so that chains of certificates work in the server and client
+certificate files.
+
+This only really works for OpenSSL-based builds, as yassl is unable to read
+multiple certificates from a file.  The patch below to yassl/src/ssl.cpp
+doesn't fix that, but just arranges that the viosslfactories.c patch won't
+have any ill effects in a yassl build.  Since we don't use yassl in Red Hat/
+Fedora builds, I'm not feeling motivated to try to fix yassl for this.
+
+See RH bug #598656.  Filed upstream at http://bugs.mysql.com/bug.php?id=54158
+
+
+diff -Naur mysql-5.1.47.orig/vio/viosslfactories.c mysql-5.1.47/vio/viosslfactories.c
+--- mysql-5.1.47.orig/vio/viosslfactories.c	2010-05-06 11:28:07.000000000 -0400
++++ mysql-5.1.47/vio/viosslfactories.c	2010-05-26 23:23:46.000000000 -0400
+@@ -100,7 +100,7 @@
+ 		       (long) ctx, cert_file, key_file));
+   if (cert_file)
+   {
+-    if (SSL_CTX_use_certificate_file(ctx, cert_file, SSL_FILETYPE_PEM) <= 0)
++    if (SSL_CTX_use_certificate_chain_file(ctx, cert_file) <= 0)
+     {
+       *error= SSL_INITERR_CERT;
+       DBUG_PRINT("error",("%s from file '%s'", sslGetErrString(*error), cert_file));
+diff -Naur mysql-5.1.47.orig/extra/yassl/src/ssl.cpp mysql-5.1.47/extra/yassl/src/ssl.cpp
+--- mysql-5.1.47.orig/extra/yassl/src/ssl.cpp	2010-05-06 11:24:26.000000000 -0400
++++ mysql-5.1.47/extra/yassl/src/ssl.cpp	2010-05-26 23:29:13.000000000 -0400
+@@ -1606,10 +1606,10 @@
+     }
+ 
+ 
+-    int SSL_CTX_use_certificate_chain_file(SSL_CTX*, const char*)
++    int SSL_CTX_use_certificate_chain_file(SSL_CTX* ctx, const char* file)
+     {
+-        // TDOD:
+-        return SSL_SUCCESS;
++        // For the moment, treat like use_certificate_file
++        return read_file(ctx, file, SSL_FILETYPE_PEM, Cert);
+     }
+ 
+ 
