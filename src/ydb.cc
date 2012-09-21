@@ -2293,13 +2293,6 @@ DB_ENV_CREATE_FUN (DB_ENV ** envp, uint32_t flags) {
     return r;
 }
 
-int 
-log_compare(const DB_LSN * a, const DB_LSN * b) {
-    fprintf(stderr, "%s:%d log_compare(%p,%p)\n", __FILE__, __LINE__, a, b);
-    assert(0);
-    return 0;
-}
-
 // return 0 if v and dbv refer to same db (including same dname)
 // return <0 if v is earlier in omt than dbv
 // return >0 if v is later in omt than dbv
