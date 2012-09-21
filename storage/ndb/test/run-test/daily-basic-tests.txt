@@ -1875,3 +1875,7 @@ max-time : 300
 cmd: testScan
 args: -n ScanKeyInfoExhaust T1
 
+max-time : 300
+cmd: testDict
+args: -n Bug14645319 T1
+

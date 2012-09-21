@@ -1894,9 +1894,17 @@ int
 NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
                                              Uint32 fragments)
 {
+  return getDefaultHashMap(dst, NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
+}
+
+int
+NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
+                                             Uint32 buckets,
+                                             Uint32 fragments)
+{
   BaseString tmp;
   tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
-             NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
+             buckets, fragments);
 
   return getHashMap(dst, tmp.c_str());
 }
@@ -1926,14 +1934,22 @@ int
 NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
                                               Uint32 fragments)
 {
+  return initDefaultHashMap(dst, NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
+}
+
+int
+NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
+                                              Uint32 buckets,
+                                              Uint32 fragments)
+{
   BaseString tmp;
   tmp.assfmt("DEFAULT-HASHMAP-%u-%u",
-             NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
+             buckets, fragments);
 
   dst.setName(tmp.c_str());
 
   Vector<Uint32> map;
-  for (Uint32 i = 0; i < NDB_DEFAULT_HASHMAP_BUCKETS; i++)
+  for (Uint32 i = 0; i < buckets; i++)
   {
     map.push_back(i % fragments);
   }
