@@ -38,7 +38,8 @@ fi
 valgrind $args
 exitcode=$?
 if [ $exitcode = 0 ] ; then
-    lines=`cat $logfile | wc -l`
+    # ignore "empty" valgrind lines, and ignore the warning about not running well on OSX 10.8 that start with WARNING:
+    lines=`grep -v '==\ WARNING:\ ' $logfile | grep -v '--[0-9]\+:[0-9]\+:syswrap-\ WARNING:\ Ignoring\ sigreturn\(\ \.\.\.,\ UC_RESET_ALT_STACK\ \);' | grep -v '^==[0-9]\+==\ $' | grep -v '^$' | grep -v '^UNKNOWN\ task\ message\ \[id\ 3403,\ to\ mach_task_self(),\ reply' | wc -l`
     if [ $lines -ne 0 ] ; then
 	exitcode=$errorexitcode
     fi
@@ -50,7 +51,3 @@ if [ $createlogfile != 0 ] ; then
 fi
 
 exit $exitcode
-
-
-
-
