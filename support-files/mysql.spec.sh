@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -286,8 +286,8 @@ documentation and the manual for more information.
 Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Requires:	%{distro_requires}
-Provides:	msqlormysql mysql MySQL mysql-server MySQL-server
-Obsoletes:	mysql MySQL mysql-server MySQL-server
+Provides:	msqlormysql MySQL MySQL-server
+Conflicts:	mysql mysql-server mysql-advanced mysql-server-advanced
 Obsoletes:	MySQL-server-community MySQL-server-advanced
 
 %description -n MySQL-server%{product_suffix}
@@ -318,8 +318,8 @@ package "MySQL-client%{product_suffix}" as well!
 %package -n MySQL-client%{product_suffix}
 Summary:	MySQL - Client
 Group:		Applications/Databases
-Provides:	mysql-client MySQL-client
-Obsoletes:	mysql-client MySQL-client
+Provides:	MySQL-client
+Conflicts:	mysql mysql-advanced
 Obsoletes:	MySQL-client-community MySQL-client-advanced
 
 %description -n MySQL-client%{product_suffix}
@@ -332,8 +332,8 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:	MySQL - Test suite
 Group:		Applications/Databases
 Requires:	MySQL-client perl
-Provides:	mysql-test MySQL-test
-Obsoletes:	mysql-test MySQL-test
+Provides:	MySQL-test
+Conflicts:	mysql-test mysql-test-advanced
 Obsoletes:	MySQL-test-community MySQL-test-advanced
 AutoReqProv:	no
 
@@ -346,8 +346,8 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-devel%{product_suffix}
 Summary:	MySQL - Development header files and libraries
 Group:		Applications/Databases
-Provides:	mysql-devel MySQL-devel
-Obsoletes:	mysql-devel MySQL-devel
+Provides:	MySQL-devel
+Conflicts:	mysql-devel mysql-embedded-devel mysql-devel-advanced mysql-embedded-devel-advanced
 Obsoletes:	MySQL-devel-community MySQL-devel-advanced
 
 %description -n MySQL-devel%{product_suffix}
@@ -360,8 +360,8 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %package -n MySQL-shared%{product_suffix}
 Summary:	MySQL - Shared libraries
 Group:		Applications/Databases
-Provides:	mysql-shared MySQL-shared
-Obsoletes:	mysql-shared MySQL-shared
+Provides:	MySQL-shared
+Conflicts:	mysql-libs mysql-libs-advanced
 Obsoletes:	MySQL-shared-community MySQL-shared-advanced
 
 %description -n MySQL-shared%{product_suffix}
@@ -373,8 +373,8 @@ and applications need to dynamically load and use MySQL.
 Summary:	MySQL - Embedded library
 Group:		Applications/Databases
 Requires:	MySQL-devel
-Provides:	mysql-embedded MySQL-embedded
-Obsoletes:	mysql-embedded MySQL-embedded
+Provides:	MySQL-embedded
+Conflicts:	mysql-embedded mysql-embedded-advanced
 Obsoletes:	MySQL-embedded-community MySQL-embedded-advanced
 
 %description -n MySQL-embedded%{product_suffix}
@@ -569,8 +569,13 @@ fi
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
+# Handle both ways of spelling the capability.
 installed=`rpm -q --whatprovides mysql-server 2> /dev/null`
+if [ $? -ne 0 -o -z "$installed" ]; then
+  installed=`rpm -q --whatprovides MySQL-server 2> /dev/null`
+fi
 if [ $? -eq 0 -a -n "$installed" ]; then
+  installed=`echo $installed | sed 's/\([^ ]*\) .*/\1/'` # Tests have shown duplicated package names
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
   myoldvendor='%{mysql_old_vendor}'
@@ -1147,6 +1152,10 @@ echo "====="                                     >> $STATUS_HISTORY
 * Mon Jul 16 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Add the man page for the "mysql_config_editor".
+
+* Mon Jun 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Make sure newly added "SPECIFIC-ULN/" directory does not disturb packaging.
 
 * Wed Feb 29 2012 Brajmohan Saxena <brajmohan.saxena@oracle.com>
 
