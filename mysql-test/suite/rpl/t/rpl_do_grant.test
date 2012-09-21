@@ -253,6 +253,16 @@ DELIMITER ;|
 -- error ER_NONEXISTING_PROC_GRANT
 REVOKE EXECUTE ON PROCEDURE p1 FROM 'root'@'localhost';
 
+--connection slave
+SET sql_log_bin= 0;
+call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
+SET sql_log_bin= 1;
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+-- connection master
 -- sync_slave_with_master
 
 -- connection master
@@ -304,6 +314,13 @@ SHOW GRANTS FOR 'user49119'@'localhost';
 SHOW GRANTS FOR CURRENT_USER;
 -- echo ##############################################################
 
+--connection slave
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+-- connection master
 -- sync_slave_with_master
 
 -- echo #############################################################
@@ -334,11 +351,14 @@ revoke all privileges, grant option from "foo";
 ## assertion: revoke is logged
 -- source include/show_binlog_events.inc
 
+--connection slave
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+-- connection master
 -- sync_slave_with_master
-
-## assertion: slave replicates revoke and does not fail because master
-##            logged revoke with correct expected error code
---source include/check_slave_no_error.inc
 
 -- connection master
 DROP USER foo@"1.2.3.4";
