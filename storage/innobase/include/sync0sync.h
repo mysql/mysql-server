@@ -111,6 +111,7 @@ extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
 extern mysql_pfs_key_t  zip_pad_mutex_key;
+extern mysql_pfs_key_t  row_drop_list_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_PFS_RWLOCK

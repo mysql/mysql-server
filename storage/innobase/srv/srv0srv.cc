@@ -887,9 +887,8 @@ void
 srv_init(void)
 /*==========*/
 {
-	ulint			i;
-	ulint			srv_sys_sz;
-	ulint			n_sys_threads;
+	ulint		srv_sys_sz;
+	ulint		n_sys_threads;
 
 #ifndef HAVE_ATOMIC_BUILTINS
 	mutex_create("server", &server_mutex);
@@ -911,7 +910,7 @@ srv_init(void)
 	srv_sys->n_sys_threads = n_sys_threads;
 	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
-	for (i = 0; i < srv_sys->n_sys_threads; i++) {
+	for (ulint i = 0; i < srv_sys->n_sys_threads; i++) {
 		srv_slot_t*	slot;
 
 		slot = srv_sys->sys_threads + i;
@@ -959,10 +958,15 @@ srv_free(void)
 {
 	srv_conc_free();
 
-	/* The mutexes srv_sys->mutex and srv_sys->tasks_mutex should have
-	been freed by sync_close() already. */
-	mem_free(srv_sys);
-	srv_sys = NULL;
+#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_free(&server_mutex);
+#endif /* !HAVE_ATOMIC_BUILTINS */
+
+	mutex_free(&srv_innodb_monitor_mutex);
+
+	mutex_free(&srv_sys->mutex);
+	mutex_free(&srv_sys->tasks_mutex);
+	mutex_free(&page_zip_stat_per_index_mutex);
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
@@ -996,11 +1000,10 @@ srv_normalize_init_values(void)
 /*===========================*/
 {
 	ulint	n;
-	ulint	i;
 
 	n = srv_n_data_files;
 
-	for (i = 0; i < n; i++) {
+	for (ulint i = 0; i < n; i++) {
 		srv_data_file_sizes[i] = srv_data_file_sizes[i]
 			* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}

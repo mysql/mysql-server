@@ -2770,7 +2770,7 @@ func_start:
 	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(cursor->index), RW_LOCK_EX));
+	ut_ad(rw_lock_own(dict_index_get_lock(cursor->index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	block = btr_cur_get_block(cursor);

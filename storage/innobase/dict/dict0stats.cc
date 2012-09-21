@@ -280,7 +280,7 @@ dict_stats_exec_sql(
 	dberr_t	err;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -2212,7 +2212,7 @@ dict_stats_save_index_stat(
 	char		table_utf8[MAX_TABLE_UTF8_LEN];
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3345,7 +3345,7 @@ dict_stats_delete_from_table_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_STAT */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3385,7 +3385,7 @@ dict_stats_delete_from_index_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_STAT */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3427,7 +3427,7 @@ dict_stats_drop_table(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_STAT */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3507,7 +3507,7 @@ dict_stats_rename_in_table_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_STAT */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3555,7 +3555,7 @@ dict_stats_rename_in_index_stats(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_STAT */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3604,7 +3604,7 @@ dict_stats_rename_table(
 	dberr_t		ret;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_STAT */
 	ut_ad(!mutex_own(&dict_sys->mutex));
 

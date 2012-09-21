@@ -106,12 +106,15 @@ struct Observer {
 template <typename Mutex>
 struct TrackPolicy : public Observer<Mutex> {
 
+	/** Default constructor. */
 	TrackPolicy()
 		:
-		m_name(0),
+		m_name(),
 		m_cline(ULINT_UNDEFINED),
-		m_cfile_name(0) { }
+		m_cfile_name() { }
 
+	/** Called when the mutex is "created". Note: Not from the constructor
+	but when the mutex is initialised. */
 	void init(const Mutex&	mutex,
 		  const char*	name,
 		  const char*	filename,
@@ -122,11 +125,16 @@ struct TrackPolicy : public Observer<Mutex> {
 		m_cfile_name = filename;
 	}
 
+	/** Called when the mutex is destroyed. */
+	void destroy() UNIV_NOTHROW { }
+
+	/** The mutex wants to do a trlock poll. */
 	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
 	{
 		return(DefaultPolicy<Mutex>::trylock_poll(mutex));
 	}
 
+	/** The mutes wants to spin. */
 	static void test_poll(const Mutex& mutex) UNIV_NOTHROW
 	{
 		DefaultPolicy<Mutex>::test_poll(mutex);
@@ -168,16 +176,31 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 		const Mutex*	m_mutex;
 	};
 
+	/** Default constructor. */
 	DebugPolicy()
 		:
-		m_thread_id(os_thread_id_t(ULINT_UNDEFINED)),
-		m_magic_n(MUTEX_MAGIC_N)
+		m_thread_id(),
+		m_magic_n() UNIV_NOTHROW
 	{
+		/* No op */
 	}
 
-	~DebugPolicy()
+	/** Destructor */
+	~DebugPolicy() UNIV_NOTHROW
+	{
+		ut_a(m_magic_n == 0);
+		ut_ad(m_thread_id == 0);
+	}
+
+	/** Mutex is being destroyed. */
+	void destroy() UNIV_NOTHROW
 	{
 		ut_ad(m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
+
+		m_magic_n = 0;
+		m_thread_id = 0;
+
+		TrackPolicy<Mutex>::destroy();
 	}
 
 	/* @return true if thread owns the mutex */

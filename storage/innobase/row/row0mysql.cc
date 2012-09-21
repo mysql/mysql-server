@@ -2120,7 +2120,7 @@ row_create_table_for_mysql(
 	dberr_t		err;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
@@ -2355,7 +2355,7 @@ row_create_index_for_mysql(
 	ibool		is_fts;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -2479,7 +2479,7 @@ row_table_add_foreign_constraints(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
@@ -3208,7 +3208,7 @@ row_truncate_table_for_mysql(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
@@ -3684,7 +3684,7 @@ row_drop_table_for_mysql(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	table = dict_table_open_on_name(

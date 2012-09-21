@@ -413,7 +413,7 @@ rw_lock_get_waiters(
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
-@return	RW_LOCK_NOT_LOCKED, RW_LOCK_EX, RW_LOCK_WAIT_EX */
+@return	RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_WAIT_EX */
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -472,7 +472,7 @@ rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
-					RW_LOCK_EX */
+					RW_LOCK_X */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_SYNC_DEBUG */
 /******************************************************************//**
@@ -483,7 +483,7 @@ rw_lock_is_locked(
 /*==============*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type);	/*!< in: lock type: RW_LOCK_SHARED,
-					RW_LOCK_EX */
+					RW_LOCK_X */
 /***************************************************************//**
 Prints debug info of currently locked rw-locks. */
 UNIV_INTERN
@@ -625,7 +625,7 @@ struct	rw_lock_debug_t {
 	os_thread_id_t thread_id;  /*!< The thread id of the thread which
 				locked the rw-lock */
 	ulint	pass;		/*!< Pass value given in the lock operation */
-	ulint	lock_type;	/*!< Type of the lock: RW_LOCK_EX,
+	ulint	lock_type;	/*!< Type of the lock: RW_LOCK_X,
 				RW_LOCK_SHARED, RW_LOCK_WAIT_EX */
 	const char*	file_name;/*!< File name where the lock was obtained */
 	ulint	line;		/*!< Line where the rw-lock was locked */

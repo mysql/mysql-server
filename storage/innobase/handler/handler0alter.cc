@@ -2892,7 +2892,7 @@ op_ok:
 		ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 		ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 		DICT_TF2_FLAG_SET(indexed_table, DICT_TF2_FTS);
@@ -3718,7 +3718,7 @@ ha_innobase::inplace_alter_table(
 
 	DBUG_ENTER("inplace_alter_table");
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -3842,7 +3842,7 @@ innobase_online_rebuild_log_free(
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_x_lock(&clust_index->lock);
@@ -4017,7 +4017,7 @@ innobase_drop_foreign(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Drop the constraint from the data dictionary. */
@@ -4084,7 +4084,7 @@ innobase_rename_column(
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (new_clustered) {

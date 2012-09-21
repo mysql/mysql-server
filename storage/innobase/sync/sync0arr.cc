@@ -278,7 +278,7 @@ sync_cell_get_event(
 		return(cell->latch.mutex->event());
 	} else if (type == RW_LOCK_WAIT_EX) {
 		return(cell->latch.lock->wait_ex_event);
-	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
+	} else { /* RW_LOCK_SHARED and RW_LOCK_X wait on the same event */
 		return(cell->latch.lock->event);
 	}
 }
@@ -450,11 +450,11 @@ sync_array_cell_print(
 			(ulong) policy.m_line
 #endif /* UNIV_DEBUG */
 		       );
-	} else if (type == RW_LOCK_EX
+	} else if (type == RW_LOCK_X
 		   || type == RW_LOCK_WAIT_EX
 		   || type == RW_LOCK_SHARED) {
 
-		fputs(type == RW_LOCK_EX ? "X-lock on"
+		fputs(type == RW_LOCK_X ? "X-lock on"
 		      : type == RW_LOCK_WAIT_EX ? "X-lock (wait_ex) on"
 		      : "S-lock on", file);
 
@@ -473,7 +473,7 @@ sync_array_cell_print(
 				"a writer (thread id %lu) has"
 				" reserved it in mode %s",
 				(ulong) os_thread_pf(rwlock->writer_thread),
-				writer == RW_LOCK_EX
+				writer == RW_LOCK_X
 				? " exclusive\n"
 				: " wait exclusive\n");
 		}
@@ -637,7 +637,7 @@ sync_array_detect_deadlock(
 
 		return(false); /* No deadlock */
 
-	} else if (cell->request_type == RW_LOCK_EX
+	} else if (cell->request_type == RW_LOCK_X
 		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 		lock = cell->latch.lock;
@@ -648,7 +648,7 @@ sync_array_detect_deadlock(
 
 			thread = debug->thread_id;
 
-			if (((debug->lock_type == RW_LOCK_EX)
+			if (((debug->lock_type == RW_LOCK_X)
 			     && !os_thread_eq(thread, cell->thread))
 			    || ((debug->lock_type == RW_LOCK_WAIT_EX)
 				&& !os_thread_eq(thread, cell->thread))
@@ -686,7 +686,7 @@ print:
 
 			thread = debug->thread_id;
 
-			if ((debug->lock_type == RW_LOCK_EX)
+			if ((debug->lock_type == RW_LOCK_X)
 			    || (debug->lock_type == RW_LOCK_WAIT_EX)) {
 
 				/* The s-lock request can block infinitely
@@ -730,7 +730,7 @@ sync_arr_cell_can_wake_up(
 			return(true);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+	} else if (cell->request_type == RW_LOCK_X) {
 		rw_lock_t*	lock;
 
 		lock = cell->latch.lock;
@@ -1078,9 +1078,7 @@ void
 sync_array_close(void)
 /*==================*/
 {
-	ulint		i;
-
-	for (i = 0; i < sync_array_size; ++i) {
+	for (ulint i = 0; i < sync_array_size; ++i) {
 		sync_array_free(sync_wait_array[i]);
 	}
 

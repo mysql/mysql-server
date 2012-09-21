@@ -1304,10 +1304,14 @@ buf_pool_free_instance(
 	buf_chunk_t*	chunks;
 	buf_page_t*	bpage;
 
+	mutex_free(&buf_pool->mutex);
+	mutex_free(&buf_pool->zip_mutex);
+	mutex_free(&buf_pool->flush_list_mutex);
+
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 	while (bpage != NULL) {
 		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
-		enum buf_page_state	state = buf_page_get_state(bpage);
+		buf_page_state	state = buf_page_get_state(bpage);
 
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
@@ -1330,6 +1334,12 @@ buf_pool_free_instance(
 	chunk = chunks + buf_pool->n_chunks;
 
 	while (--chunk >= chunks) {
+		buf_block_t*	block = chunk->blocks;
+
+		for (ulint i = chunk->size; i--; block++) {
+			mutex_free(&block->mutex);
+		}
+
 		os_mem_free_large(chunk->mem, chunk->mem_size);
 	}
 
@@ -1388,9 +1398,7 @@ buf_pool_free(
 /*==========*/
 	ulint	n_instances)	/*!< in: numbere of instances to free */
 {
-	ulint	i;
-
-	for (i = 0; i < n_instances; i++) {
+	for (ulint i = 0; i < n_instances; i++) {
 		buf_pool_free_instance(buf_pool_from_array(i));
 	}
 
@@ -1408,7 +1416,7 @@ buf_pool_clear_hash_index(void)
 	ulint	p;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!btr_search_enabled);
 
@@ -1582,7 +1590,7 @@ buf_pool_watch_set(
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	bpage = buf_page_hash_get_low(buf_pool, space, offset, fold);
@@ -1698,7 +1706,7 @@ buf_pool_watch_remove(
 #ifdef UNIV_SYNC_DEBUG
 	/* We must also own the appropriate hash_bucket mutex. */
 	rw_lock_t* hash_lock = buf_page_hash_lock_get(buf_pool, fold);
-	ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -2524,7 +2532,7 @@ loop:
 		    || mode == BUF_PEEK_IF_IN_POOL
 		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 #ifdef UNIV_SYNC_DEBUG
-			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 			ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 			return(NULL);
@@ -2744,7 +2752,7 @@ wait_until_unfixed:
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -2904,7 +2912,7 @@ wait_until_unfixed:
 			    buf_block_get_page_no(block)) == 0);
 #endif
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 	return(block);
@@ -3280,7 +3288,7 @@ buf_page_init(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(buf_page_hash_lock_get(buf_pool, fold),
-			  RW_LOCK_EX));
+			  RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Set the state of the block */
@@ -3584,7 +3592,7 @@ func_exit:
 
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -4349,7 +4357,7 @@ assert_s_latched:
 				case BUF_IO_READ:
 
 					ut_a(rw_lock_is_locked(&block->lock,
-							       RW_LOCK_EX));
+							       RW_LOCK_X));
 					break;
 
 				case BUF_IO_PIN:

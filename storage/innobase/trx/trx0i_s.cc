@@ -1243,7 +1243,7 @@ can_cache_be_updated(
 	reading it. */
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 
 	now = ut_time_us(NULL);
@@ -1465,6 +1465,8 @@ trx_i_s_cache_free(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/*!< in, own: cache to free */
 {
+	mutex_free(&cache->last_read_mutex);
+
 	hash_table_free(cache->locks_hash);
 	ha_storage_free(cache->storage);
 	table_cache_free(&cache->innodb_trx);
@@ -1527,7 +1529,7 @@ trx_i_s_cache_end_write(
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 
 	rw_lock_x_unlock(&cache->rw_lock);
@@ -1547,7 +1549,7 @@ cache_select_table(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED)
-	     || rw_lock_own(&cache->rw_lock, RW_LOCK_EX));
+	     || rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 
 	switch (table) {
