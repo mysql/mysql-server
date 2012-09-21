@@ -13075,6 +13075,19 @@ join_read_linked_first(JOIN_TAB *tab)
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
 
+#ifndef MCP_BUG14644936
+  /**
+   * Backport of fix in (non-cluster) server code. To be removed when merged
+   * with server code.
+   */
+  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+  for (uint i= 0 ; i < tab->ref.key_parts ; i++)
+  {
+    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
+      DBUG_RETURN(-1);
+  }
+#endif
+
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
   {
     table->status=STATUS_NOT_FOUND;
