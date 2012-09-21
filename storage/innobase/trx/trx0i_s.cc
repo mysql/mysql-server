@@ -1497,7 +1497,7 @@ trx_i_s_cache_end_read(
 	ullint	now;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED));
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S));
 #endif
 
 	/* update cache last read time */
@@ -1548,7 +1548,7 @@ cache_select_table(
 	i_s_table_cache_t*	table_cache;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_SHARED)
+	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S)
 	     || rw_lock_own(&cache->rw_lock, RW_LOCK_X));
 #endif
 

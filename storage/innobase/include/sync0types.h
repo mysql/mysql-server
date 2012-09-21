@@ -173,8 +173,8 @@ enum latch_level_t {
 
 	SYNC_MUTEX = 1,
 
-	RW_LOCK_WAIT_EX,
-	RW_LOCK_SHARED,
+	RW_LOCK_X_WAIT,
+	RW_LOCK_S,
 	RW_LOCK_X,
 	RW_LOCK_NOT_LOCKED,
 

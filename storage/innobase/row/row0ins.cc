@@ -1393,7 +1393,7 @@ row_ins_check_foreign_constraint(
 
 run_again:
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	err = DB_SUCCESS;
