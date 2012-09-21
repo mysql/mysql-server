@@ -2176,6 +2176,8 @@ public:
      */
     const Index * getIndex(const char * indexName,
 			   const char * tableName) const;
+    const Index * getIndex(const char * indexName,
+                           const Table& base) const;
 
     /**
      * Fetch list of indexes of given table.
@@ -2466,18 +2468,21 @@ public:
      * Get default HashMap
      */
     int getDefaultHashMap(HashMap& dst, Uint32 fragments);
+    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
 
 
     /**
      * Init a default HashMap
      */
     int initDefaultHashMap(HashMap& dst, Uint32 fragments);
+    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
 
     /**
      * create (or retreive) a HashMap suitable for alter
      * NOTE: Requires a started schema transaction
      */
     int prepareHashMap(const Table& oldTable, Table& newTable);
+    int prepareHashMap(const Table& oldTable, Table& newTable, Uint32 buckets);
 
     /** @} *******************************************************************/
 
@@ -2570,8 +2575,8 @@ public:
 #endif
     class NdbDictionaryImpl & m_impl;
     Dictionary(NdbDictionaryImpl&);
-    const Table * getIndexTable(const char * indexName, 
-				const char * tableName) const;
+    const Table * getIndexTable(const char * indexName,
+                                const char * tableName) const;
   public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data) const;
@@ -2624,6 +2629,13 @@ public:
       createRecord
     */
     void releaseRecord(NdbRecord *rec);
+
+    /*
+      Methods to print objects more verbose than possible from
+      object itself.
+     */
+    void print(class NdbOut& out, NdbDictionary::Index const& idx);
+    void print(class NdbOut& out, NdbDictionary::Table const& tab);
   }; // class Dictionary
 
   class NdbDataPrintFormat
@@ -2648,9 +2660,14 @@ public:
                                     const NdbDictionary::Column* c,
                                     const void* val);
   
-
 }; // class NdbDictionary
 
 class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Column& col);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Index& idx);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Index::Type type);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::FragmentType fragtype);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::Status status);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::Type type);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Table& tab);
 
 #endif
