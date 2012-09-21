@@ -147,7 +147,11 @@ static int compare_point_info(const void *e0, const void *e1)
   const Gcalc_heap::Info *i1= (const Gcalc_heap::Info *)e1;
   if (i0->y != i1->y)
     return i0->y > i1->y;
-  return find_first_different(i0) > find_first_different(i1);
+  double i0_fd= find_first_different(i0);
+  double i1_fd= find_first_different(i1);
+  if (i0_fd != i1_fd)
+    return i0_fd > i1_fd;
+  return i0->x > i1->x;
 }
 
 

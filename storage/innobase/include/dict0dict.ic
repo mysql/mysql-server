@@ -1217,7 +1217,7 @@ dict_index_get_online_status(
 	ONLINE_INDEX_COMPLETE (or ONLINE_INDEX_ABORTED) in
 	row_log_apply() once log application is done. So to make
 	sure the status is ONLINE_INDEX_CREATION or ONLINE_INDEX_COMPLETE
-	you should always do the recheck after acquiring index->lock */ 
+	you should always do the recheck after acquiring index->lock */
 
 #ifdef UNIV_DEBUG
 	switch (status) {

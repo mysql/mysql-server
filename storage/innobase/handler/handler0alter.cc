@@ -262,7 +262,9 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	} else if (srv_created_new_raw || srv_force_recovery) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -3180,6 +3182,10 @@ ha_innobase::prepare_inplace_alter_table(
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
 
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
+	}
+
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
 #ifdef UNIV_DEBUG
@@ -3717,6 +3723,11 @@ ha_innobase::inplace_alter_table(
 	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
+
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
@@ -3860,6 +3871,32 @@ innobase_online_rebuild_log_free(
 	rw_lock_x_unlock(&clust_index->lock);
 }
 
+/** Rollback a secondary index creation, drop the indexes with
+temparary index prefix
+@param prebuilt		the prebuilt struct
+@param table_share	the TABLE_SHARE
+@param trx		the transaction
+*/
+static
+void
+innobase_rollback_sec_index(
+/*========================*/
+	row_prebuilt_t*		prebuilt,
+	const TABLE_SHARE*	table_share,
+	trx_t*			trx)
+{
+	row_merge_drop_indexes(trx, prebuilt->table, FALSE);
+
+	/* Free the table->fts only if there is no FTS_DOC_ID
+	in the table */
+	if (prebuilt->table->fts
+	    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
+				     DICT_TF2_FTS_HAS_DOC_ID)
+	    && !innobase_fulltext_exist(table_share)) {
+		fts_free(prebuilt->table);
+	}
+}
+
 /** Roll back the changes made during prepare_inplace_alter_table()
 and inplace_alter_table() inside the storage engine. Note that the
 allowed level of concurrency during this operation will be the same as
@@ -3939,16 +3976,7 @@ rollback_inplace_alter_table(
 
 		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
-		row_merge_drop_indexes(ctx->trx, prebuilt->table, FALSE);
-
-		/* Free the table->fts only if there is no FTS_DOC_ID
-		in the table */
-		if (prebuilt->table->fts
-		    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
-					     DICT_TF2_FTS_HAS_DOC_ID)
-		    && !innobase_fulltext_exist(table_share)) {
-			fts_free(prebuilt->table);
-		}
+		innobase_rollback_sec_index(prebuilt, table_share, ctx->trx);
 	}
 
 	trx_commit_for_mysql(ctx->trx);
@@ -4351,6 +4379,8 @@ ha_innobase::commit_inplace_alter_table(
 	bool				new_clustered;
 	dict_table_t*			fk_table = NULL;
 
+	ut_ad(!srv_read_only_mode);
+
 	DBUG_ENTER("commit_inplace_alter_table");
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_enter");
@@ -4439,13 +4469,13 @@ ha_innobase::commit_inplace_alter_table(
 		ulint		highest_id_so_far;
 		dberr_t		error;
 
-		/* If it runs concurrently with create clustered index
-		or index rebuild, we will need a separate trx to do
-		the system table change, since in the case of failure
-		rebuild index/create clustered index will need to commit the
-		drop new table change, while FK needs to rollback the
-		metadata change */
-		if (new_clustered) {
+		/* If it runs concurrently with create index or table
+		rebuild, we will need a separate trx to do the system
+		table change, since in the case of failure to rebuild/create
+		index, it will need to commit the trx that drops the newly
+		created table/index, while for FK, it needs to rollback
+		the metadata change */
+		if (new_clustered || ctx->num_to_add) {
 			fk_trx = innobase_trx_allocate(user_thd);
 
 			trx_start_for_ddl(fk_trx, TRX_DICT_OP_INDEX);
@@ -4534,6 +4564,15 @@ undo_add_fk:
 
 			if (new_clustered) {
 				goto drop_new_clustered;
+			} else if (ctx->num_to_add > 0) {
+				ut_ad(trx != fk_trx);
+
+				innobase_rollback_sec_index(
+					prebuilt, table_share, trx);
+				innobase_undo_add_fk(ctx, fk_table);
+				trx_rollback_for_mysql(fk_trx);
+
+				goto trx_commit;
 			} else {
 				goto trx_rollback;
 			}
@@ -4737,6 +4776,15 @@ drop_new_clustered:
 				DBUG_ASSERT(0);
 			}
 		}
+
+		/* Commit of rollback add foreign constraint operations */
+		if (fk_trx && fk_trx != trx) {
+			if (err == 0) {
+				trx_commit_for_mysql(fk_trx);
+			} else {
+				trx_rollback_for_mysql(fk_trx);
+			}
+		}
 	}
 
 	if (err == 0
@@ -4776,6 +4824,12 @@ trx_rollback:
 
 		trx_rollback_for_mysql(trx);
 	}
+
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+
+	log_buffer_flush_to_disk();
 
 	if (new_clustered) {
 		innobase_online_rebuild_log_free(prebuilt->table);
@@ -4872,6 +4926,10 @@ trx_rollback:
 		drop the old table. */
 		update_thd();
 		prebuilt->trx->will_lock++;
+
+		DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit",
+				DBUG_SUICIDE(););
+
 		trx_start_if_not_started_xa(prebuilt->trx);
 	}
 

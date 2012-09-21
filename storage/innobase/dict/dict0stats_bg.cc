@@ -28,15 +28,8 @@ Created Apr 25, 2012 Vasil Dimov
 #include "dict0dict.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "dict0mem.h"
-#include "dict0types.h"
-#include "ha0storage.h"
-#include "os0thread.h"
-#include "os0sync.h"
 #include "row0mysql.h"
-#include "srv0srv.h"
 #include "srv0start.h"
-#include "sync0mutex.h"
 
 #include <vector>
 
@@ -57,9 +50,10 @@ UNIV_INTERN mysql_pfs_key_t	recalc_pool_mutex_key;
 
 /** The number of tables that can be added to "recalc_pool" before
 it is enlarged */
-#define RECALC_POOL_INITIAL_SLOTS	128
+static const ulint RECALC_POOL_INITIAL_SLOTS = 128;
 
-/** The tables whose stats are to be automatically recalculated. */
+/** The multitude of tables whose stats are to be automatically
+recalculated - an STL vector */
 typedef std::vector<table_id_t>	recalc_pool_t;
 
 static recalc_pool_t		recalc_pool;
@@ -73,6 +67,8 @@ void
 dict_stats_recalc_pool_init()
 /*=========================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	recalc_pool.reserve(RECALC_POOL_INITIAL_SLOTS);
 }
 
@@ -84,6 +80,8 @@ void
 dict_stats_recalc_pool_deinit()
 /*===========================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	recalc_pool.clear();
 }
 
@@ -100,6 +98,8 @@ dict_stats_recalc_pool_add(
 /*=======================*/
 	const dict_table_t*	table)	/*!< in: table to add */
 {
+	ut_ad(!srv_read_only_mode);
+
 	mutex_enter(&recalc_pool_mutex);
 
 	/* quit if already in the list */
@@ -133,6 +133,8 @@ dict_stats_recalc_pool_get(
 	table_id_t*	id)	/*!< out: table id, or unmodified if list is
 				empty */
 {
+	ut_ad(!srv_read_only_mode);
+
 	mutex_enter(&recalc_pool_mutex);
 
 	if (recalc_pool.empty()) {
@@ -159,6 +161,7 @@ dict_stats_recalc_pool_del(
 /*=======================*/
 	const dict_table_t*	table)	/*!< in: table to remove */
 {
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mutex_enter(&recalc_pool_mutex);
@@ -198,6 +201,8 @@ dict_stats_wait_bg_to_stop_using_tables(
 	trx_t*		trx)	/*!< in/out: transaction to use for
 				unlocking/locking the data dict */
 {
+	ut_ad(!srv_read_only_mode);
+
 	while ((table1->stats_bg_flag & BG_STAT_IN_PROGRESS)
 	       || (table2 != NULL
 		   && (table2->stats_bg_flag & BG_STAT_IN_PROGRESS))) {
@@ -223,6 +228,8 @@ void
 dict_stats_thread_init()
 /*====================*/
 {
+	ut_a(!srv_read_only_mode);
+
 	dict_stats_event = os_event_create("dict_stats_event");
 
 	/* The recalc_pool_mutex is acquired from:
@@ -254,6 +261,7 @@ void
 dict_stats_thread_deinit()
 /*======================*/
 {
+	ut_a(!srv_read_only_mode);
 	ut_ad(!srv_dict_stats_thread_active);
 
 	dict_stats_recalc_pool_deinit();
@@ -276,6 +284,8 @@ dict_stats_process_entry_from_recalc_pool()
 /*=======================================*/
 {
 	table_id_t	table_id;
+
+	ut_ad(!srv_read_only_mode);
 
 	/* pop the first table from the auto recalc pool */
 	if (!dict_stats_recalc_pool_get(&table_id)) {
@@ -344,6 +354,8 @@ DECLARE_THREAD(dict_stats_thread)(
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
+	ut_a(!srv_read_only_mode);
+
 	srv_dict_stats_thread_active = TRUE;
 
 	while (!SHUTTING_DOWN()) {

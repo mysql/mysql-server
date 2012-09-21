@@ -410,9 +410,10 @@ lock_rec_validate_page(
 /* The lock system */
 UNIV_INTERN lock_sys_t*	lock_sys	= NULL;
 
-/* We store info on the latest deadlock error to this buffer. InnoDB
+/** We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
 UNIV_INTERN ibool	lock_deadlock_found = FALSE;
+/** Only created if !srv_read_only_mode */
 static FILE*		lock_latest_err_file;
 
 /********************************************************************//**
@@ -606,8 +607,10 @@ lock_sys_create(
 
 	lock_sys->rec_hash = hash_create(n_cells);
 
-	lock_latest_err_file = os_file_create_tmpfile();
-	ut_a(lock_latest_err_file);
+	if (!srv_read_only_mode) {
+		lock_latest_err_file = os_file_create_tmpfile();
+		ut_a(lock_latest_err_file);
+	}
 }
 
 /*********************************************************************//**
@@ -3429,11 +3432,13 @@ lock_deadlock_start_print()
 /*=======================*/
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	rewind(lock_latest_err_file);
 	ut_print_timestamp(lock_latest_err_file);
 
 	if (srv_print_all_deadlocks) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: transactions deadlock detected, "
 			"dumping detailed information.\n");
 		ut_print_timestamp(stderr);
@@ -3448,10 +3453,12 @@ lock_deadlock_fputs(
 /*================*/
 	const char*	msg)	/*!< in: message to print */
 {
-	fputs(msg, lock_latest_err_file);
+	if (!srv_read_only_mode) {
+		fputs(msg, lock_latest_err_file);
 
-	if (srv_print_all_deadlocks) {
-		fputs(msg, stderr);
+		if (srv_print_all_deadlocks) {
+			fputs(msg, stderr);
+		}
 	}
 }
 
@@ -3465,15 +3472,12 @@ lock_deadlock_trx_print(
 	ulint		max_query_len)	/*!< in: max query length to print,
 					or 0 to use the default max length */
 {
-	ulint	n_rec_locks;
-	ulint	n_trx_locks;
-	ulint	heap_size;
-
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
-	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
-	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
-	heap_size = mem_heap_get_size(trx->lock.lock_heap);
+	ulint	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+	ulint	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	ulint	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 
 	trx_sys->mutex.enter();
 
@@ -3497,6 +3501,7 @@ lock_deadlock_lock_print(
 	const lock_t*	lock)	/*!< in: record or table type lock */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	if (lock_get_type_low(lock) == LOCK_REC) {
 		lock_rec_print(lock_latest_err_file, lock);
@@ -3619,6 +3624,7 @@ lock_deadlock_notify(
 						deadlock */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	lock_deadlock_start_print();
 
@@ -3801,7 +3807,9 @@ lock_deadlock_search(
 
 			/* Found a cycle. */
 
-			lock_deadlock_notify(ctx, lock);
+			if (!srv_read_only_mode) {
+				lock_deadlock_notify(ctx, lock);
+			}
 
 			return(lock_deadlock_select_victim(ctx)->id);
 
@@ -3872,6 +3880,7 @@ lock_deadlock_joining_trx_print(
 	const lock_t*	lock)		/*!< in: lock trx wants */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	/* If the lock search exceeds the max step
 	or the max depth, the current trx will be
@@ -3958,7 +3967,9 @@ lock_deadlock_check_and_resolve(
 			ut_a(trx == ctx.start);
 			ut_a(victim_trx_id == trx->id);
 
-			lock_deadlock_joining_trx_print(trx, lock);
+			if (!srv_read_only_mode) {
+				lock_deadlock_joining_trx_print(trx, lock);
+			}
 
 			MONITOR_INC(MONITOR_DEADLOCK);
 
@@ -5049,7 +5060,9 @@ lock_print_info_summary(
 		      "LATEST DETECTED DEADLOCK\n"
 		      "------------------------\n", file);
 
-		ut_copy_file(file, lock_latest_err_file);
+		if (!srv_read_only_mode) {
+			ut_copy_file(file, lock_latest_err_file);
+		}
 	}
 
 	fputs("------------\n"

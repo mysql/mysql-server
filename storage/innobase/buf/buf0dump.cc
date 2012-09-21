@@ -47,8 +47,7 @@ enum status_severity {
 	STATUS_ERR
 };
 
-#define SHUTTING_DOWN()	(UNIV_UNLIKELY(srv_shutdown_state \
-				       != SRV_SHUTDOWN_NONE))
+#define SHUTTING_DOWN()	(srv_shutdown_state != SRV_SHUTDOWN_NONE)
 
 /* Flags that tell the buffer pool dump/load thread which action should it
 take after being waked up. */
@@ -578,6 +577,8 @@ DECLARE_THREAD(buf_dump_thread)(
 	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
 						required by os_thread_create */
 {
+	ut_ad(!srv_read_only_mode);
+
 	srv_buf_dump_thread_active = TRUE;
 
 	buf_dump_status(STATUS_INFO, "not started");
