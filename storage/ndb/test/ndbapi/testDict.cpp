@@ -9174,6 +9174,184 @@ runIndexStatCreate(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+getOrCreateDefaultHashMap(NdbDictionary::Dictionary& dict, NdbDictionary::HashMap& hm, Uint32 buckets, Uint32 fragments)
+{
+  if (dict.getDefaultHashMap(hm, buckets, fragments) == 0)
+  {
+    return 0;
+  }
+
+  dict.initDefaultHashMap(hm, buckets, fragments);
+  if (dict.createHashMap(hm, NULL) == -1)
+  {
+    return -1;
+  }
+
+  if (dict.getDefaultHashMap(hm, buckets, fragments) == 0)
+  {
+    return 0;
+  }
+
+  return -1;
+}
+
+struct Bug14645319_createTable_args
+{
+  char const* template_name;
+  char const* name;
+  Uint32 buckets;
+  Uint32 fragments;
+};
+
+int Bug14645319_createTable(Ndb* pNdb, NdbDictionary::Table& tab, int when,
+                                    void* arg)
+{
+  Bug14645319_createTable_args& args = *static_cast<Bug14645319_createTable_args*>(arg);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  if (when == 0)
+  {
+    tab.setName(args.name);
+    tab.setFragmentCount(args.fragments);
+    if (args.fragments == 0)
+    {
+      tab.setFragmentData(0, 0);
+    }
+    NdbDictionary::HashMap hm;
+    getOrCreateDefaultHashMap(*pDic, hm, args.buckets, args.fragments);
+    tab.setHashMap(hm);
+  }
+  return 0;
+}
+
+int
+runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int failures = 0;
+
+  struct test_case {
+    char const* description;
+    int old_fragments;
+    int old_buckets;
+    int new_fragments;
+    int new_buckets;
+    int expected_buckets;
+  };
+
+  STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS % 240 == 0);
+  STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS % 260 != 0);
+  test_case test_cases[] = {
+    { "Simulate online reorg, may or may not change hashmap depending on default fragment count",
+      3, 120, 0, NDB_DEFAULT_HASHMAP_BUCKETS, 0 },
+    { "Keep old hashmap since no new fragments",
+      3, 120, 3, NDB_DEFAULT_HASHMAP_BUCKETS, 120 },
+    { "Keep old hashmap size since old size a multiple of new fragment count",
+      3, 120, 6, NDB_DEFAULT_HASHMAP_BUCKETS, 120 },
+    { "Keep old hashmap size since new size not a multiple of old",
+      3, 130, 6, NDB_DEFAULT_HASHMAP_BUCKETS, 130 },
+    { "Extend hashmap",
+      3, 120, 7, NDB_DEFAULT_HASHMAP_BUCKETS, NDB_DEFAULT_HASHMAP_BUCKETS },
+    { "Keep old hashmap size since old size not multiple of old fragment count",
+      7, 120, 10, 60, 120 },
+    { "Shrink hashmap",
+      3, 120, 6, 60, 60 },
+  };
+
+  Bug14645319_createTable_args args;
+  args.template_name = ctx->getTab()->getName();
+  args.name = "Bug14645319";
+
+  for (size_t testi = 0; testi < NDB_ARRAY_SIZE(test_cases); testi++)
+  {
+    test_case const& test = test_cases[testi];
+    int result = NDBT_FAILED;
+
+    int old_fragments = 0;
+    int old_buckets = 0;
+    int new_fragments = 0;
+    int new_buckets = 0;
+
+    do {
+      /* setup old table */
+      args.buckets = test.old_buckets;
+      args.fragments = test.old_fragments;
+      result = NDBT_Tables::createTable(pNdb, args.template_name, false, false, Bug14645319_createTable, &args);
+      if (result != 0) break;
+
+      NdbDictionary::Table const& old_tab = *pDic->getTable(args.name);
+
+      /* check old table properties */
+      NdbDictionary::HashMap old_hm;
+      result = pDic->getHashMap(old_hm, &old_tab);
+      if (result != 0) break;
+
+      old_fragments = old_tab.getFragmentCount();
+      old_buckets = old_hm.getMapLen();
+      if (old_fragments != test.old_fragments)
+      {
+        result = NDBT_FAILED;
+        break;
+      }
+      if (old_buckets != test.old_buckets)
+      {
+        result = NDBT_FAILED;
+        break;
+      }
+
+      /* alter table */
+      NdbDictionary::Table new_tab = old_tab;
+      new_tab.setFragmentCount(test.new_fragments);
+      if (test.new_fragments == 0)
+        new_tab.setFragmentData(0, 0);
+
+      result = pDic->beginSchemaTrans();
+      if (result != 0) break;
+
+      result = pDic->prepareHashMap(old_tab, new_tab, test.new_buckets);
+
+      result |= pDic->endSchemaTrans();
+      if (result != 0) break;
+
+      result = pDic->alterTable(old_tab, new_tab);
+      if (result != 0) break;
+
+      /* check */
+      NdbDictionary::HashMap new_hm;
+      result = pDic->getHashMap(new_hm, &new_tab);
+      if (result != 0) break;
+
+      new_fragments = new_tab.getFragmentCount();
+      new_buckets = new_hm.getMapLen();
+
+      if (test.expected_buckets > 0 &&
+          new_buckets != test.expected_buckets)
+      {
+        result = NDBT_FAILED;
+        break;
+      }
+      result = 0;
+    } while (false);
+
+    result |= pDic->dropTable(args.name);
+
+    if (result == 0)
+    {
+      ndbout << "Test#" << (testi + 1) << " '" << test_cases[testi].description << "' passed" <<
+        " (" << old_buckets << " => " << test_cases[testi].new_buckets << " => " << test_cases[testi].expected_buckets << ")" << endl;
+    }
+    else
+    {
+      ndbout << "Test#" << (testi + 1) << " '" << test_cases[testi].description << "' failed" <<
+        " (" << old_buckets << " => " << test_cases[testi].new_buckets << " => " << new_buckets << " expected: " << test_cases[testi].expected_buckets << ")" << endl;
+      failures++;
+    }
+  }
+
+  return failures > 0 ? NDBT_FAILED : NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
@@ -9487,6 +9665,10 @@ TESTCASE("Bug13416603", "")
 TESTCASE("IndexStatCreate", "")
 {
   STEPS(runIndexStatCreate, 10);
+}
+TESTCASE("Bug14645319", "")
+{
+  STEP(runBug14645319);
 }
 NDBT_TESTSUITE_END(testDict);
 
