@@ -75,15 +75,6 @@ DBTransactionStates = [
   function rollback(callback) {}
 
 
-/* close(callback)
-   ASYNC
-
-   Close and free all resources. 
-   Callback is optional; if supplied, will receive (err).
- */
-  function close(callback) {}
-
-
 
 /* This documentation file is a valid JavaScript module and exports: 
 */

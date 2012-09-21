@@ -77,9 +77,10 @@ t1.runTestMethod = function do_insert_op(dataObj) {
   var op = dbSession.buildInsertOperation(thandler, dataObj, tx, null);
 
   tx.executeCommit([ op ], function(err, tx) {
-    tx.close();
-    if(err) { test.fail("ExecuteCommit failed: " + err);  }
-    else    { test.pass(); }
+    if(err) { 
+      test.appendErrorMessage("ExecuteCommit failed: " + err);  
+    }
+    test.failOnError();
   });  
 };
 
@@ -104,9 +105,10 @@ t2.runTestMethod = function do_delete_op(keyObj) {
   var op = dbSession.buildDeleteOperation(ixhandler, keyObj, tx, null);
   
   tx.executeCommit([ op ], function(err, tx) {
-    tx.close();
-    if(err) { test.fail("ExecuteCommit failed: " + err); }
-    else    { test.pass(); }
+    if(err) { 
+      test.appendErrorMessage("ExecuteCommit failed: " + err); 
+    }
+    test.failOnError();
   });
 };
 

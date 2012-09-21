@@ -167,6 +167,7 @@ public:
     errorHandler(0)
   {
     native_obj = unwrapPointer<C *>(args.Holder());
+    DEBUG_ASSERT(native_obj != NULL);
   }
 
   /* Methods */

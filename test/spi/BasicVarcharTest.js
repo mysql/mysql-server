@@ -125,13 +125,14 @@ t1.runTestMethod = do_insert_op;
 t1.checkResult = function(err, tx) {
   udebug.log("checkResult");
   var op;
-  if(err) { t1.fail("ExecuteCommit failed: " + err);  }
-  else { 
+  if(err) { 
+    t1.appendErrorMessage("ExecuteCommit failed: " + err);
+  }
+  else {
     op = tx.executedOperations.pop();
     t1.errorIfNotEqual("operation failed", op.result.success, true);
-    t1.failOnError();
   }
-  tx.close();
+  t1.failOnError();
 };
 
 t1.run = function() {
@@ -146,16 +147,17 @@ t2.runTestMethod = do_read_op;
 t2.checkResult = function(err, tx) {
   udebug.log("checkResult t2");
   var op;
-  if(err) { t2.fail("ExecuteCommit failed: " + err);  }
+  if(err) { 
+    t2.appendErrorMessage("ExecuteCommit failed: " + err); 
+  }
   else { 
     op = tx.executedOperations.pop();
     t2.errorIfNull("Null op", op);
     t2.errorIfNull("Null op.result", op.result);
     t2.errorIfNull("Null op.result.value", op.result.value);
     t2.errorIfNotEqual("Expected Henry", op.result.value.name, "Henry");
-    t2.failOnError();
   }
-  tx.close();
+  t2.failOnError();
 };
 
 t2.run = function() {
@@ -170,16 +172,15 @@ t3.runTestMethod = do_update_op;
 t3.checkResult = function(err, tx) {
   udebug.log("checkResult t3");
   if(err) { 
-    t3.fail("ExecuteCommit failed: " + err);  
+    t3.appendErrorMessage("ExecuteCommit failed: " + err);  
   }
   else { 
     var op = tx.executedOperations.pop();
     if(op) {
       t3.errorIfNotEqual("Operation failed", op.result.success, true);
-      t3.failOnError();
     }
   }
-  tx.close();
+  t3.failOnError();
 };
 
 t3.run = function() {
@@ -194,7 +195,9 @@ t4.runTestMethod = do_read_op;
 t4.checkResult = function(err, tx) {
   udebug.log("checkResult t4");
   var op;
-  if(err) { t4.fail("ExecuteCommit failed: " + err);  }
+  if(err) { 
+    t4.appendErrorMessage("ExecuteCommit failed: " + err);  
+  }
   else { 
     op = tx.executedOperations.pop();
     if (op.result.value !== null) {
@@ -202,9 +205,8 @@ t4.checkResult = function(err, tx) {
     } else {
       t4.appendErrorMessage('No object found for Henrietta.');
     }
-    t4.failOnError();
   }
-  tx.close();
+  t4.failOnError();
 };
 
 t4.run = function() {
@@ -219,13 +221,14 @@ t5.runTestMethod = do_insert_op;
 t5.checkResult = function(err, tx) {
   udebug.log("checkResult t5");
   var op;
-  if(err) { t5.fail("ExecuteCommit failed: " + err);  }
+  if(err) { 
+    t5.appendErrorMessage("ExecuteCommit failed: " + err);  
+  }
   else { 
     op = tx.executedOperations.pop();
     t5.errorIfNotEqual("Expected 23000", op.result.error.code, "23000"); 
-    t5.failOnError();
   }
-  tx.close();
+  t5.failOnError();
 };
 
 t5.run = function() {
@@ -239,9 +242,10 @@ t6.runTestMethod = do_delete_op;
 
 t6.checkResult = function(err, tx) {
   udebug.log("checkResult t6");
-  if(err) { t6.fail("ExecuteCommit failed: " + err); }
-  else    { t6.pass(); }
-  tx.close();
+  if(err) { 
+    t6.appendErrorMessage("ExecuteCommit failed: " + err); 
+  }
+  t6.failOnError();
 };
 
 t6.run = function() {
@@ -256,13 +260,14 @@ t7.runTestMethod = do_delete_op;
 t7.checkResult = function(err, tx) {
   var op;
   udebug.log("checkResult t7");
-  if(err) { t7.fail("ExecuteCommit failed: " + err); }
-  else    { 
+  if(err) { 
+    t7.appendErrorMessage("ExecuteCommit failed: " + err); 
+  }
+  else  { 
     op = tx.executedOperations.pop();
     t7.errorIfNotEqual("Expected 02000", op.result.error.code, "02000"); 
-    t7.failOnError();    
   }
-  tx.close();
+  t7.failOnError();
 };
 
 t7.run = function() {

@@ -40,32 +40,6 @@ function DBTransactionHandler(dbsession) {
 DBTransactionHandler.prototype = proto;
 
 
-/* close(callback)
-   ASYNC
-*/
-proto.close = function(userCallback) {
-  udebug.log("close");
-
-  function onNdbClose(err, i) {
-    /* NdbTransaction::close() returns void.  i == 1. */
-    udebug.log("close onNdbClose");
-    if(userCallback) {
-      userCallback(null, null);
-    }
-  }  
-
-  if(this.state !== "CLOSED") {
-debugger;
-    this.state = doc.DBTransactionStates[4];  // CLOSED
-    delete this.executedOperations;
-    delete this.error;
-    if(this.ndbtx) {
-      this.ndbtx.close(onNdbClose);
-    }
-  }
-};
-
-
 /* Internal execute()
 */ 
 function execute(self, execMode, dbOperationList, callback) {
@@ -82,10 +56,15 @@ function execute(self, execMode, dbOperationList, callback) {
     /* Attach results to their operations */
     ndboperation.completeExecutedOps(err, self.executedOperations);
 
+    /* If we just executed with Commit or Rollback, close the NdbTransaction */
+    if(execMode === adapter.ndbapi.Commit || execMode === adapter.ndbapi.Rollback) {
+      self.ndbtx.close();
+    }
+
     /* Next callback */
     if(callback) {
       callback(err, self);
-    }   // If there is no user callback, default close() after commit or rollback
+    }
   }
 
   function prepareOperationsAndExecute() {
@@ -104,7 +83,9 @@ function execute(self, execMode, dbOperationList, callback) {
     var op, helper;
     if(err) {
       udebug.log("execute onStartTx [ERROR].");
-      self.callback(err, self);
+      if(callback) {
+        callback(err, self);
+      }
       return;
     }
 
@@ -153,9 +134,6 @@ proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
     dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
     if(userCallback) {
       userCallback(err, dbTxHandler);
-    }
-    else {
-      dbTxHandler.close();
     }
   }
   

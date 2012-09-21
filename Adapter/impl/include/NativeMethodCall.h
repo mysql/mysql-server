@@ -38,13 +38,19 @@ class NativeVoidMethodCall_0_ : public NativeMethodCall<int, C> {
 public:
   /* Member variables */
   C * native_obj;
-  void (C::*method)(void); 
+  typedef void (C::*Method_T)(void); 
+  Method_T method;
   
-  /* Constructor */
+  /* Constructors */
   NativeVoidMethodCall_0_<C>(const Arguments &args) :
     NativeMethodCall<int, C>(args, 1),
     method(0)
   {  }
+
+   NativeVoidMethodCall_0_<C>(Method_T m, const Arguments &args) :
+    NativeMethodCall<int, C>(args, 1),
+    method(m)
+  {  } 
   
   /* Methods */
   void run() {
@@ -64,12 +70,18 @@ class NativeMethodCall_0_ : public NativeMethodCall<R,C> {
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(void);  // "method" is pointer to member function
+  typedef R (C::*Method_T)(void);
+  Method_T method;
 
-  /* Constructor */
+  /* Constructors */
   NativeMethodCall_0_<R, C>(const Arguments &args) :
     NativeMethodCall<R, C>(args, 0),
     method(0)
+  {  }
+
+  NativeMethodCall_0_<R, C>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 0),
+    method(m)
   {  }
 
   /* Methods */
@@ -87,14 +99,20 @@ class NativeConstMethodCall_0_ : public NativeMethodCall<R,C> {
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(void) const;  // "method" is pointer to member function
-
-  /* Constructor */
+  typedef R (C::*Method_T)(void) const;
+  Method_T method;
+  
+  /* Constructors */
   NativeConstMethodCall_0_<R, C>(const Arguments &args) :
     NativeMethodCall<R, C>(args, 0),
     method(0)
   {  }
 
+  NativeConstMethodCall_0_<R, C>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 0),
+    method(m)
+  {  }
+  
   /* Methods */
   void run() {
     assert(method);
@@ -116,13 +134,20 @@ class NativeMethodCall_1_ : public NativeMethodCall<R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0);  // "method" is pointer to member function
+  typedef R (C::*Method_T)(A0); 
+  Method_T method;
 
-  /* Constructor */
+  /* Constructors */
   NativeMethodCall_1_<R, C, A0>(const Arguments &args) :
     NativeMethodCall<R, C>(args, 1),
     Call_1_<A0>(args),
     method(0)
+  {  }
+
+  NativeMethodCall_1_<R, C, A0>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 1),
+    Call_1_<A0>(args),
+    method(m)
   {  }
 
   /* Methods */
@@ -142,13 +167,20 @@ class NativeConstMethodCall_1_ : public NativeMethodCall<R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R ((C::*method)(A0) const);  // "method" is pointer to member function
+  typedef R ((C::*Method_T)(A0) const);
+  Method_T method;
 
-  /* Constructor */
+  /* Constructors */
   NativeConstMethodCall_1_<R, C, A0>(const Arguments &args) :
     NativeMethodCall<R, C>(args, 1),
     Call_1_<A0>(args),
     method(0)
+  {  }
+
+  NativeConstMethodCall_1_<R, C, A0>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 1),
+    Call_1_<A0>(args),
+    method(m)
   {  }
 
   /* Methods */
@@ -172,13 +204,20 @@ class NativeVoidMethodCall_1_ : public NativeMethodCall<int, C> ,
 {
 public:
   /* Member variables */
-  void (C::*method)(A0);  // "method" is pointer to member function
+  typedef void (C::*Method_T)(A0);
+  Method_T method;
 
-  /* Constructor */
+  /* Constructors */
   NativeVoidMethodCall_1_<C, A0>(const Arguments &args) :
     NativeMethodCall<int, C>(args, 1),
     Call_1_<A0>(args),
     method(0)
+  {  }
+
+  NativeVoidMethodCall_1_<C, A0>(Method_T m, const Arguments &args) :
+    NativeMethodCall<int, C>(args, 1),
+    Call_1_<A0>(args),
+    method(m)
   {  }
 
   /* Methods */
@@ -288,13 +327,20 @@ class NativeMethodCall_3_ : public NativeMethodCall <R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0, A1, A2);  // "method" is pointer to member function
+  typedef R (C::*Method_T)(A0, A1, A2); 
+  Method_T method;
 
   /* Constructor */
   NativeMethodCall_3_<R, C, A0, A1, A2>(const Arguments &args) :
     NativeMethodCall<R, C>(args, 3),
     Call_3_<A0, A1, A2>(args),
     method(0)
+  {  }
+
+  NativeMethodCall_3_<R, C, A0, A1, A2>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 3),
+    Call_3_<A0, A1, A2>(args),
+    method(m)
   {  }
 
   /* Methods */
