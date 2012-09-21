@@ -697,7 +697,7 @@ fts_reset_get_doc(
 	ulint		i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 #endif
 	ib_vector_reset(cache->get_docs);
 
@@ -979,7 +979,7 @@ fts_cache_index_cache_create(
 	ut_a(cache != NULL);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 #endif
 
 	/* Must not already exist in the cache vector. */
@@ -1123,8 +1123,8 @@ fts_get_index_cache(
 	ulint			i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX)
-	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X)
+	      || rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
 #endif
 
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
@@ -1156,7 +1156,7 @@ fts_get_index_get_doc(
 	ulint			i;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->init_lock, RW_LOCK_X));
 #endif
 
 	for (i = 0; i < ib_vector_size(cache->get_docs); ++i) {
@@ -1213,7 +1213,7 @@ fts_tokenizer_word_get(
 	ib_rbt_bound_t		parent;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 #endif
 
 	/* If it is a stopword, do not index it */
@@ -1274,7 +1274,7 @@ fts_cache_node_add_positions(
 
 #ifdef UNIV_SYNC_DEBUG
 	if (cache) {
-		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 	}
 #endif
 	ut_ad(doc_id >= node->last_doc_id);
@@ -1387,7 +1387,7 @@ fts_cache_add_doc(
 	}
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->lock, RW_LOCK_X));
 #endif
 
 	n_words = rbt_size(tokens);
@@ -4437,7 +4437,7 @@ fts_get_docs_create(
 	ib_vector_t*	get_docs;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&cache->init_lock, RW_LOCK_X));
 #endif
 	/* We need one instance of fts_get_doc_t per index. */
 	get_docs = ib_vector_create(
@@ -4890,7 +4890,7 @@ fts_cache_find_word(
 	dict_table_t*		table = index_cache->index->table;
 	fts_cache_t*		cache = table->fts->cache;
 
-	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own((rw_lock_t*) &cache->lock, RW_LOCK_X));
 #endif
 
 	/* Lookup the word in the rb tree */

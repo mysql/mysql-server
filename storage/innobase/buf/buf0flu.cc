@@ -1654,8 +1654,12 @@ buf_flush_batch(
 
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST);
 
-        ut_ad(flush_type != BUF_FLUSH_LIST
-	      || sync_check_iterate(dict_sync_check(true)));
+	{
+		dict_sync_check	check(true);
+
+        	ut_ad(flush_type != BUF_FLUSH_LIST
+		      || !sync_check_iterate(check));
+	}
 
 	buf_pool_mutex_enter(buf_pool);
 

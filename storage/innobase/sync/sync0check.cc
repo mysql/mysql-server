@@ -45,6 +45,7 @@ Created 2012-08-21 Sunny Bains
 
 #include <map>
 #include <vector>
+#include <string>
 
 extern	ulint	srv_max_n_threads;
 
@@ -130,7 +131,7 @@ struct latch_meta_t {
 };
 
 
-typedef std::map<const char*, latch_meta_t> LatchMap;
+typedef std::map<std::string, latch_meta_t> LatchMap;
 
 /** Mapping from latch name to latch meta data. */
 static LatchMap* SrvLatches;
@@ -163,7 +164,7 @@ struct SyncCheck {
 
 	~SyncCheck()
 	{
-		m_mutex.~SyncMutex();
+		m_mutex.destroy();
 	}
 
 	/**
@@ -245,13 +246,17 @@ struct SyncCheck {
 	/**
 	Iterate over a thread's latches.
 	@return true if the functor returns true. */
-	bool for_each(const sync_check_functor_t& functor) UNIV_NOTHROW
+	bool for_each(sync_check_functor_t& functor) UNIV_NOTHROW
 	{
 		mutex_enter(&m_mutex);
 
 		const Latches*		latches = thread_latches();
 
 		mutex_exit(&m_mutex);
+
+		if (latches == 0) {
+			return(functor.result());
+		}
 
 		Latches::const_iterator	end = latches->end();
 
@@ -260,11 +265,11 @@ struct SyncCheck {
 		     ++it) {
 
 			if (functor(*(*it))) {
-				return(true);
+				break;
 			}
 		}
 
-		return(false);
+		return(functor.result());
 	}
 
 	/**
@@ -273,6 +278,13 @@ struct SyncCheck {
 	not found, as we presently are not able to determine the level for
 	every latch reservation the program does */
 	void unlock(const latch_t* latch) UNIV_NOTHROW;
+
+	/** Enable checking */
+	void enable() UNIV_NOTHROW
+	{
+		ut_a(!m_enabled);
+		m_enabled = true;
+	}
 
 private:
 	SyncCheck(const SyncCheck&);
@@ -673,10 +685,9 @@ SyncCheck::check_order(const latch_t* latch)
 	case SYNC_MUTEX:
 	case SYNC_UNKNOWN:
 	case SYNC_LEVEL_VARYING:
-	case RW_LOCK_EX:
+	case RW_LOCK_X:
 	case RW_LOCK_WAIT_EX:
 	case RW_LOCK_SHARED:
-	case RW_LOCK_EXCLUSIVE:
 	case RW_LOCK_NOT_LOCKED:
 	case SYNC_USER_TRX_LOCK:
 		/* These levels should never be set for a latch. */
@@ -699,9 +710,9 @@ every latch reservation the program does */
 void
 SyncCheck::unlock(const latch_t* latch)
 {
-	ut_a(m_enabled);
-
-	if (latch->m_level == SYNC_LEVEL_VARYING) {
+	if (!m_enabled) {
+		return;
+	} else if (latch->m_level == SYNC_LEVEL_VARYING) {
 		// We don't have varying level mutexes
 		ut_ad(latch->m_rw_lock);
 	} else {
@@ -776,7 +787,7 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "dict_sys",
 		  SYNC_DICT, dict_sys_mutex_key);
 
-	LATCH_ADD(SrvLatches, "file_format_max_mutex",
+	LATCH_ADD(SrvLatches, "file_format_max",
 		  SYNC_FILE_FORMAT_TAG, file_format_max_mutex_key);
 
 	LATCH_ADD(SrvLatches, "fil_system",
@@ -841,7 +852,7 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "rseg",
 		  SYNC_RSEG, rseg_mutex_key);
 
-#ifdef SrvUNIV_SYNC_DEBUG
+#ifdef UNIV_SYNC_DEBUG
 	LATCH_ADD(SrvLatches, "rw_lock_debug",
 		  SYNC_NO_ORDER_CHECK, rw_lock_debug_mutex_key);
 #endif /* UNIV_SYNC_DEBUG */
@@ -875,7 +886,7 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "trx_undo",
 		  SYNC_TRX_UNDO, trx_undo_mutex_key);
 
-	LATCH_ADD(SrvLatches, "trx_mutex",
+	LATCH_ADD(SrvLatches, "trx",
 		  SYNC_TRX, trx_mutex_key);
 
 	LATCH_ADD(SrvLatches, "lock_sys",
@@ -892,6 +903,9 @@ sync_latch_meta_init()
 
 	LATCH_ADD(SrvLatches, "srv_sys_tasks",
 		  SYNC_ANY_LATCH, srv_sys_tasks_mutex_key);
+
+	LATCH_ADD(SrvLatches, "page_zip_stat_per_index",
+		  SYNC_ANY_LATCH, page_zip_stat_per_index_mutex_key);
 
 #ifndef HAVE_ATOMIC_BUILTINS
 	LATCH_ADD(SrvLatches, "srv_conc",
@@ -914,6 +928,9 @@ sync_latch_meta_init()
 
 	LATCH_ADD(SrvLatches, "zip_pad",
 		  SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
+
+	LATCH_ADD(SrvLatches, "row_drop_list",
+		  SYNC_NO_ORDER_CHECK, row_drop_list_mutex_key);
 
 	LATCH_ADD(SrvLatches, "index_online_log",
 		  SYNC_INDEX_ONLINE_LOG, index_online_log_key);
@@ -1019,6 +1036,10 @@ sync_check_close()
 
 	delete SrvLatches;
 	SrvLatches = 0;
+
+	mutex_free(&rw_lock_list_mutex);
+	mutex_free(&rw_lock_debug_mutex);
+
 #if 0
 	for (ib_mutex_t* mutex = UT_LIST_GET_FIRST(mutex_list);
 	     mutex != NULL;
@@ -1072,7 +1093,7 @@ sync_latch_get_name(
 	     ++it) {
 
 		if (it->second.m_level == level) {
-			return(it->first);
+			return(it->first.c_str());
 		}
 	}
 
@@ -1090,6 +1111,7 @@ sync_latch_get_pfs_key(
 {
 	LatchMap::iterator it  = SrvLatches->find(name);
 
+	/* Must find th the PFS key, even if it is not instrumented. */
 	ut_a(it != SrvLatches->end());
 
 	return(it->second.m_pfs_key);
@@ -1153,8 +1175,15 @@ Iterate over the thread's latches.
 @param functor - called for each element. */
 UNIV_INTERN
 bool
-sync_check_iterate(const sync_check_functor_t& functor)
+sync_check_iterate(sync_check_functor_t& functor)
 {
 	return(syncCheck.for_each(functor));
 }
 
+/**
+Enable sync order checking. */
+UNIV_INTERN
+void
+sync_check_enable()
+{
+}

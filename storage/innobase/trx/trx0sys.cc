@@ -859,7 +859,7 @@ void
 trx_sys_file_format_close(void)
 /*===========================*/
 {
-	/* Does nothing at the moment */
+	mutex_free(&file_format_max.mutex);
 }
 
 /*********************************************************************
@@ -1225,10 +1225,10 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
-	trx_sys->mutex.exit();
+	mutex_exit(&trx_sys->mutex);
 
 	/* We used placement new to create this mutex. Call the destructor. */
-	trx_sys->mutex.~TrxSysMutex();
+	mutex_free(&trx_sys->mutex);
 
 	mem_free(trx_sys);
 

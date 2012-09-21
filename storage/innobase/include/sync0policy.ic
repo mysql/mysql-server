@@ -46,6 +46,7 @@ void DebugPolicy<Mutex>::init(
 	TrackPolicy<Mutex>::init(mutex, name, filename, line);
 
 	m_magic_n = MUTEX_MAGIC_N;
+	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
 
 	m_latch.m_level = sync_latch_get_level(name);
 	ut_ad(m_latch.m_level != SYNC_UNKNOWN);

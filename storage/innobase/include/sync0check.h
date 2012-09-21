@@ -41,6 +41,12 @@ void
 sync_check_init();
 
 /**
+Enable sync order checking. */
+UNIV_INTERN
+void
+sync_check_enable();
+
+/**
 Frees the resources in synchronization data structures. */
 UNIV_INTERN
 void
@@ -95,7 +101,7 @@ iteration if the functor returns true.
 @return true if the functor returns true */
 UNIV_INTERN
 bool
-sync_check_iterate(const sync_check_functor_t& functor);
+sync_check_iterate(sync_check_functor_t& functor);
 
 /**
 Get the sync level for a latch name.

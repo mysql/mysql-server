@@ -2709,16 +2709,15 @@ innobase_shutdown_for_mysql(void)
 	srv_free();
 	fil_close();
 
-	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
-
-	os_sync_free();
-
 	/* 5. Free all allocated memory */
 
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
 	mem_close();
+
+	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
+	os_sync_free();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet
 	in shutdown, and it will also free the ut_list_mutex, so it

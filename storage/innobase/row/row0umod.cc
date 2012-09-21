@@ -260,7 +260,7 @@ row_undo_mod_clust(
 	ut_ad(node->trx->dict_operation_lock_mode);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED)
-	      || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	      || rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	log_free_check();
@@ -317,7 +317,7 @@ row_undo_mod_clust(
 	if (err == DB_SUCCESS && online) {
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
-		      || rw_lock_own(&index->lock, RW_LOCK_EX));
+		      || rw_lock_own(&index->lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 		switch (node->rec_type) {
 		case TRX_UNDO_UPD_DEL_REC:

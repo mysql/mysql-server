@@ -3327,16 +3327,13 @@ void
 recv_recovery_rollback_active(void)
 /*===============================*/
 {
-	int		i;
-
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
 	themselves before we switch the latching order checks on */
 	os_thread_sleep(1000000);
 
-	/* Switch latching order checks on in sync0sync.cc */
-	// FIXME
-	//sync_order_checks_on = TRUE;
+	/* Switch latching order checks on in sync0check.cc */
+	sync_check_enable();
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* We can't start any (DDL) transactions if UNDO logging
@@ -3357,7 +3354,7 @@ recv_recovery_rollback_active(void)
 		/* Rollback the uncommitted transactions which have no user
 		session */
 
-		os_thread_create(trx_rollback_or_clean_all_recovered, &i, NULL);
+		os_thread_create(trx_rollback_or_clean_all_recovered, 0, 0);
 	}
 }
 

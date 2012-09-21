@@ -732,7 +732,7 @@ void
 log_init(void)
 /*==========*/
 {
-	log_sys = static_cast<log_t*>(mem_alloc(sizeof(log_t)));
+	log_sys = static_cast<log_t*>(mem_zalloc(sizeof(log_t)));
 
 	mutex_create("log_sys", &log_sys->mutex);
 
@@ -3566,6 +3566,7 @@ log_shutdown(void)
 	rw_lock_free(&log_sys->checkpoint_lock);
 
 	mutex_free(&log_sys->mutex);
+	mutex_free(&log_sys->log_flush_order_mutex);
 
 #ifdef UNIV_LOG_ARCHIVE
 	rw_lock_free(&log_sys->archive_lock);

@@ -109,7 +109,7 @@ static WakeAllConditionVariableProc wake_all_condition_variable;
 typedef VOID (WINAPI* WakeConditionVariableProc)
 	     (PCONDITION_VARIABLE ConditionVariable);
 static WakeConditionVariableProc wake_condition_variable;
-#endif
+#endif /* __WIN__ */
 
 /*********************************************************//**
 Initialitze condition variable */
@@ -126,7 +126,7 @@ os_cond_init(
 	initialize_condition_variable(cond);
 #else
 	ut_a(pthread_cond_init(cond, NULL) == 0);
-#endif
+#endif /* __WIN__ */
 }
 
 /*********************************************************//**
@@ -163,7 +163,7 @@ os_cond_wait_timed(
 		(another thread manages to run before the woken thread)."
 		Check for both types of timeouts.
 		Conditions are checked by the caller.*/
-		if ((err == WAIT_TIMEOUT) || (err == ERROR_TIMEOUT)) {
+		if (err == WAIT_TIMEOUT || err == ERROR_TIMEOUT) {
 			return(TRUE);
 		}
 	}
@@ -192,7 +192,7 @@ os_cond_wait_timed(
 	}
 
 	return(ret == ETIMEDOUT);
-#endif
+#endif /* __WIN__ */
 }
 /*********************************************************//**
 Wait on condition variable */
@@ -212,7 +212,7 @@ os_cond_wait(
 	ut_a(sleep_condition_variable(cond, mutex, INFINITE));
 #else
 	ut_a(pthread_cond_wait(cond, mutex) == 0);
-#endif
+#endif /* __WIN__ */
 }
 
 /*********************************************************//**
@@ -230,7 +230,7 @@ os_cond_broadcast(
 	wake_all_condition_variable(cond);
 #else
 	ut_a(pthread_cond_broadcast(cond) == 0);
-#endif
+#endif /* __WIN__ */
 }
 
 /*********************************************************//**
@@ -248,7 +248,7 @@ os_cond_signal(
 	wake_condition_variable(cond);
 #else
 	ut_a(pthread_cond_signal(cond) == 0);
-#endif
+#endif /* __WIN__ */
 }
 
 /*********************************************************//**
@@ -263,7 +263,7 @@ os_cond_destroy(
 	/* Do nothing */
 #else
 	ut_a(pthread_cond_destroy(cond) == 0);
-#endif
+#endif /* __WIN__ */
 }
 
 /*********************************************************//**
@@ -297,7 +297,7 @@ os_cond_module_init(void)
 	ut_a(sleep_condition_variable);
 	ut_a(wake_all_condition_variable);
 	ut_a(wake_condition_variable);
-#endif
+#endif /* __WIN__ */
 }
 
 /*********************************************************//**
@@ -373,18 +373,17 @@ os_event_create(
 
 		event = static_cast<os_event_t>(ut_malloc(sizeof(*event)));
 
-		event->handle = CreateEvent(NULL,
-					    TRUE,
-					    FALSE,
-					    (LPCTSTR) name);
+		event->handle = CreateEvent(0, TRUE, FALSE, (LPCTSTR) name);
+
 		if (!event->handle) {
-			fprintf(stderr,
-				"InnoDB: Could not create a Windows event"
-				" semaphore; Windows error %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Could not create a Windows event "
+				"semaphore; Windows error %lu",
 				(ulong) GetLastError());
 		}
+
 	} else /* Windows with condition variables */
-#endif
+#endif /* __WIN__ */
 	{
 		UT_NOT_USED(name);
 
@@ -394,7 +393,7 @@ os_event_create(
 		os_fast_mutex_init(event_os_mutex_key, &event->os_mutex);
 #else
 		os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &event->os_mutex);
-#endif
+#endif /* PFS_SKIP_EVENT_MUTEX */
 
 		os_cond_init(&(event->cond_var));
 
@@ -444,7 +443,7 @@ os_event_set(
 		ut_a(SetEvent(event->handle));
 		return;
 	}
-#endif
+#endif /* __WIN__ */
 
 	os_fast_mutex_lock(&(event->os_mutex));
 
@@ -475,14 +474,12 @@ os_event_reset(
 {
 	ib_int64_t	ret = 0;
 
-	ut_a(event);
-
 #ifdef __WIN__
 	if(!srv_use_native_conditions) {
 		ut_a(ResetEvent(event->handle));
 		return(0);
 	}
-#endif
+#endif /* __WIN__ */
 
 	os_fast_mutex_lock(&(event->os_mutex));
 
@@ -507,10 +504,9 @@ os_event_free_internal(
 {
 #ifdef __WIN__
 	if(!srv_use_native_conditions) {
-		ut_a(event);
 		ut_a(CloseHandle(event->handle));
 	} else
-#endif
+#endif /* __WIN__ */
 	{
 		ut_a(event);
 
@@ -604,7 +600,7 @@ os_event_wait_low(
 		ut_a(err == WAIT_OBJECT_0);
 		return;
 	}
-#endif
+#endif /* __WIN__ */
 
 	os_fast_mutex_lock(&event->os_mutex);
 
@@ -745,33 +741,33 @@ os_mutex_create(void)
 /*=================*/
 {
 	os_fast_mutex_t*	mutex;
-	os_mutex_t		mutex_str;
+	os_mutex_t		os_mutex;
 
 	mutex = static_cast<os_fast_mutex_t*>(
 		ut_malloc(sizeof(os_fast_mutex_t)));
 
 	os_fast_mutex_init(os_mutex_key, mutex);
 
-	mutex_str = static_cast<os_mutex_t>(ut_malloc(sizeof *mutex_str));
+	os_mutex = static_cast<os_mutex_t>(ut_malloc(sizeof *os_mutex));
 
-	mutex_str->handle = mutex;
-	mutex_str->count = 0;
-	mutex_str->event = os_event_create(NULL);
+	os_mutex->count = 0;
+	os_mutex->handle = mutex;
+	os_mutex->event = os_event_create(0);
 
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+	if (os_sync_mutex_inited) {
 		/* When creating os_sync_mutex itself we cannot reserve it */
 		os_mutex_enter(os_sync_mutex);
 	}
 
-	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, mutex_str);
+	UT_LIST_ADD_FIRST(os_mutex_list, os_mutex_list, os_mutex);
 
 	os_mutex_count++;
 
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+	if (os_sync_mutex_inited) {
 		os_mutex_exit(os_sync_mutex);
 	}
 
-	return(mutex_str);
+	return(os_mutex);
 }
 
 /**********************************************************//**
@@ -797,11 +793,9 @@ os_mutex_exit(
 /*==========*/
 	os_mutex_t	mutex)	/*!< in: mutex to release */
 {
-	ut_a(mutex);
-
 	ut_a(mutex->count == 1);
 
-	(mutex->count)--;
+	mutex->count--;
 	os_fast_mutex_unlock(static_cast<os_fast_mutex_t*>(mutex->handle));
 }
 
@@ -813,13 +807,11 @@ os_mutex_free(
 /*==========*/
 	os_mutex_t	mutex)	/*!< in: mutex to free */
 {
-	ut_a(mutex);
-
-	if (UNIV_LIKELY(!os_sync_free_called)) {
+	if (!os_sync_free_called) {
 		os_event_free_internal(mutex->event);
 	}
 
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+	if (os_sync_mutex_inited) {
 		os_mutex_enter(os_sync_mutex);
 	}
 
@@ -827,11 +819,12 @@ os_mutex_free(
 
 	os_mutex_count--;
 
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+	if (os_sync_mutex_inited) {
 		os_mutex_exit(os_sync_mutex);
 	}
 
 	os_fast_mutex_free(static_cast<os_fast_mutex_t*>(mutex->handle));
+
 	ut_free(mutex->handle);
 	ut_free(mutex);
 }
@@ -850,8 +843,9 @@ os_fast_mutex_init_func(
 	InitializeCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	ut_a(0 == pthread_mutex_init(fast_mutex, MY_MUTEX_INIT_FAST));
-#endif
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+#endif /* __WIN__ */
+
+	if (os_sync_mutex_inited) {
 		/* When creating os_sync_mutex itself (in Unix) we cannot
 		reserve it */
 
@@ -860,7 +854,7 @@ os_fast_mutex_init_func(
 
 	os_fast_mutex_count++;
 
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+	if (os_sync_mutex_inited) {
 		os_mutex_exit(os_sync_mutex);
 	}
 }
@@ -877,7 +871,7 @@ os_fast_mutex_lock_func(
 	EnterCriticalSection((LPCRITICAL_SECTION) fast_mutex);
 #else
 	pthread_mutex_lock(fast_mutex);
-#endif
+#endif /* __WIN__ */
 }
 
 /**********************************************************//**
@@ -892,7 +886,7 @@ os_fast_mutex_unlock_func(
 	LeaveCriticalSection(fast_mutex);
 #else
 	pthread_mutex_unlock(fast_mutex);
-#endif
+#endif /* __WIN__ */
 }
 
 /**********************************************************//**
@@ -912,19 +906,20 @@ os_fast_mutex_free_func(
 
 	ret = pthread_mutex_destroy(fast_mutex);
 
-	if (UNIV_UNLIKELY(ret != 0)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: error: return value %lu when calling\n"
-			"InnoDB: pthread_mutex_destroy().\n", (ulint) ret);
-		fprintf(stderr,
-			"InnoDB: Byte contents of the pthread mutex at %p:\n",
-			(void*) fast_mutex);
+	if (ret != 0) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Return value %lu when calling "
+			"pthread_mutex_destroy(). Byte contents of the "
+			"pthread mutex at %p:",
+			(ulint) ret, (void*) fast_mutex);
+
 		ut_print_buf(stderr, fast_mutex, sizeof(os_fast_mutex_t));
 		putc('\n', stderr);
 	}
-#endif
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+#endif /* __WIN__ */
+
+	if (os_sync_mutex_inited) {
 		/* When freeing the last mutexes, we have
 		already freed os_sync_mutex */
 
@@ -934,7 +929,7 @@ os_fast_mutex_free_func(
 	ut_ad(os_fast_mutex_count > 0);
 	os_fast_mutex_count--;
 
-	if (UNIV_LIKELY(os_sync_mutex_inited)) {
+	if (os_sync_mutex_inited) {
 		os_mutex_exit(os_sync_mutex);
 	}
 }

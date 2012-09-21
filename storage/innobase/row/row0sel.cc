@@ -1976,7 +1976,11 @@ stop_for_a_while:
 
 	mtr_commit(&mtr);
 
-        ut_ad(sync_check_iterate(dict_sync_check(true)));
+	{
+		btrsea_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	err = DB_SUCCESS;
 	goto func_exit;
@@ -1995,7 +1999,11 @@ commit_mtr_for_a_while:
 
 	mtr_has_extra_clust_latch = FALSE;
 
-        ut_ad(sync_check_iterate(dict_sync_check(true)));
+	{
+		btrsea_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	goto table_loop;
 
@@ -2010,7 +2018,11 @@ lock_wait_or_error:
 
 	mtr_commit(&mtr);
 
-        ut_ad(sync_check_iterate(dict_sync_check(true)));
+	{
+		btrsea_sync_check	check(true);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 func_exit:
 	if (search_latch_locked) {
@@ -3695,7 +3707,11 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
-	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 
@@ -5147,7 +5163,11 @@ func_exit:
 		}
 	}
 
-	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
 
