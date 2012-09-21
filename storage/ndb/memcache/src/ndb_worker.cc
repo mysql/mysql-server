@@ -88,7 +88,7 @@ private:
   QueryPlan * &plan;
 
   /* Private methods*/
-  void setKeyForReading(Operation &op);
+  bool setKeyForReading(Operation &op);
 };
 
 
@@ -278,9 +278,9 @@ op_status_t WorkerStep1::do_delete() {
   Operation op(plan, OP_DELETE);
   
   op.key_buffer = wqitem->ndb_key_buffer;
-  op.clearKeyNullBits();
   const char *dbkey = workitem_get_key_suffix(wqitem);
-  op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
+  if(! op.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix))
+    return op_overflow;
   
   tx = op.startTransaction(wqitem->ndb_instance->db);
   
@@ -326,8 +326,7 @@ op_status_t WorkerStep1::do_write() {
   bool op_ok;
   
   /* Set the key */
-  op.clearKeyNullBits();
-  op_ok = op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
+  op_ok = op.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
   if(! op_ok) return op_overflow;
   
   /* Allocate and encode the buffer for the row */ 
@@ -336,7 +335,7 @@ op_status_t WorkerStep1::do_write() {
   
   /* Set the row */
   op.setNullBits();
-  op.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
+  op.setKeyFieldsInRow(plan->spec->nkeycols,  dbkey, wqitem->base.nsuffix);
   
   if(plan->spec->nvaluecols > 1) {
     /* Multiple Value Columns */
@@ -457,7 +456,7 @@ op_status_t WorkerStep1::do_read() {
   DEBUG_ENTER();
   
   Operation op(plan, OP_READ);
-  setKeyForReading(op);
+  if(! setKeyForReading(op)) return op_overflow;
   
   NdbOperation::LockMode lockmode;
   NdbTransaction::ExecType commitflag;
@@ -492,7 +491,7 @@ op_status_t WorkerStep1::do_append() {
     return op_not_supported;
   
   Operation op(plan, OP_READ);
-  setKeyForReading(op);
+  if(! setKeyForReading(op)) return op_overflow;
   
   /* Read with an exculsive lock */
   if(! op.readTuple(tx, NdbOperation::LM_Exclusive)) {
@@ -508,7 +507,7 @@ op_status_t WorkerStep1::do_append() {
 }
 
 
-void WorkerStep1::setKeyForReading(Operation &op) {
+bool WorkerStep1::setKeyForReading(Operation &op) {
   DEBUG_ENTER();
   
   /* Use the workitem's inline key buffer */
@@ -519,14 +518,16 @@ void WorkerStep1::setKeyForReading(Operation &op) {
   workitem_allocate_rowbuffer_1(wqitem, op.requiredBuffer() + 2);
   op.buffer = wqitem->row_buffer_1;
   
-  /* Copy the key into the key buffer, ecnoding it for NDB */
+  /* set the key */
   op.clearKeyNullBits();
   const char *dbkey = workitem_get_key_suffix(wqitem);
-  op.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
+  if(! op.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix))
+    return false;
   
   /* Start a transaction */
   tx = op.startTransaction(wqitem->ndb_instance->db);
   DEBUG_ASSERT(tx);
+  return true;
 }
 
 
@@ -583,12 +584,11 @@ op_status_t WorkerStep1::do_math() {
     op3.buffer = wqitem->row_buffer_2;
     
     /* The two items share a key buffer, so we encode the key just once */
-    op1.clearKeyNullBits();
-    op1.setKeyPart(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);  
+    op1.setKey(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
     
     /* The insert operation also needs the key written into the row */
     op2.clearNullBits();
-    op2.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
+    op2.setKeyFieldsInRow(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
     
     /* CAS */
     if(server_cas) {
@@ -942,7 +942,8 @@ void worker_append(NdbTransaction *tx, workitem *item) {
   
   /* Set the row */
   op.setNullBits();
-  op.setColumn(COL_STORE_KEY, workitem_get_key_suffix(item), item->base.nsuffix);
+  op.setKeyFieldsInRow(item->plan->spec->nkeycols, 
+                       workitem_get_key_suffix(item), item->base.nsuffix);
   op.setColumn(COL_STORE_VALUE, current_val, total_len);
   if(item->prefix_info.has_cas_col) 
     op.setColumnBigUnsigned(COL_STORE_CAS, * item->cas);
