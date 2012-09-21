@@ -34,17 +34,18 @@ use File::Find;
 use File::Copy;
 sub find_zip () {
    if (/portability_wl5980_linux\.zip/) {
-       my $src_file = $src_file = $File::Find::name;
        my $dest_dir = $ENV{'MYSQL_TMP_DIR'};
-       my @args = (File::Spec->catfile("$src_file"),
-                   File::Spec->catfile("$dest_dir", "portability_wl5980_linux.zip"));
-       copy(@args) or die "copy @args failed: $!";
+       my $src_file = $File::Find::name;
+       my $srcfile = File::Spec->catfile("$src_file") ;
+       my $destfile = File::Spec->catfile("$dest_dir", "portability_wl5980_linux.zip");
+       if (! -e $destfile) {   
+          copy($srcfile,$destfile) or die "copy @args failed: $!";
+       }
    }
 }
 my $search_dir = $ENV{'MYSQL_BASEDIR'};
 find(\&find_zip,"$search_dir");
 EOF
-
 
 --echo # Check that the file exists in the working folder.
 --file_exists $MYSQL_TMP_DIR/portability_wl5980_linux.zip
