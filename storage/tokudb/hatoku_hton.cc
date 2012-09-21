@@ -11,6 +11,7 @@
 #include <inttypes.h>
 #include "toku_os.h"
 #include "toku_time.h"
+#include "partitioned_counter.h"
 
 /* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
 #ifdef HAVE_DTRACE
@@ -1371,6 +1372,19 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                     snprintf(buf, bufsiz, "%.6f\n", t);
                 }
                 break;
+            case PARCOUNT:
+                {
+                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
+                    snprintf(buf, bufsiz, "%" PRIu64 "\n", v);
+                }
+                break;
+#if 0
+            case MAXCOUNT:
+                {
+                    uint64_t v = read_max_partitioned_counter(mystat[row].value.maxcount);
+                    n += snprintf(buff + n, bufsiz - n, "%" PRIu64 "\n", v);
+                }
+#endif
             default:
                 snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d\n", mystat[row].type);
                 break;                
