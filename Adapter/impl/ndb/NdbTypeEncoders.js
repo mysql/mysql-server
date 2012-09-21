@@ -23,13 +23,13 @@
 "use strict";
 
 var util = require(path.join(build_dir, "ndb_adapter.node")).ndb.util,
-    charsetMap = null,
+    // charsetMap = null,
     udebug     = unified_debug.getLogger("NdbTypeEncoders.js");
 
 
 function init() {
   udebug.log("init()");
-  charsetMap = new util.CharsetMap();
+  // charsetMap = new util.CharsetMap();
   udebug.log("init() done");
 }
 

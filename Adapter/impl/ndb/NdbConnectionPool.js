@@ -33,7 +33,7 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
 function initialize_ndb() {
   if(! ndb_is_initialized) {
     adapter.ndb.ndbapi.ndb_init();                       // ndb_init()
-    adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
+    // adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
     unified_debug.register_client(adapter.debug);
     ndb_is_initialized = true;
   }
