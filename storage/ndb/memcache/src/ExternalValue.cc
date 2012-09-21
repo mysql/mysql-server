@@ -28,6 +28,7 @@
 #include "status_block.h"
 #include "ExpireTime.h"
 #include "ExternalValue.h"
+#include "TabSeparatedValues.h"
 
 /* Externs */
 extern EXTENSION_LOGGER_DESCRIPTOR *logger;
@@ -108,11 +109,12 @@ int ExternalValue::do_delete(memory_pool *mpool, NdbTransaction *delTx,
 }
 
 
-inline bool ExternalValue::setupKey(workitem *item, Operation &op) {
+bool ExternalValue::setupKey(workitem *item, Operation &op) { 
+  const TableSpec & spec = * (item->plan->spec);
   op.key_buffer = item->ndb_key_buffer;
-  op.clearKeyNullBits();
   const char *dbkey = workitem_get_key_suffix(item);
-  return op.setKeyPart(COL_STORE_KEY, dbkey, item->base.nsuffix);
+  
+  return op.setKey(spec.nkeycols, dbkey, item->base.nsuffix);
 }
 
 
@@ -561,11 +563,6 @@ bool ExternalValue::updatePart(int id, int part, char * val, size_t len) {
 
 
 void ExternalValue::setMiscColumns(Operation & op) const {
-  //fixme: the key is not "misc" !
-  /* Set the key column in the header row */
-  const char *dbkey = workitem_get_key_suffix(wqitem);
-  op.setColumn(COL_STORE_KEY, dbkey, wqitem->base.nsuffix);
-
   /* Set the CAS value in the header row */
   if(do_server_cas) 
     op.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);  
@@ -587,6 +584,9 @@ void ExternalValue::setMiscColumns(Operation & op) const {
 
 
 void ExternalValue::setValueColumns(Operation & op) const {
+  const char *dbkey = workitem_get_key_suffix(wqitem);
+  op.setKeyFieldsInRow(wqitem->plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
+  
   if(shouldExternalize(new_hdr.length)) {
     /* Long value */
     DEBUG_PRINT("[long]");
