@@ -16,16 +16,16 @@
 // later when the alter operation is executed.
 class tokudb_alter_ctx : public inplace_alter_handler_ctx {
 public:
-    tokudb_alter_ctx() {
-        handler_flags = 0;
-        alter_txn = NULL;
-        add_index_changed = false;
-        drop_index_changed = false;
-        compression_changed = false;
-        table_kc_info = NULL;
-        altered_table_kc_info = NULL;
-        expand_varchar_update_needed = false;
-        expand_fixed_update_needed = false;
+    tokudb_alter_ctx() :
+        handler_flags(0),
+        alter_txn(NULL),
+        add_index_changed(false),
+        drop_index_changed(false),
+        compression_changed(false),
+        expand_varchar_update_needed(false),
+        expand_fixed_update_needed(false),
+        table_kc_info(NULL),
+        altered_table_kc_info(NULL) {
     }
     ~tokudb_alter_ctx() {
         if (altered_table_kc_info)
@@ -100,7 +100,7 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
 }
 
 // Append all changed fields to the changed_fields array
-static void
+static void 
 find_changed_fields(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, Dynamic_array<uint> &changed_fields) {
     List_iterator_fast<Create_field> create_it(ha_alter_info->alter_info->create_list);
     Create_field *create_field;
@@ -125,7 +125,7 @@ static bool change_length_is_supported(TABLE *table, TABLE *altered_table, Alter
 static bool change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx);
 
 // The ha_alter_info->handler_flags can not be trusted.  This function maps the bogus handler flags to something we like.
-static ulong
+static ulong 
 fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     ulong handler_flags = ha_alter_info->handler_flags;
 
@@ -150,7 +150,7 @@ fix_handler_flags(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alt
 }
 
 // Require that there is no intersection of add and drop names.
-static bool
+static bool 
 is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
     for (uint d = 0; d < ha_alter_info->index_drop_count; d++) {
         KEY *drop_key = ha_alter_info->index_drop_buffer[d];
@@ -165,8 +165,7 @@ is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
 }
 
 // Return true if some bit in mask is set and no bit in ~mask is set, otherwise return false.
-static bool
-only_flags(ulong bits, ulong mask) {
+static bool only_flags(ulong bits, ulong mask) {
     return (bits & mask) != 0 && (bits & ~mask) == 0;
 }
 
@@ -266,9 +265,9 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
         }
     } else
-    // change varchar length
+    // change column length
     if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH) && 
-        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH + Alter_inplace_info::ALTER_COLUMN_DEFAULT + Alter_inplace_info::ALTER_COLUMN_NAME)) {
+        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
 
         find_changed_fields(table, altered_table, ha_alter_info, ctx->changed_fields);
         ctx->table_kc_info = &share->kc_info;
@@ -283,7 +282,7 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     } else
     // change column type
     if ((ctx->handler_flags & Alter_inplace_info::ALTER_COLUMN_TYPE) &&
-        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT + Alter_inplace_info::ALTER_COLUMN_NAME)) {
+        only_flags(ctx->handler_flags, Alter_inplace_info::ALTER_COLUMN_TYPE + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
         find_changed_fields(table, altered_table, ha_alter_info, ctx->changed_fields);
         ctx->table_kc_info = &share->kc_info;
         ctx->altered_table_kc_info = &ctx->altered_table_kc_info_base;
@@ -669,13 +668,13 @@ ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplac
         if (error)
             break;
 
-        // make and broadcast the update offsets message to all keys that have values
+        // for all trees that have values, make an update variable offsets message and broadcast it into the tree
         if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
             uint32_t offset_start = table_share->null_bytes + share->kc_info.mcp_info[i].fixed_field_size;
             uint32_t offset_end = offset_start + share->kc_info.mcp_info[i].len_of_offsets;
             uint32_t number_of_offsets = offset_end - offset_start;
 
-            // make the expand varchar offsets message
+            // make the expand variable offsets message
             DBT expand; memset(&expand, 0, sizeof expand);
             expand.size = sizeof (uchar) + sizeof offset_start + sizeof offset_end;
             expand.data = my_malloc(expand.size, MYF(MY_WME));
@@ -684,7 +683,7 @@ ha_tokudb::alter_table_expand_varchar_offsets(TABLE *altered_table, Alter_inplac
                 break;
             }
             uchar *expand_ptr = (uchar *)expand.data;
-            expand_ptr[0] = UPDATE_OP_EXPAND_VARCHAR_OFFSETS;
+            expand_ptr[0] = UPDATE_OP_EXPAND_VARIABLE_OFFSETS;
             expand_ptr += sizeof (uchar);
         
             memcpy(expand_ptr, &number_of_offsets, sizeof number_of_offsets);
@@ -717,7 +716,7 @@ field_in_key(KEY *key, Field *field) {
 
 // Return true if a field is part of any key
 static bool
-field_in_key(TABLE *table, Field *field) {
+field_in_key_of_table(TABLE *table, Field *field) {
     for (uint i = 0; i < table->s->keys; i++) {
         if (field_in_key(&table->key_info[i], field))
             return true;
@@ -728,14 +727,14 @@ field_in_key(TABLE *table, Field *field) {
 // Return true if all changed varchar/varbinary field lengths can be changed inplace, otherwise return false
 static bool 
 change_varchar_length_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
-    enum_field_types old_type = old_field->real_type();
-    enum_field_types new_type = new_field->real_type();
-    if (old_type != MYSQL_TYPE_VARCHAR || new_type != MYSQL_TYPE_VARCHAR || old_field->binary() != new_field->binary() || old_field->charset() != new_field->charset())
-        return false;
-    if (old_field->max_display_length() > new_field->max_display_length()) 
+    if (old_field->real_type() != MYSQL_TYPE_VARCHAR || 
+        new_field->real_type() != MYSQL_TYPE_VARCHAR || 
+        old_field->binary() != new_field->binary() || 
+        old_field->charset()->number != new_field->charset()->number ||
+        old_field->field_length > new_field->field_length)
         return false;
     if (ctx->table_kc_info->num_offset_bytes > ctx->altered_table_kc_info->num_offset_bytes)
-        return false; // something is wrong
+        return false; // shrink is not supported
     if (ctx->table_kc_info->num_offset_bytes < ctx->altered_table_kc_info->num_offset_bytes)
         ctx->expand_varchar_update_needed = true; // sum of varchar lengths changed from 1 to 2
     return true;
@@ -746,15 +745,20 @@ static bool
 change_length_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     if (table->s->fields != altered_table->s->fields)
         return false;
+    if (table->s->null_bytes != altered_table->s->null_bytes)
+        return false;
     if (ctx->changed_fields.elements() > 1)
         return false; // only support one field change
     for (int ai = 0; ai < ctx->changed_fields.elements(); ai++) {
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
-        if (field_in_key(table, old_field) || field_in_key(altered_table, new_field))
-            return false;
-        // varchar(X) -> varchar(Y)
+        if (old_field->real_type() != new_field->real_type())
+            return false; // no type conversions
+        if (old_field->real_type() != MYSQL_TYPE_VARCHAR)
+            return false; // only varchar
+        if (field_in_key_of_table(table, old_field) || field_in_key_of_table(altered_table, new_field))
+            return false; // not in any key
         if (!change_varchar_length_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;
     }
@@ -790,8 +794,7 @@ ha_tokudb::alter_table_expand_columns(TABLE *altered_table, Alter_inplace_info *
 
 // Return the starting offset in the value for a particular index (selected by idx) of a
 // particular field (selected by expand_field_num)
-static uint32_t
-field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
+static uint32_t field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
     uint32_t offset = null_bytes;
     for (int i = 0; i < expand_field_num; i++) {
         if (bitmap_is_set(&kc_info->key_filters[idx], i)) // skip key fields
@@ -802,24 +805,8 @@ field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand
 }
 
 // Return true of the field is an unsigned int
-static bool
-is_unsigned(Field *f) {
-    switch (f->key_type()) {
-    case HA_KEYTYPE_BINARY:
-    case HA_KEYTYPE_USHORT_INT:
-    case HA_KEYTYPE_UINT24:
-    case HA_KEYTYPE_ULONG_INT:
-    case HA_KEYTYPE_ULONGLONG:
-        return true;
-    case HA_KEYTYPE_INT8:
-    case HA_KEYTYPE_SHORT_INT:
-    case HA_KEYTYPE_INT24:
-    case HA_KEYTYPE_LONG_INT:
-    case HA_KEYTYPE_LONGLONG:
-        return false;
-    default:
-        assert(0);
-    }
+static bool is_unsigned(Field *f) {
+    return (f->flags & UNSIGNED_FLAG) != 0;
 }
 
 // Send an expand message into all clustered indexes including the primary
@@ -835,6 +822,7 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
     assert(old_field_type == new_field_type);
 
     uchar operation;
+    uchar pad_char;
     switch (old_field_type) {
     case toku_type_int:
         assert(is_unsigned(old_field) == is_unsigned(new_field));
@@ -845,9 +833,11 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
         break;
     case toku_type_fixstring:
         operation = UPDATE_OP_EXPAND_CHAR;
+        pad_char = old_field->charset()->pad_char;
         break;
     case toku_type_fixbinary:
         operation = UPDATE_OP_EXPAND_BINARY;
+        pad_char = 0;
         break;
     default:
         assert(0);
@@ -865,10 +855,22 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
         if (error)
             break;
 
-        // make and broadcast the expand update message to all keys that have values
+        // for all trees that have values, make an expand update message and broadcast it into the tree
         if (i == primary_key || (table_share->key_info[i].flags & HA_CLUSTERING)) {
+            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
+            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
+            assert(old_offset <= new_offset);
+
+            uint32_t old_length = ctx->table_kc_info->field_lengths[expand_field_num];
+            assert(old_length == old_field->pack_length());
+
+            uint32_t new_length = ctx->altered_table_kc_info->field_lengths[expand_field_num];
+            assert(new_length == new_field->pack_length());
+
             DBT expand; memset(&expand, 0, sizeof expand);
-            expand.size = 1+4+4+4;
+            expand.size = sizeof operation + sizeof new_offset + sizeof old_length + sizeof new_length;
+            if (operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY)
+                expand.size += sizeof pad_char;
             expand.data = my_malloc(expand.size, MYF(MY_WME));
             if (!expand.data) {
                 error = ENOMEM;
@@ -876,26 +878,23 @@ ha_tokudb::alter_table_expand_one_column(TABLE *altered_table, Alter_inplace_inf
             }
             uchar *expand_ptr = (uchar *)expand.data;
             expand_ptr[0] = operation;
-            expand_ptr += sizeof (uchar);
-
-            uint32_t old_offset = field_offset(table_share->null_bytes, ctx->table_kc_info, i, expand_field_num);
-            uint32_t new_offset = field_offset(table_share->null_bytes, ctx->altered_table_kc_info, i, expand_field_num);
-            assert(old_offset <= new_offset);
+            expand_ptr += sizeof operation;
 
             // for the first altered field, old_offset == new_offset.  for the subsequent altered fields, the new_offset
             // should be used as it includes the length changes from the previous altered fields.
             memcpy(expand_ptr, &new_offset, sizeof new_offset);
             expand_ptr += sizeof new_offset;
 
-            uint32_t old_length = ctx->table_kc_info->field_lengths[expand_field_num];
-            assert(old_length == old_field->pack_length());
             memcpy(expand_ptr, &old_length, sizeof old_length);
             expand_ptr += sizeof old_length;
 
-            uint32_t new_length = ctx->altered_table_kc_info->field_lengths[expand_field_num];
-            assert(new_length == new_field->pack_length());
             memcpy(expand_ptr, &new_length, sizeof new_length);
             expand_ptr += sizeof new_length;
+
+            if (operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY) {
+                memcpy(expand_ptr, &pad_char, sizeof pad_char);
+                expand_ptr += sizeof pad_char;
+            }
 
             assert(expand_ptr == (uchar *)expand.data + expand.size);
 
@@ -940,7 +939,7 @@ change_fixed_length_is_supported(TABLE *table, TABLE *altered_table, Field *old_
 
 // Return true if two field types can be changed inplace
 static bool
-change_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+change_field_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
     enum_field_types old_type = old_field->real_type();
     enum_field_types new_type = new_field->real_type();
     if (is_int_type(old_type)) {
@@ -951,7 +950,9 @@ change_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE
             return false;
     } else if (old_type == MYSQL_TYPE_STRING) {
         // char(X) -> char(Y) and binary(X) -> binary(Y) expansion
-        if (new_type == MYSQL_TYPE_STRING && old_field->binary() == new_field->binary() && old_field->charset() == new_field->charset())
+        if (new_type == MYSQL_TYPE_STRING && 
+            old_field->binary() == new_field->binary() && 
+            old_field->charset()->number == new_field->charset()->number)
             return change_fixed_length_is_supported(table, altered_table, old_field, new_field, ctx);
         else
             return false;
@@ -966,6 +967,8 @@ change_type_is_supported(Field *old_field, Field *new_field, TABLE *table, TABLE
 // Return true if all changed field types can be changed inplace
 static bool 
 change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info *ha_alter_info, tokudb_alter_ctx *ctx) {
+    if (table->s->null_bytes != altered_table->s->null_bytes)
+        return false;
     if (table->s->fields != altered_table->s->fields)
         return false;
     if (ctx->changed_fields.elements() > 1)
@@ -974,9 +977,9 @@ change_type_is_supported(TABLE *table, TABLE *altered_table, Alter_inplace_info 
         uint i = ctx->changed_fields.at(ai);
         Field *old_field = table->field[i];
         Field *new_field = altered_table->field[i];
-        if (field_in_key(table, old_field) || field_in_key(altered_table, new_field))
+        if (field_in_key_of_table(table, old_field) || field_in_key_of_table(altered_table, new_field))
             return false;
-        if (!change_type_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
+        if (!change_field_type_is_supported(old_field, new_field, table, altered_table, ha_alter_info, ctx))
             return false;            
     }
     return true;
