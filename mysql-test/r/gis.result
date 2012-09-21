@@ -1466,7 +1466,7 @@ FROM lakes, named_places
 WHERE lakes.name = 'Blue Lake' 
 AND named_places.name = 'Ashton';
 AsText(ST_SymDifference(shore, boundary))
-MULTIPOLYGON(((48 6,52 18,66 23,73 9,48 6),(67 13,59 13,59 18,67 18,67 13)),((56 30,56 34,62 48,84 48,84 30,56 30)))
+MULTIPOLYGON(((48 6,52 18,66 23,73 9,48 6),(59 13,59 18,67 18,67 13,59 13)),((56 30,56 34,62 48,84 48,84 30,56 30)))
 # Conformance Item T51 
 SELECT count(*) 
 FROM buildings, bridges 

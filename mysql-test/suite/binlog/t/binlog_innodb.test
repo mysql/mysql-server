@@ -109,7 +109,7 @@ create table t1 (a int) engine=innodb;
 
 # Now we are going to create transaction which is long enough so its
 # transaction binlog will be flushed to disk...
-let $1=2000;
+let $1=600;
 disable_query_log;
 begin;
 while ($1)
