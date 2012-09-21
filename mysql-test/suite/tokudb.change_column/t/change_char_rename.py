@@ -6,7 +6,7 @@ def gen_test(n):
     for v in [ 'hi', 'there', 'people' ]:
         print "INSERT INTO t VALUES ('%s');" % (v)
     for i in range(2,256):
-        if i < n:
+        if i != n: # if i < n:
             print "--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/"
             print "--error ER_UNSUPPORTED_EXTENSION"
         else:
@@ -16,7 +16,7 @@ def gen_test(n):
             print "ALTER TABLE ti CHANGE COLUMN a b CHAR(%d);" % (i)
             print "ALTER TABLE ti CHANGE COLUMN b a CHAR(%d);" % (i)
         print "ALTER TABLE t CHANGE COLUMN a b CHAR(%d);" % (i)
-        if i < n:
+        if i != n: # if i < n:
             pass
         else:
             print "ALTER TABLE t CHANGE COLUMN b a CHAR(%d);" % (i)
