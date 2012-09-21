@@ -328,6 +328,7 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
+  ADD_SUBDIRECTORY(SPECIFIC-ULN)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
