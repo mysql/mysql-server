@@ -37,8 +37,6 @@
 // This version does not use constructors, essentially reverrting to the google C++ style guide.
 //
 
-#include "fttypes.h"
-
 // The old C interface.  This required a bunch of explicit ___attribute__((__destructor__)) functions to remember to destroy counters at the end.
 typedef struct partitioned_counter *PARTITIONED_COUNTER;
 PARTITIONED_COUNTER create_partitioned_counter(void);
