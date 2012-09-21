@@ -18,7 +18,6 @@
 #include <ft/le-cursor.h>
 #include "indexer.h"
 #include <ft/ft-internal.h>
-#include <ft/tokuconst.h>
 #include <ft/ft-ops.h>
 #include <ft/leafentry.h>
 #include <ft/ule.h>

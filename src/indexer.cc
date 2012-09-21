@@ -12,20 +12,21 @@
 /*
  *   The indexer
  */
+#include <toku_portability.h>
 #include <stdio.h>
 #include <string.h>
-#include <toku_portability.h>
-#include "toku_assert.h"
-#include "ydb-internal.h"
+#include <toku_assert.h>
+
 #include <ft/le-cursor.h>
-#include "indexer.h"
-#include <ft/tokuconst.h>
 #include <ft/ft-ops.h>
 #include <ft/leafentry.h>
 #include <ft/ule.h>
 #include <ft/xids.h>
 #include <ft/log-internal.h>
 #include <ft/checkpoint.h>
+
+#include "ydb-internal.h"
+#include "indexer.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
