@@ -618,9 +618,10 @@ fil_space_is_flushed(
 }
 
 /*******************************************************************//**
-Appends a new file to the chain of files of a space. File must be closed. */
+Appends a new file to the chain of files of a space. File must be closed.
+@return pointer to the file name, or NULL on error */
 UNIV_INTERN
-void
+char*
 fil_node_create(
 /*============*/
 	const char*	name,	/*!< in: file name (file must be closed) */
@@ -663,7 +664,7 @@ fil_node_create(
 
 		mutex_exit(&fil_system->mutex);
 
-		return;
+		return(NULL);
 	}
 
 	space->size += size;
@@ -678,6 +679,8 @@ fil_node_create(
 	}
 
 	mutex_exit(&fil_system->mutex);
+
+	return(node->name);
 }
 
 /********************************************************************//**
@@ -3383,12 +3386,10 @@ fil_create_new_single_table_tablespace(
 	}
 
 	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
-	if (!success) {
+	if (!success || !fil_node_create(path, size, space_id, FALSE)) {
 		err = DB_ERROR;
 		goto error_exit_1;
 	}
-
-	fil_node_create(path, size, space_id, FALSE);
 
 #ifndef UNIV_HOTBACKUP
 	{
@@ -3805,9 +3806,11 @@ skip_validate:
 		/* We do not measure the size of the file, that is why
 		we pass the 0 below */
 
-		fil_node_create(remote.success ? remote.filepath :
-				dict.success ? dict.filepath :
-				def.filepath, 0, id, FALSE);
+		if (!fil_node_create(remote.success ? remote.filepath :
+				     dict.success ? dict.filepath :
+				     def.filepath, 0, id, FALSE)) {
+			err = DB_ERROR;
+		}
 	}
 
 cleanup_and_exit:
@@ -4189,7 +4192,9 @@ will_not_choose:
 	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
-	fil_node_create(fsp->filepath, 0, fsp->id, FALSE);
+	if (!fil_node_create(fsp->filepath, 0, fsp->id, FALSE)) {
+		ut_error;
+	}
 
 func_exit:
 	os_file_close(fsp->file);
