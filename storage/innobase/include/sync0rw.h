@@ -413,7 +413,7 @@ rw_lock_get_waiters(
 /******************************************************************//**
 Returns the write-status of the lock - this function made more sense
 with the old rw_lock implementation.
-@return	RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_WAIT_EX */
+@return	RW_LOCK_NOT_LOCKED, RW_LOCK_X, RW_LOCK_X_WAIT */
 UNIV_INLINE
 ulint
 rw_lock_get_writer(
@@ -471,7 +471,7 @@ ibool
 rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
+	ulint		lock_type)	/*!< in: lock type: RW_LOCK_S,
 					RW_LOCK_X */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_SYNC_DEBUG */
@@ -482,7 +482,7 @@ ibool
 rw_lock_is_locked(
 /*==============*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
-	ulint		lock_type);	/*!< in: lock type: RW_LOCK_SHARED,
+	ulint		lock_type);	/*!< in: lock type: RW_LOCK_S,
 					RW_LOCK_X */
 /***************************************************************//**
 Prints debug info of currently locked rw-locks. */
@@ -596,7 +596,7 @@ struct rw_lock_t
 				/*!< File name where last x-locked */
 	ibool		writer_is_wait_ex;
 				/*!< This is TRUE if the writer field is
-				RW_LOCK_WAIT_EX; this field is located far
+				RW_LOCK_X_WAIT; this field is located far
 				from the memory update hotspot fields which
 				are at the start of this struct, thus we can
 				peek this field without causing much memory
@@ -626,7 +626,7 @@ struct	rw_lock_debug_t {
 				locked the rw-lock */
 	ulint	pass;		/*!< Pass value given in the lock operation */
 	ulint	lock_type;	/*!< Type of the lock: RW_LOCK_X,
-				RW_LOCK_SHARED, RW_LOCK_WAIT_EX */
+				RW_LOCK_S, RW_LOCK_X_WAIT */
 	const char*	file_name;/*!< File name where the lock was obtained */
 	ulint	line;		/*!< Line where the rw-lock was locked */
 	UT_LIST_NODE_T(rw_lock_debug_t) list;

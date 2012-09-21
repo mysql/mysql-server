@@ -138,7 +138,7 @@ hash_lock_s(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -161,7 +161,7 @@ hash_lock_x(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 	ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -185,7 +185,7 @@ hash_unlock_s(
 	ut_ad(lock);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(lock, RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
 	rw_lock_s_unlock(lock);
@@ -227,7 +227,7 @@ hash_lock_x_all(
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(!rw_lock_own(lock, RW_LOCK_SHARED));
+		ut_ad(!rw_lock_own(lock, RW_LOCK_S));
 		ut_ad(!rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 

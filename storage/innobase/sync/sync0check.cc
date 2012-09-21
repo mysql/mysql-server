@@ -686,8 +686,8 @@ SyncCheck::check_order(const latch_t* latch)
 	case SYNC_UNKNOWN:
 	case SYNC_LEVEL_VARYING:
 	case RW_LOCK_X:
-	case RW_LOCK_WAIT_EX:
-	case RW_LOCK_SHARED:
+	case RW_LOCK_X_WAIT:
+	case RW_LOCK_S:
 	case RW_LOCK_NOT_LOCKED:
 	case SYNC_USER_TRX_LOCK:
 		/* These levels should never be set for a latch. */

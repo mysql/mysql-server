@@ -135,7 +135,7 @@ row_log_online_op(
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	      == (op != ROW_OP_PURGE));
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X)
 	      == (op == ROW_OP_PURGE));
@@ -166,7 +166,7 @@ row_log_online_op(
 	case ROW_OP_DELETE_UNMARK:
 	case ROW_OP_DELETE_PURGE:
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
+		ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 		ut_ad(trx_id);
 		mrec_size = ROW_LOG_HEADER_SIZE + DATA_TRX_ID_LEN
@@ -408,7 +408,7 @@ row_log_table_delete(
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&index->lock, RW_LOCK_S)
 	      || rw_lock_own(&index->lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -726,7 +726,7 @@ row_log_table_low(
 	ut_ad(rec_offs_n_fields(offsets) == dict_index_get_n_fields(index));
 	ut_ad(rec_offs_size(offsets) <= sizeof index->online_log->tail.buf);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&index->lock, RW_LOCK_S)
 	      || rw_lock_own(&index->lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(fil_page_get_type(page_align(rec)) == FIL_PAGE_INDEX);
@@ -849,7 +849,7 @@ row_log_table_get_pk(
 	ut_ad(dict_index_is_online_ddl(index));
 	ut_ad(!offsets || rec_offs_validate(rec, index, offsets));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&index->lock, RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&index->lock, RW_LOCK_S)
 	      || rw_lock_own(&index->lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -2421,7 +2421,7 @@ row_log_table_apply(
 	thr_get_trx(thr)->error_key_num = 0;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 	clust_index = dict_table_get_first_index(old_table);
 
@@ -2558,7 +2558,7 @@ row_log_get_max_trx(
 {
 	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad((rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
+	ut_ad((rw_lock_own(dict_index_get_lock(index), RW_LOCK_S)
 	       && mutex_own(&index->online_log->mutex))
 	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */

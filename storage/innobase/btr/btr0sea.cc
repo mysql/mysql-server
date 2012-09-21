@@ -129,7 +129,7 @@ btr_search_check_free_space_in_heap(void)
 	mem_heap_t*	heap;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -332,7 +332,7 @@ btr_search_info_get_ref_count(
 	ut_ad(info);
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -359,7 +359,7 @@ btr_search_info_update_hash(
 	int		cmp;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -478,9 +478,9 @@ btr_search_update_block_hash_info(
 				/*!< in: cursor */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
-	ut_ad(rw_lock_own(&block->lock, RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&block->lock, RW_LOCK_S)
 	      || rw_lock_own(&block->lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(cursor);
@@ -564,7 +564,7 @@ btr_search_update_hash_ref(
 	ut_ad(cursor->flag == BTR_CUR_HASH_FAIL);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_X));
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(page_align(btr_cur_get_rec(cursor))
@@ -629,7 +629,7 @@ btr_search_info_update_slow(
 	ulint*		params2;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1080,7 +1080,7 @@ btr_search_drop_page_hash_index(
 	btr_search_t*		info;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_SHARED));
+	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1127,7 +1127,7 @@ retry:
 	table = btr_search_sys->hash_index;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X)
 	      || block->page.buf_fix_count == 0
 	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
@@ -1325,7 +1325,7 @@ btr_search_build_page_hash_index(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
-	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_SHARED)
+	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_S)
 	      || rw_lock_own(&(block->lock), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
