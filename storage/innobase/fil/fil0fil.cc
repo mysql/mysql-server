@@ -1762,6 +1762,46 @@ fil_close_all_files(void)
 }
 
 /*******************************************************************//**
+Closes the redo log files. There must not be any pending i/o's or not
+flushed modifications in the files. */
+UNIV_INTERN
+void
+fil_close_log_files(void)
+/*=====================*/
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = UT_LIST_GET_FIRST(fil_system->space_list);
+
+	while (space != NULL) {
+		fil_node_t*	node;
+		fil_space_t*	prev_space = space;
+
+		if (space->purpose != FIL_LOG) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+
+			if (node->open) {
+				fil_node_close_file(node, fil_system);
+			}
+		}
+
+		space = UT_LIST_GET_NEXT(space_list, space);
+
+		fil_space_free(prev_space->id, FALSE);
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
 UNIV_INTERN
