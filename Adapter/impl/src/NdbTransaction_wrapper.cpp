@@ -52,25 +52,6 @@ public:
 NdbTransactionEnvelopeClass NdbTransactionEnvelope;
 
 
-/******* immediate wrapper template
-Handle<Value>  _wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
-  REQUIRE_ARGS_LENGTH( );
-
-  typedef NativeMethodCall_ _< , NdbTransaction, , > NCALL;
-
-  NCALL ncall(args);
-  ncall.method = & NdbTransaction:: ;
-  ncall.run();
-  
-  return scope.Close(ncall.jsReturnVal());
-}
-*******/
-
-
-
 //////////// IMMEDIATE METHOD WRAPPERS
 
 
@@ -84,8 +65,8 @@ Handle<Value> getTCNodeId(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);
 
-  NativeMethodCall_0_<uint32_t, NdbTransaction> ncall(args);
-  ncall.method = & NdbTransaction::getConnectedNodeId;
+  typedef NativeMethodCall_0_<uint32_t, NdbTransaction> NCALL;
+  NCALL ncall(& NdbTransaction::getConnectedNodeId, args);
   ncall.run();
   return scope.Close(ncall.jsReturnVal());
 }
@@ -98,9 +79,27 @@ Handle<Value> commitStatus(const Arguments &args) {
   REQUIRE_ARGS_LENGTH(0);
   typedef NativeMethodCall_0_<NdbTransaction::CommitStatusType, NdbTransaction> 
     NCALL;
-  NCALL ncall(args);
-  ncall.method = & NdbTransaction::commitStatus;
+  NCALL ncall(& NdbTransaction::commitStatus, args);
   ncall.run();
+  return scope.Close(ncall.jsReturnVal());
+}
+
+/* IMMEDIATE SYNC CLOSE ONLY.
+   NdbTransaction::close() would require I/O if the transaction had not 
+   previously been executed with either commit or rollback.
+   But we want to require that it be in a state such that it can close 
+   immediately.
+*/
+Handle<Value> close(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(0);
+  
+  typedef NativeVoidMethodCall_0_<NdbTransaction> NCALL;
+  NCALL ncall(& NdbTransaction::close, args);
+  ncall.run();
+  
   return scope.Close(ncall.jsReturnVal());
 }
 
@@ -115,27 +114,11 @@ Handle<Value> execute(const Arguments &args) {
 
   typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
                               NdbOperation::AbortOption, int> NCALL;
-  NCALL * ncallptr = new NCALL(args);
-  ncallptr->method = & NdbTransaction::execute;
+  NCALL * ncallptr = new NCALL(& NdbTransaction::execute, args);
   ncallptr->envelope = & NdbTransactionEnvelope;
   ncallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
   ncallptr->runAsync();
 
-  return scope.Close(JS_VOID_RETURN);
-}
-
-Handle<Value> close(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
-  REQUIRE_ARGS_LENGTH(1);
-  
-  typedef NativeVoidMethodCall_0_<NdbTransaction> NCALL;
-  NCALL * ncallptr = new NCALL(args);
-  ncallptr->method = & NdbTransaction::close;
-  ncallptr->envelope = & NdbTransactionEnvelope;
-  ncallptr->runAsync();
-  
   return scope.Close(JS_VOID_RETURN);
 }
 
