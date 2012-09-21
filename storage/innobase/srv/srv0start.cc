@@ -2111,11 +2111,6 @@ create_log_files:
 			return(DB_ERROR);
 		}
 
-		if (i != srv_n_log_files
-		    || srv_log_file_size_requested != srv_log_file_size) {
-			ut_error; /* TODO */
-		}
-
 		/* Since the insert buffer init is in dict_boot, and the
 		insert buffer is needed in any disk i/o, first we call
 		dict_boot(). Note that trx_sys_init_at_db_start() only needs
@@ -2155,6 +2150,129 @@ create_log_files:
 
 			dict_check_tablespaces_and_store_max_id(
 				recv_needed_recovery);
+		}
+
+		if (!srv_force_recovery
+		    && !recv_sys->found_corrupt_log
+		    && (srv_log_file_size_requested != srv_log_file_size
+			|| i != srv_n_log_files)) {
+			/* Prepare to replace the redo log files. */
+
+			/* Clean the buffer pool. */
+			bool success = buf_flush_list(
+				ULINT_MAX, LSN_MAX, NULL);
+			ut_a(success);
+
+			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Resizing redo log from %u*%u to %u*%u pages"
+				", LSN=" LSN_PF,
+				(unsigned) i,
+				(unsigned) srv_log_file_size,
+				(unsigned) srv_n_log_files,
+				(unsigned) srv_log_file_size_requested,
+				max_flushed_lsn);
+
+			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+			/* Flush the old log files. */
+			log_buffer_flush_to_disk();
+
+			ut_ad(max_flushed_lsn == log_get_lsn());
+
+			ut_d(recv_no_log_write = TRUE);
+			ut_ad(!buf_pool_check_no_pending_io());
+
+			/* Stamp the LSN to the data files. */
+			fil_write_flushed_lsn_to_data_files(
+				max_flushed_lsn, 0);
+
+			fil_flush_file_spaces(FIL_TABLESPACE);
+
+			/* Close the redo log files, so that we can
+			replace them. */
+			fil_close_log_files();
+
+			/* Free the old log file space. */
+			log_group_close_all();
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Starting to delete and rewrite log files.");
+
+			/* Remove the old log files. */
+			for (ulint j = 0; j < i; j++) {
+				os_file_stat_t	stat_info;
+
+				sprintf(logfilename + dirnamelen,
+					"ib_logfile%lu", (ulong) j);
+
+				err = os_file_get_status(
+					logfilename, &stat_info, false);
+
+				if (err == DB_NOT_FOUND) {
+					break;
+				}
+
+				if (!os_file_delete(logfilename)) {
+					return(DB_ERROR);
+				}
+			}
+
+			ut_ad(!buf_pool_check_no_pending_io());
+
+			srv_log_file_size = srv_log_file_size_requested;
+
+			/* Create new log files. */
+			for (i = 0; i < srv_n_log_files; i++) {
+				sprintf(logfilename + dirnamelen,
+					"ib_logfile%lu", (ulong) i);
+
+				err = create_log_file(&files[i], logfilename);
+
+				if (err != DB_SUCCESS) {
+					return(err);
+				}
+			}
+
+			log_created = TRUE;
+
+			sprintf(logfilename + dirnamelen,
+				"ib_logfile%lu", 0UL);
+
+			fil_space_create(
+				logfilename, SRV_LOG_SPACE_FIRST_ID,
+				fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+				FIL_LOG);
+			ut_a(fil_validate());
+
+			for (i = 0; i < srv_n_log_files; i++) {
+				sprintf(logfilename + dirnamelen,
+					"ib_logfile%lu", (ulong) i);
+
+				fil_node_create(
+					logfilename, (ulint) srv_log_file_size,
+					SRV_LOG_SPACE_FIRST_ID, FALSE);
+			}
+
+			log_group_init(0, srv_n_log_files,
+				       srv_log_file_size * UNIV_PAGE_SIZE,
+				       SRV_LOG_SPACE_FIRST_ID,
+				       SRV_LOG_SPACE_FIRST_ID + 1);
+
+			fil_open_log_and_system_tablespace_files();
+
+			/* Create a log checkpoint. */
+			mutex_enter(&log_sys->mutex);
+			ut_d(recv_no_log_write = FALSE);
+			ut_ad(max_flushed_lsn == log_sys->lsn);
+			recv_reset_logs(max_flushed_lsn, TRUE);
+			mutex_exit(&log_sys->mutex);
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"New log files created"
+				", LSN=" LSN_PF,
+				max_flushed_lsn);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
