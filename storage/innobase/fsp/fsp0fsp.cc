@@ -1385,7 +1385,7 @@ fsp_page_create(
 		= buf_page_create(space, page_no, zip_size, init_mtr);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
-	      == rw_lock_own(&block->lock, RW_LOCK_EX));
+	      == rw_lock_own(&block->lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Mimic buf_page_get(), but avoid the buf_pool->page_hash lookup. */

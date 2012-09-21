@@ -175,8 +175,7 @@ enum latch_level_t {
 
 	RW_LOCK_WAIT_EX,
 	RW_LOCK_SHARED,
-	RW_LOCK_EXCLUSIVE,
-	RW_LOCK_EX,
+	RW_LOCK_X,
 	RW_LOCK_NOT_LOCKED,
 
 	SYNC_MEM_POOL,
@@ -288,7 +287,8 @@ struct latch_t {
 
 /** Subclass this to iterate over a thread's latches. */
 struct sync_check_functor_t {
-	virtual bool operator()(const latch_t&) const = 0;
+	virtual bool operator()(const latch_t&) = 0;
+	virtual bool result() const = 0;
 };
 
 /** Functor to check whether the calling thread owns the btr search mutex. */
@@ -296,18 +296,25 @@ struct btrsea_sync_check : public sync_check_functor_t {
 
 	btrsea_sync_check(bool has_search_latch = true)
 		:
+		m_result(false),
 		m_has_search_latch(has_search_latch) { }
 
-	virtual bool operator()(const latch_t& latch) const
+	virtual bool operator()(const latch_t& latch)
 	{
 		// FIXME: This condition doesn't look right
 		if (!m_has_search_latch || latch.m_level != SYNC_SEARCH_SYS) {
-			return(true);
+			return(m_result = true);
 		}
 
 		return(false);
 	}
 
+	virtual bool result() const
+	{
+		return(m_result);
+	}
+
+	bool		m_result;
 	bool		m_has_search_latch;
 };
 
@@ -316,21 +323,28 @@ struct dict_sync_check : public sync_check_functor_t {
 
 	dict_sync_check(bool dict_mutex_allowed = true)
 		:
+		m_result(false),
 		m_dict_mutex_allowed(dict_mutex_allowed) { }
 
-	virtual bool operator()(const latch_t& latch) const
+	virtual bool operator()(const latch_t& latch)
 	{
 		if ((!m_dict_mutex_allowed
 		     || (latch.m_level != SYNC_DICT
 			 && latch.m_level != SYNC_DICT_OPERATION
 			 && latch.m_level != SYNC_FTS_CACHE))) {
 
-			return(true);
+			return(m_result = true);
 		}
 
 		return(false);
 	}
 
+	virtual bool result() const
+	{
+		return(m_result);
+	}
+
+	bool		m_result;
 	bool		m_dict_mutex_allowed;
 };
 

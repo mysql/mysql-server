@@ -5691,6 +5691,8 @@ fil_close(void)
 	ut_a(UT_LIST_GET_LEN(fil_system->unflushed_spaces) == 0);
 	ut_a(UT_LIST_GET_LEN(fil_system->space_list) == 0);
 
+	mutex_free(&fil_system->mutex);
+
 	mem_free(fil_system);
 
 	fil_system = NULL;

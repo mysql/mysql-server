@@ -142,8 +142,8 @@ UNIV_INTERN rw_lock_list_t	rw_lock_list;
 UNIV_INTERN ib_mutex_t		rw_lock_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
-UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_SYNC_DEBUG
@@ -451,7 +451,7 @@ rw_lock_x_lock_move_ownership(
 	rw_lock_t*	lock)	/*!< in: lock which was x-locked in the
 				buffer read */
 {
-	ut_ad(rw_lock_is_locked(lock, RW_LOCK_EX));
+	ut_ad(rw_lock_is_locked(lock, RW_LOCK_X));
 
 	rw_lock_set_writer_id_and_recursion_flag(lock, TRUE);
 }
@@ -583,7 +583,7 @@ rw_lock_x_lock_low(
 		}
 	}
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_add_debug_info(lock, pass, RW_LOCK_EX, file_name, line);
+	rw_lock_add_debug_info(lock, pass, RW_LOCK_X, file_name, line);
 #endif
 	lock->last_x_file_name = file_name;
 	lock->last_x_line = (unsigned int) line;
@@ -666,7 +666,7 @@ lock_loop:
 	sync_arr = sync_array_get();
 
 	sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_EX, file_name, line, &index);
+		sync_arr, lock, RW_LOCK_X, file_name, line, &index);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
@@ -765,7 +765,7 @@ rw_lock_add_debug_info(
 
 	if (pass == 0 && lock_type != RW_LOCK_WAIT_EX) {
 
-		if (lock_type == RW_LOCK_EX && lock->lock_word < 0) {
+		if (lock_type == RW_LOCK_X && lock->lock_word < 0) {
 			sync_check_lock(lock);
 		} else {
 			sync_check_relock(lock);
@@ -828,30 +828,26 @@ rw_lock_own(
 /*========*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
-					RW_LOCK_EX */
+					RW_LOCK_X */
 {
-	rw_lock_debug_t*	info;
-
 	ut_ad(lock);
 	ut_ad(rw_lock_validate(lock));
 
 	rw_lock_debug_mutex_enter();
 
-	info = UT_LIST_GET_FIRST(lock->debug_list);
-
-	while (info != NULL) {
+	for (const rw_lock_debug_t* info = UT_LIST_GET_FIRST(lock->debug_list);
+	     info != NULL;
+	     info = UT_LIST_GET_NEXT(list, info)) {
 
 		if (os_thread_eq(info->thread_id, os_thread_get_curr_id())
-		    && (info->pass == 0)
-		    && (info->lock_type == lock_type)) {
+		    && info->pass == 0
+		    && info->lock_type == lock_type) {
 
 			rw_lock_debug_mutex_exit();
 			/* Found! */
 
 			return(TRUE);
 		}
-
-		info = UT_LIST_GET_NEXT(list, info);
 	}
 	rw_lock_debug_mutex_exit();
 
@@ -868,7 +864,7 @@ rw_lock_is_locked(
 /*==============*/
 	rw_lock_t*	lock,		/*!< in: rw-lock */
 	ulint		lock_type)	/*!< in: lock type: RW_LOCK_SHARED,
-					RW_LOCK_EX */
+					RW_LOCK_X */
 {
 	ibool	ret	= FALSE;
 
@@ -879,8 +875,8 @@ rw_lock_is_locked(
 		if (rw_lock_get_reader_count(lock) > 0) {
 			ret = TRUE;
 		}
-	} else if (lock_type == RW_LOCK_EX) {
-		if (rw_lock_get_writer(lock) == RW_LOCK_EX) {
+	} else if (lock_type == RW_LOCK_X) {
+		if (rw_lock_get_writer(lock) == RW_LOCK_X) {
 			ret = TRUE;
 		}
 	} else {
@@ -963,7 +959,7 @@ rw_lock_debug_print(
 		(ulong) info->line);
 	if (rwt == RW_LOCK_SHARED) {
 		fprintf(f, "S-LOCK");
-	} else if (rwt == RW_LOCK_EX) {
+	} else if (rwt == RW_LOCK_X) {
 		fprintf(f, "X-LOCK");
 	} else if (rwt == RW_LOCK_WAIT_EX) {
 		fprintf(f, "WAIT X-LOCK");

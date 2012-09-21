@@ -111,13 +111,9 @@ template <typename MutexImpl>
 void PolicyMutex<MutexImpl>::init(
 	const char*	name,
 	const char*	filename,
-	ulint line)
+	ulint 		line)
 {
+	// FIXME: Call the impl, which should call the policy.
+	m_impl.init(name);
 	m_impl.m_policy.init(m_impl, name, filename, line);
-
-#ifdef UNIV_PFS_MUTEX
-	mysql_pfs_key_t	key = sync_latch_get_pfs_key(name);
-
-	pfs_add(key);
-#endif /* UNIV_PFS_MUTEX */
 }

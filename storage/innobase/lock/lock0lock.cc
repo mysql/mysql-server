@@ -624,8 +624,8 @@ lock_sys_close(void)
 
 	hash_table_free(lock_sys->rec_hash);
 
-	lock_sys->mutex.~LockMutex();
-	lock_sys->wait_mutex.~LockMutex();
+	mutex_destroy(&lock_sys->mutex);
+	mutex_destroy(&lock_sys->wait_mutex);
 
 	mem_free(lock_stack);
 	mem_free(lock_sys);

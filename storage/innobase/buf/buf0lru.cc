@@ -782,7 +782,7 @@ scan_again:
 
 #ifdef UNIV_SYNC_DEBUG
 		/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
-		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
+		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -1852,7 +1852,7 @@ func_exit:
 #endif /* UNIV_DEBUG */
 
 #ifdef UNIV_SYNC_DEBUG
-        ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+        ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
@@ -1860,7 +1860,7 @@ func_exit:
 
 #ifdef UNIV_SYNC_DEBUG
 	/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
 	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -2151,7 +2151,7 @@ buf_LRU_block_remove_hashed_page(
 	fold = buf_page_address_fold(bpage->space, bpage->offset);
 	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
 #ifdef UNIV_SYNC_DEBUG
-        ut_ad(rw_lock_own(hash_lock, RW_LOCK_EX));
+        ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
@@ -2412,7 +2412,7 @@ buf_LRU_free_one_page(
 	and block_mutex */
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X)
 	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!mutex_own(block_mutex));

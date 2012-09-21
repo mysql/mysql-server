@@ -2254,7 +2254,7 @@ ibuf_free_excess_pages(void)
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(fil_space_get_latch(IBUF_SPACE_ID, NULL),
-			  RW_LOCK_EX));
+			  RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_ad(rw_lock_get_x_lock_count(

@@ -463,7 +463,12 @@ retry:
 	release this thread */
 
 	ut_ad(!trx->has_search_latch);
-	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	trx->op_info = "waiting in InnoDB queue";
 
@@ -502,7 +507,11 @@ srv_conc_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
-	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 #ifdef HAVE_ATOMIC_BUILTINS
 	srv_conc_enter_innodb_with_atomics(trx);
@@ -521,7 +530,11 @@ srv_conc_force_enter_innodb(
 	trx_t*	trx)	/*!< in: transaction object associated with the
 			thread */
 {
-	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 
 	if (!srv_thread_concurrency) {
 
@@ -565,7 +578,11 @@ srv_conc_force_exit_innodb(
 	srv_conc_exit_innodb_without_atomics(trx);
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-	ut_ad(!sync_check_iterate(btrsea_sync_check(trx->has_search_latch)));
+	{
+		btrsea_sync_check	check(trx->has_search_latch);
+
+		ut_ad(!sync_check_iterate(check));
+	}
 }
 
 /*********************************************************************//**

@@ -280,6 +280,8 @@ mem_pool_free(
 /*==========*/
 	mem_pool_t*	pool)	/*!< in, own: memory pool */
 {
+	mutex_free(&pool->mutex);
+
 	ut_free(pool->buf);
 	ut_free(pool);
 }

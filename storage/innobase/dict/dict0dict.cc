@@ -1165,7 +1165,7 @@ dict_table_can_be_evicted(
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
 	ut_a(table->can_be_evicted);
@@ -1236,7 +1236,7 @@ dict_make_room_in_cache(
 	ut_a(pct_check <= 100);
 	ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(dict_lru_validate());
 
@@ -1766,7 +1766,7 @@ dict_table_remove_from_cache_low(
 
 		ut_ad(mutex_own(&dict_sys->mutex));
 #ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 		/* Mimic row_mysql_lock_data_dictionary(). */
 		trx->dict_operation_lock_mode = RW_X_LATCH;
@@ -5371,7 +5371,11 @@ dict_set_corrupted(
 	ut_ad(!dict_table_is_comp(dict_sys->sys_tables));
 	ut_ad(!dict_table_is_comp(dict_sys->sys_indexes));
 
-        ut_ad(sync_check_iterate(dict_sync_check(true)));
+	{
+        	dict_sync_check	check(true);
+
+        	ut_ad(!sync_check_iterate(check));
+	}
 
 	/* Mark the table as corrupted only if the clustered index
 	is corrupted */
