@@ -76,8 +76,8 @@ struct pfs_lock
     the version number is incremented, so that a reader can detect that
     the record was changed. Note that the version number is never
     reset to zero when a new record is created.
-    The version number is stored in the high 28 bits.
-    The state is stored in the low 4 bits.
+    The version number is stored in the high 30 bits.
+    The state is stored in the low 2 bits.
   */
   volatile uint32 m_version_state;
 
