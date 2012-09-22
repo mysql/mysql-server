@@ -26,7 +26,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET @`v`:=_ucs2 0x006100620063 COLLATE `ucs2_general_ci`/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=10000/*!*/;
 insert into t2 values (@v)
 /*!*/;

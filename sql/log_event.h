@@ -4107,6 +4107,23 @@ bool slave_execute_deferred_events(THD *thd);
 
 int append_query_string(THD *thd, CHARSET_INFO *csinfo,
                         String const *from, String *to);
+
+#ifdef MYSQL_SERVER
+/*
+  This is an utility function that adds a quoted identifier into the a buffer.
+  This also escapes any existance of the quote string inside the identifier.
+ */
+size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
+                                   const char* identifier,
+                                   uint length);
+#else
+size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
+#endif
+size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
+                                          const char* identifier,
+                                          uint length);
+
+
 /**
   @} (end of group Replication)
 */
