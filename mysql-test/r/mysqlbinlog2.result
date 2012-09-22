@@ -19,7 +19,7 @@ insert into t1 values(null, "f");
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -103,7 +103,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
@@ -172,7 +172,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -209,7 +209,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -263,7 +263,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -289,7 +289,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -326,7 +326,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -369,7 +369,7 @@ flush logs;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -445,7 +445,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -474,7 +474,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
@@ -535,7 +535,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -564,7 +564,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -605,7 +605,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -622,7 +622,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -720,7 +720,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -761,7 +761,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -778,7 +778,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -820,7 +820,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -904,7 +904,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
@@ -972,7 +972,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -1009,7 +1009,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1062,7 +1062,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -1088,7 +1088,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -1125,7 +1125,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1167,7 +1167,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1243,7 +1243,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1272,7 +1272,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=1/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
@@ -1333,7 +1333,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1361,7 +1361,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -1402,7 +1402,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1419,7 +1419,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1516,7 +1516,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=3/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
 /*!*/;
@@ -1557,7 +1557,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET INSERT_ID=6/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
 /*!*/;
@@ -1574,7 +1574,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1616,7 +1616,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;

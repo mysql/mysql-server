@@ -34,7 +34,7 @@ SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=10000/*!*/;
 INSERT INTO t1 VALUES(@`a b`)
 /*!*/;
