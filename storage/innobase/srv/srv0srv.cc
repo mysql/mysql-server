@@ -925,8 +925,6 @@ srv_init(void)
 
 	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
 
-
-
 	srv_sys->n_sys_threads = n_sys_threads;
 
 	if (!srv_read_only_mode) {
@@ -989,10 +987,12 @@ srv_free(void)
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 	mutex_free(&srv_innodb_monitor_mutex);
-
-	mutex_free(&srv_sys->mutex);
-	mutex_free(&srv_sys->tasks_mutex);
 	mutex_free(&page_zip_stat_per_index_mutex);
+
+	if (!srv_read_only_mode) {
+		mutex_free(&srv_sys->mutex);
+		mutex_free(&srv_sys->tasks_mutex);
+	}
 
 	trx_i_s_cache_free(trx_i_s_cache);
 

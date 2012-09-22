@@ -285,12 +285,12 @@ next_page:
 			continue;
 		}
 
-		((buf_block_t*) bpage)->mutex.enter();
+		mutex_enter(&((buf_block_t*) bpage)->mutex);
 
 		is_fixed = bpage->buf_fix_count > 0
 			|| !((buf_block_t*) bpage)->index;
 
-		((buf_block_t*) bpage)->mutex.exit();
+		mutex_exit(&((buf_block_t*) bpage)->mutex);
 
 		if (is_fixed) {
 			goto next_page;
@@ -2286,8 +2286,7 @@ buf_LRU_block_remove_hashed_page(
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
-		buf_pool->zip_mutex.enter();
-
+		mutex_exit(&buf_pool->zip_mutex);
 		rw_lock_x_unlock(hash_lock);
 		buf_pool_mutex_exit_forbid(buf_pool);
 
@@ -2328,7 +2327,7 @@ buf_LRU_block_remove_hashed_page(
 		have inserted the compressed only descriptor in the
 		page_hash. */
 		rw_lock_x_unlock(hash_lock);
-		((buf_block_t*) bpage)->mutex.exit();
+		mutex_exit(&((buf_block_t*) bpage)->mutex);
 
 		if (zip && bpage->zip.data) {
 			/* Free the compressed page. */
