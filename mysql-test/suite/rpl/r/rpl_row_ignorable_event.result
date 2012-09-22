@@ -170,7 +170,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #server id #  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=#
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=t/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -194,11 +194,11 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -219,7 +219,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -243,7 +243,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #server id #  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=6 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -269,11 +269,11 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -284,14 +284,14 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
 ###   @1=7 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -305,7 +305,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #server id #  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1=7 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -324,7 +324,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=5 /* INT meta=0 nullable=1 is_null=0 */
@@ -345,7 +345,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=7 /* INT meta=0 nullable=1 is_null=0 */
@@ -366,7 +366,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=5 /* INT meta=0 nullable=1 is_null=0 */
@@ -377,7 +377,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
@@ -416,7 +416,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -437,7 +437,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t4` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t4
+### INSERT INTO `test`.`t4`
 ### SET
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -462,14 +462,14 @@ BEGIN
 #server id #  end_log_pos # 	Update_rows: table id #
 # at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t4
+### UPDATE `test`.`t4`
 ### WHERE
 ###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -493,7 +493,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t5` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t5
+### INSERT INTO `test`.`t5`
 ### SET
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -516,7 +516,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t5` mapped to number #
 # at #
 #server id #  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t5
+### UPDATE `test`.`t5`
 ### WHERE
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=1 is_null=0 */
@@ -545,7 +545,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=5 /* INT meta=0 nullable=1 is_null=0 */
@@ -553,7 +553,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
@@ -561,7 +561,7 @@ BEGIN
 #server id #  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=7 /* INT meta=0 nullable=1 is_null=0 */
@@ -594,214 +594,214 @@ BEGIN
 #server id #  end_log_pos # 	Write_rows: table id #
 # at #
 #server id #  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Aarhus' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Aaron' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Ababa' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='aback' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abaft' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandon' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandoned' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandoning' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandonment' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandons' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Aarhus' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Aaron' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Ababa' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='aback' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abaft' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandon' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandoned' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandoning' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandonment' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abandons' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abase' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abased' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abasement' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abasements' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abases' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abash' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abashed' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abashes' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abashing' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abasing' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abate' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abated' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abatement' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abatements' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abater' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abates' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abating' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abba' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbe' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbey' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbeys' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbot' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbots' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abbott' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbreviate' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbreviated' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbreviates' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbreviating' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbreviation' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abbreviations' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abby' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abdomen' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abdomens' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abdominal' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abduct' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abducted' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abduction' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abductions' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abductor' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abductors' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abducts' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abe' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='abed' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abel' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abelian' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abelson' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Aberdeen' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='Abernathy' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='aberrant' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t6
+### INSERT INTO `test`.`t6`
 ### SET
 ###   @1='aberration' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
 # at #
