@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# $Id: mytop,v 1.90 2010/05/23 10:51:21 mark Exp $
+# $Id: mytop,v 1.91 2012/01/18 16:49:12 mgrennan Exp $
 
 =pod
 
@@ -15,12 +15,13 @@ mytop - display MySQL server performance info like `top'
 use 5.005;
 use strict;
 use DBI;
+use DBD::mysql;
 use Getopt::Long;
 use Socket;
 use List::Util qw(min max);
 use File::Basename;
 
-$main::VERSION = "1.9a";
+$main::VERSION = "1.91a";
 my $path_for_script= dirname($0);
 
 $|=1;
@@ -96,7 +97,7 @@ my %config = (
     resolve       => 0,
     slow	  => 10,	# slow query time
     socket        => '',
-    sort          => 0,         # default or reverse sort ("s")
+    sort          => 1,         # default or reverse sort ("s")
     user          => 'root',
     fullqueries   => 0
 );
@@ -378,12 +379,11 @@ while (1)
     ## keystroke command processing (if we get this far)
     ##
 
-    # ! - Force past a replication error
-
-    if ($key eq 'r')
+    if ($key eq '!')
     {
-        Execute("STOP SLAVE; SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1; START SLAVE;");
-        next;
+        Execute("stop slave");
+	Execute("set global sql_slave_skip_counter=1");
+	Execute("start slave");
     }
 
     # t - top
@@ -415,7 +415,7 @@ while (1)
         next;
     }
 
-    ## m - mode swtich to qps
+    ## m - mode switch to qps
 
     if ($key eq 'm')
     {
@@ -425,17 +425,7 @@ while (1)
         next;
     }
 
-    ## M - mode swtich to qps
-
-    if ($key eq 'M')
-    {
-        $config{mode} = 'status';
-        Clear() unless $config{batchmode};
-        print "Queries Per Second [hit q to exit this mode]\n";
-        next;
-    }
-
-    ## c - mode swtich to command summary
+    ## c - mode switch to command summary
 
     if ($key eq 'c')
     {
@@ -466,8 +456,6 @@ while (1)
         cmd_s();
         next;
     }
-
-    # Change the SLOW query value
 
     if ($key eq 'S')
     {
@@ -755,7 +743,9 @@ while (1)
         ReadKey(0);
     }
 
-    if ($key eq 'S')
+    # Switch to show status mode
+
+    if ($key eq 'M')
     {
         $config{mode} = 'status';
     }
@@ -931,6 +921,11 @@ sub GetData()
             }
         }
 
+	open L, "</proc/loadavg";
+	my $l = <L>;
+	close L;
+	chomp $l;
+
         $last_time = $now_time;
 
         ## Server Uptime in meaningful terms...
@@ -962,6 +957,7 @@ sub GetData()
         printf "%-.${host_width}s %${up_width}s\n",
                "$server on $config{host} ($db_version)",
                "up $uptime $current_time";
+#              "load $l up $uptime $current_time";
         $lines_left--;
 
 
@@ -1055,19 +1051,29 @@ sub GetData()
 
         if ($t_delta)
 	{
+          my $rows_read;
+          if (defined($STATUS{Rows_read}))
+          {
+            $rows_read= $STATUS{Rows_read} - $OLD_STATUS{Rows_read};
+          }
+          else
+          {
+            $rows_read=
+              ($STATUS{Handler_read_first}+$STATUS{Handler_read_key}+
+               $STATUS{Handler_read_next}+$STATUS{Handler_read_prev}+
+               $STATUS{Handler_read_rnd}+$STATUS{Handler_read_rnd_next} -
+               $OLD_STATUS{Handler_read_first}-$OLD_STATUS{Handler_read_key}-
+               $OLD_STATUS{Handler_read_next}-$OLD_STATUS{Handler_read_prev}-
+               $OLD_STATUS{Handler_read_rnd}-
+               $OLD_STATUS{Handler_read_rnd_next});
+          }
 	  printf(" Handler: (R/W/U/D) %5d/%5d/%5d/%5d        Tmp: R/W/U: %5d/%5d/%5d\n",
-		 ($STATUS{Handler_read_first}+$STATUS{Handler_read_key}+
-		 $STATUS{Handler_read_next}+$STATUS{Handler_read_prev}+
-		 $STATUS{Handler_read_rnd}+$STATUS{Handler_read_rnd_next} -
-		 $OLD_STATUS{Handler_read_first}-$OLD_STATUS{Handler_read_key}-
-		 $OLD_STATUS{Handler_read_next}-$OLD_STATUS{Handler_read_prev}-
-		 $OLD_STATUS{Handler_read_rnd}-
-		 $OLD_STATUS{Handler_read_rnd_next})/$t_delta,
+		 $rows_read/$t_delta,
 		 ($STATUS{Handler_write} - $OLD_STATUS{Handler_write}) /
 		 $t_delta,
 		 ($STATUS{Handler_update} - $OLD_STATUS{Handler_update}) /
 		 $t_delta,
-		 ($STATUS{Handler_delete} - $OLD_STATUS{Handler_delete}) / 
+		 ($STATUS{Handler_delete} - $OLD_STATUS{Handler_delete}) /
 		 $t_delta,
 		 ($STATUS{Rows_tmp_read} - $OLD_STATUS{Rows_tmp_read}) /
 		 $t_delta,
@@ -1083,7 +1089,7 @@ sub GetData()
 
 	$lines_left--;
 
-        printf(" MyISAM Key Efficiency: %2.1f%%  Bps in/out: %5s/%5s   ",
+        printf(" ISAM Key Efficiency: %2.1f%%  Bps in/out: %5s/%5s   ",
                $cache_hits_percent,
                make_short($STATUS{Bytes_received} / $STATUS{Uptime} ),
                make_short($STATUS{Bytes_sent} / $STATUS{Uptime}));
@@ -1095,35 +1101,40 @@ sub GetData()
 
         $lines_left--;
 
-	my($data) = Hashes('SHOW SLAVE STATUS');
+        my($data) = Hashes('show global variables like "read_only"');
+        if ($data->{Value} ne "OFF")
+        {
+            print RED() if ($HAS_COLOR) ;
+            print " ReadOnly";
+	    RESET() if ($HAS_COLOR);
+        }
+
+	($data) = Hashes('SHOW SLAVE STATUS');
 	if (defined($data->{Master_Host}))
         {
+	    if (defined($data->{Seconds_Behind_Master}))
+	    {
+                if ($HAS_COLOR) {
+	  	    print GREEN();
+		    print YELLOW() if ($data->{Seconds_Behind_Master}  >  60);
+		    print MAGENTA() if ($data->{Seconds_Behind_Master} > 360);
+	        }
+	    }
 	    print " Replication ";
-            if ($HAS_COLOR) {
-		print GREEN();
-		print RED() if ($data->{Slave_IO_Running} ne "Yes") ;
-	    }
 	    print "IO:$data->{Slave_IO_Running} ";
-	    RESET() if ($HAS_COLOR);
-
-            if ($HAS_COLOR) {
-		print GREEN();
-		print RED() if ($data->{Slave_SQL_Running} ne "Yes") ;
-	    }
  	    print "SQL:$data->{Slave_SQL_Running} ";
 	    print RESET() if ($HAS_COLOR);
 
-	    my $SlaveDelay = $data->{Seconds_Behind_Master};
- 	    if ($SlaveDelay)
+ 	    if (defined($data->{Seconds_Behind_Master}))
 	    {
         	if ($HAS_COLOR) {
 			print GREEN();
-			print YELLOW() if ($SlaveDelay > 10);
-			print MAGENTA() if ($SlaveDelay > 120);
+			print YELLOW() if ($data->{Seconds_Behind_Master}  >  60);
+			print MAGENTA() if ($data->{Seconds_Behind_Master} > 360);
 		}
-		print "Delay: $SlaveDelay sec.";
+		print "Delay: $data->{Seconds_Behind_Master} sec.";
 	    } else {
-	        my $free = $width - 35;
+	        my $free = $width - 45;
 		my $Err = substr $data->{Last_Error},0 ,$free;
 	        printf(" ERR: %-${free}s", $Err) if ( $Err ne "" );
 	    }
@@ -1198,6 +1209,7 @@ sub GetData()
         if ($is_ip and $config{resolve})
         {
             $thread->{Host} =~ s/:\d+$//;
+#	    my $host = $thread->{Host};
 	    my $host = gethostbyaddr(inet_aton($thread->{Host}), AF_INET);
 #            $host =~ s/^([^.]+).*/$1/;
             $thread->{Host} = $host;
@@ -1483,7 +1495,7 @@ sub GetShowStatus()
     Clear() unless $config{batchmode};
     my @rows = Hashes("SHOW STATUS");
 
-    printf "%32s  %10s %10s\n", 'Counter', 'Total', 'Change';
+    printf "%32s  %10s %10s   Toggle idle with 'i'\n", 'Counter', 'Total', 'Change';
     printf "%32s  %10s %10s\n", '-------', '-----', '------';
 
     for my $row (@rows)
@@ -1519,9 +1531,7 @@ sub GetShowStatus()
             }
         }
 
-        if ($delta != 0) {
-            printf "%32s: %10s %10s\n", $name, $value, $delta;
-	}
+        printf "%32s: %10s %10s\n", $name, $value, $delta;
         print RESET() if $HAS_COLOR;
 
         $statcache{$name} = $value;
@@ -1703,12 +1713,11 @@ sub trim($)
 sub PrintHelp()
 {
     my $help = qq[
-Help for mytop version $main::VERSION by Mark Grennan <${YELLOW}Mark\@Grennan.com${RESET}>
-Origional work by Jeremy D. Zawodny <${YELLOW}Jeremy\@Zawodny.com${RESET}>
+Help for mytop version $main::VERSION by Jeremy D. Zawodny <${YELLOW}Jeremy\@Zawodny.com${RESET}>
+ with updates by Mark Grennan <${YELLOW}mark\@grennan.com${RESET}>
 
   ? - display this screen
   # - toggle short/long numbers (not yet implemented)
-  ! - force past replication error
   c - command summary view (based on Com_* counters)
   C - turn color on and off
   d - show only a specific database
@@ -1733,8 +1742,9 @@ Origional work by Jeremy D. Zawodny <${YELLOW}Jeremy\@Zawodny.com${RESET}>
   S - change slow quiery hightlighting
   t - switch to thread view (default)
   u - show only a specific user
-  V - show variablesi
+  V - show variables
   : - enter a command (not yet implemented)
+  ! - Skip an error that has stopped replications (at your own risk)
   L - show full queries (do not strip to terminal width)
 
 Base version from ${GREEN}http://www.mysqlfanboy.com/mytop${RESET}
@@ -2317,11 +2327,8 @@ having the User column appear, for example.
 mytop was developed and is maintained by Jeremy D. Zawodny
 (Jeremy@Zawodny.com).
 
-(Mark Grennan) After weeks and months of trying to get Jeremy's 
-attention I desided to release my own update to mytop.  I use it 
-every day as a part of my job.  Thanks Jeremy for creating mytop.  
-I hope you find my updates as helpful as I have.  I can be 
-reached at (Mark@Grennan.com).
+If you wish to e-mail me regarding this software, B<PLEASE> subscribe
+to the B<mytop> mailing list.  See the B<mytop> homepage for details.
 
 =head1 DISCLAIMER
 
@@ -2329,12 +2336,6 @@ While I use this software in my job at Yahoo!, I am solely responsible
 for it. Yahoo! does not necessarily support this software in any
 way. It is merely a personal idea which happened to be very useful in
 my job.
-
-=head1 RECRUITING
-
-If you hack Perl and grok MySQL, come work at Yahoo! Contact me for
-details. Or just send me your resume. Er, unless we just had layoffs,
-in which case we're not hiring. :-(
 
 =head1 SEE ALSO
 
@@ -2344,7 +2345,6 @@ output of B<mytop> is coming from.
 =head1 COPYRIGHT
 
 Copyright (C) 2000-2010, Jeremy D. Zawodny.
-Copyright (C) 2010, Mark T. Grennan.
 
 =head1 CREDITS
 
@@ -2357,6 +2357,15 @@ Many thanks go to these fine folks:
 =Item Jean Weisbuch
 
 Added --fullqueries and reading of .my.cnf
+
+=item Mark Grennan (mark@grennan.com) www.linuxfangoy.com
+
+Added updates for MySQL 5.x. Added 'S' (slow) highlighting.
+Added 'C' to turn on and off Color. Added 'l' command to change
+color for long running queries. Fixed a few documentation issues.
+Monitors Slave status. Added color to Queue hit ratio.
+Added number of rows sorted per second.
+Created release 1.7.
 
 =item Sami Ahlroos (sami@avis-net.de)
 
