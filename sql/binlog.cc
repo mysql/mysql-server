@@ -26,6 +26,7 @@
 #include "rpl_utility.h"
 #include "debug_sync.h"
 #include "global_threads.h"
+#include "sql_show.h"
 #include "sql_parse.h"
 #include "rpl_mi.h"
 #include <list>
@@ -1566,11 +1567,11 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   int error= 1;
 
   String log_query;
-  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append("`") ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-      log_query.append("`"))
+  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")))
     DBUG_RETURN(error);
+  else
+    append_identifier(thd, &log_query, thd->lex->ident.str,
+                      thd->lex->ident.length);
 
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
