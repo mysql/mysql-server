@@ -48,12 +48,12 @@ exports.loadRequiredModules = function() {
       msg += 
       "  This module has been built, but was not succesfully loaded.  Perhaps \n" +
       "  setting " + ldp + " to the mysql lib directory (containing \n" +
-      "  libndbclient) will resolve the problem.\n";
+      "  libndbclient) will resolve the problem.\n\n";
     }
     else {
       msg += 
       "  For help building the module, run " + 
-      "\"setup/build.sh\" or \"npm install .\"\n";
+      "\"setup/build.sh\" or \"npm install .\"\n\n";
     }
     msg += "Original error: " + e.message;
     err = new Error(msg);
