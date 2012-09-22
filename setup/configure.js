@@ -147,9 +147,9 @@ function main() {
   var text = build_prompt(candidates);
   var rl = readline.createInterface(process.stdin, process.stdout);
   
-  function hangup(code) {
+  function hangup() {
     rl.close();
-    process.exit(code);
+    process.exit(-1);
   }
 
   function onEntry(choice) {
@@ -162,7 +162,7 @@ function main() {
       rl.prompt();
     }
     else if(num === range) {  // skip
-      hangup(1);
+      hangup();
     }
     else if(num === (range - 1)) {   // custom
       configure("-interactive-");
