@@ -361,6 +361,27 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
       DBUG_RETURN(err_default);
     }
 
+    {
+      /**
+       * Check that columns match...this happens to be same
+       *   condition as the one for SPJ...
+       */
+      for (unsigned i = 0; parentcols[i] != 0; i++)
+      {
+        if (parentcols[i]->isBindable(* childcols[i]) == -1)
+        {
+          push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                              ER_CANNOT_ADD_FOREIGN,
+                              "Parent column %s.%s is incompatible with child column %s.%s in NDB",
+                              parent_tab.get_table()->getName(),
+                              parentcols[i]->getName(),
+                              child_tab.get_table()->getName(),
+                              childcols[i]->getName());
+          DBUG_RETURN(err_default);
+        }
+      }
+    }
+
     NdbDictionary::ForeignKey ndbfk;
     if (!isnull(fk->name))
     {
