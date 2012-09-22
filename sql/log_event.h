@@ -5013,6 +5013,21 @@ inline void do_server_version_split(char* version, uchar split_versions[3])
   }
 }
 
+#ifdef MYSQL_SERVER
+/*
+  This is an utility function that adds a quoted identifier into the a buffer.
+  This also escapes any existance of the quote string inside the identifier.
+ */
+size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
+                                   const char* identifier,
+                                   uint length);
+#else
+size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
+#endif
+size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
+                                          const char* identifier,
+                                          uint length);
+
 /**
   @} (end of group Replication)
 */
