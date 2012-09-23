@@ -134,14 +134,23 @@ t5.run = function() {
 t6 = new harness.ConcurrentTest("testRollbackWithoutBegin");
 t6.run = function() {
   var testCase = this;
+  var t6OnRollback = function(err) {
+    if (err) {
+      // good
+      try {
+        tx.rollback();
+        testCase.fail(new Error('Rollback without begin should fail.'));
+      } catch (err) {
+        testCase.pass();
+      }
+    } else {
+      // failed to signal an error
+      testCase.fail(new Error('Rollback without begin should fail.'));
+    }
+  };
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
-    try {
-      tx.rollback();
-      testCase.fail(new Error('Rollback without begin should fail.'));
-    } catch (err) {
-      testCase.pass();
-    }
+    tx.rollback(t6OnRollback);
   });
 };
 
@@ -150,16 +159,25 @@ t6.run = function() {
 t7 = new harness.ConcurrentTest("testCommitWithRollbackOnly");
 t7.run = function() {
   var testCase = this;
+  var t7OnCommit = function(err) {
+    if (err) {
+      // good
+      try {
+        tx.rollback();
+        testCase.fail(new Error('Commit with RollbackOnly and no callback should throw.'));
+      } catch (err) {
+        testCase.pass();
+      }
+    } else {
+      // failed to signal an error
+      testCase.fail(new Error('Commit with RollbackOnly should fail.'));
+    }
+  };
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
     tx.begin();
     tx.setRollbackOnly();
-    try {
-      tx.commit();
-      testCase.fail(new Error('Commit with rollback only should fail.'));
-    } catch (err) {
-      testCase.pass();
-    }
+    tx.commit(t7OnCommit);
   });
 };
 
@@ -197,6 +215,69 @@ t9.run = function() {
   });
 };
 
+t10 = new harness.SerialTest("testCommit");
+t10.run = function() {
+  var testCase = this;
+  
+  var t10OnFind = function(err, found) {
+    if (found.id === 1000) {
+      testCase.pass();  
+    } else {
+      testCase.fail('Failed to find 1000');
+    }
+  };
+  
+  var t10OnCommit = function(err, session, persisted) {
+    session.find(t_basic, 1000, fail_verify_t_basic, 1000, testCase, false); // should succeed
+  };
+  
+  var t10OnPersist = function(err, session, tx, persisted) {
+    tx.commit(t10OnCommit, session, persisted);
+  };
+  
+  var t10OnSession = function(session) {
+    var tx = session.currentTransaction();
+    tx.begin();
+    var instance = new t_basic(1000, "Employee 1000", 1000, 1000);
+    session.persist(instance, t10OnPersist, session, tx, instance);
+  };
+  fail_openSession(testCase, t10OnSession);
+};
 
+t11 = new harness.SerialTest("testRollback");
+t11.run = function() {
+  var testCase = this;
+  
+  var t11OnClose = function(err, found, session) {
+    if (found === null) {
+      testCase.pass();  
+    } else {
+      testCase.fail('Found 1100 which was supposed to be rolled back.');
+    }
+  };
+  var t11OnFind = function(err, found, session) {
+    session.close(t11OnClose, found, session);
+  };
+  
+  var t11OnRollback = function(err, session, persisted) {
+    if (err) {
+      testCase.fail(err);
+    } else {
+      session.find(t_basic, 1100, t11OnFind, session); // should fail
+    }
+  };
+  
+  var t11OnPersist = function(err, session, tx, persisted) {
+    tx.rollback(t11OnRollback, session, persisted);
+  };
+  
+  var t11OnSession = function(session) {
+    var tx = session.currentTransaction();
+    tx.begin();
+    var instance = new t_basic(1100, "Employee 1100", 1100, 1100);
+    session.persist(instance, t11OnPersist, session, tx, instance);
+  };
+  fail_openSession(testCase, t11OnSession);
+};
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9];
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11];

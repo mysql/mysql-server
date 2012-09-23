@@ -499,6 +499,7 @@ Result.prototype.skip = function(t, reason) {
 var runSQL = function(sqlPath, source, callback) {  
 
   function childProcess(error, stdout, stderr) {
+    udebug.log('harness runSQL process completed.');
     udebug.log(source + ' stdout: ' + stdout);
     udebug.log(source + ' stderr: ' + stderr);
     if (error !== null) {
@@ -510,7 +511,7 @@ var runSQL = function(sqlPath, source, callback) {
       callback(error);  
     }
   }
-
+  udebug.log('harness runSQL forking process...');
   var child = exec('mysql <' + sqlPath, childProcess);
 };
 
