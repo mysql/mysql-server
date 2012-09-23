@@ -44,6 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 #endif /* UNIV_BLOB_DEBUG */
+#include "sync0sync.h"
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */

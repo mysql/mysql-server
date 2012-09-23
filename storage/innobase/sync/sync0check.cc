@@ -37,6 +37,7 @@ Created 2012-08-21 Sunny Bains
 
 #include "sync0rw.h"
 #include "sync0mutex.h"
+#include "sync0sync.h"
 
 // FIXME: Get rid of this
 #include "srv0start.h"

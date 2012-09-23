@@ -98,6 +98,7 @@ TTASWaitMutex<Policy>::signal() UNIV_NOTHROW
 	sync_array_object_signalled();
 }
 
+#if 0
 #include "sync0sync.h"
 
 /**
@@ -117,3 +118,4 @@ void PolicyMutex<MutexImpl>::init(
 	m_impl.init(name);
 	m_impl.m_policy.init(m_impl, name, filename, line);
 }
+#endif
