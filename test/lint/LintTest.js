@@ -95,10 +95,10 @@ exports.tests.push(smokeTest);
 // ****** SOURCES FILES TO CHECK ********** //
 
 checkSource("impl/common/DBTableHandler.js");
-checkSource("impl/common/UserContext.js");
+//checkSource("impl/common/UserContext.js");
 
 checkSource("impl/mysql/mysql_service_provider.js");
-checkSource("impl/mysql/MySQLConnectionPool.js");
+//checkSource("impl/mysql/MySQLConnectionPool.js");
 checkSource("impl/mysql/MySQLConnection.js");
 //checkSource("impl/mysql/MySQLDictionary.js");
 
@@ -122,8 +122,9 @@ checkSource("api/TableMapping.js");
 // ****** TEST FILES TO CHECK ********** //
 checkTest("lint/LintTest.js");
 
-checkTest("Driver.js");
-checkTest("harness.js");
+checkTest("driver.js");
+checkTest("lib/harness.js");
+checkTest("lib/test_properties.js");
 checkTest("spi/SmokeTest.js");
 checkTest("spi/DBServiceProviderTest.js");
 checkTest("spi/DBConnectionPoolTest.js");
