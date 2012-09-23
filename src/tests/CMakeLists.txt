@@ -27,6 +27,7 @@ if(BUILD_TESTING)
   if(BDB_FOUND)
     set(bdb_dontrun_srcs
       backwards_10_each_le_and_msg
+      blackhole
       blocking-prelock-range
       blocking-set-range-reverse-0
       blocking-table-lock
