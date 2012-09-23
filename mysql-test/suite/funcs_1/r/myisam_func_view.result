@@ -386,7 +386,7 @@ my_varbinary_1000, id FROM t1_values
 WHERE select_id = 187 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_varbinary_1000`) AS `LOWER(my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lower(`t1_values`.`my_varbinary_1000`) AS `LOWER(my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 187 OR select_id IS NULL) order by id;
@@ -400,7 +400,7 @@ my_binary_30, id FROM t1_values
 WHERE select_id = 186 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_binary_30`) AS `LOWER(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lower(`t1_values`.`my_binary_30`) AS `LOWER(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 186 OR select_id IS NULL) order by id;
@@ -414,7 +414,7 @@ my_varchar_1000, id FROM t1_values
 WHERE select_id = 185 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_varchar_1000`) AS `LOWER(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lower(`t1_values`.`my_varchar_1000`) AS `LOWER(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 185 OR select_id IS NULL) order by id;
@@ -428,7 +428,7 @@ my_char_30, id FROM t1_values
 WHERE select_id = 184 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_char_30`) AS `LOWER(my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lower(`t1_values`.`my_char_30`) AS `LOWER(my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 184 OR select_id IS NULL) order by id;
@@ -1094,7 +1094,7 @@ my_varchar_1000, id FROM t1_values
 WHERE select_id = 144 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_varchar_1000`) AS `LCASE(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lower(`t1_values`.`my_varchar_1000`) AS `LCASE(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 144 OR select_id IS NULL) order by id;
