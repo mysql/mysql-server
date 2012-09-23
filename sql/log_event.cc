@@ -5738,7 +5738,7 @@ uint Load_log_event::get_query_buffer_length()
 void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
                                  char **end, char **fn_start, char **fn_end)
 {
-  char quoted_id[1 + NAME_LEN * 2 + 2];//quoted  length 
+  char quoted_id[1 + NAME_LEN * 2 + 2];//quoted  length
   int  quoted_id_len= 0;
   char *pos= buf;
 
