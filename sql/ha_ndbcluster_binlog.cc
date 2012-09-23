@@ -1307,7 +1307,7 @@ int ndbcluster_log_schema_op(THD *thd, NDB_SHARE *share,
                                             new_table_name, 0);
     quoted_table2[id_length]= '\0';
     query_length= (uint) (strxmov(tmp_buf2, "rename table ",
-                                  quoted_db1, ".", quoted_table_1, " to ",
+                                  quoted_db1, ".", quoted_table1, " to ",
                                   quoted_db2, ".", quoted_table2, NullS) - tmp_buf2);
     type_str= "rename table";
     break;
