@@ -881,16 +881,16 @@ pfs_register_buffer_block(
 /*======================*/
 	buf_chunk_t*	chunk)		/*!< in/out: chunk of buffers */
 {
-	ulint		i;
-	ulint		num_to_register;
 	buf_block_t*    block;
+	ulint		num_to_register;
 
 	block = chunk->blocks;
 
-	num_to_register = ut_min(chunk->size,
-				 PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
+	num_to_register = ut_min(
+		chunk->size, PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
 
-	for (i = 0; i < num_to_register; i++) {
+#if 0
+	for (ulint i = 0; i < num_to_register; i++) {
 		BPageMutex*	mutex;
 		rw_lock_t*	rwlock;
 
@@ -921,6 +921,7 @@ pfs_register_buffer_block(
 #  endif /* UNIV_PFS_RWLOCK */
 		block++;
 	}
+#endif
 }
 # endif /* PFS_GROUP_BUFFER_SYNC */
 
@@ -984,8 +985,6 @@ buf_block_init(
 # endif /* UNIV_SYNC_DEBUG */
 
 #else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
-
-	mutex_create("buf_block_mutex", &block->mutex);
 
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
 

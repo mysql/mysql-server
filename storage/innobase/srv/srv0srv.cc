@@ -67,6 +67,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
 #include "ut0crc32.h"
+#include "sync0sync.h"
 
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"

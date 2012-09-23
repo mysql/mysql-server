@@ -45,36 +45,38 @@ struct POSIXMutex {
 	}
 
 	/** Initialise the mutex. */
-	void init(const char* name = 0) UNIV_NOTHROW
+	void init(
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		int	ret;
 
 		ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
 		ut_a(ret == 0);
 		ut_d(m_locked = false);
+
+		m_policy.init(*this, name, filename, line);
 	}
 	
 	/** Destroy the mutex */
 	void destroy() UNIV_NOTHROW
 	{
-		int	ret;
-
 		ut_ad(!m_locked);
-		ret = pthread_mutex_destroy(&m_mutex);
+		int	ret = pthread_mutex_destroy(&m_mutex);
 		ut_a(ret == 0);
-		/* The destructor can be called at shutdown. */
+
+		m_policy.destroy();
 	}
 
 	/** Release the muytex. */
 	void exit() UNIV_NOTHROW
 	{
-		int	ret;
-
 		ut_ad(m_locked);
 		ut_d(m_locked = false);
 
 		// FIXME: Do we check for EINTR?
-		ret = pthread_mutex_unlock(&m_mutex);
+		int	ret = pthread_mutex_unlock(&m_mutex);
 		ut_a(ret == 0);
 	}
 
@@ -148,9 +150,13 @@ struct Futex {
 	}
 
 	/** Initialise the mutex. */
-	void init(const char* name = 0) UNIV_NOTHROW
+	void init(
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
+		m_policy.init(*this, name, filename, line);
 	}
 
 	/** Destroy the mutex. */
@@ -158,6 +164,7 @@ struct Futex {
 	{
 		/* The destructor can be called at shutdown. */
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
+		m_policy.destroy();
 	}
 
 	/** Acquire the mutex. */
@@ -323,9 +330,13 @@ struct TTASMutex {
 	}
  
 	/** Initialise the mutex. */
-	void init(const char* name = 0) UNIV_NOTHROW
+	void init(
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
+		m_policy.init(*this, name, filename, line);
 	}
 
 	/** Destroy the mutex. */
@@ -333,6 +344,7 @@ struct TTASMutex {
 	{
 		/* The destructor can be called at shutdown. */
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
+		m_policy.destroy();
 	}
 
  	/** Try and lock the mutex. Note: POSIX returns 0 on success.
@@ -454,9 +466,7 @@ struct TTASWaitMutex {
 		:
 		m_event(),
 		m_waiters(),
-		m_lock_word(MUTEX_STATE_UNLOCKED),
-		m_file(__FILE__),
-		m_line(__LINE__)
+		m_lock_word(MUTEX_STATE_UNLOCKED)
 	{
 		/* Check that lock_word is aligned. */
 		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
@@ -469,12 +479,17 @@ struct TTASWaitMutex {
 	}
  
 	/** Initialise the mutex. */
-	void init(const char* name = 0) UNIV_NOTHROW
+	void init(
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		ut_a(m_event == 0);
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
 
 		m_event = os_event_create(name);
+
+		m_policy.init(*this, name, filename, line);
 	}
 
 	/**
@@ -488,6 +503,8 @@ struct TTASWaitMutex {
 		/* We have to free the event before InnoDB shuts down. */
 		os_event_free(m_event);
 		m_event = 0;
+
+		m_policy.destroy();
 	}
 
  	/** Try and lock the mutex. Note: POSIX returns 0 on success.
@@ -522,9 +539,6 @@ struct TTASWaitMutex {
  	/** Acquire the mutex. */
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
-		m_file = filename;
-		m_line = line;
-
 		/* Note that we do not peek at the value of m_lock_word
 		before trying the atomic test_and_set; we could peek,
 		and possibly save time. */
@@ -697,8 +711,6 @@ private:
 	when atomic operations are enabled. */
 	volatile lock_word_t	m_lock_word;
 
-	const char*		m_file;
-	ulint			m_line;
 public:
 	/** Policy data */
 
@@ -764,12 +776,14 @@ struct PolicyMutex
 	@param filename - file where created
 	@param line - line number in file where created */
 	void init(const char* name, const char* filename, ulint line)
-		UNIV_NOTHROW;
+		UNIV_NOTHROW
+	{
+		m_impl.init(name, filename, line);
+	}
 
 	/** Free resources (if any) */
 	void destroy() UNIV_NOTHROW
 	{
-		m_impl.m_policy.destroy();
 		m_impl.destroy();
 	}	
 
