@@ -1,5 +1,5 @@
 
-require ("../test_config.js");
+require ("../../Adapter/adapter_config.js");
 var doc_parser = require("./doc_parser.js");
 
 var list_file;

@@ -20,7 +20,7 @@
 
 var spi        = require(spi_module),
     service    = spi.getDBServiceProvider(global.adapter),
-    properties = service.getDefaultConnectionProperties(),
+    properties = global.test_conn_properties,
     udebug     = unified_debug.getLogger("spi/lib.js");
     
 var spi_test_connection = null;
@@ -28,6 +28,11 @@ var spi_test_connection = null;
 
 exports.getConnectionPool = function(userCallback) {
   udebug.log("getConnectionPool");
+
+  var p = global.test_conn_properties;
+  if(p) {
+    // todo: merge 
+  }
 
   function onConnect(err, conn) {
     udebug.log("getConnectionPool onConnect");    

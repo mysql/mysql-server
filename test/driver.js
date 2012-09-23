@@ -18,12 +18,19 @@
  02110-1301  USA
  */
 
-/*global path, fs, assert, util, harness, unified_debug, mynode, driver_dir */
+/*global path, fs, suites_dir, api_module, harness, unified_debug, mynode */
 
 "use strict";
 
-require("./test_config.js");
+// Setup globals:
+require("../Adapter/adapter_config.js");
+global.suites_dir = __dirname;
+global.harness    = require(path.join(suites_dir, "lib", "harness"));
+global.mynode     = require(api_module);
+global.adapter    = "ndb";
 
+var tprops = require(path.join(suites_dir, "lib", "test_properties"));
+var stream = require("stream");
 var udebug = unified_debug.getLogger("Driver.js");
 
 /** Driver 
@@ -91,6 +98,8 @@ Driver.prototype.reportResultsAndExit = function() {
   process.exit(this.result.failed.length > 0);
 };
 
+//// END OF DRIVER
+
 
 /*****************************************************************************
  ********************** main process *****************************************
@@ -112,7 +121,7 @@ var usageMessage =
   "      --file=<file>: only run the named test file\n" +
   "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
   "       --timer=<ms>: set timeout (in msec); set to 0 to disable timer.\n" +
-  "--set <var>=<value>: set a global variable, overriding test_config.js\n"
+  "--set <var>=<value>: set a global variable\n"
   ;
 
 // handle command line arguments
@@ -183,8 +192,11 @@ if (exit) {
   process.exit(0);
 }
 
+// Now that global.adapter is set, get connection properties 
+global.test_conn_properties = tprops.connectionProperties();
 
-driver.findSuites(driver_dir);
+// Find suites
+driver.findSuites(suites_dir);
 udebug.log('suites found', driver.suites.length);
 
 driver.suites.forEach(function(suite) {
