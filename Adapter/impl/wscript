@@ -7,6 +7,7 @@ def configure(conf):
   conf.env.append_unique("LIBPATH", conf.env.my_lib)
   conf.recurse("test")
 
+# note: removed src/Recode.cpp
 def build(ctx):  
   obj = ctx.new_task_gen("cxx", "shlib", "node_addon")
   obj.target = "ndb_adapter"
@@ -20,7 +21,6 @@ def build(ctx):
   "src/unified_debug.cpp " +\
   \
   "src/Record.cpp " +\
-  "src/Recode.cpp " +\
   "src/Operation.cpp " +\
   "src/DBOperationHelper.cpp " +\
   "src/DBSessionImpl.cpp " + \
