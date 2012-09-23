@@ -30,6 +30,7 @@ function Session(index, sessionFactory, dbSession) {
   this.index = index;
   this.sessionFactory = sessionFactory;
   this.dbSession = dbSession;
+  this.dbSession.index = index;
   this.closed = false;
   this.tx = new transaction.Transaction(this);
 }
@@ -59,7 +60,7 @@ exports.Session.prototype.find = function() {
 
 
 exports.Session.prototype.load = function() {
-  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
   // delegate to context's load function for execution
   context.load();
 };
@@ -94,11 +95,8 @@ exports.Session.prototype.save = function() {
 
 
 exports.Session.prototype.close = function() {
-  // delegate to db session close to clean up (actually close or return to pool)
-  this.dbSession.close(this.index);
-  // remove this session from session factory
-  this.sessionFactory.closeSession(this.index);
-  this.closed = true;
+  var context = new userContext.UserContext(arguments, 1, 1, this, this.sessionFactory);
+  context.closeSession();
 };
 
 

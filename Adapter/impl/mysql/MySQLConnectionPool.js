@@ -58,24 +58,30 @@ function getDriverProperties(props) {
 /* Constructor saves properties but doesn't actually do anything with them.
 */
 exports.DBConnectionPool = function(props) {
-  udebug.log("constructor");
   this.driverproperties = getDriverProperties(props);
+  udebug.log('MySQLConnectionPool constructor with driverproperties: ' + util.inspect(this.driverproperties));
   // connections not being used at the moment
   this.pooledConnections = [];
-  // connections being used (wrapped by DBSession)
+  // connections that are being used (wrapped by DBSession)
   this.openConnections = [];
-//  this.dbconn = mysql.createConnection(this.driverproperties);
   this.is_connected = false;
 };
 
 
 exports.DBConnectionPool.prototype.connectSync = function() {
   var pooledConnection;
+
   if (this.is_connected) {
     return;
   }
   pooledConnection = mysql.createConnection(this.driverproperties);
-  pooledConnection.connect();
+  if (typeof(pooledConnection) === 'undefined') {
+    throw new Error('Fatal internal exception: got undefined pooledConnection for createConnection');
+  }
+  if (pooledConnection === null) {
+    throw new Error('Fatal internal exception: got null pooledConnection for createConnection');
+  }
+  
   this.pooledConnections[0] = pooledConnection;
   this.is_connected = true;
 };
@@ -89,7 +95,6 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     udebug.log('MySQLConnectionPool.connect is already connected');
     callback(null);
   } else {
-//    connectionPool = this;
     pooledConnection = mysql.createConnection(this.driverproperties);
     pooledConnection.connect(function(err) {
     if (err) {
@@ -132,6 +137,16 @@ exports.DBConnectionPool.prototype.isConnected = function() {
   return this.is_connected;
 };
 
+var countOpenConnections = function(connectionPool) {
+  var i, count = 0;
+  for (i = 0; i < connectionPool.openConnections.length; ++i) {
+    if (connectionPool.openConnections[i] !== null) {
+      count++;
+    }
+  }
+  return count;
+};
+
 exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   // get a connection from the pool
   var pooledConnection = null;
@@ -139,25 +154,42 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   var newDBSession = null;
 
   if (this.pooledConnections.length > 0) {
+    udebug.log_detail('MySQLConnectionPool.getDBSession before found a pooledConnection for index ' + index + ' in connectionPool; ', 
+        ' pooledConnections:', connectionPool.pooledConnections.length,
+        ' openConnections: ', countOpenConnections(connectionPool));
     // pop a connection from the pool
     pooledConnection = connectionPool.pooledConnections.pop();
     newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
-    connectionPool.openConnections[index] = newDBSession;
+    connectionPool.openConnections[index] = pooledConnection;
+    udebug.log_detail('MySQLConnectionPool.getDBSession after found a pooledConnection for index ' + index + ' in connectionPool; ', 
+        ' pooledConnections:', connectionPool.pooledConnections.length,
+        ' openConnections: ', countOpenConnections(connectionPool));
     callback(null, newDBSession);
   } else {
-    // create a new connection
+    // create a new pooled connection
     var connected_callback = function(err) {
       newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
-      connectionPool.openConnections[index] = newDBSession;
-      udebug.log('getDBSession', 
-                 ' pooledConnections:', connectionPool.pooledConnections.length,
-                 ' openConnections: ', connectionPool.openConnections.length);
+      connectionPool.openConnections[index] = pooledConnection;
+      udebug.log_detail('MySQLConnectionPool.getDBSession created a new pooledConnection for index ' + index + ' ; ', 
+          ' pooledConnections:', connectionPool.pooledConnections.length,
+          ' openConnections: ', countOpenConnections(connectionPool));
       
       callback(err, newDBSession);
     };
+    // create a new connection
     pooledConnection = mysql.createConnection(this.driverproperties);
     pooledConnection.connect(connected_callback);
   }
+};
+
+exports.DBConnectionPool.prototype.returnPooledConnection = function(index) {
+throw new Error('Fatal internal exception: returnPooledConnection is not supported.');
+var pooledConnection = this.openConnections[index];
+  this.openConnections[index] = null;
+  this.pooledConnections.push(pooledConnection);
+  udebug.log('MySQLConnectionPool.returnPooledConnection; ', 
+      ' pooledConnections:', this.pooledConnections.length,
+      ' openConnections: ', countOpenConnections(this));
 };
 
 exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tableName, dbSession, user_callback) {
@@ -176,6 +208,9 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
       var metadataHandlerOnTableMetadata = function(err, tableMetadata) {
         udebug.log_detail('getTableMetadataHandler.metadataHandlerOnTableMetadata');
         // put back the pooledConnection
+        if (typeof(pooledConnection) === 'undefined' || pooledConnection === null) {
+          throw new Error('Fatal internal exception: got null for pooledConnection');
+        }
         metadataHandler.dbConnectionPool.pooledConnections.push(pooledConnection);
         metadataHandler.user_callback(err, tableMetadata);
       };
@@ -231,6 +266,12 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
       var listTablesHandlerOnTableList = function(err, tableList) {
         udebug.log_detail('listTablesHandler.listTablesHandlerOnTableList');
         // put back the pooledConnection
+        if (typeof(listTablesHandler.pooledConnection) === 'undefined') {
+          throw new Error('Fatal internal exception: got undefined pooledConnection for createConnection');
+        }
+        if (listTablesHandler.pooledConnection === null) {
+          throw new Error('Fatal internal exception: got null pooledConnection for createConnection');
+        }
         listTablesHandler.dbConnectionPool.pooledConnections.push(listTablesHandler.pooledConnection);
         listTablesHandler.user_callback(err, tableList);
       };

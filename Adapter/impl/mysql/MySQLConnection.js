@@ -33,11 +33,17 @@ exports.DBSession = function(pooledConnection, connectionPool) {
   if (arguments.length !== 2) {
     throw new Error('Fatal internal exception: expected 2 arguments; got ' + arguments.length);
   } else {
+    if (typeof(pooledConnection) === 'undefined') {
+      throw new Error('Fatal internal exception: got undefined for pooledConnection');
+    }
     if (pooledConnection === null) {
       throw new Error('Fatal internal exception: got null for pooledConnection');
     }
     this.pooledConnection = pooledConnection; 
     this.connectionPool = connectionPool;
+    this.transactionHandler = null;
+    this.autocommit = true;
+    this.index = -1;
   }
 };
 
@@ -47,12 +53,44 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.isOpen = true;
   this.dbSession = dbSession;
   this.executedOperations = [];
+  this.firstTime = !dbSession.autocommit;
+  this.autocommit = dbSession.autocommit;
 
-  this.execute = function(type, callback) {
-    var err = new Error('not implemented: MySQLConnection.TransactionHandler.execute');
-    callback(err, this);
+  this.execute = function(operationsList, transactionExecuteCallback) {
+    transactionHandler = this;
+    transactionHandler.list = operationsList;
+    transactionHandler.callback = transactionExecuteCallback;
+    
+    var executeOperations = function() {
+      transactionHandler.isCommitting = false;
+      transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
+      transactionHandler.numberOfOperations = operationsList.length;
+      operationsList.forEach(function(operation) {
+        if (transactionHandler.dbSession.pooledConnection === null) {
+          throw new Error('Fatal internal exception: got null for pooledConnection');
+        }
+        operation.execute(transactionHandler.dbSession.pooledConnection, operationCompleteCallback);
+      });
+    };
+
+    var executeOnBegin = function(err) {
+      if (err) {
+        callback(err);
+      }
+      this.firstTime = false;
+      executeOperations();
+    };
+    // execute begin operation the first time for non-autocommit
+    if (this.firstTime) {
+      this.dbSession.pooledConnection.query('begin', executeOnBegin);
+    } else {
+      executeOperations();
+    }
   };
 
+  this.executeCommit = this.execute;
+  this.executeNoCommit = this.execute;
+  
   this.close = function() {
   };
 
@@ -65,40 +103,38 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
       if (typeof(transactionHandler.transactionExecuteCallback) === 'function') {
         transactionHandler.transactionExecuteCallback(null, transactionHandler);
       }
+      // if we committed the transaction, tell dbSession we are gone
+      if (transactionHandler.isCommitting) {
+        transactionHandler.dbSession.transactionHandler = null;
+      }
     } else {
       udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback ' +
           ' completed ' + complete + ' of ' + transactionHandler.numberOfOperations);
     }
   }
 
-  this.executeNoCommit = function(operationsList, transactionExecuteCallback) {
-    transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
-    transactionHandler.numberOfOperations = operationsList.length;
-    operationsList.forEach(function(operation) {
-      if (transactionHandler.dbSession.pooledConnection === null) {
-        throw new Error('Fatal internal exception: got null for pooledConnection');
-      }
-      operation.execute(transactionHandler.dbSession.pooledConnection, operationCompleteCallback);
-    });
+  this.commit = function(callback) {
+    udebug.log('MySQLConnection.TransactionHandler.commit.');
+    this.dbSession.pooledConnection.query('commit', callback);
   };
 
-  this.executeCommit = function(operationsList, transactionExecuteCallback) {
-    transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
-    transactionHandler.numberOfOperations = operationsList.length;
-    operationsList.forEach(function(operation) {
-      if (transactionHandler.dbSession.pooledConnection === null) {
-        throw new Error('Fatal internal exception: got null for pooledConnection');
-      }
-      operation.execute(transactionHandler.dbSession.pooledConnection, operationCompleteCallback);
-    });
+  this.rollback = function(callback) {
+    udebug.log('MySQLConnection.TransactionHandler.rollback.');
+    this.dbSession.pooledConnection.query('rollback', callback);
   };
-
 };
 
 
 exports.DBSession.prototype.createTransaction = function() {
-  var transactionHandler = new this.TransactionHandler(this);
-  return transactionHandler;
+  this.transactionHandler = new this.TransactionHandler(this);
+  return this.transactionHandler;
+};
+
+exports.DBSession.prototype.getTransaction = function() {
+  if (this.transactionHandler === null) {
+    this.createTransaction();
+  }
+  return this.transactionHandler;
 };
 
 exports.DBSession.translateError = function(code) {
@@ -510,6 +546,22 @@ udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
 return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
 };
 
+exports.DBSession.prototype.begin = function() {
+  udebug.log('dbSession.begin');
+  this.autocommit = false;
+  this.transactionHandler = new this.TransactionHandler(this);
+  this.transactionHandler.autocommit = false;
+};
+
+exports.DBSession.prototype.commit = function(callback) {
+  this.transactionHandler.commit(callback);
+  this.autocommit = true;
+};
+
+exports.DBSession.prototype.rollback = function(callback) {
+  this.transactionHandler.rollback(callback);
+  this.autocommit = true;
+};
 
 exports.DBSession.prototype.closeSync = function() {
   if (this.pooledConnection) {
@@ -520,9 +572,12 @@ exports.DBSession.prototype.closeSync = function() {
 
 
 exports.DBSession.prototype.close = function(callback) {
+  udebug.log('MySQLConnection.close');
   if (this.pooledConnection) {
+    // TODO put the pooled connection back into the pool instead of ending it
     this.pooledConnection.end();
     this.pooledConnection = null;
+    this.connectionPool.pooledConnections[this.index] = null;
   }
   if (callback) {
     callback(null, null);
