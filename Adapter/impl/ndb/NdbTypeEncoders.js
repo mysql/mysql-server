@@ -22,7 +22,7 @@
 
 "use strict";
 
-var util = require(path.join(build_dir, "ndb_adapter.node")).ndb.util,
+var // util = require(path.join(build_dir, "ndb_adapter.node")).ndb.util,
     // charsetMap = null,
     udebug     = unified_debug.getLogger("NdbTypeEncoders.js");
 
