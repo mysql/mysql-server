@@ -136,7 +136,7 @@ static void simple_deadlock(DB_ENV *db_env) {
     int r;
     int deadlock_count = 0;
 
-    struct test_seq test_seq; test_seq_init(&test_seq);
+    struct test_seq test_seq; ZERO_STRUCT(test_seq); test_seq_init(&test_seq);
 
     toku_pthread_t tid_a;
     struct locker_args args_a = { db_env, &test_seq, &deadlock_count };
