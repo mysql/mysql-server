@@ -33,7 +33,6 @@
 using namespace v8;
 
 
-/******* DISABLED DUE TO LINKER ERRORS
 Envelope CharsetMapEnv("CharsetMap");
 
 extern Handle<Value> CharsetMap_recode_in(const Arguments &);
@@ -162,7 +161,6 @@ Handle<Value> CharsetMap_isMultibyte(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-**************/
 Handle<Value>  decimal_str2bin_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
@@ -209,8 +207,6 @@ void Ndb_util_initOnLoad(Handle<Object> target) {
   DEFINE_JS_CONSTANT(target, E_DEC_OOM);
   DEFINE_JS_CONSTANT(target, E_DEC_BAD_PREC);
   DEFINE_JS_CONSTANT(target, E_DEC_BAD_SCALE);
-
-/** DISABLED ** 
   DEFINE_JS_INT(target, "RECODE_OK", CharsetMap::RECODE_OK );
   DEFINE_JS_INT(target, "RECODE_BAD_CHARSET",CharsetMap::RECODE_BAD_CHARSET);
   DEFINE_JS_INT(target, "RECODE_BAD_SRC", CharsetMap::RECODE_BAD_SRC);
@@ -229,6 +225,5 @@ void Ndb_util_initOnLoad(Handle<Object> target) {
   DEFINE_JS_METHOD(JSCharsetMap, "getUTF16CharsetNumber", CharsetMap_getUTF16CharsetNumber);
   DEFINE_JS_METHOD(JSCharsetMap, "isMultibyte", CharsetMap_isMultibyte);
   DEFINE_JS_CONSTRUCTOR(target, "CharsetMap", JSCharsetMap);
-**/  
 }
 
