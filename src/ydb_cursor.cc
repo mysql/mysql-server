@@ -41,9 +41,6 @@ ydb_c_layer_get_status(YDB_C_LAYER_STATUS statp) {
 }
 
 
-/* lightweight cursor methods. */
-static int toku_c_getf_current_binding(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra);
-
 //Get the main portion of a cursor flag (excluding the bitwise or'd components).
 static int 
 get_main_cursor_flag(uint32_t flags) {
@@ -81,15 +78,6 @@ c_get_wrapper_callback(DBT const *key, DBT const *val, void *extra) {
     int r;
               r = toku_dbt_set(key->size, key->data, context->key, context->skey);
     if (r==0) r = toku_dbt_set(val->size, val->data, context->val, context->sval);
-    return r;
-}
-
-static int 
-toku_c_get_current_unconditional(DBC* c, uint32_t flags, DBT* key, DBT* val) {
-    int r;
-    QUERY_CONTEXT_WRAPPED_S context; 
-    query_context_wrapped_init(&context, c, key, val);
-    r = toku_c_getf_current_binding(c, flags, c_get_wrapper_callback, &context);
     return r;
 }
 
@@ -439,19 +427,6 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
     return r;
 }
 
-static int
-toku_c_getf_current_binding(DBC *c, uint32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
-    HANDLE_PANICKED_DB(c->dbp);
-    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-
-    QUERY_CONTEXT_S context; //Describes the context of this query.
-    c_query_context_init(&context, c, flag, f, extra); 
-    //toku_ft_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
-    int r = toku_ft_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
-    c_query_context_destroy(&context);
-    return r;
-}
-
 static int c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool);
 
 int
@@ -627,63 +602,11 @@ toku_c_close(DBC * c) {
     return 0;
 }
 
-// these next two static functions are defined
-// both here and ydb.c. We should find a good
-// place for them.
-static int
-ydb_getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
-    return 0;
-}
-
 static inline DBT*
 init_dbt_realloc(DBT *dbt) {
     memset(dbt, 0, sizeof(*dbt));
     dbt->flags = DB_DBT_REALLOC;
     return dbt;
-}
-
-// Return the number of entries whose key matches the key currently 
-// pointed to by the brt cursor.  
-static int 
-toku_c_count(DBC *cursor, db_recno_t *count, uint32_t flags) {
-    HANDLE_PANICKED_DB(cursor->dbp);
-    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(cursor);
-    int r;
-    DBC *count_cursor = 0;
-    DBT currentkey;
-
-    init_dbt_realloc(&currentkey);
-    uint32_t lock_flags = get_cursor_prelocked_flags(flags, cursor);
-    flags &= ~lock_flags;
-    if (flags != 0) {
-        r = EINVAL; goto finish;
-    }
-
-    r = toku_c_get_current_unconditional(cursor, lock_flags, &currentkey, NULL);
-    if (r != 0) goto finish;
-
-    //TODO: Optimization
-    //if (do_locking) {
-    //   do a lock from currentkey,-infinity to currentkey,infinity
-    //   lock_flags |= DB_PRELOCKED
-    //}
-    
-    r = toku_db_cursor_internal(cursor->dbp, dbc_struct_i(cursor)->txn, &count_cursor, DBC_DISABLE_PREFETCHING, 0);
-    if (r != 0) goto finish;
-
-    r = toku_c_getf_set(count_cursor, lock_flags, &currentkey, ydb_getf_do_nothing, NULL);
-    if (r==0) {
-        *count = 1; // there is a key, so the count is one (since we don't have DUP dbs anymore, the only answers are 0 or 1.
-    } else {
-        *count = 0;
-    }
-    r = 0;
-finish:
-    if (currentkey.data) toku_free(currentkey.data);
-    if (count_cursor) {
-        int rr = toku_c_close(count_cursor); assert(rr == 0);
-    }
-    return r;
 }
 
 static int
@@ -751,11 +674,6 @@ toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
             query_context_wrapped_init(&context, c, key,  val);
             r = toku_c_getf_current(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
-        case (DB_CURRENT_BINDING):
-            query_context_wrapped_init(&context, c, key,  val);
-            r = toku_c_getf_current_binding(c, remaining_flags, c_get_wrapper_callback, &context);
-            break;
-
         case (DB_SET):
             query_context_wrapped_init(&context, c, NULL, val);
             r = toku_c_getf_set(c, remaining_flags, key, c_get_wrapper_callback, &context);
@@ -798,13 +716,11 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     // these methods DO NOT grab the ydb lock
 #define SCRS(name) result->name = toku_ ## name
     SCRS(c_get);
-    SCRS(c_count);
     SCRS(c_getf_first);
     SCRS(c_getf_last);
     SCRS(c_getf_next);
     SCRS(c_getf_prev);
     SCRS(c_getf_current);
-    SCRS(c_getf_current_binding);
     SCRS(c_getf_set);
     SCRS(c_getf_set_range);
     SCRS(c_getf_set_range_reverse);
