@@ -10,6 +10,9 @@
       createTransaction()
       setLockMode()
       close()
+      begin()
+      commit()
+      rollback()
 */
 
 /*  getConnectionPool() 
@@ -106,4 +109,28 @@
    Callback is optional; if supplied, will receive (err).
 */
   close(callback);
+
+
+/* begin() 
+   IMMEDIATE
+   
+   Begin a user transaction context; exit autocommit mode.
+*/
+  begin();
+
+/* commit(callback) 
+   ASYNC
+   
+   Commit a user transaction. Enter autocommit mode.
+   Callback is optional; if supplied, will receive (err).
+*/
+  commit(callback);
+
+/* rollback(callback) 
+   ASYNC
+   
+   Roll back a user transaction. Enter autocommit mode.
+   Callback is optional; if supplied, will receive (err).
+*/
+  rollback(callback);
 
