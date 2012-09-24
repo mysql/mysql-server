@@ -15169,7 +15169,6 @@ Ndb_util_thread::do_run()
   if (thd->store_globals())
     goto ndb_util_thread_fail;
   lex_start(thd);
-  thd->init_for_queries();
   thd_set_command(thd, COM_DAEMON);
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
@@ -15208,6 +15207,10 @@ Ndb_util_thread::do_run()
     }
   }
   mysql_mutex_unlock(&LOCK_server_started);
+
+  // Defer call of THD::init_for_query until after mysqld_server_started
+  // to ensure that the parts of MySQL Server it uses has been created
+  thd->init_for_queries();
 
   /*
     Wait for cluster to start
