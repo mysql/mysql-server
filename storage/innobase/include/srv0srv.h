@@ -319,7 +319,10 @@ extern ulong	srv_max_dirty_pages_pct_lwm;
 extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
 
-extern ulint	srv_force_recovery;
+extern ulong	srv_force_recovery;
+#ifndef DBUG_OFF
+extern ulong	srv_force_recovery_crash;
+#endif /* !DBUG_OFF */
 
 extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 					purge and index buffer merge.

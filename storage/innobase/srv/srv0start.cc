@@ -543,6 +543,12 @@ create_log_file(
 /** Initial number of the first redo log file */
 #define INIT_LOG_FILE0	101
 
+#ifdef DBUG_OFF
+# define RECOVERY_CRASH(x) do {} while(0)
+#else
+# define RECOVERY_CRASH(x) if (srv_force_recovery_crash == x) DBUG_SUICIDE()
+#endif
+
 /*********************************************************************//**
 Creates all log files.
 @return	DB_SUCCESS or error code */
@@ -571,9 +577,12 @@ create_log_files(
 		file should be recoverable. The buffer
 		pool was clean, and we can simply create
 		all log files from the scratch. */
+		RECOVERY_CRASH(6);
 	}
 
 	ut_ad(!buf_pool_check_no_pending_io());
+
+	RECOVERY_CRASH(7);
 
 	for (unsigned i = 0; i < srv_n_log_files; i++) {
 		sprintf(logfilename + dirnamelen,
@@ -585,6 +594,8 @@ create_log_files(
 			return(err);
 		}
 	}
+
+	RECOVERY_CRASH(8);
 
 	/* We did not create the first log file initially as
 	ib_logfile0, so that crash recovery cannot find it until it
@@ -648,6 +659,8 @@ create_log_files_rename(
 	checkpoint has been created. */
 	sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
+	RECOVERY_CRASH(9);
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Renaming log file %s to %s", logfile0, logfilename);
 
@@ -656,6 +669,8 @@ create_log_files_rename(
 	ibool success = os_file_rename(
 		innodb_file_log_key, logfile0, logfilename);
 	ut_a(success);
+
+	RECOVERY_CRASH(10);
 
 	/* Replace the first file with ib_logfile0. */
 	strcpy(logfile0, logfilename);
@@ -2262,6 +2277,8 @@ create_log_files:
 				ULINT_MAX, LSN_MAX, NULL);
 			ut_a(success);
 
+			RECOVERY_CRASH(1);
+
 			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
 
 			ib_logf(IB_LOG_LEVEL_WARN,
@@ -2275,6 +2292,8 @@ create_log_files:
 
 			buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
+			RECOVERY_CRASH(2);
+
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();
 
@@ -2283,15 +2302,21 @@ create_log_files:
 			ut_d(recv_no_log_write = TRUE);
 			ut_ad(!buf_pool_check_no_pending_io());
 
+			RECOVERY_CRASH(3);
+
 			/* Stamp the LSN to the data files. */
 			fil_write_flushed_lsn_to_data_files(
 				max_flushed_lsn, 0);
 
 			fil_flush_file_spaces(FIL_TABLESPACE);
 
+			RECOVERY_CRASH(4);
+
 			/* Close and free the redo log files, so that
 			we can replace them. */
 			fil_close_log_files(true);
+
+			RECOVERY_CRASH(5);
 
 			/* Free the old log file space. */
 			log_group_close_all();

@@ -297,10 +297,16 @@ UNIV_INTERN srv_stats_t	srv_stats;
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_var_t export_vars;
 
-/* If the following is != 0 we do not allow inserts etc. This protects
-the user from forgetting the innodb_force_recovery keyword to my.cnf */
-
-UNIV_INTERN ulint	srv_force_recovery	= 0;
+/** Normally 0. When nonzero, skip some phases of crash recovery,
+starting from SRV_FORCE_IGNORE_CORRUPT, so that data can be recovered
+by SELECT or mysqldump. When this is nonzero, we do not allow any user
+modifications to the data. */
+UNIV_INTERN ulong	srv_force_recovery;
+#ifndef DBUG_OFF
+/** Inject a crash at different steps of the recovery process.
+This is for testing and debugging only. */
+UNIV_INTERN ulong	srv_force_recovery_crash;
+#endif /* !DBUG_OFF */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 
