@@ -63,6 +63,9 @@ exports.UserContext = function(user_arguments, required_parameter_count, returne
   this.returned_parameter_count = returned_parameter_count;
   this.session = session;
   this.session_factory = session_factory;
+  if (this.session !== null) {
+    this.autocommit = !this.session.tx.isActive();
+  }
 };
 
 
@@ -243,7 +246,7 @@ exports.UserContext.prototype.find = function() {
   }
 
   function findOnTableHandler(err, dbTableHandler) {
-    var dbSession, keys, index, op, tx;
+    var dbSession, keys, index, op, transactionHandler;
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -256,12 +259,19 @@ exports.UserContext.prototype.find = function() {
       } else {
         // create the find operation and execute it
         dbSession = userContext.session.dbSession;
-        tx = dbSession.createTransaction();
-        op = dbSession.buildReadOperation(index, keys, tx, findOnResult);
-        tx.executeCommit([op], function() {
-          // there is nothing that needs to be done here
-          udebug.log_detail('find tx.execute callback.');
-        });
+        transactionHandler = dbSession.getTransaction();
+        op = dbSession.buildReadOperation(index, keys, transactionHandler, findOnResult);
+        if (userContext.autocommit) {
+          transactionHandler.executeCommit([op], function() {
+            // there is nothing that needs to be done here
+            udebug.log_detail('find transactionHandler.executeCommit callback.');
+          });
+        } else {
+          transactionHandler.executeNoCommit([op], function() {
+            // there is nothing that needs to be done here
+            udebug.log_detail('find transactionHandler.executeNoCommit callback.');
+          });
+        }
       }
     }
   }
@@ -278,7 +288,7 @@ exports.UserContext.prototype.find = function() {
  */
 exports.UserContext.prototype.persist = function() {
   var userContext = this;
-  var tableHandler, tx, object, callback, op;
+  var tableHandler, object, callback, op;
 
   function persistOnResult(err, dbOperation) {
     udebug.log('persist.persistOnResult');
@@ -292,16 +302,27 @@ exports.UserContext.prototype.persist = function() {
   }
 
   function persistOnTableHandler(err, dbTableHandler) {
-    var op, tx, object;
+    var transactionHandler;
     var dbSession = userContext.session.dbSession;
     if (err) {
       userContext.applyCallback(err);
+      return;
     } else {
-      tx = dbSession.createTransaction();
+      transactionHandler = dbSession.getTransaction();
       object = userContext.user_arguments[0];
       callback = userContext.user_callback;
-      op = dbSession.buildInsertOperation(dbTableHandler, object, tx, persistOnResult);
-      tx.executeCommit([op]);
+      op = dbSession.buildInsertOperation(dbTableHandler, object, transactionHandler, persistOnResult);
+      if (userContext.autocommit) {
+        transactionHandler.executeCommit([op], function() {
+          // there is nothing that needs to be done here
+          udebug.log_detail('find transactionHandler.executeCommit callback.');
+        });
+      } else {
+        transactionHandler.executeNoCommit([op], function() {
+          // there is nothing that needs to be done here
+          udebug.log_detail('find transactionHandler.executeNoCommit callback.');
+        });
+      }
     }
   }
 
@@ -317,7 +338,7 @@ exports.UserContext.prototype.persist = function() {
  */
 exports.UserContext.prototype.remove = function() {
   var userContext = this;
-  var tableHandler, tx, object, callback, op;
+  var tableHandler, object, callback, op;
 
   function removeOnResult(err, dbOperation) {
     udebug.log('remove.removeOnResult');
@@ -332,7 +353,7 @@ exports.UserContext.prototype.remove = function() {
   }
 
   function removeOnTableHandler(err, dbTableHandler) {
-    var op, tx, object, dbIndexHandler;
+    var op, transactionHandler, object, dbIndexHandler;
     var dbSession = userContext.session.dbSession;
     if (err) {
       userContext.applyCallback(err, null);
@@ -343,10 +364,20 @@ exports.UserContext.prototype.remove = function() {
         err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
       } else {
-        tx = dbSession.createTransaction();
+        transactionHandler = dbSession.createTransaction();
         callback = userContext.user_callback;
-        op = dbSession.buildDeleteOperation(dbIndexHandler, object, tx, removeOnResult);
-        tx.executeCommit([op]);
+        op = dbSession.buildDeleteOperation(dbIndexHandler, object, transactionHandler, removeOnResult);
+        if (userContext.autocommit) {
+          transactionHandler.executeCommit([op], function() {
+            // there is nothing that needs to be done here
+            udebug.log_detail('find transactionHandler.executeCommit callback.');
+          });
+        } else {
+          transactionHandler.executeNoCommit([op], function() {
+            // there is nothing that needs to be done here
+            udebug.log_detail('find transactionHandler.executeNoCommit callback.');
+          });
+        }
       }
     }
   }
@@ -358,12 +389,59 @@ exports.UserContext.prototype.remove = function() {
   getTableHandler(ctor, userContext.session, removeOnTableHandler);
 };
 
+/** Commit an active transaction. 
+ * 
+ */
+exports.UserContext.prototype.commit = function() {
+  var userContext = this;
+
+  var commitOnCommit = function(err) {
+    udebug.log('UserContext.commitOnCommit.')
+    userContext.applyCallback(err);
+  };
+
+  // commit begins here
+  if (userContext.session.tx.isActive()) {
+    udebug.log('UserContext.commit tx is active.')
+    var transactionHandler = userContext.session.dbSession.getTransaction();
+    transactionHandler.commit(commitOnCommit);
+  } else {
+    userContext.applyCallback(
+        new Error('Fatal Internal Exception: UserContext.commit with no active transaction.'));
+  }
+};
+
+
+/** Roll back an active transaction. 
+ * 
+ */
+exports.UserContext.prototype.rollback = function() {
+  var userContext = this;
+
+  var rollbackOnRollback = function(err) {
+    udebug.log('UserContext.rollbackOnRollback.')
+    userContext.applyCallback(err);
+  };
+
+  // rollback begins here
+  if (userContext.session.tx.isActive()) {
+    udebug.log('UserContext.rollback tx is active.')
+    var transactionHandler = userContext.session.dbSession.getTransaction();
+    transactionHandler.rollback(rollbackOnRollback);
+  } else {
+    userContext.applyCallback(
+        new Error('Fatal Internal Exception: UserContext.rollback with no active transaction.'));
+  }
+};
+
+
 /** Open a session. Allocate a slot in the session factory sessions array.
  * Call the DBConnectionPool to create a new DBSession.
  * Wrap the DBSession in a new Session and return it to the user. 
  */
 exports.UserContext.prototype.openSession = function() {
   var userContext = this;
+
   var openSessionOnSessionCreated = function(err, dbSession) {
     if (err) {
       userContext.applyCallback(err, null);
@@ -387,6 +465,26 @@ exports.UserContext.prototype.openSession = function() {
   // get a new DBSession from the DBConnectionPool
   this.session_factory.dbConnectionPool.getDBSession(i, openSessionOnSessionCreated);
 };
+
+/** Close a session. Close the dbSession which might put the underlying connection
+ * back into the connection pool. Then, remove the session from the session factory's
+ * open connections.
+ * 
+ */
+exports.UserContext.prototype.closeSession = function() {
+  var userContext = this;
+
+  var closeSessionOnDBSessionClose = function(err) {
+    // now remove the session from the session factory's open connections
+    userContext.session_factory.closeSession(userContext.session.index);
+    // mark this session as unusable
+    userContext.session.closed = true;
+    userContext.applyCallback(err);
+  };
+  // first, close the dbSession
+  userContext.session.dbSession.close(closeSessionOnDBSessionClose);
+};
+
 
 /** Complete the user function by calling back the user with the results of the function.
  * Apply the user callback using the current arguments and the extra parameters from the original function.
