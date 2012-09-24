@@ -1,3 +1,0 @@
-RANGETREE_FILES = log_nooverlap
-RANGETREE_HERE = $(ROOT)src/range_tree
-RANGETREE_HEADERS = rangetree rangetree-internal
