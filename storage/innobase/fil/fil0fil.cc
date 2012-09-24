@@ -1769,8 +1769,9 @@ Closes the redo log files. There must not be any pending i/o's or not
 flushed modifications in the files. */
 UNIV_INTERN
 void
-fil_close_log_files(void)
-/*=====================*/
+fil_close_log_files(
+/*================*/
+	bool	free)	/*!< in: whether to free the memory object */
 {
 	fil_space_t*	space;
 
@@ -1798,7 +1799,9 @@ fil_close_log_files(void)
 
 		space = UT_LIST_GET_NEXT(space_list, space);
 
-		fil_space_free(prev_space->id, FALSE);
+		if (free) {
+			fil_space_free(prev_space->id, FALSE);
+		}
 	}
 
 	mutex_exit(&fil_system->mutex);
