@@ -45,7 +45,7 @@ test_main (int argc __attribute__((__unused__)),
 	logger->lsn.lsn++;
 	logger->inbuf.max_lsn_in_buf = logger->lsn;
 	ml_unlock(&logger->input_lock);
-	r = toku_logger_fsync(logger);                                                      assert(r == 0);
+	toku_logger_fsync(logger);
     }
     r = toku_logger_close(&logger);
     assert(r == 0);

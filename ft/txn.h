@@ -59,7 +59,7 @@ void toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xid);
 void toku_txn_get_prepared_xa_xid (TOKUTXN, TOKU_XA_XID *);
 // Effect: Fill in the XID information for a transaction.  The caller allocates the XID and the function fills in values.
 
-int toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, bool do_fsync);
+void toku_txn_maybe_fsync_log(TOKULOGGER logger, LSN do_fsync_lsn, bool do_fsync);
 
 void toku_txn_get_fsync_info(TOKUTXN ttxn, bool* do_fsync, LSN* do_fsync_lsn);
 

@@ -28,7 +28,7 @@ void toku_ft_destroy_reflock(FT ft);
 void toku_ft_grab_reflock(FT ft);
 void toku_ft_release_reflock(FT ft);
 
-int toku_create_new_ft(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
+void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
 void toku_ft_free (FT h);
 
 int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header, bool* was_open);

@@ -56,8 +56,7 @@ toku_commit_fdelete (FILENUM    filenum,
     // here as part of a transactoin that may abort if we do not fsync the log.
     // So, we fsync the log here.
     if (txn->logger) {
-        r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
-        assert_zero(r);
+        toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
     }
 
     // Mark the cachefile as unlink on close. There are two ways for close
@@ -404,10 +403,11 @@ toku_commit_load (FILENUM    old_filenum,
     // here as part of a transactoin that may abort if we do not fsync the log.
     // So, we fsync the log here.
     if (txn->logger) {
-        r = toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
-        lazy_assert(r == 0);
+        toku_logger_fsync_if_lsn_not_fsynced(txn->logger, txn->do_fsync_lsn);
     }
 
+    // TODO: Zardosht
+    // Explain why this condition is valid, because I forget.
     if (!toku_cachefile_is_unlink_on_close(old_cf)) {
         toku_cachefile_unlink_on_close(old_cf);
     }
