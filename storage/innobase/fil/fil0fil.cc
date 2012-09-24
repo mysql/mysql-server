@@ -460,6 +460,8 @@ fil_write(
 	void*	message)	/*!< in: message for aio handler if non-sync
 				aio used, else ignored */
 {
+	ut_ad(!srv_read_only_mode);
+
 	return(fil_io(OS_FILE_WRITE, sync, space_id, zip_size, block_offset,
 					   byte_offset, len, buf, message));
 }
@@ -1394,7 +1396,6 @@ fil_space_free(
 {
 	fil_space_t*	space;
 	fil_space_t*	fnamespace;
-	fil_node_t*	fil_node;
 
 	ut_ad(mutex_own(&fil_system->mutex));
 
@@ -1433,12 +1434,11 @@ fil_space_free(
 	ut_a(space->magic_n == FIL_SPACE_MAGIC_N);
 	ut_a(0 == space->n_pending_flushes);
 
-	fil_node = UT_LIST_GET_FIRST(space->chain);
+	for (fil_node_t* fil_node = UT_LIST_GET_FIRST(space->chain);
+	     fil_node != NULL;
+	     fil_node = UT_LIST_GET_FIRST(space->chain)) {
 
-	while (fil_node != NULL) {
 		fil_node_free(fil_node, fil_system, space);
-
-		fil_node = UT_LIST_GET_FIRST(space->chain);
 	}
 
 	ut_a(0 == UT_LIST_GET_LEN(space->chain));
@@ -3006,7 +3006,7 @@ skip_second_rename:
 				 &mtr);
 		mtr_commit(&mtr);
 	}
-#endif
+#endif /* !UNIV_HOTBACKUP */
 
 	mem_free(new_path);
 	mem_free(old_path);
@@ -3027,11 +3027,13 @@ fil_create_link_file(
 	const char*	tablename,	/*!< in: tablename */
 	const char*	filepath)	/*!< in: pathname of tablespace */
 {
+	os_file_t	file;
 	ibool		success;
 	dberr_t		err = DB_SUCCESS;
-	os_file_t	file;
 	char*		link_filepath;
 	char*		prev_filepath = fil_read_link_file(tablename);
+
+	ut_ad(!srv_read_only_mode);
 
 	if (prev_filepath) {
 		/* Truncate will call this with an existing
@@ -3229,6 +3231,7 @@ fil_create_new_single_table_tablespace(
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 
 	ut_a(space_id > 0);
+	ut_ad(!srv_read_only_mode);
 	ut_a(space_id < SRV_LOG_SPACE_FIRST_ID);
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	ut_a(fsp_flags_is_valid(flags));
@@ -3508,7 +3511,8 @@ fil_open_single_table_tablespace(
 		return(DB_CORRUPTION);
 	}
 
-	/* If the tablespace was relocated, we do not compare the DATA_DIR flag */
+	/* If the tablespace was relocated, we do not
+	compare the DATA_DIR flag */
 	ulint mod_flags = flags & ~FSP_FLAGS_MASK_DATA_DIR;
 
 	memset(&def, 0, sizeof(def));
@@ -3534,7 +3538,8 @@ fil_open_single_table_tablespace(
 		tablename, &remote.filepath, &remote.file);
 	remote.success = link_file_found;
 	if (remote.success) {
-		validate = true;	/* possibility of multiple files. */
+		/* possibility of multiple files. */
+		validate = true;
 		tablespaces_found++;
 
 		/* A link file was found. MySQL does not allow a DATA
@@ -3560,7 +3565,8 @@ fil_open_single_table_tablespace(
 			innodb_file_data_key, dict.filepath, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, &dict.success);
 		if (dict.success) {
-			validate = true;	/* possibility of multiple files. */
+			/* possibility of multiple files. */
+			validate = true;
 			tablespaces_found++;
 		}
 	}
@@ -4060,7 +4066,7 @@ will_not_choose:
 	}
 
 	/* At this point, only one tablespace is open */
-	ut_a((def.success && !remote.success) || (!def.success && remote.success));
+	ut_a(def.success == !remote.success);
 
 	fsp_open_info*	fsp = def.success ? &def : &remote;
 
@@ -4095,7 +4101,7 @@ will_not_choose:
 #else
 		fsp->id = ULINT_UNDEFINED;
 		fsp->flags = 0;
-#endif
+#endif /* !UNIV_HOTBACKUP */
 	}
 
 #ifdef UNIV_HOTBACKUP
@@ -4115,7 +4121,11 @@ will_not_choose:
 		os_file_close(fsp->file);
 
 		new_path = fil_make_ibbackup_old_name(fsp->filepath);
-		ut_a(os_file_rename(innodb_file_data_key, fsp->filepath, new_path));
+
+		bool	success = os_file_rename(
+			innodb_file_data_key, fsp->filepath, new_path));
+
+		ut_a(success);
 
 		mem_free(new_path);
 
@@ -4151,14 +4161,17 @@ will_not_choose:
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_a(os_file_rename(innodb_file_data_key, fsp->filepath, new_path));
+		bool	success = os_file_rename(
+			innodb_file_data_key, fsp->filepath, new_path);
+
+		ut_a(success);
 
 		mem_free(new_path);
 
 		goto func_exit_after_close;
 	}
 	mutex_exit(&fil_system->mutex);
-#endif
+#endif /* UNIV_HOTBACKUP */
 	ibool file_space_create_success = fil_space_create(
 		tablename, fsp->id, fsp->flags, FIL_TABLESPACE);
 
@@ -4677,6 +4690,8 @@ fil_extend_space_to_desired_size(
 	ulint		pages_added;
 	ibool		success;
 
+	ut_ad(!srv_read_only_mode);
+
 retry:
 	pages_added = 0;
 	success = TRUE;
@@ -4751,7 +4766,7 @@ retry:
 				 node->name, node->handle, buf,
 				 offset, page_size * n_pages,
 				 NULL, NULL);
-#endif
+#endif /* UNIV_HOTBACKUP */
 		if (success) {
 			os_has_said_disk_full = FALSE;
 		} else {
@@ -5028,6 +5043,7 @@ fil_node_complete_io(
 	node->n_pending--;
 
 	if (type == OS_FILE_WRITE) {
+		ut_ad(!srv_read_only_mode);
 		system->modification_counter++;
 		node->modification_counter = system->modification_counter;
 
@@ -5151,9 +5167,11 @@ fil_io(
 #ifndef UNIV_HOTBACKUP
 # ifndef UNIV_LOG_DEBUG
 	/* ibuf bitmap pages must be read in the sync aio mode: */
-	ut_ad(recv_no_ibuf_operations || (type == OS_FILE_WRITE)
+	ut_ad(recv_no_ibuf_operations
+	      || type == OS_FILE_WRITE
 	      || !ibuf_bitmap_page(zip_size, block_offset)
-	      || sync || is_log);
+	      || sync
+	      || is_log);
 # endif /* UNIV_LOG_DEBUG */
 	if (sync) {
 		mode = OS_AIO_SYNC;
@@ -5174,6 +5192,7 @@ fil_io(
 	if (type == OS_FILE_READ) {
 		srv_stats.data_read.add(len);
 	} else if (type == OS_FILE_WRITE) {
+		ut_ad(!srv_read_only_mode);
 		srv_stats.data_written.add(len);
 	}
 
@@ -5186,48 +5205,43 @@ fil_io(
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
-	if (!space || (type == OS_FILE_READ && space->stop_new_ops)) {
+	if (space == 0 || (type == OS_FILE_READ && space->stop_new_ops)) {
 		mutex_exit(&fil_system->mutex);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: trying to do i/o"
-			" to a tablespace which does not exist.\n"
-			"InnoDB: i/o type %lu, space id %lu,"
-			" page no. %lu, i/o length %lu bytes\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to do i/o to a tablespace which does "
+			"not exist. i/o type %lu, space id %lu, "
+			"page no. %lu, i/o length %lu bytes",
 			(ulong) type, (ulong) space_id, (ulong) block_offset,
 			(ulong) len);
 
 		return(DB_TABLESPACE_DELETED);
 	}
 
-	ut_ad((mode != OS_AIO_IBUF) || (space->purpose == FIL_TABLESPACE));
+	ut_ad(mode != OS_AIO_IBUF || space->purpose == FIL_TABLESPACE);
 
 	node = UT_LIST_GET_FIRST(space->chain);
 
 	for (;;) {
-		if (UNIV_UNLIKELY(node == NULL)) {
+		if (node == NULL) {
 			if (ignore_nonexistent_pages) {
 				mutex_exit(&fil_system->mutex);
 				return(DB_ERROR);
 			}
-			/* else */
 
 			fil_report_invalid_page_access(
 				block_offset, space_id, space->name,
 				byte_offset, len, type);
 
 			ut_error;
-		}
 
-		if (fil_is_user_tablespace_id(space->id) && node->size == 0) {
+		} else  if (fil_is_user_tablespace_id(space->id)
+			   && node->size == 0) {
+
 			/* We do not know the size of a single-table tablespace
 			before we open the file */
-
 			break;
-		}
-
-		if (node->size > block_offset) {
+		} else if (node->size > block_offset) {
 			/* Found! */
 			break;
 		} else {
@@ -5289,6 +5303,7 @@ fil_io(
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset, len);
 	} else {
+		ut_ad(!srv_read_only_mode);
 		ret = os_file_write(node->name, node->handle, buf,
 				    offset, len);
 	}
@@ -5296,7 +5311,7 @@ fil_io(
 	/* Queue the aio request */
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
 		     offset, len, node, message);
-#endif
+#endif /* UNIV_HOTBACKUP */
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {
@@ -5338,24 +5353,24 @@ fil_aio_wait(
 	if (srv_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
-		ret = os_aio_windows_handle(segment, 0, &fil_node,
-					    &message, &type);
+		ret = os_aio_windows_handle(
+			segment, 0, &fil_node, &message, &type);
 #elif defined(LINUX_NATIVE_AIO)
-		ret = os_aio_linux_handle(segment, &fil_node,
-					  &message, &type);
+		ret = os_aio_linux_handle(
+			segment, &fil_node, &message, &type);
 #else
 		ut_error;
 		ret = 0; /* Eliminate compiler warning */
-#endif
+#endif /* WIN_ASYNC_IO */
 	} else {
 		srv_set_io_thread_op_info(segment, "simulated aio handle");
 
-		ret = os_aio_simulated_handle(segment, &fil_node,
-					      &message, &type);
+		ret = os_aio_simulated_handle(
+			segment, &fil_node, &message, &type);
 	}
 
 	ut_a(ret);
-	if (UNIV_UNLIKELY(fil_node == NULL)) {
+	if (fil_node == NULL) {
 		ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 		return;
 	}
@@ -5456,7 +5471,7 @@ fil_flush(
 
 				goto skip_flush;
 			}
-#endif
+#endif /* __WIN__ */
 retry:
 			if (node->n_pending_flushes > 0) {
 				/* We want to avoid calling os_file_flush() on
@@ -5795,6 +5810,8 @@ fil_iterate(
 	ulint			space_id = callback.get_space_id();
 	ulint			n_bytes = iter.n_io_buffers * iter.page_size;
 
+	ut_ad(!srv_read_only_mode);
+
 	/* TODO: For compressed tables we do a lot of useless
 	copying for non-index pages. Unfortunately, it is
 	required by buf_zip_decompress() */
@@ -5895,6 +5912,7 @@ fil_tablespace_iterate(
 	char*		filepath;
 
 	ut_a(n_io_buffers > 0);
+	ut_ad(!srv_read_only_mode);
 
 	DBUG_EXECUTE_IF("ib_import_trigger_corruption_1",
 			return(DB_CORRUPTION););
