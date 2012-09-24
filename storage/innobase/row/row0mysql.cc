@@ -3712,6 +3712,10 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	/* Turn on this drop bit before we could release the dictionary
+	latch */
+	table->to_be_dropped = true;
+
 	if (nonatomic) {
 		/* This trx did not acquire any locks on dictionary
 		table records yet. Thus it is safe to release and
@@ -3752,8 +3756,6 @@ row_drop_table_for_mysql(
 			fprintf(stderr, " InnoDB: %s\n", errstr);
 		}
 	}
-
-	ut_a(table->n_foreign_key_checks_running == 0);
 
 	/* Move the table the the non-LRU list so that it isn't
 	considered for eviction. */
@@ -3884,6 +3886,13 @@ check_next_foreign:
 
 		goto funct_exit;
 	}
+
+	/* The "to_be_dropped" marks table that is to be dropped, but
+	has not been dropped, instead, was put in the background drop
+	list due to being used by concurrent DML operations. Clear it
+	here since there are no longer any concurrent activities on it,
+	and it is free to be dropped */
+	table->to_be_dropped = false;
 
 	/* If we get this far then the table to be dropped must not have
 	any table or record locks on it. */

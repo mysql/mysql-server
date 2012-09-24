@@ -4406,6 +4406,8 @@ ha_innobase::commit_inplace_alter_table(
 			my_error_innodb(error, table_share->table_name.str, 0);
 			DBUG_RETURN(true);
 		}
+
+		DEBUG_SYNC(user_thd, "innodb_alter_commit_after_lock_table");
 	}
 
 	if (!ctx || !ctx->trx) {
@@ -4652,6 +4654,15 @@ undo_add_fk:
 			ctx->heap, ctx->indexed_table->name,
 			ctx->indexed_table->id);
 
+		/* Rename table will reload and refresh the in-memory
+		foreign key constraint metadata. This is a rename operation
+		in preparing for dropping the old table. Set the table
+		to_be_dropped bit here, so to make sure DML foreign key
+		constraint check does not use the stale dict_foreign_t.
+		This is done because WL#6049 (FK MDL) has not been
+		implemented yet */
+		prebuilt->table->to_be_dropped = true;
+
 		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
 				DBUG_SUICIDE(););
 
@@ -4707,6 +4718,11 @@ undo_add_fk:
 			err = -1;
 
 drop_new_clustered:
+			/* Reset the to_be_dropped bit for the old table,
+			since we are aborting the operation and dropping
+			the new table due to some error conditions */
+			prebuilt->table->to_be_dropped = false;
+
 			/* Need to drop the added foreign key first */
 			if (fk_trx) {
 				ut_ad(fk_trx != trx);
