@@ -1676,6 +1676,13 @@ do_possible_lock_wait:
 
 		lock_wait_suspend_thread(thr);
 
+		if (check_table->to_be_dropped) {
+			/* The table is being dropped. We shall timeout
+			this operation */
+			err = DB_LOCK_WAIT_TIMEOUT;
+			goto exit_func;
+		}
+
 		if (trx->error_state == DB_SUCCESS) {
 
 			goto run_again;
