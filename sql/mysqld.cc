@@ -5871,7 +5871,7 @@ void create_thread_to_handle_connection(THD *thd)
   {
     /* Wake up blocked pthread */
     DBUG_PRINT("info", ("waiting_thd_list->push %p", thd));
-    waiting_thd_list->push_front(thd);
+    waiting_thd_list->push_back(thd);
     wake_pthread++;
     mysql_cond_signal(&COND_thread_cache);
   }
