@@ -257,7 +257,7 @@ fi
 
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
 # in the my.cfg file, then re-run to merge with command line arguments.
-parse_arguments `$print_defaults $defaults mysqld mariadb mysql_install_db client-server`
+parse_arguments `"$print_defaults" $defaults mysqld mariadb mysql_install_db client-server`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files
@@ -307,7 +307,7 @@ fill_help_tables="$pkgdatadir/fill_help_tables.sql"
 create_system_tables="$pkgdatadir/mysql_system_tables.sql"
 fill_system_tables="$pkgdatadir/mysql_system_tables_data.sql"
 
-for f in $fill_help_tables $create_system_tables $fill_system_tables
+for f in "$fill_help_tables" "$create_system_tables" "$fill_system_tables"
 do
   if test ! -f "$f"
   then
@@ -338,14 +338,14 @@ hostname=`@HOSTNAME@`
 # Check if hostname is valid
 if test "$cross_bootstrap" -eq 0 -a "$in_rpm" -eq 0 -a "$force" -eq 0
 then
-  resolved=`$extra_bindir/resolveip $hostname 2>&1`
+  resolved=`"$extra_bindir/resolveip" $hostname 2>&1`
   if test $? -ne 0
   then
-    resolved=`$extra_bindir/resolveip localhost 2>&1`
+    resolved=`"$extra_bindir/resolveip" localhost 2>&1`
     if test $? -ne 0
     then
       echo "Neither host '$hostname' nor 'localhost' could be looked up with"
-      echo "$extra_bindir/resolveip"
+      echo "'$extra_bindir/resolveip'"
       echo "Please configure the 'hostname' command to return a correct"
       echo "hostname."
       echo "If you want to solve this at a later stage, restart this script"
@@ -368,21 +368,21 @@ then
 fi
 
 # Create database directories
-for dir in $ldata $ldata/mysql $ldata/test
+for dir in "$ldata" "$ldata/mysql" "$ldata/test"
 do
-  if test ! -d $dir
+  if test ! -d "$dir"
   then
-    if ! `mkdir -p $dir`
+    if ! `mkdir -p "$dir"`
     then
       echo "Fatal error Can't create database directory '$dir'"
       link_to_help
       exit 1
     fi
-    chmod 700 $dir
+    chmod 700 "$dir"
   fi
   if test -w / -a ! -z "$user"
   then
-    chown $user $dir
+    chown $user "$dir"
   fi
 done
 
@@ -403,15 +403,19 @@ fi
 
 # Configure mysqld command line
 mysqld_bootstrap="${MYSQLD_BOOTSTRAP-$mysqld}"
-mysqld_install_cmd_line="$mysqld_bootstrap $defaults $mysqld_opt --bootstrap \
-  --basedir=$basedir --datadir=$ldata --log-warnings=0 --loose-skip-innodb \
+mysqld_install_cmd_line()
+{
+  "$mysqld_bootstrap" $defaults "$mysqld_opt" --bootstrap \
+  "--basedir=$basedir" "--datadir=$ldata" --log-warnings=0 --loose-skip-innodb \
   --loose-skip-ndbcluster --loose-skip-pbxt $args --max_allowed_packet=8M \
   --default-storage-engine=myisam \
-  --net_buffer_length=16K"
+  --net_buffer_length=16K
+}
+
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
 s_echo "Installing MariaDB/MySQL system tables in '$ldata' ..."
-if { echo "use mysql;"; cat $create_system_tables $fill_system_tables; } | eval "$filter_cmd_line" | $mysqld_install_cmd_line > /dev/null
+if { echo "use mysql;"; cat "$create_system_tables" "$fill_system_tables"; } | eval "$filter_cmd_line" | mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
 else
@@ -446,7 +450,7 @@ else
 fi
 
 s_echo "Filling help tables..."
-if { echo "use mysql;"; cat $fill_help_tables; } | $mysqld_install_cmd_line > /dev/null
+if { echo "use mysql;"; cat "$fill_help_tables"; } | mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
 else
@@ -468,11 +472,11 @@ then
   echo "PLEASE REMEMBER TO SET A PASSWORD FOR THE MariaDB root USER !"
   echo "To do so, start the server, then issue the following commands:"
   echo
-  echo "$bindir/mysqladmin -u root password 'new-password'"
-  echo "$bindir/mysqladmin -u root -h $hostname password 'new-password'"
+  echo "'$bindir/mysqladmin' -u root password 'new-password'"
+  echo "'$bindir/mysqladmin' -u root -h $hostname password 'new-password'"
   echo
   echo "Alternatively you can run:"
-  echo "$bindir/mysql_secure_installation"
+  echo "'$bindir/mysql_secure_installation'"
   echo
   echo "which will also give you the option of removing the test"
   echo "databases and anonymous user created by default.  This is"
@@ -484,14 +488,14 @@ then
   then
     echo
     echo "You can start the MariaDB daemon with:"
-    echo "cd $basedir ; $bindir/mysqld_safe --datadir=$ldata"
+    echo "cd '$basedir' ; $bindir/mysqld_safe --datadir='$ldata'"
     echo
     echo "You can test the MariaDB daemon with mysql-test-run.pl"
-    echo "cd $basedir/mysql-test ; perl mysql-test-run.pl"
+    echo "cd '$basedir/mysql-test' ; perl mysql-test-run.pl"
   fi
 
   echo
-  echo "Please report any problems with the $scriptdir/mysqlbug script!"
+  echo "Please report any problems with the '$scriptdir/mysqlbug' script!"
   echo
   echo "The latest information about MariaDB is available at http://www.askmonty.org/."
   echo "You can find additional information about the MySQL part at:"
