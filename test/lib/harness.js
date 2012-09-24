@@ -18,7 +18,9 @@
  02110-1301  USA
  */
 
-/*global unified_debug, fs, path, util, assert, suites_dir */
+/*global unified_debug, fs, path, util, assert, suites_dir,
+         test_conn_properties
+*/
 
 "use strict";
 
@@ -511,8 +513,19 @@ var runSQL = function(sqlPath, source, callback) {
       callback(error);  
     }
   }
+
+  var p = test_conn_properties;
+  var cmd = 'mysql';
+  if(p) {
+    if(p.mysql_socket)     { cmd += " --socket=" + p.mysql_socket; }
+    else if(p.mysql_port)  { cmd += " --port=" + p.mysql_port; }
+    if(p.mysql_host)     { cmd += " -h " + p.mysql_host; }
+    if(p.mysql_user)     { cmd += " -u " + p.mysql_user; }
+    if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
+  }
+  cmd += ' <' + sqlPath; 
   udebug.log('harness runSQL forking process...');
-  var child = exec('mysql <' + sqlPath, childProcess);
+  var child = exec(cmd, childProcess);
 };
 
 SQL.create =  function(suite, callback) {
@@ -528,7 +541,6 @@ SQL.drop = function(suite, callback) {
 };
 
 
-
 /* Exports from this module */
 exports.Test              = Test;
 exports.Suite             = Suite;
@@ -540,3 +552,5 @@ exports.ConcurrentSubTest = ConcurrentSubTest;
 exports.SerialTest        = SerialTest;
 exports.ClearSmokeTest    = ClearSmokeTest;
 exports.SQL               = SQL;
+
+

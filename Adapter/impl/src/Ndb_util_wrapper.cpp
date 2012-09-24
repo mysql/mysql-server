@@ -32,6 +32,7 @@
 
 using namespace v8;
 
+
 Envelope CharsetMapEnv("CharsetMap");
 
 extern Handle<Value> CharsetMap_recode_in(const Arguments &);
@@ -159,7 +160,6 @@ Handle<Value> CharsetMap_isMultibyte(const Arguments &args) {
 
   return scope.Close(ncall.jsReturnVal());
 }
-
 
 Handle<Value>  decimal_str2bin_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);

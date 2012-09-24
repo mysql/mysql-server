@@ -30,7 +30,7 @@ using namespace v8;
 typedef void LOADER_FUNCTION(Handle<Object>);
 
 extern LOADER_FUNCTION Ndb_init_initOnLoad;
-extern LOADER_FUNCTION Ndb_util_initOnLoad;
+// extern LOADER_FUNCTION Ndb_util_initOnLoad;
 extern LOADER_FUNCTION Ndb_cluster_connection_initOnLoad;
 extern LOADER_FUNCTION NdbTransaction_initOnLoad;
 extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
@@ -67,7 +67,7 @@ void initModule(Handle<Object> target) {
   init_impl(impl_obj);
   udebug_initOnLoad(debug_obj);
   mysqlclient_initOnLoad(mysql_obj);
-  Ndb_util_initOnLoad(util_obj);
+  // Ndb_util_initOnLoad(util_obj);
 
   target->Set(Persistent<String>(String::NewSymbol("debug")), debug_obj);
   target->Set(Persistent<String>(String::NewSymbol("mysqlclient")), mysql_obj);

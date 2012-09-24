@@ -87,7 +87,7 @@ global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject)
 
 /** Open a session or fail the test case */
 global.fail_openSession = function(testCase, callback) {
-  var properties = new mynode.ConnectionProperties(global.adapter);
+  var properties = global.test_conn_properties;
   var annotations = new mynode.Annotations();
   annotations.strict(true);
   var tablemapping = annotations.newTableMapping("test.t_basic");
