@@ -2688,7 +2688,7 @@ int toku_ft_loader_get_error(FTLOADER bl, int *error) {
 }
 
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen, int this_leafentry_size, STAT64INFO stats_to_update) {
-    lbuf->nkeys++; // assume NODUP
+    lbuf->nkeys++;
     lbuf->ndata++;
     lbuf->dsize += keylen + vallen;
     lbuf->off += this_leafentry_size;

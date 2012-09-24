@@ -18,7 +18,7 @@
 
 
 #if 0
-    Memory format of packed nodup leaf entry
+    Memory format of packed leaf entry
     CONSTANTS:
         num_uxrs
         keylen
