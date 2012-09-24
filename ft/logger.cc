@@ -1138,10 +1138,8 @@ TOKULOGGER toku_txn_logger (TOKUTXN txn) {
     return txn ? txn->logger : 0;
 }
 
-int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
-    if (logger==NULL) return -1;
+void toku_txnid2txn(TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
     toku_txn_manager_id2txn(logger->txn_manager, txnid, result);
-    return 0;
 }
 
 // Find the earliest LSN in a log.  No locks are needed.
