@@ -331,8 +331,9 @@ Closes the redo log files. There must not be any pending i/o's or not
 flushed modifications in the files. */
 UNIV_INTERN
 void
-fil_close_log_files(void);
-/*=====================*/
+fil_close_log_files(
+/*================*/
+	bool	free);	/*!< in: whether to free the memory object */
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */

@@ -540,6 +540,132 @@ create_log_file(
 	return(DB_SUCCESS);
 }
 
+/** Initial number of the first redo log file */
+#define INIT_LOG_FILE0	101
+
+/*********************************************************************//**
+Creates all log files.
+@return	DB_SUCCESS or error code */
+static
+dberr_t
+create_log_files(
+/*=============*/
+	char*	logfilename,	/*!< in/out: buffer for log file name */
+	size_t	dirnamelen,	/*!< in: length of the directory path */
+	lsn_t	lsn,		/*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
+	char*&	logfile0)	/*!< out: name of the first log file */
+{
+	/* Remove any old log files. */
+	for (unsigned i = 0; i <= INIT_LOG_FILE0; i++) {
+		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
+
+		/* Ignore errors about non-existent files or files
+		that cannot be removed. The create_log_file() will
+		return an error when the file exists. */
+#ifdef __WIN__
+		DeleteFile((LPCTSTR) logfilename);
+#else
+		unlink(logfilename);
+#endif
+		/* Crashing after deleting the first
+		file should be recoverable. The buffer
+		pool was clean, and we can simply create
+		all log files from the scratch. */
+	}
+
+	ut_ad(!buf_pool_check_no_pending_io());
+
+	for (unsigned i = 0; i < srv_n_log_files; i++) {
+		sprintf(logfilename + dirnamelen,
+			"ib_logfile%u", i ? i : INIT_LOG_FILE0);
+
+		dberr_t err = create_log_file(&files[i], logfilename);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	/* We did not create the first log file initially as
+	ib_logfile0, so that crash recovery cannot find it until it
+	has been completed and renamed. */
+	sprintf(logfilename + dirnamelen, "ib_logfile%u", INIT_LOG_FILE0);
+
+	fil_space_create(
+		logfilename, SRV_LOG_SPACE_FIRST_ID,
+		fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+		FIL_LOG);
+	ut_a(fil_validate());
+
+	logfile0 = fil_node_create(
+		logfilename, (ulint) srv_log_file_size,
+		SRV_LOG_SPACE_FIRST_ID, FALSE);
+	ut_a(logfile0);
+
+	for (unsigned i = 1; i < srv_n_log_files; i++) {
+		sprintf(logfilename + dirnamelen, "ib_logfile%u", i);
+
+		if (!fil_node_create(
+			    logfilename,
+			    (ulint) srv_log_file_size,
+			    SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+			ut_error;
+		}
+	}
+
+	log_group_init(0, srv_n_log_files,
+		       srv_log_file_size * UNIV_PAGE_SIZE,
+		       SRV_LOG_SPACE_FIRST_ID,
+		       SRV_LOG_SPACE_FIRST_ID + 1);
+
+	fil_open_log_and_system_tablespace_files();
+
+	/* Create a log checkpoint. */
+	mutex_enter(&log_sys->mutex);
+	ut_d(recv_no_log_write = FALSE);
+	recv_reset_logs(lsn, TRUE);
+	mutex_exit(&log_sys->mutex);
+
+	return(DB_SUCCESS);
+}
+
+/*********************************************************************//**
+Renames the first all log file. */
+static
+void
+create_log_files_rename(
+/*====================*/
+	char*	logfilename,	/*!< in/out: buffer for log file name */
+	size_t	dirnamelen,	/*!< in: length of the directory path */
+	lsn_t	lsn,		/*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
+	char*	logfile0)	/*!< in/out: name of the first log file */
+{
+	/* Close the log files, so that we can rename
+	the first one. */
+	fil_close_log_files(false);
+
+	/* Rename the first log file, now that a log
+	checkpoint has been created. */
+	sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Renaming log file %s to %s", logfile0, logfilename);
+
+	mutex_enter(&log_sys->mutex);
+	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
+	ibool success = os_file_rename(
+		innodb_file_log_key, logfile0, logfilename);
+	ut_a(success);
+
+	/* Replace the first file with ib_logfile0. */
+	strcpy(logfile0, logfilename);
+	mutex_exit(&log_sys->mutex);
+
+	fil_open_log_and_system_tablespace_files();
+
+	ib_logf(IB_LOG_LEVEL_WARN, "New log files created, LSN=" LSN_PF, lsn);
+}
+
 /*********************************************************************//**
 Opens a log file.
 @return	DB_SUCCESS or error code */
@@ -1266,7 +1392,6 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
 	ibool		create_new_db;
-	ibool		log_created;
 	lsn_t		min_flushed_lsn;
 	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
@@ -1277,11 +1402,13 @@ innobase_start_or_create_for_mysql(void)
 	ulint		sum_of_data_file_sizes;
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
-	ulint		i;
+	unsigned	i;
+	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
 	ib_bh_t*	ib_bh;
 	char		logfilename[10000];
+	char*		logfile0	= NULL;
 	size_t		dirnamelen;
 
 #ifdef HAVE_DARWIN_THREADS
@@ -1801,39 +1928,68 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_log_file_size_requested = srv_log_file_size;
-	log_created = FALSE;
 
 	if (create_new_db) {
-create_log_files:
-		for (i = 0; i < srv_n_log_files; i++) {
-			sprintf(logfilename + dirnamelen,
-				"ib_logfile%lu", (ulong) i);
-
-			err = create_log_file(&files[i], logfilename);
-
-			if (err != DB_SUCCESS) {
-				return(err);
-			}
+		{
+			bool success = buf_flush_list(
+				ULINT_MAX, LSN_MAX, NULL);
+			ut_a(success);
 		}
 
-		log_created = TRUE;
+		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+create_log_files:
+		err = create_log_files(logfilename, dirnamelen,
+				       max_flushed_lsn, logfile0);
+
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+
+		if (!create_new_db) {
+			create_log_files_rename(logfilename, dirnamelen,
+						max_flushed_lsn, logfile0);
+		}
 	} else {
 		for (i = 0; i < 100/* max of srv_n_log_files */; i++) {
 			os_offset_t	size;
 			os_file_stat_t	stat_info;
 
 			sprintf(logfilename + dirnamelen,
-				"ib_logfile%lu", (ulong) i);
+				"ib_logfile%u", i);
 
 			err = os_file_get_status(
 				logfilename, &stat_info, false);
 
 			if (err == DB_NOT_FOUND) {
 				if (i == 0) {
-					goto create_log_files;
-				}
+					if (max_flushed_lsn != min_flushed_lsn) {
+						ib_logf(IB_LOG_LEVEL_ERROR,
+							"Cannot create"
+							" log files because"
+							" data files are"
+							" corrupt or"
+							" not in sync"
+							" with each other");
+						return(DB_ERROR);
+					}
 
-				if (i < 2) {
+					if (max_flushed_lsn < (lsn_t) 1000) {
+						ib_logf(IB_LOG_LEVEL_ERROR,
+							"Cannot create"
+							" log files because"
+							" data files are"
+							" corrupt or the"
+							" database was not"
+							" shut down cleanly"
+							" after creating"
+							" the data files.");
+						return(DB_ERROR);
+					}
+
+					goto create_log_files;
+				} else if (i < 2) {
 					/* must have at least 2 log files */
 					return(err);
 				}
@@ -1880,45 +2036,48 @@ create_log_files:
 				return(DB_ERROR);
 			}
 		}
-	}
 
-	/* Create the in-memory file space objects. */
+		srv_n_log_files_found = i;
 
-	sprintf(logfilename + dirnamelen, "ib_logfile%lu", 0UL);
+		/* Create the in-memory file space objects. */
 
-	fil_space_create(logfilename,
-			 SRV_LOG_SPACE_FIRST_ID,
-			 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-			 FIL_LOG);
+		sprintf(logfilename + dirnamelen, "ib_logfile%u", 0);
 
-	ut_a(fil_validate());
+		fil_space_create(logfilename,
+				 SRV_LOG_SPACE_FIRST_ID,
+				 fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
+				 FIL_LOG);
 
-	/* srv_log_file_size is measured in pages; if page size is 16KB,
-	then we have a limit of 64TB on 32 bit systems */
-	ut_a(srv_log_file_size <= ULINT_MAX);
+		ut_a(fil_validate());
 
-	for (ulint j = 0; j < i; j++) {
-		sprintf(logfilename + dirnamelen, "ib_logfile%lu",
-			(ulong) j);
+		/* srv_log_file_size is measured in pages; if page size is 16KB,
+		then we have a limit of 64TB on 32 bit systems */
+		ut_a(srv_log_file_size <= ULINT_MAX);
 
-		if (!fil_node_create(logfilename, (ulint) srv_log_file_size,
-				     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
-			return(DB_ERROR);
+		for (unsigned j = 0; j < i; j++) {
+			sprintf(logfilename + dirnamelen, "ib_logfile%u", j);
+
+			if (!fil_node_create(logfilename,
+					     (ulint) srv_log_file_size,
+					     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
+				return(DB_ERROR);
+			}
 		}
-	}
 
 #ifdef UNIV_LOG_ARCHIVE
-	/* Create the file space object for archived logs. Under
-	MySQL, no archiving ever done. */
-	fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
-			 0, FIL_LOG);
+		/* Create the file space object for archived logs. Under
+		MySQL, no archiving ever done. */
+		fil_space_create("arch_log_space", SRV_LOG_SPACE_FIRST_ID + 1,
+				 0, FIL_LOG);
 #endif /* UNIV_LOG_ARCHIVE */
-	log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
-		       SRV_LOG_SPACE_FIRST_ID,
-		       SRV_LOG_SPACE_FIRST_ID + 1); /* dummy arch space id */
+		log_group_init(0, i, srv_log_file_size * UNIV_PAGE_SIZE,
+			       SRV_LOG_SPACE_FIRST_ID,
+			       SRV_LOG_SPACE_FIRST_ID + 1);
+	}
 
-	/* Open all log files and data files in the system tablespace: we
-	keep them open until database shutdown */
+	/* Open all log files and data files in the system
+	tablespace: we keep them open until database
+	shutdown */
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -1939,68 +2098,6 @@ create_log_files:
 	/* Initialize objects used by dict stats gathering thread, which
 	can also be used by recovery if it tries to drop some table */
 	dict_stats_thread_init();
-
-	if (log_created && !create_new_db
-#ifdef UNIV_LOG_ARCHIVE
-	    && !srv_archive_recovery
-#endif /* UNIV_LOG_ARCHIVE */
-	    ) {
-		if (max_flushed_lsn != min_flushed_lsn
-#ifdef UNIV_LOG_ARCHIVE
-		    || max_arch_log_no != min_arch_log_no
-#endif /* UNIV_LOG_ARCHIVE */
-		    ) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Cannot initialize created"
-				" log files because\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: data files were not in sync"
-				" with each other\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: or the data files are corrupt.\n");
-
-			return(DB_ERROR);
-		}
-
-		if (max_flushed_lsn < (lsn_t) 1000) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Cannot initialize created"
-				" log files because\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: data files are corrupt,"
-				" or new data files were\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: created when the database"
-				" was started previous\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: time but the database"
-				" was not shut down\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: normally after that.\n");
-
-			return(DB_ERROR);
-		}
-
-		mutex_enter(&(log_sys->mutex));
-
-#ifdef UNIV_LOG_ARCHIVE
-		/* Do not + 1 arch_log_no because we do not use log
-		archiving */
-		recv_reset_logs(max_flushed_lsn, max_arch_log_no, TRUE);
-#else
-		recv_reset_logs(max_flushed_lsn, TRUE);
-#endif /* UNIV_LOG_ARCHIVE */
-
-		mutex_exit(&(log_sys->mutex));
-	}
 
 	trx_sys_file_format_init();
 
@@ -2030,6 +2127,20 @@ create_log_files:
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
+		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		ut_a(success);
+
+		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+		/* Stamp the LSN to the data files. */
+		fil_write_flushed_lsn_to_data_files(max_flushed_lsn, 0);
+
+		fil_flush_file_spaces(FIL_TABLESPACE);
+
+		create_log_files_rename(logfilename, dirnamelen,
+					max_flushed_lsn, logfile0);
 #ifdef UNIV_LOG_ARCHIVE
 	} else if (srv_archive_recovery) {
 		ut_print_timestamp(stderr);
@@ -2143,7 +2254,7 @@ create_log_files:
 		if (!srv_force_recovery
 		    && !recv_sys->found_corrupt_log
 		    && (srv_log_file_size_requested != srv_log_file_size
-			|| i != srv_n_log_files)) {
+			|| srv_n_log_files_found != srv_n_log_files)) {
 			/* Prepare to replace the redo log files. */
 
 			/* Clean the buffer pool. */
@@ -2178,9 +2289,9 @@ create_log_files:
 
 			fil_flush_file_spaces(FIL_TABLESPACE);
 
-			/* Close the redo log files, so that we can
-			replace them. */
-			fil_close_log_files();
+			/* Close and free the redo log files, so that
+			we can replace them. */
+			fil_close_log_files(true);
 
 			/* Free the old log file space. */
 			log_group_close_all();
@@ -2188,82 +2299,17 @@ create_log_files:
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Starting to delete and rewrite log files.");
 
-			/* Remove the old log files. */
-			for (ulint j = 0; j < i; j++) {
-				os_file_stat_t	stat_info;
-
-				sprintf(logfilename + dirnamelen,
-					"ib_logfile%lu", (ulong) j);
-
-				err = os_file_get_status(
-					logfilename, &stat_info, false);
-
-				if (err == DB_NOT_FOUND) {
-					break;
-				}
-
-				if (!os_file_delete(logfilename)) {
-					return(DB_ERROR);
-				}
-			}
-
-			ut_ad(!buf_pool_check_no_pending_io());
-
 			srv_log_file_size = srv_log_file_size_requested;
 
-			/* Create new log files. */
-			for (i = 0; i < srv_n_log_files; i++) {
-				sprintf(logfilename + dirnamelen,
-					"ib_logfile%lu", (ulong) i);
+			err = create_log_files(logfilename, dirnamelen,
+					       max_flushed_lsn, logfile0);
 
-				err = create_log_file(&files[i], logfilename);
-
-				if (err != DB_SUCCESS) {
-					return(err);
-				}
+			if (err != DB_SUCCESS) {
+				return(err);
 			}
 
-			log_created = TRUE;
-
-			sprintf(logfilename + dirnamelen,
-				"ib_logfile%lu", 0UL);
-
-			fil_space_create(
-				logfilename, SRV_LOG_SPACE_FIRST_ID,
-				fsp_flags_set_page_size(0, UNIV_PAGE_SIZE),
-				FIL_LOG);
-			ut_a(fil_validate());
-
-			for (i = 0; i < srv_n_log_files; i++) {
-				sprintf(logfilename + dirnamelen,
-					"ib_logfile%lu", (ulong) i);
-
-				if (!fil_node_create(
-					    logfilename,
-					    (ulint) srv_log_file_size,
-					    SRV_LOG_SPACE_FIRST_ID, FALSE)) {
-					ut_error;
-				}
-			}
-
-			log_group_init(0, srv_n_log_files,
-				       srv_log_file_size * UNIV_PAGE_SIZE,
-				       SRV_LOG_SPACE_FIRST_ID,
-				       SRV_LOG_SPACE_FIRST_ID + 1);
-
-			fil_open_log_and_system_tablespace_files();
-
-			/* Create a log checkpoint. */
-			mutex_enter(&log_sys->mutex);
-			ut_d(recv_no_log_write = FALSE);
-			ut_ad(max_flushed_lsn == log_sys->lsn);
-			recv_reset_logs(max_flushed_lsn, TRUE);
-			mutex_exit(&log_sys->mutex);
-
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"New log files created"
-				", LSN=" LSN_PF,
-				max_flushed_lsn);
+			create_log_files_rename(logfilename, dirnamelen,
+						max_flushed_lsn, logfile0);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
