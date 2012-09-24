@@ -36,14 +36,11 @@ var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
   var spi = require(spi_module),
-      service, i, test;
+      // This will fail if the adapter cannot be loaded: 
+      service = spi.getDBServiceProvider(global.adapter),
+      test = this,
+      i;
   
-  test = this,
-  
-  /* This will fail if the adapter cannot be loaded: 
-  */
-  service = spi.getDBServiceProvider(global.adapter);
-
   /* Get a database connection.  Do this in the smokeTest so that we can
      abort the whole suite if it fails.
   */

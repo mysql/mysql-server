@@ -3,3 +3,4 @@ Adapter/impl/build
 *.lock-wscript
 mysql_pref.sh
 Adapter/impl/dev-checklist.plist
+test/test_connection.js
