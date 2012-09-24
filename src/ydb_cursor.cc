@@ -655,12 +655,10 @@ toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
             r = toku_c_getf_last(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
         case (DB_NEXT):
-        case (DB_NEXT_NODUP):
             query_context_wrapped_init(&context, c, key,  val);
             r = toku_c_getf_next(c, remaining_flags, c_get_wrapper_callback, &context);
             break;
         case (DB_PREV):
-        case (DB_PREV_NODUP):
             query_context_wrapped_init(&context, c, key,  val);
             r = toku_c_getf_prev(c, remaining_flags, c_get_wrapper_callback, &context);
             break;

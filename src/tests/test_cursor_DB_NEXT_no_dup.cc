@@ -130,13 +130,6 @@ static void run_test(void) {
     /* ********************************************************************** */
     /* Test DB_PREV works properly. */
     test_skip_key(DB_PREV, false);
-    /* ********************************************************************** */
-    /* Test DB_PREV_NODUP works properly. */
-    test_skip_key(DB_PREV_NODUP, false);
-    /* ********************************************************************** */
-    /* Test DB_NEXT_NODUP works properly. */
-    test_skip_key(DB_NEXT_NODUP, true);
-    /* ********************************************************************** */
 }
 
 int
