@@ -109,7 +109,7 @@ static void test_it (int N) {
     r = toku_close_ft_handle_nolsn(brt, NULL);                                                                             CKERR(r);
 
     r = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                                CKERR(r);
-    toku_logger_close_rollback(logger);                                                             CKERR(r);
+    toku_logger_close_rollback(logger);
     r = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);                                CKERR(r);
     toku_cachetable_close(&ct);
     r = toku_logger_close(&logger);                                                        assert(r==0);

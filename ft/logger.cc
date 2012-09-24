@@ -200,9 +200,7 @@ toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create)
 //            so it will always be clean (!h->dirty) when about to be closed.
 //            Rollback log can only be closed when there are no open transactions,
 //            so it will always be empty (no data blocks) when about to be closed.
-// TODO: can't fail
-int
-toku_logger_close_rollback(TOKULOGGER logger) {
+void toku_logger_close_rollback(TOKULOGGER logger) {
     CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
     if (cf) {
         FT_HANDLE ft_to_close;
@@ -226,7 +224,6 @@ toku_logger_close_rollback(TOKULOGGER logger) {
         //Set as dealt with already.
         logger->rollback_cachefile = NULL;
     }
-    return 0;
 }
 
 // No locks held on entry
