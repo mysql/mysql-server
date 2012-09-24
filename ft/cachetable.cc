@@ -440,9 +440,7 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
     ct->cf_list.write_unlock();
 }
 
-// TODO: (Zardosht) review locking of this function carefully in code review
-int 
-toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
+void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
 
@@ -480,9 +478,6 @@ toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     }
     toku_free(cf->fname_in_env);
     toku_free(cf);
-
-    // TODO: can't fail
-    return 0;
 }
 
 //

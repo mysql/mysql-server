@@ -140,7 +140,7 @@ test_clean (enum cachetable_dirty dirty, bool cloneable) {
     check_flush = false;
     
     toku_cachetable_verify(ct);
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

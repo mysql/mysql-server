@@ -3201,9 +3201,8 @@ exit:
             bool needed = toku_ft_needed_unlocked(ft);
             toku_ft_release_reflock(ft);
             if (!needed) {
-                //Close immediately.
-                r = toku_ft_evict_from_memory(ft, false, ZERO_LSN);
-                lazy_assert_zero(r);
+                // close immediately.
+                toku_ft_evict_from_memory(ft, false, ZERO_LSN);
             }
         }
         else {

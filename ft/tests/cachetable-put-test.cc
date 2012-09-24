@@ -44,7 +44,7 @@ cachetable_put_test (int n) {
     assert(toku_cachefile_count_pinned(f1, 1) == 0);
     toku_cachetable_verify(ct);
 
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 

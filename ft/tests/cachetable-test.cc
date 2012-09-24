@@ -114,7 +114,7 @@ static void test_nested_pin (void) {
     toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, make_pair_attr(test_object_size), wc, put_callback_nop);
     r = toku_test_cachetable_unpin(f, make_blocknum(2), f2hash, CACHETABLE_CLEAN, make_pair_attr(test_object_size));
     assert(r==0);
-    r = toku_cachefile_close(&f, false, ZERO_LSN); assert(r==0);
+    toku_cachefile_close(&f, false, ZERO_LSN);
     toku_cachetable_close(&t);
 }
 
@@ -193,10 +193,10 @@ static void test_multi_filehandles (void) {
     // we support only one close for a file handle
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
     r = toku_test_cachetable_unpin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
-    r = toku_cachefile_close(&f2, false, ZERO_LSN); assert(r==0);
+    toku_cachefile_close(&f2, false, ZERO_LSN);
 
     r = toku_test_cachetable_unpin(f3, make_blocknum(2), toku_cachetable_hash(f3, make_blocknum(2)), CACHETABLE_CLEAN, make_pair_attr(0)); assert(r==0);
-    r = toku_cachefile_close(&f3, false, ZERO_LSN); assert(r==0);
+    toku_cachefile_close(&f3, false, ZERO_LSN);
 
     toku_cachetable_close(&t);
 }
@@ -474,8 +474,7 @@ static void test_size_flush(void) {
         assert(r == 0);
     }
     
-    r = toku_cachefile_close(&f, false, ZERO_LSN);
-    assert(r == 0);
+    toku_cachefile_close(&f, false, ZERO_LSN);
     toku_cachetable_close(&t);
 }
 

@@ -70,7 +70,7 @@ static void cachetable_prefetch_close_leak_test (void) {
 
     // close with the prefetch in progress. the close should block until
     // all of the reads and writes are complete.
-    r = toku_cachefile_close(&f1, false, ZERO_LSN); assert(r == 0);
+    toku_cachefile_close(&f1, false, ZERO_LSN);
     toku_cachetable_close(&ct);
 }
 
