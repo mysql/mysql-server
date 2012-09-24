@@ -2609,8 +2609,42 @@ dict_load_foreign_cols(
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_FOREIGN_COLS__ID, &len);
-		ut_a(len == id_len);
-		ut_a(ut_memcmp(id, field, len) == 0);
+
+		if (len != id_len || ut_memcmp(id, field, len) != 0) {
+			const rec_t*	pos;
+			ulint		pos_len;
+			const rec_t*	for_col_name;
+			ulint		for_col_name_len;
+			const rec_t*	ref_col_name;
+			ulint		ref_col_name_len;
+
+			pos = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__POS,
+				&pos_len);
+
+			for_col_name = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__FOR_COL_NAME,
+				&for_col_name_len);
+
+			ref_col_name = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME,
+				&ref_col_name_len);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to load columns names for foreign "
+				"key '%.*s' because it was not found in "
+				"InnoDB internal table SYS_FOREIGN_COLS. The "
+				"closest entry we found is: "
+				"(ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s', "
+				"REF_COL_NAME='%.*s')",
+				(int) id_len, id,
+				(int) len, field,
+				mach_read_from_4(pos),
+				(int) for_col_name_len, for_col_name,
+				(int) ref_col_name_len, ref_col_name);
+
+			ut_error;
+		}
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_FOREIGN_COLS__POS, &len);
