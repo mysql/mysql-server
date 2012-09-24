@@ -1,0 +1,22 @@
+Valid values are 'ON' and 'OFF'
+select @@global.innodb_read_only;
+@@global.innodb_read_only
+0
+select @@session.innodb_read_only;
+ERROR HY000: Variable 'innodb_read_only' is a GLOBAL variable
+show global variables like 'innodb_read_only';
+Variable_name	Value
+innodb_read_only	OFF
+show session variables like 'innodb_read_only';
+Variable_name	Value
+innodb_read_only	OFF
+select * from information_schema.global_variables where variable_name='innodb_read_only';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_READ_ONLY	OFF
+select * from information_schema.session_variables where variable_name='innodb_read_only';
+VARIABLE_NAME	VARIABLE_VALUE
+INNODB_READ_ONLY	OFF
+set global innodb_read_only=1;
+ERROR HY000: Variable 'innodb_read_only' is a read only variable
+set session innodb_read_only=1;
+ERROR HY000: Variable 'innodb_read_only' is a read only variable

@@ -6934,6 +6934,9 @@ ER_FK_CANNOT_DELETE_PARENT
 ER_MALFORMED_PACKET
   eng "Malformed communication packet."
 
+ER_READ_ONLY_MODE
+        eng "Running in read-only mode"
+
 #
 #  End of 5.6 error messages.
 #

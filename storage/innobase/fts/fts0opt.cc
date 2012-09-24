@@ -2872,6 +2872,8 @@ fts_optimize_thread(
 	ulint		n_optimize = 0;
 	ib_wqueue_t*	wq = (ib_wqueue_t*) arg;
 
+	ut_ad(!srv_read_only_mode);
+
 	heap = mem_heap_create(sizeof(dict_table_t*) * 64);
 	heap_alloc = ib_heap_allocator_create(heap);
 
@@ -3017,8 +3019,7 @@ fts_optimize_thread(
 
 	ib_vector_free(tables);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: FTS optimize thread exiting.\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "FTS optimize thread exiting.");
 
 	ib_wqueue_free(wq);
 
@@ -3038,6 +3039,8 @@ void
 fts_optimize_init(void)
 /*===================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	/* For now we only support one optimize thread. */
 	ut_a(fts_optimize_wq == NULL);
 
@@ -3065,6 +3068,8 @@ void
 fts_optimize_start_shutdown(void)
 /*=============================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	fts_msg_t*	msg;
 	os_event_t	event;
 
@@ -3089,6 +3094,8 @@ void
 fts_optimize_end(void)
 /*==================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	// FIXME: Potential race condition here: We should wait for
 	// the optimize thread to confirm shutdown.
 	fts_optimize_wq = NULL;
