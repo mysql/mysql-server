@@ -316,13 +316,14 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
                                          const char *fname_in_env,
                                          FILENUM filenum) {
     int r;
-    CACHEFILE extant;
+    CACHEFILE extant, newcf;
     struct fileid fileid;
     
     assert(filenum.fileid != FILENUM_NONE.fileid);
     r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
-        r=get_error_errno(); close(fd); // no change for t:2444
+        r = get_error_errno();
+        close(fd);
         return r;
     }
     ct->cf_list.write_lock();
@@ -348,20 +349,17 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         invariant(extant->filenum.fileid != filenum.fileid);
     }
 
-    //File is not open.  Make a new cachefile.
-    {
-        // create a new cachefile entry in the cachetable
-        CACHEFILE XCALLOC(newcf);
-        newcf->cachetable = ct;
-        newcf->filenum = filenum;
-        cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
-        newcf->next = ct->cf_list.m_head;
-        ct->cf_list.m_head = newcf;
+    // File is not open.  Make a new cachefile.
+    XCALLOC(newcf);
+    newcf->cachetable = ct;
+    newcf->filenum = filenum;
+    cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
+    newcf->next = ct->cf_list.m_head;
+    ct->cf_list.m_head = newcf;
 
-        bjm_init(&newcf->bjm);
-        *cfptr = newcf;
-        r = 0;
-    }
+    bjm_init(&newcf->bjm);
+    *cfptr = newcf;
+    r = 0;
  exit:
     ct->cf_list.write_unlock();
     return r;
@@ -374,22 +372,26 @@ int toku_cachetable_openf (CACHEFILE *cfptr, CACHETABLE ct, const char *fname_in
     char *fname_in_cwd = toku_construct_full_name(2, ct->env_dir, fname_in_env);
     int fd = open(fname_in_cwd, flags+O_BINARY, mode);
     int r;
-    if (fd<0) r = get_error_errno();
-    else      r = toku_cachetable_openfd (cfptr, ct, fd, fname_in_env);
+    if (fd < 0) {
+        r = get_error_errno();
+    } else {
+        r = toku_cachetable_openfd (cfptr, ct, fd, fname_in_env);
+    }
     toku_free(fname_in_cwd);
     return r;
 }
 
 //Test-only function
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
-    int r;
     struct fileid fileid;
-    r=toku_os_get_unique_file_id(fd, &fileid);
+    int r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
-        r=get_error_errno(); close(fd); goto cleanup; // no change for t:2444
-    }
-    if (cf->close_userdata && (r = cf->close_userdata(cf, cf->fd, cf->userdata, false, ZERO_LSN))) {
+        r = get_error_errno();
+        close(fd);
         goto cleanup;
+    }
+    if (cf->close_userdata) {
+        cf->close_userdata(cf, cf->fd, cf->userdata, false, ZERO_LSN);
     }
     cf->close_userdata = NULL;
     cf->checkpoint_userdata = NULL;
@@ -397,7 +399,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     cf->end_checkpoint_userdata = NULL;
     cf->userdata = NULL;
 
-    close(cf->fd); // no change for t:2444
+    close(cf->fd);
     cf->fd = -1;
     if (cf->fname_in_env) {
         toku_free(cf->fname_in_env);
@@ -441,7 +443,6 @@ static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
 // TODO: (Zardosht) review locking of this function carefully in code review
 int 
 toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
-    int r, close_error = 0;
     CACHEFILE cf = *cfp;
     CACHETABLE ct = cf->cachetable;
 
@@ -458,7 +459,7 @@ toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     // Call the close userdata callback to notify the client this cachefile
     // and its underlying file are going to be closed
     if (cf->close_userdata) {
-        close_error = cf->close_userdata(cf, cf->fd, cf->userdata, oplsn_valid, oplsn);
+        cf->close_userdata(cf, cf->fd, cf->userdata, oplsn_valid, oplsn);
     }
 
     remove_cf_from_cachefiles_list(cf);
@@ -467,7 +468,7 @@ toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
 
     // fsync and close the fd. 
     toku_file_fsync_without_accounting(cf->fd);
-    r = close(cf->fd);
+    int r = close(cf->fd);
     assert(r == 0);
 
     // Unlink the file if the bit was set
@@ -480,11 +481,8 @@ toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     toku_free(cf->fname_in_env);
     toku_free(cf);
 
-    // If close userdata returned nonzero, pass that error code to the caller
-    if (close_error != 0) {
-        r = close_error;
-    }
-    return r;
+    // TODO: can't fail
+    return 0;
 }
 
 //
@@ -2920,8 +2918,8 @@ toku_cachefile_set_userdata (CACHEFILE cf,
                              void *userdata,
                              void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
                              void (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
-                             int (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
-                             int (*checkpoint_userdata)(CACHEFILE, int, void*),
+                             void (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
+                             void (*checkpoint_userdata)(CACHEFILE, int, void*),
                              void (*begin_checkpoint_userdata)(LSN, void*),
                              void (*end_checkpoint_userdata)(CACHEFILE, int, void*),
                              void (*note_pin_by_checkpoint)(CACHEFILE, void*),
@@ -4397,9 +4395,8 @@ void checkpointer::checkpoint_userdata(CACHEFILE* checkpoint_cfs) {
         assert(cf->for_checkpoint);
         assert(cf->checkpoint_userdata);
         toku_cachetable_set_checkpointing_user_data_status(1);
-        int r = cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
+        cf->checkpoint_userdata(cf, cf->fd, cf->userdata);
         toku_cachetable_set_checkpointing_user_data_status(0);
-        assert(r==0);
     }
 }
 

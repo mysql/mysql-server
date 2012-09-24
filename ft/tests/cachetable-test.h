@@ -9,22 +9,14 @@
 //
 // Dummy callbacks for checkpointing
 //
-static void dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p))
-{ return; }
-static void dummy_log_rollback(CACHEFILE UU(cf), void* UU(p))
-{ return; }
-static int dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), bool UU(b), LSN UU(lsn)) 
-{ return 0; }
-static int dummy_chckpnt_usr(CACHEFILE UU(cf), int UU(i), void* UU(p))
-{ return 0; }
-static void dummy_begin(LSN UU(lsn), void* UU(p)) 
-{ return; }
-static void dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p)) 
-{ return; }
-static void dummy_note_pin(CACHEFILE UU(cf), void* UU(p)) 
-{ return; }
-static void dummy_note_unpin(CACHEFILE UU(cf), void* UU(p))
-{ return; }
+static void dummy_log_fassociate(CACHEFILE UU(cf), void* UU(p)) { }
+static void dummy_log_rollback(CACHEFILE UU(cf), void* UU(p)) { }
+static void dummy_close_usr(CACHEFILE UU(cf), int UU(i), void* UU(p), bool UU(b), LSN UU(lsn))  { }
+static void dummy_chckpnt_usr(CACHEFILE UU(cf), int UU(i), void* UU(p)) { }
+static void dummy_begin(LSN UU(lsn), void* UU(p)) { }
+static void dummy_end(CACHEFILE UU(cf), int UU(i), void* UU(p)) { }
+static void dummy_note_pin(CACHEFILE UU(cf), void* UU(p)) { }
+static void dummy_note_unpin(CACHEFILE UU(cf), void* UU(p)) { }
 
 //
 // Helper function to set dummy functions in given cachefile.
@@ -33,14 +25,14 @@ static UU() void
 create_dummy_functions(CACHEFILE cf)
 {
     void *ud = NULL;
-    toku_cachefile_set_userdata (cf,
-                                 ud,
-                                 &dummy_log_fassociate,
-                                 &dummy_log_rollback,
-                                 &dummy_close_usr,
-                                 &dummy_chckpnt_usr,
-                                 &dummy_begin,
-                                 &dummy_end,
-                                 &dummy_note_pin,
-                                 &dummy_note_unpin);
+    toku_cachefile_set_userdata(cf,
+                               ud,
+                               &dummy_log_fassociate,
+                               &dummy_log_rollback,
+                               &dummy_close_usr,
+                               &dummy_chckpnt_usr,
+                               &dummy_begin,
+                               &dummy_end,
+                               &dummy_note_pin,
+                               &dummy_note_unpin);
 };
