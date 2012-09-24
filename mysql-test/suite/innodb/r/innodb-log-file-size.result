@@ -1,0 +1,17 @@
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+SET DEBUG='+d,crash_commit_before';
+INSERT INTO t1 VALUES (42);
+ERROR HY000: Lost connection to MySQL server during query
+SELECT * FROM t1;
+a
+INSERT INTO t1 VALUES (42);
+SET DEBUG='+d,crash_commit_before';
+DELETE FROM t1;
+ERROR HY000: Lost connection to MySQL server during query
+SELECT * FROM t1;
+a
+42
+DROP TABLE t1;

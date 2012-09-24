@@ -1,0 +1,47 @@
+# Test resizing the InnoDB redo log.
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
+
+SET DEBUG='+d,crash_commit_before';
+# Write file to make mysql-test-run.pl restart the server
+--exec echo "restart: --innodb-log-file-size=6M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+INSERT INTO t1 VALUES (42);
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT * FROM t1;
+
+INSERT INTO t1 VALUES (42);
+
+SET DEBUG='+d,crash_commit_before';
+# Write file to make mysql-test-run.pl restart the server
+--exec echo "restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+DELETE FROM t1;
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+SELECT * FROM t1;
+
+# TODO: Test with --innodb-force-recovery-crash
+
+DROP TABLE t1;
