@@ -294,7 +294,11 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
 
     char parent_db[FN_REFLEN];
     char parent_name[FN_REFLEN];
-    if (fk->ref_table->db.length != 0 && fk->ref_table->db.str != 0)
+    /*
+     * Looking at Table_ident, testing for db.str first is safer
+     * for valgrind.  Do same with table.str too.
+     */
+    if (fk->ref_table->db.str != 0 && fk->ref_table->db.length != 0)
     {
       my_snprintf(parent_db, sizeof(parent_db), "%*s",
                   (int)fk->ref_table->db.length,
@@ -304,7 +308,7 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
     {
       parent_db[0]= 0;
     }
-    if (fk->ref_table->table.length != 0 && fk->ref_table->table.str != 0)
+    if (fk->ref_table->table.str != 0 && fk->ref_table->table.length != 0)
     {
       my_snprintf(parent_name, sizeof(parent_name), "%*s",
                   (int)fk->ref_table->table.length,
