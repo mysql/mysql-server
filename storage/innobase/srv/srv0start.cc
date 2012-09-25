@@ -1948,26 +1948,18 @@ innobase_start_or_create_for_mysql(void)
 	srv_log_file_size_requested = srv_log_file_size;
 
 	if (create_new_db) {
-		{
-			bool success = buf_flush_list(
-				ULINT_MAX, LSN_MAX, NULL);
-			ut_a(success);
-		}
+		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
+		ut_a(success);
 
 		min_flushed_lsn = max_flushed_lsn = log_get_lsn();
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-create_log_files:
+
 		err = create_log_files(logfilename, dirnamelen,
 				       max_flushed_lsn, logfile0);
 
 		if (err != DB_SUCCESS) {
 			return(err);
-		}
-
-		if (!create_new_db) {
-			create_log_files_rename(logfilename, dirnamelen,
-						max_flushed_lsn, logfile0);
 		}
 	} else {
 		for (i = 0; i < SRV_N_LOG_FILES_MAX; i++) {
@@ -2007,7 +1999,17 @@ create_log_files:
 						return(DB_ERROR);
 					}
 
-					goto create_log_files;
+					err = create_log_files(
+						logfilename, dirnamelen,
+						max_flushed_lsn, logfile0);
+
+					if (err != DB_SUCCESS) {
+						return(err);
+					}
+
+					create_log_files_rename(
+						logfilename, dirnamelen,
+						max_flushed_lsn, logfile0);
 				} else if (i < 2) {
 					/* must have at least 2 log files */
 					return(err);
