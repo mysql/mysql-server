@@ -1468,7 +1468,7 @@ trx_undo_mem_create(
 
 	if (undo == NULL) {
 
-		return NULL;
+		return(NULL);
 	}
 
 	undo->id = id;
@@ -1800,7 +1800,7 @@ func_exit:
 	mutex_exit(&(rseg->mutex));
 	mtr_commit(&mtr);
 
-	return err;
+	return(err);
 }
 
 /******************************************************************//**

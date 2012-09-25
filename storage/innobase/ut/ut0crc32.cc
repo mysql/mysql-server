@@ -82,7 +82,7 @@ mysys/my_perf.c, contributed by Facebook under the following license.
 #include "univ.i"
 #include "ut0crc32.h"
 
-#include <string.h> /* memcmp() */
+#include <string.h>
 
 ib_ut_crc32_t	ut_crc32;
 
@@ -92,7 +92,7 @@ static ib_uint32_t	ut_crc32_slice8_table[8][256];
 static ibool		ut_crc32_slice8_table_initialized = FALSE;
 
 /* Flag that tells whether the CPU supports CRC32 or not */
-static ibool		ut_crc32_sse2_enabled = FALSE;
+UNIV_INTERN bool		ut_crc32_sse2_enabled = false;
 
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does
@@ -315,8 +315,4 @@ ut_crc32_init()
 		ut_crc32_slice8_table_init();
 		ut_crc32 = ut_crc32_slice8;
 	}
-
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: CPU %s crc32 instructions\n",
-		ut_crc32_sse2_enabled ? "supports" : "does not support");
 }

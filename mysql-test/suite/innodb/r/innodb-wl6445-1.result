@@ -1,0 +1,1338 @@
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+SET GLOBAL innodb_file_format = `Barracuda`;
+SELECT @@innodb_file_format;
+@@innodb_file_format
+Barracuda
+set global innodb_large_prefix=1;
+SELECT @@innodb_large_prefix;
+@@innodb_large_prefix
+1
+DROP DATABASE IF EXISTS testdb_wl6445;
+CREATE DATABASE testdb_wl6445;
+case # 1
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+CREATE USER 'test1'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test1'@'localhost';
+CREATE USER 'test2'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON *.* TO 'test2'@'localhost';
+CREATE TABLE otherlocation (id int PRIMARY KEY) 
+ENGINE=InnoDB , DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO otherlocation VALUES (1),(2),(3);
+SELECT * FROM otherlocation ORDER BY id;
+id
+1
+2
+3
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test3'@'localhost';
+USE testdb_wl6445;
+SELECT i FROM t1 ORDER BY i;
+i
+1
+2
+3
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+# connection con_test1_user try to modify
+SELECT user();
+user()
+test1@localhost
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
+ERROR HY000: Table 't2' is read only
+UPDATE t1 SET i = i+1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+# disconnect con_test1_user
+# connection con_test2_user 
+SELECT user();
+user()
+test2@localhost
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+ERROR HY000: Table 't2' is read only
+UPDATE t1 SET i = i+1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+# disconnect con_test2_user
+# connection default
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+ERROR HY000: Table 't2' is read only
+UPDATE t1 SET i = i+1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+INSERT INTO otherlocation VALUES (1),(2),(3);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT * FROM otherlocation ORDER BY id;
+id
+1
+2
+3
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+USE testdb_wl6445;
+DROP USER 'test1'@'localhost';
+DROP USER 'test2'@'localhost';
+DROP USER 'test3'@'localhost';
+DROP TABLE otherlocation;
+DROP DATABASE testdb_wl6445;
+case # 2
+DROP DATABASE IF EXISTS testdb_wl6445;
+CREATE DATABASE testdb_wl6445;
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',4000)),(2,repeat('b',4000)),(3,repeat('c',4000));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+START TRANSACTION;
+SAVEPOINT A;
+SAVEPOINT B;
+ROLLBACK TO A;
+"---commit first 50 records "
+COMMIT;
+SELECT COUNT(*) FROM testdb_wl6445.t1;
+COUNT(*)
+50
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (211,repeat('a',200)),(212,repeat('b',200)),(213,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1 WHERE i%10=0 ORDER BY i;
+i	LEFT(j,20)
+10	a10a10a10a10a10a10a1
+20	a20a20a20a20a20a20a2
+30	a30a30a30a30a30a30a3
+40	a40a40a40a40a40a40a4
+50	a50a50a50a50a50a50a5
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+ERROR HY000: Table 't2' is read only
+UPDATE t1 SET i = i+1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
+i	LEFT(j,20)
+10	a10a10a10a10a10a10a1
+20	a20a20a20a20a20a20a2
+30	a30a30a30a30a30a30a3
+40	a40a40a40a40a40a40a4
+50	a50a50a50a50a50a50a5
+START TRANSACTION;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SAVEPOINT A;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SAVEPOINT B;
+ROLLBACK TO A;
+"---commit first 50 records with innodb_flush_log_at_trx_commit = 0 --"
+COMMIT;
+SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
+i	LEFT(j,20)
+10	a10a10a10a10a10a10a1
+20	a20a20a20a20a20a20a2
+30	a30a30a30a30a30a30a3
+40	a40a40a40a40a40a40a4
+50	a50a50a50a50a50a50a5
+START TRANSACTION;
+SET GLOBAL innodb_flush_log_at_trx_commit = 1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SAVEPOINT A;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SAVEPOINT B;
+ROLLBACK TO A;
+"---commit first 50 records with innodb_flush_log_at_trx_commit = 1 --"
+COMMIT;
+SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
+i	LEFT(j,20)
+10	a10a10a10a10a10a10a1
+20	a20a20a20a20a20a20a2
+30	a30a30a30a30a30a30a3
+40	a40a40a40a40a40a40a4
+50	a50a50a50a50a50a50a5
+START TRANSACTION;
+SET GLOBAL innodb_flush_log_at_trx_commit = 2;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SAVEPOINT A;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SAVEPOINT B;
+ROLLBACK TO A;
+"---commit first 50 records with innodb_flush_log_at_trx_commit = 2 --"
+COMMIT;
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+case # 3
+DROP DATABASE IF EXISTS testdb_wl6445;
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t2 ( t2_i int PRIMARY KEY , t2_j blob) ENGINE = InnoDB;
+CREATE TABLE t3 ( i int PRIMARY KEY , j VARCHAR(20)) ENGINE = InnoDB;
+CREATE TABLE t4 (val INT)
+PARTITION BY LIST(val)(
+PARTITION mypart_odd VALUES IN (1,3,5),
+PARTITION MyPart_even VALUES IN (2,4,6));
+INSERT INTO testdb_wl6445.t4 VALUES (1),(2),(3),(4),(5),(6);
+SELECT * FROM testdb_wl6445.t4 ORDER BY val;
+val
+1
+2
+3
+4
+5
+6
+CREATE TRIGGER TRIGGER_1 BEFORE INSERT ON testdb_wl6445.t1 FOR EACH ROW BEGIN
+INSERT INTO testdb_wl6445.t2 SET t2_i = NEW.i , t2_j = NEW.j;
+END;//
+CREATE PROCEDURE proc1 (OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM testdb_wl6445.t1;
+END;//
+CREATE PROCEDURE proc2 (IN param1 INT,IN param2 VARCHAR(20))
+BEGIN
+INSERT INTO testdb_wl6445.t3 VALUES (param1,param2);
+END;//
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+SELECT t2_i,LEFT(t2_j,20) FROM t2 ORDER BY t2_i;
+t2_i	LEFT(t2_j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+CALL proc1(@a);
+SELECT @a;
+@a
+3
+CALL proc2(1,'test1');
+SELECT * FROM t3;
+i	j
+1	test1
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+SELECT t2_i,LEFT(t2_j,20) FROM t2 ORDER BY t2_i;
+t2_i	LEFT(t2_j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+CALL proc1(@a);
+SELECT @a;
+@a
+3
+CALL proc2(2,'test2');
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT * FROM t3;
+i	j
+1	test1
+CREATE TEMPORARY TABLE temp_1 ( i INT ) ENGINE = Innodb;
+ERROR HY000: Table 'temp_1' is read only
+INSERT INTO testdb_wl6445.t4 VALUES (1),(2),(3),(4),(5),(6);
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT * FROM testdb_wl6445.t4 ORDER BY val;
+val
+1
+2
+3
+4
+5
+6
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1,t2,t3;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+case # 4
+DROP DATABASE IF EXISTS testdb_wl6445;
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
+CREATE INDEX idx1 ON testdb_wl6445.t1(i);
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(6,'innodb engine');
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+4	mysql database
+5	mysql database innod
+6	innodb engine
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
+i	j
+4	mysql database
+SET GLOBAL innodb_max_purge_lag = 10;
+SET GLOBAL innodb_max_purge_lag_delay = 10;
+SET GLOBAL innodb_purge_batch_size = 600;
+SET GLOBAL relay_log_purge = 0;
+SET GLOBAL innodb_change_buffer_max_size = 30;
+SET GLOBAL innodb_change_buffering = 'changes';
+SET GLOBAL innodb_print_all_deadlocks = 'ON';
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+UPDATE t1 SET i = i + 1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+DELETE FROM t1 ;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+SELECT @@innodb_max_purge_lag,@@innodb_max_purge_lag_delay,@@innodb_purge_batch_size,
+@@innodb_purge_threads,@@relay_log_purge,@@innodb_buffer_pool_size,
+@@innodb_change_buffer_max_size,@@innodb_change_buffering,@@innodb_print_all_deadlocks;
+@@innodb_max_purge_lag	@@innodb_max_purge_lag_delay	@@innodb_purge_batch_size	@@innodb_purge_threads	@@relay_log_purge	@@innodb_buffer_pool_size	@@innodb_change_buffer_max_size	@@innodb_change_buffering	@@innodb_print_all_deadlocks
+10	10	600	5	0	16777216	30	changes	1
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+4	mysql database
+5	mysql database innod
+6	innodb engine
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
+i	j
+4	mysql database
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
+i	j
+5	mysql database innodb support
+6	innodb engine
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+case # 5
+DROP DATABASE IF EXISTS testdb_wl6445;
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
+CREATE INDEX idx1 ON testdb_wl6445.t1(i);
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(6,'innodb engine');
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
+i	j
+4	mysql database
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
+i	j
+5	mysql database innodb support
+6	innodb engine
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+UPDATE t1 SET i = i + 20;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+DELETE FROM t1;
+ERROR HY000: Can't lock file (errno: 165 - Table is read only)
+CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+ERROR HY000: Table 't2' is read only
+CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
+USE testdb_wl6445;
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+4	mysql database
+5	mysql database innod
+6	innodb engine
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+UPDATE t1 SET i = i + 20;
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+21	aaaaaaaaaaaaaaaaaaaa
+22	bbbbbbbbbbbbbbbbbbbb
+23	cccccccccccccccccccc
+24	mysql database
+25	mysql database innod
+26	innodb engine
+31	aaaaaaaaaaaaaaaaaaaa
+32	bbbbbbbbbbbbbbbbbbbb
+33	cccccccccccccccccccc
+DELETE FROM t1;
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+i	LEFT(j,20)
+CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
+USE testdb_wl6445;
+DROP USER 'test5_2'@'localhost';
+DROP USER 'test5'@'localhost';
+DROP DATABASE testdb_wl6445;
+case # 6
+DROP DATABASE IF EXISTS testdb_wl6445;
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY ) ENGINE = InnoDB;
+CREATE INDEX idx1 ON testdb_wl6445.t1(i);
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT i FROM t1 ORDER BY i;
+i
+1
+2
+3
+# Creating a temp sql file to be loaded.
+USE testdb_wl6445;
+: 1036, Table 't1' is read only, when using table: t1
+SELECT i FROM t1 ORDER BY i;
+i
+1
+2
+3
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;

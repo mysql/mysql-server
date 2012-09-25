@@ -42,7 +42,7 @@ Created 2012-02-08 by Sunny Bains.
 
 /** The size of the buffer to use for IO. Note: os_file_read() doesn't expect
 reads to fail. If you set the buffer size to be greater than a multiple of the
-file size then it will assert. TODO: Fix this limitation of the IO functions. 
+file size then it will assert. TODO: Fix this limitation of the IO functions.
 @param n - page size of the tablespace.
 @retval number of pages */
 #define IO_BUFFER_SIZE(n)	((1024 * 1024) / n)
@@ -89,7 +89,7 @@ struct row_index_t {
 
 	dict_field_t*	m_fields;		/*!< Index fields */
 
-	const dict_index_t*	
+	const dict_index_t*
 			m_srv_index;		/*!< Index instance in the
 						importing server */
 
@@ -358,7 +358,7 @@ private:
 };
 
 /* Functor that is called for each physical page that is read from the
-tablespace file. 
+tablespace file.
 
   1. Check each page for corruption.
 
@@ -1601,7 +1601,7 @@ PageConverter::update_page(
 }
 
 /**
-Validate the page	
+Validate the page
 @param offset - physical offset within file.
 @param page - page read from file.
 @return status */
@@ -2308,7 +2308,7 @@ row_import_read_indexes(
 		// FIXME: What is the upper limit? */
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
 			"Number of indexes in meta-data file is too high: %lu",
-			(ulong) cfg->m_n_indexes); 
+			(ulong) cfg->m_n_indexes);
 		cfg->m_n_indexes = 0;
 
 		return(DB_CORRUPTION);
@@ -2923,6 +2923,8 @@ row_import_for_mysql(
 	ib_uint64_t	autoinc = 0;
 	char		table_name[MAX_FULL_NAME_LEN + 1];
 	char*		filepath = NULL;
+
+	ut_ad(!srv_read_only_mode);
 
 	innobase_format_name(
 		table_name, sizeof(table_name), table->name, FALSE);

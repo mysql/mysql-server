@@ -158,17 +158,17 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
-/* Mutex for locking srv_monitor_file */
+/* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
-/* Mutex for locking srv_dict_tmpfile.
+/* Mutex for locking srv_dict_tmpfile. Only created if !srv_read_only_mode.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
 extern ib_mutex_t	srv_dict_tmpfile_mutex;
 /* Temporary file for output from the data dictionary */
 extern FILE*	srv_dict_tmpfile;
-/* Mutex for locking srv_misc_tmpfile.
+/* Mutex for locking srv_misc_tmpfile. Only created if !srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 extern ib_mutex_t	srv_misc_tmpfile_mutex;
@@ -183,6 +183,10 @@ extern char*	srv_data_home;
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
+/** Set if InnoDB must operate in read-only mode. We don't do any
+recovery and open all tables in RO mode instead of RW mode. We don't
+sync the max trx id to disk either. */
+extern my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
@@ -585,6 +589,12 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
+/*********************************************************************//**
+Resets the info describing an i/o thread current state. */
+UNIV_INTERN
+void
+srv_reset_io_thread_op_info();
+/*=========================*/
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
@@ -855,6 +865,7 @@ struct srv_slot_t{
 # define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
+# define srv_reset_io_thread_op_info()		((void) 0)
 # define srv_is_being_started			0
 # define srv_win_file_flush_method		SRV_WIN_IO_UNBUFFERED
 # define srv_unix_file_flush_method		SRV_UNIX_O_DSYNC
