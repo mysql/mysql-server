@@ -15681,7 +15681,7 @@ static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
 #ifndef DBUG_OFF
 static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Helps to save your data in case the disk image of the database becomes corrupt.",
+  "Kills the server during crash recovery.",
   NULL, NULL, 0, 0, 10, 0);
 #endif /* !DBUG_OFF */
 
