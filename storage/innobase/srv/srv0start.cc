@@ -651,6 +651,9 @@ create_log_files_rename(
 	lsn_t	lsn,		/*!< in: FIL_PAGE_FILE_FLUSH_LSN value */
 	char*	logfile0)	/*!< in/out: name of the first log file */
 {
+	/* If innodb_flush_method=O_DSYNC,
+	we need to explicitly flush the log buffers. */
+	fil_flush(SRV_LOG_SPACE_FIRST_ID);
 	/* Close the log files, so that we can rename
 	the first one. */
 	fil_close_log_files(false);
@@ -2296,6 +2299,9 @@ create_log_files:
 
 			/* Flush the old log files. */
 			log_buffer_flush_to_disk();
+			/* If innodb_flush_method=O_DSYNC,
+			we need to explicitly flush the log buffers. */
+			fil_flush(SRV_LOG_SPACE_FIRST_ID);
 
 			ut_ad(max_flushed_lsn == log_get_lsn());
 
