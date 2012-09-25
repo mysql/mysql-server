@@ -1938,7 +1938,7 @@ row_update_cascade_for_mysql(
 	thr->fk_cascade_depth++;
 
 	if (thr->fk_cascade_depth > FK_MAX_CASCADE_DEL) {
-		return (DB_FOREIGN_EXCEED_MAX_CASCADE);
+		return(DB_FOREIGN_EXCEED_MAX_CASCADE);
 	}
 run_again:
 	thr->run_node = node;
@@ -2271,7 +2271,7 @@ err_exit:
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs(" because tablespace full\n", stderr);
 
-		if (dict_table_open_on_name(table->name, FALSE, FALSE,
+		if (dict_table_open_on_name(table->name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
 
 			/* Make things easy for the drop table code. */
@@ -2280,7 +2280,7 @@ err_exit:
 				dict_table_move_from_lru_to_non_lru(table);
 			}
 
-			dict_table_close(table, FALSE, FALSE);
+			dict_table_close(table, TRUE, FALSE);
 
 			row_drop_table_for_mysql(table->name, trx, FALSE);
 
@@ -2803,7 +2803,7 @@ row_discard_tablespace_foreign_key_checks(
 
 	}
 
-	if (foreign && trx->check_foreigns) {
+	if (!srv_read_only_mode && foreign && trx->check_foreigns) {
 
 		FILE*	ef	= dict_foreign_err_file;
 
@@ -3223,7 +3223,10 @@ row_truncate_table_for_mysql(
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns) {
+	if (!srv_read_only_mode
+	    && foreign
+	    && trx->check_foreigns) {
+
 		FILE*	ef	= dict_foreign_err_file;
 
 		/* We only allow truncating a referenced table if
@@ -3712,6 +3715,10 @@ row_drop_table_for_mysql(
 		goto funct_exit;
 	}
 
+	/* Turn on this drop bit before we could release the dictionary
+	latch */
+	table->to_be_dropped = true;
+
 	if (nonatomic) {
 		/* This trx did not acquire any locks on dictionary
 		table records yet. Thus it is safe to release and
@@ -3753,8 +3760,6 @@ row_drop_table_for_mysql(
 		}
 	}
 
-	ut_a(table->n_foreign_key_checks_running == 0);
-
 	/* Move the table the the non-LRU list so that it isn't
 	considered for eviction. */
 
@@ -3774,7 +3779,9 @@ check_next_foreign:
 		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
-	if (foreign && trx->check_foreigns
+	if (!srv_read_only_mode
+	    && foreign
+	    && trx->check_foreigns
 	    && !(drop_db && dict_tables_have_same_db(
 			 name, foreign->foreign_table_name_lookup))) {
 		FILE*	ef	= dict_foreign_err_file;
@@ -3884,6 +3891,13 @@ check_next_foreign:
 
 		goto funct_exit;
 	}
+
+	/* The "to_be_dropped" marks table that is to be dropped, but
+	has not been dropped, instead, was put in the background drop
+	list due to being used by concurrent DML operations. Clear it
+	here since there are no longer any concurrent activities on it,
+	and it is free to be dropped */
+	table->to_be_dropped = false;
 
 	/* If we get this far then the table to be dropped must not have
 	any table or record locks on it. */
