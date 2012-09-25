@@ -1182,16 +1182,20 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     query is uncachable.
 
     See also a note on double-check locking usage above.
+  */
+  if (thd->locked_tables_mode || query_cache_size == 0)
+    DBUG_VOID_RETURN;
 
+#ifndef EMBEDDED_LIBRARY
+  /*
     Without active vio, net_write_packet() will not be called and
     therefore neither Query_cache::insert(). Since we will never get a
     complete query result in this case, it does not make sense to
     register the query in the first place.
   */
-  if (thd->locked_tables_mode ||
-      query_cache_size == 0 ||
-      thd->net.vio == NULL)
+  if (thd->net.vio == NULL)
     DBUG_VOID_RETURN;
+#endif
 
   uint8 tables_type= 0;
 

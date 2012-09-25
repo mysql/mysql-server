@@ -239,19 +239,20 @@ row_upd_check_references_constraints(
 			|| row_upd_changes_first_fields_binary(
 				entry, index, node->update,
 				foreign->n_fields))) {
+			dict_table_t*	foreign_table = foreign->foreign_table;
 
 			dict_table_t*	ref_table = NULL;
 
-			if (foreign->foreign_table == NULL) {
+			if (foreign_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
 					foreign->foreign_table_name_lookup,
 					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 			}
 
-			if (foreign->foreign_table) {
+			if (foreign_table) {
 				os_inc_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -263,9 +264,9 @@ row_upd_check_references_constraints(
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
 
-			if (foreign->foreign_table) {
+			if (foreign_table) {
 				os_dec_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
