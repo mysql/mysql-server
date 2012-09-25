@@ -405,6 +405,7 @@ recv_sys_debug_free(void)
 }
 # endif /* UNIV_LOG_DEBUG */
 
+# ifdef UNIV_LOG_ARCHIVE
 /********************************************************//**
 Truncates possible corrupted or extra records from a log group. */
 static
@@ -550,6 +551,7 @@ recv_copy_group(
 		start_lsn = end_lsn;
 	}
 }
+# endif /* UNIV_LOG_ARCHIVE */
 
 /********************************************************//**
 Copies a log segment from the most up-to-date log group to the other log
@@ -560,10 +562,12 @@ static
 void
 recv_synchronize_groups(
 /*====================*/
-	log_group_t*	up_to_date_group)	/*!< in: the most up-to-date
+#ifdef UNIV_LOG_ARCHIVE
+	log_group_t*	up_to_date_group	/*!< in: the most up-to-date
 						log group */
+#endif
+	)
 {
-	log_group_t*	group;
 	lsn_t		start_lsn;
 	lsn_t		end_lsn;
 	lsn_t		recovered_lsn;
@@ -580,11 +584,17 @@ recv_synchronize_groups(
 	ut_a(start_lsn != end_lsn);
 
 	log_group_read_log_seg(LOG_RECOVER, recv_sys->last_block,
-			       up_to_date_group, start_lsn, end_lsn);
+#ifdef UNIV_LOG_ARCHIVE
+			       up_to_date_group,
+#else /* UNIV_LOG_ARCHIVE */
+			       UT_LIST_GET_FIRST(log_sys->log_groups),
+#endif /* UNIV_LOG_ARCHIVE */
+			       start_lsn, end_lsn);
 
-	group = UT_LIST_GET_FIRST(log_sys->log_groups);
-
-	while (group) {
+	for (log_group_t* group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	     group;
+	     group = UT_LIST_GET_NEXT(log_groups, group)) {
+#ifdef UNIV_LOG_ARCHIVE
 		if (group != up_to_date_group) {
 
 			/* Copy log data if needed */
@@ -592,13 +602,11 @@ recv_synchronize_groups(
 			recv_copy_group(group, up_to_date_group,
 					recovered_lsn);
 		}
-
+#endif /* UNIV_LOG_ARCHIVE */
 		/* Update the fields in the group struct to correspond to
 		recovered_lsn */
 
 		log_group_set_fields(group, recovered_lsn);
-
-		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
 
 	/* Copy the checkpoint info to the groups; remember that we have
@@ -2896,14 +2904,13 @@ recv_recovery_from_checkpoint_start_func(
 {
 	log_group_t*	group;
 	log_group_t*	max_cp_group;
-	log_group_t*	up_to_date_group;
 	ulint		max_cp_field;
 	lsn_t		checkpoint_lsn;
 	ib_uint64_t	checkpoint_no;
-	lsn_t		old_scanned_lsn;
 	lsn_t		group_scanned_lsn = 0;
 	lsn_t		contiguous_lsn;
 #ifdef UNIV_LOG_ARCHIVE
+	log_group_t*	up_to_date_group;
 	lsn_t		archived_lsn;
 #endif /* UNIV_LOG_ARCHIVE */
 	byte*		buf;
@@ -3023,9 +3030,9 @@ recv_recovery_from_checkpoint_start_func(
 
 	contiguous_lsn = ut_uint64_align_down(recv_sys->scanned_lsn,
 					      OS_FILE_LOG_BLOCK_SIZE);
+#ifdef UNIV_LOG_ARCHIVE
 	if (TYPE_CHECKPOINT) {
 		up_to_date_group = max_cp_group;
-#ifdef UNIV_LOG_ARCHIVE
 	} else {
 		ulint	capacity;
 
@@ -3061,8 +3068,8 @@ recv_recovery_from_checkpoint_start_func(
 
 		group->scanned_lsn = group_scanned_lsn;
 		up_to_date_group = group;
-#endif /* UNIV_LOG_ARCHIVE */
 	}
+#endif /* UNIV_LOG_ARCHIVE */
 
 	ut_ad(RECV_SCAN_SIZE <= log_sys->buf_size);
 
@@ -3077,19 +3084,21 @@ recv_recovery_from_checkpoint_start_func(
 	/* Set the flag to publish that we are doing startup scan. */
 	recv_log_scan_is_startup_type = TYPE_CHECKPOINT;
 	while (group) {
-		old_scanned_lsn = recv_sys->scanned_lsn;
+#ifdef UNIV_LOG_ARCHIVE
+		lsn_t	old_scanned_lsn	= recv_sys->scanned_lsn;
+#endif /* UNIV_LOG_ARCHIVE */
 
 		recv_group_scan_log_recs(group, &contiguous_lsn,
 					 &group_scanned_lsn);
 		group->scanned_lsn = group_scanned_lsn;
 
+#ifdef UNIV_LOG_ARCHIVE
 		if (old_scanned_lsn < group_scanned_lsn) {
 			/* We found a more up-to-date group */
 
 			up_to_date_group = group;
 		}
 
-#ifdef UNIV_LOG_ARCHIVE
 		if ((type == LOG_ARCHIVE)
 		    && (group == recv_sys->archive_group)) {
 			group = UT_LIST_GET_NEXT(log_groups, group);
@@ -3188,9 +3197,11 @@ recv_recovery_from_checkpoint_start_func(
 
 #ifdef UNIV_LOG_ARCHIVE
 	log_sys->archived_lsn = archived_lsn;
-#endif /* UNIV_LOG_ARCHIVE */
 
 	recv_synchronize_groups(up_to_date_group);
+#else /* UNIV_LOG_ARCHIVE */
+	recv_synchronize_groups();
+#endif /* UNIV_LOG_ARCHIVE */
 
 	if (!recv_needed_recovery) {
 		ut_a(checkpoint_lsn == recv_sys->recovered_lsn);
@@ -3344,18 +3355,18 @@ UNIV_INTERN
 void
 recv_reset_logs(
 /*============*/
-	lsn_t		lsn,		/*!< in: reset to this lsn
+#ifdef UNIV_LOG_ARCHIVE
+	ulint		arch_log_no,	/*!< in: next archived log file number */
+	ibool		new_logs_created,/*!< in: TRUE if resetting logs
+					is done at the log creation;
+					FALSE if it is done after
+					archive recovery */
+#endif /* UNIV_LOG_ARCHIVE */
+	lsn_t		lsn)		/*!< in: reset to this lsn
 					rounded up to be divisible by
 					OS_FILE_LOG_BLOCK_SIZE, after
 					which we add
 					LOG_BLOCK_HDR_SIZE */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		arch_log_no,	/*!< in: next archived log file number */
-#endif /* UNIV_LOG_ARCHIVE */
-	ibool		new_logs_created)/*!< in: TRUE if resetting logs
-					is done at the log creation;
-					FALSE if it is done after
-					archive recovery */
 {
 	log_group_t*	group;
 
@@ -3371,12 +3382,12 @@ recv_reset_logs(
 #ifdef UNIV_LOG_ARCHIVE
 		group->archived_file_no = arch_log_no;
 		group->archived_offset = 0;
-#endif /* UNIV_LOG_ARCHIVE */
 
 		if (!new_logs_created) {
 			recv_truncate_group(group, group->lsn, group->lsn,
 					    group->lsn, group->lsn);
 		}
+#endif /* UNIV_LOG_ARCHIVE */
 
 		group = UT_LIST_GET_NEXT(log_groups, group);
 	}
@@ -3801,7 +3812,7 @@ recv_recovery_from_archive_start(
 
 		recv_apply_hashed_log_recs(FALSE);
 
-		recv_reset_logs(recv_sys->recovered_lsn, 0, FALSE);
+		recv_reset_logs(0, FALSE, recv_sys->recovered_lsn);
 	}
 
 	mutex_exit(&(log_sys->mutex));
