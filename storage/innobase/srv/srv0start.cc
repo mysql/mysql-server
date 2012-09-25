@@ -541,7 +541,7 @@ create_log_file(
 }
 
 /** Initial number of the first redo log file */
-#define INIT_LOG_FILE0	101
+#define INIT_LOG_FILE0	(SRV_N_LOG_FILES_MAX + 1)
 
 #ifdef DBUG_OFF
 # define RECOVERY_CRASH(x) do {} while(0)
@@ -1970,7 +1970,7 @@ create_log_files:
 						max_flushed_lsn, logfile0);
 		}
 	} else {
-		for (i = 0; i < 100/* max of srv_n_log_files */; i++) {
+		for (i = 0; i < SRV_N_LOG_FILES_MAX; i++) {
 			os_offset_t	size;
 			os_file_stat_t	stat_info;
 
@@ -1982,7 +1982,8 @@ create_log_files:
 
 			if (err == DB_NOT_FOUND) {
 				if (i == 0) {
-					if (max_flushed_lsn != min_flushed_lsn) {
+					if (max_flushed_lsn
+					    != min_flushed_lsn) {
 						ib_logf(IB_LOG_LEVEL_ERROR,
 							"Cannot create"
 							" log files because"
