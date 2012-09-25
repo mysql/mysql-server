@@ -14649,7 +14649,6 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
   int ret_val;
   Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   void *buf= (void*)&tmp[0];
-  Ndb *ndb= m_thd_ndb->ndb;
   DBUG_ENTER("ha_ndbcluster::calculate_key_hash_value");
 
   do
@@ -14663,7 +14662,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
     key_data[i++].len= len;
   } while (*(++field_array));
   key_data[i].ptr= 0;
-  if ((ret_val= ndb->computeHash(&hash_value, m_table,
+  if ((ret_val= Ndb::computeHash(&hash_value, m_table,
                                  key_data_ptr, buf, sizeof(tmp))))
   {
     DBUG_PRINT("info", ("ret_val = %d", ret_val));
