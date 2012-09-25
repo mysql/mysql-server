@@ -46,6 +46,8 @@ SELECT * FROM t1;
 INSERT INTO t1 VALUES (123);
 
 let $MYSQLD_DATADIR= `select @@datadir`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let crash=--loose-console > $SEARCH_FILE 2>&1 --innodb-force-recovery-crash;
 
 SET DEBUG='+d,crash_commit_before';
 # Write file to make mysql-test-run.pl restart the server
@@ -53,46 +55,84 @@ SET DEBUG='+d,crash_commit_before';
 --error 2013
 DELETE FROM t1;
 
+--error 0,1
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=1
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=1
+--exec $MYSQLD_CMD $crash=1
+let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=2
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=2
+--exec $MYSQLD_CMD $crash=2
+let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
 --echo --innodb-force-recovery-crash=3
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=3
+--exec $MYSQLD_CMD $crash=3
+let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=4
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=4
+--exec $MYSQLD_CMD $crash=4
+let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*320 to 2\*320 pages;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=5
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=5
+--exec $MYSQLD_CMD $crash=5
+let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*320 to 2\*320 pages;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=6
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=6
+--exec $MYSQLD_CMD $crash=6
+let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*320 to 2\*320 pages;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=7
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=7
+--exec $MYSQLD_CMD $crash=7
+# this crashes right after deleting all log files
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=8
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=8
+--exec $MYSQLD_CMD $crash=8
+let SEARCH_PATTERN= InnoDB: Setting log file .*/ib_logfile[0-9]+ size to 5 MB;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=9
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=9
+--exec $MYSQLD_CMD $crash=9
+let SEARCH_PATTERN= InnoDB: Setting log file .*/ib_logfile[0-9]+ size to 5 MB;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=10
 --error 137
---exec $MYSQLD_CMD --loose-console --innodb-force-recovery-crash=10
+--exec $MYSQLD_CMD $crash=10
+let SEARCH_PATTERN= InnoDB: Setting log file .*/ib_logfile[0-9]+ size to 5 MB;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= InnoDB: Renaming log file .*/ib_logfile101 to .*/ib_logfile0;
+--source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
+--remove_file $SEARCH_FILE
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
