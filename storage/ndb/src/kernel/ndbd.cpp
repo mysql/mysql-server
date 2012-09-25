@@ -559,7 +559,7 @@ void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
-         unsigned allocated_nodeid)
+         unsigned allocated_nodeid, int connect_retries, int connect_delay)
 {
 #ifdef _WIN32
   {
@@ -622,7 +622,8 @@ ndbd_run(bool foreground, int report_fd,
   }
 
   theConfig->fetch_configuration(connect_str, force_nodeid, bind_address,
-                                 allocated_nodeid);
+                                 allocated_nodeid, connect_retries,
+                                 connect_delay);
 
   if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
   {

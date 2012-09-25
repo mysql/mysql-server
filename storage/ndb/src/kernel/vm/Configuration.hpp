@@ -61,7 +61,8 @@ public:
 
   void fetch_configuration(const char* _connect_string, int force_nodeid,
                            const char* _bind_adress,
-                           NodeId allocated_nodeid);
+                           NodeId allocated_nodeid,
+                           int connect_retries, int connect_delay);
   void setupConfiguration();
   void closeConfiguration(bool end_session= true);
   
