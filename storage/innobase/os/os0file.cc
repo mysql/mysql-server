@@ -4009,6 +4009,13 @@ os_aio_free(void)
 
 	os_aio_array_free(os_aio_read_array);
 
+#ifndef UNIV_HOTBACKUP
+	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
+		mutex_free(os_file_seek_mutexes[i]);
+		delete os_file_seek_mutexes[i];
+	}
+#endif /* !UNIV_HOTBACKUP */
+
 	for (ulint i = 0; i < os_aio_n_segments; i++) {
 		os_event_destroy(os_aio_segment_wait_events[i]);
 	}

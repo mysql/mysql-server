@@ -282,48 +282,33 @@ rw_lock_create_func(
 }
 
 /******************************************************************//**
-Calling this function is obligatory only if the memory buffer containing
-the rw-lock is freed. Removes an rw-lock object from the global list. The
-rw-lock is checked to be in the non-locked state. */
+Calling this function is obligatory.  The rw-lock is checked to be in
+the non-locked state. */
 UNIV_INTERN
 void
 rw_lock_free_func(
 /*==============*/
-	rw_lock_t*	lock)	/*!< in: rw-lock */
+	rw_lock_t*	lock)	/*!< in/out: rw-lock */
 {
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	ib_mutex_t*	mutex;
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
-
 	ut_ad(rw_lock_validate(lock));
 	ut_a(lock->lock_word == X_LOCK_DECR);
 
 	mutex_enter(&rw_lock_list_mutex);
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex = rw_lock_get_mutex(lock);
+	ib_mutex_t*	mute = rw_lock_get_mutex(lock);
+	mutex_free(mutex);
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 	os_event_destroy(lock->event);
 
 	os_event_destroy(lock->wait_ex_event);
 
-	ut_ad(UT_LIST_GET_PREV(list, lock) == NULL
-	      || UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
-	ut_ad(UT_LIST_GET_NEXT(list, lock) == NULL
-	      || UT_LIST_GET_NEXT(list, lock)->magic_n == RW_LOCK_MAGIC_N);
-
 	UT_LIST_REMOVE(list, rw_lock_list, lock);
 
 	mutex_exit(&rw_lock_list_mutex);
 
 	ut_d(lock->magic_n = 0);
-
-#ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	/* We have merely removed the rw_lock from the list, the memory
-	has not been freed. Therefore the pointer to mutex is valid. */
-	mutex_free(mutex);
-#endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
 #ifdef UNIV_DEBUG
@@ -983,20 +968,17 @@ ulint
 rw_lock_n_locked(void)
 /*==================*/
 {
-	rw_lock_t*	lock;
-	ulint		count		= 0;
+	ulint		count = 0;
 
 	mutex_enter(&rw_lock_list_mutex);
 
-	lock = UT_LIST_GET_FIRST(rw_lock_list);
-
-	while (lock != NULL) {
+	for (const rw_lock_t* lock = UT_LIST_GET_FIRST(rw_lock_list);
+	     lock != NULL;
+	     lock = UT_LIST_GET_NEXT(list, lock)) {
 
 		if (lock->lock_word != X_LOCK_DECR) {
 			count++;
 		}
-
-		lock = UT_LIST_GET_NEXT(list, lock);
 	}
 
 	mutex_exit(&rw_lock_list_mutex);
