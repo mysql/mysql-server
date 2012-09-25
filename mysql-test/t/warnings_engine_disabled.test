@@ -1,3 +1,5 @@
+skip 14672988 NEW BEHAVIOUR WHEN USING DISABLED ENGINE FAILS
+WARNINGS_ENGINE_DISABLED.TEST;
 #
 # Only run this test with a compiled in but disabled
 # engine
