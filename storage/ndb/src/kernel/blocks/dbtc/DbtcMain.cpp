@@ -1173,9 +1173,13 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
         /**
          * The record is still active
          *
-         * Don't remove it, but continueb instead
+         * Don't remove it, but continueb retry with a short delay
          */
-	break;
+        signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
+        signal->theData[1] = nodeId;
+        signal->theData[2] = iter.bucket;
+        sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 1, 3);
+        return;
       }
       sendRemoveMarkers(signal, iter.curr.p);
       m_commitAckMarkerHash.release(iter.curr);
@@ -1183,8 +1187,9 @@ Dbtc::removeMarkerForFailedAPI(Signal* signal,
       break;
     } 
     m_commitAckMarkerHash.next(iter);
-  }
+  } // for (... i<RT_BREAK ...)
   
+  // Takes a RT-break to avoid starving other activity
   signal->theData[0] = TcContinueB::ZHANDLE_FAILED_API_NODE_REMOVE_MARKERS;
   signal->theData[1] = nodeId;
   signal->theData[2] = iter.bucket;
