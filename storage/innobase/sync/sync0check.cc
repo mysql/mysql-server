@@ -1063,8 +1063,13 @@ sync_check_close()
 	delete SrvLatches;
 	SrvLatches = 0;
 
-	mutex_free(&rw_lock_list_mutex);
+#ifdef UNIV_SYNC_DEBUG
 	mutex_free(&rw_lock_debug_mutex);
+	os_event_destroy(rw_lock_debug_event);
+	rw_lock_debug_event = 0;
+#endif /* UNIV_SYNC_DEBUG */
+
+	mutex_free(&rw_lock_list_mutex);
 
 	sync_array_close();
 }

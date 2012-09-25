@@ -2805,7 +2805,6 @@ innobase_shutdown_for_mysql(void)
 	que_close();
 	row_mysql_close();
 	srv_mon_free();
-	sync_check_close();
 	srv_free();
 	fil_close();
 
@@ -2818,6 +2817,9 @@ innobase_shutdown_for_mysql(void)
 
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();
+
+	/* 7. Free the synchronisation infrastructure. */
+	sync_check_close();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet
 	in shutdown, and it will also free the ut_list_mutex, so it

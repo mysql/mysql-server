@@ -627,6 +627,8 @@ lock_sys_close(void)
 
 	hash_table_free(lock_sys->rec_hash);
 
+	os_event_destroy(lock_sys->timeout_event);
+
 	mutex_destroy(&lock_sys->mutex);
 	mutex_destroy(&lock_sys->wait_mutex);
 

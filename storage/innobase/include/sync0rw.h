@@ -277,14 +277,13 @@ rw_lock_create_func(
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline);		/*!< in: file line where created */
 /******************************************************************//**
-Calling this function is obligatory only if the memory buffer containing
-the rw-lock is freed. Removes an rw-lock object from the global list. The
-rw-lock is checked to be in the non-locked state. */
+Calling this function is obligatory.  The rw-lock is checked to be in
+the non-locked state. */
 UNIV_INTERN
 void
 rw_lock_free_func(
 /*==============*/
-	rw_lock_t*	lock);	/*!< in: rw-lock */
+	rw_lock_t*	lock);		/*!< in/out: rw-lock */
 #ifdef UNIV_DEBUG
 /******************************************************************//**
 Checks that the rw-lock has been initialized and that there are no

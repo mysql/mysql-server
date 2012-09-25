@@ -1465,6 +1465,7 @@ trx_i_s_cache_free(
 /*===============*/
 	trx_i_s_cache_t*	cache)	/*!< in, own: cache to free */
 {
+	rw_lock_free(&cache->rw_lock);
 	mutex_free(&cache->last_read_mutex);
 
 	hash_table_free(cache->locks_hash);

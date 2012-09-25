@@ -993,14 +993,23 @@ srv_free(void)
 	if (!srv_read_only_mode) {
 		mutex_free(&srv_sys->mutex);
 		mutex_free(&srv_sys->tasks_mutex);
+
+		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
+			srv_slot_t*	slot = &srv_sys->sys_threads[i];
+
+			os_event_destroy(slot->event);
+		}
+
+		os_event_destroy(srv_error_event);
+		os_event_destroy(srv_monitor_event);
+		os_event_destroy(srv_buf_dump_event);
 	}
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
-	if (!srv_read_only_mode) {
-		os_event_destroy(srv_buf_dump_event);
-		srv_buf_dump_event = NULL;
-	}
+	mem_free(srv_sys);
+
+	srv_sys = 0;
 }
 
 /*********************************************************************//**

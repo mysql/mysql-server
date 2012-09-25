@@ -1302,14 +1302,17 @@ buf_pool_free_instance(
 	buf_chunk_t*	chunk;
 	buf_chunk_t*	chunks;
 	buf_page_t*	bpage;
+	buf_page_t*	prev_bpage = 0;
 
 	mutex_free(&buf_pool->mutex);
 	mutex_free(&buf_pool->zip_mutex);
 	mutex_free(&buf_pool->flush_list_mutex);
 
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-	while (bpage != NULL) {
-		buf_page_t*	prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	     bpage != NULL;
+	     bpage = prev_bpage) {
+
+		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 		buf_page_state	state = buf_page_get_state(bpage);
 
 		ut_ad(buf_page_in_file(bpage));
@@ -1322,8 +1325,6 @@ buf_pool_free_instance(
 			      || srv_fast_shutdown == 2);
 			buf_page_free_descriptor(bpage);
 		}
-
-		bpage = prev_bpage;
 	}
 
 	mem_free(buf_pool->watch);
@@ -1337,9 +1338,17 @@ buf_pool_free_instance(
 
 		for (ulint i = chunk->size; i--; block++) {
 			mutex_free(&block->mutex);
+			rw_lock_free(&block->lock);
+#ifdef UNIV_SYNC_DEBUG
+			rw_lock_free(&block->debug_latch);
+# endif /* UNIV_SYNC_DEBUG */
 		}
 
 		os_mem_free_large(chunk->mem, chunk->mem_size);
+	}
+
+	for (ulint i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; ++i) {
+		os_event_destroy(buf_pool->no_flush[i]);
 	}
 
 	mem_free(buf_pool->chunks);

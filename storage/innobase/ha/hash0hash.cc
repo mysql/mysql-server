@@ -73,10 +73,9 @@ hash_mutex_enter_all(
 /*=================*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		mutex_enter(table->sync_obj.mutexes + i);
 	}
@@ -90,10 +89,9 @@ hash_mutex_exit_all(
 /*================*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_MUTEX);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		mutex_exit(table->sync_obj.mutexes + i);
 	}
@@ -114,7 +112,7 @@ hash_mutex_exit_all_but(
 	for (i = 0; i < table->n_sync_obj; i++) {
 
 		ib_mutex_t* mutex = table->sync_obj.mutexes + i;
-		if (UNIV_LIKELY(keep_mutex != mutex)) {
+		if (keep_mutex != mutex) {
 			mutex_exit(mutex);
 		}
 	}
@@ -220,10 +218,9 @@ hash_lock_x_all(
 /*============*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
@@ -243,10 +240,9 @@ hash_unlock_x_all(
 /*==============*/
 	hash_table_t*	table)	/*!< in: hash table */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
@@ -266,17 +262,16 @@ hash_unlock_x_all_but(
 	hash_table_t*	table,		/*!< in: hash table */
 	rw_lock_t*	keep_lock)	/*!< in: lock to keep */
 {
-	ulint	i;
-
 	ut_ad(table->type == HASH_TABLE_SYNC_RW_LOCK);
-	for (i = 0; i < table->n_sync_obj; i++) {
+
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 
 		rw_lock_t* lock = table->sync_obj.rw_locks + i;
 #ifdef UNIV_SYNC_DEBUG
 		ut_ad(rw_lock_own(lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-		if (UNIV_LIKELY(keep_lock != lock)) {
+		if (keep_lock != lock) {
 			rw_lock_x_unlock(lock);
 		}
 	}
@@ -335,8 +330,32 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
-	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
+
+	switch (table->type) {
+	case HASH_TABLE_SYNC_MUTEX:
+
+		for (ulint i = 0; i < table->n_sync_obj; ++i) {
+			mutex_destroy(&table->sync_obj.mutexes[i]);
+		}
+
+		mem_free(table->sync_obj.mutexes);
+
+		break;
+
+	case HASH_TABLE_SYNC_RW_LOCK:
+
+		for (ulint i = 0; i < table->n_sync_obj; ++i) {
+			rw_lock_free(&table->sync_obj.rw_locks[i]);
+		}
+
+		mem_free(table->sync_obj.rw_locks);
+
+		break;
+
+	case HASH_TABLE_SYNC_NONE:
+		break;
+	}
 
 	ut_free(table->array);
 	mem_free(table);
@@ -358,21 +377,18 @@ hash_create_sync_obj(
 	ulint			n_sync_obj)/*!< in: number of sync objects,
 					must be a power of 2 */
 {
-	ulint	i;
-
-	ut_ad(table);
-	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(n_sync_obj > 0);
 	ut_a(ut_is_2pow(n_sync_obj));
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
 	table->type = type;
 
-	switch (type) {
+	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
 		table->sync_obj.mutexes = static_cast<ib_mutex_t*>(
 			mem_alloc(n_sync_obj * sizeof(ib_mutex_t)));
 
-		for (i = 0; i < n_sync_obj; i++) {
+		for (ulint i = 0; i < n_sync_obj; i++) {
 			mutex_create(name, table->sync_obj.mutexes + i);
 		}
 
@@ -387,7 +403,7 @@ hash_create_sync_obj(
 		table->sync_obj.rw_locks = static_cast<rw_lock_t*>(
 			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
 
-		for (i = 0; i < n_sync_obj; i++) {
+		for (ulint i = 0; i < n_sync_obj; i++) {
 			rw_lock_create(hash_table_rw_lock_key,
 			     table->sync_obj.rw_locks + i, level);
 		}
