@@ -918,17 +918,42 @@ sync_latch_meta_init()
 		  SYNC_ANY_LATCH, monitor_mutex_key);
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
 
-	LATCH_ADD(SrvLatches, "event_os",
-		  SYNC_NO_ORDER_CHECK, event_os_mutex_key);
+#ifndef PFS_SKIP_EVENT_MUTEX
+	LATCH_ADD(SrvLatches, "event_manager",
+		  SYNC_NO_ORDER_CHECK, event_manager_mutex_key);
+#else
+	LATCH_ADD(SrvLatches, "event_manager",
+		  SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+#endif /* !PFS_SKIP_EVENT_MUTEX */
 
-	LATCH_ADD(SrvLatches, "ut_list",
+	LATCH_ADD(SrvLatches, "event_mutex",
+		  SYNC_NO_ORDER_CHECK, event_mutex_key);
+
+	LATCH_ADD(SrvLatches, "sync_array_mutex",
+		  SYNC_NO_ORDER_CHECK, sync_array_mutex_key);
+
+	LATCH_ADD(SrvLatches, "ut_list_mutex",
 		  SYNC_NO_ORDER_CHECK, ut_list_mutex_key);
 
-	LATCH_ADD(SrvLatches, "os",
-		  SYNC_NO_ORDER_CHECK, os_mutex_key);
+	LATCH_ADD(SrvLatches, "thread_mutex",
+		  SYNC_NO_ORDER_CHECK, thread_mutex_key);
 
-	LATCH_ADD(SrvLatches, "zip_pad",
+	LATCH_ADD(SrvLatches, "zip_pad_mutex",
 		  SYNC_NO_ORDER_CHECK, zip_pad_mutex_key);
+
+	LATCH_ADD(SrvLatches, "os_file_seek_mutex",
+		  SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+#if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
+	LATCH_ADD(SrvLatches, "os_file_count_mutex",
+		  SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+#endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
+
+	LATCH_ADD(SrvLatches, "test_mutex",
+		  SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
+
+	LATCH_ADD(SrvLatches, "os_aio_mutex",
+		  SYNC_NO_ORDER_CHECK, PFS_NOT_INSTRUMENTED);
 
 	LATCH_ADD(SrvLatches, "row_drop_list",
 		  SYNC_NO_ORDER_CHECK, row_drop_list_mutex_key);
@@ -1040,25 +1065,6 @@ sync_check_close()
 
 	mutex_free(&rw_lock_list_mutex);
 	mutex_free(&rw_lock_debug_mutex);
-
-#if 0
-	for (ib_mutex_t* mutex = UT_LIST_GET_FIRST(mutex_list);
-	     mutex != NULL;
-	     /* No op */) {
-
-#ifdef UNIV_MEM_DEBUG
-		if (mutex == &mem_hash_mutex) {
-			mutex = UT_LIST_GET_NEXT(list, mutex);
-			continue;
-		}
-#endif /* UNIV_MEM_DEBUG */
-
-		mutex_free(mutex);
-
-		mutex = UT_LIST_GET_FIRST(mutex_list);
-	}
-	mutex_free(&mutex_list_mutex);
-#endif // FIXME
 
 	sync_array_close();
 }

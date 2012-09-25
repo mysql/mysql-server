@@ -2610,7 +2610,7 @@ fts_optimize_remove_table(
 
 	os_event_wait(event);
 
-	os_event_free(event);
+	os_event_destroy(event);
 }
 
 /**********************************************************************//**
@@ -3085,7 +3085,7 @@ fts_optimize_start_shutdown(void)
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
 
 	os_event_wait(event);
-	os_event_free(event);
+	os_event_destroy(event);
 }
 
 /**********************************************************************//**

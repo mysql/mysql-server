@@ -107,9 +107,11 @@ extern mysql_pfs_key_t	srv_conc_mutex_key;
 #ifndef HAVE_ATOMIC_BUILTINS_64
 extern mysql_pfs_key_t	monitor_mutex_key;
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
-extern mysql_pfs_key_t	event_os_mutex_key;
+extern mysql_pfs_key_t	event_mutex_key;
+extern mysql_pfs_key_t	event_manager_mutex_key;
+extern mysql_pfs_key_t	sync_array_mutex_key;
+extern mysql_pfs_key_t	thread_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
-extern mysql_pfs_key_t	os_mutex_key;
 extern mysql_pfs_key_t  zip_pad_mutex_key;
 extern mysql_pfs_key_t  row_drop_list_mutex_key;
 #endif /* UNIV_PFS_MUTEX */

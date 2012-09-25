@@ -176,7 +176,7 @@ trx_purge_sys_close(void)
 
 	ib_bh_free(purge_sys->ib_bh);
 
-	os_event_free(purge_sys->event);
+	os_event_destroy(purge_sys->event);
 
 	purge_sys->event = NULL;
 

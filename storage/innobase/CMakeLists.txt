@@ -347,7 +347,7 @@ SET(INNOBASE_SOURCES
 	mtr/mtr0mtr.cc
 	os/os0file.cc
 	os/os0proc.cc
-	os/os0sync.cc
+	os/os0event.cc
 	os/os0thread.cc
 	page/page0cur.cc
 	page/page0page.cc

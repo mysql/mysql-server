@@ -64,7 +64,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "row0mysql.h"
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
-#include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "os0event.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
 #include "ut0crc32.h"
 #include "sync0sync.h"
@@ -998,7 +998,7 @@ srv_free(void)
 	trx_i_s_cache_free(trx_i_s_cache);
 
 	if (!srv_read_only_mode) {
-		os_event_free(srv_buf_dump_event);
+		os_event_destroy(srv_buf_dump_event);
 		srv_buf_dump_event = NULL;
 	}
 }
@@ -1011,11 +1011,12 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	sync_check_init();
+
 	ut_mem_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
-	os_sync_init();
-	sync_check_init();
+	os_thread_init();
 	mem_init(srv_mem_pool_size);
 	que_init();
 	row_mysql_init();

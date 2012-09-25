@@ -45,7 +45,7 @@ Created 10/21/1995 Heikki Tuuri
 #include "buf0buf.h"
 #include "srv0mon.h"
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h"
+# include "os0event.h"
 # include "os0thread.h"
 #else /* !UNIV_HOTBACKUP */
 # ifdef __WIN__
@@ -87,7 +87,7 @@ UNIV_INTERN ulint	os_innodb_umask	= 0;
 OS does not provide an atomic pread or pwrite, or similar */
 const static ulint OS_FILE_N_SEEK_MUTEXES = 16;
 
-UNIV_INTERN os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
+UNIV_INTERN SysMutex*	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 
 /** In simulated aio, merge at most this many consecutive i/os */
 static const ulint OS_AIO_MERGE_N_CONSECUTIVE	= 64;
@@ -195,7 +195,7 @@ struct os_aio_slot_t{
 
 /** The asynchronous i/o array structure */
 struct os_aio_array_t{
-	os_mutex_t	mutex;	/*!< the mutex protecting the aio array */
+	SysMutex	mutex;	/*!< the mutex protecting the aio array */
 
 	os_event_t	not_full;
 				/*!< The event which is set to the
@@ -289,7 +289,7 @@ UNIV_INTERN ibool	os_has_said_disk_full	= FALSE;
 #if !defined(UNIV_HOTBACKUP)	\
     && (!defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8)
 /** The mutex protecting the following counts of pending I/O operations */
-static os_mutex_t	os_file_count_mutex;
+static SysMutex		os_file_count_mutex;
 #endif /* !UNIV_HOTBACKUP && (!HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8) */
 
 /** Number of pending os_file_pread() operations */
@@ -760,11 +760,12 @@ os_io_init_simple(void)
 /*===================*/
 {
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
-	os_file_count_mutex = os_mutex_create();
+	mutex_create("os_file_count_mutex", &os_file_count_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD_SIZE < 8 */
 
 	for (ulint i = 0; i < OS_FILE_N_SEEK_MUTEXES; i++) {
-		os_file_seek_mutexes[i] = os_mutex_create();
+		os_file_seek_mutexes[i] = new(std::nothrow) SysMutex();
+		mutex_create("os_file_seek_mutex", os_file_seek_mutexes[i]);
 	}
 }
 
@@ -2422,11 +2423,11 @@ os_file_pread(
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 #else
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads++;
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
 
 	read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
@@ -2436,11 +2437,11 @@ os_file_pread(
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_preads, 1);
 	MONITOR_ATOMIC_DEC(MONITOR_OS_PENDING_READS);
 #else
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_file_n_pending_preads--;
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS || UNIV_WORD == 8 */
 
 	return(read_bytes);
@@ -2454,32 +2455,32 @@ os_file_pread(
 		(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOMIC_INC(MONITOR_OS_PENDING_READS);
 #else
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_reads++;
 		MONITOR_INC(MONITOR_OS_PENDING_READS);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD == 8 */
 #ifndef UNIV_HOTBACKUP
 		/* Protect the seek / read operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
-		os_mutex_enter(os_file_seek_mutexes[i]);
+		mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
 		read_bytes = os_file_io(file, buf, n, offs, OS_FILE_READ);
 
 #ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
+		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
 #if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
 		(void) os_atomic_decrement_ulint(&os_n_pending_reads, 1);
 		MONITOR_ATOIC_DEC(MONITOR_OS_PENDING_READS);
 #else
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 #endif /* HAVE_ATOMIC_BUILTINS && UNIV_WORD_SIZE == 8 */
 
 		return(read_bytes);
@@ -2520,11 +2521,11 @@ os_file_pwrite(
 
 #if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
 	os_n_pending_writes++;
 	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 #else
 	(void) os_atomic_increment_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_pwrites, 1);
@@ -2535,11 +2536,11 @@ os_file_pwrite(
 		file, (void*) buf, n, offs, OS_FILE_WRITE);
 
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites--;
 	os_n_pending_writes--;
 	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 #else
 	(void) os_atomic_decrement_ulint(&os_n_pending_writes, 1);
 	(void) os_atomic_decrement_ulint(&os_file_n_pending_pwrites, 1);
@@ -2553,29 +2554,29 @@ os_file_pwrite(
 		ulint	i;
 # endif /* !UNIV_HOTBACKUP */
 
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_writes++;
 		MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 
 # ifndef UNIV_HOTBACKUP
 		/* Protect the seek / write operation with a mutex */
 		i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
-		os_mutex_enter(os_file_seek_mutexes[i]);
+		mutex_enter(os_file_seek_mutexes[i]);
 # endif /* UNIV_HOTBACKUP */
 
 		written_bytes = os_file_io(
 			file, (void*) buf, n, offs, OS_FILE_WRITE);
 
 # ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
+		mutex_exit(os_file_seek_mutexes[i]);
 # endif /* !UNIV_HOTBACKUP */
 
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
 		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 
 		return(written_bytes);
 	}
@@ -2623,16 +2624,16 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
-	os_mutex_enter(os_file_seek_mutexes[i]);
+	mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(
@@ -2641,13 +2642,13 @@ try_again:
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
 #ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
+		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
 	}
@@ -2655,13 +2656,13 @@ try_again:
 	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
 #ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
+	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
 		return(TRUE);
@@ -2758,16 +2759,16 @@ try_again:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_n_pending_reads++;
 	MONITOR_INC(MONITOR_OS_PENDING_READS);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / read operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
-	os_mutex_enter(os_file_seek_mutexes[i]);
+	mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(
@@ -2776,13 +2777,13 @@ try_again:
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
 #ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
+		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_reads--;
 		MONITOR_DEC(MONITOR_OS_PENDING_READS);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 
 		goto error_handling;
 	}
@@ -2790,13 +2791,13 @@ try_again:
 	ret = ReadFile(file, buf, (DWORD) n, &len, NULL);
 
 #ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
+	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_n_pending_reads--;
 	MONITOR_DEC(MONITOR_OS_PENDING_READS);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
 		return(TRUE);
@@ -2900,16 +2901,16 @@ retry:
 	low = (DWORD) offset & 0xFFFFFFFF;
 	high = (DWORD) (offset >> 32);
 
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_n_pending_writes++;
 	MONITOR_INC(MONITOR_OS_PENDING_WRITES);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 
 #ifndef UNIV_HOTBACKUP
 	/* Protect the seek / write operation with a mutex */
 	i = ((ulint) file) % OS_FILE_N_SEEK_MUTEXES;
 
-	os_mutex_enter(os_file_seek_mutexes[i]);
+	mutex_enter(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
 	ret2 = SetFilePointer(
@@ -2918,13 +2919,13 @@ retry:
 	if (ret2 == 0xFFFFFFFF && GetLastError() != NO_ERROR) {
 
 #ifndef UNIV_HOTBACKUP
-		os_mutex_exit(os_file_seek_mutexes[i]);
+		mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-		os_mutex_enter(os_file_count_mutex);
+		mutex_enter(os_file_count_mutex);
 		os_n_pending_writes--;
 		MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-		os_mutex_exit(os_file_count_mutex);
+		mutex_exit(os_file_count_mutex);
 
 		ut_print_timestamp(stderr);
 
@@ -2945,13 +2946,13 @@ retry:
 	ret = WriteFile(file, buf, (DWORD) n, &len, NULL);
 
 #ifndef UNIV_HOTBACKUP
-	os_mutex_exit(os_file_seek_mutexes[i]);
+	mutex_exit(os_file_seek_mutexes[i]);
 #endif /* !UNIV_HOTBACKUP */
 
-	os_mutex_enter(os_file_count_mutex);
+	mutex_enter(os_file_count_mutex);
 	os_n_pending_writes--;
 	MONITOR_DEC(MONITOR_OS_PENDING_WRITES);
-	os_mutex_exit(os_file_count_mutex);
+	mutex_exit(os_file_count_mutex);
 
 	if (ret && len == n) {
 
@@ -3747,9 +3748,10 @@ os_aio_array_create(
 	array = static_cast<os_aio_array_t*>(ut_malloc(sizeof(*array)));
 	memset(array, 0x0, sizeof(*array));
 
-	array->mutex = os_mutex_create();
-	array->not_full = os_event_create(NULL);
-	array->is_empty = os_event_create(NULL);
+	mutex_create("os_aio_mutex", &array->mutex);
+
+	array->not_full = os_event_create("aio_not_full");
+	array->is_empty = os_event_create("aio_is_empty");
 
 	os_event_set(array->is_empty);
 
@@ -3848,9 +3850,11 @@ os_aio_array_free(
 #ifdef __WIN__
 	ut_free(array->handles);
 #endif /* __WIN__ */
-	os_mutex_free(array->mutex);
-	os_event_free(array->not_full);
-	os_event_free(array->is_empty);
+
+	mutex_destroy(&array->mutex);
+
+	os_event_destroy(array->not_full);
+	os_event_destroy(array->is_empty);
 
 #if defined(LINUX_NATIVE_AIO)
 	if (srv_use_native_aio) {
@@ -4006,7 +4010,7 @@ os_aio_free(void)
 	os_aio_array_free(os_aio_read_array);
 
 	for (ulint i = 0; i < os_aio_n_segments; i++) {
-		os_event_free(os_aio_segment_wait_events[i]);
+		os_event_destroy(os_aio_segment_wait_events[i]);
 	}
 
 	ut_free(os_aio_segment_wait_events);
@@ -4224,10 +4228,10 @@ os_aio_array_reserve_slot(
 		% array->n_segments;
 
 loop:
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	if (array->n_reserved == array->n_slots) {
-		os_mutex_exit(array->mutex);
+		mutex_exit(&array->mutex);
 
 		if (!srv_use_native_aio) {
 			/* If the handler threads are suspended, wake them
@@ -4319,7 +4323,7 @@ found:
 
 skip_native_aio:
 #endif /* LINUX_NATIVE_AIO */
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	return(slot);
 }
@@ -4333,7 +4337,7 @@ os_aio_array_free_slot(
 	os_aio_array_t*	array,	/*!< in: aio array */
 	os_aio_slot_t*	slot)	/*!< in: pointer to slot */
 {
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	ut_ad(slot->reserved);
 
@@ -4368,7 +4372,7 @@ os_aio_array_free_slot(
 	}
 
 #endif
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 }
 
 /**********************************************************************//**
@@ -4393,7 +4397,7 @@ os_aio_simulated_wake_handler_thread(
 
 	/* Look through n slots after the segment * n'th slot */
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	for (ulint i = 0; i < n; ++i) {
 		const os_aio_slot_t*	slot;
@@ -4404,7 +4408,7 @@ os_aio_simulated_wake_handler_thread(
 
 			/* Found an i/o request */
 
-			os_mutex_exit(array->mutex);
+			mutex_exit(&array->mutex);
 
 			os_event_t	event;
 
@@ -4416,7 +4420,7 @@ os_aio_simulated_wake_handler_thread(
 		}
 	}
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 }
 
 /**********************************************************************//**
@@ -4820,13 +4824,13 @@ os_aio_windows_handle(
 			FALSE, INFINITE);
 	}
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS
 	    && array->n_reserved == 0) {
 		*message1 = NULL;
 		*message2 = NULL;
-		os_mutex_exit(array->mutex);
+		mutex_exit(&array->mutex);
 		return(TRUE);
 	}
 
@@ -4859,7 +4863,7 @@ os_aio_windows_handle(
 		ret_val = FALSE;
 	}
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	if (retry) {
 		/* retry failed read/write operation synchronously.
@@ -5006,11 +5010,11 @@ retry:
 
 			/* Mark this request as completed. The error handling
 			will be done in the calling function. */
-			os_mutex_enter(array->mutex);
+			mutex_enter(&array->mutex);
 			slot->n_bytes = events[i].res;
 			slot->ret = events[i].res2;
 			slot->io_already_done = TRUE;
-			os_mutex_exit(array->mutex);
+			mutex_exit(&array->mutex);
 		}
 		return;
 	}
@@ -5087,7 +5091,7 @@ wait_for_event:
 	/* Loop until we have found a completed request. */
 	for (;;) {
 		ibool	any_reserved = FALSE;
-		os_mutex_enter(array->mutex);
+		mutex_enter(&array->mutex);
 		for (i = 0; i < n; ++i) {
 			slot = os_aio_array_get_nth_slot(
 				array, i + segment * n);
@@ -5101,7 +5105,7 @@ wait_for_event:
 			}
 		}
 
-		os_mutex_exit(array->mutex);
+		mutex_exit(&array->mutex);
 
 		/* There is no completed request.
 		If there is no pending request at all,
@@ -5178,7 +5182,7 @@ found:
 				slot->name);
 		} else {
 			ret = FALSE;
-			os_mutex_exit(array->mutex);
+			mutex_exit(&array->mutex);
 			goto wait_for_event;
 		}
 	} else {
@@ -5196,7 +5200,7 @@ found:
 		ret = FALSE;
 	}
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	os_aio_array_free_slot(array, slot);
 
@@ -5275,7 +5279,7 @@ restart:
 	done */
 	any_reserved = FALSE;
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	for (ulint i = 0; i < n; i++) {
 		os_aio_slot_t*	slot;
@@ -5305,7 +5309,7 @@ restart:
 	If there is no pending request at all,
 	and the system is being shut down, exit. */
 	if (!any_reserved && srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_mutex_exit(array->mutex);
+		mutex_exit(&array->mutex);
 		*message1 = NULL;
 		*message2 = NULL;
 		return(TRUE);
@@ -5445,7 +5449,7 @@ consecutive_loop:
 	this assumes that there is just one i/o-handler thread serving
 	a single segment of slots! */
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	if (aio_slot->type == OS_FILE_WRITE && n_consecutive > 1) {
 		/* Copy the buffers to the combined buffer */
@@ -5493,7 +5497,7 @@ consecutive_loop:
 		ut_free(combined_buf2);
 	}
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	/* Mark the i/os done in slots */
 
@@ -5514,7 +5518,7 @@ slot_io_done:
 
 	*type = aio_slot->type;
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	os_aio_array_free_slot(array, aio_slot);
 
@@ -5528,7 +5532,7 @@ wait_for_io:
 
 	os_event_reset(os_aio_segment_wait_events[global_segment]);
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 recommended_sleep:
 	srv_set_io_thread_op_info(global_segment, "waiting for i/o request");
@@ -5550,7 +5554,7 @@ os_aio_array_validate(
 	ulint		i;
 	ulint		n_reserved	= 0;
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	ut_a(array->n_slots > 0);
 	ut_a(array->n_segments > 0);
@@ -5568,7 +5572,7 @@ os_aio_array_validate(
 
 	ut_a(array->n_reserved == n_reserved);
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	return(true);
 }
@@ -5648,7 +5652,7 @@ os_aio_print_array(
 	ulint			n_reserved = 0;
 	ulint			n_res_seg[SRV_MAX_N_IO_THREADS];
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	ut_a(array->n_slots > 0);
 	ut_a(array->n_segments > 0);
@@ -5677,7 +5681,7 @@ os_aio_print_array(
 
 	os_aio_print_segment_info(file, n_res_seg, array);
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 }
 
 /**********************************************************************//**
@@ -5699,7 +5703,7 @@ os_aio_print(
 			srv_io_thread_function[i]);
 
 #ifndef __WIN__
-		if (os_aio_segment_wait_events[i]->is_set) {
+		if (os_event_is_set(os_aio_segment_wait_events[i])) {
 			fprintf(file, " ev set");
 		}
 #endif /* __WIN__ */
@@ -5807,51 +5811,51 @@ os_aio_all_slots_free(void)
 
 	array = os_aio_read_array;
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	n_res += array->n_reserved;
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	if (!srv_read_only_mode) {
 		ut_a(os_aio_write_array == 0);
 
 		array = os_aio_write_array;
 
-		os_mutex_enter(array->mutex);
+		mutex_enter(&array->mutex);
 
 		n_res += array->n_reserved;
 
-		os_mutex_exit(array->mutex);
+		mutex_exit(&array->mutex);
 
 		ut_a(os_aio_ibuf_array == 0);
 
 		array = os_aio_ibuf_array;
 
-		os_mutex_enter(array->mutex);
+		mutex_enter(&array->mutex);
 
 		n_res += array->n_reserved;
 
-		os_mutex_exit(array->mutex);
+		mutex_exit(&array->mutex);
 	}
 
 	ut_a(os_aio_log_array == 0);
 
 	array = os_aio_log_array;
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	n_res += array->n_reserved;
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	array = os_aio_sync_array;
 
-	os_mutex_enter(array->mutex);
+	mutex_enter(&array->mutex);
 
 	n_res += array->n_reserved;
 
-	os_mutex_exit(array->mutex);
+	mutex_exit(&array->mutex);
 
 	if (n_res == 0) {
 

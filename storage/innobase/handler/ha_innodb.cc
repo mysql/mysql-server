@@ -346,9 +346,11 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0},
 	/* mutex with os_fast_mutex_ interfaces */
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	{&event_os_mutex_key, "event_os_mutex", 0},
+	{&event_manager_mutex_key, "event_manager_mutex", 0},
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	{&os_mutex_key, "os_mutex", 0},
+	{&thread_mutex_key, "thread_mutex", 0},
+	{&event_mutex_key, "event_mutex", 0},
+	{&sync_array_mutex_key, "sync_array_mutex", 0},
 #ifndef HAVE_ATOMIC_BUILTINS
 	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
 #endif /* !HAVE_ATOMIC_BUILTINS */

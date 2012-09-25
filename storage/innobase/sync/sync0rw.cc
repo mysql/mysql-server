@@ -38,7 +38,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "mem0mem.h"
 #include "srv0srv.h"
-#include "os0sync.h"
+#include "os0event.h"
 #include "sync0check.h"
 #include "ha_prototypes.h"
 
@@ -304,9 +304,9 @@ rw_lock_free_func(
 	mutex = rw_lock_get_mutex(lock);
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
-	os_event_free(lock->event);
+	os_event_destroy(lock->event);
 
-	os_event_free(lock->wait_ex_event);
+	os_event_destroy(lock->wait_ex_event);
 
 	ut_ad(UT_LIST_GET_PREV(list, lock) == NULL
 	      || UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);

@@ -88,7 +88,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "row0row.h"
 # include "row0mysql.h"
 # include "btr0pcur.h"
-# include "os0sync.h"
+# include "os0event.h"
 # include "zlib.h"
 # include "ut0crc32.h"
 
@@ -127,10 +127,6 @@ static os_file_t	files[1000];
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
 static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
-
-/** We use this mutex to test the return value of pthread_mutex_trylock
-   on successful locking. HP-UX does NOT return 0, though Linux et al do. */
-static os_fast_mutex_t	srv_os_test_mutex;
 
 /** Name of srv_monitor_file */
 static char*	srv_monitor_file_name;
@@ -2573,27 +2569,34 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	/* Check that os_fast_mutexes work as expected */
-	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &srv_os_test_mutex);
+	{
+		/* We use this mutex to test the return value of
+		pthread_mutex_trylock on successful locking. HP-UX
+		does NOT return 0, though Linux et al do. */
 
-	if (0 != os_fast_mutex_trylock(&srv_os_test_mutex)) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: pthread_mutex_trylock returns"
-			" an unexpected value on\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: success! Cannot continue.\n");
-		exit(1);
+		SysMutex	mutex;
+
+		/* Check that OS utexes work as expected */
+		mutex_create("test_mutex", &mutex);
+
+		if (mutex_enter_nowait(&mutex) != 0) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"pthread_mutex_trylock returns "
+				"an unexpected value on success! "
+				"Cannot continue.");
+
+			exit(EXIT_FAILURE);
+		}
+
+		mutex_exit(&mutex);
+
+		mutex_enter(&mutex);
+
+		mutex_exit(&mutex);
+
+		mutex_free(&mutex);
 	}
-
-	os_fast_mutex_unlock(&srv_os_test_mutex);
-
-	os_fast_mutex_lock(&srv_os_test_mutex);
-
-	os_fast_mutex_unlock(&srv_os_test_mutex);
-
-	os_fast_mutex_free(&srv_os_test_mutex);
 
 	if (srv_print_verbose_log) {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -2737,25 +2740,10 @@ innobase_shutdown_for_mysql(void)
 		logs_empty_and_mark_files_at_shutdown() and should have
 		already quit or is quitting right now. */
 
-		os_mutex_enter(os_sync_mutex);
-
-		if (os_thread_count == 0) {
-			/* All the threads have exited or are just exiting;
-			NOTE that the threads may not have completed their
-			exit yet. Should we use pthread_join() to make sure
-			they have exited? If we did, we would have to
-			remove the pthread_detach() from
-			os_thread_exit().  Now we just sleep 0.1
-			seconds and hope that is enough! */
-
-			os_mutex_exit(os_sync_mutex);
-
-			os_thread_sleep(100000);
+		if (!os_thread_active()) {
 
 			break;
 		}
-
-		os_mutex_exit(os_sync_mutex);
 
 		os_thread_sleep(100000);
 	}
@@ -2821,32 +2809,20 @@ innobase_shutdown_for_mysql(void)
 	srv_free();
 	fil_close();
 
-	/* 5. Free all allocated memory */
+	/* 4. Free all allocated memory */
 
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
 	mem_close();
 
-	/* 4. Free the os_conc_mutex and all os_events and os_mutexes */
-	os_sync_free();
+	/* 6. Free the thread management resoruces. */
+	os_thread_free();
 
 	/* ut_free_all_mem() frees all allocated memory not freed yet
 	in shutdown, and it will also free the ut_list_mutex, so it
 	should be the last one for all operation */
 	ut_free_all_mem();
-
-	if (os_thread_count != 0
-	    || os_event_count != 0
-	    || os_mutex_count != 0
-	    || os_fast_mutex_count != 0) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Some resources were not cleaned up in shutdown: "
-			"threads %lu, events %lu, os_mutexes %lu, "
-			"os_fast_mutexes %lu",
-			(ulong) os_thread_count, (ulong) os_event_count,
-			(ulong) os_mutex_count, (ulong) os_fast_mutex_count);
-	}
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);
