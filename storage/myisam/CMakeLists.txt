@@ -46,7 +46,7 @@ TARGET_LINK_LIBRARIES(myisamlog myisam)
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.c COMPONENT Server)
 TARGET_LINK_LIBRARIES(myisampack myisam)
 
-IF(WITH_UNIT_TESTS AND FALSE)
+IF(WITH_UNIT_TESTS)
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
   TARGET_LINK_LIBRARIES(mi_test1 myisam)
 
