@@ -2540,6 +2540,7 @@ row_sel_convert_mysql_key_to_innobase(
 				dfield_set_len(dfield, len
 					       - (ulint) (key_ptr - key_end));
 			}
+                        ut_ad(0);
 		}
 
 		n_fields++;
