@@ -178,7 +178,7 @@ UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
 
 UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
 
-UNIV_INTERN ulint	srv_n_log_files		= ULINT_MAX;
+UNIV_INTERN ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /* size in database pages */
 UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
 UNIV_INTERN ib_uint64_t	srv_log_file_size_requested;
