@@ -872,7 +872,7 @@ struct PageCallback {
 	/**
 	Set the name of the physical file and the file handle that is used
 	to open it for the file that is being iterated over.
-	@param filename - then physical name of the tablespace file. 
+	@param filename - then physical name of the tablespace file.
 	@param file - OS file handle */
 	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
 	{

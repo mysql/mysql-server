@@ -2253,7 +2253,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -2363,7 +2363,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2458,7 +2458,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2553,7 +2553,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
@@ -2634,7 +2634,7 @@ BEGIN
 ###   @77=NULL /* TIMESTAMP(0) meta=63233 nullable=1 is_null=1 */
 ###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2729,7 +2729,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2904,7 +2904,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3079,7 +3079,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
@@ -3254,7 +3254,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3429,7 +3429,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3524,7 +3524,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3619,7 +3619,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3714,7 +3714,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
@@ -3896,7 +3896,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -3921,47 +3921,47 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-08' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=8 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-09' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3980,7 +3980,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3989,7 +3989,7 @@ BEGIN
 ###   @1='2008:08:11' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3998,7 +3998,7 @@ BEGIN
 ###   @1='2008:08:12' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4007,7 +4007,7 @@ BEGIN
 ###   @1='2008:08:13' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4016,7 +4016,7 @@ BEGIN
 ###   @1='2008:08:14' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4025,7 +4025,7 @@ BEGIN
 ###   @1='2008:08:15' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4034,7 +4034,7 @@ BEGIN
 ###   @1='2008:08:16' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4057,37 +4057,37 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:11' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:12' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:13' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:14' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:15' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:16' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:17' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4269,7 +4269,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -4312,47 +4312,47 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-01' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=11 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-08' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=18 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4371,47 +4371,47 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-01' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=21 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-08' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=28 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4430,47 +4430,47 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t3` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-01' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=31 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-08' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=38 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4497,7 +4497,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4506,7 +4506,7 @@ BEGIN
 ###   @1='2018:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4515,7 +4515,7 @@ BEGIN
 ###   @1='2018:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4524,7 +4524,7 @@ BEGIN
 ###   @1='2018:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4533,7 +4533,7 @@ BEGIN
 ###   @1='2018:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4542,7 +4542,7 @@ BEGIN
 ###   @1='2018:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4551,7 +4551,7 @@ BEGIN
 ###   @1='2018:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4560,7 +4560,7 @@ BEGIN
 ###   @1='2028:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4569,7 +4569,7 @@ BEGIN
 ###   @1='2028:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4578,7 +4578,7 @@ BEGIN
 ###   @1='2028:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4587,7 +4587,7 @@ BEGIN
 ###   @1='2028:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4596,7 +4596,7 @@ BEGIN
 ###   @1='2028:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4605,7 +4605,7 @@ BEGIN
 ###   @1='2028:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4614,7 +4614,7 @@ BEGIN
 ###   @1='2038:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4623,7 +4623,7 @@ BEGIN
 ###   @1='2038:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4632,7 +4632,7 @@ BEGIN
 ###   @1='2038:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4641,7 +4641,7 @@ BEGIN
 ###   @1='2038:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4650,7 +4650,7 @@ BEGIN
 ###   @1='2038:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4681,92 +4681,92 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4840,7 +4840,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -4865,17 +4865,17 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=5 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */

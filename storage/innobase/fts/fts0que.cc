@@ -990,15 +990,21 @@ fts_query_difference(
 		ut_a(index_cache != NULL);
 
 		/* Search the cache for a matching word first. */
-		nodes = fts_cache_find_word(index_cache, token);
+		if (query->cur_node->term.wildcard
+		    && query->flags != FTS_PROXIMITY
+		    && query->flags != FTS_PHRASE) {
+			fts_cache_find_wildcard(query, index_cache, token);
+		} else {
+			nodes = fts_cache_find_word(index_cache, token);
 
-		for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
-			const fts_node_t*	node;
+			for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
+				const fts_node_t*	node;
 
-			node = static_cast<const fts_node_t*>(
-				ib_vector_get_const(nodes, i));
+				node = static_cast<const fts_node_t*>(
+					ib_vector_get_const(nodes, i));
 
-			fts_query_check_node(query, token, node);
+				fts_query_check_node(query, token, node);
+			}
 		}
 
 		rw_lock_x_unlock(&cache->lock);
@@ -3009,7 +3015,7 @@ fts_retrieve_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		return (ranking->rank);
+		return(ranking->rank);
 	}
 
 	return(0);
@@ -3188,7 +3194,7 @@ fts_query(
 	fts_result_t**	result)		/*!< in/out: result doc ids */
 {
 	fts_query_t	query;
-	dberr_t		error;
+	dberr_t		error = DB_SUCCESS;
 	byte*		lc_query_str;
 	ulint		lc_query_str_len;
 	ulint		result_len;
@@ -3234,16 +3240,19 @@ fts_query(
 
 	query.total_docs = dict_table_get_n_rows(index->table);
 
-	error = fts_get_total_word_count(trx, query.index, &query.total_words);
+#ifdef FTS_DOC_STATS_DEBUG
+	if (ft_enable_diag_print) {
+		error = fts_get_total_word_count(
+			trx, query.index, &query.total_words);
 
-	if (error != DB_SUCCESS) {
-		goto func_exit;
+		if (error != DB_SUCCESS) {
+			goto func_exit;
+		}
+
+		fprintf(stderr, "Total docs: " UINT64PF " Total words: %lu\n",
+			query.total_docs, query.total_words);
 	}
-
-#ifdef	FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "Total docs: " UINT64PF " Total words: %lu\n",
-		query.total_docs, query.total_words);
-#endif
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	query.fts_common_table.suffix = "DELETED";
 

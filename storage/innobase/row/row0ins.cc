@@ -721,6 +721,8 @@ row_ins_set_detailed(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_foreign_t*	foreign)	/*!< in: foreign key constraint */
 {
+	ut_ad(!srv_read_only_mode);
+
 	mutex_enter(&srv_misc_tmpfile_mutex);
 	rewind(srv_misc_tmpfile);
 
@@ -750,6 +752,10 @@ row_ins_foreign_trx_print(
 	ulint	n_rec_locks;
 	ulint	n_trx_locks;
 	ulint	heap_size;
+
+	if (srv_read_only_mode) {
+		return;
+	}
 
 	lock_mutex_enter();
 	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
@@ -789,6 +795,10 @@ row_ins_foreign_report_err(
 	const dtuple_t*	entry)		/*!< in: index entry in the parent
 					table */
 {
+	if (srv_read_only_mode) {
+		return;
+	}
+
 	FILE*	ef	= dict_foreign_err_file;
 	trx_t*	trx	= thr_get_trx(thr);
 
@@ -840,6 +850,10 @@ row_ins_foreign_report_add_err(
 	const dtuple_t*	entry)		/*!< in: index entry to insert in the
 					child table */
 {
+	if (srv_read_only_mode) {
+		return;
+	}
+
 	FILE*	ef	= dict_foreign_err_file;
 
 	row_ins_set_detailed(trx, foreign);
@@ -1466,9 +1480,11 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL || check_table->ibd_file_missing
+	if (check_table == NULL
+	    || check_table->ibd_file_missing
 	    || check_index == NULL) {
-		if (check_ref) {
+
+		if (!srv_read_only_mode && check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 
 			row_ins_set_detailed(trx, foreign);
@@ -1675,6 +1691,13 @@ do_possible_lock_wait:
 		que_thr_stop_for_mysql(thr);
 
 		lock_wait_suspend_thread(thr);
+
+		if (check_table->to_be_dropped) {
+			/* The table is being dropped. We shall timeout
+			this operation */
+			err = DB_LOCK_WAIT_TIMEOUT;
+			goto exit_func;
+		}
 
 		if (trx->error_state == DB_SUCCESS) {
 
