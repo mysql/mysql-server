@@ -274,6 +274,8 @@ lock_wait_suspend_thread(
 	case RW_S_LATCH:
 		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
+
+		DEBUG_SYNC_C("lock_wait_release_s_latch_before_sleep");
 		break;
 	default:
 		/* There should never be a lock wait when the
