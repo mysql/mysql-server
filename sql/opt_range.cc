@@ -3087,6 +3087,11 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
 
+#ifndef MCP_BUG14672885
+  if (part_info->is_auto_partitioned)
+    DBUG_RETURN(FALSE); /* Should not prune auto partitioned table */
+#endif
+
   if (!pprune_cond)
   {
     mark_all_partitions_as_used(part_info);
