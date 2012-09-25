@@ -332,31 +332,6 @@ hash_table_free(
 {
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 
-	switch (table->type) {
-	case HASH_TABLE_SYNC_MUTEX:
-
-		for (ulint i = 0; i < table->n_sync_obj; ++i) {
-			mutex_destroy(&table->sync_obj.mutexes[i]);
-		}
-
-		mem_free(table->sync_obj.mutexes);
-
-		break;
-
-	case HASH_TABLE_SYNC_RW_LOCK:
-
-		for (ulint i = 0; i < table->n_sync_obj; ++i) {
-			rw_lock_free(&table->sync_obj.rw_locks[i]);
-		}
-
-		mem_free(table->sync_obj.rw_locks);
-
-		break;
-
-	case HASH_TABLE_SYNC_NONE:
-		break;
-	}
-
 	ut_free(table->array);
 	mem_free(table);
 }
