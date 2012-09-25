@@ -2306,6 +2306,9 @@ create_log_files:
 
 			ut_ad(max_flushed_lsn == log_get_lsn());
 
+			/* Prohibit redo log writes from any other
+			threads until creating a log checkpoint at the
+			end of create_log_files(). */
 			ut_d(recv_no_log_write = TRUE);
 			ut_ad(!buf_pool_check_no_pending_io());
 
