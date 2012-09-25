@@ -296,8 +296,7 @@ rw_lock_free_func(
 	mutex_enter(&rw_lock_list_mutex);
 
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	ib_mutex_t*	mute = rw_lock_get_mutex(lock);
-	mutex_free(mutex);
+	mutex_free(rw_lock_get_mutex(lock));
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 	os_event_destroy(lock->event);
