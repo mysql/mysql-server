@@ -641,7 +641,7 @@ create_log_files(
 }
 
 /*********************************************************************//**
-Renames the first all log file. */
+Renames the first log file. */
 static
 void
 create_log_files_rename(
