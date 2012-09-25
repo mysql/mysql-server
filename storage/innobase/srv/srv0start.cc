@@ -634,7 +634,7 @@ create_log_files(
 	/* Create a log checkpoint. */
 	mutex_enter(&log_sys->mutex);
 	ut_d(recv_no_log_write = FALSE);
-	recv_reset_logs(lsn, TRUE);
+	recv_reset_logs(lsn);
 	mutex_exit(&log_sys->mutex);
 
 	return(DB_SUCCESS);
