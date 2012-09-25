@@ -37,9 +37,9 @@ Created 9/11/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "ut0lst.h"
 #include "ut0counter.h"
-#include "sync0mutex.h"
-#include "os0sync.h"
+#include "os0event.h"
 #include "ib_mutex.h"
+#include "sync0mutex.h"
 
 /* The following undef is to prevent a name conflict with a macro
 in MySQL: */

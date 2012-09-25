@@ -37,7 +37,7 @@ Created 9/5/1995 Heikki Tuuri
 
 #include "sync0mutex.h"
 #include "sync0rw.h"
-#include "os0sync.h"
+#include "os0event.h"
 #include "os0file.h"
 #include "lock0lock.h"
 #include "srv0srv.h"
@@ -125,7 +125,7 @@ struct sync_array_t {
 	ulint		n_cells;	/*!< number of cells in the
 					wait array */
 	sync_cell_t*	array;		/*!< pointer to wait array */
-	os_mutex_t	os_mutex;	/*!< OS mutex protecting the
+	SysMutex	mutex;		/*!< System mutex protecting the
 					data structure.  As this data
 					structure is used in constructing
 					the database mutex, to prevent
@@ -145,11 +145,15 @@ UNIV_INTERN ulint		sync_array_size;
 mutexes and read-write locks */
 UNIV_INTERN sync_array_t**	sync_wait_array;
 
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	sync_array_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /** count of how many times an object has been signalled */
 static ulint			sg_count;
 
-#define sync_array_exit(a)	os_mutex_exit((a)->os_mutex)
-#define sync_array_enter(a)	os_mutex_enter((a)->os_mutex)
+#define sync_array_exit(a)	mutex_exit(&(a)->mutex)
+#define sync_array_enter(a)	mutex_enter(&(a)->mutex)
 
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
@@ -210,7 +214,7 @@ sync_array_create(
 	arr->n_cells = n_cells;
 
 	/* Then create the mutex to protect the wait array complex */
-	arr->os_mutex = os_mutex_create();
+	mutex_create("sync_array_mutex", &arr->mutex);
 
 	return(arr);
 }
@@ -229,7 +233,7 @@ sync_array_free(
 
 	/* Release the mutex protecting the wait array complex */
 
-	os_mutex_free(arr->os_mutex);
+	mutex_free(&arr->mutex);
 
 	ut_free(arr->array);
 	ut_free(arr);

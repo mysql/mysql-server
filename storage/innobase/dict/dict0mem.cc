@@ -457,7 +457,7 @@ dict_mem_index_create(
 	dict_mem_fill_index_struct(index, heap, table_name, index_name,
 				   space, type, n_fields);
 
-	os_fast_mutex_init(zip_pad_mutex_key, &index->zip_pad.mutex);
+	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
 
 	return(index);
 }
@@ -591,7 +591,7 @@ dict_mem_index_free(
 	}
 #endif /* UNIV_BLOB_DEBUG */
 
-	os_fast_mutex_free(&index->zip_pad.mutex);
+	mutex_destroy(&index->zip_pad.mutex);
 
 	mem_heap_free(index->heap);
 }

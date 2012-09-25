@@ -1561,9 +1561,9 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
-		os_fast_mutex_free(&index->zip_pad.mutex);
+		mutex_free(&index->zip_pad.mutex);
 		mem_heap_free(index->heap);
-		mutex_free(&(table->autoinc_mutex));
+		mutex_free(&table->autoinc_mutex);
 		ut_free(table->name);
 		mem_heap_free(table->heap);
 	}

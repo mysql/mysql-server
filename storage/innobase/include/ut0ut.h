@@ -33,7 +33,7 @@ Created 1/20/1994 Heikki Tuuri
 #include "db0err.h"
 
 #ifndef UNIV_HOTBACKUP
-# include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+# include "os0atomic.h"
 #endif /* UNIV_HOTBACKUP */
 
 #include <time.h>

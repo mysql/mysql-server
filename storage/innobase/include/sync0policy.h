@@ -28,6 +28,7 @@ Created 2012-08-21 Sunny Bains.
 
 #include "univ.i"
 #include "ut0rnd.h"
+#include "sync0types.h"
 
 extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;
@@ -177,8 +178,9 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	};
 
 	/** Default constructor. */
-	DebugPolicy()
+	DebugPolicy(bool track = true)
 		:
+		m_track(track),
 		m_thread_id(),
 		m_magic_n() UNIV_NOTHROW
 	{
@@ -241,6 +243,9 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 		fprintf(stream, "\n");
 	}
 
+	/** true if the lock/unlock should be tracked */
+	bool			m_track;
+
 	/** Owning thread id, or ULINT_UNDEFINED. NOTE: os_thread_id can be
 	any type even a pointer. */
 	os_thread_id_t		m_thread_id;
@@ -253,9 +258,6 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 
 	/** Magic number to check for memory corruption. */
 	ulint			m_magic_n;
-
-	/** true if the mutex is currently locked */
-	bool			m_locked;
 
 	/** Latching information required by the latch ordering checks. */
 	DebugLatch		m_latch;

@@ -41,7 +41,7 @@ if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
 UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
 
 /** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
-UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
+UNIV_INTERN SysMutex	ut_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register server_mutex with performance schema */
@@ -79,7 +79,9 @@ ut_mem_init(void)
 /*=============*/
 {
 	ut_a(!ut_mem_block_list_inited);
-	os_fast_mutex_init(ut_list_mutex_key, &ut_list_mutex);
+
+	mutex_create("ut_list_mutex", &ut_list_mutex);
+
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
 }
@@ -112,7 +114,7 @@ ut_malloc_low(
 
 	retry_count = 0;
 retry:
-	os_fast_mutex_lock(&ut_list_mutex);
+	mutex_enter(&ut_list_mutex);
 
 	ret = malloc(n + sizeof(ut_mem_block_t));
 
@@ -148,7 +150,7 @@ retry:
 				);
 		}
 
-		os_fast_mutex_unlock(&ut_list_mutex);
+		mutex_exit(&ut_list_mutex);
 
 		/* Sleep for a second and retry the allocation; maybe this is
 		just a temporary shortage of memory */
@@ -167,7 +169,7 @@ retry:
 
 		fflush(stderr);
 
-		os_fast_mutex_unlock(&ut_list_mutex);
+		mutex_enter(&ut_list_mutex);
 
 		/* Make an intentional seg fault so that we get a stack
 		trace */
@@ -194,7 +196,7 @@ retry:
 
 	UT_LIST_ADD_FIRST(mem_block_list, ut_mem_block_list,
 			  ((ut_mem_block_t*) ret));
-	os_fast_mutex_unlock(&ut_list_mutex);
+	mutex_exit(&ut_list_mutex);
 
 	return((void*)((byte*) ret + sizeof(ut_mem_block_t)));
 #else /* !UNIV_HOTBACKUP */
@@ -226,7 +228,7 @@ ut_free(
 
 	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
 
-	os_fast_mutex_lock(&ut_list_mutex);
+	mutex_enter(&ut_list_mutex);
 
 	ut_a(block->magic_n == UT_MEM_MAGIC_N);
 	ut_a(ut_total_allocated_memory >= block->size);
@@ -236,7 +238,8 @@ ut_free(
 	UT_LIST_REMOVE(mem_block_list, ut_mem_block_list, block);
 	free(block);
 
-	os_fast_mutex_unlock(&ut_list_mutex);
+	mutex_exit(&ut_list_mutex);
+
 #else /* !UNIV_HOTBACKUP */
 	free(ptr);
 #endif /* !UNIV_HOTBACKUP */
@@ -333,7 +336,7 @@ ut_free_all_mem(void)
 
 	ut_a(ut_mem_block_list_inited);
 	ut_mem_block_list_inited = FALSE;
-	os_fast_mutex_free(&ut_list_mutex);
+	mutex_free(&ut_list_mutex);
 
 	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {
 

@@ -59,6 +59,10 @@ void DebugPolicy<Mutex>::init(
 template <typename Mutex>
 void DebugPolicy<Mutex>::enter(const Mutex& mutex) UNIV_NOTHROW
 {
+	if (!m_track) {
+		return;
+	}
+
 	ut_ad(!is_owned());
 	ut_ad(m_latch.m_mutex == 0 || m_latch.m_mutex == &mutex);
 
@@ -73,6 +77,10 @@ void DebugPolicy<Mutex>::enter(const Mutex& mutex) UNIV_NOTHROW
 template <typename Mutex>
 void DebugPolicy<Mutex>::locked(const Mutex& mutex) UNIV_NOTHROW
 {
+	if (!m_track) {
+		return;
+	}
+
 	ut_ad(!is_owned());
 	ut_ad(m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
 
@@ -82,6 +90,10 @@ void DebugPolicy<Mutex>::locked(const Mutex& mutex) UNIV_NOTHROW
 template <typename Mutex>
 void DebugPolicy<Mutex>::release(const Mutex& mutex) UNIV_NOTHROW
 {
+	if (!m_track) {
+		return;
+	}
+
 	ut_ad(is_owned());
 
 	m_thread_id = os_thread_id_t(ULINT_UNDEFINED);

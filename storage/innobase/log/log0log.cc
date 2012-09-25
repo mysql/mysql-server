@@ -3577,8 +3577,8 @@ log_shutdown(void)
 	log_sys->checkpoint_buf_ptr = NULL;
 	log_sys->checkpoint_buf = NULL;
 
-	os_event_free(log_sys->no_flush_event);
-	os_event_free(log_sys->one_flushed_event);
+	os_event_destroy(log_sys->no_flush_event);
+	os_event_destroy(log_sys->one_flushed_event);
 
 	rw_lock_free(&log_sys->checkpoint_lock);
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,7 +32,33 @@ typedef LONG	lock_word_t;	/*!< On Windows, InterlockedExchange operates
 #else
 // FIXME: For SYS_futex this should be an int
 typedef ulint	lock_word_t;
-#endif /* HAVE_WINDOES_ATOMICS */
+#endif /* HAVE_WINDOWS_ATOMICS */
+
+#ifdef __WIN__
+/** Native mutex */
+typedef CRITICAL_SECTION	sys_mutex_t;
+#else
+/** Native mutex */
+typedef pthread_mutex_t		sys_mutex_t;
+#endif /* __WIN__ */
+
+/** The new (C++11) syntax allows the following and we should use it when it
+is available on platforms that we support.
+
+	enum class mutex_state_t : lock_word_t { ... };
+*/
+
+/** Mutex states. */
+enum mute_state_t {
+	/** Mutex is free */
+	MUTEX_STATE_UNLOCKED = 0,
+
+	/** Mutex is acquired by some thread. */
+	MUTEX_STATE_LOCKED = 1,
+
+	/** Mutex is contended and there are threads waiting on the lock. */
+	MUTEX_STATE_WAITERS = 2
+};
 
 /*
 		LATCHING ORDER WITHIN THE DATABASE
