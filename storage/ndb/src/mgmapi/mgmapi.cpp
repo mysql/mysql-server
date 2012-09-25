@@ -661,6 +661,9 @@ bool get_mgmd_version(NdbMgmHandle handle)
 
 /**
  * Connect to a management server
+ * no_retries = 0, return immediately,
+ * no_retries < 0, retry infinitely,
+ * else retry no_retries times.
  */
 extern "C"
 int
@@ -794,6 +797,15 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 	fflush(handle->errstream);
       }
       no_retries--;
+    }
+    else
+    {
+      // no_retries < 0, retrying infinitely
+      if (verbose == -2)
+      {
+        fprintf(handle->errstream, ".");
+        fflush(handle->errstream);
+      }
     }
     NdbSleep_SecSleep(retry_delay_in_seconds);
   }
