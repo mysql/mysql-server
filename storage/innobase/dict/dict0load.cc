@@ -2926,7 +2926,6 @@ loop:
 	/* Now we have the record in the secondary index containing a table
 	name and a foreign constraint ID */
 
-	rec = btr_pcur_get_rec(&pcur);
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN_FOR_NAME__NAME, &len);
 
