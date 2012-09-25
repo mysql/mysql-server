@@ -33,7 +33,7 @@ Created April 08, 2011 Vasil Dimov
 #include "db0err.h"
 #include "dict0dict.h" /* dict_operation_lock */
 #include "os0file.h" /* OS_FILE_MAX_PATH */
-#include "os0sync.h" /* os_event* */
+#include "os0event.h" /* os_event* */
 #include "os0thread.h" /* os_thread_* */
 #include "srv0srv.h" /* srv_fast_shutdown, srv_buf_dump* */
 #include "srv0start.h" /* srv_shutdown_state */

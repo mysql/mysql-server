@@ -70,7 +70,7 @@ UNIV_INTERN ulong	srv_thread_concurrency	= 0;
 #ifndef HAVE_ATOMIC_BUILTINS
 
 /** This mutex protects srv_conc data structures */
-static os_fast_mutex_t	srv_conc_mutex;
+static SysMutex	srv_conc_mutex;
 
 /** Concurrency list node */
 typedef UT_LIST_NODE_T(struct srv_conc_slot_t)	srv_conc_node_t;

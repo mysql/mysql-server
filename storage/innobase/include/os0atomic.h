@@ -1,6 +1,5 @@
 /*****************************************************************************
-
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -24,333 +23,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /**************************************************//**
-@file include/os0sync.h
-The interface to the operating system
-synchronization primitives.
+@file include/os0atomic.h
+Macros for using atomics
 
-Created 9/6/1995 Heikki Tuuri
+Created 2012-09-23 Sunny Bains (Split from os0event.h)
 *******************************************************/
 
-#ifndef os0sync_h
-#define os0sync_h
+#ifndef os0atomic_h
+#define os0atomic_h
 
 #include "univ.i"
-#include "ut0lst.h"
-#include "sync0types.h"
-
-#ifdef __WIN__
-/** Native event (slow)*/
-typedef HANDLE			os_native_event_t;
-/** Native mutex */
-typedef CRITICAL_SECTION	fast_mutex_t;
-/** Native condition variable. */
-typedef CONDITION_VARIABLE	os_cond_t;
-#else
-/** Native mutex */
-typedef pthread_mutex_t		fast_mutex_t;
-/** Native condition variable */
-typedef pthread_cond_t		os_cond_t;
-#endif
-
-/** Structure that includes Performance Schema Probe pfs_psi
-in the os_fast_mutex structure if UNIV_PFS_MUTEX is defined */
-struct os_fast_mutex_t {
-	fast_mutex_t		mutex;	/*!< os_fast_mutex */
-#ifdef UNIV_PFS_MUTEX
-	struct PSI_mutex*	pfs_psi;/*!< The performance schema
-					instrumentation hook */
-#endif /* UNIV_PFS_MUTEX */
-};
-
-/** Operating system event handle */
-typedef struct os_event*	os_event_t;
-
-/** An asynchronous signal sent between threads */
-struct os_event {
-#ifdef __WIN__
-	HANDLE		handle;		/*!< kernel event object, slow,
-					used on older Windows */
-#endif /* __WIN__ */
-	os_fast_mutex_t	os_mutex;	/*!< this mutex protects the next
-					fields */
-	ibool		is_set;		/*!< this is TRUE when the event is
-					in the signaled state, i.e., a thread
-					does not stop if it tries to wait for
-					this event */
-	ib_int64_t	signal_count;	/*!< this is incremented each time
-					the event becomes signaled */
-	os_cond_t	cond_var;	/*!< condition variable is used in
-					waiting for the event */
-	UT_LIST_NODE_T(os_event_t) os_event_list;
-					/*!< list of all created events */
-};
-
-/** Denotes an infinite delay for os_event_wait_time() */
-#define OS_SYNC_INFINITE_TIME   ULINT_UNDEFINED
-
-/** Return value of os_event_wait_time() when the time is exceeded */
-#define OS_SYNC_TIME_EXCEEDED   1
-
-/** Operating system mutex handle */
-typedef struct os_ib_mutex_t*	os_mutex_t;
-
-/** Mutex protecting counts and the event and OS 'slow' mutex lists */
-extern os_mutex_t	os_sync_mutex;
-
-/** This is incremented by 1 in os_thread_create and decremented by 1 in
-os_thread_exit */
-extern ulint		os_thread_count;
-
-extern ulint		os_event_count;
-extern ulint		os_mutex_count;
-extern ulint		os_fast_mutex_count;
-
-/*********************************************************//**
-Initializes global event and OS 'slow' mutex lists. */
-UNIV_INTERN
-void
-os_sync_init(void);
-/*==============*/
-/*********************************************************//**
-Frees created events and OS 'slow' mutexes. */
-UNIV_INTERN
-void
-os_sync_free(void);
-/*==============*/
-/*********************************************************//**
-Creates an event semaphore, i.e., a semaphore which may just have two states:
-signaled and nonsignaled. The created event is manual reset: it must be reset
-explicitly by calling sync_os_reset_event.
-@return	the event handle */
-UNIV_INTERN
-os_event_t
-os_event_create(
-/*============*/
-	const char*	name);	/*!< in: the name of the event, if NULL
-				the event is created without a name */
-/**********************************************************//**
-Sets an event semaphore to the signaled state: lets waiting threads
-proceed. */
-UNIV_INTERN
-void
-os_event_set(
-/*=========*/
-	os_event_t	event);	/*!< in: event to set */
-/**********************************************************//**
-Resets an event semaphore to the nonsignaled state. Waiting threads will
-stop to wait for the event.
-The return value should be passed to os_even_wait_low() if it is desired
-that this thread should not wait in case of an intervening call to
-os_event_set() between this os_event_reset() and the
-os_event_wait_low() call. See comments for os_event_wait_low(). */
-UNIV_INTERN
-ib_int64_t
-os_event_reset(
-/*===========*/
-	os_event_t	event);	/*!< in: event to reset */
-/**********************************************************//**
-Frees an event object. */
-UNIV_INTERN
-void
-os_event_free(
-/*==========*/
-	os_event_t	event);	/*!< in: event to free */
-
-/**********************************************************//**
-Waits for an event object until it is in the signaled state.
-
-Typically, if the event has been signalled after the os_event_reset()
-we'll return immediately because event->is_set == TRUE.
-There are, however, situations (e.g.: sync_array code) where we may
-lose this information. For example:
-
-thread A calls os_event_reset()
-thread B calls os_event_set()   [event->is_set == TRUE]
-thread C calls os_event_reset() [event->is_set == FALSE]
-thread A calls os_event_wait()  [infinite wait!]
-thread C calls os_event_wait()  [infinite wait!]
-
-Where such a scenario is possible, to avoid infinite wait, the
-value returned by os_event_reset() should be passed in as
-reset_sig_count. */
-UNIV_INTERN
-void
-os_event_wait_low(
-/*==============*/
-	os_event_t	event,		/*!< in: event to wait */
-	ib_int64_t	reset_sig_count);/*!< in: zero or the value
-					returned by previous call of
-					os_event_reset(). */
-
-#define os_event_wait(event) os_event_wait_low(event, 0)
-#define os_event_wait_time(event, t) os_event_wait_time_low(event, t, 0)
-
-/**********************************************************//**
-Waits for an event object until it is in the signaled state or
-a timeout is exceeded. In Unix the timeout is always infinite.
-@return 0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
-UNIV_INTERN
-ulint
-os_event_wait_time_low(
-/*===================*/
-	os_event_t	event,			/*!< in: event to wait */
-	ulint		time_in_usec,		/*!< in: timeout in
-						microseconds, or
-						OS_SYNC_INFINITE_TIME */
-	ib_int64_t	reset_sig_count);	/*!< in: zero or the value
-						returned by previous call of
-						os_event_reset(). */
-/*********************************************************//**
-Creates an operating system mutex semaphore. Because these are slow, the
-mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
-@return	the mutex handle */
-UNIV_INTERN
-os_mutex_t
-os_mutex_create(void);
-/*=================*/
-/**********************************************************//**
-Acquires ownership of a mutex semaphore. */
-UNIV_INTERN
-void
-os_mutex_enter(
-/*===========*/
-	os_mutex_t	mutex);	/*!< in: mutex to acquire */
-/**********************************************************//**
-Releases ownership of a mutex. */
-UNIV_INTERN
-void
-os_mutex_exit(
-/*==========*/
-	os_mutex_t	mutex);	/*!< in: mutex to release */
-/**********************************************************//**
-Frees an mutex object. */
-UNIV_INTERN
-void
-os_mutex_free(
-/*==========*/
-	os_mutex_t	mutex);	/*!< in: mutex to free */
-/**********************************************************//**
-Acquires ownership of a fast mutex. Currently in Windows this is the same
-as os_fast_mutex_lock!
-@return	0 if success, != 0 if was reserved by another thread */
-UNIV_INLINE
-ulint
-os_fast_mutex_trylock(
-/*==================*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in: mutex to acquire */
-
-/**********************************************************************
-Following os_fast_ mutex APIs would be performance schema instrumented:
-
-os_fast_mutex_init
-os_fast_mutex_lock
-os_fast_mutex_unlock
-os_fast_mutex_free
-
-These mutex APIs will point to corresponding wrapper functions that contain
-the performance schema instrumentation.
-
-NOTE! The following macro should be used in mutex operation, not the
-corresponding function. */
-
-#ifdef UNIV_PFS_MUTEX
-# define os_fast_mutex_init(K, M)			\
-	pfs_os_fast_mutex_init(K, M)
-
-# define os_fast_mutex_lock(M)				\
-	pfs_os_fast_mutex_lock(M, __FILE__, __LINE__)
-
-# define os_fast_mutex_unlock(M)	pfs_os_fast_mutex_unlock(M)
-
-# define os_fast_mutex_free(M)		pfs_os_fast_mutex_free(M)
-
-/*********************************************************//**
-NOTE! Please use the corresponding macro os_fast_mutex_init(), not directly
-this function!
-A wrapper function for os_fast_mutex_init_func(). Initializes an operating
-system fast mutex semaphore. */
-UNIV_INLINE
-void
-pfs_os_fast_mutex_init(
-/*===================*/
-	PSI_mutex_key		key,		/*!< in: Performance Schema
-						key */
-	os_fast_mutex_t*	fast_mutex);	/*!< out: fast mutex */
-/**********************************************************//**
-NOTE! Please use the corresponding macro os_fast_mutex_free(), not directly
-this function!
-Wrapper function for pfs_os_fast_mutex_free(). Also destroys the performance
-schema probes when freeing the mutex */
-UNIV_INLINE
-void
-pfs_os_fast_mutex_free(
-/*===================*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in/out: mutex to free */
-/**********************************************************//**
-NOTE! Please use the corresponding macro os_fast_mutex_lock, not directly
-this function!
-Wrapper function of os_fast_mutex_lock. Acquires ownership of a fast mutex. */
-UNIV_INLINE
-void
-pfs_os_fast_mutex_lock(
-/*===================*/
-	os_fast_mutex_t*	fast_mutex,	/*!< in/out: mutex to acquire */
-	const char*		file_name,	/*!< in: file name where
-						 locked */
-	ulint			line);		/*!< in: line where locked */
-/**********************************************************//**
-NOTE! Please use the corresponding macro os_fast_mutex_unlock, not directly
-this function!
-Wrapper function of os_fast_mutex_unlock. Releases ownership of a fast mutex. */
-UNIV_INLINE
-void
-pfs_os_fast_mutex_unlock(
-/*=====================*/
-	os_fast_mutex_t*	fast_mutex);	/*!< in/out: mutex to release */
-
-#else /* UNIV_PFS_MUTEX */
-
-# define os_fast_mutex_init(K, M)			\
-	os_fast_mutex_init_func(&((os_fast_mutex_t*)(M))->mutex)
-
-# define os_fast_mutex_lock(M)				\
-	os_fast_mutex_lock_func(&((os_fast_mutex_t*)(M))->mutex)
-
-# define os_fast_mutex_unlock(M)			\
-	os_fast_mutex_unlock_func(&((os_fast_mutex_t*)(M))->mutex)
-
-# define os_fast_mutex_free(M)				\
-	os_fast_mutex_free_func(&((os_fast_mutex_t*)(M))->mutex)
-#endif /* UNIV_PFS_MUTEX */
-
-/**********************************************************//**
-Releases ownership of a fast mutex. */
-UNIV_INTERN
-void
-os_fast_mutex_unlock_func(
-/*======================*/
-	fast_mutex_t*		fast_mutex);	/*!< in: mutex to release */
-/*********************************************************//**
-Initializes an operating system fast mutex semaphore. */
-UNIV_INTERN
-void
-os_fast_mutex_init_func(
-/*====================*/
-	fast_mutex_t*		fast_mutex);	/*!< in: fast mutex */
-/**********************************************************//**
-Acquires ownership of a fast mutex. */
-UNIV_INTERN
-void
-os_fast_mutex_lock_func(
-/*====================*/
-	fast_mutex_t*		fast_mutex);	/*!< in: mutex to acquire */
-/**********************************************************//**
-Frees an mutex object. */
-UNIV_INTERN
-void
-os_fast_mutex_free_func(
-/*====================*/
-	fast_mutex_t*		fast_mutex);	/*!< in: mutex to free */
 
 /**********************************************************//**
 Atomic compare-and-swap and increment for InnoDB. */
@@ -644,24 +326,6 @@ clobbered */
 # define TAS(l, n)			os_atomic_test_and_set_ulint((l), (n))
 # define CAS(l, o, n)		os_val_compare_and_swap_ulint((l), (o), (n))
 
-/** The new syntax allows the following and we should use it when it
-is available on platforms that we support.
-
-	enum class mutex_state_t : lock_word_t { ... };
-*/
-
-/** Mutex states. */
-enum mute_state_t {
-	/** Mutex is free */
-	MUTEX_STATE_UNLOCKED = 0,
-
-	/* Mutex is acquired by some thread. */
-	MUTEX_STATE_LOCKED = 1,
-
-	/** Mutex is contended and there are threads waiting on the lock. */
-	MUTEX_STATE_WAITERS = 2
-};
-
 #else
 # define os_atomic_inc_ulint(m,v,d)	os_atomic_inc_ulint_func(m, v, d)
 # define os_atomic_dec_ulint(m,v,d)	os_atomic_dec_ulint_func(m, v, d)
@@ -703,7 +367,8 @@ for synchronization */
 	} while (0);
 
 #ifndef UNIV_NONINL
-#include "os0sync.ic"
-#endif
+#include "os0atomic.ic"
+#endif /* UNIV_NOINL */
 
-#endif
+#endif /* !os0atomic_h */
+

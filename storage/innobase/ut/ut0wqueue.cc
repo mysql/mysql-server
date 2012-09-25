@@ -67,7 +67,7 @@ ib_wqueue_free(
 {
 	mutex_free(&wq->mutex);
 	ib_list_free(wq->items);
-	os_event_free(wq->event);
+	os_event_destroy(wq->event);
 
 	mem_free(wq);
 }

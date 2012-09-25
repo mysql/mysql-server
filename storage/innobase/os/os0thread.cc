@@ -34,7 +34,18 @@ Created 9/8/1995 Heikki Tuuri
 
 #ifndef UNIV_HOTBACKUP
 #include "srv0srv.h"
-#include "os0sync.h"
+#include "os0event.h"
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register server_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	thread_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
+/** Mutex that tracks the thread count. */
+static SysMutex	thread_mutex;
+
+/** Number of threads active. */
+UNIV_INTERN	ulint	os_thread_count;
 
 /***************************************************************//**
 Compares two thread ids for equality.
@@ -118,9 +129,9 @@ os_thread_create_func(
 	os_thread_t	thread;
 	DWORD		win_thread_id;
 
-	os_mutex_enter(os_sync_mutex);
+	mutex_enter(&thread_mutex);
 	os_thread_count++;
-	os_mutex_exit(os_sync_mutex);
+	mutex_exit(&thread_mutex);
 
 	thread = CreateThread(NULL,	/* no security attributes */
 			      0,	/* default size stack */
@@ -159,9 +170,9 @@ os_thread_create_func(
 		exit(1);
 	}
 #endif
-	os_mutex_enter(os_sync_mutex);
+	mutex_enter(&thread_mutex);
 	os_thread_count++;
-	os_mutex_exit(os_sync_mutex);
+	mutex_exit(&thread_mutex);
 
 #ifdef UNIV_HPUX10
 	ret = pthread_create(&pthread, pthread_attr_default, func, arg);
@@ -203,9 +214,9 @@ os_thread_exit(
 	pfs_delete_thread();
 #endif
 
-	os_mutex_enter(os_sync_mutex);
+	mutex_enter(&thread_mutex);
 	os_thread_count--;
-	os_mutex_exit(os_sync_mutex);
+	mutex_exit(&thread_mutex);
 
 #ifdef __WIN__
 	ExitThread((DWORD) exit_value);
@@ -255,3 +266,54 @@ os_thread_sleep(
 	select(0, NULL, NULL, NULL, &t);
 #endif
 }
+
+/*****************************************************************//**
+Check if there are threads active.
+@return true if the thread count > 0. */
+UNIV_INTERN
+bool
+os_thread_active()
+/*==============*/
+{
+	mutex_enter(&thread_mutex);
+
+	bool active = (os_thread_count > 0);
+
+	/* All the threads have exited or are just exiting;
+	NOTE that the threads may not have completed their
+	exit yet. Should we use pthread_join() to make sure
+	they have exited? If we did, we would have to
+	remove the pthread_detach() from
+	os_thread_exit().  Now we just sleep 0.1
+	seconds and hope that is enough! */
+
+	mutex_exit(&thread_mutex);
+
+	return(active);
+}
+
+/**
+Initializes OS thread management data structures. */
+UNIV_INTERN
+void
+os_thread_init()
+/*============*/
+{
+	mutex_create("thread_mutex", &thread_mutex);
+}
+
+/**
+Frees OS thread management data structures. */
+UNIV_INTERN
+void
+os_thread_free()
+/*============*/
+{
+	if (os_thread_count != 0) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Some (%lu) threads are still active", os_thread_count);
+	}
+
+	mutex_destroy(&thread_mutex);
+}
+

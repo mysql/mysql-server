@@ -24,6 +24,8 @@ Created 2012-08-15 Sunny Bains.
 ***********************************************************************/
 
 #include "univ.i"
+#include "os0event.h"
+#include "sync0types.h"
 #include "ut0counter.h"
 #include "ib_mutex.h"
 

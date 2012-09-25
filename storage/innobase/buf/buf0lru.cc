@@ -36,7 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "sync0mutex.h"
 #include "sync0rw.h"
 #include "hash0hash.h"
-#include "os0sync.h"
+#include "os0event.h"
 #include "fil0fil.h"
 #include "btr0btr.h"
 #include "buf0buddy.h"

@@ -28,18 +28,163 @@ Created 2012-03-24 Sunny Bains.
 #ifndef ib_mutex_h
 #define ib_mutex_h
 
-/** POSIX mutex. */
+/** OS event mutex. We can't track the locking because this mutex is used
+by the events code. The mutex can be released by the condition variable
+and therefore we lose the tracking information. */
 template <template <typename> class Policy = DefaultPolicy>
-struct POSIXMutex {
+struct OSBasicMutex {
 
-	typedef Policy<POSIXMutex> MutexPolicy;
+	typedef Policy<OSBasicMutex> MutexPolicy;
 
-	POSIXMutex() UNIV_NOTHROW
+	OSBasicMutex(bool track = false) 
+		:
+		m_policy(track) UNIV_NOTHROW
+	{
+		ut_d(m_freed = true);
+	}
+
+	~OSBasicMutex() UNIV_NOTHROW
+	{
+		ut_ad(m_freed);
+	}
+
+	/** Required for os_event_t */
+	operator sys_mutex_t*() UNIV_NOTHROW
+	{
+		return(&m_mutex);
+	}
+
+	/** Initialise the mutex. */
+	void init(
+		const char*	name,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
+	{
+		ut_ad(m_freed);
+#ifdef __WIN__
+		InitializeCriticalSection((LPCRITICAL_SECTION) &m_mutex);
+#else
+		{
+			int	ret;
+
+			ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
+			ut_a(ret == 0);
+		}
+#endif /* __WIN__ */
+		ut_d(m_freed = false);
+
+		m_policy.init(*this, name, filename, line);
+	}
+	
+	/** Destroy the mutex */
+	void destroy() UNIV_NOTHROW
+	{
+                ut_ad(!m_freed);
+#ifdef __WIN__
+		DeleteCriticalSection((LPCRITICAL_SECTION) &m_mutex);
+#else
+		int	ret;
+
+		ret = pthread_mutex_destroy(&m_mutex);
+
+		if (ret != 0) {
+
+			fprintf(stderr,
+				" InnoDB: Return value %lu when calling "
+				"pthread_mutex_destroy(). Byte contents of the "
+				"pthread mutex at %p:",
+				(ulint) ret, (void*) &m_mutex);
+
+			ut_print_buf(stderr, &m_mutex, sizeof(m_mutex));
+			putc('\n', stderr);
+		}
+#endif /* __WIN__ */
+
+		m_policy.destroy();
+
+		ut_d(m_freed = true);
+	}
+
+	/** Release the muytex. */
+	void exit() UNIV_NOTHROW
+	{
+		ut_ad(!m_freed);
+#ifdef __WIN__
+		LeaveCriticalSection(&m_mutex);
+#else
+		// FIXME: Do we check for EINTR?
+		int	ret = pthread_mutex_unlock(&m_mutex);
+		ut_a(ret == 0);
+#endif /* __WIN__ */
+	}
+
+	/** Acquire the mutex. */
+	void enter(const char* filename, ulint line) UNIV_NOTHROW
+	{
+                ut_ad(!m_freed);
+#ifdef __WIN__
+		EnterCriticalSection((LPCRITICAL_SECTION) &m_mutex);
+#else
+		int	ret = pthread_mutex_lock(&m_mutex);
+		ut_a(ret == 0);
+#endif /* __WIN__ */
+	}
+
+	/** @return true if locking succeeded */
+	bool try_lock() UNIV_NOTHROW
+	{
+                ut_ad(!m_freed);
+#ifdef __WIN__
+		return(TryEnterCriticalSection(&m_mutex) != 0);
+#else
+		/* NOTE that the MySQL my_pthread.h redefines
+		pthread_mutex_trylock so that it returns 0 on
+		success. In the operating system libraries, HP-UX-10.20
+		follows the old Posix 1003.4a Draft 4 and returns 1
+		on success (but MySQL remaps that to 0), while Linux,
+		FreeBSD, Solaris, AIX, Tru64 Unix, HP-UX-11.0 return
+		0 on success. */
+
+		return(pthread_mutex_trylock(&m_mutex) == 0);
+#endif /* __WIN__ */
+	}
+
+#ifdef UNIV_DEBUG
+	/** @return true if some thread owns the mutex. Because these are
+        used by os_event_t we cannot track the ownership reliably. */
+	bool is_owned() const UNIV_NOTHROW
+	{
+		return(m_policy.is_owned());
+	}
+#endif /* UNIV_DEBUG */
+
+private:
+#ifdef UNIV_DEBUG
+        /** true if the mutex has been freed/destroyed. */
+	bool			m_freed;
+
+#endif /* UNIV_DEBUG */
+
+	sys_mutex_t		m_mutex;
+
+public:
+	MutexPolicy		m_policy;
+};
+
+/** OS debug mutex. */
+template <template <typename> class Policy = DefaultPolicy>
+struct OSTrackedMutex : public OSBasicMutex<Policy> {
+
+	typedef Policy<OSTrackedMutex> MutexPolicy;
+
+	OSTrackedMutex() 
+		:
+		OSBasicMutex<Policy>(true) UNIV_NOTHROW
 	{
 		ut_d(m_locked = false);
 	}
 
-	~POSIXMutex() UNIV_NOTHROW
+	~OSTrackedMutex() UNIV_NOTHROW
 	{
 		ut_ad(!m_locked);
 	}
@@ -50,23 +195,15 @@ struct POSIXMutex {
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW
 	{
-		int	ret;
-
-		ret = pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
-		ut_a(ret == 0);
-		ut_d(m_locked = false);
-
-		m_policy.init(*this, name, filename, line);
+		ut_ad(!m_locked);
+                OSBasicMutex<Policy>::init(name, filename, line);
 	}
 	
 	/** Destroy the mutex */
 	void destroy() UNIV_NOTHROW
 	{
 		ut_ad(!m_locked);
-		int	ret = pthread_mutex_destroy(&m_mutex);
-		ut_a(ret == 0);
-
-		m_policy.destroy();
+                OSBasicMutex<Policy>::destroy();
 	}
 
 	/** Release the muytex. */
@@ -75,33 +212,27 @@ struct POSIXMutex {
 		ut_ad(m_locked);
 		ut_d(m_locked = false);
 
-		// FIXME: Do we check for EINTR?
-		int	ret = pthread_mutex_unlock(&m_mutex);
-		ut_a(ret == 0);
+                OSBasicMutex<Policy>::exit();
 	}
 
 	/** Acquire the mutex. */
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
-		int	ret;
+                OSBasicMutex<Policy>::enter(filename, line);
 
-		ret = pthread_mutex_lock(&m_mutex);
-
-		ut_a(ret == 0);
 		ut_ad(!m_locked);
 		ut_d(m_locked = true);
 	}
 
 	/** @return true if locking succeeded */
-	bool try_lock(const char* name, ulint line) UNIV_NOTHROW
+	bool try_lock() UNIV_NOTHROW
 	{
-		bool	locked = pthread_mutex_trylock(&m_mutex) == 0;
-#ifdef UNIV_DEBUG
+		bool	locked = OSBasicMutex<Policy>::try_lock();
+
 		if (locked) {
 			ut_ad(!m_locked);
 			ut_d(m_locked = locked);
 		}
-#endif /* UNIV_DEBUG */
 
 		return(locked);
 	}
@@ -110,19 +241,15 @@ struct POSIXMutex {
 	/** @return true if the thread owns the mutex. */
 	bool is_owned() const UNIV_NOTHROW
 	{
-		return(m_locked && m_policy.is_owned());
+		return(m_locked && OSBasicMutex<Policy>::is_owned());
 	}
 #endif /* UNIV_DEBUG */
 
 private:
 #ifdef UNIV_DEBUG
+        /** true if the mutex has been locked. */
 	bool			m_locked;
 #endif /* UNIV_DEBUG */
-
-	pthread_mutex_t		m_mutex;
-
-public:
-	MutexPolicy		m_policy;
 };
 
 #ifdef HAVE_IB_LINUX_FUTEX
@@ -494,14 +621,14 @@ struct TTASWaitMutex {
 
 	/**
 	This is the real desctructor. This mutex can be created in BSS and
-	its desctructor will be called on exit(). We can't call os_event_free()
-	at that stage. */
+	its desctructor will be called on exit(). We can't call
+	os_event_destroy() at that stage. */
 	void destroy()
 	{
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 
 		/* We have to free the event before InnoDB shuts down. */
-		os_event_free(m_event);
+		os_event_destroy(m_event);
 		m_event = 0;
 
 		m_policy.destroy();
@@ -787,6 +914,12 @@ struct PolicyMutex
 		m_impl.destroy();
 	}	
 
+	/** Required for os_event_t */
+	operator sys_mutex_t*() UNIV_NOTHROW
+	{
+		return(m_impl.operator sys_mutex_t*());
+	}
+
 private:
 	/** The mutex implementation */
 	MutexImpl		m_impl;
@@ -863,6 +996,11 @@ struct PFSMutex : PolicyMutex<MutexImpl>
 		PolicyMutex<MutexImpl>::destroy();
 	}	
 
+	/** Required for os_event_t */
+	operator sys_mutex_t* () UNIV_NOTHROW
+	{
+		return(PolicyMutex<MutexImpl>::operator sys_mutex_t*());
+	}
 private:
 
 	/** Performance schema monitoring.
@@ -931,7 +1069,8 @@ typedef PFSMutex<Futex<DefaultPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PFSMutex<TTASWaitMutex<TrackPolicy> > Mutex;
-typedef PFSMutex<POSIXMutex<DefaultPolicy> > SysMutex;
+typedef PFSMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
+typedef PFSMutex<OSBasicMutex<DefaultPolicy> > EventMutex;
 typedef PFSMutex<TTASMutex<DefaultPolicy> > SpinMutex;
 
 # else
@@ -941,7 +1080,7 @@ typedef PolicyMutex<Futex<DefaultPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PolicyMutex<TTASWaitMutex<TrackPolicy> > Mutex;
-typedef PolicyMutex<POSIXMutex<DefaultPolicy> > SysMutex;
+typedef PolicyMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
 typedef PolicyMutex<TTASMutex<DefaultPolicy> > SpinMutex;
 
 # endif /* UNIV_PFS_MUTEX */
@@ -954,7 +1093,8 @@ typedef PolicyMutex<TTASMutex<DefaultPolicy> > SpinMutex;
 typedef PFSMutex<Futex<DebugPolicy> > FutexMutex;
 #  endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PFSMutex<POSIXMutex<DebugPolicy> > SysMutex;
+typedef PFSMutex<OSTrackedMutex<DebugPolicy> > SysMutex;
+typedef PFSMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 typedef PFSMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PFSMutex<TTASWaitMutex<DebugPolicy> > Mutex;
 
@@ -964,7 +1104,8 @@ typedef PFSMutex<TTASWaitMutex<DebugPolicy> > Mutex;
 typedef PolicyMutex<Futex<DebugPolicy> > FutexMutex;
 #  endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<POSIXMutex<DebugPolicy> > SysMutex;
+typedef PolicyMutex<OSTrackedMutex<DebugPolicy> > SysMutex;
+typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PolicyMutex<TTASWaitMutex<DebugPolicy> > Mutex;
 
