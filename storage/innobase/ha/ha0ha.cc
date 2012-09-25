@@ -101,20 +101,12 @@ ha_clear(
 /*=====*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
-	ulint	i;
-	ulint	n;
-
-	ut_ad(table);
 	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(!table->adaptive
-	       || rw_lock_own(&btr_search_latch, RW_LOCK_X));
+	ut_ad(!table->adaptive || rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-	/* Free the memory heaps. */
-	n = table->n_sync_obj;
-
-	for (i = 0; i < n; i++) {
+	for (ulint i = 0; i < table->n_sync_obj; i++) {
 		mem_heap_free(table->heaps[i]);
 	}
 
@@ -124,11 +116,18 @@ ha_clear(
 
 	switch (table->type) {
 	case HASH_TABLE_SYNC_MUTEX:
+		for (ulint i = 0; i < table->n_sync_obj; ++i) {
+			mutex_destroy(&table->sync_obj.mutexes[i]);
+		}
 		mem_free(table->sync_obj.mutexes);
 		table->sync_obj.mutexes = NULL;
 		break;
 
 	case HASH_TABLE_SYNC_RW_LOCK:
+		for (ulint i = 0; i < table->n_sync_obj; ++i) {
+			rw_lock_free(&table->sync_obj.rw_locks[i]);
+		}
+
 		mem_free(table->sync_obj.rw_locks);
 		table->sync_obj.rw_locks = NULL;
 		break;
@@ -143,9 +142,9 @@ ha_clear(
 
 
 	/* Clear the hash table. */
-	n = hash_get_n_cells(table);
+	ulint	n = hash_get_n_cells(table);
 
-	for (i = 0; i < n; i++) {
+	for (ulint i = 0; i < n; i++) {
 		hash_get_nth_cell(table, i)->node = NULL;
 	}
 }
