@@ -89,34 +89,34 @@ function prepare(testCase, testObj) {
 
 function do_insert_op(testCase, dataObj) {
   udebug.log("do_insert_op for", testCase.name);
-  var tx = dbSession.createTransaction();
+  var tx = dbSession.getTransactionHandler();
   var op = dbSession.buildInsertOperation(dbt, dataObj, tx, null);
-  tx.executeCommit([ op ], testCase.checkResult);
+  tx.execute([ op ], testCase.checkResult);
 }
 
 function do_read_op(testCase, keyObj) {
   udebug.log("do_read_op for", testCase.name);
-  var tx = dbSession.createTransaction();
+  var tx = dbSession.getTransactionHandler();
   var index = dbt.getIndexHandler(keyObj);
   var op = dbSession.buildReadOperation(index, keyObj, tx);
-  tx.executeCommit([ op ], testCase.checkResult);
+  tx.execute([ op ], testCase.checkResult);
 }
 
 function do_update_op(testCase, dataObj) {
   assert(typeof testCase.checkResult === 'function');
   udebug.log("do_update_op for", testCase.name);
-  var tx = dbSession.createTransaction();
+  var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(dataObj.keys);
   var op = dbSession.buildUpdateOperation(dbix, dataObj.keys, dataObj.values, tx, null);
-  tx.executeCommit([ op ], testCase.checkResult);
+  tx.execute([ op ], testCase.checkResult);
 }
 
 function do_delete_op(testCase, keyObj) {
   udebug.log("do_delete_op for", testCase.name);
-  var tx = dbSession.createTransaction();
+  var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(keyObj);
   var op = dbSession.buildDeleteOperation(dbix, keyObj, tx, null);  
-  tx.executeCommit([ op ], testCase.checkResult);
+  tx.execute([ op ], testCase.checkResult);
 }
 
 /// INSERT

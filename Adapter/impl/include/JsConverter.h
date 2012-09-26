@@ -153,7 +153,7 @@ public:
 template <typename T> Local<Value> toJS(T cptr) {
   /* This can't be done.  Use wrapPointerInObject() instead. */
   HandleScope scope;
-  assert(0);
+  assert("WRONG TEMPLATE SPECIALIZATION" == 0);
   return scope.Close(Null());
 }
 
@@ -169,7 +169,8 @@ inline Local<Value> toJS<uint32_t>(uint32_t cval) {
   return v8::Uint32::New(cval);
 };
 
-// size_t
+// size_t:  FIXME, THIS CAN CAUSE COMPILER FAILURE IF uint32_t == size_t
+// size_t is required for Record.
 template <>
 inline Local<Value> toJS<size_t>(size_t cval) {
   return v8::Uint32::New(cval);
