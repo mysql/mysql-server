@@ -2057,6 +2057,8 @@ innobase_start_or_create_for_mysql(void)
 					goto files_checked;
 				} else if (i < 2) {
 					/* must have at least 2 log files */
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Only one log file found.");
 					return(err);
 				}
 
