@@ -193,15 +193,15 @@ let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
 --echo "test misc 4"
 # We should have perfectly synced files here.
 # Rename the log files, and trigger an error in recovery.
-##--move_file $MYSQLD_DATADIR/ib_logfile101 $MYSQLD_DATADIR/ib_logfile0
-#--move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
-#--error 1
-#--exec $MYSQLD_CMD $args
-#let SEARCH_PATTERN= InnoDB: Only one log file found;
-#--source include/search_pattern_in_file.inc
-#--remove_file $SEARCH_FILE
-##--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
-#--move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
+#--move_file $MYSQLD_DATADIR/ib_logfile101 $MYSQLD_DATADIR/ib_logfile0
+--move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
+--error 1
+--exec $MYSQLD_CMD $args
+let SEARCH_PATTERN= InnoDB: Only one log file found;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+#--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
+--move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
 
 --echo "test misc 5"
 # make copy of ib_logfile0 before editing
