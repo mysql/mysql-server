@@ -1128,7 +1128,9 @@ void read_block_from_fd_into_rbuf(
 
 static const int read_header_heuristic_max = 32*1024;
 
+#ifndef MIN
 #define MIN(a,b) (((a)>(b)) ? (b) : (a))
+#endif
 
 static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKNUM blocknum, FT h, struct rbuf *rb)
 // Effect: If the header part of the node is small enough, then read it into the rbuf.  The rbuf will be allocated to be big enough in any case.

@@ -13,7 +13,9 @@ enum ftnode_verify_type {
     read_none
 };
 
+#ifndef MIN
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+#endif
 
 static int
 string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
