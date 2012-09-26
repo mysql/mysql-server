@@ -22,7 +22,7 @@
 
 'use strict';
 
-var mynode = require('..');
+var nosql = require('..');
 var lib = require('./lib.js');
 var adapter = 'ndb';
 global.mysql_conn_properties = {};
@@ -109,11 +109,11 @@ if (exit) {
 console.log('Running delete with adapter', adapter, user_args);
 //create a database properties object
 
-var dbProperties = mynode.ConnectionProperties(adapter);
+var dbProperties = nosql.ConnectionProperties(adapter);
 
 // create a basic mapping
 
-var annotations = new mynode.Annotations();
+var annotations = new nosql.Annotations();
 
 annotations.mapClass(lib.Tweet, {'table' : 'tweet'});
 
@@ -143,7 +143,7 @@ var onSession = function(err, session) {
 
 // connect to the database
 var onSQLCreate = function() {
-  mynode.openSession(dbProperties, annotations, onSession);
+  nosql.openSession(dbProperties, annotations, onSession);
 };
 
 lib.SQL.create('samples', onSQLCreate);
