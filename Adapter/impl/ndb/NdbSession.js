@@ -53,6 +53,13 @@ exports.getNdb = function(dbsession) {
 };
 
 
+/* txDidCommit() 
+*/
+exports.txDidCommit = function(self, ndbTxHandler) {
+  self.tx = null;
+};
+
+
 /* DBSession Simple Constructor
 */
 NdbSession = function() { 
