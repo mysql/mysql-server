@@ -2080,7 +2080,7 @@ innobase_start_or_create_for_mysql(void)
 
 			if (size & ((1 << UNIV_PAGE_SIZE_SHIFT) - 1)) {
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"InnoDB: Error: log file %s size "
+					"Log file %s size "
 					UINT64PF " is not a multiple of"
 					" innodb_page_size\n",
 					logfilename, size);
@@ -2095,7 +2095,7 @@ innobase_start_or_create_for_mysql(void)
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Log file %s is"
 					" of different size "UINT64PF" bytes"
-					" than other log "
+					" than other log"
 					" files "UINT64PF" bytes!\n",
 					logfilename,
 					size << UNIV_PAGE_SIZE_SHIFT,
