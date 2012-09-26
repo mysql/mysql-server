@@ -25,7 +25,7 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
-    udebug        = unified_debug.getLogger("NdbOperations.js");
+    udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
 /* Constructors.
@@ -200,6 +200,7 @@ function completeExecutedOps(txError, txOperations) {
   for(i = 0; i < txOperations.length ; i++) {
     op = txOperations[i];
     if(op.state === "PREPARED") {
+      udebug.log("completeExecutedOps op",i, op.state);
       op.result = new DBResult();
       ndberror = op.ndbop.getNdbError();
       if(ndberror.code === 0) {
@@ -211,6 +212,7 @@ function completeExecutedOps(txError, txOperations) {
         op.result.error.ndb_error = ndberror;
         mapError(op.result.error);
       }
+      udebug.log_detail("completeExecutedOps op", i, "result", op.result);
            
       //still to do: insert_id
       if(op.result.success && op.opcode === "read") {

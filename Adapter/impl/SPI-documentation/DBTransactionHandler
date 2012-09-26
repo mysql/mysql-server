@@ -13,6 +13,7 @@ var DBTransactionHandler; // Standard members of DBTransactionHandler object
 
 
 DBTransactionHandler = { 
+  autocommit         : null,  // Boolean autocommit mode flag
   dbSession          : null,  // DBSession link for this transaction
   state              : null,  // DBTransactionState applying to the transaction
   success            : null,  // Boolean inidcating success with no errors
@@ -45,18 +46,10 @@ DBTransactionStates = [
            function(error, DBTransactionHandler) callback)
    ASYNC
    
-   Executes the DBOperations in dbOperationList, without commiting.
+   Executes the DBOperations in dbOperationList.
+   Commits the transaction if autocommit is true.
 */
   function execute(dbOperationList, callback) {}
-
-
-/* executeCommit(DBOperation[] dbOperationList,
-                 function(error, DBTransactionHandler) callback)
-   ASYNC
-   
-   Executes the DBOperations in dbOperationList and commit the transaction.
-*/
-  function executeCommit(dbOperationList, callback) {}
 
 
 /* commit(function(error, DBTransactionHandler) callback)
