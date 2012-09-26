@@ -92,17 +92,37 @@ NdbSession.prototype.close = function(userCallback) {
 
 
 /* DBTransactionHandler createTransaction()
-   IMMEDIATE
+IMMEDIATE
 
-   RETURNS a DBTransactionHandler
+RETURNS a DBTransactionHandler
 */
 NdbSession.prototype.createTransaction = function() {
-  udebug.log("createTransaction");
-  
-  delete this.tx;  
-  this.tx = new dbtxhandler.DBTransactionHandler(this);
-  
-  return this.tx;
+udebug.log("createTransaction");
+
+delete this.tx;  
+this.tx = new dbtxhandler.DBTransactionHandler(this);
+if (typeof(this.tx.executeNoCommit) === 'undefined') {
+throw new Error('Fatal internal exception: tx has no executeNoCommit');
+}
+
+return this.tx;
+};
+
+
+/* DBTransactionHandler getTransaction()
+IMMEDIATE
+
+RETURNS a DBTransactionHandler
+*/
+NdbSession.prototype.getTransaction = function() {
+udebug.log("getTransaction");
+
+delete this.tx;
+this.tx = new dbtxhandler.DBTransactionHandler(this);
+//if (typeof(this.tx.executeNoCommit) === 'undefined') {
+//  throw new Error('Fatal internal exception: tx has no executeNoCommit');
+//}
+return this.tx;  
 };
 
 

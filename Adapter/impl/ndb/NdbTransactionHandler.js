@@ -114,7 +114,7 @@ function execute(self, execMode, dbOperationList, callback) {
    
    Executes the DBOperations in dbOperationList, without commiting.
 */
-proto.execute = function executeNoCommit(dbOperationList, userCallback) {
+proto.executeNoCommit = function executeNoCommit(dbOperationList, userCallback) {
   udebug.log("executeNoCommit"); 
   execute(this, adapter.ndbapi.NoCommit, dbOperationList, userCallback);
 };

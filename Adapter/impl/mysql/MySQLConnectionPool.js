@@ -93,7 +93,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   
   if (this.is_connected) {
     udebug.log('MySQLConnectionPool.connect is already connected');
-    callback(null);
+    callback(null, this);
   } else {
     pooledConnection = mysql.createConnection(this.driverproperties);
     pooledConnection.connect(function(err) {
