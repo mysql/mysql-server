@@ -251,6 +251,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     
   
     // Table Record (implementation artifact; not part of spec)
+    DEBUG_PRINT("Creating Table Record");
     Record * rec = new Record(arg0->dict, ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
       rec->addColumn(ndb_table->getColumn(i));      
@@ -292,6 +293,7 @@ Handle<Object> GetTableCall::buildDBIndex_PK() {
      Build the "columnNumbers" array and the "record" object, then set both.
   */  
   int ncol = ndb_table->getNoOfPrimaryKeys();
+  DEBUG_PRINT("Creating Primary Key Record");
   Record * pk_record = new Record(arg0->dict, ncol);
   Local<Array> idx_columns = Array::New(ncol);
   for(int i = 0 ; i < ncol ; i++) {
@@ -328,6 +330,7 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   */  
   int ncol = idx->getNoOfColumns();
   Local<Array> idx_columns = Array::New(ncol);
+  DEBUG_PRINT("Creating Index Record (%s)", idx->getName());
   Record * idx_record = new Record(arg0->dict, ncol);
   for(int i = 0 ; i < ncol ; i++) {
     const char *colName = idx->getColumn(i)->getName();
