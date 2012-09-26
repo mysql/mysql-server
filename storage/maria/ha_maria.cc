@@ -186,7 +186,7 @@ static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
        "until it is considered aged enough to be downgraded to a warm block. "
        "This specifies the percentage ratio of that number of hits to the "
        "total number of blocks in the page cache.", 0, 0,
-        300, 100, ~0L, 100);
+        300, 100, ~(unsigned long)0, 100);
 
 static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -209,12 +209,12 @@ static MYSQL_SYSVAR_SET(recover, maria_recover_options, PLUGIN_VAR_OPCMDARG,
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
        "Number of threads to use when repairing maria tables. The value of 1 "
        "disables parallel repair.",
-       0, 0, 1, 1, ~0L, 1);
+       0, 0, 1, 1, ~(unsigned long)0, 1);
 
 static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
        "The buffer that is allocated when sorting the index when doing a "
        "REPAIR or when creating indexes with CREATE INDEX or ALTER TABLE.",
-       0, 0, 128L*1024L*1024L, 4, ~0L, 1);
+       0, 0, 128L*1024L*1024L, 4, ~(unsigned long)0, 1);
 
 static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
        "Specifies how maria index statistics collection code should treat "
