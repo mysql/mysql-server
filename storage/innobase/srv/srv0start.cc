@@ -2053,6 +2053,8 @@ innobase_start_or_create_for_mysql(void)
 					create_log_files_rename(
 						logfilename, dirnamelen,
 						max_flushed_lsn, logfile0);
+
+					goto files_checked;
 				} else if (i < 2) {
 					/* must have at least 2 log files */
 					return(err);
@@ -2139,6 +2141,7 @@ innobase_start_or_create_for_mysql(void)
 			       SRV_LOG_SPACE_FIRST_ID + 1);
 	}
 
+files_checked:
 	/* Open all log files and data files in the system
 	tablespace: we keep them open until database
 	shutdown */
