@@ -88,7 +88,7 @@ ulong pagecache_age_threshold_alias;
 static MYSQL_SYSVAR_ULONG(pagecache_age_threshold, pagecache_age_threshold_alias,
        PLUGIN_VAR_RQCMDARG,
        "Deprecated, use --aria-pagecache-age-threshold instead",
-       0, 0, 300, 100, ~0L, 100);
+       0, 0, 300, 100, ~(unsigned long)0, 100);
 
 ulonglong pagecache_buffer_size_alias;
 static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size_alias,
@@ -110,12 +110,12 @@ static MYSQL_SYSVAR_SET(recover, recover_alias, PLUGIN_VAR_OPCMDARG,
 ulong repair_threads_alias;
 static MYSQL_THDVAR_ULONG(repair_threads, PLUGIN_VAR_RQCMDARG,
        "Deprecated, use --aria-repair-threads instead",
-       0, 0, 1, 1, ~0L, 1);
+       0, 0, 1, 1, ~(unsigned long)0, 1);
 
 ulong sort_buffer_size_alias;
 static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
        "Deprecated, use --aria-sort-buffer-size instead",
-       0, 0, 128L*1024L*1024L, 4, ~0L, 1);
+       0, 0, 128L*1024L*1024L, 4, ~(unsigned long)0, 1);
 
 ulong stats_method_alias;
 static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,

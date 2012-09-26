@@ -138,8 +138,8 @@ static bool set_one_value(ha_create_table_option *opt,
 
       my_option optp=
         { opt->name, 1, 0, (uchar **)val, 0, 0, GET_ULL,
-          REQUIRED_ARG, opt->def_value, opt->min_value, opt->max_value,
-          0, (long) opt->block_size, 0};
+          REQUIRED_ARG, (longlong)opt->def_value, (longlong)opt->min_value,
+          opt->max_value, 0, (long) opt->block_size, 0};
 
       ulonglong orig_val= strtoull(value->str, NULL, 10);
       my_bool unused;
