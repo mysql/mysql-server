@@ -12,6 +12,7 @@ if(BUILD_TESTING)
     set_property(SOURCE ${test} APPEND PROPERTY COMPILE_DEFINITIONS "ENVDIR=\"dir.${test}.test\"")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES dir.${test}.test)
   endforeach(test)
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES pwrite4g.data)
 
   include(CheckCCompilerFlag)
   check_c_compiler_flag(-Wno-unused-result HAVE_WNO_UNUSED_RESULT)
