@@ -1009,7 +1009,7 @@ innobase_create_handler(
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root)
 {
-	return new (mem_root) ha_innobase(hton, table);
+	return(new (mem_root) ha_innobase(hton, table));
 }
 
 /* General functions */
@@ -1354,7 +1354,7 @@ convert_error_code_to_mysql(
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	case DB_READ_ONLY:
-		return(HA_ERR_READ_ONLY_TRANSACTION);
+		return(HA_ERR_TABLE_READONLY);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
 		return(HA_ERR_FOREIGN_DUPLICATE_KEY);
@@ -2150,8 +2150,8 @@ innobase_copy_frm_flags_from_create_info(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table)) {
-		/* Temp tables do not use persistent stats */
+	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
+		/* Temp tables do not use persistent stats. */
 		ps_on = FALSE;
 		ps_off = TRUE;
 	} else {
@@ -2186,7 +2186,7 @@ innobase_copy_frm_flags_from_table_share(
 	ibool	ps_on;
 	ibool	ps_off;
 
-	if (dict_table_is_temporary(innodb_table)) {
+	if (dict_table_is_temporary(innodb_table) || srv_read_only_mode) {
 		/* Temp tables do not use persistent stats */
 		ps_on = FALSE;
 		ps_off = TRUE;
@@ -3365,7 +3365,9 @@ innobase_flush_logs(
 	DBUG_ENTER("innobase_flush_logs");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	log_buffer_flush_to_disk();
+	if (!srv_read_only_mode) {
+		log_buffer_flush_to_disk();
+	}
 
 	DBUG_RETURN(result);
 }
@@ -5550,13 +5552,13 @@ get_innobase_type_from_mysql_type(
 		case MYSQL_TYPE_TIME:
 		case MYSQL_TYPE_DATETIME:
 		case MYSQL_TYPE_TIMESTAMP:
-			return DATA_INT;
+			return(DATA_INT);
 		default: /* Fall through */
 			DBUG_ASSERT((ulint)MYSQL_TYPE_DECIMAL < 256);
 		case MYSQL_TYPE_TIME2:
 		case MYSQL_TYPE_DATETIME2:
 		case MYSQL_TYPE_TIMESTAMP2:
-			return DATA_FIXBINARY;
+			return(DATA_FIXBINARY);
 		}
 	case MYSQL_TYPE_FLOAT:
 		return(DATA_FLOAT);
@@ -5608,7 +5610,7 @@ innobase_read_from_2_little_endian(
 /*===============================*/
 	const uchar*	buf)	/*!< in: from where to read */
 {
-	return (uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1])));
+	return((uint) ((ulint)(buf[0]) + 256 * ((ulint)(buf[1]))));
 }
 
 /*******************************************************************//**
@@ -6332,6 +6334,8 @@ ha_innobase::innobase_lock_autoinc(void)
 {
 	dberr_t		error = DB_SUCCESS;
 
+	ut_ad(!srv_read_only_mode);
+
 	switch (innobase_autoinc_lock_mode) {
 	case AUTOINC_NO_LOCKING:
 		/* Acquire only the AUTOINC mutex. */
@@ -6443,7 +6447,10 @@ ha_innobase::write_row(
 
 	DBUG_ENTER("ha_innobase::write_row");
 
-	if (prebuilt->trx != trx) {
+	if (srv_read_only_mode) {
+		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	} else if (prebuilt->trx != trx) {
 		sql_print_error("The transaction object for the table handle "
 				"is at %p, but for the current thread it is at "
 				"%p",
@@ -6722,6 +6729,8 @@ calc_row_difference(
 	trx_t*          trx = thd_to_trx(thd);
 	doc_id_t	doc_id = FTS_NULL_DOC_ID;
 
+	ut_ad(!srv_read_only_mode);
+
 	n_fields = table->s->fields;
 	clust_index = dict_table_get_first_index(prebuilt->table);
 
@@ -6975,7 +6984,10 @@ ha_innobase::update_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	if (!trx_is_started(trx)) {
+	if (srv_read_only_mode) {
+		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
 
@@ -7104,7 +7116,10 @@ ha_innobase::delete_row(
 
 	ut_a(prebuilt->trx == trx);
 
-	if (!trx_is_started(trx)) {
+	if (srv_read_only_mode) {
+		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
 
@@ -8050,7 +8065,7 @@ ha_innobase::ft_init_ext(
 
 	if (!index || index->type != DICT_FTS) {
 		my_error(ER_TABLE_HAS_NO_FT, MYF(0));
-		return NULL;
+		return(NULL);
 	}
 
 	if (!(table->fts->fts_status & ADDED_TABLE_SYNCED)) {
@@ -8079,7 +8094,7 @@ ha_innobase::ft_init_ext(
 		prebuilt->in_fts_query = true;
 	}
 
-	return ((FT_INFO*) fts_hdl);
+	return((FT_INFO*) fts_hdl);
 }
 
 /**********************************************************************//**
@@ -8131,7 +8146,7 @@ next_record:
 		   without fetching the table row */
 		if (ft_prebuilt->read_just_key) {
 			table->status= 0;
-			return (0);
+			return(0);
 		}
 
 		index = dict_table_get_index_on_name(
@@ -9360,6 +9375,8 @@ ha_innobase::create(
 		but we play safe here */
 
 		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
+	} else if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
 
 	/* Create the table definition in InnoDB */
@@ -9575,8 +9592,8 @@ ha_innobase::create(
 
 	log_buffer_flush_to_disk();
 
-	innobase_table = dict_table_open_on_name(norm_name, FALSE, FALSE,
-						 DICT_ERR_IGNORE_NONE);
+	innobase_table = dict_table_open_on_name(
+		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	DBUG_ASSERT(innobase_table != 0);
 
@@ -9672,6 +9689,10 @@ ha_innobase::discard_or_import_tablespace(
 	ut_a(prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(prebuilt->trx == thd_to_trx(ha_thd()));
 
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
+
 	dict_table = prebuilt->table;
 
 	if (dict_table->space == TRX_SYS_SPACE) {
@@ -9762,6 +9783,10 @@ ha_innobase::truncate()
 
 	DBUG_ENTER("ha_innobase::truncate");
 
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
+
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created, and update prebuilt->trx */
 
@@ -9814,7 +9839,7 @@ ha_innobase::delete_table(
 	dberr_t	err;
 	trx_t*	parent_trx;
 	trx_t*	trx;
-	THD	*thd = ha_thd();
+	THD*	thd = ha_thd();
 	char	norm_name[FN_REFLEN];
 
 	DBUG_ENTER("ha_innobase::delete_table");
@@ -9832,7 +9857,9 @@ ha_innobase::delete_table(
 	extension, in contrast to ::create */
 	normalize_table_name(norm_name, name);
 
-	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	} else if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
 		DBUG_RETURN(HA_ERR_GENERIC);
 	}
 
@@ -9936,6 +9963,10 @@ innobase_drop_database(
 
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
+	if (srv_read_only_mode) {
+		return;
+	}
+
 	/* In the Windows plugin, thd = current_thd is always NULL */
 	if (thd) {
 		trx_t*	parent_trx = check_trx_exists(thd);
@@ -10010,6 +10041,8 @@ innobase_rename_table(
 	DBUG_ENTER("innobase_rename_table");
 	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
+	ut_ad(!srv_read_only_mode);
+
 	normalize_table_name(norm_to, to);
 	normalize_table_name(norm_from, from);
 
@@ -10060,13 +10093,15 @@ innobase_rename_table(
 		}
 
 		if (error != DB_SUCCESS) {
-			FILE* ef = dict_foreign_err_file;
+			if (!srv_read_only_mode) {
+				FILE* ef = dict_foreign_err_file;
 
-			fputs("InnoDB: Renaming table ", ef);
-			ut_print_name(ef, trx, TRUE, norm_from);
-			fputs(" to ", ef);
-			ut_print_name(ef, trx, TRUE, norm_to);
-			fputs(" failed!\n", ef);
+				fputs("InnoDB: Renaming table ", ef);
+				ut_print_name(ef, trx, TRUE, norm_from);
+				fputs(" to ", ef);
+				ut_print_name(ef, trx, TRUE, norm_to);
+				fputs(" failed!\n", ef);
+			}
 		} else {
 #ifndef __WIN__
 			sql_print_warning("Rename partition table %s "
@@ -10114,6 +10149,11 @@ ha_innobase::rename_table(
 	THD*	thd		= ha_thd();
 
 	DBUG_ENTER("ha_innobase::rename_table");
+
+	if (srv_read_only_mode) {
+		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
 
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
@@ -10446,7 +10486,7 @@ longlong
 ha_innobase::get_memory_buffer_size() const
 /*=======================================*/
 {
-	return innobase_buffer_pool_size;
+	return(innobase_buffer_pool_size);
 }
 
 /*********************************************************************//**
@@ -10657,6 +10697,9 @@ ha_innobase::info_low(
 			prebuilt->trx->op_info = "updating table statistics";
 
 			if (dict_stats_is_persistent_enabled(ib_table)) {
+
+				ut_ad(!srv_read_only_mode);
+
 				if (is_analyze) {
 					opt = DICT_STATS_RECALC_PERSISTENT;
 				} else {
@@ -11130,7 +11173,8 @@ ha_innobase::check(
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
 	     index != NULL;
@@ -11269,7 +11313,8 @@ ha_innobase::check(
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	prebuilt->trx->op_info = "";
 	if (thd_killed(user_thd)) {
@@ -11314,40 +11359,47 @@ ha_innobase::update_table_comment(
 
 	/* output the data to a temporary file */
 
-	mutex_enter(&srv_dict_tmpfile_mutex);
-	rewind(srv_dict_tmpfile);
+	if (!srv_read_only_mode) {
 
-	fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
-		fsp_get_available_space_in_free_extents(
-			prebuilt->table->space));
+		mutex_enter(&srv_dict_tmpfile_mutex);
 
-	dict_print_info_on_foreign_keys(FALSE, srv_dict_tmpfile,
-				prebuilt->trx, prebuilt->table);
-	flen = ftell(srv_dict_tmpfile);
-	if (flen < 0) {
-		flen = 0;
-	} else if (length + flen + 3 > 64000) {
-		flen = 64000 - 3 - length;
-	}
-
-	/* allocate buffer for the full string, and
-	read the contents of the temporary file */
-
-	str = (char*) my_malloc(length + flen + 3, MYF(0));
-
-	if (str) {
-		char* pos	= str + length;
-		if (length) {
-			memcpy(str, comment, length);
-			*pos++ = ';';
-			*pos++ = ' ';
-		}
 		rewind(srv_dict_tmpfile);
-		flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
-		pos[flen] = 0;
-	}
 
-	mutex_exit(&srv_dict_tmpfile_mutex);
+		fprintf(srv_dict_tmpfile, "InnoDB free: %llu kB",
+			fsp_get_available_space_in_free_extents(
+				prebuilt->table->space));
+
+		dict_print_info_on_foreign_keys(
+			FALSE, srv_dict_tmpfile, prebuilt->trx,
+			prebuilt->table);
+
+		flen = ftell(srv_dict_tmpfile);
+
+		if (flen < 0) {
+			flen = 0;
+		} else if (length + flen + 3 > 64000) {
+			flen = 64000 - 3 - length;
+		}
+
+		/* allocate buffer for the full string, and
+		read the contents of the temporary file */
+
+		str = (char*) my_malloc(length + flen + 3, MYF(0));
+
+		if (str) {
+			char* pos	= str + length;
+			if (length) {
+				memcpy(str, comment, length);
+				*pos++ = ';';
+				*pos++ = ' ';
+			}
+			rewind(srv_dict_tmpfile);
+			flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
+			pos[flen] = 0;
+		}
+
+		mutex_exit(&srv_dict_tmpfile_mutex);
+	}
 
 	prebuilt->trx->op_info = (char*)"";
 
@@ -11364,8 +11416,8 @@ char*
 ha_innobase::get_foreign_key_create_info(void)
 /*==========================================*/
 {
-	char*	str	= 0;
 	long	flen;
+	char*	str	= 0;
 
 	ut_a(prebuilt != NULL);
 
@@ -11383,31 +11435,36 @@ ha_innobase::get_foreign_key_create_info(void)
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-	mutex_enter(&srv_dict_tmpfile_mutex);
-	rewind(srv_dict_tmpfile);
-
-	/* output the data to a temporary file */
-	dict_print_info_on_foreign_keys(TRUE, srv_dict_tmpfile,
-				prebuilt->trx, prebuilt->table);
-	prebuilt->trx->op_info = (char*)"";
-
-	flen = ftell(srv_dict_tmpfile);
-	if (flen < 0) {
-		flen = 0;
-	}
-
-	/* allocate buffer for the string, and
-	read the contents of the temporary file */
-
-	str = (char*) my_malloc(flen + 1, MYF(0));
-
-	if (str) {
+	if (!srv_read_only_mode) {
+		mutex_enter(&srv_dict_tmpfile_mutex);
 		rewind(srv_dict_tmpfile);
-		flen = (uint) fread(str, 1, flen, srv_dict_tmpfile);
-		str[flen] = 0;
-	}
 
-	mutex_exit(&srv_dict_tmpfile_mutex);
+		/* Output the data to a temporary file */
+		dict_print_info_on_foreign_keys(
+			TRUE, srv_dict_tmpfile, prebuilt->trx,
+			prebuilt->table);
+
+		prebuilt->trx->op_info = (char*)"";
+
+		flen = ftell(srv_dict_tmpfile);
+
+		if (flen < 0) {
+			flen = 0;
+		}
+
+		/* Allocate buffer for the string, and
+		read the contents of the temporary file */
+
+		str = (char*) my_malloc(flen + 1, MYF(0));
+
+		if (str) {
+			rewind(srv_dict_tmpfile);
+			flen = (uint) fread(str, 1, flen, srv_dict_tmpfile);
+			str[flen] = 0;
+		}
+
+		mutex_exit(&srv_dict_tmpfile_mutex);
+	}
 
 	return(str);
 }
@@ -11905,6 +11962,24 @@ ha_innobase::external_lock(
 		}
 	}
 
+	/* Check for UPDATEs in read-only mode. */
+	if (srv_read_only_mode
+	    && (thd_sql_command(thd) == SQLCOM_UPDATE
+		|| thd_sql_command(thd) == SQLCOM_INSERT
+		|| thd_sql_command(thd) == SQLCOM_REPLACE
+		|| thd_sql_command(thd) == SQLCOM_DROP_TABLE
+		|| thd_sql_command(thd) == SQLCOM_ALTER_TABLE
+		|| thd_sql_command(thd) == SQLCOM_OPTIMIZE
+		|| thd_sql_command(thd) == SQLCOM_CREATE_TABLE
+		|| thd_sql_command(thd) == SQLCOM_CREATE_INDEX
+		|| thd_sql_command(thd) == SQLCOM_DROP_INDEX
+		|| thd_sql_command(thd) == SQLCOM_DELETE)) {
+
+		ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+
+		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+	}
+
 	trx = prebuilt->trx;
 
 	prebuilt->sql_stat_start = TRUE;
@@ -11915,7 +11990,8 @@ ha_innobase::external_lock(
 	switch (prebuilt->table->quiesce) {
 	case QUIESCE_START:
 		/* Check for FLUSH TABLE t WITH READ LOCK; */
-		if (thd_sql_command(thd) == SQLCOM_FLUSH
+		if (!srv_read_only_mode
+		    && thd_sql_command(thd) == SQLCOM_FLUSH
 		    && lock_type == F_RDLCK) {
 
 			row_quiesce_table_start(prebuilt->table, trx);
@@ -12196,6 +12272,13 @@ innodb_show_status(
 
 	DBUG_ENTER("innodb_show_status");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	/* We don't create the temp files or associated
+	mutexes in read-only-mode */
+
+	if (srv_read_only_mode) {
+		DBUG_RETURN(0);
+	}
 
 	trx = check_trx_exists(thd);
 
@@ -12606,8 +12689,25 @@ ha_innobase::store_lock(
 	const bool in_lock_tables = thd_in_lock_tables(thd);
 	const uint sql_command = thd_sql_command(thd);
 
-	/* Check for FLUSH TABLES ... WITH READ LOCK */
-	if (sql_command == SQLCOM_FLUSH && lock_type == TL_READ_NO_INSERT) {
+	if (srv_read_only_mode
+	    && (sql_command == SQLCOM_UPDATE
+		|| sql_command == SQLCOM_INSERT
+		|| sql_command == SQLCOM_REPLACE
+		|| sql_command == SQLCOM_DROP_TABLE
+		|| sql_command == SQLCOM_ALTER_TABLE
+		|| sql_command == SQLCOM_OPTIMIZE
+		|| sql_command == SQLCOM_CREATE_TABLE
+		|| sql_command == SQLCOM_CREATE_INDEX
+		|| sql_command == SQLCOM_DROP_INDEX
+		|| sql_command == SQLCOM_DELETE)) {
+
+		ib_senderrf(trx->mysql_thd,
+			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+
+	} else if (sql_command == SQLCOM_FLUSH
+		   && lock_type == TL_READ_NO_INSERT) {
+
+		/* Check for FLUSH TABLES ... WITH READ LOCK */
 
 		/* Note: This call can fail, but there is no way to return
 		the error to the caller. We simply ignore it for now here
@@ -14958,9 +15058,9 @@ innobase_fts_retrieve_ranking(
 	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
 
 	if (ft_prebuilt->read_just_key) {
-		fts_ranking_t*  ranking = 
+		fts_ranking_t*  ranking =
 			rbt_value(fts_ranking_t, result->current);
-		return (ranking->rank);
+		return(ranking->rank);
 	}
 
 	/* Retrieve the ranking value for doc_id with value of
@@ -15010,7 +15110,7 @@ innobase_fts_find_ranking(
 
 	/* Retrieve the ranking value for doc_id with value of
 	prebuilt->fts_doc_id */
-	return fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id);
+	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
 }
 
 #ifdef UNIV_DEBUG
@@ -15073,7 +15173,7 @@ innobase_fts_get_version()
 	/* Currently this doesn't make much sense as returning
 	HA_CAN_FULLTEXT_EXT automatically mean this version is supported.
 	This supposed to ease future extensions.  */
-	return 2;
+	return(2);
 }
 
 /***********************************************************************
@@ -15082,7 +15182,7 @@ ulonglong
 innobase_fts_flags()
 /*================*/
 {
-	return (FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
+	return(FTS_ORDERED_RESULT | FTS_DOCID_IN_RESULT);
 }
 
 
@@ -15101,9 +15201,9 @@ innobase_fts_retrieve_docid(
 	result = ((NEW_FT_INFO *)fts_hdl)->ft_result;
 
 	if (ft_prebuilt->read_just_key) {
-		fts_ranking_t* ranking = 
+		fts_ranking_t* ranking =
 			rbt_value(fts_ranking_t, result->current);
-		return (ranking->doc_id);
+		return(ranking->doc_id);
 	}
 
 	return(ft_prebuilt->fts_doc_id);
@@ -15115,10 +15215,12 @@ Find and retrieve the size of the current result
 ulonglong
 innobase_fts_count_matches(
 /*=======================*/
-		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
+	FT_INFO_EXT* fts_hdl)	/*!< in: FTS handler */
 {
-	if (((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id != NULL) {
-		return rbt_size(((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id);
+	NEW_FT_INFO*	handle = (NEW_FT_INFO *) fts_hdl;
+
+	if (handle->ft_result->rankings_by_id != 0) {
+		return rbt_size(handle->ft_result->rankings_by_id);
 	} else {
 		return(0);
 	}
@@ -15158,7 +15260,7 @@ buffer_pool_dump_now(
 	const void*			save)	/*!< in: immediate result from
 						check function */
 {
-	if (*(my_bool*) save) {
+	if (*(my_bool*) save && !srv_read_only_mode) {
 		buf_dump_start();
 	}
 }
@@ -15438,11 +15540,11 @@ static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
 static MYSQL_SYSVAR_ULONG(max_purge_lag_delay, srv_max_purge_lag_delay,
    PLUGIN_VAR_RQCMDARG,
    "Maximum delay of user threads in micro-seconds",
-   NULL, NULL, 
+   NULL, NULL,
    0L,			/* Default seting */
    0L,			/* Minimum value */
    10000000UL, 0);	/* Maximum value */
- 
+
 static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Roll back the complete transaction on lock wait timeout, for 4.x compatibility (disabled by default)",
@@ -15883,8 +15985,8 @@ static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
-  "Debug flags for InnoDB change buffering (0=none)",
-  NULL, NULL, 0, 0, 1, 0);
+  "Debug flags for InnoDB change buffering (0=none, 2=crash at merge)",
+  NULL, NULL, 0, 0, 2, 0);
 
 static MYSQL_SYSVAR_BOOL(disable_background_merge,
   srv_ibuf_disable_background_merge,
@@ -15945,6 +16047,11 @@ static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
   "Percentage of empty space on a data page that can be reserved"
   " to make the page compressible.",
   NULL, NULL, 50, 0, 75, 0);
+
+static MYSQL_SYSVAR_BOOL(read_only, srv_read_only_mode,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Start InnoDB in read only mode (off by default)",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
   PLUGIN_VAR_OPCMDARG,
@@ -16069,6 +16176,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
+  MYSQL_SYSVAR(read_only),
   MYSQL_SYSVAR(io_capacity),
   MYSQL_SYSVAR(io_capacity_max),
   MYSQL_SYSVAR(monitor_enable),

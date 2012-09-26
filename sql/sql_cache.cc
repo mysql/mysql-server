@@ -1000,14 +1000,14 @@ void Query_cache::end_of_result(THD *thd)
   if (query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  /* Ensure that only complete results are cached. */
-  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
-
-  if (thd->killed)
+  if (thd->killed || thd->is_error())
   {
     query_cache_abort(&thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
+
+  /* Ensure that only complete results are cached. */
+  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
 #ifdef EMBEDDED_LIBRARY
   insert(query_cache_tls, (char*)thd,
@@ -1185,6 +1185,18 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   */
   if (thd->locked_tables_mode || query_cache_size == 0)
     DBUG_VOID_RETURN;
+
+#ifndef EMBEDDED_LIBRARY
+  /*
+    Without active vio, net_write_packet() will not be called and
+    therefore neither Query_cache::insert(). Since we will never get a
+    complete query result in this case, it does not make sense to
+    register the query in the first place.
+  */
+  if (thd->net.vio == NULL)
+    DBUG_VOID_RETURN;
+#endif
+
   uint8 tables_type= 0;
 
   if ((local_tables= is_cacheable(thd, thd->query_length(),

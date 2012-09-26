@@ -239,19 +239,20 @@ row_upd_check_references_constraints(
 			|| row_upd_changes_first_fields_binary(
 				entry, index, node->update,
 				foreign->n_fields))) {
+			dict_table_t*	foreign_table = foreign->foreign_table;
 
 			dict_table_t*	ref_table = NULL;
 
-			if (foreign->foreign_table == NULL) {
+			if (foreign_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
 					foreign->foreign_table_name_lookup,
 					FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 			}
 
-			if (foreign->foreign_table) {
+			if (foreign_table) {
 				os_inc_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -263,9 +264,9 @@ row_upd_check_references_constraints(
 			err = row_ins_check_foreign_constraint(
 				FALSE, foreign, table, entry, thr);
 
-			if (foreign->foreign_table) {
+			if (foreign_table) {
 				os_dec_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -1664,6 +1665,20 @@ row_upd_sec_index_entry(
 		break;
 
 	case ROW_NOT_FOUND:
+		if (*index->name == TEMP_INDEX_PREFIX) {
+			/* When online CREATE INDEX copied the update
+			that we already made to the clustered index,
+			and completed the secondary index creation
+			before we got here, the old secondary index
+			record would not exist. The CREATE INDEX
+			should be waiting for a MySQL meta-data lock
+			upgrade at least until this UPDATE
+			returns. After that point, the
+			TEMP_INDEX_PREFIX would be dropped from the
+			index name in commit_inplace_alter_table(). */
+			break;
+		}
+
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -2321,12 +2336,8 @@ row_upd_clust_step(
 	ulint	mode;
 
 #ifdef UNIV_DEBUG
-	/* Only for DML. Without this check it triggers an assertion failure
-	in the debug_sync.cc code for some code paths. According
-	to Ingo: "close_temporary_tables () is called after
-	debug_sync_end_thread(this)". Once it is fixed we can get rid of
-	the "if". */
-
+	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
+	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
 	if (!thr_get_trx(thr)->ddl) {
 		DEBUG_SYNC_C_IF_THD(
 			thr_get_trx(thr)->mysql_thd,
@@ -2519,6 +2530,15 @@ row_upd(
 
 		return(DB_SUCCESS);
 	}
+
+#ifdef UNIV_DEBUG
+	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
+	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
+	if (!thr_get_trx(thr)->ddl) {
+		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+				    "after_row_upd_clust");
+	}
+#endif /* UNIV_DEBUG */
 
 	do {
 		/* Skip corrupted index */

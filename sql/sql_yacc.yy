@@ -1032,7 +1032,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  ASCII_SYM                     /* MYSQL-FUNC */
 %token  ASENSITIVE_SYM                /* FUTURE-USE */
 %token  AT_SYM                        /* SQL-2003-R */
-%token  AUTHORS_SYM
 %token  AUTOEXTEND_SIZE_SYM
 %token  AUTO_INC
 %token  AVG_ROW_LENGTH
@@ -1100,7 +1099,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  CONTAINS_SYM                  /* SQL-2003-N */
 %token  CONTEXT_SYM
 %token  CONTINUE_SYM                  /* SQL-2003-R */
-%token  CONTRIBUTORS_SYM
 %token  CONVERT_SYM                   /* SQL-2003-N */
 %token  COUNT_SYM                     /* SQL-2003-N */
 %token  CPU_SYM
@@ -12408,16 +12406,6 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_ENGINES))
               MYSQL_YYABORT;
           }
-        | AUTHORS_SYM
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_AUTHORS;
-          }
-        | CONTRIBUTORS_SYM
-          {
-            LEX *lex=Lex;
-            lex->sql_command= SQLCOM_SHOW_CONTRIBUTORS;
-          }
         | PRIVILEGES
           {
             LEX *lex=Lex;
@@ -13879,6 +13867,12 @@ user:
             $$->uses_identified_by_password_clause= false;
             $$->uses_authentication_string_clause= false;
 
+            /*
+              Trim whitespace as the values will go to a CHAR field
+              when stored.
+            */
+            trim_whitespace(system_charset_info, &$$->user);
+
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
                                          system_charset_info, 0))
@@ -13910,6 +13904,12 @@ user:
               the character set is utf8.
             */
             my_casedn_str(system_charset_info, $$->host.str);
+            /*
+              Trim whitespace as the values will go to a CHAR field
+              when stored.
+            */
+            trim_whitespace(system_charset_info, &$$->user);
+            trim_whitespace(system_charset_info, &$$->host);
           }
         | CURRENT_USER optional_braces
           {
@@ -13994,7 +13994,6 @@ keyword_sp:
         | ANALYSE_SYM              {}
         | ANY_SYM                  {}
         | AT_SYM                   {}
-        | AUTHORS_SYM              {}
         | AUTO_INC                 {}
         | AUTOEXTEND_SIZE_SYM      {}
         | AVG_ROW_LENGTH           {}
@@ -14029,7 +14028,6 @@ keyword_sp:
         | CONSTRAINT_SCHEMA_SYM    {}
         | CONSTRAINT_NAME_SYM      {}
         | CONTEXT_SYM              {}
-        | CONTRIBUTORS_SYM         {}
         | CPU_SYM                  {}
         | CUBE_SYM                 {}
         /*
