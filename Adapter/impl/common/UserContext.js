@@ -259,7 +259,7 @@ exports.UserContext.prototype.find = function() {
       } else {
         // create the find operation and execute it
         dbSession = userContext.session.dbSession;
-        transactionHandler = dbSession.getTransaction();
+        transactionHandler = dbSession.getTransactionHandler();
         op = dbSession.buildReadOperation(index, keys, transactionHandler, findOnResult);
         if (userContext.autocommit) {
           transactionHandler.executeCommit([op], function() {
@@ -267,9 +267,9 @@ exports.UserContext.prototype.find = function() {
             udebug.log_detail('find transactionHandler.executeCommit callback.');
           });
         } else {
-          transactionHandler.executeNoCommit([op], function() {
+          transactionHandler.execute([op], function() {
             // there is nothing that needs to be done here
-            udebug.log_detail('find transactionHandler.executeNoCommit callback.');
+            udebug.log_detail('find transactionHandler.execute callback.');
           });
         }
       }
@@ -308,7 +308,7 @@ exports.UserContext.prototype.persist = function() {
       userContext.applyCallback(err);
       return;
     } else {
-      transactionHandler = dbSession.getTransaction();
+      transactionHandler = dbSession.getTransactionHandler();
       object = userContext.user_arguments[0];
       callback = userContext.user_callback;
       op = dbSession.buildInsertOperation(dbTableHandler, object, transactionHandler, persistOnResult);
@@ -318,9 +318,9 @@ exports.UserContext.prototype.persist = function() {
           udebug.log_detail('find transactionHandler.executeCommit callback.');
         });
       } else {
-        transactionHandler.executeNoCommit([op], function() {
+        transactionHandler.execute([op], function() {
           // there is nothing that needs to be done here
-          udebug.log_detail('find transactionHandler.executeNoCommit callback.');
+          udebug.log_detail('find transactionHandler.execute callback.');
         });
       }
     }
@@ -364,7 +364,7 @@ exports.UserContext.prototype.remove = function() {
         err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
       } else {
-        transactionHandler = dbSession.createTransaction();
+        transactionHandler = dbSession.getTransactionHandler();
         callback = userContext.user_callback;
         op = dbSession.buildDeleteOperation(dbIndexHandler, object, transactionHandler, removeOnResult);
         if (userContext.autocommit) {
@@ -373,9 +373,9 @@ exports.UserContext.prototype.remove = function() {
             udebug.log_detail('find transactionHandler.executeCommit callback.');
           });
         } else {
-          transactionHandler.executeNoCommit([op], function() {
+          transactionHandler.execute([op], function() {
             // there is nothing that needs to be done here
-            udebug.log_detail('find transactionHandler.executeNoCommit callback.');
+            udebug.log_detail('find transactionHandler.execute callback.');
           });
         }
       }
@@ -403,8 +403,7 @@ exports.UserContext.prototype.commit = function() {
   // commit begins here
   if (userContext.session.tx.isActive()) {
     udebug.log('UserContext.commit tx is active.')
-    var transactionHandler = userContext.session.dbSession.getTransaction();
-    transactionHandler.commit(commitOnCommit);
+    userContext.session.dbSession.commit(commitOnCommit);
   } else {
     userContext.applyCallback(
         new Error('Fatal Internal Exception: UserContext.commit with no active transaction.'));
@@ -426,7 +425,7 @@ exports.UserContext.prototype.rollback = function() {
   // rollback begins here
   if (userContext.session.tx.isActive()) {
     udebug.log('UserContext.rollback tx is active.')
-    var transactionHandler = userContext.session.dbSession.getTransaction();
+    var transactionHandler = userContext.session.dbSession.getTransactionHandler();
     transactionHandler.rollback(rollbackOnRollback);
   } else {
     userContext.applyCallback(

@@ -70,13 +70,13 @@ t1.prepare = function prepare(testObj) {
 t1.runTestMethod = function do_insert_op(dataObj) {
   udebug.log("do_insert_op");
 
-  var tx = dbSession.createTransaction();
+  var tx = dbSession.getTransactionHandler();
   var thandler = new dbt.DBTableHandler(table, null);
   var test = this;
   
   var op = dbSession.buildInsertOperation(thandler, dataObj, tx, null);
 
-  tx.executeCommit([ op ], function(err, tx) {
+  tx.execute([ op ], function(err, tx) {
     if(err) { 
       test.appendErrorMessage("ExecuteCommit failed: " + err);  
     }
@@ -97,14 +97,14 @@ t2.prepare = t1.prepare;
 
 t2.runTestMethod = function do_delete_op(keyObj) {
   udebug.log("do_delete_op");
-  var tx = dbSession.createTransaction();
+  var tx = dbSession.getTransactionHandler();
   var thandler = new dbt.DBTableHandler(table, null);
   var ixhandler = thandler.getIndexHandler(keyObj);
   var test = this;
 
   var op = dbSession.buildDeleteOperation(ixhandler, keyObj, tx, null);
   
-  tx.executeCommit([ op ], function(err, tx) {
+  tx.execute([ op ], function(err, tx) {
     if(err) { 
       test.appendErrorMessage("ExecuteCommit failed: " + err); 
     }

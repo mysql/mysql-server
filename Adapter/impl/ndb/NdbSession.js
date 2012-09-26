@@ -91,21 +91,6 @@ NdbSession.prototype.close = function(userCallback) {
 };
 
 
-/* DBTransactionHandler createTransaction()
-   IMMEDIATE
-
-   RETURNS a DBTransactionHandler
-*/
-NdbSession.prototype.createTransaction = function() {
-  udebug.log("createTransaction");
-  
-  delete this.tx;  
-  this.tx = new dbtxhandler.DBTransactionHandler(this);
-  
-  return this.tx;
-};
-
-
 /* buildReadOperation(DBIndexHandler dbIndexHandler, 
                       Object keys,
                       DBTransactionHandler transaction,
@@ -198,3 +183,72 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
   op.userCallback = callback;
   return op;
 };
+
+
+/* getTransactionHandler() 
+   IMMEDIATE
+   
+   RETURNS the current transaction handler, creating it if necessary
+*/
+NdbSession.prototype.getTransactionHandler = function() {
+  udebug.log("getTransactionHandler");
+  if(this.tx) {
+   udebug.log("getTransactionHandler -- return existing");
+  }
+  else {
+    udebug.log("getTransactionHandler -- return new");
+    this.tx = new dbtxhandler.DBTransactionHandler(this);
+  }
+  return this.tx;
+};
+
+
+/* begin() 
+   IMMEDIATE
+   
+   Begin a user transaction context; exit autocommit mode.
+*/
+NdbSession.prototype.begin = function() {
+  var tx = this.getTransactionHandler();
+  assert(tx.state === "DEFINED");
+  tx.autocommit = false;
+};
+
+
+/* commit(callback) 
+   ASYNC
+   
+   Commit a user transaction.
+   Callback is optional; if supplied, will receive (err).
+*/
+NdbSession.prototype.commit = function(userCallback) {
+  assert(this.tx.autocommit === false);
+  var self = this;
+  
+  function NdbSessionCommitCallback(a, b) {
+    udebug.log("NdbSessionCommitCallback");
+    self.tx = null;
+    if(userCallback) { userCallback(a, b); }
+  }
+  this.tx.commit(NdbSessionCommitCallback);
+};
+
+
+/* rollback(callback) 
+   ASYNC
+   
+   Roll back a user transaction.
+   Callback is optional; if supplied, will receive (err).
+*/
+NdbSession.prototype.rollback = function (userCallback) {
+  assert(this.tx.autocommit === false);
+  var self = this;
+
+  function NdbSessionRollbackCallback(a, b) {
+    udebug.log("NdbSessionRollbackCallback");
+    self.tx = null;
+    if(userCallback) { userCallback(a, b); }
+  }
+  this.tx.rollback(NdbSessionRollbackCallback);
+};
+

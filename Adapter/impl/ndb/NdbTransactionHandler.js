@@ -33,6 +33,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 function DBTransactionHandler(dbsession) {
   udebug.log("constructor");
   this.dbSession          = dbsession;
+  this.autocommit         = true;
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.executedOperations = [];
@@ -47,7 +48,7 @@ function execute(self, execMode, dbOperationList, callback) {
   var table = dbOperationList[0].tableHandler.dbTable;
 
   function onCompleteTx(err, result) {
-    udebug.log("execute onCompleteTx");
+    udebug.log("execute onCompleteTx", err);
     
     // Update our own success and error objects
     self.error = err;
@@ -112,33 +113,33 @@ function execute(self, execMode, dbOperationList, callback) {
            function(error, DBTransactionHandler) callback)
    ASYNC
    
-   Executes the DBOperations in dbOperationList, without commiting.
+   Executes the DBOperations in dbOperationList.
+   Commits the transaction if autocommit is true.
 */
-proto.execute = function executeNoCommit(dbOperationList, userCallback) {
-  udebug.log("executeNoCommit"); 
-  execute(this, adapter.ndbapi.NoCommit, dbOperationList, userCallback);
-};
+proto.execute = function(dbOperationList, userCallback) {
+  udebug.log("execute");
 
-
-/* executeCommit(DBOperation[] dbOperationList,
-                 function(error, DBTransactionHandler) callback)
-   ASYNC
-   
-   Executes the DBOperations in dbOperationList and commit the transaction.
-*/
-proto.executeCommit = function executeCommit(dbOperationList, userCallback) {
-  udebug.log("executeCommit");
-  
   function onExecCommit(err, dbTxHandler) {
-    udebug.log("executeCommit onExecCommit");
+    udebug.log("execute onExecCommit");
     dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
     if(userCallback) {
       userCallback(err, dbTxHandler);
     }
   }
   
-  execute(this, adapter.ndbapi.Commit, dbOperationList, onExecCommit);
+  if(this.autocommit) {
+    udebug.log(" -- AutoCommit");
+    execute(this, adapter.ndbapi.Commit, dbOperationList, onExecCommit);
+  }
+  else {
+    udebug.log(" -- NoCommit");
+    execute(this, adapter.ndbapi.NoCommit, dbOperationList, userCallback);
+  }
 };
+
+/* Compatibility */
+proto.executeCommit = proto.execute;
+proto.executeNoCommit = proto.execute;
 
 
 /* commit(function(error, DBTransactionHandler) callback)
@@ -155,9 +156,15 @@ proto.commit = function commit(userCallback) {
     self.state = doc.DBTransactionStates[2]; // COMMITTED
     userCallback(err, self);
   }
-  
-  self.ndbtx.execute(adapter.ndbapi.Commit, adapter.ndbapi.AbortOnError,
-                     0, onNdbCommit);
+
+  if(self.ndbtx) {  
+    self.ndbtx.execute(adapter.ndbapi.Commit, adapter.ndbapi.AbortOnError,
+                       0, onNdbCommit);
+  }
+  else {
+    udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
+    onNdbCommit();
+  }
 };
 
 
@@ -172,12 +179,18 @@ proto.rollback = function rollback(callback) {
   
   function onNdbRollback(err, result) {
     // TODO: Update our own success and error objects
+    self.state = doc.DBTransactionStates[3]; // ROLLEDBACK
     callback(err, self);
   }
   
-  self.state = doc.DBTransactionStates[3]; // ROLLEDBACK
-  self.ndbtx.execute(adapter.ndbapi.Rollback, adapter.ndbapi.DefaultAbortOption,
-                     0, onNdbRollback);
+  if(self.ndbtx) {
+    self.ndbtx.execute(adapter.ndbapi.Rollback, adapter.ndbapi.DefaultAbortOption,
+                       0, onNdbRollback);
+  }
+  else {
+    udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");
+    onNdbRollback();
+  }
 };
 
 
