@@ -12,6 +12,7 @@
 // Don't include toku_assert.h.   Just use assert.h
 #include <assert.h>
 #include <string.h>
+#include <sys/types.h>
 
 #define VISIBLE "__attribute__((__visibility__(\"default\")))"
 

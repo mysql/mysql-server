@@ -2089,7 +2089,7 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
         r = env_get_engine_status_text(env, buff, buffsize);
     }
     else {
-        r = ENODATA;
+        r = EOPNOTSUPP;
         snprintf(buff, buffsize, "Engine status not available: disabled by user.  This should only happen in test programs.\n");
     }
     return r;

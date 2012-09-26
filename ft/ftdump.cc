@@ -7,7 +7,9 @@
 /* Tell me the diff between two brt files. */
 
 #include "includes.h"
+#include <stdlib.h>
 #include <inttypes.h>
+#include <limits.h>
 
 static void
 format_time(const uint64_t time_int, char *buf) {
