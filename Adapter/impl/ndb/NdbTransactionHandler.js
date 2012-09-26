@@ -27,8 +27,10 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ndboperation    = require("./NdbOperation.js"),
     doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
-    proto           = doc.DBTransactionHandler;
-
+    proto           = doc.DBTransactionHandler,
+    COMMIT          = adapter.ndbapi.Commit,
+    NOCOMMIT        = adapter.ndbapi.NoCommit;
+    
 
 function DBTransactionHandler(dbsession) {
   udebug.log("constructor");
@@ -118,10 +120,14 @@ function execute(self, execMode, dbOperationList, callback) {
 */
 proto.execute = function(dbOperationList, userCallback) {
   udebug.log("execute");
+  var execMode = this.autocommit ? COMMIT : NOCOMMIT;
 
   function onExecCommit(err, dbTxHandler) {
     udebug.log("execute onExecCommit");
+
     dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
+    ndbsession.txDidCommit(dbTxHandler.dbSession, dbTxHandler);
+
     if(userCallback) {
       userCallback(err, dbTxHandler);
     }
@@ -129,11 +135,11 @@ proto.execute = function(dbOperationList, userCallback) {
   
   if(this.autocommit) {
     udebug.log(" -- AutoCommit");
-    execute(this, adapter.ndbapi.Commit, dbOperationList, onExecCommit);
+    execute(this, execMode, dbOperationList, onExecCommit);
   }
   else {
     udebug.log(" -- NoCommit");
-    execute(this, adapter.ndbapi.NoCommit, dbOperationList, userCallback);
+    execute(this, execMode, dbOperationList, userCallback);
   }
 };
 
