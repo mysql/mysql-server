@@ -2343,6 +2343,13 @@ files_checked:
 			|| srv_n_log_files_found != srv_n_log_files)) {
 			/* Prepare to replace the redo log files. */
 
+			if (srv_read_only_mode) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Cannot resize log files "
+					"in read-only mode.");
+				return(DB_READ_ONLY);
+			}
+
 			/* Clean the buffer pool. */
 			bool success = buf_flush_list(
 				ULINT_MAX, LSN_MAX, NULL);
