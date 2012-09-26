@@ -18,6 +18,12 @@
  02110-1301  USA
  */
 
+var udebug = unified_debug.getLogger("TransactionTest.js");
+
+if(! global.t_basic) {
+  require("./lib.js");
+}
+
 /***** Test idle state ***/
 t1 = new harness.ConcurrentTest("testIdle");
 t1.run = function() {
@@ -217,9 +223,11 @@ t9.run = function() {
 
 t10 = new harness.SerialTest("testCommit");
 t10.run = function() {
+  udebug.log("t10 run");
   var testCase = this;
   
   var t10OnFind = function(err, found) {
+    udebug.log("t10 OnFind");
     if (found.id === 1000) {
       testCase.pass();  
     } else {
@@ -228,14 +236,17 @@ t10.run = function() {
   };
   
   var t10OnCommit = function(err, session, persisted) {
+    udebug.log("t10 OnCommit");
     session.find(t_basic, 1000, fail_verify_t_basic, 1000, testCase, false); // should succeed
   };
   
   var t10OnPersist = function(err, session, tx, persisted) {
+    udebug.log("t10 OnPersist");
     tx.commit(t10OnCommit, session, persisted);
   };
   
   var t10OnSession = function(session) {
+    udebug.log("t10 OnSession");
     var tx = session.currentTransaction();
     tx.begin();
     var instance = new t_basic(1000, "Employee 1000", 1000, 1000);

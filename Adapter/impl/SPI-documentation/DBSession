@@ -7,7 +7,6 @@
       update(table, keys, row)
       write(table, row)
       delete(table, keys)
-      createTransaction()
       setLockMode()
       close()
       begin()
@@ -84,12 +83,12 @@
   buildDeleteOperation(dbIndexHandler, keys, transaction, callback);
 
 
-/* createTransaction()
+/* getTransactionHandler() 
    IMMEDIATE
-
-   RETURNS a DBTransactionHandler
+   
+   RETURNS the current transaction handler, creating it if necessary
 */
-  createTransaction();
+  getTransactionHandler()
 
 
 /* void setLockMode(LockMode lockmode)

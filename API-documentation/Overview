@@ -67,8 +67,6 @@ DBSession:
   update()
   write()
   delete()
-  truncateTable()
-  createTransaction()
   execute()
   setPartitionKey()
   setLockMode()
