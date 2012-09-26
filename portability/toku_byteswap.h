@@ -10,6 +10,9 @@
 
 #if defined(HAVE_BYTESWAP_H)
 # include <byteswap.h>
+#elif defined(HAVE_SYS_ENDIAN_H)
+# include <sys/endian.h>
+# define bswap_64 bswap64
 #elif defined(HAVE_LIBKERN_OSBYTEORDER_H)
 # include <libkern/OSByteOrder.h>
 # define bswap_64 OSSwapInt64

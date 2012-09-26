@@ -11,15 +11,26 @@
 #include "toku_os.h"
 #if defined(HAVE_SYSCALL_H)
 # include <syscall.h>
-#elif defined(HAVE_SYS_SYSCALL_H)
+#endif
+#if defined(HAVE_SYS_SYSCALL_H)
 # include <sys/syscall.h>
-# if !defined(__NR_gettid) && defined(SYS_gettid)
-#  define __NR_gettid SYS_gettid
-# endif
+#endif
+#if defined(HAVE_PTHREAD_NP_H)
+# include <pthread_np.h>
 #endif
 
+// since we implement the same thing here as in toku_os_gettid, this test
+// is pretty pointless
 static int gettid(void) {
+#if defined(__NR_gettid)
     return syscall(__NR_gettid);
+#elif defined(SYS_gettid)
+    return syscall(SYS_gettid);
+#elif defined(HAVE_PTHREAD_GETTHREADID_NP)
+    return pthread_getthreadid_np();
+#else
+# error "no implementation of gettid available"
+#endif
 }
 
 int main(void) {
