@@ -477,7 +477,7 @@ static int
 toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    int r;
+    int r = 0;
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
     DBT old_descriptor;
     bool is_db_hot_index  = ((flags & DB_IS_HOT_INDEX) != 0);
@@ -500,8 +500,10 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         if (r != 0) { goto cleanup; }    
     }
 
+    // TODO: use toku_clone_dbt(&old-descriptor, db->descriptor);
     old_descriptor.size = db->descriptor->dbt.size;
     old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
+
     toku_ft_change_descriptor(
         db->i->ft_handle, 
         &old_descriptor, 
@@ -518,7 +520,9 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         toku_lt_update_descriptor(db->i->lt, db->cmp_descriptor);
     }
 cleanup:
-    if (old_descriptor.data) toku_free(old_descriptor.data);
+    if (old_descriptor.data) {
+        toku_free(old_descriptor.data);
+    }
     return r;
 }
 
